@@ -260,7 +260,7 @@ async def test_camera_discards_inflight_still_and_revokes_old_hls(
 
 
 @pytest.mark.parametrize("legacy_owner", ["self", "other"])
-@pytest.mark.parametrize("advertised", ["camera", "unsupported"])
+@pytest.mark.parametrize("advertised", ["camera", "unsupported", "omitted"])
 async def test_camera_replaces_only_its_own_legacy_native_switch(
     hass: HomeAssistant,
     native: MockConfigEntry,
@@ -289,10 +289,15 @@ async def test_camera_replaces_only_its_own_legacy_native_switch(
     if advertised == "camera":
         await _camera(hass, native, client)
     else:
-        response = await _send(client, _hello([]) | {"unsupported": ["camera_enabled"]})
+        message = _hello([])
+        if advertised == "unsupported":
+            message["unsupported"] = ["camera_enabled"]
+        response = await _send(client, message)
         assert response["success"]
         await hass.async_block_till_done()
-    assert (registry.async_get(owned.entity_id) is None) == (legacy_owner == "self")
+    assert (registry.async_get(owned.entity_id) is None) == (
+        legacy_owner == "self" and advertised != "omitted"
+    )
     assert registry.async_get(mqtt.entity_id) is not None
     assert registry.async_get(foreign.entity_id) is not None
 
@@ -482,13 +487,27 @@ async def test_camera_rejects_still_and_stream_creation_from_an_old_owner(
         assert (await async_get_image(hass, camera.entity_id)).content == b"fresh"
 
 
-async def test_legacy_camera_switch_identity_and_customisation_survive_reconnect(
+@pytest.mark.parametrize(
+    "shape",
+    [
+        {
+            "platform": "switch",
+            "translation_key": "camera_enabled",
+            "unique_suffix": "camera_enabled",
+        },
+        {"platform": "switch"},
+        {"translation_key": "camera_enabled"},
+        {"unique_suffix": "camera_enabled"},
+    ],
+)
+async def test_unknown_camera_shapes_render_nothing_and_preserve_old_registry_rows(
     hass: HomeAssistant,
     native: MockConfigEntry,
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
+    shape: dict[str, str],
 ) -> None:
-    """An older panel's switch hello is not proof that its camera replaced it."""
+    """Unknown camera shapes cannot control or retire a stored old switch."""
     registry = er.async_get(hass)
     legacy = registry.async_get_or_create(
         "switch", DOMAIN, f"{DID}_camera_enabled", config_entry=native
@@ -498,109 +517,25 @@ async def test_legacy_camera_switch_identity_and_customisation_survive_reconnect
         new_entity_id="switch.room_camera_privacy",
         name="Room camera privacy",
         icon="mdi:cctv",
-        disabled_by=er.RegistryEntryDisabler.USER,
     )
     registry.async_update_entity_options(
         legacy.entity_id, DOMAIN, {"custom_choice": "retain"}
     )
-    fields = ("entity_id", "unique_id", "name", "icon", "disabled_by", "options")
-    expected = tuple(
-        getattr(registry.async_get(legacy.entity_id), field) for field in fields
-    )
-    descriptor = CAMERA | {
-        "platform": "switch",
-        "translation_key": "camera_enabled",
-        "unique_suffix": "camera_enabled",
-        "entity_category": "config",
-        "enabled_default": False,
-    }
+    expected = registry.async_get(legacy.entity_id)
+    descriptor = CAMERA | shape
     for _connection in range(2):
         client = await hass_ws_client(hass, hass_read_only_access_token)
-        response = await _send(client, _hello([descriptor]))
-        assert response["success"]
-        assert response["result"]["channels"]["unknown"] == []
-        await _sync(hass, client, response["result"]["session"], [descriptor])
-        retained = registry.async_get(legacy.entity_id)
-        assert retained is not None
-        assert tuple(getattr(retained, field) for field in fields) == expected
-        assert registry.async_get_entity_id("camera", DOMAIN, f"{DID}_camera") is None
-        await client.close()
-        await hass.async_block_till_done()
-        retained = registry.async_get(legacy.entity_id)
-        assert retained is not None
-        assert tuple(getattr(retained, field) for field in fields) == expected
-
-
-async def test_legacy_camera_switch_stays_controllable_until_camera_replaces_it(
-    hass: HomeAssistant,
-    hass_read_only_user: Any,
-    hass_ws_client: WsClientFactory,
-    hass_read_only_access_token: str,
-) -> None:
-    """HA-first rollout preserves old switch control until the app offers a camera."""
-    from .test_native import _setup
-    from .test_transport_commands import Panel, _call
-
-    entry = await _setup(hass, hass_read_only_user.id)
-    registry = er.async_get(hass)
-    legacy = registry.async_get_or_create(
-        "switch", DOMAIN, f"{DID}_camera_enabled", config_entry=entry
-    )
-    legacy = registry.async_update_entity(
-        legacy.entity_id,
-        new_entity_id="switch.room_camera_privacy",
-        name="Room camera privacy",
-        icon="mdi:cctv",
-    )
-    descriptor = CAMERA | {
-        "platform": "switch",
-        "translation_key": "camera_enabled",
-        "unique_suffix": "camera_enabled",
-        "entity_category": "config",
-        "enabled_default": False,
-    }
-    for _connection in range(2):
-        client = await hass_ws_client(hass, hass_read_only_access_token)
+        # A described but unknown shape cannot assert retirement authority too.
         response = await _send(
-            client,
-            _hello([descriptor])
-            | {
-                "capabilities": ["state", "events", "commands", "approval"],
-            },
+            client, _hello([descriptor]) | {"unsupported": ["camera_enabled"]}
         )
         assert response["success"]
-        panel = Panel(client, response)
-        await _sync(hass, client, panel.token, [descriptor])
-        state = hass.states.get(legacy.entity_id)
-        assert state is not None
-        assert state.state == "off"
-        call = _call(hass, "switch", "turn_on", {"entity_id": legacy.entity_id})
-        command = await panel.command()
-        assert command["channel"] == "camera_enabled"
-        assert command["value"] is True
-        assert (await panel.answer(command["command_id"], "applied"))["success"]
-        async with asyncio.timeout(5):
-            await call
-        await _on(hass, client, panel.token, True)
-        assert hass.states.get(legacy.entity_id).state == "on"
-        retained = registry.async_get(legacy.entity_id)
-        assert (retained.entity_id, retained.name, retained.icon) == (
-            legacy.entity_id,
-            "Room camera privacy",
-            "mdi:cctv",
-        )
+        assert response["result"]["channels"]["unknown"] == ["camera_enabled"]
+        await _sync(hass, client, response["result"]["session"], [descriptor])
+        assert registry.async_get(legacy.entity_id) == expected
+        assert hass.states.get(legacy.entity_id) is None
+        assert registry.async_get_entity_id("camera", DOMAIN, f"{DID}_camera") is None
+        assert _native_entries(hass, native.entry_id) == {legacy.unique_id: expected}
         await client.close()
         await hass.async_block_till_done()
-    client = await hass_ws_client(hass, hass_read_only_access_token)
-    camera, _token = await _camera(hass, entry, client)
-    assert camera.available
-    assert registry.async_get(legacy.entity_id) is None
-    await client.close()
-    await hass.async_block_till_done()
-    # A rollback to the old app can describe its switch again after retirement.
-    client = await hass_ws_client(hass, hass_read_only_access_token)
-    token = await _session(client, [descriptor])
-    await _sync(hass, client, token, [descriptor])
-    restored = registry.async_get_entity_id("switch", DOMAIN, f"{DID}_camera_enabled")
-    assert restored is not None
-    assert hass.states.get(restored).state == "off"
+        assert registry.async_get(legacy.entity_id) == expected
