@@ -14,7 +14,9 @@ from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.translation import async_get_translations
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -30,7 +32,9 @@ from custom_components.panel_assistant.transport import (
     MAX_CHANNELS,
     ValueRejected,
     _validate_attributes,
+    async_bind_user,
     async_get_sessions,
+    async_raise_binding_issue,
     session_available,
     signal_session_changed,
 )
@@ -125,11 +129,25 @@ def _registry_digest(hass: HomeAssistant, entry_id: str) -> tuple[list[Any], lis
     )
 
 
+ISSUE_ID_PREFIX = "panel_user_mismatch_"
+
+
+def _issue(hass: HomeAssistant, entry_id: str) -> ir.IssueEntry | None:
+    return ir.async_get(hass).async_get_issue(DOMAIN, ISSUE_ID_PREFIX + entry_id)
+
+
 @pytest.fixture
-async def entry(hass: HomeAssistant) -> AsyncGenerator[MockConfigEntry]:
-    """Load one panel entry whose health reports the test identity."""
+async def entry(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> AsyncGenerator[MockConfigEntry]:
+    """Load one panel entry that an administrator bound to the panel account."""
     config_entry = MockConfigEntry(
-        domain=DOMAIN, title="alpha", data={CONF_ADDRESS: "panel.local"}
+        domain=DOMAIN,
+        title="alpha",
+        data={
+            CONF_ADDRESS: "panel.local",
+            CONF_TRANSPORT_USER_ID: hass_read_only_user.id,
+        },
     )
     config_entry.add_to_hass(hass)
     executor = SimpleNamespace(
@@ -428,7 +446,7 @@ async def test_malformed_envelope_is_invalid_format(
     assert not response["success"]
     assert response["error"]["code"] == "invalid_format"
     assert async_get_sessions(hass).get(entry.entry_id) is None
-    assert CONF_TRANSPORT_USER_ID not in entry.data
+    assert _issue(hass, entry.entry_id) is None
 
 
 @pytest.mark.parametrize(
@@ -505,27 +523,6 @@ async def test_entry_not_ready_is_unknown_panel(
     response = await _send(client, _hello())
 
     assert response["error"]["code"] == "unknown_panel"
-
-
-async def test_panel_is_bound_to_its_first_user(
-    hass: HomeAssistant,
-    entry: MockConfigEntry,
-    hass_ws_client: WsClientFactory,
-    hass_access_token: str,
-    hass_read_only_access_token: str,
-    hass_admin_user: Any,
-) -> None:
-    """A later hello from a different user is refused and keeps the binding."""
-    admin = await hass_ws_client(hass, hass_access_token)
-    await _open(admin)
-    other = await hass_ws_client(hass, hass_read_only_access_token)
-
-    response = await _send(other, _hello())
-
-    assert response["error"]["code"] == "panel_user_mismatch"
-    assert entry.data[CONF_TRANSPORT_USER_ID] == hass_admin_user.id
-    session = async_get_sessions(hass).get(entry.entry_id)
-    assert session is not None and session.user_id == hass_admin_user.id
 
 
 async def test_session_token_is_bound_to_its_connection(
@@ -718,14 +715,44 @@ async def test_report_event_is_deduplicated_per_session(
 
     first = await _send(client, dict(event))
     retry = await _send(client, dict(event))
+    older = await _send(client, {**event, "event_id": 1041})
     wrong_channel = await _send(client, {**event, "channel": "relay3"})
     wrong_type = await _send(client, {**event, "event_type": "keycode_menu"})
 
-    assert first["success"] and retry["success"]
+    assert first["success"] and retry["success"] and older["success"]
     assert wrong_channel["error"]["code"] == "unknown_channel"
     assert wrong_type["error"]["code"] == "invalid_value"
     session = async_get_sessions(hass).get(entry.entry_id)
     assert session is not None and session.events_received == 1
+
+
+async def test_event_deduplication_holds_for_the_whole_session(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """However many events a session carries, an early event is never recounted."""
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    token = await _open(client)
+    event = {
+        "type": "panel_assistant/report_event",
+        "session": token,
+        "channel": "button",
+        "event_type": "keycode_home",
+    }
+    count = 1000
+    for event_id in range(count):
+        await client.send_json_auto_id({**event, "event_id": event_id})
+    for _ in range(count):
+        assert (await _receive(client))["success"]
+
+    retry = await _send(client, {**event, "event_id": 0})
+    newer = await _send(client, {**event, "event_id": count})
+
+    assert retry["success"] and newer["success"]
+    session = async_get_sessions(hass).get(entry.entry_id)
+    assert session is not None and session.events_received == count + 1
 
 
 async def test_entry_unload_closes_the_session(
@@ -766,32 +793,32 @@ async def test_removed_user_loses_its_session(
     assert async_get_sessions(hass).get(entry.entry_id) is None
 
 
-async def test_removed_user_releases_its_panel_for_a_new_account(
+async def test_removed_user_releases_its_panel_and_its_requests(
     hass: HomeAssistant,
     entry: MockConfigEntry,
-    hass_ws_client: WsClientFactory,
-    hass_access_token: str,
-    hass_read_only_access_token: str,
     hass_read_only_user: Any,
-    hass_admin_user: Any,
 ) -> None:
-    """A replaced panel account must not lock the panel out for good."""
-    old_account = await hass_ws_client(hass, hass_read_only_access_token)
-    await _open(old_account)
+    """Removal clears the user's bindings and requests, and nobody else's."""
     other_entry = MockConfigEntry(
         domain=DOMAIN,
         title="beta",
         data={CONF_ADDRESS: "beta.local", CONF_TRANSPORT_USER_ID: "someone-else"},
     )
     other_entry.add_to_hass(hass)
+    async_raise_binding_issue(hass, other_entry, hass_read_only_user.id)
+    third_entry = MockConfigEntry(
+        domain=DOMAIN, title="gamma", data={CONF_ADDRESS: "gamma.local"}
+    )
+    third_entry.add_to_hass(hass)
+    async_raise_binding_issue(hass, third_entry, "someone-else")
 
     hass.bus.async_fire(EVENT_USER_REMOVED, {"user_id": hass_read_only_user.id})
     await hass.async_block_till_done()
-    new_account = await hass_ws_client(hass, hass_access_token)
 
-    await _open(new_account)
-    assert entry.data[CONF_TRANSPORT_USER_ID] == hass_admin_user.id
+    assert CONF_TRANSPORT_USER_ID not in entry.data
     assert other_entry.data[CONF_TRANSPORT_USER_ID] == "someone-else"
+    assert _issue(hass, other_entry.entry_id) is None
+    assert _issue(hass, third_entry.entry_id) is not None
 
 
 async def test_diagnostics_show_the_session_without_identity(
@@ -1009,10 +1036,17 @@ async def test_zeroconf_identity_matches_before_health_reports_one(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
+    hass_read_only_user: Any,
 ) -> None:
     """A discovered entry is found by its identity while health omits it."""
     config_entry = MockConfigEntry(
-        domain=DOMAIN, title="alpha", data={CONF_ADDRESS: "panel.local"}, unique_id=DID
+        domain=DOMAIN,
+        title="alpha",
+        data={
+            CONF_ADDRESS: "panel.local",
+            CONF_TRANSPORT_USER_ID: hass_read_only_user.id,
+        },
+        unique_id=DID,
     )
     config_entry.add_to_hass(hass)
     health = PanelHealth(
@@ -1044,3 +1078,358 @@ async def test_zeroconf_identity_matches_before_health_reports_one(
 
     assert async_get_sessions(hass).get(config_entry.entry_id) is not None
     assert config_entry.unique_id == DID
+
+
+# ---------------------------------------------------------------------------
+# Binding: only an administrator's confirmation binds a panel to a user.
+
+
+async def _unbind(hass: HomeAssistant, entry: MockConfigEntry) -> None:
+    data = dict(entry.data)
+    del data[CONF_TRANSPORT_USER_ID]
+    hass.config_entries.async_update_entry(entry, data=data)
+    await hass.async_block_till_done()
+
+
+async def _start_fix_flow(client: Any, entry_id: str) -> tuple[int, dict[str, Any]]:
+    response = await client.post(
+        "/api/repairs/issues/fix",
+        json={"handler": DOMAIN, "issue_id": ISSUE_ID_PREFIX + entry_id},
+    )
+    body: dict[str, Any] = await response.json() if response.status == 200 else {}
+    return response.status, body
+
+
+async def _submit_fix_flow(client: Any, flow_id: str) -> dict[str, Any]:
+    response = await client.post(f"/api/repairs/issues/fix/{flow_id}", json={})
+    assert response.status == 200, await response.text()
+    body: dict[str, Any] = await response.json()
+    return body
+
+
+@pytest.fixture
+async def repairs(hass: HomeAssistant) -> None:
+    """Load Repairs, whose fix flow views are an administrator's only way in."""
+    assert await async_setup_component(hass, "repairs", {})
+    await hass.async_block_till_done()
+
+
+async def test_squatter_cannot_bind_an_unbound_panel(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    hass_read_only_user: Any,
+) -> None:
+    """Abuse case 1: the first account to say hello no longer claims the panel."""
+    await _unbind(hass, entry)
+    squatter = await hass_ws_client(hass, hass_read_only_access_token)
+
+    first = await _send(squatter, _hello())
+    second = await _send(squatter, _hello())
+
+    for response in (first, second):
+        assert response["error"]["code"] == "panel_user_mismatch"
+    assert CONF_TRANSPORT_USER_ID not in entry.data
+    assert async_get_sessions(hass).get(entry.entry_id) is None
+    issue = _issue(hass, entry.entry_id)
+    assert issue is not None
+    assert issue.is_fixable
+    assert issue.translation_key == "panel_user_mismatch"
+    assert issue.translation_placeholders == {"panel": "alpha"}
+    assert issue.data == {"entry_id": entry.entry_id, "user_id": hass_read_only_user.id}
+
+
+async def test_other_user_cannot_take_over_a_bound_panel(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_access_token: str,
+    hass_read_only_access_token: str,
+    hass_read_only_user: Any,
+    hass_admin_user: Any,
+) -> None:
+    """Abuse case 2: even an administrator's own socket cannot rebind by hello."""
+    panel = await hass_ws_client(hass, hass_read_only_access_token)
+    await _open(panel)
+    session = async_get_sessions(hass).get(entry.entry_id)
+    intruder = await hass_ws_client(hass, hass_access_token)
+
+    refused = await _send(intruder, _hello())
+    reconnect = await hass_ws_client(hass, hass_read_only_access_token)
+    await _open(reconnect)
+
+    assert refused["error"]["code"] == "panel_user_mismatch"
+    assert entry.data[CONF_TRANSPORT_USER_ID] == hass_read_only_user.id
+    current = async_get_sessions(hass).get(entry.entry_id)
+    assert current is not None and current is not session
+    assert current.user_id == hass_read_only_user.id
+    # The bound panel reconnecting does not hide someone else's request.
+    issue = _issue(hass, entry.entry_id)
+    assert issue is not None and issue.data is not None
+    assert issue.data["user_id"] == hass_admin_user.id
+
+
+async def test_removed_users_surviving_socket_cannot_reclaim_the_panel(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    hass_read_only_user: Any,
+) -> None:
+    """Abuse case 3: a real removal leaves a socket that can neither bind nor ask."""
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await _open(client)
+
+    await hass.auth.async_remove_user(hass_read_only_user)
+    await hass.async_block_till_done()
+    closed = await _receive(client)
+    refused = await _send(client, _hello())
+
+    assert closed["event"] == {"kind": "session_closed", "reason": "user_removed"}
+    assert refused["error"]["code"] == "panel_user_mismatch"
+    assert CONF_TRANSPORT_USER_ID not in entry.data
+    assert async_get_sessions(hass).get(entry.entry_id) is None
+    assert _issue(hass, entry.entry_id) is None
+
+
+async def test_bound_user_hello_withdraws_its_own_request(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    hass_read_only_user: Any,
+) -> None:
+    """A request that the binding already satisfies is not left behind."""
+    async_raise_binding_issue(hass, entry, hass_read_only_user.id)
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+
+    await _open(client)
+
+    assert _issue(hass, entry.entry_id) is None
+
+
+async def test_administrator_confirms_the_binding(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    repairs: None,
+    hass_client: Any,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    hass_read_only_user: Any,
+) -> None:
+    """The Repairs flow shows who asked, and binds them only on confirmation."""
+    await _unbind(hass, entry)
+    panel = await hass_ws_client(hass, hass_read_only_access_token)
+    assert (await _send(panel, _hello()))["error"]["code"] == "panel_user_mismatch"
+    admin = await hass_client()
+
+    status, form = await _start_fix_flow(admin, entry.entry_id)
+
+    assert status == 200
+    assert form["type"] == "form"
+    assert form["step_id"] == "confirm_bind"
+    assert form["description_placeholders"] == {
+        "panel": "alpha",
+        "user": hass_read_only_user.name,
+    }
+    assert CONF_TRANSPORT_USER_ID not in entry.data
+
+    result = await _submit_fix_flow(admin, form["flow_id"])
+    await hass.async_block_till_done()
+
+    assert result["type"] == "create_entry"
+    assert entry.data[CONF_TRANSPORT_USER_ID] == hass_read_only_user.id
+    assert _issue(hass, entry.entry_id) is None
+    await _open(panel)
+
+
+async def test_non_administrator_cannot_confirm_a_binding(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    repairs: None,
+    hass_client: Any,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """Core's Repairs views refuse the fix flow to a non-administrator."""
+    await _unbind(hass, entry)
+    panel = await hass_ws_client(hass, hass_read_only_access_token)
+    await _send(panel, _hello())
+    user = await hass_client(hass_read_only_access_token)
+
+    status, _ = await _start_fix_flow(user, entry.entry_id)
+
+    assert status == 401
+    assert CONF_TRANSPORT_USER_ID not in entry.data
+
+
+async def test_administrator_rebinds_and_the_old_session_ends(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    repairs: None,
+    hass_client: Any,
+    hass_ws_client: WsClientFactory,
+    hass_access_token: str,
+    hass_read_only_access_token: str,
+    hass_read_only_user: Any,
+    hass_admin_user: Any,
+) -> None:
+    """A rebind names both users, then ends the old user's session."""
+    old = await hass_ws_client(hass, hass_read_only_access_token)
+    await old.send_json_auto_id(_hello())
+    old_hello = await _receive(old)
+    new = await hass_ws_client(hass, hass_access_token)
+    assert (await _send(new, _hello()))["error"]["code"] == "panel_user_mismatch"
+    admin = await hass_client()
+
+    _, form = await _start_fix_flow(admin, entry.entry_id)
+    assert form["step_id"] == "confirm_rebind"
+    assert form["description_placeholders"] == {
+        "panel": "alpha",
+        "user": hass_admin_user.name,
+        "bound_user": hass_read_only_user.name,
+    }
+    result = await _submit_fix_flow(admin, form["flow_id"])
+    closed = await _receive(old)
+
+    assert result["type"] == "create_entry"
+    assert closed == {
+        "id": old_hello["id"],
+        "type": "event",
+        "event": {"kind": "session_closed", "reason": "binding_changed"},
+    }
+    assert entry.data[CONF_TRANSPORT_USER_ID] == hass_admin_user.id
+    await _open(new)
+    refused = await _send(old, _hello())
+    assert refused["error"]["code"] == "panel_user_mismatch"
+
+
+async def test_confirmation_binds_the_user_it_showed(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    repairs: None,
+    hass_client: Any,
+    hass_ws_client: WsClientFactory,
+    hass_access_token: str,
+    hass_read_only_access_token: str,
+    hass_read_only_user: Any,
+) -> None:
+    """A request arriving while the form is open cannot swap the user bound."""
+    await _unbind(hass, entry)
+    panel = await hass_ws_client(hass, hass_read_only_access_token)
+    await _send(panel, _hello())
+    admin = await hass_client()
+    _, form = await _start_fix_flow(admin, entry.entry_id)
+    racer = await hass_ws_client(hass, hass_access_token)
+    await _send(racer, _hello())
+
+    result = await _submit_fix_flow(admin, form["flow_id"])
+
+    assert result["type"] == "create_entry"
+    assert entry.data[CONF_TRANSPORT_USER_ID] == hass_read_only_user.id
+
+
+async def test_confirmation_refuses_a_user_removed_while_the_form_is_open(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    repairs: None,
+    hass_client: Any,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    hass_read_only_user: Any,
+) -> None:
+    """Confirming a user who no longer exists binds nothing."""
+    await _unbind(hass, entry)
+    panel = await hass_ws_client(hass, hass_read_only_access_token)
+    await _send(panel, _hello())
+    admin = await hass_client()
+    _, form = await _start_fix_flow(admin, entry.entry_id)
+
+    await hass.auth.async_remove_user(hass_read_only_user)
+    await hass.async_block_till_done()
+    result = await _submit_fix_flow(admin, form["flow_id"])
+
+    assert result["type"] == "abort"
+    assert result["reason"] == "user_unavailable"
+    assert CONF_TRANSPORT_USER_ID not in entry.data
+
+
+@pytest.mark.parametrize("user_id", ["no-such-user", "inactive", "system"])
+async def test_request_for_an_unusable_user_is_withdrawn(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    repairs: None,
+    hass_client: Any,
+    user_id: str,
+) -> None:
+    """A missing, deactivated or system user is never offered for binding."""
+    await _unbind(hass, entry)
+    if user_id == "inactive":
+        user = await hass.auth.async_create_user("Inactive")
+        await hass.auth.async_deactivate_user(user)
+        user_id = user.id
+    elif user_id == "system":
+        user_id = (await hass.auth.async_create_system_user("System")).id
+    async_raise_binding_issue(hass, entry, user_id)
+    admin = await hass_client()
+
+    _, result = await _start_fix_flow(admin, entry.entry_id)
+
+    assert result["type"] == "abort"
+    assert result["reason"] == "user_unavailable"
+    assert CONF_TRANSPORT_USER_ID not in entry.data
+    assert _issue(hass, entry.entry_id) is None
+
+
+async def test_removed_entry_withdraws_its_request(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    repairs: None,
+    hass_client: Any,
+    hass_read_only_user: Any,
+) -> None:
+    """Removing a panel removes its issue, and an open form cannot bind it."""
+    async_raise_binding_issue(hass, entry, hass_read_only_user.id)
+    admin = await hass_client()
+    _, form = await _start_fix_flow(admin, entry.entry_id)
+
+    assert await hass.config_entries.async_remove(entry.entry_id)
+    await hass.async_block_till_done()
+    assert _issue(hass, entry.entry_id) is None
+    result = await _submit_fix_flow(admin, form["flow_id"])
+
+    assert result["type"] == "abort"
+    assert result["reason"] == "entry_removed"
+
+
+async def test_binding_repair_is_translated_in_english(hass: HomeAssistant) -> None:
+    """The issue title and both confirmations load with their placeholders."""
+    assert await async_setup_component(hass, DOMAIN, {})
+    strings = await async_get_translations(hass, "en", "issues", {DOMAIN})
+    prefix = f"component.{DOMAIN}.issues.panel_user_mismatch"
+
+    assert strings[f"{prefix}.title"] == "Confirm the Home Assistant user for {panel}"
+    bind = strings[f"{prefix}.fix_flow.step.confirm_bind.description"]
+    rebind = strings[f"{prefix}.fix_flow.step.confirm_rebind.description"]
+    assert "{panel}" in bind and "{user}" in bind
+    assert all(name in rebind for name in ("{panel}", "{user}", "{bound_user}"))
+    for reason in ("entry_removed", "user_unavailable"):
+        assert strings[f"{prefix}.fix_flow.abort.{reason}"]
+
+
+async def test_confirming_the_bound_user_keeps_its_session(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    hass_read_only_user: Any,
+) -> None:
+    """Only a change of user ends a session; confirming the same user does not."""
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await _open(client)
+    session = async_get_sessions(hass).get(entry.entry_id)
+
+    async_bind_user(hass, entry, hass_read_only_user.id)
+
+    assert async_get_sessions(hass).get(entry.entry_id) is session

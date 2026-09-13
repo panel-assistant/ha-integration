@@ -162,5 +162,26 @@
     "panel_backup_failed": { "message": "The panel could not be backed up, so nothing was installed" },
     "build_verification_failed": { "message": "The build did not match the signed build feed, so nothing was installed" },
     "upload_disabled": { "message": "The panel does not accept app uploads; turn on APK upload in its settings" }
+  },
+  "issues": {
+    "panel_user_mismatch": {
+      "title": "Confirm the Home Assistant user for {panel}",
+      "fix_flow": {
+        "step": {
+          "confirm_bind": {
+            "title": "Confirm the panel's user",
+            "description": "The panel {panel} asked to connect to Home Assistant as the user {user}. Confirm only if {user} is the account you set up for this panel. Anyone signed in to Home Assistant can ask to connect as a panel, so if you do not recognise this request, close this dialog and ignore the issue."
+          },
+          "confirm_rebind": {
+            "title": "Change the panel's user",
+            "description": "The panel {panel} is confirmed for the user {bound_user}, but the user {user} asked to connect as it. Confirm only if you changed this panel's account to {user}: the panel then stops accepting {bound_user}. If you did not, someone else may be trying to take over the panel, so close this dialog and ignore the issue."
+          }
+        },
+        "abort": {
+          "entry_removed": "This panel is no longer set up in Home Assistant.",
+          "user_unavailable": "The user who asked to connect no longer exists or is deactivated. Nothing was changed."
+        }
+      }
+    }
   }
 }

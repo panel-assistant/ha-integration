@@ -32,7 +32,12 @@ from .install_jobs import (
     InstallResultCode,
     async_get_install_job_manager,
 )
-from .transport import REASON_ENTRY_UNLOADED, async_get_sessions, async_setup_transport
+from .transport import (
+    REASON_ENTRY_UNLOADED,
+    async_delete_binding_issue,
+    async_get_sessions,
+    async_setup_transport,
+)
 from .update_coordinator import PanelUpdateCoordinator
 
 PLATFORMS = [Platform.SENSOR, Platform.UPDATE]
@@ -204,6 +209,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
 async def async_unload_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> bool:
     """Unload a ha-paneld config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> None:
+    """Withdraw a removed panel's request to bind a user."""
+    async_delete_binding_issue(hass, entry.entry_id)
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> None:

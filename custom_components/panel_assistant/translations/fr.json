@@ -162,5 +162,26 @@
     "panel_backup_failed": { "message": "Le panneau n'a pas pu être sauvegardé, rien n'a donc été installé" },
     "build_verification_failed": { "message": "Le build ne correspondait pas au flux de builds signé, rien n'a donc été installé" },
     "upload_disabled": { "message": "Le panneau n'accepte pas les envois d'applications ; activez l'envoi d'APK dans ses paramètres" }
+  },
+  "issues": {
+    "panel_user_mismatch": {
+      "title": "Confirmer l'utilisateur Home Assistant de {panel}",
+      "fix_flow": {
+        "step": {
+          "confirm_bind": {
+            "title": "Confirmer l'utilisateur du panneau",
+            "description": "Le panneau {panel} demande à se connecter à Home Assistant en tant qu'utilisateur {user}. Ne confirmez que si {user} est le compte que vous avez créé pour ce panneau. Toute personne connectée à Home Assistant peut demander à se connecter comme panneau : si vous ne reconnaissez pas cette demande, fermez cette boîte de dialogue et ignorez le problème."
+          },
+          "confirm_rebind": {
+            "title": "Changer l'utilisateur du panneau",
+            "description": "Le panneau {panel} est confirmé pour l'utilisateur {bound_user}, mais l'utilisateur {user} demande à se connecter en tant que ce panneau. Ne confirmez que si vous avez remplacé le compte de ce panneau par {user} : le panneau n'acceptera plus {bound_user}. Sinon, quelqu'un d'autre essaie peut-être de prendre le contrôle du panneau : fermez cette boîte de dialogue et ignorez le problème."
+          }
+        },
+        "abort": {
+          "entry_removed": "Ce panneau n'est plus configuré dans Home Assistant.",
+          "user_unavailable": "L'utilisateur qui a demandé à se connecter n'existe plus ou est désactivé. Rien n'a été modifié."
+        }
+      }
+    }
   }
 }

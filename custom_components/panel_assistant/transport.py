@@ -13,6 +13,10 @@ handler performs I/O, so Home Assistant applies them in arrival order.
 This transport creates no entities and changes no registry state yet. MQTT
 stays the authority for every panel entity, so ``hello`` always answers with
 the ``mqtt`` authority and grants no commands.
+
+A panel's identity is public on the LAN, so ``hello`` never binds a panel to the
+account that sends it. Only an administrator binds one, by confirming the
+Repairs issue that an unconfirmed ``hello`` raises.
 """
 
 from __future__ import annotations
@@ -21,7 +25,6 @@ import logging
 import math
 import re
 import secrets
-from collections import deque
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -36,6 +39,7 @@ from homeassistant.components.websocket_api.decorators import websocket_command
 from homeassistant.components.websocket_api.messages import event_message
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util import dt as dt_util
 from yarl import URL
@@ -68,6 +72,7 @@ SERVED_CAPABILITIES: Final = frozenset({"state", "events"})
 REASON_SUPERSEDED: Final = "superseded"
 REASON_ENTRY_UNLOADED: Final = "entry_unloaded"
 REASON_USER_REMOVED: Final = "user_removed"
+REASON_BINDING_CHANGED: Final = "binding_changed"
 
 # Error codes returned to the panel. The panel renders its own text from them.
 ERR_PROTOCOL_UNSUPPORTED: Final = "protocol_unsupported"
@@ -91,7 +96,6 @@ MAX_UNIT_LENGTH: Final = 16
 MAX_URL_LENGTH: Final = 2048
 MAX_SESSION_TOKEN_LENGTH: Final = 64
 MAX_EVENT_ID: Final = 2**63 - 1
-MAX_REMEMBERED_EVENT_IDS: Final = 256
 MAX_JSON_INTEGER: Final = 2**63
 
 PLATFORMS: Final = frozenset(
@@ -123,6 +127,11 @@ _SESSION_TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _CONTROL_CHARACTERS = re.compile(r"[\x00-\x1f\x7f]")
 
 DATA_TRANSPORT: Final = "transport"
+
+# The Repairs issue an unconfirmed hello raises, one per entry.
+ISSUE_PANEL_USER_MISMATCH: Final = ERR_PANEL_USER_MISMATCH
+ISSUE_DATA_ENTRY_ID: Final = "entry_id"
+ISSUE_DATA_USER_ID: Final = "user_id"
 
 
 def signal_session_changed(entry_id: str) -> str:
@@ -588,9 +597,9 @@ class PanelSession:
     full_sync_complete: bool = False
     rejected_observations: int = 0
     events_received: int = 0
-    recent_event_ids: deque[int] = field(
-        default_factory=lambda: deque(maxlen=MAX_REMEMBERED_EVENT_IDS)
-    )
+    # Event IDs increase within a session, so one number remembers every event
+    # already counted, however long the session lasts.
+    last_event_id: int = -1
 
 
 class TransportSessions:
@@ -719,6 +728,60 @@ def session_diagnostics(hass: HomeAssistant, entry_id: str) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Binding. A panel's user is bound only on an administrator's confirmation.
+
+
+def binding_issue_id(entry_id: str) -> str:
+    """Return the Repairs issue ID asking an administrator to bind an entry."""
+    return f"{ISSUE_PANEL_USER_MISMATCH}_{entry_id}"
+
+
+@callback
+def async_raise_binding_issue(
+    hass: HomeAssistant, entry: ConfigEntry, user_id: str
+) -> None:
+    """Ask an administrator whether this user may connect as the entry's panel."""
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        binding_issue_id(entry.entry_id),
+        data={ISSUE_DATA_ENTRY_ID: entry.entry_id, ISSUE_DATA_USER_ID: user_id},
+        is_fixable=True,
+        is_persistent=False,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key=ISSUE_PANEL_USER_MISMATCH,
+        translation_placeholders={"panel": entry.title},
+    )
+
+
+@callback
+def async_delete_binding_issue(
+    hass: HomeAssistant, entry_id: str, user_id: str | None = None
+) -> None:
+    """Delete an entry's binding issue, or only one that proposes this user."""
+    issue_id = binding_issue_id(entry_id)
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    if issue is None:
+        return
+    if user_id is None or (issue.data or {}).get(ISSUE_DATA_USER_ID) == user_id:
+        ir.async_delete_issue(hass, DOMAIN, issue_id)
+
+
+@callback
+def async_bind_user(hass: HomeAssistant, entry: ConfigEntry, user_id: str) -> None:
+    """Bind an entry to a user. Only an administrator's confirmation calls this."""
+    sessions = async_get_sessions(hass)
+    session = sessions.get(entry.entry_id)
+    if session is not None and session.user_id != user_id:
+        sessions.close(session, REASON_BINDING_CHANGED)
+    if entry.data.get(CONF_TRANSPORT_USER_ID) != user_id:
+        hass.config_entries.async_update_entry(
+            entry, data={**entry.data, CONF_TRANSPORT_USER_ID: user_id}
+        )
+    async_delete_binding_issue(hass, entry.entry_id, user_id)
+
+
+# ---------------------------------------------------------------------------
 # Command handlers. All synchronous, so they run in arrival order.
 
 
@@ -795,18 +858,22 @@ def ws_hello(
         return
 
     user_id = connection.user.id
-    bound_user = entry.data.get(CONF_TRANSPORT_USER_ID)
-    if bound_user is not None and bound_user != user_id:
+    if entry.data.get(CONF_TRANSPORT_USER_ID) != user_id:
+        # A removed user's socket survives its removal, but its refresh token
+        # does not. Such a connection may not even ask to be bound.
+        if (
+            connection.refresh_token_id is not None
+            and hass.auth.async_get_refresh_token(connection.refresh_token_id)
+            is not None
+        ):
+            async_raise_binding_issue(hass, entry, user_id)
         connection.send_error(
             msg["id"],
             ERR_PANEL_USER_MISMATCH,
-            "This panel is bound to a different Home Assistant user.",
+            "An administrator has not confirmed this user for this panel.",
         )
         return
-    if bound_user is None:
-        hass.config_entries.async_update_entry(
-            entry, data={**entry.data, CONF_TRANSPORT_USER_ID: user_id}
-        )
+    async_delete_binding_issue(hass, entry.entry_id, user_id)
 
     capabilities = SERVED_CAPABILITIES.intersection(msg["capabilities"])
     session = PanelSession(
@@ -912,7 +979,7 @@ def ws_report_event(
     connection: ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Acknowledge one transient event, once per event ID per session."""
+    """Acknowledge one transient event, counting each event ID once per session."""
     session = async_get_sessions(hass).for_request(msg["session"], connection)
     if session is None:
         connection.send_error(msg["id"], ERR_SESSION_UNKNOWN, "No such session.")
@@ -925,8 +992,10 @@ def ws_report_event(
     if options is not None and msg["event_type"] not in options:
         connection.send_error(msg["id"], ERR_INVALID_VALUE, "Unknown event type.")
         return
-    if msg["event_id"] not in session.recent_event_ids:
-        session.recent_event_ids.append(msg["event_id"])
+    # A repeat, or any ID not above the last one counted, is acknowledged again
+    # but never counted twice.
+    if msg["event_id"] > session.last_event_id:
+        session.last_event_id = msg["event_id"]
         session.events_received += 1
     connection.send_result(msg["id"])
 
@@ -942,12 +1011,14 @@ def async_setup_transport(hass: HomeAssistant) -> None:
     @callback
     def _user_removed(event: Event[Any]) -> None:
         # Removing a user does not close its sockets, so end its sessions here,
-        # and release its panels so a replacement account can bind them.
+        # release its panels for an administrator to bind to a replacement
+        # account, and withdraw any request to bind it.
         user_id = event.data.get("user_id")
         if not isinstance(user_id, str):
             return
         async_get_sessions(hass).close_user(user_id, REASON_USER_REMOVED)
         for entry in hass.config_entries.async_entries(DOMAIN):
+            async_delete_binding_issue(hass, entry.entry_id, user_id)
             if entry.data.get(CONF_TRANSPORT_USER_ID) == user_id:
                 data = dict(entry.data)
                 del data[CONF_TRANSPORT_USER_ID]

@@ -162,5 +162,26 @@
     "panel_backup_failed": { "message": "Das Panel konnte nicht gesichert werden, daher wurde nichts installiert" },
     "build_verification_failed": { "message": "Der Build stimmte nicht mit dem signierten Build-Feed überein, daher wurde nichts installiert" },
     "upload_disabled": { "message": "Das Panel nimmt keine App-Uploads an; aktiviere den APK-Upload in seinen Einstellungen" }
+  },
+  "issues": {
+    "panel_user_mismatch": {
+      "title": "Home Assistant-Benutzer für {panel} bestätigen",
+      "fix_flow": {
+        "step": {
+          "confirm_bind": {
+            "title": "Benutzer des Panels bestätigen",
+            "description": "Das Panel {panel} möchte sich als Benutzer {user} mit Home Assistant verbinden. Bestätige nur, wenn {user} das Konto ist, das du für dieses Panel eingerichtet hast. Jeder, der bei Home Assistant angemeldet ist, kann eine Verbindung als Panel anfordern. Wenn du diese Anfrage nicht kennst, schließe diesen Dialog und ignoriere das Problem."
+          },
+          "confirm_rebind": {
+            "title": "Benutzer des Panels ändern",
+            "description": "Das Panel {panel} ist für den Benutzer {bound_user} bestätigt, aber der Benutzer {user} möchte sich als dieses Panel verbinden. Bestätige nur, wenn du das Konto dieses Panels auf {user} geändert hast: Das Panel akzeptiert {bound_user} danach nicht mehr. Andernfalls versucht womöglich jemand anderes, das Panel zu übernehmen. Schließe dann diesen Dialog und ignoriere das Problem."
+          }
+        },
+        "abort": {
+          "entry_removed": "Dieses Panel ist in Home Assistant nicht mehr eingerichtet.",
+          "user_unavailable": "Der Benutzer, der die Verbindung angefordert hat, existiert nicht mehr oder ist deaktiviert. Es wurde nichts geändert."
+        }
+      }
+    }
   }
 }
