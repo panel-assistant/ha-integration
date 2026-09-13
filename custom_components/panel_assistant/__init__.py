@@ -212,8 +212,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> None:
-    """Withdraw a removed panel's request to bind a user."""
+    """Withdraw a removed panel's request and forget its last session."""
     async_delete_binding_issue(hass, entry.entry_id)
+    async_get_sessions(hass).forget_entry(entry.entry_id)
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> None:

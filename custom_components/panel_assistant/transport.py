@@ -11,8 +11,10 @@ before anything is stored, stored values are the validated copies, and no
 handler performs I/O, so Home Assistant applies them in arrival order.
 
 This transport creates no entities and changes no registry state yet. MQTT
-stays the authority for every panel entity, so ``hello`` always answers with
-the ``mqtt`` authority and grants no commands.
+stays the authority for every panel entity, so ``hello`` answers with the
+``shadow`` authority and grants no commands: the panel reports its state here
+only so diagnostics can compare it with the MQTT entities (see
+``shadow_comparison``).
 
 A panel's identity is public on the LAN, so ``hello`` never binds a panel to the
 account that sends it. Only an administrator binds one, by confirming the
@@ -38,7 +40,10 @@ from homeassistant.components.websocket_api.const import ERR_INVALID_FORMAT
 from homeassistant.components.websocket_api.decorators import websocket_command
 from homeassistant.components.websocket_api.messages import event_message
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNKNOWN
+from homeassistant.core import Event, HomeAssistant, State, callback
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util import dt as dt_util
@@ -62,6 +67,8 @@ COMMAND_REPORT_STATE: Final = f"{DOMAIN}/report_state"
 COMMAND_REPORT_EVENT: Final = f"{DOMAIN}/report_event"
 
 AUTHORITY_MQTT: Final = "mqtt"
+# While no native authority exists, shadow is the only mode this side serves.
+AUTHORITY_SHADOW: Final = "shadow"
 # Capabilities this integration can serve today. Commands and approval are not
 # served yet, so a panel is never granted them and never needs the command that
 # reports a command's outcome.
@@ -600,20 +607,39 @@ class PanelSession:
     # Event IDs increase within a session, so one number remembers every event
     # already counted, however long the session lasts.
     last_event_id: int = -1
+    # The latest rejection code of each described channel, cleared when a later
+    # observation of that channel is accepted.
+    rejections: dict[str, str] = field(default_factory=dict)
+    closed_at: datetime | None = None
 
 
 class TransportSessions:
-    """Every live panel session, at most one per config entry."""
+    """Every live panel session, at most one per config entry.
+
+    Each entry's most recent session is also kept after it ends, until a new
+    one opens or the entry is removed, so diagnostics can still show what the
+    panel last reported. Only a live session makes a panel available.
+    """
 
     def __init__(self, hass: HomeAssistant) -> None:
         """Initialize an empty session table."""
         self._hass = hass
         self._by_entry: dict[str, PanelSession] = {}
         self._by_token: dict[str, PanelSession] = {}
+        self._last_by_entry: dict[str, PanelSession] = {}
 
     def get(self, entry_id: str) -> PanelSession | None:
         """Return the entry's live session, if any."""
         return self._by_entry.get(entry_id)
+
+    def latest(self, entry_id: str) -> PanelSession | None:
+        """Return the entry's live session, else the last one that ended."""
+        return self._by_entry.get(entry_id) or self._last_by_entry.get(entry_id)
+
+    @callback
+    def forget_entry(self, entry_id: str) -> None:
+        """Drop a removed entry's ended session."""
+        self._last_by_entry.pop(entry_id, None)
 
     def for_request(
         self, token: str, connection: ActiveConnection
@@ -683,6 +709,8 @@ class TransportSessions:
             return False
         del self._by_entry[session.entry_id]
         self._by_token.pop(session.token, None)
+        session.closed_at = dt_util.utcnow()
+        self._last_by_entry[session.entry_id] = session
         return True
 
     @callback
@@ -706,14 +734,20 @@ def session_available(hass: HomeAssistant, entry_id: str) -> bool:
 
 
 def session_diagnostics(hass: HomeAssistant, entry_id: str) -> dict[str, Any]:
-    """Return language-neutral session facts without identity or values."""
-    session = async_get_sessions(hass).get(entry_id)
+    """Return language-neutral session facts without identity or values.
+
+    An ended session is still described, as not connected, until a new one
+    opens or the entry is removed.
+    """
+    sessions = async_get_sessions(hass)
+    session = sessions.latest(entry_id)
     if session is None:
         return {"connected": False}
     return {
-        "connected": True,
+        "connected": sessions.get(entry_id) is session,
+        "closed_at": _iso(session.closed_at),
         "protocol": session.protocol,
-        "authority": AUTHORITY_MQTT,
+        "authority": AUTHORITY_SHADOW,
         "app_version": session.app_version,
         "app_version_code": session.app_version_code,
         "contract_digest": session.contract_digest,
@@ -724,6 +758,296 @@ def session_diagnostics(hass: HomeAssistant, entry_id: str) -> dict[str, Any]:
         "observations": len(session.observations),
         "rejected_observations": session.rejected_observations,
         "events_received": session.events_received,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Shadow comparison. Diagnostics only: computed on demand from cached state,
+# never writing to a registry, and never sending anything to the panel.
+
+MQTT_DOMAIN: Final = "mqtt"
+REDACTED: Final = "**REDACTED**"
+COMPARISON_MATCH: Final = "match"
+COMPARISON_DIFFERS: Final = "differs"
+COMPARISON_WS_MISSING: Final = "ws_missing"
+COMPARISON_WS_REJECTED: Final = "ws_rejected"
+COMPARISON_MQTT_MISSING: Final = "mqtt_missing"
+COMPARISON_NOT_COMPARED: Final = "not_compared"
+COMPARISONS: Final = (
+    COMPARISON_MATCH,
+    COMPARISON_DIFFERS,
+    COMPARISON_WS_MISSING,
+    COMPARISON_WS_REJECTED,
+    COMPARISON_MQTT_MISSING,
+    COMPARISON_NOT_COMPARED,
+)
+_NUMBER_ABS_TOLERANCE: Final = 1e-3
+_NUMBER_REL_TOLERANCE: Final = 1e-6
+
+
+def _slug(value: Any) -> str:
+    """Reduce a label or a code to lowercase letters and digits."""
+    return re.sub(r"[^a-z0-9]", "", str(value).lower())
+
+
+def _as_float(value: Any) -> float | None:
+    try:
+        number = float(value)
+    except TypeError, ValueError:
+        return None
+    return number if math.isfinite(number) else None
+
+
+def _same_boolean(value: bool, state: State) -> bool:
+    return state.state == (STATE_ON if value else STATE_OFF)
+
+
+def _same_number(value: Any, state: State) -> bool:
+    ws, mqtt = _as_float(value), _as_float(state.state)
+    return (
+        ws is not None
+        and mqtt is not None
+        and math.isclose(
+            ws, mqtt, rel_tol=_NUMBER_REL_TOLERANCE, abs_tol=_NUMBER_ABS_TOLERANCE
+        )
+    )
+
+
+def _same_sensor(value: Any, state: State) -> bool:
+    if type(value) is str:
+        return state.state == value
+    return _same_number(value, state)
+
+
+def _same_option(value: str, state: State) -> bool:
+    # MQTT carries display labels such as "Pre-release"; the wire carries codes.
+    return _slug(state.state) == _slug(value)
+
+
+def _same_text(value: str, state: State) -> bool:
+    return state.state == value
+
+
+def _same_light(value: dict[str, Any], state: State) -> bool:
+    if not _same_boolean(value["on"], state):
+        return False
+    if not value["on"]:
+        # Home Assistant drops brightness, colour and effect while a light is off.
+        return True
+    attributes = state.attributes
+    if "brightness" in value and attributes.get("brightness") != value["brightness"]:
+        return False
+    if "color" in value and list(attributes.get("rgb_color") or ()) != [
+        value["color"][channel] for channel in "rgb"
+    ]:
+        return False
+    return "effect" not in value or _slug(attributes.get("effect")) == _slug(
+        value["effect"]
+    )
+
+
+def _same_update(value: dict[str, Any], state: State) -> bool:
+    attributes = state.attributes
+    return all(
+        attributes.get(key) == value[key]
+        for key in ("installed_version", "latest_version")
+    )
+
+
+# How a validated wire value compares with the MQTT entity's state. A platform
+# absent here (button, event, image) has no state both sides report alike.
+_SHADOW_COMPARATORS: Final[dict[str, Callable[[Any, State], bool]]] = {
+    "binary_sensor": _same_boolean,
+    "light": _same_light,
+    "number": _same_number,
+    "select": _same_option,
+    "sensor": _same_sensor,
+    "switch": _same_boolean,
+    "text": _same_text,
+    "update": _same_update,
+}
+_SHADOW_ATTRIBUTES: Final[dict[str, tuple[str, ...]]] = {
+    "light": ("brightness", "rgb_color", "effect"),
+    "update": ("installed_version", "latest_version"),
+}
+
+
+def _is_user_data(descriptor: Mapping[str, Any], value: Any) -> bool:
+    """Return whether a value may be a path, SSID or other user data."""
+    if type(value) is not str:
+        return False
+    if descriptor["platform"] == "text":
+        return True
+    return (
+        descriptor["platform"] == "sensor"
+        and descriptor["options"] is None
+        and _as_float(value) is None
+    )
+
+
+def _shown_state(descriptor: Mapping[str, Any], state: State) -> str:
+    if state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+        return state.state
+    return REDACTED if _is_user_data(descriptor, state.state) else state.state
+
+
+def _iso(moment: datetime | None) -> str | None:
+    return None if moment is None else moment.isoformat()
+
+
+def _age(now: datetime, moment: datetime) -> float:
+    return round((now - moment).total_seconds(), 3)
+
+
+def _compare(
+    descriptor: Mapping[str, Any],
+    observation: Observation | None,
+    rejected: str | None,
+    state: State | None,
+) -> str:
+    comparator = _SHADOW_COMPARATORS.get(descriptor["platform"])
+    if comparator is None:
+        return COMPARISON_NOT_COMPARED
+    if state is None:
+        return COMPARISON_MQTT_MISSING
+    if rejected is not None:
+        return COMPARISON_WS_REJECTED
+    if observation is None:
+        return COMPARISON_WS_MISSING
+    if STATE_UNAVAILABLE in (observation.state, state.state):
+        both = observation.state == state.state == STATE_UNAVAILABLE
+        return COMPARISON_MATCH if both else COMPARISON_DIFFERS
+    if comparator(observation.value, state):
+        return COMPARISON_MATCH
+    return COMPARISON_DIFFERS
+
+
+def _shadow_channel(
+    hass: HomeAssistant,
+    entity_registry: er.EntityRegistry,
+    panel_id: str,
+    session: PanelSession,
+    descriptor: Mapping[str, Any],
+    now: datetime,
+) -> dict[str, Any]:
+    platform = descriptor["platform"]
+    observation = session.observations.get(descriptor["channel"])
+    rejected = session.rejections.get(descriptor["channel"])
+    ws: dict[str, Any] | None = None
+    if observation is not None or rejected is not None:
+        ws = {
+            "state": None,
+            "value": None,
+            "attributes": {},
+            "received_at": None,
+            "age_s": None,
+            "refresh": None,
+            "rejected": rejected,
+        }
+        if observation is not None:
+            ws |= {
+                "state": observation.state,
+                "value": (
+                    REDACTED
+                    if _is_user_data(descriptor, observation.value)
+                    else observation.value
+                ),
+                "attributes": dict(observation.attributes),
+                "received_at": observation.received_at.isoformat(),
+                "age_s": _age(now, observation.received_at),
+                "refresh": observation.refresh,
+            }
+
+    entity_id = entity_registry.async_get_entity_id(
+        platform, MQTT_DOMAIN, f"{panel_id}_{descriptor['unique_suffix']}"
+    )
+    state = None if entity_id is None else hass.states.get(entity_id)
+    mqtt: dict[str, Any] | None = None
+    if entity_id is not None:
+        mqtt = {
+            "entity_id": entity_id,
+            "state": None,
+            "attributes": {},
+            "last_reported": None,
+            "last_changed": None,
+            "age_s": None,
+        }
+        if state is not None:
+            mqtt |= {
+                "state": _shown_state(descriptor, state),
+                "attributes": {
+                    key: state.attributes[key]
+                    for key in _SHADOW_ATTRIBUTES.get(platform, ())
+                    if key in state.attributes
+                },
+                "last_reported": state.last_reported.isoformat(),
+                "last_changed": state.last_changed.isoformat(),
+                "age_s": _age(now, state.last_reported),
+            }
+
+    return {
+        "platform": platform,
+        "unique_suffix": descriptor["unique_suffix"],
+        "ws": ws,
+        "mqtt": mqtt,
+        "comparison": _compare(descriptor, observation, rejected, state),
+        "freshness_delta_s": (
+            None
+            if observation is None or state is None
+            else round(
+                (observation.received_at - state.last_reported).total_seconds(), 3
+            )
+        ),
+    }
+
+
+def shadow_comparison(
+    hass: HomeAssistant, entry_id: str, panel_id: str
+) -> dict[str, Any] | None:
+    """Compare what the panel last reported natively with its MQTT entities.
+
+    Reads the registries and the state machine only. Returns None when the
+    entry has never held a session.
+    """
+    session = async_get_sessions(hass).latest(entry_id)
+    if session is None:
+        return None
+    now = dt_util.utcnow()
+    entity_registry = er.async_get(hass)
+    channels = {
+        channel: _shadow_channel(
+            hass, entity_registry, panel_id, session, descriptor, now
+        )
+        for channel, descriptor in sorted(session.descriptors.items())
+    }
+    summary = dict.fromkeys(COMPARISONS, 0)
+    for item in channels.values():
+        summary[item["comparison"]] += 1
+
+    device = dr.async_get(hass).async_get_device(
+        identifiers={(MQTT_DOMAIN, f"ha-paneld-{panel_id}")}
+    )
+    mqtt_only: list[str] = []
+    if device is not None:
+        prefix = f"{panel_id}_"
+        described = {
+            descriptor["unique_suffix"] for descriptor in session.descriptors.values()
+        }
+        mqtt_only = sorted(
+            {
+                item.unique_id.removeprefix(prefix)
+                for item in er.async_entries_for_device(
+                    entity_registry, device.id, include_disabled_entities=True
+                )
+                if item.platform == MQTT_DOMAIN and item.unique_id.startswith(prefix)
+            }
+            - described
+        )
+    return {
+        "mqtt_device": device is not None,
+        "summary": summary,
+        "channels": channels,
+        "mqtt_only": mqtt_only,
     }
 
 
@@ -902,7 +1226,7 @@ def ws_hello(
         {
             "protocol": high,
             "session": session.token,
-            "authority": AUTHORITY_MQTT,
+            "authority": AUTHORITY_SHADOW,
             "capabilities": sorted(capabilities),
             "integration": {"version": INTEGRATION_VERSION},
             # The shared channel catalogue arrives with the vendored contract
@@ -958,7 +1282,11 @@ def ws_report_state(
                 value, attributes = None, {}
         except ValueRejected as err:
             rejected.append({"channel": channel, "code": str(err)})
+            # Only described channels are remembered: they are bounded, and
+            # undescribed names are whatever the panel chose to send.
+            session.rejections[channel] = str(err)
             continue
+        session.rejections.pop(channel, None)
         session.observations[channel] = Observation(
             state=observation["state"],
             value=value,

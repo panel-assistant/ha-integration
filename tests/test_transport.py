@@ -204,7 +204,7 @@ async def test_non_admin_panel_account_opens_a_session(
     assert response["success"], response
     result = response["result"]
     assert result["protocol"] == 1
-    assert result["authority"] == "mqtt"
+    assert result["authority"] == "shadow"
     assert result["capabilities"] == ["events", "state"]
     assert result["channels"] == {"accepted": 3, "unknown": []}
     assert isinstance(result["session"], str) and result["session"]
@@ -265,7 +265,11 @@ async def test_connection_close_marks_the_panel_gone(
     assert not session_available(hass, entry.entry_id)
     assert changes == [False, True, False]
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
-    assert diagnostics["transport"] == {"connected": False}
+    transport = diagnostics["transport"]
+    assert transport["connected"] is False
+    assert transport["closed_at"] is not None
+    assert transport["full_sync_complete"] is True
+    assert transport["observations"] == 1
 
 
 async def test_panel_unsubscribe_also_ends_the_session(
@@ -836,7 +840,7 @@ async def test_diagnostics_show_the_session_without_identity(
 
     transport = diagnostics["transport"]
     assert transport["connected"] is True
-    assert transport["authority"] == "mqtt"
+    assert transport["authority"] == "shadow"
     assert transport["channels"] == 3
     assert diagnostics["entry"][CONF_TRANSPORT_USER_ID] == "**REDACTED**"
     rendered = repr(diagnostics)
