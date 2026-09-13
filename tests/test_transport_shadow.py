@@ -247,6 +247,8 @@ async def test_closed_session_is_kept_until_a_new_one_opens(
 
     current = sessions.latest(entry.entry_id)
     assert current is not None and current is not retained
+    # The kept session, and the closed connection it references, is released.
+    assert entry.entry_id not in sessions._last_by_entry
     assert current is sessions.get(entry.entry_id)
     assert current.closed_at is None
     transport = (await async_get_config_entry_diagnostics(hass, entry))["transport"]

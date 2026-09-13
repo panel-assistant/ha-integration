@@ -655,6 +655,8 @@ class TransportSessions:
         """Install a session, superseding any earlier one for its entry."""
         if (previous := self._by_entry.get(session.entry_id)) is not None:
             self.close(previous, REASON_SUPERSEDED)
+        # The kept session holds its closed connection; a live one replaces it.
+        self._last_by_entry.pop(session.entry_id, None)
         self._by_entry[session.entry_id] = session
         self._by_token[session.token] = session
         session.connection.subscriptions[session.subscription_id] = (
