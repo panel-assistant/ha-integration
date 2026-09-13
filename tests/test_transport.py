@@ -111,15 +111,16 @@ async def _open(client: Any, **changes: Any) -> str:
     return token
 
 
-def _registry_digest(hass: HomeAssistant) -> tuple[list[Any], list[Any]]:
+def _registry_digest(hass: HomeAssistant, entry_id: str) -> tuple[list[Any], list[Any]]:
+    # Per-entry helpers, not the registries' mappings: newer Core refuses those.
     return (
         sorted(
-            (item.platform, item.unique_id, item.config_entry_id)
-            for item in er.async_get(hass).entities.values()
+            (item.platform, item.unique_id, item.entity_id, item.disabled_by)
+            for item in er.async_entries_for_config_entry(er.async_get(hass), entry_id)
         ),
         sorted(
             (sorted(item.identifiers), sorted(item.config_entries))
-            for item in dr.async_get(hass).devices.values()
+            for item in dr.async_entries_for_config_entry(dr.async_get(hass), entry_id)
         ),
     )
 
@@ -175,7 +176,9 @@ async def test_non_admin_panel_account_opens_a_session(
 ) -> None:
     """A dedicated non-admin panel account is accepted without admin rights."""
     assert not hass_read_only_user.is_admin
-    registry_before = _registry_digest(hass)
+    registry_before = _registry_digest(hass, entry.entry_id)
+    # The status sensor, the update entity and their device: never an empty digest.
+    assert (len(registry_before[0]), len(registry_before[1])) == (2, 1)
     client = await hass_ws_client(hass, hass_read_only_access_token)
 
     response = await _send(client, _hello(future_field={"ignored": True}))
@@ -193,7 +196,7 @@ async def test_non_admin_panel_account_opens_a_session(
     assert entry.data[CONF_TRANSPORT_USER_ID] == hass_read_only_user.id
     assert entry.unique_id is None
     assert not session_available(hass, entry.entry_id)
-    assert _registry_digest(hass) == registry_before
+    assert _registry_digest(hass, entry.entry_id) == registry_before
 
 
 async def test_connection_close_marks_the_panel_gone(
