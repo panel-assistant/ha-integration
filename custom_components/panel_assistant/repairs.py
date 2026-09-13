@@ -20,6 +20,7 @@ from .transport import (
 
 ABORT_ENTRY_REMOVED = "entry_removed"
 ABORT_USER_UNAVAILABLE = "user_unavailable"
+_NOT_SHOWN = object()
 
 
 class PanelUserBindingFlow(RepairsFlow):
@@ -34,6 +35,9 @@ class PanelUserBindingFlow(RepairsFlow):
         """Remember the entry and the user this flow was started for."""
         self._entry_id = entry_id
         self._user_id = user_id
+        # The binding the shown form described. Submitting it binds only if the
+        # entry is still bound that way.
+        self._shown_binding: object = _NOT_SHOWN
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -74,13 +78,18 @@ class PanelUserBindingFlow(RepairsFlow):
             # never be confirmed is only noise. A newer request stays.
             async_delete_binding_issue(self.hass, self._entry_id, self._user_id)
             return self.async_abort(reason=ABORT_USER_UNAVAILABLE)
+        bound_id = entry.data.get(CONF_TRANSPORT_USER_ID)
         if user_input is not None:
+            if bound_id != self._shown_binding:
+                # Someone changed the binding while this form was open, so the
+                # administrator confirmed something that is no longer true.
+                return await self.async_step_init()
             async_bind_user(self.hass, entry, user.id)
             return self.async_create_entry(data={})
 
+        self._shown_binding = bound_id
         placeholders = {"panel": entry.title, "user": user.name or ""}
         if step_id == "confirm_rebind":
-            bound_id = entry.data.get(CONF_TRANSPORT_USER_ID)
             bound = await self.hass.auth.async_get_user(bound_id) if bound_id else None
             bound_name = bound.name if bound is not None else None
             placeholders["bound_user"] = bound_name or ""

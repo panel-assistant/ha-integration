@@ -1433,3 +1433,51 @@ async def test_confirming_the_bound_user_keeps_its_session(
     async_bind_user(hass, entry, hass_read_only_user.id)
 
     assert async_get_sessions(hass).get(entry.entry_id) is session
+
+
+async def test_request_from_someone_new_is_not_hidden_by_an_ignore(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_admin_user: Any,
+    hass_read_only_user: Any,
+) -> None:
+    """Anyone may ignore an issue, so an ignore covers only the user it named."""
+    await _unbind(hass, entry)
+    async_raise_binding_issue(hass, entry, "squatter")
+    ir.async_ignore_issue(hass, DOMAIN, ISSUE_ID_PREFIX + entry.entry_id, True)
+
+    async_raise_binding_issue(hass, entry, "squatter")
+    repeated = _issue(hass, entry.entry_id)
+    async_raise_binding_issue(hass, entry, hass_read_only_user.id)
+    fresh = _issue(hass, entry.entry_id)
+
+    assert repeated is not None and repeated.dismissed_version is not None
+    assert fresh is not None and fresh.dismissed_version is None
+    assert fresh.data == {"entry_id": entry.entry_id, "user_id": hass_read_only_user.id}
+
+
+async def test_stale_confirmation_does_not_undo_a_newer_binding(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    repairs: None,
+    hass_client: Any,
+    hass_read_only_user: Any,
+    hass_admin_user: Any,
+) -> None:
+    """A form describing a binding that has since changed is shown again."""
+    await _unbind(hass, entry)
+    async_raise_binding_issue(hass, entry, hass_read_only_user.id)
+    admin = await hass_client()
+    _, form = await _start_fix_flow(admin, entry.entry_id)
+    assert form["step_id"] == "confirm_bind"
+    async_bind_user(hass, entry, hass_admin_user.id)
+
+    again = await _submit_fix_flow(admin, form["flow_id"])
+
+    assert again["type"] == "form"
+    assert again["step_id"] == "confirm_rebind"
+    assert again["description_placeholders"]["bound_user"] == hass_admin_user.name
+    assert entry.data[CONF_TRANSPORT_USER_ID] == hass_admin_user.id
+    result = await _submit_fix_flow(admin, form["flow_id"])
+    assert result["type"] == "create_entry"
+    assert entry.data[CONF_TRANSPORT_USER_ID] == hass_read_only_user.id

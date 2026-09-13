@@ -741,10 +741,16 @@ def async_raise_binding_issue(
     hass: HomeAssistant, entry: ConfigEntry, user_id: str
 ) -> None:
     """Ask an administrator whether this user may connect as the entry's panel."""
+    issue_id = binding_issue_id(entry.entry_id)
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    if issue is not None and (issue.data or {}).get(ISSUE_DATA_USER_ID) != user_id:
+        # Replacing an issue keeps its dismissal, and any signed-in user may
+        # dismiss one. A request from someone new must be seen again.
+        ir.async_delete_issue(hass, DOMAIN, issue_id)
     ir.async_create_issue(
         hass,
         DOMAIN,
-        binding_issue_id(entry.entry_id),
+        issue_id,
         data={ISSUE_DATA_ENTRY_ID: entry.entry_id, ISSUE_DATA_USER_ID: user_id},
         is_fixable=True,
         is_persistent=False,
