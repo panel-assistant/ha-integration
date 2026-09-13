@@ -77,7 +77,7 @@ export class PanelAssistantFleet extends HTMLElement {
       #panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:16px;margin-top:20px}
       article{background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#ddd);border-radius:var(--ha-card-border-radius,12px);padding:16px;overflow-wrap:anywhere}h2{font-size:1.1rem}article a{display:inline-block}
     </style><header><button id="menu" aria-label=""></button><h1 data-message="title"></h1></header><main>
-      <div class="brand"><img src="/panel_assistant/usb/icon.svg" width="108" height="108" alt=""><p data-message="introduction"></p></div><nav><button id="refresh" data-message="refresh"></button><a href="/ha-paneld-usb" data-message="install"></a><a href="/config/integrations/dashboard/add?domain=panel_assistant" data-message="connect"></a></nav>
+      <div class="brand"><img src="/panel_assistant/usb/icon.svg" width="108" height="108" alt=""><p data-message="introduction"></p></div><nav><button id="refresh" data-message="refresh"></button><a href="/panel-assistant-usb" data-message="install"></a><a href="/config/integrations/dashboard/add?domain=panel_assistant" data-message="connect"></a></nav>
       <p id="status" role="status" aria-live="polite"></p><section id="panels"></section></main>`;
     for (const element of this.shadowRoot.querySelectorAll('[data-message]')) element.textContent = FLEET_MESSAGES[element.dataset.message];
     const menu = this.shadowRoot.querySelector('#menu'); menu.textContent = '☰'; menu.setAttribute('aria-label', FLEET_MESSAGES.menu);

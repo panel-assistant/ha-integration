@@ -28,6 +28,10 @@ test('production build contains a root installer and a standalone HA panel', asy
   assert.ok(notices.includes('Permission is hereby granted'));
   const panel = readFileSync(new URL('../../static/ha-panel.js', import.meta.url), 'utf8');
   assert.ok(!panel.includes('sourceMappingURL'));
+  // The sidebar's Install link must open the page Home Assistant registers, which the
+  // rename moved; the old path belongs to the predecessor integration.
+  const panelPath = readFileSync(new URL('../../browser_panel.py', import.meta.url), 'utf8').match(/^PANEL_PATH = "([^"]+)"$/m)[1];
+  assert.ok(panel.includes(`<a href="/${panelPath}" data-message="install">`), 'Install opens the registered installer page');
   // Both halves of the journey paint from the one shared look, from the first frame.
   assert.ok(html.includes(`<style>${WIZARD_CSS}</style>`), 'installer page carries the shared look inline');
   assert.ok(html.includes(BRAND_ICON) && !html.includes('__BRAND_ICON__'));
