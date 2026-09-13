@@ -217,6 +217,24 @@ async def test_non_admin_panel_account_opens_a_session(
     assert _registry_digest(hass, entry.entry_id) == registry_before
 
 
+async def test_highest_family_index_opens_a_session(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """A panel serving the 64th relay, the panel's cap, is described and accepted."""
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    relay64 = {**SWITCH, "channel": "relay64", "unique_suffix": "relay64", "index": 64}
+
+    response = await _send(client, _hello(channels=[relay64]))
+
+    assert response["success"], response
+    session = async_get_sessions(hass).get(entry.entry_id)
+    assert session is not None
+    assert session.descriptors["relay64"]["index"] == 64
+
+
 async def test_connection_close_marks_the_panel_gone(
     hass: HomeAssistant,
     entry: MockConfigEntry,
@@ -347,6 +365,19 @@ def _too_many_channels() -> list[dict[str, Any]]:
         ),
         pytest.param(
             _hello(channels=[{**SWITCH, "index": None}]), id="family_without_index"
+        ),
+        pytest.param(
+            _hello(
+                channels=[
+                    {
+                        **SWITCH,
+                        "channel": "relay65",
+                        "unique_suffix": "relay65",
+                        "index": 65,
+                    }
+                ]
+            ),
+            id="family_index_above_cap",
         ),
         pytest.param(
             _hello(channels=[{**NUMBER, "min": 10, "max": 1}]), id="inverted_bounds"
