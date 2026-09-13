@@ -9,17 +9,21 @@ from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 
 from . import HaPaneldConfigEntry
-from .const import INTEGRATION_BUILD
+from .const import CONF_TRANSPORT_USER_ID, INTEGRATION_BUILD
+from .transport import session_diagnostics
 
-_ENTRY_KEYS_TO_REDACT = {CONF_ADDRESS}
+_ENTRY_KEYS_TO_REDACT = {CONF_ADDRESS, CONF_TRANSPORT_USER_ID}
 _HEALTH_KEYS_TO_REDACT = {"panel_id", "discovery_id"}
 
 
 async def async_get_config_entry_diagnostics(
-    _hass: HomeAssistant, entry: HaPaneldConfigEntry
+    hass: HomeAssistant, entry: HaPaneldConfigEntry
 ) -> dict[str, Any]:
     """Return redacted diagnostics for a config entry."""
-    return _diagnostics(entry)
+    return {
+        **_diagnostics(entry),
+        "transport": session_diagnostics(hass, entry.entry_id),
+    }
 
 
 def _diagnostics(entry: HaPaneldConfigEntry) -> dict[str, Any]:

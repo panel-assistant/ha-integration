@@ -3,7 +3,7 @@
   "name": "Panel Assistant",
   "codeowners": ["@maxlyth"],
   "config_flow": true,
-  "dependencies": ["http", "panel_custom"],
+  "dependencies": ["http", "panel_custom", "websocket_api"],
   "documentation": "https://github.com/panel-assistant/ha-integration",
   "integration_type": "device",
   "iot_class": "local_polling",

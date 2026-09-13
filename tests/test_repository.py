@@ -137,7 +137,7 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
     assert manifest == {
         "codeowners": ["@maxlyth"],
         "config_flow": True,
-        "dependencies": ["http", "panel_custom"],
+        "dependencies": ["http", "panel_custom", "websocket_api"],
         "documentation": "https://github.com/panel-assistant/ha-integration",
         "domain": "panel_assistant",
         "integration_type": "device",

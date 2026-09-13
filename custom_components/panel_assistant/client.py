@@ -108,6 +108,14 @@ def is_valid_discovery_id(value: str) -> bool:
     return _DISCOVERY_ID_PATTERN.fullmatch(value) is not None
 
 
+def is_valid_panel_version(value: str) -> bool:
+    """Return whether a panel app version has the health contract's shape."""
+    return (
+        len(value) <= _MAX_VERSION_LENGTH
+        and _VERSION_PATTERN.fullmatch(value) is not None
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class PanelHealth:
     """Parsed fields from the stable ha-paneld health line."""

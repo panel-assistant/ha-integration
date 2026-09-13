@@ -14,7 +14,7 @@ INTEGRATION_VERSION: str = json.loads(
 # The public version (manifest.json) only changes when something ships. This
 # build number tells builds apart in between: it counts the commits that have
 # changed this integration.
-INTEGRATION_BUILD = 41
+INTEGRATION_BUILD = 42
 
 # Every outward link goes through the site's own redirect rather than a page
 # path, so pages can move. The version and build travel with it, so a later
@@ -58,6 +58,10 @@ APK_DISCARD_PATH = "/api/v1/install/apk/discard"
 BACKUP_PATH = "/api/v1/backup"
 DIAG_PATH = "/api/v1/diag"
 SETUP_PATH = "/api/v1/setup"
+
+# The Home Assistant user a panel's native transport session is bound to. It is
+# recorded on the first accepted hello; the entry's identity does not change.
+CONF_TRANSPORT_USER_ID = "transport_user_id"
 
 
 def update_unique_id(entry_id: str) -> str:

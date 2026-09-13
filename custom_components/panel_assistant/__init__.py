@@ -32,6 +32,7 @@ from .install_jobs import (
     InstallResultCode,
     async_get_install_job_manager,
 )
+from .transport import REASON_ENTRY_UNLOADED, async_get_sessions, async_setup_transport
 from .update_coordinator import PanelUpdateCoordinator
 
 PLATFORMS = [Platform.SENSOR, Platform.UPDATE]
@@ -46,6 +47,7 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register browser delivery independently of panel config entries."""
+    async_setup_transport(hass)
     async_register_browser_delivery(hass)
     await async_register_browser_panel(hass)
     feed = config.get(DOMAIN, {}).get(CONF_BUILD_FEED)
@@ -189,6 +191,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
         client=client,
         coordinator=coordinator,
         update_coordinator=update_coordinator,
+    )
+    entry.async_on_unload(
+        lambda: async_get_sessions(hass).close_entry(
+            entry.entry_id, REASON_ENTRY_UNLOADED
+        )
     )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
