@@ -6,7 +6,7 @@
 
 A Home Assistant integration for [ha-paneld](https://github.com/maxlyth/ha-paneld), the dashboard app for Android wall panels.
 
-Panel Assistant installs ha-paneld on a panel and connects the panel to Home Assistant. You can install over USB from the computer you are browsing on, or over the network if the panel has Android Debug Bridge enabled, and you can connect a panel that already runs ha-paneld. Panel Assistant is beta software: the direction is settled, and the internals are still changing. Installing reaches the panel directly, over USB or Android Debug Bridge, and expects a panel that does not have ha-paneld yet. Updating a panel that already runs it goes through ha-paneld's own update API, from that panel's update entity in Home Assistant. MQTT still carries panel controls and entities.
+Panel Assistant installs ha-paneld on a panel and connects the panel to Home Assistant. You can install over USB from the computer you are browsing on, or over the network if the panel has Android Debug Bridge enabled, and you can connect a panel that already runs ha-paneld. Panel Assistant is still in 0.x: the direction is settled, and the internals are still changing. Installing reaches the panel directly, over USB or Android Debug Bridge, and expects a panel that does not have ha-paneld yet. Updating a panel that already runs it goes through ha-paneld's own update API, from that panel's update entity in Home Assistant. MQTT still carries panel controls and entities.
 
 ## Try it
 
@@ -17,8 +17,6 @@ Requires Home Assistant 2026.8.3 or later and HACS.
 3. Open **Settings → Devices & services → Add integration**, select **Panel Assistant**, and follow the prompts.
 
 [Open in HACS](https://my.home-assistant.io/redirect/hacs_repository/?owner=panel-assistant&repository=ha-integration&category=integration)
-
-Panel Assistant is in beta, so turn on **Show beta versions** for it in HACS to be offered new versions.
 
 ### Install over USB
 
@@ -36,7 +34,7 @@ Questions, panel-specific tips and problem reports are welcome in the [Panel Ass
 
 ## Updating from 0.1.x
 
-Remove the old integration entry in **Settings → Devices & services**, then remove its download from HACS. Add this repository in HACS, enable beta releases and download Panel Assistant. Restart Home Assistant and add the integration again using your panel's hostname or IP. This replaces the integration's Status entity; it does not change ha-paneld's MQTT entities, topics or panel settings.
+Remove the old integration entry in **Settings → Devices & services**, then remove its download from HACS. Add this repository in HACS and download Panel Assistant. Restart Home Assistant and add the integration again using your panel's hostname or IP. This replaces the integration's Status entity; it does not change ha-paneld's MQTT entities, topics or panel settings.
 
 ## License
 

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.2.1 - 2026-09-13
+
+- First full release, so HACS offers it without Show beta versions.
+- Fix the Install link in the Panel Assistant sidebar, which in 0.2.0b1 opened nothing, or the old integration's installer where that was still installed.
+- Panel Assistant lists only ha-paneld releases that carry a signed installation descriptor. The current stable ha-paneld, v0.9.6, has none, so until the next stable release the version list offers only release candidates, marked as test versions.
+
 ## 0.2.0b1 - 2026-09-12
 
 - Rename the integration to Panel Assistant and move to semantic versions. Earlier installs tracked a moving branch and will not be offered this as an update, so follow "Updating from 0.1.x" in the README.
