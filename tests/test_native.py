@@ -268,7 +268,7 @@ async def test_flag_off_creates_nothing_through_a_full_session(
     for platform in ("light", "switch", "select", "number", "text", "button"):
         assert f"{DOMAIN}.{platform}" not in hass.config.components
     transport = (await async_get_config_entry_diagnostics(hass, dormant))["transport"]
-    assert transport["native_entities"] is False
+    assert transport.get("native_entities") is False
 
 
 # ---------------------------------------------------------------------------
@@ -321,6 +321,12 @@ async def test_every_type_renders_under_the_native_unique_id(
     # Unavailable until the full sync completes.
     screen = by_suffix["screen"].entity_id
     assert hass.states.get(screen).state == STATE_UNAVAILABLE
+    # A button reports nothing, so only the unfinished sync holds it back.
+    begin = await _send(client, _report(token, "full_begin", _observations()))
+    assert begin["success"]
+    await hass.async_block_till_done()
+    assert hass.states.get(screen).state == STATE_UNAVAILABLE
+    assert hass.states.get(by_suffix["reboot"].entity_id).state == STATE_UNAVAILABLE
     await _sync(hass, client, token)
 
     def state(suffix: str) -> Any:
@@ -333,7 +339,7 @@ async def test_every_type_renders_under_the_native_unique_id(
     assert state("screen").state == "off"
     led = state("led")
     assert (led.state, led.attributes["brightness"]) == ("on", 90)
-    assert led.attributes["rgb_color"] == (1, 2, 3)
+    assert led.attributes.get("rgb_color") == (1, 2, 3)
     assert (led.attributes["effect"], led.attributes["color_mode"]) == ("pulse", "rgb")
     assert state("button_led1").attributes["supported_color_modes"] == ["onoff"]
     assert state("cpu_governor").state == "efficiency"
@@ -349,12 +355,15 @@ async def test_every_type_renders_under_the_native_unique_id(
     assert state("diag_ip").state == "192.0.2.4"
     assert state("diag_boot").state == "2026-09-14T08:00:00+00:00"
     storage = state("storage_health")
-    assert (storage.state, storage.attributes["device_class"]) == ("warning", "enum")
+    assert (storage.state, storage.attributes.get("device_class")) == (
+        "warning",
+        "enum",
+    )
     assert storage.attributes["quick_check"] == "ok"
     assert state("diag_cpu").state == STATE_UNAVAILABLE
     companion = state("ha_companion_update")
     assert companion.attributes["installed_version"] == "2026.1.1"
-    assert state("reboot").attributes["device_class"] == "restart"
+    assert state("reboot").attributes.get("device_class") == "restart"
     assert state("reboot").state == "unknown"
     assert state("button").state == "unknown"
     assert state("camera_snapshot").state != STATE_UNAVAILABLE
@@ -498,7 +507,7 @@ async def test_unknown_descriptors_are_accepted_and_render_nothing(
     }
     diagnostics = await async_get_config_entry_diagnostics(hass, native)
     assert diagnostics["transport"]["unknown_channels"] == ["future_leaf", "volume"]
-    assert diagnostics["transport"]["native_entities"] is True
+    assert diagnostics["transport"].get("native_entities") is True
 
 
 async def test_events_fire_once_per_counted_event_id(
@@ -531,6 +540,8 @@ async def test_events_fire_once_per_counted_event_id(
     assert hass.states.get(button).state == STATE_UNAVAILABLE
 
     await _sync(hass, client, token)
+    # The event reported while unavailable was counted, never fired.
+    assert hass.states.get(button).state == "unknown"
     await report(2, "keycode_back")
     fired = hass.states.get(button)
     assert fired.attributes["event_type"] == "keycode_back"
@@ -654,6 +665,7 @@ async def test_reload_unloads_every_native_platform_and_adds_each_entity_once(
     native: MockConfigEntry,
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """A reload tears down all eleven platforms and the next session re-adds."""
     client = await hass_ws_client(hass, hass_read_only_access_token)
@@ -676,7 +688,13 @@ async def test_reload_unloads_every_native_platform_and_adds_each_entity_once(
             AsyncMock(return_value=()),
         ),
     ):
-        assert await hass.config_entries.async_reload(native.entry_id)
+        assert await hass.config_entries.async_unload(native.entry_id)
+        await hass.async_block_till_done()
+        relay = _native_entries(hass, native.entry_id)[f"{DID}_relay1"].entity_id
+        # Every native platform unloaded: a left-over entity would still be on.
+        assert hass.states.get(relay).state == STATE_UNAVAILABLE
+        assert hass.states.get(relay).attributes.get("restored") is True
+        assert await hass.config_entries.async_setup(native.entry_id)
         await hass.async_block_till_done()
     assert native.state is ConfigEntryState.LOADED
 
@@ -686,6 +704,8 @@ async def test_reload_unloads_every_native_platform_and_adds_each_entity_once(
     await _sync(hass, again, token)
 
     assert _registry_digest(hass, native.entry_id) == before
+    # A second session change must not offer the same entities again.
+    assert "already exists" not in caplog.text
     relay = _native_entries(hass, native.entry_id)[f"{DID}_relay1"].entity_id
     assert hass.states.get(relay).state == "on"
     assert len(hass.states.async_entity_ids("switch")) == len(

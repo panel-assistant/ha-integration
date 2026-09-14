@@ -201,17 +201,20 @@ def test_observation_conformance_vectors(vector: dict[str, Any]) -> None:
 )
 def test_every_rendered_channel_has_english_text(entry: dict[str, Any]) -> None:
     """Name, option states and attribute names resolve under the entity tree."""
-    node = ENGLISH["entity"][entry["platform"]][entry["translation_key"]]
-    name = node["name"]
-    assert name.strip()
+    node = ENGLISH["entity"].get(entry["platform"], {}).get(entry["translation_key"])
+    assert isinstance(node, dict)
+    name = node.get("name")
+    assert isinstance(name, str) and name.strip()
     assert ("{index}" in name) == (entry["family"] is not None)
     for code in entry["options"] or ():
         if entry["platform"] == "light":
-            assert node["state_attributes"]["effect"]["state"][code].strip()
+            states = node.get("state_attributes", {}).get("effect", {}).get("state", {})
         else:
-            assert node["state"][code].strip()
+            states = node.get("state", {})
+        assert str(states.get(code, "")).strip(), code
     for attribute in entry["attributes"]:
-        assert node["state_attributes"][attribute]["name"].strip()
+        names = node.get("state_attributes", {}).get(attribute, {})
+        assert str(names.get("name", "")).strip(), attribute
 
 
 def _module_constants(tree: ast.Module) -> dict[str, str]:
@@ -293,9 +296,9 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
     assert "update_busy" in keys["exceptions"]
     assert keys["issues"] == {"panel_user_mismatch"}
     for key in keys["exceptions"]:
-        assert ENGLISH["exceptions"][key]["message"].strip(), key
+        assert str(ENGLISH["exceptions"].get(key, {}).get("message", "")).strip(), key
     for key in keys["issues"]:
-        assert ENGLISH["issues"][key]["title"].strip(), key
+        assert str(ENGLISH["issues"].get(key, {}).get("title", "")).strip(), key
 
 
 def test_every_repairs_step_and_abort_has_english_text() -> None:
