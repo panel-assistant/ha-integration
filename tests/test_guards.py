@@ -168,7 +168,11 @@ async def test_mqtt_device_cleanup_never_removes_the_entry_device_or_moved_entit
         for suffix, entity_id in mqtt["entity_ids"].items()
         if suffix != "mystery"
     }
+    # Customised, so the entity the cutover leaves behind stays enabled on
+    # MQTT's device rather than quarantined.
+    registry.async_update_entity(mqtt["entity_ids"]["mystery"], name="Mine")
     entry = await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
+    await _settle(hass)
     own = device_registry.async_get_device_by_identifier(
         (DOMAIN, entry.entry_id), entry.entry_id
     )
@@ -639,6 +643,40 @@ async def test_setup_quarantines_rediscovered_duplicates_beside_a_customised_one
     assert _issue(hass, ISSUE, entry.entry_id) is not None
     assert writes == []
     assert _record(entry) == record
+
+
+async def test_an_unmigrated_entity_announced_again_is_quarantined(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """An uncustomised leftover is quarantined, and so is its restoration."""
+    mqtt = _mqtt(hass, [("switch", "relay1", {}), ("switch", "mystery", {})])
+    registry = er.async_get(hass)
+    entry = await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
+    await _settle(hass)
+    leftover = registry.async_get(mqtt["entity_ids"]["mystery"])
+    assert leftover is not None
+    assert leftover.id in {item["registry_id"] for item in _record(entry)["unmigrated"]}
+    assert leftover.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+    assert _quarantined(entry) == [leftover.id]
+
+    # Something removes it; a downgraded panel announces it again, and Home
+    # Assistant restores the same registry entry, which MQTT enables.
+    registry.async_remove(leftover.entity_id)
+    await _settle(hass)
+    restored = registry.async_get_or_create(
+        "switch", "mqtt", f"{PANEL_ID}_mystery", config_entry=mqtt["entry"]
+    )
+    registry.async_update_entity(
+        restored.entity_id, disabled_by=None, device_id=mqtt["device"].id
+    )
+    await _settle(hass)
+
+    assert restored.id == leftover.id
+    current = registry.entities.get_entry(leftover.id)
+    assert current is not None
+    assert current.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+    assert _quarantined(entry) == [leftover.id]
+    assert _issue(hass, ISSUE, entry.entry_id) is not None
 
 
 async def test_reversal_removes_quarantined_duplicates_and_restores_entity_ids(

@@ -105,13 +105,19 @@ def _panel_ids(entry: ConfigEntry, record: dict[str, Any] | None) -> list[str]:
     return ids
 
 
-def _listed(record: dict[str, Any]) -> set[str]:
-    """Return every registry ID the cutover record already accounts for."""
-    return {
-        *record.get(CUTOVER_ENTITIES, {}),
-        *(item[CUTOVER_REGISTRY_ID] for item in record.get(CUTOVER_UNMIGRATED, ())),
-        *record.get(CUTOVER_QUARANTINED, ()),
-    }
+def _settled(record: dict[str, Any], item: er.RegistryEntry) -> bool:
+    """Return whether the record already accounts for this entity as it is now.
+
+    A moved entity is this integration's. A quarantined one counts only while
+    it is still disabled: Home Assistant restores a removed entry under the
+    same registry ID and MQTT enables it again. Unmigrated entities are not
+    exempt either, for the same reason: the panel's tombstones remove an
+    uncustomised one and a downgraded panel brings it back. Only a customised
+    one is (see ``_is_duplicate``).
+    """
+    if item.id in record.get(CUTOVER_ENTITIES, {}):
+        return True
+    return item.id in record.get(CUTOVER_QUARANTINED, ()) and item.disabled_by is not None
 
 
 def _on_panel_device(
@@ -138,9 +144,17 @@ def _is_duplicate(
     if item.platform != MQTT_DOMAIN or entity_owner(hass, entry) != AUTHORITY_NATIVE:
         return False
     record = dict(cutover_record(entry) or {})
-    return item.id not in _listed(record) and _on_panel_device(
-        hass, item, _panel_ids(entry, record)
-    )
+    if _settled(record, item):
+        return False
+    unmigrated = {
+        unmigrated[CUTOVER_REGISTRY_ID]
+        for unmigrated in record.get(CUTOVER_UNMIGRATED, ())
+    }
+    # A customised entity the cutover left behind is a person's: it holds the
+    # withdrawal back until they delete it or clear what they set.
+    if item.id in unmigrated and is_customised(item):
+        return False
+    return _on_panel_device(hass, item, _panel_ids(entry, record))
 
 
 def panel_update_required_issue_id(entry_id: str) -> str:
@@ -312,11 +326,10 @@ class _EntryGuard:
                     item.entity_id, disabled_by=er.RegistryEntryDisabler.INTEGRATION
                 )
             record = dict(cutover_record(self._entry) or {})
-            record[CUTOVER_QUARANTINED] = [
-                *record.get(CUTOVER_QUARANTINED, ()),
-                registry_id,
-            ]
-            entry_record_writer(self._hass, self._entry)(record)
+            quarantined = list(record.get(CUTOVER_QUARANTINED, ()))
+            if registry_id not in quarantined:
+                record[CUTOVER_QUARANTINED] = [*quarantined, registry_id]
+                entry_record_writer(self._hass, self._entry)(record)
             _LOGGER.info(
                 "%s announced %s over MQTT although Panel Assistant owns its"
                 " entities; it is kept disabled until the panel is updated",
