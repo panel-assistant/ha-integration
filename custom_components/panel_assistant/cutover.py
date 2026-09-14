@@ -47,6 +47,7 @@ from .transport import (
     CUTOVER_STATE,
     CUTOVER_UNMIGRATED,
     ISSUE_CUTOVER_BLOCKED,
+    ISSUE_CUTOVER_INCOMPLETE,
     MQTT_DOMAIN,
     _panel_did,
     async_delete_cutover_issues,
@@ -398,9 +399,21 @@ async def _async_forward(
 
     record[CUTOVER_STATE] = CUTOVER_COMPLETE
     _write(hass, entry, record)
-    async_delete_cutover_issues(hass, entry.entry_id)
+    async_delete_cutover_issues(hass, entry.entry_id, ISSUE_CUTOVER_INCOMPLETE)
+    _report_blocking(hass, entry)
+
+
+def _report_blocking(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> None:
+    """Raise the blocked issue while customised MQTT entities stay behind.
+
+    The issue is not persistent, so a completed move reports it again on
+    every setup until the person deletes those entities or clears their
+    customisation; the next hello then withdraws it.
+    """
     if blocking := blocking_entity_ids(hass, entry):
         async_raise_cutover_blocked_issue(hass, entry, blocking)
+    else:
+        async_delete_cutover_issues(hass, entry.entry_id, ISSUE_CUTOVER_BLOCKED)
 
 
 def _mqtt_entry_id(hass: HomeAssistant, recorded: str | None) -> str:
@@ -493,6 +506,11 @@ async def async_apply_cutover(hass: HomeAssistant, entry: HaPaneldConfigEntry) -
         transaction = _async_forward
     elif not native and record is not None:
         transaction = _async_reverse
+    elif native:
+        # The move is done; only what still holds the withdrawal back is
+        # reported again, since a restart forgets the issue.
+        _report_blocking(hass, entry)
+        return
     else:
         return
     working: dict[str, Any] = {} if record is None else deepcopy(dict(record))

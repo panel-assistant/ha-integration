@@ -473,6 +473,38 @@ async def test_a_customised_unmigrated_entity_withholds_the_claim(
     assert _record(entry) == record
 
 
+async def test_the_blocked_issue_is_raised_again_after_a_restart(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """A completed move still reports what holds the withdrawal back."""
+    mqtt = _mqtt(hass, [("switch", "relay1", {}), ("switch", "mystery", {})])
+    registry = er.async_get(hass)
+    mystery = mqtt["entity_ids"]["mystery"]
+    registry.async_update_entity(mystery, name="Mine")
+    entry = await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
+    assert _issue(hass, "cutover_blocked_by_customised_entities", entry.entry_id)
+    # Issues that are not persistent do not survive a restart.
+    ir.async_delete_issue(
+        hass, DOMAIN, f"cutover_blocked_by_customised_entities_{entry.entry_id}"
+    )
+    record = _record(entry)
+
+    await _reload(hass, entry)
+
+    issue = _issue(hass, "cutover_blocked_by_customised_entities", entry.entry_id)
+    assert issue is not None
+    assert issue.translation_placeholders == {"panel": "alpha", "entities": mystery}
+    assert _record(entry) == record
+
+    # Once nothing holds it back, the next setup clears the issue too.
+    registry.async_remove(mystery)
+    await _reload(hass, entry)
+
+    assert (
+        _issue(hass, "cutover_blocked_by_customised_entities", entry.entry_id) is None
+    )
+
+
 @pytest.mark.parametrize(
     ("flag", "options", "mqtt_discovery"),
     [
