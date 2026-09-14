@@ -1,2 +1,2 @@
-import './fleet-panel.mjs';
+import './sidebar-panel.mjs';
 import './ha-install-panel.mjs';

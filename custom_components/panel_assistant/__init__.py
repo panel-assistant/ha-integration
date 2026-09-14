@@ -21,6 +21,14 @@ from .client import HaPaneldClient, normalize_address
 from .const import DOMAIN
 from .coordinator import HaPaneldDataUpdateCoordinator
 from .cutover import async_apply_cutover, async_release_removed_entry
+from .embed import (
+    REASON_ENTRY_UNLOADED as EMBED_ENTRY_UNLOADED,
+)
+from .embed import (
+    async_get_embed_sessions,
+    async_remove_panel_user,
+    async_setup_embed,
+)
 from .feed_coordinator import CONF_BUILD_FEED, DATA_BUILD_FEED, BuildFeedCoordinator
 from .guards import (
     async_forget_removed_panel,
@@ -81,6 +89,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     # Before the commands exist, so no hello is answered without them.
     await async_load_removed_panels(hass)
     async_setup_transport(hass)
+    async_setup_embed(hass)
     async_register_browser_delivery(hass)
     await async_register_browser_panel(hass)
     feed = config.get(DOMAIN, {}).get(CONF_BUILD_FEED)
@@ -245,6 +254,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
             entry.entry_id, REASON_ENTRY_UNLOADED
         )
     )
+    entry.async_on_unload(
+        lambda: async_get_embed_sessions(hass).end_entry(
+            entry.entry_id, EMBED_ENTRY_UNLOADED
+        )
+    )
     entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
     await hass.config_entries.async_forward_entry_setups(entry, platforms)
     return True
@@ -284,6 +298,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
     record = cutover_record(entry)
     recorded_did = None if record is None else record.get("did")
     await async_release_removed_entry(hass, entry)
+    await async_remove_panel_user(hass, entry)
     await async_remember_removed_panel(
         hass, entry, recorded_did if isinstance(recorded_did, str) else None
     )

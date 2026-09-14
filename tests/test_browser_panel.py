@@ -30,9 +30,10 @@ async def test_real_panel_registration_and_admin_visibility(hass):
     panel = hass.data[frontend.DATA_PANELS][browser_panel.PANEL_PATH]
     assert panel.sidebar_title is None
     assert panel.require_admin is True
-    fleet = hass.data[frontend.DATA_PANELS][browser_panel.FLEET_PANEL_PATH]
-    assert fleet.sidebar_title == "Panel Assistant"
-    assert fleet.require_admin is True
+    sidebar = hass.data[frontend.DATA_PANELS][browser_panel.SIDEBAR_PANEL_PATH]
+    assert sidebar.sidebar_title == "Panel Assistant"
+    assert sidebar.require_admin is True
+    assert sidebar.config["_panel_custom"]["name"] == "panel-assistant-sidebar"
     assert panel.config == {
         "installer_url": "https://install.panel-assistant.io/",
         "_panel_custom": {
@@ -51,7 +52,7 @@ async def test_real_panel_registration_and_admin_visibility(hass):
         frontend.websocket_get_panels(hass, connection, {"id": 1})
         result = connection.send_message.call_args.args[0]["result"]
         assert (browser_panel.PANEL_PATH in result) is is_admin
-        assert (browser_panel.FLEET_PANEL_PATH in result) is is_admin
+        assert (browser_panel.SIDEBAR_PANEL_PATH in result) is is_admin
 
 
 @pytest.mark.usefixtures("panel_http")
@@ -72,7 +73,7 @@ async def test_legacy_domain_panel_does_not_block_setup(hass):
 
     panels = hass.data[frontend.DATA_PANELS]
     assert browser_panel.PANEL_PATH in panels
-    assert browser_panel.FLEET_PANEL_PATH in panels
+    assert browser_panel.SIDEBAR_PANEL_PATH in panels
     assert panels["ha-paneld-usb"].config["_panel_custom"]["name"] == (
         "ha-paneld-usb-install"
     )
@@ -80,7 +81,7 @@ async def test_legacy_domain_panel_does_not_block_setup(hass):
 
 def test_registered_panel_paths_carry_the_current_brand() -> None:
     """A rename that misses a panel path silently collides with the old domain."""
-    for path in (browser_panel.PANEL_PATH, browser_panel.FLEET_PANEL_PATH):
+    for path in (browser_panel.PANEL_PATH, browser_panel.SIDEBAR_PANEL_PATH):
         assert path == "panel-assistant" or path.startswith("panel-assistant-")
 
 
