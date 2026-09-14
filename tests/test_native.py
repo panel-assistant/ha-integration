@@ -156,11 +156,17 @@ async def _sync(
     await hass.async_block_till_done()
 
 
-async def _setup(hass: HomeAssistant, user_id: str, native: bool) -> MockConfigEntry:
+async def _setup(
+    hass: HomeAssistant,
+    user_id: str,
+    native: bool,
+    options: dict[str, Any] | None = None,
+) -> MockConfigEntry:
     config_entry = MockConfigEntry(
         domain=DOMAIN,
         title="alpha",
         data={CONF_ADDRESS: "panel.local", CONF_TRANSPORT_USER_ID: user_id},
+        options=options or {},
     )
     config_entry.add_to_hass(hass)
     executor = SimpleNamespace(
@@ -588,7 +594,7 @@ async def test_commands_are_refused_with_a_translated_error(
     service: str,
     data: dict[str, Any],
 ) -> None:
-    """Commands still travel over MQTT, so every native one says so."""
+    """Under the default shadow authority MQTT carries commands; none is sent."""
     client = await hass_ws_client(hass, hass_read_only_access_token)
     token = await _session(client)
     await _sync(hass, client, token)
@@ -601,6 +607,11 @@ async def test_commands_are_refused_with_a_translated_error(
 
     assert raised.value.translation_domain == DOMAIN
     assert raised.value.translation_key == "authority_mismatch"
+    # The next message answers this request: no command event was queued.
+    response = await _send(client, _report(token, "delta", []))
+    assert (response["type"], response["success"]) == ("result", True)
+    diagnostics = await async_get_config_entry_diagnostics(hass, native)
+    assert diagnostics["transport"]["commands"]["counts"] == {}
 
 
 async def test_the_panels_own_hello_is_fully_known_to_the_catalogue(

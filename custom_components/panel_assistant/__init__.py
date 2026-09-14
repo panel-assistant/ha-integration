@@ -32,17 +32,15 @@ from .install_jobs import (
     InstallResultCode,
     async_get_install_job_manager,
 )
-from .native import (
-    CONF_NATIVE_ENTITIES,
-    DATA_NATIVE_ENTITIES,
-    NATIVE_ONLY_PLATFORMS,
-    native_entities_enabled,
-)
+from .native import CONF_NATIVE_ENTITIES, NATIVE_ONLY_PLATFORMS
 from .transport import (
+    DATA_NATIVE_ENTITIES,
     REASON_ENTRY_UNLOADED,
+    async_apply_authority,
     async_delete_binding_issue,
     async_get_sessions,
     async_setup_transport,
+    native_entities_enabled,
 )
 from .update_coordinator import PanelUpdateCoordinator
 
@@ -224,8 +222,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
             entry.entry_id, REASON_ENTRY_UNLOADED
         )
     )
+    entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
     await hass.config_entries.async_forward_entry_setups(entry, platforms)
     return True
+
+
+async def _async_entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Apply an options change of authority to the panel's live session."""
+    async_apply_authority(hass, entry)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> bool:

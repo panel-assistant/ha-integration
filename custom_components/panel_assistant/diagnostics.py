@@ -11,8 +11,12 @@ from homeassistant.core import HomeAssistant
 
 from . import HaPaneldConfigEntry
 from .const import CONF_TRANSPORT_USER_ID, INTEGRATION_BUILD
-from .native import native_entities_enabled
-from .transport import session_diagnostics, shadow_comparison
+from .transport import (
+    effective_authority,
+    native_entities_enabled,
+    session_diagnostics,
+    shadow_comparison,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,6 +32,9 @@ async def async_get_config_entry_diagnostics(
     """Return redacted diagnostics for a config entry."""
     transport = session_diagnostics(hass, entry.entry_id)
     transport["native_entities"] = native_entities_enabled(hass)
+    # The authority a new session would be granted; "authority" is the one the
+    # current or last session was granted.
+    transport["effective_authority"] = effective_authority(hass, entry)
     try:
         shadow = shadow_comparison(
             hass, entry.entry_id, entry.runtime_data.coordinator.data.health.panel_id

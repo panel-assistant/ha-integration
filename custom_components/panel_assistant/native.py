@@ -2,9 +2,10 @@
 
 Dormant by default. Only the ``native_entities`` option in this integration's
 YAML turns them on; without it no native platform is set up and no registry
-entry is written. MQTT stays the authority either way: these entities render
-what the panel reports over the native transport beside the MQTT entities, so
-the two can be compared, and they send no commands.
+entry is written. These entities render what the panel reports over the
+native transport beside the MQTT entities, so the two can be compared. Their
+commands reach the panel only while the entry's authority is native; otherwise
+each one fails with a translated error and MQTT carries the panel's commands.
 
 Every entity's shape comes from the descriptor the panel sent in ``hello``: its
 platform, translation key, category, default enablement, device class, unit
@@ -23,7 +24,6 @@ from typing import Any, Final
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory, Platform
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
@@ -36,13 +36,14 @@ from .transport import (
     Observation,
     PanelSession,
     async_get_sessions,
+    async_send_command,
+    native_entities_enabled,
     session_available,
     signal_observations,
     signal_session_changed,
 )
 
 CONF_NATIVE_ENTITIES: Final = "native_entities"
-DATA_NATIVE_ENTITIES: Final = "native_entities"
 
 # Platforms only native entities use. Sensor and update are always set up for
 # the status sensor and the ha-paneld update entity, and add native entities
@@ -66,14 +67,6 @@ NOT_RENDERED: Final = frozenset({"update_paneld"})
 # Platforms whose channels are never reported, only described.
 _UNREPORTED: Final = frozenset({Platform.BUTTON, Platform.EVENT})
 
-# The exception every native command raises while MQTT holds the authority.
-ERR_AUTHORITY_MISMATCH: Final = "authority_mismatch"
-
-
-def native_entities_enabled(hass: HomeAssistant) -> bool:
-    """Return whether native entities were turned on for this Home Assistant."""
-    return bool(hass.data.get(DOMAIN, {}).get(DATA_NATIVE_ENTITIES, False))
-
 
 def native_unique_id(did: str, unique_suffix: str) -> str:
     """Return a native entity's unique ID."""
@@ -88,15 +81,6 @@ def enum_or_none[E: StrEnum](enum: type[E], value: str | None) -> E | None:
         return enum(value)
     except ValueError:
         return None
-
-
-def commands_refused() -> HomeAssistantError:
-    """Return the error for a command that MQTT, not this entity, would carry."""
-    return HomeAssistantError(
-        "The panel is controlled through MQTT, not Panel Assistant",
-        translation_domain=DOMAIN,
-        translation_key=ERR_AUTHORITY_MISMATCH,
-    )
 
 
 class NativeEntity(Entity):
@@ -229,6 +213,10 @@ class NativeEntity(Entity):
     @callback
     def handle_observation(self) -> None:
         """React to a newly stored observation before the state is written."""
+
+    async def async_command(self, value: Any) -> None:
+        """Send this channel's command to the panel and wait for its outcome."""
+        await async_send_command(self.hass, self.session, self._channel, value)
 
 
 type NativeFactory = Callable[[str, PanelSession, Mapping[str, Any]], Entity]

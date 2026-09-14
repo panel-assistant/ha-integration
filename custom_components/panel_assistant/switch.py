@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import HaPaneldConfigEntry
-from .native import NativeEntity, async_setup_native_platform, commands_refused
+from .native import NativeEntity, async_setup_native_platform
 
 
 async def async_setup_entry(
@@ -34,9 +34,9 @@ class NativeSwitch(NativeEntity, SwitchEntity):
         return value
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Refuse: commands still travel over MQTT."""
-        raise commands_refused()
+        """Turn the panel's switch on."""
+        await self.async_command(True)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Refuse: commands still travel over MQTT."""
-        raise commands_refused()
+        """Turn the panel's switch off."""
+        await self.async_command(False)

@@ -453,7 +453,43 @@
       "message": "The panel does not accept app uploads; turn on APK upload in its settings"
     },
     "authority_mismatch": {
-      "message": "This panel is still controlled through MQTT, so Panel Assistant cannot send it commands yet"
+      "message": "This panel is controlled through MQTT, so Panel Assistant cannot send it commands"
+    },
+    "panel_unavailable": {
+      "message": "The panel is not connected to Panel Assistant, so the command was not sent"
+    },
+    "not_commandable": {
+      "message": "The panel did not offer to take commands from Panel Assistant"
+    },
+    "approval_pending": {
+      "message": "The command is waiting for approval on the panel's own screen"
+    },
+    "unknown_command": {
+      "message": "The panel does not know this command"
+    },
+    "unknown_channel": {
+      "message": "The panel does not have this entity right now"
+    },
+    "invalid_value": {
+      "message": "The panel refused this value"
+    },
+    "expired": {
+      "message": "The panel was too busy to carry out the command in time"
+    },
+    "approval_denied": {
+      "message": "The command was denied on the panel's own screen"
+    },
+    "approval_timeout": {
+      "message": "The command was not approved on the panel's screen in time"
+    },
+    "refused_hardened": {
+      "message": "The panel's Hardened mode does not allow this command"
+    },
+    "hardware_unavailable": {
+      "message": "The panel's hardware for this command is not available"
+    },
+    "failed": {
+      "message": "The panel could not carry out the command"
     }
   },
   "issues": {
@@ -474,6 +510,29 @@
           "entry_removed": "This panel is no longer set up in Home Assistant.",
           "user_unavailable": "The user who asked to connect no longer exists or is deactivated. Nothing was changed."
         }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "transport": {
+        "title": "Panel transport",
+        "description": "Choose what controls this panel's entities and commands. Saving a change ends the panel's current session, and the panel reconnects with the new choice.",
+        "data": {
+          "authority": "Control"
+        }
+      }
+    },
+    "abort": {
+      "native_entities_disabled": "Native entities are not turned on for this Home Assistant, so MQTT controls this panel."
+    }
+  },
+  "selector": {
+    "authority": {
+      "options": {
+        "mqtt": "MQTT",
+        "shadow": "MQTT, with native reports for comparison",
+        "native": "Panel Assistant"
       }
     }
   }

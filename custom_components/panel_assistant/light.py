@@ -5,7 +5,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from homeassistant.components.light import LightEntity
+from homeassistant.components.light import (
+    ATTR_BRIGHTNESS,
+    ATTR_EFFECT,
+    ATTR_RGB_COLOR,
+    LightEntity,
+)
 from homeassistant.components.light.const import ColorMode, LightEntityFeature
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
@@ -14,7 +19,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 
 from . import HaPaneldConfigEntry
 from .contract import catalogue_entry
-from .native import NativeEntity, async_setup_native_platform, commands_refused
+from .native import NativeEntity, async_setup_native_platform
 from .transport import PanelSession
 
 
@@ -126,9 +131,18 @@ class NativeLight(NativeEntity, LightEntity, RestoreEntity):
             self._color_seen = True
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Refuse: commands still travel over MQTT."""
-        raise commands_refused()
+        """Turn the light on, with any brightness, colour or effect asked for."""
+        value: dict[str, Any] = {"on": True}
+        if (brightness := kwargs.get(ATTR_BRIGHTNESS)) is not None:
+            value["brightness"] = int(brightness)
+        if (color := kwargs.get(ATTR_RGB_COLOR)) is not None:
+            value["color"] = dict(
+                zip("rgb", (int(part) for part in color), strict=True)
+            )
+        if (effect := kwargs.get(ATTR_EFFECT)) is not None:
+            value["effect"] = effect
+        await self.async_command(value)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Refuse: commands still travel over MQTT."""
-        raise commands_refused()
+        """Turn the light off."""
+        await self.async_command({"on": False})

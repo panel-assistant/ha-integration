@@ -9,8 +9,14 @@ import unicodedata
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.const import CONF_ADDRESS
+from homeassistant.core import callback
 from homeassistant.data_entry_flow import UnknownFlow
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
@@ -42,7 +48,7 @@ from .client import (
     is_valid_discovery_id,
     normalize_address,
 )
-from .const import DEFAULT_PORT, DOMAIN, help_url
+from .const import CONF_AUTHORITY, DEFAULT_PORT, DOMAIN, help_url
 from .install_adb import (
     AdbInstallTarget,
     AdbRootMode,
@@ -74,6 +80,7 @@ from .release import (
     ReleaseResolutionError,
 )
 from .release_catalog import async_list_install_choices, async_resolve_install_choice
+from .transport import AUTHORITIES, effective_authority, native_entities_enabled
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -111,6 +118,12 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle an ha-paneld config flow."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        """Return the flow that chooses who owns a panel's commands."""
+        return HaPaneldOptionsFlow()
 
     _pending_address: PanelAddress | None = None
     _pending_health: PanelHealth | None = None
@@ -1485,3 +1498,50 @@ def _install_terminal_abort_reason(receipt: InstallJobReceipt) -> str:
             return "install_recovery_required"
         return _RECOVERY_ABORT_REASONS.get(result_code, "install_recovery_required")
     return "install_failed"
+
+
+ABORT_NATIVE_ENTITIES_DISABLED = "native_entities_disabled"
+
+
+class HaPaneldOptionsFlow(OptionsFlow):
+    """Choose the panel's authority: MQTT, shadow reports, or native commands.
+
+    The choice exists only while native entities are turned on. Saving it ends
+    a live panel session whose authority changed, so the panel is granted the
+    new one when it says hello again.
+    """
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Start at the transport step."""
+        return await self.async_step_transport(user_input)
+
+    async def async_step_transport(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show or save the authority."""
+        if not native_entities_enabled(self.hass):
+            return self.async_abort(reason=ABORT_NATIVE_ENTITIES_DISABLED)
+        if user_input is not None:
+            return self.async_create_entry(
+                data={
+                    **self.config_entry.options,
+                    CONF_AUTHORITY: user_input[CONF_AUTHORITY],
+                }
+            )
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_AUTHORITY,
+                    default=effective_authority(self.hass, self.config_entry),
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=list(AUTHORITIES),
+                        mode=SelectSelectorMode.LIST,
+                        translation_key=CONF_AUTHORITY,
+                    )
+                )
+            }
+        )
+        return self.async_show_form(step_id="transport", data_schema=schema)

@@ -183,5 +183,28 @@
         }
       }
     }
+  },
+  "options": {
+    "step": {
+      "transport": {
+        "title": "Conexión del panel",
+        "description": "Elige qué controla las entidades y los comandos de este panel. Al guardar un cambio termina la sesión actual del panel, que se vuelve a conectar con la nueva opción.",
+        "data": {
+          "authority": "Control"
+        }
+      }
+    },
+    "abort": {
+      "native_entities_disabled": "Las entidades nativas no están activadas en este Home Assistant, así que MQTT controla este panel."
+    }
+  },
+  "selector": {
+    "authority": {
+      "options": {
+        "mqtt": "MQTT",
+        "shadow": "MQTT, con informes nativos para comparar",
+        "native": "Panel Assistant"
+      }
+    }
   }
 }

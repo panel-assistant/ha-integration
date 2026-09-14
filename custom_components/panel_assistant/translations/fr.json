@@ -183,5 +183,28 @@
         }
       }
     }
+  },
+  "options": {
+    "step": {
+      "transport": {
+        "title": "Connexion du panneau",
+        "description": "Choisissez ce qui contrôle les entités et les commandes de ce panneau. L'enregistrement d'une modification met fin à la session en cours du panneau, qui se reconnecte avec le nouveau choix.",
+        "data": {
+          "authority": "Contrôle"
+        }
+      }
+    },
+    "abort": {
+      "native_entities_disabled": "Les entités natives ne sont pas activées dans ce Home Assistant : MQTT contrôle donc ce panneau."
+    }
+  },
+  "selector": {
+    "authority": {
+      "options": {
+        "mqtt": "MQTT",
+        "shadow": "MQTT, avec des rapports natifs pour comparaison",
+        "native": "Panel Assistant"
+      }
+    }
   }
 }

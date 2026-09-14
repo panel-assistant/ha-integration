@@ -10,12 +10,15 @@ Everything a panel sends is untrusted. Each message is validated and bounded
 before anything is stored, stored values are the validated copies, and no
 handler performs I/O, so Home Assistant applies them in arrival order.
 
-MQTT stays the authority for every panel entity, so ``hello`` answers with the
-``shadow`` authority and grants no commands: the panel reports its state here
-so diagnostics can compare it with the MQTT entities (see
+``hello`` answers with the entry's authority. By default that is ``shadow``:
+MQTT owns every panel entity and its commands, and the panel reports its state
+here so diagnostics can compare it with the MQTT entities (see
 ``shadow_comparison``). The native entities that render these reports stay
-dormant unless the ``native_entities`` option is set (see ``native.py``); this
-module itself never writes a registry.
+dormant unless the ``native_entities`` option is set (see ``native.py``), and
+only with that option can an entry's options choose ``native``, under which
+this integration sends the panel's commands on the session and waits for each
+outcome (see ``async_send_command``). This module itself never writes a
+registry.
 
 A panel's identity is public on the LAN, so ``hello`` never binds a panel to the
 account that sends it. Only an administrator binds one, by confirming the
@@ -24,10 +27,12 @@ Repairs issue that an unconfirmed ``hello`` raises.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import math
 import re
 import secrets
+from collections import deque
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -43,6 +48,7 @@ from homeassistant.components.websocket_api.messages import event_message
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNKNOWN
 from homeassistant.core import Event, HomeAssistant, State, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
@@ -52,12 +58,13 @@ from yarl import URL
 
 from .client import is_valid_discovery_id, is_valid_panel_version
 from .const import (
+    CONF_AUTHORITY,
     CONF_TRANSPORT_USER_ID,
     DOMAIN,
     INTEGRATION_VERSION,
     MAX_ANDROID_INTEGER,
 )
-from .contract import catalogue_entry
+from .contract import CONTRACT, catalogue_entry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -67,21 +74,76 @@ PROTOCOL_MAX: Final = 1
 COMMAND_HELLO: Final = f"{DOMAIN}/hello"
 COMMAND_REPORT_STATE: Final = f"{DOMAIN}/report_state"
 COMMAND_REPORT_EVENT: Final = f"{DOMAIN}/report_event"
+COMMAND_COMMAND_RESULT: Final = f"{DOMAIN}/command_result"
 
+# Who owns a panel's entities and commands. MQTT, unless an entry's options
+# choose otherwise while native entities are turned on.
 AUTHORITY_MQTT: Final = "mqtt"
-# While no native authority exists, shadow is the only mode this side serves.
 AUTHORITY_SHADOW: Final = "shadow"
-# Capabilities this integration can serve today. Commands and approval are not
-# served yet, so a panel is never granted them and never needs the command that
-# reports a command's outcome.
-KNOWN_CAPABILITIES: Final = frozenset({"state", "events", "commands", "approval"})
-SERVED_CAPABILITIES: Final = frozenset({"state", "events"})
+AUTHORITY_NATIVE: Final = "native"
+AUTHORITIES: Final = (AUTHORITY_MQTT, AUTHORITY_SHADOW, AUTHORITY_NATIVE)
+DEFAULT_AUTHORITY: Final = AUTHORITY_SHADOW
+
+CAPABILITY_STATE: Final = "state"
+CAPABILITY_EVENTS: Final = "events"
+CAPABILITY_COMMANDS: Final = "commands"
+CAPABILITY_APPROVAL: Final = "approval"
+KNOWN_CAPABILITIES: Final = frozenset(
+    {CAPABILITY_STATE, CAPABILITY_EVENTS, CAPABILITY_COMMANDS, CAPABILITY_APPROVAL}
+)
+# What each authority lets a session use, before intersecting with what the
+# panel offered. The panel reports state under shadow and native alike, since a
+# native entity is available only while its channel is reported.
+AUTHORITY_GRANTS: Final[dict[str, frozenset[str]]] = {
+    AUTHORITY_MQTT: frozenset(),
+    AUTHORITY_SHADOW: frozenset({CAPABILITY_STATE, CAPABILITY_EVENTS}),
+    AUTHORITY_NATIVE: frozenset(
+        {CAPABILITY_STATE, CAPABILITY_COMMANDS, CAPABILITY_APPROVAL}
+    ),
+}
 
 # Session end reasons sent in a ``session_closed`` event.
 REASON_SUPERSEDED: Final = "superseded"
 REASON_ENTRY_UNLOADED: Final = "entry_unloaded"
 REASON_USER_REMOVED: Final = "user_removed"
 REASON_BINDING_CHANGED: Final = "binding_changed"
+REASON_AUTHORITY_CHANGED: Final = "authority_changed"
+
+# Command outcomes a panel reports. Interim ``pending_approval`` is followed by
+# exactly one final outcome.
+OUTCOME_APPLIED: Final = "applied"
+OUTCOME_SUPERSEDED: Final = "superseded"
+OUTCOME_PENDING_APPROVAL: Final = "pending_approval"
+OUTCOME_REFUSED: Final = "refused"
+OUTCOME_FAILED: Final = "failed"
+OUTCOMES: Final = (
+    OUTCOME_APPLIED,
+    OUTCOME_SUPERSEDED,
+    OUTCOME_PENDING_APPROVAL,
+    OUTCOME_REFUSED,
+    OUTCOME_FAILED,
+)
+# The outcomes that must name a code from the contract's closed list.
+OUTCOMES_WITH_CODE: Final = frozenset({OUTCOME_REFUSED, OUTCOME_FAILED})
+OUTCOME_CODES: Final = frozenset(CONTRACT["outcome_codes"])
+
+# Translated errors a native command raises in Home Assistant, besides the
+# outcome codes a panel reports.
+ERR_PANEL_UNAVAILABLE: Final = "panel_unavailable"
+ERR_AUTHORITY_MISMATCH: Final = "authority_mismatch"
+ERR_NOT_COMMANDABLE: Final = "not_commandable"
+ERR_APPROVAL_PENDING: Final = "approval_pending"
+COMMAND_ERRORS: Final = OUTCOME_CODES | {ERR_PANEL_UNAVAILABLE, ERR_APPROVAL_PENDING}
+
+# How long a service call waits for a command's outcome, from sending it.
+COMMAND_TIMEOUT: Final = 30.0
+# How long the panel may hold a command before it answers that it expired.
+COMMAND_DEADLINE_MS: Final = 10_000
+# Commands whose wait ended without a final outcome, remembered so a late one
+# is still recorded; and outcomes kept for diagnostics.
+MAX_LATE_COMMANDS: Final = 16
+MAX_RECENT_OUTCOMES: Final = 16
+MAX_PLACEHOLDERS: Final = 8
 
 # Error codes returned to the panel. The panel renders its own text from them.
 ERR_PROTOCOL_UNSUPPORTED: Final = "protocol_unsupported"
@@ -136,6 +198,7 @@ _SESSION_TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _CONTROL_CHARACTERS = re.compile(r"[\x00-\x1f\x7f]")
 
 DATA_TRANSPORT: Final = "transport"
+DATA_NATIVE_ENTITIES: Final = "native_entities"
 
 # The Repairs issue an unconfirmed hello raises, one per entry.
 ISSUE_PANEL_USER_MISMATCH: Final = ERR_PANEL_USER_MISMATCH
@@ -408,6 +471,38 @@ REPORT_EVENT_SCHEMA: Final = vol.Schema(
 )
 
 
+def _placeholders(value: Any) -> dict[str, str]:
+    if type(value) is not dict or len(value) > MAX_PLACEHOLDERS:
+        raise vol.Invalid("expected bounded placeholders")
+    return {
+        _code(key): _plain_string(MAX_STRING_LENGTH)(item)
+        for key, item in value.items()
+    }
+
+
+def _outcome_consistent(result: dict[str, Any]) -> dict[str, Any]:
+    if (result["outcome"] in OUTCOMES_WITH_CODE) != ("code" in result):
+        raise vol.Invalid("refused and failed carry a code, other outcomes none")
+    return result
+
+
+COMMAND_RESULT_SCHEMA: Final = vol.All(
+    vol.Schema(
+        {
+            vol.Required("type"): COMMAND_COMMAND_RESULT,
+            vol.Required("session"): _session_token,
+            vol.Required("command_id"): _session_token,
+            # An unknown outcome would change meaning, so it fails.
+            vol.Required("outcome"): vol.In(OUTCOMES),
+            vol.Optional("code"): vol.In(OUTCOME_CODES),
+            vol.Optional("placeholders"): _placeholders,
+        },
+        extra=vol.REMOVE_EXTRA,
+    ),
+    _outcome_consistent,
+)
+
+
 # ---------------------------------------------------------------------------
 # Values, typed by the platform the channel's descriptor declared.
 
@@ -650,6 +745,42 @@ class PanelSession:
     # observation of that channel is accepted.
     rejections: dict[str, str] = field(default_factory=dict)
     closed_at: datetime | None = None
+    # The authority the hello reply granted. An options change that makes the
+    # entry's authority differ ends the session.
+    authority: str = DEFAULT_AUTHORITY
+    # Commands sent and still waited for, by command ID.
+    pending: dict[str, PendingCommand] = field(default_factory=dict)
+    # Commands whose wait ended without a final outcome, oldest first.
+    late: dict[str, PendingCommand] = field(default_factory=dict)
+    recent_outcomes: deque[dict[str, Any]] = field(
+        default_factory=lambda: deque(maxlen=MAX_RECENT_OUTCOMES)
+    )
+    command_counts: dict[str, int] = field(default_factory=dict)
+
+    def count(self, name: str) -> None:
+        """Count one command fact for diagnostics."""
+        self.command_counts[name] = self.command_counts.get(name, 0) + 1
+
+
+@dataclass(slots=True)
+class CommandOutcome:
+    """The final outcome a panel reported for one command."""
+
+    outcome: str
+    code: str | None
+
+
+@dataclass(slots=True)
+class PendingCommand:
+    """One command sent on a session and not yet answered with a final outcome.
+
+    The future resolves with the final outcome, or with None when the session
+    ends first.
+    """
+
+    channel: str
+    future: asyncio.Future[CommandOutcome | None]
+    approval_pending: bool = False
 
 
 class TransportSessions:
@@ -752,11 +883,48 @@ class TransportSessions:
         self._by_token.pop(session.token, None)
         session.closed_at = dt_util.utcnow()
         self._last_by_entry[session.entry_id] = session
+        # A command is never sent again on a later session, so every command
+        # still waited for fails now.
+        for command in session.pending.values():
+            if not command.future.done():
+                command.future.set_result(None)
+        session.pending.clear()
+        session.late.clear()
         return True
 
     @callback
     def _changed(self, entry_id: str) -> None:
         async_dispatcher_send(self._hass, signal_session_changed(entry_id))
+
+
+def native_entities_enabled(hass: HomeAssistant) -> bool:
+    """Return whether native entities were turned on for this Home Assistant."""
+    return bool(hass.data.get(DOMAIN, {}).get(DATA_NATIVE_ENTITIES, False))
+
+
+def effective_authority(hass: HomeAssistant, entry: ConfigEntry) -> str:
+    """Return the authority a panel session of this entry is granted.
+
+    The entry's option counts only while native entities are turned on, so a
+    release carries the choice dark and answers shadow.
+    """
+    if not native_entities_enabled(hass):
+        return DEFAULT_AUTHORITY
+    authority = entry.options.get(CONF_AUTHORITY, DEFAULT_AUTHORITY)
+    return authority if authority in AUTHORITIES else DEFAULT_AUTHORITY
+
+
+@callback
+def async_apply_authority(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """End a live session whose granted authority is no longer the entry's.
+
+    Every change to an entry calls this, binding writes included, so it acts
+    only on a real change. The panel sends hello again and is granted anew.
+    """
+    sessions = async_get_sessions(hass)
+    session = sessions.get(entry.entry_id)
+    if session is not None and session.authority != effective_authority(hass, entry):
+        sessions.close(session, REASON_AUTHORITY_CHANGED)
 
 
 def async_get_sessions(hass: HomeAssistant) -> TransportSessions:
@@ -788,7 +956,7 @@ def session_diagnostics(hass: HomeAssistant, entry_id: str) -> dict[str, Any]:
         "connected": sessions.get(entry_id) is session,
         "closed_at": _iso(session.closed_at),
         "protocol": session.protocol,
-        "authority": AUTHORITY_SHADOW,
+        "authority": session.authority,
         "app_version": session.app_version,
         "app_version_code": session.app_version_code,
         "contract_digest": session.contract_digest,
@@ -800,6 +968,12 @@ def session_diagnostics(hass: HomeAssistant, entry_id: str) -> dict[str, Any]:
         "observations": len(session.observations),
         "rejected_observations": session.rejected_observations,
         "events_received": session.events_received,
+        # Outcomes and counts only: a command's value may be user data.
+        "commands": {
+            "counts": dict(sorted(session.command_counts.items())),
+            "pending": len(session.pending),
+            "recent": list(session.recent_outcomes),
+        },
     }
 
 
@@ -1247,7 +1421,8 @@ def ws_hello(
         return
     async_delete_binding_issue(hass, entry.entry_id, user_id)
 
-    capabilities = SERVED_CAPABILITIES.intersection(msg["capabilities"])
+    authority = effective_authority(hass, entry)
+    capabilities = AUTHORITY_GRANTS[authority].intersection(msg["capabilities"])
     descriptors = {item["channel"]: item for item in msg["channels"]}
     unknown = frozenset(
         channel
@@ -1269,6 +1444,7 @@ def ws_hello(
         descriptors=descriptors,
         opened_at=dt_util.utcnow(),
         unknown_channels=unknown,
+        authority=authority,
     )
     async_get_sessions(hass).open(session)
     connection.send_result(
@@ -1276,7 +1452,7 @@ def ws_hello(
         {
             "protocol": high,
             "session": session.token,
-            "authority": AUTHORITY_SHADOW,
+            "authority": authority,
             "capabilities": sorted(capabilities),
             "integration": {"version": INTEGRATION_VERSION},
             # Unknown descriptors are accepted too, but render nothing.
@@ -1399,6 +1575,152 @@ def ws_report_event(
     connection.send_result(msg["id"])
 
 
+def _record_outcome(
+    session: PanelSession, command: PendingCommand, msg: dict[str, Any], late: bool
+) -> None:
+    session.count(msg["outcome"])
+    if late:
+        session.count("late")
+    session.recent_outcomes.append(
+        {
+            "channel": command.channel,
+            "outcome": msg["outcome"],
+            "code": msg.get("code"),
+            "late": late,
+            "at": dt_util.utcnow().isoformat(),
+        }
+    )
+
+
+@callback
+@websocket_command(COMMAND_RESULT_SCHEMA)
+def ws_command_result(
+    hass: HomeAssistant,
+    connection: ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Resolve a sent command with the outcome the panel reports.
+
+    Synchronous, so outcomes apply in arrival order. A result for a command
+    that is not waiting for one, such as a repeat or an interim outcome after
+    the final one, is acknowledged and changes nothing.
+    """
+    session = async_get_sessions(hass).for_request(msg["session"], connection)
+    if session is None:
+        connection.send_error(msg["id"], ERR_SESSION_UNKNOWN, "No such session.")
+        return
+    command_id = msg["command_id"]
+    late = False
+    command = session.pending.get(command_id)
+    if command is None and (command := session.late.get(command_id)) is not None:
+        late = True
+    if command is None or (
+        msg["outcome"] == OUTCOME_PENDING_APPROVAL and command.approval_pending
+    ):
+        session.count("ignored")
+        connection.send_result(msg["id"])
+        return
+
+    _record_outcome(session, command, msg, late)
+    if msg["outcome"] == OUTCOME_PENDING_APPROVAL:
+        command.approval_pending = True
+    elif late:
+        # Too late for its service call; recorded above and nothing else.
+        del session.late[command_id]
+    else:
+        del session.pending[command_id]
+        if not command.future.done():
+            command.future.set_result(CommandOutcome(msg["outcome"], msg.get("code")))
+    connection.send_result(msg["id"])
+
+
+def _command_error(translation_key: str | None) -> HomeAssistantError:
+    return HomeAssistantError(
+        translation_domain=DOMAIN, translation_key=translation_key
+    )
+
+
+@callback
+def _stop_waiting(session: PanelSession, command_id: str) -> None:
+    """Keep a command whose wait ended, so a late outcome is still recorded."""
+    command = session.pending.pop(command_id, None)
+    if command is None or session.closed_at is not None:
+        return
+    session.late[command_id] = command
+    while len(session.late) > MAX_LATE_COMMANDS:
+        del session.late[next(iter(session.late))]
+
+
+async def async_send_command(
+    hass: HomeAssistant, session: PanelSession | None, channel: str, value: Any
+) -> None:
+    """Send one command to a panel and wait for its outcome.
+
+    Only a live, fully synced session with the native authority and the
+    commands capability carries commands. A command is sent once and never
+    again: if the session ends first, or no outcome arrives in time, the call
+    fails and the panel is not asked twice. Applied and superseded return;
+    every other outcome raises its translated error.
+    """
+    if (
+        session is None
+        or async_get_sessions(hass).get(session.entry_id) is not session
+        or not session.full_sync_complete
+    ):
+        raise HomeAssistantError(
+            translation_domain=DOMAIN, translation_key=ERR_PANEL_UNAVAILABLE
+        )
+    if session.authority != AUTHORITY_NATIVE:
+        raise HomeAssistantError(
+            translation_domain=DOMAIN, translation_key=ERR_AUTHORITY_MISMATCH
+        )
+    if CAPABILITY_COMMANDS not in session.capabilities:
+        raise HomeAssistantError(
+            translation_domain=DOMAIN, translation_key=ERR_NOT_COMMANDABLE
+        )
+
+    command_id = secrets.token_urlsafe(24)
+    command = PendingCommand(channel=channel, future=hass.loop.create_future())
+    session.pending[command_id] = command
+    session.count("sent")
+    session.connection.send_message(
+        event_message(
+            session.subscription_id,
+            {
+                "kind": "command",
+                "command_id": command_id,
+                "session": session.token,
+                "channel": channel,
+                "value": value,
+                "deadline_ms": COMMAND_DEADLINE_MS,
+            },
+        )
+    )
+    future = command.future
+    try:
+        async with asyncio.timeout(COMMAND_TIMEOUT):
+            # Shielded, so a cancelled caller leaves the command to be recorded.
+            result = await asyncio.shield(future)
+    except TimeoutError:
+        if not future.done():
+            session.count("timed_out")
+            raise _command_error(
+                ERR_APPROVAL_PENDING
+                if command.approval_pending
+                else ERR_PANEL_UNAVAILABLE
+            ) from None
+        result = future.result()
+    finally:
+        if not future.done():
+            _stop_waiting(session, command_id)
+
+    if result is None:
+        session.count("session_ended")
+        raise _command_error(ERR_PANEL_UNAVAILABLE)
+    if result.outcome in OUTCOMES_WITH_CODE:
+        raise _command_error(result.code)
+
+
 @callback
 def async_setup_transport(hass: HomeAssistant) -> None:
     """Register the commands once for the domain, never per entry."""
@@ -1406,6 +1728,7 @@ def async_setup_transport(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_hello)
     websocket_api.async_register_command(hass, ws_report_state)
     websocket_api.async_register_command(hass, ws_report_event)
+    websocket_api.async_register_command(hass, ws_command_result)
 
     @callback
     def _user_removed(event: Event[Any]) -> None:

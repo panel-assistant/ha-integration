@@ -183,5 +183,28 @@
         }
       }
     }
+  },
+  "options": {
+    "step": {
+      "transport": {
+        "title": "面板连接",
+        "description": "选择由什么控制此面板的实体和命令。保存更改会结束面板的当前会话，面板随后会按新的选择重新连接。",
+        "data": {
+          "authority": "控制方式"
+        }
+      }
+    },
+    "abort": {
+      "native_entities_disabled": "此 Home Assistant 未启用原生实体，因此由 MQTT 控制此面板。"
+    }
+  },
+  "selector": {
+    "authority": {
+      "options": {
+        "mqtt": "MQTT",
+        "shadow": "MQTT，并附带用于比较的原生报告",
+        "native": "Panel Assistant"
+      }
+    }
   }
 }

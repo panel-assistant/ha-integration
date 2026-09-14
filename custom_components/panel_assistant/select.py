@@ -8,7 +8,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import HaPaneldConfigEntry
-from .native import NativeEntity, async_setup_native_platform, commands_refused
+from .native import NativeEntity, async_setup_native_platform
 
 
 async def async_setup_entry(
@@ -37,5 +37,5 @@ class NativeSelect(NativeEntity, SelectEntity):
         return value
 
     async def async_select_option(self, option: str) -> None:
-        """Refuse: commands still travel over MQTT."""
-        raise commands_refused()
+        """Choose an option by its code."""
+        await self.async_command(option)

@@ -319,7 +319,7 @@ async def test_unknown_command_is_refused_by_core(
     """A command this integration does not register is Core's unknown_command."""
     client = await hass_ws_client(hass, hass_read_only_access_token)
 
-    response = await _send(client, {"type": "panel_assistant/command_result"})
+    response = await _send(client, {"type": "panel_assistant/subscribe_commands"})
 
     assert not response["success"]
     assert response["error"]["code"] == "unknown_command"

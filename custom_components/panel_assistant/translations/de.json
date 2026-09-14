@@ -183,5 +183,28 @@
         }
       }
     }
+  },
+  "options": {
+    "step": {
+      "transport": {
+        "title": "Panel-Verbindung",
+        "description": "Lege fest, was die Entitäten und Befehle dieses Panels steuert. Wenn du eine Änderung speicherst, endet die aktuelle Sitzung des Panels, und das Panel verbindet sich mit der neuen Auswahl neu.",
+        "data": {
+          "authority": "Steuerung"
+        }
+      }
+    },
+    "abort": {
+      "native_entities_disabled": "Native Entitäten sind in diesem Home Assistant nicht aktiviert, daher steuert MQTT dieses Panel."
+    }
+  },
+  "selector": {
+    "authority": {
+      "options": {
+        "mqtt": "MQTT",
+        "shadow": "MQTT, mit nativen Berichten zum Vergleich",
+        "native": "Panel Assistant"
+      }
+    }
   }
 }

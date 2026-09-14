@@ -25,6 +25,7 @@ SCHEMAS = {
     transport.COMMAND_HELLO: transport.HELLO_SCHEMA,
     transport.COMMAND_REPORT_STATE: transport.REPORT_STATE_SCHEMA,
     transport.COMMAND_REPORT_EVENT: transport.REPORT_EVENT_SCHEMA,
+    transport.COMMAND_COMMAND_RESULT: transport.COMMAND_RESULT_SCHEMA,
 }
 
 
@@ -61,7 +62,7 @@ def test_contract_code_lists_are_the_integrations_own() -> None:
         "min": transport.PROTOCOL_MIN,
         "max": transport.PROTOCOL_MAX,
     }
-    assert set(CONTRACT["commands"]) >= set(SCHEMAS)
+    assert set(CONTRACT["commands"]) == set(SCHEMAS)
     assert CONTRACT["sync"] == [
         transport.SYNC_FULL_BEGIN,
         transport.SYNC_DELTA,
@@ -87,11 +88,17 @@ def test_contract_code_lists_are_the_integrations_own() -> None:
         transport.REASON_ENTRY_UNLOADED,
         transport.REASON_USER_REMOVED,
         transport.REASON_BINDING_CHANGED,
+        transport.REASON_AUTHORITY_CHANGED,
     } <= set(CONTRACT["session_closed_reasons"])
-    assert {transport.AUTHORITY_MQTT, transport.AUTHORITY_SHADOW} <= set(
-        CONTRACT["authorities"]
+    assert CONTRACT["authorities"] == list(transport.AUTHORITIES)
+    assert set(transport.AUTHORITY_GRANTS) == set(transport.AUTHORITIES)
+    assert (
+        frozenset().union(*transport.AUTHORITY_GRANTS.values())
+        <= transport.KNOWN_CAPABILITIES
     )
-    assert transport.SERVED_CAPABILITIES <= transport.KNOWN_CAPABILITIES
+    assert CONTRACT["outcomes"] == list(transport.OUTCOMES)
+    assert set(CONTRACT["outcomes"]) > transport.OUTCOMES_WITH_CODE
+    assert set(CONTRACT["outcome_codes"]) == transport.OUTCOME_CODES
     assert CONTRACT["max_family_index"] == transport.MAX_FAMILY_INDEX
     assert {entry["platform"] for entry in CONTRACT["channels"]} == set(
         transport.PLATFORMS
@@ -299,6 +306,41 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
         assert str(ENGLISH["exceptions"].get(key, {}).get("message", "")).strip(), key
     for key in keys["issues"]:
         assert str(ENGLISH["issues"].get(key, {}).get("title", "")).strip(), key
+
+
+# Codes a native command raises, held in variables the scan above cannot follow.
+COMMAND_ERROR_KEYS = sorted(
+    {*CONTRACT["outcome_codes"], "panel_unavailable", "approval_pending"}
+)
+
+
+def test_command_error_keys_are_the_integrations_own() -> None:
+    """The translated command errors are the outcome codes and two of its own."""
+    assert set(COMMAND_ERROR_KEYS) == transport.COMMAND_ERRORS
+    assert {
+        transport.ERR_PANEL_UNAVAILABLE,
+        transport.ERR_APPROVAL_PENDING,
+        transport.ERR_AUTHORITY_MISMATCH,
+        transport.ERR_NOT_COMMANDABLE,
+    } <= transport.COMMAND_ERRORS
+
+
+@pytest.mark.parametrize("key", COMMAND_ERROR_KEYS)
+def test_every_command_error_has_english_text(key: str) -> None:
+    """A command outcome can never raise an untranslated error."""
+    assert str(ENGLISH["exceptions"].get(key, {}).get("message", "")).strip(), key
+
+
+def test_the_options_flow_has_text_in_english() -> None:
+    """The authority step, its abort and every choice resolve in English."""
+    options = ENGLISH["options"]
+    step = options["step"]["transport"]
+    assert step["title"].strip() and step["description"].strip()
+    assert step["data"]["authority"].strip()
+    assert options["abort"]["native_entities_disabled"].strip()
+    choices = ENGLISH["selector"]["authority"]["options"]
+    assert sorted(choices) == sorted(transport.AUTHORITIES)
+    assert all(label.strip() for label in choices.values())
 
 
 def test_every_repairs_step_and_abort_has_english_text() -> None:

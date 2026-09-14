@@ -288,8 +288,9 @@ def test_runtime_translations_are_complete() -> None:
 def _english_only_paths(catalogue: dict[str, Any]) -> set[tuple[str, ...]]:
     """Return the subtrees shipped in English only until they are translated.
 
-    Native entities and their command refusal are dormant, so other locales do
-    not carry them yet. Everything else must stay complete in every locale.
+    Native entities and the errors their commands raise are dormant, so other
+    locales do not carry them yet. Everything else, including the options that
+    choose a panel's authority, must stay complete in every locale.
     """
     contract = json.loads(
         (INTEGRATION / "panel_assistant_transport_v1.json").read_text(encoding="utf-8")
@@ -298,7 +299,15 @@ def _english_only_paths(catalogue: dict[str, Any]) -> set[tuple[str, ...]]:
         ("entity", channel["platform"], channel["translation_key"])
         for channel in contract["channels"]
     }
-    paths.add(("exceptions", "authority_mismatch"))
+    paths.update(
+        ("exceptions", code)
+        for code in (
+            *contract["outcome_codes"],
+            "authority_mismatch",
+            "panel_unavailable",
+            "approval_pending",
+        )
+    )
     return {path for path in paths if path[-1] in _subtree(catalogue, path[:-1])}
 
 
@@ -328,9 +337,9 @@ def test_english_only_translations_are_exactly_the_dormant_native_surface() -> N
     paths = _english_only_paths(english)
     shared = _without(english, paths)
 
-    assert len(paths) == 51
+    assert len(paths) == 63
     assert all(path[:1] in {("entity",), ("exceptions",)} for path in paths)
-    assert len(_translation_leaves(shared)) == 107
+    assert len(_translation_leaves(shared)) == 114
     for locale_path in sorted((INTEGRATION / "translations").glob("*.json")):
         if locale_path.name == "en.json":
             continue
@@ -358,7 +367,7 @@ def test_shipped_translation_catalogues_preserve_machine_contracts() -> None:
         "it.json",
         "zh-Hans.json",
     ]
-    assert len(english) == 107
+    assert len(english) == 114
 
     for locale_path in locale_paths:
         target_catalogue = _without(

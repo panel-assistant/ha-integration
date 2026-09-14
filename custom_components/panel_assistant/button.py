@@ -8,12 +8,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import HaPaneldConfigEntry
-from .native import (
-    NativeEntity,
-    async_setup_native_platform,
-    commands_refused,
-    enum_or_none,
-)
+from .native import NativeEntity, async_setup_native_platform, enum_or_none
 
 
 async def async_setup_entry(
@@ -36,5 +31,5 @@ class NativeButton(NativeEntity, ButtonEntity):
         return enum_or_none(ButtonDeviceClass, self.descriptor["device_class"])
 
     async def async_press(self) -> None:
-        """Refuse: commands still travel over MQTT."""
-        raise commands_refused()
+        """Press the panel's button, which carries no value."""
+        await self.async_command(None)

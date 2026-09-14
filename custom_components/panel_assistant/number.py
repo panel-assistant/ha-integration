@@ -13,7 +13,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import HaPaneldConfigEntry
-from .native import NativeEntity, async_setup_native_platform, commands_refused
+from .native import NativeEntity, async_setup_native_platform
 
 
 async def async_setup_entry(
@@ -63,5 +63,5 @@ class NativeNumber(NativeEntity, NumberEntity):
         return value
 
     async def async_set_native_value(self, value: float) -> None:
-        """Refuse: commands still travel over MQTT."""
-        raise commands_refused()
+        """Set the panel's value, as a whole number when it is one."""
+        await self.async_command(int(value) if value.is_integer() else value)

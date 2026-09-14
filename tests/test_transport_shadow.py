@@ -510,7 +510,11 @@ async def test_diagnostics_without_any_session_have_no_comparison(
     """Before a panel ever connects there is nothing to compare."""
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
 
-    assert diagnostics["transport"] == {"connected": False, "native_entities": False}
+    assert diagnostics["transport"] == {
+        "connected": False,
+        "native_entities": False,
+        "effective_authority": "shadow",
+    }
 
 
 async def test_comparison_failure_does_not_break_the_download(
