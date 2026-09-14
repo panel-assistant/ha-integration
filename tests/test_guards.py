@@ -272,27 +272,32 @@ async def test_a_session_without_mqtt_withdraw_asks_for_the_panel_update(
     client = await hass_ws_client(hass, hass_read_only_access_token)
     older = await _send(client, {"type": "panel_assistant/hello"} | _HELLO_TAIL)
     assert older["success"], older
+
+    issue = _issue(hass, ISSUE, entry.entry_id)
+    if raised:
+        assert issue is not None
+        assert issue.is_fixable is False
+        assert issue.is_persistent is False
+        assert issue.translation_key == ISSUE
+        assert issue.translation_placeholders == {
+            "panel": "alpha",
+            "required_version": "0.9.8-rc1",
+        }
+    else:
+        assert issue is None
+
     # What MQTT creates for the panel is a duplicate only of what is owned.
     duplicate = _create_mqtt(hass, mqtt, "number", "volume")
     await _settle(hass)
 
-    issue = _issue(hass, ISSUE, entry.entry_id)
     item = er.async_get(hass).async_get(duplicate.entity_id)
     assert item is not None
-    if not raised:
-        assert issue is None
+    if raised:
+        assert item.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+    else:
+        assert _issue(hass, ISSUE, entry.entry_id) is None
         assert item.disabled_by is None
         assert "quarantined" not in entry.data.get(CONF_CUTOVER, {})
-        return
-    assert issue is not None
-    assert issue.is_fixable is False
-    assert issue.is_persistent is False
-    assert issue.translation_key == ISSUE
-    assert issue.translation_placeholders == {
-        "panel": "alpha",
-        "required_version": "0.9.8-rc1",
-    }
-    assert item.disabled_by is er.RegistryEntryDisabler.INTEGRATION
 
 
 # ---------------------------------------------------------------------------
@@ -438,6 +443,64 @@ async def test_a_downgraded_panel_never_duplicates_and_an_upgrade_cleans_up(
         assert not _loaded(hass, item.entity_id), suffix
     assert sorted(_quarantined(entry)) == sorted(ids.values())
     assert _issue(hass, ISSUE, entry.entry_id) is not None
+
+
+async def test_cleanup_keeps_a_quarantined_duplicate_a_person_changed(
+    hass: HomeAssistant,
+    hass_read_only_user: Any,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """Named or disabled by a person: kept, listed, and so is MQTT's device."""
+    mqtt = _mqtt(hass, [(domain, suffix, {}) for domain, suffix in MOVED])
+    registry = er.async_get(hass)
+    device_registry = dr.async_get(hass)
+    entry = await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
+    duplicates = {
+        suffix: _create_mqtt(hass, mqtt, domain, suffix) for domain, suffix in MOVED
+    }
+    await _settle(hass)
+    assert sorted(_quarantined(entry)) == sorted(i.id for i in duplicates.values())
+    registry.async_update_entity(duplicates["relay1"].entity_id, name="Mine")
+    registry.async_update_entity(
+        duplicates["volume"].entity_id, disabled_by=er.RegistryEntryDisabler.USER
+    )
+
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await _capable_sync(hass, client, CAPABLE)
+
+    assert registry.entities.get_entry(duplicates["diag_cpu"].id) is None
+    kept = [duplicates["relay1"].id, duplicates["volume"].id]
+    assert all(registry.entities.get_entry(i) is not None for i in kept)
+    assert sorted(_quarantined(entry)) == sorted(kept)
+    assert device_registry.async_get(mqtt["device"].id) is not None
+    assert _issue(hass, ISSUE, entry.entry_id) is None
+
+
+async def test_a_renamed_panel_is_guarded_under_its_new_id(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """MQTT announces the panel under its current ID after a rename."""
+    mqtt = _mqtt(hass, [("switch", "relay1", {})])
+    entry = await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
+    renamed = dr.async_get(hass).async_get_or_create(
+        config_entry_id=mqtt["entry"].entry_id,
+        identifiers={("mqtt", "ha-paneld-beta")},
+    )
+
+    with _panel_id("beta"):
+        await _reload(hass, entry)
+    duplicate = er.async_get(hass).async_get_or_create(
+        "switch",
+        "mqtt",
+        "beta_relay1",
+        config_entry=mqtt["entry"],
+        device_id=renamed.id,
+    )
+    await _settle(hass)
+
+    assert _record(entry)["panel_id"] == PANEL_ID
+    assert _quarantined(entry) == [duplicate.id]
 
 
 async def test_a_panel_whose_id_prefixes_another_keeps_its_hands_off(
@@ -717,6 +780,7 @@ async def test_removing_an_entry_without_a_record_stores_nothing_and_raises_noth
     hass_read_only_user: Any,
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
+    hass_storage: dict[str, Any],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """A shadow entry's panel was never claimed; it stays an unknown panel."""
@@ -729,6 +793,7 @@ async def test_removing_an_entry_without_a_record_stores_nothing_and_raises_noth
 
     assert _warnings(caplog) == []
     assert er.async_get(hass).async_get(mqtt["entity_ids"]["relay1"]) == before
+    assert guards.REMOVED_PANELS_STORAGE_KEY not in hass_storage
     assert DID not in await _reloaded_store(hass)
     assert await _hello_error(hass, hass_ws_client, hass_read_only_access_token) == (
         "unknown_panel"
