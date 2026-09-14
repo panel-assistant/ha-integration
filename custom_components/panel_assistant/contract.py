@@ -25,6 +25,22 @@ _BY_FAMILY: Final[dict[str, dict[str, Any]]] = {
     for entry in CONTRACT["channels"]
     if entry["family"] is not None
 }
+_BY_SUFFIX: Final[dict[str, dict[str, Any]]] = {
+    entry["unique_suffix"]: entry for entry in _BY_CHANNEL.values()
+}
+
+
+def _split_family_suffix(template: str) -> tuple[str, str]:
+    """Split a family's suffix template around its index: ``relay{index}``."""
+    head, _, tail = template.partition("{index}")
+    return head, tail
+
+
+# Each family's suffix template split around its index, with its entry.
+_FAMILY_SUFFIXES: Final[list[tuple[str, str, dict[str, Any]]]] = [
+    (*_split_family_suffix(entry["unique_suffix"]), entry)
+    for entry in _BY_FAMILY.values()
+]
 
 
 def catalogue_entry(descriptor: Mapping[str, Any]) -> dict[str, Any] | None:
@@ -49,5 +65,33 @@ def catalogue_entry(descriptor: Mapping[str, Any]) -> dict[str, Any] | None:
         or entry["translation_key"] != descriptor["translation_key"]
         or suffix != descriptor["unique_suffix"]
     ):
+        return None
+    return entry
+
+
+def catalogue_entry_for_suffix(
+    platform: str, unique_suffix: str
+) -> dict[str, Any] | None:
+    """Return the catalogue entry whose entities carry this unique suffix, if any.
+
+    The MQTT bridge keys a panel's entities by the same suffixes, so this is
+    how an MQTT entity is matched to the channel that replaces it. A family
+    suffix carries an index within the contract's bound: ``relay3`` is the
+    relay family, ``relay0`` and ``relay065`` are nothing.
+    """
+    entry = _BY_SUFFIX.get(unique_suffix)
+    if entry is None:
+        for head, tail, candidate in _FAMILY_SUFFIXES:
+            if not (unique_suffix.startswith(head) and unique_suffix.endswith(tail)):
+                continue
+            index = unique_suffix[len(head) : len(unique_suffix) - len(tail)]
+            if (
+                index.isdecimal()
+                and str(int(index)) == index
+                and 1 <= int(index) <= CONTRACT["max_family_index"]
+            ):
+                entry = candidate
+                break
+    if entry is None or entry["platform"] != platform:
         return None
     return entry

@@ -182,13 +182,21 @@
           "user_unavailable": "请求连接的用户已不存在或已停用。未做任何更改。"
         }
       }
+    },
+    "cutover_incomplete": {
+      "title": "{panel} 的实体迁移未完成",
+      "description": "Panel Assistant 无法完成 {panel} 的实体在 MQTT 与自身之间的迁移：{step} 步骤失败，错误为 {error}。面板仍可正常使用，迁移会在下次重新加载面板或重启 Home Assistant 时继续。如果一直失败，Home Assistant 日志会给出原因。"
+    },
+    "cutover_blocked_by_customised_entities": {
+      "title": "自定义的 MQTT 实体阻止了 {panel} 撤回 MQTT",
+      "description": "Panel Assistant 现已拥有 {panel} 的实体，但这些 MQTT 实体没有对应的 Panel Assistant 实体，并且带有你自己设置的名称、图标、区域或隐藏、禁用设置：{entities}。删除它们或清除这些设置后，面板会在下次连接时撤回其 MQTT 实体。在此之前，它会继续通告全部 MQTT 实体。"
     }
   },
   "options": {
     "step": {
       "transport": {
         "title": "面板连接",
-        "description": "选择由什么控制此面板的实体和命令。保存更改会结束面板的当前会话，面板随后会按新的选择重新连接。",
+        "description": "选择由什么控制此面板的实体和命令。保存 Panel Assistant 后，Panel Assistant 会把面板的 MQTT 实体迁移到自身，并保留其实体 ID、历史记录和你的自定义设置，随后面板会撤回其 MQTT 实体。保存 MQTT（无论是否带原生报告）会把它们迁回 MQTT。无论哪种情况，面板都会以新的选择重新连接。",
         "data": {
           "authority": "控制方式"
         }

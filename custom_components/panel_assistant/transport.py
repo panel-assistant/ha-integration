@@ -59,6 +59,7 @@ from yarl import URL
 from .client import is_valid_discovery_id, is_valid_panel_version
 from .const import (
     CONF_AUTHORITY,
+    CONF_CUTOVER,
     CONF_TRANSPORT_USER_ID,
     DOMAIN,
     INTEGRATION_VERSION,
@@ -83,6 +84,22 @@ AUTHORITY_SHADOW: Final = "shadow"
 AUTHORITY_NATIVE: Final = "native"
 AUTHORITIES: Final = (AUTHORITY_MQTT, AUTHORITY_SHADOW, AUTHORITY_NATIVE)
 DEFAULT_AUTHORITY: Final = AUTHORITY_SHADOW
+# What ``hello`` tells the panel to do with its MQTT discovery. It withdraws
+# its MQTT entities only once this integration owns them: the entry's
+# authority is native, its cutover record is complete, and no MQTT entity that
+# stayed behind carries a person's customisation (see ``mqtt_discovery_claim``).
+MQTT_DISCOVERY_WITHDRAW: Final = "withdraw"
+MQTT_DISCOVERY_ANNOUNCE: Final = "announce"
+MQTT_DISCOVERIES: Final = (MQTT_DISCOVERY_WITHDRAW, MQTT_DISCOVERY_ANNOUNCE)
+
+# The cutover record an entry's data carries while, and after, its MQTT
+# entities are moved to this integration (see ``cutover.py``).
+CUTOVER_IN_PROGRESS: Final = "in_progress"
+CUTOVER_COMPLETE: Final = "complete"
+CUTOVER_REVERSING: Final = "reversing"
+CUTOVER_STATE: Final = "state"
+CUTOVER_UNMIGRATED: Final = "unmigrated"
+CUTOVER_REGISTRY_ID: Final = "registry_id"
 
 CAPABILITY_STATE: Final = "state"
 CAPABILITY_EVENTS: Final = "events"
@@ -204,6 +221,11 @@ DATA_NATIVE_ENTITIES: Final = "native_entities"
 ISSUE_PANEL_USER_MISMATCH: Final = ERR_PANEL_USER_MISMATCH
 ISSUE_DATA_ENTRY_ID: Final = "entry_id"
 ISSUE_DATA_USER_ID: Final = "user_id"
+# The Repairs issues a cutover raises: one when a step failed and the move
+# resumes on the next setup, one when MQTT entities that stay behind carry a
+# person's customisation and so hold back the panel's MQTT withdrawal.
+ISSUE_CUTOVER_INCOMPLETE: Final = "cutover_incomplete"
+ISSUE_CUTOVER_BLOCKED: Final = "cutover_blocked_by_customised_entities"
 
 
 def signal_session_changed(entry_id: str) -> str:
@@ -748,6 +770,8 @@ class PanelSession:
     # The authority the hello reply granted. An options change that makes the
     # entry's authority differ ends the session.
     authority: str = DEFAULT_AUTHORITY
+    # What the hello reply told the panel to do with its MQTT discovery.
+    mqtt_discovery: str = MQTT_DISCOVERY_ANNOUNCE
     # Commands sent and still waited for, by command ID.
     pending: dict[str, PendingCommand] = field(default_factory=dict)
     # Commands whose wait ended without a final outcome, oldest first.
@@ -957,6 +981,7 @@ def session_diagnostics(hass: HomeAssistant, entry_id: str) -> dict[str, Any]:
         "closed_at": _iso(session.closed_at),
         "protocol": session.protocol,
         "authority": session.authority,
+        "mqtt_discovery_granted": session.mqtt_discovery,
         "app_version": session.app_version,
         "app_version_code": session.app_version_code,
         "contract_digest": session.contract_digest,
@@ -1268,6 +1293,130 @@ def shadow_comparison(
 
 
 # ---------------------------------------------------------------------------
+# The cutover record and the MQTT discovery claim it decides. The record is
+# written by ``cutover.py`` during setup; here it is only read.
+
+
+def cutover_record(entry: ConfigEntry) -> Mapping[str, Any] | None:
+    """Return an entry's cutover record, if it holds one."""
+    record = entry.data.get(CONF_CUTOVER)
+    return record if isinstance(record, Mapping) else None
+
+
+def is_customised(item: er.RegistryEntry) -> bool:
+    """Return whether a person changed this registry entry.
+
+    A name, icon or area of their own, hiding it, or disabling it themselves
+    all count. What an integration or a config entry did does not.
+    """
+    return (
+        item.name is not None
+        or item.icon is not None
+        or item.area_id is not None
+        or item.hidden_by is not None
+        or item.disabled_by is er.RegistryEntryDisabler.USER
+    )
+
+
+def blocking_entity_ids(hass: HomeAssistant, entry: ConfigEntry) -> list[str]:
+    """Return the customised MQTT entities the cutover left behind, as of now.
+
+    They are looked up by registry ID, so one a person deleted since no longer
+    counts and no reload is needed for the claim to change.
+    """
+    record = cutover_record(entry)
+    if record is None:
+        return []
+    registry = er.async_get(hass)
+    blocking: list[str] = []
+    for unmigrated in record.get(CUTOVER_UNMIGRATED, ()):
+        item = registry.entities.get_entry(unmigrated[CUTOVER_REGISTRY_ID])
+        if item is not None and is_customised(item):
+            blocking.append(item.entity_id)
+    return sorted(blocking)
+
+
+def entity_owner(hass: HomeAssistant, entry: ConfigEntry) -> str:
+    """Return who owns the panel's entities now.
+
+    This integration does once a cutover completed under the native authority;
+    until then, and again after a release, MQTT does.
+    """
+    record = cutover_record(entry)
+    if (
+        effective_authority(hass, entry) == AUTHORITY_NATIVE
+        and record is not None
+        and record.get(CUTOVER_STATE) == CUTOVER_COMPLETE
+    ):
+        return AUTHORITY_NATIVE
+    return AUTHORITY_MQTT
+
+
+def mqtt_discovery_claim(hass: HomeAssistant, entry: ConfigEntry) -> str:
+    """Return what the next hello tells the panel about its MQTT discovery.
+
+    Withdraw only once this integration owns the panel's entities and nothing
+    blocks it.
+    """
+    if entity_owner(hass, entry) != AUTHORITY_NATIVE or blocking_entity_ids(
+        hass, entry
+    ):
+        return MQTT_DISCOVERY_ANNOUNCE
+    return MQTT_DISCOVERY_WITHDRAW
+
+
+def cutover_issue_id(issue: str, entry_id: str) -> str:
+    """Return the Repairs issue ID of one cutover issue for one entry."""
+    return f"{issue}_{entry_id}"
+
+
+@callback
+def async_raise_cutover_incomplete_issue(
+    hass: HomeAssistant, entry: ConfigEntry, step: str, error: str
+) -> None:
+    """Report a cutover step that failed; the next setup carries on from the record."""
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        cutover_issue_id(ISSUE_CUTOVER_INCOMPLETE, entry.entry_id),
+        is_fixable=False,
+        is_persistent=False,
+        severity=ir.IssueSeverity.ERROR,
+        translation_key=ISSUE_CUTOVER_INCOMPLETE,
+        translation_placeholders={"panel": entry.title, "step": step, "error": error},
+    )
+
+
+@callback
+def async_raise_cutover_blocked_issue(
+    hass: HomeAssistant, entry: ConfigEntry, entity_ids: list[str]
+) -> None:
+    """Report the customised MQTT entities that hold back the panel's withdrawal."""
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        cutover_issue_id(ISSUE_CUTOVER_BLOCKED, entry.entry_id),
+        is_fixable=False,
+        is_persistent=False,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key=ISSUE_CUTOVER_BLOCKED,
+        translation_placeholders={
+            "panel": entry.title,
+            "entities": ", ".join(entity_ids),
+        },
+    )
+
+
+@callback
+def async_delete_cutover_issues(
+    hass: HomeAssistant, entry_id: str, *issues: str
+) -> None:
+    """Delete an entry's cutover issues, or only the ones named."""
+    for issue in issues or (ISSUE_CUTOVER_INCOMPLETE, ISSUE_CUTOVER_BLOCKED):
+        ir.async_delete_issue(hass, DOMAIN, cutover_issue_id(issue, entry_id))
+
+
+# ---------------------------------------------------------------------------
 # Binding. A panel's user is bound only on an administrator's confirmation.
 
 
@@ -1423,6 +1572,11 @@ def ws_hello(
 
     authority = effective_authority(hass, entry)
     capabilities = AUTHORITY_GRANTS[authority].intersection(msg["capabilities"])
+    mqtt_discovery = mqtt_discovery_claim(hass, entry)
+    if mqtt_discovery == MQTT_DISCOVERY_WITHDRAW:
+        # Whatever held the withdrawal back, such as a customised entity a
+        # person has since deleted, no longer does.
+        async_delete_cutover_issues(hass, entry.entry_id, ISSUE_CUTOVER_BLOCKED)
     descriptors = {item["channel"]: item for item in msg["channels"]}
     unknown = frozenset(
         channel
@@ -1445,6 +1599,7 @@ def ws_hello(
         opened_at=dt_util.utcnow(),
         unknown_channels=unknown,
         authority=authority,
+        mqtt_discovery=mqtt_discovery,
     )
     async_get_sessions(hass).open(session)
     connection.send_result(
@@ -1453,6 +1608,7 @@ def ws_hello(
             "protocol": high,
             "session": session.token,
             "authority": authority,
+            "mqtt_discovery": mqtt_discovery,
             "capabilities": sorted(capabilities),
             "integration": {"version": INTEGRATION_VERSION},
             # Unknown descriptors are accepted too, but render nothing.

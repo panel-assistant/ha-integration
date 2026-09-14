@@ -511,13 +511,21 @@
           "user_unavailable": "The user who asked to connect no longer exists or is deactivated. Nothing was changed."
         }
       }
+    },
+    "cutover_incomplete": {
+      "title": "Moving the entities of {panel} did not finish",
+      "description": "Panel Assistant could not finish moving the entities of {panel} between MQTT and itself: the {step} step failed with {error}. The panel keeps working, and the move carries on the next time the panel is reloaded or Home Assistant restarts. If it keeps failing, the Home Assistant log names the cause."
+    },
+    "cutover_blocked_by_customised_entities": {
+      "title": "Customised MQTT entities hold back the MQTT withdrawal of {panel}",
+      "description": "Panel Assistant now owns the entities of {panel}, but it has no equivalent for these MQTT entities, and they carry a name, icon, area, or hidden or disabled setting of your own: {entities}. Delete them, or clear those settings, and the panel withdraws its MQTT entities the next time it connects. Until then it keeps announcing all of them."
     }
   },
   "options": {
     "step": {
       "transport": {
         "title": "Panel transport",
-        "description": "Choose what controls this panel's entities and commands. Saving a change ends the panel's current session, and the panel reconnects with the new choice.",
+        "description": "Choose what controls this panel's entities and commands. Saving Panel Assistant moves the panel's MQTT entities to Panel Assistant, keeping their entity IDs, history and customisations, and the panel then withdraws its MQTT entities. Saving MQTT, with or without native reports, moves them back to MQTT. Either way the panel reconnects with the new choice.",
         "data": {
           "authority": "Control"
         }

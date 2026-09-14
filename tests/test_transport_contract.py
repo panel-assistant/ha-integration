@@ -301,7 +301,11 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
     assert "authority_mismatch" in keys["exceptions"]
     assert "health_update_failed" in keys["exceptions"]
     assert "update_busy" in keys["exceptions"]
-    assert keys["issues"] == {"panel_user_mismatch"}
+    assert keys["issues"] == {
+        "panel_user_mismatch",
+        "cutover_incomplete",
+        "cutover_blocked_by_customised_entities",
+    }
     for key in keys["exceptions"]:
         assert str(ENGLISH["exceptions"].get(key, {}).get("message", "")).strip(), key
     for key in keys["issues"]:

@@ -182,13 +182,21 @@
           "user_unavailable": "Der Benutzer, der die Verbindung angefordert hat, existiert nicht mehr oder ist deaktiviert. Es wurde nichts geändert."
         }
       }
+    },
+    "cutover_incomplete": {
+      "title": "Der Umzug der Entitäten von {panel} wurde nicht abgeschlossen",
+      "description": "Panel Assistant konnte den Umzug der Entitäten von {panel} zwischen MQTT und sich selbst nicht abschließen: Der Schritt {step} ist mit {error} fehlgeschlagen. Das Panel funktioniert weiter, und der Umzug wird fortgesetzt, sobald das Panel neu geladen wird oder Home Assistant neu startet. Schlägt er weiterhin fehl, nennt das Home Assistant-Protokoll die Ursache."
+    },
+    "cutover_blocked_by_customised_entities": {
+      "title": "Angepasste MQTT-Entitäten halten den MQTT-Rückzug von {panel} zurück",
+      "description": "Panel Assistant besitzt jetzt die Entitäten von {panel}, hat aber für diese MQTT-Entitäten keine Entsprechung, und sie tragen einen Namen, ein Symbol, einen Bereich oder eine Einstellung zum Ausblenden oder Deaktivieren von dir: {entities}. Lösche sie oder entferne diese Einstellungen, dann zieht das Panel seine MQTT-Entitäten beim nächsten Verbinden zurück. Bis dahin kündigt es sie weiterhin alle an."
     }
   },
   "options": {
     "step": {
       "transport": {
         "title": "Panel-Verbindung",
-        "description": "Lege fest, was die Entitäten und Befehle dieses Panels steuert. Wenn du eine Änderung speicherst, endet die aktuelle Sitzung des Panels, und das Panel verbindet sich mit der neuen Auswahl neu.",
+        "description": "Lege fest, was die Entitäten und Befehle dieses Panels steuert. Speicherst du Panel Assistant, zieht Panel Assistant die MQTT-Entitäten des Panels zu sich um und behält dabei ihre Entitäts-IDs, ihren Verlauf und deine Anpassungen; danach zieht das Panel seine MQTT-Entitäten zurück. Speicherst du MQTT, mit oder ohne native Berichte, gehen sie zurück an MQTT. In beiden Fällen verbindet sich das Panel mit der neuen Auswahl neu.",
         "data": {
           "authority": "Steuerung"
         }

@@ -20,6 +20,7 @@ from .build_feed import BuildFeedError, normalize_feed_url
 from .client import HaPaneldClient, normalize_address
 from .const import DOMAIN
 from .coordinator import HaPaneldDataUpdateCoordinator
+from .cutover import async_apply_cutover
 from .feed_coordinator import CONF_BUILD_FEED, DATA_BUILD_FEED, BuildFeedCoordinator
 from .install_artifacts import register_feed_download_host
 from .install_executor import (
@@ -35,11 +36,14 @@ from .install_jobs import (
 from .native import CONF_NATIVE_ENTITIES, NATIVE_ONLY_PLATFORMS
 from .transport import (
     DATA_NATIVE_ENTITIES,
+    DEFAULT_AUTHORITY,
     REASON_ENTRY_UNLOADED,
     async_apply_authority,
     async_delete_binding_issue,
+    async_delete_cutover_issues,
     async_get_sessions,
     async_setup_transport,
+    effective_authority,
     native_entities_enabled,
 )
 from .update_coordinator import PanelUpdateCoordinator
@@ -98,6 +102,10 @@ class HaPaneldRuntimeData:
     coordinator: HaPaneldDataUpdateCoordinator
     update_coordinator: PanelUpdateCoordinator
     platforms: list[Platform]
+    # The authority this load was set up with. Only a change of the effective
+    # authority reloads the entry, so its cutover runs; writes to the entry's
+    # data, as binding and the cutover record make, do not.
+    authority: str = DEFAULT_AUTHORITY
 
 
 type HaPaneldConfigEntry = ConfigEntry[HaPaneldRuntimeData]
@@ -216,7 +224,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
         coordinator=coordinator,
         update_coordinator=update_coordinator,
         platforms=platforms,
+        authority=effective_authority(hass, entry),
     )
+    # Before any platform loads, so no entity of this entry is loaded, and
+    # before the update listener, so the record's writes reload nothing.
+    await async_apply_cutover(hass, entry)
     entry.async_on_unload(
         lambda: async_get_sessions(hass).close_entry(
             entry.entry_id, REASON_ENTRY_UNLOADED
@@ -228,8 +240,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
 
 
 async def _async_entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Apply an options change of authority to the panel's live session."""
+    """Regrant the panel's session, and reload the entry when its authority changed.
+
+    The reload runs the cutover the new authority asks for. Every other write,
+    such as binding or the cutover record itself, keeps the entry loaded.
+    """
     async_apply_authority(hass, entry)
+    runtime_data = getattr(entry, "runtime_data", None)
+    if runtime_data is not None and effective_authority(hass, entry) != (
+        runtime_data.authority
+    ):
+        await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> bool:
@@ -240,8 +261,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> None:
-    """Withdraw a removed panel's request and forget its last session."""
+    """Withdraw a removed panel's request and issues, and forget its last session."""
     async_delete_binding_issue(hass, entry.entry_id)
+    async_delete_cutover_issues(hass, entry.entry_id)
     async_get_sessions(hass).forget_entry(entry.entry_id)
 
 

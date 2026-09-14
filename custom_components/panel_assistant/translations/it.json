@@ -182,13 +182,21 @@
           "user_unavailable": "L'utente che ha chiesto di connettersi non esiste più o è disattivato. Non è stato modificato nulla."
         }
       }
+    },
+    "cutover_incomplete": {
+      "title": "Lo spostamento delle entità di {panel} non è stato completato",
+      "description": "Panel Assistant non è riuscito a completare lo spostamento delle entità di {panel} tra MQTT e sé stesso: il passaggio {step} non è riuscito con {error}. Il pannello continua a funzionare e lo spostamento riprende al prossimo ricaricamento del pannello o riavvio di Home Assistant. Se continua a non riuscire, il registro di Home Assistant ne indica la causa."
+    },
+    "cutover_blocked_by_customised_entities": {
+      "title": "Entità MQTT personalizzate trattengono il ritiro MQTT di {panel}",
+      "description": "Panel Assistant possiede ora le entità di {panel}, ma non ha un equivalente per queste entità MQTT, e portano un nome, un'icona, un'area o un'impostazione nascosta o disattivata tua: {entities}. Eliminale, o cancella quelle impostazioni, e il pannello ritirerà le sue entità MQTT alla prossima connessione. Fino ad allora continua ad annunciarle tutte."
     }
   },
   "options": {
     "step": {
       "transport": {
         "title": "Connessione del pannello",
-        "description": "Scegli cosa controlla le entità e i comandi di questo pannello. Il salvataggio di una modifica termina la sessione attuale del pannello, che si ricollega con la nuova scelta.",
+        "description": "Scegli cosa controlla le entità e i comandi di questo pannello. Salvando Panel Assistant, Panel Assistant sposta a sé le entità MQTT del pannello, conservando i loro ID entità, la cronologia e le tue personalizzazioni, e poi il pannello ritira le sue entità MQTT. Salvando MQTT, con o senza report nativi, tornano a MQTT. In entrambi i casi il pannello si riconnette con la nuova scelta.",
         "data": {
           "authority": "Controllo"
         }

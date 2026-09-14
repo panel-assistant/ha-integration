@@ -26,6 +26,7 @@ from .test_native import (
     _observations,
     _report,
     _setup,
+    panel_patches,
 )
 from .test_transport import DID, WsClientFactory, _receive, _send
 
@@ -261,10 +262,12 @@ async def test_changing_the_authority_ends_the_session_and_regrants(
     assert form["type"] is FlowResultType.FORM
     assert form["step_id"] == "transport"
     assert _default(form, "authority") == "shadow"
-    done = await hass.config_entries.options.async_configure(
-        form["flow_id"], {"authority": "native"}
-    )
-    await hass.async_block_till_done()
+    # Saving a new authority reloads the entry, which sets it up again.
+    with panel_patches():
+        done = await hass.config_entries.options.async_configure(
+            form["flow_id"], {"authority": "native"}
+        )
+        await hass.async_block_till_done()
 
     assert done["type"] is FlowResultType.CREATE_ENTRY
     assert entry.options == {"authority": "native"}

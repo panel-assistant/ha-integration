@@ -182,13 +182,21 @@
           "user_unavailable": "L'utilisateur qui a demandé à se connecter n'existe plus ou est désactivé. Rien n'a été modifié."
         }
       }
+    },
+    "cutover_incomplete": {
+      "title": "Le déplacement des entités de {panel} ne s'est pas terminé",
+      "description": "Panel Assistant n'a pas pu terminer le déplacement des entités de {panel} entre MQTT et lui-même : l'étape {step} a échoué avec {error}. Le panneau continue de fonctionner, et le déplacement reprend au prochain rechargement du panneau ou redémarrage de Home Assistant. S'il continue d'échouer, le journal de Home Assistant en indique la cause."
+    },
+    "cutover_blocked_by_customised_entities": {
+      "title": "Des entités MQTT personnalisées retiennent le retrait MQTT de {panel}",
+      "description": "Panel Assistant possède désormais les entités de {panel}, mais il n'a pas d'équivalent pour ces entités MQTT, et elles portent un nom, une icône, une zone ou un réglage masqué ou désactivé de votre part : {entities}. Supprimez-les, ou effacez ces réglages, et le panneau retirera ses entités MQTT à sa prochaine connexion. D'ici là, il continue de toutes les annoncer."
     }
   },
   "options": {
     "step": {
       "transport": {
         "title": "Connexion du panneau",
-        "description": "Choisissez ce qui contrôle les entités et les commandes de ce panneau. L'enregistrement d'une modification met fin à la session en cours du panneau, qui se reconnecte avec le nouveau choix.",
+        "description": "Choisissez ce qui contrôle les entités et les commandes de ce panneau. En enregistrant Panel Assistant, Panel Assistant déplace vers lui les entités MQTT du panneau, en conservant leurs identifiants d'entité, leur historique et vos personnalisations, puis le panneau retire ses entités MQTT. En enregistrant MQTT, avec ou sans rapports natifs, elles reviennent à MQTT. Dans les deux cas, le panneau se reconnecte avec le nouveau choix.",
         "data": {
           "authority": "Contrôle"
         }

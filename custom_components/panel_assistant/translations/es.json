@@ -182,13 +182,21 @@
           "user_unavailable": "El usuario que pidió conectarse ya no existe o está desactivado. No se ha cambiado nada."
         }
       }
+    },
+    "cutover_incomplete": {
+      "title": "El traslado de las entidades de {panel} no terminó",
+      "description": "Panel Assistant no pudo terminar de trasladar las entidades de {panel} entre MQTT y sí mismo: el paso {step} falló con {error}. El panel sigue funcionando, y el traslado continúa la próxima vez que se recargue el panel o se reinicie Home Assistant. Si sigue fallando, el registro de Home Assistant indica la causa."
+    },
+    "cutover_blocked_by_customised_entities": {
+      "title": "Entidades MQTT personalizadas retienen la retirada MQTT de {panel}",
+      "description": "Panel Assistant ahora posee las entidades de {panel}, pero no tiene equivalente para estas entidades MQTT, y llevan un nombre, icono, área o ajuste de ocultación o desactivación tuyo: {entities}. Elimínalas, o borra esos ajustes, y el panel retirará sus entidades MQTT la próxima vez que se conecte. Hasta entonces sigue anunciándolas todas."
     }
   },
   "options": {
     "step": {
       "transport": {
         "title": "Conexión del panel",
-        "description": "Elige qué controla las entidades y los comandos de este panel. Al guardar un cambio termina la sesión actual del panel, que se vuelve a conectar con la nueva opción.",
+        "description": "Elige qué controla las entidades y los comandos de este panel. Si guardas Panel Assistant, Panel Assistant traslada a sí mismo las entidades MQTT del panel, conservando sus ID de entidad, su historial y tus personalizaciones, y después el panel retira sus entidades MQTT. Si guardas MQTT, con o sin informes nativos, vuelven a MQTT. En ambos casos el panel se reconecta con la nueva opción.",
         "data": {
           "authority": "Control"
         }

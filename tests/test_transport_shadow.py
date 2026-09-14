@@ -514,6 +514,9 @@ async def test_diagnostics_without_any_session_have_no_comparison(
         "connected": False,
         "native_entities": False,
         "effective_authority": "shadow",
+        "cutover": None,
+        "active_owner": "mqtt",
+        "mqtt_discovery": "announce",
     }
 
 
