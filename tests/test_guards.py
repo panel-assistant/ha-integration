@@ -659,6 +659,7 @@ async def test_reversal_removes_quarantined_duplicates_and_restores_entity_ids(
     ]
     await _settle(hass)
     assert sorted(_quarantined(entry)) == sorted(item.id for item in duplicates)
+    assert _issue(hass, ISSUE, entry.entry_id) is not None
 
     hass.config_entries.async_update_entry(entry, options={"authority": "shadow"})
     await _reload(hass, entry)
@@ -687,6 +688,8 @@ async def test_reversal_removes_quarantined_duplicates_and_restores_entity_ids(
         # its own removed entity, and enable and unhide the original again.
         assert (back.domain, "mqtt", back.unique_id) not in registry.deleted_entities
     assert _issue(hass, "cutover_incomplete", entry.entry_id) is None
+    # Released, the panel is MQTT's again and nothing asks for it to be updated.
+    assert _issue(hass, ISSUE, entry.entry_id) is None
 
 
 # ---------------------------------------------------------------------------
