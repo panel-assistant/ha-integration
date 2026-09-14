@@ -1,5 +1,6 @@
 """The per-panel cutover: MQTT entities move to this integration, and back."""
 
+import asyncio
 import logging
 from collections.abc import Callable
 from datetime import timedelta
@@ -552,6 +553,38 @@ async def test_a_loaded_mqtt_entity_is_unloaded_before_it_moves(
     state = hass.states.get(relay)
     assert state is not None
     assert state.state == "on"
+
+
+class _SlowToUnload(MockEntity):
+    """An entity whose removal suspends before it leaves the loaded entities."""
+
+    async def async_internal_will_remove_from_hass(self) -> None:
+        await asyncio.sleep(0.2)
+        await super().async_internal_will_remove_from_hass()
+
+
+async def test_the_move_waits_for_an_entity_that_is_slow_to_unload(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """The disable takes effect later; the move waits for it rather than fail."""
+    mqtt = _mqtt(hass, [("switch", "relay1", {})])
+    relay = mqtt["entity_ids"]["relay1"]
+    platform = MockEntityPlatform(hass, domain="switch", platform_name="mqtt")
+    platform.config_entry = mqtt["entry"]
+    await platform.async_add_entities([_SlowToUnload(unique_id=f"{PANEL_ID}_relay1")])
+    await hass.async_block_till_done()
+    assert relay in entity_sources(hass)
+
+    entry = await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
+
+    assert relay not in entity_sources(hass)
+    item = er.async_get(hass).async_get(relay)
+    assert item is not None
+    assert item.platform == DOMAIN
+    assert item.disabled_by is None
+    record = _record(entry)
+    assert record["state"] == "complete"
+    assert "error" not in record
 
 
 # ---------------------------------------------------------------------------

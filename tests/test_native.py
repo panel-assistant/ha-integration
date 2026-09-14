@@ -158,7 +158,7 @@ async def _sync(
 
 
 @contextmanager
-def panel_patches(health: Any = HEALTH) -> Iterator[None]:
+def panel_patches() -> Iterator[None]:
     """Answer the panel's health and status, and the install job reads, locally.
 
     Setting up an entry needs these, so a test that reloads one wraps the
@@ -174,7 +174,7 @@ def panel_patches(health: Any = HEALTH) -> Iterator[None]:
     with (
         patch(
             "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
-            AsyncMock(return_value=health),
+            AsyncMock(return_value=HEALTH),
         ),
         patch(
             "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
@@ -201,21 +201,15 @@ async def _setup(
     user_id: str,
     native: bool,
     options: dict[str, Any] | None = None,
-    data: dict[str, Any] | None = None,
-    health: Any = HEALTH,
 ) -> MockConfigEntry:
     config_entry = MockConfigEntry(
         domain=DOMAIN,
         title="alpha",
-        data={
-            CONF_ADDRESS: "panel.local",
-            CONF_TRANSPORT_USER_ID: user_id,
-            **(data or {}),
-        },
+        data={CONF_ADDRESS: "panel.local", CONF_TRANSPORT_USER_ID: user_id},
         options=options or {},
     )
     config_entry.add_to_hass(hass)
-    with panel_patches(health):
+    with panel_patches():
         config = {DOMAIN: {"native_entities": True}} if native else {}
         assert await async_setup_component(hass, DOMAIN, config)
         await hass.async_block_till_done()
