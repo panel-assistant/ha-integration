@@ -11,7 +11,7 @@ from homeassistant.components import panel_custom
 from homeassistant.components.http.server import StaticPathConfig
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN
+from .const import DOMAIN, INTEGRATION_BUILD, INTEGRATION_VERSION
 from .embed import EmbedProxyView
 
 DATA_BROWSER_PANEL = "browser_panel"
@@ -73,5 +73,8 @@ async def async_register_browser_panel(hass: HomeAssistant) -> None:
                 sidebar_icon="mdi:tablet-dashboard",
                 embed_iframe=False,
                 require_admin=True,
+                # Shown in the top menu, so which build is running is visible without
+                # downloading diagnostics.
+                config={"version": INTEGRATION_VERSION, "build": INTEGRATION_BUILD},
             )
             registration.sidebar_registered = True

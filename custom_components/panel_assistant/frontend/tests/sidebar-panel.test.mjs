@@ -47,7 +47,7 @@ let intervals = [];
 globalThis.setInterval = (fn, ms) => { const handle = { fn, ms, cleared: false }; intervals.push(handle); return handle; };
 globalThis.clearInterval = handle => { if (handle) handle.cleared = true; };
 
-const { SIDEBAR_MESSAGES, SELECTION_KEY, parsePanels, embedToken, PanelAssistantSidebar } = await import('../src/sidebar-panel.mjs');
+const { SIDEBAR_MESSAGES, SELECTION_KEY, parsePanels, embedToken, versionText, PanelAssistantSidebar } = await import('../src/sidebar-panel.mjs');
 
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const TOKEN = 'a'.repeat(43);
@@ -301,4 +301,21 @@ test('a refresh lost in transit keeps the session so a reconnect resumes it', as
   hass.callWS = async () => ({ panels: 'invalid' });
   intervals[0].fn(); await tick();
   assert.equal($('#status').textContent, SIDEBAR_MESSAGES.failed);
+});
+
+test('the top menu shows the integration version and build from the panel config, as text', () => {
+  assert.equal(versionText({ version: '0.2.1', build: 62 }), '0.2.1 build 62');
+  assert.equal(versionText({ version: '0.3.0b1', build: 0 }), '0.3.0b1 build 0');
+  for (const config of [undefined, {}, { version: '0.2.1' }, { build: 62 }, { version: '0.2.1', build: '62' },
+    { version: '0.2.1', build: -1 }, { version: '0.2.1', build: 1.5 }, { version: '<b>1</b>', build: 62 }, { version: '', build: 62 }]) {
+    assert.equal(versionText(config), '', JSON.stringify(config));
+  }
+  const element = new PanelAssistantSidebar();
+  const shown = element.shadowRoot.querySelector('#version');
+  assert.equal(shown.textContent, '');
+  element.panel = { config: { version: '0.2.1', build: 62 } };
+  assert.equal(shown.textContent, '0.2.1 build 62');
+  assert.equal(element.panel.config.build, 62);
+  element.panel = { config: { version: '0.2.1', build: 'x' } };
+  assert.equal(shown.textContent, '');
 });

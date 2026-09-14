@@ -3,6 +3,7 @@
 // Assistant. Copy is keyed English; locales arrive in a later slice.
 export const SIDEBAR_MESSAGES = Object.freeze({
   title: 'Panel Assistant',
+  versionLabel: '{version} build {build}',
   menu: 'Open navigation',
   choosePanel: 'Panel',
   addPanel: 'Add panel',
@@ -42,6 +43,14 @@ export function embedToken(url) {
   return typeof url === 'string' ? url.match(/^\/api\/panel_assistant\/embed\/([A-Za-z0-9_-]{43})\/$/)?.[1] ?? null : null;
 }
 
+// The integration's own version and build, which Home Assistant passes in the panel config.
+export function versionText(config) {
+  const version = config?.version;
+  const build = config?.build;
+  if (typeof version !== 'string' || !/^[0-9A-Za-z.+-]{1,32}$/.test(version) || !Number.isSafeInteger(build) || build < 0) return '';
+  return SIDEBAR_MESSAGES.versionLabel.replace('{version}', version).replace('{build}', String(build));
+}
+
 export function navigate(path) {
   history.pushState(null, '', path);
   window.dispatchEvent(new CustomEvent('location-changed', { detail: { replace: false } }));
@@ -56,7 +65,7 @@ function writeSelection(entryId) {
 }
 
 export class PanelAssistantSidebar extends HTMLElement {
-  #hass; #narrow = false; #connection; #panels = null; #listState = 'loading'; #listGeneration = 0;
+  #hass; #panel; #narrow = false; #connection; #panels = null; #listState = 'loading'; #listGeneration = 0;
   #signature = ''; #selected = null; #session = null; #timer = null;
   #onReady = () => this.#reconnected();
   constructor() {
@@ -68,7 +77,8 @@ export class PanelAssistantSidebar extends HTMLElement {
       [hidden]{display:none!important}
       .root{display:flex;flex-direction:column;height:100%}
       header{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:4px 12px;background:var(--app-header-background-color,var(--primary-color,#03a9f4));color:var(--app-header-text-color,#fff);border-bottom:1px solid var(--divider-color,#e0e0e0)}
-      h1{font-size:1.25rem;font-weight:400;margin:0 8px 0 0}
+      h1{font-size:1.25rem;font-weight:400;margin:0}
+      #version{margin:0 8px 0 0;font-size:.875rem;opacity:.8}
       button,select,a{font:inherit;min-height:44px;min-width:44px;box-sizing:border-box;border-radius:6px}
       button{display:inline-flex;align-items:center;justify-content:center;padding:0;color:inherit;background:transparent;border:0;cursor:pointer}
       button svg{width:24px;height:24px;fill:currentColor}
@@ -80,7 +90,7 @@ export class PanelAssistantSidebar extends HTMLElement {
       iframe{flex:1;border:0;width:100%;display:block;background:var(--card-background-color,#fff)}
     </style><div class="root"><header>
       <button id="menu" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"/></svg></button>
-      <h1 data-message="title"></h1>
+      <h1 data-message="title"></h1><span id="version"></span>
       <label id="picker"><span data-message="choosePanel"></span><select id="panels"></select></label>
       <a id="add" data-message="addPanel"></a>
       <a id="settings" data-message="integrationSettings"></a>
@@ -117,6 +127,11 @@ export class PanelAssistantSidebar extends HTMLElement {
       this.#endSession();
       this.#reconcile();
     }
+  }
+  get panel() { return this.#panel; }
+  set panel(value) {
+    this.#panel = value;
+    this.shadowRoot.querySelector('#version').textContent = versionText(value?.config);
   }
   get narrow() { return this.#narrow; }
   set narrow(value) {

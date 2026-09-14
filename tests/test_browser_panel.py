@@ -9,6 +9,7 @@ from homeassistant.components import frontend
 from homeassistant.setup import async_setup_component
 
 from custom_components.panel_assistant import browser_panel
+from custom_components.panel_assistant.const import INTEGRATION_BUILD, INTEGRATION_VERSION
 
 
 @pytest.fixture
@@ -34,6 +35,8 @@ async def test_real_panel_registration_and_admin_visibility(hass):
     assert sidebar.sidebar_title == "Panel Assistant"
     assert sidebar.require_admin is True
     assert sidebar.config["_panel_custom"]["name"] == "panel-assistant-sidebar"
+    assert sidebar.config["version"] == INTEGRATION_VERSION
+    assert sidebar.config["build"] == INTEGRATION_BUILD
     assert panel.config == {
         "installer_url": "https://install.panel-assistant.io/",
         "_panel_custom": {
