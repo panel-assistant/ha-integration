@@ -11,6 +11,7 @@ from homeassistant.components.update import (
     UpdateEntity,
     UpdateEntityFeature,
 )
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -41,6 +42,7 @@ from .const import DOMAIN, update_unique_id
 from .coordinator import HaPaneldDataUpdateCoordinator
 from .device import panel_device_info
 from .feed_coordinator import BuildFeedCoordinator, async_get_feed_coordinator
+from .native import NativeEntity, async_setup_native_platform
 from .panel_backup import async_store_panel_backup
 from .release import _PACKAGE_ID, _RELEASE_SIGNER_CERTIFICATE_SHA256
 from .status import PanelCachedUpdate
@@ -87,6 +89,11 @@ async def async_setup_entry(
                 async_get_feed_coordinator(hass),
             )
         ]
+    )
+    # The ha-paneld update keeps its one entity above; native entities add only
+    # other components' updates, read-only until commands travel natively.
+    async_setup_native_platform(
+        hass, entry, Platform.UPDATE, async_add_entities, NativeUpdate
     )
 
 
@@ -543,3 +550,31 @@ class HaPaneldUpdateEntity(
         raise _update_error(
             "update_did_not_return", "The panel did not return after the update"
         )
+
+
+class NativeUpdate(NativeEntity, UpdateEntity):
+    """Another component's update as the panel reports it, such as the Companion app."""
+
+    @property
+    def installed_version(self) -> str | None:
+        """Return the reported installed version."""
+        value = self.reported_value
+        return None if value is None else value["installed_version"]
+
+    @property
+    def latest_version(self) -> str | None:
+        """Return the reported latest version."""
+        value = self.reported_value
+        return None if value is None else value["latest_version"]
+
+    @property
+    def release_url(self) -> str | None:
+        """Return the reported release link."""
+        value = self.reported_value
+        return None if value is None else value["release_url"]
+
+    @property
+    def in_progress(self) -> bool:
+        """Return whether the panel reports an installation in progress."""
+        value = self.reported_value
+        return value is not None and bool(value["in_progress"])

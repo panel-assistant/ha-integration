@@ -1,0 +1,255 @@
+{
+  "observations": [
+    {
+      "channel": "auto_brightness",
+      "state": "known",
+      "value": false
+    },
+    {
+      "channel": "auto_sleep",
+      "state": "known",
+      "value": false
+    },
+    {
+      "channel": "button_led1",
+      "state": "known",
+      "value": {
+        "on": true
+      }
+    },
+    {
+      "channel": "camera_enabled",
+      "state": "known",
+      "value": false
+    },
+    {
+      "channel": "companion_auto_update",
+      "state": "known",
+      "value": false
+    },
+    {
+      "channel": "companion_update_channel",
+      "state": "known",
+      "value": "prerelease"
+    },
+    {
+      "channel": "cpu_governor",
+      "state": "known",
+      "value": "efficiency"
+    },
+    {
+      "channel": "diag_boot",
+      "state": "unavailable"
+    },
+    {
+      "channel": "diag_cpu",
+      "state": "unavailable"
+    },
+    {
+      "channel": "diag_ip",
+      "state": "known",
+      "value": "192.0.2.4"
+    },
+    {
+      "channel": "diag_memory",
+      "state": "unavailable"
+    },
+    {
+      "channel": "diag_soc_temp",
+      "state": "unavailable"
+    },
+    {
+      "attributes": {
+        "is_lower_bound": false
+      },
+      "channel": "diag_wifi_outages_24h",
+      "state": "known",
+      "value": 3
+    },
+    {
+      "channel": "diag_wifi_rssi",
+      "state": "unavailable"
+    },
+    {
+      "channel": "diag_wifi_ssid",
+      "state": "unavailable"
+    },
+    {
+      "channel": "home_dashboard",
+      "state": "unavailable"
+    },
+    {
+      "channel": "humidity",
+      "state": "known",
+      "value": 40
+    },
+    {
+      "channel": "illuminance",
+      "state": "known",
+      "value": 120
+    },
+    {
+      "channel": "kiosk_lock",
+      "state": "known",
+      "value": false
+    },
+    {
+      "channel": "led",
+      "state": "known",
+      "value": {
+        "brightness": 90,
+        "color": {
+          "b": 3,
+          "g": 2,
+          "r": 1
+        },
+        "effect": "pulse",
+        "on": true
+      }
+    },
+    {
+      "channel": "navbar",
+      "state": "known",
+      "value": "off"
+    },
+    {
+      "channel": "navigate",
+      "state": "known",
+      "value": "/"
+    },
+    {
+      "channel": "prevent_idle_dim",
+      "state": "known",
+      "value": true
+    },
+    {
+      "channel": "proximity",
+      "state": "known",
+      "value": true
+    },
+    {
+      "channel": "proximity_level",
+      "state": "known",
+      "value": 50
+    },
+    {
+      "channel": "relay1",
+      "state": "known",
+      "value": false
+    },
+    {
+      "channel": "relay2",
+      "state": "known",
+      "value": false
+    },
+    {
+      "channel": "screen",
+      "state": "known",
+      "value": {
+        "on": false
+      }
+    },
+    {
+      "channel": "self_update",
+      "state": "known",
+      "value": true
+    },
+    {
+      "channel": "silence_boot_chime",
+      "state": "known",
+      "value": false
+    },
+    {
+      "attributes": {
+        "auto_vacuum": "unknown",
+        "checked_at_epoch_seconds": 1700000000,
+        "database_files_bytes": 1146880,
+        "database_sidecar_bytes": 32768,
+        "failure_category": null,
+        "failure_operation": null,
+        "freelist_count": 3,
+        "main_database_bytes": 1048576,
+        "page_count": 256,
+        "page_size_bytes": 4096,
+        "quick_check": "ok",
+        "schema_version": 7,
+        "storage_pressure": "warning",
+        "total_bytes": 8000000000,
+        "usable_bytes": 6000000000,
+        "used_percent": 25,
+        "wal_bytes": 65536
+      },
+      "channel": "storage_health",
+      "state": "known",
+      "value": "warning"
+    },
+    {
+      "channel": "temperature",
+      "state": "known",
+      "value": 21.5
+    },
+    {
+      "channel": "touch_sound",
+      "state": "known",
+      "value": true
+    },
+    {
+      "channel": "update_channel",
+      "state": "known",
+      "value": "stable"
+    },
+    {
+      "channel": "update_companion",
+      "state": "known",
+      "value": {
+        "in_progress": false,
+        "installed_version": "2026.1.1",
+        "latest_version": null,
+        "release_url": null
+      }
+    },
+    {
+      "channel": "update_paneld",
+      "state": "known",
+      "value": {
+        "in_progress": false,
+        "installed_version": "1.2.3",
+        "latest_version": "1.2.4",
+        "release_url": "https://example.invalid/releases/v1.2.4"
+      }
+    },
+    {
+      "channel": "voice_enabled",
+      "state": "known",
+      "value": false
+    },
+    {
+      "channel": "voice_state",
+      "state": "known",
+      "value": "off"
+    },
+    {
+      "channel": "volume",
+      "state": "known",
+      "value": 0
+    },
+    {
+      "channel": "wake_on_wave",
+      "state": "known",
+      "value": false
+    },
+    {
+      "channel": "watchdog",
+      "state": "known",
+      "value": false
+    },
+    {
+      "channel": "webview_auto_update",
+      "state": "known",
+      "value": false
+    }
+  ],
+  "session": "abcDEF_-123",
+  "sync": "full_begin",
+  "type": "panel_assistant/report_state"
+}

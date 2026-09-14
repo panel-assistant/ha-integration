@@ -1030,7 +1030,13 @@ def test_values_are_stored_as_validated_copies(
         (_descriptor("number"), float("inf")),
         (_descriptor("number"), 2**64),
         (_descriptor("select", options=["stable"]), "Pre-release"),
-        (_descriptor("sensor"), "12.5"),
+        (_descriptor("sensor", unit="%"), "12.5"),
+        (_descriptor("sensor", state_class="measurement"), "12.5"),
+        (_descriptor("sensor", device_class="temperature"), "12.5"),
+        (_descriptor("sensor", device_class="timestamp"), "yesterday"),
+        (_descriptor("sensor", device_class="timestamp"), "2026-09-14T10:00:00"),
+        (_descriptor("sensor", device_class="timestamp"), 1700000000),
+        (_descriptor("sensor"), "line\nbreak"),
         (_descriptor("text"), "x" * 256),
         (_descriptor("text"), "line\nbreak"),
         (_descriptor("image"), {"url": "file:///etc/passwd"}),
@@ -1040,7 +1046,7 @@ def test_values_are_stored_as_validated_copies(
         (_descriptor("update"), {"in_progress": "no"}),
         (_descriptor("update"), {"installed_version": 7}),
         (_descriptor("button"), None),
-        (_descriptor("event"), "keycode_home"),
+        (_descriptor("event", options=["keycode_home"]), "keycode_home"),
     ],
 )
 def test_values_that_do_not_fit_the_platform_are_rejected(

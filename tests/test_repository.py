@@ -285,11 +285,68 @@ def test_runtime_translations_are_complete() -> None:
     assert "[%key:" not in json.dumps(english)
 
 
+def _english_only_paths(catalogue: dict[str, Any]) -> set[tuple[str, ...]]:
+    """Return the subtrees shipped in English only until they are translated.
+
+    Native entities and their command refusal are dormant, so other locales do
+    not carry them yet. Everything else must stay complete in every locale.
+    """
+    contract = json.loads(
+        (INTEGRATION / "panel_assistant_transport_v1.json").read_text(encoding="utf-8")
+    )
+    paths = {
+        ("entity", channel["platform"], channel["translation_key"])
+        for channel in contract["channels"]
+    }
+    paths.add(("exceptions", "authority_mismatch"))
+    return {path for path in paths if path[-1] in _subtree(catalogue, path[:-1])}
+
+
+def _subtree(catalogue: dict[str, Any], path: tuple[str, ...]) -> dict[str, Any]:
+    node: Any = catalogue
+    for key in path:
+        node = node.get(key, {})
+    assert isinstance(node, dict)
+    return node
+
+
+def _without(catalogue: dict[str, Any], paths: set[tuple[str, ...]]) -> dict[str, Any]:
+    """Return a copy of a catalogue with these subtrees and any emptied parents."""
+    pruned: dict[str, Any] = json.loads(json.dumps(catalogue))
+    for path in paths:
+        if _subtree(pruned, path[:-1]).pop(path[-1], None) is None:
+            continue
+        for depth in range(len(path) - 1, 0, -1):
+            if not _subtree(pruned, path[:depth]):
+                _subtree(pruned, path[: depth - 1]).pop(path[depth - 1])
+    return pruned
+
+
+def test_english_only_translations_are_exactly_the_dormant_native_surface() -> None:
+    """The carve-out cannot hide a missing translation of anything already shipped."""
+    english = _load_translation_catalogue(INTEGRATION / "translations" / "en.json")
+    paths = _english_only_paths(english)
+    shared = _without(english, paths)
+
+    assert len(paths) == 51
+    assert all(path[:1] in {("entity",), ("exceptions",)} for path in paths)
+    assert len(_translation_leaves(shared)) == 107
+    for locale_path in sorted((INTEGRATION / "translations").glob("*.json")):
+        if locale_path.name == "en.json":
+            continue
+        locale = _load_translation_catalogue(locale_path)
+        assert not any(path[-1] in _subtree(locale, path[:-1]) for path in paths), (
+            locale_path.name
+        )
+
+
 def test_shipped_translation_catalogues_preserve_machine_contracts() -> None:
     """Every locale has exact keys, placeholders, links, and technical literals."""
     english_catalogue = _load_translation_catalogue(
         INTEGRATION / "translations" / "en.json"
     )
+    english_only = _english_only_paths(english_catalogue)
+    english_catalogue = _without(english_catalogue, english_only)
     english = _translation_leaves(english_catalogue)
     translations = INTEGRATION / "translations"
     locale_paths = sorted(translations.glob("*.json"))
@@ -304,7 +361,9 @@ def test_shipped_translation_catalogues_preserve_machine_contracts() -> None:
     assert len(english) == 107
 
     for locale_path in locale_paths:
-        target_catalogue = _load_translation_catalogue(locale_path)
+        target_catalogue = _without(
+            _load_translation_catalogue(locale_path), english_only
+        )
         target = _translation_leaves(target_catalogue)
         assert _translation_shape(target_catalogue) == _translation_shape(
             english_catalogue

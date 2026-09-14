@@ -61,6 +61,7 @@ CHANNELS = [
     _described("diag_cpu", "sensor", unit="%"),
     _described("cpu_governor", "sensor", options=["performance", "auto"]),
     _described("diag_wifi_ssid", "sensor"),
+    _described("diag_wifi_rssi", "sensor", unit="dBm"),
     _described("software_update_paneld", "update", unique_suffix="update_paneld"),
     _described("camera_snapshot", "image"),
 ]
@@ -90,6 +91,7 @@ MQTT_ENTITIES: list[tuple[str, str, str, dict[str, Any]]] = [
     ("sensor", "diag_cpu", "12.5004", {}),
     ("sensor", "cpu_governor", "performance", {}),
     ("sensor", "diag_wifi_ssid", "HomeNet", {}),
+    ("sensor", "diag_wifi_rssi", "-60", {}),
     (
         "update",
         "update_paneld",
@@ -125,8 +127,10 @@ OBSERVATIONS: list[dict[str, Any]] = [
     {"channel": "navigate", "state": "known", "value": "lovelace/b"},
     {"channel": "diag_cpu", "state": "known", "value": 12.5},
     {"channel": "cpu_governor", "state": "known", "value": "performance"},
-    # An SSID is not a number, so the validator rejects it.
+    # A sensor declaring no unit or class carries text, such as an SSID.
     {"channel": "diag_wifi_ssid", "state": "known", "value": "HomeNet"},
+    # A sensor declaring a unit measures, so text is rejected.
+    {"channel": "diag_wifi_rssi", "state": "known", "value": "strong"},
     {
         "channel": "software_update_paneld",
         "state": "known",
@@ -374,7 +378,8 @@ EXPECTED_COMPARISONS = {
     "navigate": "differs",
     "diag_cpu": "match",
     "cpu_governor": "match",
-    "diag_wifi_ssid": "ws_rejected",
+    "diag_wifi_ssid": "match",
+    "diag_wifi_rssi": "ws_rejected",
     "software_update_paneld": "match",
     "camera_snapshot": "not_compared",
 }
@@ -393,7 +398,7 @@ async def test_diagnostics_compare_each_channel_with_its_mqtt_entity(
     token = await _open(client, channels=CHANNELS)
     end = await _full_sync(client, token)
     assert end["result"]["rejected"] == [
-        {"channel": "diag_wifi_ssid", "code": "invalid_value"}
+        {"channel": "diag_wifi_rssi", "code": "invalid_value"}
     ]
     session = async_get_sessions(hass).get(entry.entry_id)
     assert session is not None
@@ -411,7 +416,7 @@ async def test_diagnostics_compare_each_channel_with_its_mqtt_entity(
         EXPECTED_COMPARISONS
     )
     assert shadow["summary"] == {
-        "match": 9,
+        "match": 10,
         "differs": 3,
         "ws_missing": 1,
         "ws_rejected": 1,
@@ -437,8 +442,10 @@ async def test_diagnostics_compare_each_channel_with_its_mqtt_entity(
     assert channels["relay3"]["ws"] is None
     assert channels["relay3"]["freshness_delta_s"] is None
     assert channels["zigbee_router"]["mqtt"] is None
-    assert channels["diag_wifi_ssid"]["ws"]["rejected"] == "invalid_value"
-    assert channels["diag_wifi_ssid"]["ws"]["value"] is None
+    assert channels["diag_wifi_rssi"]["ws"]["rejected"] == "invalid_value"
+    assert channels["diag_wifi_rssi"]["ws"]["value"] is None
+    assert channels["diag_wifi_ssid"]["ws"]["rejected"] is None
+    assert channels["diag_wifi_ssid"]["ws"]["value"] == REDACTED
     assert channels["screen"]["mqtt"]["attributes"] == {
         "brightness": 180,
         "rgb_color": (1, 2, 3),
@@ -503,7 +510,7 @@ async def test_diagnostics_without_any_session_have_no_comparison(
     """Before a panel ever connects there is nothing to compare."""
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
 
-    assert diagnostics["transport"] == {"connected": False}
+    assert diagnostics["transport"] == {"connected": False, "native_entities": False}
 
 
 async def test_comparison_failure_does_not_break_the_download(
@@ -758,7 +765,12 @@ ENUM = _descriptor("sensor", options=["auto", "performance"])
             id="image",
         ),
         pytest.param(_descriptor("button"), None, _state("unknown"), "not_compared"),
-        pytest.param(_descriptor("event"), None, _state("unknown"), "not_compared"),
+        pytest.param(
+            _descriptor("event", options=["keycode_home"]),
+            None,
+            _state("unknown"),
+            "not_compared",
+        ),
     ],
 )
 def test_normalisation(

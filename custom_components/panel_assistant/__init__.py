@@ -32,6 +32,12 @@ from .install_jobs import (
     InstallResultCode,
     async_get_install_job_manager,
 )
+from .native import (
+    CONF_NATIVE_ENTITIES,
+    DATA_NATIVE_ENTITIES,
+    NATIVE_ONLY_PLATFORMS,
+    native_entities_enabled,
+)
 from .transport import (
     REASON_ENTRY_UNLOADED,
     async_delete_binding_issue,
@@ -41,10 +47,18 @@ from .transport import (
 from .update_coordinator import PanelUpdateCoordinator
 
 PLATFORMS = [Platform.SENSOR, Platform.UPDATE]
-# Panels are config entries. The one YAML key is an optional build
-# feed; without it nothing is ever fetched from anywhere but GitHub releases.
+# Panels are config entries. YAML holds only development options: an optional
+# build feed, without which nothing is fetched from anywhere but GitHub
+# releases, and native entities, which stay dormant unless turned on.
 CONFIG_SCHEMA = vol.Schema(
-    {vol.Optional(DOMAIN): vol.Schema({vol.Optional(CONF_BUILD_FEED): cv.string})},
+    {
+        vol.Optional(DOMAIN): vol.Schema(
+            {
+                vol.Optional(CONF_BUILD_FEED): cv.string,
+                vol.Optional(CONF_NATIVE_ENTITIES): cv.boolean,
+            }
+        )
+    },
     extra=vol.ALLOW_EXTRA,
 )
 _LOGGER = logging.getLogger(__name__)
@@ -52,6 +66,9 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register browser delivery independently of panel config entries."""
+    hass.data.setdefault(DOMAIN, {})[DATA_NATIVE_ENTITIES] = config.get(DOMAIN, {}).get(
+        CONF_NATIVE_ENTITIES, False
+    )
     async_setup_transport(hass)
     async_register_browser_delivery(hass)
     await async_register_browser_panel(hass)
@@ -82,6 +99,7 @@ class HaPaneldRuntimeData:
     client: HaPaneldClient
     coordinator: HaPaneldDataUpdateCoordinator
     update_coordinator: PanelUpdateCoordinator
+    platforms: list[Platform]
 
 
 type HaPaneldConfigEntry = ConfigEntry[HaPaneldRuntimeData]
@@ -192,23 +210,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
         coordinator.data.health.version,
     )
 
+    platforms = list(PLATFORMS)
+    if native_entities_enabled(hass):
+        platforms.extend(NATIVE_ONLY_PLATFORMS)
     entry.runtime_data = HaPaneldRuntimeData(
         client=client,
         coordinator=coordinator,
         update_coordinator=update_coordinator,
+        platforms=platforms,
     )
     entry.async_on_unload(
         lambda: async_get_sessions(hass).close_entry(
             entry.entry_id, REASON_ENTRY_UNLOADED
         )
     )
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    await hass.config_entries.async_forward_entry_setups(entry, platforms)
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> bool:
     """Unload a ha-paneld config entry."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    return await hass.config_entries.async_unload_platforms(
+        entry, entry.runtime_data.platforms
+    )
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> None:

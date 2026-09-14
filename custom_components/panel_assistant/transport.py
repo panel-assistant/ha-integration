@@ -10,11 +10,12 @@ Everything a panel sends is untrusted. Each message is validated and bounded
 before anything is stored, stored values are the validated copies, and no
 handler performs I/O, so Home Assistant applies them in arrival order.
 
-This transport creates no entities and changes no registry state yet. MQTT
-stays the authority for every panel entity, so ``hello`` answers with the
+MQTT stays the authority for every panel entity, so ``hello`` answers with the
 ``shadow`` authority and grants no commands: the panel reports its state here
-only so diagnostics can compare it with the MQTT entities (see
-``shadow_comparison``).
+so diagnostics can compare it with the MQTT entities (see
+``shadow_comparison``). The native entities that render these reports stay
+dormant unless the ``native_entities`` option is set (see ``native.py``); this
+module itself never writes a registry.
 
 A panel's identity is public on the LAN, so ``hello`` never binds a panel to the
 account that sends it. Only an administrator binds one, by confirming the
@@ -56,6 +57,7 @@ from .const import (
     INTEGRATION_VERSION,
     MAX_ANDROID_INTEGER,
 )
+from .contract import catalogue_entry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -144,6 +146,16 @@ ISSUE_DATA_USER_ID: Final = "user_id"
 def signal_session_changed(entry_id: str) -> str:
     """Return the dispatcher signal fired when an entry's session changes."""
     return f"{DOMAIN}_transport_session_{entry_id}"
+
+
+def signal_observations(entry_id: str) -> str:
+    """Return the signal fired with the channels a report changed."""
+    return f"{DOMAIN}_transport_observations_{entry_id}"
+
+
+def signal_event(entry_id: str) -> str:
+    """Return the signal fired with a channel and event type, once per event."""
+    return f"{DOMAIN}_transport_event_{entry_id}"
 
 
 class ValueRejected(Exception):
@@ -257,8 +269,8 @@ def _descriptor_consistent(descriptor: dict[str, Any]) -> dict[str, Any]:
         raise vol.Invalid("min exceeds max")
     if step is not None and step <= 0:
         raise vol.Invalid("step must be positive")
-    if descriptor["platform"] == "select" and descriptor["options"] is None:
-        raise vol.Invalid("a select needs options")
+    if descriptor["platform"] in ("select", "event") and descriptor["options"] is None:
+        raise vol.Invalid("a select or event needs options")
     return descriptor
 
 
@@ -477,12 +489,35 @@ def _validate_text(value: Any, _descriptor: Mapping[str, Any]) -> str:
         raise _reject() from err
 
 
+def _validate_timestamp(value: Any) -> str:
+    text = _validate_text(value, {})
+    moment = dt_util.parse_datetime(text)
+    if moment is None or moment.tzinfo is None:
+        raise _reject()
+    return text
+
+
 def _validate_sensor(value: Any, descriptor: Mapping[str, Any]) -> float | int | str:
+    """Type a sensor value by what its descriptor declares.
+
+    Options make an enum, a timestamp class a zone-aware ISO time, and a unit,
+    state class or other device class a measurement. A sensor declaring none of
+    these, such as an IP address or a Wi-Fi network name, carries text.
+    """
     if descriptor["options"] is not None:
         return _validate_option(value, descriptor)
-    if not _is_finite_number(value):
+    if descriptor["device_class"] == "timestamp":
+        return _validate_timestamp(value)
+    measured = (
+        descriptor["unit"] is not None
+        or descriptor["state_class"] is not None
+        or descriptor["device_class"] is not None
+    )
+    if _is_finite_number(value):
+        return value  # type: ignore[no-any-return]
+    if measured:
         raise _reject()
-    return value  # type: ignore[no-any-return]
+    return _validate_text(value, descriptor)
 
 
 def _validate_boolean(value: Any, _descriptor: Mapping[str, Any]) -> bool:
@@ -588,6 +623,7 @@ class PanelSession:
     """One accepted ``hello`` subscription on one connection."""
 
     entry_id: str
+    did: str
     token: str
     connection: ActiveConnection
     subscription_id: int
@@ -599,6 +635,9 @@ class PanelSession:
     capabilities: frozenset[str]
     descriptors: dict[str, dict[str, Any]]
     opened_at: datetime
+    # Described channels the vendored catalogue does not know. They are
+    # accepted and their reports stored, but nothing renders them.
+    unknown_channels: frozenset[str] = frozenset()
     observations: dict[str, Observation] = field(default_factory=dict)
     full_sync_begun: bool = False
     full_sync_complete: bool = False
@@ -757,6 +796,7 @@ def session_diagnostics(hass: HomeAssistant, entry_id: str) -> dict[str, Any]:
         "opened_at": session.opened_at.isoformat(),
         "full_sync_complete": session.full_sync_complete,
         "channels": len(session.descriptors),
+        "unknown_channels": sorted(session.unknown_channels),
         "observations": len(session.observations),
         "rejected_observations": session.rejected_observations,
         "events_received": session.events_received,
@@ -1208,8 +1248,15 @@ def ws_hello(
     async_delete_binding_issue(hass, entry.entry_id, user_id)
 
     capabilities = SERVED_CAPABILITIES.intersection(msg["capabilities"])
+    descriptors = {item["channel"]: item for item in msg["channels"]}
+    unknown = frozenset(
+        channel
+        for channel, descriptor in descriptors.items()
+        if catalogue_entry(descriptor) is None
+    )
     session = PanelSession(
         entry_id=entry.entry_id,
+        did=did,
         token=secrets.token_urlsafe(24),
         connection=connection,
         subscription_id=msg["id"],
@@ -1219,8 +1266,9 @@ def ws_hello(
         app_version_code=msg["app"]["version_code"],
         contract_digest=msg["contract_digest"],
         capabilities=capabilities,
-        descriptors={item["channel"]: item for item in msg["channels"]},
+        descriptors=descriptors,
         opened_at=dt_util.utcnow(),
+        unknown_channels=unknown,
     )
     async_get_sessions(hass).open(session)
     connection.send_result(
@@ -1231,9 +1279,11 @@ def ws_hello(
             "authority": AUTHORITY_SHADOW,
             "capabilities": sorted(capabilities),
             "integration": {"version": INTEGRATION_VERSION},
-            # The shared channel catalogue arrives with the vendored contract
-            # file; until then every well-formed descriptor is accepted as is.
-            "channels": {"accepted": len(session.descriptors), "unknown": []},
+            # Unknown descriptors are accepted too, but render nothing.
+            "channels": {
+                "accepted": len(descriptors) - len(unknown),
+                "unknown": sorted(unknown),
+            },
         },
     )
 
@@ -1267,6 +1317,7 @@ def ws_report_state(
         return
 
     rejected: list[dict[str, str]] = []
+    accepted: set[str] = set()
     now = dt_util.utcnow()
     for observation in msg["observations"]:
         channel = observation["channel"]
@@ -1289,6 +1340,7 @@ def ws_report_state(
             session.rejections[channel] = str(err)
             continue
         session.rejections.pop(channel, None)
+        accepted.add(channel)
         session.observations[channel] = Observation(
             state=observation["state"],
             value=value,
@@ -1297,6 +1349,10 @@ def ws_report_state(
             received_at=now,
         )
     session.rejected_observations += len(rejected)
+    if accepted:
+        async_dispatcher_send(
+            hass, signal_observations(session.entry_id), frozenset(accepted)
+        )
 
     if sync == SYNC_FULL_BEGIN:
         session.full_sync_begun = True
@@ -1333,6 +1389,11 @@ def ws_report_event(
     if msg["event_id"] > session.last_event_id:
         session.last_event_id = msg["event_id"]
         session.events_received += 1
+        # Only a counted event reaches an entity, so a retry never fires twice.
+        # Before a full sync completes the entity is unavailable and ignores it.
+        async_dispatcher_send(
+            hass, signal_event(session.entry_id), msg["channel"], msg["event_type"]
+        )
     connection.send_result(msg["id"])
 
 

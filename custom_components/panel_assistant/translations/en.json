@@ -134,17 +134,287 @@
     }
   },
   "entity": {
+    "binary_sensor": {
+      "auto_sleep_activity": {
+        "name": "Auto-sleep activity"
+      },
+      "proximity": {
+        "name": "Proximity"
+      }
+    },
+    "button": {
+      "reboot": {
+        "name": "Reboot"
+      },
+      "reload": {
+        "name": "Reload dashboard"
+      }
+    },
+    "event": {
+      "button": {
+        "name": "Button"
+      }
+    },
+    "image": {
+      "camera_snapshot": {
+        "name": "Camera snapshot (experimental)"
+      }
+    },
+    "light": {
+      "button_led": {
+        "name": "Button LED {index}"
+      },
+      "buttons": {
+        "name": "Button backlight"
+      },
+      "led": {
+        "name": "LED",
+        "state_attributes": {
+          "effect": {
+            "state": {
+              "none": "None",
+              "strobe": "Strobe",
+              "blink": "Blink",
+              "pulse": "Pulse"
+            }
+          }
+        }
+      },
+      "screen": {
+        "name": "Screen"
+      }
+    },
+    "number": {
+      "volume": {
+        "name": "Volume"
+      }
+    },
+    "select": {
+      "companion_update_channel": {
+        "name": "Companion auto-update channel",
+        "state": {
+          "stable": "Stable",
+          "prerelease": "Pre-release"
+        }
+      },
+      "cpu_governor": {
+        "name": "CPU profile",
+        "state": {
+          "performance": "Performance",
+          "efficiency": "Efficiency",
+          "auto": "Auto"
+        }
+      },
+      "navbar": {
+        "name": "Navbar",
+        "state": {
+          "off": "Off",
+          "always_on": "Always on",
+          "swipe_reveal": "Swipe reveal",
+          "native": "Native"
+        }
+      },
+      "update_channel": {
+        "name": "ha-paneld auto-update channel",
+        "state": {
+          "stable": "Stable",
+          "prerelease": "Pre-release"
+        }
+      }
+    },
     "sensor": {
+      "diag_boot": {
+        "name": "Last boot time"
+      },
+      "diag_cpu": {
+        "name": "CPU usage"
+      },
+      "diag_ip": {
+        "name": "IP address"
+      },
+      "diag_memory": {
+        "name": "Memory usage"
+      },
+      "diag_soc_temp": {
+        "name": "SoC temperature"
+      },
+      "diag_wifi_outages_24h": {
+        "name": "Wi-Fi outages (24 h)",
+        "state_attributes": {
+          "is_lower_bound": {
+            "name": "Lower bound"
+          }
+        }
+      },
+      "diag_wifi_rssi": {
+        "name": "Wi-Fi signal strength"
+      },
+      "diag_wifi_ssid": {
+        "name": "Wi-Fi network"
+      },
+      "humidity": {
+        "name": "Humidity"
+      },
+      "illuminance": {
+        "name": "Illuminance"
+      },
+      "proximity_level": {
+        "name": "Proximity level"
+      },
+      "room_humidity": {
+        "name": "Room humidity"
+      },
+      "room_temp": {
+        "name": "Room temperature"
+      },
       "status": {
         "name": "Status",
         "state": {
           "online": "Online"
         }
+      },
+      "storage_health": {
+        "name": "Storage health",
+        "state": {
+          "unchecked": "Not checked",
+          "healthy": "Healthy",
+          "warning": "Warning",
+          "critical": "Critical",
+          "database_failure": "Database failure"
+        },
+        "state_attributes": {
+          "auto_vacuum": {
+            "name": "Auto-vacuum"
+          },
+          "checked_at_epoch_seconds": {
+            "name": "Checked at"
+          },
+          "database_files_bytes": {
+            "name": "Database files size"
+          },
+          "database_sidecar_bytes": {
+            "name": "Database sidecar size"
+          },
+          "failure_category": {
+            "name": "Failure category"
+          },
+          "failure_operation": {
+            "name": "Failed operation"
+          },
+          "freelist_count": {
+            "name": "Free pages"
+          },
+          "main_database_bytes": {
+            "name": "Main database size"
+          },
+          "page_count": {
+            "name": "Pages"
+          },
+          "page_size_bytes": {
+            "name": "Page size"
+          },
+          "quick_check": {
+            "name": "Quick check"
+          },
+          "schema_version": {
+            "name": "Schema version"
+          },
+          "storage_pressure": {
+            "name": "Storage pressure"
+          },
+          "total_bytes": {
+            "name": "Total storage"
+          },
+          "usable_bytes": {
+            "name": "Usable storage"
+          },
+          "used_percent": {
+            "name": "Storage used"
+          },
+          "wal_bytes": {
+            "name": "Write-ahead log size"
+          }
+        }
+      },
+      "temperature": {
+        "name": "Temperature"
+      },
+      "voice_state": {
+        "name": "Voice assistant state",
+        "state": {
+          "off": "Off",
+          "idle": "Idle",
+          "listening": "Listening",
+          "processing": "Processing",
+          "responding": "Responding",
+          "error": "Error"
+        }
+      }
+    },
+    "switch": {
+      "auto_brightness": {
+        "name": "Auto-brightness"
+      },
+      "auto_sleep": {
+        "name": "Auto sleep"
+      },
+      "camera_enabled": {
+        "name": "Camera (experimental)"
+      },
+      "companion_auto_update": {
+        "name": "Companion auto-update"
+      },
+      "kiosk_lock": {
+        "name": "Android dashboard lock"
+      },
+      "network_adb": {
+        "name": "Network ADB"
+      },
+      "prevent_idle_dim": {
+        "name": "Prevent idle dimming"
+      },
+      "relay": {
+        "name": "Relay {index}"
+      },
+      "self_update": {
+        "name": "ha-paneld auto-update"
+      },
+      "silence_boot_chime": {
+        "name": "Silence boot chime"
+      },
+      "touch_sound": {
+        "name": "Touch sound"
+      },
+      "voice_enabled": {
+        "name": "Voice assistant"
+      },
+      "wake_on_wave": {
+        "name": "Wake on wave"
+      },
+      "watchdog": {
+        "name": "Watchdog"
+      },
+      "webview_auto_update": {
+        "name": "WebView auto-update"
+      },
+      "zigbee_router": {
+        "name": "Zigbee router"
+      }
+    },
+    "text": {
+      "home_dashboard": {
+        "name": "Home dashboard"
+      },
+      "navigate": {
+        "name": "Navigate"
       }
     },
     "update": {
       "paneld_update": {
         "name": "ha-paneld update"
+      },
+      "update_companion": {
+        "name": "Companion app"
       }
     }
   },
@@ -152,16 +422,39 @@
     "health_update_failed": {
       "message": "Unable to read panel health"
     },
-    "update_unavailable": { "message": "The requested ha-paneld update is unavailable" },
-    "update_busy": { "message": "The panel is busy with another operation" },
-    "update_approval_required": { "message": "Approve this update on the panel, then try again" },
-    "update_rejected": { "message": "The panel refused the update request" },
-    "update_not_accepted": { "message": "The panel did not accept the update request" },
-    "update_not_complete": { "message": "The panel update did not complete" },
-    "update_did_not_return": { "message": "The panel did not return after the update" },
-    "panel_backup_failed": { "message": "The panel could not be backed up, so nothing was installed" },
-    "build_verification_failed": { "message": "The build did not match the signed build feed, so nothing was installed" },
-    "upload_disabled": { "message": "The panel does not accept app uploads; turn on APK upload in its settings" }
+    "update_unavailable": {
+      "message": "The requested ha-paneld update is unavailable"
+    },
+    "update_busy": {
+      "message": "The panel is busy with another operation"
+    },
+    "update_approval_required": {
+      "message": "Approve this update on the panel, then try again"
+    },
+    "update_rejected": {
+      "message": "The panel refused the update request"
+    },
+    "update_not_accepted": {
+      "message": "The panel did not accept the update request"
+    },
+    "update_not_complete": {
+      "message": "The panel update did not complete"
+    },
+    "update_did_not_return": {
+      "message": "The panel did not return after the update"
+    },
+    "panel_backup_failed": {
+      "message": "The panel could not be backed up, so nothing was installed"
+    },
+    "build_verification_failed": {
+      "message": "The build did not match the signed build feed, so nothing was installed"
+    },
+    "upload_disabled": {
+      "message": "The panel does not accept app uploads; turn on APK upload in its settings"
+    },
+    "authority_mismatch": {
+      "message": "This panel is still controlled through MQTT, so Panel Assistant cannot send it commands yet"
+    }
   },
   "issues": {
     "panel_user_mismatch": {
