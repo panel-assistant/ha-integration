@@ -1,6 +1,7 @@
 """Native entities: dormant by default, rendered from descriptors when turned on."""
 
 import json
+import logging
 from collections.abc import AsyncGenerator
 from copy import deepcopy
 from dataclasses import replace
@@ -436,6 +437,7 @@ async def test_availability_follows_the_session_and_the_description(
     native: MockConfigEntry,
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """A channel a later session omits goes unavailable and is never removed."""
     client = await hass_ws_client(hass, hass_read_only_access_token)
@@ -467,6 +469,8 @@ async def test_availability_follows_the_session_and_the_description(
     assert {f"{DID}_relay1", f"{DID}_reload"} <= set(
         _native_entries(hass, native.entry_id)
     )
+    # Undescribed channels are rendered as unavailable, not failed writes.
+    assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
 
     delta = await _send(
         again,
@@ -541,7 +545,7 @@ async def test_events_fire_once_per_counted_event_id(
 
     # Before the full sync an event is refused and not counted.
     early = await report(1, "keycode_home")
-    assert early["error"]["code"] == "invalid_format"
+    assert early.get("error", {}).get("code") == "invalid_format"
     assert hass.states.get(button).state == STATE_UNAVAILABLE
 
     await _sync(hass, client, token)
@@ -812,6 +816,7 @@ async def test_an_event_channel_without_types_renders_and_fires_nothing(
     native: MockConfigEntry,
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """A panel whose profile declares no event types keeps its whole session."""
     untyped = [
@@ -837,6 +842,7 @@ async def test_an_event_channel_without_types_renders_and_fires_nothing(
 
     assert response["success"]
     assert hass.states.get(button).state == "unknown"
+    assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
 
 
 async def test_a_colour_light_stays_rgb_across_a_reload(
