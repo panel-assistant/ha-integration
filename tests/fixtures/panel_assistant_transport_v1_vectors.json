@@ -435,6 +435,177 @@
         "event_type": "KEYCODE_HOME"
       },
       "valid": false
+    },
+    {
+      "name": "command_result_applied",
+      "message": {
+        "type": "panel_assistant/command_result",
+        "session": "tttttttttttttttttttttttt",
+        "command_id": "c0mmand_ID-1",
+        "outcome": "applied"
+      },
+      "valid": true
+    },
+    {
+      "name": "command_result_superseded",
+      "message": {
+        "type": "panel_assistant/command_result",
+        "session": "tttttttttttttttttttttttt",
+        "command_id": "c0mmand_ID-1",
+        "outcome": "superseded"
+      },
+      "valid": true
+    },
+    {
+      "name": "command_result_pending_approval",
+      "message": {
+        "type": "panel_assistant/command_result",
+        "session": "tttttttttttttttttttttttt",
+        "command_id": "c0mmand_ID-1",
+        "outcome": "pending_approval"
+      },
+      "valid": true
+    },
+    {
+      "name": "command_result_refused_with_code",
+      "message": {
+        "type": "panel_assistant/command_result",
+        "session": "tttttttttttttttttttttttt",
+        "command_id": "c0mmand_ID-1",
+        "outcome": "refused",
+        "code": "approval_denied",
+        "placeholders": {
+          "seconds": "30"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "command_result_failed_with_code",
+      "message": {
+        "type": "panel_assistant/command_result",
+        "session": "tttttttttttttttttttttttt",
+        "command_id": "c0mmand_ID-1",
+        "outcome": "failed",
+        "code": "hardware_unavailable"
+      },
+      "valid": true
+    },
+    {
+      "name": "command_result_unknown_fields_ignored",
+      "message": {
+        "type": "panel_assistant/command_result",
+        "session": "tttttttttttttttttttttttt",
+        "command_id": "c0mmand_ID-1",
+        "outcome": "applied",
+        "future": {
+          "x": 1
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "command_result_refused_without_code",
+      "message": {
+        "type": "panel_assistant/command_result",
+        "session": "tttttttttttttttttttttttt",
+        "command_id": "c0mmand_ID-1",
+        "outcome": "refused"
+      },
+      "valid": false
+    },
+    {
+      "name": "command_result_failed_without_code",
+      "message": {
+        "type": "panel_assistant/command_result",
+        "session": "tttttttttttttttttttttttt",
+        "command_id": "c0mmand_ID-1",
+        "outcome": "failed"
+      },
+      "valid": false
+    },
+    {
+      "name": "command_result_applied_with_code",
+      "message": {
+        "type": "panel_assistant/command_result",
+        "session": "tttttttttttttttttttttttt",
+        "command_id": "c0mmand_ID-1",
+        "outcome": "applied",
+        "code": "failed"
+      },
+      "valid": false
+    },
+    {
+      "name": "command_result_pending_approval_with_code",
+      "message": {
+        "type": "panel_assistant/command_result",
+        "session": "tttttttttttttttttttttttt",
+        "command_id": "c0mmand_ID-1",
+        "outcome": "pending_approval",
+        "code": "expired"
+      },
+      "valid": false
+    },
+    {
+      "name": "command_result_unknown_outcome",
+      "message": {
+        "type": "panel_assistant/command_result",
+        "session": "tttttttttttttttttttttttt",
+        "command_id": "c0mmand_ID-1",
+        "outcome": "done"
+      },
+      "valid": false
+    },
+    {
+      "name": "command_result_code_outside_the_closed_list",
+      "message": {
+        "type": "panel_assistant/command_result",
+        "session": "tttttttttttttttttttttttt",
+        "command_id": "c0mmand_ID-1",
+        "outcome": "refused",
+        "code": "busy"
+      },
+      "valid": false
+    },
+    {
+      "name": "command_result_superseded_is_not_a_code",
+      "message": {
+        "type": "panel_assistant/command_result",
+        "session": "tttttttttttttttttttttttt",
+        "command_id": "c0mmand_ID-1",
+        "outcome": "refused",
+        "code": "superseded"
+      },
+      "valid": false
+    },
+    {
+      "name": "command_result_command_id_too_long",
+      "message": {
+        "type": "panel_assistant/command_result",
+        "session": "tttttttttttttttttttttttt",
+        "command_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "outcome": "applied"
+      },
+      "valid": false
+    },
+    {
+      "name": "command_result_command_id_bad_character",
+      "message": {
+        "type": "panel_assistant/command_result",
+        "session": "tttttttttttttttttttttttt",
+        "command_id": "a/b",
+        "outcome": "applied"
+      },
+      "valid": false
+    },
+    {
+      "name": "command_result_without_session",
+      "message": {
+        "type": "panel_assistant/command_result",
+        "command_id": "c0mmand_ID-1",
+        "outcome": "applied"
+      },
+      "valid": false
     }
   ],
   "observations": [
