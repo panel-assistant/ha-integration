@@ -339,13 +339,14 @@ async def _async_forward(
 ) -> None:
     """Move every known MQTT entity of the panel to this integration."""
     panel_id: str = entry.runtime_data.coordinator.data.health.panel_id
-    did = _check_identity(hass, entry, _panel_did(entry))
     record[CUTOVER_STATE] = CUTOVER_IN_PROGRESS
-    record["did"] = did
     record["panel_id"] = panel_id
     record.setdefault(_KEY_ENTITIES, {})
     record.setdefault(_KEY_REMOVED, [])
+    record.setdefault(CUTOVER_UNMIGRATED, [])
     record.pop(_KEY_ERROR, None)
+    did = _check_identity(hass, entry, _panel_did(entry))
+    record["did"] = did
     _write(hass, entry, record)
 
     with _step(STEP_DEVICE):
