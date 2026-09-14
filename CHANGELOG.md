@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## 0.3.0 - Unreleased
+## 0.3.0 - 2026-09-14
 
 - The sidebar now shows each connected panel's own web interface (the same tab bar, dashboard, settings and logs as its `:8888` page) instead of a separate fleet-card list. Pick a panel from the new top menu; add a panel or open the integration's own settings from the same bar. The old placeholder sidebar UI is gone.
 - The sidebar's top menu shows the integration's installed version and build number, so checking it no longer needs a diagnostics download.
