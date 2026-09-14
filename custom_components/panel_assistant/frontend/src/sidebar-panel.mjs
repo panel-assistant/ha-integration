@@ -282,6 +282,7 @@ export class PanelAssistantSidebar extends HTMLElement {
     this.#session = null;
     if (!session) return;
     session.state = 'ended';
+    // A failed subscription has nothing to end, and the server has already ended a closed one.
     session.unsubscribe?.then(unsubscribe => unsubscribe()).catch(() => {});
     this.#clearFrame();
   }

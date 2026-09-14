@@ -631,6 +631,9 @@ class EmbedProxyView(HomeAssistantView):
             async for data in result.content.iter_any():
                 await response.write(data)
         except aiohttp.ClientError, ConnectionError:
+            # Either side went away after the headers were sent, including a session
+            # end closing the panel's response: the browser sees a cut-off stream,
+            # and there is no status left to change.
             pass
         finally:
             if watcher is not None:
