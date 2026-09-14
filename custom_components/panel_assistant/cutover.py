@@ -98,6 +98,7 @@ _KEY_ENTITIES: Final = "entities"
 _KEY_ERROR: Final = "error"
 _KEY_REMOVED: Final = "removed"
 _KEY_DISABLED_BEFORE: Final = "disabled_by_before"
+_KEY_SUFFIX: Final = "unique_suffix"
 
 
 class CutoverStepFailed(Exception):
@@ -247,11 +248,16 @@ def _check_identity(
     return did
 
 
-def _entity_info(item: er.RegistryEntry) -> dict[str, Any]:
-    """Return the record of one MQTT entity before anything is done to it."""
+def _entity_info(item: er.RegistryEntry, suffix: str) -> dict[str, Any]:
+    """Return the record of one MQTT entity before anything is done to it.
+
+    The suffix is kept so that a retry finds the entity again by the record,
+    whatever the panel has been renamed to since.
+    """
     return {
         "entity_id": item.entity_id,
         "mqtt_unique_id": item.unique_id,
+        _KEY_SUFFIX: suffix,
         "mqtt_config_entry_id": item.config_entry_id,
         "mqtt_device_id": item.device_id,
         _KEY_DISABLED_BEFORE: (
@@ -274,26 +280,35 @@ async def _async_migrate_one(
     entry: HaPaneldConfigEntry,
     record: dict[str, Any],
     item: er.RegistryEntry,
-    target: str,
+    suffix: str,
     device_id: str,
-) -> None:
-    """Move one MQTT entity to this integration, recording each step."""
+) -> bool:
+    """Move one MQTT entity to this integration, recording each step.
+
+    Returns False, having touched nothing, when an entity this record already
+    moved holds the target: the candidate is then MQTT's rediscovery of that
+    entity, under whatever prefix the panel announces now, and it stays behind.
+    """
     registry = er.async_get(hass)
     entities: dict[str, dict[str, Any]] = record[_KEY_ENTITIES]
-    # A record from an earlier attempt already knows whether the entity was
-    # disabled before this integration disabled it.
-    info = entities.get(item.id)
-    if info is None:
-        info = entities[item.id] = _entity_info(item)
-    info["entity_id"] = item.entity_id
+    target = native_unique_id(record["did"], suffix)
 
     with _step(STEP_TARGET, item.entity_id):
         existing = registry.async_get_entity_id(item.domain, DOMAIN, target)
         if existing is not None:
-            # Only a native entity rendered while the panel was still MQTT's
-            # carries this ID, and none is loaded now.
+            holder = registry.async_get(existing)
+            if holder is not None and holder.id in entities:
+                return False
+            # A holder this record does not know is a native entity rendered
+            # while the panel was still MQTT's: unloaded now, never MQTT's.
             registry.async_remove(existing)
             record[_KEY_REMOVED].append(existing)
+    # A record from an earlier attempt already knows whether the entity was
+    # disabled before this integration disabled it.
+    info = entities.get(item.id)
+    if info is None:
+        info = entities[item.id] = _entity_info(item, suffix)
+    info["entity_id"] = item.entity_id
     _write(hass, entry, record)
 
     with _step(STEP_DISABLE, item.entity_id):
@@ -319,6 +334,7 @@ async def _async_migrate_one(
     info[CUTOVER_STATE] = ENTITY_MIGRATED
     _write(hass, entry, record)
     _enable_if_ours(hass, entry, record, item.id, info)
+    return True
 
 
 def _enable_if_ours(
@@ -342,6 +358,17 @@ def _enable_if_ours(
     _write(hass, entry, record)
 
 
+def _unmigrated(item: er.RegistryEntry, suffix: str, reason: str) -> dict[str, Any]:
+    """Return the record of an MQTT entity that stays where it is."""
+    return {
+        CUTOVER_REGISTRY_ID: item.id,
+        "entity_id": item.entity_id,
+        _KEY_SUFFIX: suffix,
+        "reason": reason,
+        "customised": is_customised(item),
+    }
+
+
 async def _async_forward(
     hass: HomeAssistant, entry: HaPaneldConfigEntry, record: dict[str, Any]
 ) -> None:
@@ -361,45 +388,36 @@ async def _async_forward(
         device = _own_device(hass, entry, panel_id)
 
     registry = er.async_get(hass)
+    entities: dict[str, dict[str, Any]] = record[_KEY_ENTITIES]
     prefix = _mqtt_prefix(panel_id)
     unmigrated: list[dict[str, Any]] = []
-    # MQTT unique IDs this transaction already moved off the mqtt platform. A
-    # candidate carrying one is MQTT's rediscovery of that entity while an
-    # earlier attempt was interrupted, never a replacement for the original.
-    moved = {
-        info["mqtt_unique_id"]
-        for info in record[_KEY_ENTITIES].values()
-        if info[CUTOVER_STATE] in (ENTITY_MIGRATED, ENTITY_DONE)
-    }
+    # The work list. What an earlier attempt recorded and left on MQTT comes
+    # first, under whatever prefix the panel carried then, so that a fresh
+    # discovery under a new prefix never takes a recorded entity's target.
+    work: dict[str, tuple[er.RegistryEntry, str]] = {}
+    for registry_id, info in entities.items():
+        item = registry.entities.get_entry(registry_id)
+        suffix = info.get(_KEY_SUFFIX)
+        if item is not None and item.platform == MQTT_DOMAIN and suffix is not None:
+            work[registry_id] = (item, suffix)
     for item in _mqtt_candidates(hass, registry, panel_id):
+        if item.id in work:
+            continue
         suffix = item.unique_id.removeprefix(prefix)
         catalogue = catalogue_entry_for_suffix(item.domain, suffix)
-        reason = None
-        if item.unique_id in moved and item.id not in record[_KEY_ENTITIES]:
-            reason = REASON_REDISCOVERED
-        elif catalogue is None:
-            reason = REASON_UNKNOWN_SUFFIX
+        if catalogue is None:
+            unmigrated.append(_unmigrated(item, suffix, REASON_UNKNOWN_SUFFIX))
         elif catalogue["channel"] in NOT_RENDERED:
-            reason = REASON_NOT_RENDERED
-        if reason is not None:
-            unmigrated.append(
-                {
-                    CUTOVER_REGISTRY_ID: item.id,
-                    "entity_id": item.entity_id,
-                    "unique_suffix": suffix,
-                    "reason": reason,
-                    "customised": is_customised(item),
-                }
-            )
-            continue
-        await _async_migrate_one(
-            hass, entry, record, item, native_unique_id(did, suffix), device.id
-        )
+            unmigrated.append(_unmigrated(item, suffix, REASON_NOT_RENDERED))
+        else:
+            work[item.id] = (item, suffix)
+    for item, suffix in work.values():
+        if not await _async_migrate_one(hass, entry, record, item, suffix, device.id):
+            unmigrated.append(_unmigrated(item, suffix, REASON_REDISCOVERED))
     record[CUTOVER_UNMIGRATED] = unmigrated
 
     # Entities an earlier attempt moved but did not finish with, and ones a
     # person deleted since they were recorded.
-    entities: dict[str, dict[str, Any]] = record[_KEY_ENTITIES]
     for registry_id, info in list(entities.items()):
         if info[CUTOVER_STATE] in (ENTITY_DONE, ENTITY_DELETED):
             continue

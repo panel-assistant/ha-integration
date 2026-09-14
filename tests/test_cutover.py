@@ -3,6 +3,7 @@
 import asyncio
 import logging
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import timedelta
 from typing import Any
 from unittest.mock import patch
@@ -978,6 +979,119 @@ async def test_reversal_hands_every_entity_back_to_mqtt(
     transport = (await async_get_config_entry_diagnostics(hass, entry))["transport"]
     assert transport["cutover"] is None
     assert transport["active_owner"] == "mqtt"
+
+
+async def test_a_retry_after_a_panel_id_rename_keeps_every_recorded_entity(
+    hass: HomeAssistant,
+    hass_read_only_user: Any,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """A panel renamed between attempts never costs a recorded entity.
+
+    The panel ID is editable, so an interrupted attempt may be retried after
+    the panel has announced itself on MQTT under a new prefix. The native
+    unique ID carries no prefix, so the fresh discovery of a moved entity
+    lands on the target that the moved original already holds: it stays
+    behind as rediscovered and the original keeps its registry ID, entity ID
+    and customisations. An entity the earlier attempt only disabled is
+    finished by its recorded suffix, ahead of the fresh discovery of it.
+    """
+    mqtt = _mqtt(hass, [("switch", "relay1", {}), ("switch", "relay2", {})])
+    registry = er.async_get(hass)
+    original = registry.async_update_entity(
+        mqtt["entity_ids"]["relay1"],
+        new_entity_id="switch.a_porch_lamp",
+        name="Porch lamp",
+        icon="mdi:lamp",
+        area_id=MQTT_AREA,
+    )
+    second = registry.async_update_entity(
+        mqtt["entity_ids"]["relay2"],
+        new_entity_id="switch.the_fountain",
+        name="Fountain",
+    )
+    migrate = registry.async_update_entity_platform
+
+    def fail_second(entity_id: str, *args: Any, **kwargs: Any) -> Any:
+        if entity_id == second.entity_id:
+            raise RuntimeError("second")
+        return migrate(entity_id, *args, **kwargs)
+
+    with patch.object(
+        registry, "async_update_entity_platform", side_effect=fail_second
+    ):
+        entry = await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
+    record = _record(entry)
+    assert record["state"] == "in_progress"
+    assert record["entities"][original.id]["state"] == "done"
+    assert record["entities"][second.id]["state"] == "disabled"
+
+    # The person renames the panel to "beta": MQTT announces a new device with
+    # fresh entities under the new prefix while the record is still in progress.
+    new_device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=mqtt["entry"].entry_id,
+        identifiers={("mqtt", "ha-paneld-beta")},
+    )
+    fresh = {
+        suffix: registry.async_get_or_create(
+            "switch",
+            "mqtt",
+            f"beta_{suffix}",
+            config_entry=mqtt["entry"],
+            device_id=new_device.id,
+            suggested_object_id=object_id,
+        )
+        for suffix, object_id in (
+            ("relay1", "a_porch_lamp"),
+            ("relay2", "the_fountain"),
+        )
+    }
+    assert fresh["relay1"].entity_id == "switch.a_porch_lamp_2"
+    assert fresh["relay2"].entity_id == "switch.the_fountain_2"
+
+    with patch("tests.test_native.HEALTH", replace(HEALTH, panel_id="beta")):
+        await _reload(hass, entry)
+
+    record = _record(entry)
+    moved = registry.entities.get_entry(original.id)
+    assert moved is not None, "the moved original was removed as a target collision"
+    assert record["removed"] == []
+    assert record["state"] == "complete"
+    assert record["panel_id"] == "beta"
+    assert (moved.entity_id, moved.platform, moved.unique_id) == (
+        "switch.a_porch_lamp",
+        DOMAIN,
+        f"{DID}_relay1",
+    )
+    assert (moved.name, moved.icon, moved.area_id) == (
+        "Porch lamp",
+        "mdi:lamp",
+        MQTT_AREA,
+    )
+    finished = registry.entities.get_entry(second.id)
+    assert finished is not None
+    assert (
+        finished.entity_id,
+        finished.platform,
+        finished.unique_id,
+        finished.name,
+        finished.disabled_by,
+    ) == ("switch.the_fountain", DOMAIN, f"{DID}_relay2", "Fountain", None)
+    assert {key: info["state"] for key, info in record["entities"].items()} == {
+        original.id: "done",
+        second.id: "done",
+    }
+    for suffix, item in fresh.items():
+        left = registry.entities.get_entry(item.id)
+        assert left is not None
+        assert (left.platform, left.unique_id) == ("mqtt", f"beta_{suffix}")
+    assert [(u["entity_id"], u["reason"]) for u in record["unmigrated"]] == [
+        ("switch.a_porch_lamp_2", "rediscovered"),
+        ("switch.the_fountain_2", "rediscovered"),
+    ]
+    result = await _hello_result(hass, hass_ws_client, hass_read_only_access_token)
+    assert result["mqtt_discovery"] == "withdraw"
 
 
 async def test_reversal_re_enables_an_entity_the_failed_move_had_disabled(
