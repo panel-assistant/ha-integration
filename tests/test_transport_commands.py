@@ -175,9 +175,22 @@ async def native(hass: HomeAssistant, hass_read_only_user: Any) -> MockConfigEnt
             {"authority": "native"},
             None,
             "native",
-            ["approval", "commands", "state"],
+            ["approval", "commands", "events", "state"],
         ),
-        (True, {"authority": "native"}, ["state", "events"], "native", ["state"]),
+        (
+            True,
+            {"authority": "native"},
+            ["state", "events"],
+            "native",
+            ["events", "state"],
+        ),
+        (
+            True,
+            {"authority": "native"},
+            ["state", "commands"],
+            "native",
+            ["commands", "state"],
+        ),
         (True, {"authority": "shadow"}, ["commands", "approval"], "shadow", []),
     ],
 )
@@ -266,7 +279,7 @@ async def test_changing_the_authority_ends_the_session_and_regrants(
 
     again = await _connect(hass, hass_ws_client, hass_read_only_access_token)
     assert again.result["authority"] == "native"
-    assert again.result["capabilities"] == ["approval", "commands", "state"]
+    assert again.result["capabilities"] == ["approval", "commands", "events", "state"]
     form = await hass.config_entries.options.async_init(entry.entry_id)
     assert _default(form, "authority") == "native"
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
