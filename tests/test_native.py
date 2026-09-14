@@ -220,6 +220,10 @@ def _native_entries(hass: HomeAssistant, entry_id: str) -> dict[str, er.Registry
     }
 
 
+def touch_sound(hass: HomeAssistant, entry: MockConfigEntry) -> str:
+    return _native_entries(hass, entry.entry_id)[f"{DID}_touch_sound"].entity_id
+
+
 def _expected_unique_ids() -> set[str]:
     return {
         f"{DID}_{descriptor['unique_suffix']}"
@@ -431,12 +435,25 @@ async def test_availability_follows_the_session_and_the_description(
     await hass.async_block_till_done()
     assert hass.states.get(relay).state == STATE_UNAVAILABLE
 
+    reload = _native_entries(hass, native.entry_id)[f"{DID}_reload"].entity_id
+    volume = _native_entries(hass, native.entry_id)[f"{DID}_volume"].entity_id
     again = await hass_ws_client(hass, hass_read_only_access_token)
-    without_relay = [item for item in DESCRIPTORS if item["channel"] != "relay1"]
-    token = await _session(again, without_relay)
-    await _sync(hass, again, token, without_relay)
+    # Omit a relay and a button, and describe volume in a shape the catalogue
+    # does not know: its reports are still accepted, but it renders nothing.
+    later = [
+        item | {"translation_key": "loudness"} if item["channel"] == "volume" else item
+        for item in DESCRIPTORS
+        if item["channel"] not in ("relay1", "reload")
+    ]
+    token = await _session(again, later)
+    await _sync(hass, again, token, later)
     assert hass.states.get(relay).state == STATE_UNAVAILABLE
-    assert f"{DID}_relay1" in _native_entries(hass, native.entry_id)
+    assert hass.states.get(reload).state == STATE_UNAVAILABLE
+    assert hass.states.get(volume).state == STATE_UNAVAILABLE
+    assert hass.states.get(touch_sound(hass, native)).state == "on"
+    assert {f"{DID}_relay1", f"{DID}_reload"} <= set(
+        _native_entries(hass, native.entry_id)
+    )
 
     delta = await _send(
         again,
@@ -630,3 +647,47 @@ async def test_a_new_snapshot_report_fetches_the_image_again(
     assert image._cached_image is None
     assert image.image_url == url
     assert hass.states.get(entity_id).state != before
+
+
+async def test_reload_unloads_every_native_platform_and_adds_each_entity_once(
+    hass: HomeAssistant,
+    native: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """A reload tears down all eleven platforms and the next session re-adds."""
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    token = await _session(client)
+    await _sync(hass, client, token)
+    before = _registry_digest(hass, native.entry_id)
+    assert len(native.runtime_data.platforms) == 11
+
+    with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=HEALTH),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=STATUS),
+        ),
+        patch(
+            "custom_components.panel_assistant.async_resume_loaded_install_jobs",
+            AsyncMock(return_value=()),
+        ),
+    ):
+        assert await hass.config_entries.async_reload(native.entry_id)
+        await hass.async_block_till_done()
+    assert native.state is ConfigEntryState.LOADED
+
+    again = await hass_ws_client(hass, hass_read_only_access_token)
+    token = await _session(again)
+    await _sync(hass, again, token)
+    await _sync(hass, again, token)
+
+    assert _registry_digest(hass, native.entry_id) == before
+    relay = _native_entries(hass, native.entry_id)[f"{DID}_relay1"].entity_id
+    assert hass.states.get(relay).state == "on"
+    assert len(hass.states.async_entity_ids("switch")) == len(
+        [item for item in DESCRIPTORS if item["platform"] == "switch"]
+    )
