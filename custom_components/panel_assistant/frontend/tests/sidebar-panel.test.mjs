@@ -319,3 +319,79 @@ test('the top menu shows the integration version and build from the panel config
   element.panel = { config: { version: '0.2.1', build: 'x' } };
   assert.equal(shown.textContent, '');
 });
+
+// English is the only shipped locale (other top-tier languages follow in a later minor
+// release); this proves the wiring translation will hang off, not the wording itself.
+// Every key drives real component output, and every rendered string traces back to a
+// key, so a renamed, deleted or unwired key fails here instead of shipping silently.
+test('every SIDEBAR_MESSAGES key renders through the real component; nothing is unkeyed or unresolved', async () => {
+  const observed = new Set();
+  const seen = text => {
+    assert.equal(typeof text, 'string', 'a keyed string must resolve to a string, not a missing key');
+    assert.ok(text.length > 0, 'a keyed string must not be empty');
+    assert.ok(!text.includes('undefined'), `rendered text leaked a missing key: "${text}"`);
+    observed.add(text);
+  };
+
+  // Header copy: fixed markup carries no text of its own (proven above); every piece is
+  // assigned from SIDEBAR_MESSAGES at construction.
+  const bare = new PanelAssistantSidebar();
+  const header = bare.shadowRoot.querySelectorAll('[data-message]');
+  for (const key of ['title', 'choosePanel', 'addPanel', 'integrationSettings']) {
+    const element = header.find(e => e.dataset.message === key);
+    assert.ok(element, `no data-message element for "${key}"`);
+    seen(element.textContent);
+  }
+  seen(bare.shadowRoot.querySelector('#menu').getAttribute('aria-label'));
+  seen(bare.shadowRoot.querySelector('#frame').getAttribute('title'));
+
+  // Panel option labels: reachable, unreachable and not_loaded together.
+  const entries = [['a', 'reachable'], ['b', 'unreachable'], ['c', 'not_loaded']];
+  {
+    const hass = fakeHass({ panels: entries.map(([id, state]) => row(id, state)) });
+    const { $ } = await mount(hass);
+    const options = $('#panels').children;
+    entries.forEach(([id, state], i) => {
+      const label = SIDEBAR_MESSAGES[state];
+      assert.equal(typeof label, 'string', `SIDEBAR_MESSAGES.${state} must be a string`);
+      assert.ok(label.length > 0, `SIDEBAR_MESSAGES.${state} must not be empty`);
+      assert.equal(options[i].textContent, `${id} (${label})`);
+      observed.add(label);
+    });
+    // The selected (first, reachable) panel just opened a session: 'loading'.
+    seen($('#status').textContent);
+  }
+
+  // Every other status branch #render() can take.
+  seen((await mount(fakeHass({ admin: false }))).$('#status').textContent);
+  {
+    const hass = fakeHass();
+    hass.callWS = async () => ({ panels: 'invalid' });
+    seen((await mount(hass)).$('#status').textContent);
+  }
+  seen((await mount(fakeHass({ panels: [] }))).$('#status').textContent);
+  seen((await mount(fakeHass({ panels: [row('one', 'unreachable')] }))).$('#status').textContent);
+  seen((await mount(fakeHass({ panels: [row('one', 'not_loaded')] }))).$('#status').textContent);
+  {
+    const { $, subs } = await mount(fakeHass());
+    subs[0].callback({ kind: 'opened', url: 'https://evil.example/' });
+    seen($('#status').textContent);
+  }
+  {
+    const hass = fakeHass();
+    const { $, subs } = await mount(hass);
+    subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+    hass.panels = [row('one', 'not_loaded'), row('two')];
+    subs[0].callback({ kind: 'closed', reason: 'entry_unloaded' }); await tick();
+    seen($('#status').textContent);
+  }
+
+  // versionLabel is a template, not a literal; prove it separately.
+  assert.equal(versionText({ version: '1.2.3', build: 9 }),
+    SIDEBAR_MESSAGES.versionLabel.replace('{version}', '1.2.3').replace('{build}', '9'));
+
+  for (const [key, value] of Object.entries(SIDEBAR_MESSAGES)) {
+    if (key === 'versionLabel') continue;
+    assert.ok(observed.has(value), `SIDEBAR_MESSAGES.${key} ("${value}") was never rendered by the sidebar`);
+  }
+});
