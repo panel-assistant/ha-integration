@@ -731,6 +731,48 @@ async def test_retried_full_end_is_accepted_with_its_observations(
     assert session_available(hass, entry.entry_id)
 
 
+async def _synced(client: Any, token: str) -> None:
+    for sync in ("full_begin", "full_end"):
+        response = await _send(
+            client,
+            {
+                "type": "panel_assistant/report_state",
+                "session": token,
+                "sync": sync,
+                "observations": [],
+            },
+        )
+        assert response["success"], response
+
+
+async def test_an_event_before_the_full_sync_is_refused_and_not_counted(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """A refused early event leaves its ID free for the retry after the sync."""
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    token = await _open(client)
+    event = {
+        "type": "panel_assistant/report_event",
+        "session": token,
+        "channel": "button",
+        "event_id": 5,
+        "event_type": "keycode_home",
+    }
+
+    early = await _send(client, dict(event))
+    await _synced(client, token)
+    retry = await _send(client, dict(event))
+
+    assert early["error"]["code"] == "invalid_format"
+    assert retry["success"]
+    session = async_get_sessions(hass).get(entry.entry_id)
+    assert session is not None
+    assert (session.events_received, session.last_event_id) == (1, 5)
+
+
 async def test_report_event_is_deduplicated_per_session(
     hass: HomeAssistant,
     entry: MockConfigEntry,
@@ -740,6 +782,7 @@ async def test_report_event_is_deduplicated_per_session(
     """A retried event is acknowledged again but counted once."""
     client = await hass_ws_client(hass, hass_read_only_access_token)
     token = await _open(client)
+    await _synced(client, token)
     event = {
         "type": "panel_assistant/report_event",
         "session": token,
@@ -770,6 +813,7 @@ async def test_event_deduplication_holds_for_the_whole_session(
     """However many events a session carries, an early event is never recounted."""
     client = await hass_ws_client(hass, hass_read_only_access_token)
     token = await _open(client)
+    await _synced(client, token)
     event = {
         "type": "panel_assistant/report_event",
         "session": token,

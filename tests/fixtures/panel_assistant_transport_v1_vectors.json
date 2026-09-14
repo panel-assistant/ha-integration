@@ -283,7 +283,7 @@
           }
         ]
       },
-      "valid": false
+      "valid": true
     },
     {
       "name": "hello_unknown_platform",

@@ -30,6 +30,7 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
+from .contract import catalogue_entry
 from .transport import (
     STATE_KNOWN,
     Observation,
@@ -109,6 +110,7 @@ class NativeEntity(Entity):
     ) -> None:
         """Take the entity's registry shape from the descriptor."""
         self._entry_id = entry_id
+        self._did = session.did
         self._channel: str = descriptor["channel"]
         self._descriptor = descriptor
         self._attr_unique_id = native_unique_id(
@@ -123,19 +125,41 @@ class NativeEntity(Entity):
         self._attr_entity_registry_enabled_default = descriptor["enabled_default"]
         # The entry's own device, which its status sensor already describes.
         self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry_id)})
+        entry = catalogue_entry(descriptor)
+        # Only attributes the catalogue names are shown: they have English
+        # names, and a panel cannot overwrite Home Assistant's own attributes.
+        self._attributes = frozenset(() if entry is None else entry["attributes"])
+
+    @property
+    def session(self) -> PanelSession | None:
+        """Return the live session, only while it describes this very entity.
+
+        A session for another panel identity on the same entry, or one that
+        describes the channel in a shape the catalogue does not know, does not
+        render into this entity.
+        """
+        session = async_get_sessions(self.hass).get(self._entry_id)
+        if (
+            session is None
+            or session.did != self._did
+            or self._channel not in session.descriptors
+            or self._channel in session.unknown_channels
+        ):
+            return None
+        return session
 
     @property
     def descriptor(self) -> Mapping[str, Any]:
         """Return the live session's descriptor, else the last one seen."""
-        session = async_get_sessions(self.hass).get(self._entry_id)
-        if session is not None and self._channel in session.descriptors:
-            return session.descriptors[self._channel]
-        return self._descriptor
+        session = self.session
+        return (
+            self._descriptor if session is None else session.descriptors[self._channel]
+        )
 
     @property
     def observation(self) -> Observation | None:
         """Return the live session's latest known observation of this channel."""
-        session = async_get_sessions(self.hass).get(self._entry_id)
+        session = self.session
         if session is None:
             return None
         observation = session.observations.get(self._channel)
@@ -152,14 +176,7 @@ class NativeEntity(Entity):
     @property
     def available(self) -> bool:
         """Available while a synced session describes and reports the channel."""
-        if not session_available(self.hass, self._entry_id):
-            return False
-        session = async_get_sessions(self.hass).get(self._entry_id)
-        if (
-            session is None
-            or self._channel not in session.descriptors
-            or self._channel in session.unknown_channels
-        ):
+        if self.session is None or not session_available(self.hass, self._entry_id):
             return False
         return self.platform_name in _UNREPORTED or self.observation is not None
 
@@ -173,7 +190,14 @@ class NativeEntity(Entity):
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return the reported attributes, whose keys are translation codes."""
         observation = self.observation
-        return None if observation is None else dict(observation.attributes) or None
+        if observation is None:
+            return None
+        shown = {
+            key: value
+            for key, value in observation.attributes.items()
+            if key in self._attributes
+        }
+        return shown or None
 
     async def async_added_to_hass(self) -> None:
         """Follow the session and this channel's reports."""
@@ -192,8 +216,7 @@ class NativeEntity(Entity):
 
     @callback
     def _refresh(self) -> None:
-        session = async_get_sessions(self.hass).get(self._entry_id)
-        if session is not None and self._channel in session.descriptors:
+        if (session := self.session) is not None:
             self._descriptor = session.descriptors[self._channel]
         self.async_write_ha_state()
 

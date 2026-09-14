@@ -10,6 +10,7 @@ from homeassistant.components.light.const import ColorMode, LightEntityFeature
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 
 from . import HaPaneldConfigEntry
 from .contract import catalogue_entry
@@ -28,12 +29,13 @@ async def async_setup_entry(
     )
 
 
-class NativeLight(NativeEntity, LightEntity):
+class NativeLight(NativeEntity, LightEntity, RestoreEntity):
     """The screen, the LED, the button backlight or one button LED.
 
     Descriptors do not say whether a light takes a colour, which depends on the
     hardware, so the catalogue names the modes a channel can have and a
-    reported colour selects RGB for the rest of the entity's life.
+    reported colour selects RGB. The mode, never the value, is restored, so a
+    reload or restart does not show a colour light as brightness-only again.
     """
 
     def __init__(
@@ -103,6 +105,18 @@ class NativeLight(NativeEntity, LightEntity):
         """Return the reported effect code."""
         value = self.reported_value
         return None if value is None else value.get("effect")
+
+    async def async_added_to_hass(self) -> None:
+        """Restore whether this light was already seen taking a colour."""
+        await super().async_added_to_hass()
+        last = await self.async_get_last_state()
+        if (
+            last is not None
+            and ColorMode.RGB in self._modes
+            and ColorMode.RGB in (last.attributes.get("supported_color_modes") or ())
+        ):
+            self._color_seen = True
+            self.async_write_ha_state()
 
     @callback
     def handle_observation(self) -> None:

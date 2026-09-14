@@ -269,8 +269,8 @@ def _descriptor_consistent(descriptor: dict[str, Any]) -> dict[str, Any]:
         raise vol.Invalid("min exceeds max")
     if step is not None and step <= 0:
         raise vol.Invalid("step must be positive")
-    if descriptor["platform"] in ("select", "event") and descriptor["options"] is None:
-        raise vol.Invalid("a select or event needs options")
+    if descriptor["platform"] == "select" and descriptor["options"] is None:
+        raise vol.Invalid("a select needs options")
     return descriptor
 
 
@@ -1280,10 +1280,7 @@ def ws_hello(
             "capabilities": sorted(capabilities),
             "integration": {"version": INTEGRATION_VERSION},
             # Unknown descriptors are accepted too, but render nothing.
-            "channels": {
-                "accepted": len(descriptors) - len(unknown),
-                "unknown": sorted(unknown),
-            },
+            "channels": {"accepted": len(descriptors), "unknown": sorted(unknown)},
         },
     )
 
@@ -1380,6 +1377,12 @@ def ws_report_event(
     if descriptor is None or descriptor["platform"] != "event":
         connection.send_error(msg["id"], ERR_UNKNOWN_CHANNEL, "Not an event channel.")
         return
+    if not session.full_sync_complete:
+        # Not counted, so the panel's retry after its full sync still fires.
+        connection.send_error(
+            msg["id"], ERR_INVALID_FORMAT, "Events wait for the full sync."
+        )
+        return
     options = descriptor["options"]
     if options is not None and msg["event_type"] not in options:
         connection.send_error(msg["id"], ERR_INVALID_VALUE, "Unknown event type.")
@@ -1390,7 +1393,6 @@ def ws_report_event(
         session.last_event_id = msg["event_id"]
         session.events_received += 1
         # Only a counted event reaches an entity, so a retry never fires twice.
-        # Before a full sync completes the entity is unavailable and ignores it.
         async_dispatcher_send(
             hass, signal_event(session.entry_id), msg["channel"], msg["event_type"]
         )

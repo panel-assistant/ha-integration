@@ -55,6 +55,8 @@ class NativeImage(NativeEntity, ImageEntity):
 
     @callback
     def handle_observation(self) -> None:
-        """Each report is a new snapshot, so fetch it again."""
+        """Each known report is a new snapshot, so fetch it again."""
+        if self.reported_value is None:
+            return
         self._cached_image = None
         self._attr_image_last_updated = dt_util.utcnow()

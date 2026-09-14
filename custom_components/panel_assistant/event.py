@@ -43,9 +43,9 @@ class NativeEvent(NativeEntity, EventEntity):
 
     @callback
     def _handle_event(self, channel: str, event_type: str) -> None:
-        if channel != self._channel or not self.available:
-            return
-        if event_type not in self.event_types:
+        # The session counts an event only after its full sync, so only an
+        # event type the panel did not declare needs refusing here.
+        if channel != self._channel or event_type not in self.event_types:
             return
         self._trigger_event(event_type)
         self.async_write_ha_state()

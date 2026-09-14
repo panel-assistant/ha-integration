@@ -9,16 +9,13 @@ not know is accepted but creates nothing.
 
 from __future__ import annotations
 
-import hashlib
 import json
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Final
 
 CONTRACT_PATH: Final = Path(__file__).parent / "panel_assistant_transport_v1.json"
-_CONTRACT_BYTES: Final = CONTRACT_PATH.read_bytes()
-CONTRACT: Final[dict[str, Any]] = json.loads(_CONTRACT_BYTES)
-CONTRACT_DIGEST: Final = hashlib.sha256(_CONTRACT_BYTES).hexdigest()
+CONTRACT: Final[dict[str, Any]] = json.loads(CONTRACT_PATH.read_bytes())
 
 _BY_CHANNEL: Final[dict[str, dict[str, Any]]] = {
     entry["channel"]: entry for entry in CONTRACT["channels"] if entry["family"] is None

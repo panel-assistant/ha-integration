@@ -3,6 +3,7 @@
 import json
 from collections.abc import AsyncGenerator
 from copy import deepcopy
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -22,6 +23,7 @@ from custom_components.panel_assistant.contract import CONTRACT
 from custom_components.panel_assistant.diagnostics import (
     async_get_config_entry_diagnostics,
 )
+from custom_components.panel_assistant.native import NATIVE_ONLY_PLATFORMS
 
 from .test_transport import (
     DID,
@@ -265,7 +267,7 @@ async def test_flag_off_creates_nothing_through_a_full_session(
     assert _registry_digest(hass, dormant.entry_id) == registry_before
     assert sorted(hass.states.async_entity_ids()) == states_before
     assert dormant.runtime_data.platforms == ["sensor", "update"]
-    for platform in ("light", "switch", "select", "number", "text", "button"):
+    for platform in NATIVE_ONLY_PLATFORMS:
         assert f"{DOMAIN}.{platform}" not in hass.config.components
     transport = (await async_get_config_entry_diagnostics(hass, dormant))["transport"]
     assert transport.get("native_entities") is False
@@ -366,7 +368,9 @@ async def test_every_type_renders_under_the_native_unique_id(
     assert state("reboot").attributes.get("device_class") == "restart"
     assert state("reboot").state == "unknown"
     assert state("button").state == "unknown"
-    assert state("camera_snapshot").state != STATE_UNAVAILABLE
+    image = hass.data["image"].get_entity(by_suffix["camera_snapshot"].entity_id)
+    assert image.image_url == "http://panel.local:8888/api/v1/camera/snapshot?t=1"
+    assert state("camera_snapshot").state == image.image_last_updated.isoformat()
 
     # Every name resolves from the English catalogue, placeholders filled.
     english = json.loads(
@@ -499,7 +503,7 @@ async def test_unknown_descriptors_are_accepted_and_render_nothing(
     await hass.async_block_till_done()
 
     assert response["result"]["channels"] == {
-        "accepted": 1,
+        "accepted": 3,
         "unknown": ["future_leaf", "volume"],
     }
     assert set(_native_entries(hass, native.entry_id)) == {
@@ -521,7 +525,7 @@ async def test_events_fire_once_per_counted_event_id(
     token = await _session(client)
     button = _native_entries(hass, native.entry_id)[f"{DID}_button"].entity_id
 
-    async def report(event_id: int, event_type: str) -> None:
+    async def report(event_id: int, event_type: str) -> dict[str, Any]:
         response = await _send(
             client,
             {
@@ -532,25 +536,28 @@ async def test_events_fire_once_per_counted_event_id(
                 "event_type": event_type,
             },
         )
-        assert response["success"], response
         await hass.async_block_till_done()
+        return response
 
-    # Before the full sync the entity is unavailable and fires nothing.
-    await report(1, "keycode_home")
+    # Before the full sync an event is refused and not counted.
+    early = await report(1, "keycode_home")
+    assert early["error"]["code"] == "invalid_format"
     assert hass.states.get(button).state == STATE_UNAVAILABLE
 
     await _sync(hass, client, token)
-    # The event reported while unavailable was counted, never fired.
     assert hass.states.get(button).state == "unknown"
-    await report(2, "keycode_back")
+    # So the panel's retry of that event, once synced, still fires.
+    assert (await report(1, "keycode_home"))["success"]
+    assert hass.states.get(button).attributes["event_type"] == "keycode_home"
+    assert (await report(2, "keycode_back"))["success"]
     fired = hass.states.get(button)
     assert fired.attributes["event_type"] == "keycode_back"
 
-    await report(2, "keycode_home")
-    await report(1, "keycode_home")
+    assert (await report(2, "keycode_home"))["success"]
+    assert (await report(1, "keycode_home"))["success"]
     assert hass.states.get(button) == fired
 
-    await report(3, "keycode_home")
+    assert (await report(3, "keycode_home"))["success"]
     assert hass.states.get(button).attributes["event_type"] == "keycode_home"
 
 
@@ -641,7 +648,7 @@ async def test_a_new_snapshot_report_fetches_the_image_again(
     ].entity_id
     image = hass.data["image"].get_entity(entity_id)
     image._cached_image = object()
-    before = hass.states.get(entity_id).state
+    before = image.image_last_updated
 
     url = "http://panel.local:8888/api/v1/camera/snapshot?t=2"
     delta = await _send(
@@ -657,7 +664,21 @@ async def test_a_new_snapshot_report_fetches_the_image_again(
 
     assert image._cached_image is None
     assert image.image_url == url
-    assert hass.states.get(entity_id).state != before
+    assert image.image_last_updated > before
+    assert hass.states.get(entity_id).state == image.image_last_updated.isoformat()
+
+    # An unavailable report is no new snapshot.
+    image._cached_image = object()
+    gone = await _send(
+        client,
+        _report(
+            token, "delta", [{"channel": "camera_snapshot", "state": "unavailable"}]
+        ),
+    )
+    assert gone["success"]
+    await hass.async_block_till_done()
+    assert image._cached_image is not None
+    assert hass.states.get(entity_id).state == STATE_UNAVAILABLE
 
 
 async def test_reload_unloads_every_native_platform_and_adds_each_entity_once(
@@ -711,3 +732,151 @@ async def test_reload_unloads_every_native_platform_and_adds_each_entity_once(
     assert len(hass.states.async_entity_ids("switch")) == len(
         [item for item in DESCRIPTORS if item["platform"] == "switch"]
     )
+
+
+async def test_a_new_panel_identity_never_renders_into_the_old_entities(
+    hass: HomeAssistant,
+    native: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """A factory-reset panel on the same entry gets its own entities."""
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    token = await _session(client)
+    await _sync(hass, client, token)
+    old_relay = _native_entries(hass, native.entry_id)[f"{DID}_relay1"].entity_id
+    await client.close()
+    await hass.async_block_till_done()
+
+    reset_did = "f" * 64
+    health = replace(HEALTH, discovery_id=reset_did)
+    coordinator = native.runtime_data.coordinator
+    coordinator.async_set_updated_data(replace(coordinator.data, health=health))
+    again = await hass_ws_client(hass, hass_read_only_access_token)
+    response = await _send(again, _hello(DESCRIPTORS) | {"did": reset_did})
+    assert response["success"], response
+    await _sync(hass, again, response["result"]["session"])
+
+    assert hass.states.get(old_relay).state == STATE_UNAVAILABLE
+    registry = er.async_get(hass)
+    new_relay = registry.async_get_entity_id("switch", DOMAIN, f"{reset_did}_relay1")
+    assert new_relay is not None
+    assert hass.states.get(new_relay).state == "on"
+
+
+async def test_only_catalogued_attributes_are_shown(
+    hass: HomeAssistant,
+    native: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """A panel attribute can neither overwrite Core's nor appear untranslated."""
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    token = await _session(client)
+    await _sync(hass, client, token)
+    led_value = {"on": True, "brightness": 90, "color": {"r": 1, "g": 2, "b": 3}}
+    delta = await _send(
+        client,
+        _report(
+            token,
+            "delta",
+            [
+                {
+                    "channel": "led",
+                    "state": "known",
+                    "value": led_value,
+                    "attributes": {"color_mode": "xy", "brightness": 255},
+                },
+                {
+                    "channel": "storage_health",
+                    "state": "known",
+                    "value": "healthy",
+                    "attributes": {"quick_check": "ok", "unlisted": 1},
+                },
+            ],
+        ),
+    )
+    assert delta["success"]
+    await hass.async_block_till_done()
+    entries = _native_entries(hass, native.entry_id)
+
+    led = hass.states.get(entries[f"{DID}_led"].entity_id)
+    assert (led.attributes["color_mode"], led.attributes["brightness"]) == ("rgb", 90)
+    storage = hass.states.get(entries[f"{DID}_storage_health"].entity_id)
+    assert storage.attributes.get("quick_check") == "ok"
+    assert "unlisted" not in storage.attributes
+
+
+async def test_an_event_channel_without_types_renders_and_fires_nothing(
+    hass: HomeAssistant,
+    native: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """A panel whose profile declares no event types keeps its whole session."""
+    untyped = [
+        item | {"options": None} if item["platform"] == "event" else item
+        for item in DESCRIPTORS
+    ]
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    token = await _session(client, untyped)
+    await _sync(hass, client, token, untyped)
+    button = _native_entries(hass, native.entry_id)[f"{DID}_button"].entity_id
+
+    response = await _send(
+        client,
+        {
+            "type": "panel_assistant/report_event",
+            "session": token,
+            "channel": "button",
+            "event_id": 1,
+            "event_type": "keycode_home",
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert response["success"]
+    assert hass.states.get(button).state == "unknown"
+
+
+async def test_a_colour_light_stays_rgb_across_a_reload(
+    hass: HomeAssistant,
+    native: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """Only the learned mode is restored, never the light's value."""
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    token = await _session(client)
+    await _sync(hass, client, token)
+    led = _native_entries(hass, native.entry_id)[f"{DID}_led"].entity_id
+    assert hass.states.get(led).attributes["supported_color_modes"] == ["rgb"]
+
+    with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=HEALTH),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=STATUS),
+        ),
+        patch(
+            "custom_components.panel_assistant.async_resume_loaded_install_jobs",
+            AsyncMock(return_value=()),
+        ),
+    ):
+        assert await hass.config_entries.async_reload(native.entry_id)
+        await hass.async_block_till_done()
+    again = await hass_ws_client(hass, hass_read_only_access_token)
+    token = await _session(again)
+    screen_off = [item for item in _observations() if item["channel"] != "led"] + [
+        {"channel": "led", "state": "known", "value": {"on": False}}
+    ]
+    for sync, observations in (("full_begin", []), ("full_end", screen_off)):
+        assert (await _send(again, _report(token, sync, observations)))["success"]
+    await hass.async_block_till_done()
+
+    state = hass.states.get(led)
+    assert state.state == "off"
+    assert state.attributes["supported_color_modes"] == ["rgb"]
