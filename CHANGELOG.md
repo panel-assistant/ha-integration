@@ -4,10 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## 0.3.0 - Unreleased
 
-- The sidebar now shows each connected panel's own web interface — the same tab bar, dashboard, settings and logs as its `:8888` page — instead of a separate fleet-card list. Pick a panel from the new top menu; add a panel or open the integration's own settings from the same bar. The old fleet-card view and the "Check setup" checklist are gone.
+- The sidebar now shows each connected panel's own web interface — the same tab bar, dashboard, settings and logs as its `:8888` page — instead of a separate fleet-card list. Pick a panel from the new top menu; add a panel or open the integration's own settings from the same bar. The old placeholder sidebar UI is gone.
 - The sidebar's top menu shows the integration's installed version and build number, so checking it no longer needs a diagnostics download.
 - Renaming a panel, retrying a failed handover, or losing power partway through no longer leaves a stray or duplicated entity behind.
-- Panel Assistant never creates a Home Assistant user or issues a panel a credential. A panel that needs to sign in does so through its own setup pages, exactly as it would on your network.
 - Advanced/testing: an optional native transport, set with `native_entities: true` under `panel_assistant` in `configuration.yaml`, lets a panel report state and accept commands over its own authenticated Home Assistant connection instead of MQTT, chosen per panel from the integration's options once turned on. Off by default; MQTT is unaffected either way.
 
 ## 0.2.1 - 2026-09-13
