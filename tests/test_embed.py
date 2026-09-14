@@ -1,4 +1,4 @@
-"""The sidebar's embed sessions, its proxy to a panel, and panel sign-in."""
+"""The sidebar's embed sessions and its proxy to a panel."""
 
 import asyncio
 from collections.abc import AsyncGenerator, Awaitable, Callable
@@ -15,20 +15,15 @@ from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
-from homeassistant.core_config import async_process_ha_core_config
-from homeassistant.helpers import issue_registry as ir
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant import embed
 from custom_components.panel_assistant.client import PanelHealth
 from custom_components.panel_assistant.const import (
-    CONF_PANEL_USER_ID,
-    CONF_TRANSPORT_USER_ID,
     DOMAIN,
 )
 from custom_components.panel_assistant.status import PanelStatus
-from custom_components.panel_assistant.transport import async_raise_binding_issue
 
 DID = "d" * 64
 HEALTH = PanelHealth(
@@ -63,9 +58,6 @@ class FakePanel:
         self.requests: list[dict[str, Any]] = []
         self.config_posts: list[dict[str, str]] = []
         self.config_status = 200
-        # Called as the credential arrives, to observe Home Assistant at that moment.
-        self.on_config: Callable[[], Any] = lambda: None
-        self.seen_on_config: list[Any] = []
         self.stream_release = asyncio.Event()
         self.stream_closed = asyncio.Event()
         app = web.Application()
@@ -89,7 +81,6 @@ class FakePanel:
         path = request.path
         if path == "/api/v1/config" and request.method == "POST":
             self.config_posts.append(dict(parse_qsl(body.decode())))
-            self.seen_on_config.append(self.on_config())
             return web.json_response({"ok": True}, status=self.config_status)
         if path == "/page":
             return web.Response(
@@ -465,18 +456,31 @@ async def test_redirects_stay_inside_the_proxy(
         assert response.headers["Location"] == location.format(url=url[:-1] + "/")
 
 
-async def test_sign_in_path_is_never_forwarded(
+async def test_the_integration_never_creates_a_user_or_signs_a_panel_in(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
     hass_client_no_auth: Any,
     panel: FakePanel,
     entry: MockConfigEntry,
 ) -> None:
+    """The panel signs in through its own setup; the proxy only forwards."""
+    users_before = sorted(user.id for user in await hass.auth.async_get_users())
     ws = await hass_ws_client(hass)
     _, url = await _open_session(ws, entry.entry_id)
     browser = await hass_client_no_auth()
-    assert (await browser.get(url + "_panel_assistant/sign-in")).status == 404
-    assert not panel.requests
+    response = await browser.post(url + "_panel_assistant/sign-in")
+    assert response.status == 200
+    assert panel.requests[-1]["target"] == "/_panel_assistant/sign-in"
+    assert not panel.config_posts
+    assert sorted(user.id for user in await hass.auth.async_get_users()) == (
+        users_before
+    )
+    assert set(entry.data) == {CONF_ADDRESS}
+    await hass.config_entries.async_remove(entry.entry_id)
+    await hass.async_block_till_done()
+    assert sorted(user.id for user in await hass.auth.async_get_users()) == (
+        users_before
+    )
 
 
 async def test_request_bodies_stream_and_stop_at_the_limit(
@@ -638,7 +642,6 @@ async def test_refused_requests_answer_404_without_a_failed_login(
     # A demoted administrator's session no longer passes.
     await hass.auth.async_update_user(hass_admin_user, group_ids=[GROUP_ID_USER])
     assert (await browser.get(url + "page")).status == 404
-    assert (await browser.post(url + "_panel_assistant/sign-in")).status == 404
     admin_group = "system-admin"
     await hass.auth.async_update_user(hass_admin_user, group_ids=[admin_group])
     assert (await browser.get(url + "page")).status == 200
@@ -782,201 +785,3 @@ async def test_removing_the_user_ends_its_sessions(
     assert (await _receive(ws))["event"] == {"kind": "closed", "reason": "user_removed"}
     assert not sessions._by_token
     del subscription
-
-
-# ---------------------------------------------------------------------------
-# Sign-in
-
-
-async def _signed_in_session(
-    hass: HomeAssistant, hass_ws_client: WsClientFactory, entry: MockConfigEntry
-) -> str:
-    await async_process_ha_core_config(hass, {"internal_url": "http://192.0.2.10:8123"})
-    ws = await hass_ws_client(hass)
-    _, url = await _open_session(ws, entry.entry_id)
-    return url
-
-
-async def test_sign_in_creates_the_panel_user_binds_it_and_hello_succeeds(
-    hass: HomeAssistant,
-    hass_ws_client: WsClientFactory,
-    hass_client_no_auth: Any,
-    hass_read_only_user: Any,
-    panel: FakePanel,
-    entry: MockConfigEntry,
-) -> None:
-    async_raise_binding_issue(hass, entry, hass_read_only_user.id)
-    panel.on_config = lambda: entry.data.get(CONF_TRANSPORT_USER_ID)
-    url = await _signed_in_session(hass, hass_ws_client, entry)
-    browser = await hass_client_no_auth()
-    response = await browser.post(url + "_panel_assistant/sign-in")
-    assert response.status == 200
-    assert await response.json() == {"ok": True}
-    assert response.headers["Cache-Control"] == "no-store"
-
-    user = await hass.auth.async_get_user(entry.data[CONF_PANEL_USER_ID])
-    assert user is not None
-    assert entry.data[CONF_TRANSPORT_USER_ID] == user.id
-    # Already bound when the panel receives its credential and says hello.
-    assert panel.seen_on_config == [user.id]
-    assert user.name == "Kitchen"
-    assert not user.is_admin and not user.system_generated and not user.local_only
-    assert [group.id for group in user.groups] == [GROUP_ID_USER]
-    assert user.credentials == []
-    assert (
-        ir.async_get(hass).async_get_issue(
-            DOMAIN, f"panel_user_mismatch_{entry.entry_id}"
-        )
-        is None
-    )
-
-    [posted] = panel.config_posts
-    client_id = f"http://{panel.address}/"
-    assert set(posted) == {
-        "ha_url",
-        "ha_token",
-        "ha_refresh_token",
-        "ha_token_expiry",
-        "ha_client_id",
-    }
-    assert posted["ha_url"] == "http://192.0.2.10:8123"
-    assert posted["ha_client_id"] == client_id
-    config_request = next(r for r in panel.requests if r["target"] == "/api/v1/config")
-    assert {k.lower() for k in config_request["headers"]}.isdisjoint(
-        {"origin", "referer", "authorization", "cookie"}
-    )
-    refresh_token = hass.auth.async_get_refresh_token_by_token(
-        posted["ha_refresh_token"]
-    )
-    assert refresh_token is not None
-    assert refresh_token.client_id == client_id and refresh_token.user is user
-    assert int(posted["ha_token_expiry"]) > 0
-    # The admin's own credential never reaches the panel.
-    assert "Bearer" not in str(config_request["headers"])
-
-    panel_ws = await hass_ws_client(hass, posted["ha_token"])
-    await panel_ws.send_json_auto_id(HELLO)
-    hello = await _receive(panel_ws)
-    assert hello["success"], hello
-
-
-async def test_a_second_sign_in_reuses_the_user_and_retires_the_old_token(
-    hass: HomeAssistant,
-    hass_ws_client: WsClientFactory,
-    hass_client_no_auth: Any,
-    panel: FakePanel,
-    entry: MockConfigEntry,
-) -> None:
-    url = await _signed_in_session(hass, hass_ws_client, entry)
-    browser = await hass_client_no_auth()
-    assert (await browser.post(url + "_panel_assistant/sign-in")).status == 200
-    assert (await browser.post(url + "_panel_assistant/sign-in")).status == 200
-    first, second = panel.config_posts
-    user_id = entry.data[CONF_PANEL_USER_ID]
-    assert hass.auth.async_get_refresh_token_by_token(first["ha_refresh_token"]) is None
-    kept = hass.auth.async_get_refresh_token_by_token(second["ha_refresh_token"])
-    assert kept is not None and kept.user.id == user_id
-    assert (
-        len([u for u in await hass.auth.async_get_users() if u.name == "Kitchen"]) == 1
-    )
-
-
-async def test_sign_in_ends_the_session_of_the_user_it_replaces(
-    hass: HomeAssistant,
-    hass_ws_client: WsClientFactory,
-    hass_client_no_auth: Any,
-    hass_read_only_user: Any,
-    hass_read_only_access_token: str,
-    entry: MockConfigEntry,
-) -> None:
-    hass.config_entries.async_update_entry(
-        entry, data={**entry.data, CONF_TRANSPORT_USER_ID: hass_read_only_user.id}
-    )
-    old_panel = await hass_ws_client(hass, hass_read_only_access_token)
-    await old_panel.send_json_auto_id(HELLO)
-    hello = await _receive(old_panel)
-    assert hello["success"], hello
-    url = await _signed_in_session(hass, hass_ws_client, entry)
-    browser = await hass_client_no_auth()
-    assert (await browser.post(url + "_panel_assistant/sign-in")).status == 200
-    closed = await _receive(old_panel)
-    assert closed["event"] == {"kind": "session_closed", "reason": "binding_changed"}
-
-
-@pytest.mark.parametrize(
-    ("config_status", "status", "code"),
-    [(500, 502, "panel_refused"), (None, 502, "panel_unreachable")],
-)
-async def test_a_failed_sign_in_binds_nothing_and_revokes_its_token(
-    hass: HomeAssistant,
-    hass_ws_client: WsClientFactory,
-    hass_client_no_auth: Any,
-    hass_read_only_user: Any,
-    panel: FakePanel,
-    entry: MockConfigEntry,
-    config_status: int | None,
-    status: int,
-    code: str,
-) -> None:
-    hass.config_entries.async_update_entry(
-        entry, data={**entry.data, CONF_TRANSPORT_USER_ID: hass_read_only_user.id}
-    )
-    url = await _signed_in_session(hass, hass_ws_client, entry)
-    browser = await hass_client_no_auth()
-    if config_status is None:
-        await panel.server.close()
-    else:
-        panel.config_status = config_status
-    response = await browser.post(url + "_panel_assistant/sign-in")
-    assert response.status == status
-    assert await response.json() == {"ok": False, "error": code}
-    assert entry.data[CONF_TRANSPORT_USER_ID] == hass_read_only_user.id
-    user = await hass.auth.async_get_user(entry.data[CONF_PANEL_USER_ID])
-    assert user is not None
-    assert not user.refresh_tokens
-
-
-async def test_sign_in_without_an_internal_url_answers_409(
-    hass: HomeAssistant,
-    hass_ws_client: WsClientFactory,
-    hass_client_no_auth: Any,
-    panel: FakePanel,
-    entry: MockConfigEntry,
-) -> None:
-    ws = await hass_ws_client(hass)
-    _, url = await _open_session(ws, entry.entry_id)
-    browser = await hass_client_no_auth()
-    with patch.object(embed, "get_url", side_effect=embed.NoURLAvailableError):
-        response = await browser.post(url + "_panel_assistant/sign-in")
-    assert response.status == 409
-    assert await response.json() == {"ok": False, "error": "internal_url_missing"}
-    assert CONF_PANEL_USER_ID not in entry.data
-    assert not panel.config_posts
-
-
-async def test_removing_the_entry_removes_only_the_user_it_created(
-    hass: HomeAssistant,
-    hass_ws_client: WsClientFactory,
-    hass_client_no_auth: Any,
-    hass_read_only_user: Any,
-    entry: MockConfigEntry,
-) -> None:
-    url = await _signed_in_session(hass, hass_ws_client, entry)
-    browser = await hass_client_no_auth()
-    assert (await browser.post(url + "_panel_assistant/sign-in")).status == 200
-    created = entry.data[CONF_PANEL_USER_ID]
-    await hass.config_entries.async_remove(entry.entry_id)
-    await hass.async_block_till_done()
-    assert await hass.auth.async_get_user(created) is None
-    assert await hass.auth.async_get_user(hass_read_only_user.id) is not None
-
-
-async def test_removal_leaves_a_panel_user_someone_promoted(
-    hass: HomeAssistant, hass_admin_user: Any, entry: MockConfigEntry
-) -> None:
-    hass.config_entries.async_update_entry(
-        entry, data={**entry.data, CONF_PANEL_USER_ID: hass_admin_user.id}
-    )
-    await hass.config_entries.async_remove(entry.entry_id)
-    await hass.async_block_till_done()
-    assert await hass.auth.async_get_user(hass_admin_user.id) is not None

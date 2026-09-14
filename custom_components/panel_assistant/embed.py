@@ -1,12 +1,16 @@
-"""The sidebar's embedded panel interface: sessions, the proxy and panel sign-in.
+"""The sidebar's embedded panel interface: sessions and the proxy.
 
 An administrator's sidebar opens an embed session over its WebSocket. The
 session's token names a path under which Home Assistant proxies the panel's own
 web interface, so the browser never needs to reach the panel and the panel never
-sees the browser's credential. Every proxied request is checked again, and a
-request that fails the check is answered 404 rather than 401: Core records each
-401 as a failed login and notifies about it, which an expired frame would do for
-every one of its subresources.
+sees the browser's credential. The integration gives the panel no credential of
+its own either: a panel signs in to Home Assistant through its own setup, and
+everything before that runs over its REST API.
+
+Every proxied request is checked again, and a request that fails the check is
+answered 404 rather than 401: Core records each 401 as a failed login and
+notifies about it, which an expired frame would do for every one of its
+subresources.
 """
 
 from __future__ import annotations
@@ -24,8 +28,6 @@ import aiohttp
 import voluptuous as vol
 from aiohttp import hdrs, web
 from homeassistant.auth import EVENT_USER_REMOVED
-from homeassistant.auth.const import GROUP_ID_USER
-from homeassistant.auth.models import User
 from homeassistant.components import websocket_api
 from homeassistant.components.websocket_api.connection import ActiveConnection
 from homeassistant.components.websocket_api.decorators import (
@@ -39,19 +41,15 @@ from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.exceptions import Unauthorized
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.http import HomeAssistantView
-from homeassistant.helpers.network import NoURLAvailableError, get_url
 from yarl import URL
 
 from .client import PanelAddress, normalize_address
-from .const import CONF_PANEL_USER_ID, CONF_TRANSPORT_USER_ID, DOMAIN
-from .transport import async_bind_user, async_delete_binding_issue
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 DATA_EMBED: Final = "embed"
 EMBED_PREFIX: Final = "/api/panel_assistant/embed"
-SIGN_IN_PATH: Final = "/_panel_assistant/sign-in"
-CONFIG_PATH: Final = "/api/v1/config"
 
 REASON_ENTRY_UNLOADED: Final = "entry_unloaded"
 REASON_USER_REMOVED: Final = "user_removed"
@@ -63,10 +61,6 @@ STATE_NOT_LOADED: Final = "not_loaded"
 ERR_NOT_FOUND: Final = "not_found"
 ERR_NOT_LOADED: Final = "not_loaded"
 
-SIGN_IN_INTERNAL_URL_MISSING: Final = "internal_url_missing"
-SIGN_IN_PANEL_UNREACHABLE: Final = "panel_unreachable"
-SIGN_IN_PANEL_REFUSED: Final = "panel_refused"
-
 MAX_PANELS: Final = 200
 RESUME_SECONDS: Final = 60
 RECHECK_SECONDS: Final = 30
@@ -76,7 +70,6 @@ MAX_REQUEST_BODY: Final = 256 * 1024 * 1024
 MAX_REWRITTEN_BODY: Final = 2 * 1024 * 1024
 BASE_WINDOW: Final = 4096
 BASE_ELEMENT: Final = b'<base href="/">'
-SIGN_IN_TIMEOUT: Final = aiohttp.ClientTimeout(total=15)
 # Streams of logs and held captures run as long as they are open; only reaching
 # the panel is bounded.
 PROXY_TIMEOUT: Final = aiohttp.ClientTimeout(total=None, sock_connect=10)
@@ -173,11 +166,6 @@ class EmbedSessions:
         """Initialize an empty table."""
         self._hass = hass
         self._by_token: dict[str, EmbedSession] = {}
-        self._sign_in_locks: dict[str, asyncio.Lock] = {}
-
-    def sign_in_lock(self, entry_id: str) -> asyncio.Lock:
-        """Return the lock that serializes one entry's sign-ins."""
-        return self._sign_in_locks.setdefault(entry_id, asyncio.Lock())
 
     @callback
     def open(
@@ -189,7 +177,7 @@ class EmbedSessions:
         theme: str,
         resume: str | None,
     ) -> EmbedSession:
-        """Open a session, or resume a detached one this sign-in left."""
+        """Open a session, or resume a detached one from the same login."""
         assert connection.user is not None
         assert connection.refresh_token_id is not None
         self._expire()
@@ -497,11 +485,6 @@ class EmbedProxyView(HomeAssistantView):
         session, entry = admitted
         raw_target = request.raw_path[len(prefix) :]
         target = URL(raw_target, encoded=True)
-        if target.path == SIGN_IN_PATH:
-            if request.method != hdrs.METH_POST:
-                return _not_found()
-            return await async_sign_in(self.hass, sessions, session, entry)
-
         long_lived = _is_long_lived_request(request, target)
         if session.active >= MAX_CONCURRENT or (
             long_lived and session.long_lived >= MAX_LONG_LIVED
@@ -660,134 +643,6 @@ class EmbedProxyView(HomeAssistantView):
     delete = _handle
 
 
-# ---------------------------------------------------------------------------
-# Signing a panel in from the sidebar.
-
-
-def _sign_in_reply(status: int, error: str | None = None) -> web.Response:
-    body: dict[str, Any] = {"ok": True}
-    if error is not None:
-        body = {"ok": False, "error": error}
-    return web.json_response(
-        body,
-        status=status,
-        headers={**SECURITY_HEADERS, hdrs.CACHE_CONTROL: "no-store"},
-    )
-
-
-async def _async_panel_user(hass: HomeAssistant, entry: ConfigEntry) -> User:
-    """Return the non-administrator user this entry signs its panel in as."""
-    user_id = entry.data.get(CONF_PANEL_USER_ID)
-    if isinstance(user_id, str):
-        user = await hass.auth.async_get_user(user_id)
-        if (
-            user is not None
-            and user.is_active
-            and not user.is_admin
-            and not user.system_generated
-        ):
-            return user
-    user = await hass.auth.async_create_user(
-        entry.title, group_ids=[GROUP_ID_USER], local_only=False
-    )
-    if user.is_admin:
-        # Only the first user of an instance is made its owner; never a panel.
-        await hass.auth.async_remove_user(user)
-        raise RuntimeError("A panel user may not be an administrator")
-    # Recorded at once, so a failed sign-in's retry reuses it.
-    hass.config_entries.async_update_entry(
-        entry, data={**entry.data, CONF_PANEL_USER_ID: user.id}
-    )
-    return user
-
-
-async def async_sign_in(
-    hass: HomeAssistant,
-    sessions: EmbedSessions,
-    session: EmbedSession,
-    entry: ConfigEntry,
-) -> web.Response:
-    """Issue the panel's own credential, send it to the panel and bind the entry."""
-    try:
-        ha_url = get_url(hass, allow_external=False, allow_cloud=False, allow_ip=True)
-    except NoURLAvailableError:
-        return _sign_in_reply(409, SIGN_IN_INTERNAL_URL_MISSING)
-    async with sessions.sign_in_lock(entry.entry_id):
-        return await _async_sign_in_locked(hass, entry, ha_url)
-
-
-async def _async_sign_in_locked(
-    hass: HomeAssistant, entry: ConfigEntry, ha_url: str
-) -> web.Response:
-    address = normalize_address(entry.data[CONF_ADDRESS])
-    client_id = str(address.base_url.with_path("/"))
-    user = await _async_panel_user(hass, entry)
-    refresh_token = await hass.auth.async_create_refresh_token(
-        user, client_id=client_id
-    )
-    access_token = hass.auth.async_create_access_token(refresh_token)
-    expiry = int(time.time() + refresh_token.access_token_expiration.total_seconds())
-
-    # Bound before the panel is told, so the hello its new credential starts
-    # finds the binding already in place; undone if the panel is not told.
-    previous = entry.data.get(CONF_TRANSPORT_USER_ID)
-    hass.config_entries.async_update_entry(
-        entry, data={**entry.data, CONF_TRANSPORT_USER_ID: user.id}
-    )
-    error: tuple[int, str] | None = None
-    try:
-        async with async_get_clientsession(hass).post(
-            address.base_url.with_path(CONFIG_PATH),
-            data={
-                "ha_url": ha_url,
-                "ha_token": access_token,
-                "ha_refresh_token": refresh_token.token,
-                "ha_token_expiry": str(expiry),
-                "ha_client_id": client_id,
-            },
-            headers={hdrs.HOST: _host_header(address)},
-            allow_redirects=False,
-            timeout=SIGN_IN_TIMEOUT,
-            skip_auto_headers={hdrs.USER_AGENT},
-        ) as response:
-            await response.read()
-            if response.status != 200:
-                error = (502, SIGN_IN_PANEL_REFUSED)
-    except aiohttp.ClientError, TimeoutError:
-        error = (502, SIGN_IN_PANEL_UNREACHABLE)
-
-    if error is not None:
-        hass.auth.async_remove_refresh_token(refresh_token)
-        current = hass.config_entries.async_get_entry(entry.entry_id)
-        if current is not None and current.data.get(CONF_TRANSPORT_USER_ID) == user.id:
-            data = {**current.data}
-            if previous is None:
-                data.pop(CONF_TRANSPORT_USER_ID, None)
-            else:
-                data[CONF_TRANSPORT_USER_ID] = previous
-            hass.config_entries.async_update_entry(current, data=data)
-        return _sign_in_reply(*error)
-
-    # The panel now holds the new credential, so the older ones are retired.
-    for older in list(user.refresh_tokens.values()):
-        if older.client_id == client_id and older.id != refresh_token.id:
-            hass.auth.async_remove_refresh_token(older)
-    async_bind_user(hass, entry, user.id)
-    async_delete_binding_issue(hass, entry.entry_id)
-    return _sign_in_reply(200)
-
-
-async def async_remove_panel_user(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Remove the user a removed entry created for its panel, and no other."""
-    user_id = entry.data.get(CONF_PANEL_USER_ID)
-    if not isinstance(user_id, str):
-        return
-    user = await hass.auth.async_get_user(user_id)
-    if user is None or user.is_admin or user.system_generated:
-        return
-    await hass.auth.async_remove_user(user)
-
-
 @callback
 def async_setup_embed(hass: HomeAssistant) -> None:
     """Register both commands once for the domain; the sidebar registers the view."""
@@ -801,10 +656,5 @@ def async_setup_embed(hass: HomeAssistant) -> None:
         if not isinstance(user_id, str):
             return
         async_get_embed_sessions(hass).end_user(user_id, REASON_USER_REMOVED)
-        for entry in hass.config_entries.async_entries(DOMAIN):
-            if entry.data.get(CONF_PANEL_USER_ID) == user_id:
-                data = dict(entry.data)
-                del data[CONF_PANEL_USER_ID]
-                hass.config_entries.async_update_entry(entry, data=data)
 
     hass.bus.async_listen(EVENT_USER_REMOVED, _user_removed)

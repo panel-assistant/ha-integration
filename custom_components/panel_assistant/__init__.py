@@ -26,7 +26,6 @@ from .embed import (
 )
 from .embed import (
     async_get_embed_sessions,
-    async_remove_panel_user,
     async_setup_embed,
 )
 from .feed_coordinator import CONF_BUILD_FEED, DATA_BUILD_FEED, BuildFeedCoordinator
@@ -298,7 +297,6 @@ async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
     record = cutover_record(entry)
     recorded_did = None if record is None else record.get("did")
     await async_release_removed_entry(hass, entry)
-    await async_remove_panel_user(hass, entry)
     await async_remember_removed_panel(
         hass, entry, recorded_did if isinstance(recorded_did, str) else None
     )

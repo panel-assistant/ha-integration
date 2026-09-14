@@ -14,7 +14,7 @@ INTEGRATION_VERSION: str = json.loads(
 # The public version (manifest.json) only changes when something ships. This
 # build number tells builds apart in between: it counts the commits that have
 # changed this integration.
-INTEGRATION_BUILD = 66
+INTEGRATION_BUILD = 67
 
 # Every outward link goes through the site's own redirect rather than a page
 # path, so pages can move. The version and build travel with it, so a later
@@ -63,9 +63,6 @@ SETUP_PATH = "/api/v1/setup"
 # administrator's Repairs confirmation records it; the entry's identity does not
 # change.
 CONF_TRANSPORT_USER_ID = "transport_user_id"
-# The non-administrator user this integration created to sign an entry's panel in
-# from the sidebar. Removing the entry removes that user and no other.
-CONF_PANEL_USER_ID = "panel_user_id"
 # The entry option choosing who owns a panel's entities and commands. It takes
 # effect only while native entities are turned on.
 CONF_AUTHORITY = "authority"
