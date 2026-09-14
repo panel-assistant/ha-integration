@@ -73,7 +73,7 @@ export class PanelAssistantSidebar extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     // Only fixed markup is HTML. Copy and panel titles are assigned as text.
     this.shadowRoot.innerHTML = `<style>
-      :host{display:block;height:100%;background:var(--primary-background-color,#fafafa);color:var(--primary-text-color,#212121)}
+      :host{display:block;height:100vh;height:100dvh;background:var(--primary-background-color,#fafafa);color:var(--primary-text-color,#212121)}
       [hidden]{display:none!important}
       .root{display:flex;flex-direction:column;height:100%}
       header{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:4px 12px;background:var(--app-header-background-color,var(--primary-color,#03a9f4));color:var(--app-header-text-color,#fff);border-bottom:1px solid var(--divider-color,#e0e0e0)}

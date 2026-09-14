@@ -63,7 +63,7 @@ class pe extends HTMLElement {
   #y = () => this.#A();
   constructor() {
     super(), this.attachShadow({ mode: "open" }), this.shadowRoot.innerHTML = `<style>
-      :host{display:block;height:100%;background:var(--primary-background-color,#fafafa);color:var(--primary-text-color,#212121)}
+      :host{display:block;height:100vh;height:100dvh;background:var(--primary-background-color,#fafafa);color:var(--primary-text-color,#212121)}
       [hidden]{display:none!important}
       .root{display:flex;flex-direction:column;height:100%}
       header{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:4px 12px;background:var(--app-header-background-color,var(--primary-color,#03a9f4));color:var(--app-header-text-color,#fff);border-bottom:1px solid var(--divider-color,#e0e0e0)}
@@ -234,13 +234,13 @@ class pe extends HTMLElement {
   }
 }
 customElements.get("panel-assistant-sidebar") || customElements.define("panel-assistant-sidebar", pe);
-const W = 64, Z = 256 * 1024, fe = 2147483647, ye = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/, Me = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-rc[1-9][0-9]*$/, O = /^build-([1-9][0-9]{0,9})$/, be = /^[0-9A-Za-z][0-9A-Za-z._+-]{0,63}$/, N = (n, e) => typeof e == "string" && e.length <= W && n.exec(e)?.[0] === e, F = (n) => N(ye, n), J = (n) => N(Me, n);
+const W = 64, Z = 256 * 1024, fe = 2147483647, ye = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/, Me = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-rc[1-9][0-9]*$/, O = /^build-([1-9][0-9]{0,9})$/, be = /^[0-9A-Za-z][0-9A-Za-z._+-]{0,63}$/, D = (n, e) => typeof e == "string" && e.length <= W && n.exec(e)?.[0] === e, F = (n) => D(ye, n), J = (n) => D(Me, n);
 function K(n) {
-  if (!N(O, n)) return null;
+  if (!D(O, n)) return null;
   const e = Number(O.exec(n)[1]);
   return e <= fe ? e : null;
 }
-const R = (n) => K(n) !== null, me = (n) => N(be, n), we = (n, e) => `${n} build ${e}`, P = "/api/panel_assistant/usb/release", B = 64 * 1024 * 1024, xe = 1800 * 1e3, Ie = [
+const R = (n) => K(n) !== null, me = (n) => D(be, n), we = (n, e) => `${n} build ${e}`, P = "/api/panel_assistant/usb/release", B = 64 * 1024 * 1024, xe = 1800 * 1e3, Ie = [
   "id",
   "tag",
   "checksum",
@@ -249,17 +249,17 @@ const R = (n) => K(n) !== null, me = (n) => N(be, n), we = (n, e) => `${n} build
   "descriptor_signature",
   "apk_size",
   "apk_sha256"
-], Ae = ["id", "tag", "feed", "feed_signature", "apk_size", "apk_sha256"], X = 8192, je = Math.ceil(Z / 3) * 4 + X, D = (n, e) => typeof e == "string" && n.exec(e)?.[0] === e, U = (n, e) => n !== null && typeof n == "object" && !Array.isArray(n) && Object.keys(n).length === e.length && e.every((t) => Object.hasOwn(n, t));
-class z extends Error {
+], Ae = ["id", "tag", "feed", "feed_signature", "apk_size", "apk_sha256"], X = 8192, je = Math.ceil(Z / 3) * 4 + X, z = (n, e) => typeof e == "string" && n.exec(e)?.[0] === e, U = (n, e) => n !== null && typeof n == "object" && !Array.isArray(n) && Object.keys(n).length === e.length && e.every((t) => Object.hasOwn(n, t));
+class v extends Error {
   constructor(e) {
     super(e), this.name = "HandoffError", this.code = e;
   }
 }
 function g(n, e = "invalid_response") {
-  if (!n) throw new z(e);
+  if (!n) throw new v(e);
 }
 function x(n, e, t = !1) {
-  g(typeof n == "string" && n.length <= Math.ceil(e / 3) * 4 && D(/(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?/, n));
+  g(typeof n == "string" && n.length <= Math.ceil(e / 3) * 4 && z(/(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?/, n));
   const i = atob(n);
   return g(btoa(i) === n && i.length > 0 && (t ? i.length === e : i.length <= e)), Uint8Array.from(i, (r) => r.charCodeAt(0));
 }
@@ -267,7 +267,7 @@ async function q(n, e, t, i = null) {
   g(n.status === 200 && !n.redirected && n.body);
   const r = n.headers.get("content-length");
   if (r !== null) {
-    g(D(/0|[1-9][0-9]*/, r));
+    g(z(/0|[1-9][0-9]*/, r));
     const c = Number(r);
     g(Number.isSafeInteger(c) && c <= e && (i === null || c === i));
   }
@@ -312,7 +312,7 @@ function Ee(n, e, {
   }, w = (o = null) => {
     if (!d) {
       if (d = !0, c.abort(), clearTimeout(m), j(o ?? "verified"), o) {
-        S(), h(new z(o));
+        S(), h(new v(o));
         return;
       }
       C = setInterval(() => {
@@ -336,7 +336,7 @@ function Ee(n, e, {
         b ? je : X,
         c.signal
       )).text());
-      g(!d, "cancelled"), g(U(u, b ? Ae : Ie) && D(/[0-9a-f]{32}/, u.id) && typeof u.tag == "string" && u.tag.length <= W && (t === null ? F(u.tag) : u.tag === t) && D(/[0-9a-f]{64}/, u.apk_sha256) && Number.isSafeInteger(u.apk_size) && u.apk_size > 0 && u.apk_size <= B);
+      g(!d, "cancelled"), g(U(u, b ? Ae : Ie) && z(/[0-9a-f]{32}/, u.id) && typeof u.tag == "string" && u.tag.length <= W && (t === null ? F(u.tag) : u.tag === t) && z(/[0-9a-f]{64}/, u.apk_sha256) && Number.isSafeInteger(u.apk_size) && u.apk_size > 0 && u.apk_size <= B);
       const te = b ? {
         tag: u.tag,
         feed: x(u.feed, Z),
@@ -358,7 +358,7 @@ function Ee(n, e, {
       const ie = await q(ne, B, c.signal, u.apk_size);
       g(!d && !p.closed, "window_closed"), k = !0, A = { type: "ha-paneld/usb-bundle", nonce: E, bundle: te, apk: ie }, p.postMessage(A, M), j("verifying");
     } catch (o) {
-      w(o instanceof z ? o.code : "delivery_failed");
+      w(o instanceof v ? o.code : "delivery_failed");
     }
   }
   function _(o) {
@@ -377,13 +377,13 @@ function Ee(n, e, {
     const b = new Uint8Array(16);
     r.crypto.getRandomValues(b), E = Array.from(b, (u) => u.toString(16).padStart(2, "0")).join(""), o.hash = new URLSearchParams({ ha_origin: r.location.origin, nonce: E, rc: t ?? "" }).toString(), r.addEventListener("message", _), p = r.open(o.href, "_blank"), g(p, "popup_blocked"), m = setTimeout(() => w("timeout"), a), j("waiting");
   } catch (o) {
-    w(o instanceof z ? o.code : "invalid_request");
+    w(o instanceof v ? o.code : "invalid_request");
   }
   return { completion: l, cancel: () => {
     w("cancelled"), S();
   } };
 }
-const H = 30, Q = 500, Y = 128 * 1024, v = (n, e) => n !== null && typeof n == "object" && !Array.isArray(n) && Object.keys(n).length === e.length && e.every((t) => Object.hasOwn(n, t));
+const H = 30, Q = 500, Y = 128 * 1024, N = (n, e) => n !== null && typeof n == "object" && !Array.isArray(n) && Object.keys(n).length === e.length && e.every((t) => Object.hasOwn(n, t));
 function f(n) {
   if (!n) throw new Error("Invalid release catalogue");
 }
@@ -391,13 +391,13 @@ function Se(n) {
   const e = K(n.tag), t = typeof n.name == "string" ? n.name.split(" ")[0] : null;
   return e !== null && n.prerelease === !0 && me(t) && n.name === we(t, e);
 }
-function ze(n) {
-  f(v(n, ["releases"]) && Array.isArray(n.releases) && n.releases.length <= H + Q);
+function ve(n) {
+  f(N(n, ["releases"]) && Array.isArray(n.releases) && n.releases.length <= H + Q);
   const e = /* @__PURE__ */ new Set();
   let t = 0, i = 0, r = 0;
-  return Object.freeze(n.releases.map((a) => v(a, ["tag", "prerelease", "name"]) ? (f(Se(a) && !e.has(a.tag) && ++r <= Q), e.add(a.tag), Object.freeze({ tag: a.tag, prerelease: !0, name: a.name })) : (f(v(a, ["tag", "prerelease"]) && typeof a.prerelease == "boolean" && (a.prerelease ? J(a.tag) : F(a.tag)) && !e.has(a.tag) && ++i <= H), e.add(a.tag), a.prerelease || f(++t <= 1), Object.freeze({ tag: a.tag, prerelease: a.prerelease }))));
+  return Object.freeze(n.releases.map((a) => N(a, ["tag", "prerelease", "name"]) ? (f(Se(a) && !e.has(a.tag) && ++r <= Q), e.add(a.tag), Object.freeze({ tag: a.tag, prerelease: !0, name: a.name })) : (f(N(a, ["tag", "prerelease"]) && typeof a.prerelease == "boolean" && (a.prerelease ? J(a.tag) : F(a.tag)) && !e.has(a.tag) && ++i <= H), e.add(a.tag), a.prerelease || f(++t <= 1), Object.freeze({ tag: a.tag, prerelease: a.prerelease }))));
 }
-async function De(n, { signal: e, timeoutMs: t = 15e3 } = {}) {
+async function ze(n, { signal: e, timeoutMs: t = 15e3 } = {}) {
   const i = new AbortController(), r = () => i.abort();
   e?.addEventListener("abort", r, { once: !0 }), e?.aborted && r();
   const a = setTimeout(r, t);
@@ -423,16 +423,16 @@ async function De(n, { signal: e, timeoutMs: t = 15e3 } = {}) {
         if (f(!i.signal.aborted), M.done) break;
         m += M.value.byteLength, f(m <= Y), p.push(M.value);
       }
-      return f(m > 0 && (d === null || m === Number(d))), ze(JSON.parse(await new Blob(p).text()));
+      return f(m > 0 && (d === null || m === Number(d))), ve(JSON.parse(await new Blob(p).text()));
     })()]);
   } finally {
     clearTimeout(a), e?.removeEventListener("abort", r), i.signal.removeEventListener("abort", h), i.abort(), s && s.cancel().catch(() => {
     });
   }
 }
-const Ne = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDgiIGhlaWdodD0iMTA4IiB2aWV3Qm94PSIwIDAgMTA4IDEwOCI+CjxwYXRoIGQ9Ik0yOCwzMiBoNTIgYTQsNCAwIDAgMSA0LDQgdjM3IGE0LDQgMCAwIDEgLTQsNCBoLTUyIGE0LDQgMCAwIDEgLTQsLTQgdi0zNyBhNCw0IDAgMCAxIDQsLTQgeiIgZmlsbD0iIzM3NDc0RiIvPgo8cGF0aCBkPSJNMjksMzUgaDUwIGEyLDIgMCAwIDEgMiwyIHYzNSBhMiwyIDAgMCAxIC0yLDIgaC01MCBhMiwyIDAgMCAxIC0yLC0yIHYtMzUgYTIsMiAwIDAgMSAyLC0yIHoiIGZpbGw9IiMwRTE2MjAiLz4KPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNDIuMDAsNDIuNTApIHNjYWxlKDAuMTAwMCkiPgo8cGF0aCBmaWxsPSIjRjJGNEY5IiBkPSJNMjQwIDIyNC44MTNDMjQwIDIzMy4wNjMgMjMzLjI1IDIzOS44MTMgMjI1IDIzOS44MTNIMTVDNi43NSAyMzkuODEzIDAgMjMzLjA2MyAwIDIyNC44MTNWMTM0LjgxM0MwIDEyNi41NjMgNC43NyAxMTUuMDQzIDEwLjYxIDEwOS4yMDNMMTA5LjM5IDEwLjQyM0MxMTUuMjIgNC41OTMwNCAxMjQuNzcgNC41OTMwNCAxMzAuNiAxMC40MjNMMjI5LjM5IDEwOS4yMTNDMjM1LjIyIDExNS4wNDMgMjQwIDEyNi41NzMgMjQwIDEzNC44MjNWMjI0LjgyM1YyMjQuODEzWiIvPgo8cGF0aCBmaWxsPSIjMThCQ0YyIiBkPSJNMjI5LjM5IDEwOS4yMDNMMTMwLjYxIDEwLjQyM0MxMjQuNzggNC41OTMwNCAxMTUuMjMgNC41OTMwNCAxMDkuNCAxMC40MjNMMTAuNjEgMTA5LjIwM0M0Ljc4IDExNS4wMzMgMCAxMjYuNTYzIDAgMTM0LjgxM1YyMjQuODEzQzAgMjMzLjA2MyA2Ljc1IDIzOS44MTMgMTUgMjM5LjgxM0gxMDcuMjdMNjYuNjQgMTk5LjE4M0M2NC41NSAxOTkuOTAzIDYyLjMyIDIwMC4zMTMgNjAgMjAwLjMxM0M0OC43IDIwMC4zMTMgMzkuNSAxOTEuMTEzIDM5LjUgMTc5LjgxM0MzOS41IDE2OC41MTMgNDguNyAxNTkuMzEzIDYwIDE1OS4zMTNDNzEuMyAxNTkuMzEzIDgwLjUgMTY4LjUxMyA4MC41IDE3OS44MTNDODAuNSAxODIuMTQzIDgwLjA5IDE4NC4zNzMgNzkuMzcgMTg2LjQ2M0wxMTEgMjE4LjA5M1YxMDIuMjEzQzEwNC4yIDk4Ljg3MyA5OS41IDkxLjg5MyA5OS41IDgzLjgyM0M5OS41IDcyLjUyMyAxMDguNyA2My4zMjMgMTIwIDYzLjMyM0MxMzEuMyA2My4zMjMgMTQwLjUgNzIuNTIzIDE0MC41IDgzLjgyM0MxNDAuNSA5MS44OTMgMTM1LjggOTguODczIDEyOSAxMDIuMjEzVjE4My40ODNMMTYwLjQ2IDE1Mi4wMjNDMTU5Ljg0IDE1MC4wNjMgMTU5LjUgMTQ3Ljk4MyAxNTkuNSAxNDUuODIzQzE1OS41IDEzNC41MjMgMTY4LjcgMTI1LjMyMyAxODAgMTI1LjMyM0MxOTEuMyAxMjUuMzIzIDIwMC41IDEzNC41MjMgMjAwLjUgMTQ1LjgyM0MyMDAuNSAxNTcuMTIzIDE5MS4zIDE2Ni4zMjMgMTgwIDE2Ni4zMjNDMTc3LjUgMTY2LjMyMyAxNzUuMTIgMTY1Ljg1MyAxNzIuOTEgMTY1LjAzM0wxMjkgMjA4Ljk0M1YyMzkuODIzSDIyNUMyMzMuMjUgMjM5LjgyMyAyNDAgMjMzLjA3MyAyNDAgMjI0LjgyM1YxMzQuODIzQzI0MCAxMjYuNTczIDIzNS4yMyAxMTUuMDUzIDIyOS4zOSAxMDkuMjEzVjEwOS4yMDNaIi8+CjwvZz4KPC9zdmc+Cg==", ve = Object.freeze(["Version", "Connect", "Install", "Set up"]);
+const De = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDgiIGhlaWdodD0iMTA4IiB2aWV3Qm94PSIwIDAgMTA4IDEwOCI+CjxwYXRoIGQ9Ik0yOCwzMiBoNTIgYTQsNCAwIDAgMSA0LDQgdjM3IGE0LDQgMCAwIDEgLTQsNCBoLTUyIGE0LDQgMCAwIDEgLTQsLTQgdi0zNyBhNCw0IDAgMCAxIDQsLTQgeiIgZmlsbD0iIzM3NDc0RiIvPgo8cGF0aCBkPSJNMjksMzUgaDUwIGEyLDIgMCAwIDEgMiwyIHYzNSBhMiwyIDAgMCAxIC0yLDIgaC01MCBhMiwyIDAgMCAxIC0yLC0yIHYtMzUgYTIsMiAwIDAgMSAyLC0yIHoiIGZpbGw9IiMwRTE2MjAiLz4KPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNDIuMDAsNDIuNTApIHNjYWxlKDAuMTAwMCkiPgo8cGF0aCBmaWxsPSIjRjJGNEY5IiBkPSJNMjQwIDIyNC44MTNDMjQwIDIzMy4wNjMgMjMzLjI1IDIzOS44MTMgMjI1IDIzOS44MTNIMTVDNi43NSAyMzkuODEzIDAgMjMzLjA2MyAwIDIyNC44MTNWMTM0LjgxM0MwIDEyNi41NjMgNC43NyAxMTUuMDQzIDEwLjYxIDEwOS4yMDNMMTA5LjM5IDEwLjQyM0MxMTUuMjIgNC41OTMwNCAxMjQuNzcgNC41OTMwNCAxMzAuNiAxMC40MjNMMjI5LjM5IDEwOS4yMTNDMjM1LjIyIDExNS4wNDMgMjQwIDEyNi41NzMgMjQwIDEzNC44MjNWMjI0LjgyM1YyMjQuODEzWiIvPgo8cGF0aCBmaWxsPSIjMThCQ0YyIiBkPSJNMjI5LjM5IDEwOS4yMDNMMTMwLjYxIDEwLjQyM0MxMjQuNzggNC41OTMwNCAxMTUuMjMgNC41OTMwNCAxMDkuNCAxMC40MjNMMTAuNjEgMTA5LjIwM0M0Ljc4IDExNS4wMzMgMCAxMjYuNTYzIDAgMTM0LjgxM1YyMjQuODEzQzAgMjMzLjA2MyA2Ljc1IDIzOS44MTMgMTUgMjM5LjgxM0gxMDcuMjdMNjYuNjQgMTk5LjE4M0M2NC41NSAxOTkuOTAzIDYyLjMyIDIwMC4zMTMgNjAgMjAwLjMxM0M0OC43IDIwMC4zMTMgMzkuNSAxOTEuMTEzIDM5LjUgMTc5LjgxM0MzOS41IDE2OC41MTMgNDguNyAxNTkuMzEzIDYwIDE1OS4zMTNDNzEuMyAxNTkuMzEzIDgwLjUgMTY4LjUxMyA4MC41IDE3OS44MTNDODAuNSAxODIuMTQzIDgwLjA5IDE4NC4zNzMgNzkuMzcgMTg2LjQ2M0wxMTEgMjE4LjA5M1YxMDIuMjEzQzEwNC4yIDk4Ljg3MyA5OS41IDkxLjg5MyA5OS41IDgzLjgyM0M5OS41IDcyLjUyMyAxMDguNyA2My4zMjMgMTIwIDYzLjMyM0MxMzEuMyA2My4zMjMgMTQwLjUgNzIuNTIzIDE0MC41IDgzLjgyM0MxNDAuNSA5MS44OTMgMTM1LjggOTguODczIDEyOSAxMDIuMjEzVjE4My40ODNMMTYwLjQ2IDE1Mi4wMjNDMTU5Ljg0IDE1MC4wNjMgMTU5LjUgMTQ3Ljk4MyAxNTkuNSAxNDUuODIzQzE1OS41IDEzNC41MjMgMTY4LjcgMTI1LjMyMyAxODAgMTI1LjMyM0MxOTEuMyAxMjUuMzIzIDIwMC41IDEzNC41MjMgMjAwLjUgMTQ1LjgyM0MyMDAuNSAxNTcuMTIzIDE5MS4zIDE2Ni4zMjMgMTgwIDE2Ni4zMjNDMTc3LjUgMTY2LjMyMyAxNzUuMTIgMTY1Ljg1MyAxNzIuOTEgMTY1LjAzM0wxMjkgMjA4Ljk0M1YyMzkuODIzSDIyNUMyMzMuMjUgMjM5LjgyMyAyNDAgMjMzLjA3MyAyNDAgMjI0LjgyM1YxMzQuODIzQzI0MCAxMjYuNTczIDIzNS4yMyAxMTUuMDUzIDIyOS4zOSAxMDkuMjEzVjEwOS4yMDNaIi8+CjwvZz4KPC9zdmc+Cg==", Ne = Object.freeze(["Version", "Connect", "Install", "Set up"]);
 function Te(n) {
-  return ve.map((e, t) => t < n ? `<li class="done">${e}</li>` : t === n ? `<li class="current" aria-current="step">${e}</li>` : `<li>${e}</li>`).join("");
+  return Ne.map((e, t) => t < n ? `<li class="done">${e}</li>` : t === n ? `<li class="current" aria-current="step">${e}</li>` : `<li>${e}</li>`).join("");
 }
 const $ = "--bg:#f2f3f5;--card:#fff;--card-head:#e7ebef;--card-border:#d9dde3;--divider:#e4e7ec;--input-bg:#fafbfc;--border:#c4cad2;--border-strong:#b6bec8;--text:#1b2430;--dim:#6a7480;--accent:#1e56a8;--ok:#3f7d49;--bad:#a02c20;--disabled-bg:#e2e5e9;--disabled-fg:#9aa3ad;--shadow:rgba(0,0,0,.18)", G = "--bg:#111;--card:#181818;--card-head:#222;--card-border:#242424;--divider:#2a2a2a;--input-bg:#161616;--border:#383838;--border-strong:#444;--text:#eee;--dim:#888;--accent:#9af;--ok:#8a8;--bad:#ffb3a6;--disabled-bg:#222;--disabled-fg:#666;--shadow:#000", ke = `
 :root,:host{color-scheme:light dark;${$};--primary:#2557a7;--primary-text:#fff;
@@ -515,7 +515,7 @@ class Ce extends HTMLElement {
       :host{display:block;min-height:100%;background:var(--bg);padding:24px 16px}
       .card p.status{color:var(--text);margin:14px 0 0}
     </style><main class="wiz">
-      <div class="wiz-brand"><img src="${Ne}" alt=""><span>ha-paneld</span></div>
+      <div class="wiz-brand"><img src="${De}" alt=""><span>ha-paneld</span></div>
       <ol class="wiz-dots" aria-label="Progress">${Te(0)}</ol>
       <section class="card">
         <h2 data-message="title"></h2>
@@ -554,7 +554,7 @@ class Ce extends HTMLElement {
     const e = new AbortController();
     this.#i = e;
     try {
-      const t = await De(this.#t, { signal: e.signal });
+      const t = await ze(this.#t, { signal: e.signal });
       if (this.#i !== e) return;
       this.#h = t, this.#a = t.length ? "ready" : "empty";
       const i = this.shadowRoot.querySelector("#release"), r = document.createElement("option");
