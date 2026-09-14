@@ -139,12 +139,17 @@ def _mqtt_prefix(panel_id: str) -> str:
     return f"{panel_id}_"
 
 
-def _mqtt_device(
-    device_registry: dr.DeviceRegistry, panel_id: str
-) -> dr.DeviceEntry | None:
-    return device_registry.async_get_device(
-        identifiers={(MQTT_DOMAIN, f"ha-paneld-{panel_id}")}
-    )
+def _mqtt_device(hass: HomeAssistant, panel_id: str) -> dr.DeviceEntry | None:
+    """Return the panel's MQTT device, whichever MQTT config entry owns it."""
+    device_registry = dr.async_get(hass)
+    identifier = (MQTT_DOMAIN, f"ha-paneld-{panel_id}")
+    for mqtt_entry in hass.config_entries.async_entries(MQTT_DOMAIN):
+        device = device_registry.async_get_device_by_identifier(
+            identifier, mqtt_entry.entry_id
+        )
+        if device is not None:
+            return device
+    return None
 
 
 def _mqtt_candidates(
@@ -156,7 +161,7 @@ def _mqtt_candidates(
     unique ID says.
     """
     prefix = _mqtt_prefix(panel_id)
-    device = _mqtt_device(dr.async_get(hass), panel_id)
+    device = _mqtt_device(hass, panel_id)
     found: dict[str, er.RegistryEntry] = {}
     if device is not None:
         for item in er.async_entries_for_device(
@@ -217,7 +222,7 @@ def _own_device(
             runtime_data.client.configuration_url,
         ),
     )
-    mqtt_device = _mqtt_device(device_registry, panel_id)
+    mqtt_device = _mqtt_device(hass, panel_id)
     if device.area_id is None and mqtt_device is not None and mqtt_device.area_id:
         device_registry.async_update_device(device.id, area_id=mqtt_device.area_id)
     return device

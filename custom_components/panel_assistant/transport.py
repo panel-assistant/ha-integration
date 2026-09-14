@@ -17,8 +17,12 @@ here so diagnostics can compare it with the MQTT entities (see
 dormant unless the ``native_entities`` option is set (see ``native.py``), and
 only with that option can an entry's options choose ``native``, under which
 this integration sends the panel's commands on the session and waits for each
-outcome (see ``async_send_command``). This module itself never writes a
-registry.
+outcome (see ``async_send_command``), and the panel's MQTT entities are moved
+to this integration at the entry's next setup (see ``cutover.py``). ``hello``
+also answers whether the panel should withdraw its MQTT discovery, which it
+does only once that move completed and nothing holds it back (see
+``mqtt_discovery_claim``). This module itself never writes an entity or
+device registry.
 
 A panel's identity is public on the LAN, so ``hello`` never binds a panel to the
 account that sends it. Only an administrator binds one, by confirming the

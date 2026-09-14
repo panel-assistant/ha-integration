@@ -1506,9 +1506,11 @@ ABORT_NATIVE_ENTITIES_DISABLED = "native_entities_disabled"
 class HaPaneldOptionsFlow(OptionsFlow):
     """Choose the panel's authority: MQTT, shadow reports, or native commands.
 
-    The choice exists only while native entities are turned on. Saving it ends
-    a live panel session whose authority changed, so the panel is granted the
-    new one when it says hello again.
+    The choice exists only while native entities are turned on. Saving a
+    change ends a live panel session and reloads the entry, whose setup moves
+    the panel's MQTT entities to this integration under native and back under
+    the others, so the panel is granted the new authority when it says hello
+    again.
     """
 
     async def async_step_init(

@@ -22,7 +22,7 @@ from pytest_homeassistant_custom_component.common import (
     async_fire_time_changed,
 )
 
-from custom_components.panel_assistant import cutover
+from custom_components.panel_assistant import cutover, transport
 from custom_components.panel_assistant.const import (
     CONF_CUTOVER,
     CONF_TRANSPORT_USER_ID,
@@ -182,7 +182,9 @@ async def test_forward_cutover_keeps_each_entity_and_its_customisations(
 
     entry = await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
 
-    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    device = dr.async_get(hass).async_get_device_by_identifier(
+        (DOMAIN, entry.entry_id), entry.entry_id
+    )
     assert device is not None
     assert device.area_id == MQTT_AREA
     for suffix, old in before.items():
@@ -495,6 +497,7 @@ async def test_hello_claims_mqtt_discovery_only_under_a_completed_native_cutover
 
     result = await _hello_result(hass, hass_ws_client, hass_read_only_access_token)
 
+    assert "mqtt_discovery" in result
     assert result["mqtt_discovery"] == mqtt_discovery
     assert (CONF_CUTOVER in entry.data) is (mqtt_discovery == "withdraw")
     transport = (await async_get_config_entry_diagnostics(hass, entry))["transport"]
@@ -933,6 +936,7 @@ async def test_reversal_without_any_mqtt_entry_waits_with_an_issue(
     hass.config_entries.async_update_entry(entry, options={"authority": "shadow"})
     await _reload(hass, entry)
 
+    assert CONF_CUTOVER in entry.data
     record = _record(entry)
     assert record["state"] == "reversing"
     assert record["error"]["step"] == "mqtt_entry"
@@ -958,6 +962,7 @@ async def test_reversal_waits_for_an_mqtt_entry_discovered_again(
     hass.config_entries.async_update_entry(entry, options={"authority": "shadow"})
     await _reload(hass, entry)
 
+    assert CONF_CUTOVER in entry.data
     record = _record(entry)
     assert record["state"] == "reversing"
     assert record["error"] == {
@@ -977,6 +982,44 @@ async def test_reversal_waits_for_an_mqtt_entry_discovered_again(
     assert item is not None
     assert item.platform == "mqtt"
     assert CONF_CUTOVER not in entry.data
+
+
+async def test_the_claim_needs_the_native_authority_as_well_as_the_record(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """A complete record under any other effective authority owns nothing."""
+    _mqtt(hass, [("switch", "relay1", {})])
+    entry = await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
+    assert transport.mqtt_discovery_claim(hass, entry) == "withdraw"
+    assert transport.entity_owner(hass, entry) == "native"
+
+    # The flag off makes the effective authority shadow, record or not.
+    hass.data[DOMAIN]["native_entities"] = False
+
+    assert _record(entry)["state"] == "complete"
+    assert transport.mqtt_discovery_claim(hass, entry) == "announce"
+    assert transport.entity_owner(hass, entry) == "mqtt"
+
+
+async def test_a_shadow_setup_without_a_record_writes_nothing(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """Under shadow the MQTT entities are not touched and no record is written."""
+    mqtt = _mqtt(hass, [("switch", "relay1", {}), ("number", "volume", {})])
+    before = _snapshot(hass, mqtt["entry"].entry_id)
+    writes: list[dict[str, Any]] = []
+    original = hass.config_entries.async_update_entry
+
+    def update(target: Any, **changes: Any) -> Any:
+        writes.append(changes)
+        return original(target, **changes)
+
+    with patch.object(hass.config_entries, "async_update_entry", side_effect=update):
+        entry = await _setup(hass, hass_read_only_user.id, native=True)
+
+    assert writes == []
+    assert CONF_CUTOVER not in entry.data
+    assert _snapshot(hass, mqtt["entry"].entry_id) == before
 
 
 # ---------------------------------------------------------------------------
