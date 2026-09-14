@@ -445,7 +445,12 @@ async def _async_reverse(
             _write(hass, entry, record)
             continue
         if item.platform != DOMAIN:
-            # Never moved, or already handed back.
+            # Never moved, or already handed back. A disable this integration
+            # made before the move failed still goes, or MQTT keeps an entity
+            # nobody chose to disable.
+            with _step(STEP_ENABLE, item.entity_id):
+                if _disabled_by_us(info, item):
+                    registry.async_update_entity(item.entity_id, disabled_by=None)
             info[CUTOVER_STATE] = ENTITY_REVERSED
             _write(hass, entry, record)
             continue

@@ -895,6 +895,31 @@ async def test_reversal_hands_every_entity_back_to_mqtt(
     assert transport["active_owner"] == "mqtt"
 
 
+async def test_reversal_re_enables_an_entity_the_failed_move_had_disabled(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """A move that failed after disabling leaves nothing disabled once released."""
+    mqtt = _mqtt(hass, [("switch", "relay1", {})])
+    relay = mqtt["entity_ids"]["relay1"]
+    before = _snapshot(hass, mqtt["entry"].entry_id)
+    with _fail_migrate(hass):
+        entry = await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
+    item = er.async_get(hass).async_get(relay)
+    assert item is not None
+    assert item.platform == "mqtt"
+    assert item.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+
+    hass.config_entries.async_update_entry(entry, options={"authority": "shadow"})
+    await _reload(hass, entry)
+
+    assert _snapshot(hass, mqtt["entry"].entry_id) == before
+    item = er.async_get(hass).async_get(relay)
+    assert item is not None
+    assert item.disabled_by is None
+    assert CONF_CUTOVER not in entry.data
+    assert _issue(hass, "cutover_incomplete", entry.entry_id) is None
+
+
 async def test_turning_the_flag_off_reverses_the_next_setup(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
