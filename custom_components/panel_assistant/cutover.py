@@ -88,6 +88,8 @@ ENTITY_DELETED: Final = "deleted"
 # Why an MQTT entity stays behind.
 REASON_UNKNOWN_SUFFIX: Final = "unknown_suffix"
 REASON_NOT_RENDERED: Final = "not_rendered"
+# MQTT discovered the entity again after an interrupted attempt had moved it.
+REASON_REDISCOVERED: Final = "rediscovered"
 
 # How long a disabled MQTT entity may take to unload before the step fails.
 UNLOAD_TIMEOUT: Final = 10.0
@@ -361,11 +363,21 @@ async def _async_forward(
     registry = er.async_get(hass)
     prefix = _mqtt_prefix(panel_id)
     unmigrated: list[dict[str, Any]] = []
+    # MQTT unique IDs this transaction already moved off the mqtt platform. A
+    # candidate carrying one is MQTT's rediscovery of that entity while an
+    # earlier attempt was interrupted, never a replacement for the original.
+    moved = {
+        info["mqtt_unique_id"]
+        for info in record[_KEY_ENTITIES].values()
+        if info[CUTOVER_STATE] in (ENTITY_MIGRATED, ENTITY_DONE)
+    }
     for item in _mqtt_candidates(hass, registry, panel_id):
         suffix = item.unique_id.removeprefix(prefix)
         catalogue = catalogue_entry_for_suffix(item.domain, suffix)
         reason = None
-        if catalogue is None:
+        if item.unique_id in moved and item.id not in record[_KEY_ENTITIES]:
+            reason = REASON_REDISCOVERED
+        elif catalogue is None:
             reason = REASON_UNKNOWN_SUFFIX
         elif catalogue["channel"] in NOT_RENDERED:
             reason = REASON_NOT_RENDERED

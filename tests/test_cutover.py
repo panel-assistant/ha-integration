@@ -744,6 +744,91 @@ async def test_a_failed_step_leaves_a_partial_record_and_the_retry_finishes(
     assert result["mqtt_discovery"] == "withdraw"
 
 
+async def test_a_retry_keeps_an_entity_mqtt_discovered_again_meanwhile(
+    hass: HomeAssistant,
+    hass_read_only_user: Any,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """MQTT rediscovering a moved entity never replaces the moved original.
+
+    An attempt that moved one entity and failed on the next leaves the first
+    on this integration with its MQTT unique ID free, so MQTT may discover
+    it again as a second registry entry. The retry must leave that duplicate
+    behind and keep the original: its registry ID, entity ID and everything
+    a person set on it.
+    """
+    mqtt = _mqtt(hass, [("switch", "relay1", {}), ("switch", "relay2", {})])
+    registry = er.async_get(hass)
+    original = registry.async_update_entity(
+        mqtt["entity_ids"]["relay1"],
+        new_entity_id="switch.a_porch_lamp",
+        name="Porch lamp",
+        icon="mdi:lamp",
+        area_id=MQTT_AREA,
+    )
+    second = mqtt["entity_ids"]["relay2"]
+    migrate = registry.async_update_entity_platform
+
+    def fail_second(entity_id: str, *args: Any, **kwargs: Any) -> Any:
+        if entity_id == second:
+            raise RuntimeError("second")
+        return migrate(entity_id, *args, **kwargs)
+
+    with patch.object(
+        registry, "async_update_entity_platform", side_effect=fail_second
+    ):
+        entry = await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
+    record = _record(entry)
+    assert record["state"] == "in_progress"
+    assert record["entities"][original.id]["state"] == "done"
+
+    # MQTT discovers relay1 again: the old unique ID is free, the old entity
+    # ID is not, so a second registry entry appears beside the moved one.
+    duplicate = registry.async_get_or_create(
+        "switch",
+        "mqtt",
+        f"{PANEL_ID}_relay1",
+        config_entry=mqtt["entry"],
+        device_id=mqtt["device"].id,
+        suggested_object_id="a_porch_lamp",
+    )
+    assert duplicate.id != original.id
+    assert duplicate.entity_id == "switch.a_porch_lamp_2"
+
+    await _reload(hass, entry)
+
+    record = _record(entry)
+    assert record["state"] == "complete"
+    assert record["removed"] == []
+    moved = registry.async_get("switch.a_porch_lamp")
+    assert moved is not None
+    assert (moved.id, moved.platform, moved.unique_id) == (
+        original.id,
+        DOMAIN,
+        f"{DID}_relay1",
+    )
+    assert (moved.name, moved.icon, moved.area_id) == (
+        "Porch lamp",
+        "mdi:lamp",
+        MQTT_AREA,
+    )
+    left = registry.async_get("switch.a_porch_lamp_2")
+    assert left is not None
+    assert (left.platform, left.unique_id) == ("mqtt", f"{PANEL_ID}_relay1")
+    assert [(u["entity_id"], u["reason"]) for u in record["unmigrated"]] == [
+        ("switch.a_porch_lamp_2", "rediscovered")
+    ]
+    assert (
+        record["entities"][
+            registry.async_get(second).id  # type: ignore[union-attr]
+        ]["state"]
+        == "done"
+    )
+    result = await _hello_result(hass, hass_ws_client, hass_read_only_access_token)
+    assert result["mqtt_discovery"] == "withdraw"
+
+
 async def test_the_delayed_reload_after_enabling_changes_nothing(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
