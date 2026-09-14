@@ -425,7 +425,10 @@ async def test_a_downgraded_panel_never_duplicates_and_an_upgrade_cleans_up(
         assert item is not None, suffix
         assert (item.id, item.platform) == (old.id, DOMAIN)
 
-    # Downgraded again: MQTT restores each removed entry, disabled, enables it
+    # Downgraded again: the updated panel's session ends first.
+    await client.close()
+    await _settle(hass)
+    # MQTT restores each removed entry, disabled, enables it
     # again and loads it through its platform, which links a new device.
     for domain, suffix in MOVED:
         restored = registry.async_get_or_create(domain, "mqtt", f"{PANEL_ID}_{suffix}")
@@ -607,6 +610,16 @@ async def test_setup_quarantines_rediscovered_duplicates_beside_a_customised_one
     result = await _capable_sync(hass, client, CAPABLE)
     assert result["mqtt_discovery"] == "announce"
     assert all(registry.async_get(item.entity_id) is not None for item in duplicates)
+    # That panel is up to date, so nothing asks for it to be updated, even
+    # when MQTT rediscovers another entity while the claim is held back.
+    assert _issue(hass, ISSUE, entry.entry_id) is None
+    held_back = _create_mqtt(hass, mqtt, "sensor", "diag_cpu")
+    await _settle(hass)
+    assert held_back.id in _quarantined(entry)
+    current = registry.async_get(held_back.entity_id)
+    assert current is not None
+    assert current.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+    assert _issue(hass, ISSUE, entry.entry_id) is None
 
     # A restart forgets the issue; setup raises it again, and writes nothing.
     hass.config_entries.async_update_entry(entry, data=dict(entry.data))

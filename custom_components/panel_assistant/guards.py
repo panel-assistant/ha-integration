@@ -323,7 +323,10 @@ class _EntryGuard:
                 self._entry.title,
                 item.entity_id,
             )
-            async_raise_panel_update_required(self._hass, self._entry)
+            # A live panel that follows the withdrawal is up to date: the claim
+            # is only held at announce, by a customised entity left behind.
+            if not _follows_withdrawal(self._hass, self._entry):
+                async_raise_panel_update_required(self._hass, self._entry)
         finally:
             self._pending.discard(registry_id)
 
@@ -337,6 +340,7 @@ class _EntryGuard:
         if not session.mqtt_withdraw_offered:
             async_raise_panel_update_required(hass, entry)
             return
+        async_delete_panel_update_required(hass, entry.entry_id)
         if (
             session.full_sync_complete
             and session.mqtt_discovery == MQTT_DISCOVERY_WITHDRAW
@@ -348,6 +352,12 @@ class _EntryGuard:
             async_remove_quarantined(
                 hass, entry, record, entry_record_writer(hass, entry)
             )
+
+
+def _follows_withdrawal(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Return whether the entry's live session offered to follow the withdrawal."""
+    session = async_get_sessions(hass).get(entry.entry_id)
+    return session is not None and session.mqtt_withdraw_offered
 
 
 def _mqtt_entities_on_panel_devices(
