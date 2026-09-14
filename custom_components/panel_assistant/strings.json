@@ -519,6 +519,10 @@
     "cutover_blocked_by_customised_entities": {
       "title": "Customised MQTT entities hold back the MQTT withdrawal of {panel}",
       "description": "Panel Assistant now owns the entities of {panel}, but it has no equivalent for these MQTT entities, and they carry a name, icon, area, or hidden or disabled setting of your own: {entities}. Delete them, or clear those settings, and the panel withdraws its MQTT entities the next time it connects. Until then it keeps announcing all of them."
+    },
+    "panel_update_required": {
+      "title": "Update ha-paneld on {panel}",
+      "description": "Panel Assistant now owns the entities of {panel}, but the version of ha-paneld on that panel still announces them over MQTT, so MQTT creates them a second time. Panel Assistant disables those duplicates. Update ha-paneld on {panel} to version {required_version} or later; Panel Assistant itself needs no update. Once the updated panel connects, the disabled duplicates are deleted and this issue goes away."
     }
   },
   "options": {

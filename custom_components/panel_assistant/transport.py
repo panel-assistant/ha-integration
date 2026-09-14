@@ -21,8 +21,10 @@ outcome (see ``async_send_command``), and the panel's MQTT entities are moved
 to this integration at the entry's next setup (see ``cutover.py``). ``hello``
 also answers whether the panel should withdraw its MQTT discovery, which it
 does only once that move completed and nothing holds it back (see
-``mqtt_discovery_claim``). This module itself never writes an entity or
-device registry.
+``mqtt_discovery_claim``). While this integration owns them, what a panel that
+still announces its MQTT discovery creates is kept disabled, and a removed
+entry's panel is told so (see ``guards.py``). This module itself never writes
+an entity or device registry.
 
 A panel's identity is public on the LAN, so ``hello`` never binds a panel to the
 account that sends it. Only an administrator binds one, by confirming the
@@ -37,7 +39,7 @@ import math
 import re
 import secrets
 from collections import deque
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Container, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Final
@@ -104,13 +106,26 @@ CUTOVER_REVERSING: Final = "reversing"
 CUTOVER_STATE: Final = "state"
 CUTOVER_UNMIGRATED: Final = "unmigrated"
 CUTOVER_REGISTRY_ID: Final = "registry_id"
+CUTOVER_ENTITIES: Final = "entities"
+# The registry IDs of MQTT duplicates kept disabled while this integration owns
+# the panel's entities (see ``guards.py``).
+CUTOVER_QUARANTINED: Final = "quarantined"
 
 CAPABILITY_STATE: Final = "state"
 CAPABILITY_EVENTS: Final = "events"
 CAPABILITY_COMMANDS: Final = "commands"
 CAPABILITY_APPROVAL: Final = "approval"
+# A panel that offers this withdraws or announces its MQTT discovery exactly as
+# the hello reply says. It is granted whenever offered, under every authority.
+CAPABILITY_MQTT_WITHDRAW: Final = "mqtt_withdraw"
 KNOWN_CAPABILITIES: Final = frozenset(
-    {CAPABILITY_STATE, CAPABILITY_EVENTS, CAPABILITY_COMMANDS, CAPABILITY_APPROVAL}
+    {
+        CAPABILITY_STATE,
+        CAPABILITY_EVENTS,
+        CAPABILITY_COMMANDS,
+        CAPABILITY_APPROVAL,
+        CAPABILITY_MQTT_WITHDRAW,
+    }
 )
 # What each authority lets a session use, before intersecting with what the
 # panel offered. The panel reports state under shadow and native alike, since a
@@ -171,6 +186,9 @@ ERR_PROTOCOL_UNSUPPORTED: Final = "protocol_unsupported"
 ERR_UNKNOWN_PANEL: Final = "unknown_panel"
 ERR_PANEL_USER_MISMATCH: Final = "panel_user_mismatch"
 ERR_PANEL_IDENTITY_UNAVAILABLE: Final = "panel_identity_unavailable"
+# No loaded entry has the panel's identity, and an entry that had it was
+# removed: the panel releases its claim on its MQTT entities.
+ERR_ENTRY_REMOVED: Final = "entry_removed"
 ERR_SESSION_UNKNOWN: Final = "session_unknown"
 ERR_UNKNOWN_CHANNEL: Final = "unknown_channel"
 ERR_INVALID_VALUE: Final = "invalid_value"
@@ -220,6 +238,8 @@ _CONTROL_CHARACTERS = re.compile(r"[\x00-\x1f\x7f]")
 
 DATA_TRANSPORT: Final = "transport"
 DATA_NATIVE_ENTITIES: Final = "native_entities"
+# The identities of panels whose entry was removed (see ``guards.py``).
+DATA_REMOVED_PANELS: Final = "removed_panels"
 
 # The Repairs issue an unconfirmed hello raises, one per entry.
 ISSUE_PANEL_USER_MISMATCH: Final = ERR_PANEL_USER_MISMATCH
@@ -776,6 +796,9 @@ class PanelSession:
     authority: str = DEFAULT_AUTHORITY
     # What the hello reply told the panel to do with its MQTT discovery.
     mqtt_discovery: str = MQTT_DISCOVERY_ANNOUNCE
+    # Whether the panel offered to follow that answer. One that did not
+    # announces its MQTT discovery whatever the reply says.
+    mqtt_withdraw_offered: bool = False
     # Commands sent and still waited for, by command ID.
     pending: dict[str, PendingCommand] = field(default_factory=dict)
     # Commands whose wait ended without a final outcome, oldest first.
@@ -986,6 +1009,7 @@ def session_diagnostics(hass: HomeAssistant, entry_id: str) -> dict[str, Any]:
         "protocol": session.protocol,
         "authority": session.authority,
         "mqtt_discovery_granted": session.mqtt_discovery,
+        "mqtt_withdraw_offered": session.mqtt_withdraw_offered,
         "app_version": session.app_version,
         "app_version_code": session.app_version_code,
         "contract_digest": session.contract_digest,
@@ -1498,6 +1522,12 @@ def _panel_did(entry: ConfigEntry) -> str | None:
     return None
 
 
+def _removed_panels(hass: HomeAssistant) -> Container[str]:
+    """Return the identities of panels whose entry was removed."""
+    removed: Container[str] = hass.data.get(DOMAIN, {}).get(DATA_REMOVED_PANELS, ())
+    return removed
+
+
 def _entry_for_did(hass: HomeAssistant, did: str) -> ConfigEntry | None:
     """Return the one loaded entry for a panel identity, never a guess."""
     matches = [
@@ -1551,6 +1581,14 @@ def ws_hello(
 
     entry = _entry_for_did(hass, did)
     if entry is None:
+        if did in _removed_panels(hass) and not any(
+            _panel_did(other) == did
+            for other in hass.config_entries.async_loaded_entries(DOMAIN)
+        ):
+            connection.send_error(
+                msg["id"], ERR_ENTRY_REMOVED, "The panel's entry was removed."
+            )
+            return
         connection.send_error(
             msg["id"], ERR_UNKNOWN_PANEL, "No loaded panel entry has this identity."
         )
@@ -1575,7 +1613,11 @@ def ws_hello(
     async_delete_binding_issue(hass, entry.entry_id, user_id)
 
     authority = effective_authority(hass, entry)
-    capabilities = AUTHORITY_GRANTS[authority].intersection(msg["capabilities"])
+    offered = frozenset(msg["capabilities"])
+    capabilities = AUTHORITY_GRANTS[authority].intersection(offered)
+    mqtt_withdraw_offered = CAPABILITY_MQTT_WITHDRAW in offered
+    if mqtt_withdraw_offered:
+        capabilities |= {CAPABILITY_MQTT_WITHDRAW}
     mqtt_discovery = mqtt_discovery_claim(hass, entry)
     if mqtt_discovery == MQTT_DISCOVERY_WITHDRAW:
         # Whatever held the withdrawal back, such as a customised entity a
@@ -1604,6 +1646,7 @@ def ws_hello(
         unknown_channels=unknown,
         authority=authority,
         mqtt_discovery=mqtt_discovery,
+        mqtt_withdraw_offered=mqtt_withdraw_offered,
     )
     async_get_sessions(hass).open(session)
     connection.send_result(

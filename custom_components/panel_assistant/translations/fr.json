@@ -190,6 +190,10 @@
     "cutover_blocked_by_customised_entities": {
       "title": "Des entités MQTT personnalisées retiennent le retrait MQTT de {panel}",
       "description": "Panel Assistant possède désormais les entités de {panel}, mais il n'a pas d'équivalent pour ces entités MQTT, et elles portent un nom, une icône, une zone ou un réglage masqué ou désactivé de votre part : {entities}. Supprimez-les, ou effacez ces réglages, et le panneau retirera ses entités MQTT à sa prochaine connexion. D'ici là, il continue de toutes les annoncer."
+    },
+    "panel_update_required": {
+      "title": "Mettre à jour ha-paneld sur {panel}",
+      "description": "Panel Assistant possède désormais les entités de {panel}, mais la version de ha-paneld de ce panneau les annonce encore via MQTT, si bien que MQTT les crée une seconde fois. Panel Assistant désactive ces doublons. Mettez à jour ha-paneld sur {panel} vers la version {required_version} ou ultérieure ; Panel Assistant lui-même n'a pas besoin de mise à jour. Dès que le panneau mis à jour se connecte, les doublons désactivés sont supprimés et ce problème disparaît."
     }
   },
   "options": {

@@ -17,6 +17,11 @@ record. MQTT entities the catalogue does not know, and the ha-paneld update
 whose one entity this integration already shows, stay behind for the panel's
 own tombstones; a customised one holds back the panel's MQTT withdrawal until
 a person deletes it or clears the customisation.
+
+Releasing the panel also happens when its entry is removed: Home Assistant
+calls ``async_remove_entry`` after the entry is gone from its entries but before
+it clears the entry's registry entries, so the record is reversed there without
+being written back.
 """
 
 from __future__ import annotations
@@ -26,6 +31,7 @@ import logging
 from collections.abc import Callable, Coroutine, Iterator
 from contextlib import contextmanager
 from copy import deepcopy
+from functools import partial
 from typing import TYPE_CHECKING, Any, Final
 
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
@@ -37,10 +43,17 @@ from homeassistant.helpers.event import async_track_state_change_event
 from .const import CONF_CUTOVER, DOMAIN
 from .contract import catalogue_entry_for_suffix
 from .device import panel_device_info
+from .guards import (
+    RecordWriter,
+    async_remove_quarantined,
+    entry_record_writer,
+    mqtt_device,
+)
 from .native import NOT_RENDERED, native_unique_id
 from .transport import (
     AUTHORITY_NATIVE,
     CUTOVER_COMPLETE,
+    CUTOVER_ENTITIES,
     CUTOVER_IN_PROGRESS,
     CUTOVER_REGISTRY_ID,
     CUTOVER_REVERSING,
@@ -73,6 +86,7 @@ STEP_MIGRATE: Final = "migrate"
 STEP_ENABLE: Final = "enable"
 STEP_RECORD: Final = "record"
 STEP_MQTT_ENTRY: Final = "mqtt_entry"
+STEP_QUARANTINE: Final = "quarantine"
 STEP_UNEXPECTED: Final = "unexpected"
 
 # How far one entity got. Pending is recorded before anything is done to it,
@@ -94,7 +108,7 @@ REASON_REDISCOVERED: Final = "rediscovered"
 # How long a disabled MQTT entity may take to unload before the step fails.
 UNLOAD_TIMEOUT: Final = 10.0
 
-_KEY_ENTITIES: Final = "entities"
+_KEY_ENTITIES: Final = CUTOVER_ENTITIES
 _KEY_ERROR: Final = "error"
 _KEY_REMOVED: Final = "removed"
 _KEY_DISABLED_BEFORE: Final = "disabled_by_before"
@@ -139,21 +153,22 @@ def _write(
         )
 
 
+def _recording(write: RecordWriter) -> RecordWriter:
+    """Attribute a failing write to the record step."""
+
+    def recorded(record: dict[str, Any] | None) -> None:
+        with _step(STEP_RECORD):
+            write(record)
+
+    return recorded
+
+
+def _discard(_record: dict[str, Any] | None) -> None:
+    """Write nothing: the entry the record belonged to is gone."""
+
+
 def _mqtt_prefix(panel_id: str) -> str:
     return f"{panel_id}_"
-
-
-def _mqtt_device(hass: HomeAssistant, panel_id: str) -> dr.DeviceEntry | None:
-    """Return the panel's MQTT device, whichever MQTT config entry owns it."""
-    device_registry = dr.async_get(hass)
-    identifier = (MQTT_DOMAIN, f"ha-paneld-{panel_id}")
-    for mqtt_entry in hass.config_entries.async_entries(MQTT_DOMAIN):
-        device = device_registry.async_get_device_by_identifier(
-            identifier, mqtt_entry.entry_id
-        )
-        if device is not None:
-            return device
-    return None
 
 
 def _mqtt_candidates(
@@ -165,7 +180,7 @@ def _mqtt_candidates(
     unique ID says.
     """
     prefix = _mqtt_prefix(panel_id)
-    device = _mqtt_device(hass, panel_id)
+    device = mqtt_device(hass, panel_id)
     found: dict[str, er.RegistryEntry] = {}
     if device is not None:
         for item in er.async_entries_for_device(
@@ -226,9 +241,9 @@ def _own_device(
             runtime_data.client.configuration_url,
         ),
     )
-    mqtt_device = _mqtt_device(hass, panel_id)
-    if device.area_id is None and mqtt_device is not None and mqtt_device.area_id:
-        device_registry.async_update_device(device.id, area_id=mqtt_device.area_id)
+    panel_device = mqtt_device(hass, panel_id)
+    if device.area_id is None and panel_device is not None and panel_device.area_id:
+        device_registry.async_update_device(device.id, area_id=panel_device.area_id)
     return device
 
 
@@ -459,12 +474,23 @@ def _mqtt_entry_id(hass: HomeAssistant, recorded: str | None) -> str:
 
 
 async def _async_reverse(
-    hass: HomeAssistant, entry: HaPaneldConfigEntry, record: dict[str, Any]
+    hass: HomeAssistant,
+    entry: HaPaneldConfigEntry,
+    record: dict[str, Any],
+    write: RecordWriter,
 ) -> None:
-    """Hand every moved entity back to MQTT, then forget the record."""
+    """Hand every moved entity back to MQTT, then forget the record.
+
+    The quarantined MQTT duplicates go first, so that none of them carries
+    the unique ID a moved entity goes back to.
+    """
+    write = _recording(write)
     record[CUTOVER_STATE] = CUTOVER_REVERSING
     record.pop(_KEY_ERROR, None)
-    _write(hass, entry, record)
+    write(record)
+    with _step(STEP_QUARANTINE):
+        # The MQTT device stays: the moved entities go back onto it.
+        async_remove_quarantined(hass, entry, record, write, remove_device=False)
     registry = er.async_get(hass)
     device_registry = dr.async_get(hass)
     entities: dict[str, dict[str, Any]] = record.get(_KEY_ENTITIES, {})
@@ -472,7 +498,7 @@ async def _async_reverse(
         item = registry.entities.get_entry(registry_id)
         if item is None:
             info[CUTOVER_STATE] = ENTITY_DELETED
-            _write(hass, entry, record)
+            write(record)
             continue
         if item.platform != DOMAIN:
             # Never moved, or already handed back. A disable this integration
@@ -482,7 +508,7 @@ async def _async_reverse(
                 if _disabled_by_us(info, item):
                     registry.async_update_entity(item.entity_id, disabled_by=None)
             info[CUTOVER_STATE] = ENTITY_REVERSED
-            _write(hass, entry, record)
+            write(record)
             continue
         mqtt_entry_id = _mqtt_entry_id(hass, info["mqtt_config_entry_id"])
         conflict = registry.async_get_entity_id(
@@ -505,6 +531,13 @@ async def _async_reverse(
         if device_id is not None and device_registry.async_get(device_id) is None:
             device_id = None
         with _step(STEP_MIGRATE, item.entity_id):
+            # A duplicate removed under this unique ID left Home Assistant's
+            # record of a removed MQTT entity. MQTT's discovery would take it
+            # for this entity and enable and unhide it again on every restart.
+            if registry.deleted_entities.pop(
+                (item.domain, MQTT_DOMAIN, info["mqtt_unique_id"]), None
+            ):
+                registry.async_schedule_save()
             registry.async_update_entity_platform(
                 item.entity_id,
                 MQTT_DOMAIN,
@@ -514,11 +547,9 @@ async def _async_reverse(
                 new_device_id=device_id,
             )
         info[CUTOVER_STATE] = ENTITY_REVERSED
-        _write(hass, entry, record)
+        write(record)
 
-    with _step(STEP_RECORD):
-        data = {key: value for key, value in entry.data.items() if key != CONF_CUTOVER}
-        hass.config_entries.async_update_entry(entry, data=data)
+    write(None)
     async_delete_cutover_issues(hass, entry.entry_id)
 
 
@@ -540,7 +571,7 @@ async def async_apply_cutover(hass: HomeAssistant, entry: HaPaneldConfigEntry) -
     if native and (record is None or record.get(CUTOVER_STATE) != CUTOVER_COMPLETE):
         transaction = _async_forward
     elif not native and record is not None:
-        transaction = _async_reverse
+        transaction = partial(_async_reverse, write=entry_record_writer(hass, entry))
     elif native:
         # The move is done; only what still holds the withdrawal back is
         # reported again, since a restart forgets the issue.
@@ -571,3 +602,28 @@ async def async_apply_cutover(hass: HomeAssistant, entry: HaPaneldConfigEntry) -
             _LOGGER.warning("The cutover record of %s could not be saved", entry.title)
         async_raise_cutover_incomplete_issue(hass, entry, step, error)
         async_delete_cutover_issues(hass, entry.entry_id, ISSUE_CUTOVER_BLOCKED)
+
+
+async def async_release_removed_entry(
+    hass: HomeAssistant, entry: HaPaneldConfigEntry
+) -> None:
+    """Hand a removed entry's moved entities back to MQTT. Never raises.
+
+    The entry is already gone from Home Assistant's entries, so nothing is
+    written back; its registry entries still exist until Home Assistant clears
+    them, which is why this runs now.
+    """
+    record = cutover_record(entry)
+    if record is None:
+        return
+    try:
+        await _async_reverse(hass, entry, deepcopy(dict(record)), _discard)
+    except Exception as err:
+        step = err.step if isinstance(err, CutoverStepFailed) else STEP_UNEXPECTED
+        _LOGGER.warning(
+            "Not every entity of the removed panel %s could be handed back to"
+            " MQTT; the reversal stopped at the %s step",
+            entry.title,
+            step,
+            exc_info=err.__cause__ or err,
+        )

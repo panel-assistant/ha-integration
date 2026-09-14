@@ -53,7 +53,8 @@
     "protocol_unsupported",
     "unknown_panel",
     "panel_user_mismatch",
-    "panel_identity_unavailable"
+    "panel_identity_unavailable",
+    "entry_removed"
   ],
   "request_errors": [
     "session_unknown",

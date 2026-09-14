@@ -20,8 +20,14 @@ from .build_feed import BuildFeedError, normalize_feed_url
 from .client import HaPaneldClient, normalize_address
 from .const import DOMAIN
 from .coordinator import HaPaneldDataUpdateCoordinator
-from .cutover import async_apply_cutover
+from .cutover import async_apply_cutover, async_release_removed_entry
 from .feed_coordinator import CONF_BUILD_FEED, DATA_BUILD_FEED, BuildFeedCoordinator
+from .guards import (
+    async_forget_removed_panel,
+    async_load_removed_panels,
+    async_remember_removed_panel,
+    async_start_guards,
+)
 from .install_artifacts import register_feed_download_host
 from .install_executor import (
     InstallExecutor,
@@ -43,6 +49,7 @@ from .transport import (
     async_delete_cutover_issues,
     async_get_sessions,
     async_setup_transport,
+    cutover_record,
     effective_authority,
     native_entities_enabled,
 )
@@ -71,6 +78,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.data.setdefault(DOMAIN, {})[DATA_NATIVE_ENTITIES] = config.get(DOMAIN, {}).get(
         CONF_NATIVE_ENTITIES, False
     )
+    # Before the commands exist, so no hello is answered without them.
+    await async_load_removed_panels(hass)
     async_setup_transport(hass)
     async_register_browser_delivery(hass)
     await async_register_browser_panel(hass)
@@ -226,9 +235,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
         platforms=platforms,
         authority=effective_authority(hass, entry),
     )
+    await async_forget_removed_panel(hass, entry)
     # Before any platform loads, so no entity of this entry is loaded, and
     # before the update listener, so the record's writes reload nothing.
     await async_apply_cutover(hass, entry)
+    async_start_guards(hass, entry)
     entry.async_on_unload(
         lambda: async_get_sessions(hass).close_entry(
             entry.entry_id, REASON_ENTRY_UNLOADED
@@ -261,10 +272,21 @@ async def async_unload_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> None:
-    """Withdraw a removed panel's request and issues, and forget its last session."""
+    """Withdraw a removed panel's request and issues, and forget its last session.
+
+    Home Assistant has unloaded the entry and dropped it from its entries, but
+    not yet cleared its registry entries: the moved entities go back to MQTT
+    now, and the panel is remembered so its next hello learns of the removal.
+    """
     async_delete_binding_issue(hass, entry.entry_id)
     async_delete_cutover_issues(hass, entry.entry_id)
     async_get_sessions(hass).forget_entry(entry.entry_id)
+    record = cutover_record(entry)
+    recorded_did = None if record is None else record.get("did")
+    await async_release_removed_entry(hass, entry)
+    await async_remember_removed_panel(
+        hass, entry, recorded_did if isinstance(recorded_did, str) else None
+    )
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> None:

@@ -190,6 +190,10 @@
     "cutover_blocked_by_customised_entities": {
       "title": "Angepasste MQTT-Entitäten halten den MQTT-Rückzug von {panel} zurück",
       "description": "Panel Assistant besitzt jetzt die Entitäten von {panel}, hat aber für diese MQTT-Entitäten keine Entsprechung, und sie tragen einen Namen, ein Symbol, einen Bereich oder eine Einstellung zum Ausblenden oder Deaktivieren von dir: {entities}. Lösche sie oder entferne diese Einstellungen, dann zieht das Panel seine MQTT-Entitäten beim nächsten Verbinden zurück. Bis dahin kündigt es sie weiterhin alle an."
+    },
+    "panel_update_required": {
+      "title": "ha-paneld auf {panel} aktualisieren",
+      "description": "Panel Assistant besitzt jetzt die Entitäten von {panel}, aber die Version von ha-paneld auf diesem Panel kündigt sie weiterhin über MQTT an, sodass MQTT sie ein zweites Mal anlegt. Panel Assistant deaktiviert diese Duplikate. Aktualisiere ha-paneld auf {panel} auf Version {required_version} oder neuer; Panel Assistant selbst braucht keine Aktualisierung. Sobald sich das aktualisierte Panel verbindet, werden die deaktivierten Duplikate gelöscht und dieses Problem verschwindet."
     }
   },
   "options": {

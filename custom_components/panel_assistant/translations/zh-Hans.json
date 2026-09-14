@@ -190,6 +190,10 @@
     "cutover_blocked_by_customised_entities": {
       "title": "自定义的 MQTT 实体阻止了 {panel} 撤回 MQTT",
       "description": "Panel Assistant 现已拥有 {panel} 的实体，但这些 MQTT 实体没有对应的 Panel Assistant 实体，并且带有你自己设置的名称、图标、区域或隐藏、禁用设置：{entities}。删除它们或清除这些设置后，面板会在下次连接时撤回其 MQTT 实体。在此之前，它会继续通告全部 MQTT 实体。"
+    },
+    "panel_update_required": {
+      "title": "更新 {panel} 上的 ha-paneld",
+      "description": "Panel Assistant 现在管理 {panel} 的实体，但该面板上的 ha-paneld 版本仍通过 MQTT 公布这些实体，因此 MQTT 会再次创建它们。Panel Assistant 会禁用这些重复实体。请将 {panel} 上的 ha-paneld 更新到 {required_version} 或更高版本；Panel Assistant 本身无需更新。更新后的面板连接后，已禁用的重复实体会被删除，此问题随之消失。"
     }
   },
   "options": {

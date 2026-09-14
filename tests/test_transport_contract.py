@@ -77,7 +77,10 @@ def test_contract_code_lists_are_the_integrations_own() -> None:
         transport.ERR_UNKNOWN_PANEL,
         transport.ERR_PANEL_USER_MISMATCH,
         transport.ERR_PANEL_IDENTITY_UNAVAILABLE,
+        transport.ERR_ENTRY_REMOVED,
     }
+    # Reserved: a removal is a hello refusal, never a session end.
+    assert "entry_removed" in CONTRACT["session_closed_reasons"]
     assert set(CONTRACT["request_errors"]) == {
         transport.ERR_SESSION_UNKNOWN,
         transport.ERR_UNKNOWN_CHANNEL,
@@ -181,6 +184,61 @@ def test_message_conformance_vectors(vector: dict[str, Any]) -> None:
     else:
         with pytest.raises(vol.Invalid):
             schema(message)
+
+
+def _hello_result_conforms(result: dict[str, Any]) -> None:
+    """Check a hello result as a panel reads it, raising on what it refuses.
+
+    A panel granted ``mqtt_withdraw`` requires a valid ``mqtt_discovery``; one
+    not granted it, which is what an older integration answers, does without.
+    """
+    vol.Schema(
+        {
+            vol.Required("protocol"): vol.All(
+                int, vol.Range(transport.PROTOCOL_MIN, transport.PROTOCOL_MAX)
+            ),
+            vol.Required("session"): transport._session_token,
+            vol.Required("authority"): vol.In(transport.AUTHORITIES),
+            vol.Required("capabilities"): [vol.In(transport.KNOWN_CAPABILITIES)],
+            vol.Optional("mqtt_discovery"): vol.In(transport.MQTT_DISCOVERIES),
+            vol.Required("integration"): {vol.Required("version"): str},
+            vol.Required("channels"): {
+                vol.Required("accepted"): int,
+                vol.Required("unknown"): [str],
+            },
+        },
+        extra=vol.ALLOW_EXTRA,
+    )(result)
+    if (
+        transport.CAPABILITY_MQTT_WITHDRAW in result["capabilities"]
+        and "mqtt_discovery" not in result
+    ):
+        raise vol.Invalid("a granted mqtt_withdraw needs mqtt_discovery")
+
+
+@pytest.mark.parametrize(
+    "vector", VECTORS["results"], ids=lambda vector: vector["name"]
+)
+def test_hello_result_conformance_vectors(vector: dict[str, Any]) -> None:
+    """Each hello result vector is read, or refused, exactly as it says."""
+    if "request" in vector:
+        transport.HELLO_SCHEMA(vector["request"])
+    if vector["valid"]:
+        _hello_result_conforms(vector["result"])
+    else:
+        with pytest.raises(vol.Invalid):
+            _hello_result_conforms(vector["result"])
+
+
+def test_the_hello_result_vectors_cover_the_negotiated_withdrawal() -> None:
+    """A granted withdrawal with its answer is among the vectors."""
+    assert any(
+        vector["valid"]
+        and transport.CAPABILITY_MQTT_WITHDRAW in vector["result"]["capabilities"]
+        and transport.CAPABILITY_MQTT_WITHDRAW in vector["request"]["capabilities"]
+        and vector["result"]["mqtt_discovery"] == transport.MQTT_DISCOVERY_WITHDRAW
+        for vector in VECTORS["results"]
+    )
 
 
 @pytest.mark.parametrize(
@@ -305,6 +363,7 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
         "panel_user_mismatch",
         "cutover_incomplete",
         "cutover_blocked_by_customised_entities",
+        "panel_update_required",
     }
     for key in keys["exceptions"]:
         assert str(ENGLISH["exceptions"].get(key, {}).get("message", "")).strip(), key
