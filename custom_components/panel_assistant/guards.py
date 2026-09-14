@@ -117,7 +117,9 @@ def _settled(record: dict[str, Any], item: er.RegistryEntry) -> bool:
     """
     if item.id in record.get(CUTOVER_ENTITIES, {}):
         return True
-    return item.id in record.get(CUTOVER_QUARANTINED, ()) and item.disabled_by is not None
+    return (
+        item.id in record.get(CUTOVER_QUARANTINED, ()) and item.disabled_by is not None
+    )
 
 
 def _on_panel_device(
