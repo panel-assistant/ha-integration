@@ -317,7 +317,9 @@ def panel_state(entry: ConfigEntry) -> str:
 
 
 def _panel_device(hass: HomeAssistant, entry: ConfigEntry) -> dr.DeviceEntry | None:
-    return dr.async_get(hass).async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    return dr.async_get(hass).async_get_device_by_identifier(
+        (DOMAIN, entry.entry_id), entry.entry_id
+    )
 
 
 def panel_display_name(hass: HomeAssistant, entry: ConfigEntry) -> str:
