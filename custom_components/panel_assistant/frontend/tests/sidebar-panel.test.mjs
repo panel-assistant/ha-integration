@@ -47,7 +47,7 @@ let intervals = [];
 globalThis.setInterval = (fn, ms) => { const handle = { fn, ms, cleared: false }; intervals.push(handle); return handle; };
 globalThis.clearInterval = handle => { if (handle) handle.cleared = true; };
 
-const { SIDEBAR_MESSAGES, SELECTION_KEY, parsePanels, embedToken, versionText, PanelAssistantSidebar } = await import('../src/sidebar-panel.mjs');
+const { SIDEBAR_MESSAGES, SELECTION_KEY, parsePanels, embedToken, versionText, openingText, PanelAssistantSidebar } = await import('../src/sidebar-panel.mjs');
 
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const TOKEN = 'a'.repeat(43);
@@ -102,8 +102,9 @@ test('copy is keyed, markup carries no text and the frame is a titled, unsandbox
   const { $ } = await mount(fakeHass());
   assert.ok(Object.isFrozen(SIDEBAR_MESSAGES));
   assert.doesNotMatch(markup[0].replace(/<style>[^]*?<\/style>/, ''), />\s*[^<\s]/, 'fixed markup contains no copy');
-  assert.equal($('#add').textContent, SIDEBAR_MESSAGES.addPanel);
-  assert.equal($('#settings').textContent, SIDEBAR_MESSAGES.integrationSettings);
+  assert.equal($('#add-label').textContent, SIDEBAR_MESSAGES.addPanel);
+  assert.equal($('#settings').getAttribute('aria-label'), SIDEBAR_MESSAGES.integrationSettings);
+  assert.equal($('#settings').getAttribute('title'), SIDEBAR_MESSAGES.integrationSettings);
   assert.equal($('#frame').getAttribute('title'), SIDEBAR_MESSAGES.frameTitle);
   assert.equal($('#frame').getAttribute('sandbox'), null);
 });
@@ -128,9 +129,13 @@ test('panel titles render as text and the first panel opens a session', async ()
   assert.ok(!markup.some(html => html.includes(evil)), 'a title never reaches innerHTML');
   assert.deepEqual(subs.map(s => [s.message, s.options]), [[
     { type: 'panel_assistant/embed_session', entry_id: 'one', language: 'de', theme: 'dark' }, { resubscribe: false }]]);
+  assert.equal($('#loading').hidden, false, 'the spinner shows while the session is opening');
+  assert.equal($('#loading-text').textContent, openingText(evil));
+  assert.ok(!markup.some(html => html.includes(evil)), 'the opening panel title never reaches innerHTML either');
   subs[0].callback({ kind: 'opened', url: url(TOKEN) });
   assert.equal($('#frame').getAttribute('src'), url(TOKEN));
   assert.equal($('#status').hidden, true);
+  assert.equal($('#loading').hidden, true, 'the spinner hides once the frame has a src');
 });
 
 test('an opened event with a foreign URL never loads the frame', async () => {
@@ -273,8 +278,14 @@ test('a connection change moves the ready listener and reloads the list', async 
 test('menu toggles only when narrow and links navigate inside Home Assistant', async () => {
   const { panel, $ } = await mount(fakeHass(), true);
   assert.equal($('#menu').hidden, false);
+  assert.equal($('#title').hidden, true);
+  assert.equal($('#version').hidden, true);
+  assert.equal($('#add-label').textContent, SIDEBAR_MESSAGES.addPanelShort);
   panel.narrow = false;
   assert.equal($('#menu').hidden, true);
+  assert.equal($('#title').hidden, false);
+  assert.equal($('#version').hidden, false);
+  assert.equal($('#add-label').textContent, SIDEBAR_MESSAGES.addPanel);
   $('#menu').fire('click');
   assert.deepEqual([panel.events[0].type, panel.events[0].bubbles, panel.events[0].composed], ['hass-toggle-menu', true, true]);
   let changed;
@@ -320,6 +331,12 @@ test('the top menu shows the integration version and build from the panel config
   assert.equal(shown.textContent, '');
 });
 
+test('the loading spinner names the opening panel, as text, with a safe fallback', () => {
+  assert.equal(openingText('Example Panel'), 'Opening Example Panel…');
+  assert.equal(openingText('<b>evil</b>'), 'Opening <b>evil</b>…');
+  for (const title of [undefined, null, 7, {}]) assert.equal(openingText(title), 'Opening …', String(title));
+});
+
 // English is the only shipped locale (other top-tier languages follow in a later minor
 // release); this proves the wiring translation will hang off, not the wording itself.
 // Every key drives real component output, and every rendered string traces back to a
@@ -337,13 +354,16 @@ test('every SIDEBAR_MESSAGES key renders through the real component; nothing is 
   // assigned from SIDEBAR_MESSAGES at construction.
   const bare = new PanelAssistantSidebar();
   const header = bare.shadowRoot.querySelectorAll('[data-message]');
-  for (const key of ['title', 'choosePanel', 'addPanel', 'integrationSettings']) {
+  for (const key of ['title', 'choosePanel', 'addPanel', 'loadingHint']) {
     const element = header.find(e => e.dataset.message === key);
     assert.ok(element, `no data-message element for "${key}"`);
     seen(element.textContent);
   }
   seen(bare.shadowRoot.querySelector('#menu').getAttribute('aria-label'));
+  seen(bare.shadowRoot.querySelector('#settings').getAttribute('aria-label'));
   seen(bare.shadowRoot.querySelector('#frame').getAttribute('title'));
+  bare.narrow = true;
+  seen(bare.shadowRoot.querySelector('#add-label').textContent);
 
   // Panel option labels: reachable, unreachable and not_loaded together.
   const entries = [['a', 'reachable'], ['b', 'unreachable'], ['c', 'not_loaded']];
@@ -358,8 +378,10 @@ test('every SIDEBAR_MESSAGES key renders through the real component; nothing is 
       assert.equal(options[i].textContent, `${id} (${label})`);
       observed.add(label);
     });
-    // The selected (first, reachable) panel just opened a session: 'loading'.
-    seen($('#status').textContent);
+    // The selected (first, reachable) panel just opened a session: the spinner, not #status.
+    assert.equal($('#status').hidden, true);
+    assert.equal($('#loading').hidden, false);
+    seen($('#loading-text').textContent);
   }
 
   // Every other status branch #render() can take.
@@ -391,7 +413,7 @@ test('every SIDEBAR_MESSAGES key renders through the real component; nothing is 
     SIDEBAR_MESSAGES.versionLabel.replace('{version}', '1.2.3').replace('{build}', '9'));
 
   for (const [key, value] of Object.entries(SIDEBAR_MESSAGES)) {
-    if (key === 'versionLabel') continue;
+    if (key === 'versionLabel' || key === 'opening') continue;
     assert.ok(observed.has(value), `SIDEBAR_MESSAGES.${key} ("${value}") was never rendered by the sidebar`);
   }
 });
