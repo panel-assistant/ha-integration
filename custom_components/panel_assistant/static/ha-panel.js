@@ -6,7 +6,6 @@ const I = Object.freeze({
   addPanel: "Add panel",
   addPanelShort: "Add",
   integrationSettings: "Integration settings",
-  reachable: "reachable",
   unreachable: "unreachable",
   not_loaded: "not loaded",
   opening: "Opening {panel}…",
@@ -68,10 +67,10 @@ class fe extends HTMLElement {
   #f = () => this.#w();
   constructor() {
     super(), this.attachShadow({ mode: "open" }), this.shadowRoot.innerHTML = `<style>
-      :host{display:block;height:100vh;height:100dvh;background:var(--primary-background-color,#fafafa);color:var(--primary-text-color,#212121)}
+      :host{display:block;height:100vh;height:100dvh;overflow:hidden;background:var(--primary-background-color,#fafafa);color:var(--primary-text-color,#212121)}
       [hidden]{display:none!important}
-      .root{display:flex;flex-direction:column;height:100%}
-      header{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-height:56px;padding:4px 12px 4px 20px;background:var(--app-header-background-color,var(--primary-color,#03a9f4));color:var(--app-header-text-color,#fff);border-bottom:1px solid var(--divider-color,#e0e0e0);box-sizing:border-box}
+      .root{display:flex;flex-direction:column;height:100%;overflow:hidden}
+      header{display:flex;flex-wrap:wrap;flex-shrink:0;align-items:center;gap:8px;min-height:56px;padding:4px 12px 4px 20px;background:var(--app-header-background-color,var(--primary-color,#03a9f4));color:var(--app-header-text-color,#fff);border-bottom:1px solid var(--divider-color,#e0e0e0);box-sizing:border-box}
       h1{font-size:1.25rem;font-weight:400;margin:0}
       #icon{width:26px;height:26px;border-radius:6px;flex-shrink:0}
       #version{margin:0 8px 0 0;font-size:.875rem;opacity:.8}
@@ -81,7 +80,7 @@ class fe extends HTMLElement {
       #menu{background:rgba(255,255,255,.18);border-radius:8px}
       #menu svg{width:26px;height:26px}
       label{display:flex;align-items:center;gap:8px;flex:0 0 auto}
-      select{flex:0 0 auto;width:auto;padding:0 8px;color:var(--primary-text-color,#212121);background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#e0e0e0)}
+      select{flex:0 0 auto;width:auto;min-width:140px;padding:0 8px;color:var(--primary-text-color,#212121);background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#e0e0e0)}
       #spacer{flex:1 1 auto}
       a{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;color:inherit;text-decoration:none}
       a svg{width:20px;height:20px;fill:currentColor}
@@ -245,19 +244,19 @@ class fe extends HTMLElement {
     const e = this.shadowRoot, t = e.querySelector("#panels"), n = this.#u() ? this.#o ?? [] : [], a = JSON.stringify(n);
     if (a !== this.#h) {
       this.#h = a, t.replaceChildren();
-      for (const p of n) {
+      for (const A of n) {
         const f = document.createElement("option");
-        f.value = p.entry_id, f.textContent = `${p.title} (${I[p.state]})`, t.append(f);
+        f.value = A.entry_id, f.textContent = A.state === "reachable" ? A.title : `${A.title} (${I[A.state]})`, t.append(f);
       }
     }
     t.value = this.#r ?? "", e.querySelector("#picker").hidden = n.length === 0;
-    const r = n.find((p) => p.entry_id === this.#r), s = this.#t, d = e.querySelector("#frame");
+    const r = n.find((A) => A.entry_id === this.#r), s = this.#t, d = e.querySelector("#frame");
     let c = "", l = !1;
     this.#u() ? this.#n !== "ready" ? c = this.#n : s?.state === "closed" && s.entryId === r?.entry_id ? c = "closed" : r?.state === "unreachable" ? c = "unreachableBody" : r?.state === "not_loaded" ? c = "notLoadedBody" : s?.state === "failed" ? c = s.code === "not_loaded" ? "notLoadedBody" : "failed" : s?.state !== "open" && !d.getAttribute("src") && (l = !0) : c = "admin";
     const h = e.querySelector("#status");
     h.textContent = c ? I[c] : "", h.hidden = !c;
-    const A = e.querySelector("#loading");
-    A.hidden = !l, l && (e.querySelector("#loading-text").textContent = ge(r?.title)), d.hidden = !d.getAttribute("src");
+    const p = e.querySelector("#loading");
+    p.hidden = !l, l && (e.querySelector("#loading-text").textContent = ge(r?.title)), d.hidden = !d.getAttribute("src");
   }
 }
 customElements.get("panel-assistant-sidebar") || customElements.define("panel-assistant-sidebar", fe);
@@ -328,7 +327,7 @@ function ve(i, e, {
   const c = new Promise((o, b) => {
     s = o, d = b;
   }), l = new AbortController();
-  let h = !1, A, p, f, C, N = !1, S = !1, w, k, B;
+  let h = !1, p, A, f, C, N = !1, S = !1, w, k, B;
   const D = () => {
     clearInterval(k), clearTimeout(B), w = void 0, a.removeEventListener("message", T);
   }, E = (o) => {
@@ -338,12 +337,12 @@ function ve(i, e, {
     }
   }, m = (o = null) => {
     if (!h) {
-      if (h = !0, l.abort(), clearTimeout(p), E(o ?? "verified"), o) {
+      if (h = !0, l.abort(), clearTimeout(A), E(o ?? "verified"), o) {
         D(), d(new v(o));
         return;
       }
       k = setInterval(() => {
-        A.closed && D();
+        p.closed && D();
       }, 2e3), B = setTimeout(D, we), s();
     }
   };
@@ -383,15 +382,15 @@ function ve(i, e, {
       });
       u(!h, "cancelled");
       const ne = await G(ie, R, l.signal, g.apk_size);
-      u(!h && !A.closed, "window_closed"), S = !0, w = { type: "ha-paneld/usb-bundle", nonce: C, bundle: te, apk: ne }, A.postMessage(w, f), E("verifying");
+      u(!h && !p.closed, "window_closed"), S = !0, w = { type: "ha-paneld/usb-bundle", nonce: C, bundle: te, apk: ne }, p.postMessage(w, f), E("verifying");
     } catch (o) {
       m(o instanceof v ? o.code : "delivery_failed");
     }
   }
   function T(o) {
-    if (!(o.source !== A || o.origin !== f || !H(o.data, ["type", "nonce"]) || o.data.nonce !== C)) {
+    if (!(o.source !== p || o.origin !== f || !H(o.data, ["type", "nonce"]) || o.data.nonce !== C)) {
       if (o.data.type === "ha-paneld/usb-ready") {
-        !N && !h ? (N = !0, ee()) : w && !A.closed && A.postMessage(w, f);
+        !N && !h ? (N = !0, ee()) : w && !p.closed && p.postMessage(w, f);
         return;
       }
       h || (o.data.type === "ha-paneld/usb-verified" && S ? m() : o.data.type === "ha-paneld/usb-error" && m("verification_failed"));
@@ -402,7 +401,7 @@ function ve(i, e, {
     const o = new URL(e);
     u(!o.username && !o.password && !o.hash && (o.protocol === "https:" || o.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(o.hostname)), "invalid_destination"), f = o.origin;
     const b = new Uint8Array(16);
-    a.crypto.getRandomValues(b), C = Array.from(b, (g) => g.toString(16).padStart(2, "0")).join(""), o.hash = new URLSearchParams({ ha_origin: a.location.origin, nonce: C, rc: t ?? "" }).toString(), a.addEventListener("message", T), A = a.open(o.href, "_blank"), u(A, "popup_blocked"), p = setTimeout(() => m("timeout"), r), E("waiting");
+    a.crypto.getRandomValues(b), C = Array.from(b, (g) => g.toString(16).padStart(2, "0")).join(""), o.hash = new URLSearchParams({ ha_origin: a.location.origin, nonce: C, rc: t ?? "" }).toString(), a.addEventListener("message", T), p = a.open(o.href, "_blank"), u(p, "popup_blocked"), A = setTimeout(() => m("timeout"), r), E("waiting");
   } catch (o) {
     m(o instanceof v ? o.code : "invalid_request");
   }
@@ -443,14 +442,14 @@ async function ze(i, { signal: e, timeoutMs: t = 15e3 } = {}) {
       y(!n.signal.aborted && l.status === 200 && !l.redirected && l.body && l.headers.get("content-type")?.split(";")[0].trim() === "application/json");
       const h = l.headers.get("content-length");
       y(h === null || /^(0|[1-9][0-9]*)$/.exec(h)?.[0] === h && Number(h) <= U), s = l.body.getReader();
-      const A = [];
-      let p = 0;
+      const p = [];
+      let A = 0;
       for (; ; ) {
         const f = await s.read();
         if (y(!n.signal.aborted), f.done) break;
-        p += f.value.byteLength, y(p <= U), A.push(f.value);
+        A += f.value.byteLength, y(A <= U), p.push(f.value);
       }
-      return y(p > 0 && (h === null || p === Number(h))), Le(JSON.parse(await new Blob(A).text()));
+      return y(A > 0 && (h === null || A === Number(h))), Le(JSON.parse(await new Blob(p).text()));
     })()]);
   } finally {
     clearTimeout(r), e?.removeEventListener("abort", a), n.signal.removeEventListener("abort", d), n.abort(), s && s.cancel().catch(() => {

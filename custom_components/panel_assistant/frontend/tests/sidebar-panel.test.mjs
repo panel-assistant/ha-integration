@@ -124,7 +124,7 @@ test('panel titles render as text and the first panel opens a session', async ()
   const hass = fakeHass({ panels: [row('one', 'reachable', evil), row('two', 'unreachable')], dark: true, language: 'de' });
   const { $, subs } = await mount(hass);
   const options = $('#panels').children;
-  assert.equal(options[0].textContent, `${evil} (${SIDEBAR_MESSAGES.reachable})`);
+  assert.equal(options[0].textContent, evil, 'a reachable panel gets no state suffix');
   assert.equal(options[1].textContent, `two (${SIDEBAR_MESSAGES.unreachable})`);
   assert.ok(!markup.some(html => html.includes(evil)), 'a title never reaches innerHTML');
   assert.deepEqual(subs.map(s => [s.message, s.options]), [[
@@ -372,6 +372,7 @@ test('every SIDEBAR_MESSAGES key renders through the real component; nothing is 
     const { $ } = await mount(hass);
     const options = $('#panels').children;
     entries.forEach(([id, state], i) => {
+      if (state === 'reachable') { assert.equal(options[i].textContent, id, 'reachable gets no suffix'); return; }
       const label = SIDEBAR_MESSAGES[state];
       assert.equal(typeof label, 'string', `SIDEBAR_MESSAGES.${state} must be a string`);
       assert.ok(label.length > 0, `SIDEBAR_MESSAGES.${state} must not be empty`);

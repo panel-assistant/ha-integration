@@ -9,7 +9,6 @@ export const SIDEBAR_MESSAGES = Object.freeze({
   addPanel: 'Add panel',
   addPanelShort: 'Add',
   integrationSettings: 'Integration settings',
-  reachable: 'reachable',
   unreachable: 'unreachable',
   not_loaded: 'not loaded',
   opening: 'Opening {panel}…',
@@ -83,10 +82,10 @@ export class PanelAssistantSidebar extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     // Only fixed markup is HTML. Copy and panel titles are assigned as text.
     this.shadowRoot.innerHTML = `<style>
-      :host{display:block;height:100vh;height:100dvh;background:var(--primary-background-color,#fafafa);color:var(--primary-text-color,#212121)}
+      :host{display:block;height:100vh;height:100dvh;overflow:hidden;background:var(--primary-background-color,#fafafa);color:var(--primary-text-color,#212121)}
       [hidden]{display:none!important}
-      .root{display:flex;flex-direction:column;height:100%}
-      header{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-height:56px;padding:4px 12px 4px 20px;background:var(--app-header-background-color,var(--primary-color,#03a9f4));color:var(--app-header-text-color,#fff);border-bottom:1px solid var(--divider-color,#e0e0e0);box-sizing:border-box}
+      .root{display:flex;flex-direction:column;height:100%;overflow:hidden}
+      header{display:flex;flex-wrap:wrap;flex-shrink:0;align-items:center;gap:8px;min-height:56px;padding:4px 12px 4px 20px;background:var(--app-header-background-color,var(--primary-color,#03a9f4));color:var(--app-header-text-color,#fff);border-bottom:1px solid var(--divider-color,#e0e0e0);box-sizing:border-box}
       h1{font-size:1.25rem;font-weight:400;margin:0}
       #icon{width:26px;height:26px;border-radius:6px;flex-shrink:0}
       #version{margin:0 8px 0 0;font-size:.875rem;opacity:.8}
@@ -96,7 +95,7 @@ export class PanelAssistantSidebar extends HTMLElement {
       #menu{background:rgba(255,255,255,.18);border-radius:8px}
       #menu svg{width:26px;height:26px}
       label{display:flex;align-items:center;gap:8px;flex:0 0 auto}
-      select{flex:0 0 auto;width:auto;padding:0 8px;color:var(--primary-text-color,#212121);background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#e0e0e0)}
+      select{flex:0 0 auto;width:auto;min-width:140px;padding:0 8px;color:var(--primary-text-color,#212121);background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#e0e0e0)}
       #spacer{flex:1 1 auto}
       a{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;color:inherit;text-decoration:none}
       a svg{width:20px;height:20px;fill:currentColor}
@@ -333,7 +332,8 @@ export class PanelAssistantSidebar extends HTMLElement {
       for (const panel of panels) {
         const option = document.createElement('option');
         option.value = panel.entry_id;
-        option.textContent = `${panel.title} (${SIDEBAR_MESSAGES[panel.state]})`;
+        // Reachable is the expected, silent case; only a problem state earns a suffix.
+        option.textContent = panel.state === 'reachable' ? panel.title : `${panel.title} (${SIDEBAR_MESSAGES[panel.state]})`;
         select.append(option);
       }
     }
