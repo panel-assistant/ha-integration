@@ -53,7 +53,7 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
 const TOKEN = 'a'.repeat(43);
 const TOKEN2 = 'b'.repeat(43);
 const url = token => `/api/panel_assistant/embed/${token}/`;
-const row = (entry_id, state = 'reachable', title = entry_id) => ({ entry_id, title, state });
+const row = (entry_id, state = 'reachable', title = entry_id, device_id = `${entry_id}-device`) => ({ entry_id, title, state, device_id });
 
 function fakeHass({ panels = [row('one'), row('two')], admin = true, language = 'en', dark = false } = {}) {
   const connection = {
@@ -258,21 +258,27 @@ test('empty and invalid lists show their messages', async () => {
 test('the device link points at the selected panel and navigates inside Home Assistant', async () => {
   const { panel, $ } = await mount(fakeHass());
   assert.equal($('#device').hidden, false);
-  assert.equal($('#device').getAttribute('href'), '/config/devices/dashboard?historyBack=1&config_entry=one');
+  assert.equal($('#device').getAttribute('href'), '/config/devices/device/one-device');
   $('#panels').fire('change', { target: { value: 'two' } }); await tick();
-  assert.equal($('#device').getAttribute('href'), '/config/devices/dashboard?historyBack=1&config_entry=two');
+  assert.equal($('#device').getAttribute('href'), '/config/devices/device/two-device');
   let changed;
   window.addEventListener('location-changed', event => { changed = event.detail; }, { once: true });
   let prevented = 0;
   $('#device').fire('click', { button: 0, preventDefault: () => prevented++ });
   assert.equal(prevented, 1);
-  assert.deepEqual(pushed.at(-1), [null, '', '/config/devices/dashboard?historyBack=1&config_entry=two']);
+  assert.deepEqual(pushed.at(-1), [null, '', '/config/devices/device/two-device']);
   assert.deepEqual(changed, { replace: false });
   panel.events.length = 0;
   $('#device').fire('click', { button: 0, ctrlKey: true, preventDefault: () => prevented++ });
   assert.equal(prevented, 1, 'a modified click is left to the browser, not intercepted');
   panel.isConnected = false; panel.disconnectedCallback(); await tick();
   store.clear();
+});
+
+test('the device link hides, not falls back to a list, when the selected panel has no device yet', async () => {
+  const { $ } = await mount(fakeHass({ panels: [row('one', 'reachable', 'one', null)] }));
+  assert.equal($('#device').hidden, true);
+  assert.equal($('#device').getAttribute('href'), null);
 });
 
 test('disconnect unsubscribes, stops the timer and listener, and ignores late results', async () => {

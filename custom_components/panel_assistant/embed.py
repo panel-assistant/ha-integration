@@ -316,6 +316,10 @@ def panel_state(entry: ConfigEntry) -> str:
     return STATE_REACHABLE if coordinator.last_update_success else STATE_UNREACHABLE
 
 
+def _panel_device(hass: HomeAssistant, entry: ConfigEntry) -> dr.DeviceEntry | None:
+    return dr.async_get(hass).async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+
+
 def panel_display_name(hass: HomeAssistant, entry: ConfigEntry) -> str:
     """Prefer the device's own (possibly user-renamed) name over the raw entry.title.
 
@@ -325,7 +329,7 @@ def panel_display_name(hass: HomeAssistant, entry: ConfigEntry) -> str:
     rename via the Devices page (name_by_user): this only changes which of those two
     already-existing values the sidebar reads, not how either is set.
     """
-    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    device = _panel_device(hass, entry)
     if device is None:
         return entry.title
     return device.name_by_user or device.name or entry.title
@@ -350,6 +354,9 @@ def ws_embed_panels(
                     "entry_id": entry.entry_id,
                     "title": panel_display_name(hass, entry),
                     "state": panel_state(entry),
+                    "device_id": device.id
+                    if (device := _panel_device(hass, entry))
+                    else None,
                 }
                 for entry in entries[:MAX_PANELS]
             ]

@@ -42,9 +42,10 @@ export function parsePanels(value) {
   const ids = new Set();
   return value.panels.map(row => {
     if (!row || typeof row.entry_id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(row.entry_id) || ids.has(row.entry_id) ||
-      typeof row.title !== 'string' || row.title.length > 256 || !STATES.has(row.state)) throw Error('invalid panel');
+      typeof row.title !== 'string' || row.title.length > 256 || !STATES.has(row.state) ||
+      (row.device_id !== null && row.device_id !== undefined && typeof row.device_id !== 'string')) throw Error('invalid panel');
     ids.add(row.entry_id);
-    return { entry_id: row.entry_id, title: row.title, state: row.state };
+    return { entry_id: row.entry_id, title: row.title, state: row.state, device_id: row.device_id ?? null };
   });
 }
 
@@ -127,7 +128,7 @@ export class PanelAssistantSidebar extends HTMLElement {
       <img id="icon" src="${BRAND_ICON}" alt="">
       <h1 id="title" data-message="title"></h1><span id="version"></span>
       <label id="picker"><span data-message="choosePanel"></span><select id="panels"></select></label>
-      <a id="device"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/></svg></a>
+      <a id="device"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/></svg></a>
       <div id="spacer"></div>
       <a id="github" href="${REPO_URL}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${GH_ICON}"/></svg></a>
       <a id="add"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg><span id="add-label" data-message="addPanel"></span></a>
@@ -367,8 +368,8 @@ export class PanelAssistantSidebar extends HTMLElement {
     root.querySelector('#picker').hidden = panels.length === 0;
     const panel = panels.find(row => row.entry_id === this.#selected);
     const device = root.querySelector('#device');
-    device.hidden = !panel;
-    if (panel) device.setAttribute('href', `/config/devices/dashboard?historyBack=1&config_entry=${encodeURIComponent(panel.entry_id)}`);
+    device.hidden = !panel?.device_id;
+    if (panel?.device_id) device.setAttribute('href', `/config/devices/device/${encodeURIComponent(panel.device_id)}`);
     const session = this.#session;
     const frame = root.querySelector('#frame');
     let key = '';

@@ -299,10 +299,20 @@ async def test_panels_list_by_device_name_falling_back_to_title(
         # entry fixture's own panel_id ("alpha") reads the same either way.
         ("alpha", "reachable"),
     ]
-    assert set(reply["result"]["panels"][2]) == {"entry_id", "title", "state"}
+    assert set(reply["result"]["panels"][2]) == {
+        "entry_id",
+        "title",
+        "state",
+        "device_id",
+    }
+    # "attic" did finish loading (then went unreachable), so it has a device.
+    assert reply["result"]["panels"][0]["device_id"] is not None
+    # "Bedroom" never finished loading, so no device -- and no device page -- exists.
+    assert reply["result"]["panels"][1]["device_id"] is None
 
     device_registry = dr.async_get(hass)
     device = device_registry.async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    assert reply["result"]["panels"][2]["device_id"] == device.id
     device_registry.async_update_device(device.id, name_by_user="Custom Name")
     await client.send_json_auto_id({"type": "panel_assistant/embed_panels"})
     reply = await _receive(client)
