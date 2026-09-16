@@ -145,7 +145,7 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
         "issue_tracker": "https://github.com/panel-assistant/ha-integration/issues",
         "name": "Panel Assistant",
         "requirements": ["adb-shell[async]==0.4.4"],
-        "version": "0.3.1",
+        "version": "0.4.0",
         "zeroconf": ["_ha-paneld._tcp.local."],
     }
     assert hacs == {"homeassistant": "2026.8.3", "name": "Panel Assistant"}
@@ -157,7 +157,7 @@ def test_release_version_guard_accepts_current_and_prerelease_versions(
     """Tag admission uses exact raw equality for stable and prerelease versions."""
     verifier = _load_release_version_module()
 
-    verifier.verify_release_version("0.3.1", INTEGRATION / "manifest.json")
+    verifier.verify_release_version("0.4.0", INTEGRATION / "manifest.json")
     manifest = tmp_path / "manifest.json"
     manifest.write_text('{"version":"0.3.0b2"}', encoding="utf-8")
     verifier.verify_release_version("0.3.0b2", manifest)
@@ -236,7 +236,7 @@ def test_release_version_guard_cli_does_not_parse_tag_as_option(tag: str) -> Non
     )
 
     assert result.returncode != 0
-    assert "does not match manifest version '0.3.1'" in result.stderr
+    assert "does not match manifest version '0.4.0'" in result.stderr
 
 
 def test_hacs_workflow_runs_release_version_guard_for_tags() -> None:

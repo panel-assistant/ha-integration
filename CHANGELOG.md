@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.4.0 - 2026-09-16
+
+- The sidebar's top bar now has real icon buttons, right-justified and sized to match Home Assistant's own header: GitHub, add a panel, integration settings, and a new button that opens the selected panel's own device page. The panel picker shows each panel's real device name, its own reported name or a rename from the Devices page, rather than the panel's raw identifier.
+- The panel picker and its controls keep their contrast in dark mode. The "opening a panel" wait now shows an animated spinner, not static text.
+- Home Assistant now issues the sidebar's session a signing key when a panel offers it, and a signed request exempts a fixed set of lower-impact operations, such as display and power settings, from on-panel approval; every other operation still needs it. Hardened mode requires physical access to the panel. High-impact remote actions cannot proceed until someone approves them on the panel's screen; they cannot be approved remotely. This needs a matching ha-paneld release that offers signing; older panels are unaffected and behave exactly as before.
+
 ## 0.3.1 - 2026-09-16
 
 - Rewrite the README so HACS shows the icon and the same introduction as panel-assistant.io, with badges and one-click buttons to open the repository in HACS and to start setup. No code changes.
