@@ -43,8 +43,10 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.http import HomeAssistantView
 from yarl import URL
 
+from . import embed_proof
 from .client import PanelAddress, normalize_address
 from .const import DOMAIN
+from .transport import async_get_sessions
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -527,7 +529,23 @@ class EmbedProxyView(HomeAssistantView):
         long_lived: bool,
     ) -> web.StreamResponse:
         url = URL(str(address.base_url) + raw_target, encoded=True)
-        body = _BoundedBody(request) if request.body_exists else None
+        body: _BoundedBody | bytes | None
+        if not request.body_exists:
+            body = None
+            proof = self._proof(session, request.method, raw_target, b"")
+        elif (
+            request.content_length is not None
+            and request.content_length <= embed_proof.MAX_PROVEN_BODY
+        ):
+            # Read whole, so the digest covers exactly the bytes that are sent.
+            body = await request.read()
+            proof = self._proof(session, request.method, raw_target, body)
+        else:
+            # A large body, or one of unknown length, streams unproven.
+            body = _BoundedBody(request)
+            proof = None
+        if proof is not None:
+            headers[embed_proof.PROOF_HEADER] = proof
         try:
             result = await async_get_clientsession(self.hass).request(
                 request.method,
@@ -540,7 +558,8 @@ class EmbedProxyView(HomeAssistantView):
                 auto_decompress=False,
             )
         except aiohttp.ClientError, TimeoutError:
-            return _plain(413 if body is not None and body.too_large else 502)
+            too_large = isinstance(body, _BoundedBody) and body.too_large
+            return _plain(413 if too_large else 502)
         session.upstream.add(result)
         counted = False
         try:
@@ -589,6 +608,34 @@ class EmbedProxyView(HomeAssistantView):
                 session.long_lived -= 1
             session.upstream.discard(result)
             result.release()
+
+    def _proof(
+        self, session: EmbedSession, method: str, target: str, body: bytes
+    ) -> str | None:
+        """Sign one request with the panel's live session key, if it holds one.
+
+        Only a request this session has just admitted gets here, so the proof
+        names the administrator who opened it.
+        """
+        panel = async_get_sessions(self.hass).get(session.entry_id)
+        if (
+            panel is None
+            or panel.embed_key is None
+            or panel.embed_key_id is None
+            or panel.embed_counter >= embed_proof.MAX_COUNTER
+        ):
+            return None
+        panel.embed_counter += 1
+        return embed_proof.sign(
+            panel.embed_key,
+            did=panel.did,
+            key_id=panel.embed_key_id,
+            counter=panel.embed_counter,
+            user_id=session.user_id,
+            method=method,
+            target=target,
+            body=body,
+        )
 
     async def _stream(
         self,
