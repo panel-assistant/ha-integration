@@ -85,21 +85,21 @@ export class PanelAssistantSidebar extends HTMLElement {
       :host{display:block;height:100vh;height:100dvh;overflow:hidden;background:var(--primary-background-color,#fafafa);color:var(--primary-text-color,#212121)}
       [hidden]{display:none!important}
       .root{display:flex;flex-direction:column;height:100%;overflow:hidden}
-      header{display:flex;flex-wrap:wrap;flex-shrink:0;align-items:center;gap:8px;min-height:56px;padding:4px 12px 4px 20px;background:var(--app-header-background-color,var(--primary-color,#03a9f4));color:var(--app-header-text-color,#fff);border-bottom:1px solid var(--divider-color,#e0e0e0);box-sizing:border-box}
+      header{display:flex;flex-wrap:wrap;flex-shrink:0;align-items:center;gap:8px;min-height:56px;padding:4px 12px 4px 20px;font-size:1rem;background:var(--app-header-background-color,var(--primary-color,#03a9f4));color:var(--app-header-text-color,#fff);border-bottom:1px solid var(--divider-color,#e0e0e0);box-sizing:border-box}
       h1{font-size:1.25rem;font-weight:400;margin:0}
-      #icon{width:26px;height:26px;border-radius:6px;flex-shrink:0}
+      #icon{width:36px;height:36px;border-radius:8px;flex-shrink:0}
       #version{margin:0 8px 0 0;font-size:.875rem;opacity:.8}
-      button,select,a{font:inherit;min-height:44px;box-sizing:border-box;border-radius:6px}
+      button,select,a{font:inherit;font-size:1rem;min-height:44px;box-sizing:border-box;border-radius:6px}
       button{display:inline-flex;align-items:center;justify-content:center;min-width:44px;padding:0;color:inherit;background:transparent;border:0;cursor:pointer}
       button svg{width:24px;height:24px;fill:currentColor}
       #menu{background:rgba(255,255,255,.18);border-radius:8px}
       #menu svg{width:26px;height:26px}
       label{display:flex;align-items:center;gap:8px;flex:0 0 auto}
-      select{flex:0 0 auto;width:auto;min-width:140px;padding:0 8px;color:var(--primary-text-color,#212121);background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#e0e0e0)}
+      select{flex:0 0 auto;width:auto;min-width:140px;padding:0 8px;color:#212121;background:#fff;border:1px solid rgba(0,0,0,.15)}
       #spacer{flex:1 1 auto}
       a{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;color:inherit;text-decoration:none}
       a svg{width:20px;height:20px;fill:currentColor}
-      #add{background:var(--card-background-color,#fff);color:var(--app-header-background-color,var(--primary-color,#03a9f4));padding:0 14px}
+      #add{background:#fff;color:#0288d1;padding:0 14px}
       #add svg{width:18px;height:18px}
       #settings{min-width:44px;padding:0;justify-content:center}
       #settings svg{width:22px;height:22px}
