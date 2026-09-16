@@ -1,6 +1,11 @@
 """The sidebar's embed sessions and its proxy to a panel."""
 
 import asyncio
+import base64
+import hashlib
+import hmac
+import logging
+import re
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from types import SimpleNamespace
 from typing import Any
@@ -17,13 +22,26 @@ from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+from yarl import URL
 
 from custom_components.panel_assistant import embed
 from custom_components.panel_assistant.client import PanelHealth
 from custom_components.panel_assistant.const import (
+    CONF_TRANSPORT_USER_ID,
     DOMAIN,
 )
+from custom_components.panel_assistant.diagnostics import (
+    async_get_config_entry_diagnostics,
+)
 from custom_components.panel_assistant.status import PanelStatus
+from custom_components.panel_assistant.transport import (
+    async_get_sessions,
+    session_diagnostics,
+)
+
+from .test_cutover import _HELLO_TAIL as HELLO_TAIL
+from .test_cutover import NATIVE
+from .test_native import _setup as _native_setup
 
 DID = "d" * 64
 HEALTH = PanelHealth(
@@ -43,6 +61,7 @@ HELLO: dict[str, Any] = {
     "capabilities": ["state"],
     "channels": [],
 }
+PROOF_HEADER = "X-Panel-Assistant-Proof"
 PAGE = (
     b'<!doctype html><html><head><base href="/"><title>x</title></head>'
     b'<body><a href="configure">c</a><base href="/"></body></html>'
@@ -60,7 +79,8 @@ class FakePanel:
         self.config_status = 200
         self.stream_release = asyncio.Event()
         self.stream_closed = asyncio.Event()
-        app = web.Application()
+        # Room for a body just past the largest one the proxy signs.
+        app = web.Application(client_max_size=4 * 1024 * 1024)
         app.router.add_route("*", "/{tail:.*}", self.handle)
         self.server = TestServer(app, host="127.0.0.1")
 
@@ -75,6 +95,8 @@ class FakePanel:
                 "method": request.method,
                 "target": request.raw_path,
                 "headers": dict(request.headers),
+                # Every line, so a second header line cannot hide in a mapping.
+                "proofs": request.headers.getall(PROOF_HEADER, []),
                 "body": body,
             }
         )
@@ -785,3 +807,401 @@ async def test_removing_the_user_ends_its_sessions(
     assert (await _receive(ws))["event"] == {"kind": "closed", "reason": "user_removed"}
     assert not sessions._by_token
     del subscription
+
+
+# ---------------------------------------------------------------------------
+# The integration credential: the key a panel session receives, and the proof
+# the proxy signs with it.
+
+PROVEN_LIMIT = 1024 * 1024
+
+
+def _bind(hass: HomeAssistant, entry: MockConfigEntry, user_id: str) -> None:
+    hass.config_entries.async_update_entry(
+        entry, data={**entry.data, CONF_TRANSPORT_USER_ID: user_id}
+    )
+
+
+async def _panel_hello(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    token: str,
+    capabilities: list[str],
+) -> tuple[Any, dict[str, Any]]:
+    """Say hello as the panel's own user, and return its socket and the result."""
+    panel_ws = await hass_ws_client(hass, token)
+    await panel_ws.send_json_auto_id(HELLO | {"capabilities": capabilities})
+    reply = await _receive(panel_ws)
+    assert reply["success"], reply
+    result: dict[str, Any] = reply["result"]
+    return panel_ws, result
+
+
+async def test_no_proof_once_the_panel_session_has_ended(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    panel: FakePanel,
+    entry: MockConfigEntry,
+) -> None:
+    ws = await hass_ws_client(hass)
+    _, url = await _open_session(ws, entry.entry_id)
+    browser = await hass_client_no_auth()
+    assert (await browser.post(url + "api/v1/config", data=b"a=1")).status == 200
+    assert panel.requests[-1]["proofs"] == []
+
+    _bind(hass, entry, hass_read_only_user.id)
+    panel_ws, _ = await _panel_hello(
+        hass, hass_ws_client, hass_read_only_access_token, ["state", "embed_proof"]
+    )
+    await panel_ws.close()
+    await hass.async_block_till_done()
+    sessions = async_get_sessions(hass)
+    ended = sessions.latest(entry.entry_id)
+    assert ended is not None and sessions.get(entry.entry_id) is None
+    # An ended session discards its key.
+    assert (ended.embed_key_id, ended.embed_key) == (None, None)
+    # Even one that somehow kept it never signs.
+    ended.embed_key_id, ended.embed_key = "0" * 16, b"k" * 32
+    assert (await browser.post(url + "api/v1/config", data=b"a=1")).status == 200
+    assert (await browser.get(url + "api/v1/status")).status == 200
+    assert [r["proofs"] for r in panel.requests[-2:]] == [[], []]
+
+
+async def test_no_proof_or_key_for_a_panel_that_did_not_offer_it(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    panel: FakePanel,
+    entry: MockConfigEntry,
+) -> None:
+    _bind(hass, entry, hass_read_only_user.id)
+    _, result = await _panel_hello(
+        hass, hass_ws_client, hass_read_only_access_token, ["state"]
+    )
+    assert "embed" not in result
+    assert "embed_proof" not in result["capabilities"]
+    live = async_get_sessions(hass).get(entry.entry_id)
+    assert live is not None and live.embed_key is None
+
+    ws = await hass_ws_client(hass)
+    _, url = await _open_session(ws, entry.entry_id)
+    browser = await hass_client_no_auth()
+    assert (await browser.post(url + "api/v1/config", data=b"a=1")).status == 200
+    assert panel.requests[-1]["proofs"] == []
+
+
+async def test_no_proof_for_a_body_over_1_mib_or_of_unknown_length(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    panel: FakePanel,
+    entry: MockConfigEntry,
+) -> None:
+    _bind(hass, entry, hass_read_only_user.id)
+    await _panel_hello(
+        hass, hass_ws_client, hass_read_only_access_token, ["state", "embed_proof"]
+    )
+    ws = await hass_ws_client(hass)
+    _, url = await _open_session(ws, entry.entry_id)
+    browser = await hass_client_no_auth()
+
+    largest = b"x" * PROVEN_LIMIT
+    response = await browser.post(url + "echo", data=largest)
+    assert await response.read() == largest
+    assert len(panel.requests[-1]["proofs"]) == 1
+
+    large = largest + b"x"
+    response = await browser.post(url + "echo", data=large)
+    assert await response.read() == large
+    assert panel.requests[-1]["proofs"] == []
+
+    async def chunks() -> AsyncGenerator[bytes]:
+        for _ in range(3):
+            yield b"12345"
+
+    response = await browser.post(url + "echo", data=chunks())
+    assert await response.read() == b"123451234512345"
+    assert panel.requests[-1]["proofs"] == []
+
+
+async def test_a_browser_proof_never_reaches_the_panel(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    panel: FakePanel,
+    entry: MockConfigEntry,
+) -> None:
+    forged = "v1;k=0123456789abcdef;n=1;u=" + "a" * 32 + ";m=" + "A" * 43
+    ws = await hass_ws_client(hass)
+    _, url = await _open_session(ws, entry.entry_id)
+    browser = await hass_client_no_auth()
+    response = await browser.post(
+        url + "api/v1/config", data=b"a=1", headers={PROOF_HEADER: forged}
+    )
+    assert response.status == 200
+    assert panel.requests[-1]["proofs"] == []
+
+    # Once the panel holds a key, only the proxy's own proof arrives.
+    _bind(hass, entry, hass_read_only_user.id)
+    await _panel_hello(
+        hass, hass_ws_client, hass_read_only_access_token, ["state", "embed_proof"]
+    )
+    response = await browser.post(
+        url + "api/v1/config", data=b"a=1", headers={PROOF_HEADER: forged}
+    )
+    assert response.status == 200
+    [proof] = panel.requests[-1]["proofs"]
+    assert proof != forged
+
+
+async def test_the_key_never_reaches_diagnostics_a_repr_or_the_log(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    panel: FakePanel,
+    entry: MockConfigEntry,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.DEBUG)
+    _bind(hass, entry, hass_read_only_user.id)
+    panel_ws, result = await _panel_hello(
+        hass, hass_ws_client, hass_read_only_access_token, ["state", "embed_proof"]
+    )
+    ws = await hass_ws_client(hass)
+    _, url = await _open_session(ws, entry.entry_id)
+    browser = await hass_client_no_auth()
+    assert (await browser.post(url + "api/v1/config", data=b"a=1")).status == 200
+    live = async_get_sessions(hass).get(entry.entry_id)
+    assert live is not None
+    secrets_ = [
+        result["embed"]["key_id"],
+        result["embed"]["key"],
+        repr(live.embed_key),
+        live.embed_key.hex() if live.embed_key else "",
+    ]
+    assert all(secrets_)
+    rendered = [
+        repr(live),
+        repr(session_diagnostics(hass, entry.entry_id)),
+        repr(await async_get_config_entry_diagnostics(hass, entry)),
+    ]
+    await panel_ws.close()
+    await hass.async_block_till_done()
+    rendered.append(repr(session_diagnostics(hass, entry.entry_id)))
+    rendered.extend(
+        record.getMessage()
+        for record in caplog.records
+        if record.name.startswith("custom_components.panel_assistant")
+    )
+    for text in rendered:
+        for secret in secrets_:
+            assert secret not in text
+
+
+def _proof_for(
+    embed_key: dict[str, str], did: str, counter: int, user_id: str, seen: Any
+) -> str:
+    """Compute a proof from what the panel received, without the integration."""
+    key = base64.urlsafe_b64decode(embed_key["key"] + "=")
+    body: bytes = seen["body"]
+    text = "\n".join(
+        (
+            "panel-assistant-embed-proof-v1",
+            did,
+            embed_key["key_id"],
+            str(counter),
+            user_id,
+            seen["method"],
+            seen["target"],
+            hashlib.sha256(body).hexdigest() if body else "-",
+        )
+    )
+    digest = hmac.new(key, text.encode(), hashlib.sha256).digest()
+    mac = base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
+    return f"v1;k={embed_key['key_id']};n={counter};u={user_id};m={mac}"
+
+
+@pytest.mark.parametrize(
+    ("options", "granted"),
+    [
+        ({"authority": "mqtt"}, []),
+        ({}, ["events", "state"]),
+        (NATIVE, ["approval", "commands", "events", "state"]),
+    ],
+    ids=["mqtt", "shadow", "native"],
+)
+@pytest.mark.parametrize("offered", [True, False])
+async def test_hello_grants_a_key_whenever_it_is_offered(
+    hass: HomeAssistant,
+    hass_read_only_user: Any,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    options: dict[str, str],
+    granted: list[str],
+    offered: bool,
+) -> None:
+    """Under every authority, one fresh key per session."""
+    native_entry = await _native_setup(
+        hass, hass_read_only_user.id, native=True, options=options
+    )
+    capabilities = ["state", "events", "commands", "approval"]
+    if offered:
+        capabilities.append("embed_proof")
+    panel_ws = await hass_ws_client(hass, hass_read_only_access_token)
+
+    results = []
+    for _ in range(2):
+        await panel_ws.send_json_auto_id(
+            {"type": "panel_assistant/hello"}
+            | HELLO_TAIL
+            | {"capabilities": capabilities}
+        )
+        while (reply := await _receive(panel_ws))["type"] != "result":
+            pass  # the superseded session's close event
+        assert reply["success"], reply
+        results.append(reply["result"])
+
+    live = async_get_sessions(hass).get(native_entry.entry_id)
+    assert live is not None
+    for result in results:
+        assert result["capabilities"] == sorted(
+            [*granted, "embed_proof"] if offered else granted
+        )
+    if not offered:
+        assert all("embed" not in result for result in results)
+        assert (live.embed_key_id, live.embed_key) == (None, None)
+        return
+    for result in results:
+        assert set(result["embed"]) == {"key_id", "key"}
+        assert re.fullmatch(r"[0-9a-f]{16}", result["embed"]["key_id"])
+        assert re.fullmatch(r"[A-Za-z0-9_-]{43}", result["embed"]["key"])
+    first, second = (result["embed"] for result in results)
+    # A new session replaces the key, and only the live one holds it.
+    assert first["key_id"] != second["key_id"] and first["key"] != second["key"]
+    assert live.embed_key_id == second["key_id"]
+    assert live.embed_key == base64.urlsafe_b64decode(second["key"] + "=")
+    assert live.embed_key is not None and len(live.embed_key) == 32
+    assert live.embed_counter == 0
+
+
+async def test_proxied_requests_carry_a_proof_the_panel_can_verify(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    hass_admin_user: Any,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    panel: FakePanel,
+    entry: MockConfigEntry,
+) -> None:
+    _bind(hass, entry, hass_read_only_user.id)
+    _, result = await _panel_hello(
+        hass, hass_ws_client, hass_read_only_access_token, ["state", "embed_proof"]
+    )
+    ws = await hass_ws_client(hass)
+    _, url = await _open_session(ws, entry.entry_id)
+    browser = await hass_client_no_auth()
+    target = "/api/v1/config?x=a%2Fb+c&y=%E2%9C%93"
+
+    response = await browser.post(
+        # Encoded, so the browser's client sends the target exactly as written.
+        URL(url + target[1:], encoded=True),
+        data=b"screen_brightness=40",
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert response.status == 200
+    assert (await browser.get(url + "api/v1/status")).status == 200
+    assert (await browser.delete(url + "api/v1/profile")).status == 200
+
+    first, second, third = panel.requests[-3:]
+    assert (first["target"], first["body"]) == (target, b"screen_brightness=40")
+    assert (second["method"], second["body"]) == ("GET", b"")
+    assert third["method"] == "DELETE"
+    for counter, seen in enumerate((first, second, third), start=1):
+        expected = _proof_for(result["embed"], DID, counter, hass_admin_user.id, seen)
+        assert seen["proofs"] == [expected]
+    assert second["proofs"][0].count(";") == 4
+    live = async_get_sessions(hass).get(entry.entry_id)
+    assert live is not None and live.embed_counter == 3
+
+
+async def test_a_body_of_zero_bytes_signs_a_dash(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    hass_admin_user: Any,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    panel: FakePanel,
+    entry: MockConfigEntry,
+) -> None:
+    _bind(hass, entry, hass_read_only_user.id)
+    _, result = await _panel_hello(
+        hass, hass_ws_client, hass_read_only_access_token, ["state", "embed_proof"]
+    )
+    ws = await hass_ws_client(hass)
+    _, url = await _open_session(ws, entry.entry_id)
+    browser = await hass_client_no_auth()
+    assert (await browser.get(url + "api/v1/status")).status == 200
+    assert (await browser.post(url + "echo", data=b"")).status == 200
+    for counter, seen in enumerate(panel.requests[-2:], start=1):
+        assert seen["body"] == b""
+        embed_key = result["embed"]
+        key = base64.urlsafe_b64decode(embed_key["key"] + "=")
+        text = "\n".join(
+            (
+                "panel-assistant-embed-proof-v1",
+                DID,
+                embed_key["key_id"],
+                str(counter),
+                hass_admin_user.id,
+                seen["method"],
+                seen["target"],
+                "-",
+            )
+        )
+        mac = hmac.new(key, text.encode(), hashlib.sha256).digest()
+        assert seen["proofs"][0].endswith(
+            ";m=" + base64.urlsafe_b64encode(mac).rstrip(b"=").decode()
+        )
+
+
+async def test_no_proof_once_the_counter_is_spent(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    hass_admin_user: Any,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    panel: FakePanel,
+    entry: MockConfigEntry,
+) -> None:
+    _bind(hass, entry, hass_read_only_user.id)
+    _, result = await _panel_hello(
+        hass, hass_ws_client, hass_read_only_access_token, ["state", "embed_proof"]
+    )
+    live = async_get_sessions(hass).get(entry.entry_id)
+    assert live is not None
+    live.embed_counter = 2**63 - 2
+    ws = await hass_ws_client(hass)
+    _, url = await _open_session(ws, entry.entry_id)
+    browser = await hass_client_no_auth()
+    assert (await browser.get(url + "api/v1/status")).status == 200
+    assert panel.requests[-1]["proofs"] == [
+        _proof_for(
+            result["embed"], DID, 2**63 - 1, hass_admin_user.id, panel.requests[-1]
+        )
+    ]
+    assert (await browser.get(url + "api/v1/status")).status == 200
+    assert panel.requests[-1]["proofs"] == []
