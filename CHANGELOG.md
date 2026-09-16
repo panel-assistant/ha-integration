@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.4.1 - 2026-09-16
+
+- Stop logging a deprecation warning when the sidebar's panel picker looks up a panel's device name, ahead of Home Assistant removing the old lookup in a future release.
+
 ## 0.4.0 - 2026-09-16
 
 - The sidebar's top bar now has real icon buttons, right-justified and sized to match Home Assistant's own header: GitHub, add a panel, integration settings, and a new button that opens the selected panel's own device page. The panel picker shows each panel's real device name, its own reported name or a rename from the Devices page, rather than the panel's raw identifier.
