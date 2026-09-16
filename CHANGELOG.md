@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.1 - 2026-09-16
+
+- Rewrite the README so HACS shows the icon and the same introduction as panel-assistant.io, with badges and one-click buttons to open the repository in HACS and to start setup. No code changes.
+
 ## 0.3.0 - 2026-09-14
 
 - The sidebar now shows each connected panel's own web interface (the same tab bar, dashboard, settings and logs as its `:8888` page) instead of a separate fleet-card list. Pick a panel from the new top menu; add a panel or open the integration's own settings from the same bar. The old placeholder sidebar UI is gone.
