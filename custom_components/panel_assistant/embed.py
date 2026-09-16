@@ -536,7 +536,7 @@ class EmbedProxyView(HomeAssistantView):
         elif (
             request.content_length is not None
             and request.content_length <= embed_proof.MAX_PROVEN_BODY
-            and self._key_holder(session) is not None
+            and self._signing_key(session) is not None
         ):
             # Read whole, so the digest covers exactly the bytes that are sent.
             body = await request.read()
@@ -611,8 +611,10 @@ class EmbedProxyView(HomeAssistantView):
             session.upstream.discard(result)
             result.release()
 
-    def _key_holder(self, session: EmbedSession) -> PanelSession | None:
-        """Return the panel's live transport session when it can sign, else nothing."""
+    def _signing_key(
+        self, session: EmbedSession
+    ) -> tuple[PanelSession, str, bytes] | None:
+        """Return the panel's live session, key ID and key when it can sign."""
         panel = async_get_sessions(self.hass).get(session.entry_id)
         if (
             panel is None
@@ -621,7 +623,7 @@ class EmbedProxyView(HomeAssistantView):
             or panel.embed_counter >= embed_proof.MAX_COUNTER
         ):
             return None
-        return panel
+        return panel, panel.embed_key_id, panel.embed_key
 
     def _proof(
         self, session: EmbedSession, method: str, target: str, body: bytes
@@ -631,14 +633,15 @@ class EmbedProxyView(HomeAssistantView):
         Only a request this session has just admitted gets here, so the proof
         names the administrator who opened it.
         """
-        panel = self._key_holder(session)
-        if panel is None or panel.embed_key is None or panel.embed_key_id is None:
+        signing = self._signing_key(session)
+        if signing is None:
             return None
+        panel, key_id, key = signing
         panel.embed_counter += 1
         return embed_proof.sign(
-            panel.embed_key,
+            key,
             did=panel.did,
-            key_id=panel.embed_key_id,
+            key_id=key_id,
             counter=panel.embed_counter,
             user_id=session.user_id,
             method=method,
