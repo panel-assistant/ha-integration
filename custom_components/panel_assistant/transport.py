@@ -72,6 +72,7 @@ from .const import (
     MAX_ANDROID_INTEGER,
 )
 from .contract import CONTRACT, catalogue_entry
+from .embed_proof import encode_key, new_key
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -118,6 +119,9 @@ CAPABILITY_APPROVAL: Final = "approval"
 # A panel that offers this withdraws or announces its MQTT discovery exactly as
 # the hello reply says. It is granted whenever offered, under every authority.
 CAPABILITY_MQTT_WITHDRAW: Final = "mqtt_withdraw"
+# A panel that offers this receives a key to check the sidebar's proofs with
+# (see ``embed_proof.py``). It is granted whenever offered, under every authority.
+CAPABILITY_EMBED_PROOF: Final = "embed_proof"
 KNOWN_CAPABILITIES: Final = frozenset(
     {
         CAPABILITY_STATE,
@@ -125,6 +129,7 @@ KNOWN_CAPABILITIES: Final = frozenset(
         CAPABILITY_COMMANDS,
         CAPABILITY_APPROVAL,
         CAPABILITY_MQTT_WITHDRAW,
+        CAPABILITY_EMBED_PROOF,
     }
 )
 # What each authority lets a session use, before intersecting with what the
@@ -799,6 +804,11 @@ class PanelSession:
     # Whether the panel offered to follow that answer. One that did not
     # announces its MQTT discovery whatever the reply says.
     mqtt_withdraw_offered: bool = False
+    # The key the panel checks the sidebar's proofs with, while this session
+    # lasts, and the counter of the last proof issued under it. Never shown.
+    embed_key_id: str | None = field(default=None, repr=False)
+    embed_key: bytes | None = field(default=None, repr=False)
+    embed_counter: int = 0
     # Commands sent and still waited for, by command ID.
     pending: dict[str, PendingCommand] = field(default_factory=dict)
     # Commands whose wait ended without a final outcome, oldest first.
@@ -941,6 +951,9 @@ class TransportSessions:
                 command.future.set_result(None)
         session.pending.clear()
         session.late.clear()
+        # The panel discards its key when the session ends; so does this side.
+        session.embed_key_id = None
+        session.embed_key = None
         return True
 
     @callback
@@ -1618,6 +1631,8 @@ def ws_hello(
     mqtt_withdraw_offered = CAPABILITY_MQTT_WITHDRAW in offered
     if mqtt_withdraw_offered:
         capabilities |= {CAPABILITY_MQTT_WITHDRAW}
+    if CAPABILITY_EMBED_PROOF in offered:
+        capabilities |= {CAPABILITY_EMBED_PROOF}
     mqtt_discovery = mqtt_discovery_claim(hass, entry)
     if mqtt_discovery == MQTT_DISCOVERY_WITHDRAW:
         # Whatever held the withdrawal back, such as a customised entity a
@@ -1648,20 +1663,24 @@ def ws_hello(
         mqtt_discovery=mqtt_discovery,
         mqtt_withdraw_offered=mqtt_withdraw_offered,
     )
+    result: dict[str, Any] = {
+        "protocol": high,
+        "session": session.token,
+        "authority": authority,
+        "mqtt_discovery": mqtt_discovery,
+        "capabilities": sorted(capabilities),
+        "integration": {"version": INTEGRATION_VERSION},
+        # Unknown descriptors are accepted too, but render nothing.
+        "channels": {"accepted": len(descriptors), "unknown": sorted(unknown)},
+    }
+    if CAPABILITY_EMBED_PROOF in capabilities:
+        session.embed_key_id, session.embed_key = new_key()
+        result["embed"] = {
+            "key_id": session.embed_key_id,
+            "key": encode_key(session.embed_key),
+        }
     async_get_sessions(hass).open(session)
-    connection.send_result(
-        msg["id"],
-        {
-            "protocol": high,
-            "session": session.token,
-            "authority": authority,
-            "mqtt_discovery": mqtt_discovery,
-            "capabilities": sorted(capabilities),
-            "integration": {"version": INTEGRATION_VERSION},
-            # Unknown descriptors are accepted too, but render nothing.
-            "channels": {"accepted": len(descriptors), "unknown": sorted(unknown)},
-        },
-    )
+    connection.send_result(msg["id"], result)
 
 
 @callback
