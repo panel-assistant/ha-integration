@@ -105,6 +105,11 @@ test('copy is keyed, markup carries no text and the frame is a titled, unsandbox
   assert.equal($('#add-label').textContent, SIDEBAR_MESSAGES.addPanel);
   assert.equal($('#settings').getAttribute('aria-label'), SIDEBAR_MESSAGES.integrationSettings);
   assert.equal($('#settings').getAttribute('title'), SIDEBAR_MESSAGES.integrationSettings);
+  assert.equal($('#github').getAttribute('aria-label'), SIDEBAR_MESSAGES.github);
+  assert.equal($('#github').getAttribute('title'), SIDEBAR_MESSAGES.github);
+  assert.equal($('#github').getAttribute('href'), 'https://github.com/panel-assistant/ha-integration');
+  assert.equal($('#github').getAttribute('target'), '_blank');
+  assert.equal($('#github').getAttribute('rel'), 'noopener');
   assert.equal($('#frame').getAttribute('title'), SIDEBAR_MESSAGES.frameTitle);
   assert.equal($('#frame').getAttribute('sandbox'), null);
 });
@@ -280,11 +285,13 @@ test('menu toggles only when narrow and links navigate inside Home Assistant', a
   assert.equal($('#menu').hidden, false);
   assert.equal($('#title').hidden, true);
   assert.equal($('#version').hidden, true);
+  assert.equal($('#github').hidden, true);
   assert.equal($('#add-label').textContent, SIDEBAR_MESSAGES.addPanelShort);
   panel.narrow = false;
   assert.equal($('#menu').hidden, true);
   assert.equal($('#title').hidden, false);
   assert.equal($('#version').hidden, false);
+  assert.equal($('#github').hidden, false);
   assert.equal($('#add-label').textContent, SIDEBAR_MESSAGES.addPanel);
   $('#menu').fire('click');
   assert.deepEqual([panel.events[0].type, panel.events[0].bubbles, panel.events[0].composed], ['hass-toggle-menu', true, true]);
@@ -361,6 +368,7 @@ test('every SIDEBAR_MESSAGES key renders through the real component; nothing is 
   }
   seen(bare.shadowRoot.querySelector('#menu').getAttribute('aria-label'));
   seen(bare.shadowRoot.querySelector('#settings').getAttribute('aria-label'));
+  seen(bare.shadowRoot.querySelector('#github').getAttribute('aria-label'));
   seen(bare.shadowRoot.querySelector('#frame').getAttribute('title'));
   bare.narrow = true;
   seen(bare.shadowRoot.querySelector('#add-label').textContent);
