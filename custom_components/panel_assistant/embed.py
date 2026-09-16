@@ -46,7 +46,7 @@ from yarl import URL
 from . import embed_proof
 from .client import PanelAddress, normalize_address
 from .const import DOMAIN
-from .transport import async_get_sessions
+from .transport import PanelSession, async_get_sessions
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -536,12 +536,14 @@ class EmbedProxyView(HomeAssistantView):
         elif (
             request.content_length is not None
             and request.content_length <= embed_proof.MAX_PROVEN_BODY
+            and self._key_holder(session) is not None
         ):
             # Read whole, so the digest covers exactly the bytes that are sent.
             body = await request.read()
             proof = self._proof(session, request.method, raw_target, body)
         else:
-            # A large body, or one of unknown length, streams unproven.
+            # A large body, one of unknown length, or any body while the panel
+            # holds no key, streams unproven exactly as it always has.
             body = _BoundedBody(request)
             proof = None
         if proof is not None:
@@ -609,6 +611,18 @@ class EmbedProxyView(HomeAssistantView):
             session.upstream.discard(result)
             result.release()
 
+    def _key_holder(self, session: EmbedSession) -> PanelSession | None:
+        """Return the panel's live transport session when it can sign, else nothing."""
+        panel = async_get_sessions(self.hass).get(session.entry_id)
+        if (
+            panel is None
+            or panel.embed_key is None
+            or panel.embed_key_id is None
+            or panel.embed_counter >= embed_proof.MAX_COUNTER
+        ):
+            return None
+        return panel
+
     def _proof(
         self, session: EmbedSession, method: str, target: str, body: bytes
     ) -> str | None:
@@ -617,13 +631,8 @@ class EmbedProxyView(HomeAssistantView):
         Only a request this session has just admitted gets here, so the proof
         names the administrator who opened it.
         """
-        panel = async_get_sessions(self.hass).get(session.entry_id)
-        if (
-            panel is None
-            or panel.embed_key is None
-            or panel.embed_key_id is None
-            or panel.embed_counter >= embed_proof.MAX_COUNTER
-        ):
+        panel = self._key_holder(session)
+        if panel is None or panel.embed_key is None or panel.embed_key_id is None:
             return None
         panel.embed_counter += 1
         return embed_proof.sign(

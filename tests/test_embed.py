@@ -870,6 +870,33 @@ async def test_no_proof_once_the_panel_session_has_ended(
     assert [r["proofs"] for r in panel.requests[-2:]] == [[], []]
 
 
+async def test_without_a_key_a_small_body_streams_as_it_always_has(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    panel: FakePanel,
+    entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reads: list[int] = []
+    original = web.Request.read
+
+    async def counting_read(self: web.Request) -> bytes:
+        # The fake panel reads its own echo body; count only the proxy's reads.
+        if self.path.startswith("/api/panel_assistant/embed/"):
+            reads.append(1)
+        return await original(self)
+
+    monkeypatch.setattr(web.Request, "read", counting_read)
+    ws = await hass_ws_client(hass)
+    _, url = await _open_session(ws, entry.entry_id)
+    browser = await hass_client_no_auth()
+    response = await browser.post(url + "echo", data=b"a=1")
+    assert await response.read() == b"a=1"
+    assert panel.requests[-1]["proofs"] == []
+    assert reads == []
+
+
 async def test_no_proof_or_key_for_a_panel_that_did_not_offer_it(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
