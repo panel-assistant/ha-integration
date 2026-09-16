@@ -1306,9 +1306,12 @@ def shadow_comparison(
     for item in channels.values():
         summary[item["comparison"]] += 1
 
-    device = dr.async_get(hass).async_get_device(
+    # The MQTT integration owns this device, so the lookup cannot name our
+    # config entry; the multi-device form is the one Core 2026.9 still allows.
+    devices = dr.async_get(hass).async_get_devices(
         identifiers={(MQTT_DOMAIN, f"ha-paneld-{panel_id}")}
     )
+    device = devices[0] if devices else None
     mqtt_only: list[str] = []
     if device is not None:
         prefix = f"{panel_id}_"

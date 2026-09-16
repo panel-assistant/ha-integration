@@ -38,6 +38,7 @@ from custom_components.panel_assistant.status import PanelStatus
 from custom_components.panel_assistant.transport import (
     async_get_sessions,
     session_diagnostics,
+    shadow_comparison,
 )
 
 from .test_cutover import _HELLO_TAIL as HELLO_TAIL
@@ -1272,3 +1273,28 @@ async def test_no_proof_once_the_counter_is_spent(
     ]
     assert (await browser.get(url + "api/v1/status")).status == 200
     assert panel.requests[-1]["proofs"] == []
+
+
+async def test_shadow_comparison_looks_the_mqtt_device_up_without_a_deprecated_call(
+    hass: HomeAssistant,
+    hass_read_only_user: Any,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Diagnostics compare a live session with MQTT on every supported Core."""
+    native_entry = await _native_setup(
+        hass, hass_read_only_user.id, native=True, options={}
+    )
+    panel_ws = await hass_ws_client(hass, hass_read_only_access_token)
+    await panel_ws.send_json_auto_id({"type": "panel_assistant/hello"} | HELLO_TAIL)
+    reply = await _receive(panel_ws)
+    assert reply["success"], reply
+
+    comparison = shadow_comparison(hass, native_entry.entry_id, "alpha")
+
+    assert comparison is not None
+    assert comparison["mqtt_device"] is False
+    assert comparison["mqtt_only"] == []
+    # Core 2026.9 reports the old identifier lookup as deprecated on every call.
+    assert "async_get_device`" not in caplog.text
