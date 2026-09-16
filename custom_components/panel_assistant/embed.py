@@ -39,6 +39,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.exceptions import Unauthorized
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.http import HomeAssistantView
 from yarl import URL
@@ -315,13 +316,28 @@ def panel_state(entry: ConfigEntry) -> str:
     return STATE_REACHABLE if coordinator.last_update_success else STATE_UNREACHABLE
 
 
+def panel_display_name(hass: HomeAssistant, entry: ConfigEntry) -> str:
+    """Prefer the device's own (possibly user-renamed) name over the raw entry.title.
+
+    The config entry title is set once, at add time, from the panel's reported panel_id
+    (a device identifier, not a friendly name). The device registry entry for the same
+    panel already carries whatever nicer name the panel itself reports, or a user's own
+    rename via the Devices page (name_by_user): this only changes which of those two
+    already-existing values the sidebar reads, not how either is set.
+    """
+    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    if device is None:
+        return entry.title
+    return device.name_by_user or device.name or entry.title
+
+
 @require_admin
 @websocket_command({vol.Required("type"): "panel_assistant/embed_panels"})
 @callback
 def ws_embed_panels(
     hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    """List the panels attached to Home Assistant, by title."""
+    """List the panels attached to Home Assistant, by display name."""
     entries = sorted(
         hass.config_entries.async_entries(DOMAIN),
         key=lambda entry: (entry.title.casefold(), entry.entry_id),
@@ -332,7 +348,7 @@ def ws_embed_panels(
             "panels": [
                 {
                     "entry_id": entry.entry_id,
-                    "title": entry.title,
+                    "title": panel_display_name(hass, entry),
                     "state": panel_state(entry),
                 }
                 for entry in entries[:MAX_PANELS]

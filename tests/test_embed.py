@@ -20,6 +20,7 @@ from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from yarl import URL
@@ -249,9 +250,20 @@ def _notified_login_failure(hass: HomeAssistant) -> bool:
 # Commands
 
 
-async def test_panels_list_every_entry_by_title_with_its_reachability(
+async def test_panels_list_by_device_name_falling_back_to_title(
     hass: HomeAssistant, hass_ws_client: WsClientFactory, entry: MockConfigEntry
 ) -> None:
+    """entry.title is the panel_id at add time, not a friendly name (config_flow.py sets
+    it from health.panel_id); the device registry already carries whatever nicer name
+    the panel reports or a user set via the Devices page, so the sidebar prefers that
+    when it exists."""
+    other_health = PanelHealth(
+        version="0.9.8-rc1",
+        panel_id="attic-unit",
+        build="1000",
+        config_hash="1a2b3c4d",
+        discovery_id="c" * 64,
+    )
     unreachable = MockConfigEntry(
         domain=DOMAIN, title="attic", data={CONF_ADDRESS: "127.0.0.1:1"}
     )
@@ -259,7 +271,7 @@ async def test_panels_list_every_entry_by_title_with_its_reachability(
     with (
         patch(
             "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
-            AsyncMock(return_value=HEALTH),
+            AsyncMock(return_value=other_health),
         ),
         patch(
             "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
@@ -268,6 +280,8 @@ async def test_panels_list_every_entry_by_title_with_its_reachability(
     ):
         await _load_entry(hass, unreachable)
     unreachable.runtime_data.coordinator.last_update_success = False
+    # No device is ever created for an entry that never finished loading, so this one
+    # has no registry row to prefer and keeps showing its title-at-add-time verbatim.
     MockConfigEntry(
         domain=DOMAIN, title="Bedroom", data={CONF_ADDRESS: "127.0.0.1:2"}
     ).add_to_hass(hass)
@@ -278,11 +292,25 @@ async def test_panels_list_every_entry_by_title_with_its_reachability(
     reply = await _receive(client)
     assert reply["success"], reply
     assert [(p["title"], p["state"]) for p in reply["result"]["panels"]] == [
-        ("attic", "unreachable"),
+        # No panel_assistant_device.name in STATUS, so this falls back within the device
+        # to health.panel_id -- still nicer than the raw entry.title "attic" here.
+        ("attic-unit", "unreachable"),
         ("Bedroom", "not_loaded"),
-        ("Kitchen", "reachable"),
+        # entry fixture's own panel_id ("alpha") reads the same either way.
+        ("alpha", "reachable"),
     ]
     assert set(reply["result"]["panels"][2]) == {"entry_id", "title", "state"}
+
+    device_registry = dr.async_get(hass)
+    device = device_registry.async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    device_registry.async_update_device(device.id, name_by_user="Custom Name")
+    await client.send_json_auto_id({"type": "panel_assistant/embed_panels"})
+    reply = await _receive(client)
+    assert reply["success"], reply
+    renamed = next(
+        p for p in reply["result"]["panels"] if p["entry_id"] == entry.entry_id
+    )
+    assert renamed["title"] == "Custom Name"
 
 
 @pytest.mark.parametrize(
