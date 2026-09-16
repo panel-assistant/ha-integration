@@ -311,7 +311,9 @@ async def test_panels_list_by_device_name_falling_back_to_title(
     assert reply["result"]["panels"][1]["device_id"] is None
 
     device_registry = dr.async_get(hass)
-    device = device_registry.async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    device = device_registry.async_get_device_by_identifier(
+        (DOMAIN, entry.entry_id), config_entry_id=entry.entry_id
+    )
     assert reply["result"]["panels"][2]["device_id"] == device.id
     device_registry.async_update_device(device.id, name_by_user="Custom Name")
     await client.send_json_auto_id({"type": "panel_assistant/embed_panels"})
