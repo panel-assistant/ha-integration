@@ -9,6 +9,7 @@ export const SIDEBAR_MESSAGES = Object.freeze({
   addPanel: 'Add panel',
   addPanelShort: 'Add',
   integrationSettings: 'Integration settings',
+  device: "This panel's Home Assistant device",
   github: 'GitHub',
   unreachable: 'unreachable',
   not_loaded: 'not loaded',
@@ -104,13 +105,15 @@ export class PanelAssistantSidebar extends HTMLElement {
       #spacer{flex:1 1 auto}
       a{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;color:inherit;text-decoration:none}
       a svg{width:20px;height:20px;fill:currentColor}
-      #github,#add,#settings{min-height:40px}
-      #github{min-width:40px;padding:0;justify-content:center}
+      #github,#add,#settings,#device{min-height:36px}
+      #github{min-width:36px;padding:0;justify-content:center}
       #github svg{width:20px;height:20px}
       #add{background:#fff;color:#0288d1;padding:0 14px}
       #add svg{width:18px;height:18px}
-      #settings{min-width:40px;padding:0;justify-content:center}
+      #settings{min-width:36px;padding:0;justify-content:center}
       #settings svg{width:22px;height:22px}
+      #device{min-width:36px;padding:0;justify-content:center}
+      #device svg{width:20px;height:20px}
       #slot{display:contents}
       #status{margin:0;padding:16px;color:var(--secondary-text-color,#727272)}
       #loading{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:16px;text-align:center;color:var(--secondary-text-color,#727272)}
@@ -124,6 +127,7 @@ export class PanelAssistantSidebar extends HTMLElement {
       <img id="icon" src="${BRAND_ICON}" alt="">
       <h1 id="title" data-message="title"></h1><span id="version"></span>
       <label id="picker"><span data-message="choosePanel"></span><select id="panels"></select></label>
+      <a id="device"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/></svg></a>
       <div id="spacer"></div>
       <a id="github" href="${REPO_URL}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${GH_ICON}"/></svg></a>
       <a id="add"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg><span id="add-label" data-message="addPanel"></span></a>
@@ -143,6 +147,15 @@ export class PanelAssistantSidebar extends HTMLElement {
     const github = root.querySelector('#github');
     github.setAttribute('aria-label', SIDEBAR_MESSAGES.github);
     github.setAttribute('title', SIDEBAR_MESSAGES.github);
+    const device = root.querySelector('#device');
+    device.setAttribute('aria-label', SIDEBAR_MESSAGES.device);
+    device.setAttribute('title', SIDEBAR_MESSAGES.device);
+    device.addEventListener('click', event => {
+      const path = device.getAttribute('href');
+      if (!path || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      navigate(path);
+    });
     for (const [id, path] of [['add', ADD_PANEL_PATH], ['settings', SETTINGS_PATH]]) {
       const link = root.querySelector(`#${id}`);
       link.setAttribute('href', path);
@@ -353,6 +366,9 @@ export class PanelAssistantSidebar extends HTMLElement {
     select.value = this.#selected ?? '';
     root.querySelector('#picker').hidden = panels.length === 0;
     const panel = panels.find(row => row.entry_id === this.#selected);
+    const device = root.querySelector('#device');
+    device.hidden = !panel;
+    if (panel) device.setAttribute('href', `/config/devices/dashboard?historyBack=1&config_entry=${encodeURIComponent(panel.entry_id)}`);
     const session = this.#session;
     const frame = root.querySelector('#frame');
     let key = '';

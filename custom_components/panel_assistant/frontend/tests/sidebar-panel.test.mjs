@@ -110,6 +110,8 @@ test('copy is keyed, markup carries no text and the frame is a titled, unsandbox
   assert.equal($('#github').getAttribute('href'), 'https://github.com/panel-assistant/ha-integration');
   assert.equal($('#github').getAttribute('target'), '_blank');
   assert.equal($('#github').getAttribute('rel'), 'noopener');
+  assert.equal($('#device').getAttribute('aria-label'), SIDEBAR_MESSAGES.device);
+  assert.equal($('#device').getAttribute('title'), SIDEBAR_MESSAGES.device);
   assert.equal($('#frame').getAttribute('title'), SIDEBAR_MESSAGES.frameTitle);
   assert.equal($('#frame').getAttribute('sandbox'), null);
 });
@@ -248,8 +250,29 @@ test('empty and invalid lists show their messages', async () => {
   const { $ } = await mount(fakeHass({ panels: [] }));
   assert.equal($('#status').textContent, SIDEBAR_MESSAGES.empty);
   assert.equal($('#add').hidden, false);
+  assert.equal($('#device').hidden, true, 'no panel selected, nothing to link to');
   const { $: $$ } = await mount(fakeHass({ panels: [row('x', 'online')] }));
   assert.equal($$('#status').textContent, SIDEBAR_MESSAGES.failed);
+});
+
+test('the device link points at the selected panel and navigates inside Home Assistant', async () => {
+  const { panel, $ } = await mount(fakeHass());
+  assert.equal($('#device').hidden, false);
+  assert.equal($('#device').getAttribute('href'), '/config/devices/dashboard?historyBack=1&config_entry=one');
+  $('#panels').fire('change', { target: { value: 'two' } }); await tick();
+  assert.equal($('#device').getAttribute('href'), '/config/devices/dashboard?historyBack=1&config_entry=two');
+  let changed;
+  window.addEventListener('location-changed', event => { changed = event.detail; }, { once: true });
+  let prevented = 0;
+  $('#device').fire('click', { button: 0, preventDefault: () => prevented++ });
+  assert.equal(prevented, 1);
+  assert.deepEqual(pushed.at(-1), [null, '', '/config/devices/dashboard?historyBack=1&config_entry=two']);
+  assert.deepEqual(changed, { replace: false });
+  panel.events.length = 0;
+  $('#device').fire('click', { button: 0, ctrlKey: true, preventDefault: () => prevented++ });
+  assert.equal(prevented, 1, 'a modified click is left to the browser, not intercepted');
+  panel.isConnected = false; panel.disconnectedCallback(); await tick();
+  store.clear();
 });
 
 test('disconnect unsubscribes, stops the timer and listener, and ignores late results', async () => {
@@ -369,6 +392,7 @@ test('every SIDEBAR_MESSAGES key renders through the real component; nothing is 
   seen(bare.shadowRoot.querySelector('#menu').getAttribute('aria-label'));
   seen(bare.shadowRoot.querySelector('#settings').getAttribute('aria-label'));
   seen(bare.shadowRoot.querySelector('#github').getAttribute('aria-label'));
+  seen(bare.shadowRoot.querySelector('#device').getAttribute('aria-label'));
   seen(bare.shadowRoot.querySelector('#frame').getAttribute('title'));
   bare.narrow = true;
   seen(bare.shadowRoot.querySelector('#add-label').textContent);
