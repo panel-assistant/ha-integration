@@ -14,7 +14,12 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from yarl import URL
 
-from .app_identity import is_accepted_package_id, launch_component_for
+from .app_identity import (
+    ACCEPTED_PACKAGE_IDS,
+    LEGACY_PACKAGE_ID,
+    is_accepted_package_id,
+    launch_component_for,
+)
 from .const import ANDROID_RELEASE_DOWNLOAD_ROOT, ANDROID_RELEASES_API
 
 _LATEST_RELEASE_URL = URL(f"{ANDROID_RELEASES_API}/latest")
@@ -195,6 +200,17 @@ def is_feed_build_tag(value: object) -> bool:
     return feed_build_code(value) is not None
 
 
+def release_apk_name(tag: str, package_id: str) -> str:
+    """Name the release asset carrying one identity's APK.
+
+    The legacy name is frozen: shipped panel updaters resolve the first `.apk`
+    asset of a release, so the app that keeps the old id has to keep the name
+    those updaters already see.
+    """
+    stem = "ha-paneld" if package_id == LEGACY_PACKAGE_ID else "panel-assistant"
+    return f"{stem}-{tag}-manual-setup-required.apk"
+
+
 def artifact_identity_matches(
     release_tag: object,
     version_name: object,
@@ -209,10 +225,10 @@ def artifact_identity_matches(
     """
     if is_install_release_tag(release_tag):
         assert isinstance(release_tag, str)
-        return (
-            version_name == release_tag.removeprefix("v")
-            and apk_name == f"ha-paneld-{release_tag}-manual-setup-required.apk"
-        )
+        return version_name == release_tag.removeprefix("v") and apk_name in {
+            release_apk_name(release_tag, package_id)
+            for package_id in ACCEPTED_PACKAGE_IDS
+        }
     code = feed_build_code(release_tag)
     return (
         code is not None
@@ -373,17 +389,21 @@ def _parse_release_metadata(
     ):
         raise ReleaseResolutionError
 
-    apk_name = f"ha-paneld-{tag}-manual-setup-required.apk"
-    required_names = frozenset(
-        {
-            apk_name,
-            f"{apk_name}.sha256",
-            f"{apk_name}.sha256.sig",
-        }
+    # A release carrying the successor offers two APKs, and this integration
+    # installs the successor: a panel it installs onto is either clean or is
+    # migrating, and in both cases the successor is the app that ends up
+    # running. A release with only the one APK resolves exactly as before.
+    candidates = tuple(
+        release_apk_name(tag, package_id)
+        for package_id in reversed(ACCEPTED_PACKAGE_IDS)
     )
     descriptor_name = f"ha-paneld-{tag}-install.json"
     descriptor_names = frozenset({descriptor_name, f"{descriptor_name}.sig"})
-    relevant_names = required_names | descriptor_names
+    relevant_names = descriptor_names | {
+        name
+        for candidate in candidates
+        for name in (candidate, f"{candidate}.sha256", f"{candidate}.sha256.sig")
+    }
     selected: dict[str, URL] = {}
 
     for asset in assets:
@@ -400,8 +420,22 @@ def _parse_release_metadata(
             raise ReleaseResolutionError
         selected[name] = URL(raw_url)
 
-    if not required_names.issubset(selected):
+    apk_name = None
+    required_names: frozenset[str] = frozenset()
+    for candidate in candidates:
+        names = frozenset({candidate, f"{candidate}.sha256", f"{candidate}.sha256.sig"})
+        if names.issubset(selected):
+            apk_name, required_names = candidate, names
+            break
+    if apk_name is None:
         raise ReleaseResolutionError
+    # Only the chosen APK's own bytes travel on: another APK's checksum or
+    # signature in the same release is never part of this resolution.
+    selected = {
+        name: url
+        for name, url in selected.items()
+        if name in required_names or name in descriptor_names
+    }
     selected_descriptor_names = descriptor_names.intersection(selected)
     if selected_descriptor_names and selected_descriptor_names != descriptor_names:
         raise ReleaseResolutionError

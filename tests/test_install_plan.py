@@ -437,3 +437,49 @@ def test_safe_original_ip_identity_is_preserved() -> None:
 
     assert plan.target.address == "192.168.1.23"
     assert plan.target.pinned_address == "192.168.1.23"
+
+
+def successor_release() -> ReleaseArtifact:
+    """The same release under the new application id."""
+    apk_name = "panel-assistant-v0.1.0-manual-setup-required.apk"
+    return release(
+        apk_name=apk_name,
+        descriptor=descriptor(
+            apk_name=apk_name,
+            package_id="io.panelassistant.android",
+            launch_component=(
+                "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity"
+            ),
+        ),
+    )
+
+
+def test_a_migrating_panel_admits_the_successor_and_no_other_release() -> None:
+    """The successor installs beside the old app; the old app is not replaced."""
+    migrating = probe(state=InstallTargetState.MIGRATION_CANDIDATE)
+
+    plan = build_install_plan(
+        pinned_target(), migrating, successor_release(), CREDENTIAL_ID
+    )
+
+    assert plan.artifact.package_id == "io.panelassistant.android"
+    assert plan.artifact.launch_component == (
+        "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity"
+    )
+    # The same panel, offered the release that keeps the old id: refused.
+    with pytest.raises(InstallPlanError) as caught:
+        build_install_plan(pinned_target(), migrating, release(), CREDENTIAL_ID)
+    assert caught.value.args[0] == InstallPlanErrorCode.PROBE_NOT_INSTALL_CANDIDATE
+    # An already installed panel still admits neither.
+    for candidate in (release(), successor_release()):
+        with pytest.raises(InstallPlanError):
+            build_install_plan(
+                pinned_target(),
+                probe(state=InstallTargetState.INSTALLED),
+                candidate,
+                CREDENTIAL_ID,
+            )
+    # A clean panel still admits either, and each plans as its own package.
+    for candidate in (release(), successor_release()):
+        built = build_install_plan(pinned_target(), probe(), candidate, CREDENTIAL_ID)
+        assert built.artifact.package_id == candidate.descriptor.package_id

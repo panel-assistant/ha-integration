@@ -750,13 +750,12 @@ def _classify_target_packages(
         raise InstallAdbError(InstallAdbErrorCode.TARGET_NOT_CLEAN)
     counterpart = counterpart_of(target_package_id)
     migration_candidate = (
-        target_package_id == SUCCESSOR_PACKAGE_ID
-        and counterpart == LEGACY_PACKAGE_ID
-        and counterpart in installed
+        target_package_id == SUCCESSOR_PACKAGE_ID and counterpart in installed
     )
+    # Anything else present is refused. Once a migration is admitted, the only
+    # package left that can be installed or have left data behind is that
+    # counterpart, so this one check covers both.
     if not migration_candidate and (installed or residue):
-        raise InstallAdbError(InstallAdbErrorCode.TARGET_NOT_CLEAN)
-    if migration_candidate and not residue <= {counterpart}:
         raise InstallAdbError(InstallAdbErrorCode.TARGET_NOT_CLEAN)
     return migration_candidate
 

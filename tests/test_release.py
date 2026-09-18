@@ -1413,3 +1413,102 @@ async def test_maps_bounded_transport_failures(error: Exception) -> None:
 
     with pytest.raises(ReleaseResolutionError):
         await async_resolve_stable_release(session)  # type: ignore[arg-type]
+
+
+_SUCCESSOR_APK_NAME = f"panel-assistant-{_TAG}-manual-setup-required.apk"
+_SUCCESSOR_APK_URL = (
+    "https://github.com/panel-assistant/android/releases/download/"
+    f"{_TAG}/{_SUCCESSOR_APK_NAME}"
+)
+_SUCCESSOR_CHECKSUM = f"{_SHA256}  {_SUCCESSOR_APK_NAME}\n".encode()
+
+
+def _asset_triplet(name: str) -> list[dict[str, str]]:
+    root = f"https://github.com/panel-assistant/android/releases/download/{_TAG}"
+    return [
+        {"name": name + suffix, "browser_download_url": f"{root}/{name}{suffix}"}
+        for suffix in ("", ".sha256", ".sha256.sig")
+    ]
+
+
+def test_the_release_name_of_each_identity_is_its_own() -> None:
+    """The old name is frozen: shipped updaters resolve a release's first APK."""
+    assert (
+        release.release_apk_name(_TAG, "io.github.maxlyth.hapaneld")
+        == f"ha-paneld-{_TAG}-manual-setup-required.apk"
+    )
+    assert (
+        release.release_apk_name(_TAG, "io.panelassistant.android")
+        == _SUCCESSOR_APK_NAME
+    )
+    # The rule binding a tag to a file name accepts either, and nothing else.
+    for name in (_APK_NAME, _SUCCESSOR_APK_NAME):
+        assert release.artifact_identity_matches(_TAG, _VERSION, 701, name, _SHA256)
+    for name in (
+        f"other-{_TAG}-manual-setup-required.apk",
+        f"ha-paneld-{_TAG}.apk",
+        "panel-assistant-v9.9.9-manual-setup-required.apk",
+    ):
+        assert not release.artifact_identity_matches(_TAG, _VERSION, 701, name, _SHA256)
+
+
+async def test_a_release_carrying_both_apks_resolves_the_successor(
+    monkeypatch: pytest.MonkeyPatch, signing_key: rsa.RSAPrivateKey
+) -> None:
+    """A panel this integration installs onto ends up running the successor."""
+    _install_test_key(monkeypatch, signing_key)
+    document = _release_document()
+    document["assets"] = [*document["assets"], *_asset_triplet(_SUCCESSOR_APK_NAME)]
+    session = _FakeSession(
+        {
+            str(release._LATEST_RELEASE_URL): _metadata_response(document),
+            f"{_SUCCESSOR_APK_URL}.sha256": _FakeResponse(
+                200, _SUCCESSOR_CHECKSUM, URL(f"{_SUCCESSOR_APK_URL}.sha256")
+            ),
+            f"{_SUCCESSOR_APK_URL}.sha256.sig": _FakeResponse(
+                200,
+                _signature(signing_key, _SUCCESSOR_CHECKSUM),
+                URL(f"{_SUCCESSOR_APK_URL}.sha256.sig"),
+            ),
+        }
+    )
+
+    artifact = await async_resolve_stable_release(session)  # type: ignore[arg-type]
+
+    assert artifact.apk_name == _SUCCESSOR_APK_NAME
+    assert artifact.apk_url == _SUCCESSOR_APK_URL
+    # The other identity's checksum and signature were never even fetched.
+    requested = [url for url, _kwargs in session.requests]
+    assert _CHECKSUM_URL not in requested and _SIGNATURE_URL not in requested
+
+
+async def test_a_release_carrying_one_apk_resolves_exactly_as_before(
+    monkeypatch: pytest.MonkeyPatch, signing_key: rsa.RSAPrivateKey
+) -> None:
+    """A 0.9.7 or rc1 release has no successor asset and is unaffected."""
+    _install_test_key(monkeypatch, signing_key)
+    session = _successful_session(signing_key)
+
+    artifact = await async_resolve_stable_release(session)  # type: ignore[arg-type]
+
+    assert artifact.apk_name == _APK_NAME
+    assert artifact.apk_url == _APK_URL
+
+
+async def test_a_successor_apk_without_its_own_proof_is_not_resolved(
+    monkeypatch: pytest.MonkeyPatch, signing_key: rsa.RSAPrivateKey
+) -> None:
+    """One identity's checksum can never stand in for the other's."""
+    _install_test_key(monkeypatch, signing_key)
+    document = _release_document()
+    document["assets"] = [
+        *document["assets"],
+        {"name": _SUCCESSOR_APK_NAME, "browser_download_url": _SUCCESSOR_APK_URL},
+    ]
+    session = _successful_session(signing_key)
+    session._responses[str(release._LATEST_RELEASE_URL)] = _metadata_response(document)
+
+    # The successor triplet is incomplete, so the complete legacy one resolves.
+    artifact = await async_resolve_stable_release(session)  # type: ignore[arg-type]
+
+    assert artifact.apk_name == _APK_NAME

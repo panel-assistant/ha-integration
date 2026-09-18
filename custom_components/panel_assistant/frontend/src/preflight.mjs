@@ -45,11 +45,11 @@ export function classifyTarget(targetPackageId, installed, residue) {
   if (installed.includes(targetPackageId) || residue.has(targetPackageId)) fail('target_not_clean');
   const counterpart = counterpartOf(targetPackageId);
   const migrationCandidate = targetPackageId === SUCCESSOR_PACKAGE_ID &&
-    counterpart === LEGACY_PACKAGE_ID && installed.includes(counterpart);
+    installed.includes(counterpart);
+  // Anything else present is refused. Once a migration is admitted, the only
+  // package left that can be installed or have left data behind is that
+  // counterpart, so this one check covers both.
   if (!migrationCandidate && (installed.length || residue.size)) fail('target_not_clean');
-  if (migrationCandidate && [...residue].some(packageId => packageId !== counterpart)) {
-    fail('target_not_clean');
-  }
   return migrationCandidate;
 }
 

@@ -1047,3 +1047,23 @@ async def test_backup_maps_panel_refusals(
         await _client(_FakeSession(status=status, body=body)).async_backup_panel()
 
     assert type(raised.value) is error
+
+
+def test_the_health_line_carries_the_application_id_the_panel_runs() -> None:
+    """Both apps are one build, so the reported package is what tells them apart."""
+    base = "ha-paneld 0.9.8 panel=landing build=812 cfg=01234567"
+    for package in ("io.github.maxlyth.hapaneld", "io.panelassistant.android"):
+        assert parse_health_response(f"{base} pkg={package}\n").package == package
+    # A build older than the migration reports none, and is not rejected for it.
+    assert parse_health_response(f"{base}\n").package is None
+    # Checked for shape only: an unfamiliar id must not make the whole line
+    # unreadable, because that would take the panel offline over one token.
+    assert parse_health_response(f"{base} pkg=com.example.other\n").package == (
+        "com.example.other"
+    )
+    for malformed in ("pkg=notapackage", "pkg=.leading", "pkg=com..double"):
+        with pytest.raises(InvalidResponseError):
+            parse_health_response(f"{base} {malformed}\n")
+    # One token, once: a second pkg= is a contradictory line.
+    with pytest.raises(InvalidResponseError):
+        parse_health_response(f"{base} pkg=io.panelassistant.android pkg=a.b\n")

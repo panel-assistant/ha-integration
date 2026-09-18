@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - Installing onto such a panel now waits through that handover, including the moment when the panel's own page is briefly unreachable, and finishes only when the new app answers for itself rather than on the first reply.
 - If the handover has not finished by the time Panel Assistant stops watching, it now says so as a repairable issue that re-checks the panel when you ask it to. The panel carries on by itself either way.
 - The panel's settings backup is now verified before an update replaces the app that produced it, and a receipt recording its size, digest and contents is kept beside it. An unreadable backup stops the update instead of being written and trusted.
+- When an ha-paneld release offers an APK under each application id, Panel Assistant installs the new one. A release with a single APK, which is every release published so far, resolves exactly as it did before.
 - Release lookups follow ha-paneld to its new repository address.
 
 ## 0.4.1 - 2026-09-16

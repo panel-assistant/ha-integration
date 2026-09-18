@@ -2730,3 +2730,38 @@ async def test_the_successor_is_launched_by_its_own_exact_component(
     assert descriptor.launch_component == SUCCESSOR_LAUNCH_COMPONENT
     for _target, _signer, preflighted in harness.preflight_arguments:
         assert preflighted.package_id == SUCCESSOR_PACKAGE_ID
+
+
+async def test_a_reply_without_a_package_is_never_taken_for_the_successor(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The successor always reports its own id, so silence is the other app."""
+    manager = InstallJobManager(hass)
+    receipt = await create_successor_job(manager)
+    harness = Harness(monkeypatch)
+    sleep = AsyncMock()
+    monkeypatch.setattr(install_executor.asyncio, "sleep", sleep)
+    # A healthy panel at the right version naming no package: a build older
+    # than the migration, which cannot be the app just installed.
+    harness.health_packages = [None]
+
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert completed.phase is InstallPhase.RECOVERY_REQUIRED
+    assert completed.result_code is InstallResultCode.VERIFICATION_REQUIRED
+    assert harness.health_calls == install_executor._HANDOVER_HEALTH_ATTEMPTS
+
+
+async def test_a_legacy_install_still_accepts_a_build_that_names_no_package(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every build older than the migration reports none; they still install."""
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    harness = Harness(monkeypatch)
+    harness.health_packages = [None]
+
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
+    assert harness.health_calls == 1

@@ -13,6 +13,9 @@ something that does not exist on the panel:
   ``io.github.maxlyth.hapaneld`` for both builds. Android resolves the
   ``<id>/.Class`` shorthand against the *application id*, so the shorthand is
   correct only for the legacy id; the successor needs the fully qualified class.
+  The accessibility component has the same problem and is defined in the
+  browser installer's own ``app-identity.mjs``, the only side that writes it:
+  nothing here grants permissions.
 * The schema identifier strings, the database compatibility pattern and the
   MQTT identifiers are frozen on the legacy spelling on purpose, because
   released integrations compare them byte for byte. They are not derived from
@@ -47,37 +50,6 @@ LAUNCH_COMPONENTS: Mapping[str, str] = MappingProxyType(
     }
 )
 
-#: The accessibility service, flattened per id, in the spelling the provisioner
-#: writes into ``enabled_accessibility_services``.
-ACCESSIBILITY_COMPONENTS: Mapping[str, str] = MappingProxyType(
-    {
-        LEGACY_PACKAGE_ID: (
-            "io.github.maxlyth.hapaneld/.input.PanelAccessibilityService"
-        ),
-        SUCCESSOR_PACKAGE_ID: (
-            "io.panelassistant.android/"
-            "io.github.maxlyth.hapaneld.input.PanelAccessibilityService"
-        ),
-    }
-)
-
-#: Android accepts either spelling of a component whose class lives in the
-#: application id's own package, and the setting reads back whichever was
-#: written, so both are the same enabled service for the legacy id.
-_EQUIVALENT_ACCESSIBILITY_COMPONENTS: Mapping[str, tuple[str, ...]] = MappingProxyType(
-    {
-        LEGACY_PACKAGE_ID: (
-            "io.github.maxlyth.hapaneld/.input.PanelAccessibilityService",
-            "io.github.maxlyth.hapaneld/"
-            "io.github.maxlyth.hapaneld.input.PanelAccessibilityService",
-        ),
-        SUCCESSOR_PACKAGE_ID: (
-            "io.panelassistant.android/"
-            "io.github.maxlyth.hapaneld.input.PanelAccessibilityService",
-        ),
-    }
-)
-
 
 def is_accepted_package_id(package_id: object) -> bool:
     """Return whether this is one of the two installable panel application ids."""
@@ -87,16 +59,6 @@ def is_accepted_package_id(package_id: object) -> bool:
 def launch_component_for(package_id: str) -> str:
     """Return the exact flattened launcher component for one accepted id."""
     return LAUNCH_COMPONENTS[package_id]
-
-
-def accessibility_component_for(package_id: str) -> str:
-    """Return the exact flattened accessibility component for one accepted id."""
-    return ACCESSIBILITY_COMPONENTS[package_id]
-
-
-def accessibility_components_for(package_id: str) -> tuple[str, ...]:
-    """Return every spelling that names this id's accessibility service."""
-    return _EQUIVALENT_ACCESSIBILITY_COMPONENTS[package_id]
 
 
 def counterpart_of(package_id: str) -> str:
