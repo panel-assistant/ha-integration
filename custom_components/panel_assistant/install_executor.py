@@ -24,7 +24,7 @@ from .adb_credentials import (
     AdbCredentialError,
     async_get_durable_adb_credential,
 )
-from .app_identity import SUCCESSOR_PACKAGE_ID
+from .app_identity import LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID
 from .client import (
     CannotConnectError,
     HaPaneldClient,
@@ -580,10 +580,16 @@ class InstallExecutor:
                         version_name=receipt.artifact.version_name,
                         package_id=receipt.artifact.package_id,
                     ):
-                        # A successor that has not answered yet is a handover
-                        # this integration stopped watching, not a panel that
-                        # has to be touched again. Say so where it can be read.
-                        if receipt.artifact.package_id == SUCCESSOR_PACKAGE_ID:
+                        # Only report a handover actually seen in progress:
+                        # the old app answered for itself throughout the wait.
+                        # A panel that answered nothing at all has failed an
+                        # install, and telling its owner it is part-migrated
+                        # would send them looking for the wrong thing.
+                        if (
+                            receipt.artifact.package_id == SUCCESSOR_PACKAGE_ID
+                            and health is not None
+                            and health.package == LEGACY_PACKAGE_ID
+                        ):
                             async_raise_panel_migration_incomplete(
                                 self._hass,
                                 receipt.job_id,

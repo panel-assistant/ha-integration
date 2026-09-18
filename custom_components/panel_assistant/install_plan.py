@@ -8,11 +8,7 @@ import socket
 from dataclasses import dataclass
 from enum import StrEnum
 
-from .app_identity import (
-    SUCCESSOR_PACKAGE_ID,
-    is_accepted_package_id,
-    launch_component_for,
-)
+from .app_identity import is_accepted_package_id, launch_component_for
 from .client import InvalidAddressError, PanelAddress, normalize_address
 from .install_jobs import (
     InstallArtifact,
@@ -135,9 +131,7 @@ def _valid_dns_name(host: str) -> bool:
 
 
 def _build_target(
-    pinned_target: PinnedPanelTarget,
-    probe: InstallTargetProbe,
-    target_package_id: str,
+    pinned_target: PinnedPanelTarget, probe: InstallTargetProbe
 ) -> InstallTarget:
     if not isinstance(pinned_target, PinnedPanelTarget):
         raise InstallPlanError(InstallPlanErrorCode.INVALID_TARGET)
@@ -164,13 +158,15 @@ def _build_target(
 
     if not isinstance(probe, InstallTargetProbe):
         raise InstallPlanError(InstallPlanErrorCode.INCOMPLETE_PROBE)
-    if probe.state is not InstallTargetState.INSTALL_CANDIDATE and not (
-        # A panel already running the legacy package admits the successor and
-        # nothing else: the successor installs beside it and the panel hands
-        # over. Any other release on that panel would be a replacement.
-        probe.state is InstallTargetState.MIGRATION_CANDIDATE
-        and target_package_id == SUCCESSOR_PACKAGE_ID
-    ):
+    # Only a clean target. A panel still running the old app reaches this
+    # builder solely through the config flow's add-panel route, which probes
+    # only after health has already failed, so a migration candidate here is an
+    # old app that is installed and silent. The successor pulls its state from
+    # the old app over localhost before taking over, so a silent old app has
+    # nothing to hand over and installing beside it would strand the panel
+    # part-migrated. The browser installer, which reaches a healthy panel over
+    # USB, is where a migration is admitted; its own preflight decides that.
+    if probe.state is not InstallTargetState.INSTALL_CANDIDATE:
         raise InstallPlanError(InstallPlanErrorCode.PROBE_NOT_INSTALL_CANDIDATE)
 
     model = _safe_text(probe.model, _MAX_MODEL_LENGTH)
@@ -291,8 +287,11 @@ def build_install_plan(
     expected_rc_tag: str | None = None,
 ) -> InstallPlan:
     """Validate and bind one exact target, release, and ADB key generation."""
+    # Target first, as before: the package id no longer has to be known to
+    # validate the target, so an input bad in both ways reports the target
+    # error a consumer branching on the code already expects.
+    target = _build_target(pinned_target, probe)
     artifact = _build_artifact(release, expected_rc_tag)
-    target = _build_target(pinned_target, probe, artifact.package_id)
     if (
         not isinstance(adb_credential_id, str)
         or _SHA256.fullmatch(adb_credential_id) is None

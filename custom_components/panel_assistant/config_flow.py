@@ -585,6 +585,13 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         else:
             errors["base"] = {
                 "installed": "installed_without_health",
+                # This branch is only reached because health failed, so a panel
+                # still running the old app is an installed panel that is not
+                # answering — the same diagnostic, and the same fix. It is not
+                # a migration opportunity: the successor pulls its state from
+                # the old app over localhost, so an old app that cannot answer
+                # has nothing to hand over.
+                "migration_candidate": "installed_without_health",
                 "retained_or_ambiguous": "retained_or_ambiguous",
                 "incompatible": "incompatible",
             }.get(state, "unknown")
@@ -733,6 +740,9 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 "base": {
                     "adb_unreachable": "adb_unreachable",
                     "installed": "installed_without_health",
+                    # As above: reached only after health failed, so the old app
+                    # is installed and silent rather than ready to hand over.
+                    "migration_candidate": "installed_without_health",
                     "retained_or_ambiguous": "retained_or_ambiguous",
                     "incompatible": "incompatible",
                 }.get(state, "unknown")

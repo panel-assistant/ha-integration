@@ -12,6 +12,7 @@ from typing import Any
 
 import pytest
 
+from custom_components.panel_assistant import app_identity
 from custom_components.panel_assistant.client import parse_health_response
 
 ROOT = Path(__file__).parents[1]
@@ -548,3 +549,53 @@ def test_outward_links_are_redirects_stamped_with_this_version() -> None:
     assert "model=TPA10" in help_url("panel-unreachable", model="TPA10")
     source = (INTEGRATION / "const.py").read_text(encoding="utf-8")
     assert source.count("panel-assistant.io") == 1, "one place names the site"
+
+
+def test_the_two_identity_modules_state_exactly_the_same_values() -> None:
+    """Python and JavaScript each hold their own copy of the identity contract.
+
+    They cannot import from one another, and every value in them is a literal
+    on purpose: a component here is what a panel is actually sent, and Android
+    resolves `<id>/.Class` against the application id while the classes stay in
+    the namespace, so neither side may derive one. Literals in two files drift
+    silently, and a drifted successor component names a class that does not
+    exist on the panel.
+
+    The two are compared by value, not by substring: `.MainActivity2` contains
+    `.MainActivity`, so a membership test reads a drifted component as present.
+    The JavaScript module is evaluated rather than parsed, so this sees what
+    the installer will actually send.
+    """
+    module = (INTEGRATION / "frontend" / "src" / "app-identity.mjs").resolve()
+    script = (
+        f"import * as m from {json.dumps(module.as_uri())};"
+        "console.log(JSON.stringify({"
+        "accepted: m.ACCEPTED_PACKAGE_IDS,"
+        "legacy: m.LEGACY_PACKAGE_ID,"
+        "successor: m.SUCCESSOR_PACKAGE_ID,"
+        "launch: Object.fromEntries("
+        "m.ACCEPTED_PACKAGE_IDS.map(id => [id, m.launchComponentFor(id)]))"
+        "}));"
+    )
+    javascript = json.loads(
+        subprocess.run(
+            ["node", "--input-type=module", "-e", script],
+            capture_output=True,
+            check=True,
+            text=True,
+        ).stdout
+    )
+
+    # The order is load-bearing: it fixes the PACKAGE{i}/RETAINED{i}/RESIDUE{i}
+    # frame indices that both sides build and parse.
+    assert javascript["accepted"] == list(app_identity.ACCEPTED_PACKAGE_IDS)
+    assert javascript["legacy"] == app_identity.LEGACY_PACKAGE_ID
+    assert javascript["successor"] == app_identity.SUCCESSOR_PACKAGE_ID
+    assert javascript["launch"] == dict(app_identity.LAUNCH_COMPONENTS)
+
+    # And the successor never carries the shorthand, in either copy.
+    for package_id, component in javascript["launch"].items():
+        assert component.startswith(f"{package_id}/")
+        assert component.startswith(f"{package_id}/.") == (
+            package_id == app_identity.LEGACY_PACKAGE_ID
+        )

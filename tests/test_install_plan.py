@@ -454,32 +454,35 @@ def successor_release() -> ReleaseArtifact:
     )
 
 
-def test_a_migrating_panel_admits_the_successor_and_no_other_release() -> None:
-    """The successor installs beside the old app; the old app is not replaced."""
-    migrating = probe(state=InstallTargetState.MIGRATION_CANDIDATE)
+def test_only_a_clean_target_is_ever_planned() -> None:
+    """A panel running the old app is not planned onto, in either identity.
 
-    plan = build_install_plan(
-        pinned_target(), migrating, successor_release(), CREDENTIAL_ID
-    )
-
-    assert plan.artifact.package_id == "io.panelassistant.android"
-    assert plan.artifact.launch_component == (
-        "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity"
-    )
-    # The same panel, offered the release that keeps the old id: refused.
-    with pytest.raises(InstallPlanError) as caught:
-        build_install_plan(pinned_target(), migrating, release(), CREDENTIAL_ID)
-    assert caught.value.args[0] == InstallPlanErrorCode.PROBE_NOT_INSTALL_CANDIDATE
-    # An already installed panel still admits neither.
-    for candidate in (release(), successor_release()):
-        with pytest.raises(InstallPlanError):
-            build_install_plan(
-                pinned_target(),
-                probe(state=InstallTargetState.INSTALLED),
-                candidate,
-                CREDENTIAL_ID,
+    This builder is reached only from the config flow's add-panel route, which
+    probes after health has already failed. A migration candidate there is an
+    old app that is installed and silent, and the successor pulls its state
+    from the old app over localhost before taking over, so installing beside a
+    silent one would strand the panel part-migrated. The browser installer,
+    which reaches a healthy panel over USB, decides that in its own preflight.
+    """
+    for state in InstallTargetState:
+        if state is InstallTargetState.INSTALL_CANDIDATE:
+            continue
+        for candidate in (release(), successor_release()):
+            with pytest.raises(InstallPlanError) as caught:
+                build_install_plan(
+                    pinned_target(), probe(state=state), candidate, CREDENTIAL_ID
+                )
+            assert caught.value.args[0] == (
+                InstallPlanErrorCode.PROBE_NOT_INSTALL_CANDIDATE
             )
-    # A clean panel still admits either, and each plans as its own package.
+
+    # A clean panel admits either identity, and each plans as its own package.
     for candidate in (release(), successor_release()):
         built = build_install_plan(pinned_target(), probe(), candidate, CREDENTIAL_ID)
         assert built.artifact.package_id == candidate.descriptor.package_id
+    successor_plan = build_install_plan(
+        pinned_target(), probe(), successor_release(), CREDENTIAL_ID
+    )
+    assert successor_plan.artifact.launch_component == (
+        "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity"
+    )

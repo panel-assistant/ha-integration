@@ -1192,6 +1192,9 @@ async def test_install_candidate_without_identity_fails_closed(
     [
         ("adb_unreachable", "adb_unreachable"),
         ("installed", "installed_without_health"),
+        # A panel still running the old app is reached here only because health
+        # failed, so it is installed and silent, not ready to hand over.
+        ("migration_candidate", "installed_without_health"),
         ("retained_or_ambiguous", "retained_or_ambiguous"),
         ("incompatible", "incompatible"),
     ],
@@ -3342,3 +3345,132 @@ async def test_flow_removal_releases_lease_and_only_cancels_local_waiter(
     assert not worker.cancelled()
     worker_gate.set()
     await worker
+
+
+async def test_no_target_state_can_fall_through_to_a_generic_refusal(
+    hass: HomeAssistant,
+) -> None:
+    """Every state the probe can return says something specific and true.
+
+    The maps read the state as a bare string, so adding a member to
+    `InstallTargetState` cannot fail to compile and cannot be caught by
+    dropping a default the way an unthreaded package id was. This is that
+    check: it enumerates the enum itself, so a state added later without a
+    message shows up here instead of as `unknown` in front of a person.
+    """
+    for state in InstallTargetState:
+        with (
+            patch(
+                "custom_components.panel_assistant.config_flow"
+                ".HaPaneldClient.async_get_health",
+                AsyncMock(side_effect=CannotConnectError),
+            ),
+            patch(
+                "custom_components.panel_assistant.config_flow"
+                ".async_probe_install_target",
+                AsyncMock(return_value=_probe(state.value)),
+            ),
+            patch(
+                "custom_components.panel_assistant.release_catalog"
+                ".async_resolve_stable_release",
+                AsyncMock(return_value=RELEASE),
+            ),
+        ):
+            form = await _start_step(hass, "add_panel")
+            result = await hass.config_entries.flow.async_configure(
+                form["flow_id"], {CONF_ADDRESS: "panel.local"}
+            )
+
+        if result["type"] is FlowResultType.FORM and result.get("errors"):
+            assert result["errors"] != {"base": "unknown"}, state.value
+
+
+async def test_an_old_app_panel_is_never_offered_a_second_app_by_the_config_flow(
+    hass: HomeAssistant,
+) -> None:
+    """Installing beside a silent old app would strand the panel part-migrated.
+
+    The successor pulls its state from the old app over localhost before taking
+    over. This route probes only after health has already failed, so the old
+    app cannot answer and has nothing to hand over.
+    """
+    release_mock = AsyncMock(return_value=RELEASE)
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow"
+            ".HaPaneldClient.async_get_health",
+            AsyncMock(side_effect=CannotConnectError),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_probe_install_target",
+            AsyncMock(return_value=_probe("migration_candidate")),
+        ),
+        patch(
+            "custom_components.panel_assistant.release_catalog"
+            ".async_resolve_stable_release",
+            release_mock,
+        ),
+    ):
+        form = await _start_step(hass, "add_panel")
+        result = await hass.config_entries.flow.async_configure(
+            form["flow_id"], {CONF_ADDRESS: "panel.local"}
+        )
+
+    assert result["errors"] == {"base": "installed_without_health"}
+    # No version was even looked up: nothing about this panel is installable.
+    release_mock.assert_not_awaited()
+    assert not hass.config_entries.async_entries(DOMAIN)
+
+
+async def test_the_authorization_retry_also_names_every_state_it_can_see(
+    hass: HomeAssistant,
+) -> None:
+    """The second state map is a separate copy, so it needs its own proof.
+
+    Reaching it means the first probe said the key was not trusted and the
+    retry, now holding Home Assistant's key, saw something else. That map reads
+    the state as a bare string too, so the same omission is possible there and
+    invisible in the same way.
+    """
+    for state in InstallTargetState:
+        if state is InstallTargetState.INSTALL_CANDIDATE:
+            continue
+        probe_mock = AsyncMock(
+            side_effect=[_probe("adb_unauthorized"), _probe(state.value)]
+        )
+        with (
+            patch(
+                "custom_components.panel_assistant.config_flow"
+                ".HaPaneldClient.async_get_health",
+                AsyncMock(side_effect=CannotConnectError),
+            ),
+            patch(
+                "custom_components.panel_assistant.config_flow.async_get_adb_signer",
+                AsyncMock(return_value=object()),
+            ),
+            patch(
+                "custom_components.panel_assistant.config_flow"
+                ".async_probe_install_target",
+                probe_mock,
+            ),
+            patch(
+                "custom_components.panel_assistant.release_catalog"
+                ".async_resolve_stable_release",
+                AsyncMock(return_value=RELEASE),
+            ),
+        ):
+            form = await _start_step(hass, "add_panel")
+            authorize = await _choose_version(
+                hass,
+                await hass.config_entries.flow.async_configure(
+                    form["flow_id"], {CONF_ADDRESS: "panel.local"}
+                ),
+            )
+            result = await hass.config_entries.flow.async_configure(
+                authorize["flow_id"], {}
+            )
+
+        assert result["step_id"] == "authorize_adb", state.value
+        assert result["errors"] != {"base": "unknown"}, state.value
+        if state is InstallTargetState.MIGRATION_CANDIDATE:
+            assert result["errors"] == {"base": "installed_without_health"}

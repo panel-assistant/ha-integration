@@ -2765,3 +2765,30 @@ async def test_a_legacy_install_still_accepts_a_build_that_names_no_package(
 
     assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
     assert harness.health_calls == 1
+
+
+async def test_a_panel_that_answered_nothing_is_not_told_it_is_part_migrated(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A handover is reported only when one was actually seen in progress.
+
+    A panel that fell off the network answers nothing at all. Telling its owner
+    it has not finished moving to its new app sends them looking for a handover
+    that never started.
+    """
+    manager = InstallJobManager(hass)
+    receipt = await create_successor_job(manager)
+    harness = Harness(monkeypatch)
+    harness.health_error = CannotConnectError()
+    monkeypatch.setattr(install_executor.asyncio, "sleep", AsyncMock())
+
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert completed.phase is InstallPhase.RECOVERY_REQUIRED
+    assert completed.result_code is InstallResultCode.VERIFICATION_REQUIRED
+    assert (
+        ir.async_get(hass).async_get_issue(
+            DOMAIN, f"panel_migration_incomplete_{receipt.job_id}"
+        )
+        is None
+    )
