@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import CONF_ADDRESS, STATE_UNAVAILABLE
+from homeassistant.const import CONF_ADDRESS, STATE_ON, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
@@ -498,6 +498,51 @@ async def test_availability_follows_the_session_and_the_description(
     await hass.async_block_till_done()
     touch = _native_entries(hass, native.entry_id)[f"{DID}_touch_sound"].entity_id
     assert hass.states.get(touch).state == STATE_UNAVAILABLE
+
+
+async def test_a_withheld_companion_update_is_never_a_pending_update(
+    hass: HomeAssistant,
+    native: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """A panel with no Companion app reports the channel unavailable, and the
+    native entity then renders unavailable rather than a pending update.
+
+    This is the native half of the phantom the panel side withholds: an entity
+    in ``on`` would list under Settings, Updates, count on the badge and be
+    swept up by "Update all" on a panel that deliberately has no Companion app.
+    The panel decides; the integration only renders what it is told, so this
+    holds with no integration code of its own.
+    """
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    token = await _session(client)
+    await _sync(hass, client, token)
+    companion = _native_entries(hass, native.entry_id)[
+        f"{DID}_ha_companion_update"
+    ].entity_id
+
+    delta = await _send(
+        client,
+        _report(
+            token, "delta", [{"channel": "update_companion", "state": "unavailable"}]
+        ),
+    )
+    assert delta["success"]
+    await hass.async_block_till_done()
+
+    withheld = hass.states.get(companion)
+    assert withheld.state == STATE_UNAVAILABLE
+    assert withheld.state != STATE_ON
+    assert withheld.attributes.get("installed_version") is None
+    assert withheld.attributes.get("latest_version") is None
+    # The panel's own update entity is untouched by the Companion's absence.
+    assert (
+        hass.states.get(
+            _native_entries(hass, native.entry_id)[f"{DID}_touch_sound"].entity_id
+        ).state
+        == "on"
+    )
 
 
 async def test_unknown_descriptors_are_accepted_and_render_nothing(
