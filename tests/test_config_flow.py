@@ -28,6 +28,7 @@ from custom_components.panel_assistant.client import (
     InvalidResponseError,
     PanelAddress,
     PanelHealth,
+    PanelSetupState,
 )
 from custom_components.panel_assistant.config_flow import (
     HaPaneldConfigFlow,
@@ -3474,3 +3475,84 @@ async def test_the_authorization_retry_also_names_every_state_it_can_see(
         assert result["errors"] != {"base": "unknown"}, state.value
         if state is InstallTargetState.MIGRATION_CANDIDATE:
             assert result["errors"] == {"base": "installed_without_health"}
+
+
+async def test_adopting_a_panel_mid_setup_tells_it_where_home_assistant_is(
+    hass: HomeAssistant,
+) -> None:
+    """The adoption site's positive path.
+
+    "Install or adoption" means a panel discovered mid-setup is handed the
+    address too, not just one this integration installed. The shared conftest
+    stub reports setup finished, so this test overrides it — otherwise it would
+    assert against a panel with nothing left to ask.
+    """
+    await hass.config.async_update(internal_url="http://192.0.2.5:8123")
+    hand_over = AsyncMock()
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=DISCOVERY_HEALTH),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_status",
+            AsyncMock(side_effect=CannotConnectError),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_setup_state",
+            AsyncMock(
+                return_value=PanelSetupState(complete=False, accepts_handover=True)
+            ),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_hand_over_ha_url",
+            hand_over,
+        ),
+    ):
+        form = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=_zeroconf_info(),
+        )
+        assert form["step_id"] == "confirm_discovery"
+        result = await hass.config_entries.flow.async_configure(form["flow_id"], {})
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    hand_over.assert_awaited_once_with("http://192.0.2.5:8123")
+
+
+async def test_adopting_an_older_panel_sends_it_no_key_it_would_refuse(
+    hass: HomeAssistant,
+) -> None:
+    """The version gate at the adoption site."""
+    await hass.config.async_update(internal_url="http://192.0.2.5:8123")
+    hand_over = AsyncMock()
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=DISCOVERY_HEALTH),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_status",
+            AsyncMock(side_effect=CannotConnectError),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_setup_state",
+            AsyncMock(
+                return_value=PanelSetupState(complete=False, accepts_handover=False)
+            ),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_hand_over_ha_url",
+            hand_over,
+        ),
+    ):
+        form = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=_zeroconf_info(),
+        )
+        result = await hass.config_entries.flow.async_configure(form["flow_id"], {})
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    hand_over.assert_not_awaited()

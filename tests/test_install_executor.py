@@ -2816,3 +2816,48 @@ async def test_a_panel_that_answered_nothing_is_not_told_it_is_part_migrated(
         )
         is None
     )
+
+
+async def test_a_freshly_installed_panel_is_told_where_home_assistant_is(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The install site's positive path.
+
+    Every other test here runs with the panel reporting setup finished, so they
+    prove only that nothing is handed over. This one proves the wiring: an
+    install that reaches a healthy panel mid-setup hands it the address.
+    """
+    await hass.config.async_update(internal_url="http://192.0.2.5:8123")
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    harness = Harness(monkeypatch)
+    harness.setup_state = PanelSetupState(complete=False, accepts_handover=True)
+
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
+    assert harness.handed_over_urls == ["http://192.0.2.5:8123"]
+    # Asked before told, over the one client the health check already opened.
+    assert harness.events.count("setup_state") == 1
+    assert harness.events.count("health_client") == 1
+
+
+async def test_an_older_panel_is_not_sent_a_key_it_would_refuse(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The version gate at the install site.
+
+    A panel that does not advertise handover support would refuse the unknown
+    key, and its config admission is atomic, so the whole request would be
+    rejected rather than the one field ignored.
+    """
+    await hass.config.async_update(internal_url="http://192.0.2.5:8123")
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    harness = Harness(monkeypatch)
+    harness.setup_state = PanelSetupState(complete=False, accepts_handover=False)
+
+    await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert harness.handed_over_urls == []
+    assert harness.events.count("setup_state") == 1
