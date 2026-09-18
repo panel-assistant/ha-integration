@@ -14,7 +14,7 @@ INTEGRATION_VERSION: str = json.loads(
 # The public version (manifest.json) only changes when something ships. This
 # build number tells builds apart in between: it counts the commits that have
 # changed this integration.
-INTEGRATION_BUILD = 88
+INTEGRATION_BUILD = 89
 
 # Every outward link goes through the site's own redirect rather than a page
 # path, so pages can move. The version and build travel with it, so a later
@@ -67,6 +67,10 @@ APK_DISCARD_PATH = "/api/v1/install/apk/discard"
 BACKUP_PATH = "/api/v1/backup"
 DIAG_PATH = "/api/v1/diag"
 SETUP_PATH = "/api/v1/setup"
+# The panel's own settings endpoint. This integration writes exactly one thing to
+# it: the Home Assistant address a newly installed or adopted panel should use,
+# for the panel to verify from its own network before accepting.
+CONFIG_PATH = "/api/v1/config"
 
 # The Home Assistant user a panel's native transport session is bound to. Only an
 # administrator's Repairs confirmation records it; the entry's identity does not

@@ -16,6 +16,7 @@ from .const import (
     APK_DISCARD_PATH,
     APK_STAGE_PATH,
     BACKUP_PATH,
+    CONFIG_PATH,
     DEFAULT_PORT,
     DEFAULT_TIMEOUT_SECONDS,
     DIAG_PATH,
@@ -355,6 +356,30 @@ def parse_update_start_response(body: bytes) -> None:
     raise UpdateRejectedError
 
 
+@dataclass(frozen=True, slots=True)
+class PanelSetupState:
+    """What the panel says about its own setup, including the handed-over URL.
+
+    ``accepts_handover`` is the version gate. A panel too old to understand a
+    handed-over Home Assistant URL simply does not advertise one, and its config
+    admission would refuse the unknown key and drop the whole request with it.
+
+    ``handover_url`` and ``handover_reason`` are set only while an address was
+    handed over and did not answer from the panel's network, which is the state
+    the panel's wizard renders as a correction rather than a blank question.
+    """
+
+    complete: bool
+    accepts_handover: bool = False
+    handover_url: str | None = None
+    handover_reason: str | None = None
+
+
+def _optional_string(value: Any) -> str | None:
+    """A non-empty string from an untrusted document, or None."""
+    return value if isinstance(value, str) and value else None
+
+
 def parse_update_approval_response(body: bytes) -> NoReturn:
     """Recognize the one non-success response that requires a physical retry."""
     if _load_json_object(body).get("error") == "approval-required":
@@ -364,6 +389,9 @@ def parse_update_approval_response(body: bytes) -> NoReturn:
 
 _MAX_DIAG_BYTES = 256 * 1024
 _MAX_SETUP_BYTES = 64 * 1024
+# The panel verifies the address it is handed before answering, with its own
+# bounded probe, so this waits out that probe rather than the default request.
+_HANDOVER_TIMEOUT_SECONDS = 20.0
 _MAX_BACKUP_BYTES = 64 * 1024 * 1024
 _BACKUP_TIMEOUT_SECONDS = 120.0
 # The panel allows 600 s to receive an upload; stop just after it gives up.
@@ -572,13 +600,49 @@ class HaPaneldClient:
 
     async def async_get_setup_complete(self) -> bool:
         """Whether the panel's own setup wizard reports itself finished."""
+        return (await self.async_get_setup_state()).complete
+
+    async def async_get_setup_state(self) -> PanelSetupState:
+        """Read the panel's setup state, including whether it accepts a handover."""
         body = await self._async_get_bounded(
             self.address.base_url.with_path(SETUP_PATH), _MAX_SETUP_BYTES
         )
-        complete = _load_json_object(body).get("complete")
+        document = _load_json_object(body)
+        complete = document.get("complete")
         if not isinstance(complete, bool):
             raise InvalidResponseError
-        return complete
+        # A panel older than the release that accepts a handover has no `handover`
+        # object at all, and that absence IS the version gate: its config admission
+        # refuses an unknown key, atomically, so posting the handover to it would
+        # not merely fail to hand over — it would reject the whole request. Absence
+        # therefore reads as "not supported" rather than as a malformed response.
+        handover = document.get("handover")
+        if not isinstance(handover, dict):
+            return PanelSetupState(complete=complete, accepts_handover=False)
+        return PanelSetupState(
+            complete=complete,
+            accepts_handover=handover.get("supported") is True,
+            handover_url=_optional_string(handover.get("url")),
+            handover_reason=_optional_string(handover.get("reason")),
+        )
+
+    async def async_hand_over_ha_url(self, ha_url: str) -> None:
+        """Tell the panel where Home Assistant is, for it to verify and accept.
+
+        The panel decides whether the address answers from its own network; this
+        only delivers it. A refusal to accept the address is not reported here,
+        because it is not a delivery failure: the panel stores what it was given
+        either way and reports the verdict on its setup state.
+        """
+        status, _ = await self._async_post_bounded(
+            self.address.base_url.with_path(CONFIG_PATH),
+            {"ha_setup_handover": "true", "ha_url_handover": ha_url},
+            _MAX_SETUP_BYTES,
+            _HANDOVER_TIMEOUT_SECONDS,
+        )
+        if status == 200 or status == 202:
+            return
+        raise CannotConnectError
 
     @property
     def setup_url(self) -> str:

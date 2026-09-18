@@ -34,6 +34,7 @@ from .client import (
 )
 from .const import ANDROID_RELEASE_DOWNLOAD_ROOT, DOMAIN
 from .feed_coordinator import async_get_feed_coordinator
+from .ha_url import async_offer_ha_url
 from .install_adb import (
     AdbInstallTarget,
     AdbPreflight,
@@ -574,7 +575,13 @@ class InstallExecutor:
                         receipt, execution, staged
                     )
                 elif phase is InstallPhase.HEALTH_CHECK:
-                    health = await self._async_health(execution)
+                    # One client for the whole health phase: the same panel is
+                    # asked whether it is up and then, if it is, told where Home
+                    # Assistant is.
+                    panel = HaPaneldClient(
+                        async_get_clientsession(self._hass), execution.pinned.pinned
+                    )
+                    health = await self._async_health(execution, panel)
                     if health is None or not _health_is_installed_app(
                         health,
                         version_name=receipt.artifact.version_name,
@@ -603,6 +610,14 @@ class InstallExecutor:
                         async_delete_panel_migration_incomplete(
                             self._hass, receipt.job_id
                         )
+                        # The panel Home Assistant just installed is up and
+                        # answering, and its setup wizard has not been touched.
+                        # This is the earliest honest moment to tell it where
+                        # Home Assistant is, so its owner is never asked for an
+                        # address the installer already knew. Best-effort: an
+                        # install that worked must not be failed by a
+                        # convenience that did not.
+                        await async_offer_ha_url(self._hass, panel)
                         receipt = await self._async_transition(
                             receipt,
                             InstallPhase.HEALTHY_UNCLAIMED,
@@ -837,10 +852,9 @@ class InstallExecutor:
         # this currently exhaustive enum contract.
         return await self._async_recovery(receipt)  # type: ignore[unreachable]
 
-    async def _async_health(self, execution: _FrozenExecution) -> PanelHealth | None:
-        client = HaPaneldClient(
-            async_get_clientsession(self._hass), execution.pinned.pinned
-        )
+    async def _async_health(
+        self, execution: _FrozenExecution, client: HaPaneldClient
+    ) -> PanelHealth | None:
         artifact = execution.descriptor
         # Only a successor install can meet a handover, and only then does an
         # answer from another app mean "not yet" rather than "the wrong app". A

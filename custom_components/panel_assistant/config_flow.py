@@ -49,6 +49,7 @@ from .client import (
     normalize_address,
 )
 from .const import CONF_AUTHORITY, DEFAULT_PORT, DOMAIN, help_url
+from .ha_url import async_offer_ha_url
 from .install_adb import (
     AdbInstallTarget,
     AdbRootMode,
@@ -241,6 +242,15 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 return self._show_discovery_confirmation({"base": "unknown"})
             if health.discovery_id != self._pending_discovery_id:
                 return self.async_abort(reason="invalid_discovery")
+            # Adoption counts as Home Assistant starting this panel just as much
+            # as installing it does, so a panel adopted mid-setup is handed the
+            # address too rather than being asked for one Home Assistant knows.
+            await async_offer_ha_url(
+                self.hass,
+                HaPaneldClient(
+                    async_get_clientsession(self.hass), self._pending_address
+                ),
+            )
             return self._async_create_panel_entry(self._pending_address, health)
 
         return self._show_discovery_confirmation()
@@ -439,6 +449,11 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="unknown")
         if user_input is not None:
             return self.async_external_step_done(next_step_id="connect_found")
+        # Before the browser goes to the wizard, tell the panel where Home
+        # Assistant is, so the wizard has one less question to ask by the time it
+        # renders. The panel verifies the address itself and shows the step as a
+        # correction if it does not answer.
+        await async_offer_ha_url(self.hass, self._found_client())
         if self._setup_watch is None or self._setup_watch.done():
             self._setup_watch = self.hass.async_create_background_task(
                 self._async_watch_setup(),

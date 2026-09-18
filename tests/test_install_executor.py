@@ -26,6 +26,7 @@ from custom_components.panel_assistant.client import (
     CannotConnectError,
     PanelAddress,
     PanelHealth,
+    PanelSetupState,
 )
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.install_adb import (
@@ -312,6 +313,12 @@ class Harness:
         # Scripted `pkg=` answers, consumed in order; the last one repeats. A
         # string is that reply's reported package, an exception is raised.
         self.health_packages: list[Exception | str | None] = []
+        # What the installed panel says about its own setup at the end of the
+        # install, and every Home Assistant address it was then handed. Setup
+        # reads as finished by default, so no handover happens unless a test
+        # asks for one.
+        self.setup_state = PanelSetupState(complete=True)
+        self.handed_over_urls: list[str] = []
         self.stage_entered: asyncio.Event | None = None
         self.stage_release: asyncio.Event | None = None
         self.stage_callback: Any = None
@@ -392,6 +399,19 @@ class Harness:
                     config_hash="01234567",
                     package=package,
                 )
+
+            async def async_get_setup_state(self) -> PanelSetupState:
+                """Report setup finished, so no URL handover happens by default.
+
+                A panel that reaches the end of an install is offered Home
+                Assistant's address; the handover's own tests choose what this
+                answers, and every other test here is about the install itself.
+                """
+                harness.events.append("setup_state")
+                return harness.setup_state
+
+            async def async_hand_over_ha_url(self, ha_url: str) -> None:
+                harness.handed_over_urls.append(ha_url)
 
         self.monkeypatch.setattr(install_executor, "HaPaneldClient", FakeClient)
 
@@ -723,6 +743,10 @@ async def test_happy_path_stops_unclaimed_and_binds_every_operation(
         "health_client",
         "pin",
         "health",
+        # Proven healthy, the install asks the panel about its setup so it can
+        # hand over Home Assistant's address, over the same client. This harness
+        # reports setup finished, so it asks and then says nothing further.
+        "setup_state",
     ]
     assert harness.pin_arguments == [expected_pinned] * 7
     assert all(pin.original.host == "panel-one.local" for pin in harness.pin_arguments)

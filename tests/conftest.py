@@ -6,7 +6,11 @@ from unittest.mock import AsyncMock
 import pytest
 
 from custom_components.panel_assistant import config_flow
-from custom_components.panel_assistant.client import HaPaneldClient, PanelInstallStatus
+from custom_components.panel_assistant.client import (
+    HaPaneldClient,
+    PanelInstallStatus,
+    PanelSetupState,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -22,7 +26,9 @@ def _stub_panel_update_operation_in_lifecycle_tests(
     monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
 ) -> Generator[None]:
     """Keep lifecycle tests on their declared local panel fixtures."""
-    if request.path.name != "test_client.py":
+    # Both of these exercise the real client contract rather than a flow that
+    # merely needs a panel to answer, so stubbing it out would test the stub.
+    if request.path.name not in {"test_client.py", "test_ha_url.py"}:
         monkeypatch.setattr(
             HaPaneldClient,
             "async_get_panel_install_status",
@@ -31,6 +37,15 @@ def _stub_panel_update_operation_in_lifecycle_tests(
         # A found panel reports its setup as done unless a test says otherwise.
         monkeypatch.setattr(
             HaPaneldClient, "async_get_setup_complete", AsyncMock(return_value=True)
+        )
+        # The same default in the richer form the handover path reads: setup done,
+        # so nothing is handed over. Stubbed for the same reason as its sibling —
+        # otherwise every install and adoption test would open a real socket to
+        # ask a panel that is not there. The handover's own tests override it.
+        monkeypatch.setattr(
+            HaPaneldClient,
+            "async_get_setup_state",
+            AsyncMock(return_value=PanelSetupState(complete=True)),
         )
         # Reachability is answered locally; only its own tests open that path.
         monkeypatch.setattr(
