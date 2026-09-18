@@ -11,6 +11,7 @@ from homeassistant.const import CONF_ADDRESS
 from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
+from custom_components.panel_assistant.client import PanelSetupState
 from custom_components.panel_assistant.config_flow import HaPaneldConfigFlow
 from custom_components.panel_assistant.release import ReleaseResolutionError
 
@@ -392,3 +393,82 @@ async def test_an_unreachable_debug_bridge_says_which_case_it_is(
         result = await flow.async_step_add_panel({CONF_ADDRESS: "panel.local"})
     assert result["step_id"] == "add_panel"
     assert result["errors"] == {"base": expected}
+
+
+async def test_opening_the_wizard_tells_the_panel_where_home_assistant_is(hass):
+    """The third call site's positive path.
+
+    This is the site the live panel acceptance drove, and the only one that had
+    no unit coverage; the two that had unit coverage had no live proof. The
+    handover must land before the browser is sent to the wizard, or the wizard
+    renders the question this feature exists to remove.
+    """
+    await hass.config.async_update(internal_url="http://192.0.2.5:8123")
+    hand_over = AsyncMock()
+    with (
+        patch(
+            f"{_FLOW}.HaPaneldClient.async_get_health", AsyncMock(return_value=HEALTH)
+        ),
+        patch(
+            f"{_FLOW}.HaPaneldClient.async_get_setup_complete",
+            AsyncMock(return_value=False),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_setup_state",
+            AsyncMock(
+                return_value=PanelSetupState(complete=False, accepts_handover=True)
+            ),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_hand_over_ha_url",
+            hand_over,
+        ),
+        patch(f"{_FLOW}._SETUP_POLL_SECONDS", 0),
+    ):
+        form = await _start_step(hass, "add_panel")
+        await hass.config_entries.flow.async_configure(
+            form["flow_id"], {CONF_ADDRESS: "panel.local:8889"}
+        )
+        opened = await hass.config_entries.flow.async_configure(
+            form["flow_id"], {"next_step_id": "panel_setup"}
+        )
+        assert opened["type"] is FlowResultType.EXTERNAL_STEP
+
+    hand_over.assert_awaited_once_with("http://192.0.2.5:8123")
+
+
+async def test_opening_the_wizard_on_an_older_panel_sends_it_no_key_it_would_refuse(
+    hass,
+):
+    """The version gate at the third call site."""
+    await hass.config.async_update(internal_url="http://192.0.2.5:8123")
+    hand_over = AsyncMock()
+    with (
+        patch(
+            f"{_FLOW}.HaPaneldClient.async_get_health", AsyncMock(return_value=HEALTH)
+        ),
+        patch(
+            f"{_FLOW}.HaPaneldClient.async_get_setup_complete",
+            AsyncMock(return_value=False),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_setup_state",
+            AsyncMock(
+                return_value=PanelSetupState(complete=False, accepts_handover=False)
+            ),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_hand_over_ha_url",
+            hand_over,
+        ),
+        patch(f"{_FLOW}._SETUP_POLL_SECONDS", 0),
+    ):
+        form = await _start_step(hass, "add_panel")
+        await hass.config_entries.flow.async_configure(
+            form["flow_id"], {CONF_ADDRESS: "panel.local:8889"}
+        )
+        await hass.config_entries.flow.async_configure(
+            form["flow_id"], {"next_step_id": "panel_setup"}
+        )
+
+    hand_over.assert_not_awaited()

@@ -8,15 +8,28 @@ to hand over.
 The choice is deliberately narrow, because the panel is on the other side of the
 network from the party making it:
 
-* **Internal before external.** A panel is a device on the home network. The
-  internal URL is the one most likely to work from it, and it keeps panel
-  traffic off the internet even where an external URL exists.
-* **Never the cloud URL.** ``allow_cloud=False``. A Nabu Casa address routes a
-  wall panel's dashboard through a remote relay to reach a server in the same
-  building, and it stops working the moment the subscription does.
+* **Internal only.** A panel is a device on the home network, so a local
+  address is the only kind worth handing it.
+* **Never the external URL.** ``allow_external=False``, and this is load
+  bearing rather than tidy. Core's ``_get_internal_url`` refuses to synthesize
+  an address from the detected local IP whenever TLS is terminated on Core
+  itself, so on the common DuckDNS-plus-Let's-Encrypt setup — external URL set,
+  internal left on automatic — ``get_url`` would fall straight through to the
+  public WAN address. The panel's probe would then verify it, because Home
+  Assistant really does answer there, and promote it with nothing shown to the
+  operator. That panel would route its whole authenticated dashboard session
+  out to the internet and back, and go dark whenever WAN or DNS did. It is
+  strictly worse than asking, which is why nothing is handed over instead.
+* **Never the cloud URL.** ``allow_cloud=False``, for the same reason one step
+  further out: a Nabu Casa address routes a wall panel's dashboard through a
+  remote relay to reach a server in the same building, and it stops working the
+  moment the subscription does.
 * **Never mDNS.** This reads Home Assistant's own configured or detected
   address, not anything discovered on the network. Discovery is what the panel
   already does for itself when nobody hands it anything.
+
+Returning nothing is therefore a normal, safe outcome, not a failure: the panel
+asks exactly as it does today.
 
 What this module cannot do is tell whether the address it picked is reachable
 *from the panel*. ``get_url`` answers from Home Assistant's own network position,
@@ -46,16 +59,13 @@ def async_panel_facing_url(hass: HomeAssistant) -> str | None:
     URL, no usable detected address and no external URL has nothing to hand over,
     and the panel then asks as it always did.
     """
-    # One call is enough: with prefer_external False, get_url walks internal then
-    # external and raises only when neither yields anything.
     try:
         return get_url(
             hass,
             allow_internal=True,
-            allow_external=True,
+            allow_external=False,
             allow_cloud=False,
             allow_ip=True,
-            prefer_external=False,
             require_ssl=False,
             require_standard_port=False,
         )

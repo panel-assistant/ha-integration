@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+- Panel Assistant now tells a panel where Home Assistant is when it installs or adopts one, so the panel's setup wizard no longer asks for an address Home Assistant already knows. The panel checks the address from its own network before using it, and asks as it always did if it does not answer — showing the address that was tried, rather than an empty box. This needs a matching ha-paneld release that accepts the address; older panels are unaffected and behave exactly as before.
+- Only a local address is ever handed over. If Home Assistant has no internal URL — which is what happens when it terminates HTTPS itself and only its external address is set — nothing is sent and the panel asks, rather than being given a public address that would send its dashboard out to the internet and back.
+
 ## 0.5.0 - 2026-09-18
 
 - ha-paneld is changing the application id it installs under. Panel Assistant now accepts either id, so it can install and verify both the release that keeps the old id and the one that carries the new one. This release has to be installed before the ha-paneld release that makes the change; an older Panel Assistant refuses the new release outright.

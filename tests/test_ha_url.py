@@ -47,6 +47,23 @@ async def _set_urls(
     await hass.config.async_update(internal_url=internal, external_url=external)
 
 
+def _core_api(*, local_ip: str, use_ssl: bool) -> Any:
+    """The parts of `hass.config.api` that `get_url`'s internal branch reads.
+
+    A stand-in rather than a real `ApiConfig`, because the two attributes below
+    are the whole of what the decision depends on, and building a real one drags
+    in an HTTP component this test has no use for.
+    """
+
+    class _Api:
+        def __init__(self) -> None:
+            self.local_ip = local_ip
+            self.use_ssl = use_ssl
+            self.port = 8123
+
+    return _Api()
+
+
 # --------------------------------------------------------------------------
 # URL selection
 # --------------------------------------------------------------------------
@@ -62,12 +79,18 @@ async def test_an_internal_url_is_preferred_because_the_panel_is_on_that_network
     assert async_panel_facing_url(hass) == "http://192.0.2.5:8123"
 
 
-async def test_an_external_url_is_used_when_there_is_no_internal_one(
+async def test_an_external_url_is_never_handed_to_a_panel(
     hass: HomeAssistant,
 ) -> None:
-    """Better an address the panel may reach than no address at all."""
+    """A public address is worse than asking, so nothing is handed over.
+
+    The panel would verify it — Home Assistant really does answer there — and
+    then route its whole dashboard session out to the internet and back, going
+    dark whenever WAN or DNS did. Against today's behaviour that is a
+    regression, because today the operator supplies a local address.
+    """
     await _set_urls(hass, internal=None, external="https://ha.example.com")
-    assert async_panel_facing_url(hass) == "https://ha.example.com"
+    assert async_panel_facing_url(hass) is None
 
 
 async def test_an_internal_only_installation_hands_over_that_address(
@@ -80,28 +103,61 @@ async def test_an_internal_only_installation_hands_over_that_address(
 async def test_a_container_address_is_handed_over_because_nothing_here_can_tell(
     hass: HomeAssistant,
 ) -> None:
-    """The container trap, asserted as what it is rather than as a refusal.
+    """The container trap, driven through Core's own synthesis rather than around it.
 
-    With no internal URL configured, Home Assistant synthesizes one from the
-    address it detects for itself, which inside a bridge-networked container is
-    the container's own address. It is a correct answer to the question Home
+    With no internal URL configured, Home Assistant builds one from the address
+    it detects for itself, which inside a bridge-networked container is the
+    container's own address. It is a correct answer to the question Home
     Assistant can ask, and it is useless to a panel — but nothing on this side
     can distinguish it from a real LAN address, so it IS what gets handed over.
     Rejecting it is the panel's job, and the panel's tests own that half.
+
+    Setting `internal_url` here instead would return before reaching the
+    fallback this test is named for, making it a duplicate of the test above.
+    So the fallback is exercised: no internal URL, plain HTTP, a detected IP.
     """
-    await _set_urls(hass, internal="http://172.17.0.2:8123", external=None)
+    await _set_urls(hass, internal=None, external=None)
+    hass.config.api = _core_api(local_ip="172.17.0.2", use_ssl=False)
+
     assert async_panel_facing_url(hass) == "http://172.17.0.2:8123"
 
 
-async def test_a_cloud_url_is_never_handed_to_a_panel(
+async def test_terminating_tls_on_core_hands_over_nothing_rather_than_the_wan_address(
+    hass: HomeAssistant,
+) -> None:
+    """The blocker this module was held for, driven through the guard that causes it.
+
+    Core refuses to synthesize an internal address from the detected local IP
+    whenever TLS is terminated on Core itself. That is the DuckDNS plus
+    Let's Encrypt shape — external URL set because the guide says to, internal
+    left on automatic — and with `allow_external` open it would fall through to
+    the public address and hand a wall panel its own WAN URL.
+    """
+    await _set_urls(hass, internal=None, external="https://ha.example.com")
+    hass.config.api = _core_api(local_ip="192.0.2.50", use_ssl=True)
+
+    assert async_panel_facing_url(hass) is None
+
+
+async def test_plain_http_core_still_offers_its_detected_address(
+    hass: HomeAssistant,
+) -> None:
+    """The same shape without TLS keeps working, so the fix is not a blanket refusal."""
+    await _set_urls(hass, internal=None, external="https://ha.example.com")
+    hass.config.api = _core_api(local_ip="192.0.2.50", use_ssl=False)
+
+    assert async_panel_facing_url(hass) == "http://192.0.2.50:8123"
+
+
+async def test_neither_a_cloud_nor_an_external_url_is_reachable_from_this_call(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A wall panel must not reach a server in the same building via a relay.
+    """Both remote doors are shut at the call, which is the only place they can be.
 
-    Proven by asserting the call itself refuses cloud, because a cloud URL is
-    only reachable through ``get_url``'s cloud branch: routing a panel's whole
-    dashboard through Nabu Casa would be slower, would leave the house to come
-    back, and would stop working with the subscription.
+    A cloud or external URL is reachable only through ``get_url``'s own
+    branches, so asserting the arguments is what proves neither can be returned;
+    no downstream check would catch one. Routing a wall panel's dashboard out of
+    the building to reach a server inside it is the shared defect.
     """
     captured: dict[str, Any] = {}
 
@@ -114,9 +170,8 @@ async def test_a_cloud_url_is_never_handed_to_a_panel(
     )
     async_panel_facing_url(hass)
     assert captured["allow_cloud"] is False
-    assert captured["prefer_external"] is False
+    assert captured["allow_external"] is False
     assert captured["allow_internal"] is True
-    assert captured["allow_external"] is True
 
 
 async def test_no_url_at_all_is_an_ordinary_outcome_not_an_error(
