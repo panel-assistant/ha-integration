@@ -22,6 +22,7 @@ from adb_shell.exceptions import (
 )
 from adb_shell.transport.tcp_transport_async import TcpTransportAsync
 
+from .app_identity import ACCEPTED_PACKAGE_IDS, LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID
 from .client import PanelAddress
 
 ADB_PORT = 5555
@@ -32,7 +33,6 @@ _CLOSE_TIMEOUT_SECONDS = 2.0
 _MAX_SHELL_RESPONSE_BYTES = 16 * 1024
 _MAX_ADB_PACKET_BODY_BYTES = _MAX_SHELL_RESPONSE_BYTES
 _MAX_ADB_CONNECTION_READ_BYTES = 64 * 1024
-_PACKAGE = "io.github.maxlyth.hapaneld"
 _PACKAGE_MANAGER_LIVENESS_PACKAGE = "android"
 _MIN_ANDROID_SDK = 26
 _SUPPORTED_PRIMARY_ABIS = frozenset({"arm64-v8a", "armeabi-v7a"})
@@ -46,6 +46,10 @@ class InstallTargetState(StrEnum):
     INCOMPATIBLE = "incompatible"
     INSTALL_CANDIDATE = "install_candidate"
     INSTALLED = "installed"
+    # The panel runs the legacy package and not the successor. The successor is
+    # a different package to Android, so it installs beside it and the panel
+    # performs the handover itself; this is not a clean target and not a refusal.
+    MIGRATION_CANDIDATE = "migration_candidate"
     RETAINED_OR_AMBIGUOUS = "retained_or_ambiguous"
 
 
@@ -135,133 +139,164 @@ def _is_package_path(line: str) -> bool:
     return fullmatch(r"package:/[^ \t]+", line) is not None
 
 
-def _parse_package_presence(output: str, nonce: str) -> _PackagePresence:
-    """Classify an installed path only from a complete nonce-bound observation."""
+def _parse_package_presence(
+    output: str, nonce: str
+) -> dict[str, _PackagePresence] | None:
+    """Classify each accepted package only from a complete nonce-bound frame.
+
+    Every accepted application id is read in its own segment. Reading them apart
+    is what lets the caller tell a clean panel from one that is still running
+    the legacy package and can be migrated.
+    """
+    count = len(ACCEPTED_PACKAGE_IDS)
     begin = f"HAPANELD_PKG_BEGIN:{nonce}"
-    target_prefix = "HAPANELD_PKG_TARGET"
     live_prefix = "HAPANELD_PKG_LIVE"
     end = f"HAPANELD_PKG_END:{nonce}"
     segment = 0
-    target_status: int | None = None
+    target_status: list[int | None] = [None] * count
+    target_path = [False] * count
     live_status: int | None = None
-    target_path = False
     live_path = False
 
     for line in output.replace("\r", "").splitlines():
         if line == begin:
             if segment != 0:
-                return _PackagePresence.UNKNOWN
+                return None
             segment = 1
             continue
 
-        status = _parse_status_marker(line, target_prefix, nonce)
-        if status is not None:
-            if segment != 1:
-                return _PackagePresence.UNKNOWN
-            target_status = status
-            segment = 2
+        marker = None
+        for index in range(count):
+            marker = _parse_status_marker(line, f"HAPANELD_PKG_TARGET{index}", nonce)
+            if marker is not None:
+                if segment != index + 1:
+                    return None
+                target_status[index] = marker
+                segment = index + 2
+                break
+        if marker is not None:
             continue
 
         status = _parse_status_marker(line, live_prefix, nonce)
         if status is not None:
-            if segment != 2:
-                return _PackagePresence.UNKNOWN
+            if segment != count + 1:
+                return None
             live_status = status
-            segment = 3
+            segment = count + 2
             continue
 
         if line == end:
-            if segment != 3:
-                return _PackagePresence.UNKNOWN
-            segment = 4
+            if segment != count + 2:
+                return None
+            segment = count + 3
             continue
 
         if line.startswith("HAPANELD_PKG_"):
-            return _PackagePresence.UNKNOWN
+            return None
         if line.startswith("package:"):
             if not _is_package_path(line):
-                return _PackagePresence.UNKNOWN
-            if segment == 1:
-                target_path = True
-            elif segment == 2:
+                return None
+            if 1 <= segment <= count:
+                target_path[segment - 1] = True
+            elif segment == count + 1:
                 live_path = True
             else:
-                return _PackagePresence.UNKNOWN
+                return None
             continue
         if line:
-            return _PackagePresence.UNKNOWN
+            return None
 
-    if segment != 4 or live_status != 0 or not live_path:
-        return _PackagePresence.UNKNOWN
-    if target_path:
-        if target_status == 0:
-            return _PackagePresence.PRESENT
-        return _PackagePresence.UNKNOWN
-    if target_status in (0, 1):
-        return _PackagePresence.ABSENT
-    return _PackagePresence.UNKNOWN
+    if segment != count + 3 or live_status != 0 or not live_path:
+        return None
+    presence: dict[str, _PackagePresence] = {}
+    for index, package_id in enumerate(ACCEPTED_PACKAGE_IDS):
+        if target_path[index]:
+            if target_status[index] != 0:
+                return None
+            presence[package_id] = _PackagePresence.PRESENT
+        elif target_status[index] in (0, 1):
+            presence[package_id] = _PackagePresence.ABSENT
+        else:
+            return None
+    return presence
 
 
-def _parse_retained_package_data(output: str, nonce: str) -> _RetainedPackageData:
-    """Classify retained package data from the complete uninstalled-package list."""
+def _parse_retained_package_data(
+    output: str, nonce: str
+) -> dict[str, _RetainedPackageData] | None:
+    """Classify retained data per accepted id from the uninstalled-package list."""
+    count = len(ACCEPTED_PACKAGE_IDS)
     begin = f"HAPANELD_DATA_BEGIN:{nonce}"
-    target_prefix = "HAPANELD_DATA_TARGET"
     live_prefix = "HAPANELD_DATA_LIVE"
     end = f"HAPANELD_DATA_END:{nonce}"
     segment = 0
-    target_status: int | None = None
+    target_status: list[int | None] = [None] * count
+    retained = [False] * count
     live_status: int | None = None
-    retained = False
     live_path = False
 
     for line in output.replace("\r", "").splitlines():
         if line == begin:
             if segment != 0:
-                return _RetainedPackageData.UNKNOWN
+                return None
             segment = 1
             continue
 
-        status = _parse_status_marker(line, target_prefix, nonce)
-        if status is not None:
-            if segment != 1:
-                return _RetainedPackageData.UNKNOWN
-            target_status = status
-            segment = 2
+        marker = None
+        for index in range(count):
+            marker = _parse_status_marker(line, f"HAPANELD_DATA_TARGET{index}", nonce)
+            if marker is not None:
+                if segment != index + 1:
+                    return None
+                target_status[index] = marker
+                segment = index + 2
+                break
+        if marker is not None:
             continue
 
         status = _parse_status_marker(line, live_prefix, nonce)
         if status is not None:
-            if segment != 2:
-                return _RetainedPackageData.UNKNOWN
+            if segment != count + 1:
+                return None
             live_status = status
-            segment = 3
+            segment = count + 2
             continue
 
         if line == end:
-            if segment != 3:
-                return _RetainedPackageData.UNKNOWN
-            segment = 4
+            if segment != count + 2:
+                return None
+            segment = count + 3
             continue
 
         if line.startswith("HAPANELD_DATA_"):
-            return _RetainedPackageData.UNKNOWN
-        if segment == 1:
-            if line == f"package:{_PACKAGE}":
-                retained = True
+            return None
+        if 1 <= segment <= count:
+            if line == f"package:{ACCEPTED_PACKAGE_IDS[segment - 1]}":
+                retained[segment - 1] = True
             elif line:
-                return _RetainedPackageData.UNKNOWN
+                return None
         elif line.startswith("package:"):
-            if segment != 2 or not _is_package_path(line):
-                return _RetainedPackageData.UNKNOWN
+            if segment != count + 1 or not _is_package_path(line):
+                return None
             live_path = True
         elif line:
-            return _RetainedPackageData.UNKNOWN
+            return None
 
-    if segment != 4 or target_status != 0 or live_status != 0 or not live_path:
-        return _RetainedPackageData.UNKNOWN
-    if retained:
-        return _RetainedPackageData.RETAINED
-    return _RetainedPackageData.ABSENT
+    if (
+        segment != count + 3
+        or live_status != 0
+        or not live_path
+        or any(status != 0 for status in target_status)
+    ):
+        return None
+    return {
+        package_id: (
+            _RetainedPackageData.RETAINED
+            if retained[index]
+            else _RetainedPackageData.ABSENT
+        )
+        for index, package_id in enumerate(ACCEPTED_PACKAGE_IDS)
+    }
 
 
 def _parse_target_facts(output: str, nonce: str) -> _TargetFacts:
@@ -317,10 +352,13 @@ def _parse_target_facts(output: str, nonce: str) -> _TargetFacts:
 
 def _package_presence_command(nonce: str) -> str:
     """Build the static read-only installed-package observation."""
+    targets = "".join(
+        f"pm path {package_id}; echo HAPANELD_PKG_TARGET{index}:{nonce}:$?; "
+        for index, package_id in enumerate(ACCEPTED_PACKAGE_IDS)
+    )
     return (
         f"echo HAPANELD_PKG_BEGIN:{nonce}; "
-        f"pm path {_PACKAGE}; "
-        f"echo HAPANELD_PKG_TARGET:{nonce}:$?; "
+        f"{targets}"
         f"pm path {_PACKAGE_MANAGER_LIVENESS_PACKAGE}; "
         f"echo HAPANELD_PKG_LIVE:{nonce}:$?; "
         f"echo HAPANELD_PKG_END:{nonce}"
@@ -329,10 +367,14 @@ def _package_presence_command(nonce: str) -> str:
 
 def _retained_package_data_command(nonce: str) -> str:
     """Build the static read-only retained-package observation."""
+    targets = "".join(
+        f"pm list packages -u {package_id}; "
+        f"echo HAPANELD_DATA_TARGET{index}:{nonce}:$?; "
+        for index, package_id in enumerate(ACCEPTED_PACKAGE_IDS)
+    )
     return (
         f"echo HAPANELD_DATA_BEGIN:{nonce}; "
-        f"pm list packages -u {_PACKAGE}; "
-        f"echo HAPANELD_DATA_TARGET:{nonce}:$?; "
+        f"{targets}"
         f"pm path {_PACKAGE_MANAGER_LIVENESS_PACKAGE}; "
         f"echo HAPANELD_DATA_LIVE:{nonce}:$?; "
         f"echo HAPANELD_DATA_END:{nonce}"
@@ -424,9 +466,27 @@ async def async_probe_install_target(
             await _async_bounded_shell(device, _package_presence_command(nonce)),
             nonce,
         )
-        if presence is _PackagePresence.PRESENT:
+        if presence is None:
+            # An unreadable frame is never admission.
+            state = InstallTargetState.RETAINED_OR_AMBIGUOUS
+        elif presence[SUCCESSOR_PACKAGE_ID] is _PackagePresence.PRESENT:
             state = InstallTargetState.INSTALLED
-        elif presence is _PackagePresence.ABSENT:
+        elif presence[LEGACY_PACKAGE_ID] is _PackagePresence.PRESENT:
+            # A legacy panel with no successor can take the successor beside it.
+            # Its own data is what the handover migrates, so it is not residue.
+            nonce = token_hex(16)
+            facts = _parse_target_facts(
+                await _async_bounded_shell(device, _target_facts_command(nonce)),
+                nonce,
+            )
+            if (
+                facts.android_sdk < _MIN_ANDROID_SDK
+                or facts.primary_abi not in _SUPPORTED_PRIMARY_ABIS
+            ):
+                state = InstallTargetState.INCOMPATIBLE
+            else:
+                state = InstallTargetState.MIGRATION_CANDIDATE
+        else:
             nonce = token_hex(16)
             retained_data = _parse_retained_package_data(
                 await _async_bounded_shell(
@@ -434,7 +494,9 @@ async def async_probe_install_target(
                 ),
                 nonce,
             )
-            if retained_data is _RetainedPackageData.ABSENT:
+            if retained_data is not None and all(
+                value is _RetainedPackageData.ABSENT for value in retained_data.values()
+            ):
                 nonce = token_hex(16)
                 facts = _parse_target_facts(
                     await _async_bounded_shell(device, _target_facts_command(nonce)),
@@ -449,8 +511,6 @@ async def async_probe_install_target(
                     state = InstallTargetState.INSTALL_CANDIDATE
             else:
                 state = InstallTargetState.RETAINED_OR_AMBIGUOUS
-        else:
-            state = InstallTargetState.RETAINED_OR_AMBIGUOUS
     except DeviceAuthError:
         state = InstallTargetState.ADB_UNAUTHORIZED
     except _MalformedProbeResponse, _OversizedAdbPacket:

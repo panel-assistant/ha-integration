@@ -194,6 +194,20 @@
     "panel_update_required": {
       "title": "更新 {panel} 上的 ha-paneld",
       "description": "Panel Assistant 现在管理 {panel} 的实体，但该面板上的 ha-paneld 版本仍通过 MQTT 公布这些实体，因此 MQTT 会再次创建它们。Panel Assistant 会禁用这些重复实体。请将 {panel} 上的 ha-paneld 更新到 {required_version} 或更高版本；Panel Assistant 本身无需更新。更新后的面板连接后，已禁用的重复实体会被删除，此问题随之消失。"
+    },
+    "panel_migration_incomplete": {
+      "title": "{address} 的面板尚未完成向新应用的迁移",
+      "fix_flow": {
+        "step": {
+          "confirm_migration": {
+            "title": "再次检查面板",
+            "description": "Panel Assistant 已在 {address} 的面板上安装版本 {version}，面板会自行把设置迁移到新应用。Home Assistant 停止等待时，该迁移尚未完成。面板全程继续正常工作，并会从中断处接着完成迁移，因此这里不会对它做任何更改。选择“提交”以再次查看。"
+          }
+        },
+        "abort": {
+          "migration_unfinished": "新应用尚未响应。面板会自行继续，请过几分钟后重新打开此问题。"
+        }
+      }
     }
   },
   "options": {

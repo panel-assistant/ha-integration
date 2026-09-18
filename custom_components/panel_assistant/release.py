@@ -14,10 +14,11 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from yarl import URL
 
-_LATEST_RELEASE_URL = URL(
-    "https://api.github.com/repos/maxlyth/ha-paneld/releases/latest"
-)
-_REPOSITORY_RELEASE_ROOT = "https://github.com/maxlyth/ha-paneld/releases/download"
+from .app_identity import is_accepted_package_id, launch_component_for
+from .const import ANDROID_RELEASE_DOWNLOAD_ROOT, ANDROID_RELEASES_API
+
+_LATEST_RELEASE_URL = URL(f"{ANDROID_RELEASES_API}/latest")
+_REPOSITORY_RELEASE_ROOT = ANDROID_RELEASE_DOWNLOAD_ROOT
 _STABLE_TAG_PATTERN = re.compile(
     r"^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$"
 )
@@ -41,9 +42,9 @@ _RSA_SIGNATURE_BYTES = 256
 _MAX_APK_BYTES = 64 * 1024 * 1024
 _MAX_ANDROID_SDK = 100
 _MAX_ANDROID_VERSION_CODE = 2**31 - 1
+# The schema identifier is frozen on the legacy spelling: released integrations
+# compare it byte for byte, so it never follows the application id.
 _INSTALL_DESCRIPTOR_SCHEMA = "io.github.maxlyth.hapaneld.install.v1"
-_PACKAGE_ID = "io.github.maxlyth.hapaneld"
-_LAUNCH_COMPONENT = f"{_PACKAGE_ID}/.MainActivity"
 _RELEASE_SIGNER_CERTIFICATE_SHA256 = (
     "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
 )
@@ -521,7 +522,7 @@ def _parse_install_descriptor(
         or not isinstance(apk_sha256_value, str)
         or apk_sha256_value != apk_sha256
         or _SHA256_PATTERN.fullmatch(apk_sha256_value) is None
-        or document["packageId"] != _PACKAGE_ID
+        or not is_accepted_package_id(document["packageId"])
         or document["signerCertificateSha256"] != _RELEASE_SIGNER_CERTIFICATE_SHA256
         or not isinstance(supported_abis, list)
         or tuple(supported_abis) != _SUPPORTED_ABIS
@@ -530,10 +531,14 @@ def _parse_install_descriptor(
         <= database_bounds[0]
         <= database_bounds[1]
         <= _MAX_ANDROID_VERSION_CODE
-        or document["launchComponent"] != _LAUNCH_COMPONENT
+        or document["launchComponent"] != launch_component_for(document["packageId"])
     ):
         raise ReleaseResolutionError
 
+    # The descriptor's own id is carried forward rather than replaced by a
+    # constant, so every later stage installs, launches and health-checks the
+    # package this signed release actually ships.
+    package_id: str = document["packageId"]
     return InstallDescriptor(
         schema=_INSTALL_DESCRIPTOR_SCHEMA,
         release_tag=tag,
@@ -542,12 +547,12 @@ def _parse_install_descriptor(
         apk_name=apk_name,
         apk_size=apk_size,
         apk_sha256=apk_sha256,
-        package_id=_PACKAGE_ID,
+        package_id=package_id,
         signer_certificate_sha256=_RELEASE_SIGNER_CERTIFICATE_SHA256,
         min_sdk=min_sdk,
         supported_abis=_SUPPORTED_ABIS,
         database_compatibility=database_compatibility,
-        launch_component=_LAUNCH_COMPONENT,
+        launch_component=launch_component_for(package_id),
     )
 
 
@@ -565,7 +570,7 @@ async def async_resolve_rc_release(session: ClientSession, tag: str) -> ReleaseA
     """Authenticate one explicitly requested RC; never fall back or select latest."""
     if not is_rc_release_tag(tag):
         raise ReleaseResolutionError
-    url = URL(f"https://api.github.com/repos/maxlyth/ha-paneld/releases/tags/{tag}")
+    url = URL(f"{ANDROID_RELEASES_API}/tags/{tag}")
     artifact, _ = await _async_resolve_release(session, url, expected_rc_tag=tag)
     return artifact
 
@@ -582,9 +587,7 @@ async def async_resolve_install_bundle(
     if rc_tag is not None:
         if not is_rc_release_tag(rc_tag):
             raise ReleaseResolutionError
-        url = URL(
-            f"https://api.github.com/repos/maxlyth/ha-paneld/releases/tags/{rc_tag}"
-        )
+        url = URL(f"{ANDROID_RELEASES_API}/tags/{rc_tag}")
     artifact, metadata = await _async_resolve_release(
         session, url, expected_rc_tag=rc_tag
     )

@@ -18,6 +18,7 @@ from multidict import CIMultiDict
 from yarl import URL
 
 from custom_components.panel_assistant import build_feed, release
+from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
 from custom_components.panel_assistant.build_feed import (
     FEED_SCHEMA,
     BuildFeedError,
@@ -522,6 +523,7 @@ def _download_build(**replacements: Any) -> FeedBuild:
         "database_compatibility": "hapaneld-db:v1:ha-paneld.db:11:14",
         "min_sdk": 26,
         "published": "2026-09-11T10:00:00Z",
+        "package_id": LEGACY_PACKAGE_ID,
     }
     values.update(replacements)
     return FeedBuild(**values)

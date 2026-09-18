@@ -1124,6 +1124,9 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 adb_target,
                 credential.signer,
                 expected_root_mode=AdbRootMode(stored_root_mode),
+                # The package this receipt installed, which on a migrating
+                # panel is not the package that panel was running before.
+                package_id=receipt.artifact.package_id,
             )
         except InstallAdbError as err:
             if err.code is InstallAdbErrorCode.TARGET_UNREACHABLE:

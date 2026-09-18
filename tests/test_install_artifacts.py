@@ -34,7 +34,7 @@ _JOB_ID = "0123456789abcdef0123456789abcdef"
 _OTHER_JOB_ID = "fedcba9876543210fedcba9876543210"
 _STALE_JOB_ID = "11111111111111111111111111111111"
 _APK_URL = (
-    "https://github.com/maxlyth/ha-paneld/releases/download/"
+    "https://github.com/panel-assistant/android/releases/download/"
     "v1.2.3/ha-paneld-v1.2.3-manual-setup-required.apk"
 )
 _APK_NAME = "ha-paneld-v1.2.3-manual-setup-required.apk"

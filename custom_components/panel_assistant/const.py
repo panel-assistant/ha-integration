@@ -14,7 +14,7 @@ INTEGRATION_VERSION: str = json.loads(
 # The public version (manifest.json) only changes when something ships. This
 # build number tells builds apart in between: it counts the commits that have
 # changed this integration.
-INTEGRATION_BUILD = 85
+INTEGRATION_BUILD = 86
 
 # Every outward link goes through the site's own redirect rather than a page
 # path, so pages can move. The version and build travel with it, so a later
@@ -27,6 +27,15 @@ def help_url(topic: str, **parameters: str) -> str:
     query = {"v": INTEGRATION_VERSION, "build": str(INTEGRATION_BUILD), **parameters}
     return str(URL(_HELP_REDIRECT + topic).with_query(query))
 
+
+# One definition of where the panel app is published. The repository moved to
+# the organisation in 2026, and GitHub redirects the old path indefinitely, but
+# nothing here relies on that redirect.
+ANDROID_REPOSITORY = "panel-assistant/android"
+ANDROID_RELEASES_API = f"https://api.github.com/repos/{ANDROID_REPOSITORY}/releases"
+ANDROID_RELEASE_DOWNLOAD_ROOT = (
+    f"https://github.com/{ANDROID_REPOSITORY}/releases/download"
+)
 
 DEFAULT_PORT = 8888
 DEFAULT_SCAN_INTERVAL = timedelta(seconds=30)

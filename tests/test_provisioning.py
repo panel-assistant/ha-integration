@@ -28,27 +28,42 @@ _THIRD_NONCE = "3" * 32
 def _presence_output(
     *,
     present: bool = False,
+    successor_present: bool = False,
     target_status: int = 0,
     live_status: int = 0,
     live_path: str = "package:/system/framework/framework-res.apk",
 ) -> bytes:
-    target_path = "package:/data/app/ha-paneld/base.apk\n" if present else ""
+    # Each accepted application id is observed in its own segment, legacy first,
+    # exactly as the command emits them.
+    segments = ""
+    for index, installed in enumerate((present, successor_present)):
+        path = "package:/data/app/ha-paneld/base.apk\n" if installed else ""
+        segments += f"{path}HAPANELD_PKG_TARGET{index}:{_FIRST_NONCE}:{target_status}\n"
     return (
         f"HAPANELD_PKG_BEGIN:{_FIRST_NONCE}\n"
-        f"{target_path}"
-        f"HAPANELD_PKG_TARGET:{_FIRST_NONCE}:{target_status}\n"
+        f"{segments}"
         f"{live_path}\n"
         f"HAPANELD_PKG_LIVE:{_FIRST_NONCE}:{live_status}\n"
         f"HAPANELD_PKG_END:{_FIRST_NONCE}\n"
     ).encode()
 
 
-def _retained_output(*, retained: bool = False) -> bytes:
-    package = "package:io.github.maxlyth.hapaneld\n" if retained else ""
+def _retained_output(
+    *, retained: bool = False, successor_retained: bool = False
+) -> bytes:
+    segments = ""
+    for index, (package_id, kept) in enumerate(
+        zip(
+            provisioning.ACCEPTED_PACKAGE_IDS,
+            (retained, successor_retained),
+            strict=True,
+        )
+    ):
+        listed = f"package:{package_id}\n" if kept else ""
+        segments += f"{listed}HAPANELD_DATA_TARGET{index}:{_SECOND_NONCE}:0\n"
     return (
         f"HAPANELD_DATA_BEGIN:{_SECOND_NONCE}\n"
-        f"{package}"
-        f"HAPANELD_DATA_TARGET:{_SECOND_NONCE}:0\n"
+        f"{segments}"
         "package:/system/framework/framework-res.apk\n"
         f"HAPANELD_DATA_LIVE:{_SECOND_NONCE}:0\n"
         f"HAPANELD_DATA_END:{_SECOND_NONCE}\n"
@@ -61,6 +76,7 @@ def _target_facts_output(
     serial: str = "WF1589T-0123",
     primary_abi: str = "arm64-v8a",
     android_sdk: str = "30",
+    nonce: str = _THIRD_NONCE,
 ) -> bytes:
     values = {
         "MODEL": model,
@@ -68,16 +84,16 @@ def _target_facts_output(
         "ABI": primary_abi,
         "SDK": android_sdk,
     }
-    lines = [f"HAPANELD_ID_BEGIN:{_THIRD_NONCE}"]
+    lines = [f"HAPANELD_ID_BEGIN:{nonce}"]
     for name, value in values.items():
         lines.extend(
             (
-                f"HAPANELD_ID_{name}_BEGIN:{_THIRD_NONCE}",
+                f"HAPANELD_ID_{name}_BEGIN:{nonce}",
                 value,
-                f"HAPANELD_ID_{name}_END:{_THIRD_NONCE}:0",
+                f"HAPANELD_ID_{name}_END:{nonce}:0",
             )
         )
-    lines.append(f"HAPANELD_ID_END:{_THIRD_NONCE}")
+    lines.append(f"HAPANELD_ID_END:{nonce}")
     return ("\n".join(lines) + "\n").encode()
 
 
@@ -300,13 +316,67 @@ async def test_installed_target_does_not_query_retained_data(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A valid installed path is sufficient to prevent first-install admission."""
-    fake = _FakeAdbDevice([_presence_output(present=True)])
+    fake = _FakeAdbDevice([_presence_output(successor_present=True)])
     _install_fake(monkeypatch, fake)
 
     probe = await async_probe_install_target(normalize_address("192.0.2.10"))
 
     assert probe.state is InstallTargetState.INSTALLED
     assert len(fake.commands) == 1
+    assert fake.closed is True
+
+
+async def test_both_packages_installed_is_an_installed_target(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A part-migrated panel is installed, not a target for a fresh install."""
+    fake = _FakeAdbDevice([_presence_output(present=True, successor_present=True)])
+    _install_fake(monkeypatch, fake)
+
+    probe = await async_probe_install_target(normalize_address("192.0.2.10"))
+
+    assert probe.state is InstallTargetState.INSTALLED
+    assert len(fake.commands) == 1
+    assert fake.closed is True
+
+
+async def test_legacy_package_alone_is_a_migration_candidate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The successor installs beside the old app, which then hands over itself.
+
+    Its own data is what the handover migrates, so the retained-data question
+    that gates a clean install is not asked and cannot refuse it.
+    """
+    fake = _FakeAdbDevice(
+        [_presence_output(present=True), _target_facts_output(nonce=_SECOND_NONCE)]
+    )
+    _install_fake(monkeypatch, fake)
+
+    probe = await async_probe_install_target(normalize_address("192.0.2.10"))
+
+    assert probe.state is InstallTargetState.MIGRATION_CANDIDATE
+    assert probe.model == "Electron WF1589T"
+    assert len(fake.commands) == 2
+    assert all("pm list packages -u" not in command for command, _ in fake.commands)
+    assert fake.closed is True
+
+
+async def test_a_migration_candidate_still_has_to_be_a_supported_target(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Compatibility is judged the same whether or not a panel is migrating."""
+    fake = _FakeAdbDevice(
+        [
+            _presence_output(present=True),
+            _target_facts_output(android_sdk="25", nonce=_SECOND_NONCE),
+        ]
+    )
+    _install_fake(monkeypatch, fake)
+
+    probe = await async_probe_install_target(normalize_address("192.0.2.10"))
+
+    assert probe.state is InstallTargetState.INCOMPATIBLE
     assert fake.closed is True
 
 
@@ -363,8 +433,8 @@ async def test_excessive_numeric_presence_status_fails_closed(
     """A digit-only marker cannot escape the stable ambiguous-state result."""
     marker = "9" * 5000
     presence = _presence_output().replace(
-        f"HAPANELD_PKG_TARGET:{_FIRST_NONCE}:0".encode(),
-        f"HAPANELD_PKG_TARGET:{_FIRST_NONCE}:{marker}".encode(),
+        f"HAPANELD_PKG_TARGET0:{_FIRST_NONCE}:0".encode(),
+        f"HAPANELD_PKG_TARGET0:{_FIRST_NONCE}:{marker}".encode(),
     )
     fake = _FakeAdbDevice([presence])
     _install_fake(monkeypatch, fake)
@@ -381,8 +451,8 @@ async def test_excessive_numeric_presence_status_fails_closed(
     [
         b"",
         _retained_output().replace(
-            b"DATA_TARGET:" + _SECOND_NONCE.encode() + b":0",
-            b"DATA_TARGET:" + _SECOND_NONCE.encode() + b":1",
+            b"DATA_TARGET0:" + _SECOND_NONCE.encode() + b":0",
+            b"DATA_TARGET0:" + _SECOND_NONCE.encode() + b":1",
         ),
         _retained_output().replace(b"HAPANELD_DATA_END", b"HAPANELD_DATA_LIVE"),
         _retained_output().replace(

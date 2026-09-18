@@ -1,6 +1,6 @@
 /** Fixed package-manager/activity-manager commands and bounded response contracts. */
 export const MAX_INSTALL_RESPONSE_BYTES = 32 * 1024;
-const PACKAGE = 'io.github.maxlyth.hapaneld';
+import { isAcceptedPackageId, launchComponentFor } from './app-identity.mjs';
 
 export class InstallContractError extends Error {
   constructor(code) { super(code); this.code = code; }
@@ -19,9 +19,15 @@ export function buildInstall(nonce, jobId, sdk) {
   return `echo HAPANELD_INSTALL_BEGIN:${nonce}; pm install ${sdk >= 28 ? '-R ' : ''}${path}; echo HAPANELD_INSTALL_END:${nonce}:$?`;
 }
 
-export function buildLaunch(nonce) {
+/**
+ * Start the package this descriptor installs, by its own exact component. The
+ * `<id>/.Class` shorthand resolves against the application id while the classes
+ * stay in the legacy namespace, so the component is looked up, never built.
+ */
+export function buildLaunch(nonce, packageId) {
   checkId(nonce);
-  return `echo HAPANELD_LAUNCH_BEGIN:${nonce}; am start -W -n ${PACKAGE}/.MainActivity -p ${PACKAGE}; echo HAPANELD_LAUNCH_END:${nonce}:$?`;
+  if (!isAcceptedPackageId(packageId)) fail('invalid_request');
+  return `echo HAPANELD_LAUNCH_BEGIN:${nonce}; am start -W -n ${launchComponentFor(packageId)} -p ${packageId}; echo HAPANELD_LAUNCH_END:${nonce}:$?`;
 }
 
 function decode(body) {

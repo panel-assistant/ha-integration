@@ -23,11 +23,12 @@ export async function inspectCleanTarget(adb, descriptor, ensureCurrent = () => 
     const nonce = newNonce();
     const body = await readShell(adb, buildDelegatedProof(prefix, nonce));
     ensureCurrent();
-    if (parseDelegatedProof(body, nonce)) { proved = true; break; }
+    if (parseDelegatedProof(body, nonce, initial.migrationCandidate)) { proved = true; break; }
   }
   if (!proved) throw new PreflightError('root_state_ambiguous');
   const final = await inventory();
-  for (const key of ['model', 'serial', 'primaryAbi', 'androidSdk', 'rootMode']) {
+  for (const key of ['model', 'serial', 'primaryAbi', 'androidSdk', 'rootMode',
+    'migrationCandidate']) {
     if (initial[key] !== final[key]) throw new PreflightError('target_changed');
   }
   return Object.freeze({ ...final, installationAdmission: 'clean_preflight', delegatedRootVerified: true });

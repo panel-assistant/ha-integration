@@ -37,6 +37,9 @@ _CONFIG_HASH_PATTERN = re.compile(r"^[0-9a-f]{8}$")
 _DISCOVERY_ID_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _HEALTH_FIELD_KEY_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 _PANEL_ID_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9_]*[a-z0-9])?$")
+_PACKAGE_NAME_PATTERN = re.compile(
+    r"^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+$"
+)
 _VERSION_PATTERN = re.compile(
     r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
     r"(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?$"
@@ -54,6 +57,7 @@ _KNOWN_HEALTH_FIELDS = frozenset(
         "build",
         "cfg",
         "did",
+        "pkg",
         "ha",
         "ha_src",
         "ha_refused",
@@ -128,6 +132,9 @@ class PanelHealth:
     ha_source: str | None = None
     ha_subscription_refused: bool = False
     discovery_id: str | None = None
+    # The application id the panel is actually running. Absent from builds made
+    # before the identity migration, so never assumed.
+    package: str | None = None
 
     def as_dict(self) -> dict[str, str | bool | None]:
         """Return a serializable diagnostics representation."""
@@ -250,6 +257,12 @@ def parse_health_response(body: str) -> PanelHealth:
     discovery_id = fields.get("did")
     if discovery_id is not None and not is_valid_discovery_id(discovery_id):
         raise InvalidResponseError
+    package = fields.get("pkg")
+    # Checked for shape only. Which application ids this integration accepts is
+    # decided where an install or update is judged; an unfamiliar one here must
+    # not make the whole health line unreadable and the panel unavailable.
+    if package is not None and _PACKAGE_NAME_PATTERN.fullmatch(package) is None:
+        raise InvalidResponseError
 
     return PanelHealth(
         version=tokens[1],
@@ -260,6 +273,7 @@ def parse_health_response(body: str) -> PanelHealth:
         ha_source=ha_source,
         ha_subscription_refused=fields.get("ha_refused") == "1",
         discovery_id=discovery_id,
+        package=package,
     )
 
 

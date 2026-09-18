@@ -10,6 +10,7 @@ import voluptuous as vol
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.data_entry_flow import FlowResultType
 
+from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
 from custom_components.panel_assistant.config_flow import HaPaneldConfigFlow
 from custom_components.panel_assistant.release import ReleaseResolutionError
 
@@ -253,6 +254,7 @@ async def test_network_setup_offers_and_installs_a_feed_build(hass):
                 "hapaneld-db:v1:ha-paneld.db:11:14",
                 26,
                 "2026-09-11T10:00:00Z",
+                LEGACY_PACKAGE_ID,
             ),
         ),
     )

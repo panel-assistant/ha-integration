@@ -161,7 +161,8 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
       if (!await inspectInstalledApk(adb, release.descriptor, guard)) fail('installed_artifact_mismatch');
       binding(receipt, release);
       const n = nonce();
-      if (parseLaunch(await readShell(adb, buildLaunch(n), { timeoutMs: 30000 }), n) !== 'started') fail('launch_refused');
+      if (parseLaunch(await readShell(adb, buildLaunch(n, release.descriptor.packageId),
+        { timeoutMs: 30000 }), n) !== 'started') fail('launch_refused');
       binding(receipt, release);
     }),
     setup: protect(async (receipt, release) => {
@@ -181,13 +182,18 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
       const existing = parsePermissionRead(await readShell(adb, buildPermissionRead(n), {maximum: 8192}), n);
       binding(receipt, release);
       n = nonce();
-      parsePermissionGrant(await readShell(adb, buildPermissionGrant(n, receipt.target.androidSdk, existing),
+      // Grants go to the package this release installs, which on a migrating
+      // panel is not the package that panel was already running.
+      const packageId = release.descriptor.packageId;
+      parsePermissionGrant(await readShell(adb,
+        buildPermissionGrant(n, receipt.target.androidSdk, existing, packageId),
         {timeoutMs: 30000, maximum: 16384}), n);
       binding(receipt, release);
       n = nonce();
       const result = parsePermissionVerification(await readShell(adb,
-        buildPermissionVerification(n, receipt.target.androidSdk), {timeoutMs: 30000, maximum: 16384}),
-      n, receipt.target.androidSdk, existing);
+        buildPermissionVerification(n, receipt.target.androidSdk, packageId),
+        {timeoutMs: 30000, maximum: 16384}),
+      n, receipt.target.androidSdk, existing, packageId);
       binding(receipt, release);
       return result;
     }),

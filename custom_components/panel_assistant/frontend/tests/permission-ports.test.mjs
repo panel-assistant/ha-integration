@@ -2,12 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createUsbTransactionPorts} from '../src/usb-transaction-ports.mjs';
 import {ACCESSIBILITY_SERVICE} from '../src/permission-contract.mjs';
+import {LEGACY_PACKAGE_ID} from '../src/app-identity.mjs';
 
 function fixture({badTarget = false, badApk = false, badRead = false, failGrant = false,
   badVerify = false, rootMode = 'rootless', sdk = 33} = {}) {
   const target = {model: 'Test panel', serial: 'serial', primaryAbi: 'arm64-v8a', androidSdk: sdk,
     rootMode, usbVendorId: 1, usbProductId: 2, usbSerial: 'usb'};
-  const artifact = {apkSize: 1234, apkSha256: 'a'.repeat(64)};
+  const artifact = {apkSize: 1234, apkSha256: 'a'.repeat(64), packageId: LEGACY_PACKAGE_ID};
   const release = {kind: 'authenticated-apk-bytes', descriptor: artifact};
   const receipt = {phase: 'healthy', target, artifact};
   let quarantine = 0;

@@ -1,9 +1,13 @@
 /** Fixed read-only delegated-root proof; never elevates an installation command. */
+import { LEGACY_PACKAGE_ID } from './app-identity.mjs';
+import { RESIDUE_PROBES } from './preflight.mjs';
+
 export const SU_PREFIXES = Object.freeze(['su 0', 'su 0 sh -c', 'su root', 'su root sh -c', 'su -c']);
 export const MAX_DELEGATED_BYTES = 32 * 1024;
+
 const BASES = ['/data/user/0', '/data/data', '/data/user_de/0'];
-const PACKAGE = 'io.github.maxlyth.hapaneld';
-const NAMES = ['UID', 'BASE0', 'BASE1', 'BASE2', 'RESIDUE0', 'RESIDUE1', 'RESIDUE2'];
+const NAMES = ['UID', ...BASES.map((_, i) => `BASE${i}`),
+  ...RESIDUE_PROBES.map((_, i) => `RESIDUE${i}`)];
 export class DelegatedProofError extends Error {
   constructor(code) { super(code); this.code = code; }
 }
@@ -18,8 +22,8 @@ export function buildDelegatedProof(prefix, nonce) {
   const sections = [['UID', 'id -u'],
     ...BASES.map((path, i) => [`BASE${i}`,
       `if [ -d ${path} ] && ls -1A ${path} >/dev/null 2>&1; then echo readable; else echo unreadable; fi`]),
-    ...BASES.map((path, i) => [`RESIDUE${i}`,
-      `if [ -e ${path}/${PACKAGE} ] || [ -L ${path}/${PACKAGE} ]; then echo present; else echo absent; fi`]),
+    ...RESIDUE_PROBES.map(({ path }, i) => [`RESIDUE${i}`,
+      `if [ -e ${path} ] || [ -L ${path} ]; then echo present; else echo absent; fi`]),
   ];
   const payload = [`echo HAPANELD_SU_BEGIN:${nonce}`,
     ...sections.flatMap(([name, command]) => [
@@ -45,8 +49,14 @@ function decode(body) {
   return text.slice(0, -1).split('\n');
 }
 
-/** False permits another fixed dialect, never mutation. True proves only this response. */
-export function parseDelegatedProof(body, nonce) {
+/**
+ * False permits another fixed dialect, never mutation. True proves only this
+ * response. `migrationCandidate` is the admission the unprivileged preflight already
+ * reached. Root sees data directories the shell cannot, so this is the
+ * authoritative residue reading, and it is judged by the same rule: the legacy
+ * data a handover is about to migrate is expected, anything else is not.
+ */
+export function parseDelegatedProof(body, nonce, migrationCandidate = false) {
   checkNonce(nonce);
   const lines = decode(body);
   if (lines[0] !== `HAPANELD_DELEGATE_BEGIN:${nonce}`) fail();
@@ -79,10 +89,13 @@ export function parseDelegatedProof(body, nonce) {
   for (let i = 0; i < 3; i++) {
     if (!isOne(sections[`BASE${i}`], 'readable')) fail('root_state_ambiguous');
   }
-  for (let i = 0; i < 3; i++) {
+  RESIDUE_PROBES.forEach(({ packageId }, i) => {
     const section = sections[`RESIDUE${i}`];
-    if (isOne(section, 'present')) fail('target_not_clean');
+    if (isOne(section, 'present')) {
+      if (!(migrationCandidate && packageId === LEGACY_PACKAGE_ID)) fail('target_not_clean');
+      return;
+    }
     if (!isOne(section, 'absent')) fail();
-  }
+  });
   return true;
 }

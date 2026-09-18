@@ -22,7 +22,7 @@ def document(tag="v1.2.3", *, prerelease=False):
             {
                 "name": name,
                 "browser_download_url": (
-                    f"https://github.com/maxlyth/ha-paneld/releases/download/{tag}/{name}"
+                    f"https://github.com/panel-assistant/android/releases/download/{tag}/{name}"
                 ),
             }
             for name in [

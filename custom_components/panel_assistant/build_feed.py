@@ -18,14 +18,13 @@ from typing import Any
 from aiohttp import ClientError, ClientSession, ClientTimeout
 from yarl import URL
 
+from .app_identity import is_accepted_package_id, launch_component_for
 from .release import (
     _DATABASE_COMPATIBILITY_PATTERN,
     _INSTALL_DESCRIPTOR_SCHEMA,
-    _LAUNCH_COMPONENT,
     _MAX_ANDROID_SDK,
     _MAX_ANDROID_VERSION_CODE,
     _MAX_APK_BYTES,
-    _PACKAGE_ID,
     _RELEASE_SIGNER_CERTIFICATE_SHA256,
     _SHA256_PATTERN,
     _SUPPORTED_ABIS,
@@ -91,6 +90,7 @@ class FeedBuild:
     database_compatibility: str
     min_sdk: int
     published: str
+    package_id: str
 
     @property
     def label(self) -> str:
@@ -150,12 +150,12 @@ def feed_release_artifact(build: FeedBuild) -> ReleaseArtifact:
             apk_name=apk_name,
             apk_size=build.apk_size,
             apk_sha256=build.apk_sha256,
-            package_id=_PACKAGE_ID,
+            package_id=build.package_id,
             signer_certificate_sha256=_RELEASE_SIGNER_CERTIFICATE_SHA256,
             min_sdk=build.min_sdk,
             supported_abis=_SUPPORTED_ABIS,
             database_compatibility=build.database_compatibility,
-            launch_component=_LAUNCH_COMPONENT,
+            launch_component=launch_component_for(build.package_id),
         ),
     )
 
@@ -256,9 +256,9 @@ def _parse_build(entry: Any, feed_url: URL) -> FeedBuild:
         or not isinstance(published, str)
         or _PUBLISHED_PATTERN.fullmatch(published) is None
         or not _database_range_valid(compatibility)
-        or entry["packageId"] != _PACKAGE_ID
+        or not is_accepted_package_id(entry["packageId"])
         or entry["signerCertificateSha256"] != _RELEASE_SIGNER_CERTIFICATE_SHA256
-        or entry["launchComponent"] != _LAUNCH_COMPONENT
+        or entry["launchComponent"] != launch_component_for(entry["packageId"])
         or entry["supportedAbis"] != list(_SUPPORTED_ABIS)
     ):
         raise BuildFeedError
@@ -272,6 +272,7 @@ def _parse_build(entry: Any, feed_url: URL) -> FeedBuild:
         database_compatibility=compatibility,
         min_sdk=min_sdk,
         published=published,
+        package_id=entry["packageId"],
     )
 
 

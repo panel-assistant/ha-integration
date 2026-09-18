@@ -24,6 +24,7 @@ from .adb_credentials import (
     AdbCredentialError,
     async_get_durable_adb_credential,
 )
+from .app_identity import SUCCESSOR_PACKAGE_ID
 from .client import (
     CannotConnectError,
     HaPaneldClient,
@@ -31,7 +32,7 @@ from .client import (
     PanelHealth,
     normalize_address,
 )
-from .const import DOMAIN
+from .const import ANDROID_RELEASE_DOWNLOAD_ROOT, DOMAIN
 from .feed_coordinator import async_get_feed_coordinator
 from .install_adb import (
     AdbInstallTarget,
@@ -77,6 +78,10 @@ from .install_network import (
     PinnedPanelTarget,
     async_revalidate_install_target,
 )
+from .migration_repair import (
+    async_delete_panel_migration_incomplete,
+    async_raise_panel_migration_incomplete,
+)
 from .release import InstallDescriptor, ReleaseArtifact, is_feed_build_tag
 
 _EXECUTOR_DATA_KEY = f"{DOMAIN}.install_executor"
@@ -88,10 +93,17 @@ _EXECUTION_ID_DOMAIN = b"ha-paneld-install-execution-v1\0"
 _REMOTE_STAGING_SLOT_ID = sha256(
     b"ha-paneld-device-local-staging-slot-v1\0"
 ).hexdigest()[:32]
-_RELEASE_DOWNLOAD_ROOT = "https://github.com/maxlyth/ha-paneld/releases/download"
+_RELEASE_DOWNLOAD_ROOT = ANDROID_RELEASE_DOWNLOAD_ROOT
 _REMOTE_STAGING_PREFIX = "/data/local/tmp/ha-paneld-install-"
 _HEALTH_ATTEMPTS = 12
 _HEALTH_RETRY_SECONDS = 2.0
+# Installing the successor beside the legacy package starts a handover the panel
+# performs itself: the legacy app keeps answering on 8888 until it quiesces, and
+# for part of that window nothing answers at all. The successor is therefore
+# given a longer budget, and the wait ends on the successor's own identity
+# rather than on the first reply. A clean install leaves this loop on its first
+# healthy answer, so the longer budget costs nothing when nothing is migrating.
+_HANDOVER_HEALTH_ATTEMPTS = 90
 _FINALIZER_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$", flags=re.ASCII)
 
 _SAFE_RESUME_PHASES = frozenset(
@@ -154,6 +166,25 @@ class _FrozenExecution:
     descriptor: InstallDescriptor
     release: ReleaseArtifact
     execution_id: str
+
+
+def _health_is_installed_app(
+    health: PanelHealth, *, version_name: str, package_id: str
+) -> bool:
+    """Decide whether this health line is the app this job just installed.
+
+    The version alone stops being enough during the identity migration: both
+    packages are built from one tree, so the legacy app answering mid-handover
+    can carry the very version being installed. The successor always reports
+    its own application id, so a successor install requires that id and never
+    accepts a reply that omits it. Builds older than the migration do not report
+    a package at all, which is why a legacy install still accepts its absence.
+    """
+    if health.version != version_name:
+        return False
+    if package_id == SUCCESSOR_PACKAGE_ID:
+        return health.package == package_id
+    return health.package is None or health.package == package_id
 
 
 class _CancellationObserved(Exception):
@@ -544,14 +575,28 @@ class InstallExecutor:
                     )
                 elif phase is InstallPhase.HEALTH_CHECK:
                     health = await self._async_health(execution)
-                    if (
-                        health is None
-                        or health.version != receipt.artifact.version_name
+                    if health is None or not _health_is_installed_app(
+                        health,
+                        version_name=receipt.artifact.version_name,
+                        package_id=receipt.artifact.package_id,
                     ):
+                        # A successor that has not answered yet is a handover
+                        # this integration stopped watching, not a panel that
+                        # has to be touched again. Say so where it can be read.
+                        if receipt.artifact.package_id == SUCCESSOR_PACKAGE_ID:
+                            async_raise_panel_migration_incomplete(
+                                self._hass,
+                                receipt.job_id,
+                                execution.pinned.pinned.stored_value,
+                                receipt.artifact.version_name,
+                            )
                         receipt = await self._async_recovery(
                             receipt, InstallResultCode.VERIFICATION_REQUIRED
                         )
                     else:
+                        async_delete_panel_migration_incomplete(
+                            self._hass, receipt.job_id
+                        )
                         receipt = await self._async_transition(
                             receipt,
                             InstallPhase.HEALTHY_UNCLAIMED,
@@ -790,15 +835,39 @@ class InstallExecutor:
         client = HaPaneldClient(
             async_get_clientsession(self._hass), execution.pinned.pinned
         )
-        for attempt in range(_HEALTH_ATTEMPTS):
+        artifact = execution.descriptor
+        # Only a successor install can meet a handover, and only then does an
+        # answer from another app mean "not yet" rather than "the wrong app". A
+        # legacy install keeps exactly the budget and the failure it had.
+        handover = artifact.package_id == SUCCESSOR_PACKAGE_ID
+        attempts = _HANDOVER_HEALTH_ATTEMPTS if handover else _HEALTH_ATTEMPTS
+        for attempt in range(attempts):
+            last = attempt + 1 >= attempts
             try:
                 await _require_pin(self._hass, execution.pinned)
-                return await client.async_get_health()
+                health = await client.async_get_health()
             except InstallNetworkError:
                 return None
             except CannotConnectError, InvalidResponseError:
-                if attempt + 1 < _HEALTH_ATTEMPTS:
+                # Nothing is answering on 8888. During a handover that is the
+                # legacy app having released the port before the successor
+                # bound it, so it is a reason to wait rather than to fail.
+                if not last:
                     await asyncio.sleep(_HEALTH_RETRY_SECONDS)
+                continue
+            if (
+                not handover
+                or last
+                or _health_is_installed_app(
+                    health,
+                    version_name=artifact.version_name,
+                    package_id=artifact.package_id,
+                )
+            ):
+                return health
+            # Something healthy answered, but it is not the app just installed:
+            # on a migrating panel the legacy app still owns the port.
+            await asyncio.sleep(_HEALTH_RETRY_SECONDS)
         return None
 
     async def _async_cancel_requested(

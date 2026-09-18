@@ -194,6 +194,20 @@
     "panel_update_required": {
       "title": "Mettre à jour ha-paneld sur {panel}",
       "description": "Panel Assistant possède désormais les entités de {panel}, mais la version de ha-paneld de ce panneau les annonce encore via MQTT, si bien que MQTT les crée une seconde fois. Panel Assistant désactive ces doublons. Mettez à jour ha-paneld sur {panel} vers la version {required_version} ou ultérieure ; Panel Assistant lui-même n'a pas besoin de mise à jour. Dès que le panneau mis à jour se connecte, les doublons désactivés sont supprimés et ce problème disparaît."
+    },
+    "panel_migration_incomplete": {
+      "title": "Le panneau à {address} n'a pas terminé son passage à sa nouvelle application",
+      "fix_flow": {
+        "step": {
+          "confirm_migration": {
+            "title": "Vérifier à nouveau le panneau",
+            "description": "Panel Assistant a installé la version {version} sur le panneau à {address}, et le panneau transfère lui-même ses réglages vers la nouvelle application. Ce transfert n'était pas terminé lorsque Home Assistant a cessé d'attendre. Le panneau continue de fonctionner pendant toute l'opération et reprend là où il s'était arrêté ; rien n'est modifié ici. Sélectionne Envoyer pour regarder à nouveau."
+          }
+        },
+        "abort": {
+          "migration_unfinished": "La nouvelle application n'a pas encore répondu. Le panneau poursuit de lui-même : rouvre ce problème dans quelques minutes."
+        }
+      }
     }
   },
   "options": {

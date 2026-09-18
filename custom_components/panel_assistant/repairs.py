@@ -8,8 +8,22 @@ import voluptuous as vol
 from homeassistant.components.repairs import RepairsFlow, RepairsFlowResult
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import UnknownStep
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from .app_identity import SUCCESSOR_PACKAGE_ID
+from .client import (
+    CannotConnectError,
+    HaPaneldClient,
+    InvalidAddressError,
+    InvalidResponseError,
+    normalize_address,
+)
 from .const import CONF_TRANSPORT_USER_ID
+from .migration_repair import (
+    ISSUE_DATA_ADDRESS,
+    ISSUE_DATA_VERSION,
+    ISSUE_PANEL_MIGRATION_INCOMPLETE,
+)
 from .transport import (
     ISSUE_DATA_ENTRY_ID,
     ISSUE_DATA_USER_ID,
@@ -20,6 +34,7 @@ from .transport import (
 
 ABORT_ENTRY_REMOVED = "entry_removed"
 ABORT_USER_UNAVAILABLE = "user_unavailable"
+ABORT_MIGRATION_UNFINISHED = "migration_unfinished"
 _NOT_SHOWN = object()
 
 
@@ -100,14 +115,77 @@ class PanelUserBindingFlow(RepairsFlow):
         )
 
 
+class PanelMigrationFlow(RepairsFlow):
+    """Ask the panel, once, whether its new app has taken over yet.
+
+    This flow reads and never writes. The handover is the panel's own and is
+    re-entrant, so the useful thing a person can do here is check again: either
+    the new app answers for itself, and the issue goes, or it does not yet, and
+    they are told that rather than being offered a button that changes nothing.
+    """
+
+    def __init__(self, address: str, version: str) -> None:
+        """Remember the panel address and the version this job installed."""
+        self._address = address
+        self._version = version
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> RepairsFlowResult:
+        """Show one confirmation that re-reads the panel when submitted.
+
+        The manager starts this step with the issue's own data, never with an
+        administrator's submission, so the form is always shown first.
+        """
+        return await self.async_step_confirm_migration()
+
+    async def async_step_confirm_migration(
+        self, user_input: dict[str, Any] | None = None
+    ) -> RepairsFlowResult:
+        """Re-read the panel and finish only when the new app answers."""
+        if user_input is not None:
+            if await self._async_successor_answered():
+                return self.async_create_entry(data={})
+            return self.async_abort(reason=ABORT_MIGRATION_UNFINISHED)
+        return self.async_show_form(
+            step_id="confirm_migration",
+            data_schema=vol.Schema({}),
+            description_placeholders={
+                "address": self._address,
+                "version": self._version,
+            },
+        )
+
+    async def _async_successor_answered(self) -> bool:
+        try:
+            address = normalize_address(self._address)
+        except InvalidAddressError:
+            return False
+        client = HaPaneldClient(async_get_clientsession(self.hass), address)
+        try:
+            health = await client.async_get_health()
+        except CannotConnectError, InvalidResponseError:
+            return False
+        return (
+            health.package == SUCCESSOR_PACKAGE_ID and health.version == self._version
+        )
+
+
 async def async_create_fix_flow(
     hass: HomeAssistant,
     issue_id: str,
     data: dict[str, str | int | float | None] | None,
 ) -> RepairsFlow:
     """Create the fix flow for a Panel Assistant issue."""
-    entry_id = (data or {}).get(ISSUE_DATA_ENTRY_ID)
-    user_id = (data or {}).get(ISSUE_DATA_USER_ID)
+    values = data or {}
+    if issue_id.startswith(f"{ISSUE_PANEL_MIGRATION_INCOMPLETE}_"):
+        address = values.get(ISSUE_DATA_ADDRESS)
+        version = values.get(ISSUE_DATA_VERSION)
+        if not isinstance(address, str) or not isinstance(version, str):
+            raise UnknownStep
+        return PanelMigrationFlow(address, version)
+    entry_id = values.get(ISSUE_DATA_ENTRY_ID)
+    user_id = values.get(ISSUE_DATA_USER_ID)
     if (
         not issue_id.startswith(f"{ISSUE_PANEL_USER_MISMATCH}_")
         or not isinstance(entry_id, str)

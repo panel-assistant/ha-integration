@@ -1,3 +1,4 @@
+import { isAcceptedPackageId } from './app-identity.mjs';
 import { readShell } from './shell-session.mjs';
 
 export class InstalledObservationError extends Error {
@@ -9,15 +10,14 @@ const validNonce = value => {
     throw new InstalledObservationError('invalid_request');
   }
 };
-const PACKAGE = 'io.github.maxlyth.hapaneld';
-
 // No elevated access, writes or peer-controlled shell text. The package manager
 // selects the path; quoted expansion plus a fixed character allowlist prevent
 // path output from becoming shell syntax or a second command argument.
-export function buildInstalledObservation(nonce) {
+export function buildInstalledObservation(nonce, packageId) {
   validNonce(nonce);
+  if (!isAcceptedPackageId(packageId)) throw new InstalledObservationError('invalid_request');
   return [`echo HAPANELD_INSTALLED_BEGIN:${nonce}`,
-    `hapaneld_package=$(pm path ${PACKAGE})`, 'hapaneld_pm_status=$?',
+    `hapaneld_package=$(pm path ${packageId})`, 'hapaneld_pm_status=$?',
     'if [ "$hapaneld_pm_status" -ne 0 ] && [ "$hapaneld_pm_status" -ne 1 ]; then echo invalid',
     'elif [ -z "$hapaneld_package" ]; then echo absent',
     'elif [ "$hapaneld_pm_status" -ne 0 ]; then echo invalid',
@@ -69,7 +69,8 @@ export function parseInstalledObservation(body, nonce, descriptor) {
 export async function inspectInstalledApk(adb, descriptor, ensureCurrent = () => {}) {
   ensureCurrent();
   const nonce = [...crypto.getRandomValues(new Uint8Array(16))].map(value => value.toString(16).padStart(2, '0')).join('');
-  const body = await readShell(adb, buildInstalledObservation(nonce), { timeoutMs: 30000 });
+  const body = await readShell(adb, buildInstalledObservation(nonce, descriptor?.packageId),
+    { timeoutMs: 30000 });
   ensureCurrent();
   return parseInstalledObservation(body, nonce, descriptor);
 }

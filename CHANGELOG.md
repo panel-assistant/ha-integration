@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.5.0 - 2026-09-18
+
+- ha-paneld is changing the application id it installs under. Panel Assistant now accepts either id, so it can install and verify both the release that keeps the old id and the one that carries the new one. This release has to be installed before the ha-paneld release that makes the change; an older Panel Assistant refuses the new release outright.
+- A panel that already runs the old app is no longer refused as an unclean target. The new app installs beside it, and the panel then moves its own settings across and removes the old app by itself. Panel Assistant only watches: it never touches the panel beyond installing and starting the new app.
+- Installing onto such a panel now waits through that handover, including the moment when the panel's own page is briefly unreachable, and finishes only when the new app answers for itself rather than on the first reply.
+- If the handover has not finished by the time Panel Assistant stops watching, it now says so as a repairable issue that re-checks the panel when you ask it to. The panel carries on by itself either way.
+- The panel's settings backup is now verified before an update replaces the app that produced it, and a receipt recording its size, digest and contents is kept beside it. An unreadable backup stops the update instead of being written and trusted.
+- Release lookups follow ha-paneld to its new repository address.
+
 ## 0.4.1 - 2026-09-16
 
 - Stop logging a deprecation warning when the sidebar's panel picker looks up a panel's device name, ahead of Home Assistant removing the old lookup in a future release.

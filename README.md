@@ -20,7 +20,7 @@ Panel Assistant turns an Android wall panel into a fast, dependable home for you
 
 Android wall panels are genuinely good hardware wrapped in genuinely bad software. The dashboard lags, taps vanish, the vendor's own app elbows its way onto the screen, and every make demands a different app and a different ritual to set it up. Panel Assistant is the free and open-source cure. It does one job: run your Home Assistant dashboards on the wall, quickly and without fuss. Every panel you own is set up and managed the same way, from Home Assistant, with nothing to nurse, tune or tweak by hand.
 
-This repository is the Home Assistant integration. The panel app it installs is [ha-paneld](https://github.com/maxlyth/ha-paneld). Everything else, from choosing a panel to keeping it running, is at [panel-assistant.io](https://panel-assistant.io).
+This repository is the Home Assistant integration. The panel app it installs is [ha-paneld](https://github.com/panel-assistant/android). Everything else, from choosing a panel to keeping it running, is at [panel-assistant.io](https://panel-assistant.io).
 
 ## What you get
 

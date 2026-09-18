@@ -1,9 +1,14 @@
 // Fixed, explicitly confirmed post-install grants for the authenticated APK.
 // Nothing here configures MQTT, networking, device ownership or app data.
-const PACKAGE = 'io.github.maxlyth.hapaneld';
-export const ACCESSIBILITY_SERVICE = `${PACKAGE}/.input.PanelAccessibilityService`;
-const FULL_SERVICE = `${PACKAGE}/${PACKAGE}.input.PanelAccessibilityService`;
+import { LEGACY_PACKAGE_ID, accessibilityComponentFor, accessibilityComponentsFor,
+  isAcceptedPackageId } from './app-identity.mjs';
+
+// The one component written into the device-wide accessibility list for this
+// package, and every spelling that already names it. The successor's class
+// keeps the legacy namespace, so its component cannot be built from its id.
+export const ACCESSIBILITY_SERVICE = accessibilityComponentFor(LEGACY_PACKAGE_ID);
 const fail = () => { throw new Error('permissions_unverified'); };
+const checkPackage = packageId => { if (!isAcceptedPackageId(packageId)) fail(); };
 const checkNonce = nonce => { if (!/^[a-f0-9]{32}$/.test(nonce)) fail(); };
 const checkSdk = sdk => { if (!Number.isInteger(sdk) || sdk < 1 || sdk > 100) fail(); };
 
@@ -37,15 +42,18 @@ export function parsePermissionRead(body, nonce) {
   return lines[0];
 }
 
-export function expectedServices(existing) {
+export function expectedServices(existing, packageId) {
+  checkPackage(packageId);
   const services = validateServices(existing);
-  return services.some(service => [ACCESSIBILITY_SERVICE, FULL_SERVICE].includes(service))
-    ? existing : [...services, ACCESSIBILITY_SERVICE].join(':');
+  const known = accessibilityComponentsFor(packageId);
+  return services.some(service => known.includes(service))
+    ? existing : [...services, accessibilityComponentFor(packageId)].join(':');
 }
 
-export function buildPermissionGrant(nonce, sdk, existing) {
-  checkNonce(nonce); checkSdk(sdk);
-  const expected = expectedServices(existing);
+export function buildPermissionGrant(nonce, sdk, existing, packageId) {
+  checkNonce(nonce); checkSdk(sdk); checkPackage(packageId);
+  const PACKAGE = packageId;
+  const expected = expectedServices(existing, packageId);
   // Validated component characters cannot escape single-quoted shell literals.
   // Check again immediately before the list write: unrelated services must not
   // disappear if another setup operation changed this device-wide setting.
@@ -66,8 +74,9 @@ export function parsePermissionGrant(body, nonce) {
   if (frame(body, nonce, 'PERMISSIONS_GRANT').length !== 0) fail();
 }
 
-export function buildPermissionVerification(nonce, sdk) {
-  checkNonce(nonce); checkSdk(sdk);
+export function buildPermissionVerification(nonce, sdk, packageId) {
+  checkNonce(nonce); checkSdk(sdk); checkPackage(packageId);
+  const PACKAGE = packageId;
   return `echo HAPANELD_PERMISSIONS_VERIFY_BEGIN:${nonce}; (
 settings get secure enabled_accessibility_services || exit 1
 settings get secure accessibility_enabled || exit 1
@@ -77,10 +86,10 @@ ${sdk >= 33 ? `dumpsys package ${PACKAGE} | grep 'android.permission.POST_NOTIFI
 ); echo HAPANELD_PERMISSIONS_VERIFY_END:${nonce}:$?`;
 }
 
-export function parsePermissionVerification(body, nonce, sdk, existing) {
-  checkSdk(sdk);
+export function parsePermissionVerification(body, nonce, sdk, existing, packageId) {
+  checkSdk(sdk); checkPackage(packageId);
   const lines = frame(body, nonce, 'PERMISSIONS_VERIFY');
-  if (lines.length !== 5 || lines[0] !== expectedServices(existing) || lines[1] !== '1' ||
+  if (lines.length !== 5 || lines[0] !== expectedServices(existing, packageId) || lines[1] !== '1' ||
       !/^WRITE_SETTINGS: allow(?:; [\x20-\x7e]{1,1024})?$/.test(lines[2]) ||
       !/^SYSTEM_ALERT_WINDOW: allow(?:; [\x20-\x7e]{1,1024})?$/.test(lines[3]) ||
       (sdk >= 33 ? !/^\s*android\.permission\.POST_NOTIFICATIONS: granted=true, flags=\[[ A-Z0-9_|]*\]\s*$/.test(lines[4])

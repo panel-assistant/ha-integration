@@ -8,6 +8,11 @@ import socket
 from dataclasses import dataclass
 from enum import StrEnum
 
+from .app_identity import (
+    SUCCESSOR_PACKAGE_ID,
+    is_accepted_package_id,
+    launch_component_for,
+)
 from .client import InvalidAddressError, PanelAddress, normalize_address
 from .install_jobs import (
     InstallArtifact,
@@ -26,9 +31,8 @@ from .release import (
     is_rc_release_tag,
 )
 
+# Frozen on the legacy spelling: released integrations compare it byte for byte.
 _DESCRIPTOR_SCHEMA = "io.github.maxlyth.hapaneld.install.v1"
-_PACKAGE_ID = "io.github.maxlyth.hapaneld"
-_LAUNCH_COMPONENT = f"{_PACKAGE_ID}/.MainActivity"
 _RELEASE_SIGNER_SHA256 = (
     "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
 )
@@ -131,7 +135,9 @@ def _valid_dns_name(host: str) -> bool:
 
 
 def _build_target(
-    pinned_target: PinnedPanelTarget, probe: InstallTargetProbe
+    pinned_target: PinnedPanelTarget,
+    probe: InstallTargetProbe,
+    target_package_id: str,
 ) -> InstallTarget:
     if not isinstance(pinned_target, PinnedPanelTarget):
         raise InstallPlanError(InstallPlanErrorCode.INVALID_TARGET)
@@ -158,7 +164,13 @@ def _build_target(
 
     if not isinstance(probe, InstallTargetProbe):
         raise InstallPlanError(InstallPlanErrorCode.INCOMPLETE_PROBE)
-    if probe.state is not InstallTargetState.INSTALL_CANDIDATE:
+    if probe.state is not InstallTargetState.INSTALL_CANDIDATE and not (
+        # A panel already running the legacy package admits the successor and
+        # nothing else: the successor installs beside it and the panel hands
+        # over. Any other release on that panel would be a replacement.
+        probe.state is InstallTargetState.MIGRATION_CANDIDATE
+        and target_package_id == SUCCESSOR_PACKAGE_ID
+    ):
         raise InstallPlanError(InstallPlanErrorCode.PROBE_NOT_INSTALL_CANDIDATE)
 
     model = _safe_text(probe.model, _MAX_MODEL_LENGTH)
@@ -238,11 +250,11 @@ def _build_artifact(
         or apk_sha256 is None
         or _SHA256.fullmatch(apk_sha256) is None
         or signer != _RELEASE_SIGNER_SHA256
-        or descriptor.package_id != _PACKAGE_ID
+        or not is_accepted_package_id(descriptor.package_id)
         or descriptor.supported_abis != _SUPPORTED_ABIS
         or database_bounds is None
         or not 1 <= database_bounds[0] <= database_bounds[1] <= 2**31 - 1
-        or descriptor.launch_component != _LAUNCH_COMPONENT
+        or descriptor.launch_component != launch_component_for(descriptor.package_id)
         or version_code is None
         or apk_size is None
         or min_sdk is None
@@ -279,8 +291,8 @@ def build_install_plan(
     expected_rc_tag: str | None = None,
 ) -> InstallPlan:
     """Validate and bind one exact target, release, and ADB key generation."""
-    target = _build_target(pinned_target, probe)
     artifact = _build_artifact(release, expected_rc_tag)
+    target = _build_target(pinned_target, probe, artifact.package_id)
     if (
         not isinstance(adb_credential_id, str)
         or _SHA256.fullmatch(adb_credential_id) is None

@@ -26,6 +26,7 @@ from homeassistant.core import CoreState, HomeAssistant
 from homeassistant.helpers.storage import Store
 from homeassistant.util.ulid import bytes_to_ulid, ulid_to_bytes_or_none
 
+from .app_identity import is_accepted_package_id, launch_component_for
 from .client import InvalidAddressError, normalize_address
 from .const import DOMAIN
 from .install_network import (
@@ -61,9 +62,8 @@ _APK_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.apk$")
 _DATABASE_COMPATIBILITY = re.compile(
     r"^hapaneld-db:v1:ha-paneld\.db:([1-9][0-9]*):([1-9][0-9]*)$"
 )
+# Frozen on the legacy spelling: released integrations compare it byte for byte.
 _DESCRIPTOR_SCHEMA = "io.github.maxlyth.hapaneld.install.v1"
-_PACKAGE_ID = "io.github.maxlyth.hapaneld"
-_LAUNCH_COMPONENT = f"{_PACKAGE_ID}/.MainActivity"
 _RELEASE_SIGNER_SHA256 = (
     "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
 )
@@ -521,10 +521,13 @@ def _parse_artifact(value: object) -> InstallArtifact:
     abis = value["supported_abis"]
     database = _safe_text(value["database_compatibility"], 128)
     database_match = _DATABASE_COMPATIBILITY.fullmatch(database)
+    # A receipt stored by an earlier release names the legacy package, so the
+    # stored id is read back and re-checked rather than replaced by a constant.
+    package_id = value["package_id"]
     if (
         value["descriptor_schema"] != _DESCRIPTOR_SCHEMA
-        or value["package_id"] != _PACKAGE_ID
-        or value["launch_component"] != _LAUNCH_COMPONENT
+        or not is_accepted_package_id(package_id)
+        or value["launch_component"] != launch_component_for(package_id)
         or signer != _RELEASE_SIGNER_SHA256
         or not isinstance(abis, (list, tuple))
         or tuple(abis) != _SUPPORTED_ABIS
@@ -551,12 +554,12 @@ def _parse_artifact(value: object) -> InstallArtifact:
         apk_name=apk_name,
         apk_sha256=apk_sha256,
         apk_size=_integer(value["apk_size"], 1, _MAX_APK_BYTES),
-        package_id=_PACKAGE_ID,
+        package_id=package_id,
         signer_certificate_sha256=signer,
         min_sdk=_integer(value["min_sdk"], 1, _MAX_SDK),
         supported_abis=_SUPPORTED_ABIS,
         database_compatibility=database,
-        launch_component=_LAUNCH_COMPONENT,
+        launch_component=launch_component_for(package_id),
     )
 
 

@@ -523,6 +523,20 @@
     "panel_update_required": {
       "title": "Update ha-paneld on {panel}",
       "description": "Panel Assistant now owns the entities of {panel}, but the version of ha-paneld on that panel still announces them over MQTT, so MQTT creates them a second time. Panel Assistant disables those duplicates. Update ha-paneld on {panel} to version {required_version} or later; Panel Assistant itself needs no update. Once the updated panel connects, the disabled duplicates are deleted and this issue goes away."
+    },
+    "panel_migration_incomplete": {
+      "title": "The panel at {address} has not finished moving to its new app",
+      "fix_flow": {
+        "step": {
+          "confirm_migration": {
+            "title": "Check the panel again",
+            "description": "Panel Assistant installed version {version} on the panel at {address}, and the panel moves its settings to the new app by itself. That move had not finished when Home Assistant stopped waiting. The panel keeps working throughout and carries on where it left off, so nothing here changes it. Select Submit to look again."
+          }
+        },
+        "abort": {
+          "migration_unfinished": "The new app has not answered yet. The panel carries on by itself, so open this issue again in a few minutes."
+        }
+      }
     }
   },
   "options": {

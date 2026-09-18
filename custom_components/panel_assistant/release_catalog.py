@@ -12,6 +12,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from yarl import URL
 
 from .build_feed import BuildFeed, FeedBuild, FeedInstallBundle, feed_release_artifact
+from .const import ANDROID_RELEASES_API
 from .feed_coordinator import async_get_feed_coordinator
 from .release import (
     _API_HEADERS,
@@ -32,9 +33,7 @@ from .release import (
     is_rc_release_tag,
 )
 
-_RECENT_RELEASES_URL = URL(
-    "https://api.github.com/repos/maxlyth/ha-paneld/releases?per_page=30"
-)
+_RECENT_RELEASES_URL = URL(f"{ANDROID_RELEASES_API}?per_page=30")
 _MAX_RECENT_RELEASES = 30
 _MAX_CATALOG_BYTES = 1024 * 1024
 

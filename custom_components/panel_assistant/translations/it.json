@@ -194,6 +194,20 @@
     "panel_update_required": {
       "title": "Aggiorna ha-paneld su {panel}",
       "description": "Panel Assistant possiede ora le entità di {panel}, ma la versione di ha-paneld su quel pannello le annuncia ancora tramite MQTT, quindi MQTT le crea una seconda volta. Panel Assistant disattiva questi duplicati. Aggiorna ha-paneld su {panel} alla versione {required_version} o successiva; Panel Assistant non ha bisogno di aggiornamenti. Quando il pannello aggiornato si connette, i duplicati disattivati vengono eliminati e questo problema scompare."
+    },
+    "panel_migration_incomplete": {
+      "title": "Il pannello a {address} non ha terminato il passaggio alla nuova app",
+      "fix_flow": {
+        "step": {
+          "confirm_migration": {
+            "title": "Controlla di nuovo il pannello",
+            "description": "Panel Assistant ha installato la versione {version} sul pannello a {address}, ed è il pannello stesso a trasferire le sue impostazioni nella nuova app. Quel trasferimento non era finito quando Home Assistant ha smesso di attendere. Il pannello continua a funzionare per tutto il tempo e riprende da dove si era interrotto, quindi qui non viene modificato nulla. Seleziona Invia per guardare di nuovo."
+          }
+        },
+        "abort": {
+          "migration_unfinished": "La nuova app non ha ancora risposto. Il pannello prosegue da solo, quindi riapri questo problema tra qualche minuto."
+        }
+      }
     }
   },
   "options": {

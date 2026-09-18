@@ -364,6 +364,7 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
         "cutover_incomplete",
         "cutover_blocked_by_customised_entities",
         "panel_update_required",
+        "panel_migration_incomplete",
     }
     for key in keys["exceptions"]:
         assert str(ENGLISH["exceptions"].get(key, {}).get("message", "")).strip(), key
@@ -418,11 +419,23 @@ def test_every_repairs_step_and_abort_has_english_text() -> None:
         and node.name != "async_step_init"
     }
     aborts = {value for name, value in constants.items() if name.startswith("ABORT_")}
-    flow = ENGLISH["issues"]["panel_user_mismatch"]["fix_flow"]
+    # Each fix flow's steps and aborts resolve under its own issue, so a step
+    # added to one flow cannot be satisfied by another flow's text.
+    flows = {
+        "panel_user_mismatch": (
+            {"confirm_bind", "confirm_rebind"},
+            {"entry_removed", "user_unavailable"},
+        ),
+        "panel_migration_incomplete": ({"confirm_migration"}, {"migration_unfinished"}),
+    }
 
-    assert steps == {"confirm_bind", "confirm_rebind"}
-    assert aborts == {"entry_removed", "user_unavailable"}
-    for step in steps:
-        assert flow["step"][step]["description"].strip()
-    for reason in aborts:
-        assert flow["abort"][reason].strip()
+    assert steps == {step for owned, _ in flows.values() for step in owned}
+    assert aborts == {reason for _, owned in flows.values() for reason in owned}
+    for issue, (owned_steps, owned_aborts) in flows.items():
+        flow = ENGLISH["issues"][issue]["fix_flow"]
+        assert set(flow["step"]) == owned_steps
+        assert set(flow["abort"]) == owned_aborts
+        for step in owned_steps:
+            assert flow["step"][step]["description"].strip()
+        for reason in owned_aborts:
+            assert flow["abort"][reason].strip()

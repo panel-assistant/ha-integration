@@ -24,13 +24,13 @@ from custom_components.panel_assistant.release import (
 _TAG = "v1.2.3"
 _VERSION = "1.2.3"
 _APK_NAME = f"ha-paneld-{_TAG}-manual-setup-required.apk"
-_APK_URL = f"https://github.com/maxlyth/ha-paneld/releases/download/{_TAG}/{_APK_NAME}"
+_APK_URL = (
+    f"https://github.com/panel-assistant/android/releases/download/{_TAG}/{_APK_NAME}"
+)
 _CHECKSUM_URL = f"{_APK_URL}.sha256"
 _SIGNATURE_URL = f"{_CHECKSUM_URL}.sig"
 _DESCRIPTOR_NAME = f"ha-paneld-{_TAG}-install.json"
-_DESCRIPTOR_URL = (
-    f"https://github.com/maxlyth/ha-paneld/releases/download/{_TAG}/{_DESCRIPTOR_NAME}"
-)
+_DESCRIPTOR_URL = f"https://github.com/panel-assistant/android/releases/download/{_TAG}/{_DESCRIPTOR_NAME}"
 _DESCRIPTOR_SIGNATURE_URL = f"{_DESCRIPTOR_URL}.sig"
 _SHA256 = "0123456789abcdef" * 4
 _CHECKSUM = f"{_SHA256}  {_APK_NAME}\n".encode()
@@ -157,7 +157,7 @@ def _release_document(
             {
                 "name": "release-notes.txt",
                 "browser_download_url": (
-                    f"https://github.com/maxlyth/ha-paneld/releases/download/"
+                    f"https://github.com/panel-assistant/android/releases/download/"
                     f"{_TAG}/release-notes.txt"
                 ),
             },
@@ -187,7 +187,7 @@ def _release_document(
 def _required_assets_for_tag(tag: str) -> list[dict[str, str]]:
     """Return a self-consistent required triplet for tag-validation tests."""
     apk_name = f"ha-paneld-{tag}-manual-setup-required.apk"
-    root = f"https://github.com/maxlyth/ha-paneld/releases/download/{tag}"
+    root = f"https://github.com/panel-assistant/android/releases/download/{tag}"
     return [
         {
             "name": apk_name + suffix,
@@ -200,8 +200,8 @@ def _required_assets_for_tag(tag: str) -> list[dict[str, str]]:
 def _rc_session(signing_key: rsa.RSAPrivateKey) -> _FakeSession:
     """Build real signed RC metadata without weakening any production verifier."""
     tag = "v0.9.7-rc3"
-    root = f"https://github.com/maxlyth/ha-paneld/releases/download/{tag}"
-    api = f"https://api.github.com/repos/maxlyth/ha-paneld/releases/tags/{tag}"
+    root = f"https://github.com/panel-assistant/android/releases/download/{tag}"
+    api = f"https://api.github.com/repos/panel-assistant/android/releases/tags/{tag}"
     apk = f"ha-paneld-{tag}-manual-setup-required.apk"
     descriptor_name = f"ha-paneld-{tag}-install.json"
     checksum = f"{_SHA256}  {apk}\n".encode("ascii")
@@ -244,7 +244,7 @@ async def test_rc_resolves_only_exact_requested_tag_and_signed_descriptor(
     assert artifact.descriptor.apk_sha256 == artifact.sha256 == _SHA256
     urls = [url for url, _kwargs in session.requests]
     assert urls == [
-        "https://api.github.com/repos/maxlyth/ha-paneld/releases/tags/v0.9.7-rc3",
+        "https://api.github.com/repos/panel-assistant/android/releases/tags/v0.9.7-rc3",
         artifact.apk_url + ".sha256",
         artifact.apk_url + ".sha256.sig",
         artifact.apk_url.rsplit("/", 1)[0] + "/ha-paneld-v0.9.7-rc3-install.json",
@@ -326,7 +326,9 @@ async def test_rc_refuses_tag_or_release_flag_substitution(
     signing_key: rsa.RSAPrivateKey, field: str, value: Any
 ) -> None:
     session = _rc_session(signing_key)
-    api = "https://api.github.com/repos/maxlyth/ha-paneld/releases/tags/v0.9.7-rc3"
+    api = (
+        "https://api.github.com/repos/panel-assistant/android/releases/tags/v0.9.7-rc3"
+    )
     metadata = json.loads(session._responses[api].body)
     metadata[field] = value
     if field == "tag_name":
@@ -358,8 +360,10 @@ async def test_rc_failures_do_not_fall_back_or_bypass_proof(
 ) -> None:
     _install_test_key(monkeypatch, signing_key)
     session = _rc_session(signing_key)
-    api = "https://api.github.com/repos/maxlyth/ha-paneld/releases/tags/v0.9.7-rc3"
-    root = "https://github.com/maxlyth/ha-paneld/releases/download/v0.9.7-rc3"
+    api = (
+        "https://api.github.com/repos/panel-assistant/android/releases/tags/v0.9.7-rc3"
+    )
+    root = "https://github.com/panel-assistant/android/releases/download/v0.9.7-rc3"
     checksum_sig = root + "/ha-paneld-v0.9.7-rc3-manual-setup-required.apk.sha256.sig"
     descriptor_url = root + "/ha-paneld-v0.9.7-rc3-install.json"
     if fault == "missing":
@@ -681,7 +685,7 @@ async def test_rejects_incomplete_install_descriptor_pair(present_name: str) -> 
         {
             "name": present_name,
             "browser_download_url": (
-                f"https://github.com/maxlyth/ha-paneld/releases/download/"
+                f"https://github.com/panel-assistant/android/releases/download/"
                 f"{_TAG}/{present_name}"
             ),
         }
@@ -772,7 +776,7 @@ async def test_rejects_wrongly_named_asset_triplet() -> None:
         {
             "name": wrong_apk + suffix,
             "browser_download_url": (
-                f"https://github.com/maxlyth/ha-paneld/releases/download/"
+                f"https://github.com/panel-assistant/android/releases/download/"
                 f"{_TAG}/{wrong_apk}{suffix}"
             ),
         }
@@ -793,9 +797,11 @@ async def test_rejects_wrongly_named_asset_triplet() -> None:
 @pytest.mark.parametrize(
     "replacement_url",
     [
-        "http://github.com/maxlyth/ha-paneld/releases/download/v1.2.3/asset",
+        "http://github.com/panel-assistant/android/releases/download/v1.2.3/asset",
         "https://example.com/asset",
-        (f"https://github.com/maxlyth/ha-paneld/releases/download/v1.2.4/{_APK_NAME}"),
+        (
+            f"https://github.com/panel-assistant/android/releases/download/v1.2.4/{_APK_NAME}"
+        ),
     ],
 )
 async def test_rejects_required_asset_with_noncanonical_url(
@@ -1244,7 +1250,7 @@ async def test_rejects_more_than_three_redirects(
     _install_test_key(monkeypatch, signing_key)
     session = _successful_session(signing_key)
     redirect_urls = [
-        f"https://github.com/maxlyth/ha-paneld/releases/redirect-{index}"
+        f"https://github.com/panel-assistant/android/releases/redirect-{index}"
         for index in range(1, 5)
     ]
     current_url = _CHECKSUM_URL

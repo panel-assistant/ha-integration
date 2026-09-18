@@ -4,13 +4,16 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import logging
 import stat
 from contextlib import ExitStack
+from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
+from zipfile import ZipFile
 
 import pytest
 from homeassistant.components.update import UpdateEntityFeature
@@ -24,6 +27,7 @@ from yarl import URL
 
 from custom_components.panel_assistant import CONFIG_SCHEMA, async_setup
 from custom_components.panel_assistant import update as panel_update
+from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
 from custom_components.panel_assistant.build_feed import (
     BuildFeed,
     BuildFeedError,
@@ -45,9 +49,11 @@ from custom_components.panel_assistant.feed_coordinator import (
     BuildFeedCoordinator,
     async_get_feed_coordinator,
 )
-from custom_components.panel_assistant.panel_backup import async_store_panel_backup
+from custom_components.panel_assistant.panel_backup import (
+    PanelBackupInvalidError,
+    async_store_panel_backup,
+)
 from custom_components.panel_assistant.release import (
-    _PACKAGE_ID,
     _RELEASE_SIGNER_CERTIFICATE_SHA256,
 )
 from custom_components.panel_assistant.status import PanelCachedUpdate, PanelStatus
@@ -57,6 +63,19 @@ from custom_components.panel_assistant.update_coordinator import (
     PanelUpdateSnapshot,
 )
 
+
+def _archive(*, manifest: bool = True, entries: int = 1) -> bytes:
+    """Build an archive shaped like the panel's own settings backup."""
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as archive:
+        if manifest:
+            archive.writestr("manifest.json", '{"discovery_id":"a"}')
+        for index in range(entries):
+            archive.writestr(f"payload-{index}.bin", b"state")
+    return buffer.getvalue()
+
+
+BACKUP = _archive()
 FEED_URL = URL("https://feed.example/x/maintainer.json")
 NAME = "0.9.7-rc4"
 APK = b"apk-bytes"
@@ -75,6 +94,7 @@ def _build(code: int) -> FeedBuild:
         commit="0" * 40,
         database_compatibility="hapaneld-db:v1:ha-paneld.db:11:14",
         min_sdk=26,
+        package_id=LEGACY_PACKAGE_ID,
         published="2026-09-11T10:00:00Z",
     )
 
@@ -89,7 +109,7 @@ def _feed_data(*codes: int) -> BuildFeed:
 def _preview(**replacements: str) -> StagedApk:
     values = {
         "token": "tok-1",
-        "package": _PACKAGE_ID,
+        "package": LEGACY_PACKAGE_ID,
         "version": NAME,
         "signer": _RELEASE_SIGNER_CERTIFICATE_SHA256,
     }
@@ -117,7 +137,7 @@ def _entity(
         async_start_panel_update=AsyncMock(),
         async_get_panel_install_status=AsyncMock(),
         async_get_version_code=AsyncMock(return_value=(version, installed_code)),
-        async_backup_panel=AsyncMock(return_value=b"backup-zip"),
+        async_backup_panel=AsyncMock(return_value=BACKUP),
         async_stage_apk=AsyncMock(return_value=_preview()),
         async_commit_apk=AsyncMock(),
         async_discard_apk=AsyncMock(),
@@ -283,13 +303,13 @@ async def test_install_delivers_the_newest_build_in_order(
 
     async def backup() -> bytes:
         calls.append("backup")
-        return b"backup-zip"
+        return BACKUP
 
-    async def store(*args: Any) -> Path:
+    async def store(*args: Any) -> object:
         calls.append("store")
-        path = await async_store_panel_backup(*args)
-        stored.append(path)
-        return path
+        receipt = await async_store_panel_backup(*args)
+        stored.append(receipt.path)
+        return receipt
 
     async def download(session: object, build: FeedBuild) -> bytes:
         assert session is delivery.session
@@ -326,7 +346,7 @@ async def test_install_delivers_the_newest_build_in_order(
     assert stored[0].parent == Path(hass.config.path(DOMAIN, "backups"))
     assert stored[0].name.startswith("entry-id-")
     assert stored[0].name.endswith("-vc771.zip")
-    assert stored[0].read_bytes() == b"backup-zip"
+    assert stored[0].read_bytes() == BACKUP
     assert entity._installed_code == 772
     assert entity.installed_version == "0.9.7-rc4 build 772"
     assert entity.in_progress is False
@@ -820,11 +840,12 @@ async def test_backup_store_keeps_the_newest_five_private_and_atomic(
     other = directory / "other-entry-20000101T000000Z-vc1.zip"
     other.write_bytes(b"other")
 
-    path = await async_store_panel_backup(hass, "entry-id", 771, b"new-backup")
+    receipt = await async_store_panel_backup(hass, "entry-id", 771, BACKUP)
+    path = receipt.path
 
     assert path.parent == directory
     assert path.name.endswith("-vc771.zip")
-    assert path.read_bytes() == b"new-backup"
+    assert path.read_bytes() == BACKUP
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
     kept = sorted(p.name for p in directory.glob("entry-id-*.zip"))
     assert kept == sorted([p.name for p in older[1:]] + [path.name])
@@ -839,8 +860,87 @@ async def test_backup_store_creates_a_private_directory(
     """The first backup creates an owner-only directory; unknown codes are named."""
     hass.config.config_dir = str(tmp_path)
 
-    path = await async_store_panel_backup(hass, "entry-id", None, b"zip")
+    receipt = await async_store_panel_backup(hass, "entry-id", None, BACKUP)
+    path = receipt.path
 
     assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
     assert path.name.endswith("-vcunknown.zip")
-    assert [p.name for p in path.parent.iterdir()] == [path.name]
+    assert sorted(p.name for p in path.parent.iterdir()) == sorted(
+        [path.name, f"{path.name}.json"]
+    )
+
+
+async def test_a_backup_is_proved_readable_before_it_is_kept(
+    hass: HomeAssistant, tmp_path: Path
+) -> None:
+    """Existence is not proof: the receipt records what was actually checked."""
+    hass.config.config_dir = str(tmp_path)
+
+    receipt = await async_store_panel_backup(hass, "entry-id", 771, BACKUP)
+
+    assert receipt.path.read_bytes() == BACKUP
+    assert receipt.size == len(BACKUP)
+    assert receipt.sha256 == hashlib.sha256(BACKUP).hexdigest()
+    assert receipt.entries == 2
+    assert receipt.taken_at.endswith("Z")
+    written = json.loads(
+        (receipt.path.parent / f"{receipt.path.name}.json").read_text()
+    )
+    assert written == {
+        "archive": receipt.path.name,
+        "size": len(BACKUP),
+        "sha256": hashlib.sha256(BACKUP).hexdigest(),
+        "entries": 2,
+        "taken_at": receipt.taken_at,
+    }
+
+
+@pytest.mark.parametrize(
+    ("data", "why"),
+    [
+        pytest.param(b"", "empty", id="empty"),
+        pytest.param(b"not a zip at all", "not an archive", id="not-a-zip"),
+        pytest.param(BACKUP[: len(BACKUP) // 2], "truncated", id="truncated"),
+        pytest.param(_archive(manifest=False), "no manifest", id="no-manifest"),
+    ],
+)
+async def test_an_unusable_backup_is_never_written_or_counted(
+    hass: HomeAssistant, tmp_path: Path, data: bytes, why: str
+) -> None:
+    """A copy can fail, truncate or arrive empty while still producing a file."""
+    hass.config.config_dir = str(tmp_path)
+
+    with pytest.raises(PanelBackupInvalidError):
+        await async_store_panel_backup(hass, "entry-id", 771, data)
+
+    directory = tmp_path / DOMAIN / "backups"
+    assert not directory.exists() or not list(directory.iterdir()), why
+
+
+async def test_a_manifest_with_no_payload_is_still_a_backup(
+    hass: HomeAssistant, tmp_path: Path
+) -> None:
+    """A panel with no file-backed state sends a manifest and nothing else."""
+    hass.config.config_dir = str(tmp_path)
+
+    receipt = await async_store_panel_backup(hass, "entry-id", 771, _archive(entries=0))
+
+    assert receipt.entries == 1
+    assert receipt.path.exists()
+
+
+async def test_an_unreadable_backup_stops_the_update_before_anything_downloads(
+    hass: HomeAssistant,
+    delivery: SimpleNamespace,
+) -> None:
+    """The app that holds the only copy of these settings is not replaced."""
+    entity, client = _entity(hass)
+    client.async_backup_panel = AsyncMock(return_value=b"not a zip at all")
+
+    with pytest.raises(HomeAssistantError) as caught:
+        await entity.async_install(None, False)
+
+    _assert_translated(caught.value, "panel_backup_failed")
+    delivery.download.assert_not_awaited()
+    client.async_stage_apk.assert_not_awaited()
+    client.async_commit_apk.assert_not_awaited()

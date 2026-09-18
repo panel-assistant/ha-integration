@@ -43,8 +43,8 @@ from .coordinator import HaPaneldDataUpdateCoordinator
 from .device import panel_device_info
 from .feed_coordinator import BuildFeedCoordinator, async_get_feed_coordinator
 from .native import NativeEntity, async_setup_native_platform
-from .panel_backup import async_store_panel_backup
-from .release import _PACKAGE_ID, _RELEASE_SIGNER_CERTIFICATE_SHA256
+from .panel_backup import PanelBackupInvalidError, async_store_panel_backup
+from .release import _RELEASE_SIGNER_CERTIFICATE_SHA256
 from .status import PanelCachedUpdate
 from .update_coordinator import PanelUpdateCoordinator
 
@@ -469,6 +469,13 @@ class HaPaneldUpdateEntity(
                 "update_approval_required",
                 "Approve this update on the panel, then try again",
             ) from err
+        except PanelBackupInvalidError as err:
+            # The archive was unreadable, so nothing here is a backup. Refuse
+            # the upgrade rather than replace the app that still holds the
+            # only copy of this panel's settings.
+            raise _update_error(
+                "panel_backup_failed", "The panel could not be backed up first"
+            ) from err
         except (HaPaneldError, OSError) as err:
             raise _update_error(
                 "panel_backup_failed", "The panel could not be backed up first"
@@ -482,8 +489,18 @@ class HaPaneldUpdateEntity(
             ) from err
         try:
             staged = await client.async_stage_apk(apk)
+            installed_package = (
+                self.coordinator.data.health.package if self.coordinator.data else None
+            )
             if (
-                staged.package != _PACKAGE_ID
+                staged.package != build.package_id
+                # A panel updates itself in place, so the staged build has to be
+                # the package this panel already runs. A different application
+                # id would install a second app instead of replacing this one.
+                or (
+                    installed_package is not None
+                    and installed_package != build.package_id
+                )
                 or staged.signer != _RELEASE_SIGNER_CERTIFICATE_SHA256
                 or staged.version != build.version_name
             ):

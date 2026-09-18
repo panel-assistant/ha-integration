@@ -17,6 +17,7 @@ from custom_components.panel_assistant import (
     install_jobs,
     release_catalog,
 )
+from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
 from custom_components.panel_assistant.build_feed import (
     BuildFeed,
     FeedBuild,
@@ -53,6 +54,7 @@ def _build(code: int = 772, sha: str = SHA) -> FeedBuild:
         database_compatibility="hapaneld-db:v1:ha-paneld.db:11:14",
         min_sdk=26,
         published="2026-09-11T10:00:00Z",
+        package_id=LEGACY_PACKAGE_ID,
     )
 
 
