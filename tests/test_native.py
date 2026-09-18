@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import CONF_ADDRESS, STATE_ON, STATE_UNAVAILABLE
+from homeassistant.const import CONF_ADDRESS, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
@@ -533,10 +533,9 @@ async def test_a_withheld_companion_update_is_never_a_pending_update(
 
     withheld = hass.states.get(companion)
     assert withheld.state == STATE_UNAVAILABLE
-    assert withheld.state != STATE_ON
     assert withheld.attributes.get("installed_version") is None
     assert withheld.attributes.get("latest_version") is None
-    # The panel's own update entity is untouched by the Companion's absence.
+    # An unrelated channel is untouched by the Companion's absence.
     assert (
         hass.states.get(
             _native_entries(hass, native.entry_id)[f"{DID}_touch_sound"].entity_id
