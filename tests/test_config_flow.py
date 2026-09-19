@@ -3677,6 +3677,36 @@ async def test_a_panel_nobody_asked_about_is_added_with_nothing_extra(
     assert result["data"] == {CONF_ADDRESS: "192.168.1.23"}
 
 
+async def test_confirming_binds_only_the_account_the_menu_showed(
+    hass: HomeAssistant,
+    hass_admin_user: Any,
+) -> None:
+    """The account bound is the one the menu named, never whoever asked most recently.
+
+    This is the sharp edge of the whole step. An administrator reads one account name
+    and submits; if a request that arrived in between could be bound instead, the
+    consent would be for an account nobody was shown, which is the property the
+    Repairs flow exists to protect.
+    """
+    shown = await hass.auth.async_create_user("Panel account")
+    other = await hass.auth.async_create_user("Someone else")
+    async_record_binding_request(hass, DISCOVERY_ID, shown.id)
+    menu = await _discover_panel(hass, DISCOVERY_HEALTH)
+    assert menu["description_placeholders"] == {
+        "panel": "alpha",
+        "user": "Panel account",
+    }
+
+    # Someone else asks while the menu is open, so the request no longer names the
+    # account the administrator is looking at.
+    async_record_binding_request(hass, DISCOVERY_ID, other.id)
+    result = await _choose(hass, DISCOVERY_HEALTH, menu, "bind_user")
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"] == {CONF_ADDRESS: "192.168.1.23"}
+    assert result["data"].get(CONF_TRANSPORT_USER_ID) != other.id
+
+
 async def test_an_account_that_is_no_longer_usable_is_not_bound(
     hass: HomeAssistant,
     hass_admin_user: Any,
