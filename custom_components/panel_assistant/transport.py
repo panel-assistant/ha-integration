@@ -41,7 +41,7 @@ import secrets
 from collections import deque
 from collections.abc import Callable, Container, Mapping
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Final
 
 import voluptuous as vol
@@ -245,8 +245,17 @@ DATA_TRANSPORT: Final = "transport"
 DATA_NATIVE_ENTITIES: Final = "native_entities"
 # The identities of panels whose entry was removed (see ``guards.py``).
 DATA_REMOVED_PANELS: Final = "removed_panels"
+# The account a panel asked to connect as before it had a config entry at all,
+# kept only so the add-panel flow can offer the same confirmation the Repairs
+# issue does, while the administrator adding the panel is still present.
+DATA_BINDING_REQUESTS: Final = "binding_requests"
 
-# The Repairs issue an unconfirmed hello raises, one per entry.
+# The Repairs issues an unconfirmed hello raises, one per entry, chosen by what
+# the administrator is actually being asked. A panel with no account yet is
+# unfinished onboarding. A panel whose account is already confirmed is someone
+# asking to take it over, which must never read as routine. The wire code the
+# panel renders stays one code for both.
+ISSUE_PANEL_AWAITING_CONFIRMATION: Final = "panel_awaiting_confirmation"
 ISSUE_PANEL_USER_MISMATCH: Final = ERR_PANEL_USER_MISMATCH
 ISSUE_DATA_ENTRY_ID: Final = "entry_id"
 ISSUE_DATA_USER_ID: Final = "user_id"
@@ -1463,10 +1472,77 @@ def async_delete_cutover_issues(
 # ---------------------------------------------------------------------------
 # Binding. A panel's user is bound only on an administrator's confirmation.
 
+# A panel that asks before it has a config entry is remembered for this long, so
+# that the add-panel flow can name the account it asked as. Long enough to cover
+# setting a panel up and then adding it, short enough that an account which
+# asked in some earlier session is not offered as though it were asking now.
+BINDING_REQUEST_TTL: Final = timedelta(minutes=30)
+MAX_BINDING_REQUESTS: Final = 16
+BINDING_ISSUES: Final = (ISSUE_PANEL_AWAITING_CONFIRMATION, ISSUE_PANEL_USER_MISMATCH)
 
-def binding_issue_id(entry_id: str) -> str:
-    """Return the Repairs issue ID asking an administrator to bind an entry."""
-    return f"{ISSUE_PANEL_USER_MISMATCH}_{entry_id}"
+
+def binding_issue_id(issue: str, entry_id: str) -> str:
+    """Return one of the two Repairs issue IDs that ask about an entry's user."""
+    return f"{issue}_{entry_id}"
+
+
+def _binding_issue_for(entry: ConfigEntry) -> str:
+    """Return the issue describing what this entry's administrator is asked."""
+    if entry.data.get(CONF_TRANSPORT_USER_ID) is None:
+        return ISSUE_PANEL_AWAITING_CONFIRMATION
+    return ISSUE_PANEL_USER_MISMATCH
+
+
+@callback
+def _may_ask_to_bind(hass: HomeAssistant, connection: ActiveConnection) -> bool:
+    """Return whether this connection may ask to be bound at all.
+
+    A removed user's socket survives its removal, but its refresh token does
+    not. Such a connection may not even ask.
+    """
+    return (
+        connection.refresh_token_id is not None
+        and hass.auth.async_get_refresh_token(connection.refresh_token_id) is not None
+    )
+
+
+@callback
+def async_record_binding_request(hass: HomeAssistant, did: str, user_id: str) -> None:
+    """Remember the account a panel with no config entry asked to connect as."""
+    requests: dict[str, tuple[str, datetime]] = hass.data.setdefault(
+        DOMAIN, {}
+    ).setdefault(DATA_BINDING_REQUESTS, {})
+    requests[did] = (user_id, dt_util.utcnow())
+    for stale in sorted(requests, key=lambda panel: requests[panel][1])[
+        :-MAX_BINDING_REQUESTS
+    ]:
+        del requests[stale]
+
+
+@callback
+def async_binding_request(hass: HomeAssistant, did: str | None) -> str | None:
+    """Return the account a panel asked to connect as, while that is still fresh."""
+    if did is None:
+        return None
+    requests: dict[str, tuple[str, datetime]] = hass.data.get(DOMAIN, {}).get(
+        DATA_BINDING_REQUESTS, {}
+    )
+    record = requests.get(did)
+    if record is None:
+        return None
+    user_id, asked_at = record
+    if dt_util.utcnow() - asked_at > BINDING_REQUEST_TTL:
+        del requests[did]
+        return None
+    return user_id
+
+
+@callback
+def async_discard_binding_request(hass: HomeAssistant, did: str | None) -> None:
+    """Forget a request the add-panel flow has now put to an administrator."""
+    if did is None:
+        return
+    hass.data.get(DOMAIN, {}).get(DATA_BINDING_REQUESTS, {}).pop(did, None)
 
 
 @callback
@@ -1474,12 +1550,19 @@ def async_raise_binding_issue(
     hass: HomeAssistant, entry: ConfigEntry, user_id: str
 ) -> None:
     """Ask an administrator whether this user may connect as the entry's panel."""
-    issue_id = binding_issue_id(entry.entry_id)
+    asked = _binding_issue_for(entry)
+    issue_id = binding_issue_id(asked, entry.entry_id)
     issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
     if issue is not None and (issue.data or {}).get(ISSUE_DATA_USER_ID) != user_id:
         # Replacing an issue keeps its dismissal, and any signed-in user may
         # dismiss one. A request from someone new must be seen again.
         ir.async_delete_issue(hass, DOMAIN, issue_id)
+    for other in BINDING_ISSUES:
+        # An entry that has gained or lost an account is being asked a different
+        # question, so the question it was asked before goes rather than lingering
+        # beside this one. This also retires an issue raised before the split.
+        if other != asked:
+            ir.async_delete_issue(hass, DOMAIN, binding_issue_id(other, entry.entry_id))
     ir.async_create_issue(
         hass,
         DOMAIN,
@@ -1488,7 +1571,7 @@ def async_raise_binding_issue(
         is_fixable=True,
         is_persistent=False,
         severity=ir.IssueSeverity.WARNING,
-        translation_key=ISSUE_PANEL_USER_MISMATCH,
+        translation_key=asked,
         translation_placeholders={"panel": entry.title},
     )
 
@@ -1497,13 +1580,15 @@ def async_raise_binding_issue(
 def async_delete_binding_issue(
     hass: HomeAssistant, entry_id: str, user_id: str | None = None
 ) -> None:
-    """Delete an entry's binding issue, or only one that proposes this user."""
-    issue_id = binding_issue_id(entry_id)
-    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
-    if issue is None:
-        return
-    if user_id is None or (issue.data or {}).get(ISSUE_DATA_USER_ID) == user_id:
-        ir.async_delete_issue(hass, DOMAIN, issue_id)
+    """Delete an entry's binding issues, or only one that proposes this user."""
+    registry = ir.async_get(hass)
+    for asked in BINDING_ISSUES:
+        issue_id = binding_issue_id(asked, entry_id)
+        issue = registry.async_get_issue(DOMAIN, issue_id)
+        if issue is None:
+            continue
+        if user_id is None or (issue.data or {}).get(ISSUE_DATA_USER_ID) == user_id:
+            ir.async_delete_issue(hass, DOMAIN, issue_id)
 
 
 @callback
@@ -1597,6 +1682,11 @@ def ws_hello(
 
     entry = _entry_for_did(hass, did)
     if entry is None:
+        if _may_ask_to_bind(hass, connection):
+            # There is no entry to raise a Repairs issue against, so remember the
+            # account instead. The administrator who adds this panel is then asked
+            # to confirm it while they are still here, rather than afterwards.
+            async_record_binding_request(hass, did, connection.user.id)
         if did in _removed_panels(hass) and not any(
             _panel_did(other) == did
             for other in hass.config_entries.async_loaded_entries(DOMAIN)
@@ -1612,13 +1702,7 @@ def ws_hello(
 
     user_id = connection.user.id
     if entry.data.get(CONF_TRANSPORT_USER_ID) != user_id:
-        # A removed user's socket survives its removal, but its refresh token
-        # does not. Such a connection may not even ask to be bound.
-        if (
-            connection.refresh_token_id is not None
-            and hass.auth.async_get_refresh_token(connection.refresh_token_id)
-            is not None
-        ):
+        if _may_ask_to_bind(hass, connection):
             async_raise_binding_issue(hass, entry, user_id)
         connection.send_error(
             msg["id"],

@@ -58,6 +58,14 @@
         "title": "Conferma il pannello rilevato",
         "description": "Home Assistant ha trovato un’installazione di ha-paneld in {address}. Invia il modulo per verificare che sia ancora lo stesso pannello e aggiungerlo come {panel_name}. Nessuna impostazione del pannello verrà modificata."
       },
+      "confirm_user": {
+        "title": "Conferma l'account di questo pannello",
+        "description": "Il pannello {panel} ha effettuato l'accesso a Home Assistant come {user} e sta chiedendo di connettersi. Confermare quell'account è tutto ciò che questo pannello aspetta ancora da te: poi completa la configurazione da solo. Chiunque abbia effettuato l'accesso a Home Assistant può chiedere di connettersi come pannello, quindi conferma solo se {user} è l'account che hai configurato per questo pannello. Se salti questo passaggio il pannello viene aggiunto comunque, ma resta non connesso finché non confermi l'account in Impostazioni e poi Riparazioni.",
+        "menu_options": {
+          "bind_user": "Sì, connetti questo pannello",
+          "skip_binding": "Non ora"
+        }
+      },
       "authorize_adb": {
         "title": "Autorizza Home Assistant sul pannello",
         "description": "La versione selezionata include un descrittore di installazione verificato. Seleziona Invia una volta per creare o caricare un'identità ADB persistente per questa installazione di Home Assistant e proporne la chiave pubblica al pannello Android all'indirizzo {address}. Sul pannello, approva la richiesta di Android per consentire il debug, quindi torna qui e seleziona di nuovo Invia. Android potrebbe descrivere Home Assistant come un computer. L'approvazione concede un accesso generale alla shell ADB finché il debug di rete rimane abilitato; puoi revocarlo dalle impostazioni sviluppatore del pannello. In questo passaggio non viene scaricato né installato alcun APK."
@@ -166,6 +174,25 @@
   "issues": {
     "panel_user_mismatch": {
       "title": "Conferma l'utente Home Assistant per {panel}",
+      "fix_flow": {
+        "step": {
+          "confirm_bind": {
+            "title": "Conferma l'utente del pannello",
+            "description": "Il pannello {panel} ha chiesto di connettersi a Home Assistant come utente {user}. Conferma solo se {user} è l'account che hai configurato per questo pannello. Chiunque abbia effettuato l'accesso a Home Assistant può chiedere di connettersi come pannello, quindi se non riconosci questa richiesta chiudi questa finestra e ignora il problema."
+          },
+          "confirm_rebind": {
+            "title": "Cambia l'utente del pannello",
+            "description": "Il pannello {panel} è confermato per l'utente {bound_user}, ma l'utente {user} ha chiesto di connettersi come questo pannello. Conferma solo se hai cambiato l'account di questo pannello in {user}: il pannello smetterà di accettare {bound_user}. In caso contrario, qualcun altro potrebbe tentare di impossessarsi del pannello, quindi chiudi questa finestra e ignora il problema."
+          }
+        },
+        "abort": {
+          "entry_removed": "Questo pannello non è più configurato in Home Assistant.",
+          "user_unavailable": "L'utente che ha chiesto di connettersi non esiste più o è disattivato. Non è stato modificato nulla."
+        }
+      }
+    },
+    "panel_awaiting_confirmation": {
+      "title": "Completa la connessione di {panel}",
       "fix_flow": {
         "step": {
           "confirm_bind": {

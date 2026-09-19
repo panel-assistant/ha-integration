@@ -58,6 +58,14 @@
         "title": "确认发现的面板",
         "description": "Home Assistant 在 {address} 找到了 ha-paneld 安装。提交以验证它仍是同一面板，并将其添加为 {panel_name}。不会更改任何面板设置。"
       },
+      "confirm_user": {
+        "title": "确认此面板的账户",
+        "description": "面板 {panel} 已以 {user} 的身份登录 Home Assistant，正在请求连接。确认该账户是此面板还需要你做的唯一一件事：之后它会自行完成设置。任何已登录 Home Assistant 的人都可以请求以面板身份连接，因此仅当 {user} 是你为此面板设置的账户时才确认。如果你跳过此步骤，面板仍会被添加，但会保持未连接状态，直到你在“设置”中的“修复”里确认该账户。",
+        "menu_options": {
+          "bind_user": "是，连接此面板",
+          "skip_binding": "暂不"
+        }
+      },
       "authorize_adb": {
         "title": "在面板上授权 Home Assistant",
         "description": "所选版本包含经过验证的安装描述文件。选择一次“提交”，为此 Home Assistant 安装创建或加载一个持久的 ADB 身份，并将其公钥提供给位于 {address} 的 Android 面板。在面板上批准 Android 的“允许调试”提示，然后返回此处再次选择“提交”。Android 可能会将 Home Assistant 描述为一台计算机。只要网络调试仍处于启用状态，此授权就会授予一般性的 ADB shell 访问权限；可在面板的开发者设置中撤销授权。此步骤不会下载或安装 APK。"
@@ -166,6 +174,25 @@
   "issues": {
     "panel_user_mismatch": {
       "title": "确认 {panel} 的 Home Assistant 用户",
+      "fix_flow": {
+        "step": {
+          "confirm_bind": {
+            "title": "确认面板用户",
+            "description": "面板 {panel} 请求以用户 {user} 的身份连接到 Home Assistant。仅当 {user} 是你为此面板设置的账户时才确认。任何已登录 Home Assistant 的人都可以请求以面板身份连接，因此如果你不认识此请求，请关闭此对话框并忽略该问题。"
+          },
+          "confirm_rebind": {
+            "title": "更改面板用户",
+            "description": "面板 {panel} 已确认用于用户 {bound_user}，但用户 {user} 请求以此面板的身份连接。仅当你已将此面板的账户更改为 {user} 时才确认：之后面板将不再接受 {bound_user}。如果你没有更改，可能有其他人试图接管此面板，请关闭此对话框并忽略该问题。"
+          }
+        },
+        "abort": {
+          "entry_removed": "此面板已不再在 Home Assistant 中设置。",
+          "user_unavailable": "请求连接的用户已不存在或已停用。未做任何更改。"
+        }
+      }
+    },
+    "panel_awaiting_confirmation": {
+      "title": "完成 {panel} 的连接",
       "fix_flow": {
         "step": {
           "confirm_bind": {

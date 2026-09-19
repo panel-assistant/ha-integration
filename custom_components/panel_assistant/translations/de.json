@@ -58,6 +58,14 @@
         "title": "Gefundenes Panel bestätigen",
         "description": "Home Assistant hat eine ha-paneld-Installation unter {address} gefunden. Sende das Formular ab, um zu prüfen, dass es noch dasselbe Panel ist, und füge es als {panel_name} hinzu. Es werden keine Panel-Einstellungen geändert."
       },
+      "confirm_user": {
+        "title": "Konto dieses Panels bestätigen",
+        "description": "Das Panel {panel} ist als {user} bei Home Assistant angemeldet und möchte sich verbinden. Mehr als die Bestätigung dieses Kontos braucht das Panel nicht von dir: Danach richtet es sich selbst fertig ein. Jeder, der bei Home Assistant angemeldet ist, kann eine Verbindung als Panel anfordern. Bestätige also nur, wenn {user} das Konto ist, das du für dieses Panel eingerichtet hast. Wenn du das überspringst, wird das Panel trotzdem hinzugefügt, bleibt aber unverbunden, bis du das Konto unter Einstellungen und dann Reparaturen bestätigst.",
+        "menu_options": {
+          "bind_user": "Ja, dieses Panel verbinden",
+          "skip_binding": "Jetzt nicht"
+        }
+      },
       "authorize_adb": {
         "title": "Home Assistant auf dem Panel autorisieren",
         "description": "Das ausgewählte Release enthält eine verifizierte Installationsbeschreibung. Wähle einmal „Absenden“, um eine dauerhafte ADB-Identität für diese Home Assistant-Installation zu erstellen oder zu laden und dem Android-Panel unter {address} ihren öffentlichen Schlüssel anzubieten. Bestätige auf dem Panel die Android-Aufforderung „Debugging zulassen“. Kehre dann hierher zurück und wähle erneut „Absenden“. Android bezeichnet Home Assistant möglicherweise als Computer. Die Bestätigung gewährt allgemeinen Zugriff auf die ADB-Shell, solange Netzwerk-Debugging aktiviert bleibt. Widerrufe sie in den Entwicklereinstellungen des Panels. In diesem Schritt wird keine APK heruntergeladen oder installiert."
@@ -166,6 +174,25 @@
   "issues": {
     "panel_user_mismatch": {
       "title": "Home Assistant-Benutzer für {panel} bestätigen",
+      "fix_flow": {
+        "step": {
+          "confirm_bind": {
+            "title": "Benutzer des Panels bestätigen",
+            "description": "Das Panel {panel} möchte sich als Benutzer {user} mit Home Assistant verbinden. Bestätige nur, wenn {user} das Konto ist, das du für dieses Panel eingerichtet hast. Jeder, der bei Home Assistant angemeldet ist, kann eine Verbindung als Panel anfordern. Wenn du diese Anfrage nicht kennst, schließe diesen Dialog und ignoriere das Problem."
+          },
+          "confirm_rebind": {
+            "title": "Benutzer des Panels ändern",
+            "description": "Das Panel {panel} ist für den Benutzer {bound_user} bestätigt, aber der Benutzer {user} möchte sich als dieses Panel verbinden. Bestätige nur, wenn du das Konto dieses Panels auf {user} geändert hast: Das Panel akzeptiert {bound_user} danach nicht mehr. Andernfalls versucht womöglich jemand anderes, das Panel zu übernehmen. Schließe dann diesen Dialog und ignoriere das Problem."
+          }
+        },
+        "abort": {
+          "entry_removed": "Dieses Panel ist in Home Assistant nicht mehr eingerichtet.",
+          "user_unavailable": "Der Benutzer, der die Verbindung angefordert hat, existiert nicht mehr oder ist deaktiviert. Es wurde nichts geändert."
+        }
+      }
+    },
+    "panel_awaiting_confirmation": {
+      "title": "Verbindung mit {panel} abschließen",
       "fix_flow": {
         "step": {
           "confirm_bind": {

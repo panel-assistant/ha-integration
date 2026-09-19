@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## 0.5.1 - Unreleased
 
+- A brand-new panel no longer sits at two entities waiting for a repair nobody knew to look for. When you add a panel that has already signed in to Home Assistant and asked to connect, the flow now offers that account for confirmation as one of its own steps, so the panel is confirmed while you are still there and then finishes describing itself. Who may confirm has not changed: anyone signed in to Home Assistant can ask to connect as a panel, and only an administrator can confirm one, which is exactly what this step asks. Declining still adds the panel, and it then waits for its confirmation as before.
+- The repair that asks for that confirmation is now titled "Finish connecting <panel>" while a panel has no account yet, because unfinished setup is what it is. A request to connect as a panel that already has a confirmed account keeps its own wording and its warning, since that request may be someone trying to take the panel over and must not read as routine.
+
 ## 0.5.0 - 2026-09-19
 
 - ha-paneld is changing the application id it installs under. Panel Assistant now accepts either id, so it can install and verify both the release that keeps the old id and the one that carries the new one. This release has to be installed before the ha-paneld release that makes the change; an older Panel Assistant refuses the new release outright.

@@ -9,6 +9,7 @@ import unicodedata
 from typing import Any
 
 import voluptuous as vol
+from homeassistant.auth.models import User
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -48,7 +49,13 @@ from .client import (
     is_valid_discovery_id,
     normalize_address,
 )
-from .const import CONF_AUTHORITY, DEFAULT_PORT, DOMAIN, help_url
+from .const import (
+    CONF_AUTHORITY,
+    CONF_TRANSPORT_USER_ID,
+    DEFAULT_PORT,
+    DOMAIN,
+    help_url,
+)
 from .ha_url import async_offer_ha_url
 from .install_adb import (
     AdbInstallTarget,
@@ -81,7 +88,13 @@ from .release import (
     ReleaseResolutionError,
 )
 from .release_catalog import async_list_install_choices, async_resolve_install_choice
-from .transport import AUTHORITIES, effective_authority, native_entities_enabled
+from .transport import (
+    AUTHORITIES,
+    async_binding_request,
+    async_discard_binding_request,
+    effective_authority,
+    native_entities_enabled,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -148,6 +161,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     _install_releases: list[dict[str, Any]] | None = None
     _setup_watch: asyncio.Task[None] | None = None
     _release_catalog_error: str | None = None
+    _pending_bind_user_id: str | None = None
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -251,7 +265,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                     async_get_clientsession(self.hass), self._pending_address
                 ),
             )
-            return self._async_create_panel_entry(self._pending_address, health)
+            return await self._async_create_panel_entry(self._pending_address, health)
 
         return self._show_discovery_confirmation()
 
@@ -665,7 +679,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 "Unexpected exception while confirming existing ha-paneld"
             )
             return self._show_add_panel_form(back, {"base": "unknown"})
-        return self._async_create_panel_entry(self._pending_address, health)
+        return await self._async_create_panel_entry(self._pending_address, health)
 
     async def async_step_choose_version(
         self, user_input: dict[str, Any] | None = None
@@ -1377,18 +1391,106 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             for entry in self.hass.config_entries.async_entries(DOMAIN)
         )
 
-    def _async_create_panel_entry(
+    async def _async_create_panel_entry(
         self, address: PanelAddress, health: PanelHealth
     ) -> ConfigFlowResult:
-        """Create an entry while preserving the existing endpoint identity contract."""
+        """Create an entry, confirming the panel's account first when one asked."""
         # The configured network endpoint is the entry identity. The health contract
         # exposes only a user-editable panel name, not a stable hardware identifier.
         self._async_abort_entries_match({CONF_ADDRESS: address.stored_value})
+        self._pending_address = address
+        self._pending_health = health
+        user = await self._async_asking_user()
+        if user is None:
+            # Nobody has asked to connect as this panel yet, which is the whole
+            # of what could be confirmed here. The panel raises its own Repairs
+            # issue when it asks, as it always has.
+            return self._async_finish_panel_entry(address, health)
+        self._pending_bind_user_id = user.id
+        return await self.async_step_confirm_user()
+
+    async def _async_asking_user(self) -> User | None:
+        """Return the account this panel asked to connect as, if one may be shown.
+
+        The account comes from the panel's own ``hello``, refused because no entry
+        existed yet, so this is the same request the Repairs issue carries and the
+        same administrator decision. An account that has since gone, been
+        deactivated or turned out to be Home Assistant's own is not offered.
+        """
+        if self._pending_health is None:
+            return None
+        user_id = async_binding_request(self.hass, self._pending_health.discovery_id)
+        if user_id is None:
+            return None
+        user = await self.hass.auth.async_get_user(user_id)
+        if user is None or not user.is_active or user.system_generated:
+            return None
+        return user
+
+    async def async_step_confirm_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Offer the panel's own account for confirmation, and take either answer."""
+        if self._pending_address is None or self._pending_health is None:
+            return self.async_abort(reason="unknown")
+        user = await self._async_asking_user()
+        if user is None or user.id != self._pending_bind_user_id:
+            # The account changed or stopped being one an administrator may
+            # confirm while this form was open. Add the panel rather than bind
+            # something the administrator was never shown.
+            return self._async_finish_panel_entry(
+                self._pending_address, self._pending_health
+            )
+        return self.async_show_menu(
+            step_id="confirm_user",
+            menu_options=["bind_user", "skip_binding"],
+            description_placeholders={
+                "panel": self._discovery_title or self._pending_health.panel_id,
+                "user": user.name or "",
+            },
+        )
+
+    async def async_step_bind_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Create the panel already confirmed for the account that asked."""
+        if self._pending_address is None or self._pending_health is None:
+            return self.async_abort(reason="unknown")
+        # Checked again here: the account may have gone while the menu was open,
+        # and this is the submission that binds it.
+        user = await self._async_asking_user()
+        if user is None or user.id != self._pending_bind_user_id:
+            return await self.async_step_confirm_user()
+        return self._async_finish_panel_entry(
+            self._pending_address, self._pending_health, user.id
+        )
+
+    async def async_step_skip_binding(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Add the panel without confirming the account that asked."""
+        if self._pending_address is None or self._pending_health is None:
+            return self.async_abort(reason="unknown")
+        return self._async_finish_panel_entry(
+            self._pending_address, self._pending_health
+        )
+
+    def _async_finish_panel_entry(
+        self,
+        address: PanelAddress,
+        health: PanelHealth,
+        user_id: str | None = None,
+    ) -> ConfigFlowResult:
+        """Create the entry, bound to a confirmed account or to none."""
+        async_discard_binding_request(self.hass, health.discovery_id)
+        data: dict[str, Any] = {CONF_ADDRESS: address.stored_value}
+        if user_id is not None:
+            data[CONF_TRANSPORT_USER_ID] = user_id
         # A discovered panel keeps the name its card promised. A manually added one
         # has no advertisement to read, so it stays on the panel id.
         return self.async_create_entry(
             title=self._discovery_title or health.panel_id,
-            data={CONF_ADDRESS: address.stored_value},
+            data=data,
         )
 
 

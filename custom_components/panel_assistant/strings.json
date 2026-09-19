@@ -58,6 +58,14 @@
         "title": "Confirm discovered panel",
         "description": "Home Assistant found a ha-paneld installation at {address}. Submit to verify it is still the same panel and add it as {panel_name}. No panel settings will change."
       },
+      "confirm_user": {
+        "title": "Confirm this panel's account",
+        "description": "The panel {panel} is signed in to Home Assistant as {user} and is asking to connect. Confirming that account is all this panel still needs from you: it then finishes setting itself up on its own. Anyone signed in to Home Assistant can ask to connect as a panel, so confirm only if {user} is the account you set up for this panel. If you skip this, the panel is still added, but it stays unconnected until you confirm the account under Settings, then Repairs.",
+        "menu_options": {
+          "bind_user": "Yes, connect this panel",
+          "skip_binding": "Not now"
+        }
+      },
       "authorize_adb": {
         "title": "Authorize Home Assistant on the panel",
         "description": "The selected release includes a verified installation descriptor. Select Submit once to create or load a persistent ADB identity for this Home Assistant installation and offer its public key to the Android panel at {address}. On the panel, approve Android's Allow debugging prompt, then return here and select Submit again. Android may describe Home Assistant as a computer. Approval grants general ADB shell access while network debugging remains enabled; revoke it from the panel's developer settings. No APK is downloaded or installed at this step."
@@ -495,6 +503,25 @@
   "issues": {
     "panel_user_mismatch": {
       "title": "Confirm the Home Assistant user for {panel}",
+      "fix_flow": {
+        "step": {
+          "confirm_bind": {
+            "title": "Confirm the panel's user",
+            "description": "The panel {panel} asked to connect to Home Assistant as the user {user}. Confirm only if {user} is the account you set up for this panel. Anyone signed in to Home Assistant can ask to connect as a panel, so if you do not recognise this request, close this dialog and ignore the issue."
+          },
+          "confirm_rebind": {
+            "title": "Change the panel's user",
+            "description": "The panel {panel} is confirmed for the user {bound_user}, but the user {user} asked to connect as it. Confirm only if you changed this panel's account to {user}: the panel then stops accepting {bound_user}. If you did not, someone else may be trying to take over the panel, so close this dialog and ignore the issue."
+          }
+        },
+        "abort": {
+          "entry_removed": "This panel is no longer set up in Home Assistant.",
+          "user_unavailable": "The user who asked to connect no longer exists or is deactivated. Nothing was changed."
+        }
+      }
+    },
+    "panel_awaiting_confirmation": {
+      "title": "Finish connecting {panel}",
       "fix_flow": {
         "step": {
           "confirm_bind": {

@@ -360,15 +360,20 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
     assert "health_update_failed" in keys["exceptions"]
     assert "update_busy" in keys["exceptions"]
     assert keys["issues"] == {
-        "panel_user_mismatch",
         "cutover_incomplete",
         "cutover_blocked_by_customised_entities",
         "panel_update_required",
         "panel_migration_incomplete",
     }
+    # Which binding issue is raised depends on whether the panel already has an
+    # account, so that call passes a variable and the scan above sees no literal.
+    # The tuple it chooses from is the whole set, and each one still needs words.
+    issues = keys["issues"] | set(transport.BINDING_ISSUES)
+    assert "panel_user_mismatch" in issues
+    assert "panel_awaiting_confirmation" in issues
     for key in keys["exceptions"]:
         assert str(ENGLISH["exceptions"].get(key, {}).get("message", "")).strip(), key
-    for key in keys["issues"]:
+    for key in issues:
         assert str(ENGLISH["issues"].get(key, {}).get("title", "")).strip(), key
 
 
