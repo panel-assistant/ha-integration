@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.5.1 - Unreleased
+
 ## 0.5.0 - 2026-09-19
 
 - ha-paneld is changing the application id it installs under. Panel Assistant now accepts either id, so it can install and verify both the release that keeps the old id and the one that carries the new one. This release has to be installed before the ha-paneld release that makes the change; an older Panel Assistant refuses the new release outright.
