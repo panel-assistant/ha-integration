@@ -20,6 +20,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 MAX_STATUS_RESPONSE_BYTES = 64 * 1024
+# Spelled out rather than imported from the integration: this fixture stands in for a
+# real panel, so a renamed route must break it rather than follow it.
+PANEL_SETUP_PATH = "/api/v1/setup"
 _ALLOWED_NETWORKS = (
     ipaddress.IPv4Network((0x0A000000, 8)),
     ipaddress.IPv4Network((0xAC100000, 12)),
@@ -178,6 +181,20 @@ class _PanelServer(AbstractContextManager["_PanelServer"]):
                 elif self.path == "/api/v1/install/status":
                     mode = "install_status"
                     body = b'{"running":false,"component":""}'
+                elif self.path == PANEL_SETUP_PATH:
+                    # A real panel answers this on every install and adoption, so the
+                    # integration can decide whether to hand it a Home Assistant
+                    # address. This one reports a finished wizard, which is what the
+                    # scenario's panel is, so the handover is declined at the first
+                    # reason and no address is offered. The `handover` object is still
+                    # present because a current panel always advertises it; its absence
+                    # is the version gate, not the answer to "is setup done".
+                    mode = "setup"
+                    body = (
+                        b'{"complete":true,"repair":false,'
+                        b'"handover":{"supported":true,"source":false,'
+                        b'"url":"","reason":""}}'
+                    )
                 else:
                     body = b"not found"
                     self.send_response(404)
@@ -499,6 +516,10 @@ def main() -> int:
         _require(
             not any(mode == "unexpected" for _path, mode, _size in events),
             "Home Assistant requested an unexpected fake-panel route",
+        )
+        _require(
+            any(path == PANEL_SETUP_PATH for path, _mode, _size in events),
+            "the panel's setup state was never read",
         )
         _validate_logs(runtime_root)
         verify = json.loads((control / "verify.json").read_text(encoding="ascii"))
