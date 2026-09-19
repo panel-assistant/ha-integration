@@ -250,6 +250,24 @@ def test_hacs_workflow_runs_release_version_guard_for_tags() -> None:
     assert workflow.index(guard) < workflow.index("name: Run HACS validation")
 
 
+def test_repository_carries_exactly_one_manifest() -> None:
+    """The HACS default-store checks walk the whole repository for *manifest.json.
+
+    They refuse a repository holding more than one, so test fixtures must not
+    store a component manifest under that name; the runtime harness renames the
+    probe's on the way into its throwaway Core.
+    """
+    manifests = sorted(
+        path.relative_to(ROOT).as_posix()
+        for path in ROOT.rglob("*manifest.json")
+        if ".venv" not in path.parts and "node_modules" not in path.parts
+    )
+    assert manifests == ["custom_components/panel_assistant/manifest.json"]
+    assert (
+        ROOT / "tests" / "runtime" / "probe_component" / "manifest.json.probe"
+    ).is_file()
+
+
 def test_hacs_repository_foundation() -> None:
     """Local files cover the HACS checks that do not require GitHub metadata."""
     integration_directories = sorted(
