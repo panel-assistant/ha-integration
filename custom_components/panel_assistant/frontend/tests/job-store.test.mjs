@@ -119,3 +119,24 @@ test('a finished job is retired only at its exact revision and only when healthy
     store.close();
   } finally { delete globalThis.indexedDB; }
 });
+
+test('an unfinished job is discarded only at its exact revision, and a finished one never is', async () => {
+  const idb = fakeIndexedDB();
+  globalThis.indexedDB = idb;
+  try {
+    const store = await openJobStore('discard-test');
+    const receipt = await store.create(target, descriptor);
+    await store.advance(receipt.deviceKey, 0, 'staging');
+    await assert.rejects(store.discard(receipt.deviceKey, 0), { code: 'job_conflict' });
+    await store.discard(receipt.deviceKey, 1);
+    assert.equal(await store.load(receipt.deviceKey), null);
+    // A finished job stays `retire`'s, whose caller must first prove the panel
+    // no longer runs its app.
+    const finished = await store.adopt(target, descriptor);
+    await store.advance(finished.deviceKey, 0, 'launching');
+    await store.advance(finished.deviceKey, 1, 'healthy');
+    await assert.rejects(store.discard(finished.deviceKey, 2), { code: 'job_transition_invalid' });
+    assert.notEqual(await store.load(finished.deviceKey), null);
+    store.close();
+  } finally { delete globalThis.indexedDB; }
+});

@@ -47,6 +47,7 @@ from .install_adb import (
     StagedApk,
     async_cleanup_staged_apk,
     async_install_staged_apk,
+    async_installed_artifact_size,
     async_launch_installed_app,
     async_preflight_install,
     async_stage_apk,
@@ -360,8 +361,26 @@ class InstallExecutor:
                             receipt, InstallPhase.PREFLIGHT
                         )
                 elif phase is InstallPhase.PREFLIGHT:
+                    installed_bytes = None
                     try:
-                        observed = await self._async_preflight(receipt, execution)
+                        # This is the one read that may report a panel already
+                        # holding the target. A retry has to converge on a
+                        # panel that is already where its owner asked for, and
+                        # refusing that as unclean is what used to strand them.
+                        observed = await self._async_preflight(
+                            receipt, execution, admit_installed_target=True
+                        )
+                        if observed.target_installed:
+                            installed_bytes = await self._async_installed_bytes(
+                                receipt, execution, observed
+                            )
+                            if installed_bytes is None:
+                                # The app is there at other bytes. A clean
+                                # install still never replaces it, which is
+                                # exactly the refusal this path always made.
+                                raise InstallAdbError(
+                                    InstallAdbErrorCode.TARGET_NOT_CLEAN
+                                )
                     except AdbCredentialError, InstallNetworkError:
                         receipt = await self._async_fail(
                             receipt, InstallResultCode.TRANSPORT_FAILED
@@ -371,11 +390,23 @@ class InstallExecutor:
                             receipt, _preflight_result(err)
                         )
                     else:
-                        receipt = await self._async_transition(
-                            receipt,
-                            InstallPhase.DOWNLOADING,
-                            preflight_root_mode=observed.root_mode.value,
-                        )
+                        if installed_bytes is None:
+                            receipt = await self._async_transition(
+                                receipt,
+                                InstallPhase.DOWNLOADING,
+                                preflight_root_mode=observed.root_mode.value,
+                            )
+                        else:
+                            # Nothing to download, copy or install: the panel
+                            # already runs these exact bytes. Launch, health
+                            # and setup still run, so the job converges on the
+                            # same successful outcome as a fresh install.
+                            receipt = await self._async_transition(
+                                receipt,
+                                InstallPhase.INSTALLED,
+                                preflight_root_mode=observed.root_mode.value,
+                                actual_apk_bytes=installed_bytes,
+                            )
                 elif phase is InstallPhase.DOWNLOADING:
                     try:
                         local_artifact = await async_download_install_artifact(
@@ -662,15 +693,37 @@ class InstallExecutor:
             )
 
     async def _async_preflight(
-        self, receipt: InstallJobReceipt, execution: _FrozenExecution
+        self,
+        receipt: InstallJobReceipt,
+        execution: _FrozenExecution,
+        *,
+        admit_installed_target: bool = False,
     ) -> AdbPreflight:
         await _require_pin(self._hass, execution.pinned)
         credential = await self._async_current_credential(receipt)
         observed = await async_preflight_install(
-            execution.adb_target, credential.signer, execution.descriptor
+            execution.adb_target,
+            credential.signer,
+            execution.descriptor,
+            admit_installed_target=admit_installed_target,
         )
         _require_preflight(observed, execution.adb_target)
         return observed
+
+    async def _async_installed_bytes(
+        self,
+        receipt: InstallJobReceipt,
+        execution: _FrozenExecution,
+        observed: AdbPreflight,
+    ) -> int | None:
+        """Size of the installed APK when it is this artifact, byte for byte."""
+        credential = await self._async_current_credential(receipt)
+        return await async_installed_artifact_size(
+            execution.adb_target,
+            credential.signer,
+            execution.descriptor,
+            expected_root_mode=observed.root_mode,
+        )
 
     async def _async_current_credential(
         self, receipt: InstallJobReceipt

@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from secrets import token_hex
+from time import time
 
 from adb_shell.adb_device_async import AdbDeviceAsync
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
@@ -195,6 +196,11 @@ class AdbPreflight:
     # being installed beside it. The panel migrates itself afterwards; this
     # integration only records that the handover window is expected.
     migration_candidate: bool = False
+    # True when the panel already holds exactly the package being installed and
+    # nothing else. Only a caller that asked to admit that case ever sees it,
+    # and it is not permission to install: whether the panel runs these exact
+    # bytes is a separate observation.
+    target_installed: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -510,13 +516,24 @@ def _path_state_command(nonce: str, remote_path: str) -> str:
     )
 
 
-def _remote_artifact_command(nonce: str, remote_path: str) -> str:
-    return "; ".join(
+# The installed application's own APK is read, never prepared: `prepare` is
+# for this integration's own staged file, whose mode it owns.
+def _artifact_observation_command(
+    nonce: str, remote_path: str, *, prepare: bool
+) -> str:
+    prepared = (
         (
-            f"echo HAPANELD_ARTIFACT_BEGIN:{nonce}",
             f"echo HAPANELD_ARTIFACT_CHMOD_BEGIN:{nonce}",
             f"chmod 0644 {remote_path}",
             f"echo HAPANELD_ARTIFACT_CHMOD_END:{nonce}:$?",
+        )
+        if prepare
+        else ()
+    )
+    return "; ".join(
+        (
+            f"echo HAPANELD_ARTIFACT_BEGIN:{nonce}",
+            *prepared,
             f"echo HAPANELD_ARTIFACT_MODE_BEGIN:{nonce}",
             f"stat -c %f {remote_path}",
             f"echo HAPANELD_ARTIFACT_MODE_END:{nonce}:$?",
@@ -529,6 +546,10 @@ def _remote_artifact_command(nonce: str, remote_path: str) -> str:
             f"echo HAPANELD_ARTIFACT_END:{nonce}",
         )
     )
+
+
+def _remote_artifact_command(nonce: str, remote_path: str) -> str:
+    return _artifact_observation_command(nonce, remote_path, prepare=True)
 
 
 def _package_command(nonce: str, package_id: str) -> str:
@@ -732,21 +753,39 @@ def _classify_target_packages(
     target_package_id: str,
     installed: tuple[str, ...],
     residue: frozenset[str],
-) -> bool:
+    *,
+    admit_installed_target: bool = False,
+) -> tuple[bool, bool]:
     """Decide whether this panel may receive this package, and how.
 
-    A clean target holds neither accepted package. A panel that already holds
-    the package being installed is refused exactly as before: this integration
-    never replaces an installed panel app from the clean-install path.
+    A clean target holds neither accepted package.
 
-    The one admitted exception is the identity migration. A panel running the
+    A panel that already holds the package being installed is refused, because
+    this integration never replaces an installed panel app from the
+    clean-install path. `admit_installed_target` reports that panel instead of
+    refusing it, for the one caller that asks: a job whose target is already
+    satisfied has to converge rather than tell its owner the panel is dirty
+    when it is in fact exactly where they asked it to be. Reporting is not
+    admission. Whether the panel runs the very bytes of this artifact is a
+    separate observation the caller must still make, and nothing else may be
+    present: another package, or another package's data, is unclean either way.
+    Data belonging to the installed target is its own, not residue.
+
+    The other admitted exception is the identity migration. A panel running the
     legacy package and not the successor may receive the successor beside it,
     because the successor is a different package to Android and the panel
     performs the handover itself. Residue belonging to that legacy package is
-    expected there; residue belonging to the package being installed, or legacy
-    residue with no legacy package to migrate from, is still an unclean target.
+    expected there; legacy residue with no legacy package to migrate from is
+    still an unclean target.
     """
-    if target_package_id in installed or target_package_id in residue:
+    if target_package_id in installed:
+        if not admit_installed_target or any(
+            package_id != target_package_id for package_id in (*installed, *residue)
+        ):
+            raise InstallAdbError(InstallAdbErrorCode.TARGET_NOT_CLEAN)
+        return False, True
+    if target_package_id in residue:
+        # Data with no application to own it. Never an installed target.
         raise InstallAdbError(InstallAdbErrorCode.TARGET_NOT_CLEAN)
     counterpart = counterpart_of(target_package_id)
     migration_candidate = (
@@ -757,7 +796,7 @@ def _classify_target_packages(
     # counterpart, so this one check covers both.
     if not migration_candidate and (installed or residue):
         raise InstallAdbError(InstallAdbErrorCode.TARGET_NOT_CLEAN)
-    return migration_candidate
+    return migration_candidate, False
 
 
 def _parse_preflight(
@@ -765,6 +804,8 @@ def _parse_preflight(
     nonce: str,
     target: AdbInstallTarget,
     descriptor: InstallDescriptor,
+    *,
+    admit_installed_target: bool = False,
 ) -> AdbPreflight:
     property_names = tuple(name for name, _property in _property_sections())
     other_names = (
@@ -838,8 +879,11 @@ def _parse_preflight(
         if lines == ["present"]:
             residue.add(_RESIDUE_PROBES[index][0])
 
-    migration_candidate = _classify_target_packages(
-        descriptor.package_id, tuple(installed), frozenset(residue)
+    migration_candidate, target_installed = _classify_target_packages(
+        descriptor.package_id,
+        tuple(installed),
+        frozenset(residue),
+        admit_installed_target=admit_installed_target,
     )
 
     root_mode = _parse_root_mode(sections)
@@ -858,6 +902,7 @@ def _parse_preflight(
         android_sdk=observed.android_sdk,
         root_mode=root_mode,
         migration_candidate=migration_candidate,
+        target_installed=target_installed,
     )
 
 
@@ -919,16 +964,16 @@ def _parse_path_state(body: bytes, nonce: str) -> bool:
     return lines == ["present"]
 
 
-def _parse_remote_artifact(
-    body: bytes, nonce: str, remote_path: str
+def _parse_artifact_observation(
+    body: bytes, nonce: str, remote_path: str, *, prepare: bool
 ) -> tuple[int, int, str]:
     sections = _parse_sections(
         body,
         prefix="ARTIFACT",
         nonce=nonce,
-        names=("CHMOD", "MODE", "SIZE", "SHA"),
+        names=("CHMOD", "MODE", "SIZE", "SHA") if prepare else ("MODE", "SIZE", "SHA"),
     )
-    chmod_lines, chmod_status = sections["CHMOD"]
+    chmod_lines, chmod_status = sections["CHMOD"] if prepare else ([], 0)
     mode_lines, mode_status = sections["MODE"]
     size_lines, size_status = sections["SIZE"]
     sha_lines, sha_status = sections["SHA"]
@@ -954,6 +999,37 @@ def _parse_remote_artifact(
     if sha_match is None or not 0 <= size <= _MAX_APK_BYTES:
         raise _MalformedAdbResponse
     return mode, size, sha_match.group(1)
+
+
+def _parse_remote_artifact(
+    body: bytes, nonce: str, remote_path: str
+) -> tuple[int, int, str]:
+    return _parse_artifact_observation(body, nonce, remote_path, prepare=True)
+
+
+# One installed base APK, at a path the package manager chose. The allowlist
+# keeps that path out of shell syntax and rejects anything that is not an
+# ordinary installed application directory.
+_INSTALLED_APK_PATH_PATTERN = re.compile(
+    r"^/data/app/[A-Za-z0-9_./=+~-]+/base\.apk$", flags=re.ASCII
+)
+
+
+def _parse_installed_apk_path(body: bytes, nonce: str) -> str | None:
+    """Return the one base APK path of an installed package, or None."""
+    lines, status_code = _parse_single_section(body, prefix="PACKAGE", nonce=nonce)
+    if status_code == 1 and not lines:
+        return None
+    if status_code != 0 or len(lines) != 1 or not _is_package_path(lines[0]):
+        raise _MalformedAdbResponse
+    path = lines[0].removeprefix("package:")
+    if (
+        _INSTALLED_APK_PATH_PATTERN.fullmatch(path) is None
+        or "//" in path
+        or any(part in {".", ".."} for part in path.split("/"))
+    ):
+        raise _MalformedAdbResponse
+    return path
 
 
 def _parse_package_present(body: bytes, nonce: str) -> None:
@@ -1148,24 +1224,35 @@ async def _async_preflight_on_device(
     device: AdbDeviceAsync,
     target: AdbInstallTarget,
     descriptor: InstallDescriptor,
+    *,
+    admit_installed_target: bool = False,
 ) -> AdbPreflight:
     nonce = token_hex(16)
     body = await _async_shell(
         device, _preflight_command(nonce), read_timeout=_READ_TIMEOUT_SECONDS
     )
-    preflight = _parse_preflight(body, nonce, target, descriptor)
+    preflight = _parse_preflight(
+        body, nonce, target, descriptor, admit_installed_target=admit_installed_target
+    )
     if preflight.root_mode is AdbRootMode.ROOT_SU:
-        await _async_prove_su(device, admitted=preflight)
+        await _async_prove_su(
+            device, admitted=preflight, target_package_id=descriptor.package_id
+        )
     return preflight
 
 
 async def _async_prove_su(
-    device: AdbDeviceAsync, *, admitted: AdbPreflight | None
+    device: AdbDeviceAsync,
+    *,
+    admitted: AdbPreflight | None,
+    target_package_id: str | None = None,
 ) -> None:
     """Prove delegated root afresh without elevating any mutation command.
 
     ``admitted`` is the preflight this root reading has to agree with, or None
-    when only root itself is being re-proved.
+    when only root itself is being re-proved. ``target_package_id`` names the
+    package that preflight was about, because the data an installed target owns
+    is expected exactly where that target was reported.
     """
     clean = admitted is not None
     for prefix in _SU_PREFIXES:
@@ -1208,10 +1295,11 @@ async def _async_prove_su(
                 values, status = sections[f"RESIDUE{index}"]
                 if status != 0 or values not in (["absent"], ["present"]):
                     raise _MalformedAdbResponse
-                if values == ["present"] and not (
-                    admitted.migration_candidate
-                    and _RESIDUE_PROBES[index][0] == LEGACY_PACKAGE_ID
-                ):
+                owner = _RESIDUE_PROBES[index][0]
+                expected = (
+                    admitted.migration_candidate and owner == LEGACY_PACKAGE_ID
+                ) or (admitted.target_installed and owner == target_package_id)
+                if values == ["present"] and not expected:
                     raise InstallAdbError(InstallAdbErrorCode.TARGET_NOT_CLEAN)
         return
     raise InstallAdbError(InstallAdbErrorCode.ROOT_STATE_AMBIGUOUS)
@@ -1360,14 +1448,26 @@ async def async_preflight_install(
     target: AdbInstallTarget,
     signer: PythonRSASigner,
     descriptor: InstallDescriptor,
+    *,
+    admit_installed_target: bool = False,
 ) -> AdbPreflight:
-    """Re-prove clean admission without mutating the panel."""
+    """Re-prove clean admission without mutating the panel.
+
+    `admit_installed_target` reports a panel already holding exactly this
+    package as `target_installed` instead of refusing it. The caller then owns
+    what happens next, and may not stage or install on that panel.
+    """
     _validate_request(target, descriptor)
     device: AdbDeviceAsync | None = None
     try:
         async with asyncio.timeout(_PREFLIGHT_TIMEOUT_SECONDS):
             device = await _async_connect(target, signer)
-            return await _async_preflight_on_device(device, target, descriptor)
+            return await _async_preflight_on_device(
+                device,
+                target,
+                descriptor,
+                admit_installed_target=admit_installed_target,
+            )
     except InstallAdbError:
         raise
     except (
@@ -1434,6 +1534,83 @@ async def async_verify_installed_target(
         await _async_close(device)
 
 
+async def async_installed_artifact_size(
+    target: AdbInstallTarget,
+    signer: PythonRSASigner,
+    descriptor: InstallDescriptor,
+    *,
+    expected_root_mode: AdbRootMode,
+) -> int | None:
+    """Return the installed APK's size when the panel runs exactly these bytes.
+
+    The installed package's own APK is measured and hashed, and compared with
+    the signed descriptor. Equal size and digest mean the panel is already
+    running the very bytes this job would install, so installing them again
+    would change nothing on it. Anything else returns None: a different build
+    of the same application is never admitted here, and this observation
+    mutates nothing.
+    """
+    _validate_request(target, descriptor)
+    _validate_expected_root_mode(expected_root_mode)
+    device: AdbDeviceAsync | None = None
+    try:
+        async with asyncio.timeout(_PREFLIGHT_TIMEOUT_SECONDS):
+            device = await _async_connect(target, signer)
+            await _async_require_identity_root(device, target, expected_root_mode)
+            nonce = token_hex(16)
+            path = _parse_installed_apk_path(
+                await _async_shell(
+                    device,
+                    _package_command(nonce, descriptor.package_id),
+                    read_timeout=_READ_TIMEOUT_SECONDS,
+                ),
+                nonce,
+            )
+            if path is None:
+                return None
+            nonce = token_hex(16)
+            mode, size, digest = _parse_artifact_observation(
+                await _async_shell(
+                    device,
+                    _artifact_observation_command(nonce, path, prepare=False),
+                    read_timeout=_READ_TIMEOUT_SECONDS,
+                ),
+                nonce,
+                path,
+                prepare=False,
+            )
+            if (
+                not stat.S_ISREG(mode)
+                or size != descriptor.apk_size
+                or digest != descriptor.apk_sha256
+            ):
+                return None
+            return size
+    except InstallAdbError:
+        raise
+    except (
+        TimeoutError,
+        AdbConnectionError,
+        AdbTimeoutError,
+        OSError,
+        TcpTimeoutException,
+    ):
+        raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE) from None
+    except (
+        _MalformedAdbResponse,
+        _UnsafeAdbPacket,
+        DevicePathInvalidError,
+        InvalidChecksumError,
+        InvalidCommandError,
+        InvalidResponseError,
+        InvalidTransportError,
+        PushFailedError,
+    ):
+        raise InstallAdbError(InstallAdbErrorCode.TARGET_RESPONSE_INVALID) from None
+    finally:
+        await _async_close(device)
+
+
 async def async_stage_apk(
     target: AdbInstallTarget,
     signer: PythonRSASigner,
@@ -1475,7 +1652,12 @@ async def async_stage_apk(
                 f"/proc/self/fd/{file_descriptor}",
                 remote_path,
                 st_mode=_REMOTE_MODE,
-                mtime=1,
+                # The sync protocol carries this as the staged file's
+                # modification time in whole seconds. The bytes come from a
+                # file descriptor with no meaningful time of its own, so send
+                # the time of the copy rather than a constant that dates the
+                # file to 1970 and tells a consumer nothing.
+                mtime=int(time()),
                 transport_timeout_s=_TRANSPORT_TIMEOUT_SECONDS,
                 read_timeout_s=_INSTALL_READ_TIMEOUT_SECONDS,
             )

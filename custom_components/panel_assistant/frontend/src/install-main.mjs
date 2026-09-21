@@ -245,14 +245,25 @@ connect.addEventListener('click', async () => {
       support('Saved progress', receipt ?? 'none');
       // A job already under way resumes without asking again: the person
       // agreed to install when they started it.
+      const confirmBody = [];
+      // An unfinished attempt at another version was set aside rather than
+      // refused. That is the person's own change of mind, so it is one
+      // sentence on the step they were already on, not an error.
+      if (preview.discarded) {
+        support('Set aside', preview.discarded);
+        confirmBody.push(screen.restartedDifferentVersion);
+      }
       // The same build already on the panel is not an error: say so plainly,
       // and let the one press finish its setup.
       if (!receipt && preview.adopt) {
         support('Already installed', `${release.descriptor.versionName} (${release.descriptor.versionCode})`);
         element('step-confirm').querySelector('h2').textContent = screen.alreadyInstalledHeading;
-        element('confirm-body').textContent = screen.alreadyInstalledBody;
+        confirmBody.push(screen.alreadyInstalledBody);
         install.textContent = screen.continueSetup;
+      } else {
+        confirmBody.push(screen.confirmBody);
       }
+      element('confirm-body').textContent = confirmBody.join(' ');
       if (receipt) await installAll(); else show('confirm');
     })().catch(error => { fail(error); throw error; })]);
   } catch (error) { fail(error); }

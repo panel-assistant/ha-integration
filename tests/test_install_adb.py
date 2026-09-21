@@ -10,7 +10,9 @@ import stat
 import threading
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import replace
+from datetime import UTC, datetime
 from pathlib import Path
+from time import time
 from typing import Any
 
 import pytest
@@ -36,6 +38,7 @@ from custom_components.panel_assistant.install_adb import (
     StagedApk,
     async_cleanup_staged_apk,
     async_install_staged_apk,
+    async_installed_artifact_size,
     async_launch_installed_app,
     async_preflight_install,
     async_stage_apk,
@@ -1355,6 +1358,7 @@ async def test_stage_pushes_fixed_regular_0644_path_and_verifies_exact_artifact(
     )
     _install_fakes(monkeypatch, [fake])
 
+    pushed_after = int(time())
     staged = await async_stage_apk(
         target,
         signer,
@@ -1369,7 +1373,11 @@ async def test_stage_pushes_fixed_regular_0644_path_and_verifies_exact_artifact(
     assert args[1] == REMOTE_PATH
     assert args[0].startswith("/proc/self/fd/")
     assert kwargs["st_mode"] == 0o100644
-    assert kwargs["mtime"] == 1
+    # The push dates the staged file to the copy, not to the epoch: a constant
+    # mtime is wrong on the wire and defeats a consumer that reads it.
+    assert kwargs["mtime"] >= pushed_after
+    assert kwargs["mtime"] <= int(time()) + 1
+    assert datetime.fromtimestamp(kwargs["mtime"], UTC).year >= 2026
     assert str(apk) not in "\n".join(fake.commands)
     assert len(fake.commands) == 3
     assert "HAPANELD_PREFLIGHT_BEGIN" in fake.commands[0]
@@ -3031,3 +3039,236 @@ async def test_each_identity_is_launched_by_its_own_exact_component(
             in (fake.commands[-1])
         )
         assert f"pm path {installed.package_id}" in fake.commands[-2]
+
+
+_INSTALLED_APK_PATH = "/data/app/~~aBc==/io.github.maxlyth.hapaneld-xY9==/base.apk"
+
+
+def _installed_artifact_output(
+    nonce: str,
+    *,
+    path: str = _INSTALLED_APK_PATH,
+    size: int = len(APK_BYTES),
+    sha256: str = APK_SHA256,
+    mode: str = "81a4",
+) -> bytes:
+    """The read-only observation of an installed application's own APK."""
+    prefix = "ARTIFACT"
+    lines = [f"HAPANELD_{prefix}_BEGIN:{nonce}"]
+    lines.extend(_section(prefix, "MODE", nonce, [mode], 0))
+    lines.extend(_section(prefix, "SIZE", nonce, [str(size)], 0))
+    lines.extend(_section(prefix, "SHA", nonce, [f"{sha256}  {path}"], 0))
+    lines.append(f"HAPANELD_{prefix}_END:{nonce}")
+    return ("\n".join(lines) + "\n").encode()
+
+
+def _installed_reads(**changes: Any) -> list[bytes]:
+    return [
+        _identity_root_output(NONCES[0]),
+        _single_output("PACKAGE", NONCES[1], [f"package:{_INSTALLED_APK_PATH}"], 0),
+        _installed_artifact_output(NONCES[2], **changes),
+    ]
+
+
+async def test_an_installed_apk_is_measured_and_hashed_without_being_touched(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+) -> None:
+    """Byte identity is what says a panel already runs this artifact."""
+    fake = FakeDevice(_installed_reads())
+    _install_fakes(monkeypatch, [fake])
+
+    size = await async_installed_artifact_size(
+        target, signer, descriptor, expected_root_mode=AdbRootMode.ROOTLESS
+    )
+
+    assert size == len(APK_BYTES)
+    assert len(fake.commands) == 3
+    assert "pm path io.github.maxlyth.hapaneld" in fake.commands[1]
+    assert _INSTALLED_APK_PATH in fake.commands[2]
+    # An installed application's APK belongs to the system: it is read, never
+    # prepared, so nothing in this observation writes to the panel.
+    for command in fake.commands:
+        for mutation in ("chmod", "rm ", "pm install", "am start", "mv "):
+            assert mutation not in command
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"sha256": "b" * 64},
+        {"size": len(APK_BYTES) + 1},
+        {"mode": "41ed"},
+    ],
+    ids=["other_digest", "other_size", "not_a_regular_file"],
+)
+async def test_another_build_of_the_same_app_is_never_reported_as_this_one(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+    changes: dict[str, Any],
+) -> None:
+    """Only the exact bytes count; a different build is not this artifact."""
+    _install_fakes(monkeypatch, [FakeDevice(_installed_reads(**changes))])
+
+    assert (
+        await async_installed_artifact_size(
+            target, signer, descriptor, expected_root_mode=AdbRootMode.ROOTLESS
+        )
+        is None
+    )
+
+
+async def test_an_absent_package_reports_nothing_installed(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+) -> None:
+    """`pm path` answers nothing, and that is not an error."""
+    fake = FakeDevice(
+        [
+            _identity_root_output(NONCES[0]),
+            _single_output("PACKAGE", NONCES[1], [], 1),
+        ]
+    )
+    _install_fakes(monkeypatch, [fake])
+
+    assert (
+        await async_installed_artifact_size(
+            target, signer, descriptor, expected_root_mode=AdbRootMode.ROOTLESS
+        )
+        is None
+    )
+    assert len(fake.commands) == 2
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/data/local/tmp/base.apk",
+        "/data/app/../../etc/base.apk",
+        "/data/app//base.apk",
+        "/data/app/pkg/base.apk; rm -rf /",
+        "/data/app/pkg/split_config.apk",
+    ],
+)
+async def test_a_package_path_outside_an_installed_application_is_refused(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+    path: str,
+) -> None:
+    """The package manager's answer never becomes shell syntax or a stray read."""
+    fake = FakeDevice(
+        [
+            _identity_root_output(NONCES[0]),
+            _single_output("PACKAGE", NONCES[1], [f"package:{path}"], 0),
+        ]
+    )
+    _install_fakes(monkeypatch, [fake])
+
+    with pytest.raises(InstallAdbError) as caught:
+        await async_installed_artifact_size(
+            target, signer, descriptor, expected_root_mode=AdbRootMode.ROOTLESS
+        )
+
+    assert caught.value.code is InstallAdbErrorCode.TARGET_RESPONSE_INVALID
+    assert len(fake.commands) == 2
+
+
+async def test_a_panel_holding_the_target_is_reported_only_when_asked(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+) -> None:
+    """The same reading refuses by default and reports on request.
+
+    An installed application owns its own data, so its residue is expected
+    exactly where the application itself was seen.
+    """
+    response = _preflight_output(
+        NONCES[0],
+        package_lines=[f"package:{_INSTALLED_APK_PATH}"],
+        residue_index=0,
+    )
+    _install_fakes(monkeypatch, [FakeDevice([response])])
+    with pytest.raises(InstallAdbError) as caught:
+        await async_preflight_install(target, signer, descriptor)
+    assert caught.value.code is InstallAdbErrorCode.TARGET_NOT_CLEAN
+
+    _install_fakes(monkeypatch, [FakeDevice([response])])
+    observed = await async_preflight_install(
+        target, signer, descriptor, admit_installed_target=True
+    )
+
+    assert observed.target_installed is True
+    assert observed.migration_candidate is False
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {
+            "successor_package_lines": [
+                "package:/data/app/io.panelassistant.android/base.apk"
+            ]
+        },
+        {"successor_retained_lines": ["package:io.panelassistant.android"]},
+        {"residue_index": 3},
+    ],
+    ids=["other_package", "other_package_retained", "other_packages_data"],
+)
+async def test_anything_beside_the_installed_target_is_still_unclean(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+    changes: dict[str, Any],
+) -> None:
+    """Admitting an installed target admits nothing else on the panel."""
+    _install_fakes(
+        monkeypatch,
+        [
+            FakeDevice(
+                [
+                    _preflight_output(
+                        NONCES[0],
+                        package_lines=[f"package:{_INSTALLED_APK_PATH}"],
+                        **changes,
+                    )
+                ]
+            )
+        ],
+    )
+
+    with pytest.raises(InstallAdbError) as caught:
+        await async_preflight_install(
+            target, signer, descriptor, admit_installed_target=True
+        )
+
+    assert caught.value.code is InstallAdbErrorCode.TARGET_NOT_CLEAN
+
+
+async def test_data_with_no_application_to_own_it_is_never_an_installed_target(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+) -> None:
+    """Leftover data is an unclean panel, however the caller asks."""
+    _install_fakes(
+        monkeypatch, [FakeDevice([_preflight_output(NONCES[0], residue_index=0)])]
+    )
+
+    with pytest.raises(InstallAdbError) as caught:
+        await async_preflight_install(
+            target, signer, descriptor, admit_installed_target=True
+        )
+
+    assert caught.value.code is InstallAdbErrorCode.TARGET_NOT_CLEAN

@@ -52,7 +52,10 @@ export async function uploadApk(adb, jobId, release, {
         try { onProgress(Math.min(size, offset + 65536), size); } catch { /* ignored */ }
       }
       guard();
-      await writer.write(frame('DONE', 0));
+      // The sync protocol reads DONE's payload word as the file's modification
+      // time in whole seconds. Zero dates the staged file to 1970 and tells any
+      // consumer that trusts it nothing, so send the time the copy finished.
+      await writer.write(frame('DONE', Math.floor(Date.now() / 1000)));
     };
     const receive = async () => {
       // Only the eight-byte success/failure header is needed. Failure text is

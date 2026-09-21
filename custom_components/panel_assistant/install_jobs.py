@@ -296,8 +296,16 @@ _NEXT_PHASE: Mapping[InstallPhase, frozenset[InstallPhase]] = {
     InstallPhase.AUTHORIZING: frozenset(
         {InstallPhase.PREFLIGHT, InstallPhase.CANCELLED, InstallPhase.FAILED}
     ),
+    # INSTALLED is the already-satisfied target: the panel was observed running
+    # exactly this artifact's bytes, so there is nothing to download, copy or
+    # install, and the job goes straight to launching, health and setup.
     InstallPhase.PREFLIGHT: frozenset(
-        {InstallPhase.DOWNLOADING, InstallPhase.CANCELLED, InstallPhase.FAILED}
+        {
+            InstallPhase.DOWNLOADING,
+            InstallPhase.INSTALLED,
+            InstallPhase.CANCELLED,
+            InstallPhase.FAILED,
+        }
     ),
     InstallPhase.DOWNLOADING: frozenset(
         {InstallPhase.ARTIFACT_READY, InstallPhase.CANCELLED, InstallPhase.FAILED}
@@ -1493,9 +1501,8 @@ class InstallJobManager:
             ):
                 raise InstallJobTransitionError
 
-            learns_preflight_root_mode = (
-                current.phase == InstallPhase.PREFLIGHT
-                and phase == InstallPhase.DOWNLOADING
+            learns_preflight_root_mode = current.phase == InstallPhase.PREFLIGHT and (
+                phase in {InstallPhase.DOWNLOADING, InstallPhase.INSTALLED}
             )
             if learns_preflight_root_mode:
                 if (
@@ -1506,7 +1513,14 @@ class InstallJobManager:
             elif parsed_preflight_root_mode is not None:
                 raise InstallJobTransitionError
 
-            if phase == InstallPhase.ARTIFACT_READY:
+            # A downloaded artifact learns its size at ARTIFACT_READY. An
+            # already-satisfied target learns it from the APK measured on the
+            # panel, which is the only artifact that job ever has.
+            learns_actual_apk_bytes = phase == InstallPhase.ARTIFACT_READY or (
+                current.phase == InstallPhase.PREFLIGHT
+                and phase == InstallPhase.INSTALLED
+            )
+            if learns_actual_apk_bytes:
                 if parsed_actual is None or current.actual_apk_bytes is not None:
                     raise InstallJobTransitionError
             elif parsed_actual is not None:

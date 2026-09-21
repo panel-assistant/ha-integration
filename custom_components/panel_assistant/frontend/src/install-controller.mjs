@@ -48,6 +48,7 @@ export function createInstallController({ store, ports, locks = globalThis.navig
         guard();
         if (release?.kind !== 'authenticated-apk-bytes') fail('artifact_changed');
         let receipt = await store.load(deviceKey);
+        let discarded = null;
         if (receipt?.phase === 'healthy') {
           // A finished job only resumes (permissions, then setup) while the
           // panel still runs exactly its app. If another release was chosen,
@@ -67,7 +68,26 @@ export function createInstallController({ store, ports, locks = globalThis.navig
             receipt = null;
           }
         }
-        if (receipt && canonical(receipt.artifact) !== canonical(release.descriptor)) fail('artifact_changed');
+        // An unfinished job for a different release used to refuse here, and
+        // the only button on that error reloads into the same refusal. The
+        // person has since chosen another version in Home Assistant, so set
+        // the old job aside and install what they chose. This discards one
+        // saved record under the device lock and touches nothing on the panel;
+        // a job whose release is unchanged still resumes exactly as before,
+        // and every later guard still refuses an artifact that changes under a
+        // job already running.
+        if (receipt && canonical(receipt.artifact) !== canonical(release.descriptor)) {
+          const stale = receipt;
+          await locks.request(`ha-paneld-usb:${deviceKey}`, {mode: 'exclusive', ifAvailable: true},
+            async lock => {
+              if (!lock) fail('transaction_busy');
+              await store.discard(deviceKey, stale.revision);
+            });
+          guard();
+          discarded = Object.freeze({ versionName: stale.artifact.versionName,
+            versionCode: stale.artifact.versionCode, releaseTag: stale.artifact.releaseTag });
+          receipt = null;
+        }
         // Actual ports validate the live target and installed/clean state. A
         // not-yet-created job may use the target only for read-only inspection.
         // A panel already running exactly this signed build is adopted, not
@@ -85,7 +105,8 @@ export function createInstallController({ store, ports, locks = globalThis.navig
         if (['recovery_required', 'cleanup_pending'].includes(proposed.phase)) await ports.inspectRecovery(proposed, release);
         else if (!adopt) await ports.inspect(proposed, release);
         guard();
-        preview = Object.freeze({ target: snapshot, descriptor: release.descriptor, deviceKey, receipt, adopt });
+        preview = Object.freeze({ target: snapshot, descriptor: release.descriptor, deviceKey,
+          receipt, adopt, discarded });
         expectedJobId = receipt?.id;
         return preview;
       } finally { busy = false; }

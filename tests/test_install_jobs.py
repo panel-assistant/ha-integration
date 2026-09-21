@@ -2950,3 +2950,72 @@ def test_durable_job_reader_rejects_symlink_and_excessive_file(
     store_path.chmod(0o600)
     with pytest.raises(InstallJobStoreError):
         _REAL_DURABLE_JOBS_READER(str(store_path))
+
+
+async def test_an_already_satisfied_target_skips_to_installed_with_its_evidence(
+    hass: HomeAssistant,
+) -> None:
+    """The one shortcut: nothing was downloaded, so the panel's APK is the size.
+
+    A job whose target is already satisfied has no download and no copy, so it
+    learns its root posture and its artifact size in the same step, and both
+    are still recorded exactly once.
+    """
+    manager = InstallJobManager(hass, now=Clock())
+    receipt = await receipt_at_phase(manager, InstallPhase.PREFLIGHT)
+
+    installed = await manager.async_transition(
+        receipt.job_id,
+        receipt.revision,
+        InstallPhase.INSTALLED,
+        preflight_root_mode="rootless",
+        actual_apk_bytes=12_345,
+    )
+
+    assert installed.phase is InstallPhase.INSTALLED
+    assert installed.preflight_root_mode == "rootless"
+    assert installed.actual_apk_bytes == 12_345
+    # And it carries on through the ordinary remaining phases.
+    launching = await manager.async_transition(
+        installed.job_id, installed.revision, InstallPhase.LAUNCHING
+    )
+    assert launching.phase is InstallPhase.LAUNCHING
+
+
+@pytest.mark.parametrize(
+    ("root_mode", "apk_bytes"),
+    [(None, 12_345), ("rootless", None), (None, None)],
+    ids=["no_root_posture", "no_artifact_size", "neither"],
+)
+async def test_the_satisfied_target_shortcut_demands_both_facts(
+    hass: HomeAssistant, root_mode: str | None, apk_bytes: int | None
+) -> None:
+    """Skipping the download never skips the evidence the later phases need."""
+    manager = InstallJobManager(hass, now=Clock())
+    receipt = await receipt_at_phase(manager, InstallPhase.PREFLIGHT)
+
+    with pytest.raises(InstallJobTransitionError):
+        await manager.async_transition(
+            receipt.job_id,
+            receipt.revision,
+            InstallPhase.INSTALLED,
+            preflight_root_mode=root_mode,
+            actual_apk_bytes=apk_bytes,
+        )
+
+
+async def test_an_artifact_size_is_refused_at_every_other_transition(
+    hass: HomeAssistant,
+) -> None:
+    """Only a download's completion or a satisfied target learns the size."""
+    manager = InstallJobManager(hass, now=Clock())
+    receipt = await receipt_at_phase(manager, InstallPhase.PREFLIGHT)
+
+    with pytest.raises(InstallJobTransitionError):
+        await manager.async_transition(
+            receipt.job_id,
+            receipt.revision,
+            InstallPhase.DOWNLOADING,
+            preflight_root_mode="rootless",
+            actual_apk_bytes=12_345,
+        )

@@ -14,6 +14,10 @@ export const INSTALL_SCREEN_MESSAGES = Object.freeze({
   confirmHeading: 'Ready to install',
   confirmBody: 'This installs the app and makes it your panel’s home screen. Your other apps are not touched.',
   install: 'Install',
+  // A version was chosen in Home Assistant after an earlier attempt at another
+  // one stopped part-way. Say what happened to it in one sentence; the person
+  // still presses Install once, and chooses nothing further.
+  restartedDifferentVersion: 'Your panel had started on a different version. That attempt has been set aside.',
   alreadyInstalledHeading: 'Already installed',
   alreadyInstalledBody: 'This version is already on your panel. Continue to finish setting it up; nothing is copied or reinstalled.',
   continueSetup: 'Continue',

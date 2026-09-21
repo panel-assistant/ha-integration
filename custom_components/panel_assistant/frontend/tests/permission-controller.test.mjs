@@ -176,3 +176,70 @@ test('after success nothing can flash the error screen', () => {
   assert.ok(finish.indexOf('finished = true') < finish.indexOf("show('done')"),
     'success is recorded before anything that can close the connection');
 });
+
+// A job left part-way through for one release, with the person now offered
+// another: the store answers with the saved receipt, the ports with the new
+// release. Nothing on the panel is touched by a discard.
+function strandedJobFixture({phase = 'staged', descriptor, lockAvailable = true} = {}) {
+  const artifact = {apkSha256: 'a'.repeat(64), versionName: '0.9.7-rc4', versionCode: 770,
+    releaseTag: 'build-770'};
+  let stored = {id: 'b'.repeat(32), revision: 3, phase, target, artifact};
+  const discarded = [], inspected = [], created = [];
+  const release = {kind: 'authenticated-apk-bytes', descriptor: descriptor ?? artifact};
+  const controller = createInstallController({
+    store: {load: async () => stored,
+      discard: async (key, revision) => {discarded.push(revision); stored = null;},
+      retire: async () => {throw new Error('a retire would be wrong here');},
+      create: async () => {created.push('prepared'); return {id: 'c'.repeat(32), revision: 0,
+        phase: 'prepared', target, artifact: release.descriptor};}},
+    ports: {authenticate: async () => release,
+      inspect: async receipt => {inspected.push(receipt.phase);
+        return {target, clean: true, staged: false, installed: false, healthy: false};},
+      inspectRecovery: async receipt => {inspected.push(`recovery:${receipt.phase}`); return {};}},
+    locks: {request: async (name, options, callback) => callback(lockAvailable ? {} : null)}});
+  return {controller, discarded, inspected, created};
+}
+
+test('an unfinished job for a version the person moved on from is set aside, not a dead end', async () => {
+  for (const phase of ['prepared', 'staging', 'staged', 'installing', 'installed', 'launching',
+    'recovery_required', 'cleanup_pending']) {
+    const f = strandedJobFixture({phase, descriptor: {apkSha256: 'f'.repeat(64)}});
+    const preview = await f.controller.preview(target);
+    assert.equal(preview.receipt, null, `${phase}: the chosen version installs from the start`);
+    assert.deepEqual(f.discarded, [3], `${phase}: discarded at the exact revision inspected`);
+    assert.deepEqual(preview.discarded,
+      {versionName: '0.9.7-rc4', versionCode: 770, releaseTag: 'build-770'},
+      `${phase}: the version set aside is named, so the person can be told`);
+    assert.equal(preview.adopt, false);
+  }
+});
+
+test('an unfinished job whose release is unchanged still resumes untouched', async () => {
+  const f = strandedJobFixture({phase: 'staged'});
+  const preview = await f.controller.preview(target);
+  assert.equal(preview.receipt.phase, 'staged', 'the saved job carries on where it stopped');
+  assert.equal(preview.discarded, null);
+  assert.deepEqual(f.discarded, [], 'nothing is discarded while the release still matches');
+  assert.deepEqual(f.created, []);
+});
+
+test('a saved job is never discarded without the panel lock', async () => {
+  const f = strandedJobFixture({descriptor: {apkSha256: 'f'.repeat(64)}, lockAvailable: false});
+  await assert.rejects(f.controller.preview(target), /transaction_busy/);
+  assert.deepEqual(f.discarded, []);
+});
+
+test('setting a version aside is explained on the step the person is already on', () => {
+  const source = readFileSync(new URL('../src/install-main.mjs', import.meta.url), 'utf8');
+  const branch = source.slice(source.indexOf('if (preview.discarded)'),
+    source.indexOf('if (receipt) await installAll()'));
+  assert.ok(branch.length > 0, 'the discarded branch exists');
+  assert.match(branch, /screen\.restartedDifferentVersion/);
+  assert.ok(!/fail\(|quarantine\(/.test(branch), 'it never routes to the error screen');
+  assert.ok(!/addEventListener|\.disabled|confirm\(/.test(branch),
+    'it adds no second consent and no further choice');
+  const messages = readFileSync(new URL('../src/install-screen-messages.mjs', import.meta.url), 'utf8');
+  const sentence = /restartedDifferentVersion: '([^']+)'/.exec(messages)?.[1];
+  assert.ok(sentence && !/[{}<>]|JSON|job|phase|artifact/.test(sentence),
+    'the reason is one plain sentence, with no technical detail');
+});

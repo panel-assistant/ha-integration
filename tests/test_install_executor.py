@@ -295,6 +295,15 @@ class Harness:
         self.preflight_wrong_at: int | None = None
         self.preflight_wrong_field = "serial"
         self.preflight_root_modes: list[AdbRootMode] = []
+        # What the panel already holds, and whether each preflight was allowed
+        # to report it. The size is what the installed APK measures when it is
+        # this artifact byte for byte; None means it is not.
+        self.target_installed = False
+        self.installed_bytes: int | None = None
+        self.preflight_admissions: list[bool] = []
+        self.installed_size_arguments: list[
+            tuple[AdbInstallTarget, InstallDescriptor, AdbRootMode]
+        ] = []
         self.download_error: ArtifactCustodyError | None = None
         self.download_mutation: str | None = None
         self.local_cleanup_error: ArtifactCustodyError | None = None
@@ -342,6 +351,11 @@ class Harness:
         )
         self.monkeypatch.setattr(
             install_executor, "async_preflight_install", self.async_preflight
+        )
+        self.monkeypatch.setattr(
+            install_executor,
+            "async_installed_artifact_size",
+            self.async_installed_size,
         )
         self.monkeypatch.setattr(
             install_executor,
@@ -454,10 +468,15 @@ class Harness:
         target: AdbInstallTarget,
         signer: PythonRSASigner,
         descriptor: InstallDescriptor,
+        *,
+        admit_installed_target: bool = False,
     ) -> AdbPreflight:
         self.events.append("preflight")
         self.preflight_arguments.append((target, signer, descriptor))
+        self.preflight_admissions.append(admit_installed_target)
         self.preflight_calls += 1
+        if self.target_installed and not admit_installed_target:
+            raise InstallAdbError(InstallAdbErrorCode.TARGET_NOT_CLEAN)
         root_mode = (
             self.preflight_root_modes.pop(0)
             if self.preflight_root_modes
@@ -482,7 +501,20 @@ class Harness:
                 else target.android_sdk
             ),
             root_mode=root_mode,
+            target_installed=self.target_installed,
         )
+
+    async def async_installed_size(
+        self,
+        target: AdbInstallTarget,
+        _signer: PythonRSASigner,
+        descriptor: InstallDescriptor,
+        *,
+        expected_root_mode: AdbRootMode,
+    ) -> int | None:
+        self.events.append("installed_size")
+        self.installed_size_arguments.append((target, descriptor, expected_root_mode))
+        return self.installed_bytes
 
     async def async_download(
         self,
@@ -2861,3 +2893,72 @@ async def test_an_older_panel_is_not_sent_a_key_it_would_refuse(
 
     assert harness.handed_over_urls == []
     assert harness.events.count("setup_state") == 1
+
+
+async def test_a_panel_already_at_the_target_converges_instead_of_refusing(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A retry against a satisfied panel finishes; it is not told it is dirty.
+
+    Nothing is downloaded, copied or installed, because the panel already runs
+    exactly these bytes. Launch, health and the setup handover still run, so
+    the job ends in the same place a fresh install does.
+    """
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    harness = Harness(monkeypatch)
+    harness.target_installed = True
+    harness.installed_bytes = 12_345
+
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
+    assert completed.result_code is None
+    assert completed.actual_apk_bytes == 12_345
+    assert completed.preflight_root_mode == AdbRootMode.ROOTLESS.value
+    for never in ("download", "stage", "install"):
+        assert never not in harness.events, harness.events
+    assert harness.events.count("installed_size") == 1
+    assert harness.events.count("launch") == 1
+    assert harness.events.count("health") == 1
+    # One preflight, and it is the one allowed to report a satisfied target.
+    assert harness.preflight_admissions == [True]
+    # The observation is bound to the same target, artifact and root posture.
+    target, descriptor, root_mode = harness.installed_size_arguments[0]
+    assert target.serial == "SERIAL-1"
+    assert descriptor.apk_sha256 == receipt.artifact.apk_sha256
+    assert root_mode is AdbRootMode.ROOTLESS
+
+
+async def test_a_panel_holding_the_app_at_other_bytes_is_still_refused(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A clean install never replaces an app that is already there."""
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    harness = Harness(monkeypatch)
+    harness.target_installed = True
+    harness.installed_bytes = None
+
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert completed.phase is InstallPhase.FAILED
+    assert completed.result_code is InstallResultCode.PREFLIGHT_REJECTED
+    assert harness.events.count("installed_size") == 1
+    for never in ("download", "stage", "install", "launch"):
+        assert never not in harness.events, harness.events
+
+
+async def test_only_the_first_preflight_may_report_a_satisfied_target(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Revalidation before a mutation still demands a clean panel."""
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    harness = Harness(monkeypatch)
+
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
+    assert harness.preflight_admissions == [True, False]
+    assert "installed_size" not in harness.events
