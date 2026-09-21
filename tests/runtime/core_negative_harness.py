@@ -341,11 +341,14 @@ def _prepare_config(
     destination.mkdir()
     _copy_candidate_component(repository, destination, expected_sha)
     ignored = shutil.ignore_patterns("__pycache__", "*.pyc")
+    # The probe's manifest is stored under a name that does not end in "manifest.json":
+    # the HACS default-store checks walk the whole repository and refuse a repository
+    # with more than one manifest.json.
     probe_source = repository / "tests" / "runtime" / "probe_component"
-    shutil.copytree(
-        probe_source,
-        components / "panel_assistant_runtime_probe",
-        ignore=ignored,
+    probe_destination = components / "panel_assistant_runtime_probe"
+    shutil.copytree(probe_source, probe_destination, ignore=ignored)
+    (probe_destination / "manifest.json.probe").rename(
+        probe_destination / "manifest.json"
     )
     _write_configuration(config)
     source_digest = _component_digest(source)
