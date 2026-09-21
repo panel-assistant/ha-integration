@@ -68,6 +68,28 @@ export function createInstallController({ store, ports, locks = globalThis.navig
             receipt = null;
           }
         }
+        // A job that ended in recovery, on a panel that already runs exactly
+        // that job's own release, has nothing left to recover: the app is
+        // installed. Its recovery observation would demand a clean panel and
+        // refuse this one as unclean, from an error screen whose only button
+        // reproduces it. Discard the record and adopt the panel below instead,
+        // so the retry converges on the install the person asked for.
+        if (receipt && ['recovery_required', 'cleanup_pending'].includes(receipt.phase) &&
+            canonical(receipt.artifact) === canonical(release.descriptor)) {
+          const stalled = receipt;
+          const running = await ports.inspect(
+            { phase: 'installed', target: snapshot, artifact: release.descriptor }, release);
+          guard();
+          if (running?.installed === true) {
+            await locks.request(`ha-paneld-usb:${deviceKey}`, {mode: 'exclusive', ifAvailable: true},
+              async lock => {
+                if (!lock) fail('transaction_busy');
+                await store.discard(deviceKey, stalled.revision);
+              });
+            guard();
+            receipt = null;
+          }
+        }
         // An unfinished job for a different release used to refuse here, and
         // the only button on that error reloads into the same refusal. The
         // person has since chosen another version in Home Assistant, so set

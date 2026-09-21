@@ -186,6 +186,7 @@ function strandedJobFixture({phase = 'staged', descriptor, lockAvailable = true}
   let stored = {id: 'b'.repeat(32), revision: 3, phase, target, artifact};
   const discarded = [], inspected = [], created = [];
   const release = {kind: 'authenticated-apk-bytes', descriptor: descriptor ?? artifact};
+  const state = {installed: false};
   const controller = createInstallController({
     store: {load: async () => stored,
       discard: async (key, revision) => {discarded.push(revision); stored = null;},
@@ -194,10 +195,12 @@ function strandedJobFixture({phase = 'staged', descriptor, lockAvailable = true}
         phase: 'prepared', target, artifact: release.descriptor};}},
     ports: {authenticate: async () => release,
       inspect: async receipt => {inspected.push(receipt.phase);
-        return {target, clean: true, staged: false, installed: false, healthy: false};},
+        return {target, clean: true, staged: false, installed: state.installed,
+          healthy: false};},
       inspectRecovery: async receipt => {inspected.push(`recovery:${receipt.phase}`); return {};}},
     locks: {request: async (name, options, callback) => callback(lockAvailable ? {} : null)}});
-  return {controller, discarded, inspected, created};
+  return {controller, discarded, inspected, created,
+    set installed(value) {state.installed = value;}};
 }
 
 test('an unfinished job for a version the person moved on from is set aside, not a dead end', async () => {
@@ -242,4 +245,27 @@ test('setting a version aside is explained on the step the person is already on'
   const sentence = /restartedDifferentVersion: '([^']+)'/.exec(messages)?.[1];
   assert.ok(sentence && !/[{}<>]|JSON|job|phase|artifact/.test(sentence),
     'the reason is one plain sentence, with no technical detail');
+});
+
+test('a job stalled in recovery on a panel that already runs it converges', async () => {
+  for (const phase of ['recovery_required', 'cleanup_pending']) {
+    const f = strandedJobFixture({phase});
+    // The panel runs exactly this job's own app, so there is nothing to recover.
+    f.installed = true;
+    const preview = await f.controller.preview(target);
+    assert.equal(preview.receipt, null, `${phase}: the stalled record is gone`);
+    assert.deepEqual(f.discarded, [3], `${phase}: discarded at its exact revision`);
+    assert.equal(preview.adopt, true, `${phase}: the panel is adopted, not refused`);
+    assert.equal(preview.discarded, null, 'the release never changed, so nothing is announced');
+    assert.ok(!f.inspected.some(entry => entry.startsWith('recovery:')),
+      `${phase}: the recovery observation that demands a clean panel never runs`);
+  }
+});
+
+test('a job stalled in recovery on a panel without it still recovers', async () => {
+  const f = strandedJobFixture({phase: 'recovery_required'});
+  const preview = await f.controller.preview(target);
+  assert.equal(preview.receipt.phase, 'recovery_required', 'recovery is still the way out');
+  assert.deepEqual(f.discarded, []);
+  assert.ok(f.inspected.includes('recovery:recovery_required'));
 });
