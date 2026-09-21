@@ -9,6 +9,8 @@ All notable changes to this project will be documented in this file.
 - Installing onto a panel that already runs exactly the version you chose now finishes instead of refusing it. Nothing is downloaded, copied or reinstalled: Panel Assistant checks that the app on the panel is the very same file, then starts it, checks its health and carries on to setup. Running the same install twice now converges rather than telling you the panel is not clean when it is already where you asked for. A panel that holds the app at some other version is still refused, because a first install never replaces an app that is already there.
 - The USB installer no longer strands you when you pick a different version after an interrupted attempt. The unfinished attempt is set aside, the step you are on says so in one sentence, and the version you chose installs. An attempt for the version you are still installing carries on exactly as before.
 - A file copied to a panel over USB is now stamped with the time it was copied, rather than dated to 1970.
+- Panel Assistant now reads a panel running a development build, whose version name is free-form rather than a release number. The USB installer already accepted those names; Home Assistant refusing them meant a panel it could install could then not be read.
+- The manual file route accepts a release published under either application id. It previously recognised only the old name, so a release named for the new one could not be installed by hand even though Home Assistant itself resolved it.
 
 ## 0.5.0 - 2026-09-19
 

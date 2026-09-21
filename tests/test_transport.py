@@ -377,7 +377,7 @@ def _too_many_channels() -> list[dict[str, Any]]:
             id="string_version_code",
         ),
         pytest.param(
-            _hello(app={"version": "latest", "version_code": 790}),
+            _hello(app={"version": "not a version", "version_code": 790}),
             id="bad_app_version",
         ),
         pytest.param(_hello(contract_digest="x"), id="bad_digest"),

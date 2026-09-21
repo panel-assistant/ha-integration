@@ -176,9 +176,19 @@ def is_install_release_tag(value: object) -> bool:
 
 
 # A dev build from the signed build feed is named by its version code. It is
-# never a GitHub tag, so the two identities can never be confused.
-_FEED_BUILD_TAG_PATTERN = re.compile(r"^build-([1-9][0-9]{0,9})$")
-_VERSION_NAME_PATTERN = re.compile(r"^[0-9A-Za-z][0-9A-Za-z._+-]{0,63}$")
+# never a GitHub tag, so the two identities can never be confused. The two
+# bodies are public so that every reader of a version name or a build number,
+# including the ones that match them inside a longer line, composes this one
+# definition instead of restating it.
+VERSION_CODE_BODY = r"[1-9][0-9]{0,9}"
+VERSION_NAME_BODY = r"[0-9A-Za-z][0-9A-Za-z._+-]{0,63}"
+_FEED_BUILD_TAG_PATTERN = re.compile(rf"^build-({VERSION_CODE_BODY})$")
+_VERSION_NAME_PATTERN = re.compile(rf"^{VERSION_NAME_BODY}$")
+
+
+def is_build_version_name(value: object) -> bool:
+    """Accept the free-form version name a feed build reports for itself."""
+    return isinstance(value, str) and _VERSION_NAME_PATTERN.fullmatch(value) is not None
 
 
 def feed_build_tag(version_code: int) -> str:
@@ -209,6 +219,15 @@ def release_apk_name(tag: str, package_id: str) -> str:
     """
     stem = "ha-paneld" if package_id == LEGACY_PACKAGE_ID else "panel-assistant"
     return f"{stem}-{tag}-manual-setup-required.apk"
+
+
+def release_descriptor_name(tag: str) -> str:
+    """Name the release asset carrying the signed install descriptor.
+
+    Unlike the APK, this name does not follow the application id: it is frozen
+    on the legacy spelling, like the descriptor schema identifier.
+    """
+    return f"ha-paneld-{tag}-install.json"
 
 
 def artifact_identity_matches(
@@ -397,7 +416,7 @@ def _parse_release_metadata(
         release_apk_name(tag, package_id)
         for package_id in reversed(ACCEPTED_PACKAGE_IDS)
     )
-    descriptor_name = f"ha-paneld-{tag}-install.json"
+    descriptor_name = release_descriptor_name(tag)
     descriptor_names = frozenset({descriptor_name, f"{descriptor_name}.sig"})
     relevant_names = descriptor_names | {
         name
@@ -664,7 +683,7 @@ async def _async_resolve_release(
     _verify_detached_signature(checksum, signature)
     sha256 = _parse_checksum_record(checksum, apk_name)
 
-    descriptor_name = f"ha-paneld-{tag}-install.json"
+    descriptor_name = release_descriptor_name(tag)
     descriptor: InstallDescriptor | None = None
     metadata: SignedReleaseMetadata | None = None
     if descriptor_name in assets:

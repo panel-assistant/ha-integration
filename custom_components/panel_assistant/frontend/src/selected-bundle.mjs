@@ -1,5 +1,5 @@
 import { verifyApkBundle } from './apk-verifier.mjs';
-import { isGithubTag } from './release-identity.mjs';
+import { githubApkNameTag, githubDescriptorName } from './release-identity.mjs';
 
 // Advanced manual release selection: GitHub release files only, never a feed
 // build. Never accept a partial or mixed bundle.
@@ -9,10 +9,9 @@ export async function verifySelectedBundle(selection, options = {}) {
   const byName = new Map(files.map(file => [file.name, file]));
   if (byName.size !== 5) throw new Error('bundle');
   const apk = files.find(file => file.name.endsWith('.apk'));
-  const match = apk?.name.match(/^ha-paneld-(.+)-manual-setup-required\.apk$/);
-  if (!match || !isGithubTag(match[1])) throw new Error('bundle');
-  const tag = match[1];
-  const descriptorName = `ha-paneld-${tag}-install.json`;
+  const tag = githubApkNameTag(apk?.name);
+  if (tag === null) throw new Error('bundle');
+  const descriptorName = githubDescriptorName(tag);
   const requirements = [
     ['checksum', `${apk.name}.sha256`, 512],
     ['checksumSignature', `${apk.name}.sha256.sig`, 256],

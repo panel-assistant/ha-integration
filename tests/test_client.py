@@ -233,9 +233,6 @@ def test_parser_rejects_malformed_suffix_tokens(suffix: str) -> None:
 @pytest.mark.parametrize(
     "body",
     [
-        "ha-paneld 1.2 panel=test build=1234 cfg=0123abcd",
-        "ha-paneld 01.2.3 panel=test build=1234 cfg=0123abcd",
-        f"ha-paneld 1.2.3-{'a' * 58} panel=test build=1234 cfg=0123abcd",
         "ha-paneld 1.2.3 panel=Test-Panel build=1234 cfg=0123abcd",
         f"ha-paneld 1.2.3 panel={'a' * 470} build=1234 cfg=0123abcd",
         "ha-paneld 1.2.3 panel=test build=arbitrary cfg=0123abcd",
@@ -247,6 +244,35 @@ def test_parser_rejects_metadata_outside_android_bounds(body: str) -> None:
     """Registry-facing metadata must match the current Android producer bounds."""
     with pytest.raises(InvalidResponseError):
         parse_health_response(body)
+
+
+@pytest.mark.parametrize(
+    "version",
+    ["1.2.3", "1.2.3-rc4", "1.2", "01.2.3", "0.9.8+abc", f"1.2.3-{'a' * 58}"],
+)
+def test_parser_accepts_any_version_name_the_producer_can_report(version: str) -> None:
+    """A dev build from the signed feed names itself freely, and still connects.
+
+    The build feed admits exactly this version-name shape, so a panel running
+    one reports a name that is not SemVer. The browser installer has always
+    accepted it; refusing it here made Home Assistant unable to read a panel it
+    can already install.
+    """
+    health = parse_health_response(
+        f"ha-paneld {version} panel=test build=1234 cfg=0123abcd"
+    )
+
+    assert health.version == version
+
+
+@pytest.mark.parametrize(
+    "version",
+    ["1.2.3!", "1.2.3 ", "-1.2.3", "a" * 65, "", "1.2.3\u2014rc1"],
+)
+def test_parser_still_refuses_a_version_no_producer_can_report(version: str) -> None:
+    """The union widened to the producer's bound, not past it."""
+    with pytest.raises(InvalidResponseError):
+        parse_health_response(f"ha-paneld {version} panel=test build=1234 cfg=0123abcd")
 
 
 @pytest.mark.parametrize(

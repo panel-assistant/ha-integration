@@ -2,6 +2,8 @@
 // release is a v-tag; a dev build from the signed build feed is build-<versionCode>
 // and is never a GitHub tag. Every tag, APK name and version name check imports
 // these rules instead of repeating a pattern.
+import { ACCEPTED_PACKAGE_IDS, LEGACY_PACKAGE_ID } from './app-identity.mjs';
+
 export const MAX_TAG_LENGTH = 64;
 // The signed build feed document, in exact bytes.
 export const MAX_FEED_BYTES = 256 * 1024;
@@ -27,8 +29,32 @@ export const isBuildTag = tag => buildTagVersionCode(tag) !== null;
 export const isBuildVersionName = value => matches(VERSION_NAME, value);
 /** How Home Assistant names a feed build, and how the release list carries it. */
 export const buildLabel = (versionName, versionCode) => `${versionName} build ${versionCode}`;
-/** The exact asset name a GitHub release publishes its APK under. */
-export const githubApkName = tag => `ha-paneld-${tag}-manual-setup-required.apk`;
+// One stem per application id, the same rule the integration applies. The
+// legacy stem is frozen: shipped panel updaters resolve a release's first
+// `.apk` asset, so the app that keeps the old id keeps the name they see.
+const APK_SUFFIX = '-manual-setup-required.apk';
+const apkStem = packageId => (packageId === LEGACY_PACKAGE_ID ? 'ha-paneld' : 'panel-assistant');
+
+/** The exact asset name a GitHub release publishes one identity's APK under. */
+export const githubApkName = (tag, packageId = LEGACY_PACKAGE_ID) =>
+  `${apkStem(packageId)}-${tag}${APK_SUFFIX}`;
+/** Every APK asset name a release of this tag may carry, legacy first. */
+export const githubApkNames = tag => ACCEPTED_PACKAGE_IDS.map(id => githubApkName(tag, id));
+/** The tag a GitHub release APK asset name carries, or null. */
+export function githubApkNameTag(name) {
+  if (typeof name !== 'string' || !name.endsWith(APK_SUFFIX)) return null;
+  for (const packageId of ACCEPTED_PACKAGE_IDS) {
+    const prefix = `${apkStem(packageId)}-`;
+    if (!name.startsWith(prefix)) continue;
+    const tag = name.slice(prefix.length, -APK_SUFFIX.length);
+    if (isGithubTag(tag)) return tag;
+  }
+  return null;
+}
+// The install descriptor's asset name does not follow the application id: it
+// is frozen on the legacy spelling, like the descriptor schema identifier.
+/** The exact asset name a GitHub release publishes its install descriptor under. */
+export const githubDescriptorName = tag => `ha-paneld-${tag}-install.json`;
 
 /** Whether a v1 install descriptor carries the identity its tag requires. A
  * GitHub release names the APK and version after its tag; a feed build names the
@@ -37,7 +63,7 @@ export const githubApkName = tag => `ha-paneld-${tag}-manual-setup-required.apk`
 export function descriptorIdentityValid(descriptor, tag, apkSha256) {
   if (isGithubTag(tag)) {
     return descriptor.releaseTag === tag && descriptor.versionName === tag.slice(1) &&
-      descriptor.apkName === githubApkName(tag);
+      githubApkNames(tag).includes(descriptor.apkName);
   }
   const code = buildTagVersionCode(tag);
   return code !== null && descriptor.releaseTag === tag && descriptor.versionCode === code &&

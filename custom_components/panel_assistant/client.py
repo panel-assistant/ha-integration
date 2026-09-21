@@ -30,6 +30,7 @@ from .const import (
     STATUS_PATH,
     UPDATE_OWNER_HEADER,
 )
+from .release import VERSION_CODE_BODY, VERSION_NAME_BODY, is_build_version_name
 
 if TYPE_CHECKING:
     from .status import PanelStatus
@@ -114,11 +115,17 @@ def is_valid_discovery_id(value: str) -> bool:
 
 
 def is_valid_panel_version(value: str) -> bool:
-    """Return whether a panel app version has the health contract's shape."""
+    """Return whether a panel app version has the health contract's shape.
+
+    A panel running a release reports SemVer. A panel running a dev build from
+    the signed build feed reports that build's own free-form version name, so
+    the same union the browser installer accepts is accepted here: an
+    integration that refuses it cannot read a fleet it can already install to.
+    """
     return (
         len(value) <= _MAX_VERSION_LENGTH
         and _VERSION_PATTERN.fullmatch(value) is not None
-    )
+    ) or is_build_version_name(value)
 
 
 @dataclass(frozen=True, slots=True)
@@ -211,8 +218,7 @@ def parse_health_response(body: str) -> PanelHealth:
     if (
         len(tokens) < 5
         or tokens[0] != "ha-paneld"
-        or len(tokens[1]) > _MAX_VERSION_LENGTH
-        or _VERSION_PATTERN.fullmatch(tokens[1]) is None
+        or not is_valid_panel_version(tokens[1])
     ):
         raise InvalidResponseError
 
@@ -397,8 +403,8 @@ _BACKUP_TIMEOUT_SECONDS = 120.0
 # The panel allows 600 s to receive an upload; stop just after it gives up.
 _UPLOAD_TIMEOUT_SECONDS = 630.0
 _DIAG_FIRST_LINE = re.compile(
-    r"ha-paneld diagnostics \u2014 ([0-9A-Za-z][0-9A-Za-z._+-]{0,63}) "
-    r"\(build ([1-9][0-9]{0,9})\)"
+    rf"ha-paneld diagnostics \u2014 ({VERSION_NAME_BODY}) "
+    rf"\(build ({VERSION_CODE_BODY})\)"
 )
 _TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9._~-]{1,256}$")
 

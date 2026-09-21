@@ -31,6 +31,7 @@ from .release import (
     feed_build_code,
     feed_build_tag,
     is_rc_release_tag,
+    release_descriptor_name,
 )
 
 _RECENT_RELEASES_URL = URL(f"{ANDROID_RELEASES_API}?per_page=30")
@@ -62,7 +63,7 @@ def _choice(document: Any, *, prerelease: bool) -> dict[str, str | bool] | None:
         )
     except ReleaseResolutionError:
         return None
-    descriptor = f"ha-paneld-{tag}-install.json"
+    descriptor = release_descriptor_name(tag)
     if descriptor not in assets or f"{descriptor}.sig" not in assets:
         return None
     return {"tag": tag, "prerelease": prerelease}

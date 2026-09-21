@@ -6,6 +6,7 @@ import hashlib
 import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -16,6 +17,11 @@ from multidict import CIMultiDict
 from yarl import URL
 
 from custom_components.panel_assistant import release
+from custom_components.panel_assistant.app_identity import (
+    LEGACY_PACKAGE_ID,
+    SUCCESSOR_PACKAGE_ID,
+)
+from custom_components.panel_assistant.client import is_valid_panel_version
 from custom_components.panel_assistant.release import (
     ReleaseResolutionError,
     async_resolve_stable_release,
@@ -1512,3 +1518,71 @@ async def test_a_successor_apk_without_its_own_proof_is_not_resolved(
     artifact = await async_resolve_stable_release(session)  # type: ignore[arg-type]
 
     assert artifact.apk_name == _APK_NAME
+
+
+_IDENTITY_CORPUS = json.loads(
+    (Path(__file__).parent / "fixtures" / "release-identity-corpus.json").read_text(
+        encoding="utf-8"
+    )
+)
+
+
+@pytest.mark.parametrize("case", _IDENTITY_CORPUS["tags"], ids=lambda case: case["tag"])
+def test_the_shared_corpus_classifies_every_release_identity(
+    case: dict[str, Any],
+) -> None:
+    """One corpus, read by this suite and by the browser installer's own.
+
+    The browser reads the same file through frontend/tests/release-identity.test.mjs,
+    so a rule that moves on one side alone fails here or there.
+    """
+    tag, kind = case["tag"], case["kind"]
+
+    assert release.is_install_release_tag(tag) is (kind in {"stable", "rc"})
+    assert release.is_rc_release_tag(tag) is (kind == "rc")
+    assert release.is_feed_build_tag(tag) is (kind == "build")
+    assert release.feed_build_code(tag) == (
+        case["versionCode"] if kind == "build" else None
+    )
+    if kind == "build":
+        assert release.feed_build_tag(case["versionCode"]) == tag
+
+
+@pytest.mark.parametrize(
+    "case", _IDENTITY_CORPUS["apkNames"], ids=lambda case: case["tag"]
+)
+def test_the_shared_corpus_names_both_identities_apk_assets(
+    case: dict[str, Any],
+) -> None:
+    """Each application id publishes its APK under its own stem."""
+    assert release.release_apk_name(case["tag"], LEGACY_PACKAGE_ID) == case["legacy"]
+    assert (
+        release.release_apk_name(case["tag"], SUCCESSOR_PACKAGE_ID) == case["successor"]
+    )
+    version = case["tag"].removeprefix("v")
+    for name in (case["legacy"], case["successor"]):
+        assert release.artifact_identity_matches(case["tag"], version, 1, name, _SHA256)
+    assert not release.artifact_identity_matches(
+        case["tag"], version, 1, "ha-paneld.apk", _SHA256
+    )
+
+
+@pytest.mark.parametrize(
+    "case", _IDENTITY_CORPUS["descriptorNames"], ids=lambda case: case["tag"]
+)
+def test_the_shared_corpus_names_the_install_descriptor(case: dict[str, Any]) -> None:
+    """The descriptor asset name is frozen on the legacy spelling."""
+    assert release.release_descriptor_name(case["tag"]) == case["name"]
+
+
+@pytest.mark.parametrize(
+    "case", _IDENTITY_CORPUS["versionNames"], ids=lambda case: case["value"] or "empty"
+)
+def test_the_shared_corpus_bounds_a_feed_builds_own_version_name(
+    case: dict[str, Any],
+) -> None:
+    """A feed build names itself freely, within one shape both sides know."""
+    assert release.is_build_version_name(case["value"]) is case["accepted"]
+    # The health and native-transport readers accept exactly this union, so a
+    # panel running a feed build is readable rather than malformed.
+    assert is_valid_panel_version(case["value"]) is case["accepted"]
