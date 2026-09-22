@@ -301,12 +301,16 @@ async def test_entry_writes_that_keep_the_authority_keep_the_session(
     )
     panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
 
-    # A data write, as binding and user removal make, notifies the entry.
-    hass.config_entries.async_update_entry(
-        entry, data={**entry.data, CONF_ADDRESS: "panel-2.local"}
-    )
-    await hass.async_block_till_done()
+    # A data write, as binding and user removal make, notifies the entry. A
+    # changed address is polled from now on by the running client, and that
+    # is all it does: the session is not ended for it.
+    with panel_patches():
+        hass.config_entries.async_update_entry(
+            entry, data={**entry.data, CONF_ADDRESS: "panel-2.local"}
+        )
+        await hass.async_block_till_done()
     await panel.nothing_sent()
+    assert entry.runtime_data.client.address.host == "panel-2.local"
 
     form = await hass.config_entries.options.async_init(entry.entry_id)
     await hass.config_entries.options.async_configure(

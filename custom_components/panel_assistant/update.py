@@ -17,7 +17,6 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import HaPaneldConfigEntry
 from .build_feed import (
@@ -39,7 +38,7 @@ from .client import (
     is_newer_stable_version,
 )
 from .const import DOMAIN, update_unique_id
-from .coordinator import HaPaneldDataUpdateCoordinator
+from .coordinator import HaPaneldDataUpdateCoordinator, PanelCoordinatorEntity
 from .device import panel_device_info
 from .feed_coordinator import BuildFeedCoordinator, async_get_feed_coordinator
 from .native import NativeEntity, async_setup_native_platform
@@ -97,9 +96,7 @@ async def async_setup_entry(
     )
 
 
-class HaPaneldUpdateEntity(
-    CoordinatorEntity[HaPaneldDataUpdateCoordinator], UpdateEntity
-):
+class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
     """Project a selected stable update through the panel's own transaction."""
 
     _attr_device_class = UpdateDeviceClass.FIRMWARE
@@ -257,11 +254,6 @@ class HaPaneldUpdateEntity(
         self._recovery_started = False
         if task is not None and not task.done():
             task.cancel()
-
-    @property
-    def available(self) -> bool:
-        """Use the existing health authority for availability."""
-        return super().available
 
     @property
     def in_progress(self) -> bool:

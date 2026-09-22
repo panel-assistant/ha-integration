@@ -205,8 +205,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="invalid_discovery")
 
         await self.async_set_unique_id(discovery_id)
-        self._abort_if_unique_id_configured()
         if self._address_is_configured(address.stored_value):
+            self._abort_if_unique_id_configured()
             return self.async_abort(reason="already_configured")
 
         try:
@@ -222,6 +222,13 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="unknown")
         if health.discovery_id != discovery_id:
             return self.async_abort(reason="invalid_discovery")
+        # A known panel advertising from a new address has moved. Its health
+        # has just answered as it at that address, so the stored one is
+        # replaced; the running entry polls the new address without a reload,
+        # which would end the panel's session for nothing.
+        self._abort_if_unique_id_configured(
+            updates={CONF_ADDRESS: address.stored_value}, reload_on_update=False
+        )
 
         self._pending_address = address
         self._pending_health = health

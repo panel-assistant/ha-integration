@@ -146,7 +146,8 @@
       "status": {
         "name": "Estado",
         "state": {
-          "online": "En línea"
+          "online": "En línea",
+          "connected": "Conectado, dirección inaccesible"
         }
       }
     },
@@ -235,6 +236,14 @@
           "migration_unfinished": "La nueva aplicación aún no ha respondido. El panel continúa por su cuenta, así que vuelve a abrir este problema dentro de unos minutos."
         }
       }
+    },
+    "panel_address_unreachable": {
+      "title": "Home Assistant no puede alcanzar {panel} en su dirección guardada",
+      "description": "{panel} está conectado a Home Assistant, por lo que sus entidades siguen disponibles, pero Home Assistant no puede leer el panel en {address}, y la conexión que mantiene, desde {session_address}, no ofrece otra dirección que probar. Puede que el puerto web del panel esté bloqueado entre Home Assistant y el panel. Si el panel se ha trasladado, elimínelo y vuelva a añadirlo con su nueva dirección; el aviso desaparece por sí solo cuando la dirección vuelve a responder."
+    },
+    "panel_address_unverified": {
+      "title": "{panel} se ha trasladado y no se pudo confirmar su nueva dirección",
+      "description": "{panel} está conectado a Home Assistant desde {session_address}, por lo que sus entidades siguen disponibles, pero Home Assistant no puede leer el panel en su dirección guardada {address}, y una comprobación en {session_address} no respondió como este panel, así que la dirección guardada no se ha cambiado. Si el panel se ha trasladado, elimínelo y vuelva a añadirlo con su nueva dirección; el aviso desaparece por sí solo cuando la dirección guardada responde."
     }
   },
   "options": {

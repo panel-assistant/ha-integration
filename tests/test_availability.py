@@ -1,0 +1,506 @@
+"""Availability is the union of the outbound poll and the inbound session.
+
+A panel that is talking to Home Assistant is connected, whatever a poll of
+the address stored for it says. These tests pin that invariant, the address
+repair that follows from it, and the one thing that must not follow: a panel
+with neither a session nor an answering address is still unavailable.
+"""
+
+from __future__ import annotations
+
+from collections.abc import AsyncGenerator, Callable
+from dataclasses import replace
+from ipaddress import ip_address
+from types import SimpleNamespace
+from typing import Any
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from homeassistant import config_entries
+from homeassistant.config_entries import ConfigEntryState
+from homeassistant.const import CONF_ADDRESS, STATE_UNAVAILABLE
+from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+from custom_components.panel_assistant.address import (
+    ISSUE_PANEL_ADDRESS_UNREACHABLE,
+    ISSUE_PANEL_ADDRESS_UNVERIFIED,
+    address_issue_id,
+    session_candidate,
+)
+from custom_components.panel_assistant.client import (
+    CannotConnectError,
+    HaPaneldClient,
+    PanelAddress,
+    normalize_address,
+)
+from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
+from custom_components.panel_assistant.transport import async_get_sessions
+
+from .test_transport import DID, HEALTH, OTHER_DID, STATUS, WsClientFactory, _open
+
+STATUS_ENTITY = "sensor.alpha_status"
+UPDATE_ENTITY = "update.alpha_ha_paneld_update"
+STORED = "panel.local"
+MOVED = "192.0.2.9"
+
+
+def _health_by_host(
+    answers: dict[str, Any],
+) -> Callable[[HaPaneldClient], Any]:
+    """Answer a health read by the address the client polls, like a network."""
+
+    async def _get_health(self: HaPaneldClient) -> Any:
+        answer = answers[self.address.host]
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    return _get_health
+
+
+async def _load(
+    hass: HomeAssistant,
+    user_id: str,
+    unique_id: str | None = None,
+    address: str = STORED,
+) -> MockConfigEntry:
+    """Load one bound panel entry whose stored address answers."""
+    config_entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="alpha",
+        data={CONF_ADDRESS: address, CONF_TRANSPORT_USER_ID: user_id},
+        unique_id=unique_id,
+    )
+    config_entry.add_to_hass(hass)
+    executor = SimpleNamespace(
+        async_acquire_finalizer=AsyncMock(return_value=True),
+        async_release_finalizer=AsyncMock(),
+    )
+    manager = SimpleNamespace(
+        async_list=AsyncMock(return_value=()), async_transition=AsyncMock()
+    )
+    with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=HEALTH),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=STATUS),
+        ),
+        patch(
+            "custom_components.panel_assistant.async_resume_loaded_install_jobs",
+            AsyncMock(return_value=()),
+        ),
+        patch(
+            "custom_components.panel_assistant.async_get_install_executor",
+            AsyncMock(return_value=executor),
+        ),
+        patch(
+            "custom_components.panel_assistant.async_get_install_job_manager",
+            AsyncMock(return_value=manager),
+        ),
+    ):
+        assert await hass.config_entries.async_setup(config_entry.entry_id)
+        await hass.async_block_till_done()
+    assert config_entry.state is ConfigEntryState.LOADED
+    return config_entry
+
+
+@pytest.fixture
+async def entry(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> AsyncGenerator[MockConfigEntry]:
+    """One loaded, bound panel entry."""
+    yield await _load(hass, hass_read_only_user.id)
+
+
+async def _connect(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    token: str,
+    entry: MockConfigEntry,
+    remote: str | None = MOVED,
+) -> Any:
+    """Open the panel's session, connecting from the given address."""
+    client = await hass_ws_client(hass, token)
+    await _open(client)
+    session = async_get_sessions(hass).get(entry.entry_id)
+    assert session is not None
+    # The test socket connects from loopback; the panel connects from wherever
+    # it is, which is what the address repair reads.
+    session.remote = remote
+    return client
+
+
+async def _poll(
+    hass: HomeAssistant, entry: MockConfigEntry, answers: dict[str, Any]
+) -> None:
+    """Run one poll against a network that answers per address."""
+    with (
+        patch.object(HaPaneldClient, "async_get_health", _health_by_host(answers)),
+        patch.object(
+            HaPaneldClient, "async_get_status", AsyncMock(return_value=STATUS)
+        ),
+    ):
+        await entry.runtime_data.coordinator.async_refresh()
+        await hass.async_block_till_done()
+
+
+def _state(hass: HomeAssistant, entity_id: str) -> str:
+    state = hass.states.get(entity_id)
+    assert state is not None
+    return state.state
+
+
+def _issue(hass: HomeAssistant, entry: MockConfigEntry) -> ir.IssueEntry | None:
+    return ir.async_get(hass).async_get_issue(DOMAIN, address_issue_id(entry.entry_id))
+
+
+# ---------------------------------------------------------------------------
+# The union.
+
+
+async def test_failed_poll_with_a_live_session_stays_available(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """A panel holding an open session is connected, whatever the poll says."""
+    await _connect(hass, hass_ws_client, hass_read_only_access_token, entry, None)
+    assert _state(hass, STATUS_ENTITY) == "online"
+
+    await _poll(hass, entry, {STORED: CannotConnectError()})
+
+    coordinator = entry.runtime_data.coordinator
+    assert not coordinator.last_update_success
+    assert coordinator.connected
+    assert coordinator.available
+    assert _state(hass, STATUS_ENTITY) == "connected"
+    assert _state(hass, UPDATE_ENTITY) != STATE_UNAVAILABLE
+    attributes = hass.states.get(STATUS_ENTITY).attributes
+    assert attributes["reachable"] is False
+    assert attributes["connected"] is True
+
+
+async def test_successful_poll_without_a_session_is_available(
+    hass: HomeAssistant, entry: MockConfigEntry
+) -> None:
+    """The outbound poll alone still answers, as it always has."""
+    coordinator = entry.runtime_data.coordinator
+    assert coordinator.last_update_success
+    assert not coordinator.connected
+    assert coordinator.available
+    assert _state(hass, STATUS_ENTITY) == "online"
+    assert _state(hass, UPDATE_ENTITY) != STATE_UNAVAILABLE
+    attributes = hass.states.get(STATUS_ENTITY).attributes
+    assert attributes["reachable"] is True
+    assert attributes["connected"] is False
+
+
+async def test_neither_poll_nor_session_is_unavailable(
+    hass: HomeAssistant, entry: MockConfigEntry
+) -> None:
+    """A panel nothing can reach is unavailable; nothing became permanent."""
+    await _poll(hass, entry, {STORED: CannotConnectError()})
+
+    coordinator = entry.runtime_data.coordinator
+    assert not coordinator.last_update_success
+    assert not coordinator.connected
+    assert not coordinator.available
+    assert _state(hass, STATUS_ENTITY) == STATE_UNAVAILABLE
+    assert _state(hass, UPDATE_ENTITY) == STATE_UNAVAILABLE
+    # No session means nothing to report beyond the failed poll itself.
+    assert _issue(hass, entry) is None
+
+
+async def test_session_ending_while_the_poll_fails_takes_the_panel_unavailable(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """Availability follows the session at once, not at the next poll."""
+    client = await _connect(
+        hass, hass_ws_client, hass_read_only_access_token, entry, None
+    )
+    await _poll(hass, entry, {STORED: CannotConnectError()})
+    assert _state(hass, STATUS_ENTITY) == "connected"
+
+    await client.close()
+    await hass.async_block_till_done()
+
+    assert _state(hass, STATUS_ENTITY) == STATE_UNAVAILABLE
+
+
+async def test_session_opening_while_the_poll_fails_polls_at_once(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """A panel connecting is the moment its address can be repaired."""
+    await _poll(hass, entry, {STORED: CannotConnectError()})
+    assert _state(hass, STATUS_ENTITY) == STATE_UNAVAILABLE
+
+    with (
+        patch.object(
+            HaPaneldClient,
+            "async_get_health",
+            _health_by_host({STORED: CannotConnectError(), "127.0.0.1": HEALTH}),
+        ),
+        patch.object(
+            HaPaneldClient, "async_get_status", AsyncMock(return_value=STATUS)
+        ),
+    ):
+        await _connect(
+            hass, hass_ws_client, hass_read_only_access_token, entry, "127.0.0.1"
+        )
+        await hass.async_block_till_done()
+
+    # The session alone made the panel available; the poll it triggered then
+    # adopted the address the panel connected from.
+    assert entry.runtime_data.coordinator.last_update_success
+    assert entry.data[CONF_ADDRESS] == "127.0.0.1"
+    assert _state(hass, STATUS_ENTITY) == "online"
+
+
+# ---------------------------------------------------------------------------
+# Address repair from the session.
+
+
+async def test_session_address_is_adopted_after_identity_verification(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """The address a connected panel talks from replaces a dead stored one."""
+    await _connect(hass, hass_ws_client, hass_read_only_access_token, entry)
+
+    await _poll(hass, entry, {STORED: CannotConnectError(), MOVED: HEALTH})
+
+    assert entry.data[CONF_ADDRESS] == MOVED
+    assert entry.runtime_data.client.address == normalize_address(MOVED)
+    assert entry.runtime_data.coordinator.last_update_success
+    assert _state(hass, STATUS_ENTITY) == "online"
+    assert _issue(hass, entry) is None
+    # The entry was written, not reloaded: the session survived its repair.
+    assert async_get_sessions(hass).get(entry.entry_id) is not None
+    assert entry.state is ConfigEntryState.LOADED
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        replace(HEALTH, discovery_id=OTHER_DID),
+        replace(HEALTH, discovery_id=None),
+        CannotConnectError(),
+    ],
+    ids=["another_panel", "no_identity", "no_answer"],
+)
+async def test_unverified_session_address_is_refused_and_reported(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    answer: Any,
+) -> None:
+    """An address that does not answer as this panel is never written."""
+    await _connect(hass, hass_ws_client, hass_read_only_access_token, entry)
+
+    await _poll(hass, entry, {STORED: CannotConnectError(), MOVED: answer})
+
+    assert entry.data[CONF_ADDRESS] == STORED
+    assert entry.runtime_data.client.address == normalize_address(STORED)
+    issue = _issue(hass, entry)
+    assert issue is not None
+    assert issue.translation_key == ISSUE_PANEL_ADDRESS_UNVERIFIED
+    assert issue.translation_placeholders == {
+        "panel": "alpha",
+        "address": STORED,
+        "session_address": MOVED,
+    }
+    # Refused is not unavailable: the panel is still connected.
+    assert _state(hass, STATUS_ENTITY) == "connected"
+    assert _state(hass, UPDATE_ENTITY) != STATE_UNAVAILABLE
+
+
+@pytest.mark.parametrize(
+    "remote", [None, "8.8.8.8", "proxy.example"], ids=["unknown", "public", "name"]
+)
+async def test_session_without_a_usable_address_is_reported_as_unreachable(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    remote: str | None,
+) -> None:
+    """Connected but unreachable is said as exactly that, never as unavailable."""
+    await _connect(hass, hass_ws_client, hass_read_only_access_token, entry, remote)
+
+    await _poll(hass, entry, {STORED: CannotConnectError()})
+
+    assert entry.data[CONF_ADDRESS] == STORED
+    issue = _issue(hass, entry)
+    assert issue is not None
+    assert issue.translation_key == ISSUE_PANEL_ADDRESS_UNREACHABLE
+    assert issue.translation_placeholders == {
+        "panel": "alpha",
+        "address": STORED,
+        "session_address": remote or STORED,
+    }
+    assert _state(hass, STATUS_ENTITY) == "connected"
+
+
+async def test_address_report_clears_when_the_stored_address_answers(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """A transient outbound fault leaves nothing behind once it passes."""
+    await _connect(hass, hass_ws_client, hass_read_only_access_token, entry, None)
+    await _poll(hass, entry, {STORED: CannotConnectError()})
+    assert _issue(hass, entry) is not None
+
+    await _poll(hass, entry, {STORED: HEALTH})
+
+    assert _issue(hass, entry) is None
+    assert _state(hass, STATUS_ENTITY) == "online"
+
+
+@pytest.mark.parametrize(
+    ("remote", "stored", "expected"),
+    [
+        ("192.0.2.9", "panel.local", "192.0.2.9"),
+        ("192.0.2.9", "panel.local:8889", "192.0.2.9:8889"),
+        ("::ffff:192.0.2.9", "panel.local", "192.0.2.9"),
+        ("fd00::9", "panel.local", "[fd00::9]"),
+        ("100.64.1.9", "panel.local", "100.64.1.9"),
+        ("192.0.2.9", "192.0.2.9", None),
+        ("192.0.2.9", "192.0.2.9:8888", None),
+        ("8.8.8.8", "panel.local", None),
+        ("fe80::1%eth0", "panel.local", None),
+        ("proxy.example", "panel.local", None),
+        ("", "panel.local", None),
+        (None, "panel.local", None),
+    ],
+)
+def test_session_candidate(
+    remote: str | None, stored: str, expected: str | None
+) -> None:
+    """Only a literal, non-public peer at the stored port is a candidate."""
+    candidate = session_candidate(remote, normalize_address(stored))
+    if expected is None:
+        assert candidate is None
+    else:
+        assert isinstance(candidate, PanelAddress)
+        assert candidate.stored_value == expected
+
+
+# ---------------------------------------------------------------------------
+# Address repair from mDNS.
+
+
+def _advertisement(host: str) -> ZeroconfServiceInfo:
+    address = ip_address(host)
+    return ZeroconfServiceInfo(
+        ip_address=address,
+        ip_addresses=[address],
+        port=8888,
+        hostname="alpha.local.",
+        type="_ha-paneld._tcp.local.",
+        name="alpha._ha-paneld._tcp.local.",
+        properties={"did": DID},
+    )
+
+
+async def test_known_panel_advertising_a_new_address_updates_the_stored_one(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """A re-advertised panel repairs its address once its identity is proved."""
+    entry = await _load(hass, hass_read_only_user.id, unique_id=DID)
+    polled: list[str] = []
+
+    async def _get_health(self: HaPaneldClient) -> Any:
+        polled.append(self.address.host)
+        return HEALTH
+
+    with (
+        patch.object(HaPaneldClient, "async_get_health", _get_health),
+        patch.object(
+            HaPaneldClient, "async_get_status", AsyncMock(return_value=STATUS)
+        ),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=_advertisement(MOVED),
+        )
+        await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    # Verified at the advertised address before it was written, then polled
+    # there by the running entry.
+    assert polled == [MOVED, MOVED]
+    assert entry.data[CONF_ADDRESS] == MOVED
+    assert entry.runtime_data.client.address.host == MOVED
+    assert entry.state is ConfigEntryState.LOADED
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [replace(HEALTH, discovery_id=OTHER_DID), CannotConnectError()],
+    ids=["another_panel", "no_answer"],
+)
+async def test_advertised_address_that_fails_verification_is_not_written(
+    hass: HomeAssistant, hass_read_only_user: Any, answer: Any
+) -> None:
+    """The mDNS token alone never moves a configured panel."""
+    entry = await _load(hass, hass_read_only_user.id, unique_id=DID)
+    health_mock = AsyncMock(
+        side_effect=answer if isinstance(answer, Exception) else None,
+        return_value=answer,
+    )
+    with patch(
+        "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+        health_mock,
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=_advertisement(MOVED),
+        )
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "invalid_discovery"
+    assert entry.data[CONF_ADDRESS] == STORED
+
+
+async def test_known_panel_advertising_its_stored_address_changes_nothing(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """A panel where it already is is not contacted for its advertisement."""
+    entry = await _load(hass, hass_read_only_user.id, unique_id=DID, address=MOVED)
+    health_mock = AsyncMock(return_value=HEALTH)
+    with patch(
+        "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+        health_mock,
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=_advertisement(MOVED),
+        )
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    health_mock.assert_not_awaited()
+    assert entry.data[CONF_ADDRESS] == MOVED
