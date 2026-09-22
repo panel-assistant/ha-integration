@@ -898,6 +898,10 @@ async def test_a_removed_identity_two_loaded_entries_report_is_not_called_remove
     )
     twin.add_to_hass(hass)
     twin.mock_state(hass, ConfigEntryState.LOADED)
+    # A clone: the twin's own panel answers health with the same identity.
+    twin.runtime_data = SimpleNamespace(
+        coordinator=SimpleNamespace(data=SimpleNamespace(health=HEALTH))
+    )
     await hass.data[DOMAIN]["removed_panels"].async_add(DID)
 
     assert await _hello_error(hass, hass_ws_client, hass_read_only_access_token) == (

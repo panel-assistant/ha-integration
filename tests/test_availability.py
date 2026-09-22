@@ -18,8 +18,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import CONF_ADDRESS, STATE_UNAVAILABLE
-from homeassistant.core import HomeAssistant
+from homeassistant.const import CONF_ADDRESS, EVENT_STATE_CHANGED, STATE_UNAVAILABLE
+from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
@@ -46,6 +46,9 @@ STATUS_ENTITY = "sensor.alpha_status"
 UPDATE_ENTITY = "update.alpha_ha_paneld_update"
 STORED = "panel.local"
 MOVED = "192.0.2.9"
+# The add flow pins install targets to the installer's LAN ranges, so the
+# address a person types for a moved panel is a private one.
+LAN = "192.168.1.29"
 
 
 def _health_by_host(
@@ -609,8 +612,9 @@ def _advertisement(host: str) -> ZeroconfServiceInfo:
 async def test_known_panel_advertising_a_new_address_updates_the_stored_one(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
-    """A re-advertised panel repairs its address once its identity is proved."""
+    """A re-advertised panel repairs its dead address once its identity is proved."""
     entry = await _load(hass, hass_read_only_user.id, unique_id=DID)
+    await _poll(hass, entry, {STORED: CannotConnectError()})
     polled: list[str] = []
 
     async def _get_health(self: HaPaneldClient) -> Any:
@@ -667,6 +671,107 @@ async def test_advertised_address_that_fails_verification_is_not_written(
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "invalid_discovery"
     assert entry.data[CONF_ADDRESS] == STORED
+
+
+async def test_advertisement_never_moves_a_panel_whose_address_still_answers(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """The identity and the health line are public; neither redirects a live panel."""
+    entry = await _load(hass, hass_read_only_user.id, unique_id=DID)
+    health_mock = AsyncMock(return_value=HEALTH)
+    with patch(
+        "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+        health_mock,
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=_advertisement(MOVED),
+        )
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert entry.data[CONF_ADDRESS] == STORED
+    assert entry.runtime_data.client.address.host == STORED
+
+
+async def test_adding_a_known_panel_at_a_new_address_repairs_its_entry(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """Adding the panel again where it now is updates the entry, never duplicates it."""
+    entry = await _load(hass, hass_read_only_user.id)
+    assert entry.unique_id == DID
+    await _poll(hass, entry, {STORED: CannotConnectError()})
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=HEALTH),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=STATUS),
+        ),
+        patch.object(
+            HaPaneldClient, "async_get_status", AsyncMock(return_value=STATUS)
+        ),
+    ):
+        flow = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+        flow = await hass.config_entries.flow.async_configure(
+            flow["flow_id"], {"next_step_id": "add_panel"}
+        )
+        flow = await hass.config_entries.flow.async_configure(
+            flow["flow_id"], {CONF_ADDRESS: LAN}
+        )
+        assert flow["type"] is FlowResultType.MENU, flow
+        result = await hass.config_entries.flow.async_configure(
+            flow["flow_id"], {"next_step_id": "connect_found"}
+        )
+        await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert [e.entry_id for e in hass.config_entries.async_entries(DOMAIN)] == [
+        entry.entry_id
+    ]
+    assert entry.data[CONF_ADDRESS] == LAN
+    assert entry.runtime_data.client.address.host == LAN
+    assert entry.state is ConfigEntryState.LOADED
+
+
+async def test_a_superseding_hello_never_writes_an_unavailable_state(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """A panel that reconnects held a session throughout, and its states say so."""
+    await _connect(hass, hass_ws_client, hass_read_only_access_token, entry, None)
+    await _poll(hass, entry, {STORED: CannotConnectError()})
+    assert _state(hass, STATUS_ENTITY) == "connected"
+    written: list[tuple[str, str]] = []
+
+    @callback
+    def _record(event: Event[EventStateChangedData]) -> None:
+        new_state = event.data["new_state"]
+        if new_state is not None and event.data["entity_id"] in (
+            STATUS_ENTITY,
+            UPDATE_ENTITY,
+        ):
+            written.append((event.data["entity_id"], new_state.state))
+
+    hass.bus.async_listen(EVENT_STATE_CHANGED, _record)
+    with patch.object(
+        HaPaneldClient,
+        "async_get_health",
+        _health_by_host({STORED: CannotConnectError()}),
+    ):
+        await _connect(hass, hass_ws_client, hass_read_only_access_token, entry, None)
+        await hass.async_block_till_done()
+
+    assert STATE_UNAVAILABLE not in [state for _entity_id, state in written], written
+    assert _state(hass, STATUS_ENTITY) == "connected"
 
 
 async def test_known_panel_advertising_its_stored_address_changes_nothing(

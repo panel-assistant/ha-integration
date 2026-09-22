@@ -568,11 +568,11 @@
     },
     "panel_address_unreachable": {
       "title": "Home Assistant cannot reach {panel} at its stored address",
-      "description": "{panel} is connected to Home Assistant, so its entities stay available, but Home Assistant cannot read the panel at {address}, and the connection it holds, from {session_address}, offers no other address to try. The panel's web port may be blocked between Home Assistant and the panel. If the panel has moved, remove it and add it again at its new address; the issue clears by itself once the address answers again."
+      "description": "{panel} is connected to Home Assistant, so its entities stay available, but Home Assistant cannot read the panel at {address}, and the connection it holds, from {session_address}, offers no other address to try. The panel's web port may be blocked between Home Assistant and the panel. If the panel has moved, add it again at its new address, which updates the stored address; the issue clears by itself once the address answers again."
     },
     "panel_address_unverified": {
       "title": "{panel} has moved, and its new address could not be confirmed",
-      "description": "{panel} is connected to Home Assistant from {session_address}, so its entities stay available, but Home Assistant cannot read the panel at its stored address {address}, and a check at {session_address} did not answer as this panel, so the stored address was not changed. If the panel has moved, remove it and add it again at its new address; the issue clears by itself once the stored address answers."
+      "description": "{panel} is connected to Home Assistant from {session_address}, so its entities stay available, but Home Assistant cannot read the panel at its stored address {address}, and a check at {session_address} did not answer as this panel, so the stored address was not changed. If the panel has moved, add it again at its new address, which updates the stored address; the issue clears by itself once the stored address answers."
     }
   },
   "options": {

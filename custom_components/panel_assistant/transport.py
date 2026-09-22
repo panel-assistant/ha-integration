@@ -898,9 +898,15 @@ class TransportSessions:
 
     @callback
     def open(self, session: PanelSession) -> None:
-        """Install a session, superseding any earlier one for its entry."""
+        """Install a session, superseding any earlier one for its entry.
+
+        The panel held a session throughout a supersede, so the change is
+        announced once, with the new session in place: announcing the close
+        first would let every entity write an unavailable state for a panel
+        that never went away.
+        """
         if (previous := self._by_entry.get(session.entry_id)) is not None:
-            self.close(previous, REASON_SUPERSEDED)
+            self.close(previous, REASON_SUPERSEDED, announce=False)
         # The kept session holds its closed connection; a live one replaces it.
         self._last_by_entry.pop(session.entry_id, None)
         self._by_entry[session.entry_id] = session
@@ -911,7 +917,9 @@ class TransportSessions:
         self._changed(session.entry_id)
 
     @callback
-    def close(self, session: PanelSession, reason: str) -> None:
+    def close(
+        self, session: PanelSession, reason: str, *, announce: bool = True
+    ) -> None:
         """End a session from this side and tell the panel why."""
         if not self._forget(session):
             return
@@ -922,7 +930,8 @@ class TransportSessions:
                 session.subscription_id, {"kind": "session_closed", "reason": reason}
             )
         )
-        self._changed(session.entry_id)
+        if announce:
+            self._changed(session.entry_id)
 
     @callback
     def close_entry(self, entry_id: str, reason: str) -> None:
@@ -1626,14 +1635,20 @@ def async_bind_user(hass: HomeAssistant, entry: ConfigEntry, user_id: str) -> No
 # Command handlers. All synchronous, so they run in arrival order.
 
 
-def _panel_did(entry: ConfigEntry) -> str | None:
-    """Return the identity an entry's panel reports, else its discovery ID."""
+def _reported_did(entry: ConfigEntry) -> str | None:
+    """Return the identity the entry's panel reported in its last health read."""
     runtime_data = getattr(entry, "runtime_data", None)
     coordinator = getattr(runtime_data, "coordinator", None)
     snapshot = getattr(coordinator, "data", None)
     health = getattr(snapshot, "health", None)
     reported = getattr(health, "discovery_id", None)
-    if isinstance(reported, str):
+    return reported if isinstance(reported, str) else None
+
+
+def _panel_did(entry: ConfigEntry) -> str | None:
+    """Return the identity an entry's panel reports, else its discovery ID."""
+    reported = _reported_did(entry)
+    if reported is not None:
         return reported
     if entry.unique_id is not None and is_valid_discovery_id(entry.unique_id):
         return entry.unique_id
@@ -1647,13 +1662,23 @@ def _removed_panels(hass: HomeAssistant) -> Container[str]:
 
 
 def _entry_for_did(hass: HomeAssistant, did: str) -> ConfigEntry | None:
-    """Return the one loaded entry for a panel identity, never a guess."""
+    """Return the one loaded entry for a panel identity, never a guess.
+
+    An entry whose panel has answered health with this identity outranks one
+    that only remembers it: a stale duplicate left behind by an earlier
+    re-add, now loaded with its dead address rather than held in retry, must
+    not make the panel's live entry ambiguous. Two entries whose panels both
+    answer with one identity are still refused, as cloned panels always were.
+    """
     matches = [
         entry
         for entry in hass.config_entries.async_loaded_entries(DOMAIN)
         if _panel_did(entry) == did
     ]
     if len(matches) > 1:
+        answering = [entry for entry in matches if _reported_did(entry) == did]
+        if len(answering) == 1:
+            return answering[0]
         _LOGGER.warning("Several panel entries report one identity; refusing hello")
         return None
     return matches[0] if matches else None

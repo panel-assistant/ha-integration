@@ -239,11 +239,11 @@
     },
     "panel_address_unreachable": {
       "title": "Home Assistant 无法通过已保存的地址访问 {panel}",
-      "description": "{panel} 已连接到 Home Assistant，因此其实体保持可用，但 Home Assistant 无法通过 {address} 读取该面板，而它当前从 {session_address} 建立的连接也没有提供其他可尝试的地址。面板的网页端口可能在 Home Assistant 与面板之间被阻断。如果面板已迁移，请将其移除并使用新地址重新添加；地址恢复响应后，此提示会自动消失。"
+      "description": "{panel} 已连接到 Home Assistant，因此其实体保持可用，但 Home Assistant 无法通过 {address} 读取该面板，而它当前从 {session_address} 建立的连接也没有提供其他可尝试的地址。面板的网页端口可能在 Home Assistant 与面板之间被阻断。如果面板已迁移，请使用新地址重新添加，已保存的地址会随之更新；地址恢复响应后，此提示会自动消失。"
     },
     "panel_address_unverified": {
       "title": "{panel} 已迁移，但无法确认其新地址",
-      "description": "{panel} 正从 {session_address} 连接到 Home Assistant，因此其实体保持可用，但 Home Assistant 无法通过已保存的地址 {address} 读取该面板，并且对 {session_address} 的检查未以该面板的身份作出响应，因此已保存的地址未被更改。如果面板已迁移，请将其移除并使用新地址重新添加；已保存的地址恢复响应后，此提示会自动消失。"
+      "description": "{panel} 正从 {session_address} 连接到 Home Assistant，因此其实体保持可用，但 Home Assistant 无法通过已保存的地址 {address} 读取该面板，并且对 {session_address} 的检查未以该面板的身份作出响应，因此已保存的地址未被更改。如果面板已迁移，请使用新地址重新添加，已保存的地址会随之更新；已保存的地址恢复响应后，此提示会自动消失。"
     }
   },
   "options": {

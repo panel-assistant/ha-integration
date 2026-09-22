@@ -239,11 +239,11 @@
     },
     "panel_address_unreachable": {
       "title": "Home Assistant erreicht {panel} unter der gespeicherten Adresse nicht",
-      "description": "{panel} ist mit Home Assistant verbunden, seine Entitäten bleiben daher verfügbar. Home Assistant kann das Panel unter {address} jedoch nicht lesen, und die bestehende Verbindung von {session_address} nennt keine andere Adresse, die versucht werden könnte. Möglicherweise ist der Web-Port des Panels zwischen Home Assistant und dem Panel blockiert. Wenn das Panel umgezogen ist, entfernen Sie es und fügen Sie es unter der neuen Adresse erneut hinzu. Der Hinweis verschwindet von selbst, sobald die Adresse wieder antwortet."
+      "description": "{panel} ist mit Home Assistant verbunden, seine Entitäten bleiben daher verfügbar. Home Assistant kann das Panel unter {address} jedoch nicht lesen, und die bestehende Verbindung von {session_address} nennt keine andere Adresse, die versucht werden könnte. Möglicherweise ist der Web-Port des Panels zwischen Home Assistant und dem Panel blockiert. Wenn das Panel umgezogen ist, fügen Sie es unter der neuen Adresse erneut hinzu; dadurch wird die gespeicherte Adresse aktualisiert. Der Hinweis verschwindet von selbst, sobald die Adresse wieder antwortet."
     },
     "panel_address_unverified": {
       "title": "{panel} ist umgezogen, die neue Adresse konnte aber nicht bestätigt werden",
-      "description": "{panel} ist von {session_address} aus mit Home Assistant verbunden, seine Entitäten bleiben daher verfügbar. Home Assistant kann das Panel unter der gespeicherten Adresse {address} jedoch nicht lesen, und eine Prüfung unter {session_address} hat nicht als dieses Panel geantwortet, daher wurde die gespeicherte Adresse nicht geändert. Wenn das Panel umgezogen ist, entfernen Sie es und fügen Sie es unter der neuen Adresse erneut hinzu. Der Hinweis verschwindet von selbst, sobald die gespeicherte Adresse antwortet."
+      "description": "{panel} ist von {session_address} aus mit Home Assistant verbunden, seine Entitäten bleiben daher verfügbar. Home Assistant kann das Panel unter der gespeicherten Adresse {address} jedoch nicht lesen, und eine Prüfung unter {session_address} hat nicht als dieses Panel geantwortet, daher wurde die gespeicherte Adresse nicht geändert. Wenn das Panel umgezogen ist, fügen Sie es unter der neuen Adresse erneut hinzu; dadurch wird die gespeicherte Adresse aktualisiert. Der Hinweis verschwindet von selbst, sobald die gespeicherte Adresse antwortet."
     }
   },
   "options": {

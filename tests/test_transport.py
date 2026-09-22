@@ -1006,12 +1006,42 @@ async def test_two_entries_with_one_identity_refuse_hello(
     )
     twin.add_to_hass(hass)
     twin.mock_state(hass, ConfigEntryState.LOADED)
+    # A clone: the twin's own panel answers health with the same identity.
+    twin.runtime_data = SimpleNamespace(
+        coordinator=SimpleNamespace(data=SimpleNamespace(health=HEALTH))
+    )
     client = await hass_ws_client(hass, hass_read_only_access_token)
 
     response = await _send(client, _hello())
 
     assert response["error"]["code"] == "unknown_panel"
     assert async_get_sessions(hass).get(entry.entry_id) is None
+
+
+async def test_a_stale_duplicate_does_not_make_the_live_entry_ambiguous(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """An entry that only remembers the identity yields to the one its panel answers.
+
+    Re-adding a moved panel used to leave its old entry behind in setup retry,
+    invisible to hello. That entry now loads with its dead address, so it must
+    not turn the panel's live entry into a refused ambiguity.
+    """
+    stale = MockConfigEntry(
+        domain=DOMAIN, title="stale", data={CONF_ADDRESS: "old.local"}, unique_id=DID
+    )
+    stale.add_to_hass(hass)
+    stale.mock_state(hass, ConfigEntryState.LOADED)
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+
+    response = await _send(client, _hello())
+
+    assert response["success"], response
+    assert async_get_sessions(hass).get(entry.entry_id) is not None
+    assert async_get_sessions(hass).get(stale.entry_id) is None
 
 
 async def test_report_event_needs_a_session(
