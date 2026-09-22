@@ -1020,6 +1020,32 @@ async def test_two_entries_with_one_identity_refuse_hello(
     assert async_get_sessions(hass).get(entry.entry_id) is None
 
 
+async def test_a_clone_whose_address_is_down_is_still_refused(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """Two answering entries refuse whatever their polls say; clones look alike."""
+    twin = MockConfigEntry(
+        domain=DOMAIN, title="twin", data={CONF_ADDRESS: "twin.local"}, unique_id=DID
+    )
+    twin.add_to_hass(hass)
+    twin.mock_state(hass, ConfigEntryState.LOADED)
+    twin.runtime_data = SimpleNamespace(
+        coordinator=SimpleNamespace(
+            data=SimpleNamespace(health=HEALTH), last_update_success=False
+        )
+    )
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+
+    response = await _send(client, _hello())
+
+    assert response["error"]["code"] == "unknown_panel"
+    assert async_get_sessions(hass).get(entry.entry_id) is None
+    assert async_get_sessions(hass).get(twin.entry_id) is None
+
+
 async def test_a_stale_duplicate_does_not_make_the_live_entry_ambiguous(
     hass: HomeAssistant,
     entry: MockConfigEntry,
