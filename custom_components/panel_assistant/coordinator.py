@@ -187,7 +187,9 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         if health is None or health.discovery_id != session.did:
             self._report(entry, ISSUE_PANEL_ADDRESS_UNVERIFIED, candidate.host)
             return None
-        self.client.address = candidate
+        # The entry is the one record of the address. Its update listener
+        # moves the running client, before this returns, so the status read
+        # that follows already goes to the adopted address.
         self.hass.config_entries.async_update_entry(
             entry, data={**entry.data, CONF_ADDRESS: candidate.stored_value}
         )
