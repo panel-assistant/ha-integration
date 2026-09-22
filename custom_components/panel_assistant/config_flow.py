@@ -222,10 +222,15 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="unknown")
         if health.discovery_id != discovery_id:
             return self.async_abort(reason="invalid_discovery")
-        # A known panel advertising from a new address has moved. Its health
-        # has just answered as it at that address, so the stored one is
-        # replaced; the running entry polls the new address without a reload,
-        # which would end the panel's session for nothing.
+        # A known panel advertising from a new address has moved, when its
+        # stored address has stopped answering. Its health has just answered
+        # as it at the new address, so the stored one is replaced; the running
+        # entry polls the new address without a reload, which would end the
+        # panel's session for nothing. While the stored address still answers,
+        # an advertisement moves nothing: the identity and the health line are
+        # both public on the LAN, and neither may redirect a reachable panel.
+        if self._stored_address_answers():
+            self._abort_if_unique_id_configured()
         self._abort_if_unique_id_configured(
             updates={CONF_ADDRESS: address.stored_value}, reload_on_update=False
         )
@@ -1391,6 +1396,16 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         self._release_after_finalization = False
         self._removed_release_retry_started = False
 
+    def _stored_address_answers(self) -> bool:
+        """Return whether the entry with this flow's unique id still polls fine."""
+        if self.unique_id is None:
+            return False
+        entry = self.hass.config_entries.async_entry_for_domain_unique_id(
+            DOMAIN, self.unique_id
+        )
+        coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
+        return coordinator is not None and bool(coordinator.last_update_success)
+
     def _address_is_configured(self, address: str) -> bool:
         """Check the existing endpoint identity without contacting the panel."""
         return any(
@@ -1402,9 +1417,16 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         self, address: PanelAddress, health: PanelHealth
     ) -> ConfigFlowResult:
         """Create an entry, confirming the panel's account first when one asked."""
-        # The configured network endpoint is the entry identity. The health contract
-        # exposes only a user-editable panel name, not a stable hardware identifier.
         self._async_abort_entries_match({CONF_ADDRESS: address.stored_value})
+        # A panel that reports its identity is known by it. Adding a known panel
+        # again, at the address it has moved to, repairs its entry's stored
+        # address rather than creating a second entry for one panel: health at
+        # the new address has just answered as it, and an administrator asked.
+        if health.discovery_id is not None:
+            await self.async_set_unique_id(health.discovery_id)
+            self._abort_if_unique_id_configured(
+                updates={CONF_ADDRESS: address.stored_value}, reload_on_update=False
+            )
         self._pending_address = address
         self._pending_health = health
         user = await self._async_asking_user()

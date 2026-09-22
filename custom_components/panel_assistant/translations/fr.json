@@ -239,11 +239,11 @@
     },
     "panel_address_unreachable": {
       "title": "Home Assistant ne peut pas joindre {panel} à son adresse enregistrée",
-      "description": "{panel} est connecté à Home Assistant, ses entités restent donc disponibles, mais Home Assistant ne peut pas lire le panneau à l'adresse {address}, et la connexion qu'il maintient, depuis {session_address}, n'offre aucune autre adresse à essayer. Le port web du panneau est peut-être bloqué entre Home Assistant et le panneau. Si le panneau a changé d'emplacement, supprimez-le et ajoutez-le à nouveau avec sa nouvelle adresse ; l'avertissement disparaît de lui-même dès que l'adresse répond à nouveau."
+      "description": "{panel} est connecté à Home Assistant, ses entités restent donc disponibles, mais Home Assistant ne peut pas lire le panneau à l'adresse {address}, et la connexion qu'il maintient, depuis {session_address}, n'offre aucune autre adresse à essayer. Le port web du panneau est peut-être bloqué entre Home Assistant et le panneau. Si le panneau a changé d'emplacement, ajoutez-le à nouveau avec sa nouvelle adresse, ce qui met à jour l'adresse enregistrée ; l'avertissement disparaît de lui-même dès que l'adresse répond à nouveau."
     },
     "panel_address_unverified": {
       "title": "{panel} a changé d'adresse et sa nouvelle adresse n'a pas pu être confirmée",
-      "description": "{panel} est connecté à Home Assistant depuis {session_address}, ses entités restent donc disponibles, mais Home Assistant ne peut pas lire le panneau à son adresse enregistrée {address}, et une vérification à {session_address} n'a pas répondu comme ce panneau ; l'adresse enregistrée n'a donc pas été modifiée. Si le panneau a changé d'emplacement, supprimez-le et ajoutez-le à nouveau avec sa nouvelle adresse ; l'avertissement disparaît de lui-même dès que l'adresse enregistrée répond."
+      "description": "{panel} est connecté à Home Assistant depuis {session_address}, ses entités restent donc disponibles, mais Home Assistant ne peut pas lire le panneau à son adresse enregistrée {address}, et une vérification à {session_address} n'a pas répondu comme ce panneau ; l'adresse enregistrée n'a donc pas été modifiée. Si le panneau a changé d'emplacement, ajoutez-le à nouveau avec sa nouvelle adresse, ce qui met à jour l'adresse enregistrée ; l'avertissement disparaît de lui-même dès que l'adresse enregistrée répond."
     }
   },
   "options": {

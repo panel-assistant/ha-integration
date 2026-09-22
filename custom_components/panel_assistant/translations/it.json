@@ -239,11 +239,11 @@
     },
     "panel_address_unreachable": {
       "title": "Home Assistant non raggiunge {panel} all'indirizzo salvato",
-      "description": "{panel} è connesso a Home Assistant, quindi le sue entità restano disponibili, ma Home Assistant non riesce a leggere il pannello all'indirizzo {address}, e la connessione che mantiene, da {session_address}, non offre nessun altro indirizzo da provare. La porta web del pannello potrebbe essere bloccata tra Home Assistant e il pannello. Se il pannello è stato spostato, rimuovilo e aggiungilo di nuovo con il nuovo indirizzo; l'avviso scompare da solo quando l'indirizzo risponde di nuovo."
+      "description": "{panel} è connesso a Home Assistant, quindi le sue entità restano disponibili, ma Home Assistant non riesce a leggere il pannello all'indirizzo {address}, e la connessione che mantiene, da {session_address}, non offre nessun altro indirizzo da provare. La porta web del pannello potrebbe essere bloccata tra Home Assistant e il pannello. Se il pannello è stato spostato, aggiungilo di nuovo con il nuovo indirizzo, così l'indirizzo salvato viene aggiornato; l'avviso scompare da solo quando l'indirizzo risponde di nuovo."
     },
     "panel_address_unverified": {
       "title": "{panel} è stato spostato e il nuovo indirizzo non è stato confermato",
-      "description": "{panel} è connesso a Home Assistant da {session_address}, quindi le sue entità restano disponibili, ma Home Assistant non riesce a leggere il pannello all'indirizzo salvato {address}, e una verifica su {session_address} non ha risposto come questo pannello, quindi l'indirizzo salvato non è stato cambiato. Se il pannello è stato spostato, rimuovilo e aggiungilo di nuovo con il nuovo indirizzo; l'avviso scompare da solo quando l'indirizzo salvato risponde."
+      "description": "{panel} è connesso a Home Assistant da {session_address}, quindi le sue entità restano disponibili, ma Home Assistant non riesce a leggere il pannello all'indirizzo salvato {address}, e una verifica su {session_address} non ha risposto come questo pannello, quindi l'indirizzo salvato non è stato cambiato. Se il pannello è stato spostato, aggiungilo di nuovo con il nuovo indirizzo, così l'indirizzo salvato viene aggiornato; l'avviso scompare da solo quando l'indirizzo salvato risponde."
     }
   },
   "options": {
