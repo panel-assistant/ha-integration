@@ -295,6 +295,33 @@ async def test_session_address_is_adopted_after_identity_verification(
     assert entry.state is ConfigEntryState.LOADED
 
 
+async def test_the_poll_that_adopts_an_address_reads_status_there_too(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """The entry write moves the running client before the same poll goes on."""
+    await _connect(hass, hass_ws_client, hass_read_only_access_token, entry)
+    polled: list[str] = []
+
+    async def _get_status(self: HaPaneldClient, **_kwargs: Any) -> Any:
+        polled.append(self.address.host)
+        return STATUS
+
+    with (
+        patch.object(
+            HaPaneldClient,
+            "async_get_health",
+            _health_by_host({STORED: CannotConnectError(), MOVED: HEALTH}),
+        ),
+        patch.object(HaPaneldClient, "async_get_status", _get_status),
+    ):
+        await entry.runtime_data.coordinator.async_refresh()
+
+    assert polled == [MOVED]
+
+
 @pytest.mark.parametrize(
     "answer",
     [
