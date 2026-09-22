@@ -1306,7 +1306,8 @@ async def test_a_shadow_setup_without_a_record_writes_nothing(
     with patch.object(hass.config_entries, "async_update_entry", side_effect=update):
         entry = await _setup(hass, hass_read_only_user.id, native=True)
 
-    assert writes == []
+    # The panel's identity is recorded whatever the authority; nothing else is.
+    assert writes == [{"unique_id": DID}]
     assert CONF_CUTOVER not in entry.data
     assert _snapshot(hass, mqtt["entry"].entry_id) == before
 

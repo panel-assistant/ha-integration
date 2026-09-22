@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant
 
 from . import HaPaneldConfigEntry
 from .const import CONF_CUTOVER, CONF_TRANSPORT_USER_ID, INTEGRATION_BUILD
+from .coordinator import PanelSnapshot
 from .transport import (
     cutover_record,
     effective_authority,
@@ -49,9 +50,12 @@ async def async_get_config_entry_diagnostics(
     # What the next hello would answer; "mqtt_discovery_granted" is what the
     # current or last session was told.
     transport["mqtt_discovery"] = mqtt_discovery_claim(hass, entry)
+    snapshot: PanelSnapshot | None = entry.runtime_data.coordinator.data
     try:
-        shadow = shadow_comparison(
-            hass, entry.entry_id, entry.runtime_data.coordinator.data.health.panel_id
+        shadow = (
+            None
+            if snapshot is None
+            else shadow_comparison(hass, entry.entry_id, snapshot.health.panel_id)
         )
     except Exception:
         # The comparison is evidence for later slices, never a reason for the
@@ -65,12 +69,22 @@ async def async_get_config_entry_diagnostics(
 
 def _diagnostics(entry: HaPaneldConfigEntry) -> dict[str, Any]:
     """Build diagnostics only from cached data."""
-    snapshot = entry.runtime_data.coordinator.data
+    coordinator = entry.runtime_data.coordinator
+    snapshot: PanelSnapshot | None = coordinator.data
     return {
         "integration_build": INTEGRATION_BUILD,
         "entry": async_redact_data(dict(entry.data), _ENTRY_KEYS_TO_REDACT),
-        "last_update_success": entry.runtime_data.coordinator.last_update_success,
-        "health": async_redact_data(snapshot.health.as_dict(), _HEALTH_KEYS_TO_REDACT),
-        "status": snapshot.status.as_dict() if snapshot.status is not None else None,
-        "status_error": snapshot.status_error,
+        "last_update_success": coordinator.last_update_success,
+        "connected": coordinator.connected,
+        "health": (
+            None
+            if snapshot is None
+            else async_redact_data(snapshot.health.as_dict(), _HEALTH_KEYS_TO_REDACT)
+        ),
+        "status": (
+            snapshot.status.as_dict()
+            if snapshot is not None and snapshot.status is not None
+            else None
+        ),
+        "status_error": None if snapshot is None else snapshot.status_error,
     }

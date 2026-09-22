@@ -558,7 +558,7 @@ async def test_setup_survives_install_artifact_reconciliation_failure(
 async def test_artifact_resume_failure_does_not_hide_health_setup_failure(
     hass: HomeAssistant,
 ) -> None:
-    """Installer containment leaves coordinator retry authority unchanged."""
+    """Installer containment leaves the coordinator's own answer unchanged."""
     entry = _entry(hass)
     status_mock = AsyncMock(return_value=STATUS)
 
@@ -576,10 +576,12 @@ async def test_artifact_resume_failure_does_not_hide_health_setup_failure(
             status_mock,
         ),
     ):
-        assert not await hass.config_entries.async_setup(entry.entry_id)
+        assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
 
-    assert entry.state is ConfigEntryState.SETUP_RETRY
+    assert entry.state is ConfigEntryState.LOADED
+    assert not entry.runtime_data.coordinator.last_update_success
+    assert entry.runtime_data.coordinator.data is None
     status_mock.assert_not_awaited()
 
 
@@ -1022,8 +1024,16 @@ async def test_setup_ignores_unrelated_or_terminal_install_receipts(
     manager.async_transition.assert_not_awaited()
 
 
-async def test_setup_retries_when_panel_is_offline(hass: HomeAssistant) -> None:
-    """A transient setup failure becomes a Home Assistant retry."""
+async def test_setup_loads_unavailable_when_panel_is_offline(
+    hass: HomeAssistant,
+) -> None:
+    """A dead stored address loads the entry with nothing known about the panel.
+
+    Only a loaded entry can accept the panel's session, which is what repairs
+    the address, so the entry is not held in retry. Until either side answers
+    the entities are unavailable, the card carries the entry's own name, and
+    diagnostics say nothing has been read.
+    """
     entry = _entry(hass)
 
     status_mock = AsyncMock(return_value=STATUS)
@@ -1037,11 +1047,27 @@ async def test_setup_retries_when_panel_is_offline(hass: HomeAssistant) -> None:
             status_mock,
         ),
     ):
-        assert not await hass.config_entries.async_setup(entry.entry_id)
+        assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
 
-    assert entry.state is ConfigEntryState.SETUP_RETRY
+    assert entry.state is ConfigEntryState.LOADED
     status_mock.assert_not_awaited()
+    assert entry.runtime_data.coordinator.data is None
+    for entity_id in ("sensor.alpha_status", "update.alpha_ha_paneld_update"):
+        state = hass.states.get(entity_id)
+        assert state is not None, entity_id
+        assert state.state == "unavailable"
+    device = dr.async_get(hass).async_get_device({(DOMAIN, entry.entry_id)})
+    assert device is not None
+    assert device.name == "alpha"
+    assert device.sw_version is None
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+    assert diagnostics["last_update_success"] is False
+    assert diagnostics["connected"] is False
+    assert diagnostics["health"] is None
+    assert diagnostics["status"] is None
+    assert diagnostics["status_error"] is None
+    assert "shadow" not in diagnostics["transport"]
 
 
 @pytest.mark.parametrize("error_type", [CannotConnectError, InvalidResponseError])

@@ -20,20 +20,34 @@ _APP_MODEL_FALLBACK = "ha-paneld"
 
 
 def panel_device_info(
-    entry_id: str, snapshot: PanelSnapshot, configuration_url: str
+    entry_id: str,
+    snapshot: PanelSnapshot | None,
+    configuration_url: str,
+    fallback_name: str | None = None,
 ) -> DeviceInfo:
-    """Return the fullest device card the panel's own reported facts support."""
-    health = snapshot.health
-    status = snapshot.status
+    """Return the fullest device card the panel's own reported facts support.
+
+    With no snapshot yet, because the stored address has not answered since
+    the entry loaded, the card carries the entry's own name and no version.
+    """
+    health = snapshot.health if snapshot is not None else None
+    status = snapshot.status if snapshot is not None else None
     device = status.panel_assistant_device if status is not None else None
 
+    name: str | None
+    if device is not None and device.name:
+        name = device.name
+    elif health is not None:
+        name = health.panel_id
+    else:
+        name = fallback_name
     info = DeviceInfo(
         identifiers={(DOMAIN, entry_id)},
-        name=device.name if device is not None and device.name else health.panel_id,
+        name=name,
         model=(
             device.model if device is not None and device.model else _APP_MODEL_FALLBACK
         ),
-        sw_version=health.version,
+        sw_version=health.version if health is not None else None,
         configuration_url=configuration_url,
     )
     if device is None:

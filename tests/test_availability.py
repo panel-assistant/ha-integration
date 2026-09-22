@@ -404,6 +404,164 @@ def test_session_candidate(
         assert candidate.stored_value == expected
 
 
+async def _load_offline(
+    hass: HomeAssistant, user_id: str, unique_id: str | None
+) -> MockConfigEntry:
+    """Load one bound panel entry whose stored address does not answer."""
+    config_entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="alpha",
+        data={CONF_ADDRESS: STORED, CONF_TRANSPORT_USER_ID: user_id},
+        unique_id=unique_id,
+    )
+    config_entry.add_to_hass(hass)
+    with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(side_effect=CannotConnectError),
+        ),
+        patch(
+            "custom_components.panel_assistant.async_resume_loaded_install_jobs",
+            AsyncMock(return_value=()),
+        ),
+    ):
+        assert await hass.config_entries.async_setup(config_entry.entry_id)
+        await hass.async_block_till_done()
+    assert config_entry.state is ConfigEntryState.LOADED
+    return config_entry
+
+
+async def test_panel_connecting_after_a_restart_with_a_dead_address_recovers(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    hass_read_only_user: Any,
+) -> None:
+    """The case a restart makes: nothing has answered since the entry loaded.
+
+    The entry loads with no snapshot and unavailable entities, accepts the
+    panel's hello on its recorded identity, becomes available on the session
+    alone, and adopts the address the panel connected from once health there
+    proves the same identity.
+    """
+    entry = await _load_offline(hass, hass_read_only_user.id, DID)
+    assert _state(hass, STATUS_ENTITY) == STATE_UNAVAILABLE
+    assert _state(hass, UPDATE_ENTITY) == STATE_UNAVAILABLE
+
+    with (
+        patch.object(
+            HaPaneldClient,
+            "async_get_health",
+            _health_by_host({STORED: CannotConnectError(), "127.0.0.1": HEALTH}),
+        ),
+        patch.object(
+            HaPaneldClient, "async_get_status", AsyncMock(return_value=STATUS)
+        ),
+    ):
+        await _connect(
+            hass, hass_ws_client, hass_read_only_access_token, entry, "127.0.0.1"
+        )
+        await hass.async_block_till_done()
+
+    assert entry.data[CONF_ADDRESS] == "127.0.0.1"
+    assert entry.runtime_data.coordinator.data is not None
+    assert _state(hass, STATUS_ENTITY) == "online"
+    assert _state(hass, UPDATE_ENTITY) != STATE_UNAVAILABLE
+    assert _issue(hass, entry) is None
+
+
+async def test_panel_connecting_to_an_unread_entry_is_available_before_any_poll(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    hass_read_only_user: Any,
+) -> None:
+    """With no snapshot at all, the session is still enough to be available."""
+    entry = await _load_offline(hass, hass_read_only_user.id, DID)
+
+    with patch.object(
+        HaPaneldClient,
+        "async_get_health",
+        _health_by_host(
+            {STORED: CannotConnectError(), "127.0.0.1": CannotConnectError()}
+        ),
+    ):
+        await _connect(
+            hass, hass_ws_client, hass_read_only_access_token, entry, "127.0.0.1"
+        )
+        await hass.async_block_till_done()
+
+    assert entry.runtime_data.coordinator.data is None
+    assert _state(hass, STATUS_ENTITY) == "connected"
+    assert _state(hass, UPDATE_ENTITY) != STATE_UNAVAILABLE
+    state = hass.states.get(UPDATE_ENTITY)
+    assert state is not None
+    assert state.attributes["installed_version"] is None
+    # The address it connected from answered nothing, so it was not adopted.
+    issue = _issue(hass, entry)
+    assert issue is not None
+    assert issue.translation_key == ISSUE_PANEL_ADDRESS_UNVERIFIED
+
+
+async def test_entry_added_by_address_learns_its_identity_from_health(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """A manual entry records the identity its panel reports, once."""
+    entry = await _load(hass, hass_read_only_user.id)
+
+    assert entry.unique_id == DID
+
+    # Another panel's identity is never taken over an entry that has one.
+    await _poll(hass, entry, {STORED: replace(HEALTH, discovery_id=OTHER_DID)})
+    assert entry.unique_id == DID
+
+
+async def test_identity_another_entry_holds_is_not_learned(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """Two entries reporting one identity leave the second without it."""
+    first = await _load(hass, hass_read_only_user.id)
+    assert first.unique_id == DID
+    second = MockConfigEntry(
+        domain=DOMAIN,
+        title="beta",
+        data={CONF_ADDRESS: MOVED, CONF_TRANSPORT_USER_ID: hass_read_only_user.id},
+    )
+    second.add_to_hass(hass)
+    with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=HEALTH),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=STATUS),
+        ),
+        patch(
+            "custom_components.panel_assistant.async_resume_loaded_install_jobs",
+            AsyncMock(return_value=()),
+        ),
+        patch(
+            "custom_components.panel_assistant._async_reconcile_install_receipt",
+            AsyncMock(),
+        ),
+    ):
+        assert await hass.config_entries.async_setup(second.entry_id)
+        await hass.async_block_till_done()
+
+    assert second.unique_id is None
+    assert first.unique_id == DID
+
+
+async def test_entry_without_reported_identity_learns_nothing(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """A panel whose health carries no identity leaves the entry as it was."""
+    entry = await _load(hass, hass_read_only_user.id)
+    await _poll(hass, entry, {STORED: replace(HEALTH, discovery_id=None)})
+    assert entry.unique_id == DID
+
+
 # ---------------------------------------------------------------------------
 # Address repair from mDNS.
 

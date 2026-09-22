@@ -42,6 +42,7 @@ from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import CONF_CUTOVER, DOMAIN
 from .contract import catalogue_entry_for_suffix
+from .coordinator import PanelSnapshot
 from .device import panel_device_info
 from .guards import (
     RecordWriter,
@@ -239,6 +240,7 @@ def _own_device(
             entry.entry_id,
             runtime_data.coordinator.data,
             runtime_data.client.configuration_url,
+            entry.title,
         ),
     )
     panel_device = mqtt_device(hass, panel_id)
@@ -565,6 +567,12 @@ async def async_apply_cutover(hass: HomeAssistant, entry: HaPaneldConfigEntry) -
     picked up by the next setup. Nothing happens when the record already
     agrees with the authority.
     """
+    snapshot: PanelSnapshot | None = entry.runtime_data.coordinator.data
+    if snapshot is None:
+        # The stored address has not answered since the entry loaded, so the
+        # panel's identity and MQTT entities are unknown. The next setup
+        # runs the move, as it does after any other interruption.
+        return
     record = cutover_record(entry)
     native = effective_authority(hass, entry) == AUTHORITY_NATIVE
     transaction: _Transaction

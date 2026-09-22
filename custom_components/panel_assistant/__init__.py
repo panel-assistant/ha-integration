@@ -222,16 +222,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     address = normalize_address(entry.data[CONF_ADDRESS])
     client = HaPaneldClient(async_get_clientsession(hass), address)
     coordinator = HaPaneldDataUpdateCoordinator(hass, client, entry.entry_id)
-    await coordinator.async_config_entry_first_refresh()
+    # A stored address that does not answer is no reason to refuse the entry.
+    # The panel may be connected, or about to connect, from somewhere else,
+    # and only a loaded entry can accept its session, which is then what
+    # repairs the address. The entities load unavailable and become available
+    # on the first answer from either side.
+    await coordinator.async_refresh()
     update_coordinator = PanelUpdateCoordinator(hass, client)
     await update_coordinator.async_config_entry_first_refresh()
 
-    await _async_reconcile_install_receipt(
-        hass,
-        entry,
-        address.stored_value,
-        coordinator.data.health.version,
-    )
+    if coordinator.data is not None:
+        await _async_reconcile_install_receipt(
+            hass,
+            entry,
+            address.stored_value,
+            coordinator.data.health.version,
+        )
 
     platforms = list(PLATFORMS)
     if native_entities_enabled(hass):

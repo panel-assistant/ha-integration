@@ -239,7 +239,8 @@ async def test_non_admin_panel_account_opens_a_session(
     assert session is not None
     assert session.user_id == hass_read_only_user.id
     assert entry.data[CONF_TRANSPORT_USER_ID] == hass_read_only_user.id
-    assert entry.unique_id is None
+    # Learned from the panel's health at setup, so it outlives the address.
+    assert entry.unique_id == DID
     assert not session_available(hass, entry.entry_id)
     assert _registry_digest(hass, entry.entry_id) == registry_before
 
@@ -563,14 +564,26 @@ async def test_integration_loads_and_answers_with_no_panel_entry(
     assert response["error"]["code"] == "unknown_panel"
 
 
-async def test_entry_not_ready_is_unknown_panel(
+async def test_entry_with_a_dead_address_still_accepts_its_panel(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
+    hass_read_only_user: Any,
 ) -> None:
-    """An entry retrying setup is not a session target."""
+    """A panel whose stored address is dead can still open its session.
+
+    The entry used to sit in setup retry until the address answered, and a
+    retrying entry is not a session target, so the panel was refused as
+    unknown and could never be the thing that repaired the address.
+    """
     config_entry = MockConfigEntry(
-        domain=DOMAIN, title="alpha", data={CONF_ADDRESS: "panel.local"}, unique_id=DID
+        domain=DOMAIN,
+        title="alpha",
+        data={
+            CONF_ADDRESS: "panel.local",
+            CONF_TRANSPORT_USER_ID: hass_read_only_user.id,
+        },
+        unique_id=DID,
     )
     config_entry.add_to_hass(hass)
     with patch(
@@ -579,12 +592,13 @@ async def test_entry_not_ready_is_unknown_panel(
     ):
         await hass.config_entries.async_setup(config_entry.entry_id)
         await hass.async_block_till_done()
-    assert config_entry.state is ConfigEntryState.SETUP_RETRY
+    assert config_entry.state is ConfigEntryState.LOADED
     client = await hass_ws_client(hass, hass_read_only_access_token)
 
     response = await _send(client, _hello())
 
-    assert response["error"]["code"] == "unknown_panel"
+    assert response["success"], response
+    assert async_get_sessions(hass).get(config_entry.entry_id) is not None
 
 
 async def test_session_token_is_bound_to_its_connection(
