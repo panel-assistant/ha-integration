@@ -1008,7 +1008,9 @@ async def test_two_entries_with_one_identity_refuse_hello(
     twin.mock_state(hass, ConfigEntryState.LOADED)
     # A clone: the twin's own panel answers health with the same identity.
     twin.runtime_data = SimpleNamespace(
-        coordinator=SimpleNamespace(data=SimpleNamespace(health=HEALTH))
+        coordinator=SimpleNamespace(
+            data=SimpleNamespace(health=HEALTH), last_update_success=True
+        )
     )
     client = await hass_ws_client(hass, hass_read_only_access_token)
 
@@ -1042,6 +1044,31 @@ async def test_a_stale_duplicate_does_not_make_the_live_entry_ambiguous(
     assert response["success"], response
     assert async_get_sessions(hass).get(entry.entry_id) is not None
     assert async_get_sessions(hass).get(stale.entry_id) is None
+
+
+async def test_a_stale_duplicate_with_an_old_snapshot_yields_to_the_polling_entry(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """A duplicate whose address died without a restart still holds its old health."""
+    stale = MockConfigEntry(
+        domain=DOMAIN, title="stale", data={CONF_ADDRESS: "old.local"}, unique_id=DID
+    )
+    stale.add_to_hass(hass)
+    stale.mock_state(hass, ConfigEntryState.LOADED)
+    stale.runtime_data = SimpleNamespace(
+        coordinator=SimpleNamespace(
+            data=SimpleNamespace(health=HEALTH), last_update_success=False
+        )
+    )
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+
+    response = await _send(client, _hello())
+
+    assert response["success"], response
+    assert async_get_sessions(hass).get(entry.entry_id) is not None
 
 
 async def test_report_event_needs_a_session(

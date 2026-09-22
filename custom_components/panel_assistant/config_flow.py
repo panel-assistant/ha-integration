@@ -1423,7 +1423,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         # address rather than creating a second entry for one panel: health at
         # the new address has just answered as it, and an administrator asked.
         if health.discovery_id is not None:
-            await self.async_set_unique_id(health.discovery_id)
+            # A discovery card for this panel may be pending; it must not
+            # refuse the person who is adding the panel by hand, and Core
+            # closes that card itself when the entry is created.
+            await self.async_set_unique_id(health.discovery_id, raise_on_progress=False)
             self._abort_if_unique_id_configured(
                 updates={CONF_ADDRESS: address.stored_value}, reload_on_update=False
             )

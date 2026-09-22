@@ -1645,6 +1645,13 @@ def _reported_did(entry: ConfigEntry) -> str | None:
     return reported if isinstance(reported, str) else None
 
 
+def _polls_fine(entry: ConfigEntry) -> bool:
+    """Return whether the entry's stored address answered its last poll."""
+    runtime_data = getattr(entry, "runtime_data", None)
+    coordinator = getattr(runtime_data, "coordinator", None)
+    return bool(getattr(coordinator, "last_update_success", False))
+
+
 def _panel_did(entry: ConfigEntry) -> str | None:
     """Return the identity an entry's panel reports, else its discovery ID."""
     reported = _reported_did(entry)
@@ -1677,8 +1684,12 @@ def _entry_for_did(hass: HomeAssistant, did: str) -> ConfigEntry | None:
     ]
     if len(matches) > 1:
         answering = [entry for entry in matches if _reported_did(entry) == did]
-        if len(answering) == 1:
-            return answering[0]
+        # A stale entry keeps the snapshot its last successful poll left, so
+        # the one whose address answers now outranks one that answered once.
+        polling = [entry for entry in answering if _polls_fine(entry)]
+        for candidates in (polling, answering):
+            if len(candidates) == 1:
+                return candidates[0]
         _LOGGER.warning("Several panel entries report one identity; refusing hello")
         return None
     return matches[0] if matches else None

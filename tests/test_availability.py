@@ -740,6 +740,69 @@ async def test_adding_a_known_panel_at_a_new_address_repairs_its_entry(
     assert entry.state is ConfigEntryState.LOADED
 
 
+async def test_adding_a_panel_by_hand_completes_while_its_discovery_card_is_pending(
+    hass: HomeAssistant,
+) -> None:
+    """A pending discovery of the same panel never refuses the manual add."""
+    with patch(
+        "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+        AsyncMock(return_value=HEALTH),
+    ):
+        discovery = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=_advertisement(LAN),
+        )
+        assert discovery["type"] is FlowResultType.FORM
+        assert discovery["step_id"] == "confirm_discovery"
+
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=HEALTH),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=HEALTH),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=STATUS),
+        ),
+        patch(
+            "custom_components.panel_assistant.async_resume_loaded_install_jobs",
+            AsyncMock(return_value=()),
+        ),
+        patch(
+            "custom_components.panel_assistant._async_reconcile_install_receipt",
+            AsyncMock(),
+        ),
+    ):
+        flow = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+        flow = await hass.config_entries.flow.async_configure(
+            flow["flow_id"], {"next_step_id": "add_panel"}
+        )
+        flow = await hass.config_entries.flow.async_configure(
+            flow["flow_id"], {CONF_ADDRESS: LAN}
+        )
+        assert flow["type"] is FlowResultType.MENU, flow
+        result = await hass.config_entries.flow.async_configure(
+            flow["flow_id"], {"next_step_id": "connect_found"}
+        )
+        await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY, result
+    assert result["result"].unique_id == DID
+    # Core closed the discovery card when the entry was created.
+    assert not [
+        flow
+        for flow in hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+        if flow["flow_id"] == discovery["flow_id"]
+    ]
+
+
 async def test_a_superseding_hello_never_writes_an_unavailable_state(
     hass: HomeAssistant,
     entry: MockConfigEntry,
