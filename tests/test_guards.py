@@ -900,7 +900,9 @@ async def test_a_removed_identity_two_loaded_entries_report_is_not_called_remove
     twin.mock_state(hass, ConfigEntryState.LOADED)
     # A clone: the twin's own panel answers health with the same identity.
     twin.runtime_data = SimpleNamespace(
-        coordinator=SimpleNamespace(data=SimpleNamespace(health=HEALTH))
+        coordinator=SimpleNamespace(
+            data=SimpleNamespace(health=HEALTH), last_update_success=True
+        )
     )
     await hass.data[DOMAIN]["removed_panels"].async_add(DID)
 
