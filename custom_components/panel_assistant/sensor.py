@@ -14,11 +14,10 @@ from homeassistant.const import EntityCategory, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
 from . import HaPaneldConfigEntry
-from .coordinator import HaPaneldDataUpdateCoordinator
+from .coordinator import HaPaneldDataUpdateCoordinator, PanelCoordinatorEntity
 from .device import panel_device_info
 from .native import NativeEntity, async_setup_native_platform, enum_or_none
 
@@ -37,10 +36,14 @@ async def async_setup_entry(
     )
 
 
-class HaPaneldStatusSensor(
-    CoordinatorEntity[HaPaneldDataUpdateCoordinator], SensorEntity
-):
-    """Represent the health of one ha-paneld panel."""
+class HaPaneldStatusSensor(PanelCoordinatorEntity, SensorEntity):
+    """Represent the health of one ha-paneld panel.
+
+    Online is the ordinary answer. A panel that holds a session while its
+    stored address does not answer polls is connected, and says so, rather
+    than being folded into one flat answer that sends a person to look at the
+    network when it is the address record that is stale.
+    """
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_has_entity_name = True
@@ -56,14 +59,16 @@ class HaPaneldStatusSensor(
 
     @property
     def native_value(self) -> str:
-        """Return the cached panel status."""
-        return "online"
+        """Return whether the panel answers polls, or only holds its session."""
+        return "online" if self.coordinator.last_update_success else "connected"
 
     @property
     def extra_state_attributes(self) -> dict[str, str | bool | None]:
-        """Return the cached health diagnostics."""
+        """Return the cached health diagnostics and both halves of availability."""
         health = self.coordinator.data.health
         return {
+            "reachable": self.coordinator.last_update_success,
+            "connected": self.coordinator.connected,
             "build": health.build,
             "config_hash": health.config_hash,
             "home_assistant_state": health.ha_state,

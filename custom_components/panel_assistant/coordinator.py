@@ -3,12 +3,28 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 
-from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_ADDRESS
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.update_coordinator import (
+    CoordinatorEntity,
+    DataUpdateCoordinator,
+    UpdateFailed,
+)
 
+from .address import (
+    ISSUE_PANEL_ADDRESS_UNREACHABLE,
+    ISSUE_PANEL_ADDRESS_UNVERIFIED,
+    async_delete_address_issue,
+    async_raise_address_issue,
+    session_candidate,
+)
 from .client import (
     CannotConnectError,
     HaPaneldClient,
@@ -18,6 +34,7 @@ from .client import (
 )
 from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, update_unique_id
 from .status import PanelStatus
+from .transport import PanelSession, async_get_sessions, signal_session_changed
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,7 +49,15 @@ class PanelSnapshot:
 
 
 class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
-    """Poll stable health plus optional read-only status diagnostics."""
+    """Poll stable health plus optional read-only status diagnostics.
+
+    `last_update_success` keeps its meaning: the stored address answered the
+    last poll. Whether the panel is available is `available`, which also
+    counts the panel's own session, since a panel talking to Home Assistant is
+    connected whatever the poll says. A failed poll while the panel is
+    connected is repaired from the session where it can be, and reported
+    where it cannot; it never takes the panel unavailable.
+    """
 
     def __init__(
         self,
@@ -50,6 +75,49 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         self.client = client
         self._entry_id = entry_id
 
+    @property
+    def connected(self) -> bool:
+        """Return whether the panel holds an open session with Home Assistant."""
+        return self._session() is not None
+
+    @property
+    def available(self) -> bool:
+        """Return whether the panel is reachable outbound or connected inbound."""
+        return self.last_update_success or self.connected
+
+    def _session(self) -> PanelSession | None:
+        if self._entry_id is None:
+            return None
+        return async_get_sessions(self.hass).get(self._entry_id)
+
+    def _entry(self) -> ConfigEntry | None:
+        if self._entry_id is None:
+            return None
+        return self.hass.config_entries.async_get_entry(self._entry_id)
+
+    @callback
+    def async_follow_session(self) -> Callable[[], None]:
+        """Re-answer availability when the panel's session opens or closes.
+
+        A session that opens while the stored address is failing is the moment
+        the address can be repaired, so a poll is asked for at once rather than
+        at the next interval.
+        """
+        assert self._entry_id is not None
+
+        @callback
+        def _changed() -> None:
+            self.async_update_listeners()
+            if self.connected and not self.last_update_success:
+                self.hass.async_create_task(
+                    self.async_request_refresh(),
+                    f"{DOMAIN} poll after the panel connected",
+                )
+
+        return async_dispatcher_connect(
+            self.hass, signal_session_changed(self._entry_id), _changed
+        )
+
     def _shows_panel_update(self) -> bool:
         """Return whether this entry's update entity is registered and enabled."""
         if self._entry_id is None:
@@ -66,10 +134,15 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         try:
             health = await self.client.async_get_health()
         except HaPaneldError as err:
-            raise UpdateFailed(
-                translation_domain=DOMAIN,
-                translation_key="health_update_failed",
-            ) from err
+            recovered = await self._async_recover_address()
+            if recovered is None:
+                raise UpdateFailed(
+                    translation_domain=DOMAIN,
+                    translation_key="health_update_failed",
+                ) from err
+            health = recovered
+        if self._entry_id is not None:
+            async_delete_address_issue(self.hass, self._entry_id)
 
         try:
             status = await self.client.async_get_status(
@@ -82,3 +155,64 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                 health=health, status=None, status_error="invalid_response"
             )
         return PanelSnapshot(health=health, status=status, status_error=None)
+
+    async def _async_recover_address(self) -> PanelHealth | None:
+        """Try the address a connected panel is talking from, when it has one.
+
+        Returns the health read at the adopted address, or nothing when there
+        was no session, no other address to try, or the address did not answer
+        as this panel. Only the last two are reported: with no session the
+        panel is unavailable, which the failed poll already says.
+        """
+        session = self._session()
+        entry = self._entry()
+        if session is None or entry is None:
+            return None
+        stored = self.client.address
+        candidate = session_candidate(session.remote, stored)
+        if candidate is None:
+            self._report(
+                entry, ISSUE_PANEL_ADDRESS_UNREACHABLE, session.remote or stored.host
+            )
+            return None
+        try:
+            health = await HaPaneldClient(
+                async_get_clientsession(self.hass), candidate
+            ).async_get_health()
+        except HaPaneldError:
+            health = None
+        # A panel that does not report its identity cannot prove it is the one
+        # holding the session, so its address is never adopted from one.
+        if health is None or health.discovery_id != session.did:
+            self._report(entry, ISSUE_PANEL_ADDRESS_UNVERIFIED, candidate.host)
+            return None
+        self.client.address = candidate
+        self.hass.config_entries.async_update_entry(
+            entry, data={**entry.data, CONF_ADDRESS: candidate.stored_value}
+        )
+        _LOGGER.info(
+            "%s is now polled at the address it connected from; the stored"
+            " address stopped answering",
+            entry.title,
+        )
+        return health
+
+    @callback
+    def _report(self, entry: ConfigEntry, issue: str, session_address: str) -> None:
+        async_raise_address_issue(
+            self.hass,
+            entry.entry_id,
+            issue,
+            panel=entry.title,
+            address=self.client.address.stored_value,
+            session_address=session_address,
+        )
+
+
+class PanelCoordinatorEntity(CoordinatorEntity[HaPaneldDataUpdateCoordinator]):
+    """An entity of the panel's device, available while the panel is."""
+
+    @property
+    def available(self) -> bool:
+        """Available while the panel answers polls or holds a session."""
+        return self.coordinator.available

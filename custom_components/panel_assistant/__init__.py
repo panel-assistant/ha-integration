@@ -248,6 +248,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     # before the update listener, so the record's writes reload nothing.
     await async_apply_cutover(hass, entry)
     async_start_guards(hass, entry)
+    entry.async_on_unload(coordinator.async_follow_session())
     entry.async_on_unload(
         lambda: async_get_sessions(hass).close_entry(
             entry.entry_id, REASON_ENTRY_UNLOADED
@@ -266,15 +267,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
 async def _async_entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Regrant the panel's session, and reload the entry when its authority changed.
 
-    The reload runs the cutover the new authority asks for. Every other write,
-    such as binding or the cutover record itself, keeps the entry loaded.
+    The reload runs the cutover the new authority asks for. Every other write
+    keeps the entry loaded: binding, the cutover record, and a changed address,
+    which the running client simply polls from now on, so the panel's session
+    survives its own repair.
     """
     async_apply_authority(hass, entry)
     runtime_data = getattr(entry, "runtime_data", None)
-    if runtime_data is not None and effective_authority(hass, entry) != (
-        runtime_data.authority
-    ):
+    if runtime_data is None:
+        return
+    if effective_authority(hass, entry) != runtime_data.authority:
         await hass.config_entries.async_reload(entry.entry_id)
+        return
+    address = normalize_address(entry.data[CONF_ADDRESS])
+    if address != runtime_data.client.address:
+        runtime_data.client.address = address
+        await runtime_data.coordinator.async_request_refresh()
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> bool:

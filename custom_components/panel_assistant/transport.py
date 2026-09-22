@@ -790,6 +790,12 @@ class PanelSession:
     capabilities: frozenset[str]
     descriptors: dict[str, dict[str, Any]]
     opened_at: datetime
+    # The address the panel's connection came from, as Home Assistant saw it:
+    # the peer of the WebSocket, or the forwarded address behind a trusted
+    # proxy. It is where the panel can be reached only once a health read
+    # there has proved the same identity, which the coordinator does before
+    # adopting it. Never shown: an address identifies a network.
+    remote: str | None = field(default=None, repr=False)
     # Described channels the vendored catalogue does not know. They are
     # accepted and their reports stored, but nothing renders them.
     unknown_channels: frozenset[str] = frozenset()
@@ -1007,6 +1013,17 @@ def async_get_sessions(hass: HomeAssistant) -> TransportSessions:
     if sessions is None:
         sessions = domain_data[DATA_TRANSPORT] = TransportSessions(hass)
     return sessions
+
+
+def session_connected(hass: HomeAssistant, entry_id: str) -> bool:
+    """Return whether an entry's panel holds an open session.
+
+    An accepted hello is proof the panel is talking to Home Assistant, which is
+    what the device's availability answers. Whether the session has also
+    described and reported every channel is `session_available`, the native
+    entities' own bar; the two are different questions and stay separate.
+    """
+    return async_get_sessions(hass).get(entry_id) is not None
 
 
 def session_available(hass: HomeAssistant, entry_id: str) -> bool:
@@ -1745,6 +1762,7 @@ def ws_hello(
         capabilities=capabilities,
         descriptors=descriptors,
         opened_at=dt_util.utcnow(),
+        remote=connection.remote if isinstance(connection.remote, str) else None,
         unknown_channels=unknown,
         authority=authority,
         mqtt_discovery=mqtt_discovery,
