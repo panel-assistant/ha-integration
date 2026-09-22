@@ -1057,7 +1057,9 @@ async def test_setup_loads_unavailable_when_panel_is_offline(
         state = hass.states.get(entity_id)
         assert state is not None, entity_id
         assert state.state == "unavailable"
-    device = dr.async_get(hass).async_get_device({(DOMAIN, entry.entry_id)})
+    device = dr.async_get(hass).async_get_device_by_identifier(
+        (DOMAIN, entry.entry_id), entry.entry_id
+    )
     assert device is not None
     assert device.name == "alpha"
     assert device.sw_version is None
