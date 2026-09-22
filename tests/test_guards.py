@@ -837,20 +837,26 @@ async def test_removing_an_entry_without_a_record_stores_nothing_and_raises_noth
     hass_storage: dict[str, Any],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A shadow entry's panel was never claimed; it stays an unknown panel."""
+    """A shadow entry's panel was never claimed, so nothing is handed back.
+
+    Its removal is still remembered, since the entry recorded the panel's
+    identity from its health: the panel is told its entry was removed, as a
+    discovered panel's always was, and has nothing to release.
+    """
     mqtt = _mqtt(hass, [("switch", "relay1", {})])
     before = er.async_get(hass).async_get(mqtt["entity_ids"]["relay1"])
     entry = await _setup(hass, hass_read_only_user.id, native=True)
+    assert entry.unique_id == DID
 
     await hass.config_entries.async_remove(entry.entry_id)
     await hass.async_block_till_done()
 
     assert _warnings(caplog) == []
     assert er.async_get(hass).async_get(mqtt["entity_ids"]["relay1"]) == before
-    assert guards.REMOVED_PANELS_STORAGE_KEY not in hass_storage
-    assert DID not in await _reloaded_store(hass)
+    assert guards.REMOVED_PANELS_STORAGE_KEY in hass_storage
+    assert DID in await _reloaded_store(hass)
     assert await _hello_error(hass, hass_ws_client, hass_read_only_access_token) == (
-        "unknown_panel"
+        "entry_removed"
     )
 
 

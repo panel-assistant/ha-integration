@@ -38,7 +38,11 @@ from .client import (
     is_newer_stable_version,
 )
 from .const import DOMAIN, update_unique_id
-from .coordinator import HaPaneldDataUpdateCoordinator, PanelCoordinatorEntity
+from .coordinator import (
+    HaPaneldDataUpdateCoordinator,
+    PanelCoordinatorEntity,
+    PanelSnapshot,
+)
 from .device import panel_device_info
 from .feed_coordinator import BuildFeedCoordinator, async_get_feed_coordinator
 from .native import NativeEntity, async_setup_native_platform
@@ -86,6 +90,7 @@ async def async_setup_entry(
                 entry.runtime_data.coordinator,
                 entry.runtime_data.update_coordinator,
                 async_get_feed_coordinator(hass),
+                title=entry.title,
             )
         ]
     )
@@ -113,10 +118,12 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         coordinator: HaPaneldDataUpdateCoordinator,
         update_coordinator: PanelUpdateCoordinator,
         feed: BuildFeedCoordinator | None = None,
+        title: str | None = None,
     ) -> None:
         """Bind update state to the existing config-entry and health authority."""
         super().__init__(coordinator)
         self._entry_id = entry_id
+        self._title = title
         self._update_coordinator = update_coordinator
         # A signed build feed, when configured. Internal builds
         # share one version name, so they are told apart by build number.
@@ -270,29 +277,35 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         )
 
     @property
-    def installed_version(self) -> str:
-        """Return the current version from the health authority."""
-        version = self.coordinator.data.health.version
+    def installed_version(self) -> str | None:
+        """Return the current version from the health authority, once read."""
+        snapshot: PanelSnapshot | None = self.coordinator.data
+        if snapshot is None:
+            return None
+        version = snapshot.health.version
         if self._feed_mode() is not None and self._installed_code is not None:
             return build_label(version, self._installed_code)
         return version
 
     def _offered_update(self) -> PanelCachedUpdate | None:
         """Return only a fresh cached stable target matching installed health."""
-        status = self.coordinator.data.status
+        snapshot: PanelSnapshot | None = self.coordinator.data
+        if snapshot is None:
+            return None
+        status = snapshot.status
         offer = status.panel_assistant_update if status is not None else None
         if (
             offer is None
-            or offer.current_version != self.coordinator.data.health.version
+            or offer.current_version != snapshot.health.version
             or not is_newer_stable_version(
-                offer.target_version, self.coordinator.data.health.version
+                offer.target_version, snapshot.health.version
             )
         ):
             return None
         return offer
 
     @property
-    def latest_version(self) -> str:
+    def latest_version(self) -> str | None:
         """Report installed version if no newer panel-approved stable target exists."""
         feed = self._feed_mode()
         if feed is not None:
@@ -323,6 +336,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self._entry_id,
             self.coordinator.data,
             self.coordinator.client.configuration_url,
+            self._title,
         )
 
     async def async_install(
@@ -448,7 +462,15 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
 
     async def _async_deliver_feed_build(self, build: FeedBuild) -> None:
         client = self.coordinator.client
-        before = self.coordinator.data.health.build
+        snapshot: PanelSnapshot | None = self.coordinator.data
+        if snapshot is None:
+            # Nothing has been read from the panel, so there is no build to
+            # replace and none to prove the replacement against.
+            raise _update_error(
+                "update_unavailable",
+                "The requested ha-paneld update is unavailable",
+            )
+        before = snapshot.health.build
         try:
             await async_store_panel_backup(
                 self.hass,

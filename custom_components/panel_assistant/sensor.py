@@ -17,7 +17,11 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from . import HaPaneldConfigEntry
-from .coordinator import HaPaneldDataUpdateCoordinator, PanelCoordinatorEntity
+from .coordinator import (
+    HaPaneldDataUpdateCoordinator,
+    PanelCoordinatorEntity,
+    PanelSnapshot,
+)
 from .device import panel_device_info
 from .native import NativeEntity, async_setup_native_platform, enum_or_none
 
@@ -29,7 +33,11 @@ async def async_setup_entry(
 ) -> None:
     """Set up the ha-paneld diagnostic sensor, and any native sensors."""
     async_add_entities(
-        [HaPaneldStatusSensor(entry.entry_id, entry.runtime_data.coordinator)]
+        [
+            HaPaneldStatusSensor(
+                entry.entry_id, entry.runtime_data.coordinator, entry.title
+            )
+        ]
     )
     async_setup_native_platform(
         hass, entry, Platform.SENSOR, async_add_entities, NativeSensor
@@ -50,11 +58,15 @@ class HaPaneldStatusSensor(PanelCoordinatorEntity, SensorEntity):
     _attr_translation_key = "status"
 
     def __init__(
-        self, entry_id: str, coordinator: HaPaneldDataUpdateCoordinator
+        self,
+        entry_id: str,
+        coordinator: HaPaneldDataUpdateCoordinator,
+        title: str | None = None,
     ) -> None:
         """Initialize the sensor from cached coordinator data."""
         super().__init__(coordinator)
         self._entry_id = entry_id
+        self._title = title
         self._attr_unique_id = f"{entry_id}_status"
 
     @property
@@ -65,10 +77,16 @@ class HaPaneldStatusSensor(PanelCoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, str | bool | None]:
         """Return the cached health diagnostics and both halves of availability."""
-        health = self.coordinator.data.health
-        return {
+        availability: dict[str, str | bool | None] = {
             "reachable": self.coordinator.last_update_success,
             "connected": self.coordinator.connected,
+        }
+        snapshot: PanelSnapshot | None = self.coordinator.data
+        if snapshot is None:
+            return availability
+        health = snapshot.health
+        return {
+            **availability,
             "build": health.build,
             "config_hash": health.config_hash,
             "home_assistant_state": health.ha_state,
@@ -83,6 +101,7 @@ class HaPaneldStatusSensor(PanelCoordinatorEntity, SensorEntity):
             self._entry_id,
             self.coordinator.data,
             self.coordinator.client.configuration_url,
+            self._title,
         )
 
 

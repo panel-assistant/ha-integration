@@ -143,6 +143,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             health = recovered
         if self._entry_id is not None:
             async_delete_address_issue(self.hass, self._entry_id)
+            self._learn_identity(health)
 
         try:
             status = await self.client.async_get_status(
@@ -196,6 +197,32 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             entry.title,
         )
         return health
+
+    @callback
+    def _learn_identity(self, health: PanelHealth) -> None:
+        """Make the reported identity the entry's own, so it outlives the address.
+
+        A discovered entry carries its panel's identity from the start; one
+        added by address did not, and could match its panel's hello only
+        through a snapshot a successful poll had left behind. After a restart
+        with the stored address dead there was no snapshot, so the panel was
+        refused as unknown and could never repair the address. The identity
+        is recorded once, and never one another entry already holds.
+        """
+        entry = self._entry()
+        if (
+            entry is None
+            or entry.unique_id is not None
+            or health.discovery_id is None
+            or self.hass.config_entries.async_entry_for_domain_unique_id(
+                DOMAIN, health.discovery_id
+            )
+            is not None
+        ):
+            return
+        self.hass.config_entries.async_update_entry(
+            entry, unique_id=health.discovery_id
+        )
 
     @callback
     def _report(self, entry: ConfigEntry, issue: str, session_address: str) -> None:
