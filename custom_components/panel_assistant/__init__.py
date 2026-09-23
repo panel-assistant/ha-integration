@@ -24,6 +24,7 @@ from .cutover import (
     async_apply_cutover,
     async_release_removed_entry,
     cutover_reconciliation_needed,
+    cutover_reconciliation_waiting,
 )
 from .embed import (
     REASON_ENTRY_UNLOADED as EMBED_ENTRY_UNLOADED,
@@ -147,7 +148,7 @@ def _async_request_cutover_reconciliation(
     if (
         getattr(entry, "runtime_data", None) is not runtime_data
         or not runtime_data.cutover_reconciliation_pending
-        or runtime_data.coordinator.data is None
+        or cutover_reconciliation_waiting(hass, entry)
     ):
         return
     # Re-read requested authority before acting. A person may have cancelled
@@ -261,7 +262,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     # repairs the address. The entities load unavailable and become available
     # on the first answer from either side.
     await coordinator.async_refresh()
-    initial_health_unavailable = coordinator.data is None
     update_coordinator = PanelUpdateCoordinator(hass, client)
     await update_coordinator.async_config_entry_first_refresh()
 
@@ -287,8 +287,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     # Before any platform loads, so no entity of this entry is loaded, and
     # before the update listener, so the record's writes reload nothing.
     await async_apply_cutover(hass, entry)
-    runtime_data.cutover_reconciliation_pending = (
-        initial_health_unavailable and cutover_reconciliation_needed(hass, entry)
+    runtime_data.cutover_reconciliation_pending = cutover_reconciliation_waiting(
+        hass, entry
     )
     async_start_guards(hass, entry)
     entry.async_on_unload(coordinator.async_follow_session())
