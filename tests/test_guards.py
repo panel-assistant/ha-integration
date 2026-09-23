@@ -513,29 +513,36 @@ async def test_a_renamed_panel_is_guarded_under_its_new_id(
 async def test_a_panel_whose_id_prefixes_another_keeps_its_hands_off(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
-    """Matched by device identifier: ``office`` never takes ``office_dash``."""
+    """A merged device still distinguishes ``office`` from ``office_dash``."""
     mqtt_entry = MockConfigEntry(domain="mqtt")
     mqtt_entry.add_to_hass(hass)
     mqtt_entry.mock_state(hass, ConfigEntryState.LOADED)
     device_registry = dr.async_get(hass)
     registry = er.async_get(hass)
-    devices = {
-        panel: device_registry.async_get_or_create(
-            config_entry_id=mqtt_entry.entry_id,
-            identifiers={("mqtt", f"ha-paneld-{panel}")},
-        )
-        for panel in ("office", "office_dash")
-    }
+    merged = device_registry.async_get_or_create(
+        config_entry_id=mqtt_entry.entry_id,
+        identifiers={
+            ("mqtt", "ha-paneld-office"),
+            ("mqtt", "ha-paneld-office_dash"),
+        },
+    )
     registry.async_get_or_create(
         "switch",
         "mqtt",
         "office_relay1",
         config_entry=mqtt_entry,
-        device_id=devices["office"].id,
+        device_id=merged.id,
     )
     with _panel_id("office"):
         entry = await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
     assert _record(entry)["state"] == "complete"
+    issue = _issue(hass, "merged_mqtt_device", entry.entry_id)
+    assert issue is not None
+    assert issue.severity.value == "warning"
+    assert issue.translation_placeholders == {
+        "panel": "alpha",
+        "panel_ids": "office, office_dash",
+    }
 
     dash = [
         registry.async_get_or_create(
@@ -543,7 +550,7 @@ async def test_a_panel_whose_id_prefixes_another_keeps_its_hands_off(
             "mqtt",
             f"office_dash_{suffix}",
             config_entry=mqtt_entry,
-            device_id=devices["office_dash"].id,
+            device_id=merged.id,
         )
         for suffix in ("relay1", "relay2")
     ]
@@ -552,14 +559,17 @@ async def test_a_panel_whose_id_prefixes_another_keeps_its_hands_off(
         mqtt_entry,
         "number",
         "office_dash_volume",
-        identifiers={("mqtt", "ha-paneld-office_dash")},
+        identifiers={
+            ("mqtt", "ha-paneld-office"),
+            ("mqtt", "ha-paneld-office_dash"),
+        },
     )
     ours = registry.async_get_or_create(
         "number",
         "mqtt",
         "office_volume",
         config_entry=mqtt_entry,
-        device_id=devices["office"].id,
+        device_id=merged.id,
     )
     await _settle(hass)
 
@@ -569,6 +579,61 @@ async def test_a_panel_whose_id_prefixes_another_keeps_its_hands_off(
         assert current.disabled_by is None
     assert loaded_dash.entity_id in entity_sources(hass)
     assert _quarantined(entry) == [ours.id]
+
+
+def test_cleanup_preserves_a_foreign_entity_recorded_by_the_old_guard(
+    hass: HomeAssistant,
+) -> None:
+    """An old bad quarantine record cannot turn an upgrade into deletion."""
+    mqtt_entry = MockConfigEntry(domain="mqtt")
+    mqtt_entry.add_to_hass(hass)
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=mqtt_entry.entry_id,
+        identifiers={
+            ("mqtt", "ha-paneld-office"),
+            ("mqtt", "ha-paneld-office_dash"),
+        },
+    )
+    foreign = er.async_get(hass).async_get_or_create(
+        "switch",
+        "mqtt",
+        "office_dash_relay1",
+        config_entry=mqtt_entry,
+        device_id=device.id,
+        disabled_by=er.RegistryEntryDisabler.INTEGRATION,
+    )
+    entry = MockConfigEntry(domain=DOMAIN, title="office")
+    record = {"panel_id": "office", "quarantined": [foreign.id]}
+    writes: list[dict[str, Any] | None] = []
+
+    guards.async_remove_quarantined(hass, entry, record, writes.append)
+
+    assert er.async_get(hass).entities.get_entry(foreign.id) == foreign
+    assert record["quarantined"] == [foreign.id]
+    assert writes == []
+
+
+def test_cleanup_preserves_an_empty_device_shared_with_another_panel(
+    hass: HomeAssistant,
+) -> None:
+    """No entity remains, but a merged DeviceEntry still is not ours to remove."""
+    mqtt_entry = MockConfigEntry(domain="mqtt")
+    mqtt_entry.add_to_hass(hass)
+    device_registry = dr.async_get(hass)
+    device = device_registry.async_get_or_create(
+        config_entry_id=mqtt_entry.entry_id,
+        identifiers={
+            ("mqtt", "ha-paneld-office"),
+            ("mqtt", "ha-paneld-office_dash"),
+        },
+    )
+    entry = MockConfigEntry(domain=DOMAIN, title="office")
+
+    guards.async_remove_quarantined(
+        hass, entry, {"panel_id": "office", "quarantined": []}, lambda _record: None
+    )
+
+    assert device_registry.async_get(device.id) == device
 
 
 async def test_setup_quarantines_rediscovered_duplicates_beside_a_customised_one(

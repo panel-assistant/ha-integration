@@ -219,6 +219,14 @@
       "title": "自定义的 MQTT 实体阻止了 {panel} 撤回 MQTT",
       "description": "Panel Assistant 现已拥有 {panel} 的实体，但这些 MQTT 实体没有对应的 Panel Assistant 实体，并且带有你自己设置的名称、图标、区域或隐藏、禁用设置：{entities}。删除它们或清除这些设置后，面板会在下次连接时撤回其 MQTT 实体。在此之前，它会继续通告全部 MQTT 实体。"
     },
+    "merged_panel_identity": {
+      "title": "分离已合并的面板：{panels}",
+      "description": "面板 {panels} 报告了相同的设备身份，因此 Home Assistant 无法安全判断原生连接或实体属于哪个条目。原生连接会被拒绝，且不会迁移任何实体。请更新所有受影响面板上的 ha-paneld，使每个面板都有不同的身份，然后删除已合并的设备并让面板重新注册。"
+    },
+    "merged_mqtt_device": {
+      "title": "分离 {panel} 的已合并 MQTT 设备",
+      "description": "{panel} 使用的 MQTT 设备还包含面板标识符 {panel_ids}。Panel Assistant 会保持每个面板的实体不变，但 Home Assistant 无法在标识符合并后拆分设备。请更新所有受影响面板上的 ha-paneld，删除已合并的设备，然后让面板重新注册。"
+    },
     "panel_update_required": {
       "title": "更新 {panel} 上的 ha-paneld",
       "description": "Panel Assistant 现在管理 {panel} 的实体，但该面板上的 ha-paneld 版本仍通过 MQTT 公布这些实体，因此 MQTT 会再次创建它们。Panel Assistant 会禁用这些重复实体。请将 {panel} 上的 ha-paneld 更新到 {required_version} 或更高版本；Panel Assistant 本身无需更新。更新后的面板连接后，已禁用的重复实体会被删除，此问题随之消失。"

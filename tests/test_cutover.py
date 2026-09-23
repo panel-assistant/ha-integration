@@ -9,7 +9,11 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
-from homeassistant.config_entries import RELOAD_AFTER_UPDATE_DELAY, ConfigEntryState
+from homeassistant.config_entries import (
+    RELOAD_AFTER_UPDATE_DELAY,
+    ConfigEntryDisabler,
+    ConfigEntryState,
+)
 from homeassistant.const import CONF_ADDRESS, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
@@ -43,7 +47,11 @@ MQTT_AREA = "living_room"
 
 
 def _mqtt_device_identifiers() -> set[tuple[str, str]]:
-    return {("mqtt", f"ha-paneld-{PANEL_ID}"), ("mqtt", "ha-paneld-aid-1")}
+    return {
+        ("mqtt", f"ha-paneld-{PANEL_ID}"),
+        ("mqtt", "ha-paneld-aid-1"),
+        ("mqtt", "ha-paneld-uid-1"),
+    }
 
 
 def _mqtt(
@@ -404,6 +412,36 @@ async def test_unknown_suffixes_and_the_paneld_update_stay_with_mqtt(
     )
     result = await _hello_result(hass, hass_ws_client, hass_read_only_access_token)
     assert result["mqtt_discovery"] == "withdraw"
+
+
+async def test_a_merged_device_never_adds_a_sibling_to_the_cutover(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """The longest matching device identifier owns a prefix-colliding entity."""
+    mqtt = _mqtt(hass, [("switch", "relay1", {})])
+    dr.async_get(hass).async_update_device(
+        mqtt["device"].id,
+        new_identifiers={
+            *mqtt["device"].identifiers,
+            ("mqtt", f"ha-paneld-{PANEL_ID}_dash"),
+        },
+    )
+    registry = er.async_get(hass)
+    sibling = registry.async_get_or_create(
+        "switch",
+        "mqtt",
+        f"{PANEL_ID}_dash_relay1",
+        config_entry=mqtt["entry"],
+        device_id=mqtt["device"].id,
+        disabled_by=er.RegistryEntryDisabler.USER,
+    )
+
+    entry = await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
+
+    current = registry.entities.get_entry(sibling.id)
+    assert current == sibling
+    assert current.disabled_by is er.RegistryEntryDisabler.USER
+    assert _record(entry)["unmigrated"] == []
 
 
 @pytest.mark.parametrize(
@@ -937,6 +975,72 @@ async def test_two_loaded_entries_with_one_identity_refuse_to_move_anything(
     assert item is not None
     assert item.platform == "mqtt"
     assert CONF_CUTOVER not in first.data
+
+
+async def test_an_unloaded_entry_with_one_identity_refuses_before_registry_writes(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """A persisted sibling is identity evidence even while it is not loaded."""
+    mqtt = _mqtt(hass, [("switch", "relay1", {})])
+    sibling = MockConfigEntry(
+        domain=DOMAIN,
+        title="offline beta",
+        data={CONF_ADDRESS: "offline.local"},
+        unique_id=DID,
+        disabled_by=ConfigEntryDisabler.USER,
+    )
+    sibling.add_to_hass(hass)
+    before = _snapshot(hass, mqtt["entry"].entry_id)
+
+    entry = await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
+
+    assert sibling.disabled_by is ConfigEntryDisabler.USER
+    assert _snapshot(hass, mqtt["entry"].entry_id) == before
+    assert _record(entry)["error"] == {
+        "step": "identity",
+        "exception": "ValueError",
+        "entity_id": None,
+    }
+
+
+async def test_a_foreign_native_target_is_refused_instead_of_removed(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """Target ownership protects a sibling whose stored identity is unavailable."""
+    mqtt = _mqtt(hass, [("switch", "relay1", {})])
+    registry = er.async_get(hass)
+    sibling = MockConfigEntry(
+        domain=DOMAIN,
+        title="offline beta",
+        data={CONF_ADDRESS: "offline.local"},
+        disabled_by=ConfigEntryDisabler.USER,
+    )
+    sibling.add_to_hass(hass)
+    foreign = registry.async_get_or_create(
+        "switch",
+        DOMAIN,
+        f"{DID}_relay1",
+        config_entry=sibling,
+        suggested_object_id="beta_relay",
+    )
+    foreign = registry.async_update_entity(
+        foreign.entity_id,
+        name="Beta relay",
+        icon="mdi:lamp",
+        area_id="beta_room",
+    )
+    before = _snapshot(hass, mqtt["entry"].entry_id, sibling.entry_id)
+
+    entry = await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
+
+    assert sibling.disabled_by is ConfigEntryDisabler.USER
+    assert _snapshot(hass, mqtt["entry"].entry_id, sibling.entry_id) == before
+    assert registry.entities.get_entry(foreign.id) == foreign
+    assert _record(entry)["error"] == {
+        "step": "target",
+        "exception": "ValueError",
+        "entity_id": mqtt["entity_ids"]["relay1"],
+    }
 
 
 # ---------------------------------------------------------------------------
