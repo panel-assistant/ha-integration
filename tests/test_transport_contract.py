@@ -1,14 +1,17 @@
 """The vendored transport contract: conformance, and English for every surface."""
 
 import ast
+import base64
+import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 import pytest
 import voluptuous as vol
 
-from custom_components.panel_assistant import transport
+from custom_components.panel_assistant import release, transport
 from custom_components.panel_assistant.contract import CONTRACT, catalogue_entry
 from custom_components.panel_assistant.native import NOT_RENDERED
 
@@ -17,6 +20,11 @@ VECTORS = json.loads(
     (
         Path(__file__).parent / "fixtures" / "panel_assistant_transport_v1_vectors.json"
     ).read_text(encoding="utf-8")
+)
+ANDROID_PRODUCER = json.loads(
+    (Path(__file__).parent / "fixtures" / "android_producer_v1.json").read_text(
+        encoding="utf-8"
+    )
 )
 ENGLISH: dict[str, Any] = json.loads(
     (INTEGRATION / "translations" / "en.json").read_text(encoding="utf-8")
@@ -27,6 +35,67 @@ SCHEMAS = {
     transport.COMMAND_REPORT_EVENT: transport.REPORT_EVENT_SCHEMA,
     transport.COMMAND_COMMAND_RESULT: transport.COMMAND_RESULT_SCHEMA,
 }
+
+_HA_VECTOR_REVISION = "f8f3bc883ebfa82ac957706dad363be4b42a1010"
+_ANDROID_PRODUCER_REVISION = "2836b4e9863c876b53536ddcea8f93b135e378bd"
+
+
+def test_shared_vectors_name_the_ha_source_revision_vendored_by_android() -> None:
+    """The HA-authored vectors name the source revision Android vendors."""
+    assert VECTORS["sourceRevision"] == _HA_VECTOR_REVISION
+
+
+def test_reply_vectors_carry_the_actual_parser_inputs() -> None:
+    """Kotlin receives each result together with the capabilities it offered."""
+    for vector in VECTORS["results"]:
+        offered = vector["offeredCapabilities"]
+        assert isinstance(offered, list)
+        assert len(offered) == len(set(offered))
+        if "request" in vector:
+            assert offered == vector["request"]["capabilities"]
+
+
+def test_android_producer_fixture_names_its_exact_source_revision() -> None:
+    """The consumer pin names the committed Android source that produced it."""
+    assert ANDROID_PRODUCER["sourceRevision"] == _ANDROID_PRODUCER_REVISION
+
+
+def test_android_install_descriptors_pass_the_independent_release_parser() -> None:
+    """Real producer output crosses the signed-release trust boundary unchanged."""
+    for document in ANDROID_PRODUCER["installDescriptors"]:
+        body = (
+            json.dumps(
+                document, ensure_ascii=True, separators=(",", ":"), sort_keys=True
+            )
+            + "\n"
+        ).encode("ascii")
+        descriptor = release._parse_install_descriptor(
+            body,
+            tag=document["releaseTag"],
+            apk_name=document["apkName"],
+            apk_sha256=document["apkSha256"],
+        )
+        assert descriptor.version_code == document["versionCode"]
+        assert descriptor.package_id == document["packageId"]
+
+
+@pytest.mark.parametrize(
+    "vector",
+    ANDROID_PRODUCER["transportMessages"],
+    ids=lambda vector: vector["name"],
+)
+def test_real_android_transport_messages_pass_ha_schemas(
+    vector: dict[str, Any],
+) -> None:
+    """The independent HA boundary accepts messages made by the real producer."""
+    message = vector["message"]
+    validated = SCHEMAS[message["type"]](message)
+    assert "id" not in validated
+    if message["type"] == transport.COMMAND_HELLO:
+        local_digest = hashlib.sha256(
+            (INTEGRATION / "panel_assistant_transport_v1.json").read_bytes()
+        ).hexdigest()
+        assert message["contract_digest"] != local_digest
 
 
 def _descriptor(entry: dict[str, Any], index: int = 1) -> dict[str, Any]:
@@ -186,12 +255,42 @@ def test_message_conformance_vectors(vector: dict[str, Any]) -> None:
             schema(message)
 
 
-def _hello_result_conforms(result: dict[str, Any]) -> None:
+def _embed_key(value: Any) -> str:
+    """Return one wire-format embed key, or reject it like the panel does."""
+    if type(value) is not str or re.fullmatch(r"[A-Za-z0-9_-]{43}", value) is None:
+        raise vol.Invalid("invalid embed key")
+    try:
+        decoded = base64.b64decode(value + "=", altchars=b"-_", validate=True)
+    except ValueError as err:
+        raise vol.Invalid("invalid embed key") from err
+    if len(decoded) != 32:
+        raise vol.Invalid("invalid embed key")
+    return value
+
+
+def _hello_result_conforms(
+    result: dict[str, Any], offered_capabilities: list[str]
+) -> None:
     """Check a hello result as a panel reads it, raising on what it refuses.
 
     A panel granted ``mqtt_withdraw`` requires a valid ``mqtt_discovery``; one
     not granted it, which is what an older integration answers, does without.
     """
+    integration = vol.Schema({vol.Required("version"): str}, extra=vol.ALLOW_EXTRA)
+    channels = vol.Schema(
+        {
+            vol.Required("accepted"): int,
+            vol.Required("unknown"): [str],
+        },
+        extra=vol.ALLOW_EXTRA,
+    )
+    embed = vol.Schema(
+        {
+            vol.Required("key_id"): vol.Match(r"[0-9a-f]{16}"),
+            vol.Required("key"): _embed_key,
+        },
+        extra=vol.ALLOW_EXTRA,
+    )
     vol.Schema(
         {
             vol.Required("protocol"): vol.All(
@@ -201,19 +300,25 @@ def _hello_result_conforms(result: dict[str, Any]) -> None:
             vol.Required("authority"): vol.In(transport.AUTHORITIES),
             vol.Required("capabilities"): [vol.In(transport.KNOWN_CAPABILITIES)],
             vol.Optional("mqtt_discovery"): vol.In(transport.MQTT_DISCOVERIES),
-            vol.Required("integration"): {vol.Required("version"): str},
-            vol.Required("channels"): {
-                vol.Required("accepted"): int,
-                vol.Required("unknown"): [str],
-            },
+            vol.Optional("embed"): object,
+            vol.Required("integration"): integration,
+            vol.Required("channels"): channels,
         },
         extra=vol.ALLOW_EXTRA,
     )(result)
+    if not set(result["capabilities"]) <= set(offered_capabilities):
+        raise vol.Invalid(
+            "the integration granted a capability the panel did not offer"
+        )
     if (
         transport.CAPABILITY_MQTT_WITHDRAW in result["capabilities"]
         and "mqtt_discovery" not in result
     ):
         raise vol.Invalid("a granted mqtt_withdraw needs mqtt_discovery")
+    if transport.CAPABILITY_EMBED_PROOF in result["capabilities"]:
+        if "embed" not in result:
+            raise vol.Invalid("an embed grant needs its key")
+        embed(result["embed"])
 
 
 @pytest.mark.parametrize(
@@ -224,10 +329,10 @@ def test_hello_result_conformance_vectors(vector: dict[str, Any]) -> None:
     if "request" in vector:
         transport.HELLO_SCHEMA(vector["request"])
     if vector["valid"]:
-        _hello_result_conforms(vector["result"])
+        _hello_result_conforms(vector["result"], vector["offeredCapabilities"])
     else:
         with pytest.raises(vol.Invalid):
-            _hello_result_conforms(vector["result"])
+            _hello_result_conforms(vector["result"], vector["offeredCapabilities"])
 
 
 def test_the_hello_result_vectors_cover_the_negotiated_withdrawal() -> None:

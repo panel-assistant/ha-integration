@@ -1,6 +1,7 @@
 """Native commands: the authority a session is granted, and the command path."""
 
 import asyncio
+import base64
 import logging
 import re
 from collections.abc import Awaitable
@@ -220,6 +221,32 @@ async def test_hello_grants_follow_the_effective_authority(
     assert transport_diagnostics["authority"] == authority
     assert transport_diagnostics["effective_authority"] == authority
     assert transport_diagnostics["capabilities"] == granted
+
+
+async def test_embed_grant_carries_the_key_shape_consumed_by_the_panel(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+) -> None:
+    """An offered embed grant includes one decodable 32-byte proof key."""
+    await _setup(hass, hass_read_only_user.id, native=True)
+
+    panel = await _connect(
+        hass,
+        hass_ws_client,
+        hass_read_only_access_token,
+        ["state", "embed_proof", "future_capability"],
+        sync=False,
+    )
+
+    assert panel.result["capabilities"] == ["embed_proof", "state"]
+    embed = panel.result["embed"]
+    assert re.fullmatch(r"[0-9a-f]{16}", embed["key_id"])
+    assert re.fullmatch(r"[A-Za-z0-9_-]{43}", embed["key"])
+    assert (
+        len(base64.b64decode(embed["key"] + "=", altchars=b"-_", validate=True)) == 32
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -10,6 +10,14 @@ import { buildTagVersionCode, descriptorIdentityValid, githubApkName, githubApkN
 // side alone fails on the other.
 const corpus = JSON.parse(readFileSync(
   new URL('../../../../tests/fixtures/release-identity-corpus.json', import.meta.url), 'utf8'));
+const androidProducer = JSON.parse(readFileSync(
+  new URL('../../../../tests/fixtures/android_producer_v1.json', import.meta.url), 'utf8'));
+
+test('the Android descriptor producer and browser agree on every release tag', () => {
+  const verdicts = new Map(androidProducer.releaseTagVerdicts.map(({ tag, accepted }) => [tag, accepted]));
+  assert.deepEqual(new Set(verdicts.keys()), new Set(corpus.tags.map(({ tag }) => tag)));
+  for (const { tag } of corpus.tags) assert.equal(verdicts.get(tag), isGithubTag(tag), tag);
+});
 
 test('the shared corpus classifies every release identity', () => {
   for (const { tag, kind } of corpus.tags) {
