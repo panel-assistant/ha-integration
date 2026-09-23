@@ -257,6 +257,7 @@ DATA_BINDING_REQUESTS: Final = "binding_requests"
 # panel renders stays one code for both.
 ISSUE_PANEL_AWAITING_CONFIRMATION: Final = "panel_awaiting_confirmation"
 ISSUE_PANEL_USER_MISMATCH: Final = ERR_PANEL_USER_MISMATCH
+ISSUE_MERGED_PANEL_IDENTITY: Final = "merged_panel_identity"
 ISSUE_DATA_ENTRY_ID: Final = "entry_id"
 ISSUE_DATA_USER_ID: Final = "user_id"
 # The Repairs issues a cutover raises: one when a step failed and the move
@@ -1684,9 +1685,46 @@ def _entry_for_did(hass: HomeAssistant, did: str) -> ConfigEntry | None:
         # it kept its last snapshot; a hello cannot tell those apart, so
         # neither is guessed. Preferring the one still polling would bind a
         # clone's session to the other clone's entry when its address is down.
-        _LOGGER.warning("Several panel entries report one identity; refusing hello")
-        return None
+        raise SharedPanelIdentityError(matches)
     return matches[0] if matches else None
+
+
+class SharedPanelIdentityError(Exception):
+    """Several loaded panel entries claim the identity in one hello."""
+
+    def __init__(self, entries: list[ConfigEntry]) -> None:
+        super().__init__("Several panel entries report one identity")
+        self.entries = entries
+
+
+def merged_identity_issue_id(did: str) -> str:
+    """Return the one Repairs issue ID for a shared panel identity."""
+    return f"{ISSUE_MERGED_PANEL_IDENTITY}_{did}"
+
+
+@callback
+def async_raise_merged_identity_issue(
+    hass: HomeAssistant, did: str, entries: list[ConfigEntry]
+) -> None:
+    """Tell the user which panel entries report one device identity."""
+    panels = ", ".join(sorted(entry.title for entry in entries))
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        merged_identity_issue_id(did),
+        is_fixable=False,
+        is_persistent=False,
+        severity=ir.IssueSeverity.ERROR,
+        translation_key=ISSUE_MERGED_PANEL_IDENTITY,
+        translation_placeholders={"panels": panels},
+    )
+
+
+@callback
+def async_delete_merged_identity_issue(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Clear the shared-identity issue when an entry no longer conflicts."""
+    if (did := _panel_did(entry)) is not None:
+        ir.async_delete_issue(hass, DOMAIN, merged_identity_issue_id(did))
 
 
 @callback
@@ -1727,7 +1765,17 @@ def ws_hello(
         )
         return
 
-    entry = _entry_for_did(hass, did)
+    try:
+        entry = _entry_for_did(hass, did)
+    except SharedPanelIdentityError as err:
+        _LOGGER.warning("Several panel entries report one identity; refusing hello")
+        async_raise_merged_identity_issue(hass, did, err.entries)
+        connection.send_error(
+            msg["id"],
+            ERR_UNKNOWN_PANEL,
+            "Several panel entries report this identity.",
+        )
+        return
     if entry is None:
         if _may_ask_to_bind(hass, connection):
             # There is no entry to raise a Repairs issue against, so remember the
@@ -1746,6 +1794,7 @@ def ws_hello(
             msg["id"], ERR_UNKNOWN_PANEL, "No loaded panel entry has this identity."
         )
         return
+    async_delete_merged_identity_issue(hass, entry)
 
     user_id = connection.user.id
     if entry.data.get(CONF_TRANSPORT_USER_ID) != user_id:

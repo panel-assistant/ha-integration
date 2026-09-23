@@ -54,6 +54,7 @@ from .transport import (
     async_apply_authority,
     async_delete_binding_issue,
     async_delete_cutover_issues,
+    async_delete_merged_identity_issue,
     async_get_sessions,
     async_setup_transport,
     cutover_record,
@@ -307,6 +308,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
     """
     async_delete_binding_issue(hass, entry.entry_id)
     async_delete_cutover_issues(hass, entry.entry_id)
+    async_delete_merged_identity_issue(hass, entry)
     async_get_sessions(hass).forget_entry(entry.entry_id)
     record = cutover_record(entry)
     recorded_did = None if record is None else record.get("did")

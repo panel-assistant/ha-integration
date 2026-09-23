@@ -219,6 +219,14 @@
       "title": "Entità MQTT personalizzate trattengono il ritiro MQTT di {panel}",
       "description": "Panel Assistant possiede ora le entità di {panel}, ma non ha un equivalente per queste entità MQTT, e portano un nome, un'icona, un'area o un'impostazione nascosta o disattivata tua: {entities}. Eliminale, o cancella quelle impostazioni, e il pannello ritirerà le sue entità MQTT alla prossima connessione. Fino ad allora continua ad annunciarle tutte."
     },
+    "merged_panel_identity": {
+      "title": "Separa i pannelli uniti: {panels}",
+      "description": "I pannelli {panels} segnalano la stessa identità del dispositivo, quindi Home Assistant non può stabilire in modo sicuro a quale voce appartenga una connessione o un'entità nativa. La connessione nativa viene rifiutata e nessuna entità viene spostata. Aggiorna ha-paneld su ogni pannello interessato affinché ciascuno abbia un'identità distinta, quindi elimina il dispositivo unito e lascia che i pannelli si registrino di nuovo."
+    },
+    "merged_mqtt_device": {
+      "title": "Separa il dispositivo MQTT unito di {panel}",
+      "description": "Il dispositivo MQTT usato da {panel} contiene anche gli identificatori dei pannelli {panel_ids}. Panel Assistant lascia invariate le entità di ogni pannello, ma Home Assistant non può separare un dispositivo dopo che i suoi identificatori sono stati uniti. Aggiorna ha-paneld su tutti i pannelli interessati, elimina il dispositivo unito e lascia che i pannelli si registrino di nuovo."
+    },
     "panel_update_required": {
       "title": "Aggiorna ha-paneld su {panel}",
       "description": "Panel Assistant possiede ora le entità di {panel}, ma la versione di ha-paneld su quel pannello le annuncia ancora tramite MQTT, quindi MQTT le crea una seconda volta. Panel Assistant disattiva questi duplicati. Aggiorna ha-paneld su {panel} alla versione {required_version} o successiva; Panel Assistant non ha bisogno di aggiornamenti. Quando il pannello aggiornato si connette, i duplicati disattivati vengono eliminati e questo problema scompare."

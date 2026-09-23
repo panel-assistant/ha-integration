@@ -46,6 +46,7 @@ from .coordinator import PanelSnapshot
 from .device import panel_device_info
 from .guards import (
     RecordWriter,
+    _on_panel_device,
     async_remove_quarantined,
     entry_record_writer,
     mqtt_device,
@@ -187,7 +188,8 @@ def _mqtt_candidates(
         for item in er.async_entries_for_device(
             registry, device.id, include_disabled_entities=True
         ):
-            found[item.id] = item
+            if _on_panel_device(hass, item, [panel_id]):
+                found[item.id] = item
     for mqtt_entry in hass.config_entries.async_entries(MQTT_DOMAIN):
         for item in er.async_entries_for_config_entry(registry, mqtt_entry.entry_id):
             if item.device_id is None:
@@ -257,11 +259,9 @@ def _check_identity(
         raise _refuse(
             STEP_IDENTITY, "The panel reports no identity to key its entities by"
         )
-    for other in hass.config_entries.async_loaded_entries(DOMAIN):
+    for other in hass.config_entries.async_entries(DOMAIN):
         if other.entry_id != entry.entry_id and _panel_did(other) == did:
-            raise _refuse(
-                STEP_IDENTITY, "Another loaded panel entry reports this identity"
-            )
+            raise _refuse(STEP_IDENTITY, "Another panel entry reports this identity")
     return did
 
 
@@ -314,6 +314,12 @@ async def _async_migrate_one(
         existing = registry.async_get_entity_id(item.domain, DOMAIN, target)
         if existing is not None:
             holder = registry.async_get(existing)
+            if holder is not None and holder.config_entry_id != entry.entry_id:
+                raise _refuse(
+                    STEP_TARGET,
+                    "Another panel entry owns the native target",
+                    item.entity_id,
+                )
             if holder is not None and holder.id in entities:
                 return False
             # A holder this record does not know is a native entity rendered

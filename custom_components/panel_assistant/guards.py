@@ -63,6 +63,7 @@ _LOGGER = logging.getLogger(__name__)
 
 # The Repairs issue asking for ha-paneld on a panel to be updated, one per entry.
 ISSUE_PANEL_UPDATE_REQUIRED: Final = "panel_update_required"
+ISSUE_MERGED_MQTT_DEVICE: Final = "merged_mqtt_device"
 
 # How long a quarantined entity may take to load before it is disabled anyway.
 LOAD_TIMEOUT: Final = 10.0
@@ -125,18 +126,38 @@ def _settled(record: dict[str, Any], item: er.RegistryEntry) -> bool:
 def _on_panel_device(
     hass: HomeAssistant, item: er.RegistryEntry, panel_ids: list[str]
 ) -> bool:
-    """Return whether an entity sits on the panel's MQTT device.
+    """Return whether an MQTT entity belongs to one of the panel IDs.
 
-    By the device's identifier, never by unique ID prefix: one panel's ID can
-    prefix another's, as ``office_`` does ``office_dash_``.
+    Home Assistant can merge several panels into one DeviceEntry, so device
+    membership alone is not ownership. MQTT unique IDs carry the panel ID, but
+    one ID can prefix another (``office_`` and ``office_dash_``). The longest
+    device identifier that prefixes the unique ID is the only unambiguous owner
+    available without changing the protocol.
     """
     if item.device_id is None:
         return False
     device = dr.async_get(hass).async_get(item.device_id)
-    return device is not None and any(
-        (MQTT_DOMAIN, f"ha-paneld-{panel_id}") in device.identifiers
-        for panel_id in panel_ids
-    )
+    if device is None:
+        return False
+    candidates = [
+        identifier.removeprefix("ha-paneld-")
+        for domain, identifier in device.identifiers
+        if domain == MQTT_DOMAIN
+        and identifier.startswith("ha-paneld-")
+        and item.unique_id.startswith(f"{identifier.removeprefix('ha-paneld-')}_")
+    ]
+    return bool(candidates) and max(candidates, key=len) in panel_ids
+
+
+def _device_panel_ids(device: dr.DeviceEntry) -> set[str]:
+    """Return every panel ID represented by one MQTT DeviceEntry."""
+    return {
+        identifier.removeprefix("ha-paneld-")
+        for domain, identifier in device.identifiers
+        if domain == MQTT_DOMAIN
+        and identifier.startswith("ha-paneld-")
+        and not identifier.startswith(("ha-paneld-aid-", "ha-paneld-uid-"))
+    }
 
 
 def _is_duplicate(
@@ -162,6 +183,46 @@ def _is_duplicate(
 def panel_update_required_issue_id(entry_id: str) -> str:
     """Return the Repairs issue ID asking for one entry's panel to be updated."""
     return cutover_issue_id(ISSUE_PANEL_UPDATE_REQUIRED, entry_id)
+
+
+def merged_mqtt_device_issue_id(entry_id: str) -> str:
+    """Return the Repairs issue ID for one entry on a merged MQTT device."""
+    return cutover_issue_id(ISSUE_MERGED_MQTT_DEVICE, entry_id)
+
+
+@callback
+def async_delete_merged_mqtt_device_issue(hass: HomeAssistant, entry_id: str) -> None:
+    """Clear the merged-device issue belonging to one entry."""
+    ir.async_delete_issue(hass, DOMAIN, merged_mqtt_device_issue_id(entry_id))
+
+
+@callback
+def _report_merged_mqtt_device(
+    hass: HomeAssistant, entry: ConfigEntry, record: dict[str, Any] | None
+) -> None:
+    """Report or clear a device that carries several panels' identifiers."""
+    merged: set[str] = set()
+    for panel_id in _panel_ids(entry, record):
+        device = mqtt_device(hass, panel_id)
+        if device is not None and len(panel_ids := _device_panel_ids(device)) > 1:
+            merged.update(panel_ids)
+    issue_id = merged_mqtt_device_issue_id(entry.entry_id)
+    if not merged:
+        ir.async_delete_issue(hass, DOMAIN, issue_id)
+        return
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        issue_id,
+        is_fixable=False,
+        is_persistent=False,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key=ISSUE_MERGED_MQTT_DEVICE,
+        translation_placeholders={
+            "panel": entry.title,
+            "panel_ids": ", ".join(sorted(merged)),
+        },
+    )
 
 
 @callback
@@ -228,6 +289,7 @@ def async_remove_quarantined(
             item.platform == MQTT_DOMAIN
             and item.disabled_by is er.RegistryEntryDisabler.INTEGRATION
             and not is_customised(item)
+            and _on_panel_device(hass, item, _panel_ids(entry, record))
         ):
             registry.async_remove(item.entity_id)
             continue
@@ -238,8 +300,12 @@ def async_remove_quarantined(
     device_registry = dr.async_get(hass)
     for panel_id in _panel_ids(entry, record) if remove_device else ():
         device = mqtt_device(hass, panel_id)
-        if device is not None and not er.async_entries_for_device(
-            registry, device.id, include_disabled_entities=True
+        if (
+            device is not None
+            and not er.async_entries_for_device(
+                registry, device.id, include_disabled_entities=True
+            )
+            and _device_panel_ids(device).issubset(set(_panel_ids(entry, record)))
         ):
             device_registry.async_remove_device(device.id)
     async_delete_panel_update_required(hass, entry.entry_id)
@@ -294,6 +360,9 @@ class _EntryGuard:
     @callback
     def consider(self, entity_id: str) -> None:
         """Quarantine an entity if it duplicates one this entry owns."""
+        _report_merged_mqtt_device(
+            self._hass, self._entry, dict(cutover_record(self._entry) or {})
+        )
         item = er.async_get(self._hass).async_get(entity_id)
         if (
             item is None
@@ -396,6 +465,7 @@ def async_start_guards(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> None:
     if entity_owner(hass, entry) != AUTHORITY_NATIVE:
         return
     record = dict(cutover_record(entry) or {})
+    _report_merged_mqtt_device(hass, entry, record)
     registry = er.async_get(hass)
     if any(
         registry.entities.get_entry(registry_id) is not None
@@ -504,6 +574,7 @@ async def async_remember_removed_panel(
 ) -> None:
     """Remember a removed entry's panel, so its next hello is told. Never raises."""
     async_delete_panel_update_required(hass, entry.entry_id)
+    async_delete_merged_mqtt_device_issue(hass, entry.entry_id)
     did = record_did if record_did is not None else _panel_did(entry)
     if did is None or not is_valid_discovery_id(did):
         return

@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from copy import deepcopy
+from dataclasses import replace
 from datetime import timedelta
 from types import SimpleNamespace
 from typing import Any
@@ -1018,6 +1019,24 @@ async def test_two_entries_with_one_identity_refuse_hello(
 
     assert response["error"]["code"] == "unknown_panel"
     assert async_get_sessions(hass).get(entry.entry_id) is None
+    assert async_get_sessions(hass).get(twin.entry_id) is None
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, f"merged_panel_identity_{DID}")
+    assert issue is not None
+    assert issue.is_fixable is False
+    assert issue.severity is ir.IssueSeverity.ERROR
+    assert issue.translation_key == "merged_panel_identity"
+    assert issue.translation_placeholders == {"panels": "alpha, twin"}
+
+    twin.runtime_data.coordinator.data = SimpleNamespace(
+        health=replace(HEALTH, discovery_id=OTHER_DID)
+    )
+    response = await _send(client, _hello())
+
+    assert response["success"], response
+    assert (
+        ir.async_get(hass).async_get_issue(DOMAIN, f"merged_panel_identity_{DID}")
+        is None
+    )
 
 
 async def test_a_clone_whose_address_is_down_is_still_refused(

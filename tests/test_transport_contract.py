@@ -362,6 +362,8 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
     assert keys["issues"] == {
         "cutover_incomplete",
         "cutover_blocked_by_customised_entities",
+        "merged_panel_identity",
+        "merged_mqtt_device",
         "panel_update_required",
         "panel_migration_incomplete",
     }
