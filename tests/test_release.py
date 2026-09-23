@@ -1525,6 +1525,22 @@ _IDENTITY_CORPUS = json.loads(
         encoding="utf-8"
     )
 )
+_ANDROID_PRODUCER = json.loads(
+    (Path(__file__).parent / "fixtures" / "android_producer_v1.json").read_text(
+        encoding="utf-8"
+    )
+)
+
+
+def test_android_producer_and_python_agree_on_every_release_tag() -> None:
+    """The real descriptor producer and this consumer classify one corpus."""
+    verdicts = {
+        case["tag"]: case["accepted"]
+        for case in _ANDROID_PRODUCER["releaseTagVerdicts"]
+    }
+    assert set(verdicts) == {case["tag"] for case in _IDENTITY_CORPUS["tags"]}
+    for case in _IDENTITY_CORPUS["tags"]:
+        assert verdicts[case["tag"]] is (case["kind"] in {"stable", "rc"})
 
 
 @pytest.mark.parametrize("case", _IDENTITY_CORPUS["tags"], ids=lambda case: case["tag"])
