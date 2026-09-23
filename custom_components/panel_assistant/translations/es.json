@@ -49,7 +49,7 @@
       },
       "choose_version": {
         "title": "Elige una versión",
-        "description": "ha-paneld aún no está instalado en {address}. Elige la versión que quieres instalar. Las versiones de prueba pueden contener errores.",
+        "description": "ha-paneld no responde en {address}. Elige la versión que debe ejecutar el panel. Las versiones de prueba pueden contener errores.",
         "data": {
           "release_candidate": "Versión"
         }
@@ -71,12 +71,12 @@
         "description": "La versión seleccionada incluye un descriptor de instalación verificado. Selecciona Enviar una vez para crear o cargar una identidad ADB persistente para esta instalación de Home Assistant y presentar su clave pública al panel Android en {address}. En el panel, acepta el aviso Permitir depuración de Android; después vuelve aquí y selecciona Enviar de nuevo. Android puede describir Home Assistant como un ordenador. La autorización concede acceso general al shell de ADB mientras la depuración por red permanezca activada; revócala desde los ajustes de desarrollador del panel. En este paso no se descarga ni se instala ningún APK."
       },
       "confirm_install_candidate": {
-        "title": "Confirmar la primera instalación",
-        "description": "El panel no tiene ningún paquete ha-paneld instalado ni conservado. Comprueba el dispositivo y la versión estable verificada:\n\n- Dirección: {address}\n- Modelo: {model}\n- Número de serie: {serial}\n- ABI: {abi}\n- SDK de Android: {sdk}\n- Versión: {version}\n- Etiqueta: {tag}\n- SHA-256: {sha256}\n\nEnvía el formulario para volver a comprobar el panel y, después, descargar, verificar, instalar, iniciar y comprobar el estado de esta versión exacta. No se sobrescribirá ni actualizará una instalación existente.\n\nCuando Home Assistant haya añadido el dispositivo, selecciona Configurar en el panel para completar la configuración guiada de ha-paneld. La instalación no configura el panel de control."
+        "title": "Confirmar la instalación o recuperación",
+        "description": "Comprueba el dispositivo y la versión estable verificada:\n\n- Dirección: {address}\n- Modelo: {model}\n- Número de serie: {serial}\n- ABI: {abi}\n- SDK de Android: {sdk}\n- Versión: {version}\n- Etiqueta: {tag}\n- SHA-256: {sha256}\n\nEnvía el formulario para volver a comprobar el panel y adoptar estos bytes exactos si ya están instalados o, si el panel está limpio, descargarlos, verificarlos, instalarlos, iniciarlos y comprobar su estado. No se sobrescribirá ni actualizará una instalación con bytes diferentes.\n\nCuando Home Assistant haya añadido el dispositivo, selecciona Configurar en el panel para completar la configuración guiada de ha-paneld. La instalación no configura el panel de control."
       },
       "confirm_install_rc": {
         "title": "Confirmar la instalación de la versión candidata",
-        "description": "Solo para pruebas: esta es una versión candidata, no una versión estable, y puede contener errores.\n\nEl panel no tiene ningún paquete ha-paneld instalado ni conservado. Comprueba el dispositivo y la versión candidata verificada:\n\n- Dirección: {address}\n- Modelo: {model}\n- Número de serie: {serial}\n- ABI: {abi}\n- SDK de Android: {sdk}\n- Versión: {version}\n- Etiqueta: {tag}\n- SHA-256: {sha256}\n\nEnvía el formulario para autorizar esta versión candidata exacta y volver a comprobar el panel y, después, descargar, verificar, instalar, iniciar y comprobar el estado de esta versión exacta. No se sobrescribirá ni actualizará una instalación existente.\n\nCuando Home Assistant haya añadido el dispositivo, selecciona Configurar en el panel para completar la configuración guiada de ha-paneld. La instalación no configura el panel de control."
+        "description": "Solo para pruebas: esta es una versión candidata, no una versión estable, y puede contener errores.\n\nComprueba el dispositivo y la versión candidata verificada:\n\n- Dirección: {address}\n- Modelo: {model}\n- Número de serie: {serial}\n- ABI: {abi}\n- SDK de Android: {sdk}\n- Versión: {version}\n- Etiqueta: {tag}\n- SHA-256: {sha256}\n\nEnvía el formulario para autorizar esta versión candidata exacta, volver a comprobar el panel y adoptar estos bytes exactos si ya están instalados o, si el panel está limpio, descargarlos, verificarlos, instalarlos, iniciarlos y comprobar su estado. No se sobrescribirá ni actualizará una instalación con bytes diferentes.\n\nCuando Home Assistant haya añadido el dispositivo, selecciona Configurar en el panel para completar la configuración guiada de ha-paneld. La instalación no configura el panel de control."
       },
       "release_preview_only": {
         "title": "La versión no se puede instalar automáticamente",
@@ -110,6 +110,7 @@
       "cannot_resolve_release": "Se ha encontrado una versión candidata para instalar, pero Home Assistant no ha podido resolver ni verificar la versión seleccionada de ha-paneld. No se ha descargado ni instalado ningún APK. Comprueba el acceso a Internet y, si estás probando una versión candidata, que la etiqueta exacta esté publicada con sus recursos firmados. No se sustituirá por ninguna otra versión.",
       "invalid_release_candidate": "Elige una versión de la lista.",
       "install_candidate_changed": "La identidad del panel o el estado confirmado de ausencia del paquete han cambiado después de la vista previa. No se ha creado ninguna tarea de instalación. Comprueba el panel y vuelve a empezar.",
+      "installed_artifact_mismatch": "La aplicación instalada no es idéntica byte a byte a la versión elegida, por lo que Home Assistant no la ha sobrescrito; elige su versión exacta o sigue la guía de seguridad y recuperación del aprovisionamiento.",
       "install_plan_rejected": "No se han podido vincular el panel y la versión firmada en un plan de instalación seguro. No se ha creado ningún trabajo de instalación.",
       "install_job_conflict": "Otra tarea de instalación ya tiene reservada la identidad de este panel. No se ha creado una segunda tarea.",
       "install_receipt_error": "Home Assistant no ha podido cargar ni conservar de forma segura el comprobante de instalación. No se ha autorizado ninguna acción nueva en el panel.",

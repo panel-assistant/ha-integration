@@ -316,13 +316,21 @@ async def test_installed_target_does_not_query_retained_data(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A valid installed path is sufficient to prevent first-install admission."""
-    fake = _FakeAdbDevice([_presence_output(successor_present=True)])
+    fake = _FakeAdbDevice(
+        [
+            _presence_output(successor_present=True),
+            _target_facts_output(nonce=_SECOND_NONCE),
+        ]
+    )
     _install_fake(monkeypatch, fake)
 
     probe = await async_probe_install_target(normalize_address("192.0.2.10"))
 
     assert probe.state is InstallTargetState.INSTALLED
-    assert len(fake.commands) == 1
+    assert probe.model == "Electron WF1589T"
+    assert probe.serial == "WF1589T-0123"
+    assert len(fake.commands) == 2
+    assert all("pm list packages -u" not in command for command, _ in fake.commands)
     assert fake.closed is True
 
 
@@ -330,13 +338,19 @@ async def test_both_packages_installed_is_an_installed_target(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A part-migrated panel is installed, not a target for a fresh install."""
-    fake = _FakeAdbDevice([_presence_output(present=True, successor_present=True)])
+    fake = _FakeAdbDevice(
+        [
+            _presence_output(present=True, successor_present=True),
+            _target_facts_output(nonce=_SECOND_NONCE),
+        ]
+    )
     _install_fake(monkeypatch, fake)
 
     probe = await async_probe_install_target(normalize_address("192.0.2.10"))
 
     assert probe.state is InstallTargetState.INSTALLED
-    assert len(fake.commands) == 1
+    assert probe.model == "Electron WF1589T"
+    assert len(fake.commands) == 2
     assert fake.closed is True
 
 

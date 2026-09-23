@@ -158,15 +158,11 @@ def _build_target(
 
     if not isinstance(probe, InstallTargetProbe):
         raise InstallPlanError(InstallPlanErrorCode.INCOMPLETE_PROBE)
-    # Only a clean target. A panel still running the old app reaches this
-    # builder solely through the config flow's add-panel route, which probes
-    # only after health has already failed, so a migration candidate here is an
-    # old app that is installed and silent. The successor pulls its state from
-    # the old app over localhost before taking over, so a silent old app has
-    # nothing to hand over and installing beside it would strand the panel
-    # part-migrated. The browser installer, which reaches a healthy panel over
-    # USB, is where a migration is admitted; its own preflight decides that.
-    if probe.state is not InstallTargetState.INSTALL_CANDIDATE:
+    if probe.state not in {
+        InstallTargetState.INSTALL_CANDIDATE,
+        InstallTargetState.INSTALLED,
+        InstallTargetState.MIGRATION_CANDIDATE,
+    }:
         raise InstallPlanError(InstallPlanErrorCode.PROBE_NOT_INSTALL_CANDIDATE)
 
     model = _safe_text(probe.model, _MAX_MODEL_LENGTH)
@@ -292,6 +288,14 @@ def build_install_plan(
     # error a consumer branching on the code already expects.
     target = _build_target(pinned_target, probe)
     artifact = _build_artifact(release, expected_rc_tag)
+    if (
+        probe.state is not InstallTargetState.INSTALL_CANDIDATE
+        and probe.installed_artifact_size != artifact.apk_size
+    ):
+        # An installed package enters a plan only after the config flow has
+        # proved its size and digest against this signed descriptor. The
+        # executor repeats that proof before it adopts anything.
+        raise InstallPlanError(InstallPlanErrorCode.PROBE_NOT_INSTALL_CANDIDATE)
     if (
         not isinstance(adb_credential_id, str)
         or _SHA256.fullmatch(adb_credential_id) is None

@@ -67,6 +67,9 @@ class InstallTargetProbe:
     serial: str | None = None
     primary_abi: str | None = None
     android_sdk: int | None = None
+    # Set only after the selected descriptor has proved the installed APK's
+    # size and digest. The byte count carries that proof into plan creation.
+    installed_artifact_size: int | None = None
 
 
 class _MalformedProbeResponse(Exception):
@@ -471,6 +474,11 @@ async def async_probe_install_target(
             state = InstallTargetState.RETAINED_OR_AMBIGUOUS
         elif presence[SUCCESSOR_PACKAGE_ID] is _PackagePresence.PRESENT:
             state = InstallTargetState.INSTALLED
+            nonce = token_hex(16)
+            facts = _parse_target_facts(
+                await _async_bounded_shell(device, _target_facts_command(nonce)),
+                nonce,
+            )
         elif presence[LEGACY_PACKAGE_ID] is _PackagePresence.PRESENT:
             # A legacy panel with no successor can take the successor beside it.
             # Its own data is what the handover migrates, so it is not residue.
