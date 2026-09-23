@@ -581,6 +581,17 @@ def cutover_reconciliation_needed(
     return record is not None
 
 
+def cutover_reconciliation_waiting(
+    hass: HomeAssistant, entry: HaPaneldConfigEntry
+) -> bool:
+    """Return whether a requested forward move still lacks a prerequisite."""
+    if effective_authority(
+        hass, entry
+    ) != AUTHORITY_NATIVE or not cutover_reconciliation_needed(hass, entry):
+        return False
+    return entry.runtime_data.coordinator.data is None or _panel_did(entry) is None
+
+
 async def async_apply_cutover(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> None:
     """Move the panel's entities the way the entry's authority says, once.
 

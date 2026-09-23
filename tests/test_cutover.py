@@ -160,8 +160,12 @@ NATIVE = {"authority": "native"}
 
 @pytest.mark.parametrize(
     ("first_health", "expected_reloads"),
-    [(HEALTH, 0), (CannotConnectError(), 1)],
-    ids=["online-start", "delayed-first-health"],
+    [
+        (HEALTH, 0),
+        (CannotConnectError(), 1),
+        (replace(HEALTH, discovery_id=None), 1),
+    ],
+    ids=["online-start", "delayed-first-health", "delayed-identity"],
 )
 async def test_requested_native_cutover_converges_after_first_health(
     hass: HomeAssistant,
@@ -207,6 +211,10 @@ async def test_requested_native_cutover_converges_after_first_health(
             assert entry.runtime_data.coordinator.data is None
             assert registry.entities.get_entry(original.id).platform == "mqtt"
             assert CONF_CUTOVER not in entry.data
+        elif first_health.discovery_id is None:
+            assert entry.runtime_data.coordinator.data is not None
+            assert registry.entities.get_entry(original.id).platform == "mqtt"
+            assert _record(entry)["error"]["step"] == "identity"
 
         await entry.runtime_data.coordinator.async_refresh()
         await hass.async_block_till_done()
