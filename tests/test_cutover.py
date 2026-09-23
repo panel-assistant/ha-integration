@@ -6,7 +6,7 @@ from collections.abc import Callable
 from dataclasses import replace
 from datetime import timedelta
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.config_entries import (
@@ -20,6 +20,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.entity import entity_sources
+from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -29,6 +30,7 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from custom_components.panel_assistant import cutover, transport
+from custom_components.panel_assistant.client import CannotConnectError, HaPaneldClient
 from custom_components.panel_assistant.const import (
     CONF_CUTOVER,
     CONF_TRANSPORT_USER_ID,
@@ -154,6 +156,144 @@ NATIVE = {"authority": "native"}
 
 # ---------------------------------------------------------------------------
 # Forward.
+
+
+@pytest.mark.parametrize(
+    ("first_health", "expected_reloads"),
+    [(HEALTH, 0), (CannotConnectError(), 1)],
+    ids=["online-start", "delayed-first-health"],
+)
+async def test_requested_native_cutover_converges_after_first_health(
+    hass: HomeAssistant,
+    hass_read_only_user: Any,
+    first_health: Any,
+    expected_reloads: int,
+) -> None:
+    """Online and delayed health both apply native ownership without a manual reload."""
+    mqtt = _mqtt(hass, [("switch", "relay1", {})])
+    registry = er.async_get(hass)
+    original = registry.async_update_entity(
+        mqtt["entity_ids"]["relay1"],
+        new_entity_id="switch.porch_lamp",
+        name="Porch lamp",
+        icon="mdi:lamp",
+        area_id="porch",
+    )
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="alpha",
+        data={
+            CONF_ADDRESS: "panel.local",
+            CONF_TRANSPORT_USER_ID: hass_read_only_user.id,
+        },
+        options=NATIVE,
+    )
+    entry.add_to_hass(hass)
+    health = AsyncMock(side_effect=[first_health, HEALTH, HEALTH, HEALTH])
+
+    with (
+        panel_patches(),
+        patch.object(HaPaneldClient, "async_get_health", health),
+        patch.object(
+            hass.config_entries, "async_reload", wraps=hass.config_entries.async_reload
+        ) as reload,
+    ):
+        assert await async_setup_component(
+            hass, DOMAIN, {DOMAIN: {"native_entities": True}}
+        )
+        await hass.async_block_till_done()
+
+        if isinstance(first_health, Exception):
+            assert entry.runtime_data.coordinator.data is None
+            assert registry.entities.get_entry(original.id).platform == "mqtt"
+            assert CONF_CUTOVER not in entry.data
+
+        await entry.runtime_data.coordinator.async_refresh()
+        await hass.async_block_till_done()
+
+        moved = registry.entities.get_entry(original.id)
+        assert moved is not None
+        assert (moved.entity_id, moved.platform, moved.unique_id) == (
+            "switch.porch_lamp",
+            DOMAIN,
+            f"{DID}_relay1",
+        )
+        assert moved.config_entry_id == entry.entry_id
+        assert (moved.name, moved.icon, moved.area_id) == (
+            "Porch lamp",
+            "mdi:lamp",
+            "porch",
+        )
+        record = _record(entry)
+        assert record["state"] == "complete"
+        assert record["entities"][original.id]["state"] == "done"
+        settled = _snapshot(hass, entry.entry_id)
+
+        await entry.runtime_data.coordinator.async_refresh()
+        await hass.async_block_till_done()
+
+        assert reload.call_count == expected_reloads
+        assert _record(entry) == record
+        assert _snapshot(hass, entry.entry_id) == settled
+
+
+async def test_delayed_native_cutover_can_be_cancelled_before_health_recovers(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """A withdrawn native request never runs later from a stale recovery callback."""
+    mqtt = _mqtt(hass, [("switch", "relay1", {})])
+    registry = er.async_get(hass)
+    original = registry.async_get(mqtt["entity_ids"]["relay1"])
+    assert original is not None
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="alpha",
+        data={
+            CONF_ADDRESS: "panel.local",
+            CONF_TRANSPORT_USER_ID: hass_read_only_user.id,
+        },
+        options=NATIVE,
+    )
+    entry.add_to_hass(hass)
+    health = AsyncMock(
+        side_effect=[CannotConnectError(), CannotConnectError(), HEALTH, HEALTH]
+    )
+
+    with (
+        panel_patches(),
+        patch.object(HaPaneldClient, "async_get_health", health),
+        patch.object(
+            hass.config_entries, "async_reload", wraps=hass.config_entries.async_reload
+        ) as reload,
+    ):
+        assert await async_setup_component(
+            hass, DOMAIN, {DOMAIN: {"native_entities": True}}
+        )
+        await hass.async_block_till_done()
+        assert entry.runtime_data.coordinator.data is None
+
+        hass.config_entries.async_update_entry(entry, options={"authority": "shadow"})
+        await hass.async_block_till_done()
+        assert entry.runtime_data.authority == "shadow"
+
+        await entry.runtime_data.coordinator.async_refresh()
+        await hass.async_block_till_done()
+
+        assert reload.call_count == 1
+        assert CONF_CUTOVER not in entry.data
+        unchanged = registry.entities.get_entry(original.id)
+        assert unchanged is not None
+        assert (
+            unchanged.entity_id,
+            unchanged.platform,
+            unchanged.unique_id,
+            unchanged.config_entry_id,
+        ) == (
+            original.entity_id,
+            original.platform,
+            original.unique_id,
+            original.config_entry_id,
+        )
 
 
 async def test_forward_cutover_keeps_each_entity_and_its_customisations(
