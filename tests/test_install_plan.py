@@ -300,7 +300,7 @@ def test_rejects_malformed_pinned_target(target: object) -> None:
     assert_error(InstallPlanErrorCode.INVALID_TARGET, target=target)
 
 
-def test_rejects_non_candidate_and_non_probe() -> None:
+def test_rejects_unproven_installed_target_and_non_probe() -> None:
     assert_error(
         InstallPlanErrorCode.PROBE_NOT_INSTALL_CANDIDATE,
         target_probe=probe(state=InstallTargetState.INSTALLED),
@@ -454,18 +454,14 @@ def successor_release() -> ReleaseArtifact:
     )
 
 
-def test_only_a_clean_target_is_ever_planned() -> None:
-    """A panel running the old app is not planned onto, in either identity.
-
-    This builder is reached only from the config flow's add-panel route, which
-    probes after health has already failed. A migration candidate there is an
-    old app that is installed and silent, and the successor pulls its state
-    from the old app over localhost before taking over, so installing beside a
-    silent one would strand the panel part-migrated. The browser installer,
-    which reaches a healthy panel over USB, decides that in its own preflight.
-    """
+def test_only_clean_or_byte_identical_installed_targets_are_planned() -> None:
+    """Installed state needs exact-byte proof for the selected descriptor."""
     for state in InstallTargetState:
-        if state is InstallTargetState.INSTALL_CANDIDATE:
+        if state in {
+            InstallTargetState.INSTALL_CANDIDATE,
+            InstallTargetState.INSTALLED,
+            InstallTargetState.MIGRATION_CANDIDATE,
+        }:
             continue
         for candidate in (release(), successor_release()):
             with pytest.raises(InstallPlanError) as caught:
@@ -486,3 +482,27 @@ def test_only_a_clean_target_is_ever_planned() -> None:
     assert successor_plan.artifact.launch_component == (
         "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity"
     )
+
+    for state in {
+        InstallTargetState.INSTALLED,
+        InstallTargetState.MIGRATION_CANDIDATE,
+    }:
+        for candidate in (release(), successor_release()):
+            with pytest.raises(InstallPlanError) as caught:
+                build_install_plan(
+                    pinned_target(), probe(state=state), candidate, CREDENTIAL_ID
+                )
+            assert caught.value.args[0] == (
+                InstallPlanErrorCode.PROBE_NOT_INSTALL_CANDIDATE
+            )
+
+            built = build_install_plan(
+                pinned_target(),
+                probe(
+                    state=state,
+                    installed_artifact_size=candidate.descriptor.apk_size,
+                ),
+                candidate,
+                CREDENTIAL_ID,
+            )
+            assert built.artifact.package_id == candidate.descriptor.package_id

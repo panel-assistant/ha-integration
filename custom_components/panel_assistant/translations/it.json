@@ -49,7 +49,7 @@
       },
       "choose_version": {
         "title": "Scegli una versione",
-        "description": "ha-paneld non è ancora installato su {address}. Scegli la versione da installare. Le versioni di prova possono contenere errori.",
+        "description": "ha-paneld non risponde su {address}. Scegli la versione che il pannello deve eseguire. Le versioni di prova possono contenere errori.",
         "data": {
           "release_candidate": "Versione"
         }
@@ -71,12 +71,12 @@
         "description": "La versione selezionata include un descrittore di installazione verificato. Seleziona Invia una volta per creare o caricare un'identità ADB persistente per questa installazione di Home Assistant e proporne la chiave pubblica al pannello Android all'indirizzo {address}. Sul pannello, approva la richiesta di Android per consentire il debug, quindi torna qui e seleziona di nuovo Invia. Android potrebbe descrivere Home Assistant come un computer. L'approvazione concede un accesso generale alla shell ADB finché il debug di rete rimane abilitato; puoi revocarlo dalle impostazioni sviluppatore del pannello. In questo passaggio non viene scaricato né installato alcun APK."
       },
       "confirm_install_candidate": {
-        "title": "Conferma la prima installazione",
-        "description": "Sul pannello non è presente alcun pacchetto ha-paneld installato o conservato. Verifica il dispositivo e la versione stabile convalidata:\n\n- Indirizzo: {address}\n- Modello: {model}\n- Numero di serie: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Versione: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nSeleziona Invia per controllare nuovamente il pannello, quindi scaricare, verificare, installare e avviare questa versione esatta, verificandone infine lo stato di funzionamento. Un'installazione esistente non verrà sovrascritta né aggiornata.\n\nDopo che Home Assistant avrà aggiunto il dispositivo, seleziona Configura sul pannello per completare la configurazione guidata di ha-paneld. L'installazione non configura la dashboard."
+        "title": "Conferma l'installazione o il ripristino",
+        "description": "Verifica il dispositivo e la versione stabile convalidata:\n\n- Indirizzo: {address}\n- Modello: {model}\n- Numero di serie: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Versione: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nSeleziona Invia per controllare nuovamente il pannello e adottare questi byte esatti se sono già installati oppure, se il pannello è pulito, scaricarli, verificarli, installarli, avviarli e verificarne lo stato. Un'installazione con byte diversi non verrà sovrascritta né aggiornata.\n\nDopo che Home Assistant avrà aggiunto il dispositivo, seleziona Configura sul pannello per completare la configurazione guidata di ha-paneld. L'installazione non configura la dashboard."
       },
       "confirm_install_rc": {
         "title": "Conferma l'installazione della release candidate",
-        "description": "Solo per i test: questa è una release candidate, non una versione stabile, e può contenere errori.\n\nSul pannello non è presente alcun pacchetto ha-paneld installato o conservato. Verifica il dispositivo e la release candidate convalidata:\n\n- Indirizzo: {address}\n- Modello: {model}\n- Numero di serie: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Versione: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nSeleziona Invia per autorizzare questa release candidate esatta e controllare nuovamente il pannello, quindi scaricare, verificare, installare e avviare questa versione esatta, verificandone infine lo stato di funzionamento. Un'installazione esistente non verrà sovrascritta né aggiornata.\n\nDopo che Home Assistant avrà aggiunto il dispositivo, seleziona Configura sul pannello per completare la configurazione guidata di ha-paneld. L'installazione non configura la dashboard."
+        "description": "Solo per i test: questa è una release candidate, non una versione stabile, e può contenere errori.\n\nVerifica il dispositivo e la release candidate convalidata:\n\n- Indirizzo: {address}\n- Modello: {model}\n- Numero di serie: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Versione: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nSeleziona Invia per autorizzare questa release candidate esatta, controllare nuovamente il pannello e adottare questi byte esatti se sono già installati oppure, se il pannello è pulito, scaricarli, verificarli, installarli, avviarli e verificarne lo stato. Un'installazione con byte diversi non verrà sovrascritta né aggiornata.\n\nDopo che Home Assistant avrà aggiunto il dispositivo, seleziona Configura sul pannello per completare la configurazione guidata di ha-paneld. L'installazione non configura la dashboard."
       },
       "release_preview_only": {
         "title": "La versione non può essere installata automaticamente",
@@ -110,6 +110,7 @@
       "cannot_resolve_release": "È stata trovata una versione candidata all'installazione, ma Home Assistant non è riuscito a risolvere e verificare la versione selezionata di ha-paneld. Non è stato scaricato né installato alcun APK. Controlla l'accesso a Internet e, se stai testando una release candidate, verifica che il tag esatto sia pubblicato con i relativi artefatti firmati. Non verrà usata un'altra versione in sostituzione.",
       "invalid_release_candidate": "Scegli una versione dall'elenco.",
       "install_candidate_changed": "Dopo l'anteprima, l'identità del pannello è cambiata oppure non è più possibile confermare che il pacchetto sia assente. Non è stato creato alcun processo di installazione. Controlla il pannello e ricomincia.",
+      "installed_artifact_mismatch": "L'app installata non è identica byte per byte alla versione scelta, quindi Home Assistant non l'ha sovrascritta; scegli la sua versione esatta o segui la guida alla sicurezza e al ripristino del provisioning.",
       "install_plan_rejected": "Non è stato possibile vincolare il pannello e la versione firmata a un piano di installazione sicuro. Non è stato creato alcun processo di installazione.",
       "install_job_conflict": "Un altro processo di installazione è già associato all'identità di questo pannello. Non è stato creato un secondo processo.",
       "install_receipt_error": "Home Assistant non è riuscito a caricare o conservare in modo sicuro la ricevuta di installazione. Non è stata autorizzata alcuna nuova operazione sul pannello.",

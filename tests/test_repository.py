@@ -358,7 +358,7 @@ def test_english_only_translations_are_exactly_the_dormant_native_surface() -> N
 
     assert len(paths) == 63
     assert all(path[:1] in {("entity",), ("exceptions",)} for path in paths)
-    assert len(_translation_leaves(shared)) == 144
+    assert len(_translation_leaves(shared)) == 145
     for locale_path in sorted((INTEGRATION / "translations").glob("*.json")):
         if locale_path.name == "en.json":
             continue
@@ -386,7 +386,7 @@ def test_shipped_translation_catalogues_preserve_machine_contracts() -> None:
         "it.json",
         "zh-Hans.json",
     ]
-    assert len(english) == 144
+    assert len(english) == 145
 
     for locale_path in locale_paths:
         target_catalogue = _without(
@@ -408,6 +408,17 @@ def test_shipped_translation_catalogues_preserve_machine_contracts() -> None:
                 required_count = _literal_count(source_text, token)
                 if required_count:
                     assert _literal_count(target_text, token) >= required_count
+
+
+def test_installed_artifact_mismatch_is_explained_in_all_six_locales() -> None:
+    """The byte refusal must never fall back to an untranslated key."""
+    locale_paths = sorted((INTEGRATION / "translations").glob("*.json"))
+    assert len(locale_paths) == 6
+    for locale_path in locale_paths:
+        message = _load_translation_catalogue(locale_path)["config"]["error"][
+            "installed_artifact_mismatch"
+        ]
+        assert message.strip(), locale_path.name
 
 
 @pytest.mark.parametrize(

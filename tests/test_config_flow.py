@@ -44,6 +44,7 @@ from custom_components.panel_assistant.const import (
     help_url,
 )
 from custom_components.panel_assistant.install_adb import (
+    AdbRootMode,
     InstallAdbError,
     InstallAdbErrorCode,
 )
@@ -1204,10 +1205,6 @@ async def test_install_candidate_without_identity_fails_closed(
     ("state", "expected_error"),
     [
         ("adb_unreachable", "adb_unreachable"),
-        ("installed", "installed_without_health"),
-        # A panel still running the old app is reached here only because health
-        # failed, so it is installed and silent, not ready to hand over.
-        ("migration_candidate", "installed_without_health"),
         ("retained_or_ambiguous", "retained_or_ambiguous"),
         ("incompatible", "incompatible"),
     ],
@@ -2257,13 +2254,13 @@ async def test_release_preview_only_returns_to_choose_version(
 @pytest.mark.parametrize(
     "changed_probe",
     [
-        replace(CANDIDATE, state=InstallTargetState.INSTALLED),
+        replace(CANDIDATE, state=InstallTargetState.RETAINED_OR_AMBIGUOUS),
         replace(CANDIDATE, serial="serial-456"),
         replace(CANDIDATE, model="other-model"),
         replace(CANDIDATE, primary_abi="armeabi-v7a"),
         replace(CANDIDATE, android_sdk=30),
     ],
-    ids=["state", "serial", "model", "abi", "sdk"],
+    ids=["unsafe_state", "serial", "model", "abi", "sdk"],
 )
 async def test_signed_confirmation_rejects_every_target_identity_drift(
     hass: HomeAssistant, changed_probe: InstallTargetProbe
@@ -2309,6 +2306,143 @@ async def test_signed_confirmation_rejects_every_target_identity_drift(
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "confirm_install_candidate"
     assert result["errors"] == {"base": "install_candidate_changed"}
+    manager.async_create_or_join.assert_not_awaited()
+
+
+@pytest.mark.parametrize("authorize_first", [False, True], ids=["trusted", "authorize"])
+async def test_failed_install_with_identical_bytes_is_adopted(
+    hass: HomeAssistant, authorize_first: bool
+) -> None:
+    """A silent installed panel reaches the chosen RC and its exact bytes win."""
+    installed = replace(CANDIDATE, state=InstallTargetState.MIGRATION_CANDIDATE)
+    probes = (
+        [_probe("adb_unauthorized"), installed, installed]
+        if authorize_first
+        else [installed, installed]
+    )
+    rc = _rc_release()
+    manager = _manager_for(_receipt(InstallPhase.APPROVED))
+    progress = AsyncMock(
+        return_value={"type": FlowResultType.ABORT, "reason": "proof-complete"}
+    )
+    preflight = SimpleNamespace(target_installed=True, root_mode=AdbRootMode.ROOTLESS)
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
+            AsyncMock(return_value=manager),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+            AsyncMock(side_effect=CannotConnectError),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_probe_install_target",
+            AsyncMock(side_effect=probes),
+        ),
+        patch(
+            "custom_components.panel_assistant.release_catalog.async_resolve_rc_release",
+            AsyncMock(return_value=rc),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_adb_signer",
+            AsyncMock(return_value=object()),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_adb_credential",
+            AsyncMock(return_value=CREDENTIAL),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_durable_adb_credential",
+            AsyncMock(return_value=CREDENTIAL),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_preflight_install",
+            AsyncMock(return_value=preflight),
+        ) as preflight_mock,
+        patch(
+            "custom_components.panel_assistant.config_flow.async_installed_artifact_size",
+            AsyncMock(return_value=rc.descriptor.apk_size),
+        ) as installed_bytes,
+        patch.object(HaPaneldConfigFlow, "_async_show_install_progress", progress),
+    ):
+        form = await _start_step(hass, "add_panel")
+        choose = await hass.config_entries.flow.async_configure(
+            form["flow_id"], {CONF_ADDRESS: "panel.local"}
+        )
+        preview = await _choose_version(hass, choose, rc.tag)
+        if authorize_first:
+            assert preview["step_id"] == "authorize_adb"
+            preview = await hass.config_entries.flow.async_configure(
+                preview["flow_id"], {}
+            )
+        assert preview["step_id"] == "confirm_install_rc"
+        result = await hass.config_entries.flow.async_configure(preview["flow_id"], {})
+
+    assert result == {"type": FlowResultType.ABORT, "reason": "proof-complete"}
+    preflight_mock.assert_awaited_once()
+    assert preflight_mock.await_args.kwargs["admit_installed_target"] is True
+    installed_bytes.assert_awaited_once()
+    assert installed_bytes.await_args.kwargs["expected_root_mode"] is (
+        AdbRootMode.ROOTLESS
+    )
+    manager.async_create_or_join.assert_awaited_once()
+    assert manager.async_create_or_join.await_args.args[1].release_tag == rc.tag
+
+
+async def test_same_version_at_different_bytes_is_not_overwritten(
+    hass: HomeAssistant,
+) -> None:
+    """Version text never substitutes for byte identity on the adopt path."""
+    installed = replace(CANDIDATE, state=InstallTargetState.MIGRATION_CANDIDATE)
+    manager = _manager_for(_receipt(InstallPhase.APPROVED))
+    rc = _rc_release()
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
+            AsyncMock(return_value=manager),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+            AsyncMock(side_effect=CannotConnectError),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_probe_install_target",
+            AsyncMock(side_effect=[installed, installed]),
+        ),
+        patch(
+            "custom_components.panel_assistant.release_catalog.async_resolve_rc_release",
+            AsyncMock(return_value=rc),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_adb_credential",
+            AsyncMock(return_value=CREDENTIAL),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_durable_adb_credential",
+            AsyncMock(return_value=CREDENTIAL),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_preflight_install",
+            AsyncMock(
+                return_value=SimpleNamespace(
+                    target_installed=True, root_mode=AdbRootMode.ROOTLESS
+                )
+            ),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_installed_artifact_size",
+            AsyncMock(return_value=None),
+        ),
+    ):
+        form = await _start_step(hass, "add_panel")
+        choose = await hass.config_entries.flow.async_configure(
+            form["flow_id"], {CONF_ADDRESS: "panel.local"}
+        )
+        preview = await _choose_version(hass, choose, rc.tag)
+        result = await hass.config_entries.flow.async_configure(preview["flow_id"], {})
+
+    assert result["step_id"] == "confirm_install_rc"
+    assert result["errors"] == {"base": "installed_artifact_mismatch"}
     manager.async_create_or_join.assert_not_awaited()
 
 
@@ -3398,17 +3532,31 @@ async def test_no_target_state_can_fall_through_to_a_generic_refusal(
             assert result["errors"] != {"base": "unknown"}, state.value
 
 
-async def test_an_old_app_panel_is_never_offered_a_second_app_by_the_config_flow(
+async def test_a_silent_old_app_is_not_given_a_different_package(
     hass: HomeAssistant,
 ) -> None:
-    """Installing beside a silent old app would strand the panel part-migrated.
-
-    The successor pulls its state from the old app over localhost before taking
-    over. This route probes only after health has already failed, so the old
-    app cannot answer and has nothing to hand over.
-    """
-    release_mock = AsyncMock(return_value=RELEASE)
+    """A chosen successor cannot adopt silent legacy bytes or install beside them."""
+    installed = replace(CANDIDATE, state=InstallTargetState.MIGRATION_CANDIDATE)
+    successor_apk = "panel-assistant-v0.9.7-manual-setup-required.apk"
+    successor = replace(
+        RELEASE,
+        apk_name=successor_apk,
+        descriptor=replace(
+            DESCRIPTOR,
+            apk_name=successor_apk,
+            package_id="io.panelassistant.android",
+            launch_component=(
+                "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity"
+            ),
+        ),
+    )
+    manager = _manager_for(_receipt(InstallPhase.APPROVED))
+    bytes_mock = AsyncMock()
     with (
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
+            AsyncMock(return_value=manager),
+        ),
         patch(
             "custom_components.panel_assistant.config_flow"
             ".HaPaneldClient.async_get_health",
@@ -3416,22 +3564,45 @@ async def test_an_old_app_panel_is_never_offered_a_second_app_by_the_config_flow
         ),
         patch(
             "custom_components.panel_assistant.config_flow.async_probe_install_target",
-            AsyncMock(return_value=_probe("migration_candidate")),
+            AsyncMock(side_effect=[installed, installed]),
         ),
         patch(
             "custom_components.panel_assistant.release_catalog"
             ".async_resolve_stable_release",
-            release_mock,
+            AsyncMock(return_value=successor),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_adb_credential",
+            AsyncMock(return_value=CREDENTIAL),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_durable_adb_credential",
+            AsyncMock(return_value=CREDENTIAL),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_preflight_install",
+            AsyncMock(
+                return_value=SimpleNamespace(
+                    target_installed=False, root_mode=AdbRootMode.ROOTLESS
+                )
+            ),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_installed_artifact_size",
+            bytes_mock,
         ),
     ):
         form = await _start_step(hass, "add_panel")
-        result = await hass.config_entries.flow.async_configure(
+        choose = await hass.config_entries.flow.async_configure(
             form["flow_id"], {CONF_ADDRESS: "panel.local"}
         )
+        preview = await _choose_version(hass, choose)
+        result = await hass.config_entries.flow.async_configure(preview["flow_id"], {})
 
+    assert preview["step_id"] == "confirm_install_candidate"
     assert result["errors"] == {"base": "installed_without_health"}
-    # No version was even looked up: nothing about this panel is installable.
-    release_mock.assert_not_awaited()
+    bytes_mock.assert_not_awaited()
+    manager.async_create_or_join.assert_not_awaited()
     assert not hass.config_entries.async_entries(DOMAIN)
 
 
@@ -3446,7 +3617,11 @@ async def test_the_authorization_retry_also_names_every_state_it_can_see(
     invisible in the same way.
     """
     for state in InstallTargetState:
-        if state is InstallTargetState.INSTALL_CANDIDATE:
+        if state in {
+            InstallTargetState.INSTALL_CANDIDATE,
+            InstallTargetState.INSTALLED,
+            InstallTargetState.MIGRATION_CANDIDATE,
+        }:
             continue
         probe_mock = AsyncMock(
             side_effect=[_probe("adb_unauthorized"), _probe(state.value)]
@@ -3485,8 +3660,6 @@ async def test_the_authorization_retry_also_names_every_state_it_can_see(
 
         assert result["step_id"] == "authorize_adb", state.value
         assert result["errors"] != {"base": "unknown"}, state.value
-        if state is InstallTargetState.MIGRATION_CANDIDATE:
-            assert result["errors"] == {"base": "installed_without_health"}
 
 
 async def test_adopting_a_panel_mid_setup_tells_it_where_home_assistant_is(

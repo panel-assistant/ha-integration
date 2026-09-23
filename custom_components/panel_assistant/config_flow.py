@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import logging
 import unicodedata
+from dataclasses import replace
 from typing import Any
 
 import voluptuous as vol
@@ -62,6 +63,8 @@ from .install_adb import (
     AdbRootMode,
     InstallAdbError,
     InstallAdbErrorCode,
+    async_installed_artifact_size,
+    async_preflight_install,
     async_verify_installed_target,
 )
 from .install_executor import InstallExecutor, async_get_install_executor
@@ -82,7 +85,11 @@ from .install_network import (
     async_revalidate_install_target,
 )
 from .install_plan import InstallPlanError, build_install_plan
-from .provisioning import InstallTargetProbe, async_probe_install_target
+from .provisioning import (
+    InstallTargetProbe,
+    InstallTargetState,
+    async_probe_install_target,
+)
 from .release import (
     ReleaseArtifact,
     ReleaseResolutionError,
@@ -609,12 +616,17 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return self._show_add_panel_form(user_input, {"base": "unknown"})
 
         state = probe.state.value
-        if state == "install_candidate" and (
+        if state in ("install_candidate", "installed", "migration_candidate") and (
             _install_candidate_placeholders(probe) is None
         ):
             state = "retained_or_ambiguous"
-        if state in ("adb_unauthorized", "install_candidate"):
-            self._pending_probe = probe if state == "install_candidate" else None
+        if state in (
+            "adb_unauthorized",
+            "install_candidate",
+            "installed",
+            "migration_candidate",
+        ):
+            self._pending_probe = probe if state != "adb_unauthorized" else None
             self._pending_probe_state = state
             return await self.async_step_choose_version()
         if state == "adb_unreachable":
@@ -625,14 +637,6 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             )
         else:
             errors["base"] = {
-                "installed": "installed_without_health",
-                # This branch is only reached because health failed, so a panel
-                # still running the old app is an installed panel that is not
-                # answering — the same diagnostic, and the same fix. It is not
-                # a migration opportunity: the successor pulls its state from
-                # the old app over localhost, so an old app that cannot answer
-                # has nothing to hand over.
-                "migration_candidate": "installed_without_health",
                 "retained_or_ambiguous": "retained_or_ambiguous",
                 "incompatible": "incompatible",
             }.get(state, "unknown")
@@ -769,21 +773,18 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         state = probe.state.value
         if state == "adb_unauthorized":
             return self._show_authorize_adb({"base": "adb_still_unauthorized"})
-        if state == "install_candidate":
+        if state in ("install_candidate", "installed", "migration_candidate"):
             placeholders = _install_candidate_placeholders(probe)
             if placeholders is None:
                 return self.async_abort(reason="unknown")
             self._pending_probe = probe
+            self._pending_probe_state = state
             return self._show_install_candidate_preview()
 
         return self._show_authorize_adb(
             {
                 "base": {
                     "adb_unreachable": "adb_unreachable",
-                    "installed": "installed_without_health",
-                    # As above: reached only after health failed, so the old app
-                    # is installed and silent rather than ready to hand over.
-                    "migration_candidate": "installed_without_health",
                     "retained_or_ambiguous": "retained_or_ambiguous",
                     "incompatible": "incompatible",
                 }.get(state, "unknown")
@@ -847,10 +848,52 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             _LOGGER.exception("Unexpected exception while confirming installation")
             return self._show_install_candidate_preview({"base": "unknown"})
 
-        if not _same_install_candidate(self._pending_probe, probe):
+        if not _same_install_target(self._pending_probe, probe):
             return self._show_install_candidate_preview(
                 {"base": "install_candidate_changed"}
             )
+
+        if probe.state in {
+            InstallTargetState.INSTALLED,
+            InstallTargetState.MIGRATION_CANDIDATE,
+        }:
+            assert probe.serial is not None
+            assert probe.model is not None
+            assert probe.primary_abi is not None
+            assert probe.android_sdk is not None
+            adb_target = AdbInstallTarget(
+                address=target.pinned,
+                serial=probe.serial,
+                model=probe.model,
+                primary_abi=probe.primary_abi,
+                android_sdk=probe.android_sdk,
+            )
+            try:
+                observed = await async_preflight_install(
+                    adb_target,
+                    credential.signer,
+                    self._pending_release.descriptor,
+                    admit_installed_target=True,
+                )
+                if not observed.target_installed:
+                    return self._show_install_candidate_preview(
+                        {"base": "installed_without_health"}
+                    )
+                installed_bytes = await async_installed_artifact_size(
+                    adb_target,
+                    credential.signer,
+                    self._pending_release.descriptor,
+                    expected_root_mode=observed.root_mode,
+                )
+            except InstallAdbError:
+                return self._show_install_candidate_preview(
+                    {"base": "installed_without_health"}
+                )
+            if installed_bytes is None:
+                return self._show_install_candidate_preview(
+                    {"base": "installed_artifact_mismatch"}
+                )
+            probe = replace(probe, installed_artifact_size=installed_bytes)
 
         try:
             plan = build_install_plan(
@@ -1563,7 +1606,7 @@ def _markdown_literal(value: str) -> str:
 def _install_candidate_placeholders(
     probe: InstallTargetProbe,
 ) -> dict[str, str] | None:
-    """Return facts for a package-absent candidate, or refuse an incomplete one."""
+    """Return complete physical facts for a clean or installed target."""
     if (
         probe.model is None
         or probe.serial is None
@@ -1579,12 +1622,22 @@ def _install_candidate_placeholders(
     }
 
 
-def _same_install_candidate(
+def _same_install_target(
     expected: InstallTargetProbe, observed: InstallTargetProbe
 ) -> bool:
-    """Require the complete read-only target identity to remain exact."""
+    """Require physical identity and a safe clean-or-adopt state to remain exact."""
     return (
-        observed.state.value == "install_candidate"
+        observed.state
+        in {
+            InstallTargetState.INSTALL_CANDIDATE,
+            InstallTargetState.INSTALLED,
+            InstallTargetState.MIGRATION_CANDIDATE,
+        }
+        and not (
+            expected.state
+            in {InstallTargetState.INSTALLED, InstallTargetState.MIGRATION_CANDIDATE}
+            and observed.state is InstallTargetState.INSTALL_CANDIDATE
+        )
         and _install_candidate_placeholders(observed) is not None
         and observed.serial == expected.serial
         and observed.model == expected.model

@@ -49,7 +49,7 @@
       },
       "choose_version": {
         "title": "Version wählen",
-        "description": "ha-paneld ist auf {address} noch nicht installiert. Wähle die zu installierende Version. Testversionen können Fehler enthalten.",
+        "description": "ha-paneld antwortet auf {address} nicht. Wähle die Version, die auf dem Panel ausgeführt werden soll. Testversionen können Fehler enthalten.",
         "data": {
           "release_candidate": "Version"
         }
@@ -71,12 +71,12 @@
         "description": "Das ausgewählte Release enthält eine verifizierte Installationsbeschreibung. Wähle einmal „Absenden“, um eine dauerhafte ADB-Identität für diese Home Assistant-Installation zu erstellen oder zu laden und dem Android-Panel unter {address} ihren öffentlichen Schlüssel anzubieten. Bestätige auf dem Panel die Android-Aufforderung „Debugging zulassen“. Kehre dann hierher zurück und wähle erneut „Absenden“. Android bezeichnet Home Assistant möglicherweise als Computer. Die Bestätigung gewährt allgemeinen Zugriff auf die ADB-Shell, solange Netzwerk-Debugging aktiviert bleibt. Widerrufe sie in den Entwicklereinstellungen des Panels. In diesem Schritt wird keine APK heruntergeladen oder installiert."
       },
       "confirm_install_candidate": {
-        "title": "Erstinstallation bestätigen",
-        "description": "Auf dem Panel ist kein ha-paneld-Paket installiert oder zurückbehalten. Prüfe das Gerät und das verifizierte stabile Release:\n\n- Adresse: {address}\n- Modell: {model}\n- Seriennummer: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Version: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nMit Absenden wird das Panel erneut geprüft. Danach wird exakt dieses Release heruntergeladen, verifiziert, installiert, gestartet und auf Funktionsfähigkeit geprüft. Eine vorhandene Installation wird weder überschrieben noch aktualisiert.\n\nNachdem Home Assistant das Gerät hinzugefügt hat, wähle auf dem Panel die Einrichtung aus, um die geführte Einrichtung von ha-paneld abzuschließen. Die Installation konfiguriert das Dashboard nicht."
+        "title": "Installation oder Wiederherstellung bestätigen",
+        "description": "Prüfe das Gerät und das verifizierte stabile Release:\n\n- Adresse: {address}\n- Modell: {model}\n- Seriennummer: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Version: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nMit Absenden wird das Panel erneut geprüft; sind exakt diese Bytes bereits installiert, werden sie übernommen, andernfalls werden sie auf einem sauberen Panel heruntergeladen, verifiziert, installiert, gestartet und auf Funktionsfähigkeit geprüft. Eine Installation mit anderen Bytes wird weder überschrieben noch aktualisiert.\n\nNachdem Home Assistant das Gerät hinzugefügt hat, wähle auf dem Panel die Einrichtung aus, um die geführte Einrichtung von ha-paneld abzuschließen. Die Installation konfiguriert das Dashboard nicht."
       },
       "confirm_install_rc": {
         "title": "Installation des Release Candidate bestätigen",
-        "description": "Nur für Tests: Dies ist ein Release Candidate, kein stabiles Release, und kann Fehler enthalten.\n\nAuf dem Panel ist kein ha-paneld-Paket installiert oder zurückbehalten. Prüfe das Gerät und den verifizierten Release Candidate:\n\n- Adresse: {address}\n- Modell: {model}\n- Seriennummer: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Version: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nMit Absenden wird exakt dieser Kandidat autorisiert und das Panel erneut geprüft. Danach wird exakt dieses Release heruntergeladen, verifiziert, installiert, gestartet und auf Funktionsfähigkeit geprüft. Eine vorhandene Installation wird weder überschrieben noch aktualisiert.\n\nNachdem Home Assistant das Gerät hinzugefügt hat, wähle auf dem Panel die Einrichtung aus, um die geführte Einrichtung von ha-paneld abzuschließen. Die Installation konfiguriert das Dashboard nicht."
+        "description": "Nur für Tests: Dies ist ein Release Candidate, kein stabiles Release, und kann Fehler enthalten.\n\nPrüfe das Gerät und den verifizierten Release Candidate:\n\n- Adresse: {address}\n- Modell: {model}\n- Seriennummer: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Version: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nMit Absenden wird exakt dieser Kandidat autorisiert und das Panel erneut geprüft; sind exakt diese Bytes bereits installiert, werden sie übernommen, andernfalls werden sie auf einem sauberen Panel heruntergeladen, verifiziert, installiert, gestartet und auf Funktionsfähigkeit geprüft. Eine Installation mit anderen Bytes wird weder überschrieben noch aktualisiert.\n\nNachdem Home Assistant das Gerät hinzugefügt hat, wähle auf dem Panel die Einrichtung aus, um die geführte Einrichtung von ha-paneld abzuschließen. Die Installation konfiguriert das Dashboard nicht."
       },
       "release_preview_only": {
         "title": "Release kann nicht automatisch installiert werden",
@@ -110,6 +110,7 @@
       "cannot_resolve_release": "Ein Installationskandidat wurde gefunden, aber Home Assistant konnte das ausgewählte ha-paneld-Release nicht auflösen und verifizieren. Es wurde keine APK heruntergeladen oder installiert. Prüfe den Internetzugang und bei einem Test mit einem Release Candidate, ob das exakte Tag mit seinen signierten Artefakten veröffentlicht wurde. Es wird kein anderes Release verwendet.",
       "invalid_release_candidate": "Wähle eine Version aus der Liste.",
       "install_candidate_changed": "Die Panelidentität oder der saubere Paketzustand hat sich nach der Vorschau geändert. Es wurde kein Installationsauftrag erstellt. Prüfe das Panel und beginne danach erneut.",
+      "installed_artifact_mismatch": "Die installierte App ist nicht bytegleich mit dem gewählten Release, deshalb hat Home Assistant sie nicht überschrieben; wähle ihr exaktes Release oder folge der Anleitung zur sicheren Bereitstellung und Wiederherstellung.",
       "install_plan_rejected": "Das Panel und das signierte Release konnten nicht zu einem sicheren Installationsplan verknüpft werden. Es wurde kein Installationsauftrag erstellt.",
       "install_job_conflict": "Ein anderer Installationsauftrag beansprucht bereits diese Panelidentität. Es wurde kein zweiter Auftrag erstellt.",
       "install_receipt_error": "Home Assistant konnte den Installationsbeleg nicht sicher laden oder dauerhaft speichern. Es wurde keine neue Aktion am Panel autorisiert.",
