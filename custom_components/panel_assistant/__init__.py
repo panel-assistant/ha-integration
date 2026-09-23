@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS, Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
@@ -20,7 +20,11 @@ from .build_feed import BuildFeedError, normalize_feed_url
 from .client import HaPaneldClient, normalize_address
 from .const import DOMAIN
 from .coordinator import HaPaneldDataUpdateCoordinator
-from .cutover import async_apply_cutover, async_release_removed_entry
+from .cutover import (
+    async_apply_cutover,
+    async_release_removed_entry,
+    cutover_reconciliation_needed,
+)
 from .embed import (
     REASON_ENTRY_UNLOADED as EMBED_ENTRY_UNLOADED,
 )
@@ -124,9 +128,37 @@ class HaPaneldRuntimeData:
     # authority reloads the entry, so its cutover runs; writes to the entry's
     # data, as binding and the cutover record make, do not.
     authority: str = DEFAULT_AUTHORITY
+    # Set only when forward migration was deferred because initial health was
+    # unavailable. The first successful publication consumes it before asking
+    # for one lifecycle reload, so a failed cutover cannot become a reload loop.
+    cutover_reconciliation_pending: bool = False
 
 
 type HaPaneldConfigEntry = ConfigEntry[HaPaneldRuntimeData]
+
+
+@callback
+def _async_request_cutover_reconciliation(
+    hass: HomeAssistant,
+    entry: HaPaneldConfigEntry,
+    runtime_data: HaPaneldRuntimeData,
+) -> None:
+    """Reload once when health makes a deferred ownership move actionable."""
+    if (
+        getattr(entry, "runtime_data", None) is not runtime_data
+        or not runtime_data.cutover_reconciliation_pending
+        or runtime_data.coordinator.data is None
+    ):
+        return
+    # Re-read requested authority before acting. A person may have cancelled
+    # the pending native move while health was unavailable.
+    runtime_data.cutover_reconciliation_pending = False
+    if not cutover_reconciliation_needed(hass, entry):
+        return
+    hass.async_create_task(
+        hass.config_entries.async_reload(entry.entry_id),
+        f"reconcile {DOMAIN} ownership after health recovered",
+    )
 
 
 async def _async_resume_install_jobs(hass: HomeAssistant) -> None:
@@ -229,6 +261,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     # repairs the address. The entities load unavailable and become available
     # on the first answer from either side.
     await coordinator.async_refresh()
+    initial_health_unavailable = coordinator.data is None
     update_coordinator = PanelUpdateCoordinator(hass, client)
     await update_coordinator.async_config_entry_first_refresh()
 
@@ -243,7 +276,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     platforms = list(PLATFORMS)
     if native_entities_enabled(hass):
         platforms.extend(NATIVE_ONLY_PLATFORMS)
-    entry.runtime_data = HaPaneldRuntimeData(
+    runtime_data = entry.runtime_data = HaPaneldRuntimeData(
         client=client,
         coordinator=coordinator,
         update_coordinator=update_coordinator,
@@ -254,6 +287,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     # Before any platform loads, so no entity of this entry is loaded, and
     # before the update listener, so the record's writes reload nothing.
     await async_apply_cutover(hass, entry)
+    runtime_data.cutover_reconciliation_pending = (
+        initial_health_unavailable and cutover_reconciliation_needed(hass, entry)
+    )
     async_start_guards(hass, entry)
     entry.async_on_unload(coordinator.async_follow_session())
     entry.async_on_unload(
@@ -268,6 +304,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     )
     entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
     await hass.config_entries.async_forward_entry_setups(entry, platforms)
+    # Register last so this coordinator listener is removed first on unload,
+    # even when a later teardown callback fails.
+    entry.async_on_unload(
+        coordinator.async_add_listener(
+            lambda: _async_request_cutover_reconciliation(hass, entry, runtime_data)
+        )
+    )
     return True
 
 

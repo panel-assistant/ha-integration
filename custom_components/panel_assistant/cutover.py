@@ -566,6 +566,21 @@ type _Transaction = Callable[
 ]
 
 
+def cutover_reconciliation_needed(
+    hass: HomeAssistant, entry: HaPaneldConfigEntry
+) -> bool:
+    """Return whether requested authority and applied ownership disagree.
+
+    This is deliberately not the MQTT withdrawal decision. A completed native
+    move can still keep discovery announced while customised MQTT entities stay
+    behind, without needing another move.
+    """
+    record = cutover_record(entry)
+    if effective_authority(hass, entry) == AUTHORITY_NATIVE:
+        return record is None or record.get(CUTOVER_STATE) != CUTOVER_COMPLETE
+    return record is not None
+
+
 async def async_apply_cutover(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> None:
     """Move the panel's entities the way the entry's authority says, once.
 
@@ -573,26 +588,26 @@ async def async_apply_cutover(hass: HomeAssistant, entry: HaPaneldConfigEntry) -
     picked up by the next setup. Nothing happens when the record already
     agrees with the authority.
     """
-    snapshot: PanelSnapshot | None = entry.runtime_data.coordinator.data
-    if snapshot is None:
-        # The stored address has not answered since the entry loaded, so the
-        # panel's identity and MQTT entities are unknown. The next setup
-        # runs the move, as it does after any other interruption.
-        return
     record = cutover_record(entry)
     native = effective_authority(hass, entry) == AUTHORITY_NATIVE
     transaction: _Transaction
-    if native and (record is None or record.get(CUTOVER_STATE) != CUTOVER_COMPLETE):
+    if not cutover_reconciliation_needed(hass, entry):
+        if native:
+            # The move is done; only what still holds the withdrawal back is
+            # reported again, since a restart forgets the issue.
+            _report_blocking(hass, entry)
+        return
+    snapshot: PanelSnapshot | None = entry.runtime_data.coordinator.data
+    if native and snapshot is None:
+        # Forward migration needs the panel identity and MQTT prefix from
+        # health. The loaded entry asks for one bounded lifecycle retry when
+        # health first recovers; reversal needs only the existing journal.
+        return
+    if native:
         transaction = _async_forward
-    elif not native and record is not None:
-        transaction = partial(_async_reverse, write=entry_record_writer(hass, entry))
-    elif native:
-        # The move is done; only what still holds the withdrawal back is
-        # reported again, since a restart forgets the issue.
-        _report_blocking(hass, entry)
-        return
     else:
-        return
+        assert record is not None
+        transaction = partial(_async_reverse, write=entry_record_writer(hass, entry))
     working: dict[str, Any] = {} if record is None else deepcopy(dict(record))
     try:
         await transaction(hass, entry, working)
