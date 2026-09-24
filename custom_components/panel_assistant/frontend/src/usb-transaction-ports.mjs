@@ -11,7 +11,8 @@ import { readUsbHealth } from './usb-health.mjs';
 import { buildPermissionRead, parsePermissionRead, buildPermissionGrant, parsePermissionGrant,
   buildPermissionVerification, parsePermissionVerification } from './permission-contract.mjs';
 import { verifyStagedPrefix } from './staged-prefix.mjs';
-import { buildPrefixCleanup, parsePrefixCleanup } from './cleanup-contract.mjs';
+import { buildPrefixCleanup, parsePrefixCleanup, buildSetAsideRemoval,
+  parseSetAsideRemoval } from './cleanup-contract.mjs';
 import { TransactionError } from './transaction.mjs';
 
 const nonce = () => [...crypto.getRandomValues(new Uint8Array(16))].map(v => v.toString(16).padStart(2, '0')).join('');
@@ -130,6 +131,16 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
       parsePrefixCleanup(await readShell(adb, buildPrefixCleanup(n, receipt.id, observation),
         {timeoutMs: 30000}), n);
       binding(receipt, release);
+    }),
+    // The staged copy of a job set aside at preview, on this same panel. The
+    // caller holds the device lock and has already let that job's record go.
+    removeSetAside: protect(async (jobId, target, release) => {
+      await posture({ target }, release);
+      const n = nonce();
+      const result = parseSetAsideRemoval(await readShell(adb, buildSetAsideRemoval(n, jobId),
+        { timeoutMs: 30000 }), n);
+      binding({ target }, release);
+      return result;
     }),
     stage: protect(async (receipt, release) => {
       if (receipt.phase !== 'staging') fail('transaction_invalid');

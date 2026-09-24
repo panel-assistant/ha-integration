@@ -14,7 +14,7 @@ const canonical = value => JSON.stringify(value, Object.keys(value).sort());
 // The caller supplies actual usb-transaction-ports, storage, and a session guard.
 // No jobs or mutations are created during preview. No receipt deletion exists.
 export function createInstallController({ store, ports, locks = globalThis.navigator?.locks,
-  ensureCurrent = () => {}, onReceipt = () => {} }) {
+  ensureCurrent = () => {}, onReceipt = () => {}, onSetAside = () => {} }) {
   let preview, expectedJobId, busy = false;
   const guard = () => { ensureCurrent(); };
   // Grant the app its permissions under the device lock, from a healthy job
@@ -49,6 +49,9 @@ export function createInstallController({ store, ports, locks = globalThis.navig
         if (release?.kind !== 'authenticated-apk-bytes') fail('artifact_changed');
         let receipt = await store.load(deviceKey);
         let discarded = null;
+        // The job whose record the preview lets go. Its staged copy is left
+        // for the Install press, which removes it before the new job exists.
+        let setAside = null;
         if (receipt?.phase === 'healthy') {
           // A finished job only resumes (permissions, then setup) while the
           // panel still runs exactly its app. If another release was chosen,
@@ -87,6 +90,7 @@ export function createInstallController({ store, ports, locks = globalThis.navig
                 await store.discard(deviceKey, stalled.revision);
               });
             guard();
+            setAside = Object.freeze({ jobId: stalled.id, phase: stalled.phase });
             receipt = null;
           }
         }
@@ -108,6 +112,7 @@ export function createInstallController({ store, ports, locks = globalThis.navig
           guard();
           discarded = Object.freeze({ versionName: stale.artifact.versionName,
             versionCode: stale.artifact.versionCode, releaseTag: stale.artifact.releaseTag });
+          setAside = Object.freeze({ jobId: stale.id, phase: stale.phase });
           receipt = null;
         }
         // Actual ports validate the live target and installed/clean state. A
@@ -128,7 +133,7 @@ export function createInstallController({ store, ports, locks = globalThis.navig
         else if (!adopt) await ports.inspect(proposed, release);
         guard();
         preview = Object.freeze({ target: snapshot, descriptor: release.descriptor, deviceKey,
-          receipt, adopt, discarded });
+          receipt, adopt, discarded, setAside });
         expectedJobId = receipt?.id;
         return preview;
       } finally { busy = false; }
@@ -154,6 +159,21 @@ export function createInstallController({ store, ports, locks = globalThis.navig
         if (receipt && (!selected.receipt || receipt.id !== selected.receipt.id)) fail('job_conflict');
         if (!receipt) {
           if (selected.receipt) fail('transaction_missing');
+          // Up to 64 MiB of a set-aside job can sit in /data/local/tmp, and
+          // its release bytes went with the job. Only its own path is asked
+          // about, under the lock and while no saved job carries its id.
+          if (selected.setAside) {
+            const { jobId, phase } = selected.setAside;
+            const outcome = await locks.request(`ha-paneld-usb:${selected.deviceKey}`,
+              {mode: 'exclusive', ifAvailable: true}, async lock => {
+                if (!lock) fail('transaction_busy');
+                guard();
+                if ((await store.load(selected.deviceKey))?.id === jobId) fail('job_conflict');
+                return ports.removeSetAside(jobId, selected.target, release);
+              });
+            guard();
+            onSetAside(Object.freeze({ jobId, phase, outcome }));
+          }
           receipt = selected.adopt ? await store.adopt(selected.target, release.descriptor)
             : await store.create(selected.target, release.descriptor);
         }

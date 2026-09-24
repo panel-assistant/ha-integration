@@ -239,6 +239,8 @@ connect.addEventListener('click', async () => {
           const { stepKey, percent } = installProgress(receipt);
           progress(stepKey, percent);
         },
+        // Support detail only: a leftover copy is never the person's problem.
+        onSetAside(value) { support('Earlier copy', value); },
       });
       const preview = await controller.preview(target).catch(noteFailure);
       ensureCurrent();
