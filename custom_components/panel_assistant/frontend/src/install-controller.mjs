@@ -181,9 +181,6 @@ export function createInstallController({ store, ports, locks = globalThis.navig
         guard(); onReceipt(result); return result;
       } finally {busy = false;}
     },
-    async observeSetup() {
-      return setupOperation((receipt, release) => ports.setup(receipt, release));
-    },
     async commissionPermissions(confirmed = false) {
       if (confirmed !== true) fail('confirmation_required');
       return setupOperation((receipt, release) => ports.commissionPermissions(receipt, release));

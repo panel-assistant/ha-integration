@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PANEL_HTTP_SERVICE } from '../src/panel-http.mjs';
 import { readUsbHealth } from '../src/usb-health.mjs';
-import { readUsbSetup } from '../src/usb-setup.mjs';
 
 // A panel whose adbd only accepts the NUL-terminated form, as hall-class adbd does.
 function strictPanel(response) {
@@ -32,12 +31,6 @@ test('the app port is opened NUL-terminated, the way host adb opens it', () => {
 test('the health read reaches a panel that refuses an unterminated service name', async () => {
   const adb = strictPanel(ok(health));
   assert.equal(await readUsbHealth(adb, { versionName: '1.2.3' }, { quarantine: () => {} }), true);
-  assert.deepEqual(adb.opened, [PANEL_HTTP_SERVICE]);
-});
-
-test('the setup read opens the same service as the health read', async () => {
-  const adb = strictPanel(ok('{}'));
-  await readUsbSetup(adb, { quarantine: () => {} }).catch(() => {});
   assert.deepEqual(adb.opened, [PANEL_HTTP_SERVICE]);
 });
 

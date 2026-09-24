@@ -14,7 +14,7 @@ async function fixture() {
   let grant = async () => {grants++; return {permissionsVerified: true};};
   const controller = createInstallController({store: {load: async () => receipt},
     ports: {authenticate: async () => release, inspect: async () => ({installed: true}),
-      commissionPermissions: async (...args) => grant(...args), setup: async () => ({reportedComplete: false})},
+      commissionPermissions: async (...args) => grant(...args)},
     ensureCurrent: () => {if (!current) throw new Error('session_closed');},
     locks: {request: async (name, options, callback) => {
       assert.match(name, /^ha-paneld-usb:[a-f0-9]{64}$/);
@@ -56,11 +56,9 @@ test('permission mutation holds controller lock against read, preview or concurr
   const first = f.controller.commissionPermissions(true);
   await running;
   await assert.rejects(f.controller.commissionPermissions(true), /transaction_busy/);
-  await assert.rejects(f.controller.observeSetup(), /transaction_busy/);
   await assert.rejects(f.controller.preview(target), /transaction_busy/);
   finish({permissionsVerified: true});
   await first;
-  assert.deepEqual(await f.controller.observeSetup(), {reportedComplete: false});
 });
 
 test('permissions are granted only by the Install press, after the app is healthy', () => {
