@@ -63,6 +63,7 @@ class _Entry:
     rc_tag: str | None
     expires: float
     leases: int = 0
+    served: bool = False
     retiring: bool = False
 
 
@@ -115,6 +116,20 @@ class BrowserReleaseCache:
             if not entry.leases and (self._closed or entry.expires <= monotonic()):
                 await self._cleanup(bundle_id)
 
+    async def _evict(self) -> None:
+        """Free one unleased slot, preferring bundles already served, oldest first.
+
+        The handoff keeps a served APK in browser memory and every new handoff
+        prepares again, so an idle entry is only a cache hit, never custody.
+        """
+        idle = [
+            (not entry.served, entry.expires, bundle_id)
+            for bundle_id, entry in self._entries.items()
+            if not entry.leases and not entry.retiring
+        ]
+        if idle:
+            await self._cleanup(min(idle)[2])
+
     async def async_prepare(
         self, user_id: str, *, rc_tag: str | None = None
     ) -> BrowserReleaseRecord:
@@ -145,6 +160,8 @@ class BrowserReleaseCache:
                     ) from None
                 self._initialized = True
             await _finish_cleanup(self._reap())
+            if len(self._entries) >= _CAPACITY:
+                await _finish_cleanup(self._evict())
             if len(self._entries) >= _CAPACITY:
                 raise BrowserReleaseCacheError(BrowserReleaseCacheErrorCode.BUSY)
             reservation = secrets.token_hex(16)
@@ -193,6 +210,7 @@ class BrowserReleaseCache:
         ):
             raise BrowserReleaseCacheError(BrowserReleaseCacheErrorCode.NOT_FOUND)
         entry.leases += 1
+        entry.served = True
         try:
             yield entry.record
         finally:
