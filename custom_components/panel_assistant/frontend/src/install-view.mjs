@@ -55,6 +55,8 @@ const ERRORS = Object.freeze({
   shell_timeout: 'installErrorConnection',
   shell_cleanup_failed: 'installErrorConnection',
   health_unavailable: 'installErrorHealth',
+  install_incomplete: 'installErrorHealth',
+  permissions_unverified: 'installErrorHealth',
   health_malformed: 'installErrorHealth',
 });
 
