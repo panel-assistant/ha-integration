@@ -37,7 +37,7 @@ SCHEMAS = {
 }
 
 _HA_VECTOR_REVISION = "f8f3bc883ebfa82ac957706dad363be4b42a1010"
-_ANDROID_PRODUCER_REVISION = "a2951a1a3db623d02d75484363143d3d29b1563c"
+_ANDROID_PRODUCER_REVISION = "53a19b4dfeb4f114f0196793c921cb06c2fcea2c"
 
 
 def test_shared_vectors_name_the_ha_source_revision_vendored_by_android() -> None:
@@ -96,6 +96,8 @@ def test_real_android_transport_messages_pass_ha_schemas(
             (INTEGRATION / "panel_assistant_transport_v1.json").read_bytes()
         ).hexdigest()
         assert message["contract_digest"] != local_digest
+        # The channels the producer states it cannot serve reach the handler.
+        assert validated["unsupported"] == message.get("unsupported", [])
 
 
 def _descriptor(entry: dict[str, Any], index: int = 1) -> dict[str, Any]:
