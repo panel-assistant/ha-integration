@@ -687,6 +687,106 @@ async def test_advertisement_never_moves_a_panel_whose_address_still_answers(
     assert entry.runtime_data.client.address.host == STORED
 
 
+# A LAN host replaying the panel's public identity and health line.
+REPLAY = "192.0.2.66"
+
+
+async def _advertise(hass: HomeAssistant, host: str) -> Any:
+    """Deliver one advertisement for the panel from a host that answers as it."""
+    with (
+        patch.object(
+            HaPaneldClient, "async_get_health", AsyncMock(return_value=HEALTH)
+        ),
+        patch.object(
+            HaPaneldClient, "async_get_status", AsyncMock(return_value=STATUS)
+        ),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=_advertisement(host),
+        )
+        await hass.async_block_till_done()
+    return result
+
+
+async def test_one_failed_poll_does_not_let_an_advertisement_move_a_connected_panel(
+    hass: HomeAssistant,
+    hass_read_only_user: Any,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """A replayed advertisement never takes the address of a panel talking to Core."""
+    entry = await _load(hass, hass_read_only_user.id, unique_id=DID)
+    await _connect(hass, hass_ws_client, hass_read_only_access_token, entry, None)
+    await _poll(hass, entry, {STORED: CannotConnectError()})
+    assert not entry.runtime_data.coordinator.last_update_success
+
+    result = await _advertise(hass, REPLAY)
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert entry.data[CONF_ADDRESS] == STORED
+    assert entry.runtime_data.client.address.host == STORED
+    # Refused, not silent: the stored address is reported, and the panel
+    # stays available on its session.
+    issue = _issue(hass, entry)
+    assert issue is not None
+    assert issue.translation_key == ISSUE_PANEL_ADDRESS_UNREACHABLE
+    assert _state(hass, STATUS_ENTITY) != STATE_UNAVAILABLE
+
+
+async def test_a_connected_panel_is_moved_by_its_session_not_by_an_advertisement(
+    hass: HomeAssistant,
+    hass_read_only_user: Any,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """The credentialed session repairs the address; an advertisement cannot."""
+    entry = await _load(hass, hass_read_only_user.id, unique_id=DID)
+    await _connect(hass, hass_ws_client, hass_read_only_access_token, entry, MOVED)
+    # The panel's web server has not answered at its new address yet.
+    await _poll(
+        hass, entry, {STORED: CannotConnectError(), MOVED: CannotConnectError()}
+    )
+    issue = _issue(hass, entry)
+    assert issue is not None
+    assert issue.translation_key == ISSUE_PANEL_ADDRESS_UNVERIFIED
+
+    await _advertise(hass, REPLAY)
+    assert entry.data[CONF_ADDRESS] == STORED
+
+    await _poll(
+        hass,
+        entry,
+        {STORED: CannotConnectError(), MOVED: HEALTH, REPLAY: HEALTH},
+    )
+    assert entry.data[CONF_ADDRESS] == MOVED
+    assert entry.runtime_data.client.address.host == MOVED
+    assert _issue(hass, entry) is None
+
+
+async def test_an_advertisement_moves_a_panel_again_once_its_session_has_closed(
+    hass: HomeAssistant,
+    hass_read_only_user: Any,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """Only a live session holds the address; a closed one leaves mDNS to repair it."""
+    entry = await _load(hass, hass_read_only_user.id, unique_id=DID)
+    client = await _connect(
+        hass, hass_ws_client, hass_read_only_access_token, entry, None
+    )
+    await _poll(hass, entry, {STORED: CannotConnectError()})
+    await client.close()
+    await hass.async_block_till_done()
+    assert not entry.runtime_data.coordinator.connected
+
+    await _advertise(hass, MOVED)
+
+    assert entry.data[CONF_ADDRESS] == MOVED
+
+
 async def test_adding_a_known_panel_at_a_new_address_repairs_its_entry(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
