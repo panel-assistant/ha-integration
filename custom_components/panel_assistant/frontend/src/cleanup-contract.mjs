@@ -38,7 +38,8 @@ export function buildSetAsideRemoval(nonce, jobId) {
     `elif [ ! -e ${path} ]; then echo absent`,
     `elif ${[...ownFile(path), `[ "$(stat -c %s ${path})" -le 67108864 ]`].join(' && ')}; then ` +
       `rm ${path}; if [ ! -e ${path} ] && [ ! -L ${path} ]; then echo removed; else echo failed; fi`,
-    'else echo not_removable; fi',
+    // The shell service merges stderr into the answer: the checks decide it.
+    'else echo not_removable; fi 2>/dev/null',
     `echo HAPANELD_SETASIDE_END:${nonce}:$?`].join('; ');
 }
 export function parseSetAsideRemoval(body, nonce) {
