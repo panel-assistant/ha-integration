@@ -705,6 +705,36 @@ def test_status_parser_accepts_android_zigbee_and_signed_setting_bounds() -> Non
 
 
 @pytest.mark.parametrize(
+    ("failure", "failure_operation", "auto_vacuum"),
+    [
+        ("busy", "catalog-maintenance", "incremental"),
+        (None, None, "none"),
+    ],
+)
+def test_status_parser_retains_storage_attribution_fields(
+    failure: str | None, failure_operation: str | None, auto_vacuum: str
+) -> None:
+    """The failed operation and auto-vacuum mode reach storage diagnostics."""
+    body = json.dumps(
+        {
+            "warnings": [],
+            "capabilities": [],
+            "storage_health": {
+                "state": "database_failure" if failure else "healthy",
+                "failure": failure,
+                "failure_operation": failure_operation,
+                "auto_vacuum": auto_vacuum,
+            },
+        }
+    )
+
+    storage = parse_status_response(body).as_dict()["storage_health"]
+
+    assert storage["failure_operation"] == failure_operation  # type: ignore[index]
+    assert storage["auto_vacuum"] == auto_vacuum  # type: ignore[index]
+
+
+@pytest.mark.parametrize(
     ("component", "field"),
     [
         ("camera", "delivered_fps"),
@@ -741,6 +771,10 @@ def test_status_parser_rejects_huge_integer_numbers(component: str, field: str) 
         '{"warnings":[],"capabilities":[],"camera":{"state":"live","clients":true}}',
         '{"warnings":[],"capabilities":[],"camera":{"state":"live","stream_port":70000}}',
         '{"warnings":[],"capabilities":[],"storage_health":{"state":"ok","used_percent":101}}',
+        '{"warnings":[],"capabilities":[],"storage_health":{"state":"ok","failure_operation":"DROP;TABLE"}}',
+        '{"warnings":[],"capabilities":[],"storage_health":{"state":"ok","failure_operation":7}}',
+        '{"warnings":[],"capabilities":[],"storage_health":{"state":"ok","auto_vacuum":null}}',
+        '{"warnings":[],"capabilities":[],"storage_health":{"state":"ok","auto_vacuum":"/data/db"}}',
         '{"warnings":[],"capabilities":[],"zigbee_gateway":{"state":"healthy","gateway_cpu_percent":1001}}',
         '{"warnings":[],"capabilities":[],"renderer":{"mode":"builtin","state":"https://panel.local"}}',
         '{"warnings":[],"capabilities":[],"power_safety":{"state":"ok","reason_codes":[false]}}',
