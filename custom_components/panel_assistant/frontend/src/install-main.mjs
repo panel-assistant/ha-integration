@@ -241,6 +241,7 @@ connect.addEventListener('click', async () => {
         },
         // Support detail only: a leftover copy is never the person's problem.
         onSetAside(value) { support('Earlier copy', value); },
+        onStagedCopy(value) { support('Staged copy', value); },
       });
       const preview = await controller.preview(target).catch(noteFailure);
       ensureCurrent();

@@ -12,9 +12,11 @@ const canonical = value => JSON.stringify(value, Object.keys(value).sort());
 
 // UI controller for an already authenticated, identity-checked connection.
 // The caller supplies actual usb-transaction-ports, storage, and a session guard.
-// No jobs or mutations are created during preview. No receipt deletion exists.
+// The preview changes nothing, in this browser or on the panel: a saved job it
+// sets aside is let go, and its staged copy removed, only by the Install press.
 export function createInstallController({ store, ports, locks = globalThis.navigator?.locks,
-  ensureCurrent = () => {}, onReceipt = () => {}, onSetAside = () => {} }) {
+  ensureCurrent = () => {}, onReceipt = () => {}, onSetAside = () => {},
+  onStagedCopy = () => {} }) {
   let preview, expectedJobId, busy = false;
   const guard = () => { ensureCurrent(); };
   // Grant the app its permissions under the device lock, from a healthy job
@@ -31,6 +33,11 @@ export function createInstallController({ store, ports, locks = globalThis.navig
       guard();
       if (release?.kind !== 'authenticated-apk-bytes' ||
           canonical(release.descriptor) !== canonical(receipt.artifact)) fail('artifact_changed');
+      // The app is healthy, so this job's staged copy has done its work. Only
+      // its own path is asked about; an adopted or resumed job answers absent.
+      const outcome = await ports.removeSetAside(receipt.id, receipt.target, release);
+      guard();
+      onStagedCopy(Object.freeze({ jobId: receipt.id, outcome }));
       const granted = await ports.commissionPermissions(receipt, release);
       guard();
       return granted;
@@ -49,25 +56,23 @@ export function createInstallController({ store, ports, locks = globalThis.navig
         if (release?.kind !== 'authenticated-apk-bytes') fail('artifact_changed');
         let receipt = await store.load(deviceKey);
         let discarded = null;
-        // The job whose record the preview lets go. Its staged copy is left
-        // for the Install press, which removes it before the new job exists.
+        // The job the preview sets aside. Its record stays saved until the
+        // Install press lets it go and removes its staged copy, so a preview
+        // abandoned before then leaves the job, and the only name for its
+        // file, for the next preview to set aside again.
         let setAside = null;
+        const aside = saved => Object.freeze({ jobId: saved.id, phase: saved.phase,
+          revision: saved.revision });
         if (receipt?.phase === 'healthy') {
           // A finished job only resumes (permissions, then setup) while the
           // panel still runs exactly its app. If another release was chosen,
-          // or the app has changed since, the job is history: retire it so it
-          // can never lock the panel out of a new install.
+          // or the app has changed since, the job is history: the Install
+          // press retires it so it can never lock the panel out of a new install.
           const current = canonical(receipt.artifact) === canonical(release.descriptor) &&
             (await ports.inspect(receipt, release))?.installed === true;
           guard();
           if (!current) {
-            const finished = receipt;
-            await locks.request(`ha-paneld-usb:${deviceKey}`, {mode: 'exclusive', ifAvailable: true},
-              async lock => {
-                if (!lock) fail('transaction_busy');
-                await store.retire(deviceKey, finished.revision);
-              });
-            guard();
+            setAside = aside(receipt);
             receipt = null;
           }
         }
@@ -75,44 +80,30 @@ export function createInstallController({ store, ports, locks = globalThis.navig
         // that job's own release, has nothing left to recover: the app is
         // installed. Its recovery observation would demand a clean panel and
         // refuse this one as unclean, from an error screen whose only button
-        // reproduces it. Discard the record and adopt the panel below instead,
+        // reproduces it. Set the record aside and adopt the panel below instead,
         // so the retry converges on the install the person asked for.
         if (receipt && RECOVERING.includes(receipt.phase) &&
             canonical(receipt.artifact) === canonical(release.descriptor)) {
-          const stalled = receipt;
           const running = await ports.inspect(
             { phase: 'installed', target: snapshot, artifact: release.descriptor }, release);
           guard();
           if (running?.installed === true) {
-            await locks.request(`ha-paneld-usb:${deviceKey}`, {mode: 'exclusive', ifAvailable: true},
-              async lock => {
-                if (!lock) fail('transaction_busy');
-                await store.discard(deviceKey, stalled.revision);
-              });
-            guard();
-            setAside = Object.freeze({ jobId: stalled.id, phase: stalled.phase });
+            setAside = aside(receipt);
             receipt = null;
           }
         }
         // An unfinished job for a different release used to refuse here, and
         // the only button on that error reloads into the same refusal. The
         // person has since chosen another version in Home Assistant, so set
-        // the old job aside and install what they chose. This discards one
-        // saved record under the device lock and touches nothing on the panel;
-        // a job whose release is unchanged still resumes exactly as before,
-        // and every later guard still refuses an artifact that changes under a
-        // job already running.
+        // the old job aside and install what they chose. The Install press
+        // discards that one saved record under the device lock; a job whose
+        // release is unchanged still resumes exactly as before, and every
+        // later guard still refuses an artifact that changes under a job
+        // already running.
         if (receipt && canonical(receipt.artifact) !== canonical(release.descriptor)) {
-          const stale = receipt;
-          await locks.request(`ha-paneld-usb:${deviceKey}`, {mode: 'exclusive', ifAvailable: true},
-            async lock => {
-              if (!lock) fail('transaction_busy');
-              await store.discard(deviceKey, stale.revision);
-            });
-          guard();
-          discarded = Object.freeze({ versionName: stale.artifact.versionName,
-            versionCode: stale.artifact.versionCode, releaseTag: stale.artifact.releaseTag });
-          setAside = Object.freeze({ jobId: stale.id, phase: stale.phase });
+          discarded = Object.freeze({ versionName: receipt.artifact.versionName,
+            versionCode: receipt.artifact.versionCode, releaseTag: receipt.artifact.releaseTag });
+          setAside = aside(receipt);
           receipt = null;
         }
         // Actual ports validate the live target and installed/clean state. A
@@ -156,19 +147,26 @@ export function createInstallController({ store, ports, locks = globalThis.navig
         if (release?.kind !== 'authenticated-apk-bytes' ||
             canonical(release.descriptor) !== canonical(selected.descriptor)) fail('artifact_changed');
         let receipt = await store.load(selected.deviceKey);
+        // The job the preview set aside is let go under the lock below.
+        if (receipt && selected.setAside && receipt.id === selected.setAside.jobId) receipt = null;
         if (receipt && (!selected.receipt || receipt.id !== selected.receipt.id)) fail('job_conflict');
         if (!receipt) {
           if (selected.receipt) fail('transaction_missing');
           // Up to 64 MiB of a set-aside job can sit in /data/local/tmp, and
-          // its release bytes went with the job. Only its own path is asked
-          // about, under the lock and while no saved job carries its id.
+          // its release bytes go with the job. Its record is let go at the
+          // exact revision the preview saw, and then only its own path is
+          // asked about, under the same lock, once no saved job carries its id.
           if (selected.setAside) {
-            const { jobId, phase } = selected.setAside;
+            const { jobId, phase, revision } = selected.setAside;
             const outcome = await locks.request(`ha-paneld-usb:${selected.deviceKey}`,
               {mode: 'exclusive', ifAvailable: true}, async lock => {
                 if (!lock) fail('transaction_busy');
                 guard();
-                if ((await store.load(selected.deviceKey))?.id === jobId) fail('job_conflict');
+                const saved = await store.load(selected.deviceKey);
+                if (saved && saved.id !== jobId) fail('job_conflict');
+                if (saved && phase === 'healthy') await store.retire(selected.deviceKey, revision);
+                else if (saved) await store.discard(selected.deviceKey, revision);
+                guard();
                 return ports.removeSetAside(jobId, selected.target, release);
               });
             guard();

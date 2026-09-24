@@ -15,6 +15,7 @@ async function fixture() {
   let loads = 0, later = null;
   const controller = createInstallController({store: {load: async () => (++loads > 2 && later ? {...receipt, ...later} : receipt)},
     ports: {authenticate: async () => release, inspect: async () => ({installed: true}),
+      removeSetAside: async () => 'absent',
       commissionPermissions: async (...args) => grant(...args)},
     ensureCurrent: () => {if (!current) throw new Error('session_closed');},
     locks: {request: async (name, options, callback) => {
@@ -72,9 +73,14 @@ function finishedJobFixture({installed = true, descriptor} = {}) {
   const release = {kind: 'authenticated-apk-bytes', descriptor: descriptor ?? artifact};
   const controller = createInstallController({
     store: {load: async () => stored,
-      retire: async (key, revision) => {retired.push(revision); stored = null;}},
+      retire: async (key, revision) => {retired.push(revision); stored = null;},
+      discard: async () => {throw new Error('a discard would be wrong here');},
+      create: async () => (stored = {id: 'c'.repeat(32), revision: 0, phase: 'healthy', target,
+        artifact: release.descriptor})},
     ports: {authenticate: async () => release,
-      inspect: async receipt => {inspected.push(receipt.phase); return {installed};}},
+      inspect: async receipt => {inspected.push(receipt.phase); return {installed};},
+      removeSetAside: async () => 'absent',
+      commissionPermissions: async () => ({permissionsVerified: true})},
     locks: {request: async (name, options, callback) => callback({})}});
   return {controller, retired, inspected};
 }
@@ -90,17 +96,20 @@ test('a finished job whose app was replaced is retired, not a lock-out', async (
   const changed = finishedJobFixture({installed: false});
   const preview = await changed.controller.preview(target);
   assert.equal(preview.receipt, null, 'the next install starts fresh');
-  assert.deepEqual(changed.retired, [6], 'retired at the exact revision inspected');
+  assert.deepEqual(changed.retired, [], 'the preview keeps the record');
   assert.deepEqual(changed.inspected, ['healthy', 'installed', 'prepared'],
     'then checked for an exact install, then inspected as a new install');
+  await changed.controller.install(true);
+  assert.deepEqual(changed.retired, [6], 'the Install press retires it at the exact revision inspected');
 });
 
 test('a finished job for another release is retired without asking the panel about it', async () => {
   const other = finishedJobFixture({installed: false, descriptor: {apkSha256: 'f'.repeat(64)}});
   const preview = await other.controller.preview(target);
   assert.equal(preview.receipt, null);
-  assert.deepEqual(other.retired, [6]);
   assert.deepEqual(other.inspected, ['installed', 'prepared']);
+  await other.controller.install(true);
+  assert.deepEqual(other.retired, [6]);
 });
 
 function freshFixture({installed}) {
@@ -117,7 +126,8 @@ function freshFixture({installed}) {
     ports: {authenticate: async () => release,
       inspect: async receipt => {inspected.push(receipt.phase);
         return {target, clean: !installed, staged: false, installed, healthy: installed};},
-      launch: async () => {}, commissionPermissions: async () => ({permissionsVerified: true})},
+      launch: async () => {}, removeSetAside: async () => 'absent',
+      commissionPermissions: async () => ({permissionsVerified: true})},
     locks: {request: async (name, options, callback) => callback({})}});
   return {controller, created, inspected};
 }
@@ -176,13 +186,17 @@ function strandedJobFixture({phase = 'staged', descriptor, lockAvailable = true}
     store: {load: async () => stored,
       discard: async (key, revision) => {discarded.push(revision); stored = null;},
       retire: async () => {throw new Error('a retire would be wrong here');},
-      create: async () => {created.push('prepared'); return {id: 'c'.repeat(32), revision: 0,
-        phase: 'prepared', target, artifact: release.descriptor};}},
+      create: async () => {created.push('prepared'); return (stored = {id: 'c'.repeat(32),
+        revision: 0, phase: 'healthy', target, artifact: release.descriptor});},
+      adopt: async () => {created.push('installed'); return (stored = {id: 'c'.repeat(32),
+        revision: 0, phase: 'healthy', target, artifact: release.descriptor});}},
     ports: {authenticate: async () => release,
       inspect: async receipt => {inspected.push(receipt.phase);
         return {target, clean: true, staged: false, installed: state.installed,
           healthy: false};},
-      inspectRecovery: async receipt => {inspected.push(`recovery:${receipt.phase}`); return {};}},
+      inspectRecovery: async receipt => {inspected.push(`recovery:${receipt.phase}`); return {};},
+      removeSetAside: async () => 'absent',
+      commissionPermissions: async () => ({permissionsVerified: true})},
     locks: {request: async (name, options, callback) => callback(lockAvailable ? {} : null)}});
   return {controller, discarded, inspected, created,
     set installed(value) {state.installed = value;}};
@@ -194,11 +208,14 @@ test('an unfinished job for a version the person moved on from is set aside, not
     const f = strandedJobFixture({phase, descriptor: {apkSha256: 'f'.repeat(64)}});
     const preview = await f.controller.preview(target);
     assert.equal(preview.receipt, null, `${phase}: the chosen version installs from the start`);
-    assert.deepEqual(f.discarded, [3], `${phase}: discarded at the exact revision inspected`);
+    assert.deepEqual(f.discarded, [], `${phase}: the preview keeps the record`);
     assert.deepEqual(preview.discarded,
       {versionName: '0.9.7-rc4', versionCode: 770, releaseTag: 'build-770'},
       `${phase}: the version set aside is named, so the person can be told`);
     assert.equal(preview.adopt, false);
+    await f.controller.install(true);
+    assert.deepEqual(f.discarded, [3], `${phase}: the Install press discards it at the exact revision inspected`);
+    assert.deepEqual(f.created, ['prepared'], `${phase}: then starts the chosen version`);
   }
 });
 
@@ -213,8 +230,10 @@ test('an unfinished job whose release is unchanged still resumes untouched', asy
 
 test('a saved job is never discarded without the panel lock', async () => {
   const f = strandedJobFixture({descriptor: {apkSha256: 'f'.repeat(64)}, lockAvailable: false});
-  await assert.rejects(f.controller.preview(target), /transaction_busy/);
+  await f.controller.preview(target);
+  await assert.rejects(f.controller.install(true), /transaction_busy/);
   assert.deepEqual(f.discarded, []);
+  assert.deepEqual(f.created, []);
 });
 
 test('setting a version aside is explained on the step the person is already on', () => {
@@ -238,12 +257,14 @@ test('a job stalled in recovery on a panel that already runs it converges', asyn
     // The panel runs exactly this job's own app, so there is nothing to recover.
     f.installed = true;
     const preview = await f.controller.preview(target);
-    assert.equal(preview.receipt, null, `${phase}: the stalled record is gone`);
-    assert.deepEqual(f.discarded, [3], `${phase}: discarded at its exact revision`);
+    assert.equal(preview.receipt, null, `${phase}: the stalled record is set aside`);
     assert.equal(preview.adopt, true, `${phase}: the panel is adopted, not refused`);
     assert.equal(preview.discarded, null, 'the release never changed, so nothing is announced');
     assert.ok(!f.inspected.some(entry => entry.startsWith('recovery:')),
       `${phase}: the recovery observation that demands a clean panel never runs`);
+    await f.controller.install(true);
+    assert.deepEqual(f.discarded, [3], `${phase}: discarded at its exact revision`);
+    assert.deepEqual(f.created, ['installed'], `${phase}: and the panel adopted`);
   }
 });
 

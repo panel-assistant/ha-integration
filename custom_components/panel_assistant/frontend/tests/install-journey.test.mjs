@@ -38,13 +38,14 @@ function world() {
       return stored;
     },
   };
-  return {log, panel, store, get stored() {return stored;}};
+  return {log, panel, store, removed: [], get stored() {return stored;}};
 }
 
 // One USB session against that world. `interrupt` names an actuator after
 // which the session drops, the way a closed tab or a pulled cable ends it.
 // `after` runs once an actuator has acted, to change the world under the install.
-function session(w, {interrupt, grant = {permissionsVerified: true}, after = () => {}} = {}) {
+function session(w, {interrupt, grant = {permissionsVerified: true}, after = () => {},
+  onStagedCopy = () => {}} = {}) {
   let current = true, release = artifact, otherTab = false;
   const held = new Set();
   const port = (name, body) => async (...args) => {
@@ -71,8 +72,15 @@ function session(w, {interrupt, grant = {permissionsVerified: true}, after = () 
     install: actuator('install', async () => {
       if (w.panel.file === 'good' && !w.panel.installRefused) w.panel.installed = true;
     }),
-    launch: actuator('launch', async () => {w.panel.healthy = w.panel.installed;}),
+    launch: actuator('launch', async () => {w.panel.healthy = w.panel.installed && !w.panel.neverHealthy;}),
     cleanup: actuator('cleanup', async () => {w.panel.file = 'none';}),
+    // The job's own staged copy, named by its id; this panel holds one job's.
+    removeSetAside: actuator('remove', async jobId => {
+      w.removed.push(jobId);
+      if (w.panel.file === 'none') return 'absent';
+      w.panel.file = 'none';
+      return 'removed';
+    }),
     commissionPermissions: actuator('grant', async () => grant),
   };
   const locks = {request: async (name, options, callback) => {
@@ -81,7 +89,7 @@ function session(w, {interrupt, grant = {permissionsVerified: true}, after = () 
     held.add(name); w.log.push('lock');
     try {return await callback({});} finally {held.delete(name); w.log.push('unlock');}
   }};
-  const controller = createInstallController({store: w.store, ports, locks,
+  const controller = createInstallController({store: w.store, ports, locks, onStagedCopy,
     ensureCurrent: () => {if (!current) throw new Error('session_closed');}});
   return {controller, close: () => {current = false;}};
 }
@@ -94,11 +102,11 @@ function assertSafe(log) {
   let lockStart = -1, lastMutation = -1;
   log.forEach((entry, index) => {
     if (entry === 'lock') lockStart = index;
-    if (!MUTATIONS.has(entry) && entry !== 'grant') return;
+    if (!MUTATIONS.has(entry) && !['grant', 'remove'].includes(entry)) return;
     const hold = log.slice(lockStart, index);
     assert.ok(hold.includes('authenticate'), `${entry} at ${index}: release bytes checked again in the same lock`);
-    if (entry === 'grant') {
-      assert.ok(log.slice(0, index).includes('write:healthy'), 'permissions only after the app is healthy');
+    if (entry === 'grant' || entry === 'remove') {
+      assert.ok(log.slice(0, index).includes('write:healthy'), `${entry} only after the app is healthy`);
       return;
     }
     assert.equal(log[index - 1], `write:${PENDING[entry]}`, `${entry} at ${index}: intent is saved immediately before it`);
@@ -125,6 +133,50 @@ test('successful install: one press copies, installs, starts and grants, in that
   assert.deepEqual(w.log.filter(entry => MUTATIONS.has(entry) || entry === 'grant'),
     ['stage', 'install', 'launch', 'grant']);
   assert.ok(w.log.indexOf('create') < w.log.indexOf('stage'), 'the job is saved before anything is copied');
+  assertSafe(w.log);
+});
+
+test('a verified install removes its own staged copy once the app is healthy', async () => {
+  const w = world();
+  const reported = [];
+  const {controller} = session(w, {onStagedCopy: value => reported.push(value)});
+  await controller.preview(target);
+  const {receipt} = await controller.install(true);
+  assert.equal(receipt.phase, 'healthy');
+  assert.equal(w.panel.file, 'none', 'no copy is left on the panel');
+  assert.deepEqual(w.removed, [receipt.id], 'exactly this job\'s own path, once');
+  const at = w.log.indexOf('remove');
+  assert.ok(w.log.indexOf('write:healthy') < at, 'only after the app is proved healthy');
+  assert.ok(at < w.log.indexOf('grant'), 'before the grant, which is not part of the install');
+  assert.deepEqual(reported, [{jobId: receipt.id, outcome: 'removed'}], 'the result reaches the support log');
+  assertSafe(w.log);
+});
+
+test('a failed or unverified install keeps its copy, and the verified retry removes it', async () => {
+  // The app went on but never answered healthy: recovery finds it installed
+  // and refuses, so the install fails with its copy still on the panel.
+  const failed = world();
+  failed.panel.neverHealthy = true;
+  const broken = session(failed);
+  await broken.controller.preview(target);
+  await assert.rejects(broken.controller.install(true), /recovery_not_clean/);
+  assert.equal(failed.panel.file, 'good', 'a failed install keeps its copy for diagnosis');
+  assert.deepEqual(failed.removed, []);
+
+  // The install took but the tab closed before it was confirmed.
+  const w = world();
+  const first = session(w, {interrupt: 'install'});
+  await first.controller.preview(target);
+  await assert.rejects(first.controller.install(true), /session_closed/);
+  assert.equal(w.panel.file, 'good', 'an unverified install keeps its copy');
+  assert.deepEqual(w.removed, []);
+
+  const second = session(w);
+  await second.controller.preview(target);
+  const {receipt} = await second.controller.install(true);
+  assert.equal(receipt.phase, 'healthy');
+  assert.equal(w.panel.file, 'none', 'the retry that proves the install removes the copy');
+  assert.deepEqual(w.removed, [receipt.id]);
   assertSafe(w.log);
 });
 
@@ -187,6 +239,7 @@ test('a panel that never settles ends in an error, not a spinning install or a g
   await controller.preview(target);
   await assert.rejects(controller.install(true), /install_incomplete/);
   assert.equal(count(w.log, 'grant'), 0);
+  assert.deepEqual(w.removed, [], 'an install that never settled removes nothing');
   // Twelve steps: each round is one copy that does not take and one cleanup.
   assert.equal(count(w.log, 'stage'), 6, 'stops at the bound');
   assertSafe(w.log);

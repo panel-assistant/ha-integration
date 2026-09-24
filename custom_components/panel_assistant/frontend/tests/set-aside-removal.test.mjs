@@ -128,10 +128,12 @@ function setAsideFixture({phase = 'staged', same = false, lockAvailable = true, 
   let stored = {id: job, revision: 3, phase, target, artifact: old};
   const calls = [], reported = [];
   const release = {kind: 'authenticated-apk-bytes', descriptor: chosen};
-  let lock = lockAvailable;
-  const controller = createInstallController({
+  let lock = lockAvailable, beforeLock = () => {};
+  // A fresh controller is a fresh page over the same saved jobs and panel.
+  const open = () => createInstallController({
     store: {load: async () => stored,
-      discard: async () => {calls.push('discard'); stored = null;},
+      discard: async (key, revision) => {calls.push(`discard:${revision}`); stored = null;},
+      retire: async (key, revision) => {calls.push(`retire:${revision}`); stored = null;},
       create: async () => {calls.push('create'); stored = {id: 'd'.repeat(32), revision: 0,
         phase: 'healthy', target, artifact: chosen}; return stored;},
       adopt: async () => {calls.push('adopt'); stored = {id: 'd'.repeat(32), revision: 0,
@@ -148,28 +150,63 @@ function setAsideFixture({phase = 'staged', same = false, lockAvailable = true, 
       commissionPermissions: async () => ({permissionsVerified: true})},
     onSetAside: value => reported.push(value),
     locks: {request: async (name, options, callback) => {
+      beforeLock();
       calls.push('lock');
-      return callback(lock ? {} : null);
+      try {return await callback(lock ? {} : null);} finally {calls.push('unlock');}
     }}});
-  return {controller, calls, reported, denyLock: () => {lock = false;}};
+  return {controller: open(), open, calls, reported, denyLock: () => {lock = false;},
+    get stored() {return stored;}, replace: value => {stored = value;},
+    onLock: value => {beforeLock = value;}};
 }
 
 test('the preview removes nothing; the Install press removes the set-aside file once', async () => {
   for (const [phase, same] of [['staging', false], ['staged', false], ['recovery_required', true],
-    ['cleanup_pending', true]]) {
+    ['cleanup_pending', true], ['healthy', false]]) {
     const f = setAsideFixture({phase, same});
     const preview = await f.controller.preview(target);
-    assert.ok(!f.calls.some(call => call.startsWith('remove:')), `${phase}: preview removes nothing`);
-    assert.deepEqual(preview.setAside, {jobId: job, phase}, `${phase}: the job id is carried`);
+    assert.deepEqual(f.calls, [], `${phase}: the preview removes nothing and keeps the saved job`);
+    assert.deepEqual(preview.setAside, {jobId: job, phase, revision: 3}, `${phase}: the job is carried`);
     await f.controller.install(true);
     const removals = f.calls.filter(call => call.startsWith('remove:'));
-    assert.deepEqual(removals, [`remove:${job}`], `${phase}: exactly that job's file, once`);
+    assert.deepEqual(removals, [`remove:${job}`, `remove:${'d'.repeat(32)}`],
+      `${phase}: exactly that job's file, once, then the new job's own copy once it is healthy`);
     const at = f.calls.indexOf(`remove:${job}`);
-    assert.equal(f.calls[at - 1], 'lock', `${phase}: under the panel lock`);
+    const letGo = phase === 'healthy' ? 'retire:3' : 'discard:3';
+    assert.deepEqual(f.calls.slice(at - 2, at + 2), ['lock', letGo, `remove:${job}`, 'unlock'],
+      `${phase}: the record is let go at its revision and the file removed in one lock hold`);
     assert.ok(at < f.calls.findIndex(call => ['create', 'adopt'].includes(call)),
       `${phase}: before the new job exists`);
     assert.deepEqual(f.reported, [{jobId: job, phase, outcome: 'removed'}],
       `${phase}: the job id and result reach the support log`);
+  }
+});
+
+test('a preview abandoned before Install leaves the job, and the next Install press removes its file', async () => {
+  for (const [phase, same] of [['staged', false], ['recovery_required', true], ['healthy', false]]) {
+    const f = setAsideFixture({phase, same});
+    await f.controller.preview(target);
+    // The page is closed here. Nothing was let go, so nothing was lost.
+    assert.equal(f.stored?.id, job, `${phase}: the set-aside job is still saved`);
+    const later = f.open();
+    const preview = await later.preview(target);
+    assert.deepEqual(preview.setAside, {jobId: job, phase, revision: 3}, `${phase}: set aside again`);
+    assert.ok(!f.calls.some(call => call.startsWith('remove:')), `${phase}: neither preview removed anything`);
+    await later.install(true);
+    assert.equal(f.calls.filter(call => call === `remove:${job}`).length, 1,
+      `${phase}: the abandoned preview's copy is removed by the next Install press`);
+  }
+});
+
+test('a set-aside file is never removed once another job holds the panel', async () => {
+  const other = {id: 'e'.repeat(32), revision: 0, phase: 'prepared', target,
+    artifact: {apkSha256: 'f'.repeat(64)}};
+  // Another tab starts a job before this Install press, or while it waits for the lock.
+  for (const when of ['before', 'at the lock']) {
+    const f = setAsideFixture();
+    await f.controller.preview(target);
+    if (when === 'before') f.replace(other); else f.onLock(() => f.replace(other));
+    await assert.rejects(f.controller.install(true), /job_conflict/, when);
+    assert.ok(!f.calls.some(call => call.startsWith('remove:') || call.startsWith('discard')), when);
   }
 });
 
@@ -195,7 +232,9 @@ test('nothing is removed without the panel lock, and an unchanged job is never s
 
 test('the support log records the set-aside job and what became of its file', () => {
   const source = readFileSync(new URL('../src/install-main.mjs', import.meta.url), 'utf8');
-  const hook = source.slice(source.indexOf('onSetAside('));
-  assert.ok(hook.length < source.length, 'install-main listens for the removal');
-  assert.match(hook.slice(0, hook.indexOf('}')), /support\(/);
+  for (const name of ['onSetAside(', 'onStagedCopy(']) {
+    const hook = source.slice(source.indexOf(name));
+    assert.ok(hook.length < source.length, `install-main listens for ${name}`);
+    assert.match(hook.slice(0, hook.indexOf('}')), /support\(/);
+  }
 });
