@@ -37,6 +37,7 @@ from custom_components.panel_assistant.client import (
     PanelAddress,
     PanelHealth,
     PanelSetupState,
+    normalize_address,
 )
 from custom_components.panel_assistant.config_flow import (
     HaPaneldConfigFlow,
@@ -416,6 +417,38 @@ async def test_zeroconf_requires_fresh_health_confirmation_before_entry_creation
     assert result["data"] == {CONF_ADDRESS: "192.168.1.23"}
     assert result["result"].unique_id == DISCOVERY_ID
     assert health_mock.await_count >= 2
+
+
+async def test_zeroconf_offers_and_stores_an_ipv6_only_panel(
+    hass: HomeAssistant,
+) -> None:
+    """A panel that advertises only an IPv6 address is offered and stored bracketed."""
+    health_mock = AsyncMock(return_value=DISCOVERY_HEALTH)
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+            health_mock,
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_status",
+            AsyncMock(side_effect=CannotConnectError),
+        ),
+    ):
+        form = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=_zeroconf_info(host="fd00:5041::10"),
+        )
+        assert form["type"] is FlowResultType.FORM
+        assert form["step_id"] == "confirm_discovery"
+        assert form["description_placeholders"]["address"] == "[fd00:5041::10]"
+
+        result = await hass.config_entries.flow.async_configure(form["flow_id"], {})
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"] == {CONF_ADDRESS: "[fd00:5041::10]"}
+    stored = normalize_address(result["data"][CONF_ADDRESS])
+    assert stored.base_url.host == "fd00:5041::10"
 
 
 async def _start_discovery(hass, info, panel_id):
