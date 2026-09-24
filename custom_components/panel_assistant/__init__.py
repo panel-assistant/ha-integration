@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from dataclasses import dataclass
 
@@ -42,15 +41,8 @@ from .guards import (
 )
 from .install_artifacts import register_feed_download_host
 from .install_executor import (
-    InstallExecutor,
     async_get_install_executor,
     async_resume_loaded_install_jobs,
-    health_is_installed_app,
-)
-from .install_jobs import (
-    InstallPhase,
-    InstallResultCode,
-    async_get_install_job_manager,
 )
 from .native import CONF_NATIVE_ENTITIES, NATIVE_ONLY_PLATFORMS
 from .transport import (
@@ -171,33 +163,6 @@ async def _async_resume_install_jobs(hass: HomeAssistant) -> None:
         _LOGGER.warning("Unable to resume durable ha-paneld install jobs")
 
 
-async def _async_release_install_finalizer(
-    hass: HomeAssistant,
-    executor: InstallExecutor,
-    job_id: str,
-    finalizer_id: str,
-) -> None:
-    """Drain finalizer release before propagating caller cancellation."""
-    release_task = hass.async_create_task(
-        executor.async_release_finalizer(job_id, finalizer_id),
-        f"release ha-paneld setup finalizer {job_id}",
-    )
-    cancelled = False
-    while not release_task.done():
-        try:
-            await asyncio.shield(release_task)
-        except asyncio.CancelledError:
-            cancelled = True
-        except Exception:
-            break
-    try:
-        release_task.result()
-    except Exception:
-        _LOGGER.warning("Unable to release a durable ha-paneld install finalizer")
-    if cancelled:
-        raise asyncio.CancelledError
-
-
 async def _async_reconcile_install_receipt(
     hass: HomeAssistant,
     entry: HaPaneldConfigEntry,
@@ -205,50 +170,12 @@ async def _async_reconcile_install_receipt(
     health: PanelHealth,
 ) -> None:
     """Best-effort handoff for a healthy receipt left by a completed install."""
-    executor = None
-    receipt = None
-    finalizer_id = f"setup_{entry.entry_id}"
-    acquired = False
     try:
         executor = await async_get_install_executor(hass)
-        manager = await async_get_install_job_manager(hass)
-        receipts = await manager.async_list()
-        receipt = next(
-            (
-                candidate
-                for candidate in receipts
-                if candidate.phase is InstallPhase.HEALTHY_UNCLAIMED
-                and candidate.target.address == address
-            ),
-            None,
-        )
-        if receipt is None:
-            return
-        acquired = await executor.async_acquire_finalizer(receipt.job_id, finalizer_id)
-        if not acquired:
-            return
-        if health_is_installed_app(health, receipt.artifact):
-            await manager.async_transition(
-                receipt.job_id,
-                receipt.revision,
-                InstallPhase.CONSUMED,
-                result_code=InstallResultCode.ENTRY_CREATED,
-                consumed_entry_id=entry.entry_id,
-            )
-            return
-        await manager.async_transition(
-            receipt.job_id,
-            receipt.revision,
-            InstallPhase.RECOVERY_REQUIRED,
-            result_code=InstallResultCode.VERIFICATION_REQUIRED,
-        )
     except Exception:
         _LOGGER.warning("Unable to reconcile a durable ha-paneld install receipt")
-    finally:
-        if acquired and executor is not None and receipt is not None:
-            await _async_release_install_finalizer(
-                hass, executor, receipt.job_id, finalizer_id
-            )
+        return
+    await executor.async_reconcile_entry(entry.entry_id, address, health)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> bool:

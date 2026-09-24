@@ -48,6 +48,7 @@ from custom_components.panel_assistant.install_artifacts import (
     InstallArtifact as CustodiedArtifact,
 )
 from custom_components.panel_assistant.install_executor import (
+    FinalizationOutcome,
     InstallExecutor,
     async_get_install_executor,
     health_is_installed_app,
@@ -2574,10 +2575,10 @@ async def test_resume_hook_quarantines_but_does_not_resume_ambiguous_phase(
     assert "launch" not in harness.events
 
 
-async def test_finalizer_lease_grants_exactly_one_flow_and_releases_by_owner(
+async def seed_healthy(
     hass: HomeAssistant,
-) -> None:
-    """Two completed config flows cannot both create an entry for one job."""
+) -> tuple[InstallJobReceipt, InstallJobManager]:
+    """Persist one HEALTHY_UNCLAIMED receipt, as a finished worker leaves it."""
     receipt, manager = await seed_phase(hass, InstallPhase.HEALTH_CHECK)
     receipt = await manager.async_claim(receipt.job_id, receipt.revision)
     receipt = await manager.async_transition(
@@ -2586,24 +2587,111 @@ async def test_finalizer_lease_grants_exactly_one_flow_and_releases_by_owner(
         InstallPhase.HEALTHY_UNCLAIMED,
         health_checked_at=datetime.now(UTC).isoformat(timespec="seconds"),
     )
-    executor = InstallExecutor(hass, manager)
+    return receipt, manager
 
-    owners = await asyncio.gather(
+
+class _CountingLeases(dict[str, object]):
+    """The executor's lease map, counting every lease actually released."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.released: list[str] = []
+
+    def __delitem__(self, job_id: str) -> None:
+        self.released.append(job_id)
+        super().__delitem__(job_id)
+
+    def pop(self, *args: object) -> object:  # type: ignore[override]
+        raise AssertionError("leases are released through release_finalizer only")
+
+
+def counting_executor(
+    hass: HomeAssistant, manager: InstallJobManager
+) -> tuple[InstallExecutor, _CountingLeases]:
+    """Return an executor whose releases the test can count."""
+    executor = InstallExecutor(hass, manager)
+    leases = _CountingLeases()
+    executor._finalizers = leases  # type: ignore[assignment]
+    return executor, leases
+
+
+@dataclass
+class FinalProof:
+    """The read-only final proof, with the health read optionally held open."""
+
+    monkeypatch: pytest.MonkeyPatch
+    package: str | None = None
+    version: str | None = None
+    hold_health: bool = False
+
+    def __post_init__(self) -> None:
+        self.health_started = asyncio.Event()
+        self.release_health = asyncio.Event()
+        self.health_reads = 0
+        proof = self
+
+        class FakeClient:
+            def __init__(self, _session: object, _address: object) -> None:
+                pass
+
+            async def async_get_health(self) -> PanelHealth:
+                proof.health_reads += 1
+                proof.health_started.set()
+                if proof.hold_health:
+                    await proof.release_health.wait()
+                return PanelHealth(
+                    version=proof.version or artifact().version_name,
+                    panel_id="alpha",
+                    build="1",
+                    config_hash="1a2b3c4d",
+                    package=proof.package,
+                )
+
+        self.monkeypatch.setattr(
+            install_executor, "async_revalidate_install_target", AsyncMock()
+        )
+        self.monkeypatch.setattr(
+            install_executor,
+            "async_get_durable_adb_credential",
+            AsyncMock(
+                return_value=AdbCredential(signer=object(), generation_id=CREDENTIAL_ID)
+            ),
+        )
+        self.monkeypatch.setattr(
+            install_executor, "async_verify_installed_target", AsyncMock()
+        )
+        self.monkeypatch.setattr(install_executor, "HaPaneldClient", FakeClient)
+
+
+ENTRY_ID = "01M1J723MDQ69QDQVCRXKYZBJV"
+
+
+async def test_finalizer_lease_grants_exactly_one_owner_and_releases_by_owner(
+    hass: HomeAssistant,
+) -> None:
+    """Two completed config flows cannot both create an entry for one job."""
+    receipt, manager = await seed_healthy(hass)
+    executor, leases = counting_executor(hass, manager)
+
+    granted = await asyncio.gather(
         *(
-            executor.async_acquire_finalizer(receipt.job_id, f"flow_{index}")
+            executor._async_acquire_finalizer(receipt.job_id, f"flow_{index}")
             for index in range(40)
         )
     )
-    assert owners.count(True) == 1
-    owner = f"flow_{owners.index(True)}"
-    assert await executor.async_is_finalizer_active(receipt.job_id)
-    assert await executor.async_acquire_finalizer(receipt.job_id, owner)
+    winners = [index for index, lease in enumerate(granted) if lease is not None]
+    assert len(winners) == 1
+    owner = f"flow_{winners[0]}"
+    assert executor.is_finalizer_active(receipt.job_id)
+    assert await executor._async_acquire_finalizer(receipt.job_id, owner) is not None
 
-    await executor.async_release_finalizer(receipt.job_id, "flow_loser")
-    assert await executor.async_is_finalizer_active(receipt.job_id)
-    await executor.async_release_finalizer(receipt.job_id, owner)
-    assert not await executor.async_is_finalizer_active(receipt.job_id)
-    assert await executor.async_acquire_finalizer(receipt.job_id, "flow_next")
+    executor.release_finalizer(receipt.job_id, "flow_loser")
+    assert executor.is_finalizer_active(receipt.job_id)
+    executor.release_finalizer(receipt.job_id, owner)
+    executor.release_finalizer(receipt.job_id, owner)
+    assert not executor.is_finalizer_active(receipt.job_id)
+    assert leases.released == [receipt.job_id]
+    assert await executor._async_acquire_finalizer(receipt.job_id, "flow_next")
 
 
 async def test_finalizer_lease_is_unavailable_before_health_or_after_consumption(
@@ -2613,7 +2701,10 @@ async def test_finalizer_lease_is_unavailable_before_health_or_after_consumption
     manager = InstallJobManager(hass)
     approved = await create_job(manager)
     executor = InstallExecutor(hass, manager)
-    assert not await executor.async_acquire_finalizer(approved.job_id, "flow_one")
+    assert await executor._async_acquire_finalizer(approved.job_id, "flow_one") is None
+    verdict = await executor.async_verify_finalization(approved.job_id, "flow_one")
+    assert verdict.outcome is FinalizationOutcome.BUSY
+    assert not executor.is_finalizer_active(approved.job_id)
     approved = await manager.async_claim(approved.job_id, approved.revision)
     approved = await manager.async_request_cancel(approved.job_id, approved.revision)
     await manager.async_transition(
@@ -2623,28 +2714,274 @@ async def test_finalizer_lease_is_unavailable_before_health_or_after_consumption
         result_code=InstallResultCode.CANCELLED_BY_USER,
     )
 
-    healthy, manager = await seed_phase(hass, InstallPhase.HEALTH_CHECK)
-    healthy = await manager.async_claim(healthy.job_id, healthy.revision)
-    healthy = await manager.async_transition(
-        healthy.job_id,
-        healthy.revision,
-        InstallPhase.HEALTHY_UNCLAIMED,
-        health_checked_at=datetime.now(UTC).isoformat(timespec="seconds"),
-    )
+    healthy, manager = await seed_healthy(hass)
     executor = InstallExecutor(hass, manager)
-    assert await executor.async_acquire_finalizer(healthy.job_id, "flow_one")
-    consumed = await manager.async_transition(
+    assert await executor._async_acquire_finalizer(healthy.job_id, "flow_one")
+    await manager.async_transition(
         healthy.job_id,
         healthy.revision,
         InstallPhase.CONSUMED,
         result_code=InstallResultCode.ENTRY_CREATED,
-        consumed_entry_id="01M1J723MDQ69QDQVCRXKYZBJV",
+        consumed_entry_id=ENTRY_ID,
     )
+    assert await executor._async_acquire_finalizer(healthy.job_id, "flow_two") is None
+    assert executor.is_finalizer_active(healthy.job_id)
+    executor.release_finalizer(healthy.job_id, "flow_one")
+    assert not executor.is_finalizer_active(healthy.job_id)
+
+
+async def test_verified_receipt_is_consumed_once_and_releases_its_lease_once(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The lease spans verification and the entry's addition, then goes once."""
+    receipt, manager = await seed_healthy(hass)
+    FinalProof(monkeypatch)
+    executor, leases = counting_executor(hass, manager)
+
+    verdict = await executor.async_verify_finalization(receipt.job_id, "flow_one")
+    assert verdict.outcome is FinalizationOutcome.VERIFIED
+    assert verdict.health is not None
+    # Held while Home Assistant adds the entry: setup reconciliation of that
+    # very entry, and any other flow, must leave the receipt to this owner.
+    assert executor.is_finalizer_active(receipt.job_id)
+    await executor.async_reconcile_entry(
+        ENTRY_ID, receipt.target.address, verdict.health
+    )
+    other = await executor.async_verify_finalization(receipt.job_id, "flow_two")
+    assert other.outcome is FinalizationOutcome.BUSY
+    assert (await manager.async_get(receipt.job_id)).phase is (
+        InstallPhase.HEALTHY_UNCLAIMED
+    )
+
+    await executor.async_consume_finalization(receipt.job_id, "flow_one", ENTRY_ID)
+    consumed = await manager.async_get(receipt.job_id)
+
     assert consumed.phase is InstallPhase.CONSUMED
-    assert not await executor.async_acquire_finalizer(healthy.job_id, "flow_two")
-    assert await executor.async_is_finalizer_active(healthy.job_id)
-    await executor.async_release_finalizer(healthy.job_id, "flow_one")
-    assert not await executor.async_is_finalizer_active(healthy.job_id)
+    assert consumed.consumed_entry_id == ENTRY_ID
+    assert leases.released == [receipt.job_id]
+
+
+async def test_concurrent_finalizers_have_one_owner_and_one_release(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two flows and a loading entry race; one owner finalizes and releases."""
+    receipt, manager = await seed_healthy(hass)
+    proof = FinalProof(monkeypatch, hold_health=True)
+    executor, leases = counting_executor(hass, manager)
+
+    first = hass.async_create_task(
+        executor.async_verify_finalization(receipt.job_id, "flow_one")
+    )
+    await proof.health_started.wait()
+    racers = await asyncio.gather(
+        executor.async_verify_finalization(receipt.job_id, "flow_two"),
+        executor.async_verify_finalization(receipt.job_id, "flow_one"),
+        executor.async_reconcile_entry(
+            ENTRY_ID,
+            receipt.target.address,
+            PanelHealth(
+                version=receipt.artifact.version_name,
+                panel_id="alpha",
+                build="1",
+                config_hash="1a2b3c4d",
+            ),
+        ),
+    )
+    proof.release_health.set()
+    verdict = await first
+    await executor.async_consume_finalization(receipt.job_id, "flow_one", ENTRY_ID)
+
+    assert [racer.outcome for racer in racers[:2]] == [
+        FinalizationOutcome.BUSY,
+        FinalizationOutcome.BUSY,
+    ]
+    assert verdict.outcome is FinalizationOutcome.VERIFIED
+    assert proof.health_reads == 1
+    assert (await manager.async_get(receipt.job_id)).consumed_entry_id == ENTRY_ID
+    assert leases.released == [receipt.job_id]
+
+
+async def test_cancelled_verification_releases_its_lease_exactly_once(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Cancellation mid-proof hands the lease back and leaves the receipt intact."""
+    receipt, manager = await seed_healthy(hass)
+    proof = FinalProof(monkeypatch, hold_health=True)
+    executor, leases = counting_executor(hass, manager)
+
+    task = hass.async_create_task(
+        executor.async_verify_finalization(receipt.job_id, "flow_one")
+    )
+    await proof.health_started.wait()
+    # A dialog closed at the same moment asks for the same release.
+    executor.release_finalizer(receipt.job_id, "flow_one")
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert leases.released == [receipt.job_id]
+    assert (await manager.async_get(receipt.job_id)).phase is (
+        InstallPhase.HEALTHY_UNCLAIMED
+    )
+    proof.hold_health = False
+    retried = await executor.async_verify_finalization(receipt.job_id, "flow_two")
+    assert retried.outcome is FinalizationOutcome.VERIFIED
+
+
+async def test_removal_mid_verification_releases_only_when_verification_exits(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A second finalizer never verifies beside a removed one still reading."""
+    receipt, manager = await seed_healthy(hass)
+    proof = FinalProof(monkeypatch, hold_health=True)
+    executor, leases = counting_executor(hass, manager)
+
+    task = hass.async_create_task(
+        executor.async_verify_finalization(receipt.job_id, "flow_removed")
+    )
+    await proof.health_started.wait()
+    executor.release_finalizer(receipt.job_id, "flow_removed")
+    assert executor.is_finalizer_active(receipt.job_id)
+    busy = await executor.async_verify_finalization(receipt.job_id, "flow_other")
+    assert busy.outcome is FinalizationOutcome.BUSY
+
+    proof.release_health.set()
+    await task
+
+    assert leases.released == [receipt.job_id]
+    assert (await manager.async_get(receipt.job_id)).phase is (
+        InstallPhase.HEALTHY_UNCLAIMED
+    )
+
+
+@pytest.mark.parametrize(
+    ("package", "version", "expected"),
+    [
+        (None, None, FinalizationOutcome.VERIFIED),
+        (None, "9.9.9", FinalizationOutcome.RECOVERY_REQUIRED),
+        ("io.panelassistant.android", None, FinalizationOutcome.RECOVERY_REQUIRED),
+    ],
+    ids=["installed-app", "other-version", "other-package"],
+)
+async def test_final_proof_applies_the_installed_app_rule(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    package: str | None,
+    version: str | None,
+    expected: FinalizationOutcome,
+) -> None:
+    """Drift found by the final proof is made durable and releases the lease."""
+    receipt, manager = await seed_healthy(hass)
+    FinalProof(monkeypatch, package=package, version=version)
+    executor, leases = counting_executor(hass, manager)
+
+    verdict = await executor.async_verify_finalization(receipt.job_id, "flow_one")
+
+    assert verdict.outcome is expected
+    stored = await manager.async_get(receipt.job_id)
+    if expected is FinalizationOutcome.VERIFIED:
+        assert stored.phase is InstallPhase.HEALTHY_UNCLAIMED
+        assert leases.released == []
+    else:
+        assert stored.phase is InstallPhase.RECOVERY_REQUIRED
+        assert stored.result_code is InstallResultCode.VERIFICATION_REQUIRED
+        assert leases.released == [receipt.job_id]
+
+
+@pytest.mark.parametrize(
+    ("package", "expected_phase"),
+    [
+        (None, InstallPhase.CONSUMED),
+        ("io.panelassistant.android", InstallPhase.RECOVERY_REQUIRED),
+    ],
+    ids=["installed-app", "other-package"],
+)
+async def test_restart_settles_a_healthy_receipt_when_its_entry_loads(
+    hass: HomeAssistant, package: str | None, expected_phase: InstallPhase
+) -> None:
+    """A restart between entry creation and consumption loses no receipt.
+
+    The process that verified the receipt is gone, and with it every lease; a
+    fresh manager and executor read only what was persisted.
+    """
+    receipt, _before_restart = await seed_healthy(hass)
+    restarted = InstallJobManager(hass)
+    executor, leases = counting_executor(hass, restarted)
+    health = PanelHealth(
+        version=receipt.artifact.version_name,
+        panel_id="alpha",
+        build="1",
+        config_hash="1a2b3c4d",
+        package=package,
+    )
+
+    await executor.async_reconcile_entry(ENTRY_ID, receipt.target.address, health)
+    await executor.async_reconcile_entry(ENTRY_ID, receipt.target.address, health)
+    settled = await restarted.async_get(receipt.job_id)
+
+    assert settled.phase is expected_phase
+    if expected_phase is InstallPhase.CONSUMED:
+        assert settled.consumed_entry_id == ENTRY_ID
+    assert leases.released == [receipt.job_id]
+
+
+async def test_cancelled_entry_reconciliation_releases_its_lease_once(
+    hass: HomeAssistant,
+) -> None:
+    """Cancelling a loading entry mid-transition strands no lease."""
+    receipt, manager = await seed_healthy(hass)
+    executor, leases = counting_executor(hass, manager)
+    entered = asyncio.Event()
+
+    async def _blocked_transition(*_args: object, **_kwargs: object) -> None:
+        entered.set()
+        await asyncio.Event().wait()
+
+    health = PanelHealth(
+        version=receipt.artifact.version_name,
+        panel_id="alpha",
+        build="1",
+        config_hash="1a2b3c4d",
+    )
+    with patch.object(manager, "async_transition", side_effect=_blocked_transition):
+        task = hass.async_create_task(
+            executor.async_reconcile_entry(ENTRY_ID, receipt.target.address, health)
+        )
+        await entered.wait()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    assert leases.released == [receipt.job_id]
+    assert (await manager.async_get(receipt.job_id)).phase is (
+        InstallPhase.HEALTHY_UNCLAIMED
+    )
+    assert await executor._async_acquire_finalizer(receipt.job_id, "flow_next")
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [install_jobs.InstallJobStoreError(), RuntimeError("private-receipt-detail")],
+)
+async def test_consumption_failure_never_raises_and_still_releases(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    failure: Exception,
+) -> None:
+    """The entry exists by now, so persistence failure is logged, never raised."""
+    receipt, manager = await seed_healthy(hass)
+    FinalProof(monkeypatch)
+    executor, leases = counting_executor(hass, manager)
+    verdict = await executor.async_verify_finalization(receipt.job_id, "flow_one")
+    assert verdict.outcome is FinalizationOutcome.VERIFIED
+
+    with patch.object(manager, "async_transition", side_effect=failure):
+        await executor.async_consume_finalization(receipt.job_id, "flow_one", ENTRY_ID)
+
+    assert leases.released == [receipt.job_id]
+    assert "Unable to consume a completed ha-paneld install receipt" in caplog.text
+    assert "private-receipt-detail" not in caplog.text
 
 
 SUCCESSOR_PACKAGE_ID = "io.panelassistant.android"
