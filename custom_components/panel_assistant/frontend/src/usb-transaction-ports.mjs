@@ -8,7 +8,6 @@ import { buildInstall, parseInstall, buildLaunch, parseLaunch, buildAppReady,
   parseAppReady } from './install-contract.mjs';
 import { inspectInstalledApk } from './installed-observation.mjs';
 import { readUsbHealth } from './usb-health.mjs';
-import { readUsbSetup } from './usb-setup.mjs';
 import { buildPermissionRead, parsePermissionRead, buildPermissionGrant, parsePermissionGrant,
   buildPermissionVerification, parsePermissionVerification } from './permission-contract.mjs';
 import { verifyStagedPrefix } from './staged-prefix.mjs';
@@ -164,14 +163,6 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
       if (parseLaunch(await readShell(adb, buildLaunch(n, release.descriptor.packageId),
         { timeoutMs: 30000 }), n) !== 'started') fail('launch_refused');
       binding(receipt, release);
-    }),
-    setup: protect(async (receipt, release) => {
-      if (receipt.phase !== 'healthy') fail('transaction_invalid');
-      await posture(receipt, release);
-      if (!await inspectInstalledApk(adb, release.descriptor, guard)) fail('installed_artifact_mismatch');
-      const result = await readUsbSetup(adb, {ensureCurrent: guard, quarantine: stop});
-      binding(receipt, release);
-      return result;
     }),
     commissionPermissions: protect(async (receipt, release) => {
       if (receipt.phase !== 'healthy') fail('transaction_invalid');
