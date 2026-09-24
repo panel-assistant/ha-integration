@@ -2,7 +2,7 @@
 
 import json
 import logging
-from collections.abc import AsyncGenerator, Iterator
+from collections.abc import AsyncGenerator, Collection, Iterator
 from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import replace
@@ -20,7 +20,11 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
+from custom_components.panel_assistant.const import (
+    CONF_SUPPORTED_CHANNELS,
+    CONF_TRANSPORT_USER_ID,
+    DOMAIN,
+)
 from custom_components.panel_assistant.contract import CONTRACT
 from custom_components.panel_assistant.diagnostics import (
     async_get_config_entry_diagnostics,
@@ -84,6 +88,11 @@ DESCRIPTORS = [
 ]
 PANEL_HELLO: dict[str, Any] = json.loads(
     (FIXTURES / "panel_hello.json").read_text(encoding="utf-8")
+)
+# The channels the panel's own hello describes: what a panel that has said hello
+# leaves in its entry's supported channels.
+PANEL_CHANNELS: frozenset[str] = frozenset(
+    descriptor["channel"] for descriptor in PANEL_HELLO["channels"]
 )
 PANEL_REPORT: dict[str, Any] = json.loads(
     (FIXTURES / "panel_report_state.json").read_text(encoding="utf-8")
@@ -188,16 +197,29 @@ def panel_patches() -> Iterator[None]:
         yield
 
 
+def supported(channels: Collection[str] = PANEL_CHANNELS) -> dict[str, Any]:
+    """Return the entry data of a panel that has described these channels."""
+    return {CONF_SUPPORTED_CHANNELS: {"did": DID, "channels": sorted(channels)}}
+
+
 async def _setup(
     hass: HomeAssistant,
     user_id: str,
     native: bool,
     options: dict[str, Any] | None = None,
+    described: Collection[str] | None = PANEL_CHANNELS,
 ) -> MockConfigEntry:
+    """Set up a bound entry whose panel has described these channels before.
+
+    None sets up an entry whose panel has never said hello.
+    """
+    data = {CONF_ADDRESS: "panel.local", CONF_TRANSPORT_USER_ID: user_id}
+    if described is not None:
+        data |= supported(described)
     config_entry = MockConfigEntry(
         domain=DOMAIN,
         title="alpha",
-        data={CONF_ADDRESS: "panel.local", CONF_TRANSPORT_USER_ID: user_id},
+        data=data,
         options=options or {},
     )
     config_entry.add_to_hass(hass)

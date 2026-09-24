@@ -39,7 +39,7 @@ import math
 import re
 import secrets
 from collections import deque
-from collections.abc import Callable, Container, Mapping
+from collections.abc import Callable, Collection, Container, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Final
@@ -66,6 +66,7 @@ from .client import is_valid_discovery_id, is_valid_panel_version
 from .const import (
     CONF_AUTHORITY,
     CONF_CUTOVER,
+    CONF_SUPPORTED_CHANNELS,
     CONF_TRANSPORT_USER_ID,
     DOMAIN,
     INTEGRATION_VERSION,
@@ -94,7 +95,8 @@ DEFAULT_AUTHORITY: Final = AUTHORITY_SHADOW
 # What ``hello`` tells the panel to do with its MQTT discovery. It withdraws
 # its MQTT entities only once this integration owns them: the entry's
 # authority is native, its cutover record is complete, and no MQTT entity that
-# stayed behind carries a person's customisation (see ``mqtt_discovery_claim``).
+# stayed behind carries a person's customisation or waits for its channel to be
+# described (see ``mqtt_discovery_claim``).
 MQTT_DISCOVERY_WITHDRAW: Final = "withdraw"
 MQTT_DISCOVERY_ANNOUNCE: Final = "announce"
 MQTT_DISCOVERIES: Final = (MQTT_DISCOVERY_WITHDRAW, MQTT_DISCOVERY_ANNOUNCE)
@@ -108,6 +110,13 @@ CUTOVER_STATE: Final = "state"
 CUTOVER_UNMIGRATED: Final = "unmigrated"
 CUTOVER_REGISTRY_ID: Final = "registry_id"
 CUTOVER_ENTITIES: Final = "entities"
+CUTOVER_REASON: Final = "reason"
+CUTOVER_CHANNEL: Final = "channel"
+# Why an MQTT entity stayed behind: the catalogue knows its channel, but the
+# panel has never described that channel, so no native entity would render
+# into it. It stays MQTT's, and the next move after the panel describes the
+# channel takes it (see ``cutover.py``).
+CUTOVER_NOT_DESCRIBED: Final = "not_described"
 # The registry IDs of MQTT duplicates kept disabled while this integration owns
 # the panel's entities (see ``guards.py``).
 CUTOVER_QUARANTINED: Final = "quarantined"
@@ -1435,17 +1444,88 @@ def entity_owner(hass: HomeAssistant, entry: ConfigEntry) -> str:
     return AUTHORITY_MQTT
 
 
+def undescribed_entities(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> list[Mapping[str, Any]]:
+    """Return the cutover's leftovers still waiting for their channel, as of now.
+
+    Each is an MQTT entity whose channel the catalogue knows but the panel had
+    not described when the move ran. One a person deleted since, or one no
+    longer MQTT's, no longer counts.
+    """
+    record = cutover_record(entry)
+    if record is None:
+        return []
+    registry = er.async_get(hass)
+    waiting: list[Mapping[str, Any]] = []
+    for unmigrated in record.get(CUTOVER_UNMIGRATED, ()):
+        if unmigrated.get(CUTOVER_REASON) != CUTOVER_NOT_DESCRIBED:
+            continue
+        item = registry.entities.get_entry(unmigrated[CUTOVER_REGISTRY_ID])
+        if item is not None and item.platform == MQTT_DOMAIN:
+            waiting.append(unmigrated)
+    return waiting
+
+
 def mqtt_discovery_claim(hass: HomeAssistant, entry: ConfigEntry) -> str:
     """Return what the next hello tells the panel about its MQTT discovery.
 
     Withdraw only once this integration owns the panel's entities and nothing
-    blocks it.
+    blocks it. An MQTT entity waiting for its channel to be described holds
+    the withdrawal back too: the panel's tombstones would delete it, and no
+    native entity replaces it yet.
     """
-    if entity_owner(hass, entry) != AUTHORITY_NATIVE or blocking_entity_ids(
-        hass, entry
+    if (
+        entity_owner(hass, entry) != AUTHORITY_NATIVE
+        or blocking_entity_ids(hass, entry)
+        or undescribed_entities(hass, entry)
     ):
         return MQTT_DISCOVERY_ANNOUNCE
     return MQTT_DISCOVERY_WITHDRAW
+
+
+# ---------------------------------------------------------------------------
+# The channels a panel supports. A cutover moves an MQTT entity only when the
+# panel has described its channel, since only then does a native entity render
+# into it. The set is the union of every hello's known channels, kept in the
+# entry's data: a later session that omits a channel leaves it in, because a
+# channel missing from one session is only unavailable. It never shrinks from
+# an omission. It is replaced only when a hello comes from another panel
+# identity, whose channels the earlier set says nothing about, and it goes
+# with the entry.
+
+
+def supported_channels(entry: ConfigEntry, did: str | None) -> frozenset[str] | None:
+    """Return the channels this identity has described, or None before any hello."""
+    stored = entry.data.get(CONF_SUPPORTED_CHANNELS)
+    if (
+        did is None
+        or not isinstance(stored, Mapping)
+        or stored.get("did") != did
+        or not isinstance(channels := stored.get("channels"), list)
+    ):
+        return None
+    return frozenset(channel for channel in channels if isinstance(channel, str))
+
+
+@callback
+def async_record_supported_channels(
+    hass: HomeAssistant, entry: ConfigEntry, did: str, channels: Collection[str]
+) -> None:
+    """Add what a hello described to the entry's channels; write only a change."""
+    known = supported_channels(entry, did)
+    if known is not None and known.issuperset(channels):
+        return
+    hass.config_entries.async_update_entry(
+        entry,
+        data={
+            **entry.data,
+            CONF_SUPPORTED_CHANNELS: {
+                "did": did,
+                "channels": sorted((known or frozenset()).union(channels)),
+            },
+        },
+    )
 
 
 def cutover_issue_id(issue: str, entry_id: str) -> str:
@@ -1830,6 +1910,12 @@ def ws_hello(
         for channel, descriptor in descriptors.items()
         if catalogue_entry(descriptor) is None
     )
+    if native_entities_enabled(hass):
+        # Before the session opens: opening it is what tells a cutover waiting
+        # for the panel's channels to run.
+        async_record_supported_channels(
+            hass, entry, did, frozenset(descriptors).difference(unknown)
+        )
     session = PanelSession(
         entry_id=entry.entry_id,
         did=did,

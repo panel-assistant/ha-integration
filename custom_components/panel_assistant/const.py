@@ -14,7 +14,7 @@ INTEGRATION_VERSION: str = json.loads(
 # The public version (manifest.json) only changes when something ships. This
 # build number tells builds apart in between: it counts the commits that have
 # changed this integration.
-INTEGRATION_BUILD = 115
+INTEGRATION_BUILD = 116
 
 # Every outward link goes through the site's own redirect rather than a page
 # path, so pages can move. The version and build travel with it, so a later
@@ -82,6 +82,9 @@ CONF_AUTHORITY = "authority"
 # The entry data key holding the record of a panel's entity cutover: which MQTT
 # entities were moved to this integration, and how far the move got.
 CONF_CUTOVER = "cutover"
+# The entry data key holding the channels the entry's panel has described in a
+# hello, with the identity it described them under (see ``transport.py``).
+CONF_SUPPORTED_CHANNELS = "supported_channels"
 # The first ha-paneld release whose panels negotiate their MQTT withdrawal, and
 # so never announce MQTT entities that this integration already owns.
 PANEL_MQTT_WITHDRAW_VERSION = "0.9.8-rc1"

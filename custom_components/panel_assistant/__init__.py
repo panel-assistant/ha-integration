@@ -137,7 +137,7 @@ def _async_request_cutover_reconciliation(
     entry: HaPaneldConfigEntry,
     runtime_data: HaPaneldRuntimeData,
 ) -> None:
-    """Reload once when health makes a deferred ownership move actionable."""
+    """Reload once when health or a hello makes a deferred ownership move actionable."""
     if (
         getattr(entry, "runtime_data", None) is not runtime_data
         or not runtime_data.cutover_reconciliation_pending
@@ -149,9 +149,13 @@ def _async_request_cutover_reconciliation(
     runtime_data.cutover_reconciliation_pending = False
     if not cutover_reconciliation_needed(hass, entry):
         return
+    # Not eagerly: a hello that supplied the missing channels opened a session
+    # and still owes the panel its reply, which must reach it before the
+    # reload ends that session.
     hass.async_create_task(
         hass.config_entries.async_reload(entry.entry_id),
-        f"reconcile {DOMAIN} ownership after health recovered",
+        f"reconcile {DOMAIN} ownership after its prerequisites arrived",
+        eager_start=False,
     )
 
 

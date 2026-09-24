@@ -41,7 +41,9 @@ from .const import CONF_CUTOVER, DOMAIN, PANEL_MQTT_WITHDRAW_VERSION
 from .transport import (
     AUTHORITY_NATIVE,
     CUTOVER_ENTITIES,
+    CUTOVER_NOT_DESCRIBED,
     CUTOVER_QUARANTINED,
+    CUTOVER_REASON,
     CUTOVER_REGISTRY_ID,
     CUTOVER_UNMIGRATED,
     DATA_REMOVED_PANELS,
@@ -114,7 +116,8 @@ def _settled(record: dict[str, Any], item: er.RegistryEntry) -> bool:
     same registry ID and MQTT enables it again. Unmigrated entities are not
     exempt either, for the same reason: the panel's tombstones remove an
     uncustomised one and a downgraded panel brings it back. Only a customised
-    one is (see ``_is_duplicate``).
+    one, or one waiting for its channel to be described, is (see
+    ``_is_duplicate``).
     """
     if item.id in record.get(CUTOVER_ENTITIES, {}):
         return True
@@ -170,12 +173,16 @@ def _is_duplicate(
     if _settled(record, item):
         return False
     unmigrated = {
-        unmigrated[CUTOVER_REGISTRY_ID]
+        unmigrated[CUTOVER_REGISTRY_ID]: unmigrated.get(CUTOVER_REASON)
         for unmigrated in record.get(CUTOVER_UNMIGRATED, ())
     }
     # A customised entity the cutover left behind is a person's: it holds the
-    # withdrawal back until they delete it or clear what they set.
-    if item.id in unmigrated and is_customised(item):
+    # withdrawal back until they delete it or clear what they set. One whose
+    # channel the panel has not described yet stays MQTT's until it has: no
+    # native entity would replace it.
+    if item.id in unmigrated and (
+        is_customised(item) or unmigrated[item.id] == CUTOVER_NOT_DESCRIBED
+    ):
         return False
     return _on_panel_device(hass, item, _panel_ids(entry, record))
 
