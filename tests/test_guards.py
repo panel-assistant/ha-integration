@@ -18,6 +18,7 @@ from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import label_registry as lr
 from homeassistant.helpers.entity import entity_sources
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -482,6 +483,66 @@ async def test_cleanup_keeps_a_quarantined_duplicate_a_person_changed(
     assert sorted(_quarantined(entry)) == sorted(kept)
     assert device_registry.async_get(mqtt["device"].id) is not None
     assert _issue(hass, ISSUE, entry.entry_id) is None
+
+
+@pytest.mark.parametrize(
+    ("customise", "kept"),
+    [
+        (lambda label: {"labels": {label}}, True),
+        (lambda label: {"aliases": [er.COMPUTED_NAME, "Panel firmware"]}, True),
+        (lambda label: {"name": "Mine"}, True),
+        # Home Assistant's own computed-name alias is not the person's.
+        (lambda label: {}, False),
+    ],
+    ids=["label", "alias", "name", "unmodified"],
+)
+async def test_a_leftover_customised_only_by_a_label_or_alias_is_kept(
+    hass: HomeAssistant,
+    hass_read_only_user: Any,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    customise: Any,
+    kept: bool,
+) -> None:
+    """The update entity the cutover leaves behind keeps what a person set."""
+    mqtt = _mqtt(hass, [("switch", "relay1", {}), ("update", "ha_paneld_update", {})])
+    registry = er.async_get(hass)
+    label = lr.async_get(hass).async_create("Panels").label_id
+    changes = customise(label)
+    relay = registry.async_update_entity(mqtt["entity_ids"]["relay1"], **changes)
+    leftover = registry.async_update_entity(
+        mqtt["entity_ids"]["ha_paneld_update"], **changes
+    )
+    assert leftover.aliases[0] is er.COMPUTED_NAME
+
+    entry = await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
+    await _settle(hass)
+    unmigrated = _record(entry)["unmigrated"]
+    assert {item["unique_suffix"]: item["customised"] for item in unmigrated} == {
+        "ha_paneld_update": kept
+    }
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    result = await _capable_sync(hass, client, CAPABLE)
+
+    assert result["mqtt_discovery"] == ("announce" if kept else "withdraw")
+    current = registry.entities.get_entry(leftover.id)
+    if kept:
+        assert current == leftover
+        assert _quarantined(entry) == []
+    else:
+        assert current is None
+    moved = registry.entities.get_entry(relay.id)
+    assert moved is not None
+    assert (moved.entity_id, moved.platform, moved.unique_id) == (
+        relay.entity_id,
+        DOMAIN,
+        f"{DID}_relay1",
+    )
+    assert (moved.name, moved.labels, moved.aliases) == (
+        relay.name,
+        relay.labels,
+        relay.aliases,
+    )
 
 
 async def test_a_renamed_panel_is_guarded_under_its_new_id(

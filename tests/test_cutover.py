@@ -598,6 +598,8 @@ async def test_a_merged_device_never_adds_a_sibling_to_the_cutover(
         {"name": "Mine"},
         {"icon": "mdi:star"},
         {"area_id": "porch"},
+        {"labels": {"panels"}},
+        {"aliases": [er.COMPUTED_NAME, "Porch lamp"]},
         {"hidden_by": er.RegistryEntryHider.USER},
         {"disabled_by": er.RegistryEntryDisabler.USER},
     ],

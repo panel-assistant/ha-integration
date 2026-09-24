@@ -1386,13 +1386,16 @@ def cutover_record(entry: ConfigEntry) -> Mapping[str, Any] | None:
 def is_customised(item: er.RegistryEntry) -> bool:
     """Return whether a person changed this registry entry.
 
-    A name, icon or area of their own, hiding it, or disabling it themselves
-    all count. What an integration or a config entry did does not.
+    A name, icon, area, label or alias of their own, hiding it, or disabling it
+    themselves all count. What an integration or a config entry did does not,
+    nor does the computed-name alias Home Assistant gives every new entry.
     """
     return (
         item.name is not None
         or item.icon is not None
         or item.area_id is not None
+        or bool(item.labels)
+        or any(alias is not er.COMPUTED_NAME for alias in item.aliases)
         or item.hidden_by is not None
         or item.disabled_by is er.RegistryEntryDisabler.USER
     )

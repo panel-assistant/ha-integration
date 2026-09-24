@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 - Panel Assistant now reads a panel running a development build, whose version name is free-form rather than a release number. The USB installer already accepted those names; Home Assistant refusing them meant a panel it could install could then not be read.
 - The manual file route accepts a release published under either application id. It previously recognised only the old name, so a release named for the new one could not be installed by hand even though Home Assistant itself resolved it.
 - The USB installer now installs a release published under the new application id, whether Home Assistant hands it over or you choose its files by hand. Its signed checksum was compared with the old id's file name, so the new release was refused as unauthenticated. The checksum must now name exactly the file the signed release description names, which still ties the file name, the release tag and the hash together.
+- An MQTT entity left behind when a panel moves to its native connection is now kept when the only thing you changed on it is a label or an alias. Those were not counted as your own settings, so such an entity, typically the old ha-paneld update entity, was removed once the panel withdrew its MQTT entities, and anything that targeted it by label or found it by alias stopped working. A label or alias of your own now holds it back exactly as a name, icon or area already did; an entity you never changed is still cleaned up.
 
 ## 0.5.0 - 2026-09-19
 
