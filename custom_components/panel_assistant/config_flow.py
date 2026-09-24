@@ -202,8 +202,12 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             or not is_valid_discovery_id(discovery_id)
         ):
             return self.async_abort(reason="invalid_discovery")
+        # An IPv6 literal must be bracketed before a port can follow it; bare, its
+        # colons read as a port and every IPv6-only panel was refused here.
+        advertised = discovery_info.ip_address
+        host = f"[{advertised}]" if advertised.version == 6 else str(advertised)
         try:
-            address = normalize_address(str(discovery_info.ip_address))
+            address = normalize_address(host)
         except InvalidAddressError:
             return self.async_abort(reason="invalid_discovery")
 

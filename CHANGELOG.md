@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## 0.5.1 - Unreleased
 
+- A panel on a network with only IPv6 addresses is now offered for setup when Home Assistant discovers it. Its advertisement used to be refused as invalid, because the address was read without the brackets an IPv6 address needs before a port, so such a panel could only be added by typing its address. A panel with an IPv4 address is still set up at that address, exactly as before.
 - A tap on the panel screenshot in the sidebar no longer reads as refused when the tap ran but the panel could not take the screenshot that follows it. The sidebar dropped the header that tells the panel page the tap went through, so the page said "Tap was not accepted" and did not refresh, and tapping again repeated an action that had already happened. The page now refreshes the screenshot without tapping again, as it does when opened directly, and a tap the panel genuinely refused still reads as refused.
 
 - A panel set to use its native connection now finishes moving its existing MQTT entities after an unavailable first health check recovers. Previously the entry became healthy but left those entities on MQTT until Home Assistant manually reloaded the integration. The recovery asks for one bounded lifecycle retry so affected entities are unloaded during the move, while changing the panel back from native authority still cancels or reverses the move safely.
