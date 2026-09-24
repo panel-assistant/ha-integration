@@ -37,7 +37,7 @@ SCHEMAS = {
 }
 
 _HA_VECTOR_REVISION = "f8f3bc883ebfa82ac957706dad363be4b42a1010"
-_ANDROID_PRODUCER_REVISION = "2836b4e9863c876b53536ddcea8f93b135e378bd"
+_ANDROID_PRODUCER_REVISION = "a2951a1a3db623d02d75484363143d3d29b1563c"
 
 
 def test_shared_vectors_name_the_ha_source_revision_vendored_by_android() -> None:
@@ -188,6 +188,60 @@ def test_every_catalogue_entry_is_a_known_descriptor(entry: dict[str, Any]) -> N
     if entry["family"]:
         with pytest.raises(vol.Invalid):
             _descriptor(entry, CONTRACT["max_family_index"] + 1)
+
+
+_DESCRIPTOR_FIELDS = (
+    "platform",
+    "translation_key",
+    "family",
+    "entity_category",
+    "enabled_default",
+    "device_class",
+    "unit",
+    "state_class",
+    "force_update",
+    "options",
+    "min",
+    "max",
+    "step",
+)
+
+
+@pytest.mark.parametrize(
+    "descriptor",
+    ANDROID_PRODUCER["channelDescriptors"],
+    ids=lambda descriptor: descriptor["channel"],
+)
+def test_every_android_channel_descriptor_is_its_catalogue_entry(
+    descriptor: dict[str, Any],
+) -> None:
+    """Each channel Android describes is the catalogue's entry, field for field."""
+    entry = catalogue_entry(descriptor)
+    assert entry is not None
+    for field in _DESCRIPTOR_FIELDS:
+        assert descriptor[field] == entry[field], field
+
+
+def test_the_catalogue_describes_nothing_android_does_not_except_its_known_gaps() -> (
+    None
+):
+    """Catalogue entries Android never describes are exactly the known ones."""
+    described = {
+        catalogue_entry(descriptor)["translation_key"]  # type: ignore[index]
+        for descriptor in ANDROID_PRODUCER["channelDescriptors"]
+    }
+    missing = {
+        entry["translation_key"]
+        for entry in CONTRACT["channels"]
+        if entry["translation_key"] not in described
+    }
+    assert missing == {
+        "auto_sleep_activity",
+        "button",
+        "camera_snapshot",
+        "reboot",
+        "reload",
+    }
 
 
 @pytest.mark.parametrize(
