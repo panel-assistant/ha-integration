@@ -19,9 +19,11 @@ function panel() {
   const root = mkdtempSync(join(tmpdir(), 'set-aside-'));
   mkdirSync(join(root, 'data/local/tmp'), {recursive: true});
   const local = path => join(root, path);
-  const run = jobId => {
+  // adbd's shell service delivers stderr on the same stream as stdout.
+  const run = (jobId, prelude = '') => {
     const program = buildSetAsideRemoval(nonce, jobId).replace(/\/data(?=[/ \]])/g, `${root}/data`);
-    return parseSetAsideRemoval(execFileSync('sh', ['-c', program], {encoding: 'utf8'}), nonce);
+    return parseSetAsideRemoval(execFileSync('sh', ['-c', `{ ${prelude}${program}; } 2>&1`],
+      {encoding: 'utf8'}), nonce);
   };
   return {root, local, run, done: () => rmSync(root, {recursive: true, force: true})};
 }
@@ -36,6 +38,15 @@ test('a set-aside job\'s staged file is removed, and only that one', () => {
     assert.equal(readFileSync(p.local(stagingPath(other)), 'utf8'), 'another job',
       'a different job\'s file is untouched');
     assert.equal(p.run(job), 'absent', 'a second run finds nothing and removes nothing');
+  } finally { p.done(); }
+});
+
+test('an rm the panel denies is reported as failed, not as a broken answer', () => {
+  const p = panel();
+  try {
+    writeFileSync(p.local(stagingPath(job)), 'held');
+    assert.equal(p.run(job, 'rm() { echo "rm: Permission denied" >&2; return 1; }; '), 'failed');
+    assert.ok(existsSync(p.local(stagingPath(job))));
   } finally { p.done(); }
 });
 
