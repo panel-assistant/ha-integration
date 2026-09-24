@@ -72,7 +72,7 @@ from .const import (
     INTEGRATION_VERSION,
     MAX_ANDROID_INTEGER,
 )
-from .contract import CONTRACT, catalogue_entry, catalogue_entry_for_channel
+from .contract import CONTRACT, catalogue_entry
 from .embed_proof import encode_key, new_key
 
 _LOGGER = logging.getLogger(__name__)
@@ -212,7 +212,6 @@ ERR_INVALID_VALUE: Final = "invalid_value"
 MAX_CHANNELS: Final = 256
 MAX_OBSERVATIONS: Final = MAX_CHANNELS
 MAX_CAPABILITIES: Final = 16
-MAX_UNSUPPORTED: Final = 128
 MAX_OPTIONS: Final = 64
 MAX_ATTRIBUTES: Final = 32
 MAX_FAMILY_INDEX: Final = 64
@@ -290,11 +289,6 @@ def signal_observations(entry_id: str) -> str:
 def signal_event(entry_id: str) -> str:
     """Return the signal fired with a channel and event type, once per event."""
     return f"{DOMAIN}_transport_event_{entry_id}"
-
-
-def signal_native_removed(entry_id: str) -> str:
-    """Return the signal fired with the unique IDs of removed native entities."""
-    return f"{DOMAIN}_transport_native_removed_{entry_id}"
 
 
 class ValueRejected(Exception):
@@ -497,11 +491,6 @@ HELLO_SCHEMA: Final = vol.Schema(
         vol.Required("contract_digest"): _digest,
         vol.Required("capabilities"): _bounded_list(MAX_CAPABILITIES, _code),
         vol.Required("channels"): _channels,
-        # The channels the panel states it cannot serve. Absent from an older
-        # panel, which states nothing.
-        vol.Optional("unsupported", default=list): _bounded_list(
-            MAX_UNSUPPORTED, _channel
-        ),
     },
     extra=vol.REMOVE_EXTRA,
 )
@@ -1501,11 +1490,9 @@ def mqtt_discovery_claim(hass: HomeAssistant, entry: ConfigEntry) -> str:
 # into it. The set is the union of every hello's known channels, kept in the
 # entry's data: a later session that omits a channel leaves it in, because a
 # channel missing from one session is only unavailable. It never shrinks from
-# an omission. It shrinks only when a hello lists a channel as unsupported, the
-# panel's explicit statement that it cannot serve it; that channel's native
-# entity is removed at the same time. It is replaced only when a hello comes
-# from another panel identity, whose channels the earlier set says nothing
-# about, and it goes with the entry.
+# an omission. It is replaced only when a hello comes from another panel
+# identity, whose channels the earlier set says nothing about, and it goes
+# with the entry.
 
 
 def supported_channels(entry: ConfigEntry, did: str | None) -> frozenset[str] | None:
@@ -1523,61 +1510,22 @@ def supported_channels(entry: ConfigEntry, did: str | None) -> frozenset[str] | 
 
 @callback
 def async_record_supported_channels(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-    did: str,
-    channels: Collection[str],
-    unsupported: Collection[str] = (),
+    hass: HomeAssistant, entry: ConfigEntry, did: str, channels: Collection[str]
 ) -> None:
-    """Add what a hello described to the entry's channels, and drop what it
-    listed as unsupported; write only a change.
-    """
+    """Add what a hello described to the entry's channels; write only a change."""
     known = supported_channels(entry, did)
-    updated = (known or frozenset()).union(channels).difference(unsupported)
-    if known is not None and known == updated:
+    if known is not None and known.issuperset(channels):
         return
     hass.config_entries.async_update_entry(
         entry,
         data={
             **entry.data,
-            CONF_SUPPORTED_CHANNELS: {"did": did, "channels": sorted(updated)},
+            CONF_SUPPORTED_CHANNELS: {
+                "did": did,
+                "channels": sorted((known or frozenset()).union(channels)),
+            },
         },
     )
-
-
-@callback
-def async_remove_unsupported_channels(
-    hass: HomeAssistant, entry: ConfigEntry, did: str, channels: Collection[str]
-) -> None:
-    """Remove this panel's native entity of each channel it cannot serve.
-
-    Only this integration's own entry for the channel's native unique ID is
-    looked up, under this panel identity and this config entry: an MQTT
-    entity, another identity's entity and another entry's entity are never
-    found. A channel the catalogue does not know removes nothing.
-    """
-    registry = er.async_get(hass)
-    removed: set[str] = set()
-    for channel in channels:
-        if (match := catalogue_entry_for_channel(channel)) is None:
-            continue
-        catalogue, suffix = match
-        unique_id = f"{did}_{suffix}"
-        entity_id = registry.async_get_entity_id(
-            catalogue["platform"], DOMAIN, unique_id
-        )
-        if entity_id is None:
-            continue
-        item = registry.async_get(entity_id)
-        if item is None or item.config_entry_id != entry.entry_id:
-            continue
-        registry.async_remove(entity_id)
-        removed.add(unique_id)
-    if removed:
-        # So that a later hello describing the channel again adds its entity.
-        async_dispatcher_send(
-            hass, signal_native_removed(entry.entry_id), frozenset(removed)
-        )
 
 
 def cutover_issue_id(issue: str, entry_id: str) -> str:
@@ -1963,14 +1911,10 @@ def ws_hello(
         if catalogue_entry(descriptor) is None
     )
     if native_entities_enabled(hass):
-        # A channel the hello also describes is served, whatever it claims.
-        unsupported = frozenset(msg["unsupported"]).difference(descriptors)
         # Before the session opens: opening it is what tells a cutover waiting
-        # for the panel's channels to run. The entry was found by this very
-        # identity, so the entities removed are this panel's own.
-        async_remove_unsupported_channels(hass, entry, did, unsupported)
+        # for the panel's channels to run.
         async_record_supported_channels(
-            hass, entry, did, frozenset(descriptors).difference(unknown), unsupported
+            hass, entry, did, frozenset(descriptors).difference(unknown)
         )
     session = PanelSession(
         entry_id=entry.entry_id,

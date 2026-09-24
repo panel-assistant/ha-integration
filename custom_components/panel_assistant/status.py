@@ -363,8 +363,10 @@ _STORAGE_FIELDS: dict[str, FieldValidator] = {
     "freelist_count": _nullable_nonnegative_integer,
     "schema_version": _nullable_nonnegative_integer,
     "quick_check": _token,
+    "auto_vacuum": _token,
     "checked_at": _nullable_nonnegative_integer,
     "failure": _nullable_token,
+    "failure_operation": _nullable_token,
 }
 
 _RENDERER_FIELDS: dict[str, FieldValidator] = {

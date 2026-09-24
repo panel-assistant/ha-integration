@@ -13,10 +13,6 @@ and options. Its unique ID is ``<did>_<unique_suffix>``, the ID a later cutover
 migrates the MQTT entity to, so a native entity never claims an MQTT one.
 Entities are added when a session describes them and never removed when a
 later session does not: a channel that disappears only becomes unavailable.
-The one exception is a hello that lists a channel as unsupported, the panel's
-explicit statement that it cannot serve it: that channel's native entity is
-removed (see ``async_remove_unsupported_channels``), and a later session that
-describes the channel again adds it anew.
 """
 
 from __future__ import annotations
@@ -43,7 +39,6 @@ from .transport import (
     async_send_command,
     native_entities_enabled,
     session_available,
-    signal_native_removed,
     signal_observations,
     signal_session_changed,
 )
@@ -264,15 +259,6 @@ def async_setup_native_platform(
         if new:
             async_add_entities(new)
 
-    @callback
-    def _forget_removed(unique_ids: frozenset[str]) -> None:
-        added.difference_update(unique_ids)
-
-    entry.async_on_unload(
-        async_dispatcher_connect(
-            hass, signal_native_removed(entry.entry_id), _forget_removed
-        )
-    )
     entry.async_on_unload(
         async_dispatcher_connect(
             hass, signal_session_changed(entry.entry_id), _add_described

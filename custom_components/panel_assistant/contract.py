@@ -115,25 +115,3 @@ def catalogue_channel_for_suffix(platform: str, unique_suffix: str) -> str | Non
     """
     match = _match_suffix(platform, unique_suffix)
     return None if match is None else match[1]
-
-
-def catalogue_entry_for_channel(channel: str) -> tuple[dict[str, Any], str] | None:
-    """Return the catalogue entry of a channel ID and its entities' unique suffix.
-
-    A family member's ID carries its index within the contract's bound, as
-    ``catalogue_channel_for_suffix`` reads it: ``relay3`` is the relay family
-    with the suffix ``relay3``; ``relay0`` and ``relay065`` are nothing.
-    """
-    entry = _BY_CHANNEL.get(channel)
-    if entry is not None:
-        return entry, entry["unique_suffix"]
-    for family, candidate in _BY_FAMILY.items():
-        index = channel.removeprefix(family)
-        if (
-            index != channel
-            and index.isdecimal()
-            and str(int(index)) == index
-            and 1 <= int(index) <= CONTRACT["max_family_index"]
-        ):
-            return candidate, candidate["unique_suffix"].format(index=index)
-    return None

@@ -381,13 +381,6 @@ def _too_many_channels() -> list[dict[str, Any]]:
         ),
         pytest.param(_hello(channels=[SWITCH, SWITCH]), id="duplicate_channel"),
         pytest.param(_hello(channels=_too_many_channels()), id="too_many_channels"),
-        pytest.param(_hello(unsupported="humidity"), id="unsupported_not_list"),
-        pytest.param(_hello(unsupported=["Humidity"]), id="unsupported_bad_channel"),
-        pytest.param(_hello(unsupported=[3]), id="unsupported_not_string"),
-        pytest.param(
-            _hello(unsupported=[f"relay{index}" for index in range(1, 130)]),
-            id="unsupported_too_many",
-        ),
         pytest.param(
             _hello(channels=[{**SWITCH, "platform": "vacuum"}]), id="bad_platform"
         ),
