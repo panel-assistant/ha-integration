@@ -1,4 +1,4 @@
-import { MAX_FEED_BYTES, buildTagVersionCode, descriptorIdentityValid, githubApkName,
+import { MAX_FEED_BYTES, buildTagVersionCode, descriptorIdentityValid,
   isBuildTag, isBuildVersionName, isGithubTag, isRcTag, isStableTag } from './release-identity.mjs';
 
 /** Byte-only metadata authentication. This does not validate an APK signing block. */
@@ -181,8 +181,12 @@ async function verifyGithubBundle(bundle, expectedRcTag, verificationKey) {
   requireValid(await crypto.subtle.verify(ALGORITHM, key, descriptorSignature, descriptor));
   const line = ascii(checksum);
   const hash = line.slice(0, 64);
-  requireValid(fullMatch(HASH, hash) && line === `${hash}  ${githubApkName(tag)}\n`);
-  return parseUnauthenticatedDescriptor(descriptor, { tag, apkSha256: hash });
+  requireValid(fullMatch(HASH, hash));
+  // The signed checksum names the one APK the signed descriptor names: its
+  // apkName is already bound to this tag, either identity's asset name.
+  const authenticated = parseUnauthenticatedDescriptor(descriptor, { tag, apkSha256: hash });
+  requireValid(line === `${hash}  ${authenticated.apkName}\n`);
+  return authenticated;
 }
 
 /** Authenticate the signed metadata and cross-bind exact tag, checksum and descriptor.
