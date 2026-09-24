@@ -41,7 +41,11 @@ from custom_components.panel_assistant.install_artifacts import (
     ArtifactCustodyError,
     ArtifactErrorCode,
 )
-from custom_components.panel_assistant.install_executor import InstallExecutor
+from custom_components.panel_assistant.install_executor import (
+    FinalizationOutcome,
+    InstallExecutor,
+    _FinalizerLease,
+)
 from custom_components.panel_assistant.install_jobs import (
     InstallJobRevisionError,
     InstallJobStoreError,
@@ -109,19 +113,29 @@ def _receipt(
 
 
 def _installer_doubles(
+    hass: HomeAssistant,
     receipts: tuple[SimpleNamespace, ...] = (),
     *,
-    finalizer_active: bool = False,
-) -> tuple[SimpleNamespace, SimpleNamespace]:
-    """Return isolated process-executor and receipt-manager doubles."""
-    executor = SimpleNamespace(
-        async_acquire_finalizer=AsyncMock(return_value=not finalizer_active),
-        async_release_finalizer=AsyncMock(),
-    )
+    flow_owner: str | None = None,
+) -> tuple[InstallExecutor, SimpleNamespace]:
+    """Return the real process executor over an isolated receipt-manager double.
+
+    Entry recovery belongs to the executor, so the executor is the unit under
+    test; only the durable store is replaced.
+    """
+
+    async def _get(job_id: str) -> SimpleNamespace:
+        return next(receipt for receipt in receipts if receipt.job_id == job_id)
+
     manager = SimpleNamespace(
         async_list=AsyncMock(return_value=receipts),
+        async_get=AsyncMock(side_effect=_get),
         async_transition=AsyncMock(),
     )
+    executor = InstallExecutor(hass, manager)  # type: ignore[arg-type]
+    if flow_owner is not None:
+        for receipt in receipts:
+            executor._finalizers[receipt.job_id] = _FinalizerLease(flow_owner)
     return executor, manager
 
 
@@ -153,7 +167,7 @@ async def test_setup_entry_diagnostics_unload_reload(hass: HomeAssistant) -> Non
         return_value=PanelInstallStatus(running=True, component="ha-paneld")
     )
     resume_mock = AsyncMock(return_value=())
-    executor, manager = _installer_doubles()
+    executor, manager = _installer_doubles(hass)
 
     with (
         patch(
@@ -175,10 +189,6 @@ async def test_setup_entry_diagnostics_unload_reload(hass: HomeAssistant) -> Non
         patch(
             "custom_components.panel_assistant.async_get_install_executor",
             AsyncMock(return_value=executor),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
         ),
     ):
         assert await hass.config_entries.async_setup(entry.entry_id)
@@ -268,7 +278,7 @@ async def test_diagnostics_download_uses_privacy_safe_entry_filename(
         ha_state=HEALTH.ha_state,
         ha_source=HEALTH.ha_source,
     )
-    executor, manager = _installer_doubles()
+    executor, _manager = _installer_doubles(hass)
 
     with (
         patch(
@@ -286,10 +296,6 @@ async def test_diagnostics_download_uses_privacy_safe_entry_filename(
         patch(
             "custom_components.panel_assistant.async_get_install_executor",
             AsyncMock(return_value=executor),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
         ),
     ):
         assert await hass.config_entries.async_setup(entry.entry_id)
@@ -321,7 +327,7 @@ async def test_setup_survives_install_job_resume_failure(
 ) -> None:
     """Corrupt installer state cannot block an ordinary existing entry."""
     entry = _entry(hass)
-    executor, manager = _installer_doubles()
+    executor, _manager = _installer_doubles(hass)
     private_detail = "panel-secret.local"
 
     with (
@@ -341,10 +347,6 @@ async def test_setup_survives_install_job_resume_failure(
         patch(
             "custom_components.panel_assistant.async_get_install_executor",
             AsyncMock(return_value=executor),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
         ),
     ):
         assert await hass.config_entries.async_setup(entry.entry_id)
@@ -438,7 +440,7 @@ async def test_setup_survives_install_artifact_resume_failure(
 ) -> None:
     """Artifact custody failure cannot block an ordinary existing entry."""
     entry = _entry(hass)
-    executor, manager = _installer_doubles()
+    executor, manager = _installer_doubles(hass)
     private_detail = "private-artifact-path"
     error = ArtifactCustodyError(ArtifactErrorCode.PATH_INVALID)
     error.args = (private_detail,)
@@ -461,10 +463,6 @@ async def test_setup_survives_install_artifact_resume_failure(
             "custom_components.panel_assistant.async_get_install_executor",
             AsyncMock(return_value=executor),
         ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
-        ),
     ):
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
@@ -481,8 +479,9 @@ async def test_setup_survives_install_receipt_store_failure(
 ) -> None:
     """Post-refresh receipt corruption leaves platform setup available."""
     entry = _entry(hass)
-    executor, _manager = _installer_doubles()
+    executor, manager = _installer_doubles(hass)
     private_detail = "192.168.1.44"
+    manager.async_list.side_effect = InstallJobStoreError(private_detail)
 
     with (
         caplog.at_level(logging.WARNING),
@@ -501,10 +500,6 @@ async def test_setup_survives_install_receipt_store_failure(
         patch(
             "custom_components.panel_assistant.async_get_install_executor",
             AsyncMock(return_value=executor),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_job_manager",
-            AsyncMock(side_effect=InstallJobStoreError(private_detail)),
         ),
     ):
         assert await hass.config_entries.async_setup(entry.entry_id)
@@ -546,17 +541,12 @@ async def test_setup_survives_install_artifact_reconciliation_failure(
             "custom_components.panel_assistant.async_get_install_executor",
             AsyncMock(side_effect=error),
         ) as executor_mock,
-        patch(
-            "custom_components.panel_assistant.async_get_install_job_manager",
-            AsyncMock(),
-        ) as manager_mock,
     ):
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
 
     _assert_healthy_entry_loaded(hass, entry)
     executor_mock.assert_awaited_once_with(hass)
-    manager_mock.assert_not_awaited()
     assert private_detail not in caplog.text
     assert "Unable to reconcile a durable ha-paneld install receipt" in caplog.text
 
@@ -591,18 +581,17 @@ async def test_artifact_resume_failure_does_not_hide_health_setup_failure(
     status_mock.assert_not_awaited()
 
 
-async def test_setup_consumes_matching_healthy_install_receipt(
+async def _async_setup_with_installer(
     hass: HomeAssistant,
-) -> None:
-    """A loaded entry completes the cross-store handoff with its actual ID."""
-    entry = _entry(hass, "Panel.Local")
-    receipt = _receipt()
-    executor, manager = _installer_doubles((receipt,))
-
+    entry: MockConfigEntry,
+    executor: InstallExecutor,
+    health: PanelHealth = HEALTH,
+) -> bool:
+    """Set the entry up against one executor, its panel answering ``health``."""
     with (
         patch(
             "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
-            AsyncMock(return_value=HEALTH),
+            AsyncMock(return_value=health),
         ),
         patch(
             "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
@@ -616,18 +605,23 @@ async def test_setup_consumes_matching_healthy_install_receipt(
             "custom_components.panel_assistant.async_get_install_executor",
             AsyncMock(return_value=executor),
         ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
-        ),
     ):
-        assert await hass.config_entries.async_setup(entry.entry_id)
+        loaded = await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
+    return loaded
+
+
+async def test_setup_consumes_matching_healthy_install_receipt(
+    hass: HomeAssistant,
+) -> None:
+    """A loaded entry completes the cross-store handoff with its actual ID."""
+    entry = _entry(hass, "Panel.Local")
+    receipt = _receipt()
+    executor, manager = _installer_doubles(hass, (receipt,))
+
+    assert await _async_setup_with_installer(hass, entry, executor)
 
     assert len(entry.entry_id) == 26
-    executor.async_acquire_finalizer.assert_awaited_once_with(
-        receipt.job_id, f"setup_{entry.entry_id}"
-    )
     manager.async_transition.assert_awaited_once_with(
         receipt.job_id,
         receipt.revision,
@@ -635,9 +629,7 @@ async def test_setup_consumes_matching_healthy_install_receipt(
         result_code=InstallResultCode.ENTRY_CREATED,
         consumed_entry_id=entry.entry_id,
     )
-    executor.async_release_finalizer.assert_awaited_once_with(
-        receipt.job_id, f"setup_{entry.entry_id}"
-    )
+    assert not executor.is_finalizer_active(receipt.job_id)
 
 
 async def test_setup_leaves_flow_owned_healthy_receipt_unconsumed(
@@ -646,38 +638,12 @@ async def test_setup_leaves_flow_owned_healthy_receipt_unconsumed(
     """An active finalizer keeps ownership of entry creation handoff."""
     entry = _entry(hass)
     receipt = _receipt()
-    executor, manager = _installer_doubles((receipt,), finalizer_active=True)
+    executor, manager = _installer_doubles(hass, (receipt,), flow_owner="flow_one")
 
-    with (
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
-            AsyncMock(return_value=HEALTH),
-        ),
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
-            AsyncMock(return_value=STATUS),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_resume_loaded_install_jobs",
-            AsyncMock(return_value=()),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_executor",
-            AsyncMock(return_value=executor),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
-        ),
-    ):
-        assert await hass.config_entries.async_setup(entry.entry_id)
-        await hass.async_block_till_done()
+    assert await _async_setup_with_installer(hass, entry, executor)
 
-    executor.async_acquire_finalizer.assert_awaited_once_with(
-        receipt.job_id, f"setup_{entry.entry_id}"
-    )
-    executor.async_release_finalizer.assert_not_awaited()
     manager.async_transition.assert_not_awaited()
+    assert executor._finalizers[receipt.job_id].owner == "flow_one"
 
 
 async def test_setup_quarantines_matching_receipt_on_version_mismatch(
@@ -686,32 +652,9 @@ async def test_setup_quarantines_matching_receipt_on_version_mismatch(
     """Unexpected installed version requires recovery without blocking setup."""
     entry = _entry(hass)
     receipt = _receipt(version="9.9.9")
-    executor, manager = _installer_doubles((receipt,))
+    executor, manager = _installer_doubles(hass, (receipt,))
 
-    with (
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
-            AsyncMock(return_value=HEALTH),
-        ),
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
-            AsyncMock(return_value=STATUS),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_resume_loaded_install_jobs",
-            AsyncMock(return_value=()),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_executor",
-            AsyncMock(return_value=executor),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
-        ),
-    ):
-        assert await hass.config_entries.async_setup(entry.entry_id)
-        await hass.async_block_till_done()
+    assert await _async_setup_with_installer(hass, entry, executor)
 
     assert entry.state is ConfigEntryState.LOADED
     manager.async_transition.assert_awaited_once_with(
@@ -720,9 +663,7 @@ async def test_setup_quarantines_matching_receipt_on_version_mismatch(
         InstallPhase.RECOVERY_REQUIRED,
         result_code=InstallResultCode.VERIFICATION_REQUIRED,
     )
-    executor.async_release_finalizer.assert_awaited_once_with(
-        receipt.job_id, f"setup_{entry.entry_id}"
-    )
+    assert not executor.is_finalizer_active(receipt.job_id)
 
 
 @pytest.mark.parametrize(
@@ -755,32 +696,11 @@ async def test_setup_consumes_a_receipt_only_for_the_package_it_installed(
     """
     entry = _entry(hass)
     receipt = _receipt(package_id=receipt_package)
-    executor, manager = _installer_doubles((receipt,))
+    executor, manager = _installer_doubles(hass, (receipt,))
 
-    with (
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
-            AsyncMock(return_value=replace(HEALTH, package=observed_package)),
-        ),
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
-            AsyncMock(return_value=STATUS),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_resume_loaded_install_jobs",
-            AsyncMock(return_value=()),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_executor",
-            AsyncMock(return_value=executor),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
-        ),
-    ):
-        assert await hass.config_entries.async_setup(entry.entry_id)
-        await hass.async_block_till_done()
+    assert await _async_setup_with_installer(
+        hass, entry, executor, replace(HEALTH, package=observed_package)
+    )
 
     assert entry.state is ConfigEntryState.LOADED
     manager.async_transition.assert_awaited_once()
@@ -802,6 +722,7 @@ async def test_setup_holds_finalizer_lease_through_receipt_transition(
     """A flow cannot acquire finalization during consume or quarantine."""
     entry = _entry(hass)
     receipt = _receipt()
+    executor, manager = _installer_doubles(hass, (receipt,))
     transition_entered = asyncio.Event()
     allow_transition = asyncio.Event()
 
@@ -810,241 +731,90 @@ async def test_setup_holds_finalizer_lease_through_receipt_transition(
         await allow_transition.wait()
         receipt.phase = expected_phase
 
-    manager = SimpleNamespace(
-        async_get=AsyncMock(return_value=receipt),
-        async_list=AsyncMock(return_value=(receipt,)),
-        async_transition=AsyncMock(side_effect=_blocking_transition),
+    manager.async_transition.side_effect = _blocking_transition
+    setup_task = hass.async_create_task(
+        _async_setup_with_installer(hass, entry, executor, observed_health),
+        "setup entry during finalizer race",
     )
-    executor = InstallExecutor(hass, manager)
+    await asyncio.wait_for(transition_entered.wait(), timeout=1)
 
-    with (
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
-            AsyncMock(return_value=observed_health),
-        ),
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
-            AsyncMock(return_value=STATUS),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_resume_loaded_install_jobs",
-            AsyncMock(return_value=()),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_executor",
-            AsyncMock(return_value=executor),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
-        ),
-    ):
-        setup_task = hass.async_create_task(
-            hass.config_entries.async_setup(entry.entry_id),
-            "setup entry during finalizer race",
-        )
-        await asyncio.wait_for(transition_entered.wait(), timeout=1)
+    busy = await executor.async_verify_finalization(receipt.job_id, "flow_one")
+    assert busy.outcome is FinalizationOutcome.BUSY
 
-        assert not await executor.async_acquire_finalizer(
-            receipt.job_id, "flow_finalizer"
-        )
-
-        allow_transition.set()
-        assert await setup_task
-        await hass.async_block_till_done()
+    allow_transition.set()
+    assert await setup_task
 
     assert entry.state is ConfigEntryState.LOADED
     assert receipt.phase is expected_phase
+    assert not executor.is_finalizer_active(receipt.job_id)
 
 
-async def test_setup_survives_install_receipt_revision_failure(
-    hass: HomeAssistant,
+@pytest.mark.parametrize(
+    "failure",
+    [InstallJobRevisionError(), RuntimeError("private-finalizer-detail")],
+)
+async def test_setup_survives_install_receipt_persistence_failure(
+    hass: HomeAssistant, caplog: pytest.LogCaptureFixture, failure: Exception
 ) -> None:
     """Finalization persistence failures cannot remove or block the entry."""
     entry = _entry(hass)
     receipt = _receipt()
-    executor, manager = _installer_doubles((receipt,))
-    manager.async_transition.side_effect = InstallJobRevisionError
-    executor.async_release_finalizer.side_effect = InstallJobStoreError
+    executor, manager = _installer_doubles(hass, (receipt,))
+    manager.async_transition.side_effect = failure
 
-    with (
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
-            AsyncMock(return_value=HEALTH),
-        ),
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
-            AsyncMock(return_value=STATUS),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_resume_loaded_install_jobs",
-            AsyncMock(return_value=()),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_executor",
-            AsyncMock(return_value=executor),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
-        ),
-    ):
-        assert await hass.config_entries.async_setup(entry.entry_id)
-        await hass.async_block_till_done()
-
-    assert entry.state is ConfigEntryState.LOADED
-    assert entry.runtime_data.coordinator.data.health == HEALTH
-
-
-async def test_setup_contains_unexpected_finalizer_release_failure(
-    hass: HomeAssistant, caplog: pytest.LogCaptureFixture
-) -> None:
-    """Unexpected finalizer cleanup faults cannot remove a healthy entry."""
-    entry = _entry(hass)
-    receipt = _receipt()
-    executor, manager = _installer_doubles((receipt,))
-    private_detail = "private-finalizer-detail"
-    release_started = asyncio.Event()
-    allow_release = asyncio.Event()
-
-    async def _release(_job_id: str, _finalizer_id: str) -> None:
-        release_started.set()
-        await allow_release.wait()
-        raise RuntimeError(private_detail)
-
-    executor.async_release_finalizer.side_effect = _release
-
-    with (
-        caplog.at_level(logging.WARNING),
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
-            AsyncMock(return_value=HEALTH),
-        ),
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
-            AsyncMock(return_value=STATUS),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_resume_loaded_install_jobs",
-            AsyncMock(return_value=()),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_executor",
-            AsyncMock(return_value=executor),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
-        ),
-    ):
-        setup_task = hass.async_create_task(
-            hass.config_entries.async_setup(entry.entry_id)
-        )
-        await release_started.wait()
-        assert not setup_task.done()
-        allow_release.set()
-        assert await setup_task
-        await hass.async_block_till_done()
+    with caplog.at_level(logging.WARNING):
+        assert await _async_setup_with_installer(hass, entry, executor)
 
     _assert_healthy_entry_loaded(hass, entry)
-    assert private_detail not in caplog.text
-    assert "Unable to release a durable ha-paneld install finalizer" in caplog.text
+    assert not executor.is_finalizer_active(receipt.job_id)
+    assert "private-finalizer-detail" not in caplog.text
+    assert "Unable to reconcile a durable ha-paneld install receipt" in caplog.text
 
 
-async def test_setup_propagates_cancelled_finalizer_release(
+async def test_setup_propagates_cancelled_receipt_transition(
     hass: HomeAssistant,
 ) -> None:
-    """Finalizer cleanup must not consume task cancellation."""
+    """Receipt reconciliation must not consume task cancellation."""
     entry = _entry(hass)
     receipt = _receipt()
-    executor, manager = _installer_doubles((receipt,))
-    executor.async_release_finalizer.side_effect = asyncio.CancelledError
+    executor, manager = _installer_doubles(hass, (receipt,))
+    manager.async_transition.side_effect = asyncio.CancelledError
 
-    with (
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
-            AsyncMock(return_value=HEALTH),
-        ),
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
-            AsyncMock(return_value=STATUS),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_resume_loaded_install_jobs",
-            AsyncMock(return_value=()),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_executor",
-            AsyncMock(return_value=executor),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
-        ),
-    ):
-        assert not await hass.config_entries.async_setup(entry.entry_id)
+    assert not await _async_setup_with_installer(hass, entry, executor)
+    assert not executor.is_finalizer_active(receipt.job_id)
 
 
-async def test_setup_reconciliation_drains_finalizer_release_before_cancellation(
+async def test_setup_reconciliation_cancelled_mid_transition_releases_its_lease(
     hass: HomeAssistant,
 ) -> None:
     """Cancellation cannot strand setup's process-wide finalizer lease."""
     entry = _entry(hass)
     receipt = _receipt()
-    executor, manager = _installer_doubles((receipt,))
-    owner: str | None = None
-    release_started = asyncio.Event()
-    allow_release = asyncio.Event()
+    executor, manager = _installer_doubles(hass, (receipt,))
+    entered = asyncio.Event()
 
-    async def _acquire(_job_id: str, finalizer_id: str) -> bool:
-        nonlocal owner
-        owner = finalizer_id
-        return True
+    async def _blocked_transition(*_args: object, **_kwargs: object) -> None:
+        entered.set()
+        await asyncio.Event().wait()
 
-    async def _release(_job_id: str, finalizer_id: str) -> None:
-        nonlocal owner
-        release_started.set()
-        await allow_release.wait()
-        if owner == finalizer_id:
-            owner = None
-
-    executor.async_acquire_finalizer.side_effect = _acquire
-    executor.async_release_finalizer.side_effect = _release
-
-    with (
-        patch(
-            "custom_components.panel_assistant.async_get_install_executor",
-            AsyncMock(return_value=executor),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
-        ),
+    manager.async_transition.side_effect = _blocked_transition
+    with patch(
+        "custom_components.panel_assistant.async_get_install_executor",
+        AsyncMock(return_value=executor),
     ):
         task = hass.async_create_task(
             _async_reconcile_install_receipt(
-                hass,
-                entry,
-                receipt.target.address,
-                HEALTH,
+                hass, entry, receipt.target.address, HEALTH
             )
         )
-        await release_started.wait()
+        await entered.wait()
         task.cancel()
-        await asyncio.sleep(0)
-        assert not task.done()
-        task.cancel()
-        await asyncio.sleep(0)
-        assert not task.done()
-        allow_release.set()
-
         with pytest.raises(asyncio.CancelledError):
             await task
 
-    assert owner is None
-    executor.async_release_finalizer.assert_awaited_once_with(
-        receipt.job_id, f"setup_{entry.entry_id}"
-    )
+    assert not executor.is_finalizer_active(receipt.job_id)
+    verdict = await executor._async_acquire_finalizer(receipt.job_id, "flow_next")
+    assert verdict is receipt
 
 
 @pytest.mark.parametrize(
@@ -1059,37 +829,14 @@ async def test_setup_ignores_unrelated_or_terminal_install_receipts(
 ) -> None:
     """Only the matching active handoff receipt can affect setup."""
     entry = _entry(hass)
-    executor, manager = _installer_doubles(receipts)
+    executor, manager = _installer_doubles(hass, receipts)
 
-    with (
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
-            AsyncMock(return_value=HEALTH),
-        ),
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
-            AsyncMock(return_value=STATUS),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_resume_loaded_install_jobs",
-            AsyncMock(return_value=()),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_executor",
-            AsyncMock(return_value=executor),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
-        ),
-    ):
-        assert await hass.config_entries.async_setup(entry.entry_id)
-        await hass.async_block_till_done()
+    assert await _async_setup_with_installer(hass, entry, executor)
 
     assert entry.state is ConfigEntryState.LOADED
-    executor.async_acquire_finalizer.assert_not_awaited()
-    executor.async_release_finalizer.assert_not_awaited()
+    manager.async_get.assert_not_awaited()
     manager.async_transition.assert_not_awaited()
+    assert not executor._finalizers
 
 
 async def test_setup_loads_unavailable_when_panel_is_offline(
@@ -1179,7 +926,7 @@ async def test_diagnostics_marks_cached_snapshot_after_health_failure(
 ) -> None:
     """Diagnostics distinguish cached data after the current refresh fails."""
     entry = _entry(hass)
-    executor, manager = _installer_doubles()
+    executor, _manager = _installer_doubles(hass)
     with (
         patch(
             "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
@@ -1196,10 +943,6 @@ async def test_diagnostics_marks_cached_snapshot_after_health_failure(
         patch(
             "custom_components.panel_assistant.async_get_install_executor",
             AsyncMock(return_value=executor),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
         ),
     ):
         assert await hass.config_entries.async_setup(entry.entry_id)
@@ -1300,7 +1043,7 @@ async def test_status_poll_claims_the_panel_update_while_its_entity_is_enabled(
 ) -> None:
     """The panel is told to withhold its MQTT update only while ours is shown."""
     entry = _entry(hass)
-    executor, manager = _installer_doubles()
+    executor, _manager = _installer_doubles(hass)
     status_mock = AsyncMock(return_value=STATUS)
     health_mock = AsyncMock(return_value=HEALTH)
 
@@ -1320,10 +1063,6 @@ async def test_status_poll_claims_the_panel_update_while_its_entity_is_enabled(
         patch(
             "custom_components.panel_assistant.async_get_install_executor",
             AsyncMock(return_value=executor),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
         ),
     ):
         assert await hass.config_entries.async_setup(entry.entry_id)

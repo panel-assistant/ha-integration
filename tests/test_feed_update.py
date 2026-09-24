@@ -732,11 +732,7 @@ async def test_no_yaml_means_no_feed(
 
 def _setup_patches(version_code: AsyncMock) -> Any:
     executor = SimpleNamespace(
-        async_acquire_finalizer=AsyncMock(return_value=True),
-        async_release_finalizer=AsyncMock(),
-    )
-    manager = SimpleNamespace(
-        async_list=AsyncMock(return_value=()), async_transition=AsyncMock()
+        async_reconcile_entry=AsyncMock(),
     )
     client = "custom_components.panel_assistant.client.HaPaneldClient"
     return (
@@ -753,10 +749,6 @@ def _setup_patches(version_code: AsyncMock) -> Any:
         patch(
             "custom_components.panel_assistant.async_get_install_executor",
             AsyncMock(return_value=executor),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
         ),
     )
 

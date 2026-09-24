@@ -1,16 +1,21 @@
 """Process-wide orchestration for one durable clean-panel installation.
 
-The executor deliberately stops at ``HEALTHY_UNCLAIMED``.  Config-entry
+The worker deliberately stops at ``HEALTHY_UNCLAIMED``.  Config-entry
 creation remains a config-flow responsibility so a background worker can never
-change the integration's endpoint identity contract.
+change the integration's endpoint identity contract.  Everything else about a
+healthy receipt is owned here: the finalization lease, the read-only re-proof
+before an entry is created, recording the entry it became, and settling it when
+an entry loads after a restart.
 """
 
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from enum import StrEnum
 from functools import partial
 from hashlib import sha256
 from pathlib import Path
@@ -51,6 +56,7 @@ from .install_adb import (
     async_launch_installed_app,
     async_preflight_install,
     async_stage_apk,
+    async_verify_installed_target,
 )
 from .install_artifacts import (
     ArtifactCustodyError,
@@ -65,6 +71,7 @@ from .install_artifacts import (
 from .install_jobs import (
     InstallArtifact,
     InstallJobCleanupRequiredError,
+    InstallJobError,
     InstallJobManager,
     InstallJobReceipt,
     InstallJobRevisionError,
@@ -86,6 +93,7 @@ from .migration_repair import (
 )
 from .release import InstallDescriptor, ReleaseArtifact, is_feed_build_tag
 
+_LOGGER = logging.getLogger(__name__)
 _EXECUTOR_DATA_KEY = f"{DOMAIN}.install_executor"
 _EXECUTOR_LOCK_DATA_KEY = f"{DOMAIN}.install_executor_lock"
 _EXECUTION_ID_DOMAIN = b"ha-paneld-install-execution-v1\0"
@@ -193,6 +201,40 @@ def health_is_installed_app(
     return health.package is None or health.package == installed.package_id
 
 
+class FinalizationOutcome(StrEnum):
+    """What re-proving one healthy receipt concluded, for the flow to present."""
+
+    # The installed app is proven. The caller keeps the lease until the entry
+    # exists and it hands the entry id to async_consume_finalization.
+    VERIFIED = "verified"
+    # Another owner holds finalization, this owner is already verifying, or the
+    # receipt is no longer waiting to be claimed.
+    BUSY = "busy"
+    # Transient loss: the receipt is untouched and may be finalized again.
+    RETRY = "retry"
+    # The panel no longer matches the receipt; that drift is now durable.
+    RECOVERY_REQUIRED = "recovery_required"
+    # The durable store refused the receipt.
+    RECEIPT_ERROR = "receipt_error"
+
+
+@dataclass(frozen=True, slots=True)
+class FinalizationResult:
+    """One finalization verdict, with the health that proved a VERIFIED one."""
+
+    outcome: FinalizationOutcome
+    health: PanelHealth | None = None
+
+
+@dataclass(slots=True)
+class _FinalizerLease:
+    """The one owner allowed to finalize a healthy receipt, and what it is doing."""
+
+    owner: str
+    verifying: bool = False
+    release_requested: bool = False
+
+
 class _CancellationObserved(Exception):
     """Carry a freshly read cancellation without losing its receipt revision."""
 
@@ -218,7 +260,7 @@ class InstallExecutor:
         self._lock = asyncio.Lock()
         self._resume_lock = asyncio.Lock()
         self._tasks: dict[str, asyncio.Task[None]] = {}
-        self._finalizers: dict[str, str] = {}
+        self._finalizers: dict[str, _FinalizerLease] = {}
         # A cancelled worker may have been interrupted inside a mutation phase.
         # Never restart it in the same process, whose manager still owns the old
         # in-memory claim. A new HA process will reclaim or quarantine durably.
@@ -295,30 +337,230 @@ class InstallExecutor:
                     resumed.append(receipt.job_id)
             return tuple(resumed)
 
-    async def async_acquire_finalizer(self, job_id: str, flow_id: str) -> bool:
-        """Grant one flow the exclusive HEALTHY_UNCLAIMED finalization lease."""
-        if not isinstance(flow_id, str) or _FINALIZER_ID.fullmatch(flow_id) is None:
+    async def _async_acquire_finalizer(
+        self, job_id: str, owner: str
+    ) -> InstallJobReceipt | None:
+        """Grant one owner the exclusive HEALTHY_UNCLAIMED finalization lease.
+
+        Returns the receipt read under the lease, or None when another owner
+        holds it or the receipt is no longer waiting to be claimed.
+        """
+        if not isinstance(owner, str) or _FINALIZER_ID.fullmatch(owner) is None:
             raise InstallJobTransitionError
         async with self._lock:
             receipt = await self._manager.async_get(job_id)
             if receipt.phase is not InstallPhase.HEALTHY_UNCLAIMED:
-                return False
-            owner = self._finalizers.get(job_id)
-            if owner is None:
-                self._finalizers[job_id] = flow_id
-                return True
-            return owner == flow_id
+                return None
+            lease = self._finalizers.get(job_id)
+            if lease is None:
+                self._finalizers[job_id] = _FinalizerLease(owner)
+                return receipt
+            return receipt if lease.owner == owner else None
 
-    async def async_release_finalizer(self, job_id: str, flow_id: str) -> None:
-        """Release only the calling flow's finalization lease."""
-        async with self._lock:
-            if self._finalizers.get(job_id) == flow_id:
-                self._finalizers.pop(job_id, None)
+    def release_finalizer(self, job_id: str, owner: str) -> None:
+        """Release only this owner's lease, and never mid-verification.
 
-    async def async_is_finalizer_active(self, job_id: str) -> bool:
-        """Tell setup reconciliation whether a flow currently owns finalization."""
-        async with self._lock:
-            return job_id in self._finalizers
+        Synchronous, so no cancellation can interrupt a release half-done and
+        nothing has to be drained. A release asked for while this owner's own
+        verification is still reading the panel takes effect when that
+        verification exits, so a second finalizer never verifies beside it.
+        """
+        lease = self._finalizers.get(job_id)
+        if lease is None or lease.owner != owner:
+            return
+        if lease.verifying:
+            lease.release_requested = True
+            return
+        del self._finalizers[job_id]
+
+    def is_finalizer_active(self, job_id: str) -> bool:
+        """Tell whether any owner currently holds finalization of this receipt."""
+        return job_id in self._finalizers
+
+    async def async_verify_finalization(
+        self, job_id: str, owner: str
+    ) -> FinalizationResult:
+        """Re-prove one healthy receipt under the lease, before an entry exists.
+
+        Every outcome but VERIFIED releases the lease before returning, and so
+        does cancellation. VERIFIED keeps it, because the entry is not added
+        yet: the owner hands the lease back through async_consume_finalization,
+        or through release_finalizer if it adds no entry after all.
+        """
+        if not isinstance(owner, str) or _FINALIZER_ID.fullmatch(owner) is None:
+            return FinalizationResult(FinalizationOutcome.RECEIPT_ERROR)
+        # Reserved before the first await, so a release asked for while the
+        # receipt is still being read is recorded rather than lost, and the
+        # panel is never contacted for an owner that has already gone.
+        lease = self._finalizers.get(job_id)
+        if lease is None:
+            lease = self._finalizers[job_id] = _FinalizerLease(owner, verifying=True)
+        elif lease.owner != owner or lease.verifying:
+            return FinalizationResult(FinalizationOutcome.BUSY)
+        else:
+            lease.verifying = True
+        keep = False
+        try:
+            receipt = await self._manager.async_get(job_id)
+            if (
+                receipt.phase is not InstallPhase.HEALTHY_UNCLAIMED
+                or lease.release_requested
+            ):
+                return FinalizationResult(FinalizationOutcome.BUSY)
+            result = await self._async_reverify(receipt)
+            keep = result.outcome is FinalizationOutcome.VERIFIED
+            return result
+        except InstallJobError:
+            return FinalizationResult(FinalizationOutcome.RECEIPT_ERROR)
+        except Exception:
+            _LOGGER.exception("Unexpected exception while verifying final install")
+            return FinalizationResult(FinalizationOutcome.RETRY)
+        finally:
+            lease.verifying = False
+            if not keep or lease.release_requested:
+                self.release_finalizer(job_id, owner)
+
+    async def async_consume_finalization(
+        self, job_id: str, owner: str, entry_id: str
+    ) -> None:
+        """Record the entry a verified receipt became, then release its lease.
+
+        The entry already exists when this runs. Nothing here may raise into
+        Home Assistant, which would report the entry failed or remove it.
+        """
+        try:
+            receipt = await self._async_acquire_finalizer(job_id, owner)
+            if receipt is not None:
+                await self._manager.async_transition(
+                    job_id,
+                    receipt.revision,
+                    InstallPhase.CONSUMED,
+                    result_code=InstallResultCode.ENTRY_CREATED,
+                    consumed_entry_id=entry_id,
+                )
+        except Exception:
+            _LOGGER.warning("Unable to consume a completed ha-paneld install receipt")
+        finally:
+            self.release_finalizer(job_id, owner)
+
+    async def async_reconcile_entry(
+        self, entry_id: str, address: str, health: PanelHealth
+    ) -> None:
+        """Settle a healthy receipt a loaded entry turns out to be the result of.
+
+        A restart between entry creation and consumption leaves the receipt
+        waiting to be claimed. The entry's own first health read settles it with
+        the same rule the worker and the flow apply, under the same lease, so a
+        flow still finalizing it keeps it.
+        """
+        owner = f"setup_{entry_id}"
+        job_id: str | None = None
+        try:
+            job_id = next(
+                (
+                    candidate.job_id
+                    for candidate in await self._manager.async_list()
+                    if candidate.phase is InstallPhase.HEALTHY_UNCLAIMED
+                    and candidate.target.address == address
+                ),
+                None,
+            )
+            if job_id is None:
+                return
+            receipt = await self._async_acquire_finalizer(job_id, owner)
+            if receipt is None:
+                return
+            if health_is_installed_app(health, receipt.artifact):
+                await self._manager.async_transition(
+                    job_id,
+                    receipt.revision,
+                    InstallPhase.CONSUMED,
+                    result_code=InstallResultCode.ENTRY_CREATED,
+                    consumed_entry_id=entry_id,
+                )
+            else:
+                await self._manager.async_transition(
+                    job_id,
+                    receipt.revision,
+                    InstallPhase.RECOVERY_REQUIRED,
+                    result_code=InstallResultCode.VERIFICATION_REQUIRED,
+                )
+        except Exception:
+            _LOGGER.warning("Unable to reconcile a durable ha-paneld install receipt")
+        finally:
+            if job_id is not None:
+                self.release_finalizer(job_id, owner)
+
+    async def _async_reverify(self, receipt: InstallJobReceipt) -> FinalizationResult:
+        """Prove the panel still is what this receipt installed, read-only."""
+        try:
+            await async_revalidate_install_target(self._hass, _pinned_target(receipt))
+        except InstallNetworkError as err:
+            if err.code in {
+                InstallNetworkErrorCode.RESOLUTION_FAILED,
+                InstallNetworkErrorCode.RESOLUTION_TIMEOUT,
+            }:
+                return FinalizationResult(FinalizationOutcome.RETRY)
+            return await self._async_reject_healthy(receipt)
+
+        try:
+            credential = await async_get_durable_adb_credential(self._hass)
+        except AdbCredentialError:
+            return await self._async_reject_healthy(receipt)
+        except Exception:
+            _LOGGER.exception("Unexpected exception while loading final ADB identity")
+            return await self._async_reject_healthy(receipt)
+        if credential.generation_id != receipt.adb_credential_id:
+            return await self._async_reject_healthy(receipt)
+
+        stored_root_mode = receipt.preflight_root_mode
+        if stored_root_mode is None:
+            return await self._async_reject_healthy(receipt)
+        adb_target = _adb_target(receipt)
+        try:
+            await async_verify_installed_target(
+                adb_target,
+                credential.signer,
+                expected_root_mode=AdbRootMode(stored_root_mode),
+                # The package this receipt installed, which on a migrating
+                # panel is not the package that panel was running before.
+                package_id=receipt.artifact.package_id,
+            )
+        except InstallAdbError as err:
+            if err.code is InstallAdbErrorCode.TARGET_UNREACHABLE:
+                return FinalizationResult(FinalizationOutcome.RETRY)
+            return await self._async_reject_healthy(receipt)
+
+        try:
+            health = await HaPaneldClient(
+                async_get_clientsession(self._hass), adb_target.address
+            ).async_get_health()
+        except CannotConnectError:
+            return FinalizationResult(FinalizationOutcome.RETRY)
+        except InvalidResponseError:
+            return await self._async_reject_healthy(receipt)
+
+        if not health_is_installed_app(health, receipt.artifact):
+            return await self._async_reject_healthy(receipt)
+        return FinalizationResult(FinalizationOutcome.VERIFIED, health)
+
+    async def _async_reject_healthy(
+        self, receipt: InstallJobReceipt
+    ) -> FinalizationResult:
+        """Make final verification drift durable before refusing the entry."""
+        try:
+            await self._manager.async_transition(
+                receipt.job_id,
+                receipt.revision,
+                InstallPhase.RECOVERY_REQUIRED,
+                result_code=InstallResultCode.VERIFICATION_REQUIRED,
+            )
+        except InstallJobError:
+            return FinalizationResult(FinalizationOutcome.RECEIPT_ERROR)
+        except Exception:
+            _LOGGER.exception("Unexpected exception while rejecting install receipt")
+            return FinalizationResult(FinalizationOutcome.RECEIPT_ERROR)
+        return FinalizationResult(FinalizationOutcome.RECOVERY_REQUIRED)
 
     def _worker_done(self, job_id: str, task: asyncio.Task[None]) -> None:
         if self._tasks.get(job_id) is task:
@@ -1116,23 +1358,33 @@ def _apk_url(receipt: InstallJobReceipt, feed_url: URL | None) -> str:
     return f"{_RELEASE_DOWNLOAD_ROOT}/{artifact.release_tag}/{artifact.apk_name}"
 
 
+def _pinned_target(receipt: InstallJobReceipt) -> PinnedPanelTarget:
+    """Reconstruct the already-validated LAN pin from a durable receipt."""
+    return PinnedPanelTarget(
+        original=normalize_address(receipt.target.address),
+        pinned=normalize_address(receipt.target.pinned_address),
+    )
+
+
+def _adb_target(receipt: InstallJobReceipt) -> AdbInstallTarget:
+    """Reconstruct the exact ADB identity a durable receipt was approved for."""
+    return AdbInstallTarget(
+        address=normalize_address(receipt.target.pinned_address),
+        serial=receipt.target.adb_serial,
+        model=receipt.target.model,
+        primary_abi=receipt.target.primary_abi,
+        android_sdk=receipt.target.android_sdk,
+    )
+
+
 def _frozen_execution(
     receipt: InstallJobReceipt, feed_url: URL | None = None
 ) -> _FrozenExecution:
-    original = normalize_address(receipt.target.address)
-    pinned_address = normalize_address(receipt.target.pinned_address)
-    pinned = PinnedPanelTarget(original=original, pinned=pinned_address)
     descriptor = _descriptor(receipt.artifact)
     execution_id = _execution_id(receipt)
     return _FrozenExecution(
-        pinned=pinned,
-        adb_target=AdbInstallTarget(
-            address=pinned_address,
-            serial=receipt.target.adb_serial,
-            model=receipt.target.model,
-            primary_abi=receipt.target.primary_abi,
-            android_sdk=receipt.target.android_sdk,
-        ),
+        pinned=_pinned_target(receipt),
+        adb_target=_adb_target(receipt),
         descriptor=descriptor,
         release=ReleaseArtifact(
             tag=receipt.artifact.release_tag,

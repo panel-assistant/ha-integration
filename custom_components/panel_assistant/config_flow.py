@@ -60,22 +60,18 @@ from .const import (
 from .ha_url import async_offer_ha_url
 from .install_adb import (
     AdbInstallTarget,
-    AdbRootMode,
     InstallAdbError,
-    InstallAdbErrorCode,
     async_installed_artifact_size,
     async_preflight_install,
-    async_verify_installed_target,
 )
 from .install_executor import (
+    FinalizationOutcome,
     InstallExecutor,
     async_get_install_executor,
-    health_is_installed_app,
 )
 from .install_jobs import (
     InstallJobConflictError,
     InstallJobError,
-    InstallJobManager,
     InstallJobReceipt,
     InstallPhase,
     InstallResultCode,
@@ -164,10 +160,6 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     _progress_waiter: asyncio.Task[InstallJobReceipt] | None = None
     _install_executor: InstallExecutor | None = None
     _finalizer_job_id: str | None = None
-    _finalization_owner_task: asyncio.Task[Any] | None = None
-    _release_after_finalization = False
-    _finalizer_release_task: asyncio.Task[None] | None = None
-    _removed_release_retry_started = False
     _flow_removed = False
     _install_releases: list[dict[str, Any]] | None = None
     _setup_watch: asyncio.Task[None] | None = None
@@ -1094,207 +1086,62 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="already_configured")
         if receipt.phase is not InstallPhase.HEALTHY_UNCLAIMED:
             return await self._async_show_install_progress(receipt)
-        return await self._async_finalize_healthy_install(manager, receipt)
+        return await self._async_finalize_healthy_install(receipt)
 
     async def _async_finalize_healthy_install(
-        self, manager: InstallJobManager, receipt: InstallJobReceipt
+        self, receipt: InstallJobReceipt
     ) -> ConfigFlowResult:
-        """Serialize finalization attempts made through this individual flow."""
+        """Create the entry a healthy receipt proves, under the executor's lease.
+
+        The executor re-proves the panel and owns the lease. This flow owns only
+        what Home Assistant asks of it: the duplicate checks, the entry, and what
+        the person is shown.
+        """
         if self._flow_removed:
             return self.async_abort(reason="install_worker_stopped")
-        previous_owner = self._finalization_owner_task
-        if previous_owner is not None:
-            release_task = self._finalizer_release_task
-            if not previous_owner.done() or (
-                release_task is not None and not release_task.done()
-            ):
-                return self._show_install_result_retry(
-                    receipt, "install_finalization_busy"
-                )
-            try:
-                await self._async_release_finalizer()
-            except asyncio.CancelledError:
-                raise
-            except Exception:
-                return self._show_install_result_retry(
-                    receipt, "install_finalization_retry"
-                )
-            if self._finalizer_job_id is not None:
-                return self._show_install_result_retry(
-                    receipt, "install_finalization_retry"
-                )
-            if self._flow_removed:
-                # async_remove may run while the release await yields control.
-                return self.async_abort(reason="install_worker_stopped")  # type: ignore[unreachable]
-
-        # Reserve this flow before the first await. Removal can then defer a safe
-        # release even while executor lookup or lease acquisition is in flight.
-        owner = asyncio.current_task()
-        if owner is None:
-            return self.async_abort(reason="install_failed")
-        self._finalizer_job_id = receipt.job_id
-        self._finalization_owner_task = owner
-        self._removed_release_retry_started = False
-        try:
-            return await self._async_finalize_healthy_install_locked(manager, receipt)
-        except asyncio.CancelledError:
-            self._schedule_finalizer_release()
-            raise
-
-    async def _async_finalize_healthy_install_locked(
-        self, manager: InstallJobManager, receipt: InstallJobReceipt
-    ) -> ConfigFlowResult:
-        """Re-prove one healthy receipt under the process-wide finalizer lease."""
+        if self._address_is_configured(receipt.target.address):
+            return self.async_abort(reason="already_configured")
         executor = self._install_executor
         if executor is None:
             try:
                 executor = await async_get_install_executor(self.hass)
             except Exception:
                 _LOGGER.exception("Unable to load install finalizer")
-                await self._async_release_finalizer()
                 return self._show_install_result_retry(
                     receipt, "install_finalization_retry"
                 )
             self._install_executor = executor
-        try:
-            acquired = await executor.async_acquire_finalizer(
-                receipt.job_id, self.flow_id
-            )
-        except asyncio.CancelledError:
-            self._schedule_finalizer_release()
-            raise
-        except InstallJobError:
-            await self._async_release_finalizer()
-            return self.async_abort(reason="install_receipt_error")
-        except Exception:
-            _LOGGER.exception("Unexpected exception while acquiring install finalizer")
-            await self._async_release_finalizer()
-            return self._show_install_result_retry(
-                receipt, "install_finalization_retry"
-            )
-        if not acquired:
-            await self._async_release_finalizer()
+
+        # Recorded before the first await, so removal mid-verification can hand
+        # the lease back; the executor defers that until verification exits.
+        self._finalizer_job_id = receipt.job_id
+        result = await executor.async_verify_finalization(receipt.job_id, self.flow_id)
+        if self._flow_removed:
+            # async_remove may run during the verification awaits.
+            executor.release_finalizer(receipt.job_id, self.flow_id)  # type: ignore[unreachable]
+            return self.async_abort(reason="install_worker_stopped")
+        outcome = result.outcome
+        if outcome is FinalizationOutcome.BUSY:
             return self._show_install_result_retry(receipt, "install_finalization_busy")
-        if self._flow_removed:
-            await self._async_release_finalizer()
-            return self.async_abort(reason="install_worker_stopped")
-
+        if outcome is FinalizationOutcome.RETRY:
+            return self._show_install_result_retry(
+                receipt, "install_finalization_retry"
+            )
+        if outcome is FinalizationOutcome.RECOVERY_REQUIRED:
+            return self.async_abort(reason="install_recovery_required")
+        if outcome is not FinalizationOutcome.VERIFIED or result.health is None:
+            return self.async_abort(reason="install_receipt_error")
         if self._address_is_configured(receipt.target.address):
-            await self._async_release_finalizer()
+            executor.release_finalizer(receipt.job_id, self.flow_id)
             return self.async_abort(reason="already_configured")
 
-        try:
-            pinned = _pinned_from_receipt(receipt)
-            await async_revalidate_install_target(self.hass, pinned)
-        except InstallNetworkError as err:
-            if err.code in {
-                InstallNetworkErrorCode.RESOLUTION_FAILED,
-                InstallNetworkErrorCode.RESOLUTION_TIMEOUT,
-            }:
-                await self._async_release_finalizer()
-                return self._show_install_result_retry(
-                    receipt, "install_finalization_retry"
-                )
-            return await self._async_reject_healthy_receipt(manager, receipt)
-        except Exception:
-            _LOGGER.exception("Unexpected exception while revalidating final target")
-            await self._async_release_finalizer()
-            return self._show_install_result_retry(
-                receipt, "install_finalization_retry"
-            )
-
-        try:
-            credential = await async_get_durable_adb_credential(self.hass)
-        except AdbCredentialError:
-            return await self._async_reject_healthy_receipt(manager, receipt)
-        except Exception:
-            _LOGGER.exception("Unexpected exception while loading final ADB identity")
-            return await self._async_reject_healthy_receipt(manager, receipt)
-        if credential.generation_id != receipt.adb_credential_id:
-            return await self._async_reject_healthy_receipt(manager, receipt)
-
-        stored_root_mode = receipt.preflight_root_mode
-        if stored_root_mode is None:
-            return await self._async_reject_healthy_receipt(manager, receipt)
-        adb_target = _adb_target_from_receipt(receipt)
-        try:
-            await async_verify_installed_target(
-                adb_target,
-                credential.signer,
-                expected_root_mode=AdbRootMode(stored_root_mode),
-                # The package this receipt installed, which on a migrating
-                # panel is not the package that panel was running before.
-                package_id=receipt.artifact.package_id,
-            )
-        except InstallAdbError as err:
-            if err.code is InstallAdbErrorCode.TARGET_UNREACHABLE:
-                await self._async_release_finalizer()
-                return self._show_install_result_retry(
-                    receipt, "install_finalization_retry"
-                )
-            return await self._async_reject_healthy_receipt(manager, receipt)
-        except Exception:
-            _LOGGER.exception("Unexpected exception while verifying final ADB target")
-            await self._async_release_finalizer()
-            return self._show_install_result_retry(
-                receipt, "install_finalization_retry"
-            )
-
-        try:
-            health = await HaPaneldClient(
-                async_get_clientsession(self.hass), adb_target.address
-            ).async_get_health()
-        except CannotConnectError:
-            await self._async_release_finalizer()
-            return self._show_install_result_retry(
-                receipt, "install_finalization_retry"
-            )
-        except InvalidResponseError:
-            return await self._async_reject_healthy_receipt(manager, receipt)
-        except Exception:
-            _LOGGER.exception("Unexpected exception while validating final health")
-            await self._async_release_finalizer()
-            return self._show_install_result_retry(
-                receipt, "install_finalization_retry"
-            )
-
-        if not health_is_installed_app(health, receipt.artifact):
-            return await self._async_reject_healthy_receipt(manager, receipt)
-        if self._flow_removed:
-            # async_remove may run during the preceding network awaits.
-            await self._async_release_finalizer()  # type: ignore[unreachable]
-            return self.async_abort(reason="install_worker_stopped")
-        if self._address_is_configured(receipt.target.address):
-            await self._async_release_finalizer()
-            return self.async_abort(reason="already_configured")
-
-        # Keep the lease through ConfigEntries' actual add. async_on_create_entry
-        # consumes the receipt using HA's generated entry ID and always releases it.
+        # The lease stays held through ConfigEntries' actual add.
+        # async_on_create_entry hands HA's generated entry id to the executor,
+        # which records it and releases the lease.
         return self.async_create_entry(
-            title=health.panel_id,
+            title=result.health.panel_id,
             data={CONF_ADDRESS: receipt.target.address},
         )
-
-    async def _async_reject_healthy_receipt(
-        self, manager: InstallJobManager, receipt: InstallJobReceipt
-    ) -> ConfigFlowResult:
-        """Make final verification drift durable before refusing entry creation."""
-        try:
-            await manager.async_transition(
-                receipt.job_id,
-                receipt.revision,
-                InstallPhase.RECOVERY_REQUIRED,
-                result_code=InstallResultCode.VERIFICATION_REQUIRED,
-            )
-        except InstallJobError:
-            await self._async_release_finalizer()
-            return self.async_abort(reason="install_receipt_error")
-        except Exception:
-            _LOGGER.exception("Unexpected exception while rejecting install receipt")
-            await self._async_release_finalizer()
-            return self.async_abort(reason="install_receipt_error")
-        await self._async_release_finalizer()
-        return self.async_abort(reason="install_recovery_required")
 
     def _show_install_result_retry(
         self, receipt: InstallJobReceipt, error: str
@@ -1311,31 +1158,20 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     async def async_on_create_entry(self, result: ConfigFlowResult) -> ConfigFlowResult:
-        """Consume the healthy receipt with HA's actual config-entry identity."""
+        """Hand the executor HA's actual entry id for the healthy receipt."""
         job_id = self._finalizer_job_id
-        if job_id is not None:
-            try:
-                entry = result["result"]
-                if not isinstance(entry, ConfigEntry):
-                    raise TypeError
-                manager = await async_get_install_job_manager(self.hass)
-                receipt = await manager.async_get(job_id)
-                await manager.async_transition(
-                    job_id,
-                    receipt.revision,
-                    InstallPhase.CONSUMED,
-                    result_code=InstallResultCode.ENTRY_CREATED,
-                    consumed_entry_id=entry.entry_id,
+        executor = self._install_executor
+        entry = result.get("result")
+        if job_id is not None and executor is not None:
+            if isinstance(entry, ConfigEntry):
+                # Never raises: the entry exists, and a receipt that cannot be
+                # recorded must not make HA remove it or report it failed.
+                await executor.async_consume_finalization(
+                    job_id, self.flow_id, entry.entry_id
                 )
-            except Exception:
-                # The entry already exists. Receipt persistence must never make HA
-                # remove it or report a failed setup after that point.
-                _LOGGER.exception("Unable to consume completed install receipt")
-            finally:
-                try:
-                    await self._async_release_finalizer()
-                except Exception:
-                    _LOGGER.exception("Unable to release completed install finalizer")
+            else:
+                executor.release_finalizer(job_id, self.flow_id)
+            self._finalizer_job_id = None
         return await super().async_on_create_entry(result)
 
     def async_remove(self) -> None:
@@ -1347,101 +1183,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             self._progress_waiter.cancel()
         self._progress_waiter = None
         if self._finalizer_job_id is not None and self._install_executor is not None:
-            owner = self._finalization_owner_task
-            if owner is not None and not owner.done():
-                # Releasing while read-only final verification is still in flight
-                # would allow a second flow to run concurrently. Defer release until
-                # the owning configure task has exited.
-                if not self._release_after_finalization:
-                    self._release_after_finalization = True
-                    owner.add_done_callback(self._finalization_done)
-            else:
-                self._schedule_finalizer_release()
+            self._install_executor.release_finalizer(
+                self._finalizer_job_id, self.flow_id
+            )
         super().async_remove()
-
-    def _finalization_done(self, _task: asyncio.Task[Any]) -> None:
-        """Release a removed flow's lease only after its finalizer has exited."""
-        if not self._release_after_finalization:
-            return
-        release_task = self._finalizer_release_task
-        if release_task is not None or self._removed_release_retry_started:
-            return
-        self._schedule_finalizer_release()
-
-    def _schedule_finalizer_release(self) -> None:
-        """Schedule non-blocking finalizer release from a synchronous callback."""
-        self._ensure_finalizer_release_task()
-
-    async def _async_release_finalizer(self) -> None:
-        """Release this flow's lease without transferring caller cancellation."""
-        task = self._ensure_finalizer_release_task()
-        if task is not None:
-            try:
-                await asyncio.shield(task)
-            finally:
-                if task.done() and self._finalizer_release_task is task:
-                    self._finalizer_release_task = None
-
-    def _ensure_finalizer_release_task(self) -> asyncio.Task[None] | None:
-        """Return one process-tracked release task for the retained lease identity."""
-        task = self._finalizer_release_task
-        if task is not None:
-            return task
-
-        job_id = self._finalizer_job_id
-        executor = self._install_executor
-        if job_id is None or executor is None:
-            # No executor means lease acquisition never started. There is no
-            # process-wide ownership to release, only the optimistic local guard.
-            self._clear_finalizer_state(job_id)
-            return None
-
-        task = self.hass.async_create_task(
-            self._async_run_finalizer_release(job_id, executor),
-            f"release ha-paneld install finalizer {job_id}",
-        )
-        self._finalizer_release_task = task
-        task.add_done_callback(self._finalizer_release_done)
-        return task
-
-    async def _async_run_finalizer_release(
-        self, job_id: str, executor: InstallExecutor
-    ) -> None:
-        """Keep the lease coordinates durable in memory until release succeeds."""
-        await executor.async_release_finalizer(job_id, self.flow_id)
-        if self._finalizer_job_id == job_id and self._install_executor is executor:
-            self._clear_finalizer_state(job_id)
-
-    def _finalizer_release_done(self, task: asyncio.Task[None]) -> None:
-        """Permit a failed release to be retried without hiding its coordinates."""
-        if self._finalizer_release_task is task:
-            self._finalizer_release_task = None
-        failed = task.cancelled()
-        if not failed:
-            try:
-                task.result()
-            except Exception:
-                failed = True
-                _LOGGER.exception("Unable to release install finalizer")
-        if (
-            failed
-            and self._flow_removed
-            and self._finalizer_job_id is not None
-            and not self._removed_release_retry_started
-        ):
-            # A removed flow has no future UI submission to trigger cleanup.
-            # Retry once; the executor operation is exact-owner and idempotent.
-            self._removed_release_retry_started = True
-            self._schedule_finalizer_release()
-
-    def _clear_finalizer_state(self, job_id: str | None) -> None:
-        """Clear local ownership only if it still describes this release."""
-        if self._finalizer_job_id != job_id:
-            return
-        self._finalizer_job_id = None
-        self._finalization_owner_task = None
-        self._release_after_finalization = False
-        self._removed_release_retry_started = False
 
     def _stored_address_answers(self) -> bool:
         """Return whether the entry with this flow's unique id still polls fine."""
@@ -1647,25 +1392,6 @@ def _same_install_target(
         and observed.model == expected.model
         and observed.primary_abi == expected.primary_abi
         and observed.android_sdk == expected.android_sdk
-    )
-
-
-def _pinned_from_receipt(receipt: InstallJobReceipt) -> PinnedPanelTarget:
-    """Reconstruct the already-validated LAN pin from a durable receipt."""
-    return PinnedPanelTarget(
-        original=normalize_address(receipt.target.address),
-        pinned=normalize_address(receipt.target.pinned_address),
-    )
-
-
-def _adb_target_from_receipt(receipt: InstallJobReceipt) -> AdbInstallTarget:
-    """Reconstruct exact final ADB identity without retaining flow preview state."""
-    return AdbInstallTarget(
-        address=normalize_address(receipt.target.pinned_address),
-        serial=receipt.target.adb_serial,
-        model=receipt.target.model,
-        primary_abi=receipt.target.primary_abi,
-        android_sdk=receipt.target.android_sdk,
     )
 
 

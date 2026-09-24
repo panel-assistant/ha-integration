@@ -52,6 +52,7 @@ from custom_components.panel_assistant.install_adb import (
     InstallAdbError,
     InstallAdbErrorCode,
 )
+from custom_components.panel_assistant.install_executor import InstallExecutor
 from custom_components.panel_assistant.install_jobs import (
     InstallArtifact,
     InstallJobReceipt,
@@ -2101,13 +2102,11 @@ def _manager_for(receipt: InstallJobReceipt) -> SimpleNamespace:
     )
 
 
-def _executor_for(*, acquired: bool = True) -> SimpleNamespace:
-    """Return the narrow detached-executor API used by the flow."""
+def _executor_for() -> SimpleNamespace:
+    """Return the narrow detached-worker API the progress steps use."""
     return SimpleNamespace(
         async_ensure_job=AsyncMock(return_value=None),
         async_wait=AsyncMock(),
-        async_acquire_finalizer=AsyncMock(return_value=acquired),
-        async_release_finalizer=AsyncMock(),
     )
 
 
@@ -2167,7 +2166,7 @@ async def test_descriptorless_unauthorized_release_never_loads_a_credential(
             signer_mock,
         ),
         patch(
-            "custom_components.panel_assistant.config_flow.async_verify_installed_target",
+            "custom_components.panel_assistant.install_executor.async_verify_installed_target",
             verify_mock,
         ),
     ):
@@ -2864,6 +2863,49 @@ async def test_every_terminal_install_result_is_privacy_safe_and_creates_no_entr
     assert not hass.config_entries.async_entries(DOMAIN)
 
 
+_FINAL = "custom_components.panel_assistant.install_executor"
+
+
+def _finalizing_executor(
+    hass: HomeAssistant, manager: SimpleNamespace
+) -> InstallExecutor:
+    """The real process executor, which owns final verification and its lease."""
+    return InstallExecutor(hass, manager)  # type: ignore[arg-type]
+
+
+@contextlib.contextmanager
+def _final_proof(
+    manager: SimpleNamespace,
+    *,
+    revalidate: AsyncMock | None = None,
+    durable: AsyncMock | None = None,
+    verify: AsyncMock | None = None,
+    health: AsyncMock | None = None,
+) -> Iterator[None]:
+    """Patch every panel contact the executor's final proof makes."""
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
+            AsyncMock(return_value=manager),
+        ),
+        patch(
+            f"{_FINAL}.async_revalidate_install_target",
+            revalidate or AsyncMock(),
+        ),
+        patch(
+            f"{_FINAL}.async_get_durable_adb_credential",
+            durable or AsyncMock(return_value=CREDENTIAL),
+        ),
+        patch(f"{_FINAL}.async_verify_installed_target", verify or AsyncMock()),
+        patch(
+            f"{_FINAL}.HaPaneldClient.async_get_health",
+            health
+            or AsyncMock(return_value=replace(HEALTH, version=ARTIFACT.version_name)),
+        ),
+    ):
+        yield
+
+
 @pytest.mark.parametrize(
     ("failure", "expected_type"),
     [
@@ -2886,7 +2928,7 @@ async def test_final_verification_retry_and_recovery_boundaries(
     """Only temporary transport loss keeps a healthy receipt retryable."""
     receipt = _receipt(InstallPhase.HEALTHY_UNCLAIMED)
     manager = _manager_for(receipt)
-    executor = _executor_for()
+    executor = _finalizing_executor(hass, manager)
     flow = _direct_result_flow(hass, receipt, executor)
     revalidate = AsyncMock(return_value=install_network_pin)
     durable = AsyncMock(return_value=CREDENTIAL)
@@ -2922,34 +2964,13 @@ async def test_final_verification_retry_and_recovery_boundaries(
     elif failure == "version_drift":
         health.return_value = HEALTH
 
-    with (
-        patch(
-            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_revalidate_install_target",
-            revalidate,
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_get_durable_adb_credential",
-            durable,
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_verify_installed_target",
-            verify,
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
-            health,
-        ),
+    with _final_proof(
+        manager, revalidate=revalidate, durable=durable, verify=verify, health=health
     ):
         result = await flow.async_step_install_result()
 
     assert result["type"] is expected_type
-    executor.async_release_finalizer.assert_awaited_once_with(
-        receipt.job_id, flow.flow_id
-    )
+    assert not executor.is_finalizer_active(receipt.job_id)
     if expected_type is FlowResultType.FORM:
         assert result["errors"] == {"base": "install_finalization_retry"}
         manager.async_transition.assert_not_awaited()
@@ -2997,30 +3018,16 @@ async def test_final_verification_requires_the_installed_package(
         artifact=replace(ARTIFACT, package_id=receipt_package),
     )
     manager = _manager_for(receipt)
-    executor = _executor_for()
+    executor = _finalizing_executor(hass, manager)
     flow = _direct_result_flow(hass, receipt, executor)
     health = replace(HEALTH, version=ARTIFACT.version_name, package=observed_package)
 
-    with (
-        patch(
-            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_get_durable_adb_credential",
-            AsyncMock(return_value=CREDENTIAL),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_verify_installed_target",
-            AsyncMock(),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
-            AsyncMock(return_value=health),
-        ),
-    ):
+    with _final_proof(manager, health=AsyncMock(return_value=health)):
         result = await flow.async_step_install_result()
 
+    # A verified receipt keeps its lease for the entry's addition; a refused
+    # one has already handed it back.
+    assert executor.is_finalizer_active(receipt.job_id) is creates
     if creates:
         assert result["type"] is FlowResultType.CREATE_ENTRY
         manager.async_transition.assert_not_awaited()
@@ -3035,58 +3042,30 @@ async def test_final_verification_requires_the_installed_package(
         )
 
 
+def _held_verification() -> tuple[AsyncMock, asyncio.Event, asyncio.Event]:
+    """An ADB verification that waits until the test lets it finish."""
+    started = asyncio.Event()
+    allow = asyncio.Event()
+
+    async def _verify(*_args: object, **_kwargs: object) -> None:
+        started.set()
+        await allow.wait()
+
+    return AsyncMock(side_effect=_verify), started, allow
+
+
 async def test_two_finalizers_produce_only_one_create_result(
     hass: HomeAssistant,
 ) -> None:
     """The process-wide lease prevents two dialogs creating duplicate entries."""
     receipt = _receipt(InstallPhase.HEALTHY_UNCLAIMED)
     manager = _manager_for(receipt)
-    owner: str | None = None
-
-    async def _acquire(_job_id: str, flow_id: str) -> bool:
-        nonlocal owner
-        if owner is None:
-            owner = flow_id
-            return True
-        return owner == flow_id
-
-    async def _release(_job_id: str, flow_id: str) -> None:
-        nonlocal owner
-        if owner == flow_id:
-            owner = None
-
-    executor = _executor_for()
-    executor.async_acquire_finalizer.side_effect = _acquire
-    executor.async_release_finalizer.side_effect = _release
+    executor = _finalizing_executor(hass, manager)
     flow_one = _direct_result_flow(hass, receipt, executor, flow_id="flow-one")
     flow_two = _direct_result_flow(hass, receipt, executor, flow_id="flow-two")
-    verify_started = asyncio.Event()
-    allow_verify = asyncio.Event()
+    verify_mock, verify_started, allow_verify = _held_verification()
 
-    async def _verify(*_args: object, **_kwargs: object) -> None:
-        verify_started.set()
-        await allow_verify.wait()
-
-    verify_mock = AsyncMock(side_effect=_verify)
-
-    with (
-        patch(
-            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_get_durable_adb_credential",
-            AsyncMock(return_value=CREDENTIAL),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_verify_installed_target",
-            verify_mock,
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
-            AsyncMock(return_value=replace(HEALTH, version=ARTIFACT.version_name)),
-        ),
-    ):
+    with _final_proof(manager, verify=verify_mock):
         first_task = hass.async_create_task(flow_one.async_step_install_result())
         await verify_started.wait()
         second = await flow_two.async_step_install_result()
@@ -3099,6 +3078,7 @@ async def test_two_finalizers_produce_only_one_create_result(
     assert flow_one.unique_id is None
     assert second["type"] is FlowResultType.FORM
     assert second["errors"] == {"base": "install_finalization_busy"}
+    assert executor._finalizers[receipt.job_id].owner == "flow-one"
     verified_target = verify_mock.await_args.args[0]
     assert verified_target.address.stored_value == TARGET.pinned_address
     assert verified_target.serial == TARGET.adb_serial
@@ -3106,6 +3086,7 @@ async def test_two_finalizers_produce_only_one_create_result(
     assert verified_target.primary_abi == TARGET.primary_abi
     assert verified_target.android_sdk == TARGET.android_sdk
     assert verify_mock.await_args.kwargs["expected_root_mode"].value == "rootless"
+    assert verify_mock.await_args.kwargs["package_id"] == ARTIFACT.package_id
 
 
 async def test_removal_during_verification_defers_finalizer_release(
@@ -3114,302 +3095,94 @@ async def test_removal_during_verification_defers_finalizer_release(
     """Closing one dialog cannot expose its lease while verification still runs."""
     receipt = _receipt(InstallPhase.HEALTHY_UNCLAIMED)
     manager = _manager_for(receipt)
-    owner: str | None = None
-
-    async def _acquire(_job_id: str, flow_id: str) -> bool:
-        nonlocal owner
-        if owner is None:
-            owner = flow_id
-            return True
-        return owner == flow_id
-
-    async def _release(_job_id: str, flow_id: str) -> None:
-        nonlocal owner
-        if owner == flow_id:
-            owner = None
-
-    executor = _executor_for()
-    executor.async_acquire_finalizer.side_effect = _acquire
-    executor.async_release_finalizer.side_effect = _release
+    executor = _finalizing_executor(hass, manager)
     first = _direct_result_flow(hass, receipt, executor, flow_id="flow-removed")
     second = _direct_result_flow(hass, receipt, executor, flow_id="flow-other")
-    verify_started = asyncio.Event()
-    allow_verify = asyncio.Event()
+    verify_mock, verify_started, allow_verify = _held_verification()
 
-    async def _verify(*_args: object, **_kwargs: object) -> None:
-        verify_started.set()
-        await allow_verify.wait()
-
-    with (
-        patch(
-            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_get_durable_adb_credential",
-            AsyncMock(return_value=CREDENTIAL),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_verify_installed_target",
-            AsyncMock(side_effect=_verify),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
-            AsyncMock(return_value=replace(HEALTH, version=ARTIFACT.version_name)),
-        ),
-    ):
+    with _final_proof(manager, verify=verify_mock):
         first_task = hass.async_create_task(first.async_step_install_result())
         await verify_started.wait()
         first.async_remove()
-        await asyncio.sleep(0)
-        executor.async_release_finalizer.assert_not_awaited()
+        assert executor._finalizers[receipt.job_id].owner == "flow-removed"
         other_result = await second.async_step_install_result()
         allow_verify.set()
         first_result = await first_task
-        await asyncio.sleep(0)
-        await asyncio.sleep(0)
 
     assert other_result["type"] is FlowResultType.FORM
     assert other_result["errors"] == {"base": "install_finalization_busy"}
     assert first_result["type"] is FlowResultType.ABORT
     assert first_result["reason"] == "install_worker_stopped"
-    executor.async_release_finalizer.assert_any_await(receipt.job_id, first.flow_id)
-    executor.async_release_finalizer.assert_any_await(receipt.job_id, second.flow_id)
+    assert not executor.is_finalizer_active(receipt.job_id)
+    manager.async_transition.assert_not_awaited()
 
 
 async def test_removal_during_lease_acquisition_cannot_leak_finalizer(
     hass: HomeAssistant,
 ) -> None:
-    """Flow removal is fenced before the executor lease call can complete."""
+    """A flow removed while its lease is being taken never contacts the panel."""
     receipt = _receipt(InstallPhase.HEALTHY_UNCLAIMED)
     manager = _manager_for(receipt)
-    executor = _executor_for()
+    executor = _finalizing_executor(hass, manager)
     flow = _direct_result_flow(hass, receipt, executor)
     acquire_started = asyncio.Event()
     allow_acquire = asyncio.Event()
+    reads = 0
 
-    async def _acquire(_job_id: str, _flow_id: str) -> bool:
-        acquire_started.set()
-        await allow_acquire.wait()
-        return True
+    async def _get(_job_id: str) -> InstallJobReceipt:
+        nonlocal reads
+        reads += 1
+        if reads == 2:
+            # The executor's read under its lease lock.
+            acquire_started.set()
+            await allow_acquire.wait()
+        return receipt
 
-    executor.async_acquire_finalizer.side_effect = _acquire
+    manager.async_get.side_effect = _get
     durable = AsyncMock(return_value=CREDENTIAL)
     verify = AsyncMock()
-    with (
-        patch(
-            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_get_durable_adb_credential",
-            durable,
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_verify_installed_target",
-            verify,
-        ),
-    ):
+    health = AsyncMock(return_value=replace(HEALTH, version=ARTIFACT.version_name))
+    with _final_proof(manager, durable=durable, verify=verify, health=health):
         task = hass.async_create_task(flow.async_step_install_result())
         await acquire_started.wait()
         flow.async_remove()
-        executor.async_release_finalizer.assert_not_awaited()
         allow_acquire.set()
         result = await task
-        await asyncio.sleep(0)
-        await asyncio.sleep(0)
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "install_worker_stopped"
-    executor.async_release_finalizer.assert_awaited_once_with(
-        receipt.job_id, flow.flow_id
-    )
+    assert not executor.is_finalizer_active(receipt.job_id)
+    # A removed flow never reaches the panel, so it can never record a verdict.
     durable.assert_not_awaited()
     verify.assert_not_awaited()
+    health.assert_not_awaited()
+    manager.async_transition.assert_not_awaited()
 
 
-async def test_cancellation_at_release_lock_keeps_lease_retryable(
+async def test_cancelled_finalization_releases_the_lease_for_a_retry(
     hass: HomeAssistant,
 ) -> None:
-    """Caller cancellation cannot orphan a lease or duplicate its release."""
+    """Caller cancellation mid-proof cannot orphan the lease."""
     receipt = _receipt(InstallPhase.HEALTHY_UNCLAIMED)
     manager = _manager_for(receipt)
-    executor = _executor_for()
+    executor = _finalizing_executor(hass, manager)
     flow = _direct_result_flow(hass, receipt, executor)
-    owner: str | None = None
-    release_started = asyncio.Event()
-    allow_first_release = asyncio.Event()
-    release_count = 0
+    verify_mock, verify_started, allow_verify = _held_verification()
 
-    async def _acquire(_job_id: str, flow_id: str) -> bool:
-        nonlocal owner
-        if owner is None:
-            owner = flow_id
-            return True
-        return owner == flow_id
-
-    async def _release(_job_id: str, flow_id: str) -> None:
-        nonlocal owner, release_count
-        release_count += 1
-        if release_count == 1:
-            release_started.set()
-            await allow_first_release.wait()
-        if owner == flow_id:
-            owner = None
-
-    executor.async_acquire_finalizer.side_effect = _acquire
-    executor.async_release_finalizer.side_effect = _release
-    revalidate = AsyncMock(
-        side_effect=InstallNetworkError(InstallNetworkErrorCode.RESOLUTION_FAILED)
-    )
-    with (
-        patch(
-            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_revalidate_install_target",
-            revalidate,
-        ),
-    ):
+    with _final_proof(manager, verify=verify_mock):
         first_task = hass.async_create_task(flow.async_step_install_result())
-        await release_started.wait()
+        await verify_started.wait()
         first_task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await first_task
+        assert not executor.is_finalizer_active(receipt.job_id)
 
-        assert flow._finalizer_job_id == receipt.job_id
-        assert flow._finalizer_release_task is not None
-        busy = await flow.async_step_install_result()
-        assert busy["type"] is FlowResultType.FORM
-        assert busy["errors"] == {"base": "install_finalization_busy"}
-        assert executor.async_acquire_finalizer.await_count == 1
-        assert executor.async_release_finalizer.await_count == 1
-
-        allow_first_release.set()
-        await flow._finalizer_release_task
-        await asyncio.sleep(0)
-        assert flow._finalizer_job_id is None
-
+        allow_verify.set()
         retry = await flow.async_step_install_result()
 
-    assert retry["type"] is FlowResultType.FORM
-    assert retry["errors"] == {"base": "install_finalization_retry"}
-    assert executor.async_acquire_finalizer.await_count == 2
-    assert executor.async_release_finalizer.await_count == 2
-    assert owner is None
-    assert flow._finalizer_job_id is None
-
-
-async def test_completed_owner_retries_a_failed_finalizer_release(
-    hass: HomeAssistant,
-) -> None:
-    """A later submission can finish cleanup left by a failed owner task."""
-    receipt = _receipt(InstallPhase.HEALTHY_UNCLAIMED)
-    manager = _manager_for(receipt)
-    executor = _executor_for()
-    flow = _direct_result_flow(hass, receipt, executor)
-    executor.async_release_finalizer.side_effect = [RuntimeError, None, None]
-    revalidate = AsyncMock(
-        side_effect=InstallNetworkError(InstallNetworkErrorCode.RESOLUTION_FAILED)
-    )
-
-    with (
-        patch(
-            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_revalidate_install_target",
-            revalidate,
-        ),
-    ):
-        first_task = hass.async_create_task(flow.async_step_install_result())
-        with pytest.raises(RuntimeError):
-            await first_task
-        await asyncio.sleep(0)
-
-        assert flow._finalizer_job_id == receipt.job_id
-        assert flow._finalization_owner_task is first_task
-        assert first_task.done()
-
-        retry = await flow.async_step_install_result()
-
-    assert retry["type"] is FlowResultType.FORM
-    assert retry["errors"] == {"base": "install_finalization_retry"}
-    assert executor.async_acquire_finalizer.await_count == 2
-    assert executor.async_release_finalizer.await_count == 3
-    assert flow._finalizer_job_id is None
-    assert flow._finalization_owner_task is None
-
-
-async def test_removed_flow_retries_failed_background_release(
-    hass: HomeAssistant,
-) -> None:
-    """A removed flow retries cleanup because no later UI request can do so."""
-    receipt = _receipt(InstallPhase.HEALTHY_UNCLAIMED)
-    executor = _executor_for()
-    executor.async_release_finalizer.side_effect = [RuntimeError, None]
-    flow = _direct_result_flow(hass, receipt, executor)
-    flow._finalizer_job_id = receipt.job_id
-
-    flow.async_remove()
-    for _ in range(4):
-        await asyncio.sleep(0)
-
-    assert executor.async_release_finalizer.await_count == 2
-    assert flow._finalizer_job_id is None
-    assert flow._finalization_owner_task is None
-
-
-async def test_removed_active_owner_shares_background_release_retry_budget(
-    hass: HomeAssistant,
-) -> None:
-    """Deferred owner cleanup cannot add a third removed-flow release attempt."""
-    receipt = _receipt(InstallPhase.HEALTHY_UNCLAIMED)
-    manager = _manager_for(receipt)
-    executor = _executor_for()
-    flow = _direct_result_flow(hass, receipt, executor)
-    release_started = asyncio.Event()
-    allow_failure = asyncio.Event()
-    release_count = 0
-
-    async def _release(_job_id: str, _flow_id: str) -> None:
-        nonlocal release_count
-        release_count += 1
-        if release_count == 1:
-            release_started.set()
-            await allow_failure.wait()
-        raise RuntimeError
-
-    executor.async_release_finalizer.side_effect = _release
-    with (
-        patch(
-            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_revalidate_install_target",
-            AsyncMock(
-                side_effect=InstallNetworkError(
-                    InstallNetworkErrorCode.RESOLUTION_FAILED
-                )
-            ),
-        ),
-    ):
-        owner = hass.async_create_task(flow.async_step_install_result())
-        await release_started.wait()
-        flow.async_remove()
-        allow_failure.set()
-        with pytest.raises(RuntimeError):
-            await owner
-        for _ in range(4):
-            await asyncio.sleep(0)
-
-    assert executor.async_release_finalizer.await_count == 2
-    assert flow._finalizer_job_id == receipt.job_id
-    assert flow._finalization_owner_task is owner
-    assert flow._removed_release_retry_started
+    assert retry["type"] is FlowResultType.CREATE_ENTRY
+    assert executor._finalizers[receipt.job_id].owner == flow.flow_id
+    manager.async_transition.assert_not_awaited()
 
 
 async def test_same_flow_double_submit_runs_one_finalizer(
@@ -3418,35 +3191,11 @@ async def test_same_flow_double_submit_runs_one_finalizer(
     """Concurrent submissions in one dialog cannot share its executor lease."""
     receipt = _receipt(InstallPhase.HEALTHY_UNCLAIMED)
     manager = _manager_for(receipt)
-    executor = _executor_for()
+    executor = _finalizing_executor(hass, manager)
     flow = _direct_result_flow(hass, receipt, executor)
-    verify_started = asyncio.Event()
-    allow_verify = asyncio.Event()
-    verify = AsyncMock()
+    verify, verify_started, allow_verify = _held_verification()
 
-    async def _verify(*_args: object, **_kwargs: object) -> None:
-        verify_started.set()
-        await allow_verify.wait()
-
-    verify.side_effect = _verify
-    with (
-        patch(
-            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_get_durable_adb_credential",
-            AsyncMock(return_value=CREDENTIAL),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_verify_installed_target",
-            verify,
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
-            AsyncMock(return_value=replace(HEALTH, version=ARTIFACT.version_name)),
-        ),
-    ):
+    with _final_proof(manager, verify=verify):
         first_task = hass.async_create_task(flow.async_step_install_result())
         await verify_started.wait()
         second_task = hass.async_create_task(flow.async_step_install_result())
@@ -3454,14 +3203,12 @@ async def test_same_flow_double_submit_runs_one_finalizer(
         allow_verify.set()
         first_result, second_result = await asyncio.gather(first_task, second_task)
         flow.async_remove()
-        await asyncio.sleep(0)
-        await asyncio.sleep(0)
 
     assert first_result["type"] is FlowResultType.CREATE_ENTRY
     assert second_result["type"] is FlowResultType.FORM
     assert second_result["errors"] == {"base": "install_finalization_busy"}
-    assert executor.async_acquire_finalizer.await_count == 1
     assert verify.await_count == 1
+    assert not executor.is_finalizer_active(receipt.job_id)
 
 
 async def test_final_duplicate_guard_rechecks_after_health_contact(
@@ -3470,7 +3217,7 @@ async def test_final_duplicate_guard_rechecks_after_health_contact(
     """An entry added during final verification wins before create_entry is returned."""
     receipt = _receipt(InstallPhase.HEALTHY_UNCLAIMED)
     manager = _manager_for(receipt)
-    executor = _executor_for()
+    executor = _finalizing_executor(hass, manager)
     flow = _direct_result_flow(hass, receipt, executor)
 
     async def _health_then_duplicate() -> PanelHealth:
@@ -3479,31 +3226,12 @@ async def test_final_duplicate_guard_rechecks_after_health_contact(
         ).add_to_hass(hass)
         return replace(HEALTH, version=ARTIFACT.version_name)
 
-    with (
-        patch(
-            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_get_durable_adb_credential",
-            AsyncMock(return_value=CREDENTIAL),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_verify_installed_target",
-            AsyncMock(),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
-            AsyncMock(side_effect=_health_then_duplicate),
-        ),
-    ):
+    with _final_proof(manager, health=AsyncMock(side_effect=_health_then_duplicate)):
         result = await flow.async_step_install_result()
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "already_configured"
-    executor.async_release_finalizer.assert_awaited_once_with(
-        receipt.job_id, flow.flow_id
-    )
+    assert not executor.is_finalizer_active(receipt.job_id)
     manager.async_transition.assert_not_awaited()
 
 
@@ -3514,20 +3242,19 @@ async def test_on_create_uses_actual_entry_id_and_never_fails_existing_entry(
     """Receipt cleanup cannot undo an entry already added by Home Assistant."""
     receipt = _receipt(InstallPhase.HEALTHY_UNCLAIMED)
     manager = _manager_for(receipt)
+    executor = _finalizing_executor(hass, manager)
+    flow = _direct_result_flow(hass, receipt, executor)
+    with _final_proof(manager):
+        created = await flow.async_step_install_result()
+    assert created["type"] is FlowResultType.CREATE_ENTRY
+    assert executor.is_finalizer_active(receipt.job_id)
     if persist_fails:
         manager.async_transition.side_effect = InstallJobStoreError
-    executor = _executor_for()
-    flow = _direct_result_flow(hass, receipt, executor)
-    flow._finalizer_job_id = receipt.job_id
     entry = MockConfigEntry(domain=DOMAIN, data={CONF_ADDRESS: TARGET.address})
     entry.add_to_hass(hass)
     result: dict = {"result": entry}
 
-    with patch(
-        "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
-        AsyncMock(return_value=manager),
-    ):
-        returned = await flow.async_on_create_entry(result)  # type: ignore[arg-type]
+    returned = await flow.async_on_create_entry(result)  # type: ignore[arg-type]
 
     assert returned is result
     assert hass.config_entries.async_get_entry(entry.entry_id) is entry
@@ -3538,9 +3265,7 @@ async def test_on_create_uses_actual_entry_id_and_never_fails_existing_entry(
         result_code=InstallResultCode.ENTRY_CREATED,
         consumed_entry_id=entry.entry_id,
     )
-    executor.async_release_finalizer.assert_awaited_once_with(
-        receipt.job_id, flow.flow_id
-    )
+    assert not executor.is_finalizer_active(receipt.job_id)
 
 
 async def test_flow_removal_releases_lease_and_only_cancels_local_waiter(
@@ -3548,8 +3273,9 @@ async def test_flow_removal_releases_lease_and_only_cancels_local_waiter(
 ) -> None:
     """Removal cleans up flow ownership without touching an executor worker."""
     receipt = _receipt(InstallPhase.HEALTHY_UNCLAIMED)
-    executor = _executor_for()
+    executor = _finalizing_executor(hass, _manager_for(receipt))
     flow = _direct_result_flow(hass, receipt, executor)
+    assert await executor._async_acquire_finalizer(receipt.job_id, flow.flow_id)
     flow._finalizer_job_id = receipt.job_id
     waiter_gate = asyncio.Event()
     worker_gate = asyncio.Event()
@@ -3558,12 +3284,9 @@ async def test_flow_removal_releases_lease_and_only_cancels_local_waiter(
 
     flow.async_remove()
     await asyncio.sleep(0)
-    await asyncio.sleep(0)
 
     assert flow._progress_waiter is None
-    executor.async_release_finalizer.assert_awaited_once_with(
-        receipt.job_id, flow.flow_id
-    )
+    assert not executor.is_finalizer_active(receipt.job_id)
     assert not worker.cancelled()
     worker_gate.set()
     await worker

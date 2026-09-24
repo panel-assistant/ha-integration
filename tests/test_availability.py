@@ -80,11 +80,7 @@ async def _load(
     )
     config_entry.add_to_hass(hass)
     executor = SimpleNamespace(
-        async_acquire_finalizer=AsyncMock(return_value=True),
-        async_release_finalizer=AsyncMock(),
-    )
-    manager = SimpleNamespace(
-        async_list=AsyncMock(return_value=()), async_transition=AsyncMock()
+        async_reconcile_entry=AsyncMock(),
     )
     with (
         patch(
@@ -102,10 +98,6 @@ async def _load(
         patch(
             "custom_components.panel_assistant.async_get_install_executor",
             AsyncMock(return_value=executor),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
         ),
     ):
         assert await hass.config_entries.async_setup(config_entry.entry_id)

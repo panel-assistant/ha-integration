@@ -165,11 +165,7 @@ def panel_patches() -> Iterator[None]:
     reload in them too.
     """
     executor = SimpleNamespace(
-        async_acquire_finalizer=AsyncMock(return_value=True),
-        async_release_finalizer=AsyncMock(),
-    )
-    manager = SimpleNamespace(
-        async_list=AsyncMock(return_value=()), async_transition=AsyncMock()
+        async_reconcile_entry=AsyncMock(),
     )
     with (
         patch(
@@ -187,10 +183,6 @@ def panel_patches() -> Iterator[None]:
         patch(
             "custom_components.panel_assistant.async_get_install_executor",
             AsyncMock(return_value=executor),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_get_install_job_manager",
-            AsyncMock(return_value=manager),
         ),
     ):
         yield
