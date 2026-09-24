@@ -384,6 +384,9 @@ def test_shipped_translation_catalogues_preserve_machine_contracts() -> None:
         "es.json",
         "fr.json",
         "it.json",
+        "nl.json",
+        "pl.json",
+        "uk.json",
         "zh-Hans.json",
     ]
     assert len(english) == 146
@@ -410,10 +413,10 @@ def test_shipped_translation_catalogues_preserve_machine_contracts() -> None:
                     assert _literal_count(target_text, token) >= required_count
 
 
-def test_installed_artifact_mismatch_is_explained_in_all_six_locales() -> None:
+def test_installed_artifact_mismatch_is_explained_in_all_nine_locales() -> None:
     """The byte refusal must never fall back to an untranslated key."""
     locale_paths = sorted((INTEGRATION / "translations").glob("*.json"))
-    assert len(locale_paths) == 6
+    assert len(locale_paths) == 9
     for locale_path in locale_paths:
         message = _load_translation_catalogue(locale_path)["config"]["error"][
             "installed_artifact_mismatch"
@@ -430,6 +433,9 @@ def test_installed_artifact_mismatch_is_explained_in_all_six_locales() -> None:
         "translations/es.json",
         "translations/fr.json",
         "translations/it.json",
+        "translations/nl.json",
+        "translations/pl.json",
+        "translations/uk.json",
         "translations/zh-Hans.json",
     ],
 )
