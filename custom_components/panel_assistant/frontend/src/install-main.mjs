@@ -235,6 +235,7 @@ connect.addEventListener('click', async () => {
       controller = createInstallController({ store, ports, ensureCurrent,
         onReceipt(value) {
           receipt = value;
+          support('Saved progress', receipt);
           const { stepKey, percent } = installProgress(receipt);
           progress(stepKey, percent);
         },
@@ -276,31 +277,17 @@ install.addEventListener('click', async () => {
   try { await installAll(); } catch (error) { fail(error); } finally { busy = false; }
 });
 
-// Run the saved job to a healthy app, then permissions, then hand over to the
-// panel's own setup. Each advance goes through the same locked, durable
-// transaction a click used to; the loop only removes the clicks. The bound
-// stops a job that can never settle from spinning forever.
+// The controller runs the whole install, permissions included, under the one
+// consent; this screen only shows its progress and then hands over to the
+// panel's own setup.
 async function installAll() {
   clearTimeout(deadline);
   show('progress');
   const { stepKey, percent } = installProgress(receipt);
   progress(stepKey, percent);
-  for (let round = 0; round < 12 && receipt?.phase !== 'healthy'; round++) {
-    receipt = await Promise.race([stopPromise,
-      (['recovery_required', 'cleanup_pending'].includes(receipt?.phase)
-        ? controller.recover(true) : controller.run(true)).catch(noteFailure)]);
-    ensureCurrent();
-    support('Saved progress', receipt);
-  }
-  if (receipt?.phase !== 'healthy') throw Object.assign(new Error('install_incomplete'), { code: 'health_unavailable' });
-
-  progress('stepPermissions', 92);
-  const granted = await Promise.race([stopPromise, controller.commissionPermissions(true).catch(noteFailure)]);
+  const installed = await Promise.race([stopPromise, controller.install(true).catch(noteFailure)]);
   ensureCurrent();
-  support('Permissions', granted);
-  if (granted?.permissionsVerified !== true) {
-    throw Object.assign(new Error('permissions_unverified'), { code: 'health_unavailable' });
-  }
+  support('Permissions', installed.permissions);
 
   progress('stepOpening', 100);
   const url = await readSetupUrl(sessionAdb, newNonce);

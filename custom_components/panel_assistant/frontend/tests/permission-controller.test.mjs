@@ -12,7 +12,8 @@ async function fixture() {
   let release = {kind: 'authenticated-apk-bytes', descriptor: artifact};
   let current = true, grants = 0, lockAvailable = true;
   let grant = async () => {grants++; return {permissionsVerified: true};};
-  const controller = createInstallController({store: {load: async () => receipt},
+  let loads = 0, later = null;
+  const controller = createInstallController({store: {load: async () => (++loads > 2 && later ? {...receipt, ...later} : receipt)},
     ports: {authenticate: async () => release, inspect: async () => ({installed: true}),
       commissionPermissions: async (...args) => grant(...args)},
     ensureCurrent: () => {if (!current) throw new Error('session_closed');},
@@ -24,58 +25,44 @@ async function fixture() {
   await controller.preview(target);
   return {controller, get grants() {return grants;}, setReceipt: value => {receipt = {...receipt, ...value};},
     setRelease: value => {release = value;}, stop: () => {current = false;},
-    denyLock: () => {lockAvailable = false;}, setGrant: value => {grant = value;}};
+    denyLock: () => {lockAvailable = false;}, setGrant: value => {grant = value;},
+    // Applies from the grant's own read onwards: preview and install have read.
+    changeBeforeGrant: value => {later = value;}};
 }
 
-test('permission action requires separate explicit confirmation and healthy receipt', async () => {
+test('the Install press is the only consent, and grants only from a healthy job', async () => {
   const f = await fixture();
   for (const confirmation of [undefined, false, 1, 'yes']) {
-    await assert.rejects(f.controller.commissionPermissions(confirmation), /confirmation_required/);
+    await assert.rejects(f.controller.install(confirmation), /confirmation_required/);
   }
   assert.equal(f.grants, 0);
-  assert.deepEqual(await f.controller.commissionPermissions(true), {permissionsVerified: true});
-  f.setReceipt({phase: 'installed'});
-  await assert.rejects(f.controller.commissionPermissions(true), /transaction_invalid/);
-  assert.equal(f.grants, 1);
+  assert.deepEqual((await f.controller.install(true)).permissions, {permissionsVerified: true});
+  const g = await fixture();
+  g.changeBeforeGrant({phase: 'installed'});
+  await assert.rejects(g.controller.install(true), /transaction_invalid/);
+  assert.equal(g.grants, 0);
 });
 
 test('fresh authentication, job identity and session guard fail before grants', async () => {
   for (const change of [f => f.setReceipt({id: 'c'.repeat(32)}), f => f.stop(), f => f.denyLock(),
     f => f.setRelease({kind: 'authenticated-apk-bytes', descriptor: {apkSha256: 'f'.repeat(64)}})]) {
     const f = await fixture(); change(f);
-    await assert.rejects(f.controller.commissionPermissions(true));
+    await assert.rejects(f.controller.install(true));
     assert.equal(f.grants, 0);
   }
 });
 
-test('permission mutation holds controller lock against read, preview or concurrent grant', async () => {
+test('the permission grant holds the controller against preview or a second install', async () => {
   const f = await fixture();
   let finish, entered;
   const running = new Promise(resolve => {entered = resolve;});
   f.setGrant(() => new Promise(resolve => {finish = resolve; entered();}));
-  const first = f.controller.commissionPermissions(true);
+  const first = f.controller.install(true);
   await running;
-  await assert.rejects(f.controller.commissionPermissions(true), /transaction_busy/);
+  await assert.rejects(f.controller.install(true), /transaction_busy/);
   await assert.rejects(f.controller.preview(target), /transaction_busy/);
   finish({permissionsVerified: true});
   await first;
-});
-
-test('permissions are granted only by the Install press, after the app is healthy', () => {
-  const source = readFileSync(new URL('../src/install-main.mjs', import.meta.url), 'utf8');
-  // The single consent flows through: there is exactly one grant call, inside installAll.
-  const calls = source.match(/controller\.commissionPermissions\(/g) ?? [];
-  assert.equal(calls.length, 1);
-  const body = source.slice(source.indexOf('async function installAll()'), source.indexOf('function finish('));
-  assert.match(body, /controller\.commissionPermissions\(true\)/);
-  const guard = body.indexOf("receipt?.phase !== 'healthy') throw");
-  assert.ok(guard >= 0, 'installAll refuses to continue unless the app reports healthy');
-  assert.ok(guard < body.indexOf('commissionPermissions'),
-    'permissions are never granted before the installed app reports healthy');
-  assert.match(body, /permissionsVerified !== true/, 'an unverified grant is a failure, not a success');
-  // Never on load: installAll only runs from the Install press or a job already under way.
-  const onLoad = source.slice(source.lastIndexOf('if (!supported) {'));
-  assert.ok(!onLoad.includes('installAll('));
 });
 
 function finishedJobFixture({installed = true, descriptor} = {}) {
@@ -130,7 +117,7 @@ function freshFixture({installed}) {
     ports: {authenticate: async () => release,
       inspect: async receipt => {inspected.push(receipt.phase);
         return {target, clean: !installed, staged: false, installed, healthy: installed};},
-      launch: async () => {}},
+      launch: async () => {}, commissionPermissions: async () => ({permissionsVerified: true})},
     locks: {request: async (name, options, callback) => callback({})}});
   return {controller, created, inspected};
 }
@@ -140,7 +127,7 @@ test('a panel already running exactly this build is adopted, not refused', async
   const preview = await f.controller.preview(target);
   assert.equal(preview.adopt, true);
   assert.deepEqual(f.inspected, ['installed'], 'no clean check that would refuse it');
-  const receipt = await f.controller.run(true);
+  const {receipt} = await f.controller.install(true);
   assert.deepEqual(f.created, ['installed'], 'the job starts at installed');
   assert.equal(receipt.phase, 'healthy', 'then launch and health still run');
 });
@@ -150,7 +137,7 @@ test('a clean panel still gets a fresh install from the start', async () => {
   const preview = await f.controller.preview(target);
   assert.equal(preview.adopt, false);
   assert.deepEqual(f.inspected, ['installed', 'prepared']);
-  await assert.rejects(f.controller.run(false), /confirmation_required/);
+  await assert.rejects(f.controller.install(false), /confirmation_required/);
 });
 
 test('an already installed build is announced, not failed', () => {

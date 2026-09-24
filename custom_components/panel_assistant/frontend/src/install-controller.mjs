@@ -3,6 +3,11 @@ import { advanceTransaction, TransactionError } from './transaction.mjs';
 import { recoverTransaction } from './recovery-transaction.mjs';
 
 const fail = code => { throw new TransactionError(code); };
+const RECOVERING = ['recovery_required', 'cleanup_pending'];
+// A fresh install is three steps (copy, install, start); resuming adds one
+// reconciliation and each recovery a cleanup before starting again. The bound
+// ends a job that can never settle in an error instead of spinning forever.
+const MAX_STEPS = 12;
 const canonical = value => JSON.stringify(value, Object.keys(value).sort());
 
 // UI controller for an already authenticated, identity-checked connection.
@@ -12,29 +17,24 @@ export function createInstallController({ store, ports, locks = globalThis.navig
   ensureCurrent = () => {}, onReceipt = () => {} }) {
   let preview, expectedJobId, busy = false;
   const guard = () => { ensureCurrent(); };
-  const setupOperation = async operation => {
-    if (busy) fail('transaction_busy');
-    if (!preview) fail('confirmation_required');
-    busy = true;
-    try {
-      return await locks.request(`ha-paneld-usb:${preview.deviceKey}`,
-        {mode: 'exclusive', ifAvailable: true}, async lock => {
-          if (!lock) fail('transaction_busy');
-          guard();
-          const receipt = await store.load(preview.deviceKey);
-          if (!receipt || receipt.phase !== 'healthy' ||
-              canonical(receipt.artifact) !== canonical(preview.descriptor)) fail('transaction_invalid');
-          if (receipt.id !== expectedJobId) fail('job_conflict');
-          const release = await ports.authenticate();
-          guard();
-          if (release?.kind !== 'authenticated-apk-bytes' ||
-              canonical(release.descriptor) !== canonical(receipt.artifact)) fail('artifact_changed');
-          const result = await operation(receipt, release);
-          guard();
-          return result;
-        });
-    } finally { busy = false; }
-  };
+  // Grant the app its permissions under the device lock, from a healthy job
+  // for exactly this release, with the release bytes checked again first.
+  const grantPermissions = () => locks.request(`ha-paneld-usb:${preview.deviceKey}`,
+    {mode: 'exclusive', ifAvailable: true}, async lock => {
+      if (!lock) fail('transaction_busy');
+      guard();
+      const receipt = await store.load(preview.deviceKey);
+      if (!receipt || receipt.phase !== 'healthy' ||
+          canonical(receipt.artifact) !== canonical(preview.descriptor)) fail('transaction_invalid');
+      if (receipt.id !== expectedJobId) fail('job_conflict');
+      const release = await ports.authenticate();
+      guard();
+      if (release?.kind !== 'authenticated-apk-bytes' ||
+          canonical(release.descriptor) !== canonical(receipt.artifact)) fail('artifact_changed');
+      const granted = await ports.commissionPermissions(receipt, release);
+      guard();
+      return granted;
+    });
   return Object.freeze({
     async preview(target) {
       if (busy) fail('transaction_busy');
@@ -74,7 +74,7 @@ export function createInstallController({ store, ports, locks = globalThis.navig
         // refuse this one as unclean, from an error screen whose only button
         // reproduces it. Discard the record and adopt the panel below instead,
         // so the retry converges on the install the person asked for.
-        if (receipt && ['recovery_required', 'cleanup_pending'].includes(receipt.phase) &&
+        if (receipt && RECOVERING.includes(receipt.phase) &&
             canonical(receipt.artifact) === canonical(release.descriptor)) {
           const stalled = receipt;
           const running = await ports.inspect(
@@ -124,7 +124,7 @@ export function createInstallController({ store, ports, locks = globalThis.navig
         }
         const proposed = receipt ?? { phase: adopt ? 'installed' : 'prepared', target: snapshot,
           artifact: release.descriptor };
-        if (['recovery_required', 'cleanup_pending'].includes(proposed.phase)) await ports.inspectRecovery(proposed, release);
+        if (RECOVERING.includes(proposed.phase)) await ports.inspectRecovery(proposed, release);
         else if (!adopt) await ports.inspect(proposed, release);
         guard();
         preview = Object.freeze({ target: snapshot, descriptor: release.descriptor, deviceKey,
@@ -133,7 +133,11 @@ export function createInstallController({ store, ports, locks = globalThis.navig
         return preview;
       } finally { busy = false; }
     },
-    async run(confirmed = false) {
+    // The one Install press: run the saved job to a healthy app, recovering
+    // on the way when an observation says a step did not take, then grant the
+    // app its permissions. Every step is its own locked, durable transaction
+    // that observes the panel before it acts; nothing is replayed.
+    async install(confirmed = false) {
       if (busy) fail('transaction_busy');
       if (!preview || confirmed !== true) fail('confirmation_required');
       busy = true;
@@ -153,37 +157,24 @@ export function createInstallController({ store, ports, locks = globalThis.navig
           receipt = selected.adopt ? await store.adopt(selected.target, release.descriptor)
             : await store.create(selected.target, release.descriptor);
         }
+        // From here on this operation owns exactly this job, including one it
+        // has just created.
         expectedJobId = receipt.id;
         onReceipt(receipt);
-        // A reconciliation button promises observation only. Stop after that
-        // transition; require a separate continue action before any mutation.
-        const limit = ['staging', 'installing', 'launching'].includes(receipt.phase) ? 1 : 3;
-        for (let step = 0; step < limit && !['healthy', 'recovery_required'].includes(receipt.phase); step++) {
+        for (let step = 0; step < MAX_STEPS && receipt.phase !== 'healthy'; step++) {
           guard();
-          receipt = await advanceTransaction({ store, ports, locks,
-            deviceKey: selected.deviceKey, ensureCurrent: guard });
+          const transaction = { store, ports, locks, deviceKey: selected.deviceKey, ensureCurrent: guard };
+          receipt = RECOVERING.includes(receipt.phase)
+            ? await recoverTransaction({ ...transaction, confirmed: true, expectedJobId })
+            : await advanceTransaction(transaction);
+          guard();
           onReceipt(receipt);
         }
-        return receipt;
+        if (receipt.phase !== 'healthy') fail('install_incomplete');
+        const granted = await grantPermissions();
+        if (granted?.permissionsVerified !== true) fail('permissions_unverified');
+        return Object.freeze({ receipt, permissions: granted });
       } finally { busy = false; }
-    },
-    async recover(confirmed = false) {
-      if (busy) fail('transaction_busy');
-      if (!preview || !confirmed) fail('confirmation_required');
-      busy = true;
-      try {
-        guard();
-        const current = await store.load(preview.deviceKey);
-        if (!current || canonical(current.artifact) !== canonical(preview.descriptor)) fail('artifact_changed');
-        if (!preview.receipt || current.id !== preview.receipt.id) fail('job_conflict');
-        const result = await recoverTransaction({store, deviceKey: preview.deviceKey, ports,
-          locks, ensureCurrent: guard, confirmed, expectedJobId: preview.receipt.id});
-        guard(); onReceipt(result); return result;
-      } finally {busy = false;}
-    },
-    async commissionPermissions(confirmed = false) {
-      if (confirmed !== true) fail('confirmation_required');
-      return setupOperation((receipt, release) => ports.commissionPermissions(receipt, release));
     },
     // Cancellation of active I/O belongs to the owning session's guard/close.
     invalidate() { if (busy) fail('transaction_busy'); preview = undefined; },
