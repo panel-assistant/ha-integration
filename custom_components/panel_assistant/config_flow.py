@@ -226,16 +226,13 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         if health.discovery_id != discovery_id:
             return self.async_abort(reason="invalid_discovery")
         # A known panel advertising from a new address has moved, when its
-        # stored address has stopped answering and it is not connected. Its
-        # health has just answered as it at the new address, so the stored one
-        # is replaced; the running entry polls the new address without a
-        # reload, which would end the panel's session for nothing. The identity
-        # and the health line are both public on the LAN, so an advertisement
-        # never redirects a panel whose stored address still answers, nor one
-        # holding a session: that session is the credentialed authority on
-        # where the panel is, repairs the address itself, and reports when it
-        # cannot. One failed poll is then never enough to move a live panel.
-        if self._entry_holds_its_address():
+        # stored address has stopped answering. Its health has just answered
+        # as it at the new address, so the stored one is replaced; the running
+        # entry polls the new address without a reload, which would end the
+        # panel's session for nothing. While the stored address still answers,
+        # an advertisement moves nothing: the identity and the health line are
+        # both public on the LAN, and neither may redirect a reachable panel.
+        if self._stored_address_answers():
             self._abort_if_unique_id_configured()
         self._abort_if_unique_id_configured(
             updates={CONF_ADDRESS: address.stored_value}, reload_on_update=False
@@ -1191,21 +1188,15 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             )
         super().async_remove()
 
-    def _entry_holds_its_address(self) -> bool:
-        """Return whether an advertisement must leave this panel's address alone.
-
-        It must while the stored address still answers, or while the panel is
-        connected, whose own session then moves the address if it has moved.
-        """
+    def _stored_address_answers(self) -> bool:
+        """Return whether the entry with this flow's unique id still polls fine."""
         if self.unique_id is None:
             return False
         entry = self.hass.config_entries.async_entry_for_domain_unique_id(
             DOMAIN, self.unique_id
         )
         coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
-        return coordinator is not None and (
-            bool(coordinator.last_update_success) or coordinator.connected
-        )
+        return coordinator is not None and bool(coordinator.last_update_success)
 
     def _address_is_configured(self, address: str) -> bool:
         """Check the existing endpoint identity without contacting the panel."""
