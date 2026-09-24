@@ -18,6 +18,12 @@ whose one entity this integration already shows, stay behind for the panel's
 own tombstones; a customised one holds back the panel's MQTT withdrawal until
 a person deletes it or clears the customisation.
 
+A known suffix moves only once the panel has described its channel in a hello
+(see ``supported_channels``): only then does a native entity render into it.
+Until then the entity stays MQTT's, holds back the withdrawal, and the next
+setup after the panel describes the channel moves it. A first move waits for
+the panel's first hello, as it waits for its first health.
+
 Releasing the panel also happens when its entry is removed: Home Assistant
 calls ``async_remove_entry`` after the entry is gone from its entries but before
 it clears the entry's registry entries, so the record is reversed there without
@@ -41,7 +47,7 @@ from homeassistant.helpers.entity import entity_sources
 from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import CONF_CUTOVER, DOMAIN
-from .contract import catalogue_entry_for_suffix
+from .contract import catalogue_channel_for_suffix, catalogue_entry_for_suffix
 from .coordinator import PanelSnapshot
 from .device import panel_device_info
 from .guards import (
@@ -54,9 +60,12 @@ from .guards import (
 from .native import NOT_RENDERED, native_unique_id
 from .transport import (
     AUTHORITY_NATIVE,
+    CUTOVER_CHANNEL,
     CUTOVER_COMPLETE,
     CUTOVER_ENTITIES,
     CUTOVER_IN_PROGRESS,
+    CUTOVER_NOT_DESCRIBED,
+    CUTOVER_REASON,
     CUTOVER_REGISTRY_ID,
     CUTOVER_REVERSING,
     CUTOVER_STATE,
@@ -72,6 +81,8 @@ from .transport import (
     cutover_record,
     effective_authority,
     is_customised,
+    supported_channels,
+    undescribed_entities,
 )
 
 if TYPE_CHECKING:
@@ -104,6 +115,8 @@ ENTITY_DELETED: Final = "deleted"
 # Why an MQTT entity stays behind.
 REASON_UNKNOWN_SUFFIX: Final = "unknown_suffix"
 REASON_NOT_RENDERED: Final = "not_rendered"
+# The catalogue knows the channel, but this panel has never described it.
+REASON_NOT_DESCRIBED: Final = CUTOVER_NOT_DESCRIBED
 # MQTT discovered the entity again after an interrupted attempt had moved it.
 REASON_REDISCOVERED: Final = "rediscovered"
 
@@ -381,15 +394,23 @@ def _enable_if_ours(
     _write(hass, entry, record)
 
 
-def _unmigrated(item: er.RegistryEntry, suffix: str, reason: str) -> dict[str, Any]:
-    """Return the record of an MQTT entity that stays where it is."""
-    return {
+def _unmigrated(
+    item: er.RegistryEntry, suffix: str, reason: str, channel: str | None = None
+) -> dict[str, Any]:
+    """Return the record of an MQTT entity that stays where it is.
+
+    One waiting for its channel to be described names the channel.
+    """
+    unmigrated = {
         CUTOVER_REGISTRY_ID: item.id,
         "entity_id": item.entity_id,
         _KEY_SUFFIX: suffix,
-        "reason": reason,
+        CUTOVER_REASON: reason,
         "customised": is_customised(item),
     }
+    if channel is not None:
+        unmigrated[CUTOVER_CHANNEL] = channel
+    return unmigrated
 
 
 async def _async_forward(
@@ -406,6 +427,7 @@ async def _async_forward(
     did = _check_identity(hass, entry, _panel_did(entry))
     record["did"] = did
     _write(hass, entry, record)
+    described = supported_channels(entry, did) or frozenset()
 
     with _step(STEP_DEVICE):
         device = _own_device(hass, entry, panel_id)
@@ -417,6 +439,7 @@ async def _async_forward(
     # The work list. What an earlier attempt recorded and left on MQTT comes
     # first, under whatever prefix the panel carried then, so that a fresh
     # discovery under a new prefix never takes a recorded entity's target.
+    # It was admitted then, so it is finished now whatever was described.
     work: dict[str, tuple[er.RegistryEntry, str]] = {}
     for registry_id, info in entities.items():
         item = registry.entities.get_entry(registry_id)
@@ -432,6 +455,10 @@ async def _async_forward(
             unmigrated.append(_unmigrated(item, suffix, REASON_UNKNOWN_SUFFIX))
         elif catalogue["channel"] in NOT_RENDERED:
             unmigrated.append(_unmigrated(item, suffix, REASON_NOT_RENDERED))
+        elif (
+            channel := catalogue_channel_for_suffix(item.domain, suffix)
+        ) not in described:
+            unmigrated.append(_unmigrated(item, suffix, REASON_NOT_DESCRIBED, channel))
         else:
             work[item.id] = (item, suffix)
     for item, suffix in work.values():
@@ -577,19 +604,42 @@ def cutover_reconciliation_needed(
     """
     record = cutover_record(entry)
     if effective_authority(hass, entry) == AUTHORITY_NATIVE:
-        return record is None or record.get(CUTOVER_STATE) != CUTOVER_COMPLETE
+        return (
+            record is None
+            or record.get(CUTOVER_STATE) != CUTOVER_COMPLETE
+            or _newly_described(hass, entry)
+        )
     return record is not None
+
+
+def _newly_described(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> bool:
+    """Return whether the panel has since described a leftover's channel."""
+    described = supported_channels(entry, _panel_did(entry))
+    return described is not None and any(
+        unmigrated.get(CUTOVER_CHANNEL) in described
+        for unmigrated in undescribed_entities(hass, entry)
+    )
 
 
 def cutover_reconciliation_waiting(
     hass: HomeAssistant, entry: HaPaneldConfigEntry
 ) -> bool:
-    """Return whether a requested forward move still lacks a prerequisite."""
-    if effective_authority(
-        hass, entry
-    ) != AUTHORITY_NATIVE or not cutover_reconciliation_needed(hass, entry):
+    """Return whether a requested forward move still lacks a prerequisite.
+
+    Health gives the panel's identity and MQTT prefix; its first hello gives
+    the channels it supports. A completed move whose leftovers still wait for
+    their channels waits for a hello that describes one.
+    """
+    if effective_authority(hass, entry) != AUTHORITY_NATIVE:
         return False
-    return entry.runtime_data.coordinator.data is None or _panel_did(entry) is None
+    if not cutover_reconciliation_needed(hass, entry):
+        return bool(undescribed_entities(hass, entry))
+    did = _panel_did(entry)
+    return (
+        entry.runtime_data.coordinator.data is None
+        or did is None
+        or supported_channels(entry, did) is None
+    )
 
 
 async def async_apply_cutover(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> None:
@@ -613,6 +663,15 @@ async def async_apply_cutover(hass: HomeAssistant, entry: HaPaneldConfigEntry) -
         # Forward migration needs the panel identity and MQTT prefix from
         # health. The loaded entry asks for one bounded lifecycle retry when
         # health first recovers; reversal needs only the existing journal.
+        return
+    if (
+        native
+        and (did := _panel_did(entry)) is not None
+        and supported_channels(entry, did) is None
+    ):
+        # Nor is anything moved before the panel has described its channels:
+        # the same retry follows its first hello. An identity still missing is
+        # refused by the move itself.
         return
     if native:
         transaction = _async_forward

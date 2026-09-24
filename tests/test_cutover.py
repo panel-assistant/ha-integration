@@ -41,7 +41,7 @@ from custom_components.panel_assistant.diagnostics import (
     async_get_config_entry_diagnostics,
 )
 
-from .test_native import _session, _setup, _sync, panel_patches
+from .test_native import _session, _setup, _sync, panel_patches, supported
 from .test_transport import DID, HEALTH, WsClientFactory, _send
 
 PANEL_ID = HEALTH.panel_id
@@ -189,7 +189,8 @@ async def test_requested_native_cutover_converges_after_first_health(
         data={
             CONF_ADDRESS: "panel.local",
             CONF_TRANSPORT_USER_ID: hass_read_only_user.id,
-        },
+        }
+        | supported(),
         options=NATIVE,
     )
     entry.add_to_hass(hass)
@@ -259,7 +260,8 @@ async def test_delayed_native_cutover_can_be_cancelled_before_health_recovers(
         data={
             CONF_ADDRESS: "panel.local",
             CONF_TRANSPORT_USER_ID: hass_read_only_user.id,
-        },
+        }
+        | supported(),
         options=NATIVE,
     )
     entry.add_to_hass(hass)
@@ -1100,7 +1102,8 @@ async def test_two_loaded_entries_with_one_identity_refuse_to_move_anything(
         data={
             CONF_ADDRESS: "panel-2.local",
             CONF_TRANSPORT_USER_ID: hass_read_only_user.id,
-        },
+        }
+        | supported(),
         options=NATIVE,
     )
     second.add_to_hass(hass)

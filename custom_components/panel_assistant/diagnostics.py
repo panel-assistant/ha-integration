@@ -27,7 +27,8 @@ _LOGGER = logging.getLogger(__name__)
 SHADOW_ERROR_COMPARISON_FAILED = "comparison_failed"
 
 # The cutover record is shown under "transport", with its identities redacted.
-_ENTRY_KEYS_TO_REDACT = {CONF_ADDRESS, CONF_TRANSPORT_USER_ID, CONF_CUTOVER}
+# The supported channels are shown, but not the identity that described them.
+_ENTRY_KEYS_TO_REDACT = {CONF_ADDRESS, CONF_TRANSPORT_USER_ID, CONF_CUTOVER, "did"}
 _HEALTH_KEYS_TO_REDACT = {"panel_id", "discovery_id"}
 # The record's identities, and the MQTT unique IDs that embed one of them.
 _CUTOVER_KEYS_TO_REDACT = {"did", "panel_id", "mqtt_unique_id"}
