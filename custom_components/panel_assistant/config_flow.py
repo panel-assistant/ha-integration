@@ -67,7 +67,11 @@ from .install_adb import (
     async_preflight_install,
     async_verify_installed_target,
 )
-from .install_executor import InstallExecutor, async_get_install_executor
+from .install_executor import (
+    InstallExecutor,
+    async_get_install_executor,
+    health_is_installed_app,
+)
 from .install_jobs import (
     InstallJobConflictError,
     InstallJobError,
@@ -1254,7 +1258,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 receipt, "install_finalization_retry"
             )
 
-        if health.version != receipt.artifact.version_name:
+        if not health_is_installed_app(health, receipt.artifact):
             return await self._async_reject_healthy_receipt(manager, receipt)
         if self._flow_removed:
             # async_remove may run during the preceding network awaits.

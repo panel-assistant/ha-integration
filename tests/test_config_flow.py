@@ -22,6 +22,10 @@ from custom_components.panel_assistant.adb_credentials import (
     AdbCredential,
     AdbCredentialError,
 )
+from custom_components.panel_assistant.app_identity import (
+    LEGACY_PACKAGE_ID,
+    SUCCESSOR_PACKAGE_ID,
+)
 from custom_components.panel_assistant.browser_delivery import (
     DATA_BROWSER_DELIVERY,
     async_register_browser_delivery,
@@ -2958,6 +2962,77 @@ async def test_final_verification_retry_and_recovery_boundaries(
             result_code=InstallResultCode.VERIFICATION_REQUIRED,
         )
     assert not hass.config_entries.async_entries(DOMAIN)
+
+
+@pytest.mark.parametrize(
+    ("receipt_package", "observed_package", "creates"),
+    [
+        (SUCCESSOR_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, True),
+        (SUCCESSOR_PACKAGE_ID, LEGACY_PACKAGE_ID, False),
+        (SUCCESSOR_PACKAGE_ID, None, False),
+        (LEGACY_PACKAGE_ID, None, True),
+        (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, False),
+    ],
+    ids=[
+        "successor",
+        "successor-receipt-legacy-app",
+        "successor-receipt-silent-app",
+        "legacy-predating-package-report",
+        "legacy-receipt-successor-app",
+    ],
+)
+async def test_final_verification_requires_the_installed_package(
+    hass: HomeAssistant,
+    receipt_package: str,
+    observed_package: str | None,
+    creates: bool,
+) -> None:
+    """Flow finalization applies the executor's package rule, not the version alone.
+
+    Both apps are built from one tree, so the legacy app answering at the very
+    version a successor receipt installed is not that install completing.
+    """
+    receipt = replace(
+        _receipt(InstallPhase.HEALTHY_UNCLAIMED),
+        artifact=replace(ARTIFACT, package_id=receipt_package),
+    )
+    manager = _manager_for(receipt)
+    executor = _executor_for()
+    flow = _direct_result_flow(hass, receipt, executor)
+    health = replace(HEALTH, version=ARTIFACT.version_name, package=observed_package)
+
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
+            AsyncMock(return_value=manager),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_durable_adb_credential",
+            AsyncMock(return_value=CREDENTIAL),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_verify_installed_target",
+            AsyncMock(),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=health),
+        ),
+    ):
+        result = await flow.async_step_install_result()
+
+    if creates:
+        assert result["type"] is FlowResultType.CREATE_ENTRY
+        manager.async_transition.assert_not_awaited()
+    else:
+        assert result["type"] is FlowResultType.ABORT
+        assert result["reason"] == "install_recovery_required"
+        manager.async_transition.assert_awaited_once_with(
+            receipt.job_id,
+            receipt.revision,
+            InstallPhase.RECOVERY_REQUIRED,
+            result_code=InstallResultCode.VERIFICATION_REQUIRED,
+        )
 
 
 async def test_two_finalizers_produce_only_one_create_result(
