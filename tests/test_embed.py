@@ -64,6 +64,7 @@ HELLO: dict[str, Any] = {
     "channels": [],
 }
 PROOF_HEADER = "X-Panel-Assistant-Proof"
+INPUT_ROUTE_HEADER = "X-ha-paneld-Input-Route"
 PAGE = (
     b'<!doctype html><html><head><base href="/"><title>x</title></head>'
     b'<body><a href="configure">c</a><base href="/"></body></html>'
@@ -79,6 +80,7 @@ class FakePanel:
         self.requests: list[dict[str, Any]] = []
         self.config_posts: list[dict[str, str]] = []
         self.config_status = 200
+        self.input_reply: Callable[[], web.Response] | None = None
         self.stream_release = asyncio.Event()
         self.stream_closed = asyncio.Event()
         # Room for a body just past the largest one the proxy signs.
@@ -106,6 +108,8 @@ class FakePanel:
         if path == "/api/v1/config" and request.method == "POST":
             self.config_posts.append(dict(parse_qsl(body.decode())))
             return web.json_response({"ok": True}, status=self.config_status)
+        if path == "/api/v1/input" and self.input_reply is not None:
+            return self.input_reply()
         if path == "/page":
             return web.Response(
                 body=PAGE,
@@ -465,6 +469,41 @@ async def test_response_keeps_the_allowlist_and_owns_framing(
     assert response.headers["Vary"] == "Accept-Language"
     assert "Set-Cookie" not in response.headers
     assert "X-Other" not in response.headers
+
+
+async def test_tap_that_ran_without_a_screenshot_still_reads_as_executed(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    entry: MockConfigEntry,
+    panel: FakePanel,
+) -> None:
+    """The panel page recovers with a screenshot only when the route arrives.
+
+    Without that header it reports the tap as refused, and a retry would tap
+    the panel twice.
+    """
+    ws = await hass_ws_client(hass)
+    _, url = await _open_session(ws, entry.entry_id)
+    browser = await hass_client_no_auth()
+
+    body = {"ok": False, "error": "screenshot-unavailable"}
+    panel.input_reply = lambda: web.json_response(
+        body, status=503, headers={INPUT_ROUTE_HEADER: "su"}
+    )
+    response = await browser.post(url + "api/v1/input", data="x=1&y=2&capture=1")
+    assert (response.status, await response.json()) == (503, body)
+    assert response.headers[INPUT_ROUTE_HEADER] == "su"
+    assert (await browser.get(url + "api/v1/screenshot.png")).status == 200
+    taps = [r for r in panel.requests if r["target"] == "/api/v1/input"]
+    assert len(taps) == 1
+
+    # A refused tap never names a route, and the proxy must not invent one.
+    body = {"ok": False, "error": "tap-superseded"}
+    panel.input_reply = lambda: web.json_response(body, status=409)
+    response = await browser.post(url + "api/v1/input", data="x=1&y=2&capture=1")
+    assert (response.status, await response.json()) == (409, body)
+    assert INPUT_ROUTE_HEADER not in response.headers
 
 
 @pytest.mark.parametrize("path", ["late-base", "huge"])

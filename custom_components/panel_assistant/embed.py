@@ -103,6 +103,10 @@ RESPONSE_HEADERS: Final = (
     hdrs.LAST_MODIFIED,
     hdrs.VARY,
     hdrs.RETRY_AFTER,
+    # A tap that ran but could not be captured still names its route; the
+    # panel page reads it to refresh the screenshot instead of calling the tap
+    # refused, which would invite a second tap.
+    "X-ha-paneld-Input-Route",
 )
 # Core's header middleware stamps these only after the handler returns, which is
 # too late for a response that has already started streaming.
