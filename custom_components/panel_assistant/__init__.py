@@ -17,7 +17,7 @@ from homeassistant.helpers.typing import ConfigType
 from .browser_delivery import async_register_browser_delivery
 from .browser_panel import async_register_browser_panel
 from .build_feed import BuildFeedError, normalize_feed_url
-from .client import HaPaneldClient, normalize_address
+from .client import HaPaneldClient, PanelHealth, normalize_address
 from .const import DOMAIN
 from .coordinator import HaPaneldDataUpdateCoordinator
 from .cutover import (
@@ -45,6 +45,7 @@ from .install_executor import (
     InstallExecutor,
     async_get_install_executor,
     async_resume_loaded_install_jobs,
+    health_is_installed_app,
 )
 from .install_jobs import (
     InstallPhase,
@@ -201,7 +202,7 @@ async def _async_reconcile_install_receipt(
     hass: HomeAssistant,
     entry: HaPaneldConfigEntry,
     address: str,
-    health_version: str,
+    health: PanelHealth,
 ) -> None:
     """Best-effort handoff for a healthy receipt left by a completed install."""
     executor = None
@@ -226,7 +227,7 @@ async def _async_reconcile_install_receipt(
         acquired = await executor.async_acquire_finalizer(receipt.job_id, finalizer_id)
         if not acquired:
             return
-        if health_version == receipt.artifact.version_name:
+        if health_is_installed_app(health, receipt.artifact):
             await manager.async_transition(
                 receipt.job_id,
                 receipt.revision,
@@ -270,7 +271,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
             hass,
             entry,
             address.stored_value,
-            coordinator.data.health.version,
+            coordinator.data.health,
         )
 
     platforms = list(PLATFORMS)

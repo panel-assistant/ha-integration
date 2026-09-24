@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+from dataclasses import replace
 from http import HTTPStatus
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -21,6 +22,10 @@ from custom_components.panel_assistant import (
     _async_reconcile_install_receipt,
     _async_resume_install_jobs,
     async_reload_entry,
+)
+from custom_components.panel_assistant.app_identity import (
+    LEGACY_PACKAGE_ID,
+    SUCCESSOR_PACKAGE_ID,
 )
 from custom_components.panel_assistant.client import (
     CannotConnectError,
@@ -91,6 +96,7 @@ def _receipt(
     address: str = "panel.local",
     version: str = HEALTH.version,
     phase: InstallPhase = InstallPhase.HEALTHY_UNCLAIMED,
+    package_id: str = LEGACY_PACKAGE_ID,
 ) -> SimpleNamespace:
     """Return the receipt fields used by setup reconciliation."""
     return SimpleNamespace(
@@ -98,7 +104,7 @@ def _receipt(
         revision=7,
         phase=phase,
         target=SimpleNamespace(address=address),
-        artifact=SimpleNamespace(version_name=version),
+        artifact=SimpleNamespace(version_name=version, package_id=package_id),
     )
 
 
@@ -720,6 +726,68 @@ async def test_setup_quarantines_matching_receipt_on_version_mismatch(
 
 
 @pytest.mark.parametrize(
+    ("receipt_package", "observed_package", "expected_phase"),
+    [
+        (SUCCESSOR_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, InstallPhase.CONSUMED),
+        (SUCCESSOR_PACKAGE_ID, LEGACY_PACKAGE_ID, InstallPhase.RECOVERY_REQUIRED),
+        (SUCCESSOR_PACKAGE_ID, None, InstallPhase.RECOVERY_REQUIRED),
+        (LEGACY_PACKAGE_ID, None, InstallPhase.CONSUMED),
+        (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, InstallPhase.RECOVERY_REQUIRED),
+    ],
+    ids=[
+        "successor",
+        "successor-receipt-legacy-app",
+        "successor-receipt-silent-app",
+        "legacy-predating-package-report",
+        "legacy-receipt-successor-app",
+    ],
+)
+async def test_setup_consumes_a_receipt_only_for_the_package_it_installed(
+    hass: HomeAssistant,
+    receipt_package: str,
+    observed_package: str | None,
+    expected_phase: InstallPhase,
+) -> None:
+    """Entry recovery applies the executor's package rule, not the version alone.
+
+    Both apps are built from one tree, so the legacy app answering at the very
+    version a successor receipt installed is not that install completing.
+    """
+    entry = _entry(hass)
+    receipt = _receipt(package_id=receipt_package)
+    executor, manager = _installer_doubles((receipt,))
+
+    with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=replace(HEALTH, package=observed_package)),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=STATUS),
+        ),
+        patch(
+            "custom_components.panel_assistant.async_resume_loaded_install_jobs",
+            AsyncMock(return_value=()),
+        ),
+        patch(
+            "custom_components.panel_assistant.async_get_install_executor",
+            AsyncMock(return_value=executor),
+        ),
+        patch(
+            "custom_components.panel_assistant.async_get_install_job_manager",
+            AsyncMock(return_value=manager),
+        ),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    manager.async_transition.assert_awaited_once()
+    assert manager.async_transition.await_args.args[2] is expected_phase
+
+
+@pytest.mark.parametrize(
     ("observed_health", "expected_phase"),
     [
         (HEALTH, InstallPhase.CONSUMED),
@@ -958,7 +1026,7 @@ async def test_setup_reconciliation_drains_finalizer_release_before_cancellation
                 hass,
                 entry,
                 receipt.target.address,
-                receipt.artifact.version_name,
+                HEALTH,
             )
         )
         await release_started.wait()

@@ -170,10 +170,14 @@ class _FrozenExecution:
     execution_id: str
 
 
-def _health_is_installed_app(
-    health: PanelHealth, *, version_name: str, package_id: str
+def health_is_installed_app(
+    health: PanelHealth, installed: InstallArtifact | InstallDescriptor
 ) -> bool:
-    """Decide whether this health line is the app this job just installed.
+    """Decide whether this health line is the app a receipt installed.
+
+    The one definition every consumer of a receipt applies: the worker's health
+    phase, flow finalization and entry recovery must never disagree about what
+    counts as installed.
 
     The version alone stops being enough during the identity migration: both
     packages are built from one tree, so the legacy app answering mid-handover
@@ -182,11 +186,11 @@ def _health_is_installed_app(
     accepts a reply that omits it. Builds older than the migration do not report
     a package at all, which is why a legacy install still accepts its absence.
     """
-    if health.version != version_name:
+    if health.version != installed.version_name:
         return False
-    if package_id == SUCCESSOR_PACKAGE_ID:
-        return health.package == package_id
-    return health.package is None or health.package == package_id
+    if installed.package_id == SUCCESSOR_PACKAGE_ID:
+        return health.package == installed.package_id
+    return health.package is None or health.package == installed.package_id
 
 
 class _CancellationObserved(Exception):
@@ -613,10 +617,8 @@ class InstallExecutor:
                         async_get_clientsession(self._hass), execution.pinned.pinned
                     )
                     health = await self._async_health(execution, panel)
-                    if health is None or not _health_is_installed_app(
-                        health,
-                        version_name=receipt.artifact.version_name,
-                        package_id=receipt.artifact.package_id,
+                    if health is None or not health_is_installed_app(
+                        health, receipt.artifact
                     ):
                         # Only report a handover actually seen in progress:
                         # the old app answered for itself throughout the wait.
@@ -928,15 +930,7 @@ class InstallExecutor:
                 if not last:
                     await asyncio.sleep(_HEALTH_RETRY_SECONDS)
                 continue
-            if (
-                not handover
-                or last
-                or _health_is_installed_app(
-                    health,
-                    version_name=artifact.version_name,
-                    package_id=artifact.package_id,
-                )
-            ):
+            if not handover or last or health_is_installed_app(health, artifact):
                 return health
             # Something healthy answered, but it is not the app just installed:
             # on a migrating panel the legacy app still owns the port.

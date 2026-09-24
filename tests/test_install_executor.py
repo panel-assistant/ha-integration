@@ -50,6 +50,7 @@ from custom_components.panel_assistant.install_artifacts import (
 from custom_components.panel_assistant.install_executor import (
     InstallExecutor,
     async_get_install_executor,
+    health_is_installed_app,
 )
 from custom_components.panel_assistant.install_jobs import (
     InstallArtifact,
@@ -2962,3 +2963,31 @@ async def test_only_the_first_preflight_may_report_a_satisfied_target(
     assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
     assert harness.preflight_admissions == [True, False]
     assert "installed_size" not in harness.events
+
+
+@pytest.mark.parametrize(
+    ("installed_package", "reported_package", "expected"),
+    [
+        (SUCCESSOR_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, True),
+        (SUCCESSOR_PACKAGE_ID, "io.github.maxlyth.hapaneld", False),
+        (SUCCESSOR_PACKAGE_ID, None, False),
+        ("io.github.maxlyth.hapaneld", None, True),
+        ("io.github.maxlyth.hapaneld", "io.github.maxlyth.hapaneld", True),
+        ("io.github.maxlyth.hapaneld", SUCCESSOR_PACKAGE_ID, False),
+    ],
+)
+def test_one_installed_app_rule_takes_the_whole_health_line(
+    installed_package: str, reported_package: str | None, expected: bool
+) -> None:
+    """The shared receipt rule reads the package, never the version alone."""
+    installed = replace(artifact(), package_id=installed_package)
+    health = PanelHealth(
+        version=installed.version_name,
+        panel_id="alpha",
+        build="1",
+        config_hash="1a2b3c4d",
+        package=reported_package,
+    )
+
+    assert health_is_installed_app(health, installed) is expected
+    assert not health_is_installed_app(replace(health, version="9.9.9"), installed)
