@@ -547,7 +547,7 @@
     },
     "cutover_blocked_by_customised_entities": {
       "title": "Customised MQTT entities hold back the MQTT withdrawal of {panel}",
-      "description": "Panel Assistant now owns the entities of {panel}, but it has no equivalent for these MQTT entities, and they carry a name, icon, area, or hidden or disabled setting of your own: {entities}. Delete them, or clear those settings, and the panel withdraws its MQTT entities the next time it connects. Until then it keeps announcing all of them."
+      "description": "Panel Assistant now owns the entities of {panel}, but it has no equivalent for these MQTT entities, and they carry a name, icon, area, label, alias, or hidden or disabled setting of your own: {entities}. Delete them, or clear those settings, and the panel withdraws its MQTT entities the next time it connects. Until then it keeps announcing all of them."
     },
     "merged_panel_identity": {
       "title": "Separate the merged panels: {panels}",

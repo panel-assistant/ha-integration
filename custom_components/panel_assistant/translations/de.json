@@ -218,7 +218,7 @@
     },
     "cutover_blocked_by_customised_entities": {
       "title": "Angepasste MQTT-Entitäten halten den MQTT-Rückzug von {panel} zurück",
-      "description": "Panel Assistant besitzt jetzt die Entitäten von {panel}, hat aber für diese MQTT-Entitäten keine Entsprechung, und sie tragen einen Namen, ein Symbol, einen Bereich oder eine Einstellung zum Ausblenden oder Deaktivieren von dir: {entities}. Lösche sie oder entferne diese Einstellungen, dann zieht das Panel seine MQTT-Entitäten beim nächsten Verbinden zurück. Bis dahin kündigt es sie weiterhin alle an."
+      "description": "Panel Assistant besitzt jetzt die Entitäten von {panel}, hat aber für diese MQTT-Entitäten keine Entsprechung, und sie tragen einen Namen, ein Symbol, einen Bereich, ein Label, einen Alias oder eine Einstellung zum Ausblenden oder Deaktivieren von dir: {entities}. Lösche sie oder entferne diese Einstellungen, dann zieht das Panel seine MQTT-Entitäten beim nächsten Verbinden zurück. Bis dahin kündigt es sie weiterhin alle an."
     },
     "merged_panel_identity": {
       "title": "Zusammengeführte Panels trennen: {panels}",
