@@ -119,13 +119,11 @@ async def test_capacity_and_leases_protect_files(services):
             with pytest.raises(BrowserReleaseCacheError, match="browser_release_busy"):
                 await services.cache.async_prepare("charlie")
             assert services.files == {first.id, second.id}
-        with pytest.raises(BrowserReleaseCacheError, match="browser_release_busy"):
-            await services.cache.async_prepare("charlie")
-        assert services.files == {first.id, second.id}
-        services.now += 900
         third = await services.cache.async_prepare("charlie")
         assert services.files == {first.id, third.id}
         assert services.cleaned == [second.id]
+        async with services.cache.async_lease("alice", first.id) as leased:
+            assert leased is first
     fourth = await services.cache.async_prepare("dan")
     assert services.files == {third.id, fourth.id}
     assert services.resolved == [None, "v1.2.4-rc1", None, None]
@@ -247,3 +245,39 @@ async def test_oversized_or_empty_bundle_refused_before_download(services, size)
         await services.cache.async_prepare("alice")
     assert not services.started.is_set()
     assert not services.files
+
+
+async def test_completed_transfers_free_capacity_for_another_selection(services):
+    stable = await services.cache.async_prepare("alice")
+    async with services.cache.async_lease("alice", stable.id):
+        pass
+    services.now += 1
+    rc1 = await services.cache.async_prepare("alice", rc_tag="v1.2.4-rc1")
+    async with services.cache.async_lease("alice", rc1.id):
+        pass
+    rc2 = await services.cache.async_prepare("alice", rc_tag="v1.2.4-rc2")
+    assert services.files == {rc1.id, rc2.id}
+    assert services.cleaned == [stable.id]
+    with pytest.raises(BrowserReleaseCacheError, match="browser_release_not_found"):
+        async with services.cache.async_lease("alice", stable.id):
+            pytest.fail("evicted lease")
+
+
+async def test_eviction_prefers_served_then_oldest_and_spares_leases(services):
+    unserved = await services.cache.async_prepare("bob")
+    services.now += 1
+    served = await services.cache.async_prepare("alice")
+    services.now += 1
+    async with services.cache.async_lease("alice", served.id):
+        pass
+    third = await services.cache.async_prepare("charlie")
+    assert services.cleaned == [served.id]
+    services.now += 1
+    async with services.cache.async_lease("charlie", third.id):
+        fourth = await services.cache.async_prepare("dan")
+        assert services.cleaned == [served.id, unserved.id]
+        assert services.files == {third.id, fourth.id}
+        async with services.cache.async_lease("dan", fourth.id):
+            with pytest.raises(BrowserReleaseCacheError, match="browser_release_busy"):
+                await services.cache.async_prepare("erin")
+            assert services.files == {third.id, fourth.id}
