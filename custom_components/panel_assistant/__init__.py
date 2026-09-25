@@ -25,6 +25,7 @@ from .cutover import (
     cutover_reconciliation_needed,
     cutover_reconciliation_waiting,
 )
+from .device import async_refresh_panel_device, panel_device_info
 from .embed import (
     REASON_ENTRY_UNLOADED as EMBED_ENTRY_UNLOADED,
 )
@@ -236,6 +237,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     )
     entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
     await hass.config_entries.async_forward_entry_setups(entry, platforms)
+    # The coordinator's listeners run on every poll and whenever the session
+    # opens or closes, which is when the card can learn something new.
+    entry.async_on_unload(
+        coordinator.async_add_listener(
+            lambda: async_refresh_panel_device(
+                hass,
+                entry.entry_id,
+                panel_device_info(
+                    entry.entry_id,
+                    coordinator.data,
+                    client.configuration_url,
+                    entry.title,
+                    coordinator.app_build,
+                ),
+            )
+        )
+    )
     # Register last so this coordinator listener is removed first on unload,
     # even when a later teardown callback fails.
     entry.async_on_unload(

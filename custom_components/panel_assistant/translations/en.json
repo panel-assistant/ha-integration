@@ -267,6 +267,9 @@
       "illuminance": {
         "name": "Illuminance"
       },
+      "panel_assistant_version": {
+        "name": "Panel Assistant version"
+      },
       "proximity_level": {
         "name": "Proximity level"
       },

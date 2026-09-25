@@ -144,6 +144,9 @@
   },
   "entity": {
     "sensor": {
+      "panel_assistant_version": {
+        "name": "Versione di Panel Assistant"
+      },
       "status": {
         "name": "Stato",
         "state": {

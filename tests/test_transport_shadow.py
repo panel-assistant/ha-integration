@@ -4,6 +4,7 @@ from datetime import timedelta
 from typing import Any
 from unittest.mock import patch
 
+import attr
 import pytest
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers import device_registry as dr
@@ -11,6 +12,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.diagnostics import (
     async_get_config_entry_diagnostics,
 )
@@ -559,7 +561,11 @@ async def test_shadow_mode_never_writes_a_registry(
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
 ) -> None:
-    """Hello, a full sync, deltas and a download leave every registry as it was."""
+    """Hello, a full sync, deltas and a download leave every registry as it was.
+
+    Except for one field: the version and build the panel declared in its hello
+    reach its own device card, which is presentation, not authority.
+    """
     entity_registry = er.async_get(hass)
     device_registry = dr.async_get(hass)
     mqtt_entry: MockConfigEntry = mqtt_device["entry"]
@@ -618,7 +624,23 @@ async def test_shadow_mode_never_writes_a_registry(
     await async_get_config_entry_diagnostics(hass, entry)
     await hass.async_block_till_done()
 
-    assert snapshot() == before
+    after = snapshot()
+    own = device_registry.async_get_device_by_identifier(
+        (DOMAIN, entry.entry_id), entry.entry_id
+    )
+    assert own is not None
+    assert own.sw_version == "0.9.8-rc1 (build 790)"
+    assert after[3] == sorted(
+        (
+            item_id,
+            attr.evolve(item, sw_version=own.sw_version, modified_at=own.modified_at)
+            if item_id == own.id
+            else item,
+        )
+        for item_id, item in before[3]
+    )
+    assert after[:3] == before[:3]
+    assert after[4:] == before[4:]
     assert [
         item
         for item in er.async_entries_for_config_entry(entity_registry, entry.entry_id)

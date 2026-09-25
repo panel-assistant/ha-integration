@@ -256,6 +256,7 @@ def _own_device(
             runtime_data.coordinator.data,
             runtime_data.client.configuration_url,
             entry.title,
+            runtime_data.coordinator.app_build,
         ),
     )
     panel_device = mqtt_device(hass, panel_id)

@@ -1127,3 +1127,18 @@ def test_the_health_line_carries_the_application_id_the_panel_runs() -> None:
     # One token, once: a second pkg= is a contradictory line.
     with pytest.raises(InvalidResponseError):
         parse_health_response(f"{base} pkg=io.panelassistant.android pkg=a.b\n")
+
+
+def test_the_health_line_carries_the_build_number_beside_the_version() -> None:
+    """Two builds of one release differ only in their build number."""
+    base = "ha-paneld 0.9.8-rc2 panel=landing build=1790 cfg=01234567"
+    assert parse_health_response(f"{base} pkg=a.b vc=904\n").version_code == 904
+    # A build older than the token reports none, and is not rejected for it.
+    assert parse_health_response(f"{base}\n").version_code is None
+    # Presentation only: an unusable value is dropped, never the whole line.
+    for malformed in ("vc=0", "vc=-1", "vc=09", "vc=abc", "vc=2147483648"):
+        assert parse_health_response(f"{base} {malformed}\n").version_code is None
+    assert parse_health_response(f"{base} vc=2147483647\n").version_code == 2**31 - 1
+    # One token, once: a second vc= is a contradictory line.
+    with pytest.raises(InvalidResponseError):
+        parse_health_response(f"{base} vc=904 vc=905\n")

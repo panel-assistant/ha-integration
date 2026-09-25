@@ -215,8 +215,9 @@ async def test_non_admin_panel_account_opens_a_session(
     """A dedicated non-admin panel account is accepted without admin rights."""
     assert not hass_read_only_user.is_admin
     registry_before = _registry_digest(hass, entry.entry_id)
-    # The status sensor, the update entity and their device: never an empty digest.
-    assert (len(registry_before[0]), len(registry_before[1])) == (2, 1)
+    # The status sensor, the Panel Assistant version sensor, the update entity and
+    # their device: never an empty digest.
+    assert (len(registry_before[0]), len(registry_before[1])) == (3, 1)
     client = await hass_ws_client(hass, hass_read_only_access_token)
 
     response = await _send(client, _hello(future_field={"ignored": True}))

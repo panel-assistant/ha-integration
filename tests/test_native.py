@@ -16,6 +16,7 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_ADDRESS, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -967,3 +968,32 @@ async def test_a_colour_light_stays_rgb_across_a_reload(
     state = hass.states.get(led)
     assert state.state == "off"
     assert state.attributes["supported_color_modes"] == ["rgb"]
+
+
+async def test_the_session_names_the_build_on_the_device_card(
+    hass: HomeAssistant,
+    dormant: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """The version and build the panel declared in its hello reach the card.
+
+    They arrive after the entities registered it, and whether or not the
+    stored address answers, so the card is corrected when the session opens.
+    """
+    registry = dr.async_get(hass)
+    device = registry.async_get_device_by_identifier(
+        (DOMAIN, dormant.entry_id), dormant.entry_id
+    )
+    assert device is not None
+    assert device.sw_version == HEALTH.version
+
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await _session(client)
+    await hass.async_block_till_done()
+
+    device = registry.async_get_device_by_identifier(
+        (DOMAIN, dormant.entry_id), dormant.entry_id
+    )
+    assert device is not None
+    assert device.sw_version == "0.9.8-rc1 (build 790)"
