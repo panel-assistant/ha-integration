@@ -61,6 +61,27 @@ TRANSLATION_SAMPLES = {
         "ha-paneld 更新",
         "无法读取面板健康状态",
     ),
+    "nl": (
+        "Een paneel instellen",
+        "Status",
+        "Online",
+        "ha-paneld-update",
+        "Kan de status van het paneel niet uitlezen",
+    ),
+    "pl": (
+        "Skonfiguruj panel",
+        "Status",
+        "Online",
+        "Aktualizacja ha-paneld",
+        "Nie można odczytać stanu panelu",
+    ),
+    "uk": (
+        "Налаштувати панель",
+        "Статус",
+        "Онлайн",
+        "Оновлення ha-paneld",
+        "Не вдається зчитати стан панелі",  # noqa: RUF001 -- genuine Ukrainian
+    ),
 }
 
 
@@ -124,6 +145,9 @@ async def test_native_status_and_exception_translations(
             "fr": "Connecter à Home Assistant",
             "it": "Collega a Home Assistant",
             "zh-Hans": "连接到 Home Assistant",
+            "nl": "Verbind met Home Assistant",
+            "pl": "Połącz z Home Assistant",
+            "uk": "Підключити до Home Assistant",
         }[language]
     )
     sensor = HaPaneldStatusSensor(

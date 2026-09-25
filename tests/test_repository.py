@@ -384,6 +384,9 @@ def test_shipped_translation_catalogues_preserve_machine_contracts() -> None:
         "es.json",
         "fr.json",
         "it.json",
+        "nl.json",
+        "pl.json",
+        "uk.json",
         "zh-Hans.json",
     ]
     assert len(english) == 146
@@ -410,10 +413,89 @@ def test_shipped_translation_catalogues_preserve_machine_contracts() -> None:
                     assert _literal_count(target_text, token) >= required_count
 
 
-def test_installed_artifact_mismatch_is_explained_in_all_six_locales() -> None:
+# Recovery text tells a person what NOT to do to a panel that may be half
+# installed. A translation that turns "do not uninstall or reset the app" into
+# a positive order is a reversed safety instruction, and a sentence-level
+# "contains a negation" check misses it because the first clause still says
+# "do not retry". These patterns match the positive command form of each
+# destructive verb in the machine-drafted locales; the prohibition forms
+# (imperfective in Polish, "не" plus the verb in Ukrainian, "niet" after the
+# verb in Dutch) do not match.
+_POSITIVE_DESTRUCTIVE_COMMANDS = {
+    "nl": r"\b(verwijder|reset)\b(?!.*\bniet\b)",
+    "pl": r"\b(odinstalować|zresetować)\b",
+    "uk": r"\b(видаліть|скиньте|деінсталюйте)\b",
+}
+
+
+def test_destructive_recovery_instructions_stay_prohibitions_in_drafted_locales() -> (
+    None
+):
+    english = _translation_leaves(
+        _load_translation_catalogue(INTEGRATION / "translations" / "en.json")
+    )
+    prohibited = {
+        path
+        for path, text in english.items()
+        if re.search(r"\bDo not [^.]*\b(uninstall|reset)\b", text)
+    }
+    assert len(prohibited) == 4
+    for locale, positive in _POSITIVE_DESTRUCTIVE_COMMANDS.items():
+        target = _translation_leaves(
+            _load_translation_catalogue(INTEGRATION / "translations" / f"{locale}.json")
+        )
+        for path in sorted(prohibited):
+            for sentence in re.split(r"(?<=[.;!?])\s+", target[path]):
+                assert not re.search(positive, sentence, re.IGNORECASE), (
+                    locale,
+                    path,
+                    sentence,
+                )
+
+
+# Meaning a reviewer found lost in the machine drafts of refusal text: the
+# installer refuses on a *signed release* (not a consent or permission), a retry
+# is allowed *once*, and it is the *panel* that has not accepted this Home
+# Assistant instance (not a committee or an example). Each pattern must be
+# present in the translation of the string it guards.
+_REFUSAL_MEANING = {
+    ("config", "error", "install_plan_rejected"): {
+        "nl": r"\brelease\b",
+        "pl": r"wydani",
+        "uk": r"випуск",
+    },
+    ("config", "error", "retained_or_ambiguous"): {
+        "nl": r"één keer",
+        "pl": r"\b(jeden|tylko) raz\b",
+        "uk": r"один раз",
+    },
+    ("config", "error", "adb_still_unauthorized"): {
+        "nl": r"\bPaneel\b.*\binstantie\b",
+        "pl": r"\bPanel\b.*\binstancj",
+        "uk": r"\bПанель\b.*\bекземпляр",  # noqa: RUF001 -- genuine Ukrainian
+    },
+}
+
+
+def test_installer_refusal_text_keeps_its_meaning_in_drafted_locales() -> None:
+    for path, patterns in _REFUSAL_MEANING.items():
+        for locale, pattern in patterns.items():
+            target = _translation_leaves(
+                _load_translation_catalogue(
+                    INTEGRATION / "translations" / f"{locale}.json"
+                )
+            )
+            assert re.search(pattern, target[path], re.IGNORECASE | re.DOTALL), (
+                locale,
+                path,
+                target[path],
+            )
+
+
+def test_installed_artifact_mismatch_is_explained_in_all_nine_locales() -> None:
     """The byte refusal must never fall back to an untranslated key."""
     locale_paths = sorted((INTEGRATION / "translations").glob("*.json"))
-    assert len(locale_paths) == 6
+    assert len(locale_paths) == 9
     for locale_path in locale_paths:
         message = _load_translation_catalogue(locale_path)["config"]["error"][
             "installed_artifact_mismatch"
@@ -430,6 +512,9 @@ def test_installed_artifact_mismatch_is_explained_in_all_six_locales() -> None:
         "translations/es.json",
         "translations/fr.json",
         "translations/it.json",
+        "translations/nl.json",
+        "translations/pl.json",
+        "translations/uk.json",
         "translations/zh-Hans.json",
     ],
 )
