@@ -31,12 +31,12 @@ test('each identity names its own components, never the other spelling', () => {
 });
 
 test("launch starts the descriptor's own package by its own component", () => {
-  assert.ok(buildLaunch(nonce, SUCCESSOR_PACKAGE_ID).includes(
+  assert.ok(buildLaunch(nonce, SUCCESSOR_PACKAGE_ID, 33).includes(
     'am start -W -n io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity'
     + ' -p io.panelassistant.android'));
-  assert.ok(buildLaunch(nonce, LEGACY_PACKAGE_ID).includes(
+  assert.ok(buildLaunch(nonce, LEGACY_PACKAGE_ID, 33).includes(
     'am start -W -n io.github.maxlyth.hapaneld/.MainActivity -p io.github.maxlyth.hapaneld'));
-  assert.throws(() => buildLaunch(nonce, 'io.example.other'), InstallContractError);
+  assert.throws(() => buildLaunch(nonce, 'io.example.other', 33), InstallContractError);
 });
 
 test('the preflight reads each accepted package and its data on its own', () => {

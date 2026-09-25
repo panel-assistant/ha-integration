@@ -171,7 +171,7 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
       if (!await inspectInstalledApk(adb, release.descriptor, guard)) fail('installed_artifact_mismatch');
       binding(receipt, release);
       const n = nonce();
-      if (parseLaunch(await readShell(adb, buildLaunch(n, release.descriptor.packageId),
+      if (parseLaunch(await readShell(adb, buildLaunch(n, release.descriptor.packageId, receipt.target.androidSdk),
         { timeoutMs: 30000 }), n) !== 'started') fail('launch_refused');
       binding(receipt, release);
     }),

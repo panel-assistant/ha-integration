@@ -31,6 +31,8 @@ function fixture({badTarget = false, badApk = false, badRead = false, failGrant 
         `HAPANELD_INSTALLED_SIZE_BEGIN:${n}`, '1234', `HAPANELD_INSTALLED_SIZE_END:${n}:0`,
         `HAPANELD_INSTALLED_SHA_BEGIN:${n}`, `${badApk ? 'b'.repeat(64) : artifact.apkSha256}  ${path}`,
         `HAPANELD_INSTALLED_SHA_END:${n}:0`, `HAPANELD_INSTALLED_END:${n}`, ''].join('\n');
+    } else if (command.includes('HAPANELD_LAUNCH_BEGIN:')) {
+      body = `HAPANELD_LAUNCH_BEGIN:${n}\nStatus: ok\nHAPANELD_LAUNCH_END:${n}:0\n`;
     } else if (command.includes('HAPANELD_PERMISSIONS_READ_BEGIN:')) {
       body = `HAPANELD_PERMISSIONS_READ_BEGIN:${n}\n${badRead ? "cannot read settings" : 'com.other/.Reader'}\nHAPANELD_PERMISSIONS_READ_END:${n}:0\n`;
     } else if (command.includes('HAPANELD_PERMISSIONS_GRANT_BEGIN:')) {
@@ -88,4 +90,19 @@ test('grant failure or denied readback quarantines connection and never claims c
   const f = fixture(); await f.ports.authenticate();
   await assert.rejects(f.ports.commissionPermissions({...f.receipt, phase: 'installed'}, f.release), /transaction_invalid/);
   assert.equal(f.commands.length, 0);
+});
+
+test('the launch step grants notifications before the first start from Android 13, and not below', async () => {
+  for (const sdk of [32, 33, 34]) {
+    const f = fixture({sdk}); await f.ports.authenticate();
+    await f.ports.launch({...f.receipt, phase: 'launching'}, f.release);
+    const launch = f.commands.find(command => command.includes('HAPANELD_LAUNCH_BEGIN:'));
+    assert.ok(launch, 'the launch command ran');
+    const grant = launch.indexOf(`pm grant ${LEGACY_PACKAGE_ID} android.permission.POST_NOTIFICATIONS`);
+    const start = launch.indexOf('am start -W');
+    assert.ok(start > 0);
+    if (sdk >= 33) assert.ok(grant > 0 && grant < start, `sdk ${sdk}: grant precedes the first start`);
+    else assert.equal(grant, -1, `sdk ${sdk}: no grant where the permission is not a runtime one`);
+    assert.equal(f.quarantined, 0);
+  }
 });
