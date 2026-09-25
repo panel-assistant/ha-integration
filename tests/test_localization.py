@@ -62,24 +62,24 @@ TRANSLATION_SAMPLES = {
         "无法读取面板健康状态",
     ),
     "nl": (
-        "Een panel opzetten",
+        "Een paneel instellen",
         "Status",
         "Online",
-        "ha-paneld update",
+        "ha-paneld-update",
         "Kan de status van het paneel niet uitlezen",
     ),
     "pl": (
         "Skonfiguruj panel",
         "Status",
         "Online",
-        "ha-paneld aktualizacja",
+        "Aktualizacja ha-paneld",
         "Nie można odczytać stanu panelu",
     ),
     "uk": (
         "Налаштувати панель",
         "Статус",
         "Онлайн",
-        "ha-paneld оновлення",
+        "Оновлення ha-paneld",
         "Не вдається зчитати стан панелі",  # noqa: RUF001 -- genuine Ukrainian
     ),
 }
