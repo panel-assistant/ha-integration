@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import ipaddress
+import logging
 import math
 import os
 import re
@@ -51,6 +52,8 @@ from .install_network import is_allowed_install_address
 from .release import InstallDescriptor
 
 ADB_PORT = 5555
+_LOGGER = logging.getLogger(__name__)
+
 _ADB_BANNER = "ha-paneld-home-assistant"
 _PACKAGE_MANAGER_LIVENESS_PACKAGE = "android"
 # Frozen on the legacy spelling: released integrations compare it byte for byte.
@@ -571,6 +574,70 @@ def _install_command(nonce: str, remote_path: str, android_sdk: int) -> str:
             f"echo HAPANELD_INSTALL_END:{nonce}:$?",
         )
     )
+
+
+# POST_NOTIFICATIONS became a runtime permission in Android 13 (API 33).
+_NOTIFICATIONS_RUNTIME_SDK = 33
+_NOTIFICATIONS_PERMISSION = "android.permission.POST_NOTIFICATIONS"
+_NOTIFICATIONS_GRANTED = re.compile(
+    r"\s*android\.permission\.POST_NOTIFICATIONS: granted=true"
+    r"(?:, flags=\[[ A-Z0-9_|]*\])?\s*",
+    flags=re.ASCII,
+)
+_NOTIFICATIONS_DENIED_BY_USER = re.compile(
+    r"\s*android\.permission\.POST_NOTIFICATIONS: granted=false"
+    r", flags=\[[ A-Z0-9_|]*\bUSER_(?:SET|FIXED)\b[ A-Z0-9_|]*\]\s*",
+    flags=re.ASCII,
+)
+
+
+class NotificationGrant(StrEnum):
+    """What the package manager kept after the installer's notification grant."""
+
+    GRANTED = "granted"
+    DENIED_BY_USER = "denied_by_user"
+    NOT_GRANTED = "not_granted"
+
+
+def _notification_grant_command(nonce: str, package_id: str) -> str:
+    """Grant notifications before the first start, then read back what Android kept.
+
+    The app asks for this permission on its first screen unless it holds it, so a
+    wall panel gets it from its installer rather than from someone standing at
+    it. A person's own "Don't allow" (USER_SET or USER_FIXED on a denied grant)
+    is left as they chose: a shell grant would override it. The grant's output is
+    discarded; only the package manager's readback decides what held.
+    """
+    grep = f"grep '{_NOTIFICATIONS_PERMISSION}: granted='"
+    return "; ".join(
+        (
+            f"echo HAPANELD_NOTIFICATIONS_BEGIN:{nonce}",
+            f'case "$(dumpsys package {package_id} 2>/dev/null | {grep})" in'
+            " *granted=false*USER_SET*|*granted=false*USER_FIXED*) :"
+            f" ;; *) pm grant {package_id} {_NOTIFICATIONS_PERMISSION}"
+            " >/dev/null 2>&1 ;; esac",
+            f"dumpsys package {package_id} | {grep}",
+            f"echo HAPANELD_NOTIFICATIONS_END:{nonce}:$?",
+        )
+    )
+
+
+def _parse_notification_grant(body: bytes, nonce: str) -> NotificationGrant:
+    """Granted only when every runtime-permission line Android printed says so.
+
+    The exit status is grep's and adds nothing: it fails exactly when no line matched.
+    """
+    try:
+        lines, _status = _parse_single_section(
+            body, prefix="NOTIFICATIONS", nonce=nonce
+        )
+    except _MalformedAdbResponse:
+        return NotificationGrant.NOT_GRANTED
+    if lines and all(_NOTIFICATIONS_GRANTED.fullmatch(line) for line in lines):
+        return NotificationGrant.GRANTED
+    if any(_NOTIFICATIONS_DENIED_BY_USER.fullmatch(line) for line in lines):
+        return NotificationGrant.DENIED_BY_USER
+    return NotificationGrant.NOT_GRANTED
 
 
 def _launch_command(nonce: str, package_id: str) -> str:
@@ -1764,6 +1831,31 @@ async def async_launch_installed_app(
                 ),
                 nonce,
             )
+            if target.android_sdk >= _NOTIFICATIONS_RUNTIME_SDK:
+                # Never a reason not to start: a refusal is reported, and the app
+                # still runs without notification visibility.
+                nonce = token_hex(16)
+                grant = _parse_notification_grant(
+                    await _async_shell(
+                        device,
+                        _notification_grant_command(nonce, descriptor.package_id),
+                        read_timeout=_READ_TIMEOUT_SECONDS,
+                    ),
+                    nonce,
+                )
+                if grant is NotificationGrant.DENIED_BY_USER:
+                    _LOGGER.warning(
+                        "Notifications for %s were turned off on the panel by a "
+                        "person, so the installer left them off",
+                        descriptor.package_id,
+                    )
+                elif grant is NotificationGrant.NOT_GRANTED:
+                    _LOGGER.warning(
+                        "The panel did not grant %s the notification permission. "
+                        "The app runs without it; allow it on the panel in Android "
+                        "Settings, under the app's Notifications",
+                        descriptor.package_id,
+                    )
             nonce = token_hex(16)
             mutation_started = True
             return _parse_launch_outcome(
