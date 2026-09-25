@@ -466,7 +466,7 @@ _REFUSAL_MEANING = {
     },
     ("config", "error", "retained_or_ambiguous"): {
         "nl": r"één keer",
-        "pl": r"jeden raz",
+        "pl": r"\b(jeden|tylko) raz\b",
         "uk": r"один раз",
     },
     ("config", "error", "adb_still_unauthorized"): {
