@@ -150,6 +150,9 @@
           "online": "Online",
           "connected": "Połączenie nawiązane, adres niedostępny"
         }
+      },
+      "panel_assistant_version": {
+        "name": "Wersja Panel Assistant"
       }
     },
     "update": {

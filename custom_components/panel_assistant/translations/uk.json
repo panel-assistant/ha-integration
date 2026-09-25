@@ -150,6 +150,9 @@
           "online": "Онлайн",
           "connected": "Підключено, адреса недоступна"
         }
+      },
+      "panel_assistant_version": {
+        "name": "Версія Panel Assistant"
       }
     },
     "update": {
