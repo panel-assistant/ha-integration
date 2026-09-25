@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import CONF_ADDRESS
+from homeassistant.const import CONF_ADDRESS, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
@@ -33,7 +33,11 @@ from custom_components.panel_assistant.client import (
     PanelHealth,
     PanelInstallStatus,
 )
-from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.const import (
+    DOMAIN,
+    INTEGRATION_BUILD,
+    INTEGRATION_VERSION,
+)
 from custom_components.panel_assistant.diagnostics import (
     async_get_config_entry_diagnostics,
 )
@@ -148,8 +152,8 @@ def _assert_healthy_entry_loaded(hass: HomeAssistant, entry: MockConfigEntry) ->
         for item in er.async_get(hass).entities.values()
         if item.config_entry_id == entry.entry_id
     ]
-    assert len(entities) == 2
-    sensor = next(item for item in entities if item.domain == "sensor")
+    assert len(entities) == 3
+    sensor = next(item for item in entities if item.unique_id.endswith("_status"))
     state = hass.states.get(sensor.entity_id)
     assert state is not None
     assert state.state == "online"
@@ -200,14 +204,28 @@ async def test_setup_entry_diagnostics_unload_reload(hass: HomeAssistant) -> Non
         ]
         devices = dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
 
-        assert len(entities) == 2
+        assert len(entities) == 3
         assert len(devices) == 1
-        sensor = next(item for item in entities if item.domain == "sensor")
+        sensor = next(item for item in entities if item.unique_id.endswith("_status"))
         update = next(item for item in entities if item.domain == "update")
         state = hass.states.get(sensor.entity_id)
         assert state is not None
         assert state.state == "online"
         assert state.attributes["build"] == HEALTH.build
+        # The panel's device names the Panel Assistant build it is connected
+        # through, as a diagnostic entity beside its own Update entity.
+        version = next(
+            item
+            for item in entities
+            if item.unique_id == f"{entry.entry_id}_panel_assistant_version"
+        )
+        assert version.entity_category is EntityCategory.DIAGNOSTIC
+        assert version.device_id == devices[0].id
+        version_state = hass.states.get(version.entity_id)
+        assert version_state is not None
+        assert version_state.state == (
+            f"{INTEGRATION_VERSION} (build {INTEGRATION_BUILD})"
+        )
         update_state = hass.states.get(update.entity_id)
         assert update_state is not None
         assert devices[0].identifiers == {(DOMAIN, entry.entry_id)}
@@ -878,6 +896,7 @@ async def test_setup_loads_unavailable_when_panel_is_offline(
     assert device is not None
     assert device.name == "alpha"
     assert device.sw_version is None
+    assert device.hw_version is None
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
     assert diagnostics["last_update_success"] is False
     assert diagnostics["connected"] is False
@@ -989,8 +1008,8 @@ async def test_status_failure_does_not_override_health_authority(
         for item in er.async_get(hass).entities.values()
         if item.config_entry_id == entry.entry_id
     ]
-    assert len(entities) == 2
-    sensor = next(item for item in entities if item.domain == "sensor")
+    assert len(entities) == 3
+    sensor = next(item for item in entities if item.unique_id.endswith("_status"))
     state = hass.states.get(sensor.entity_id)
     assert state is not None
     assert state.state == "online"
@@ -1089,3 +1108,72 @@ async def test_status_poll_claims_the_panel_update_while_its_entity_is_enabled(
     # The health probe never claims anything.
     for call in health_mock.await_args_list:
         assert call.kwargs == {}
+
+
+async def test_an_offline_setup_keeps_the_product_the_panel_named(
+    hass: HomeAssistant,
+) -> None:
+    """A restart while the stored address is silent must not rename the product.
+
+    Setup registers the card before anything has answered. The model and
+    manufacturer the panel last reported stay; the Android release line goes.
+    """
+    entry = _entry(hass)
+    registry = dr.async_get(hass)
+    registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, entry.entry_id)},
+        manufacturer="Shelly",
+        model="Wall Display X2i",
+        sw_version="0.9.8-rc1",
+        hw_version="Android 11 · RD2A.211001.002 release-keys",
+    )
+    with patch(
+        "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+        AsyncMock(side_effect=CannotConnectError),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    device = registry.async_get_device_by_identifier(
+        (DOMAIN, entry.entry_id), entry.entry_id
+    )
+    assert device is not None
+    assert device.manufacturer == "Shelly"
+    assert device.model == "Wall Display X2i"
+    assert device.sw_version == "0.9.8-rc1"
+    assert device.hw_version is None
+
+
+async def test_a_later_poll_brings_the_card_up_to_date(hass: HomeAssistant) -> None:
+    """The card is written as the entities load; a later upgrade must reach it."""
+    entry = _entry(hass)
+    health_mock = AsyncMock(return_value=HEALTH)
+    with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            health_mock,
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=STATUS),
+        ),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        registry = dr.async_get(hass)
+        device = registry.async_get_device_by_identifier(
+            (DOMAIN, entry.entry_id), entry.entry_id
+        )
+        assert device is not None
+        assert device.sw_version == HEALTH.version
+
+        health_mock.return_value = replace(HEALTH, version="0.9.1", version_code=904)
+        await entry.runtime_data.coordinator.async_refresh()
+        await hass.async_block_till_done()
+
+    device = registry.async_get_device_by_identifier(
+        (DOMAIN, entry.entry_id), entry.entry_id
+    )
+    assert device is not None
+    assert device.sw_version == "0.9.1 (build 904)"

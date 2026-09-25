@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
 from custom_components.panel_assistant.client import PanelHealth
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.coordinator import PanelSnapshot
-from custom_components.panel_assistant.device import panel_device_info
+from custom_components.panel_assistant.device import (
+    async_refresh_panel_device,
+    panel_device_info,
+)
 from custom_components.panel_assistant.status import PanelDevice, PanelStatus
 
 HEALTH = PanelHealth(
@@ -17,13 +26,18 @@ HEALTH = PanelHealth(
 URL = "http://192.168.1.23:8888/"
 
 
-def _snapshot(device: PanelDevice | None, *, with_status: bool = True) -> PanelSnapshot:
+def _snapshot(
+    device: PanelDevice | None,
+    *,
+    with_status: bool = True,
+    health: PanelHealth = HEALTH,
+) -> PanelSnapshot:
     status = (
         PanelStatus(warning_count=0, capability_count=0, panel_assistant_device=device)
         if with_status
         else None
     )
-    return PanelSnapshot(health=HEALTH, status=status, status_error=None)
+    return PanelSnapshot(health=health, status=status, status_error=None)
 
 
 def test_reported_facts_fill_every_card_field() -> None:
@@ -45,7 +59,6 @@ def test_reported_facts_fill_every_card_field() -> None:
     assert info["name"] == "Alpha panel"
     assert info["manufacturer"] == "Acme"
     assert info["model"] == "AP-1"
-    assert info["hw_version"] == "Android 14 · TQ3A"
     assert info["suggested_area"] == "Study"
     assert info["sw_version"] == "0.9.7-rc4"
     assert info["configuration_url"] == URL
@@ -70,10 +83,11 @@ def test_a_silent_panel_still_produces_a_usable_card() -> None:
         info = panel_device_info("entry-1", snapshot, URL)
 
         assert info["name"] == "alpha_panel"
-        assert info["model"] == "ha-paneld"
         assert info["sw_version"] == "0.9.7-rc4"
+        # Unstated, so left out: the registry keeps what the panel last said
+        # rather than being told the product is this integration's app.
+        assert "model" not in info
         assert "manufacturer" not in info
-        assert "hw_version" not in info
         assert "suggested_area" not in info
 
 
@@ -86,5 +100,107 @@ def test_a_partial_report_fills_only_what_the_panel_stated() -> None:
     assert info["manufacturer"] == "Acme"
     assert info["suggested_area"] == "Study"
     assert info["name"] == "alpha_panel"
-    assert info["model"] == "ha-paneld"
-    assert "hw_version" not in info
+    assert "model" not in info
+
+
+def test_the_card_never_shows_the_android_release_as_its_hardware() -> None:
+    """The Android release and build told a user nothing, so the line is cleared.
+
+    Cleared rather than left out, so a card an earlier version registered loses
+    it, and an older panel that still sends it is not shown it.
+    """
+    for snapshot in (
+        _snapshot(
+            PanelDevice(model="Wall Display X2i", hw_version="Android 11 · RD2A")
+        ),
+        _snapshot(None),
+        None,
+    ):
+        info = panel_device_info("entry-1", snapshot, URL, "alpha")
+
+        assert "hw_version" in info
+        assert info["hw_version"] is None
+
+
+def test_the_profile_model_the_panel_reports_is_the_card_model() -> None:
+    """The panel names the product from its profile; the card shows exactly that."""
+    info = panel_device_info(
+        "entry-1",
+        _snapshot(PanelDevice(manufacturer="Shelly", model="Wall Display X2i")),
+        URL,
+    )
+
+    assert info["manufacturer"] == "Shelly"
+    assert info["model"] == "Wall Display X2i"
+
+
+def test_the_firmware_line_names_the_build_as_the_mqtt_card_did() -> None:
+    """A release candidate is rebuilt many times, so the version alone is ambiguous."""
+    info = panel_device_info(
+        "entry-1", _snapshot(None, health=replace(HEALTH, version_code=812)), URL
+    )
+
+    assert info["sw_version"] == "0.9.7-rc4 (build 812)"
+
+
+def test_the_session_names_the_build_even_when_the_address_is_silent() -> None:
+    """A connected panel declared its version and build; the card uses them."""
+    for snapshot in (None, _snapshot(None, health=replace(HEALTH, version_code=812))):
+        info = panel_device_info(
+            "entry-1", snapshot, URL, "alpha", app_build=("0.9.8-rc2", 904)
+        )
+
+        assert info["sw_version"] == "0.9.8-rc2 (build 904)"
+
+
+def test_an_unknown_version_leaves_the_registered_one_alone() -> None:
+    """Nobody has answered yet, so there is nothing to replace the last version with."""
+    info = panel_device_info("entry-1", None, URL, "alpha")
+
+    assert "sw_version" not in info
+    assert info["name"] == "alpha"
+
+
+async def test_a_registered_card_is_brought_up_to_date(hass: HomeAssistant) -> None:
+    """The card a panel registered earlier learns the session's build and loses
+    the Android line, while the product it named is kept."""
+    entry = MockConfigEntry(domain=DOMAIN, title="alpha")
+    entry.add_to_hass(hass)
+    registry = dr.async_get(hass)
+    registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, entry.entry_id)},
+        manufacturer="Shelly",
+        model="Wall Display X2i",
+        sw_version="0.9.8-rc1",
+        hw_version="Android 11 · RD2A.211001.002 release-keys",
+    )
+
+    async_refresh_panel_device(
+        hass,
+        entry.entry_id,
+        panel_device_info(entry.entry_id, None, URL, "alpha", ("0.9.8-rc2", 904)),
+    )
+
+    device = registry.async_get_device_by_identifier(
+        (DOMAIN, entry.entry_id), entry.entry_id
+    )
+    assert device is not None
+    assert device.sw_version == "0.9.8-rc2 (build 904)"
+    assert device.hw_version is None
+    assert device.manufacturer == "Shelly"
+    assert device.model == "Wall Display X2i"
+
+
+async def test_refreshing_never_creates_a_card(hass: HomeAssistant) -> None:
+    """Only the entities register the device; a refresh before them is a no-op."""
+    async_refresh_panel_device(
+        hass, "entry-1", panel_device_info("entry-1", None, URL, "alpha", ("0.9.8", 1))
+    )
+
+    assert (
+        dr.async_get(hass).async_get_device_by_identifier(
+            (DOMAIN, "entry-1"), "entry-1"
+        )
+        is None
+    )

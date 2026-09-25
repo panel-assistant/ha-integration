@@ -85,6 +85,14 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         """Return whether the panel is reachable outbound or connected inbound."""
         return self.last_update_success or self.connected
 
+    @property
+    def app_build(self) -> tuple[str, int] | None:
+        """Return the app version and build number the open session declared."""
+        session = self._session()
+        if session is None:
+            return None
+        return session.app_version, session.app_version_code
+
     def _session(self) -> PanelSession | None:
         if self._entry_id is None:
             return None

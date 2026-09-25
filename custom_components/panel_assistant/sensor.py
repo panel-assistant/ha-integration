@@ -17,12 +17,13 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from . import HaPaneldConfigEntry
+from .const import DOMAIN, INTEGRATION_BUILD, INTEGRATION_VERSION
 from .coordinator import (
     HaPaneldDataUpdateCoordinator,
     PanelCoordinatorEntity,
     PanelSnapshot,
 )
-from .device import panel_device_info
+from .device import panel_device_info, version_with_build
 from .native import NativeEntity, async_setup_native_platform, enum_or_none
 
 
@@ -31,12 +32,13 @@ async def async_setup_entry(
     entry: HaPaneldConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the ha-paneld diagnostic sensor, and any native sensors."""
+    """Set up the ha-paneld diagnostic sensors, and any native sensors."""
     async_add_entities(
         [
             HaPaneldStatusSensor(
                 entry.entry_id, entry.runtime_data.coordinator, entry.title
-            )
+            ),
+            PanelAssistantVersionSensor(entry.entry_id),
         ]
     )
     async_setup_native_platform(
@@ -102,7 +104,30 @@ class HaPaneldStatusSensor(PanelCoordinatorEntity, SensorEntity):
             self.coordinator.data,
             self.coordinator.client.configuration_url,
             self._title,
+            self.coordinator.app_build,
         )
+
+
+class PanelAssistantVersionSensor(SensorEntity):
+    """Name the Panel Assistant build this panel is connected through.
+
+    A device card has no field for the integration that connects it:
+    `sw_version` is the panel's own software and `via_device` names a parent
+    device, which Panel Assistant is not. A diagnostic entity on the panel's
+    device is where Home Assistant puts such a fact, beside the Update entity
+    that shows the app's own build.
+    """
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_has_entity_name = True
+    _attr_translation_key = "panel_assistant_version"
+    _attr_should_poll = False
+    _attr_native_value = version_with_build(INTEGRATION_VERSION, INTEGRATION_BUILD)
+
+    def __init__(self, entry_id: str) -> None:
+        """Attach to the entry's device, leaving its card to the status sensor."""
+        self._attr_unique_id = f"{entry_id}_panel_assistant_version"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry_id)})
 
 
 class NativeSensor(NativeEntity, SensorEntity):

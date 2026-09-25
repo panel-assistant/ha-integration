@@ -23,6 +23,7 @@ from .const import (
     HEALTH_PATH,
     INSTALL_COMPONENT_PATH,
     INSTALL_STATUS_PATH,
+    MAX_ANDROID_INTEGER,
     MAX_HEALTH_RESPONSE_BYTES,
     MAX_INSTALL_RESPONSE_BYTES,
     MAX_STATUS_RESPONSE_BYTES,
@@ -47,6 +48,7 @@ _VERSION_PATTERN = re.compile(
     r"(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?$"
 )
 _INSTALL_TIME_PATTERN = re.compile(r"^(0|[1-9][0-9]{0,18})$")
+_VERSION_CODE_PATTERN = re.compile(r"^[1-9][0-9]{0,9}$")
 _STABLE_VERSION_PATTERN = re.compile(
     r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$"
 )
@@ -60,6 +62,7 @@ _KNOWN_HEALTH_FIELDS = frozenset(
         "cfg",
         "did",
         "pkg",
+        "vc",
         "ha",
         "ha_src",
         "ha_refused",
@@ -143,8 +146,10 @@ class PanelHealth:
     # The application id the panel is actually running. Absent from builds made
     # before the identity migration, so never assumed.
     package: str | None = None
+    # The build number beside the version name. Absent from older builds.
+    version_code: int | None = None
 
-    def as_dict(self) -> dict[str, str | bool | None]:
+    def as_dict(self) -> dict[str, str | bool | int | None]:
         """Return a serializable diagnostics representation."""
         return asdict(self)
 
@@ -271,6 +276,17 @@ def parse_health_response(body: str) -> PanelHealth:
     if package is not None and _PACKAGE_NAME_PATTERN.fullmatch(package) is None:
         raise InvalidResponseError
 
+    # Presentation only, so an unusable value is dropped rather than making the
+    # whole health line, and with it the panel, unavailable.
+    version_code_text = fields.get("vc")
+    version_code = (
+        int(version_code_text)
+        if version_code_text is not None
+        and _VERSION_CODE_PATTERN.fullmatch(version_code_text) is not None
+        and int(version_code_text) <= MAX_ANDROID_INTEGER
+        else None
+    )
+
     return PanelHealth(
         version=tokens[1],
         panel_id=panel_id,
@@ -281,6 +297,7 @@ def parse_health_response(body: str) -> PanelHealth:
         ha_subscription_refused=fields.get("ha_refused") == "1",
         discovery_id=discovery_id,
         package=package,
+        version_code=version_code,
     )
 
 

@@ -337,6 +337,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self.coordinator.data,
             self.coordinator.client.configuration_url,
             self._title,
+            self.coordinator.app_build,
         )
 
     async def async_install(
