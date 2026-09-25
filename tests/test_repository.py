@@ -413,6 +413,46 @@ def test_shipped_translation_catalogues_preserve_machine_contracts() -> None:
                     assert _literal_count(target_text, token) >= required_count
 
 
+# Recovery text tells a person what NOT to do to a panel that may be half
+# installed. A translation that turns "do not uninstall or reset the app" into
+# a positive order is a reversed safety instruction, and a sentence-level
+# "contains a negation" check misses it because the first clause still says
+# "do not retry". These patterns match the positive command form of each
+# destructive verb in the machine-drafted locales; the prohibition forms
+# (imperfective in Polish, "не" plus the verb in Ukrainian, "niet" after the
+# verb in Dutch) do not match.
+_POSITIVE_DESTRUCTIVE_COMMANDS = {
+    "nl": r"\b(verwijder|reset)\b(?!.*\bniet\b)",
+    "pl": r"\b(odinstalować|zresetować)\b",
+    "uk": r"\b(видаліть|скиньте|деінсталюйте)\b",
+}
+
+
+def test_destructive_recovery_instructions_stay_prohibitions_in_drafted_locales() -> (
+    None
+):
+    english = _translation_leaves(
+        _load_translation_catalogue(INTEGRATION / "translations" / "en.json")
+    )
+    prohibited = {
+        path
+        for path, text in english.items()
+        if re.search(r"\bDo not [^.]*\b(uninstall|reset)\b", text)
+    }
+    assert len(prohibited) == 4
+    for locale, positive in _POSITIVE_DESTRUCTIVE_COMMANDS.items():
+        target = _translation_leaves(
+            _load_translation_catalogue(INTEGRATION / "translations" / f"{locale}.json")
+        )
+        for path in sorted(prohibited):
+            for sentence in re.split(r"(?<=[.;!?])\s+", target[path]):
+                assert not re.search(positive, sentence, re.IGNORECASE), (
+                    locale,
+                    path,
+                    sentence,
+                )
+
+
 def test_installed_artifact_mismatch_is_explained_in_all_nine_locales() -> None:
     """The byte refusal must never fall back to an untranslated key."""
     locale_paths = sorted((INTEGRATION / "translations").glob("*.json"))

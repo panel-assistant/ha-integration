@@ -56,7 +56,7 @@
       },
       "confirm_discovery": {
         "title": "Potwierdź wykryty panel",
-        "description": "Home Assistant Znaleziono instalację serwisu ha-paneld pod adresem {address}. Proszę przesłać zgłoszenie w celu sprawdzenia, czy nadal jest to ten sam panel, a następnie dodać go jako {panel_name}. Żadne ustawienia panelu nie ulegną zmianie."
+        "description": "Home Assistant znalazł instalację ha-paneld pod adresem {address}. Proszę przesłać zgłoszenie w celu sprawdzenia, czy nadal jest to ten sam panel, a następnie dodać go jako {panel_name}. Żadne ustawienia panelu nie ulegną zmianie."
       },
       "confirm_user": {
         "title": "Proszę potwierdzić konto tego panelu",
@@ -137,7 +137,7 @@
       "install_verification_required": "Panel uległ zmianie, jednak usługa „Home Assistant” nie mogła zweryfikować zainstalowanego pakietu ani usunąć jego dokładnego pliku przygotowawczego. Proszę nie podejmować ponownej próby automatycznej instalacji, odinstalowania ani zresetowania aplikacji. Proszę postępować zgodnie z instrukcją dotyczącą bezpieczeństwa i przywracania ustawień, do której link znajduje się w dokumentacji integracji.",
       "install_failed": "Instalator zakończył działanie z nieznanym wynikiem. Nie utworzono wpisu „Home Assistant”. Proszę nie podejmować ponownej próby automatycznej instalacji, dopóki nie sprawdzi Pan/Pani panelu oraz nie zapozna się Pan/Pani z przewodnikiem dotyczącym bezpieczeństwa i przywracania systemu, do którego link znajduje się w dokumentacji integracyjnej.",
       "install_worker_stopped": "Instalator został zatrzymany i nie wznowi tego zadania w bieżącym procesie Home Assistant. Proszę ponownie uruchomić Home Assistant, ponownie otworzyć instalator i wprowadzić ten sam adres panelu, aby wznowić proces lub uzyskać wynik odzyskiwania. Nie utworzono żadnego wpisu.",
-      "install_recovery_required": "Home Assistant Nie można potwierdzić, że dalsze automatyczne działania są bezpieczne. Nie utworzono żadnego wpisu. Proszę nie podejmować ponownej próby automatycznej instalacji, odinstalowania ani zresetowania aplikacji, dopóki nie zastosują się Państwo do wytycznych dotyczących bezpieczeństwa i odzyskiwania danych, do których link znajduje się w dokumentacji integracji.",
+      "install_recovery_required": "Home Assistant nie może potwierdzić, że dalsze automatyczne działania są bezpieczne. Nie utworzono żadnego wpisu. Proszę nie podejmować ponownej próby automatycznej instalacji, odinstalowania ani zresetowania aplikacji, dopóki nie zastosują się Państwo do wytycznych dotyczących bezpieczeństwa i odzyskiwania danych, do których link znajduje się w dokumentacji integracji.",
       "install_receipt_error": "Home Assistant Nie udało się bezpiecznie odczytać trwałego potwierdzenia instalacji. Nie utworzono żadnego wpisu.",
       "unknown": "Proces konfiguracji utracił stan panelu „oczekujące”. Proszę rozpocząć konfigurację od nowa."
     }
