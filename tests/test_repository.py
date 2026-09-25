@@ -453,6 +453,45 @@ def test_destructive_recovery_instructions_stay_prohibitions_in_drafted_locales(
                 )
 
 
+# Meaning a reviewer found lost in the machine drafts of refusal text: the
+# installer refuses on a *signed release* (not a consent or permission), a retry
+# is allowed *once*, and it is the *panel* that has not accepted this Home
+# Assistant instance (not a committee or an example). Each pattern must be
+# present in the translation of the string it guards.
+_REFUSAL_MEANING = {
+    ("config", "error", "install_plan_rejected"): {
+        "nl": r"\brelease\b",
+        "pl": r"wydani",
+        "uk": r"випуск",
+    },
+    ("config", "error", "retained_or_ambiguous"): {
+        "nl": r"één keer",
+        "pl": r"jeden raz",
+        "uk": r"один раз",
+    },
+    ("config", "error", "adb_still_unauthorized"): {
+        "nl": r"\bPaneel\b.*\binstantie\b",
+        "pl": r"\bPanel\b.*\binstancj",
+        "uk": r"\bПанель\b.*\bекземпляр",  # noqa: RUF001 -- genuine Ukrainian
+    },
+}
+
+
+def test_installer_refusal_text_keeps_its_meaning_in_drafted_locales() -> None:
+    for path, patterns in _REFUSAL_MEANING.items():
+        for locale, pattern in patterns.items():
+            target = _translation_leaves(
+                _load_translation_catalogue(
+                    INTEGRATION / "translations" / f"{locale}.json"
+                )
+            )
+            assert re.search(pattern, target[path], re.IGNORECASE | re.DOTALL), (
+                locale,
+                path,
+                target[path],
+            )
+
+
 def test_installed_artifact_mismatch_is_explained_in_all_nine_locales() -> None:
     """The byte refusal must never fall back to an untranslated key."""
     locale_paths = sorted((INTEGRATION / "translations").glob("*.json"))
