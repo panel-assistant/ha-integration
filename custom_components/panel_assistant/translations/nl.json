@@ -56,7 +56,7 @@
       },
       "confirm_discovery": {
         "title": "Bevestig het gevonden paneel",
-        "description": "Home Assistant Ik heb een ha-paneld-installatie gevonden op {address}. Dien dit in om te controleren of het nog steeds hetzelfde paneel is en voeg het toe als {panel_name}. De instellingen van het paneel blijven ongewijzigd."
+        "description": "Home Assistant heeft een ha-paneld-installatie gevonden op {address}. Dien dit in om te controleren of het nog steeds hetzelfde paneel is en voeg het toe als {panel_name}. De instellingen van het paneel blijven ongewijzigd."
       },
       "confirm_user": {
         "title": "Bevestig het account van dit panel",
@@ -137,7 +137,7 @@
       "install_verification_required": "Het paneel is gewijzigd, maar Home Assistant kon het geïnstalleerde pakket niet verifiëren of het bijbehorende staged-bestand niet volledig opschonen. Probeer de automatische installatie niet opnieuw, en verwijder of reset de app niet. Volg de handleiding voor beveiliging en herstel bij provisioning, waarnaar in de integratiedocumentatie wordt verwezen.",
       "install_failed": "Het installatieprogramma is gestopt met een onbekende foutmelding. Er is geen item ‘Home Assistant’ aangemaakt. Probeer de automatische installatie pas opnieuw als je het paneel hebt gecontroleerd en de handleiding voor provisioning, beveiliging en herstel hebt doorgenomen, waarnaar in de integratiedocumentatie wordt verwezen.",
       "install_worker_stopped": "Het installatieprogramma is gestopt en zal deze taak niet opnieuw uitvoeren in het huidige Home Assistant-proces. Start Home Assistant opnieuw op, open de installatie opnieuw en voer hetzelfde paneeladres in om door te gaan of een herstelresultaat te krijgen. Er is geen item aangemaakt.",
-      "install_recovery_required": "Home Assistant Er kan niet worden aangetoond dat het veilig is om automatisch door te gaan. Er is geen item aangemaakt. Probeer de automatische installatie niet opnieuw en verwijder of reset de app pas nadat je de handleiding voor beveiliging en herstel hebt gevolgd, waarnaar in de integratiedocumentatie wordt verwezen.",
+      "install_recovery_required": "Home Assistant kan niet aantonen dat het veilig is om automatisch door te gaan. Er is geen item aangemaakt. Probeer de automatische installatie niet opnieuw en verwijder of reset de app niet totdat je de handleiding voor beveiliging en herstel hebt gevolgd, waarnaar in de integratiedocumentatie wordt verwezen.",
       "install_receipt_error": "Home Assistant Het was niet mogelijk om de permanente installatiebewijs veilig te lezen. Er is geen vermelding aangemaakt.",
       "unknown": "Het installatieproces is de status van het in behandeling zijnde venster kwijtgeraakt. Begin de installatie opnieuw."
     }
