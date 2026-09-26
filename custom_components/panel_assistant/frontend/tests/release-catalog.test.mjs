@@ -30,7 +30,13 @@ for (const [name, value] of [
 ]) test(`refuses ${name}`, () => assert.throws(() => parseReleaseCatalog(value)));
 
 const feed = { tag: 'build-772', prerelease: true, name: '0.9.7-rc4 build 772' };
+const successor = { tag: 'build-772-successor', prerelease: true, name: '0.9.7-rc4 build 772 (Panel Assistant)' };
 const older = { tag: 'build-771', prerelease: true, name: '0.9.7-rc3+dev.1 build 771' };
+test('a mixed-app feed leaves the whole authenticated catalogue available', async () => {
+  const releases = [stable, feed, successor];
+  const result = await fetchReleaseCatalog({ fetchWithAuth: async () => json({ releases }) });
+  assert.deepEqual(result, releases);
+});
 test('accepts dev builds from the signed feed after GitHub releases', () => {
   const releases = [stable, rc, feed, older];
   const result = parseReleaseCatalog({ releases });
@@ -48,6 +54,7 @@ for (const [name, value] of [
   ['feed build extra key', { ...feed, url: 'https://example.com' }],
   ['feed build without a name', { tag: feed.tag, prerelease: true }],
   ['name for another build', { ...feed, name: '0.9.7-rc4 build 771' }],
+  ['successor with legacy display name', { ...successor, name: feed.name }],
   ['name without a build number', { ...feed, name: '0.9.7-rc4' }],
   ['name with a space in the version', { ...feed, name: '0.9.7 rc4 build 772' }],
   ['name with an invalid version', { ...feed, name: '-0.9.7 build 772' }],

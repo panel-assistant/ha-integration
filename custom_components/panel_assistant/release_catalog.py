@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from yarl import URL
 
+from .app_identity import SUCCESSOR_PACKAGE_ID
 from .build_feed import BuildFeed, FeedBuild, FeedInstallBundle, feed_release_artifact
 from .const import ANDROID_RELEASES_API
 from .feed_coordinator import async_get_feed_coordinator
@@ -29,6 +30,7 @@ from .release import (
     async_resolve_rc_release,
     async_resolve_stable_release,
     feed_build_code,
+    feed_build_package,
     feed_build_tag,
     is_rc_release_tag,
     release_descriptor_name,
@@ -144,9 +146,13 @@ async def async_list_install_choices(
     feed = await _async_current_feed(hass)
     builds: list[dict[str, str | bool]] = [
         {
-            "tag": feed_build_tag(build.version_code),
+            "tag": feed_build_tag(build.version_code, build.package_id),
             "prerelease": True,
-            "name": build.label,
+            "name": (
+                f"{build.label} (Panel Assistant)"
+                if build.package_id == SUCCESSOR_PACKAGE_ID
+                else build.label
+            ),
         }
         for build in (feed.builds if feed is not None else ())
     ]
@@ -165,7 +171,10 @@ async def async_resolve_feed_choice(
     """Find exactly the feed build a choice names, in a freshly read feed."""
     code = feed_build_code(tag)
     feed = await _async_current_feed(hass) if code is not None else None
-    build = feed.find(code) if feed is not None and code is not None else None
+    package_id = feed_build_package(tag)
+    build = (
+        feed.find(code, package_id) if feed is not None and code is not None else None
+    )
     if feed is None or build is None:
         raise ReleaseResolutionError
     return feed, build

@@ -5,6 +5,7 @@ import { ReleaseVerificationError, parseUnauthenticatedDescriptor,
   verifyReleaseBundle } from '../src/release-verifier.mjs';
 import { ApkVerificationError, verifyApkBundle } from '../src/apk-verifier.mjs';
 import { handoffOptions, receiveReleaseHandoff } from '../src/release-handoff.mjs';
+import { SUCCESSOR_PACKAGE_ID, launchComponentFor } from '../src/app-identity.mjs';
 
 const ALGORITHM = { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048,
   publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' };
@@ -69,6 +70,29 @@ test('the tag number chooses exactly the build with that versionCode', async () 
   assert.equal(descriptor.versionCode, 771);
   assert.equal(descriptor.apkSha256, middle.apkSha256);
   assert.equal(descriptor.versionName, '0.9.7-rc3+dev.1');
+});
+
+test('the signed feed selects the successor APK at a shared build number', async () => {
+  const successorApk = encoder.encode('successor APK');
+  const successor = await entry(772, {
+    packageId: SUCCESSOR_PACKAGE_ID,
+    launchComponent: launchComponentFor(SUCCESSOR_PACKAGE_ID),
+    apkSha256: await sha256(successorApk), apkSize: successorApk.length,
+  });
+  successor.apkPath = `apks/${successor.apkSha256}.apk`;
+  const feed = await document({ builds: [await entry(772), successor] });
+  const signed = await bundle(feed, { tag: 'build-772-successor' });
+  const { descriptor } = await verify(signed);
+  assert.equal(descriptor.packageId, SUCCESSOR_PACKAGE_ID);
+  assert.equal(descriptor.apkSha256, successor.apkSha256);
+  const verified = await verifyApkBundle(signed, new Blob([successorApk]),
+    { expectedRcTag: signed.tag }, release.publicKey);
+  assert.equal(verified.descriptor.packageId, SUCCESSOR_PACKAGE_ID);
+  await refuses(verify(await bundle(feed, { tag: 'build-772-successor-extra' })));
+  await refuses(verify(await bundle(feed, { tag: 'build-772-unknown' })));
+  const mismatched = { ...descriptor, packageId: 'io.github.maxlyth.hapaneld' };
+  assert.throws(() => parseUnauthenticatedDescriptor(encoder.encode(`${canonical(mismatched)}\n`),
+    { tag: 'build-772-successor', apkSha256: successor.apkSha256 }));
 });
 
 test('the APK bytes must be exactly the signed size and SHA-256', async () => {

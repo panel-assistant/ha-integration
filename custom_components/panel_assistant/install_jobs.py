@@ -545,6 +545,7 @@ def _parse_artifact(value: object) -> InstallArtifact:
             value["version_code"],
             apk_name,
             apk_sha256,
+            package_id,
         )
         or _APK_NAME.fullmatch(apk_name) is None
         or _SHA256.fullmatch(apk_sha256) is None
