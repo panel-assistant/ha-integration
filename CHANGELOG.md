@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.6.1 - 2026-09-26
+
+### New
+
+- **Offline panels can move to the new app.** A panel that can't reach the internet can now move to ha-paneld's new app: Home Assistant downloads and checks the new app and hands it to the panel over your local network, the same way it already delivers updates. Needs ha-paneld 0.9.8-rc2 or later.
+
+### Improved
+
+- **An unfinished move stays visible.** A panel that hasn't finished moving to the new app shows as a pending update, so you can see it and try again.
+- **Retrying a move picks up where it left off**, reusing the new app if it's already on the panel.
+- **Updates match the app each panel runs**, old or new, and a panel partway through the move is only offered releases that are genuinely newer.
+
+### Fixed
+
+- **Safety wording in Dutch, Polish and Ukrainian** is corrected throughout setup, approval and recovery text.
+
 ## 0.6.0 - 2026-09-26
 
 This one has been a long time coming, and we're really pleased with where it has landed. Panel Assistant 0.6.0 is the first release that can run your panels without MQTT: each panel talks to Home Assistant over its own connection, and Panel Assistant looks after its entities directly. MQTT keeps working exactly as before, and nothing changes until you choose to switch a panel over.
