@@ -4,7 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ## 0.6.0 - 2026-09-26
 
-Panels can now update without internet access, stay online when their address changes, and move to the native connection without losing entities. New panels also finish setup in one pass.
+This one has been a long time coming, and we're really pleased with where it has landed. Panel Assistant 0.6.0 is the first release that can run your panels without MQTT: each panel talks to Home Assistant over its own connection, and Panel Assistant looks after its entities directly. MQTT keeps working exactly as before, and nothing changes until you choose to switch a panel over.
+
+### Moving a panel off MQTT
+
+**How it works.** Your panel already keeps its own signed-in connection to Home Assistant. Once you switch it over, its sensors, controls and commands travel over that connection instead of through your MQTT broker. Panel Assistant takes over the panel's existing entities with their entity IDs, history and customisations intact, so your dashboards and automations carry on as they were. The panel then stops announcing itself over MQTT.
+
+**What you need to do.**
+
+1. Update the panel to ha-paneld 0.9.8 or later.
+2. Add `native_entities: true` under `panel_assistant:` in `configuration.yaml` and restart Home Assistant. This makes the choice available; on its own it changes nothing.
+3. In Settings, Devices & services, Panel Assistant, choose **Configure** on the panel and set **Control** to **Panel Assistant**. We'd suggest trying one panel first.
+
+**Why switch.** One less moving part between your panels and Home Assistant, and it's where Panel Assistant is heading. Commands still follow the same approval rules, and anything sensitive still needs approval on the panel's own screen.
+
+**What to watch for.** Each of these shows up in Repairs with the fix spelled out:
+
+- An MQTT entity you've customised (a name, icon, area, label or alias of your own) that has no native equivalent keeps the panel's MQTT entities in place until you delete it or clear those settings.
+- A panel still on an older ha-paneld keeps announcing over MQTT. Panel Assistant disables the duplicates until you update it.
+- If Home Assistant has merged two panels' MQTT devices, the switch is refused until they're separated.
+
+**Changing your mind.** Set **Control** back to **MQTT** and the entities move back. If you'd like to look before you leap, **MQTT, with native reports for comparison** keeps MQTT in charge while the panel reports over both.
 
 ### New
 
@@ -20,12 +40,12 @@ Panels can now update without internet access, stay online when their address ch
 - **New panels finish setup in one go.** When you add a panel that has already signed in, you confirm its account right there in the add flow, instead of finding a repair later.
 - **No notification prompt on new panels.** Both installers grant the app's notification permission before its first start on Android 13 and later.
 - **More forgiving installs.** Installing the version a panel already runs just finishes. Picking a different version after an interrupted attempt carries on with your new choice. The USB installer tidies up its copy of the app once the install works, and no longer stops with a false "couldn't save its progress" error.
-- **Safer moves to the native connection.** An entity moves only once the panel has described it, so nothing loses its readings or controls on the way. MQTT entities you've given a label or alias are kept. The move now completes on its own after a failed first health check. With a matching ha-paneld release, a panel can also say which sensors it doesn't have, and their native entities are removed instead of sitting unavailable.
+- **Tidier native entities.** With a matching ha-paneld release, a panel can say which sensors it doesn't have, and their entities are removed instead of sitting unavailable.
 
 ### Fixed
 
-- Panels whose MQTT devices Home Assistant had merged can no longer disable or delete each other's entities, and Repairs explains how to separate them.
-- Releases published under the app's new id install from Home Assistant, the USB installer and the manual file route, and a move to the new app isn't marked done until the new app answers.
+- Panels whose MQTT devices Home Assistant had merged can no longer disable or delete each other's entities.
+- Panel Assistant is ready for ha-paneld's new app id: releases under either id install from Home Assistant, the USB installer and the manual file route, and a panel isn't marked as moved to the new app until the new app answers.
 - A successful tap on the panel screenshot in the sidebar is no longer reported as refused.
 - Choosing a third version in the browser installer is no longer refused as busy.
 - Files copied over USB carry the right date instead of 1970.
