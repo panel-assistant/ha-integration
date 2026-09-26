@@ -71,6 +71,14 @@ def verify_panel_backup(data: bytes) -> tuple[int, str]:
                 or not archive.read(_MANIFEST_ENTRY)
             ):
                 raise PanelBackupInvalidError
+            manifest = json.loads(archive.read(_MANIFEST_ENTRY))
+            if not isinstance(manifest, dict):
+                raise PanelBackupInvalidError
+            state = manifest.get("state")
+            if state is not None and (not isinstance(state, dict) or "error" in state):
+                # The panel marks a failed app_state read in an otherwise valid ZIP.
+                # Do not replace that panel's app after keeping an incomplete backup.
+                raise PanelBackupInvalidError
     except (BadZipFile, OSError, ValueError) as err:
         raise PanelBackupInvalidError from err
     return len(names), sha256(data).hexdigest()

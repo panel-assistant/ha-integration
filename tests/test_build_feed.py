@@ -18,7 +18,11 @@ from multidict import CIMultiDict
 from yarl import URL
 
 from custom_components.panel_assistant import build_feed, release
-from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
+from custom_components.panel_assistant.app_identity import (
+    LEGACY_PACKAGE_ID,
+    SUCCESSOR_PACKAGE_ID,
+    launch_component_for,
+)
 from custom_components.panel_assistant.build_feed import (
     FEED_SCHEMA,
     BuildFeedError,
@@ -136,6 +140,22 @@ def test_valid_feed_parses_newest_first(sign: Callable[[bytes], bytes]) -> None:
     assert newest.label == "0.9.7-rc4 build 772"
     assert feed.find(771) is not None
     assert feed.find(773) is None
+
+
+def test_signed_feed_accepts_one_build_per_package_at_the_same_code(
+    sign: Callable[[bytes], bytes],
+) -> None:
+    successor = _build_entry(
+        772,
+        packageId=SUCCESSOR_PACKAGE_ID,
+        launchComponent=launch_component_for(SUCCESSOR_PACKAGE_ID),
+        apkSha256=_sha(773),
+        apkPath=f"apks/{_sha(773)}.apk",
+    )
+    body = _canonical(_feed([_build_entry(772), successor]))
+    feed = parse_build_feed(body, sign(body), FEED_URL)
+    assert feed.find(772, LEGACY_PACKAGE_ID).apk_sha256 == _sha(772)
+    assert feed.find(772, SUCCESSOR_PACKAGE_ID).apk_sha256 == _sha(773)
 
 
 def test_empty_feed_parses_with_no_newest(sign: Callable[[bytes], bytes]) -> None:
@@ -630,6 +650,57 @@ async def test_download_maps_network_failure() -> None:
 
     with pytest.raises(BuildFeedError):
         await async_download_build(session, feed_release_artifact(_download_build()))  # type: ignore[arg-type]
+
+
+def _bridge_artifact() -> release.ReleaseArtifact:
+    tag = "v0.9.8"
+    name = release.release_apk_name(tag, LEGACY_PACKAGE_ID)
+    return release.ReleaseArtifact(
+        tag=tag,
+        version="0.9.8",
+        apk_name=name,
+        apk_url=f"https://github.com/panel-assistant/android/releases/download/{tag}/{name}",
+        sha256=APK_SHA,
+    )
+
+
+async def test_descriptorless_bridge_download_checks_hash_and_bound() -> None:
+    """The bridge has a signed checksum, but no signed size or descriptor."""
+    bridge = _bridge_artifact()
+    url = URL(bridge.apk_url)
+    session = _FakeSession({bridge.apk_url: _FakeResponse(200, APK, url, len(APK))})
+    assert await async_download_build(session, bridge) == APK  # type: ignore[arg-type]
+
+    session = _FakeSession(
+        {bridge.apk_url: _FakeResponse(200, APK[:-1] + b"X", url, len(APK))}
+    )
+    with pytest.raises(BuildFeedError):
+        await async_download_build(session, bridge)  # type: ignore[arg-type]
+
+    session = _FakeSession(
+        {bridge.apk_url: _FakeResponse(200, APK, url, release._MAX_APK_BYTES + 1)}
+    )
+    with pytest.raises(BuildFeedError):
+        await async_download_build(session, bridge)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("change", ["wrong-name", "wrong-url", "bad-sha"])
+async def test_descriptorless_download_only_accepts_canonical_legacy_asset(
+    change: str,
+) -> None:
+    """No feed or arbitrary GitHub URL gains the descriptorless route."""
+    bridge = _bridge_artifact()
+    if change == "wrong-name":
+        bridge = replace(bridge, apk_name="other.apk")
+    elif change == "wrong-url":
+        bridge = replace(bridge, apk_url="https://github.com/elsewhere/other.apk")
+    else:
+        bridge = replace(bridge, sha256="bad")
+    session = _FakeSession({})
+
+    with pytest.raises(BuildFeedError):
+        await async_download_build(session, bridge)  # type: ignore[arg-type]
+    assert session.requests == []
 
 
 # --- one fixture, two verifiers ------------------------------------------------

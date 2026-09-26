@@ -8,6 +8,7 @@ import json
 import logging
 import stat
 from contextlib import ExitStack
+from dataclasses import replace
 from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -35,6 +36,7 @@ from custom_components.panel_assistant.build_feed import (
     BuildFeed,
     BuildFeedError,
     FeedBuild,
+    feed_release_artifact,
 )
 from custom_components.panel_assistant.client import (
     CannotConnectError,
@@ -68,12 +70,19 @@ from custom_components.panel_assistant.update_coordinator import (
 )
 
 
-def _archive(*, manifest: bool = True, entries: int = 1) -> bytes:
+def _archive(
+    *, manifest: bool = True, entries: int = 1, state_error: bool = False
+) -> bytes:
     """Build an archive shaped like the panel's own settings backup."""
     buffer = BytesIO()
     with ZipFile(buffer, "w") as archive:
         if manifest:
-            archive.writestr("manifest.json", '{"discovery_id":"a"}')
+            archive.writestr(
+                "manifest.json",
+                '{"state":{"error":"capture-failed"}}'
+                if state_error
+                else '{"discovery_id":"a"}',
+            )
         for index in range(entries):
             archive.writestr(f"payload-{index}.bin", b"state")
     return buffer.getvalue()
@@ -87,7 +96,7 @@ OFFER = PanelCachedUpdate("0.9.9", "0.9.10", "v0.9.10")
 FETCH = "custom_components.panel_assistant.feed_coordinator.async_fetch_build_feed"
 
 
-def _build(code: int) -> FeedBuild:
+def _build(code: int, package_id: str = LEGACY_PACKAGE_ID) -> FeedBuild:
     sha = hashlib.sha256(str(code).encode()).hexdigest()
     return FeedBuild(
         version_code=code,
@@ -98,7 +107,7 @@ def _build(code: int) -> FeedBuild:
         commit="0" * 40,
         database_compatibility="hapaneld-db:v1:ha-paneld.db:11:14",
         min_sdk=26,
-        package_id=LEGACY_PACKAGE_ID,
+        package_id=package_id,
         published="2026-09-11T10:00:00Z",
     )
 
@@ -204,6 +213,7 @@ def _restart_into(
     client: SimpleNamespace,
     code: int,
     calls: list[Any] | None = None,
+    package: str | None = None,
 ) -> None:
     """Make the next health refresh show a restarted app reporting `code`."""
 
@@ -211,7 +221,15 @@ def _restart_into(
         if calls is not None:
             calls.append("refresh")
         entity.coordinator.data = PanelSnapshot(
-            health=_health(NAME, build="2000"), status=None, status_error=None
+            health=PanelHealth(
+                version=NAME,
+                panel_id="alpha",
+                build="2000",
+                config_hash="1a2b3c4d",
+                package=package,
+            ),
+            status=None,
+            status_error=None,
         )
 
     async def diag() -> tuple[str, int]:
@@ -297,6 +315,80 @@ def test_feed_mode_offers_nothing_when_installed_is_newest(
 # --- install -----------------------------------------------------------------
 
 
+@pytest.mark.parametrize(
+    "package,expected_code",
+    [(None, 773), (SUCCESSOR_PACKAGE_ID, 772)],
+)
+async def test_update_install_selects_the_installed_app_before_backup(
+    hass: HomeAssistant,
+    delivery: SimpleNamespace,
+    package: str | None,
+    expected_code: int,
+) -> None:
+    """Each panel takes its signed APK even when the other app shares a code."""
+    feed = BuildFeed(
+        "maintainer", (_build(773), _build(772), _build(772, SUCCESSOR_PACKAGE_ID))
+    )
+    entity, client = _entity(hass, feed=feed)
+    health = entity.coordinator.data.health
+    entity.coordinator.data = PanelSnapshot(
+        health=PanelHealth(
+            version=health.version,
+            panel_id=health.panel_id,
+            build=health.build,
+            config_hash=health.config_hash,
+            package=package,
+        ),
+        status=None,
+        status_error=None,
+    )
+    client.async_stage_apk.return_value = _preview(package=package or LEGACY_PACKAGE_ID)
+    _restart_into(entity, client, expected_code, package=package)
+
+    assert entity.latest_version == f"0.9.7-rc4 build {expected_code}"
+    await entity.async_install(None, False)
+
+    client.async_backup_panel.assert_awaited_once()
+    artifact = delivery.download.await_args.args[1]
+    assert artifact.descriptor.package_id == (package or LEGACY_PACKAGE_ID)
+    assert artifact.descriptor.version_code == expected_code
+    backups = list(delivery.backups.glob("entry-id-*.zip"))
+    assert len(backups) == 1
+    assert backups[0].read_bytes() == BACKUP
+    receipt = json.loads(backups[0].with_name(f"{backups[0].name}.json").read_text())
+    assert receipt["sha256"] == hashlib.sha256(BACKUP).hexdigest()
+    client.async_commit_apk.assert_awaited_once()
+
+
+async def test_same_number_from_another_app_does_not_verify_the_install(
+    hass: HomeAssistant, delivery: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A restarted legacy app cannot prove a successor installation."""
+    feed = BuildFeed("maintainer", (_build(772, SUCCESSOR_PACKAGE_ID),))
+    entity, client = _entity(hass, feed=feed)
+    health = entity.coordinator.data.health
+    entity.coordinator.data = PanelSnapshot(
+        health=PanelHealth(
+            version=health.version,
+            panel_id=health.panel_id,
+            build=health.build,
+            config_hash=health.config_hash,
+            package=SUCCESSOR_PACKAGE_ID,
+        ),
+        status=None,
+        status_error=None,
+    )
+    client.async_stage_apk.return_value = _preview(package=SUCCESSOR_PACKAGE_ID)
+    _restart_into(entity, client, 772, package=LEGACY_PACKAGE_ID)
+    monkeypatch.setattr(panel_update, "_RESTART_HEALTH_GRACE_SECONDS", 0.01)
+
+    with pytest.raises(HomeAssistantError) as error:
+        await entity.async_install(None, False)
+
+    _assert_translated(error.value, "update_did_not_return")
+    client.async_commit_apk.assert_awaited_once()
+
+
 async def test_install_delivers_the_newest_build_in_order(
     hass: HomeAssistant, delivery: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -319,6 +411,17 @@ async def test_install_delivers_the_newest_build_in_order(
         assert session is delivery.session
         assert entity.in_progress is True
         assert artifact.descriptor is not None
+        assert len(stored) == 1
+        assert stored[0].read_bytes() == BACKUP
+        receipt_path = stored[0].with_name(f"{stored[0].name}.json")
+        receipt = json.loads(receipt_path.read_text())
+        assert receipt.pop("taken_at").endswith("Z")
+        assert receipt == {
+            "archive": stored[0].name,
+            "size": len(BACKUP),
+            "sha256": hashlib.sha256(BACKUP).hexdigest(),
+            "entries": 2,
+        }
         calls.append(("download", artifact.descriptor.version_code))
         return APK
 
@@ -493,11 +596,50 @@ async def test_preview_mismatch_discards_and_never_commits(
     assert entity.in_progress is False
 
 
-async def test_a_build_for_another_app_id_is_refused_even_when_staged_intact(
+async def test_identity_change_during_upload_refuses_commit(
     hass: HomeAssistant, delivery: SimpleNamespace
 ) -> None:
-    """A legacy build is never installed beside a panel running the successor."""
+    """A panel that changed app identity after selection cannot take the staged APK."""
     entity, client = _entity(hass)
+
+    async def stage(_apk: bytes) -> StagedApk:
+        snapshot = entity.coordinator.data
+        assert snapshot is not None
+        health = snapshot.health
+        entity.coordinator.data = PanelSnapshot(
+            health=PanelHealth(
+                version=health.version,
+                panel_id=health.panel_id,
+                build=health.build,
+                config_hash=health.config_hash,
+                package=SUCCESSOR_PACKAGE_ID,
+            ),
+            status=snapshot.status,
+            status_error=snapshot.status_error,
+        )
+        return _preview()
+
+    client.async_stage_apk = AsyncMock(side_effect=stage)
+    with pytest.raises(HomeAssistantError) as error:
+        await entity.async_install(None, False)
+
+    _assert_translated(error.value, "build_verification_failed")
+    client.async_backup_panel.assert_awaited_once()
+    client.async_discard_apk.assert_awaited_once_with("tok-1")
+    client.async_commit_apk.assert_not_awaited()
+
+
+@pytest.mark.parametrize("package", [None, SUCCESSOR_PACKAGE_ID])
+async def test_a_build_for_another_app_id_is_refused_before_backup(
+    hass: HomeAssistant, delivery: SimpleNamespace, package: str | None
+) -> None:
+    """A legacy build is never installed beside a panel running the successor."""
+    feed = _feed_data(772)
+    if package is None:
+        feed = replace(
+            feed, builds=(replace(feed.builds[0], package_id=SUCCESSOR_PACKAGE_ID),)
+        )
+    entity, client = _entity(hass, feed=feed)
     health = entity.coordinator.data.health
     entity.coordinator.data = PanelSnapshot(
         health=PanelHealth(
@@ -505,7 +647,7 @@ async def test_a_build_for_another_app_id_is_refused_even_when_staged_intact(
             panel_id=health.panel_id,
             build=health.build,
             config_hash=health.config_hash,
-            package=SUCCESSOR_PACKAGE_ID,
+            package=package,
         ),
         status=None,
         status_error=None,
@@ -514,9 +656,35 @@ async def test_a_build_for_another_app_id_is_refused_even_when_staged_intact(
     with pytest.raises(HomeAssistantError) as error:
         await entity.async_install(None, False)
 
-    _assert_translated(error.value, "build_verification_failed")
-    client.async_discard_apk.assert_awaited_once_with("tok-1")
+    _assert_translated(error.value, "update_unavailable")
+    client.async_backup_panel.assert_not_awaited()
+    delivery.download.assert_not_awaited()
+    client.async_stage_apk.assert_not_awaited()
     client.async_commit_apk.assert_not_awaited()
+
+
+@pytest.mark.parametrize("package", [None, SUCCESSOR_PACKAGE_ID])
+async def test_delivery_refuses_an_identity_change_before_backup(
+    hass: HomeAssistant, delivery: SimpleNamespace, package: str | None
+) -> None:
+    """The shared delivery seam refuses a selection from before a handover."""
+    entity, client = _entity(hass)
+    selected = feed_release_artifact(
+        _build(
+            772,
+            package_id=SUCCESSOR_PACKAGE_ID if package is None else LEGACY_PACKAGE_ID,
+        )
+    )
+    snapshot = entity.coordinator.data
+    entity.coordinator.data = replace(
+        snapshot, health=replace(snapshot.health, package=package)
+    )
+    with pytest.raises(HomeAssistantError) as error:
+        await entity._async_deliver_build(selected)
+    _assert_translated(error.value, "build_verification_failed")
+    client.async_backup_panel.assert_not_awaited()
+    delivery.download.assert_not_awaited()
+    client.async_stage_apk.assert_not_awaited()
 
 
 async def test_download_failure_never_stages(
@@ -959,6 +1127,22 @@ async def test_an_unreadable_backup_stops_the_update_before_anything_downloads(
     """The app that holds the only copy of these settings is not replaced."""
     entity, client = _entity(hass)
     client.async_backup_panel = AsyncMock(return_value=b"not a zip at all")
+
+    with pytest.raises(HomeAssistantError) as caught:
+        await entity.async_install(None, False)
+
+    _assert_translated(caught.value, "panel_backup_failed")
+    delivery.download.assert_not_awaited()
+    client.async_stage_apk.assert_not_awaited()
+    client.async_commit_apk.assert_not_awaited()
+
+
+async def test_a_panel_state_capture_error_stops_the_update_before_download(
+    hass: HomeAssistant, delivery: SimpleNamespace
+) -> None:
+    """A readable ZIP with failed app-state capture cannot guard an update."""
+    entity, client = _entity(hass)
+    client.async_backup_panel = AsyncMock(return_value=_archive(state_error=True))
 
     with pytest.raises(HomeAssistantError) as caught:
         await entity.async_install(None, False)

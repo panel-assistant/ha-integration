@@ -1009,6 +1009,71 @@ async def test_stage_uploads_raw_bytes_and_returns_the_preview() -> None:
     assert kwargs["allow_redirects"] is False
 
 
+async def test_migration_upload_binds_signed_digest_to_existing_staging_route() -> None:
+    session = _FakeSession(body=json.dumps(_PREVIEW).encode())
+    staged = await _client(session).async_stage_apk(b"apk", migration_sha256="a" * 64)
+    assert staged.token == "tok-1"
+    assert session.request is not None
+    url, kwargs = session.request
+    assert str(url.with_query(None)) == "http://panel.local:8888/api/v1/install/apk"
+    assert dict(url.query) == {"migration": "successor", "sha256": "a" * 64}
+    assert kwargs["data"] == b"apk"
+    assert kwargs["allow_redirects"] is False
+
+
+async def test_bridge_capability_is_read_from_the_panel() -> None:
+    session = _FakeSession(
+        body=b'{"package":"io.panelassistant.android","version":"0.9.10"}'
+    )
+    assert await _client(session).async_get_successor_capability() == (
+        "io.panelassistant.android",
+        "0.9.10",
+        None,
+        False,
+    )
+    assert session.request is not None
+    url, kwargs = session.request
+    assert str(url) == "http://panel.local:8888/api/v1/successor"
+    assert kwargs["allow_redirects"] is False
+
+
+async def test_bridge_reports_trusted_installed_successor_for_retry() -> None:
+    session = _FakeSession(
+        body=b'{"package":"io.panelassistant.android","version":"0.9.10","installed_version_code":2000}'
+    )
+    assert await _client(session).async_get_successor_capability() == (
+        "io.panelassistant.android",
+        "0.9.10",
+        2000,
+        False,
+    )
+
+
+async def test_bridge_reports_untrusted_installed_successor_for_refusal() -> None:
+    session = _FakeSession(
+        body=b'{"package":"io.panelassistant.android","version":"0.9.10","installed_untrusted":true}'
+    )
+    assert (await _client(session).async_get_successor_capability())[-1] is True
+
+
+async def test_installed_only_retry_never_requests_a_download() -> None:
+    session = _FakeSession(body=b'{"ok":true,"outcome":"Launched"}')
+    await _client(session).async_offer_installed_successor()
+    assert session.request is not None
+    url, kwargs = session.request
+    assert str(url.with_query(None)) == "http://panel.local:8888/api/v1/successor/offer"
+    assert dict(url.query) == {"installed_only": "1"}
+    assert kwargs["data"] == {}
+
+
+@pytest.mark.parametrize(
+    "body", [b"[]", b"null", b"{}", b"bad", b'{"package":7,"version":"v"}']
+)
+async def test_malformed_bridge_capability_is_refused(body: bytes) -> None:
+    with pytest.raises(InvalidResponseError):
+        await _client(_FakeSession(body=body)).async_get_successor_capability()
+
+
 @pytest.mark.parametrize(
     ("status", "error"),
     [

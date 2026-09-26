@@ -173,21 +173,20 @@ async def _advance_to(
 
 def _registry_snapshot(hass: HomeAssistant, entry_id: str) -> dict[str, str]:
     devices = dr.async_entries_for_config_entry(dr.async_get(hass), entry_id)
-    entities = [
-        entity
+    entities = {
+        entity.unique_id: entity
         for entity in er.async_get(hass).entities.values()
         if entity.config_entry_id == entry_id and entity.platform == "panel_assistant"
-    ]
+    }
     _require(len(devices) == 1, "expected exactly one runtime device")
-    by_unique_id = {entity.unique_id: entity for entity in entities}
-    expected = {f"{entry_id}_status", f"{entry_id}_panel_assistant_version"}
-    _require(
-        len(entities) == 3 and expected <= by_unique_id.keys(),
-        "expected status, Panel Assistant version and update runtime entities",
-    )
-    # Chosen by identity: a second sensor made "the first sensor" ambiguous.
-    sensor = by_unique_id[f"{entry_id}_status"]
-    update = next(entity for entity in entities if entity.domain == "update")
+    status_unique_id = f"{entry_id}_status"
+    update_unique_id = f"{entry_id}_update"
+    _require(status_unique_id in entities, "expected status runtime entity")
+    _require(update_unique_id in entities, "expected update runtime entity")
+    sensor = entities[status_unique_id]
+    update = entities[update_unique_id]
+    _require(sensor.domain == "sensor", "status runtime entity has the wrong domain")
+    _require(update.domain == "update", "update runtime entity has the wrong domain")
     state = hass.states.get(sensor.entity_id)
     _require(state is not None and state.state == "online", "sensor is not online")
     return {

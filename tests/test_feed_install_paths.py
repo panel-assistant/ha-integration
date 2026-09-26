@@ -17,7 +17,10 @@ from custom_components.panel_assistant import (
     install_jobs,
     release_catalog,
 )
-from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
+from custom_components.panel_assistant.app_identity import (
+    LEGACY_PACKAGE_ID,
+    SUCCESSOR_PACKAGE_ID,
+)
 from custom_components.panel_assistant.build_feed import (
     BuildFeed,
     FeedBuild,
@@ -43,7 +46,9 @@ FEED_URL = URL("https://builds.example/maintainer.json")
 SHA = hashlib.sha256(b"772").hexdigest()
 
 
-def _build(code: int = 772, sha: str = SHA) -> FeedBuild:
+def _build(
+    code: int = 772, sha: str = SHA, package_id: str = LEGACY_PACKAGE_ID
+) -> FeedBuild:
     return FeedBuild(
         version_code=code,
         version_name="0.9.7-rc4",
@@ -54,7 +59,7 @@ def _build(code: int = 772, sha: str = SHA) -> FeedBuild:
         database_compatibility="hapaneld-db:v1:ha-paneld.db:11:14",
         min_sdk=26,
         published="2026-09-11T10:00:00Z",
-        package_id=LEGACY_PACKAGE_ID,
+        package_id=package_id,
     )
 
 
@@ -112,6 +117,25 @@ async def test_both_paths_list_github_then_feed_builds(hass: HomeAssistant) -> N
         {"tag": "build-772", "prerelease": True, "name": "0.9.7-rc4 build 772"},
         {"tag": "build-771", "prerelease": True, "name": "0.9.7-rc4 build 771"},
     ]
+
+
+async def test_catalog_resolves_each_app_at_the_same_build_number(
+    hass: HomeAssistant,
+) -> None:
+    successor = _build(
+        772, hashlib.sha256(b"successor").hexdigest(), SUCCESSOR_PACKAGE_ID
+    )
+    _install_feed(hass, _build(772), successor)
+    with patch.object(
+        release_catalog, "async_list_install_releases", AsyncMock(return_value=[])
+    ):
+        choices = await release_catalog.async_list_install_choices(hass)
+    assert [choice["tag"] for choice in choices] == ["build-772", "build-772-successor"]
+    artifact = await release_catalog.async_resolve_install_choice(
+        hass, "build-772-successor"
+    )
+    assert artifact.descriptor.package_id == SUCCESSOR_PACKAGE_ID
+    assert artifact.sha256 == successor.apk_sha256
 
 
 async def test_github_outage_still_offers_feed_builds_but_not_nothing(
@@ -173,6 +197,17 @@ def test_install_plan_accepts_a_feed_build_only_when_it_was_chosen() -> None:
     for expected in (None, "build-771", "v0.9.7-rc3"):
         with pytest.raises(InstallPlanError):
             _build_artifact(release, expected)
+
+
+def test_successor_choice_keeps_its_identity_through_plan_and_receipt() -> None:
+    successor = _build(
+        772, hashlib.sha256(b"successor").hexdigest(), SUCCESSOR_PACKAGE_ID
+    )
+    artifact = _build_artifact(feed_release_artifact(successor), "build-772-successor")
+    assert artifact.package_id == SUCCESSOR_PACKAGE_ID
+    assert install_jobs._parse_artifact(asdict(artifact)) == artifact
+    with pytest.raises(install_jobs.InstallJobStoreError):
+        install_jobs._parse_artifact(asdict(artifact) | {"release_tag": "build-772"})
 
 
 def test_a_feed_build_survives_the_durable_receipt() -> None:

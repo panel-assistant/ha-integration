@@ -10,12 +10,13 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from yarl import URL
 
+from .app_identity import LEGACY_PACKAGE_ID
 from .build_feed import BuildFeed, BuildFeedError, async_fetch_build_feed
 from .const import DOMAIN
 from .release import (
     ReleaseArtifact,
     ReleaseResolutionError,
-    async_resolve_install_bundle,
+    async_resolve_stable_bundle_and_bridge,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -72,16 +73,33 @@ class StableReleaseCoordinator(DataUpdateCoordinator[ReleaseArtifact]):
             name=f"{DOMAIN} stable release",
             update_interval=STABLE_REFRESH,
         )
+        self._bridge: ReleaseArtifact | None = None
+
+    def artifact_for(self, package_id: str) -> ReleaseArtifact | None:
+        """Return the authenticated APK for the package this panel runs."""
+        artifact: ReleaseArtifact | None = self.data
+        if artifact is None:
+            return None
+        if (
+            artifact.descriptor is not None
+            and package_id == artifact.descriptor.package_id
+        ):
+            return artifact
+        if package_id == LEGACY_PACKAGE_ID:
+            bridge = self._bridge
+            return bridge if bridge is not None and bridge.tag == artifact.tag else None
+        return None
 
     async def _async_update_data(self) -> ReleaseArtifact:
         try:
-            bundle = await async_resolve_install_bundle(
+            bundle, bridge = await async_resolve_stable_bundle_and_bridge(
                 async_get_clientsession(self.hass)
             )
         except ReleaseResolutionError as err:
             raise UpdateFailed(
                 "The latest stable release could not be authenticated"
             ) from err
+        self._bridge = bridge
         return bundle.artifact
 
 

@@ -17,6 +17,7 @@ from yarl import URL
 from .app_identity import (
     ACCEPTED_PACKAGE_IDS,
     LEGACY_PACKAGE_ID,
+    SUCCESSOR_PACKAGE_ID,
     is_accepted_package_id,
     launch_component_for,
 )
@@ -182,7 +183,7 @@ def is_install_release_tag(value: object) -> bool:
 # definition instead of restating it.
 VERSION_CODE_BODY = r"[1-9][0-9]{0,9}"
 VERSION_NAME_BODY = r"[0-9A-Za-z][0-9A-Za-z._+-]{0,63}"
-_FEED_BUILD_TAG_PATTERN = re.compile(rf"^build-({VERSION_CODE_BODY})$")
+_FEED_BUILD_TAG_PATTERN = re.compile(rf"^build-({VERSION_CODE_BODY})(-successor)?$")
 _VERSION_NAME_PATTERN = re.compile(rf"^{VERSION_NAME_BODY}$")
 
 
@@ -191,9 +192,13 @@ def is_build_version_name(value: object) -> bool:
     return isinstance(value, str) and _VERSION_NAME_PATTERN.fullmatch(value) is not None
 
 
-def feed_build_tag(version_code: int) -> str:
+def feed_build_tag(version_code: int, package_id: str = LEGACY_PACKAGE_ID) -> str:
     """Name a feed build."""
-    return f"build-{version_code}"
+    if package_id not in ACCEPTED_PACKAGE_IDS:
+        raise ValueError("unknown application id")
+    return f"build-{version_code}" + (
+        "-successor" if package_id == SUCCESSOR_PACKAGE_ID else ""
+    )
 
 
 def feed_build_code(value: object) -> int | None:
@@ -203,6 +208,14 @@ def feed_build_code(value: object) -> int | None:
         return None
     code = int(match.group(1))
     return code if code <= _MAX_ANDROID_VERSION_CODE else None
+
+
+def feed_build_package(value: object) -> str | None:
+    """Return the app identity a bounded build tag names."""
+    if feed_build_code(value) is None:
+        return None
+    assert isinstance(value, str)
+    return SUCCESSOR_PACKAGE_ID if value.endswith("-successor") else LEGACY_PACKAGE_ID
 
 
 def is_feed_build_tag(value: object) -> bool:
@@ -236,6 +249,7 @@ def artifact_identity_matches(
     version_code: object,
     apk_name: object,
     apk_sha256: object,
+    package_id: object = LEGACY_PACKAGE_ID,
 ) -> bool:
     """The one rule binding an artifact's tag, version and file name together.
 
@@ -251,6 +265,7 @@ def artifact_identity_matches(
     code = feed_build_code(release_tag)
     return (
         code is not None
+        and package_id == feed_build_package(release_tag)
         and version_code == code
         and isinstance(version_name, str)
         and _VERSION_NAME_PATTERN.fullmatch(version_name) is not None
@@ -372,7 +387,10 @@ async def _async_fetch_bounded(
 
 
 def _parse_release_metadata(
-    body: bytes, *, expected_rc_tag: str | None = None
+    body: bytes,
+    *,
+    expected_rc_tag: str | None = None,
+    include_bridge: bool = False,
 ) -> tuple[str, str, dict[str, URL]]:
     """Select exact assets without allowing a channel or requested-tag substitution."""
     try:
@@ -422,12 +440,17 @@ def _parse_release_metadata(
     )
     descriptor_name = release_descriptor_name(tag)
     descriptor_names = frozenset({descriptor_name, f"{descriptor_name}.sig"})
+    bridge_name = release_apk_name(tag, LEGACY_PACKAGE_ID)
+    bridge_names = frozenset(
+        {bridge_name, f"{bridge_name}.sha256", f"{bridge_name}.sha256.sig"}
+    )
     relevant_names = descriptor_names | {
         name
         for candidate in candidates
         for name in (candidate, f"{candidate}.sha256", f"{candidate}.sha256.sig")
     }
     selected: dict[str, URL] = {}
+    invalid_bridge = False
 
     for asset in assets:
         if not isinstance(asset, dict):
@@ -440,6 +463,9 @@ def _parse_release_metadata(
         raw_url = asset.get("browser_download_url")
         expected_url = f"{_REPOSITORY_RELEASE_ROOT}/{tag}/{name}"
         if not isinstance(raw_url, str) or raw_url != expected_url or name in selected:
+            if include_bridge and name in bridge_names:
+                invalid_bridge = True
+                continue
             raise ReleaseResolutionError
         selected[name] = URL(raw_url)
 
@@ -452,8 +478,17 @@ def _parse_release_metadata(
             break
     if apk_name is None:
         raise ReleaseResolutionError
-    # Only the chosen APK's own bytes travel on: another APK's checksum or
-    # signature in the same release is never part of this resolution.
+    if apk_name == bridge_name and invalid_bridge:
+        raise ReleaseResolutionError
+    # The optional bridge is retained only for a successor release with a
+    # complete canonical triplet; its proof is authenticated separately.
+    if (
+        include_bridge
+        and apk_name != bridge_name
+        and not invalid_bridge
+        and bridge_names.issubset(selected)
+    ):
+        required_names |= bridge_names
     selected = {
         name: url
         for name, url in selected.items()
@@ -580,6 +615,7 @@ def _parse_install_descriptor(
         or apk_sha256_value != apk_sha256
         or _SHA256_PATTERN.fullmatch(apk_sha256_value) is None
         or not is_accepted_package_id(document["packageId"])
+        or apk_name != release_apk_name(tag, document["packageId"])
         or document["signerCertificateSha256"] != _RELEASE_SIGNER_CERTIFICATE_SHA256
         or not isinstance(supported_abis, list)
         or tuple(supported_abis) != _SUPPORTED_ABIS
@@ -619,7 +655,7 @@ async def async_resolve_stable_release(session: ClientSession) -> ReleaseArtifac
     The APK itself is deliberately not downloaded. The returned digest is trusted
     only after the exact checksum bytes have passed detached RSA verification.
     """
-    artifact, _ = await _async_resolve_release(session, _LATEST_RELEASE_URL)
+    artifact, _, _ = await _async_resolve_release(session, _LATEST_RELEASE_URL)
     return artifact
 
 
@@ -628,7 +664,7 @@ async def async_resolve_rc_release(session: ClientSession, tag: str) -> ReleaseA
     if not is_rc_release_tag(tag):
         raise ReleaseResolutionError
     url = URL(f"{ANDROID_RELEASES_API}/tags/{tag}")
-    artifact, _ = await _async_resolve_release(session, url, expected_rc_tag=tag)
+    artifact, _, _ = await _async_resolve_release(session, url, expected_rc_tag=tag)
     return artifact
 
 
@@ -645,7 +681,7 @@ async def async_resolve_install_bundle(
         if not is_rc_release_tag(rc_tag):
             raise ReleaseResolutionError
         url = URL(f"{ANDROID_RELEASES_API}/tags/{rc_tag}")
-    artifact, metadata = await _async_resolve_release(
+    artifact, metadata, _ = await _async_resolve_release(
         session, url, expected_rc_tag=rc_tag
     )
     if metadata is None:
@@ -653,23 +689,23 @@ async def async_resolve_install_bundle(
     return InstallReleaseBundle(artifact=artifact, metadata=metadata)
 
 
-async def _async_resolve_release(
-    session: ClientSession, url: URL, *, expected_rc_tag: str | None = None
-) -> tuple[ReleaseArtifact, SignedReleaseMetadata | None]:
-    """Share identical byte bounds, signatures and descriptor binding for both paths."""
-    release_body = await _async_fetch_bounded(
-        session,
-        url,
-        _MAX_RELEASE_RESPONSE_BYTES,
-        allow_release_redirects=False,
-        headers=_API_HEADERS,
+async def async_resolve_stable_bundle_and_bridge(
+    session: ClientSession,
+) -> tuple[InstallReleaseBundle, ReleaseArtifact | None]:
+    """Resolve the normal stable install and its optional old-id APK proof."""
+    artifact, metadata, bridge = await _async_resolve_release(
+        session, _LATEST_RELEASE_URL, include_bridge=True
     )
-    tag, apk_name, assets = _parse_release_metadata(
-        release_body, expected_rc_tag=expected_rc_tag
-    )
+    if metadata is None:
+        raise ReleaseResolutionError
+    return InstallReleaseBundle(artifact=artifact, metadata=metadata), bridge
 
+
+async def _async_authenticated_checksum(
+    session: ClientSession, assets: dict[str, URL], apk_name: str
+) -> tuple[str, bytes, bytes]:
+    """Authenticate one APK's own checksum record and preserve its signed bytes."""
     checksum_name = f"{apk_name}.sha256"
-    signature_name = f"{checksum_name}.sig"
     checksum = await _async_fetch_bounded(
         session,
         assets[checksum_name],
@@ -679,13 +715,37 @@ async def _async_resolve_release(
     )
     signature = await _async_fetch_bounded(
         session,
-        assets[signature_name],
+        assets[f"{checksum_name}.sig"],
         _MAX_SIGNATURE_RESPONSE_BYTES,
         allow_release_redirects=True,
         headers=_ASSET_HEADERS,
     )
     _verify_detached_signature(checksum, signature)
-    sha256 = _parse_checksum_record(checksum, apk_name)
+    return _parse_checksum_record(checksum, apk_name), checksum, signature
+
+
+async def _async_resolve_release(
+    session: ClientSession,
+    url: URL,
+    *,
+    expected_rc_tag: str | None = None,
+    include_bridge: bool = False,
+) -> tuple[ReleaseArtifact, SignedReleaseMetadata | None, ReleaseArtifact | None]:
+    """Share identical byte bounds, signatures and descriptor binding for both paths."""
+    release_body = await _async_fetch_bounded(
+        session,
+        url,
+        _MAX_RELEASE_RESPONSE_BYTES,
+        allow_release_redirects=False,
+        headers=_API_HEADERS,
+    )
+    tag, apk_name, assets = _parse_release_metadata(
+        release_body, expected_rc_tag=expected_rc_tag, include_bridge=include_bridge
+    )
+
+    sha256, checksum, signature = await _async_authenticated_checksum(
+        session, assets, apk_name
+    )
 
     descriptor_name = release_descriptor_name(tag)
     descriptor: InstallDescriptor | None = None
@@ -727,4 +787,21 @@ async def _async_resolve_release(
         sha256=sha256,
         descriptor=descriptor,
     )
-    return artifact, metadata
+    bridge: ReleaseArtifact | None = None
+    bridge_name = release_apk_name(tag, LEGACY_PACKAGE_ID)
+    if include_bridge and apk_name != bridge_name and bridge_name in assets:
+        try:
+            bridge_sha256, _, _ = await _async_authenticated_checksum(
+                session, assets, bridge_name
+            )
+        except ReleaseResolutionError:
+            pass
+        else:
+            bridge = ReleaseArtifact(
+                tag=tag,
+                version=tag.removeprefix("v"),
+                apk_name=bridge_name,
+                apk_url=str(assets[bridge_name]),
+                sha256=bridge_sha256,
+            )
+    return artifact, metadata, bridge

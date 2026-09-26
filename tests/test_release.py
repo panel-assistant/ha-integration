@@ -16,7 +16,7 @@ from cryptography.hazmat.primitives.asymmetric import ec, padding, rsa
 from multidict import CIMultiDict
 from yarl import URL
 
-from custom_components.panel_assistant import release
+from custom_components.panel_assistant import feed_coordinator, release
 from custom_components.panel_assistant.app_identity import (
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
@@ -1518,6 +1518,173 @@ async def test_a_successor_apk_without_its_own_proof_is_not_resolved(
     artifact = await async_resolve_stable_release(session)  # type: ignore[arg-type]
 
     assert artifact.apk_name == _APK_NAME
+
+
+def _dual_release_session(signing_key: rsa.RSAPrivateKey) -> _FakeSession:
+    """Serve two APK proofs and the successor's descriptor from one release."""
+    successor_sha = hashlib.sha256(b"successor APK").hexdigest()
+    successor_checksum = f"{successor_sha}  {_SUCCESSOR_APK_NAME}\n".encode()
+    descriptor = _canonical_descriptor(
+        _descriptor_document(
+            apkName=_SUCCESSOR_APK_NAME,
+            apkSha256=successor_sha,
+            packageId=SUCCESSOR_PACKAGE_ID,
+            launchComponent=(
+                "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity"
+            ),
+        )
+    )
+    document = _release_document(include_descriptor=True)
+    document["assets"] = [*document["assets"], *_asset_triplet(_SUCCESSOR_APK_NAME)]
+    return _FakeSession(
+        {
+            str(release._LATEST_RELEASE_URL): _metadata_response(document),
+            _CHECKSUM_URL: _FakeResponse(200, _CHECKSUM, URL(_CHECKSUM_URL)),
+            _SIGNATURE_URL: _FakeResponse(
+                200, _signature(signing_key, _CHECKSUM), URL(_SIGNATURE_URL)
+            ),
+            f"{_SUCCESSOR_APK_URL}.sha256": _FakeResponse(
+                200, successor_checksum, URL(f"{_SUCCESSOR_APK_URL}.sha256")
+            ),
+            f"{_SUCCESSOR_APK_URL}.sha256.sig": _FakeResponse(
+                200,
+                _signature(signing_key, successor_checksum),
+                URL(f"{_SUCCESSOR_APK_URL}.sha256.sig"),
+            ),
+            _DESCRIPTOR_URL: _FakeResponse(200, descriptor, URL(_DESCRIPTOR_URL)),
+            _DESCRIPTOR_SIGNATURE_URL: _FakeResponse(
+                200, _signature(signing_key, descriptor), URL(_DESCRIPTOR_SIGNATURE_URL)
+            ),
+        }
+    )
+
+
+async def test_successor_bundle_retains_independently_signed_legacy_bridge(
+    monkeypatch: pytest.MonkeyPatch, signing_key: rsa.RSAPrivateKey
+) -> None:
+    """Both identities authenticate without inventing a bridge descriptor."""
+    _install_test_key(monkeypatch, signing_key)
+    session = _dual_release_session(signing_key)
+
+    bundle, bridge = await release.async_resolve_stable_bundle_and_bridge(session)  # type: ignore[arg-type]
+
+    assert bundle.artifact.descriptor is not None
+    assert bundle.artifact.descriptor.package_id == SUCCESSOR_PACKAGE_ID
+    assert bridge is not None
+    assert bridge.tag == bundle.artifact.tag
+    assert bridge.apk_name == _APK_NAME
+    assert bridge.apk_url == _APK_URL
+    assert bridge.sha256 == _SHA256
+    assert bridge.descriptor is None
+    assert _CHECKSUM_URL in [url for url, _ in session.requests]
+
+
+async def test_signed_successor_descriptor_cannot_claim_legacy_package(
+    monkeypatch: pytest.MonkeyPatch, signing_key: rsa.RSAPrivateKey
+) -> None:
+    """A signed descriptor must bind the selected APK name to its package ID."""
+    _install_test_key(monkeypatch, signing_key)
+    session = _dual_release_session(signing_key)
+    descriptor = json.loads(session._responses[_DESCRIPTOR_URL].body)
+    descriptor["packageId"] = LEGACY_PACKAGE_ID
+    descriptor["launchComponent"] = "io.github.maxlyth.hapaneld/.MainActivity"
+    body = _canonical_descriptor(descriptor)
+    session._responses[_DESCRIPTOR_URL] = _FakeResponse(200, body, URL(_DESCRIPTOR_URL))
+    session._responses[_DESCRIPTOR_SIGNATURE_URL] = _FakeResponse(
+        200, _signature(signing_key, body), URL(_DESCRIPTOR_SIGNATURE_URL)
+    )
+
+    with pytest.raises(ReleaseResolutionError):
+        await release.async_resolve_stable_bundle_and_bridge(session)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "fault", ["missing", "bad-asset-url", "bad-signature", "wrong-record"]
+)
+async def test_bad_optional_bridge_does_not_discard_successor(
+    monkeypatch: pytest.MonkeyPatch,
+    signing_key: rsa.RSAPrivateKey,
+    fault: str,
+) -> None:
+    """Bridge proof failures leave the descriptor-bound successor available."""
+    _install_test_key(monkeypatch, signing_key)
+    session = _dual_release_session(signing_key)
+    if fault == "missing":
+        document = _release_document(include_descriptor=True)
+        document["assets"] = _asset_triplet(_SUCCESSOR_APK_NAME) + [
+            asset
+            for asset in document["assets"]
+            if asset["name"] in {_DESCRIPTOR_NAME, f"{_DESCRIPTOR_NAME}.sig"}
+        ]
+        session._responses[str(release._LATEST_RELEASE_URL)] = _metadata_response(
+            document
+        )
+    elif fault == "bad-asset-url":
+        document = _release_document(include_descriptor=True)
+        document["assets"] = [*document["assets"], *_asset_triplet(_SUCCESSOR_APK_NAME)]
+        document["assets"][0]["browser_download_url"] = "https://elsewhere/bridge.apk"
+        session._responses[str(release._LATEST_RELEASE_URL)] = _metadata_response(
+            document
+        )
+    elif fault == "bad-signature":
+        session._responses[_SIGNATURE_URL].body = b"x" * 256
+        session._responses[_SIGNATURE_URL].__post_init__()
+    else:
+        wrong = f"{_SHA256}  other.apk\n".encode()
+        session._responses[_CHECKSUM_URL] = _FakeResponse(
+            200, wrong, URL(_CHECKSUM_URL)
+        )
+        session._responses[_SIGNATURE_URL] = _FakeResponse(
+            200, _signature(signing_key, wrong), URL(_SIGNATURE_URL)
+        )
+
+    bundle, bridge = await release.async_resolve_stable_bundle_and_bridge(session)  # type: ignore[arg-type]
+
+    assert bundle.artifact.descriptor is not None
+    assert bundle.artifact.descriptor.package_id == SUCCESSOR_PACKAGE_ID
+    assert bridge is None
+
+
+async def test_coordinator_routes_by_package_and_clears_old_bridge(
+    hass: Any, monkeypatch: pytest.MonkeyPatch, signing_key: rsa.RSAPrivateKey
+) -> None:
+    """A refresh replaces the signed pair together; a failed refresh keeps it."""
+    _install_test_key(monkeypatch, signing_key)
+    session = _dual_release_session(signing_key)
+    monkeypatch.setattr(
+        feed_coordinator, "async_get_clientsession", lambda _hass: session
+    )
+    coordinator = feed_coordinator.StableReleaseCoordinator(hass)
+    await coordinator.async_refresh()
+
+    successor = coordinator.artifact_for(SUCCESSOR_PACKAGE_ID)
+    bridge = coordinator.artifact_for(LEGACY_PACKAGE_ID)
+    assert successor is coordinator.data
+    assert successor is not None and successor.descriptor is not None
+    assert bridge is not None and bridge.descriptor is None
+    assert coordinator.artifact_for("other.app") is None
+
+    session._responses[_SIGNATURE_URL] = _FakeResponse(
+        200, b"x" * 256, URL(_SIGNATURE_URL)
+    )
+    await coordinator.async_refresh()
+
+    assert coordinator.data == successor
+    assert coordinator.artifact_for(LEGACY_PACKAGE_ID) is None
+
+    session = _dual_release_session(signing_key)
+    await coordinator.async_refresh()
+    successor = coordinator.data
+    bridge = coordinator.artifact_for(LEGACY_PACKAGE_ID)
+    assert bridge is not None
+    successor_signature_url = f"{_SUCCESSOR_APK_URL}.sha256.sig"
+    session._responses[successor_signature_url] = _FakeResponse(
+        200, b"x" * 256, URL(successor_signature_url)
+    )
+    await coordinator.async_refresh()
+
+    assert coordinator.data is successor
+    assert coordinator.artifact_for(LEGACY_PACKAGE_ID) is bridge
 
 
 _IDENTITY_CORPUS = json.loads(

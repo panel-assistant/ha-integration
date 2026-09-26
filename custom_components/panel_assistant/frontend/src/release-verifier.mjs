@@ -1,4 +1,4 @@
-import { MAX_FEED_BYTES, buildTagVersionCode, descriptorIdentityValid,
+import { MAX_FEED_BYTES, buildTagPackageId, buildTagVersionCode, descriptorIdentityValid,
   isBuildTag, isBuildVersionName, isGithubTag, isRcTag, isStableTag } from './release-identity.mjs';
 
 /** Byte-only metadata authentication. This does not validate an APK signing block. */
@@ -153,8 +153,9 @@ async function verifyFeedBundle(bundle, expectedTag, verificationKey) {
     document.builds.length <= MAX_FEED_BUILDS);
   requireValid(text === `${canonicalJson(document)}\n`);
   const builds = document.builds.map(feedBuild);
-  requireValid(new Set(builds.map((build) => build.versionCode)).size === builds.length);
-  const build = builds.find((candidate) => candidate.versionCode === code);
+  requireValid(new Set(builds.map((build) => `${build.versionCode}:${build.packageId}`)).size === builds.length);
+  const packageId = buildTagPackageId(expectedTag);
+  const build = builds.find((candidate) => candidate.versionCode === code && candidate.packageId === packageId);
   requireValid(build);
   const descriptor = {
     apkName: `${build.apkSha256}.apk`, apkSha256: build.apkSha256, apkSize: build.apkSize,
