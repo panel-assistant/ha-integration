@@ -328,6 +328,15 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         version = snapshot.health.version
         if self._feed_mode() is not None and self._installed_code is not None:
             return build_label(version, self._installed_code)
+        release = self._host_release()
+        if (
+            release is not None
+            and release.descriptor is None
+            and release.version == version
+        ):
+            # Core hides equal versions before asking version_is_newer. Name
+            # the installed bridge so its unfinished handover stays visible.
+            return f"{version} (bridge)"
         return version
 
     def _offered_update(self) -> PanelCachedUpdate | None:
@@ -409,9 +418,14 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             installed = parse_build_request(installed_version)
             if latest is not None and installed is not None:
                 return latest > installed
-        if latest_version == installed_version:
-            release = self._host_release()
-            return release is not None and release.descriptor is None
+        release = self._host_release()
+        if (
+            release is not None
+            and release.descriptor is None
+            and latest_version == release.version
+            and installed_version == f"{release.version} (bridge)"
+        ):
+            return True
         return is_newer_stable_version(latest_version, installed_version)
 
     @property

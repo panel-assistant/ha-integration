@@ -567,7 +567,7 @@ async def test_offline_move_delivers_both_verified_identities(
     client.async_commit_apk.side_effect = commit
     entity.coordinator.async_request_refresh = AsyncMock()
 
-    assert entity.version_is_newer(entity.latest_version, entity.installed_version)
+    assert entity.state == "on"
     await entity.async_install(None, backup=False)
 
     expected = [] if resume_bridge else [call(bridge)]
@@ -575,7 +575,7 @@ async def test_offline_move_delivers_both_verified_identities(
     assert client.async_stage_apk.await_args_list == expected
     assert entity.coordinator.data.health.package == SUCCESSOR_PACKAGE_ID
     client.async_start_panel_update.assert_not_awaited()
-    assert not entity.version_is_newer(entity.latest_version, entity.installed_version)
+    assert entity.state == "off"
 
 
 @pytest.mark.parametrize(
