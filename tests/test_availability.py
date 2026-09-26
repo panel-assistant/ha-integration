@@ -21,6 +21,7 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_ADDRESS, EVENT_STATE_CHANGED, STATE_UNAVAILABLE
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -287,6 +288,30 @@ async def test_session_address_is_adopted_after_identity_verification(
     assert _issue(hass, entry) is None
     # The entry was written, not reloaded: the session survived its repair.
     assert async_get_sessions(hass).get(entry.entry_id) is not None
+    assert entry.state is ConfigEntryState.LOADED
+
+
+async def test_the_device_card_links_to_the_adopted_address(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """The card's configuration link follows a moved panel without a reload."""
+    card = dr.async_get(hass).async_get_device_by_identifier(
+        (DOMAIN, entry.entry_id), entry.entry_id
+    )
+    assert card is not None
+    assert card.configuration_url == str(normalize_address(STORED).base_url)
+
+    await _connect(hass, hass_ws_client, hass_read_only_access_token, entry)
+    await _poll(hass, entry, {STORED: CannotConnectError(), MOVED: HEALTH})
+
+    card = dr.async_get(hass).async_get_device_by_identifier(
+        (DOMAIN, entry.entry_id), entry.entry_id
+    )
+    assert card is not None
+    assert card.configuration_url == str(normalize_address(MOVED).base_url)
     assert entry.state is ConfigEntryState.LOADED
 
 
