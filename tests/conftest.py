@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from custom_components.panel_assistant import config_flow
+from custom_components.panel_assistant import config_flow, feed_coordinator
 from custom_components.panel_assistant.client import (
     HaPaneldClient,
     PanelInstallStatus,
@@ -18,6 +18,24 @@ def _enable_custom_integrations(
     enable_custom_integrations: None,
 ) -> Generator[None]:
     """Allow Home Assistant to load the integration under test."""
+    yield
+
+
+@pytest.fixture(autouse=True)
+def _no_stable_release_from_github(
+    monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
+) -> Generator[None]:
+    """Know of no stable release unless a test serves one.
+
+    Every panel set up would otherwise open a real socket to GitHub. The LAN
+    update tests serve a signed release over a fake GitHub instead.
+    """
+    if request.path.name != "test_lan_staged_update.py":
+        monkeypatch.setattr(
+            feed_coordinator.StableReleaseCoordinator,
+            "_async_update_data",
+            AsyncMock(return_value=None),
+        )
     yield
 
 

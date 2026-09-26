@@ -8,14 +8,13 @@ bytes, and every APK must match the size and SHA-256 the signed feed names.
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import json
 import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from aiohttp import ClientError, ClientSession, ClientTimeout
+from aiohttp import ClientSession
 from yarl import URL
 
 from .app_identity import is_accepted_package_id, launch_component_for
@@ -34,6 +33,7 @@ from .release import (
     ReleaseResolutionError,
     _async_fetch_bounded,
     _bounded_integer,
+    _is_trusted_download_url,
     _object_without_duplicates,
     _reject_json_constant,
     _verify_detached_signature,
@@ -70,11 +70,16 @@ _PUBLISHED_PATTERN = re.compile(
 _FEED_HEADERS = {"Accept": "application/json", "Cache-Control": "no-cache"}
 _APK_HEADERS = {"Accept": "application/vnd.android.package-archive"}
 _APK_DOWNLOAD_SECONDS = 5 * 60
-_APK_CHUNK_BYTES = 256 * 1024
+# A slow link may pause between chunks of a large file; metadata reads keep 5 s.
+_APK_READ_SECONDS = 30.0
 
 
 class BuildFeedError(Exception):
     """Raised when a build feed or one of its APKs cannot be authenticated."""
+
+
+class BuildDownloadError(BuildFeedError):
+    """Raised when an APK could not be fetched, so nothing was checked against it."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -347,34 +352,32 @@ async def async_fetch_build_feed(session: ClientSession, feed_url: URL) -> Build
     return parse_build_feed(body, signature, feed_url)
 
 
-async def async_download_build(session: ClientSession, build: FeedBuild) -> bytes:
-    """Download one build and prove it is exactly the signed size and hash."""
-    digest = hashlib.sha256()
-    body = bytearray()
-    try:
-        async with asyncio.timeout(_APK_DOWNLOAD_SECONDS):
-            async with session.get(
-                build.apk_url,
-                allow_redirects=False,
-                headers=_APK_HEADERS,
-                timeout=ClientTimeout(total=_APK_DOWNLOAD_SECONDS, sock_connect=10),
-            ) as response:
-                if response.status != 200 or response.url != build.apk_url:
-                    raise BuildFeedError
-                if (
-                    response.content_length is not None
-                    and response.content_length != build.apk_size
-                ):
-                    raise BuildFeedError
-                async for chunk in response.content.iter_chunked(_APK_CHUNK_BYTES):
-                    body.extend(chunk)
-                    if len(body) > build.apk_size:
-                        raise BuildFeedError
-                    digest.update(chunk)
-    except BuildFeedError:
-        raise
-    except (ClientError, TimeoutError, ValueError) as err:
-        raise BuildFeedError from err
-    if len(body) != build.apk_size or digest.hexdigest() != build.apk_sha256:
+async def async_download_build(
+    session: ClientSession, artifact: ReleaseArtifact
+) -> bytes:
+    """Download one signed APK and prove it is exactly the signed size and hash.
+
+    A feed build comes only from its own URL. A GitHub release asset may
+    redirect, but only between GitHub's own asset hosts.
+    """
+    descriptor = artifact.descriptor
+    if descriptor is None:
         raise BuildFeedError
-    return bytes(body)
+    url = URL(artifact.apk_url)
+    try:
+        body = await _async_fetch_bounded(
+            session,
+            url,
+            descriptor.apk_size,
+            allow_release_redirects=_is_trusted_download_url(url),
+            headers=_APK_HEADERS,
+            total_seconds=_APK_DOWNLOAD_SECONDS,
+            read_seconds=_APK_READ_SECONDS,
+        )
+    except ReleaseResolutionError as err:
+        raise BuildDownloadError from err
+    # The fetch already refused anything longer than the signed size, and a
+    # shorter body cannot carry the signed hash.
+    if hashlib.sha256(body).hexdigest() != descriptor.apk_sha256:
+        raise BuildFeedError
+    return body
