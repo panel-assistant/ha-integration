@@ -179,8 +179,14 @@ def _registry_snapshot(hass: HomeAssistant, entry_id: str) -> dict[str, str]:
         if entity.config_entry_id == entry_id and entity.platform == "panel_assistant"
     ]
     _require(len(devices) == 1, "expected exactly one runtime device")
-    _require(len(entities) == 2, "expected status and update runtime entities")
-    sensor = next(entity for entity in entities if entity.domain == "sensor")
+    by_unique_id = {entity.unique_id: entity for entity in entities}
+    expected = {f"{entry_id}_status", f"{entry_id}_panel_assistant_version"}
+    _require(
+        len(entities) == 3 and expected <= by_unique_id.keys(),
+        "expected status, Panel Assistant version and update runtime entities",
+    )
+    # Chosen by identity: a second sensor made "the first sensor" ambiguous.
+    sensor = by_unique_id[f"{entry_id}_status"]
     update = next(entity for entity in entities if entity.domain == "update")
     state = hass.states.get(sensor.entity_id)
     _require(state is not None and state.state == "online", "sensor is not online")
