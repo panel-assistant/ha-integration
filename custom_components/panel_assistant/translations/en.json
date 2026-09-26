@@ -462,6 +462,9 @@
     "build_verification_failed": {
       "message": "The build did not match the signed build feed, so nothing was installed"
     },
+    "release_verification_failed": {
+      "message": "The release did not match its signature, so nothing was installed"
+    },
     "upload_disabled": {
       "message": "The panel does not accept app uploads; turn on APK upload in its settings"
     },

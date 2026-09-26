@@ -68,3 +68,15 @@ def counterpart_of(package_id: str) -> str:
     if package_id == SUCCESSOR_PACKAGE_ID:
         return LEGACY_PACKAGE_ID
     raise KeyError(package_id)
+
+
+def reports_package(reported: str | None, package_id: str) -> bool:
+    """Return whether a panel reporting ``reported`` in health runs ``package_id``.
+
+    The successor always reports its own application id, so it is never
+    assumed. Builds older than the migration report no package at all, and every
+    one of them is the legacy app.
+    """
+    if package_id == SUCCESSOR_PACKAGE_ID:
+        return reported == package_id
+    return reported is None or reported == package_id

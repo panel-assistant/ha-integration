@@ -75,6 +75,7 @@ def _entity(
     updates.data = PanelUpdateSnapshot(operation=operation, error=update_error)
     entity = HaPaneldUpdateEntity("entry-id", health, updates)
     entity.hass = hass
+    entity.async_write_ha_state = MagicMock()
     return entity, client
 
 

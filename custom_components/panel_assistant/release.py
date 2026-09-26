@@ -260,12 +260,14 @@ def artifact_identity_matches(
     )
 
 
-def _request_timeout() -> ClientTimeout:
+def _request_timeout(
+    total: float = _REQUEST_TIMEOUT_SECONDS, read: float = _READ_TIMEOUT_SECONDS
+) -> ClientTimeout:
     """Return explicit total, connection and read bounds for each request."""
     return ClientTimeout(
-        total=_REQUEST_TIMEOUT_SECONDS,
+        total=total,
         connect=_CONNECT_TIMEOUT_SECONDS,
-        sock_read=_READ_TIMEOUT_SECONDS,
+        sock_read=read,
     )
 
 
@@ -303,12 +305,14 @@ async def _async_fetch_bounded(
     *,
     allow_release_redirects: bool,
     headers: dict[str, str],
+    total_seconds: float = _REQUEST_TIMEOUT_SECONDS,
+    read_seconds: float = _READ_TIMEOUT_SECONDS,
 ) -> bytes:
     """Fetch one response under fixed status, redirect, time and byte bounds."""
     current_url = url
     redirects = 0
     try:
-        async with asyncio.timeout(_REQUEST_TIMEOUT_SECONDS):
+        async with asyncio.timeout(total_seconds):
             while True:
                 if allow_release_redirects and not _is_trusted_download_url(
                     current_url
@@ -319,7 +323,7 @@ async def _async_fetch_bounded(
                     current_url,
                     allow_redirects=False,
                     headers=headers,
-                    timeout=_request_timeout(),
+                    timeout=_request_timeout(total_seconds, read_seconds),
                 ) as response:
                     if response.history or response.url != current_url:
                         raise ReleaseResolutionError

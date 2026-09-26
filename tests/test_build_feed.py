@@ -6,7 +6,7 @@ import base64
 import hashlib
 import json
 from collections.abc import AsyncIterator, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +26,7 @@ from custom_components.panel_assistant.build_feed import (
     async_download_build,
     async_fetch_build_feed,
     build_label,
+    feed_release_artifact,
     normalize_feed_url,
     parse_build_feed,
     parse_build_request,
@@ -535,7 +536,10 @@ async def test_download_returns_exact_signed_bytes() -> None:
         {str(APK_URL): _FakeResponse(200, [APK[:500], APK[500:]], APK_URL, len(APK))}
     )
 
-    assert await async_download_build(session, _download_build()) == APK  # type: ignore[arg-type]
+    assert (
+        await async_download_build(session, feed_release_artifact(_download_build()))
+        == APK
+    )  # type: ignore[arg-type]
     assert [url for url, _ in session.requests] == [str(APK_URL)]
     assert session.requests[0][1]["allow_redirects"] is False
 
@@ -580,7 +584,44 @@ async def test_download_refuses_anything_but_the_signed_bytes(
     session = _FakeSession({str(build.apk_url): response})
 
     with pytest.raises(BuildFeedError):
-        await async_download_build(session, build)  # type: ignore[arg-type]
+        await async_download_build(session, feed_release_artifact(build))  # type: ignore[arg-type]
+
+
+GITHUB_APK_URL = URL(
+    "https://github.com/panel-assistant/android/releases/download/v0.9.7/x.apk"
+)
+
+
+@pytest.mark.parametrize(
+    ("location", "downloaded"),
+    [
+        ("https://release-assets.githubusercontent.com/a/1?sig=x", True),
+        ("https://attacker.example/x.apk", False),
+    ],
+    ids=["github-asset-host", "any-other-host"],
+)
+async def test_a_github_asset_redirect_is_followed_only_to_github(
+    location: str, downloaded: bool
+) -> None:
+    """A release asset redirects to GitHub's asset host and nowhere else."""
+    artifact = replace(
+        feed_release_artifact(_download_build()), apk_url=str(GITHUB_APK_URL)
+    )
+    session = _FakeSession(
+        {
+            str(GITHUB_APK_URL): _FakeResponse(
+                302, b"", GITHUB_APK_URL, headers=CIMultiDict({"Location": location})
+            ),
+            location: _FakeResponse(200, APK, URL(location), len(APK)),
+        }
+    )
+
+    if downloaded:
+        assert await async_download_build(session, artifact) == APK  # type: ignore[arg-type]
+    else:
+        with pytest.raises(BuildFeedError):
+            await async_download_build(session, artifact)  # type: ignore[arg-type]
+    assert (location in [url for url, _ in session.requests]) is downloaded
 
 
 async def test_download_maps_network_failure() -> None:
@@ -588,7 +629,7 @@ async def test_download_maps_network_failure() -> None:
     session = _FakeSession({}, error=ClientConnectionError())
 
     with pytest.raises(BuildFeedError):
-        await async_download_build(session, _download_build())  # type: ignore[arg-type]
+        await async_download_build(session, feed_release_artifact(_download_build()))  # type: ignore[arg-type]
 
 
 # --- one fixture, two verifiers ------------------------------------------------

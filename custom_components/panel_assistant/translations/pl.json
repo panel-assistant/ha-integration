@@ -192,6 +192,9 @@
     "build_verification_failed": {
       "message": "Wersja nie była zgodna z podpisanym strumieniem kompilacji, więc nic nie zostało zainstalowane"
     },
+    "release_verification_failed": {
+      "message": "Wydanie nie zgadzało się ze swoim podpisem, więc nic nie zostało zainstalowane"
+    },
     "upload_disabled": {
       "message": "Panel nie przyjmuje przesyłania aplikacji; włącz przesyłanie APK w jego ustawieniach"
     }

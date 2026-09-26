@@ -29,7 +29,7 @@ from .adb_credentials import (
     AdbCredentialError,
     async_get_durable_adb_credential,
 )
-from .app_identity import LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID
+from .app_identity import LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, reports_package
 from .client import (
     CannotConnectError,
     HaPaneldClient,
@@ -194,11 +194,9 @@ def health_is_installed_app(
     accepts a reply that omits it. Builds older than the migration do not report
     a package at all, which is why a legacy install still accepts its absence.
     """
-    if health.version != installed.version_name:
-        return False
-    if installed.package_id == SUCCESSOR_PACKAGE_ID:
-        return health.package == installed.package_id
-    return health.package is None or health.package == installed.package_id
+    return health.version == installed.version_name and reports_package(
+        health.package, installed.package_id
+    )
 
 
 class FinalizationOutcome(StrEnum):

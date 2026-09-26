@@ -19,18 +19,21 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import HaPaneldConfigEntry
+from .app_identity import reports_package
 from .build_feed import (
+    BuildDownloadError,
     BuildFeed,
     BuildFeedError,
-    FeedBuild,
     async_download_build,
     build_label,
+    feed_release_artifact,
     parse_build_request,
 )
 from .client import (
     CannotConnectError,
     HaPaneldError,
     InvalidResponseError,
+    StagingUnavailableError,
     UpdateApprovalRequiredError,
     UpdateBusyError,
     UpdateRejectedError,
@@ -44,10 +47,20 @@ from .coordinator import (
     PanelSnapshot,
 )
 from .device import panel_device_info
-from .feed_coordinator import BuildFeedCoordinator, async_get_feed_coordinator
+from .feed_coordinator import (
+    BuildFeedCoordinator,
+    StableReleaseCoordinator,
+    async_get_feed_coordinator,
+    async_get_stable_release_coordinator,
+)
 from .native import NativeEntity, async_setup_native_platform
 from .panel_backup import PanelBackupInvalidError, async_store_panel_backup
-from .release import _RELEASE_SIGNER_CERTIFICATE_SHA256
+from .release import (
+    _RELEASE_SIGNER_CERTIFICATE_SHA256,
+    InstallDescriptor,
+    ReleaseArtifact,
+    is_feed_build_tag,
+)
 from .status import PanelCachedUpdate
 from .update_coordinator import PanelUpdateCoordinator
 
@@ -64,6 +77,13 @@ _UPDATE_TIMEOUT_SECONDS = (
 )
 _UPDATE_RECHECK_SECONDS = 2
 _TERMINAL_STATUS_GRACE_SECONDS = 60
+# The first ha-paneld release that can be backed up and sent an app over the LAN.
+# An older panel is offered only what it finds itself, which it installs itself.
+_FIRST_LAN_UPDATE_VERSION = "0.8.6"
+# Which way the last update reached the panel, shown on the entity.
+ROUTE_ATTRIBUTE = "update_route"
+ROUTE_STAGED = "staged_by_home_assistant"
+ROUTE_PANEL = "downloaded_by_panel"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -74,6 +94,18 @@ def _update_error(translation_key: str, fallback: str) -> HomeAssistantError:
         fallback,
         translation_domain=DOMAIN,
         translation_key=translation_key,
+    )
+
+
+def _verification_error(artifact: ReleaseArtifact) -> HomeAssistantError:
+    """Name what failed to verify: a feed build, or a GitHub release."""
+    if is_feed_build_tag(artifact.tag):
+        return _update_error(
+            "build_verification_failed",
+            "The build did not match the signed build feed",
+        )
+    return _update_error(
+        "release_verification_failed", "The release did not match its signature"
     )
 
 
@@ -91,6 +123,7 @@ async def async_setup_entry(
                 entry.runtime_data.update_coordinator,
                 async_get_feed_coordinator(hass),
                 title=entry.title,
+                release=async_get_stable_release_coordinator(hass),
             )
         ]
     )
@@ -119,6 +152,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         update_coordinator: PanelUpdateCoordinator,
         feed: BuildFeedCoordinator | None = None,
         title: str | None = None,
+        release: StableReleaseCoordinator | None = None,
     ) -> None:
         """Bind update state to the existing config-entry and health authority."""
         super().__init__(coordinator)
@@ -128,6 +162,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         # A signed build feed, when configured. Internal builds
         # share one version name, so they are told apart by build number.
         self._feed = feed
+        # The latest stable release as Home Assistant itself authenticated it,
+        # so a panel without internet access is offered and sent it too.
+        self._release = release
         self._installed_code: int | None = None
         self._code_key: tuple[str, str] | None = None
         self._code_task: asyncio.Task[None] | None = None
@@ -137,6 +174,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         self._attr_in_progress = False
         self._observer_task: asyncio.Task[None] | None = None
         self._recovery_started = False
+        self._attr_extra_state_attributes = {}
 
     async def async_added_to_hass(self) -> None:
         """Refresh presentation when the panel's local operation state changes."""
@@ -152,6 +190,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 self._feed.async_add_listener(self.async_write_ha_state)
             )
             self._refresh_installed_code()
+        if self._release is not None:
+            self.async_on_remove(
+                self._release.async_add_listener(self.async_write_ha_state)
+            )
         self._resume_running_operation()
 
     def _handle_coordinator_update(self) -> None:
@@ -191,6 +233,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         await super().async_update()
         if self._feed is not None:
             await self._feed.async_refresh()
+        if self._release is not None:
+            await self._release.async_refresh()
 
     def _feed_mode(self) -> BuildFeed | None:
         """Return the feed only when it and the panel's build number are known."""
@@ -218,7 +262,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             or operation.component != "ha-paneld"
         ):
             return
-        offer = self._offered_update()
+        offer = self._stable_target()
         if offer is None:
             return
         self._recovery_started = True
@@ -304,6 +348,43 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             return None
         return offer
 
+    def _host_release(self) -> ReleaseArtifact | None:
+        """Return the release authenticated here, when newer than the panel's."""
+        snapshot: PanelSnapshot | None = self.coordinator.data
+        release = self._release
+        if (
+            snapshot is None
+            or release is None
+            or release.data is None
+            or release.data.descriptor is None
+            # A release is sent only to the app it replaces: a different
+            # application id would install a second app beside this one.
+            or not reports_package(
+                snapshot.health.package, release.data.descriptor.package_id
+            )
+            or not is_newer_stable_version(
+                release.data.version, snapshot.health.version
+            )
+            or is_newer_stable_version(
+                _FIRST_LAN_UPDATE_VERSION, snapshot.health.version
+            )
+        ):
+            return None
+        return release.data
+
+    def _stable_target(self) -> PanelCachedUpdate | None:
+        """Return the newer of the panel's own offer and the release found here."""
+        offer = self._offered_update()
+        release = self._host_release()
+        if release is None or (
+            offer is not None
+            and is_newer_stable_version(offer.target_version, release.version)
+        ):
+            return offer
+        return PanelCachedUpdate(
+            self.coordinator.data.health.version, release.version, release.tag
+        )
+
     @property
     def latest_version(self) -> str | None:
         """Report installed version if no newer panel-approved stable target exists."""
@@ -317,7 +398,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             ):
                 return newest.label
             return self.installed_version
-        offer = self._offered_update()
+        offer = self._stable_target()
         return offer.target_version if offer is not None else self.installed_version
 
     def version_is_newer(self, latest_version: str, installed_version: str) -> bool:
@@ -348,7 +429,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         if feed is not None:
             await self._async_install_feed_build(feed, version, backup)
             return
-        offer = self._offered_update()
+        offer = self._stable_target()
         if (
             self.in_progress
             or backup
@@ -359,6 +440,26 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 "update_unavailable",
                 "The requested ha-paneld update is unavailable",
             )
+        release = self._host_release()
+        self._attr_in_progress = True
+        self.async_write_ha_state()
+        try:
+            # Home Assistant sends the release over the LAN whenever it could
+            # authenticate it. Only a panel that cannot take an upload at all
+            # downloads the release itself, and verifies it itself.
+            if (
+                release is not None
+                and release.tag == offer.tag
+                and await self._async_deliver_build(release, fallback=True)
+            ):
+                return
+            await self._async_start_panel_download(offer)
+        finally:
+            self._attr_in_progress = False
+            self.async_write_ha_state()
+
+    async def _async_start_panel_download(self, offer: PanelCachedUpdate) -> None:
+        """Ask the panel to fetch, verify and install the release itself."""
         try:
             await self.coordinator.client.async_start_panel_update(offer.tag)
         except UpdateBusyError as err:
@@ -378,10 +479,15 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             raise _update_error(
                 "update_not_accepted", "The panel did not accept the update request"
             ) from err
-
+        self._record_route(ROUTE_PANEL, offer.tag)
         observer = self._start_observer(offer.target_version)
         self.async_write_ha_state()
         await observer
+
+    def _record_route(self, route: str, tag: str) -> None:
+        """Say which way this update reached the panel."""
+        self._attr_extra_state_attributes = {ROUTE_ATTRIBUTE: route}
+        _LOGGER.info("Updating %s to %s: %s", self.entity_id, tag, route)
 
     async def _async_wait_for_installed_version(self, expected_version: str) -> None:
         """Poll status through restart, then prove the health version changed."""
@@ -456,15 +562,24 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         self._attr_in_progress = True
         self.async_write_ha_state()
         try:
-            await self._async_deliver_feed_build(build)
+            await self._async_deliver_build(feed_release_artifact(build))
         finally:
             self._attr_in_progress = False
             self.async_write_ha_state()
 
-    async def _async_deliver_feed_build(self, build: FeedBuild) -> None:
+    async def _async_deliver_build(
+        self, artifact: ReleaseArtifact, *, fallback: bool = False
+    ) -> bool:
+        """Back up, verify, upload and commit one signed build, then prove it.
+
+        With ``fallback``, a download that fetched nothing, or a panel that
+        cannot take an upload at all, returns False before anything is
+        installed, so the caller can use the panel's own route.
+        """
         client = self.coordinator.client
         snapshot: PanelSnapshot | None = self.coordinator.data
-        if snapshot is None:
+        descriptor = artifact.descriptor
+        if snapshot is None or descriptor is None:
             # Nothing has been read from the panel, so there is no build to
             # replace and none to prove the replacement against.
             raise _update_error(
@@ -496,35 +611,39 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 "panel_backup_failed", "The panel could not be backed up first"
             ) from err
         try:
-            apk = await async_download_build(async_get_clientsession(self.hass), build)
-        except BuildFeedError as err:
-            raise _update_error(
-                "build_verification_failed",
-                "The build did not match the signed build feed",
-            ) from err
-        try:
-            staged = await client.async_stage_apk(apk)
-            installed_package = (
-                self.coordinator.data.health.package if self.coordinator.data else None
+            apk = await async_download_build(
+                async_get_clientsession(self.hass), artifact
             )
+        except BuildDownloadError as err:
+            if fallback:
+                # Nothing was fetched, so nothing failed a check: the panel
+                # can still fetch and verify the release itself.
+                _LOGGER.warning("Could not download %s here: %s", artifact.tag, err)
+                return False
+            raise _verification_error(artifact) from err
+        except BuildFeedError as err:
+            raise _verification_error(artifact) from err
+        try:
+            try:
+                staged = await client.async_stage_apk(apk)
+            except StagingUnavailableError:
+                if fallback:
+                    return False
+                raise
+            health = self.coordinator.data.health if self.coordinator.data else None
             if (
-                staged.package != build.package_id
+                staged.package != descriptor.package_id
                 # A panel updates itself in place, so the staged build has to be
                 # the package this panel already runs. A different application
                 # id would install a second app instead of replacing this one.
-                or (
-                    installed_package is not None
-                    and installed_package != build.package_id
-                )
+                or health is None
+                or not reports_package(health.package, descriptor.package_id)
                 or staged.signer != _RELEASE_SIGNER_CERTIFICATE_SHA256
-                or staged.version != build.version_name
+                or staged.version != descriptor.version_name
             ):
                 with contextlib.suppress(HaPaneldError):
                     await client.async_discard_apk(staged.token)
-                raise _update_error(
-                    "build_verification_failed",
-                    "The build did not match the signed build feed",
-                )
+                raise _verification_error(artifact)
             await client.async_commit_apk(staged.token)
         except UploadDisabledError as err:
             raise _update_error(
@@ -547,9 +666,13 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             raise _update_error(
                 "update_not_accepted", "The panel did not accept the update request"
             ) from err
-        await self._async_wait_for_build(build, before)
+        self._record_route(ROUTE_STAGED, artifact.tag)
+        await self._async_wait_for_build(descriptor, before)
+        return True
 
-    async def _async_wait_for_build(self, build: FeedBuild, before: str) -> None:
+    async def _async_wait_for_build(
+        self, build: InstallDescriptor, before: str
+    ) -> None:
         """Wait for the panel to restart into exactly the committed build."""
         loop = asyncio.get_running_loop()
         deadline = (

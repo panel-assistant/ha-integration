@@ -104,7 +104,11 @@ class UpdateBusyError(UpdateRejectedError):
     """Raised when another panel-owned destructive operation is active."""
 
 
-class UploadDisabledError(UpdateRejectedError):
+class StagingUnavailableError(UpdateRejectedError):
+    """Raised when the panel cannot take an app over the LAN at all."""
+
+
+class UploadDisabledError(StagingUnavailableError):
     """Raised when the panel does not accept app uploads."""
 
 
@@ -702,10 +706,13 @@ class HaPaneldClient:
             return parse_staged_apk(body)
         if status == 403:
             raise UploadDisabledError
+        if status == 503:
+            # No root to install with; the panel's own update may still work.
+            raise StagingUnavailableError
         if status == 409:
             raise UpdateBusyError
-        # 4xx, plus "no root" (503) and "no space" (507), are the panel saying no.
-        if 400 <= status < 500 or status in (503, 507):
+        # Any other 4xx, and "no space" (507), are the panel saying no.
+        if 400 <= status < 500 or status == 507:
             raise UpdateRejectedError
         raise CannotConnectError
 

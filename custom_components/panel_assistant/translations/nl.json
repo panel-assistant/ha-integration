@@ -192,6 +192,9 @@
     "build_verification_failed": {
       "message": "De build kwam niet overeen met de ondertekende buildfeed, dus er is niets geïnstalleerd"
     },
+    "release_verification_failed": {
+      "message": "De release kwam niet overeen met de handtekening, dus er is niets geïnstalleerd"
+    },
     "upload_disabled": {
       "message": "Het paneel accepteert geen app-uploads; schakel in de instellingen de optie ‘APK-upload’ in"
     }

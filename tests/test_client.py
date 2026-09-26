@@ -17,6 +17,7 @@ from custom_components.panel_assistant.client import (
     InvalidResponseError,
     PanelHealth,
     StagedApk,
+    StagingUnavailableError,
     UpdateApprovalRequiredError,
     UpdateBusyError,
     UpdateRejectedError,
@@ -1012,8 +1013,10 @@ async def test_stage_uploads_raw_bytes_and_returns_the_preview() -> None:
     ("status", "error"),
     [
         (403, UploadDisabledError),
+        (503, StagingUnavailableError),
         (409, UpdateBusyError),
         (400, UpdateRejectedError),
+        (507, UpdateRejectedError),
         (500, CannotConnectError),
     ],
 )
