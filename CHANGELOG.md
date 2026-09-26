@@ -2,104 +2,167 @@
 
 All notable changes to this project will be documented in this file.
 
-## 0.5.1 - Unreleased
+## 0.6.1 - 2026-09-26
 
-- A panel without internet can move to the new application ID through Panel Assistant. Home Assistant sends the signed bridge first, then sends the verified successor to a bridge that supports local handover. Retrying after the bridge was installed finishes the move without reinstalling it. Both APKs use the existing bounded download, signed-checksum verification and staged-install checks. Panels already on the new ID keep their usual update route.
-- A panel on a network without internet access can now be updated from Home Assistant. Panel Assistant used to ask the panel to download the release itself, so a panel on a network with no route to GitHub was never offered an update and could not install one. Home Assistant now looks up the latest ha-paneld release, checks its signature, downloads it, checks the file against the signed checksum, and sends it to the panel over the local network; the panel then checks the app's package, version and signing certificate before it installs anything. A panel with internet access is updated the same way. A panel that does not accept uploaded apps, because APK upload is turned off in its settings or it has no root access, still downloads the release itself as before. A panel running ha-paneld older than 0.8.6, which cannot take an app over the network, is offered only a release it finds itself, as before. The update entity's `update_route` attribute says which route the last update took. A file that fails any of these checks is never installed and never handed to the panel to download instead. Home Assistant needs internet access to GitHub for this, and looks for a new release every six hours or when you refresh the update entity.
-- A panel's device page now names the product and both builds. The model comes from the panel's own profile, for example Wall Display X2i by Shelly, and no longer turns into the app's name when Home Assistant restarts while the panel's address does not answer. Firmware shows the panel app's version with its build, such as 0.9.8-rc2 (build 911), taken from the panel's connection or its health check and updated as soon as the panel is upgraded rather than at the next reload. A new Panel Assistant version diagnostic sensor on the device shows which Panel Assistant build the panel is connected through. The Hardware line, which showed the Android release and a build string, is gone. The device page's link to the panel's own web page now follows the panel when Home Assistant updates its address, instead of pointing at the old address until Home Assistant restarted.
-- Panel Assistant's setup, repair and error text now has Dutch, Polish and Ukrainian translations. They are machine translated and every string has been cross-checked against the English for meaning, but none has been reviewed by a speaker of the language, so the English text remains authoritative. Home Assistant shows English for any text a translation does not cover.
-- A panel on Android 13 or later installed by Panel Assistant no longer greets you with a request to allow notifications. Both installers now grant the app its notification permission before they start it for the first time. The installer over the network used to grant it not at all, and the USB installer only after the app was already showing the request. They grant it even if someone on the panel once tapped "Don't allow", because the app's notification is part of keeping the panel working and that answer may have been a mis-tap. If the panel refuses the grant, the app still starts; the network installer reports the refusal in the Home Assistant log, and the USB installer's permission check reports it as before.
-- The USB installer no longer leaves its copy of the app on the panel once the install is proved to work. Every install copied the app, up to 64 MiB, into the panel's temporary storage and left it there. The copy is now removed once the app is running and answering, and a copy from an attempt you set aside by choosing another version is removed by the next Install press, even if you left the installer before pressing it. An install that fails keeps its copy, so the panel still holds what was tried.
-- A panel on a network with only IPv6 addresses is now offered for setup when Home Assistant discovers it. Its advertisement used to be refused as invalid, because the address was read without the brackets an IPv6 address needs before a port, so such a panel could only be added by typing its address. A panel with an IPv4 address is still set up at that address, exactly as before.
-- A tap on the panel screenshot in the sidebar no longer reads as refused when the tap ran but the panel could not take the screenshot that follows it. The sidebar dropped the header that tells the panel page the tap went through, so the page said "Tap was not accepted" and did not refresh, and tapping again repeated an action that had already happened. The page now refreshes the screenshot without tapping again, as it does when opened directly, and a tap the panel genuinely refused still reads as refused.
+### New
 
-- A panel set to use its native connection now finishes moving its existing MQTT entities after an unavailable first health check recovers. Previously the entry became healthy but left those entities on MQTT until Home Assistant manually reloaded the integration. The recovery asks for one bounded lifecycle retry so affected entities are unloaded during the move, while changing the panel back from native authority still cancels or reverses the move safely.
-- A panel can no longer disable or delete another panel's entities when Home Assistant has merged their MQTT devices. Panel Assistant now proves which panel owns each entity before moving, quarantining or deleting it, refuses a native target owned by any other config entry even when that entry is unloaded, and leaves a shared empty device in place. Repairs now identifies both a merged MQTT device and panel entries that report one identity, with recovery instructions; the ambiguous native connection stays refused until the panels have distinct identities.
-- A panel that is talking to Home Assistant is never shown as unavailable. Availability used to come only from Home Assistant polling the address it had stored for the panel, so a panel that moved to another network, or whose stored address stopped answering for any other reason, went unavailable while it was connected and serving its dashboard. A panel that holds its own connection to Home Assistant now stays available whatever that poll says; a panel with neither a connection nor an answering address is unavailable, as before. This holds across a Home Assistant restart too: a panel whose stored address is dead when Home Assistant starts used to be held in setup retry, which refused the panel's own connection as unknown, so the entry now loads with its entities unavailable and accepts the panel the moment it connects. A panel added by address records the identity its panel reports, so it is recognised that way just as a discovered panel always was.
-- When the stored address stops answering while the panel is connected, Home Assistant adopts the address the panel is connecting from, after reading the panel's health there and confirming it is the same panel. The repair needs nothing from the panel and no discovery, and it does not reload the panel's entry, so the panel's connection survives it. An address that cannot be confirmed as the panel is never written; the panel stays available on its connection and a repair says what was found. The Status sensor now reads "Connected, address unreachable" in that state rather than folding it into unavailable.
-- A panel already set up that advertises itself from a new address on the local network now has its stored address updated, once its stored address has stopped answering, the panel is not connected to Home Assistant, and its health at the new address answers as that panel. The advertisement used to be ignored for a known panel, leaving the stale address in place. An advertisement never moves a panel whose stored address still answers, nor a panel that is connected: that panel's own connection updates its address, as above, and a repair says so when it cannot.
-- Adding a panel that is already set up, at the address it has moved to, now updates that panel's stored address instead of creating a second copy of the panel. An old copy left over from re-adding a moved panel in an earlier version no longer stops the panel from connecting; the panel connects to the entry whose address answers.
-- A brand-new panel no longer sits at two entities waiting for a repair nobody knew to look for. When you add a panel that has already signed in to Home Assistant and asked to connect, the flow now offers that account for confirmation as one of its own steps, so the panel is confirmed while you are still there and then finishes describing itself. Who may confirm has not changed: anyone signed in to Home Assistant can ask to connect as a panel, and only an administrator can confirm one, which is exactly what this step asks. Declining still adds the panel, and it then waits for its confirmation as before.
-- The repair that asks for that confirmation is now titled "Finish connecting <panel>" while a panel has no account yet, because unfinished setup is what it is. A request to connect as a panel that already has a confirmed account keeps its own wording and its warning, since that request may be someone trying to take the panel over and must not read as routine.
-- Installing onto a panel that already runs exactly the version you chose now finishes instead of refusing it, including when a failed install left that app present but not answering. Nothing is downloaded, copied or reinstalled: Panel Assistant checks that the app on the panel is the very same file, then starts it, checks its health and carries on to setup. Running the same install twice now finishes both times, rather than telling you the panel is not clean when it already has exactly what you asked for. A panel that holds the app at different bytes is still refused, because a first install never replaces an app that is already there.
-- The USB installer no longer strands you when you pick a different version after an interrupted attempt. The unfinished attempt is set aside, the step you are on says so in one sentence, and the version you chose installs. An attempt for the version you are still installing carries on exactly as before.
-- A first install over USB that has to clean up after a copy that did not take now carries on under the same Install press. It used to stop with "This browser couldn’t save its progress", although nothing was wrong with the browser, and only Try again got it going.
-- Choosing another version in the browser installer after two completed or cancelled transfers now prepares it straight away. Home Assistant keeps at most two prepared releases, and a finished transfer used to hold its place for fifteen minutes, so a third choice was refused as busy even though nothing was downloading. A release that is not being downloaded now gives up its place to a new choice, a release still being downloaded keeps it, and no more than two are ever kept.
-- A file copied to a panel over USB is now stamped with the time it was copied, rather than dated to 1970.
-- Panel Assistant now reads a panel running a development build, whose version name is free-form rather than a release number. The USB installer already accepted those names; Home Assistant refusing them meant a panel it could install could then not be read.
-- An install of the new application id is no longer counted as finished when the old app answers at the same version. The installer already waited for the new app to answer for itself, but finishing setup, and loading the panel again after a Home Assistant restart, checked only the version, which both apps share during the handover. Every step now requires the app the install put there, so a handover that has not completed is reported instead of being set up as done. A panel running an older build that does not report its application id is still accepted, as before.
-- The manual file route accepts a release published under either application id. It previously recognised only the old name, so a release named for the new one could not be installed by hand even though Home Assistant itself resolved it.
-- The USB installer now installs a release published under the new application id, whether Home Assistant hands it over or you choose its files by hand. Its signed checksum was compared with the old id's file name, so the new release was refused as unauthenticated. The checksum must now name exactly the file the signed release description names, which still ties the file name, the release tag and the hash together.
-- An MQTT entity left behind when a panel moves to its native connection is now kept when the only thing you changed on it is a label or an alias. Those were not counted as your own settings, so such an entity, typically the old ha-paneld update entity, was removed once the panel withdrew its MQTT entities, and anything that targeted it by label or found it by alias stopped working. A label or alias of your own now holds it back exactly as a name, icon or area already did; an entity you never changed is still cleaned up.
-- Moving a panel to its native connection now moves an MQTT entity only once the panel has described that entity's channel over the native connection. Previously any entity whose channel Panel Assistant knew was moved, even when this panel had never described it, so it lost its readings and controls with no native entity to replace them. An entity whose channel the panel has not described stays on MQTT, keeps the panel's MQTT entities announced, and moves on the next pass after the panel describes it. The first move now waits for the panel to connect, just as it waits for its first health check. Panel Assistant remembers every channel a panel has described, so a channel missing from one connection is only unavailable: its entity is never removed.
-- A panel's diagnostics download now shows which database operation failed and the database's auto-vacuum mode. The panel has reported both for a while, but Home Assistant kept only the storage fields it already knew and dropped these two, so a database failure in the diagnostics named no operation. A malformed value in either field makes the status reading invalid, exactly as a malformed value in any other storage field does.
-- Moving a panel to its native connection now moves an MQTT entity only once the panel has described that entity's channel over the native connection. Previously any entity whose channel Panel Assistant knew was moved, even when this panel had never described it, so it lost its readings and controls with no native entity to replace them. An entity whose channel the panel has not described stays on MQTT, keeps the panel's MQTT entities announced, and moves on the next pass after the panel describes it. The first move now waits for the panel to connect, just as it waits for its first health check. Panel Assistant remembers every channel a panel has described, so a channel missing from one connection is only unavailable: its entity is never removed for that alone.
-- A panel can now say which of its channels it cannot serve, such as a temperature or humidity reading on a panel without that sensor, or a Companion app update on a panel without the Companion app. Panel Assistant then removes that channel's native entity instead of leaving it unavailable for good, including an entity moved over from MQTT, and stops counting the channel as one the panel supports. Only that explicit statement removes anything: a channel a connection simply leaves out keeps its entity, as before, and a panel that later describes the channel again gets its entity back. Other entities of the panel, and your changes to them, are untouched, and MQTT entities are never removed. This needs a matching ha-paneld release that makes the statement; older panels make none, and nothing is removed for them.
+- **Offline panels can move to the new app.** A panel that can't reach the internet can now move to ha-paneld's new app: Home Assistant downloads and checks the new app and hands it to the panel over your local network, the same way it already delivers updates. Needs ha-paneld 0.9.8-rc2 or later.
+
+### Improved
+
+- **An unfinished move stays visible.** A panel that hasn't finished moving to the new app shows as a pending update, so you can see it and try again.
+- **Retrying a move picks up where it left off**, reusing the new app if it's already on the panel.
+- **Updates match the app each panel runs**, old or new, and a panel partway through the move is only offered releases that are genuinely newer.
+
+### Fixed
+
+- **Safety wording in Dutch, Polish and Ukrainian** is corrected throughout setup, approval and recovery text.
+
+## 0.6.0 - 2026-09-26
+
+This one has been a long time coming, and we're really pleased with where it has landed. Panel Assistant 0.6.0 is the first release that can run your panels without MQTT: each panel talks to Home Assistant over its own connection, and Panel Assistant looks after its entities directly. MQTT keeps working exactly as before, and nothing changes until you choose to switch a panel over.
+
+### Moving a panel off MQTT
+
+**How it works.** Your panel already keeps its own signed-in connection to Home Assistant. Once you switch it over, its sensors, controls and commands travel over that connection instead of through your MQTT broker. Panel Assistant takes over the panel's existing entities with their entity IDs, history and customisations intact, so your dashboards and automations carry on as they were. The panel then stops announcing itself over MQTT.
+
+**What you need to do.**
+
+1. Update the panel to ha-paneld 0.9.8 or later.
+2. Add `native_entities: true` under `panel_assistant:` in `configuration.yaml` and restart Home Assistant. This makes the choice available; on its own it changes nothing.
+3. In Settings, Devices & services, Panel Assistant, choose **Configure** on the panel and set **Control** to **Panel Assistant**. We'd suggest trying one panel first.
+
+**Why switch.** One less moving part between your panels and Home Assistant, and it's where Panel Assistant is heading. Commands still follow the same approval rules, and anything sensitive still needs approval on the panel's own screen.
+
+**What to watch for.** Each of these shows up in Repairs with the fix spelled out:
+
+- An MQTT entity you've customised (a name, icon, area, label or alias of your own) that has no native equivalent keeps the panel's MQTT entities in place until you delete it or clear those settings.
+- A panel still on an older ha-paneld keeps announcing over MQTT. Panel Assistant disables the duplicates until you update it.
+- If Home Assistant has merged two panels' MQTT devices, the switch is refused until they're separated.
+
+**Changing your mind.** Set **Control** back to **MQTT** and the entities move back. If you'd like to look before you leap, **MQTT, with native reports for comparison** keeps MQTT in charge while the panel reports over both.
+
+### New
+
+- **Updates for panels without internet access.** Home Assistant downloads and verifies each ha-paneld release, then sends it to the panel over your local network. Panels that can't accept an uploaded app (older than 0.8.6, or with APK upload turned off) still download it themselves. Home Assistant needs to reach GitHub for this.
+- **A clearer device page.** It shows the panel's real model, such as Shelly Wall Display X2i, the app version with its build, and a new sensor showing which Panel Assistant build the panel is connected through.
+- **Dutch, Polish and Ukrainian.** Setup, repair and error text is machine translated and checked against the English, which stays authoritative.
+- **IPv6-only networks.** Home Assistant now discovers panels that have only IPv6 addresses.
+- **Better diagnostics.** A panel's diagnostics download now names the database operation that failed.
+
+### Improved
+
+- **Panels stay online when their address changes.** A panel connected to Home Assistant is never shown as unavailable. If its stored address stops answering, Home Assistant confirms it's the same panel and switches to the address it's connecting from, and the Status sensor reads "Connected, address unreachable" until then. Re-adding a moved panel updates it instead of creating a duplicate.
+- **New panels finish setup in one go.** When you add a panel that has already signed in, you confirm its account right there in the add flow, instead of finding a repair later.
+- **No notification prompt on new panels.** Both installers grant the app's notification permission before its first start on Android 13 and later.
+- **More forgiving installs.** Installing the version a panel already runs just finishes. Picking a different version after an interrupted attempt carries on with your new choice. The USB installer tidies up its copy of the app once the install works, and no longer stops with a false "couldn't save its progress" error.
+- **Tidier native entities.** With a matching ha-paneld release, a panel can say which sensors it doesn't have, and their entities are removed instead of sitting unavailable.
+
+### Fixed
+
+- Panels whose MQTT devices Home Assistant had merged can no longer disable or delete each other's entities.
+- Panel Assistant is ready for ha-paneld's new app id: releases under either id install from Home Assistant, the USB installer and the manual file route, and a panel isn't marked as moved to the new app until the new app answers.
+- A successful tap on the panel screenshot in the sidebar is no longer reported as refused.
+- Choosing a third version in the browser installer is no longer refused as busy.
+- Files copied over USB carry the right date instead of 1970.
+- Panels running development builds can be read.
 
 ## 0.5.0 - 2026-09-19
 
-- ha-paneld is changing the application id it installs under. Panel Assistant now accepts either id, so it can install and verify both the release that keeps the old id and the one that carries the new one. This release has to be installed before the ha-paneld release that makes the change; an older Panel Assistant refuses the new release outright.
-- A panel that already runs the old app is no longer refused as an unclean target. The new app installs beside it, and the panel then moves its own settings across and removes the old app by itself. Panel Assistant only watches: it never touches the panel beyond installing and starting the new app.
-- Installing onto such a panel now waits through that handover, including the moment when the panel's own page is briefly unreachable, and finishes only when the new app answers for itself rather than on the first reply.
-- If the handover has not finished by the time Panel Assistant stops watching, it now says so as a repairable issue that re-checks the panel when you ask it to. The panel carries on by itself either way.
-- The panel's settings backup is now verified before an update replaces the app that produced it, and a receipt recording its size, digest and contents is kept beside it. An unreadable backup stops the update instead of being written and trusted.
-- When an ha-paneld release offers an APK under each application id, Panel Assistant installs the new one. A release with a single APK, which is every release published so far, resolves exactly as it did before.
+### New
+
+- **Ready for ha-paneld's new app id.** Panel Assistant installs and checks releases under either the old or the new id, and prefers the new one when a release offers both. Install this before the ha-paneld release that changes the id; older Panel Assistant versions refuse it.
+- **Smooth move to the new app.** A panel running the old app is no longer refused. The new app installs beside it, then the panel moves its own settings across and removes the old app by itself. The install waits for that to finish, and if it's still going when Panel Assistant stops watching, a repair lets you check again later.
+- **No more typing Home Assistant's address into a panel.** When Panel Assistant installs or adopts a panel, it tells the panel where Home Assistant is. The panel checks the address works from its own network first, and only a local address is ever passed on. Needs a matching ha-paneld release.
+
+### Improved
+
+- The panel's settings backup is verified before an update replaces the app, and a record of it is kept alongside. An unreadable backup stops the update.
 - Release lookups follow ha-paneld to its new repository address.
-- Panel Assistant now tells a panel where Home Assistant is when it installs or adopts one, so the panel's setup wizard no longer asks for an address Home Assistant already knows. The panel checks the address from its own network before using it, and asks as it always did if it does not answer, showing the address that was tried rather than an empty box. This needs a matching ha-paneld release that accepts the address; older panels are unaffected and behave exactly as before.
-- Only a local address is ever handed over. If Home Assistant has no internal URL (which is what happens when it terminates HTTPS itself and only its external address is set), nothing is sent and the panel asks, rather than being given a public address that would send its dashboard out to the internet and back.
 
 ## 0.4.1 - 2026-09-16
 
-- Stop logging a deprecation warning when the sidebar's panel picker looks up a panel's device name, ahead of Home Assistant removing the old lookup in a future release.
+### Fixed
+
+- The sidebar's panel picker no longer logs a deprecation warning when it looks up a panel's name.
 
 ## 0.4.0 - 2026-09-16
 
-- The sidebar's top bar now has real icon buttons, right-justified and sized to match Home Assistant's own header: GitHub, add a panel, integration settings, and a new button that opens the selected panel's own device page. The panel picker shows each panel's real device name, its own reported name or a rename from the Devices page, rather than the panel's raw identifier.
-- The panel picker and its controls keep their contrast in dark mode. The "opening a panel" wait now shows an animated spinner, not static text.
-- Home Assistant now issues the sidebar's session a signing key when a panel offers it, and a signed request exempts a fixed set of lower-impact operations, such as display and power settings, from on-panel approval; every other operation still needs it. Hardened mode requires physical access to the panel. High-impact remote actions cannot proceed until someone approves them on the panel's screen; they cannot be approved remotely. This needs a matching ha-paneld release that offers signing; older panels are unaffected and behave exactly as before.
+### New
+
+- **Fewer approval prompts from the sidebar.** When a panel offers it, Home Assistant gives the sidebar a signing key, and signed requests for lower-impact settings, such as display and power, no longer need approval on the panel. Everything else still does. Hardened mode requires physical access to the panel. High-impact remote actions cannot proceed until someone approves them on the panel's screen; they cannot be approved remotely. Needs a matching ha-paneld release.
+- **A device page button in the sidebar** that opens the selected panel's own device page.
+
+### Improved
+
+- The sidebar's top bar has proper icon buttons matching Home Assistant's own header: GitHub, add a panel, integration settings and the new device page.
+- The panel picker shows each panel's real name instead of its raw identifier.
+- The picker keeps its contrast in dark mode, and opening a panel shows a spinner.
 
 ## 0.3.1 - 2026-09-16
 
-- Rewrite the README so HACS shows the icon and the same introduction as panel-assistant.io, with badges and one-click buttons to open the repository in HACS and to start setup. No code changes.
+### Improved
+
+- HACS now shows the Panel Assistant icon and the same introduction as panel-assistant.io, with one-click buttons to open it in HACS and start setup. No code changes.
 
 ## 0.3.0 - 2026-09-14
 
-- The sidebar now shows each connected panel's own web interface (the same tab bar, dashboard, settings and logs as its `:8888` page) instead of a separate fleet-card list. Pick a panel from the new top menu; add a panel or open the integration's own settings from the same bar. The old placeholder sidebar UI is gone.
-- The sidebar's top menu shows the integration's installed version and build number, so checking it no longer needs a diagnostics download.
-- Renaming a panel, retrying a failed handover, or losing power partway through no longer leaves a stray or duplicated entity behind.
-- Advanced/testing: an optional native transport, set with `native_entities: true` under `panel_assistant` in `configuration.yaml`, lets a panel report state and accept commands over its own authenticated Home Assistant connection instead of MQTT, chosen per panel from the integration's options once turned on. Off by default; MQTT is unaffected either way.
+### New
+
+- **Your panel's own interface in the sidebar.** Pick a panel from the top menu and you get its full web interface, with the same dashboard, settings and logs as its `:8888` page. Adding a panel and the integration's settings are in the same bar.
+- **Native connection, for testing.** Setting `native_entities: true` under `panel_assistant:` in `configuration.yaml` lets a panel report and take commands over its own connection instead of MQTT, chosen per panel in the integration's options. Off by default; MQTT is unaffected.
+
+### Improved
+
+- The sidebar shows the installed Panel Assistant version and build, so you no longer need a diagnostics download to check it.
+
+### Fixed
+
+- Renaming a panel, retrying a failed handover or losing power partway through no longer leaves stray or duplicate entities.
 
 ## 0.2.1 - 2026-09-13
 
-- First full release, so HACS offers it without Show beta versions.
-- Fix the Install link in the Panel Assistant sidebar, which in 0.2.0b1 opened nothing, or the old integration's installer where that was still installed.
-- Panel Assistant lists only ha-paneld releases that carry a signed installation descriptor. The current stable ha-paneld, v0.9.6, has none, so until the next stable release the version list offers only release candidates, marked as test versions.
+The first full release, so HACS offers it without turning on beta versions.
+
+### Improved
+
+- The version list only offers ha-paneld releases with a signed install description. Until the next stable ha-paneld ships one, that means release candidates, marked as test versions.
+
+### Fixed
+
+- The sidebar's Install link opens the installer again.
 
 ## 0.2.0b1 - 2026-09-12
 
-- Rename the integration to Panel Assistant and move to semantic versions. Earlier installs tracked a moving branch and will not be offered this as an update, so follow "Updating from 0.1.x" in the README.
-- Install ha-paneld over USB with a guided wizard: plug the panel into the computer you are browsing on, press Install once, and the installer copies, installs, starts the app, grants what it needs and hands over to the panel's own setup. It shows plain progress rather than a log, and technical detail stays behind "Details for support".
-- Home Assistant does not need a TLS certificate for USB installation. The installer runs on its own secure page and Home Assistant passes it the signed release.
-- Choose which ha-paneld version to install, with the newest stable preselected and release candidates marked for testing.
-- Add a panel from one path that starts with its address. Home Assistant looks at the panel and then either connects it, offers to install, or explains what is missing.
-- A panel that already runs ha-paneld says so, and offers to open its setup wizard when that is unfinished. Home Assistant connects the panel by itself once setup is done, or connects it straight away if you skip.
-- Say what to do when a panel cannot be reached: a panel whose Android Debug Bridge is off is told to turn it on or to install over USB instead, a silent address is told to check the address, and the screen links to per-model help on panel-assistant.io.
-- Reinstalling the version a panel already runs finishes its setup instead of stopping with an error, and a finished install no longer blocks the next one.
-- Fill in each panel's device details: manufacturer, model, Android version and area.
-- Tell the panel when Home Assistant shows its ha-paneld update, so a panel does not offer the same update twice once both are updated.
-- Optionally read internal builds from a signed build feed, set with `build_feed` under `panel_assistant` in `configuration.yaml`. Without it, only published GitHub releases are used.
-- Fix USB installation on panels whose Android Debug Bridge refused the app's port, wait for the app to start before checking it, correct the staged file's permissions, and never advise unplugging a panel that is powered over that cable.
-- Give the Home Assistant page and the installer the same look as the panel's own setup wizard.
+### New
+
+- **A new name.** The integration is now Panel Assistant, with proper version numbers. Earlier installs won't be offered this as an update, so follow "Updating from 0.1.x" in the README.
+- **Install over USB.** Plug the panel into the computer you're browsing on and press Install once. The installer copies, installs and starts the app, grants what it needs and hands over to the panel's own setup, with plain progress and technical detail tucked behind "Details for support". Home Assistant doesn't need a TLS certificate for this.
+- **Choose your version,** with the newest stable release picked for you and release candidates marked for testing.
+- **One way to add a panel.** Start with its address and Home Assistant works out whether to connect it, offer an install, or explain what's missing. A panel already running ha-paneld offers to open its setup if that isn't finished.
+- **Helpful errors** when a panel can't be reached, with per-model help on panel-assistant.io.
+- **Device details** for each panel: manufacturer, model, Android version and area.
+- **Internal build feed,** optional, set with `build_feed` under `panel_assistant:` in `configuration.yaml`.
+
+### Improved
+
+- Reinstalling the version a panel already runs finishes its setup instead of stopping with an error.
+- The panel isn't offered the same update twice once Home Assistant shows it.
+- The Home Assistant pages and the installer match the panel's own setup wizard.
+
+### Fixed
+
+- USB installs work on panels whose debug bridge refused the app's port, wait for the app to start before checking it, and set the right file permissions. The installer never tells you to unplug a panel powered by that cable.
 
 ## 0.1.0 - Unreleased
 
-- Allow advanced users to test one exact published Android release candidate while keeping the latest stable release as the default. RC installs retain the signed descriptor, exact consent, durable receipt and recovery checks; existing installations are never upgraded by this option.
-- Add a clean first-install workflow over network ADB while keeping connection to an existing installation as a separate path. Home Assistant verifies the panel and signed stable-release descriptor, downloads the exact APK, installs and launches it, then creates the config entry only after final identity and health checks pass.
-- On panels requiring ADB authorization, request approval on the panel for one persistent credential stored in Home Assistant's private storage. Unreachable targets and the initial authorization probe do not create or offer a key.
-- Keep the installation transaction running if its setup dialog closes, resume safe phases after the integration loads again and refuse to replay any operation with an ambiguous outcome.
-- Keep older stable releases without a signed installation descriptor preview-only. Installed, retained, ambiguous and incompatible targets are refused, and this release does not upgrade or overwrite an existing installation.
-- Add manual setup by panel hostname or IP address.
-- Validate panels through the stable read-only `/api/v1/health` endpoint.
-- Add bounded, privacy-safe `/api/v1/status` data to downloadable diagnostics.
-- Create one Home Assistant device with a diagnostic status sensor and downloadable redacted diagnostics.
-- Support config-entry setup, unload and reload.
+### New
+
+- **Add a panel** by hostname or IP address, checked through its health endpoint, with one device, a status sensor and downloadable diagnostics.
+- **Install over the network.** Home Assistant checks the panel and the signed release, installs and starts the app, and adds the panel only once it answers as expected. Panels that need debug approval ask for it once on screen.
+- **Try a release candidate** while keeping the latest stable release as the default.
+
+### Improved
+
+- An install carries on if its dialog closes, resumes safely after a reload, and never repeats a step whose outcome is unclear.
+- Existing installs are never upgraded or overwritten by this release.

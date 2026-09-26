@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://panel-assistant.io"><img src="https://raw.githubusercontent.com/panel-assistant/ha-integration/main/custom_components/panel_assistant/static/icon.svg" width="160" height="160" alt="Panel Assistant"></a>
+  <a href="https://panel-assistant.io"><img src="https://raw.githubusercontent.com/panel-assistant/ha-integration/main/custom_components/panel_assistant/static/logo.svg" width="240" height="180" alt="Panel Assistant"></a>
 </p>
 
 <h1 align="center">Panel Assistant</h1>
@@ -8,12 +8,15 @@
 
 <p align="center">
   <a href="https://github.com/panel-assistant/ha-integration/releases/latest"><img src="https://img.shields.io/github/v/release/panel-assistant/ha-integration?label=release" alt="Latest release"></a>
-  <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom-41BDF5.svg" alt="HACS custom repository"></a>
   <a href="https://github.com/panel-assistant/ha-integration/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/panel-assistant/ha-integration/tests.yml?branch=main&label=tests" alt="Tests"></a>
-  <a href="https://github.com/panel-assistant/ha-integration/actions/workflows/hacs.yml"><img src="https://img.shields.io/github/actions/workflow/status/panel-assistant/ha-integration/hacs.yml?branch=main&label=HACS%20validation" alt="HACS validation"></a>
-  <img src="https://img.shields.io/badge/Home%20Assistant-2026.8.3%2B-18BCF2.svg" alt="Home Assistant 2026.8.3 or newer">
+  <a href="https://deepwiki.com/panel-assistant/ha-integration"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
   <a href="https://github.com/panel-assistant/ha-integration/blob/main/LICENSE"><img src="https://img.shields.io/github/license/panel-assistant/ha-integration" alt="Apache 2.0 licence"></a>
   <a href="https://panel-assistant.io/go/discord"><img src="https://img.shields.io/badge/Discord-join-5865F2.svg" alt="Panel Assistant on Discord"></a>
+</p>
+<p align="center">
+  <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom-41BDF5.svg" alt="HACS custom repository"></a>
+  <a href="https://github.com/panel-assistant/ha-integration/actions/workflows/hacs.yml"><img src="https://img.shields.io/github/actions/workflow/status/panel-assistant/ha-integration/hacs.yml?branch=main&label=HACS%20validation" alt="HACS validation"></a>
+  <img src="https://img.shields.io/badge/Home%20Assistant-2026.8.3%2B-18BCF2.svg" alt="Home Assistant 2026.8.3 or newer">
 </p>
 
 Panel Assistant turns an Android wall panel into a fast, dependable home for your Home Assistant dashboards. You install and manage every panel from Home Assistant itself: add a panel the way you add any other device, from Settings, in your browser, without a command line in sight.

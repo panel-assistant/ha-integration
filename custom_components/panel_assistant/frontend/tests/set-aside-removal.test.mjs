@@ -21,7 +21,10 @@ function panel() {
   const local = path => join(root, path);
   // adbd's shell service delivers stderr on the same stream as stdout.
   const run = (jobId, prelude = '') => {
-    const program = buildSetAsideRemoval(nonce, jobId).replace(/\/data(?=[/ \]])/g, `${root}/data`);
+    // The files here belong to whoever runs the test, so that user stands in for
+    // the panel's shell user (2000) exactly as the scratch root stands in for /data.
+    const program = buildSetAsideRemoval(nonce, jobId).replace(/\/data(?=[/ \]])/g, `${root}/data`)
+      .replaceAll('= 2000 ]', `= ${process.getuid()} ]`);
     return parseSetAsideRemoval(execFileSync('sh', ['-c', `{ ${prelude}${program}; } 2>&1`],
       {encoding: 'utf8'}), nonce);
   };
