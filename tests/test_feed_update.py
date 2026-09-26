@@ -27,7 +27,10 @@ from yarl import URL
 
 from custom_components.panel_assistant import CONFIG_SCHEMA, async_setup
 from custom_components.panel_assistant import update as panel_update
-from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
+from custom_components.panel_assistant.app_identity import (
+    LEGACY_PACKAGE_ID,
+    SUCCESSOR_PACKAGE_ID,
+)
 from custom_components.panel_assistant.build_feed import (
     BuildFeed,
     BuildFeedError,
@@ -55,6 +58,7 @@ from custom_components.panel_assistant.panel_backup import (
 )
 from custom_components.panel_assistant.release import (
     _RELEASE_SIGNER_CERTIFICATE_SHA256,
+    ReleaseArtifact,
 )
 from custom_components.panel_assistant.status import PanelCachedUpdate, PanelStatus
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity
@@ -311,10 +315,11 @@ async def test_install_delivers_the_newest_build_in_order(
         stored.append(receipt.path)
         return receipt
 
-    async def download(session: object, build: FeedBuild) -> bytes:
+    async def download(session: object, artifact: ReleaseArtifact) -> bytes:
         assert session is delivery.session
         assert entity.in_progress is True
-        calls.append(("download", build.version_code))
+        assert artifact.descriptor is not None
+        calls.append(("download", artifact.descriptor.version_code))
         return APK
 
     async def stage(apk: bytes) -> StagedApk:
@@ -362,7 +367,7 @@ async def test_install_a_specific_older_build(
 
     await entity.async_install("770", False)
 
-    assert delivery.download.await_args.args[1].version_code == 770
+    assert delivery.download.await_args.args[1].descriptor.version_code == 770
     client.async_commit_apk.assert_awaited_once_with("tok-1")
     assert entity._installed_code == 770
     assert entity.in_progress is False
@@ -385,7 +390,7 @@ async def test_install_refreshes_the_feed_to_find_a_newly_published_build(
     await entity.async_install("0.9.7-rc4 build 773", False)
 
     feed.async_refresh.assert_awaited_once()
-    assert delivery.download.await_args.args[1].version_code == 773
+    assert delivery.download.await_args.args[1].descriptor.version_code == 773
     assert entity._installed_code == 773
 
 
@@ -486,6 +491,32 @@ async def test_preview_mismatch_discards_and_never_commits(
     client.async_discard_apk.assert_awaited_once_with("tok-1")
     client.async_commit_apk.assert_not_awaited()
     assert entity.in_progress is False
+
+
+async def test_a_build_for_another_app_id_is_refused_even_when_staged_intact(
+    hass: HomeAssistant, delivery: SimpleNamespace
+) -> None:
+    """A legacy build is never installed beside a panel running the successor."""
+    entity, client = _entity(hass)
+    health = entity.coordinator.data.health
+    entity.coordinator.data = PanelSnapshot(
+        health=PanelHealth(
+            version=health.version,
+            panel_id=health.panel_id,
+            build=health.build,
+            config_hash=health.config_hash,
+            package=SUCCESSOR_PACKAGE_ID,
+        ),
+        status=None,
+        status_error=None,
+    )
+
+    with pytest.raises(HomeAssistantError) as error:
+        await entity.async_install(None, False)
+
+    _assert_translated(error.value, "build_verification_failed")
+    client.async_discard_apk.assert_awaited_once_with("tok-1")
+    client.async_commit_apk.assert_not_awaited()
 
 
 async def test_download_failure_never_stages(
