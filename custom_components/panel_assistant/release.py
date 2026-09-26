@@ -17,6 +17,7 @@ from yarl import URL
 from .app_identity import (
     ACCEPTED_PACKAGE_IDS,
     LEGACY_PACKAGE_ID,
+    SUCCESSOR_PACKAGE_ID,
     is_accepted_package_id,
     launch_component_for,
 )
@@ -182,7 +183,7 @@ def is_install_release_tag(value: object) -> bool:
 # definition instead of restating it.
 VERSION_CODE_BODY = r"[1-9][0-9]{0,9}"
 VERSION_NAME_BODY = r"[0-9A-Za-z][0-9A-Za-z._+-]{0,63}"
-_FEED_BUILD_TAG_PATTERN = re.compile(rf"^build-({VERSION_CODE_BODY})$")
+_FEED_BUILD_TAG_PATTERN = re.compile(rf"^build-({VERSION_CODE_BODY})(-successor)?$")
 _VERSION_NAME_PATTERN = re.compile(rf"^{VERSION_NAME_BODY}$")
 
 
@@ -191,9 +192,13 @@ def is_build_version_name(value: object) -> bool:
     return isinstance(value, str) and _VERSION_NAME_PATTERN.fullmatch(value) is not None
 
 
-def feed_build_tag(version_code: int) -> str:
+def feed_build_tag(version_code: int, package_id: str = LEGACY_PACKAGE_ID) -> str:
     """Name a feed build."""
-    return f"build-{version_code}"
+    if package_id not in ACCEPTED_PACKAGE_IDS:
+        raise ValueError("unknown application id")
+    return f"build-{version_code}" + (
+        "-successor" if package_id == SUCCESSOR_PACKAGE_ID else ""
+    )
 
 
 def feed_build_code(value: object) -> int | None:
@@ -203,6 +208,14 @@ def feed_build_code(value: object) -> int | None:
         return None
     code = int(match.group(1))
     return code if code <= _MAX_ANDROID_VERSION_CODE else None
+
+
+def feed_build_package(value: object) -> str | None:
+    """Return the app identity a bounded build tag names."""
+    if feed_build_code(value) is None:
+        return None
+    assert isinstance(value, str)
+    return SUCCESSOR_PACKAGE_ID if value.endswith("-successor") else LEGACY_PACKAGE_ID
 
 
 def is_feed_build_tag(value: object) -> bool:
@@ -236,6 +249,7 @@ def artifact_identity_matches(
     version_code: object,
     apk_name: object,
     apk_sha256: object,
+    package_id: object = LEGACY_PACKAGE_ID,
 ) -> bool:
     """The one rule binding an artifact's tag, version and file name together.
 
@@ -251,6 +265,7 @@ def artifact_identity_matches(
     code = feed_build_code(release_tag)
     return (
         code is not None
+        and package_id == feed_build_package(release_tag)
         and version_code == code
         and isinstance(version_name, str)
         and _VERSION_NAME_PATTERN.fullmatch(version_name) is not None

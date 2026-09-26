@@ -19,7 +19,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import HaPaneldConfigEntry
-from .app_identity import reports_package
+from .app_identity import LEGACY_PACKAGE_ID, reports_package
 from .build_feed import (
     BuildDownloadError,
     BuildFeed,
@@ -247,6 +247,13 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             return None
         return self._feed.data
 
+    def _feed_package(self) -> str | None:
+        """Choose the package the panel actually runs, including old reports."""
+        snapshot: PanelSnapshot | None = self.coordinator.data
+        if snapshot is None:
+            return None
+        return snapshot.health.package or LEGACY_PACKAGE_ID
+
     def _handle_update_coordinator_update(self) -> None:
         """Keep a recovered operation latched across transient status samples."""
         self._resume_running_operation()
@@ -390,7 +397,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         """Report installed version if no newer panel-approved stable target exists."""
         feed = self._feed_mode()
         if feed is not None:
-            newest = feed.newest()
+            newest = feed.newest(self._feed_package())
             if (
                 newest is not None
                 and self._installed_code is not None
@@ -532,7 +539,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         self, feed: BuildFeed, version: str | None, backup: bool
     ) -> None:
         """Back up, verify, upload and commit one signed feed build, then prove it."""
-        newest = feed.newest()
+        package_id = self._feed_package()
+        newest = feed.newest(package_id)
         code = (
             parse_build_request(version)
             if version is not None
@@ -543,12 +551,12 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 "update_unavailable",
                 "The requested ha-paneld update is unavailable",
             )
-        build = feed.find(code) if code is not None else None
+        build = feed.find(code, package_id) if code is not None else None
         if build is None and code is not None and self._feed is not None:
             # The build may have been published since the last scheduled read.
             await self._feed.async_refresh()
             if self._feed.last_update_success and self._feed.data is not None:
-                build = self._feed.data.find(code)
+                build = self._feed.data.find(code, package_id)
         if (
             self.in_progress
             or backup
@@ -582,6 +590,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         if snapshot is None or descriptor is None:
             # Nothing has been read from the panel, so there is no build to
             # replace and none to prove the replacement against.
+            raise _update_error(
+                "update_unavailable",
+                "The requested ha-paneld update is unavailable",
+            )
+        if not reports_package(snapshot.health.package, descriptor.package_id):
             raise _update_error(
                 "update_unavailable",
                 "The requested ha-paneld update is unavailable",
@@ -688,6 +701,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 and health is not None
                 and health.build != before
                 and health.version == build.version_name
+                and reports_package(health.package, build.package_id)
             ):
                 try:
                     _name, code = await self.coordinator.client.async_get_version_code()

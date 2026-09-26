@@ -17,7 +17,11 @@ from typing import Any
 from aiohttp import ClientSession
 from yarl import URL
 
-from .app_identity import is_accepted_package_id, launch_component_for
+from .app_identity import (
+    LEGACY_PACKAGE_ID,
+    is_accepted_package_id,
+    launch_component_for,
+)
 from .release import (
     _DATABASE_COMPATIBILITY_PATTERN,
     _INSTALL_DESCRIPTOR_SCHEMA,
@@ -115,13 +119,22 @@ class BuildFeed:
     raw: bytes = field(default=b"", repr=False)
     signature: bytes = field(default=b"", repr=False)
 
-    def newest(self) -> FeedBuild | None:
+    def newest(self, package_id: str | None = LEGACY_PACKAGE_ID) -> FeedBuild | None:
         """Return the build with the highest version code."""
-        return self.builds[0] if self.builds else None
+        return next((b for b in self.builds if b.package_id == package_id), None)
 
-    def find(self, version_code: int) -> FeedBuild | None:
+    def find(
+        self, version_code: int, package_id: str | None = LEGACY_PACKAGE_ID
+    ) -> FeedBuild | None:
         """Return the build with exactly this version code."""
-        return next((b for b in self.builds if b.version_code == version_code), None)
+        return next(
+            (
+                b
+                for b in self.builds
+                if b.version_code == version_code and b.package_id == package_id
+            ),
+            None,
+        )
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -139,7 +152,7 @@ def feed_release_artifact(build: FeedBuild) -> ReleaseArtifact:
     The descriptor carries the same facts a GitHub release descriptor does; the
     tag and file name are the feed build's own identity.
     """
-    tag = feed_build_tag(build.version_code)
+    tag = feed_build_tag(build.version_code, build.package_id)
     apk_name = f"{build.apk_sha256}.apk"
     return ReleaseArtifact(
         tag=tag,
@@ -319,7 +332,7 @@ def parse_build_feed(body: bytes, signature: bytes, feed_url: URL) -> BuildFeed:
     if body != canonical:
         raise BuildFeedError
     builds = [_parse_build(entry, feed_url) for entry in document["builds"]]
-    if len({build.version_code for build in builds}) != len(builds):
+    if len({(build.version_code, build.package_id) for build in builds}) != len(builds):
         raise BuildFeedError
     return BuildFeed(
         channel=document["channel"],

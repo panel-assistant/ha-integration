@@ -1,8 +1,8 @@
 // The one definition of every release identity the installer accepts. A GitHub
-// release is a v-tag; a dev build from the signed build feed is build-<versionCode>
-// and is never a GitHub tag. Every tag, APK name and version name check imports
+// release is a v-tag; a signed feed build is build-<versionCode> for legacy or
+// build-<versionCode>-successor for the new app, never a GitHub tag. Every check imports
 // these rules instead of repeating a pattern.
-import { ACCEPTED_PACKAGE_IDS, LEGACY_PACKAGE_ID } from './app-identity.mjs';
+import { ACCEPTED_PACKAGE_IDS, LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID } from './app-identity.mjs';
 
 export const MAX_TAG_LENGTH = 64;
 // The signed build feed document, in exact bytes.
@@ -10,7 +10,7 @@ export const MAX_FEED_BYTES = 256 * 1024;
 const MAX_VERSION_CODE = 2147483647;
 const STABLE = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
 const RC = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-rc[1-9][0-9]*$/;
-const BUILD = /^build-([1-9][0-9]{0,9})$/;
+const BUILD = /^build-([1-9][0-9]{0,9})(-successor)?$/;
 const VERSION_NAME = /^[0-9A-Za-z][0-9A-Za-z._+-]{0,63}$/;
 const matches = (pattern, value) => typeof value === 'string' && value.length <= MAX_TAG_LENGTH &&
   pattern.exec(value)?.[0] === value;
@@ -25,6 +25,9 @@ export function buildTagVersionCode(tag) {
   return code <= MAX_VERSION_CODE ? code : null;
 }
 export const isBuildTag = tag => buildTagVersionCode(tag) !== null;
+/** The package identity bound to a feed build tag. */
+export const buildTagPackageId = tag => !isBuildTag(tag) ? null :
+  tag.endsWith('-successor') ? SUCCESSOR_PACKAGE_ID : LEGACY_PACKAGE_ID;
 /** A feed build's versionName: free-form within this pattern, unlike a GitHub tag. */
 export const isBuildVersionName = value => matches(VERSION_NAME, value);
 /** How Home Assistant names a feed build, and how the release list carries it. */
@@ -67,5 +70,6 @@ export function descriptorIdentityValid(descriptor, tag, apkSha256) {
   }
   const code = buildTagVersionCode(tag);
   return code !== null && descriptor.releaseTag === tag && descriptor.versionCode === code &&
+    descriptor.packageId === buildTagPackageId(tag) &&
     isBuildVersionName(descriptor.versionName) && descriptor.apkName === `${apkSha256}.apk`;
 }

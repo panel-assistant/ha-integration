@@ -236,7 +236,12 @@ def _build_artifact(
         descriptor.schema != _DESCRIPTOR_SCHEMA
         or release_tag is None
         or not artifact_identity_matches(
-            release_tag, version_name, version_code, apk_name, apk_sha256
+            release_tag,
+            version_name,
+            version_code,
+            apk_name,
+            apk_sha256,
+            descriptor.package_id,
         )
         or not _selection_matches(release_tag, expected_rc_tag)
         or apk_sha256 is None

@@ -18,7 +18,11 @@ from multidict import CIMultiDict
 from yarl import URL
 
 from custom_components.panel_assistant import build_feed, release
-from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
+from custom_components.panel_assistant.app_identity import (
+    LEGACY_PACKAGE_ID,
+    SUCCESSOR_PACKAGE_ID,
+    launch_component_for,
+)
 from custom_components.panel_assistant.build_feed import (
     FEED_SCHEMA,
     BuildFeedError,
@@ -136,6 +140,22 @@ def test_valid_feed_parses_newest_first(sign: Callable[[bytes], bytes]) -> None:
     assert newest.label == "0.9.7-rc4 build 772"
     assert feed.find(771) is not None
     assert feed.find(773) is None
+
+
+def test_signed_feed_accepts_one_build_per_package_at_the_same_code(
+    sign: Callable[[bytes], bytes],
+) -> None:
+    successor = _build_entry(
+        772,
+        packageId=SUCCESSOR_PACKAGE_ID,
+        launchComponent=launch_component_for(SUCCESSOR_PACKAGE_ID),
+        apkSha256=_sha(773),
+        apkPath=f"apks/{_sha(773)}.apk",
+    )
+    body = _canonical(_feed([_build_entry(772), successor]))
+    feed = parse_build_feed(body, sign(body), FEED_URL)
+    assert feed.find(772, LEGACY_PACKAGE_ID).apk_sha256 == _sha(772)
+    assert feed.find(772, SUCCESSOR_PACKAGE_ID).apk_sha256 == _sha(773)
 
 
 def test_empty_feed_parses_with_no_newest(sign: Callable[[bytes], bytes]) -> None:

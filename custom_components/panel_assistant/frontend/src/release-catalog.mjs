@@ -1,4 +1,5 @@
-import { buildLabel, buildTagVersionCode, isBuildVersionName, isRcTag, isStableTag } from './release-identity.mjs';
+import { buildLabel, buildTagPackageId, buildTagVersionCode, isBuildVersionName, isRcTag, isStableTag } from './release-identity.mjs';
+import { SUCCESSOR_PACKAGE_ID } from './app-identity.mjs';
 
 // GitHub lists at most 30 releases; a signed build feed holds at most 500 builds.
 const MAX_GITHUB_CHOICES = 30;
@@ -9,12 +10,13 @@ const keys = (value, expected) => value !== null && typeof value === 'object' &&
   expected.every(key => Object.hasOwn(value, key));
 function requireValid(value) { if (!value) throw new Error('Invalid release catalogue'); }
 
-// A feed build is always a test build, named "<versionName> build <versionCode>".
+// A feed build is named by version and build number, with the successor clearly distinguished.
 function feedName(release) {
   const code = buildTagVersionCode(release.tag);
   const versionName = typeof release.name === 'string' ? release.name.split(' ')[0] : null;
+  const suffix = buildTagPackageId(release.tag) === SUCCESSOR_PACKAGE_ID ? ' (Panel Assistant)' : '';
   return code !== null && release.prerelease === true && isBuildVersionName(versionName) &&
-    release.name === buildLabel(versionName, code);
+    release.name === `${buildLabel(versionName, code)}${suffix}`;
 }
 
 export function parseReleaseCatalog(value) {
