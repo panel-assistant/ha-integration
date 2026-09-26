@@ -663,15 +663,21 @@ async def test_a_build_for_another_app_id_is_refused_before_backup(
     client.async_commit_apk.assert_not_awaited()
 
 
+@pytest.mark.parametrize("package", [None, SUCCESSOR_PACKAGE_ID])
 async def test_delivery_refuses_an_identity_change_before_backup(
-    hass: HomeAssistant, delivery: SimpleNamespace
+    hass: HomeAssistant, delivery: SimpleNamespace, package: str | None
 ) -> None:
     """The shared delivery seam refuses a selection from before a handover."""
     entity, client = _entity(hass)
-    selected = feed_release_artifact(_build(772))
+    selected = feed_release_artifact(
+        _build(
+            772,
+            package_id=SUCCESSOR_PACKAGE_ID if package is None else LEGACY_PACKAGE_ID,
+        )
+    )
     snapshot = entity.coordinator.data
     entity.coordinator.data = replace(
-        snapshot, health=replace(snapshot.health, package=SUCCESSOR_PACKAGE_ID)
+        snapshot, health=replace(snapshot.health, package=package)
     )
     with pytest.raises(HomeAssistantError) as error:
         await entity._async_deliver_build(selected)
