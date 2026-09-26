@@ -112,9 +112,12 @@ class _GitHub:
         signed_apk: bytes = APK,
         package_id: str = LEGACY_PACKAGE_ID,
         asset_status: int = 200,
+        bridge: bytes | None = None,
+        signed_bridge: bytes | None = None,
     ) -> None:
+        apk_name = release.release_apk_name(TAG, package_id)
         sha = hashlib.sha256(signed_apk).hexdigest()
-        checksum = f"{sha}  {APK_NAME}\n".encode()
+        checksum = f"{sha}  {apk_name}\n".encode()
         descriptor = (
             json.dumps(
                 {
@@ -122,7 +125,7 @@ class _GitHub:
                     "releaseTag": TAG,
                     "versionName": VERSION,
                     "versionCode": CODE,
-                    "apkName": APK_NAME,
+                    "apkName": apk_name,
                     "apkSize": len(signed_apk),
                     "apkSha256": sha,
                     "packageId": package_id,
@@ -138,9 +141,9 @@ class _GitHub:
             + "\n"
         ).encode()
         names = [
-            APK_NAME,
-            f"{APK_NAME}.sha256",
-            f"{APK_NAME}.sha256.sig",
+            apk_name,
+            f"{apk_name}.sha256",
+            f"{apk_name}.sha256.sig",
             DESCRIPTOR_NAME,
             f"{DESCRIPTOR_NAME}.sig",
         ]
@@ -155,22 +158,40 @@ class _GitHub:
         }
         bodies = {
             str(release._LATEST_RELEASE_URL): json.dumps(document).encode(),
-            f"{ROOT}/{APK_NAME}.sha256": checksum,
-            f"{ROOT}/{APK_NAME}.sha256.sig": _sign(key, checksum),
+            f"{ROOT}/{apk_name}.sha256": checksum,
+            f"{ROOT}/{apk_name}.sha256.sig": _sign(key, checksum),
             f"{ROOT}/{DESCRIPTOR_NAME}": descriptor,
             f"{ROOT}/{DESCRIPTOR_NAME}.sig": _sign(key, descriptor),
             ASSET_HOST_URL: apk,
         }
+        if bridge is not None:
+            bridge_sha = hashlib.sha256(
+                signed_bridge if signed_bridge is not None else bridge
+            ).hexdigest()
+            bridge_checksum = f"{bridge_sha}  {APK_NAME}\n".encode()
+            for name, body in {
+                APK_NAME: bridge,
+                f"{APK_NAME}.sha256": bridge_checksum,
+                f"{APK_NAME}.sha256.sig": _sign(key, bridge_checksum),
+            }.items():
+                document["assets"].append(
+                    {"name": name, "browser_download_url": f"{ROOT}/{name}"}
+                )
+                bodies[f"{ROOT}/{name}"] = body
+            bodies[str(release._LATEST_RELEASE_URL)] = json.dumps(document).encode()
+            bodies[f"{release.ANDROID_RELEASES_API}/tags/{TAG}"] = json.dumps(
+                document
+            ).encode()
         self._responses = {
             url: _Response(
                 asset_status if url == ASSET_HOST_URL else 200, body, URL(url)
             )
             for url, body in bodies.items()
         }
-        self._responses[f"{ROOT}/{APK_NAME}"] = _Response(
+        self._responses[f"{ROOT}/{apk_name}"] = _Response(
             302,
             b"",
-            URL(f"{ROOT}/{APK_NAME}"),
+            URL(f"{ROOT}/{apk_name}"),
             CIMultiDict({"Location": ASSET_HOST_URL}),
         )
         self.requests: list[str] = []
@@ -461,6 +482,103 @@ async def test_a_panel_older_than_lan_updates_is_never_offered_what_it_cannot_ta
 
 
 # --- verification is never a way into the other route --------------------------
+
+
+@pytest.mark.parametrize("package", [None, LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID])
+async def test_dual_release_stages_only_the_panels_own_identity(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    package: str | None,
+) -> None:
+    """A legacy panel gets the signed bridge; a successor keeps its usual APK."""
+    bridge = b"signed bridge bytes"
+    github = _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=bridge)
+    entity, client = await _entity(hass, monkeypatch, github, package=package)
+    client.async_stage_apk.return_value = _preview(package=package or LEGACY_PACKAGE_ID)
+
+    assert entity.latest_version == VERSION
+    await entity.async_install(None, backup=False)
+
+    client.async_stage_apk.assert_awaited_once_with(
+        APK if package == SUCCESSOR_PACKAGE_ID else bridge
+    )
+    client.async_commit_apk.assert_awaited_once_with("tok-1")
+    client.async_start_panel_update.assert_not_awaited()
+    assert entity.installed_version == VERSION
+
+
+async def test_bridge_bytes_must_match_their_own_signed_checksum(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+) -> None:
+    """A bad bridge never reaches upload, install or panel-download fallback."""
+    github = _GitHub(
+        key,
+        package_id=SUCCESSOR_PACKAGE_ID,
+        bridge=b"tampered bridge",
+        signed_bridge=b"authentic bridge",
+    )
+    entity, client = await _entity(hass, monkeypatch, github)
+    with pytest.raises(HomeAssistantError) as error:
+        await entity.async_install(None, backup=False)
+    _assert_translated(error.value, "release_verification_failed")
+    client.async_stage_apk.assert_not_awaited()
+    client.async_commit_apk.assert_not_awaited()
+    client.async_start_panel_update.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "preview",
+    [
+        _preview(package=SUCCESSOR_PACKAGE_ID),
+        _preview(signer="0" * 64),
+        _preview(version="0.9.11"),
+    ],
+    ids=["package", "signer", "version"],
+)
+async def test_bridge_stage_must_pass_the_same_identity_checks(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    preview: StagedApk,
+) -> None:
+    """A signed checksum never replaces the panel's APK identity verification."""
+    github = _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=b"bridge")
+    entity, client = await _entity(hass, monkeypatch, github)
+    client.async_stage_apk.return_value = preview
+    with pytest.raises(HomeAssistantError) as error:
+        await entity.async_install(None, backup=False)
+    _assert_translated(error.value, "release_verification_failed")
+    client.async_stage_apk.assert_awaited_once_with(b"bridge")
+    client.async_discard_apk.assert_awaited_once_with("tok-1")
+    client.async_commit_apk.assert_not_awaited()
+    client.async_start_panel_update.assert_not_awaited()
+
+
+async def test_identity_change_during_upload_refuses_commit(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+) -> None:
+    """A concurrent handover cannot commit the old package onto the successor."""
+    entity, client = await _entity(hass, monkeypatch, _GitHub(key))
+
+    async def stage(_apk: bytes) -> StagedApk:
+        entity.coordinator.data = _snapshot("0.9.9", "2000", SUCCESSOR_PACKAGE_ID)
+        return _preview()
+
+    client.async_stage_apk.side_effect = stage
+    with pytest.raises(HomeAssistantError) as error:
+        await entity.async_install(None, backup=False)
+    _assert_translated(error.value, "release_verification_failed")
+    client.async_discard_apk.assert_awaited_once_with("tok-1")
+    client.async_commit_apk.assert_not_awaited()
 
 
 async def test_an_apk_that_does_not_match_its_signed_hash_is_refused_on_both_routes(

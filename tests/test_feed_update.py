@@ -8,6 +8,7 @@ import json
 import logging
 import stat
 from contextlib import ExitStack
+from dataclasses import replace
 from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -493,11 +494,19 @@ async def test_preview_mismatch_discards_and_never_commits(
     assert entity.in_progress is False
 
 
+@pytest.mark.parametrize("package", [None, SUCCESSOR_PACKAGE_ID])
 async def test_a_build_for_another_app_id_is_refused_even_when_staged_intact(
-    hass: HomeAssistant, delivery: SimpleNamespace
+    hass: HomeAssistant,
+    delivery: SimpleNamespace,
+    package: str | None,
 ) -> None:
     """A legacy build is never installed beside a panel running the successor."""
-    entity, client = _entity(hass)
+    feed = _feed_data(772)
+    if package is None:
+        feed = replace(
+            feed, builds=(replace(feed.builds[0], package_id=SUCCESSOR_PACKAGE_ID),)
+        )
+    entity, client = _entity(hass, feed=feed)
     health = entity.coordinator.data.health
     entity.coordinator.data = PanelSnapshot(
         health=PanelHealth(
@@ -505,7 +514,7 @@ async def test_a_build_for_another_app_id_is_refused_even_when_staged_intact(
             panel_id=health.panel_id,
             build=health.build,
             config_hash=health.config_hash,
-            package=SUCCESSOR_PACKAGE_ID,
+            package=package,
         ),
         status=None,
         status_error=None,
@@ -515,7 +524,8 @@ async def test_a_build_for_another_app_id_is_refused_even_when_staged_intact(
         await entity.async_install(None, False)
 
     _assert_translated(error.value, "build_verification_failed")
-    client.async_discard_apk.assert_awaited_once_with("tok-1")
+    client.async_stage_apk.assert_not_awaited()
+    client.async_discard_apk.assert_not_awaited()
     client.async_commit_apk.assert_not_awaited()
 
 
