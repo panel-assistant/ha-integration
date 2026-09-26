@@ -675,6 +675,29 @@ async def test_a_bridge_that_already_handed_over_is_not_reinstalled(
     assert entity.coordinator.data.health.package == SUCCESSOR_PACKAGE_ID
 
 
+async def test_bridge_label_does_not_hide_a_newer_panel_offer(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+) -> None:
+    github = _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=b"bridge")
+    entity, client = await _entity(hass, monkeypatch, github)
+    entity.coordinator.data = PanelSnapshot(
+        health=_snapshot(VERSION, "2000", LEGACY_PACKAGE_ID).health,
+        status=PanelStatus(
+            warning_count=0,
+            capability_count=0,
+            panel_assistant_update=PanelCachedUpdate(VERSION, "0.9.11", "v0.9.11"),
+        ),
+        status_error=None,
+    )
+    assert entity.installed_version == f"{VERSION} (bridge)"
+    assert entity.latest_version == "0.9.11"
+    assert entity.state == "on"
+    client.async_stage_apk.assert_not_awaited()
+
+
 @pytest.mark.parametrize(
     "preview",
     [

@@ -422,10 +422,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         if (
             release is not None
             and release.descriptor is None
-            and latest_version == release.version
             and installed_version == f"{release.version} (bridge)"
         ):
-            return True
+            if latest_version == release.version:
+                return True
+            installed_version = release.version
         return is_newer_stable_version(latest_version, installed_version)
 
     @property
