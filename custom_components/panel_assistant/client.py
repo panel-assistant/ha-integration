@@ -694,10 +694,69 @@ class HaPaneldClient:
             raise UpdateRejectedError
         raise CannotConnectError
 
-    async def async_stage_apk(self, apk: bytes) -> StagedApk:
-        """Upload app bytes for the panel to inspect before anything installs."""
+    async def async_get_successor_capability(self) -> tuple[str, str, int | None, bool]:
+        """Read the bridge's explicit LAN handover capability, never infer it."""
+        body = await self._async_get_bounded(
+            self.address.base_url.with_path("/api/v1/successor"),
+            MAX_INSTALL_RESPONSE_BYTES,
+        )
+        try:
+            document = json.loads(body)
+        except (ValueError, UnicodeError) as err:
+            raise InvalidResponseError from err
+        if (
+            not isinstance(document, dict)
+            or not isinstance(document.get("package"), str)
+            or not isinstance(document.get("version"), str)
+            or (
+                "installed_version_code" in document
+                and (
+                    type(document["installed_version_code"]) is not int
+                    or not 0 < document["installed_version_code"] <= MAX_ANDROID_INTEGER
+                )
+            )
+            or (
+                "installed_untrusted" in document
+                and type(document["installed_untrusted"]) is not bool
+            )
+        ):
+            raise InvalidResponseError
+        return (
+            document["package"],
+            document["version"],
+            document.get("installed_version_code"),
+            document.get("installed_untrusted", False),
+        )
+
+    async def async_offer_installed_successor(self) -> None:
+        """Resume a bridge handover using only the already installed successor."""
         status, body = await self._async_post_bounded(
-            self.address.base_url.with_path(APK_STAGE_PATH),
+            self.address.base_url.with_path("/api/v1/successor/offer").with_query(
+                installed_only="1"
+            ),
+            {},
+            MAX_INSTALL_RESPONSE_BYTES,
+        )
+        if status == 202:
+            parse_update_approval_response(body)
+        if status != 200:
+            raise UpdateRejectedError if 400 <= status < 500 else CannotConnectError
+        try:
+            result = json.loads(body)
+        except (ValueError, UnicodeError) as err:
+            raise InvalidResponseError from err
+        if not isinstance(result, dict) or result.get("outcome") != "Launched":
+            raise UpdateRejectedError
+
+    async def async_stage_apk(
+        self, apk: bytes, *, migration_sha256: str | None = None
+    ) -> StagedApk:
+        """Upload app bytes for the panel to inspect before anything installs."""
+        url = self.address.base_url.with_path(APK_STAGE_PATH)
+        if migration_sha256 is not None:
+            url = url.with_query(migration="successor", sha256=migration_sha256)
+        status, body = await self._async_post_bounded(
+            url,
             apk,
             MAX_INSTALL_RESPONSE_BYTES,
             _UPLOAD_TIMEOUT_SECONDS,

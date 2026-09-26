@@ -29,6 +29,7 @@ from .release import (
     _MAX_ANDROID_VERSION_CODE,
     _MAX_APK_BYTES,
     _RELEASE_SIGNER_CERTIFICATE_SHA256,
+    _REPOSITORY_RELEASE_ROOT,
     _SHA256_PATTERN,
     _SUPPORTED_ABIS,
     _VERSION_NAME_PATTERN,
@@ -42,6 +43,8 @@ from .release import (
     _reject_json_constant,
     _verify_detached_signature,
     feed_build_tag,
+    is_install_release_tag,
+    release_apk_name,
 )
 
 FEED_SCHEMA = "io.github.maxlyth.hapaneld.buildfeed.v1"
@@ -374,14 +377,28 @@ async def async_download_build(
     redirect, but only between GitHub's own asset hosts.
     """
     descriptor = artifact.descriptor
-    if descriptor is None:
-        raise BuildFeedError
     url = URL(artifact.apk_url)
+    if descriptor is None:
+        # Only the canonical old-id asset resolved from a signed release checksum
+        # has no install descriptor. The release's descriptor names the successor.
+        if (
+            not is_install_release_tag(artifact.tag)
+            or artifact.apk_name != release_apk_name(artifact.tag, LEGACY_PACKAGE_ID)
+            or artifact.apk_url
+            != f"{_REPOSITORY_RELEASE_ROOT}/{artifact.tag}/{artifact.apk_name}"
+            or _SHA256_PATTERN.fullmatch(artifact.sha256) is None
+        ):
+            raise BuildFeedError
+        maximum_bytes = _MAX_APK_BYTES
+    else:
+        if artifact.sha256 != descriptor.apk_sha256:
+            raise BuildFeedError
+        maximum_bytes = descriptor.apk_size
     try:
         body = await _async_fetch_bounded(
             session,
             url,
-            descriptor.apk_size,
+            maximum_bytes,
             allow_release_redirects=_is_trusted_download_url(url),
             headers=_APK_HEADERS,
             total_seconds=_APK_DOWNLOAD_SECONDS,
@@ -391,6 +408,6 @@ async def async_download_build(
         raise BuildDownloadError from err
     # The fetch already refused anything longer than the signed size, and a
     # shorter body cannot carry the signed hash.
-    if hashlib.sha256(body).hexdigest() != descriptor.apk_sha256:
+    if hashlib.sha256(body).hexdigest() != artifact.sha256:
         raise BuildFeedError
     return body

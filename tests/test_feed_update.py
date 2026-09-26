@@ -8,6 +8,7 @@ import json
 import logging
 import stat
 from contextlib import ExitStack
+from dataclasses import replace
 from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -35,6 +36,7 @@ from custom_components.panel_assistant.build_feed import (
     BuildFeed,
     BuildFeedError,
     FeedBuild,
+    feed_release_artifact,
 )
 from custom_components.panel_assistant.client import (
     CannotConnectError,
@@ -627,11 +629,17 @@ async def test_identity_change_during_upload_refuses_commit(
     client.async_commit_apk.assert_not_awaited()
 
 
+@pytest.mark.parametrize("package", [None, SUCCESSOR_PACKAGE_ID])
 async def test_a_build_for_another_app_id_is_refused_before_backup(
-    hass: HomeAssistant, delivery: SimpleNamespace
+    hass: HomeAssistant, delivery: SimpleNamespace, package: str | None
 ) -> None:
     """A legacy build is never installed beside a panel running the successor."""
-    entity, client = _entity(hass)
+    feed = _feed_data(772)
+    if package is None:
+        feed = replace(
+            feed, builds=(replace(feed.builds[0], package_id=SUCCESSOR_PACKAGE_ID),)
+        )
+    entity, client = _entity(hass, feed=feed)
     health = entity.coordinator.data.health
     entity.coordinator.data = PanelSnapshot(
         health=PanelHealth(
@@ -639,7 +647,7 @@ async def test_a_build_for_another_app_id_is_refused_before_backup(
             panel_id=health.panel_id,
             build=health.build,
             config_hash=health.config_hash,
-            package=SUCCESSOR_PACKAGE_ID,
+            package=package,
         ),
         status=None,
         status_error=None,
@@ -653,6 +661,30 @@ async def test_a_build_for_another_app_id_is_refused_before_backup(
     delivery.download.assert_not_awaited()
     client.async_stage_apk.assert_not_awaited()
     client.async_commit_apk.assert_not_awaited()
+
+
+@pytest.mark.parametrize("package", [None, SUCCESSOR_PACKAGE_ID])
+async def test_delivery_refuses_an_identity_change_before_backup(
+    hass: HomeAssistant, delivery: SimpleNamespace, package: str | None
+) -> None:
+    """The shared delivery seam refuses a selection from before a handover."""
+    entity, client = _entity(hass)
+    selected = feed_release_artifact(
+        _build(
+            772,
+            package_id=SUCCESSOR_PACKAGE_ID if package is None else LEGACY_PACKAGE_ID,
+        )
+    )
+    snapshot = entity.coordinator.data
+    entity.coordinator.data = replace(
+        snapshot, health=replace(snapshot.health, package=package)
+    )
+    with pytest.raises(HomeAssistantError) as error:
+        await entity._async_deliver_build(selected)
+    _assert_translated(error.value, "build_verification_failed")
+    client.async_backup_panel.assert_not_awaited()
+    delivery.download.assert_not_awaited()
+    client.async_stage_apk.assert_not_awaited()
 
 
 async def test_download_failure_never_stages(
