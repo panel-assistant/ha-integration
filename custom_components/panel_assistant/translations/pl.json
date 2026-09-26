@@ -39,7 +39,7 @@
         "description": "Aplikacja ha-paneld {version} jest zainstalowana pod adresem {address}, ale jej konfiguracja nie jest ukończona i nie jest jeszcze połączona z Home Assistant. Home Assistant może otworzyć kreator konfiguracji panelu i połączyć panel, gdy tylko konfiguracja zostanie ukończona.",
         "menu_options": {
           "panel_setup": "Otwórz kreator konfiguracji",
-          "connect_found": "Pomiń konfigurację i połącz się teraz",
+          "connect_found": "Pomiń konfigurację i połącz panel teraz.",
           "add_panel": "Użyj innego adresu"
         }
       },
@@ -190,7 +190,7 @@
       "message": "Nie udało się wykonać kopii zapasowej panelu, więc nic nie zostało zainstalowane"
     },
     "build_verification_failed": {
-      "message": "Wersja nie była zgodna z podpisanym strumieniem kompilacji, więc nic nie zostało zainstalowane"
+      "message": "Kompilacja nie była zgodna z podpisanym wykazem kompilacji, więc nic nie zostało zainstalowane"
     },
     "release_verification_failed": {
       "message": "Wydanie nie zgadzało się ze swoim podpisem, więc nic nie zostało zainstalowane"
