@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from io import BytesIO
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, call
 from zipfile import ZipFile
 
 import pytest
@@ -484,26 +484,24 @@ async def test_a_panel_older_than_lan_updates_is_never_offered_what_it_cannot_ta
 # --- verification is never a way into the other route --------------------------
 
 
-@pytest.mark.parametrize("package", [None, LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID])
-async def test_dual_release_stages_only_the_panels_own_identity(
+async def test_dual_release_leaves_successor_updates_unchanged(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     trust: None,
     key: Any,
-    package: str | None,
 ) -> None:
-    """A legacy panel gets the signed bridge; a successor keeps its usual APK."""
+    """An already-migrated panel receives only its usual signed successor APK."""
     bridge = b"signed bridge bytes"
     github = _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=bridge)
-    entity, client = await _entity(hass, monkeypatch, github, package=package)
-    client.async_stage_apk.return_value = _preview(package=package or LEGACY_PACKAGE_ID)
+    entity, client = await _entity(
+        hass, monkeypatch, github, package=SUCCESSOR_PACKAGE_ID
+    )
+    client.async_stage_apk.return_value = _preview(package=SUCCESSOR_PACKAGE_ID)
 
     assert entity.latest_version == VERSION
     await entity.async_install(None, backup=False)
 
-    client.async_stage_apk.assert_awaited_once_with(
-        APK if package == SUCCESSOR_PACKAGE_ID else bridge
-    )
+    client.async_stage_apk.assert_awaited_once_with(APK)
     client.async_commit_apk.assert_awaited_once_with("tok-1")
     client.async_start_panel_update.assert_not_awaited()
     assert entity.installed_version == VERSION
@@ -529,6 +527,152 @@ async def test_bridge_bytes_must_match_their_own_signed_checksum(
     client.async_stage_apk.assert_not_awaited()
     client.async_commit_apk.assert_not_awaited()
     client.async_start_panel_update.assert_not_awaited()
+
+
+@pytest.mark.parametrize("resume_bridge", [False, True])
+@pytest.mark.parametrize("package", [None, LEGACY_PACKAGE_ID])
+async def test_offline_move_delivers_both_verified_identities(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    resume_bridge: bool,
+    package: str | None,
+) -> None:
+    """One update action completes the move, including a retry after bridge install."""
+    bridge = b"bridge for offline move"
+    github = _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=bridge)
+    entity, client = await _entity(hass, monkeypatch, github, package=package)
+    if resume_bridge:
+        entity.coordinator.data = _snapshot(VERSION, "2000", LEGACY_PACKAGE_ID)
+    client.async_get_successor_capability = AsyncMock(
+        return_value=(SUCCESSOR_PACKAGE_ID, VERSION)
+    )
+    stages = []
+
+    async def stage(apk: bytes, **kwargs: Any) -> StagedApk:
+        migrating = kwargs.get("migration_sha256") is not None
+        assert apk == (APK if migrating else bridge)
+        if migrating:
+            assert entity.coordinator.data.health.version == VERSION
+            client.async_get_successor_capability.assert_awaited()
+        stages.append(SUCCESSOR_PACKAGE_ID if migrating else LEGACY_PACKAGE_ID)
+        return _preview(package=stages[-1], token=f"token-{len(stages)}")
+
+    async def commit(_token: str) -> None:
+        # A sealed pair shares a build stamp; identity must prove the handover.
+        entity.coordinator.data = _snapshot(VERSION, "2000", stages[-1])
+
+    client.async_stage_apk.side_effect = stage
+    client.async_commit_apk.side_effect = commit
+    entity.coordinator.async_request_refresh = AsyncMock()
+
+    assert entity.version_is_newer(entity.latest_version, entity.installed_version)
+    await entity.async_install(None, backup=False)
+
+    expected = [] if resume_bridge else [call(bridge)]
+    expected.append(call(APK, migration_sha256=hashlib.sha256(APK).hexdigest()))
+    assert client.async_stage_apk.await_args_list == expected
+    assert entity.coordinator.data.health.package == SUCCESSOR_PACKAGE_ID
+    client.async_start_panel_update.assert_not_awaited()
+    assert not entity.version_is_newer(entity.latest_version, entity.installed_version)
+
+
+@pytest.mark.parametrize(
+    "capability",
+    [None, (LEGACY_PACKAGE_ID, VERSION), (SUCCESSOR_PACKAGE_ID, "0.9.11")],
+)
+async def test_successor_is_never_sent_without_matching_bridge_capability(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    capability: tuple[str, str] | None,
+) -> None:
+    github = _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=b"bridge")
+    entity, client = await _entity(hass, monkeypatch, github)
+    entity.coordinator.data = _snapshot(VERSION, "2000", LEGACY_PACKAGE_ID)
+    client.async_get_successor_capability = AsyncMock(return_value=capability)
+    if capability is None:
+        client.async_get_successor_capability.side_effect = CannotConnectError
+    with pytest.raises(HomeAssistantError) as error:
+        await entity.async_install(None, backup=False)
+    _assert_translated(error.value, "release_verification_failed")
+    client.async_stage_apk.assert_not_awaited()
+    client.async_commit_apk.assert_not_awaited()
+    client.async_start_panel_update.assert_not_awaited()
+    assert not github.apk_downloaded
+
+
+@pytest.mark.parametrize(
+    "defect",
+    ["checksum", "package", "signer", "version", "identity-race", "version-race"],
+)
+async def test_successor_verification_refusal_never_installs_or_downloads_on_panel(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    defect: str,
+) -> None:
+    github = _GitHub(
+        key,
+        package_id=SUCCESSOR_PACKAGE_ID,
+        bridge=b"bridge",
+        apk=b"tampered successor" if defect == "checksum" else APK,
+    )
+    entity, client = await _entity(hass, monkeypatch, github)
+    entity.coordinator.data = _snapshot(VERSION, "2000", LEGACY_PACKAGE_ID)
+    client.async_get_successor_capability = AsyncMock(
+        return_value=(SUCCESSOR_PACKAGE_ID, VERSION)
+    )
+    replacements = {"package": SUCCESSOR_PACKAGE_ID}
+    if defect in ("package", "signer", "version"):
+        replacements[defect] = {
+            "package": LEGACY_PACKAGE_ID,
+            "signer": "0" * 64,
+            "version": "0.9.11",
+        }[defect]
+    preview = _preview(**replacements)
+
+    async def stage(_apk: bytes, **_kwargs: Any) -> StagedApk:
+        if defect == "identity-race":
+            entity.coordinator.data = _snapshot(VERSION, "2000", SUCCESSOR_PACKAGE_ID)
+        if defect == "version-race":
+            entity.coordinator.data = _snapshot("0.9.11", "3000", LEGACY_PACKAGE_ID)
+        return preview
+
+    client.async_stage_apk.side_effect = stage
+    with pytest.raises(HomeAssistantError) as error:
+        await entity.async_install(None, backup=False)
+    _assert_translated(error.value, "release_verification_failed")
+    if defect == "checksum":
+        client.async_stage_apk.assert_not_awaited()
+    else:
+        client.async_discard_apk.assert_awaited_once_with("tok-1")
+    client.async_commit_apk.assert_not_awaited()
+    client.async_start_panel_update.assert_not_awaited()
+
+
+async def test_a_bridge_that_already_handed_over_is_not_reinstalled(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+) -> None:
+    github = _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=b"bridge")
+    entity, client = await _entity(hass, monkeypatch, github)
+
+    async def refresh() -> None:
+        entity.coordinator.data = _snapshot(VERSION, "2000", SUCCESSOR_PACKAGE_ID)
+
+    entity.coordinator.async_request_refresh = AsyncMock(side_effect=refresh)
+    await entity.async_install(None, backup=False)
+    client.async_stage_apk.assert_awaited_once_with(b"bridge")
+    client.async_commit_apk.assert_awaited_once_with("tok-1")
+    client.async_start_panel_update.assert_not_awaited()
+    client.async_get_version_code.assert_awaited_once()
+    assert entity.coordinator.data.health.package == SUCCESSOR_PACKAGE_ID
 
 
 @pytest.mark.parametrize(

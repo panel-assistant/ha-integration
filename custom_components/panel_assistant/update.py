@@ -19,7 +19,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import HaPaneldConfigEntry
-from .app_identity import LEGACY_PACKAGE_ID, reports_package
+from .app_identity import LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, reports_package
 from .build_feed import (
     BuildDownloadError,
     BuildFeed,
@@ -358,7 +358,14 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         if (
             snapshot is None
             or release is None
-            or not is_newer_stable_version(release.version, snapshot.health.version)
+            or not (
+                is_newer_stable_version(release.version, snapshot.health.version)
+                # A bridge at the release version still owes its handover.
+                or (
+                    release.descriptor is None
+                    and release.version == snapshot.health.version
+                )
+            )
             or is_newer_stable_version(
                 _FIRST_LAN_UPDATE_VERSION, snapshot.health.version
             )
@@ -402,6 +409,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             installed = parse_build_request(installed_version)
             if latest is not None and installed is not None:
                 return latest > installed
+        if latest_version == installed_version:
+            release = self._host_release()
+            return release is not None and release.descriptor is None
         return is_newer_stable_version(latest_version, installed_version)
 
     @property
@@ -441,12 +451,33 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             # Home Assistant sends the release over the LAN whenever it could
             # authenticate it. Only a panel that cannot take an upload at all
             # downloads the release itself, and verifies it itself.
-            if (
-                release is not None
-                and release.tag == offer.tag
-                and await self._async_deliver_build(release, fallback=True)
-            ):
-                return
+            if release is not None and release.tag == offer.tag:
+                if release.descriptor is None:
+                    # Keep the signed pair selected for this transaction even
+                    # if the shared release coordinator refreshes mid-install.
+                    successor = self._release.data if self._release else None
+                    if (
+                        successor is None
+                        or successor.tag != release.tag
+                        or successor.descriptor is None
+                        or successor.descriptor.package_id != SUCCESSOR_PACKAGE_ID
+                    ):
+                        raise _verification_error(release)
+                    if self.coordinator.data.health.version != release.version:
+                        await self._async_deliver_build(release)
+                    if reports_package(
+                        self.coordinator.data.health.package, SUCCESSOR_PACKAGE_ID
+                    ):
+                        # A connected bridge may already have completed its
+                        # own handover. Prove that result without reinstalling.
+                        await self._async_wait_for_build(
+                            successor, ("", LEGACY_PACKAGE_ID)
+                        )
+                    else:
+                        await self._async_deliver_build(successor, migration=True)
+                    return
+                if await self._async_deliver_build(release, fallback=True):
+                    return
             await self._async_start_panel_download(offer)
         finally:
             self._attr_in_progress = False
@@ -562,7 +593,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self.async_write_ha_state()
 
     async def _async_deliver_build(
-        self, artifact: ReleaseArtifact, *, fallback: bool = False
+        self,
+        artifact: ReleaseArtifact,
+        *,
+        fallback: bool = False,
+        migration: bool = False,
     ) -> bool:
         """Back up, verify, upload and commit one signed build, then prove it.
 
@@ -581,9 +616,22 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 "update_unavailable",
                 "The requested ha-paneld update is unavailable",
             )
-        if not reports_package(snapshot.health.package, package_id):
+        running_package = LEGACY_PACKAGE_ID if migration else package_id
+        if not reports_package(snapshot.health.package, running_package):
             raise _verification_error(artifact)
-        before = snapshot.health.build
+        before = (snapshot.health.build, snapshot.health.package)
+        if migration:
+            try:
+                capability = await client.async_get_successor_capability()
+            except HaPaneldError as err:
+                raise _verification_error(artifact) from err
+            if (
+                descriptor is None
+                or package_id != SUCCESSOR_PACKAGE_ID
+                or snapshot.health.version != artifact.version
+                or capability != (package_id, artifact.version)
+            ):
+                raise _verification_error(artifact)
         try:
             await async_store_panel_backup(
                 self.hass,
@@ -622,7 +670,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             raise _verification_error(artifact) from err
         try:
             try:
-                staged = await client.async_stage_apk(apk)
+                staged = (
+                    await client.async_stage_apk(apk, migration_sha256=artifact.sha256)
+                    if migration
+                    else await client.async_stage_apk(apk)
+                )
             except StagingUnavailableError:
                 if fallback:
                     return False
@@ -630,11 +682,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             health = self.coordinator.data.health if self.coordinator.data else None
             if (
                 staged.package != package_id
-                # A panel updates itself in place, so the staged build has to be
-                # the package this panel already runs. A different application
-                # id would install a second app instead of replacing this one.
+                # Ordinary updates stay in-place. Only an explicitly capable
+                # bridge may stage its exact signed successor for handover.
                 or health is None
-                or not reports_package(health.package, package_id)
+                or not reports_package(health.package, running_package)
+                or (migration and health.version != artifact.version)
                 or staged.signer != _RELEASE_SIGNER_CERTIFICATE_SHA256
                 or staged.version != artifact.version
             ):
@@ -668,7 +720,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         return True
 
     async def _async_wait_for_build(
-        self, artifact: ReleaseArtifact, before: str
+        self, artifact: ReleaseArtifact, before: tuple[str, str | None]
     ) -> None:
         """Wait for the panel to restart into exactly the committed build."""
         build = artifact.descriptor
@@ -685,9 +737,12 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             if (
                 self.coordinator.last_update_success
                 and health is not None
-                and health.build != before
+                and (health.build, health.package) != before
                 and health.version == artifact.version
-                and reports_package(health.package, package_id)
+                and (
+                    reports_package(health.package, package_id)
+                    or (build is None and health.package == SUCCESSOR_PACKAGE_ID)
+                )
             ):
                 if build is None:
                     return

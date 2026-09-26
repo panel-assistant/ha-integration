@@ -694,10 +694,33 @@ class HaPaneldClient:
             raise UpdateRejectedError
         raise CannotConnectError
 
-    async def async_stage_apk(self, apk: bytes) -> StagedApk:
+    async def async_get_successor_capability(self) -> tuple[str, str]:
+        """Read the bridge's explicit LAN handover capability, never infer it."""
+        body = await self._async_get_bounded(
+            self.address.base_url.with_path("/api/v1/successor"),
+            MAX_INSTALL_RESPONSE_BYTES,
+        )
+        try:
+            document = json.loads(body)
+        except (ValueError, UnicodeError) as err:
+            raise InvalidResponseError from err
+        if (
+            not isinstance(document, dict)
+            or not isinstance(document.get("package"), str)
+            or not isinstance(document.get("version"), str)
+        ):
+            raise InvalidResponseError
+        return document["package"], document["version"]
+
+    async def async_stage_apk(
+        self, apk: bytes, *, migration_sha256: str | None = None
+    ) -> StagedApk:
         """Upload app bytes for the panel to inspect before anything installs."""
+        url = self.address.base_url.with_path(APK_STAGE_PATH)
+        if migration_sha256 is not None:
+            url = url.with_query(migration="successor", sha256=migration_sha256)
         status, body = await self._async_post_bounded(
-            self.address.base_url.with_path(APK_STAGE_PATH),
+            url,
             apk,
             MAX_INSTALL_RESPONSE_BYTES,
             _UPLOAD_TIMEOUT_SECONDS,
