@@ -280,6 +280,7 @@ async def _entity(
         async_start_panel_update=AsyncMock(),
         async_get_panel_install_status=AsyncMock(),
         async_get_version_code=AsyncMock(return_value=(VERSION, CODE)),
+        async_offer_installed_successor=AsyncMock(),
     )
     health = HaPaneldDataUpdateCoordinator(hass, client)  # type: ignore[arg-type]
     health.data = _snapshot("0.9.9", "1000", package)
@@ -546,7 +547,7 @@ async def test_offline_move_delivers_both_verified_identities(
     if resume_bridge:
         entity.coordinator.data = _snapshot(VERSION, "2000", LEGACY_PACKAGE_ID)
     client.async_get_successor_capability = AsyncMock(
-        return_value=(SUCCESSOR_PACKAGE_ID, VERSION)
+        return_value=(SUCCESSOR_PACKAGE_ID, VERSION, None, False)
     )
     stages = []
 
@@ -578,16 +579,74 @@ async def test_offline_move_delivers_both_verified_identities(
     assert entity.state == "off"
 
 
+@pytest.mark.parametrize("installed_code", [CODE, CODE + 1])
+async def test_retry_reuses_trusted_installed_successor_without_restaging(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    installed_code: int,
+) -> None:
+    github = _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=b"bridge")
+    entity, client = await _entity(hass, monkeypatch, github)
+    entity.coordinator.data = _snapshot(VERSION, "2000", LEGACY_PACKAGE_ID)
+    client.async_get_successor_capability = AsyncMock(
+        return_value=(SUCCESSOR_PACKAGE_ID, VERSION, installed_code, False)
+    )
+    client.async_get_version_code.return_value = (VERSION, installed_code)
+
+    async def resume() -> None:
+        entity.coordinator.data = _snapshot(VERSION, "2000", SUCCESSOR_PACKAGE_ID)
+
+    client.async_offer_installed_successor.side_effect = resume
+    entity.coordinator.async_request_refresh = AsyncMock()
+
+    await entity.async_install(None, backup=False)
+
+    client.async_offer_installed_successor.assert_awaited_once()
+    client.async_stage_apk.assert_not_awaited()
+    client.async_commit_apk.assert_not_awaited()
+    client.async_start_panel_update.assert_not_awaited()
+    assert not github.apk_downloaded
+    assert entity.coordinator.data.health.package == SUCCESSOR_PACKAGE_ID
+
+
+async def test_retry_refuses_untrusted_installed_successor(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+) -> None:
+    github = _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=b"bridge")
+    entity, client = await _entity(hass, monkeypatch, github)
+    entity.coordinator.data = _snapshot(VERSION, "2000", LEGACY_PACKAGE_ID)
+    client.async_get_successor_capability = AsyncMock(
+        return_value=(SUCCESSOR_PACKAGE_ID, VERSION, None, True)
+    )
+
+    with pytest.raises(HomeAssistantError) as error:
+        await entity.async_install(None, backup=False)
+    _assert_translated(error.value, "release_verification_failed")
+    client.async_stage_apk.assert_not_awaited()
+    client.async_commit_apk.assert_not_awaited()
+    client.async_offer_installed_successor.assert_not_awaited()
+    assert not github.apk_downloaded
+
+
 @pytest.mark.parametrize(
     "capability",
-    [None, (LEGACY_PACKAGE_ID, VERSION), (SUCCESSOR_PACKAGE_ID, "0.9.11")],
+    [
+        None,
+        (LEGACY_PACKAGE_ID, VERSION, None, False),
+        (SUCCESSOR_PACKAGE_ID, "0.9.11", None, False),
+    ],
 )
 async def test_successor_is_never_sent_without_matching_bridge_capability(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     trust: None,
     key: Any,
-    capability: tuple[str, str] | None,
+    capability: tuple[str, str, int | None, bool] | None,
 ) -> None:
     github = _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=b"bridge")
     entity, client = await _entity(hass, monkeypatch, github)
@@ -624,7 +683,7 @@ async def test_successor_verification_refusal_never_installs_or_downloads_on_pan
     entity, client = await _entity(hass, monkeypatch, github)
     entity.coordinator.data = _snapshot(VERSION, "2000", LEGACY_PACKAGE_ID)
     client.async_get_successor_capability = AsyncMock(
-        return_value=(SUCCESSOR_PACKAGE_ID, VERSION)
+        return_value=(SUCCESSOR_PACKAGE_ID, VERSION, None, False)
     )
     replacements = {"package": SUCCESSOR_PACKAGE_ID}
     if defect in ("package", "signer", "version"):

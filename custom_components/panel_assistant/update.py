@@ -643,6 +643,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         if not reports_package(snapshot.health.package, running_package):
             raise _verification_error(artifact)
         before = (snapshot.health.build, snapshot.health.package)
+        installed_successor_code: int | None = None
         if migration:
             try:
                 capability = await client.async_get_successor_capability()
@@ -652,9 +653,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 descriptor is None
                 or package_id != SUCCESSOR_PACKAGE_ID
                 or snapshot.health.version != artifact.version
-                or capability != (package_id, artifact.version)
+                or capability[:2] != (package_id, artifact.version)
+                or capability[3]
             ):
                 raise _verification_error(artifact)
+            installed_successor_code = capability[2]
         try:
             await async_store_panel_backup(
                 self.hass,
@@ -678,6 +681,24 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             raise _update_error(
                 "panel_backup_failed", "The panel could not be backed up first"
             ) from err
+        if (
+            migration
+            and descriptor is not None
+            and installed_successor_code is not None
+            and installed_successor_code >= descriptor.version_code
+        ):
+            try:
+                await client.async_offer_installed_successor()
+            except UpdateApprovalRequiredError as err:
+                raise _update_error(
+                    "update_approval_required",
+                    "Approve this update on the panel, then try again",
+                ) from err
+            except HaPaneldError as err:
+                raise _verification_error(artifact) from err
+            self._record_route(ROUTE_STAGED, artifact.tag)
+            await self._async_wait_for_build(artifact, before, minimum_code=True)
+            return True
         try:
             apk = await async_download_build(
                 async_get_clientsession(self.hass), artifact
@@ -743,7 +764,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         return True
 
     async def _async_wait_for_build(
-        self, artifact: ReleaseArtifact, before: tuple[str, str | None]
+        self,
+        artifact: ReleaseArtifact,
+        before: tuple[str, str | None],
+        *,
+        minimum_code: bool = False,
     ) -> None:
         """Wait for the panel to restart into exactly the committed build."""
         build = artifact.descriptor
@@ -761,7 +786,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 self.coordinator.last_update_success
                 and health is not None
                 and (health.build, health.package) != before
-                and health.version == artifact.version
+                and (minimum_code or health.version == artifact.version)
                 and (
                     reports_package(health.package, package_id)
                     or (build is None and health.package == SUCCESSOR_PACKAGE_ID)
@@ -773,7 +798,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     _name, code = await self.coordinator.client.async_get_version_code()
                 except HaPaneldError:
                     code = None
-                if code == build.version_code:
+                if code is not None and (
+                    code >= build.version_code
+                    if minimum_code
+                    else code == build.version_code
+                ):
                     self._installed_code = code
                     self._code_key = (health.version, health.build)
                     return
