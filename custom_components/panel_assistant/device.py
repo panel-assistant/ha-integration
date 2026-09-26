@@ -118,4 +118,6 @@ def async_refresh_panel_device(
         model=info.get("model", UNDEFINED),
         sw_version=info.get("sw_version", UNDEFINED),
         hw_version=info.get("hw_version", UNDEFINED),
+        # The address can move while the entry stays loaded.
+        configuration_url=info.get("configuration_url", UNDEFINED),
     )
