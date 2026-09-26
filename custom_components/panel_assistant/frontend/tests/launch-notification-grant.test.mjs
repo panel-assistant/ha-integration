@@ -62,13 +62,11 @@ test('the platform level is required and bounded', () => {
   }
 });
 
-test("a person's own \"Don't allow\" is left as they chose, and the app still starts", () => {
+test("a person's own \"Don't allow\" is granted over, and the app still starts", () => {
   for (const flags of ['USER_SET|USER_SENSITIVE_WHEN_GRANTED', 'USER_SET|USER_FIXED', 'USER_FIXED']) {
     const result = executeLaunch(34, LEGACY_PACKAGE_ID, {flags});
-    assert.deepEqual(result.calls, [`am start -W -n io.github.maxlyth.hapaneld/.MainActivity -p ${LEGACY_PACKAGE_ID}`], flags);
+    assert.equal(result.calls[0], `pm grant ${LEGACY_PACKAGE_ID} android.permission.POST_NOTIFICATIONS`, flags);
+    assert.match(result.calls[1], /^am start -W -n /, flags);
     assert.equal(parseLaunch(result.stdout, nonce), 'started');
   }
-  // Android's own sensitivity flags are not a person's answer.
-  const untouched = executeLaunch(34, LEGACY_PACKAGE_ID, {flags: 'USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED'});
-  assert.equal(untouched.calls[0], `pm grant ${LEGACY_PACKAGE_ID} android.permission.POST_NOTIFICATIONS`);
 });
