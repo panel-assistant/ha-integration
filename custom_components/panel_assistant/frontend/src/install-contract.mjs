@@ -24,25 +24,19 @@ export function buildInstall(nonce, jobId, sdk) {
  * `<id>/.Class` shorthand resolves against the application id while the classes
  * stay in the legacy namespace, so the component is looked up, never built.
  *
- * From Android 13 the app asks for the notification permission on its first
- * screen unless it already holds it, so it is granted here, before the first
- * start, rather than left to someone standing at the panel. A person's own
- * "Don't allow" (USER_SET or USER_FIXED on a denied grant) is left alone, since
- * a shell grant would override it. The start never waits on the grant: its
- * output is discarded and its status is not the launch's, because the
- * permission step after `healthy` reads the result back and fails the install
- * if the panel refused it.
+ * From Android 13 the notification permission is granted here, before the
+ * first start, whatever a person once answered: the service notification is part
+ * of keeping the panel working, and a "Don't allow" may have been a mis-tap or a
+ * prompt nobody saw. The start never waits on the grant: its output is discarded
+ * and its status is not the launch's, because the permission step after
+ * `healthy` reads the result back and fails the install if the panel refused it.
  */
 export function buildLaunch(nonce, packageId, sdk) {
   checkId(nonce);
   if (!isAcceptedPackageId(packageId)) fail('invalid_request');
   if (!Number.isInteger(sdk) || sdk < 1 || sdk > 100) fail('invalid_request');
   const permission = 'android.permission.POST_NOTIFICATIONS';
-  const grant = sdk >= 33
-    ? `case "$(dumpsys package ${packageId} 2>/dev/null | grep '${permission}: granted=')" in`
-      + ' *granted=false*USER_SET*|*granted=false*USER_FIXED*) : ;;'
-      + ` *) pm grant ${packageId} ${permission} >/dev/null 2>&1 ;; esac; `
-    : '';
+  const grant = sdk >= 33 ? `pm grant ${packageId} ${permission} >/dev/null 2>&1; ` : '';
   return `echo HAPANELD_LAUNCH_BEGIN:${nonce}; ${grant}am start -W -n ${launchComponentFor(packageId)} -p ${packageId}; echo HAPANELD_LAUNCH_END:${nonce}:$?`;
 }
 

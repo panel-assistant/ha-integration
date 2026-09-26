@@ -2587,15 +2587,16 @@ async def test_a_refused_or_unreadable_grant_is_reported_and_never_stops_the_sta
     ] == [logging.WARNING]
 
 
-async def test_a_persons_denial_is_reported_as_theirs_and_the_app_still_starts(
+async def test_a_grant_over_a_persons_denial_reads_back_as_granted(
     monkeypatch: pytest.MonkeyPatch,
     signer: PythonRSASigner,
     target: AdbInstallTarget,
     descriptor: InstallDescriptor,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    denied = _NOTIFICATIONS_GRANTED_LINE.replace(
-        "granted=true, flags=[ ", "granted=false, flags=[ USER_SET|USER_FIXED|"
+    # Android 14 keeps the person's flags after a shell grant; granted=true decides.
+    overridden = _NOTIFICATIONS_GRANTED_LINE.replace(
+        "flags=[ ", "flags=[ USER_SET|USER_FIXED|"
     )
     fake = FakeDevice(
         [
@@ -2603,7 +2604,7 @@ async def test_a_persons_denial_is_reported_as_theirs_and_the_app_still_starts(
             _single_output(
                 "PACKAGE", NONCES[1], ["package:/data/app/ha-paneld/base.apk"], 0
             ),
-            _single_output("NOTIFICATIONS", NONCES[2], [denied], 0),
+            _single_output("NOTIFICATIONS", NONCES[2], [overridden], 0),
             _single_output("LAUNCH", NONCES[3], ["Status: ok"], 0),
         ]
     )
@@ -2614,12 +2615,7 @@ async def test_a_persons_denial_is_reported_as_theirs_and_the_app_still_starts(
     )
 
     assert outcome is LaunchOutcome.STARTED
-    assert [
-        record.levelno
-        for record in caplog.records
-        if "turned off on the panel by a person" in record.getMessage()
-    ] == [logging.WARNING]
-    assert "did not grant" not in caplog.text
+    assert "notification permission" not in caplog.text
 
 
 def _run_notification_program(flags: str, calls: Path) -> list[str]:
@@ -2643,18 +2639,16 @@ def _run_notification_program(flags: str, calls: Path) -> list[str]:
     return calls.read_text().splitlines()
 
 
-def test_the_grant_program_leaves_a_persons_denial_alone(tmp_path: Path) -> None:
+def test_the_grant_program_grants_over_a_persons_denial(tmp_path: Path) -> None:
     calls = tmp_path / "calls"
     grant = "pm grant io.github.maxlyth.hapaneld android.permission.POST_NOTIFICATIONS"
     for flags in (
         "USER_SET|USER_SENSITIVE_WHEN_GRANTED",
         "USER_SET|USER_FIXED",
         "USER_FIXED",
+        "USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED",
     ):
-        assert _run_notification_program(flags, calls) == [], flags
-    assert _run_notification_program(
-        "USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED", calls
-    ) == [grant]
+        assert _run_notification_program(flags, calls) == [grant], flags
 
 
 @pytest.mark.parametrize("status", [2, 126, 127, 130, 137, 255])
