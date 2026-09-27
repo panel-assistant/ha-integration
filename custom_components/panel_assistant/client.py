@@ -49,6 +49,9 @@ _VERSION_PATTERN = re.compile(
 )
 _INSTALL_TIME_PATTERN = re.compile(r"^(0|[1-9][0-9]{0,18})$")
 _VERSION_CODE_PATTERN = re.compile(r"^[1-9][0-9]{0,9}$")
+_RESTART_PATTERN = re.compile(
+    r"^(app|panel),(update|settings|recovery|reboot),([1-9][0-9]{0,5})$"
+)
 _STABLE_VERSION_PATTERN = re.compile(
     r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$"
 )
@@ -72,6 +75,7 @@ _KNOWN_HEALTH_FIELDS = frozenset(
         "ha_net_n",
         "ha_net_miss",
         "ha_net_age",
+        "pa_restarting",
     }
 )
 _LIFECYCLE_STATES = frozenset(
@@ -152,8 +156,9 @@ class PanelHealth:
     package: str | None = None
     # The build number beside the version name. Absent from older builds.
     version_code: int | None = None
+    restart: tuple[str, str, int] | None = None
 
-    def as_dict(self) -> dict[str, str | bool | int | None]:
+    def as_dict(self) -> dict[str, str | bool | int | tuple[str, str, int] | None]:
         """Return a serializable diagnostics representation."""
         return asdict(self)
 
@@ -291,6 +296,13 @@ def parse_health_response(body: str) -> PanelHealth:
         else None
     )
 
+    restart_match = _RESTART_PATTERN.fullmatch(fields.get("pa_restarting", ""))
+    restart = (
+        (restart_match[1], restart_match[2], int(restart_match[3]))
+        if restart_match is not None and int(restart_match[3]) <= 300_000
+        else None
+    )
+
     return PanelHealth(
         version=tokens[1],
         panel_id=panel_id,
@@ -302,6 +314,7 @@ def parse_health_response(body: str) -> PanelHealth:
         discovery_id=discovery_id,
         package=package,
         version_code=version_code,
+        restart=restart,
     )
 
 

@@ -519,7 +519,7 @@ async def test_malformed_envelope_is_invalid_format(
         ({"did": OTHER_DID}, "unknown_panel"),
         ({"did": None}, "panel_identity_unavailable"),
         ({"did": "absent"}, "panel_identity_unavailable"),
-        ({"protocol": {"min": 2, "max": 3}}, "protocol_unsupported"),
+        ({"protocol": {"min": 3, "max": 3}}, "protocol_unsupported"),
     ],
 )
 async def test_hello_refusals(
@@ -543,10 +543,10 @@ async def test_hello_refusals(
     assert async_get_sessions(hass).get(entry.entry_id) is None
     if code == "protocol_unsupported":
         assert response["error"]["translation_placeholders"] == {
-            "panel_min": "2",
+            "panel_min": "3",
             "panel_max": "3",
             "integration_min": "1",
-            "integration_max": "1",
+            "integration_max": "2",
         }
 
 

@@ -317,7 +317,16 @@ def panel_state(entry: ConfigEntry) -> str:
     coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
     if coordinator is None:
         return STATE_NOT_LOADED
-    return STATE_REACHABLE if coordinator.last_update_success else STATE_UNREACHABLE
+    if coordinator.restart_notice is not None:
+        return "restarting"
+    return STATE_REACHABLE if coordinator.available else STATE_UNREACHABLE
+
+
+def panel_restart_reason(entry: ConfigEntry) -> str | None:
+    """Return the reason shown beside one restarting panel."""
+    coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
+    notice = None if coordinator is None else coordinator.restart_notice
+    return None if notice is None else notice.reason
 
 
 def _panel_device(hass: HomeAssistant, entry: ConfigEntry) -> dr.DeviceEntry | None:
@@ -360,6 +369,11 @@ def ws_embed_panels(
                     "entry_id": entry.entry_id,
                     "title": panel_display_name(hass, entry),
                     "state": panel_state(entry),
+                    **(
+                        {"reason": reason}
+                        if (reason := panel_restart_reason(entry)) is not None
+                        else {}
+                    ),
                     "device_id": device.id
                     if (device := _panel_device(hass, entry))
                     else None,

@@ -127,6 +127,20 @@ def test_parse_health_fixture() -> None:
     assert health.ha_subscription_refused is False
 
 
+def test_restart_health_token_is_bounded_optional_status() -> None:
+    base = "ha-paneld 1.2.3 panel=test build=1234 cfg=0123abcd"
+    assert parse_health_response(
+        base + " pa_restarting=app,update,45000\n"
+    ).restart == ("app", "update", 45000)
+    for token in (
+        "app,update,0",
+        "app,unknown,45000",
+        "panel,reboot,300001",
+        "app,update,1x",
+    ):
+        assert parse_health_response(base + f" pa_restarting={token}\n").restart is None
+
+
 def test_parser_ignores_future_tokens_and_values() -> None:
     """Additive health tokens do not invalidate an otherwise stable response."""
     health = parse_health_response(

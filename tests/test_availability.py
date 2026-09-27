@@ -8,6 +8,7 @@ with neither a session nor an answering address is still unavailable.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncGenerator, Callable
 from dataclasses import replace
 from ipaddress import ip_address
@@ -121,16 +122,186 @@ async def _connect(
     token: str,
     entry: MockConfigEntry,
     remote: str | None = MOVED,
+    protocol: dict[str, int] | None = None,
 ) -> Any:
     """Open the panel's session, connecting from the given address."""
     client = await hass_ws_client(hass, token)
-    await _open(client)
+    await _open(client, **({"protocol": protocol} if protocol else {}))
     session = async_get_sessions(hass).get(entry.entry_id)
     assert session is not None
     # The test socket connects from loopback; the panel connects from wherever
     # it is, which is what the address repair reads.
     session.remote = remote
     return client
+
+
+async def test_restart_notice_tracks_session_return_and_keeps_entities_available(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    client = await _connect(
+        hass,
+        hass_ws_client,
+        hass_read_only_access_token,
+        entry,
+        protocol={"min": 1, "max": 2},
+    )
+    session = async_get_sessions(hass).get(entry.entry_id)
+    assert session is not None
+    await client.send_json_auto_id(
+        {
+            "type": "panel_assistant/restart_notice",
+            "session": session.token,
+            "scope": "app",
+            "reason": "settings",
+            "expected_back_ms": 45000,
+        }
+    )
+    reply = await client.receive_json()
+    assert reply["success"], reply
+    await hass.async_block_till_done()
+    state = hass.states.get(STATUS_ENTITY)
+    assert state is not None and state.state == "Restarting (settings)"
+    assert state.attributes["reason"] == "settings"
+    assert state.attributes["expected_back_ms"] == 45000
+    assert _state(hass, UPDATE_ENTITY) != STATE_UNAVAILABLE
+    admin = await hass_ws_client(hass)
+    await admin.send_json_auto_id({"type": "panel_assistant/embed_panels"})
+    listed = await admin.receive_json()
+    assert listed["success"], listed
+    assert listed["result"]["panels"][0]["state"] == "restarting"
+    assert listed["result"]["panels"][0]["reason"] == "settings"
+
+    # The old socket goes away before the replacement appears.
+    await client.close()
+    await hass.async_block_till_done()
+    assert _state(hass, STATUS_ENTITY) == "Restarting (settings)"
+    await _connect(hass, hass_ws_client, hass_read_only_access_token, entry)
+    await hass.async_block_till_done()
+    assert _state(hass, STATUS_ENTITY) == "online"
+
+
+async def test_http_restart_fallback_clears_when_health_returns(
+    hass: HomeAssistant, entry: MockConfigEntry
+) -> None:
+    restarting = replace(HEALTH, restart=("panel", "reboot", 45000))
+    with (
+        patch.object(
+            HaPaneldClient, "async_get_health", AsyncMock(return_value=restarting)
+        ),
+        patch.object(
+            HaPaneldClient, "async_get_status", AsyncMock(return_value=STATUS)
+        ),
+    ):
+        await entry.runtime_data.coordinator.async_refresh()
+        await hass.async_block_till_done()
+    state = hass.states.get(STATUS_ENTITY)
+    assert state is not None and state.state == "Restarting (reboot)"
+    assert state.attributes["scope"] == "panel"
+    assert state.attributes["reason"] == "reboot"
+    await _poll(hass, entry, {STORED: HEALTH})
+    assert _state(hass, STATUS_ENTITY) == "online"
+
+
+async def test_restart_notice_requires_protocol_two_and_bounded_schema(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    client = await _connect(hass, hass_ws_client, hass_read_only_access_token, entry)
+    session = async_get_sessions(hass).get(entry.entry_id)
+    assert session is not None
+    request = {
+        "type": "panel_assistant/restart_notice",
+        "session": session.token,
+        "scope": "app",
+        "reason": "recovery",
+        "expected_back_ms": 1,
+    }
+    await client.send_json_auto_id(request)
+    assert (await client.receive_json())["error"]["code"] == "invalid_format"
+    assert _state(hass, STATUS_ENTITY) == "online"
+    await client.close()
+
+    client = await _connect(
+        hass,
+        hass_ws_client,
+        hass_read_only_access_token,
+        entry,
+        protocol={"min": 2, "max": 2},
+    )
+    session = async_get_sessions(hass).get(entry.entry_id)
+    assert session is not None
+    request["session"] = session.token
+    for change in (
+        {"scope": "other"},
+        {"reason": "arbitrary"},
+        {"expected_back_ms": True},
+        {"expected_back_ms": 300_001},
+        {"session": "wrong"},
+    ):
+        await client.send_json_auto_id({**request, **change})
+        refused = await client.receive_json()
+        assert not refused["success"]
+        assert _state(hass, STATUS_ENTITY) == "online"
+    await client.send_json_auto_id(request)
+    assert (await client.receive_json())["success"]
+
+
+async def test_restart_notice_expires_to_unavailable_without_a_return(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """A vanished panel remains Restarting only for its announced window."""
+    client = await _connect(
+        hass,
+        hass_ws_client,
+        hass_read_only_access_token,
+        entry,
+        remote=None,
+        protocol={"min": 2, "max": 2},
+    )
+    await _poll(hass, entry, {STORED: CannotConnectError()})
+    assert _state(hass, STATUS_ENTITY) == "connected"
+    assert _state(hass, UPDATE_ENTITY) != STATE_UNAVAILABLE
+
+    session = async_get_sessions(hass).get(entry.entry_id)
+    assert session is not None
+    await client.send_json_auto_id(
+        {
+            "type": "panel_assistant/restart_notice",
+            "session": session.token,
+            "scope": "panel",
+            "reason": "reboot",
+            "expected_back_ms": 1000,
+        }
+    )
+    assert (await client.receive_json())["success"]
+    await client.close()
+    await hass.async_block_till_done()
+    assert _state(hass, STATUS_ENTITY) == "Restarting (reboot)"
+    assert hass.states.get(STATUS_ENTITY).attributes["reason"] == "reboot"
+    assert _state(hass, UPDATE_ENTITY) == STATE_UNAVAILABLE
+
+    admin = await hass_ws_client(hass)
+    await admin.send_json_auto_id({"type": "panel_assistant/embed_panels"})
+    listed = await admin.receive_json()
+    assert listed["success"]
+    assert listed["result"]["panels"][0]["state"] == "restarting"
+    assert listed["result"]["panels"][0]["reason"] == "reboot"
+
+    await asyncio.sleep(1.05)
+    await hass.async_block_till_done()
+    assert _state(hass, STATUS_ENTITY) == STATE_UNAVAILABLE
+    await admin.send_json_auto_id({"type": "panel_assistant/embed_panels"})
+    listed = await admin.receive_json()
+    assert listed["success"]
+    assert listed["result"]["panels"][0]["state"] == "unreachable"
 
 
 async def _poll(
@@ -182,6 +353,11 @@ async def test_failed_poll_with_a_live_session_stays_available(
     attributes = hass.states.get(STATUS_ENTITY).attributes
     assert attributes["reachable"] is False
     assert attributes["connected"] is True
+    admin = await hass_ws_client(hass)
+    await admin.send_json_auto_id({"type": "panel_assistant/embed_panels"})
+    reply = await admin.receive_json()
+    assert reply["success"]
+    assert reply["result"]["panels"][0]["state"] == "reachable"
 
 
 async def test_successful_poll_without_a_session_is_available(

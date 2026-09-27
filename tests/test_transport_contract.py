@@ -34,10 +34,11 @@ SCHEMAS = {
     transport.COMMAND_REPORT_STATE: transport.REPORT_STATE_SCHEMA,
     transport.COMMAND_REPORT_EVENT: transport.REPORT_EVENT_SCHEMA,
     transport.COMMAND_COMMAND_RESULT: transport.COMMAND_RESULT_SCHEMA,
+    transport.COMMAND_RESTART_NOTICE: transport.RESTART_NOTICE_SCHEMA,
 }
 
 _HA_VECTOR_REVISION = "f8f3bc883ebfa82ac957706dad363be4b42a1010"
-_ANDROID_PRODUCER_REVISION = "53a19b4dfeb4f114f0196793c921cb06c2fcea2c"
+_ANDROID_PRODUCER_REVISION = "a4ce8c6b231dc8a116f3acc8f50dfec0c9d53fe0"
 
 
 def test_shared_vectors_name_the_ha_source_revision_vendored_by_android() -> None:
@@ -129,11 +130,13 @@ def _entry(channel: str) -> dict[str, Any]:
 
 def test_contract_code_lists_are_the_integrations_own() -> None:
     """Python holds no second copy of a code list that disagrees with the file."""
-    assert CONTRACT["protocol"] == {
-        "min": transport.PROTOCOL_MIN,
-        "max": transport.PROTOCOL_MAX,
+    # The panel-owned v1 catalogue remains the fixture for v1 producers;
+    # restart notices are an additive command gated by the negotiated v2 range.
+    assert CONTRACT["protocol"] == {"min": 1, "max": 1}
+    assert (transport.PROTOCOL_MIN, transport.PROTOCOL_MAX) == (1, 2)
+    assert set(CONTRACT["commands"]) == set(SCHEMAS) - {
+        transport.COMMAND_RESTART_NOTICE
     }
-    assert set(CONTRACT["commands"]) == set(SCHEMAS)
     assert CONTRACT["sync"] == [
         transport.SYNC_FULL_BEGIN,
         transport.SYNC_DELTA,

@@ -74,15 +74,28 @@ class HaPaneldStatusSensor(PanelCoordinatorEntity, SensorEntity):
     @property
     def native_value(self) -> str:
         """Return whether the panel answers polls, or only holds its session."""
+        if (notice := self.coordinator.restart_notice) is not None:
+            return f"Restarting ({notice.reason})"
         return "online" if self.coordinator.last_update_success else "connected"
 
     @property
-    def extra_state_attributes(self) -> dict[str, str | bool | None]:
+    def available(self) -> bool:
+        """Keep the restart state visible while the panel is temporarily away."""
+        return self.coordinator.available or self.coordinator.restart_notice is not None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str | bool | int | None]:
         """Return the cached health diagnostics and both halves of availability."""
-        availability: dict[str, str | bool | None] = {
+        availability: dict[str, str | bool | int | None] = {
             "reachable": self.coordinator.last_update_success,
             "connected": self.coordinator.connected,
         }
+        if (notice := self.coordinator.restart_notice) is not None:
+            availability.update(
+                scope=notice.scope,
+                reason=notice.reason,
+                expected_back_ms=notice.expected_back_ms,
+            )
         snapshot: PanelSnapshot | None = self.coordinator.data
         if snapshot is None:
             return availability

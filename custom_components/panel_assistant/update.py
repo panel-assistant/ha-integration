@@ -62,6 +62,7 @@ from .release import (
     is_feed_build_tag,
 )
 from .status import PanelCachedUpdate
+from .transport import async_get_sessions
 from .update_coordinator import PanelUpdateCoordinator
 
 _ANDROID_DOWNLOAD_MAX_SECONDS = 10 * 60
@@ -551,12 +552,31 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         self._attr_extra_state_attributes = {ROUTE_ATTRIBUTE: route}
         _LOGGER.info("Updating %s to %s: %s", self.entity_id, tag, route)
 
+    def _show_accepted_restart(self, projected: bool) -> bool:
+        """Show an accepted update's absent app as restarting only once."""
+        if projected or self.coordinator.available:
+            return projected
+        sessions = async_get_sessions(self.hass)
+        if sessions.restart_notice(self._entry_id) is None:
+            sessions.set_restart_notice(
+                self._entry_id,
+                "app",
+                "update",
+                1000 * (
+                    _ANDROID_PACKAGE_INSTALL_MAX_SECONDS
+                    + _RESTART_HEALTH_GRACE_SECONDS
+                ),
+            )
+        return True
+
     async def _async_wait_for_installed_version(self, expected_version: str) -> None:
         """Poll status through restart, then prove the health version changed."""
         deadline = asyncio.get_running_loop().time() + _UPDATE_TIMEOUT_SECONDS
         terminal_status_deadline: float | None = None
+        restart_projected = False
         while asyncio.get_running_loop().time() < deadline:
             await self.coordinator.async_request_refresh()
+            restart_projected = self._show_accepted_restart(restart_projected)
             if self.coordinator.last_update_success and (
                 self.installed_version == expected_version
             ):
@@ -790,8 +810,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             + _ANDROID_PACKAGE_INSTALL_MAX_SECONDS
             + _RESTART_HEALTH_GRACE_SECONDS
         )
+        restart_projected = False
         while loop.time() < deadline:
             await self.coordinator.async_request_refresh()
+            restart_projected = self._show_accepted_restart(restart_projected)
             health = self.coordinator.data.health if self.coordinator.data else None
             if (
                 self.coordinator.last_update_success

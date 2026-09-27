@@ -12,6 +12,7 @@ export const SIDEBAR_MESSAGES = Object.freeze({
   device: "This panel's Home Assistant device",
   github: 'GitHub',
   unreachable: 'unreachable',
+  restarting: 'Restarting ({reason})',
   not_loaded: 'not loaded',
   opening: 'Opening {panel}…',
   loadingHint: 'Usually takes a few seconds',
@@ -34,8 +35,10 @@ const GH_ICON = 'M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.
 export const SELECTION_KEY = 'panel_assistant.sidebar.entry';
 export const ADD_PANEL_PATH = '/config/integrations/dashboard/add?domain=panel_assistant';
 export const SETTINGS_PATH = '/config/integrations/integration/panel_assistant';
-const STATES = new Set(['reachable', 'unreachable', 'not_loaded']);
-const REFRESH_MS = 30000;
+const STATES = new Set(['reachable', 'unreachable', 'not_loaded', 'restarting']);
+const REASONS = new Set(['update', 'settings', 'recovery', 'reboot']);
+// Include a short app restart notice even when this sidebar was already open.
+const REFRESH_MS = 5000;
 
 export function parsePanels(value) {
   if (!value || !Array.isArray(value.panels) || value.panels.length > 200) throw Error('invalid panels');
@@ -43,9 +46,11 @@ export function parsePanels(value) {
   return value.panels.map(row => {
     if (!row || typeof row.entry_id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(row.entry_id) || ids.has(row.entry_id) ||
       typeof row.title !== 'string' || row.title.length > 256 || !STATES.has(row.state) ||
+      (row.state === 'restarting' && !REASONS.has(row.reason)) ||
       (row.device_id !== null && row.device_id !== undefined && typeof row.device_id !== 'string')) throw Error('invalid panel');
     ids.add(row.entry_id);
-    return { entry_id: row.entry_id, title: row.title, state: row.state, device_id: row.device_id ?? null };
+    return { entry_id: row.entry_id, title: row.title, state: row.state, device_id: row.device_id ?? null,
+      ...(row.state === 'restarting' ? { reason: row.reason } : {}) };
   });
 }
 
@@ -360,7 +365,9 @@ export class PanelAssistantSidebar extends HTMLElement {
         const option = document.createElement('option');
         option.value = panel.entry_id;
         // Reachable is the expected, silent case; only a problem state earns a suffix.
-        option.textContent = panel.state === 'reachable' ? panel.title : `${panel.title} (${SIDEBAR_MESSAGES[panel.state]})`;
+        option.textContent = panel.state === 'reachable' ? panel.title : panel.state === 'restarting'
+          ? `${panel.title} (${SIDEBAR_MESSAGES.restarting.replace('{reason}', panel.reason)})`
+          : `${panel.title} (${SIDEBAR_MESSAGES[panel.state]})`;
         select.append(option);
       }
     }
@@ -377,12 +384,13 @@ export class PanelAssistantSidebar extends HTMLElement {
     if (!this.#admin()) key = 'admin';
     else if (this.#listState !== 'ready') key = this.#listState;
     else if (session?.state === 'closed' && session.entryId === panel?.entry_id) key = 'closed';
+    else if (panel?.state === 'restarting') key = 'restarting';
     else if (panel?.state === 'unreachable') key = 'unreachableBody';
     else if (panel?.state === 'not_loaded') key = 'notLoadedBody';
     else if (session?.state === 'failed') key = session.code === 'not_loaded' ? 'notLoadedBody' : 'failed';
     else if (session?.state !== 'open' && !frame.getAttribute('src')) opening = true;
     const status = root.querySelector('#status');
-    status.textContent = key ? SIDEBAR_MESSAGES[key] : '';
+    status.textContent = key === 'restarting' ? SIDEBAR_MESSAGES.restarting.replace('{reason}', panel.reason) : key ? SIDEBAR_MESSAGES[key] : '';
     status.hidden = !key;
     const loading = root.querySelector('#loading');
     loading.hidden = !opening;

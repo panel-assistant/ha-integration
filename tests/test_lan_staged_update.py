@@ -6,6 +6,7 @@ key, so the real resolver, signature checks and download run unchanged.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 from collections.abc import AsyncIterator
@@ -52,6 +53,7 @@ from custom_components.panel_assistant.coordinator import (
 )
 from custom_components.panel_assistant.feed_coordinator import StableReleaseCoordinator
 from custom_components.panel_assistant.status import PanelCachedUpdate, PanelStatus
+from custom_components.panel_assistant.transport import async_get_sessions
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity
 from custom_components.panel_assistant.update_coordinator import (
     PanelUpdateCoordinator,
@@ -363,6 +365,54 @@ async def test_a_stable_update_is_staged_by_home_assistant_not_fetched_by_the_pa
     assert entity.extra_state_attributes == {"update_route": "staged_by_home_assistant"}
     assert entity.installed_version == VERSION
     assert entity.in_progress is False
+
+
+@pytest.mark.parametrize("route", ["staged", "panel"])
+async def test_accepted_update_projects_restart_when_panel_disappears(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    route: str,
+) -> None:
+    """An accepted install makes the absent panel Restarting until it returns."""
+    entity, client = await _entity(
+        hass, monkeypatch, _GitHub(key), offer=OFFER, package=LEGACY_PACKAGE_ID
+    )
+    if route == "panel":
+        client.async_stage_apk.side_effect = StagingUnavailableError
+    entity.coordinator.last_update_success = True
+    waiting_for_return = asyncio.Event()
+    allow_return = asyncio.Event()
+    refreshes = 0
+
+    async def refresh() -> None:
+        nonlocal refreshes
+        refreshes += 1
+        if refreshes == 1:
+            entity.coordinator.last_update_success = False
+        else:
+            waiting_for_return.set()
+            await allow_return.wait()
+            entity.coordinator.data = _snapshot(VERSION, "2000", LEGACY_PACKAGE_ID)
+            entity.coordinator.last_update_success = True
+
+    entity.coordinator.async_request_refresh = AsyncMock(side_effect=refresh)  # type: ignore[method-assign]
+    install = asyncio.create_task(entity.async_install(None, backup=False))
+    sessions = async_get_sessions(hass)
+    try:
+        await asyncio.wait_for(waiting_for_return.wait(), 5)
+        if route == "staged":
+            client.async_commit_apk.assert_awaited_once_with("tok-1")
+        else:
+            client.async_start_panel_update.assert_awaited_once_with(TAG)
+        notice = sessions.restart_notice("entry-id")
+        assert notice is not None
+        assert (notice.scope, notice.reason) == ("app", "update")
+    finally:
+        allow_return.set()
+        await install
+        sessions.clear_restart_notice("entry-id")
 
 
 @pytest.mark.parametrize("refusal", [UploadDisabledError, StagingUnavailableError])

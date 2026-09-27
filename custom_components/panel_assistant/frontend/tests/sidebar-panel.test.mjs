@@ -241,9 +241,37 @@ test('unreachable and not-loaded panels open no session; a refresh to reachable 
   hass.panels = [row('one', 'not_loaded')]; intervals[0].fn(); await tick();
   assert.equal($('#status').textContent, SIDEBAR_MESSAGES.notLoadedBody);
   assert.equal(subs.length, 0);
-  assert.equal(intervals[0].ms, 30000);
+  assert.equal(intervals[0].ms, 5000);
   hass.panels = [row('one')]; intervals[0].fn(); await tick();
   assert.equal(subs.length, 1);
+});
+
+test('a restarting panel shows its reason until the list reports return', async () => {
+  const hass = fakeHass({ panels: [{ ...row('one', 'restarting'), reason: 'update' }] });
+  const { $, subs } = await mount(hass);
+  assert.equal($('#status').textContent, 'Restarting (update)');
+  assert.equal(subs.length, 0);
+  hass.panels = [row('one')]; intervals[0].fn(); await tick();
+  assert.equal(subs.length, 1);
+  assert.equal($('#status').hidden, true);
+});
+
+test('an open sidebar observes a short restart and its timeout or return', async () => {
+  const hass = fakeHass({ panels: [row('one')] });
+  const { $, subs } = await mount(hass);
+  assert.equal($('#status').hidden, true);
+  assert.ok(intervals[0].ms <= 5000, 'refresh must fit well inside a 30-second app notice');
+  hass.panels = [{ ...row('one', 'restarting'), reason: 'settings' }];
+  intervals[0].fn(); await tick();
+  assert.equal($('#status').textContent, 'Restarting (settings)');
+  assert.equal(subs[0].unsubscribed, 1);
+  hass.panels = [row('one', 'unreachable')];
+  intervals[0].fn(); await tick();
+  assert.equal($('#status').textContent, SIDEBAR_MESSAGES.unreachableBody);
+  hass.panels = [row('one')];
+  intervals[0].fn(); await tick();
+  assert.equal($('#status').hidden, true);
+  assert.equal(subs.length, 2);
 });
 
 test('empty and invalid lists show their messages', async () => {
@@ -434,6 +462,11 @@ test('every SIDEBAR_MESSAGES key renders through the real component; nothing is 
   seen((await mount(fakeHass({ panels: [row('one', 'unreachable')] }))).$('#status').textContent);
   seen((await mount(fakeHass({ panels: [row('one', 'not_loaded')] }))).$('#status').textContent);
   {
+    const text = (await mount(fakeHass({ panels: [{ ...row('one', 'restarting'), reason: 'update' }] }))).$('#status').textContent;
+    assert.equal(text, SIDEBAR_MESSAGES.restarting.replace('{reason}', 'update'));
+    seen(text);
+  }
+  {
     const { $, subs } = await mount(fakeHass());
     subs[0].callback({ kind: 'opened', url: 'https://evil.example/' });
     seen($('#status').textContent);
@@ -452,7 +485,7 @@ test('every SIDEBAR_MESSAGES key renders through the real component; nothing is 
     SIDEBAR_MESSAGES.versionLabel.replace('{version}', '1.2.3').replace('{build}', '9'));
 
   for (const [key, value] of Object.entries(SIDEBAR_MESSAGES)) {
-    if (key === 'versionLabel' || key === 'opening') continue;
+    if (key === 'versionLabel' || key === 'opening' || key === 'restarting') continue;
     assert.ok(observed.has(value), `SIDEBAR_MESSAGES.${key} ("${value}") was never rendered by the sidebar`);
   }
 });

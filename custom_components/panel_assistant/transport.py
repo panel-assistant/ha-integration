@@ -78,12 +78,13 @@ from .embed_proof import encode_key, new_key
 _LOGGER = logging.getLogger(__name__)
 
 PROTOCOL_MIN: Final = 1
-PROTOCOL_MAX: Final = 1
+PROTOCOL_MAX: Final = 2
 
 COMMAND_HELLO: Final = f"{DOMAIN}/hello"
 COMMAND_REPORT_STATE: Final = f"{DOMAIN}/report_state"
 COMMAND_REPORT_EVENT: Final = f"{DOMAIN}/report_event"
 COMMAND_COMMAND_RESULT: Final = f"{DOMAIN}/command_result"
+COMMAND_RESTART_NOTICE: Final = f"{DOMAIN}/restart_notice"
 
 # Who owns a panel's entities and commands. MQTT, unless an entry's options
 # choose otherwise while native entities are turned on.
@@ -551,6 +552,17 @@ REPORT_EVENT_SCHEMA: Final = vol.Schema(
     extra=vol.REMOVE_EXTRA,
 )
 
+RESTART_NOTICE_SCHEMA: Final = vol.Schema(
+    {
+        vol.Required("type"): COMMAND_RESTART_NOTICE,
+        vol.Required("session"): _session_token,
+        vol.Required("scope"): vol.In(("app", "panel")),
+        vol.Required("reason"): vol.In(("update", "settings", "recovery", "reboot")),
+        vol.Required("expected_back_ms"): _strict_int(1, 300_000),
+    },
+    extra=vol.REMOVE_EXTRA,
+)
+
 
 def _placeholders(value: Any) -> dict[str, str]:
     if type(value) is not dict or len(value) > MAX_PLACEHOLDERS:
@@ -880,6 +892,16 @@ class PendingCommand:
     approval_pending: bool = False
 
 
+@dataclass(frozen=True, slots=True)
+class RestartNotice:
+    """A bounded panel restart announcement with a monotonic deadline."""
+
+    scope: str
+    reason: str
+    expected_back_ms: int
+    deadline: float
+
+
 class TransportSessions:
     """Every live panel session, at most one per config entry.
 
@@ -894,6 +916,43 @@ class TransportSessions:
         self._by_entry: dict[str, PanelSession] = {}
         self._by_token: dict[str, PanelSession] = {}
         self._last_by_entry: dict[str, PanelSession] = {}
+        self._restart: dict[str, RestartNotice] = {}
+        self._restart_timers: dict[str, asyncio.TimerHandle] = {}
+
+    def restart_notice(self, entry_id: str) -> RestartNotice | None:
+        """Return only an unexpired notice."""
+        notice = self._restart.get(entry_id)
+        return (
+            notice
+            if notice is not None and notice.deadline > self._hass.loop.time()
+            else None
+        )
+
+    @callback
+    def set_restart_notice(
+        self, entry_id: str, scope: str, reason: str, remaining_ms: int
+    ) -> None:
+        """Replace a notice and schedule its state change at expiry."""
+        previous = self._restart_timers.pop(entry_id, None)
+        if previous is not None:
+            previous.cancel()
+        notice = RestartNotice(
+            scope, reason, remaining_ms, self._hass.loop.time() + remaining_ms / 1000
+        )
+        self._restart[entry_id] = notice
+        self._restart_timers[entry_id] = self._hass.loop.call_later(
+            remaining_ms / 1000, self.clear_restart_notice, entry_id
+        )
+        self._changed(entry_id)
+
+    @callback
+    def clear_restart_notice(self, entry_id: str) -> None:
+        """Forget a returned or timed-out panel's notice."""
+        timer = self._restart_timers.pop(entry_id, None)
+        if timer is not None:
+            timer.cancel()
+        if self._restart.pop(entry_id, None) is not None:
+            self._changed(entry_id)
 
     def get(self, entry_id: str) -> PanelSession | None:
         """Return the entry's live session, if any."""
@@ -907,6 +966,7 @@ class TransportSessions:
     def forget_entry(self, entry_id: str) -> None:
         """Drop a removed entry's ended session."""
         self._last_by_entry.pop(entry_id, None)
+        self.clear_restart_notice(entry_id)
 
     def for_request(
         self, token: str, connection: ActiveConnection
@@ -928,6 +988,7 @@ class TransportSessions:
         """
         if (previous := self._by_entry.get(session.entry_id)) is not None:
             self.close(previous, REASON_SUPERSEDED, announce=False)
+        self.clear_restart_notice(session.entry_id)
         # The kept session holds its closed connection; a live one replaces it.
         self._last_by_entry.pop(session.entry_id, None)
         self._by_entry[session.entry_id] = session
@@ -2110,6 +2171,28 @@ def ws_report_state(
 
 
 @callback
+@websocket_command(vol.All(RESTART_NOTICE_SCHEMA))
+def ws_restart_notice(
+    hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Record a deliberate restart from the panel's current protocol-2 session."""
+    sessions = async_get_sessions(hass)
+    session = sessions.for_request(msg["session"], connection)
+    if session is None:
+        connection.send_error(msg["id"], ERR_SESSION_UNKNOWN, "No such session.")
+        return
+    if session.protocol < 2:
+        connection.send_error(
+            msg["id"], ERR_INVALID_FORMAT, "Restart notice requires protocol 2."
+        )
+        return
+    sessions.set_restart_notice(
+        session.entry_id, msg["scope"], msg["reason"], msg["expected_back_ms"]
+    )
+    connection.send_result(msg["id"], {})
+
+
+@callback
 @websocket_command(vol.All(REPORT_EVENT_SCHEMA))
 def ws_report_event(
     hass: HomeAssistant,
@@ -2299,6 +2382,7 @@ def async_setup_transport(hass: HomeAssistant) -> None:
     async_get_sessions(hass)
     websocket_api.async_register_command(hass, ws_hello)
     websocket_api.async_register_command(hass, ws_report_state)
+    websocket_api.async_register_command(hass, ws_restart_notice)
     websocket_api.async_register_command(hass, ws_report_event)
     websocket_api.async_register_command(hass, ws_command_result)
 

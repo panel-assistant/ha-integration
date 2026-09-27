@@ -34,7 +34,12 @@ from .client import (
 )
 from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, update_unique_id
 from .status import PanelStatus
-from .transport import PanelSession, async_get_sessions, signal_session_changed
+from .transport import (
+    PanelSession,
+    RestartNotice,
+    async_get_sessions,
+    signal_session_changed,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -84,6 +89,15 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
     def available(self) -> bool:
         """Return whether the panel is reachable outbound or connected inbound."""
         return self.last_update_success or self.connected
+
+    @property
+    def restart_notice(self) -> RestartNotice | None:
+        """Return the active, bounded restart announcement for this entry."""
+        return (
+            async_get_sessions(self.hass).restart_notice(self._entry_id)
+            if self._entry_id is not None
+            else None
+        )
 
     @property
     def app_build(self) -> tuple[str, int] | None:
@@ -152,6 +166,12 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         if self._entry_id is not None:
             async_delete_address_issue(self.hass, self._entry_id)
             self._learn_identity(health)
+            if not self.connected:
+                sessions = async_get_sessions(self.hass)
+                if health.restart is None:
+                    sessions.clear_restart_notice(self._entry_id)
+                else:
+                    sessions.set_restart_notice(self._entry_id, *health.restart)
 
         try:
             status = await self.client.async_get_status(
