@@ -175,7 +175,7 @@
       "message": "Zatwierdź tę aktualizację na panelu, a następnie spróbuj ponownie"
     },
     "update_rejected": {
-      "message": "Panel odrzucił żądanie aktualizacji"
+      "message": "{panel} odrzucił żądanie aktualizacji. Sprawdź kartę Instalacja na panelu, a następnie spróbuj ponownie."
     },
     "update_not_accepted": {
       "message": "Panel nie przyjął żądania aktualizacji"

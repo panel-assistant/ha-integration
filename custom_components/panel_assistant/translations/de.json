@@ -168,7 +168,7 @@
     "update_unavailable": { "message": "Das angeforderte ha-paneld-Update ist nicht verfügbar" },
     "update_busy": { "message": "Das Panel ist mit einem anderen Vorgang beschäftigt" },
     "update_approval_required": { "message": "Genehmigen Sie dieses Update auf dem Panel und versuchen Sie es erneut" },
-    "update_rejected": { "message": "Das Panel hat die Update-Anfrage abgelehnt" },
+    "update_rejected": { "message": "{panel} hat die Update-Anfrage abgelehnt. Prüfe den Tab „Installieren“ auf dem Panel und versuche es erneut." },
     "update_not_accepted": { "message": "Das Panel hat die Update-Anfrage nicht angenommen" },
     "update_not_complete": { "message": "Das Panel-Update wurde nicht abgeschlossen" },
     "update_did_not_return": { "message": "Das Panel ist nach dem Update nicht zurückgekehrt" },

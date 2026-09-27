@@ -445,7 +445,7 @@
       "message": "Approve this update on the panel, then try again"
     },
     "update_rejected": {
-      "message": "The panel refused the update request"
+      "message": "{panel} refused the update request. Check its Install tab, then try again."
     },
     "update_not_accepted": {
       "message": "The panel did not accept the update request"
