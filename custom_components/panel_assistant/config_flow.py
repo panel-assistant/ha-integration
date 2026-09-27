@@ -85,6 +85,11 @@ from .install_network import (
     async_revalidate_install_target,
 )
 from .install_plan import InstallPlanError, build_install_plan
+from .migration_targets import (
+    MigrationTarget,
+    address_schema,
+    async_find_migration_targets,
+)
 from .provisioning import (
     InstallTargetProbe,
     InstallTargetState,
@@ -169,6 +174,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     _setup_watch: asyncio.Task[None] | None = None
     _release_catalog_error: str | None = None
     _pending_bind_user_id: str | None = None
+    _migration_targets: list[MigrationTarget] | None = None
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -373,9 +379,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str],
     ) -> ConfigFlowResult:
         """Ask only for the panel's address; what happens next depends on the panel."""
+        schema = address_schema(self._migration_targets) or _DATA_SCHEMA
         return self.async_show_form(
             step_id="add_panel",
-            data_schema=self.add_suggested_values_to_schema(_DATA_SCHEMA, user_input),
+            data_schema=self.add_suggested_values_to_schema(schema, user_input),
             errors=errors,
             description_placeholders={
                 "panel_access_url": help_url("panel-access"),
@@ -556,6 +563,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is None:
             previous = self._pending_address
             self._reset_pending_panel()
+            self._migration_targets = await async_find_migration_targets(self.hass)
             return self._show_add_panel_form(
                 {CONF_ADDRESS: previous.stored_value} if previous else None, errors
             )

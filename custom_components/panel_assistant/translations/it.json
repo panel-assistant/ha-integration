@@ -21,7 +21,7 @@
       },
       "add_panel": {
         "title": "Aggiungi un pannello",
-        "description": "Inserisci il nome host o l'indirizzo IP del pannello. Se ha-paneld non è ancora installato, attiva prima ADB di rete sulla porta 5555 seguendo la [guida all'accesso al pannello specifica per modello]({panel_access_url}). L'accesso root non è necessario. Se il pannello non risponde, l'[aiuto per raggiungere un pannello]({panel_help_url}) ha i passaggi per ogni modello e altri modi per installare.",
+        "description": "Scegli un pannello che Home Assistant conosce già tramite un'altra app, oppure inserisci il nome host o l'indirizzo IP del pannello. I pannelli contrassegnati con ✓ rispondono già tramite ADB di rete. Se ha-paneld non è ancora installato, attiva prima ADB di rete sulla porta 5555 seguendo la [guida all'accesso al pannello specifica per modello]({panel_access_url}). L'accesso root non è necessario. Se il pannello non risponde, l'[aiuto per raggiungere un pannello]({panel_help_url}) ha i passaggi per ogni modello e altri modi per installare.",
         "data": {
           "address": "Nome host o indirizzo IP del pannello"
         }

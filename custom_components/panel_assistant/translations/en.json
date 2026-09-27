@@ -21,7 +21,7 @@
       },
       "add_panel": {
         "title": "Add a panel",
-        "description": "Enter the panel's hostname or IP address. If ha-paneld isn't installed yet, first turn on network ADB on port 5555 using the [model-specific panel access guide]({panel_access_url}). Root access is not required. If the panel does not answer, [help for reaching a panel]({panel_help_url}) has steps for each model and other ways to install.",
+        "description": "Pick a panel Home Assistant already knows through another app, or enter the panel's hostname or IP address. Panels marked ✓ already answer on network ADB. If ha-paneld isn't installed yet, first turn on network ADB on port 5555 using the [model-specific panel access guide]({panel_access_url}). Root access is not required. If the panel does not answer, [help for reaching a panel]({panel_help_url}) has steps for each model and other ways to install.",
         "data": {
           "address": "Panel hostname or IP address"
         }

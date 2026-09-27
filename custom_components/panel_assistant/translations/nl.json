@@ -21,7 +21,7 @@
       },
       "add_panel": {
         "title": "Een paneel toevoegen",
-        "description": "Voer de hostnaam of het IP-adres van het paneel in. Als ha-paneld nog niet is geïnstalleerd, schakel dan eerst ADB via het netwerk in op poort 5555 met de [modelspecifieke handleiding voor toegang tot het paneel]({panel_access_url}). Root-toegang is niet nodig. Als het paneel niet reageert, vind je in [hulp bij het bereiken van een paneel]({panel_help_url}) stappen voor elk model en andere manieren om te installeren.",
+        "description": "Kies een paneel dat Home Assistant al kent via een andere app, of voer de hostnaam of het IP-adres van het paneel in. Panelen met ✓ reageren al via ADB via het netwerk. Als ha-paneld nog niet is geïnstalleerd, schakel dan eerst ADB via het netwerk in op poort 5555 met de [modelspecifieke handleiding voor toegang tot het paneel]({panel_access_url}). Root-toegang is niet nodig. Als het paneel niet reageert, vind je in [hulp bij het bereiken van een paneel]({panel_help_url}) stappen voor elk model en andere manieren om te installeren.",
         "data": {
           "address": "Hostnaam of IP-adres van het paneel"
         }

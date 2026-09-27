@@ -21,7 +21,7 @@
       },
       "add_panel": {
         "title": "Panel hinzufügen",
-        "description": "Gib den Hostnamen oder die IP-Adresse des Panels ein. Wenn ha-paneld noch nicht installiert ist, aktiviere zuerst Netzwerk-ADB auf Port 5555 mithilfe der [modellspezifischen Anleitung für den Panelzugriff]({panel_access_url}). Root-Zugriff ist nicht erforderlich. Wenn das Panel nicht antwortet, findest du in der [Hilfe zum Erreichen eines Panels]({panel_help_url}) Schritte je Modell und weitere Installationswege.",
+        "description": "Wähle ein Panel, das Home Assistant bereits über eine andere App kennt, oder gib den Hostnamen oder die IP-Adresse des Panels ein. Mit ✓ markierte Panels antworten bereits über Netzwerk-ADB. Wenn ha-paneld noch nicht installiert ist, aktiviere zuerst Netzwerk-ADB auf Port 5555 mithilfe der [modellspezifischen Anleitung für den Panelzugriff]({panel_access_url}). Root-Zugriff ist nicht erforderlich. Wenn das Panel nicht antwortet, findest du in der [Hilfe zum Erreichen eines Panels]({panel_help_url}) Schritte je Modell und weitere Installationswege.",
         "data": {
           "address": "Hostname oder IP-Adresse des Panels"
         }

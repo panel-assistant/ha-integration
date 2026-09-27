@@ -21,7 +21,7 @@
       },
       "add_panel": {
         "title": "Ajouter un panneau",
-        "description": "Saisissez le nom d'hôte ou l'adresse IP du panneau. Si ha-paneld n'est pas encore installé, activez d'abord ADB réseau sur le port 5555 à l'aide du [guide d'accès au panneau propre au modèle]({panel_access_url}). L'accès root n'est pas nécessaire. Si le panneau ne répond pas, l'[aide pour joindre un panneau]({panel_help_url}) donne les étapes par modèle et d'autres façons d'installer.",
+        "description": "Choisissez un panneau que Home Assistant connaît déjà par une autre application, ou saisissez le nom d'hôte ou l'adresse IP du panneau. Les panneaux marqués ✓ répondent déjà par ADB réseau. Si ha-paneld n'est pas encore installé, activez d'abord ADB réseau sur le port 5555 à l'aide du [guide d'accès au panneau propre au modèle]({panel_access_url}). L'accès root n'est pas nécessaire. Si le panneau ne répond pas, l'[aide pour joindre un panneau]({panel_help_url}) donne les étapes par modèle et d'autres façons d'installer.",
         "data": {
           "address": "Nom d'hôte ou adresse IP du panneau"
         }

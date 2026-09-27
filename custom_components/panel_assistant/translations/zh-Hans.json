@@ -21,7 +21,7 @@
       },
       "add_panel": {
         "title": "添加面板",
-        "description": "输入面板的主机名或 IP 地址。如果尚未安装 ha-paneld，请先按照[适用于具体型号的面板访问指南]({panel_access_url})在端口 5555 上开启网络 ADB。不需要 root 权限。如果面板没有响应，[连接面板的帮助]({panel_help_url})提供各型号的步骤和其他安装方式。",
+        "description": "选择 Home Assistant 已通过其他应用识别的面板，或输入面板的主机名或 IP 地址。标有 ✓ 的面板已可通过网络 ADB 响应。如果尚未安装 ha-paneld，请先按照[适用于具体型号的面板访问指南]({panel_access_url})在端口 5555 上开启网络 ADB。不需要 root 权限。如果面板没有响应，[连接面板的帮助]({panel_help_url})提供各型号的步骤和其他安装方式。",
         "data": {
           "address": "面板主机名或 IP 地址"
         }
