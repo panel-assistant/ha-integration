@@ -315,6 +315,12 @@ class InstallExecutor:
                     try:
                         await self._async_claim(receipt)
                     except _PauseJob:
+                        _LOGGER.warning(
+                            "Install resume paused: panel=%s stage=%s job=%s",
+                            receipt.target.address,
+                            receipt.phase.value,
+                            receipt.job_id,
+                        )
                         continue
                     except InstallJobRevisionError:
                         current = await self._manager.async_get(receipt.job_id)
@@ -324,7 +330,15 @@ class InstallExecutor:
                         ):
                             try:
                                 await self._async_claim(current)
-                            except _PauseJob, InstallJobRevisionError:
+                            except _PauseJob:
+                                _LOGGER.warning(
+                                    "Install resume paused: panel=%s stage=%s job=%s",
+                                    current.target.address,
+                                    current.phase.value,
+                                    current.job_id,
+                                )
+                                continue
+                            except InstallJobRevisionError:
                                 continue
                     # An active same-manager worker retains its claim. It must
                     # never be duplicated or have its live artifact cleaned.
@@ -482,6 +496,7 @@ class InstallExecutor:
                     receipt.revision,
                     InstallPhase.RECOVERY_REQUIRED,
                     result_code=InstallResultCode.VERIFICATION_REQUIRED,
+                    result_subcode="finalization:entry_health_mismatch",
                 )
         except Exception:
             _LOGGER.warning("Unable to reconcile a durable ha-paneld install receipt")
@@ -499,21 +514,27 @@ class InstallExecutor:
                 InstallNetworkErrorCode.RESOLUTION_TIMEOUT,
             }:
                 return FinalizationResult(FinalizationOutcome.RETRY)
-            return await self._async_reject_healthy(receipt)
+            return await self._async_reject_healthy(receipt, _result_subcode(err))
 
         try:
             credential = await async_get_durable_adb_credential(self._hass)
-        except AdbCredentialError:
-            return await self._async_reject_healthy(receipt)
+        except AdbCredentialError as err:
+            return await self._async_reject_healthy(receipt, _result_subcode(err))
         except Exception:
             _LOGGER.exception("Unexpected exception while loading final ADB identity")
-            return await self._async_reject_healthy(receipt)
+            return await self._async_reject_healthy(
+                receipt, "finalization:credential_error"
+            )
         if credential.generation_id != receipt.adb_credential_id:
-            return await self._async_reject_healthy(receipt)
+            return await self._async_reject_healthy(
+                receipt, "finalization:credential_changed"
+            )
 
         stored_root_mode = receipt.preflight_root_mode
         if stored_root_mode is None:
-            return await self._async_reject_healthy(receipt)
+            return await self._async_reject_healthy(
+                receipt, "finalization:root_mode_missing"
+            )
         adb_target = _adb_target(receipt)
         try:
             await async_verify_installed_target(
@@ -527,7 +548,7 @@ class InstallExecutor:
         except InstallAdbError as err:
             if err.code is InstallAdbErrorCode.TARGET_UNREACHABLE:
                 return FinalizationResult(FinalizationOutcome.RETRY)
-            return await self._async_reject_healthy(receipt)
+            return await self._async_reject_healthy(receipt, _result_subcode(err))
 
         try:
             health = await HaPaneldClient(
@@ -536,14 +557,14 @@ class InstallExecutor:
         except CannotConnectError:
             return FinalizationResult(FinalizationOutcome.RETRY)
         except InvalidResponseError:
-            return await self._async_reject_healthy(receipt)
+            return await self._async_reject_healthy(receipt, "health:invalid_response")
 
         if not health_is_installed_app(health, receipt.artifact):
-            return await self._async_reject_healthy(receipt)
+            return await self._async_reject_healthy(receipt, "health:identity_mismatch")
         return FinalizationResult(FinalizationOutcome.VERIFIED, health)
 
     async def _async_reject_healthy(
-        self, receipt: InstallJobReceipt
+        self, receipt: InstallJobReceipt, subcode: str
     ) -> FinalizationResult:
         """Make final verification drift durable before refusing the entry."""
         try:
@@ -552,6 +573,7 @@ class InstallExecutor:
                 receipt.revision,
                 InstallPhase.RECOVERY_REQUIRED,
                 result_code=InstallResultCode.VERIFICATION_REQUIRED,
+                result_subcode=subcode,
             )
         except InstallJobError:
             return FinalizationResult(FinalizationOutcome.RECEIPT_ERROR)
@@ -570,6 +592,7 @@ class InstallExecutor:
         local_artifact: CustodiedArtifact | None = None
         staged: StagedApk | None = None
         stale_partial_removed = False
+        receipt: InstallJobReceipt | None = None
         try:
             receipt = await self._manager.async_get(job_id)
             try:
@@ -596,9 +619,11 @@ class InstallExecutor:
                 elif phase is InstallPhase.AUTHORIZING:
                     try:
                         await self._async_current_credential(receipt)
-                    except AdbCredentialError:
+                    except AdbCredentialError as err:
                         receipt = await self._async_fail(
-                            receipt, InstallResultCode.AUTHORIZATION_FAILED
+                            receipt,
+                            InstallResultCode.AUTHORIZATION_FAILED,
+                            _result_subcode(err),
                         )
                     else:
                         receipt = await self._async_transition(
@@ -625,13 +650,15 @@ class InstallExecutor:
                                 raise InstallAdbError(
                                     InstallAdbErrorCode.TARGET_NOT_CLEAN
                                 )
-                    except AdbCredentialError, InstallNetworkError:
+                    except (AdbCredentialError, InstallNetworkError) as err:
                         receipt = await self._async_fail(
-                            receipt, InstallResultCode.TRANSPORT_FAILED
+                            receipt,
+                            InstallResultCode.TRANSPORT_FAILED,
+                            _result_subcode(err),
                         )
                     except InstallAdbError as err:
                         receipt = await self._async_fail(
-                            receipt, _preflight_result(err)
+                            receipt, _preflight_result(err), _result_subcode(err)
                         )
                     else:
                         if installed_bytes is None:
@@ -675,6 +702,7 @@ class InstallExecutor:
                                 receipt,
                                 execution.execution_id,
                                 _artifact_result(err),
+                                _result_subcode(err),
                             )
                     else:
                         receipt = await self._async_transition(
@@ -707,6 +735,7 @@ class InstallExecutor:
                                 receipt,
                                 execution.execution_id,
                                 _artifact_result(err),
+                                _result_subcode(err),
                             )
                     else:
                         receipt = await self._async_transition(
@@ -736,18 +765,21 @@ class InstallExecutor:
                                 receipt,
                                 execution.execution_id,
                                 _artifact_result(err),
+                                _result_subcode(err),
                             )
-                    except AdbCredentialError, InstallNetworkError:
+                    except (AdbCredentialError, InstallNetworkError) as err:
                         receipt = await self._async_cleanup_local_then_fail(
                             receipt,
                             execution.execution_id,
                             InstallResultCode.TRANSPORT_FAILED,
+                            _result_subcode(err),
                         )
                     except InstallAdbError as err:
                         receipt = await self._async_cleanup_local_then_fail(
                             receipt,
                             execution.execution_id,
                             _preflight_result(err),
+                            _result_subcode(err),
                         )
                     else:
                         receipt = await self._async_transition(
@@ -755,7 +787,11 @@ class InstallExecutor:
                         )
                 elif phase is InstallPhase.STAGING:
                     if local_artifact is None:
-                        receipt = await self._async_recovery(receipt)
+                        receipt = await self._async_recovery(
+                            receipt,
+                            InstallResultCode.AMBIGUOUS_MUTATION,
+                            "staging:local_artifact_missing",
+                        )
                         continue
                     try:
                         credential, receipt = await self._async_mutation_authority(
@@ -772,20 +808,26 @@ class InstallExecutor:
                         _require_staged(staged, receipt.artifact)
                     except _CancellationObserved as err:
                         receipt = err.receipt
-                    except AdbCredentialError, InstallNetworkError:
+                    except (AdbCredentialError, InstallNetworkError) as err:
                         receipt = await self._async_cleanup_local_then_fail(
                             receipt,
                             execution.execution_id,
                             InstallResultCode.TRANSPORT_FAILED,
+                            _result_subcode(err),
                         )
                     except InstallAdbError as err:
                         if err.code in _AMBIGUOUS_ADB_ERRORS:
-                            receipt = await self._async_recovery(receipt)
+                            receipt = await self._async_recovery(
+                                receipt,
+                                InstallResultCode.AMBIGUOUS_MUTATION,
+                                _result_subcode(err),
+                            )
                         else:
                             receipt = await self._async_cleanup_local_then_fail(
                                 receipt,
                                 execution.execution_id,
                                 _stage_result(err),
+                                _result_subcode(err),
                             )
                     else:
                         receipt = await self._async_transition(
@@ -793,7 +835,11 @@ class InstallExecutor:
                         )
                 elif phase is InstallPhase.INSTALLING:
                     if staged is None:
-                        receipt = await self._async_recovery(receipt)
+                        receipt = await self._async_recovery(
+                            receipt,
+                            InstallResultCode.AMBIGUOUS_MUTATION,
+                            "installing:staged_artifact_missing",
+                        )
                         continue
                     try:
                         credential, receipt = await self._async_mutation_authority(
@@ -806,16 +852,24 @@ class InstallExecutor:
                             _REMOTE_STAGING_SLOT_ID,
                             expected_root_mode=_root_mode(receipt),
                         )
-                    except AdbCredentialError, InstallNetworkError:
+                    except (AdbCredentialError, InstallNetworkError) as err:
                         receipt = await self._async_recovery(
-                            receipt, InstallResultCode.VERIFICATION_REQUIRED
+                            receipt,
+                            InstallResultCode.VERIFICATION_REQUIRED,
+                            _result_subcode(err),
                         )
                     except InstallAdbError as err:
                         if err.code in _AMBIGUOUS_ADB_ERRORS:
-                            receipt = await self._async_recovery(receipt)
+                            receipt = await self._async_recovery(
+                                receipt,
+                                InstallResultCode.AMBIGUOUS_MUTATION,
+                                _result_subcode(err),
+                            )
                         else:
                             receipt = await self._async_recovery(
-                                receipt, InstallResultCode.VERIFICATION_REQUIRED
+                                receipt,
+                                InstallResultCode.VERIFICATION_REQUIRED,
+                                _result_subcode(err),
                             )
                     else:
                         if outcome is InstallOutcome.REFUSED:
@@ -829,14 +883,20 @@ class InstallExecutor:
                         else:
                             # Retain a fail-closed runtime fallback if the dependency
                             # ever violates this currently exhaustive enum contract.
-                            receipt = await self._async_recovery(receipt)  # type: ignore[unreachable]
+                            receipt = await self._async_recovery(  # type: ignore[unreachable]
+                                receipt,
+                                InstallResultCode.AMBIGUOUS_MUTATION,
+                                "installing:unexpected_outcome",
+                            )
                 elif phase is InstallPhase.INSTALLED:
                     staged = _staged_from_receipt(receipt)
                     try:
                         await self._async_cleanup_local(execution.execution_id)
-                    except ArtifactCustodyError:
+                    except ArtifactCustodyError as err:
                         receipt = await self._async_recovery(
-                            receipt, InstallResultCode.VERIFICATION_REQUIRED
+                            receipt,
+                            InstallResultCode.VERIFICATION_REQUIRED,
+                            _result_subcode(err),
                         )
                     else:
                         receipt = await self._async_transition(
@@ -844,7 +904,11 @@ class InstallExecutor:
                         )
                 elif phase is InstallPhase.LAUNCHING:
                     if staged is None:
-                        receipt = await self._async_recovery(receipt)
+                        receipt = await self._async_recovery(
+                            receipt,
+                            InstallResultCode.AMBIGUOUS_MUTATION,
+                            "launching:staged_artifact_missing",
+                        )
                         continue
                     receipt = await self._async_cleanup_and_launch(
                         receipt, execution, staged
@@ -856,7 +920,7 @@ class InstallExecutor:
                     panel = HaPaneldClient(
                         async_get_clientsession(self._hass), execution.pinned.pinned
                     )
-                    health = await self._async_health(execution, panel)
+                    health, health_subcode = await self._async_health(execution, panel)
                     if health is None or not health_is_installed_app(
                         health, receipt.artifact
                     ):
@@ -877,7 +941,9 @@ class InstallExecutor:
                                 receipt.artifact.version_name,
                             )
                         receipt = await self._async_recovery(
-                            receipt, InstallResultCode.VERIFICATION_REQUIRED
+                            receipt,
+                            InstallResultCode.VERIFICATION_REQUIRED,
+                            health_subcode or "health:identity_mismatch",
                         )
                     else:
                         async_delete_panel_migration_incomplete(
@@ -901,6 +967,12 @@ class InstallExecutor:
         except _PauseJob as err:
             if err.nonrestartable:
                 self._nonrestartable_workers.add(job_id)
+            _LOGGER.warning(
+                "Install worker paused panel=%s stage=%s job=%s",
+                receipt.target.address if receipt else "unknown",
+                receipt.phase.value if receipt else "load",
+                job_id,
+            )
             return
         except asyncio.CancelledError:
             self._nonrestartable_workers.add(job_id)
@@ -909,11 +981,30 @@ class InstallExecutor:
             InstallJobRevisionError,
             InstallJobStoreError,
             InstallJobTransitionError,
-        ):
+        ) as err:
             # Fresh durable authority was lost. Some transition failures can
             # occur immediately after an external mutation, so never replay
             # this worker in the same process or invent a definite outcome.
             self._nonrestartable_workers.add(job_id)
+            _LOGGER.warning(
+                "Install worker stopped panel=%s stage=%s subcode=job:%s job=%s",
+                receipt.target.address if receipt else "unknown",
+                receipt.phase.value if receipt else "load",
+                type(err).__name__,
+                job_id,
+            )
+        except Exception as err:
+            self._nonrestartable_workers.add(job_id)
+            _LOGGER.warning(
+                "Install worker stopped panel=%s stage=%s subcode=job:unexpected "
+                "error=%s: %r job=%s",
+                receipt.target.address if receipt else "unknown",
+                receipt.phase.value if receipt else "load",
+                type(err).__name__,
+                err,
+                job_id,
+            )
+            raise
 
     async def _async_claim(
         self,
@@ -1049,16 +1140,19 @@ class InstallExecutor:
         receipt: InstallJobReceipt,
         execution_id: str,
         result: InstallResultCode,
+        subcode: str,
     ) -> InstallJobReceipt:
         try:
             await self._async_cleanup_local(execution_id)
-        except ArtifactCustodyError:
+        except ArtifactCustodyError as err:
             if receipt.phase is InstallPhase.STAGING:
                 return await self._async_recovery(
-                    receipt, InstallResultCode.VERIFICATION_REQUIRED
+                    receipt,
+                    InstallResultCode.VERIFICATION_REQUIRED,
+                    _result_subcode(err),
                 )
             raise _PauseJob from None
-        return await self._async_fail(receipt, result)
+        return await self._async_fail(receipt, result, subcode)
 
     async def _async_install_refused(
         self,
@@ -1082,13 +1176,19 @@ class InstallExecutor:
             AdbCredentialError,
             ArtifactCustodyError,
             InstallNetworkError,
-        ):
+        ) as err:
             return await self._async_recovery(
-                receipt, InstallResultCode.VERIFICATION_REQUIRED
+                receipt,
+                InstallResultCode.VERIFICATION_REQUIRED,
+                _result_subcode(err),
             )
         except InstallAdbError as err:
-            return await self._async_recovery(receipt, _cleanup_result(err))
-        return await self._async_fail(receipt, InstallResultCode.INSTALL_FAILED)
+            return await self._async_recovery(
+                receipt, _cleanup_result(err), _result_subcode(err)
+            )
+        return await self._async_fail(
+            receipt, InstallResultCode.INSTALL_FAILED, "install:refused"
+        )
 
     async def _async_cleanup_and_launch(
         self,
@@ -1110,12 +1210,16 @@ class InstallExecutor:
         except (
             AdbCredentialError,
             InstallNetworkError,
-        ):
+        ) as err:
             return await self._async_recovery(
-                receipt, InstallResultCode.VERIFICATION_REQUIRED
+                receipt,
+                InstallResultCode.VERIFICATION_REQUIRED,
+                _result_subcode(err),
             )
         except InstallAdbError as err:
-            return await self._async_recovery(receipt, _cleanup_result(err))
+            return await self._async_recovery(
+                receipt, _cleanup_result(err), _result_subcode(err)
+            )
         try:
             credential, receipt = await self._async_mutation_authority(
                 receipt, execution
@@ -1126,44 +1230,64 @@ class InstallExecutor:
                 execution.descriptor,
                 expected_root_mode=_root_mode(receipt),
             )
-        except AdbCredentialError, InstallNetworkError:
-            return await self._async_fail(receipt, InstallResultCode.LAUNCH_FAILED)
+        except (AdbCredentialError, InstallNetworkError) as err:
+            return await self._async_fail(
+                receipt, InstallResultCode.LAUNCH_FAILED, _result_subcode(err)
+            )
         except InstallAdbError as err:
             if err.code in _AMBIGUOUS_ADB_ERRORS:
-                return await self._async_recovery(receipt)
+                return await self._async_recovery(
+                    receipt, InstallResultCode.AMBIGUOUS_MUTATION, _result_subcode(err)
+                )
             if err.code in {
                 InstallAdbErrorCode.TARGET_CHANGED,
                 InstallAdbErrorCode.ROOT_MODE_CHANGED,
             }:
                 return await self._async_recovery(
-                    receipt, InstallResultCode.VERIFICATION_REQUIRED
+                    receipt,
+                    InstallResultCode.VERIFICATION_REQUIRED,
+                    _result_subcode(err),
                 )
-            return await self._async_fail(receipt, InstallResultCode.LAUNCH_FAILED)
+            return await self._async_fail(
+                receipt, InstallResultCode.LAUNCH_FAILED, _result_subcode(err)
+            )
         if outcome is LaunchOutcome.STARTED:
             return await self._async_transition(receipt, InstallPhase.HEALTH_CHECK)
         if outcome is LaunchOutcome.REFUSED:
-            return await self._async_fail(receipt, InstallResultCode.LAUNCH_FAILED)
+            return await self._async_fail(
+                receipt, InstallResultCode.LAUNCH_FAILED, "launch:refused"
+            )
         # Retain a fail-closed runtime fallback if the dependency ever violates
         # this currently exhaustive enum contract.
-        return await self._async_recovery(receipt)  # type: ignore[unreachable]
+        return await self._async_recovery(  # type: ignore[unreachable]
+            receipt,
+            InstallResultCode.AMBIGUOUS_MUTATION,
+            "launch:unexpected_outcome",
+        )
 
     async def _async_health(
         self, execution: _FrozenExecution, client: HaPaneldClient
-    ) -> PanelHealth | None:
+    ) -> tuple[PanelHealth | None, str | None]:
         artifact = execution.descriptor
         # Only a successor install can meet a handover, and only then does an
         # answer from another app mean "not yet" rather than "the wrong app". A
         # legacy install keeps exactly the budget and the failure it had.
         handover = artifact.package_id == SUCCESSOR_PACKAGE_ID
         attempts = _HANDOVER_HEALTH_ATTEMPTS if handover else _HEALTH_ATTEMPTS
+        failure_subcode = "health:unavailable"
         for attempt in range(attempts):
             last = attempt + 1 >= attempts
             try:
                 await _require_pin(self._hass, execution.pinned)
                 health = await client.async_get_health()
-            except InstallNetworkError:
-                return None
-            except CannotConnectError, InvalidResponseError:
+            except InstallNetworkError as err:
+                return None, _result_subcode(err)
+            except (CannotConnectError, InvalidResponseError) as err:
+                failure_subcode = (
+                    "health:invalid_response"
+                    if isinstance(err, InvalidResponseError)
+                    else "health:cannot_connect"
+                )
                 # Nothing is answering on 8888. During a handover that is the
                 # legacy app having released the port before the successor
                 # bound it, so it is a reason to wait rather than to fail.
@@ -1171,11 +1295,11 @@ class InstallExecutor:
                     await asyncio.sleep(_HEALTH_RETRY_SECONDS)
                 continue
             if not handover or last or health_is_installed_app(health, artifact):
-                return health
+                return health, None
             # Something healthy answered, but it is not the app just installed:
             # on a migrating panel the legacy app still owns the port.
             await asyncio.sleep(_HEALTH_RETRY_SECONDS)
-        return None
+        return None, failure_subcode
 
     async def _async_cancel_requested(
         self,
@@ -1199,12 +1323,16 @@ class InstallExecutor:
             except (
                 AdbCredentialError,
                 InstallNetworkError,
-            ):
+            ) as err:
                 return await self._async_recovery(
-                    receipt, InstallResultCode.VERIFICATION_REQUIRED
+                    receipt,
+                    InstallResultCode.VERIFICATION_REQUIRED,
+                    _result_subcode(err),
                 )
             except InstallAdbError as err:
-                return await self._async_recovery(receipt, _cleanup_result(err))
+                return await self._async_recovery(
+                    receipt, _cleanup_result(err), _result_subcode(err)
+                )
         if (
             local_artifact is not None
             or receipt.actual_apk_bytes is not None
@@ -1212,7 +1340,7 @@ class InstallExecutor:
         ):
             try:
                 await self._async_cleanup_local(execution.execution_id)
-            except ArtifactCustodyError:
+            except ArtifactCustodyError as err:
                 if receipt.phase in {
                     InstallPhase.STAGING,
                     InstallPhase.INSTALLING,
@@ -1222,7 +1350,9 @@ class InstallExecutor:
                     InstallPhase.HEALTHY_UNCLAIMED,
                 }:
                     return await self._async_recovery(
-                        receipt, InstallResultCode.VERIFICATION_REQUIRED
+                        receipt,
+                        InstallResultCode.VERIFICATION_REQUIRED,
+                        _result_subcode(err),
                     )
                 raise _PauseJob from None
         result = (
@@ -1270,7 +1400,7 @@ class InstallExecutor:
             raise
 
     async def _async_fail(
-        self, receipt: InstallJobReceipt, result: InstallResultCode
+        self, receipt: InstallJobReceipt, result: InstallResultCode, subcode: str
     ) -> InstallJobReceipt:
         current = await self._manager.async_get(receipt.job_id)
         if current.is_terminal:
@@ -1280,12 +1410,14 @@ class InstallExecutor:
             current.revision,
             InstallPhase.FAILED,
             result_code=result,
+            result_subcode=subcode,
         )
 
     async def _async_recovery(
         self,
         receipt: InstallJobReceipt,
-        result: InstallResultCode = InstallResultCode.AMBIGUOUS_MUTATION,
+        result: InstallResultCode,
+        subcode: str,
     ) -> InstallJobReceipt:
         current = await self._manager.async_get(receipt.job_id)
         if current.is_terminal:
@@ -1308,6 +1440,7 @@ class InstallExecutor:
             current.revision,
             InstallPhase.RECOVERY_REQUIRED,
             result_code=result,
+            result_subcode=subcode,
         )
 
 
@@ -1487,6 +1620,21 @@ def _artifact_result(error: ArtifactCustodyError) -> InstallResultCode:
     if error.code in _ARTIFACT_REJECTIONS:
         return InstallResultCode.ARTIFACT_REJECTED
     return InstallResultCode.TRANSPORT_FAILED
+
+
+def _result_subcode(
+    error: AdbCredentialError
+    | InstallNetworkError
+    | InstallAdbError
+    | ArtifactCustodyError,
+) -> str:
+    if isinstance(error, AdbCredentialError):
+        return "credential:unavailable"
+    if isinstance(error, InstallNetworkError):
+        return f"network:{error.code.value}"
+    if isinstance(error, InstallAdbError):
+        return f"adb:{error.code.value}"
+    return f"artifact:{error.code.value}"
 
 
 async def async_get_install_executor(hass: HomeAssistant) -> InstallExecutor:

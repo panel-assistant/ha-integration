@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from collections.abc import Generator
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
@@ -57,13 +58,18 @@ from custom_components.panel_assistant.install_jobs import (
     InstallArtifact,
     InstallJobManager,
     InstallJobReceipt,
+    InstallJobRevisionError,
+    InstallJobStoreError,
     InstallJobTransitionError,
     InstallPhase,
     InstallResultCode,
     InstallTarget,
     install_plan_sha256,
 )
-from custom_components.panel_assistant.install_network import PinnedPanelTarget
+from custom_components.panel_assistant.install_network import (
+    InstallNetworkErrorCode,
+    PinnedPanelTarget,
+)
 from custom_components.panel_assistant.release import InstallDescriptor, ReleaseArtifact
 
 APK_SHA256 = "a" * 64
@@ -71,6 +77,7 @@ CREDENTIAL_ID = "b" * 64
 OTHER_CREDENTIAL_ID = "c" * 64
 _REAL_STORE_PRESENCE = install_jobs._store_presence
 _REAL_PARSE_STORE_DOCUMENT = install_jobs._parse_store_document
+_REAL_PARSE_DETAIL_STORE_DOCUMENT = install_jobs._parse_detail_store_document
 
 
 @pytest.fixture(autouse=True)
@@ -78,15 +85,17 @@ def emulate_home_assistant_store_file(
     hass_storage: dict[str, Any],
 ) -> Generator[None]:
     """Model the Store file hidden by HA's in-memory test storage manager."""
-    observed_paths: set[str] = set()
 
     def _presence(path: str) -> tuple[bool, bool]:
         exists, corrupt = _REAL_STORE_PRESENCE(path)
         if exists or corrupt:
             return exists, corrupt
-        if path in observed_paths:
-            return True, False
-        observed_paths.add(path)
+        key = Path(path).name
+        if key in {
+            f"{DOMAIN}.install_jobs",
+            f"{DOMAIN}.install_jobs.details",
+        }:
+            return key in hass_storage, False
         return False, False
 
     def _durable_reader(_path: str) -> dict[str, InstallJobReceipt]:
@@ -97,9 +106,18 @@ def emulate_home_assistant_store_file(
             json.dumps(document, separators=(",", ":")).encode("utf-8")
         )
 
+    def _detail_reader(_path: str) -> Any:
+        document = hass_storage.get(f"{DOMAIN}.install_jobs.details")
+        if document is None:
+            raise install_jobs.InstallJobStoreError
+        return _REAL_PARSE_DETAIL_STORE_DOCUMENT(
+            json.dumps(document, separators=(",", ":")).encode("utf-8")
+        )
+
     with (
         patch.object(install_jobs, "_store_presence", side_effect=_presence),
         patch.object(install_jobs, "_read_durable_jobs", side_effect=_durable_reader),
+        patch.object(install_jobs, "_read_durable_details", side_effect=_detail_reader),
     ):
         yield
 
@@ -291,9 +309,11 @@ class Harness:
         self.credential_wrong_at: int | None = None
         self.credential_error_at: int | None = None
         self.pin_error_at: int | None = None
+        self.pin_error_code = InstallNetworkErrorCode.PINNED_TARGET_REMOVED
         self.pin_wrong_at: int | None = None
         self.pin_calls = 0
         self.preflight_calls = 0
+        self.preflight_error: InstallAdbError | None = None
         self.preflight_wrong_at: int | None = None
         self.preflight_wrong_field = "serial"
         self.preflight_root_modes: list[AdbRootMode] = []
@@ -455,9 +475,7 @@ class Harness:
         self.pin_arguments.append(pinned)
         self.pin_calls += 1
         if self.pin_calls == self.pin_error_at:
-            raise install_executor.InstallNetworkError(
-                install_executor.InstallNetworkErrorCode.PINNED_TARGET_REMOVED
-            )
+            raise install_executor.InstallNetworkError(self.pin_error_code)
         if self.pin_calls == self.pin_wrong_at:
             return PinnedPanelTarget(
                 original=pinned.original,
@@ -477,6 +495,8 @@ class Harness:
         self.preflight_arguments.append((target, signer, descriptor))
         self.preflight_admissions.append(admit_installed_target)
         self.preflight_calls += 1
+        if self.preflight_error is not None:
+            raise self.preflight_error
         if self.target_installed and not admit_installed_target:
             raise InstallAdbError(InstallAdbErrorCode.TARGET_NOT_CLEAN)
         root_mode = (
@@ -1111,6 +1131,8 @@ async def test_new_process_quarantines_every_ambiguous_phase_without_adb(
 
     assert completed.phase is InstallPhase.RECOVERY_REQUIRED
     assert completed.result_code is InstallResultCode.VERIFICATION_REQUIRED
+    assert completed.failure_stage is phase
+    assert completed.result_subcode == "job:interrupted_mutation"
     assert harness.events == ["local_cleanup"]
     assert "stage" not in harness.events
     assert "install" not in harness.events
@@ -1208,6 +1230,8 @@ async def test_exhausted_safe_claim_cleans_real_custody_before_quarantine(
     assert not await hass.async_add_executor_job(custody.exists)
     assert quarantined.phase is InstallPhase.RECOVERY_REQUIRED
     assert quarantined.result_code is InstallResultCode.VERIFICATION_REQUIRED
+    assert quarantined.failure_stage is phase
+    assert quarantined.result_subcode == "job:attempts_exhausted"
     assert quarantined.attempt == receipt.attempt
     assert harness.events == []
 
@@ -1827,6 +1851,237 @@ async def test_artifact_error_taxonomy_is_stable_across_safe_resume_phases(
     assert "stage" not in harness.events
     assert completed.phase is InstallPhase.FAILED
     assert completed.result_code is result
+
+
+@pytest.mark.parametrize(
+    "phase",
+    [
+        InstallPhase.DOWNLOADING,
+        InstallPhase.ARTIFACT_READY,
+        InstallPhase.REVALIDATING,
+    ],
+)
+@pytest.mark.parametrize(
+    "error_code",
+    [code for code in ArtifactErrorCode if code is not ArtifactErrorCode.BUSY],
+)
+async def test_resumed_artifact_failure_keeps_its_internal_code_and_source_stage(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    phase: InstallPhase,
+    error_code: ArtifactErrorCode,
+) -> None:
+    """Every terminal custody code survives a safe-phase resume."""
+    receipt, restarted = await seed_phase(hass, phase)
+    harness = Harness(monkeypatch)
+    harness.download_error = ArtifactCustodyError(error_code)
+
+    with caplog.at_level(logging.WARNING, logger=install_jobs.__name__):
+        completed = await InstallExecutor(hass, restarted).async_wait(receipt.job_id)
+    loaded = await InstallJobManager(hass).async_get(receipt.job_id)
+
+    assert harness.events.count("download") == 1
+    assert harness.events.count("local_cleanup") == 1
+    assert completed.phase is loaded.phase is InstallPhase.FAILED
+    expected_result = (
+        InstallResultCode.TRANSPORT_FAILED
+        if error_code in {ArtifactErrorCode.TIMEOUT, ArtifactErrorCode.DOWNLOAD_FAILED}
+        else InstallResultCode.ARTIFACT_REJECTED
+    )
+    assert loaded.result_code is expected_result
+    assert asdict(loaded).get("result_subcode") == f"artifact:{error_code.value}"
+    assert asdict(loaded).get("failure_stage") is phase
+    warnings = [
+        record
+        for record in caplog.records
+        if record.name in {install_jobs.__name__, install_executor.__name__}
+        and record.levelno == logging.WARNING
+    ]
+    assert len(warnings) == 1
+    assert warnings[0].name == install_jobs.__name__
+    for detail in ("panel-one.local", phase.value, f"artifact:{error_code.value}"):
+        assert detail in warnings[0].getMessage()
+
+
+@pytest.mark.parametrize(
+    ("operation", "error_code", "terminal_phase", "result_code", "source_phase"),
+    [
+        (
+            "stage",
+            InstallAdbErrorCode.STAGING_PATH_OCCUPIED,
+            InstallPhase.FAILED,
+            InstallResultCode.ARTIFACT_REJECTED,
+            InstallPhase.STAGING,
+        ),
+        (
+            "stage",
+            InstallAdbErrorCode.STAGE_AMBIGUOUS,
+            InstallPhase.RECOVERY_REQUIRED,
+            InstallResultCode.AMBIGUOUS_MUTATION,
+            InstallPhase.STAGING,
+        ),
+        (
+            "install",
+            InstallAdbErrorCode.INSTALL_AMBIGUOUS,
+            InstallPhase.RECOVERY_REQUIRED,
+            InstallResultCode.AMBIGUOUS_MUTATION,
+            InstallPhase.INSTALLING,
+        ),
+        (
+            "cleanup",
+            InstallAdbErrorCode.CLEANUP_AMBIGUOUS,
+            InstallPhase.RECOVERY_REQUIRED,
+            InstallResultCode.AMBIGUOUS_MUTATION,
+            InstallPhase.LAUNCHING,
+        ),
+        (
+            "launch",
+            InstallAdbErrorCode.LAUNCH_AMBIGUOUS,
+            InstallPhase.RECOVERY_REQUIRED,
+            InstallResultCode.AMBIGUOUS_MUTATION,
+            InstallPhase.LAUNCHING,
+        ),
+    ],
+)
+async def test_adb_terminal_receipt_logs_one_coded_failure_at_its_actual_stage(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    operation: str,
+    error_code: InstallAdbErrorCode,
+    terminal_phase: InstallPhase,
+    result_code: InstallResultCode,
+    source_phase: InstallPhase,
+) -> None:
+    """The worker keeps the coded refusal or ambiguity without replaying an actuator."""
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    harness = Harness(monkeypatch)
+    setattr(harness, f"{operation}_error", InstallAdbError(error_code))
+
+    with caplog.at_level(logging.WARNING, logger=install_jobs.__name__):
+        completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+    loaded = await InstallJobManager(hass).async_get(receipt.job_id)
+
+    event = operation if operation != "cleanup" else "remote_cleanup:install_succeeded"
+    assert harness.events.count(event) == 1
+    assert loaded.phase is completed.phase is terminal_phase
+    assert loaded.result_code is result_code
+    assert asdict(loaded).get("result_subcode") == f"adb:{error_code.value}"
+    assert asdict(loaded).get("failure_stage") is source_phase
+    warnings = [
+        record
+        for record in caplog.records
+        if record.name in {install_jobs.__name__, install_executor.__name__}
+        and record.levelno == logging.WARNING
+    ]
+    assert len(warnings) == 1
+    assert warnings[0].name == install_jobs.__name__
+    for detail in (
+        "panel-one.local",
+        source_phase.value,
+        f"adb:{error_code.value}",
+    ):
+        assert detail in warnings[0].getMessage()
+
+
+@pytest.mark.parametrize("error_code", list(InstallAdbErrorCode))
+async def test_every_adb_failure_code_survives_the_receipt_boundary(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    error_code: InstallAdbErrorCode,
+) -> None:
+    """Every coded ADB failure remains identifiable after persistence."""
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    harness = Harness(monkeypatch)
+    harness.preflight_error = InstallAdbError(error_code)
+
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+    loaded = await InstallJobManager(hass).async_get(receipt.job_id)
+
+    assert harness.events.count("preflight") == 1
+    assert "download" not in harness.events
+    assert completed.phase is loaded.phase is InstallPhase.FAILED
+    assert loaded.failure_stage is InstallPhase.PREFLIGHT
+    assert loaded.result_subcode == f"adb:{error_code.value}"
+
+
+@pytest.mark.parametrize("error_code", list(InstallNetworkErrorCode))
+async def test_pinned_target_failure_retains_its_network_subcode(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    error_code: InstallNetworkErrorCode,
+) -> None:
+    """A lost network pin is diagnosable after the failed receipt is reloaded."""
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    harness = Harness(monkeypatch)
+    harness.pin_error_at = 1
+    harness.pin_error_code = error_code
+
+    with caplog.at_level(logging.WARNING, logger=install_jobs.__name__):
+        completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+    loaded = await InstallJobManager(hass).async_get(receipt.job_id)
+
+    assert harness.events.count("pin") == 1
+    assert "stage" not in harness.events
+    assert completed.phase is loaded.phase is InstallPhase.FAILED
+    assert loaded.result_code is InstallResultCode.TRANSPORT_FAILED
+    assert asdict(loaded).get("result_subcode") == (f"network:{error_code.value}")
+    assert asdict(loaded).get("failure_stage") is InstallPhase.PREFLIGHT
+    warnings = [
+        record
+        for record in caplog.records
+        if record.name in {install_jobs.__name__, install_executor.__name__}
+        and record.levelno == logging.WARNING
+    ]
+    assert len(warnings) == 1
+    assert warnings[0].name == install_jobs.__name__
+    for detail in (
+        "panel-one.local",
+        InstallPhase.PREFLIGHT.value,
+        f"network:{error_code.value}",
+    ):
+        assert detail in warnings[0].getMessage()
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [InstallJobRevisionError(), InstallJobStoreError(), InstallJobTransitionError()],
+)
+async def test_worker_logs_lost_receipt_authority_once_without_replaying(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    failure: Exception,
+) -> None:
+    """A swallowed durable-authority error leaves a warning and no invented outcome."""
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    harness = Harness(monkeypatch)
+    executor = InstallExecutor(hass, manager)
+
+    with (
+        patch.object(manager, "async_transition", side_effect=failure),
+        caplog.at_level(logging.WARNING, logger=install_executor.__name__),
+    ):
+        stopped = await executor.async_wait(receipt.job_id)
+
+    assert stopped.phase is InstallPhase.APPROVED
+    assert stopped.result_code is None
+    assert harness.events == []
+    assert await executor.async_ensure_job(receipt.job_id) is None
+    warnings = [
+        record
+        for record in caplog.records
+        if record.name == install_executor.__name__
+        and record.levelno == logging.WARNING
+    ]
+    assert len(warnings) == 1
+    assert receipt.job_id in warnings[0].getMessage()
 
 
 @pytest.mark.parametrize("failure", ["pin", "credential", "identity"])

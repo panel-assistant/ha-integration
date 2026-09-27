@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import json
+import logging
 import os
 import threading
 from collections.abc import Generator
@@ -22,6 +23,8 @@ from homeassistant.helpers.storage import Store
 
 from custom_components.panel_assistant import install_jobs
 from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.install_adb import InstallAdbErrorCode
+from custom_components.panel_assistant.install_artifacts import ArtifactErrorCode
 from custom_components.panel_assistant.install_jobs import (
     InstallArtifact,
     InstallJobCapacityError,
@@ -98,6 +101,9 @@ EXPECTED_FAILURE_CODES_BY_PHASE = {
 _REAL_STORE_PRESENCE = install_jobs._store_presence
 _REAL_DURABLE_JOBS_READER = install_jobs._read_durable_jobs
 _REAL_PARSE_STORE_DOCUMENT = install_jobs._parse_store_document
+_REAL_PARSE_DETAIL_STORE_DOCUMENT = getattr(
+    install_jobs, "_parse_detail_store_document", None
+)
 
 
 @pytest.fixture(autouse=True)
@@ -111,6 +117,8 @@ def emulate_home_assistant_store_file(
         exists, corrupt = _REAL_STORE_PRESENCE(path)
         if exists or corrupt:
             return exists, corrupt
+        if path.endswith(f"{DOMAIN}.install_jobs.details"):
+            return f"{DOMAIN}.install_jobs.details" in hass_storage, False
         if path in observed_paths:
             return True, False
         observed_paths.add(path)
@@ -124,9 +132,23 @@ def emulate_home_assistant_store_file(
             json.dumps(document, separators=(",", ":")).encode("utf-8")
         )
 
+    def _detail_reader(_path: str) -> Any:
+        document = hass_storage.get(f"{DOMAIN}.install_jobs.details")
+        if document is None or _REAL_PARSE_DETAIL_STORE_DOCUMENT is None:
+            raise InstallJobStoreError
+        return _REAL_PARSE_DETAIL_STORE_DOCUMENT(
+            json.dumps(document, separators=(",", ":")).encode("utf-8")
+        )
+
     with (
         patch.object(install_jobs, "_store_presence", side_effect=_presence),
         patch.object(install_jobs, "_read_durable_jobs", side_effect=_durable_reader),
+        patch.object(
+            install_jobs,
+            "_read_durable_details",
+            side_effect=_detail_reader,
+            create=True,
+        ),
     ):
         yield
 
@@ -445,18 +467,20 @@ async def overwrite_stored_cancel_requested(
 
 
 async def test_manager_constructs_private_atomic_store(hass: HomeAssistant) -> None:
-    """Receipts use an integration-private atomic HA Store outside HACS files."""
+    """Primary and detail receipts use integration-private atomic Stores."""
     with patch.object(install_jobs, "Store") as store_class:
         manager = InstallJobManager(hass)
 
     assert manager is not None
-    store_class.assert_called_once_with(
-        hass,
-        1,
-        f"{DOMAIN}.install_jobs",
-        private=True,
-        atomic_writes=True,
-    )
+    assert store_class.call_count == 2
+    for key in (f"{DOMAIN}.install_jobs", f"{DOMAIN}.install_jobs.details"):
+        store_class.assert_any_call(
+            hass,
+            1,
+            key,
+            private=True,
+            atomic_writes=True,
+        )
 
 
 async def test_create_is_durable_private_and_has_no_unsafe_fields(
@@ -1384,6 +1408,416 @@ async def test_failure_result_taxonomy_is_exact_for_every_source_phase(
     assert await manager.async_get(receipt.job_id) == receipt
 
 
+@pytest.mark.parametrize(
+    ("source_phase", "terminal_phase", "result_code", "expected_stage"),
+    [
+        (
+            InstallPhase.AUTHORIZING,
+            InstallPhase.FAILED,
+            InstallResultCode.AUTHORIZATION_FAILED,
+            InstallPhase.AUTHORIZING,
+        ),
+        (
+            InstallPhase.STAGING,
+            InstallPhase.RECOVERY_REQUIRED,
+            InstallResultCode.AMBIGUOUS_MUTATION,
+            InstallPhase.STAGING,
+        ),
+        (
+            InstallPhase.APPROVED,
+            InstallPhase.CANCELLED,
+            InstallResultCode.CANCELLED_BY_USER,
+            None,
+        ),
+        (
+            InstallPhase.HEALTHY_UNCLAIMED,
+            InstallPhase.CONSUMED,
+            InstallResultCode.ENTRY_CREATED,
+            None,
+        ),
+    ],
+)
+async def test_terminal_receipt_keeps_the_failure_source_phase(
+    hass: HomeAssistant,
+    source_phase: InstallPhase,
+    terminal_phase: InstallPhase,
+    result_code: InstallResultCode,
+    expected_stage: InstallPhase | None,
+) -> None:
+    """A terminal receipt keeps its source step only when work failed."""
+    manager = InstallJobManager(hass, now=Clock())
+    receipt = await receipt_at_phase(manager, source_phase)
+    if terminal_phase is InstallPhase.CANCELLED:
+        receipt = await manager.async_request_cancel(receipt.job_id, receipt.revision)
+    fields = (
+        {"consumed_entry_id": CURRENT_ENTRY_ID}
+        if terminal_phase is InstallPhase.CONSUMED
+        else {}
+    )
+    terminal = await manager.async_transition(
+        receipt.job_id,
+        receipt.revision,
+        terminal_phase,
+        result_code=result_code,
+        **fields,
+    )
+
+    loaded = await InstallJobManager(hass, now=Clock()).async_get(terminal.job_id)
+    assert loaded.phase is terminal_phase
+    assert loaded.result_code is result_code
+    assert asdict(loaded).get("failure_stage") == expected_stage
+    assert asdict(loaded).get("result_subcode") is None
+
+
+async def test_terminal_subcode_survives_a_new_manager_and_private_store(
+    hass: HomeAssistant,
+) -> None:
+    """A coded artifact failure remains distinguishable after Core reloads it."""
+    manager = InstallJobManager(hass, now=Clock())
+    receipt = await receipt_at_phase(manager, InstallPhase.DOWNLOADING)
+    failed = await manager.async_transition(
+        receipt.job_id,
+        receipt.revision,
+        InstallPhase.FAILED,
+        result_code=InstallResultCode.TRANSPORT_FAILED,
+        result_subcode=f"artifact:{ArtifactErrorCode.TIMEOUT.value}",
+    )
+
+    loaded = await InstallJobManager(hass, now=Clock()).async_get(failed.job_id)
+    assert loaded.result_code is InstallResultCode.TRANSPORT_FAILED
+    assert asdict(loaded).get("failure_stage") is InstallPhase.DOWNLOADING
+    assert asdict(loaded).get("result_subcode") == (
+        f"artifact:{ArtifactErrorCode.TIMEOUT.value}"
+    )
+
+
+async def test_new_mixed_receipt_store_keeps_exact_old_binary_wire_shape(
+    hass: HomeAssistant,
+    hass_storage: dict[str, Any],
+) -> None:
+    """New mixed receipts retain cb01d4d's strict V1 wire key sets."""
+    manager = InstallJobManager(hass, now=Clock())
+    failing = await receipt_at_phase(manager, InstallPhase.DOWNLOADING)
+    failed = await manager.async_transition(
+        failing.job_id,
+        failing.revision,
+        InstallPhase.FAILED,
+        result_code=InstallResultCode.TRANSPORT_FAILED,
+        result_subcode=f"artifact:{ArtifactErrorCode.TIMEOUT.value}",
+    )
+    staging = await receipt_at_phase(manager, InstallPhase.STAGING)
+    recovery = await manager.async_transition(
+        staging.job_id,
+        staging.revision,
+        InstallPhase.RECOVERY_REQUIRED,
+        result_code=InstallResultCode.AMBIGUOUS_MUTATION,
+        result_subcode=f"adb:{InstallAdbErrorCode.STAGE_AMBIGUOUS.value}",
+    )
+    active, _ = await create(
+        manager,
+        install_target=target("other.local", "SERIAL-2", "192.168.1.24"),
+    )
+    assert failed.failure_stage is InstallPhase.DOWNLOADING
+    assert recovery.failure_stage is InstallPhase.STAGING
+
+    # Frozen from cb01d4d's _parse_store_document/_parse_document/_parse_receipt:
+    # the old reader rejects any additive key, even a harmless None-valued one.
+    stored = json.loads(json.dumps(hass_storage[f"{DOMAIN}.install_jobs"]))
+    assert set(stored) == {"version", "minor_version", "key", "data"}
+    assert (stored["version"], stored["minor_version"], stored["key"]) == (
+        1,
+        1,
+        f"{DOMAIN}.install_jobs",
+    )
+    primary = stored["data"]
+    assert set(primary) == {"format", "jobs"}
+    assert primary["format"] == "ha-paneld-install-jobs-v1"
+    jobs = primary["jobs"]
+    assert {item["job_id"] for item in jobs} == {
+        failed.job_id,
+        recovery.job_id,
+        active.job_id,
+    }
+    old_receipt_keys = {
+        "job_id",
+        "revision",
+        "executor_generation",
+        "created_at",
+        "updated_at",
+        "phase",
+        "cancel_requested",
+        "attempt",
+        "target",
+        "artifact",
+        "plan_sha256",
+        "adb_credential_id",
+        "preflight_root_mode",
+        "actual_apk_bytes",
+        "health_checked_at",
+        "result_code",
+        "consumed_entry_id",
+    }
+    old_target_keys = {
+        "address",
+        "pinned_address",
+        "adb_serial",
+        "model",
+        "primary_abi",
+        "android_sdk",
+    }
+    old_artifact_keys = {
+        "descriptor_schema",
+        "release_tag",
+        "version_name",
+        "version_code",
+        "apk_name",
+        "apk_sha256",
+        "apk_size",
+        "package_id",
+        "signer_certificate_sha256",
+        "min_sdk",
+        "supported_abis",
+        "database_compatibility",
+        "launch_component",
+    }
+    for item in jobs:
+        assert set(item) == old_receipt_keys
+        assert set(item["target"]) == old_target_keys
+        assert set(item["artifact"]) == old_artifact_keys
+    new_readback = _REAL_PARSE_STORE_DOCUMENT(
+        json.dumps(stored, separators=(",", ":")).encode("utf-8")
+    )
+    assert {
+        job_id: (receipt.phase, receipt.result_code)
+        for job_id, receipt in new_readback.items()
+    } == {
+        failed.job_id: (InstallPhase.FAILED, InstallResultCode.TRANSPORT_FAILED),
+        recovery.job_id: (
+            InstallPhase.RECOVERY_REQUIRED,
+            InstallResultCode.AMBIGUOUS_MUTATION,
+        ),
+        active.job_id: (InstallPhase.APPROVED, None),
+    }
+
+
+async def test_failed_detail_write_cannot_commit_primary_or_warn(
+    hass: HomeAssistant,
+    hass_storage: dict[str, Any],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A terminal outcome is invisible until its detail and primary both persist."""
+    manager = InstallJobManager(hass, now=Clock())
+    receipt = await receipt_at_phase(manager, InstallPhase.DOWNLOADING)
+    primary_before = copy.deepcopy(hass_storage[f"{DOMAIN}.install_jobs"])
+    subcode = f"artifact:{ArtifactErrorCode.TIMEOUT.value}"
+
+    with caplog.at_level(logging.WARNING, logger=install_jobs.__name__):
+        with (
+            patch.object(
+                manager._detail_store,
+                "async_save",
+                AsyncMock(side_effect=OSError("detail write failed")),
+            ),
+            pytest.raises(InstallJobStoreError),
+        ):
+            await manager.async_transition(
+                receipt.job_id,
+                receipt.revision,
+                InstallPhase.FAILED,
+                result_code=InstallResultCode.TRANSPORT_FAILED,
+                result_subcode=subcode,
+            )
+        assert hass_storage[f"{DOMAIN}.install_jobs"] == primary_before
+        assert f"{DOMAIN}.install_jobs.details" not in hass_storage
+        restarted = InstallJobManager(hass, now=Clock())
+        unchanged = await restarted.async_get(receipt.job_id)
+        assert unchanged == receipt
+        assert not [
+            record
+            for record in caplog.records
+            if record.name == install_jobs.__name__
+            and record.levelno == logging.WARNING
+        ]
+
+        reclaimed = await restarted.async_claim(receipt.job_id, receipt.revision)
+        failed = await restarted.async_transition(
+            reclaimed.job_id,
+            reclaimed.revision,
+            InstallPhase.FAILED,
+            result_code=InstallResultCode.TRANSPORT_FAILED,
+            result_subcode=subcode,
+        )
+        await InstallJobManager(hass, now=Clock()).async_get(failed.job_id)
+
+    warnings = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == install_jobs.__name__ and record.levelno == logging.WARNING
+    ]
+    assert len(warnings) == 1
+    assert all(
+        value in warnings[0] for value in ("panel.local", "downloading", subcode)
+    )
+
+
+async def test_primary_write_failure_leaves_orphan_detail_unattached_until_retry(
+    hass: HomeAssistant,
+    hass_storage: dict[str, Any],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A precommitted detail cannot turn the old active primary terminal."""
+    manager = InstallJobManager(hass, now=Clock())
+    receipt = await receipt_at_phase(manager, InstallPhase.DOWNLOADING)
+    primary_before = copy.deepcopy(hass_storage[f"{DOMAIN}.install_jobs"])
+    subcode = f"artifact:{ArtifactErrorCode.TIMEOUT.value}"
+
+    with caplog.at_level(logging.WARNING, logger=install_jobs.__name__):
+        with (
+            patch.object(
+                manager._store,
+                "async_save",
+                AsyncMock(side_effect=OSError("primary write failed")),
+            ),
+            pytest.raises(InstallJobStoreError),
+        ):
+            await manager.async_transition(
+                receipt.job_id,
+                receipt.revision,
+                InstallPhase.FAILED,
+                result_code=InstallResultCode.TRANSPORT_FAILED,
+                result_subcode=subcode,
+            )
+
+        assert hass_storage[f"{DOMAIN}.install_jobs"] == primary_before
+        detail_document = hass_storage[f"{DOMAIN}.install_jobs.details"]["data"]
+        assert len(detail_document["details"]) == 1
+        assert detail_document["details"][0]["job_id"] == receipt.job_id
+        assert not [
+            record
+            for record in caplog.records
+            if record.name == install_jobs.__name__
+            and record.levelno == logging.WARNING
+        ]
+
+        restarted = InstallJobManager(hass, now=Clock())
+        still_active = await restarted.async_get(receipt.job_id)
+        assert still_active == receipt
+        assert still_active.failure_stage is None
+        assert still_active.result_subcode is None
+        reclaimed = await restarted.async_claim(receipt.job_id, receipt.revision)
+        failed = await restarted.async_transition(
+            reclaimed.job_id,
+            reclaimed.revision,
+            InstallPhase.FAILED,
+            result_code=InstallResultCode.TRANSPORT_FAILED,
+            result_subcode=subcode,
+        )
+        loaded = await InstallJobManager(hass, now=Clock()).async_get(failed.job_id)
+
+    assert loaded.phase is InstallPhase.FAILED
+    assert loaded.failure_stage is InstallPhase.DOWNLOADING
+    assert loaded.result_subcode == subcode
+    warnings = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == install_jobs.__name__ and record.levelno == logging.WARNING
+    ]
+    assert len(warnings) == 1
+    assert all(
+        value in warnings[0] for value in ("panel.local", "downloading", subcode)
+    )
+
+
+async def test_stale_companion_digest_cannot_attach_to_primary_receipt(
+    hass: HomeAssistant,
+) -> None:
+    """A valid-looking detail for another receipt cannot change the V1 result."""
+    manager = InstallJobManager(hass, now=Clock())
+    receipt = await receipt_at_phase(manager, InstallPhase.DOWNLOADING)
+    failed = await manager.async_transition(
+        receipt.job_id,
+        receipt.revision,
+        InstallPhase.FAILED,
+        result_code=InstallResultCode.TRANSPORT_FAILED,
+        result_subcode=f"artifact:{ArtifactErrorCode.TIMEOUT.value}",
+    )
+    detail_store: Store[dict[str, Any]] = Store(
+        hass,
+        1,
+        f"{DOMAIN}.install_jobs.details",
+        private=True,
+        atomic_writes=True,
+    )
+    details = await detail_store.async_load()
+    assert details is not None
+    assert len(details["details"]) == 1
+    details["details"][0]["receipt_sha256"] = "0" * 64
+    await detail_store.async_save(details)
+
+    loaded = await InstallJobManager(hass, now=Clock()).async_get(failed.job_id)
+    assert loaded.phase is InstallPhase.FAILED
+    assert loaded.result_code is InstallResultCode.TRANSPORT_FAILED
+    assert loaded.failure_stage is None
+    assert loaded.result_subcode is None
+
+
+async def test_a_later_receipt_write_does_not_log_an_old_failure_again(
+    hass: HomeAssistant, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Adding another job cannot turn an earlier failure into another warning."""
+    manager = InstallJobManager(hass, now=Clock())
+    receipt = await receipt_at_phase(manager, InstallPhase.AUTHORIZING)
+    with caplog.at_level(logging.WARNING, logger=install_jobs.__name__):
+        failed = await manager.async_transition(
+            receipt.job_id,
+            receipt.revision,
+            InstallPhase.FAILED,
+            result_code=InstallResultCode.AUTHORIZATION_FAILED,
+            result_subcode="credential:unavailable",
+        )
+        await manager.async_create_or_join(
+            target(), artifact(), failed.plan_sha256, CREDENTIAL_ID
+        )
+        await InstallJobManager(hass).async_get(failed.job_id)
+
+    warnings = [
+        record
+        for record in caplog.records
+        if record.name == install_jobs.__name__ and record.levelno == logging.WARNING
+    ]
+    assert len(warnings) == 1
+    for detail in ("panel.local", "authorizing", "credential:unavailable"):
+        assert detail in warnings[0].getMessage()
+
+
+@pytest.mark.parametrize("phase", [InstallPhase.APPROVED, InstallPhase.FAILED])
+def test_legacy_private_store_receipt_loads_without_new_failure_fields(
+    tmp_path: Path,
+    phase: InstallPhase,
+) -> None:
+    """An existing on-disk receipt still loads with empty failure detail."""
+    receipt = durable_receipt()
+    if phase is InstallPhase.FAILED:
+        receipt = replace(
+            receipt,
+            phase=InstallPhase.FAILED,
+            result_code=InstallResultCode.AUTHORIZATION_FAILED,
+        )
+    document = durable_store_document(receipt)
+    old_receipt = document["data"]["jobs"][0]
+    old_receipt.pop("failure_stage", None)
+    old_receipt.pop("result_subcode", None)
+    store_path = tmp_path / "panel_assistant.install_jobs"
+    write_durable_store(store_path, document)
+
+    loaded = _REAL_DURABLE_JOBS_READER(str(store_path))[old_receipt["job_id"]]
+    assert loaded.phase is phase
+    assert "failure_stage" in asdict(loaded)
+    assert loaded.failure_stage is None
+    assert "result_subcode" in asdict(loaded)
+    assert loaded.result_subcode is None
+
+
 async def test_cancel_is_requested_then_acknowledged_at_safe_phase(
     hass: HomeAssistant,
 ) -> None:
@@ -1832,10 +2266,16 @@ async def test_existing_store_load_uses_secure_reader_only(
     store = MagicMock()
     store.path = "/secure/install_jobs"
     store.async_load = AsyncMock(side_effect=AssertionError("unsafe Store read"))
+    detail_store = MagicMock()
+    detail_store.path = "/secure/install_jobs.details"
 
     with (
-        patch.object(install_jobs, "Store", return_value=store),
-        patch.object(install_jobs, "_store_presence", return_value=(True, False)),
+        patch.object(install_jobs, "Store", side_effect=[store, detail_store]),
+        patch.object(
+            install_jobs,
+            "_store_presence",
+            side_effect=lambda path: (path == store.path, False),
+        ),
         patch.object(
             install_jobs,
             "_read_durable_jobs",
@@ -1877,6 +2317,9 @@ async def test_post_save_verification_uses_secure_reader_only(
     writer = MagicMock()
     writer.path = "/secure/install_jobs"
     writer.async_load = AsyncMock(side_effect=AssertionError("unsafe Store read"))
+    detail_store = MagicMock()
+    detail_store.path = "/secure/install_jobs.details"
+    primary_presence = iter(((False, False), (True, False)))
 
     async def save(document: dict[str, Any]) -> None:
         persisted.update(install_jobs._parse_document(document))
@@ -1884,11 +2327,13 @@ async def test_post_save_verification_uses_secure_reader_only(
     writer.async_save = AsyncMock(side_effect=save)
 
     with (
-        patch.object(install_jobs, "Store", return_value=writer),
+        patch.object(install_jobs, "Store", side_effect=[writer, detail_store]),
         patch.object(
             install_jobs,
             "_store_presence",
-            side_effect=[(False, False), (True, False)],
+            side_effect=lambda path: (
+                next(primary_presence) if path == writer.path else (False, False)
+            ),
         ),
         patch.object(
             install_jobs, "_read_durable_jobs", side_effect=lambda _path: persisted
@@ -1908,13 +2353,18 @@ async def test_swallowed_store_write_failure_fails_closed(hass: HomeAssistant) -
     writer = MagicMock()
     writer.path = "/not/read/by/this/test"
     writer.async_save = AsyncMock(return_value=None)
+    detail_store = MagicMock()
+    detail_store.path = "/not/read/by/this/test.details"
+    primary_presence = iter(((False, False), (True, False)))
 
     with (
-        patch.object(install_jobs, "Store", return_value=writer),
+        patch.object(install_jobs, "Store", side_effect=[writer, detail_store]),
         patch.object(
             install_jobs,
             "_store_presence",
-            side_effect=[(False, False), (True, False)],
+            side_effect=lambda path: (
+                next(primary_presence) if path == writer.path else (False, False)
+            ),
         ),
         patch.object(install_jobs, "_read_durable_jobs", return_value={}) as reader,
         pytest.raises(InstallJobStoreError),
@@ -1969,6 +2419,8 @@ async def test_cancelled_save_drains_before_a_new_writer_can_start(
 
     def presence(_path: str) -> tuple[bool, bool]:
         nonlocal blocked_presence
+        if _path.endswith(".details"):
+            return False, False
         if old_writer_finished.is_set() and not blocked_presence:
             blocked_presence = True
             post_save_presence_started.set()
@@ -1988,11 +2440,19 @@ async def test_cancelled_save_drains_before_a_new_writer_can_start(
             return persisted.copy()
 
     writer.async_save = AsyncMock(side_effect=save)
+    detail_store = MagicMock()
+    detail_store.path = "/secure/install_jobs.details"
     first_task: asyncio.Task[tuple[InstallJobReceipt, bool]] | None = None
     second_task: asyncio.Task[tuple[InstallJobReceipt, bool]] | None = None
     try:
         with (
-            patch.object(install_jobs, "Store", return_value=writer),
+            patch.object(
+                install_jobs,
+                "Store",
+                side_effect=lambda _hass, _version, key, **_kwargs: (
+                    writer if key == f"{DOMAIN}.install_jobs" else detail_store
+                ),
+            ),
             patch.object(install_jobs, "_store_presence", side_effect=presence),
             patch.object(install_jobs, "_read_durable_jobs", side_effect=read),
             patch.object(
@@ -2068,6 +2528,8 @@ async def test_queued_cancel_never_reaches_store_writer(hass: HomeAssistant) -> 
     writes: list[dict[str, InstallJobReceipt]] = []
     writer = MagicMock()
     writer.path = "/secure/install_jobs"
+    detail_store = MagicMock()
+    detail_store.path = "/secure/install_jobs.details"
 
     async def save(document: dict[str, Any]) -> None:
         snapshot = install_jobs._parse_document(copy.deepcopy(document))
@@ -2079,11 +2541,19 @@ async def test_queued_cancel_never_reaches_store_writer(hass: HomeAssistant) -> 
 
     writer.async_save = AsyncMock(side_effect=save)
     with (
-        patch.object(install_jobs, "Store", return_value=writer),
+        patch.object(
+            install_jobs,
+            "Store",
+            side_effect=lambda _hass, _version, key, **_kwargs: (
+                writer if key == f"{DOMAIN}.install_jobs" else detail_store
+            ),
+        ),
         patch.object(
             install_jobs,
             "_store_presence",
-            side_effect=lambda _path: (bool(persisted), False),
+            side_effect=lambda path: (
+                (bool(persisted), False) if path == writer.path else (False, False)
+            ),
         ),
         patch.object(
             install_jobs,

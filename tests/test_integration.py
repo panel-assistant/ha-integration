@@ -680,6 +680,7 @@ async def test_setup_quarantines_matching_receipt_on_version_mismatch(
         receipt.revision,
         InstallPhase.RECOVERY_REQUIRED,
         result_code=InstallResultCode.VERIFICATION_REQUIRED,
+        result_subcode="finalization:entry_health_mismatch",
     )
     assert not executor.is_finalizer_active(receipt.job_id)
 
