@@ -6,7 +6,7 @@ import asyncio
 import contextlib
 import logging
 
-import voluptuous as vol
+from aiohttp.web import HTTPBadRequest
 from homeassistant.components.update import (
     UpdateDeviceClass,
     UpdateEntity,
@@ -88,8 +88,19 @@ ROUTE_PANEL = "downloaded_by_panel"
 _LOGGER = logging.getLogger(__name__)
 
 
-class _UpdateRefusalError(ServiceValidationError, vol.Invalid):
+class _UpdateRefusalError(ServiceValidationError, HTTPBadRequest):
     """Report an expected refusal cleanly through both HA service transports."""
+
+    def __init__(self, panel: str) -> None:
+        message = (
+            f"{panel} refused the update request. "
+            "Check its Install tab, then try again."
+        )
+        HTTPBadRequest.__init__(self, text=message)
+        self._message = message
+        self.translation_domain = DOMAIN
+        self.translation_key = "update_rejected"
+        self.translation_placeholders = {"panel": panel}
 
 
 def _update_error(translation_key: str, fallback: str) -> HomeAssistantError:
@@ -511,14 +522,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 self._attr_in_progress = False
                 self.async_write_ha_state()
         except UpdateRejectedError:
-            panel = self._title or "This panel"
-            raise _UpdateRefusalError(
-                f"{panel} refused the update request. "
-                "Check its Install tab, then try again.",
-                translation_domain=DOMAIN,
-                translation_key="update_rejected",
-                translation_placeholders={"panel": panel},
-            ) from None
+            raise _UpdateRefusalError(self._title or "This panel") from None
 
     async def _async_start_panel_download(self, offer: PanelCachedUpdate) -> None:
         """Ask the panel to fetch, verify and install the release itself."""
