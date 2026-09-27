@@ -191,7 +191,7 @@ async def _connect_found(hass: HomeAssistant, found: dict) -> dict:
     )
 
 
-async def _choose_version(hass: HomeAssistant, form: dict, tag: str = "") -> dict:
+async def _choose_version(hass: HomeAssistant, form: dict, tag: str = "stable") -> dict:
     """Pick a release on the choose_version form reached after a clean probe."""
     assert form["type"] is FlowResultType.FORM
     assert form["step_id"] == "choose_version"
@@ -300,6 +300,7 @@ async def test_connect_existing_success(hass: HomeAssistant) -> None:
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "alpha"
     assert result["data"] == {CONF_ADDRESS: "panel.local"}
+    assert result["options"] == {"authority": "native"}
     assert result["result"].unique_id is None
 
 
@@ -415,6 +416,7 @@ async def test_zeroconf_requires_fresh_health_confirmation_before_entry_creation
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "alpha"
     assert result["data"] == {CONF_ADDRESS: "192.168.1.23"}
+    assert result["options"] == {"authority": "native"}
     assert result["result"].unique_id == DISCOVERY_ID
     assert health_mock.await_count >= 2
 
@@ -1088,9 +1090,11 @@ async def test_install_unavailable_duplicate_address_is_rejected_before_probe(
 
 
 @pytest.mark.parametrize("health_error", [CannotConnectError, InvalidResponseError])
-@pytest.mark.parametrize("empty_candidate", [False, True])
+# "stable" is what the frontend submits for the recommended option; None omits
+# the field and takes the schema default.
+@pytest.mark.parametrize("candidate", [None, "stable"])
 async def test_install_candidate_readiness_is_non_mutating_until_confirmation(
-    hass: HomeAssistant, health_error: type[Exception], empty_candidate: bool
+    hass: HomeAssistant, health_error: type[Exception], candidate: str | None
 ) -> None:
     """Both absent and invalid health fall through to a clean ADB classification."""
     probe_mock = AsyncMock(
@@ -1125,7 +1129,8 @@ async def test_install_candidate_readiness_is_non_mutating_until_confirmation(
         release_mock.assert_not_awaited()
         # An omitted choice takes the schema default, the newest stable release.
         confirm = await hass.config_entries.flow.async_configure(
-            choose["flow_id"], {"release_candidate": ""} if empty_candidate else {}
+            choose["flow_id"],
+            {} if candidate is None else {"release_candidate": candidate},
         )
 
         assert confirm["type"] is FlowResultType.FORM

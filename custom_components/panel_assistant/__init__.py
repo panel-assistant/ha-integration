@@ -58,7 +58,7 @@ from .transport import (
     async_setup_transport,
     cutover_record,
     effective_authority,
-    native_entities_enabled,
+    native_enabled_for,
 )
 from .update_coordinator import PanelUpdateCoordinator
 
@@ -82,8 +82,10 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register browser delivery independently of panel config entries."""
+    # True or False in YAML decides for every panel; absent, each panel's own
+    # Control option decides (see native_enabled_for).
     hass.data.setdefault(DOMAIN, {})[DATA_NATIVE_ENTITIES] = config.get(DOMAIN, {}).get(
-        CONF_NATIVE_ENTITIES, False
+        CONF_NATIVE_ENTITIES
     )
     # Before the commands exist, so no hello is answered without them.
     await async_load_removed_panels(hass)
@@ -207,7 +209,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
         )
 
     platforms = list(PLATFORMS)
-    if native_entities_enabled(hass):
+    if native_enabled_for(hass, entry):
         platforms.extend(NATIVE_ONLY_PLATFORMS)
     runtime_data = entry.runtime_data = HaPaneldRuntimeData(
         client=client,

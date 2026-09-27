@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.6.3 - 2026-09-27
+
+### Fixed
+
+- **New panels talk to Home Assistant directly.** A panel added to a Home Assistant without MQTT came up with almost nothing, because it still started with MQTT in charge. Panels you add now use Panel Assistant's own connection from the start, and their sensors and controls appear straight away.
+- **Switching a panel off MQTT no longer needs YAML.** Choose **Configure** on the panel and set **Control** to **Panel Assistant**. The `native_entities` line in `configuration.yaml` is no longer needed; if you set it, `true` or `false` still decides for every panel.
+
+Panels you added before this release keep their current setting.
+
+## 0.6.2 - 2026-09-27
+
+### Fixed
+
+- **You can add a new panel again.** Choosing the recommended ha-paneld version left the field looking empty, and Home Assistant refused to continue with "Not all required fields are filled in". Once ha-paneld 0.9.8 replaced its test versions, that left no way to install on a new panel from the setup screen. The recommended version now fills in and the form moves on.
+
 ## 0.6.1 - 2026-09-26
 
 ### New

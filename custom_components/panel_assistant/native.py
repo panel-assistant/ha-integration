@@ -41,7 +41,7 @@ from .transport import (
     PanelSession,
     async_get_sessions,
     async_send_command,
-    native_entities_enabled,
+    native_enabled_for,
     session_available,
     signal_native_removed,
     signal_observations,
@@ -239,7 +239,7 @@ def async_setup_native_platform(
 
     Does nothing unless native entities are turned on.
     """
-    if not native_entities_enabled(hass):
+    if not native_enabled_for(hass, entry):
         return
     added: set[str] = set()
 

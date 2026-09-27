@@ -349,6 +349,31 @@ async def test_entry_writes_that_keep_the_authority_keep_the_session(
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
 
 
+async def test_a_panel_that_chose_native_runs_natively_without_yaml(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """A new panel stores native, and that alone makes it native: no YAML edit."""
+    entry = await _setup(
+        hass, hass_read_only_user.id, native=None, options={"authority": "native"}
+    )
+
+    assert transport.effective_authority(hass, entry) == "native"
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "transport"
+
+
+async def test_without_yaml_a_panel_that_chose_nothing_stays_shadow(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """A panel added before 0.6.3 keeps MQTT in charge until its owner switches."""
+    entry = await _setup(hass, hass_read_only_user.id, native=None)
+
+    assert transport.effective_authority(hass, entry) == "shadow"
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] is FlowResultType.FORM
+
+
 async def test_a_dark_option_change_keeps_a_shadow_session(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
