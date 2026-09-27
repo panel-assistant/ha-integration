@@ -77,6 +77,7 @@ CREDENTIAL_ID = "b" * 64
 OTHER_CREDENTIAL_ID = "c" * 64
 _REAL_STORE_PRESENCE = install_jobs._store_presence
 _REAL_PARSE_STORE_DOCUMENT = install_jobs._parse_store_document
+_REAL_PARSE_DETAIL_STORE_DOCUMENT = install_jobs._parse_detail_store_document
 
 
 @pytest.fixture(autouse=True)
@@ -84,15 +85,17 @@ def emulate_home_assistant_store_file(
     hass_storage: dict[str, Any],
 ) -> Generator[None]:
     """Model the Store file hidden by HA's in-memory test storage manager."""
-    observed_paths: set[str] = set()
 
     def _presence(path: str) -> tuple[bool, bool]:
         exists, corrupt = _REAL_STORE_PRESENCE(path)
         if exists or corrupt:
             return exists, corrupt
-        if path in observed_paths:
-            return True, False
-        observed_paths.add(path)
+        key = Path(path).name
+        if key in {
+            f"{DOMAIN}.install_jobs",
+            f"{DOMAIN}.install_jobs.details",
+        }:
+            return key in hass_storage, False
         return False, False
 
     def _durable_reader(_path: str) -> dict[str, InstallJobReceipt]:
@@ -103,9 +106,18 @@ def emulate_home_assistant_store_file(
             json.dumps(document, separators=(",", ":")).encode("utf-8")
         )
 
+    def _detail_reader(_path: str) -> Any:
+        document = hass_storage.get(f"{DOMAIN}.install_jobs.details")
+        if document is None:
+            raise install_jobs.InstallJobStoreError
+        return _REAL_PARSE_DETAIL_STORE_DOCUMENT(
+            json.dumps(document, separators=(",", ":")).encode("utf-8")
+        )
+
     with (
         patch.object(install_jobs, "_store_presence", side_effect=_presence),
         patch.object(install_jobs, "_read_durable_jobs", side_effect=_durable_reader),
+        patch.object(install_jobs, "_read_durable_details", side_effect=_detail_reader),
     ):
         yield
 

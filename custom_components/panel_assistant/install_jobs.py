@@ -40,13 +40,16 @@ from .release import artifact_identity_matches
 _LOGGER = logging.getLogger(__name__)
 _STORE_VERSION = 1
 _STORE_KEY = f"{DOMAIN}.install_jobs"
+_DETAIL_STORE_KEY = f"{_STORE_KEY}.details"
 _MANAGER_DATA_KEY = f"{DOMAIN}.install_job_manager"
 _LOCK_DATA_KEY = f"{DOMAIN}.install_job_store_lock"
 _FORMAT = "ha-paneld-install-jobs-v1"
+_DETAIL_FORMAT = "ha-paneld-install-job-details-v1"
 _PLAN_SCHEMA = "io.github.maxlyth.hapaneld.install-plan.v1"
 _MAX_STORE_BYTES = 128 * 1024
 _MAX_ACTIVE_JOBS = 4
 _MAX_TERMINAL_JOBS = 32
+_MAX_DETAIL_JOBS = 2 * _MAX_TERMINAL_JOBS
 _TERMINAL_RETENTION = timedelta(days=7)
 _MAX_ATTEMPTS = 32
 _MAX_EXECUTOR_GENERATION = 2**31 - 1
@@ -72,6 +75,7 @@ _RELEASE_SIGNER_SHA256 = (
 )
 _SUPPORTED_ABIS = ("arm64-v8a", "armeabi-v7a")
 _PREFLIGHT_ROOT_MODES = frozenset({"root_adbd", "rootless", "root_su"})
+_DetailKey = tuple[str, int, str]
 
 
 class InstallJobError(Exception):
@@ -637,11 +641,7 @@ def _parse_receipt(value: object) -> InstallJobReceipt:
         "result_code",
         "consumed_entry_id",
     }
-    detail_keys = {"failure_stage", "result_subcode"}
-    if not isinstance(value, dict) or value.keys() not in (
-        old_keys,
-        old_keys | detail_keys,
-    ):
+    if not isinstance(value, dict) or value.keys() != old_keys:
         raise InstallJobStoreError
     job_id = _safe_text(value["job_id"], 32)
     plan_sha256 = _safe_text(value["plan_sha256"], 64)
@@ -658,11 +658,6 @@ def _parse_receipt(value: object) -> InstallJobReceipt:
             None
             if value["result_code"] is None
             else InstallResultCode(value["result_code"])
-        )
-        failure_stage = (
-            None
-            if value.get("failure_stage") is None
-            else InstallPhase(value["failure_stage"])
         )
     except (TypeError, ValueError) as err:
         raise InstallJobStoreError from err
@@ -706,8 +701,6 @@ def _parse_receipt(value: object) -> InstallJobReceipt:
         health_checked_at=health,
         result_code=result,
         consumed_entry_id=entry_id,
-        failure_stage=failure_stage,
-        result_subcode=value.get("result_subcode"),
     )
     _validate_receipt_invariants(receipt)
     return receipt
@@ -821,17 +814,14 @@ def _validate_receipt_invariants(receipt: InstallJobReceipt) -> None:
 
 def _serialize_receipt(receipt: InstallJobReceipt) -> dict[str, Any]:
     data = asdict(receipt)
+    # The primary Store is read by older binaries with an exact V1 key set.
+    data.pop("failure_stage")
+    data.pop("result_subcode")
     data["phase"] = receipt.phase.value
     data["artifact"]["supported_abis"] = list(receipt.artifact.supported_abis)
     data["result_code"] = (
         None if receipt.result_code is None else receipt.result_code.value
     )
-    data["failure_stage"] = (
-        None if receipt.failure_stage is None else receipt.failure_stage.value
-    )
-    if receipt.failure_stage is None and receipt.result_subcode is None:
-        data.pop("failure_stage")
-        data.pop("result_subcode")
     return data
 
 
@@ -909,9 +899,169 @@ def _validated_document_for_save(
     if not 1 <= len(body) <= _MAX_STORE_BYTES:
         raise InstallJobStoreError
     verified = _parse_store_document(body)
-    if verified != jobs or _serialize_document(verified) != document:
+    if (
+        verified
+        != {
+            job_id: replace(receipt, failure_stage=None, result_subcode=None)
+            for job_id, receipt in jobs.items()
+        }
+        or _serialize_document(verified) != document
+    ):
         raise InstallJobStoreError
     return document
+
+
+@dataclass(frozen=True, slots=True)
+class _ReceiptDetail:
+    job_id: str
+    revision: int
+    receipt_sha256: str
+    failure_stage: InstallPhase
+    result_subcode: str | None
+
+
+def _receipt_digest(receipt: InstallJobReceipt) -> str:
+    """Bind a detail to the exact V1 receipt an old binary can read."""
+    body = json.dumps(
+        _serialize_receipt(receipt),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    ).encode("ascii")
+    return sha256(body).hexdigest()
+
+
+def _detail_for(receipt: InstallJobReceipt) -> _ReceiptDetail | None:
+    if receipt.failure_stage is None:
+        return None
+    return _ReceiptDetail(
+        receipt.job_id,
+        receipt.revision,
+        _receipt_digest(receipt),
+        receipt.failure_stage,
+        receipt.result_subcode,
+    )
+
+
+def _detail_key(detail: _ReceiptDetail) -> _DetailKey:
+    return detail.job_id, detail.revision, detail.receipt_sha256
+
+
+def _serialize_detail_document(
+    details: Mapping[_DetailKey, _ReceiptDetail],
+) -> dict[str, Any]:
+    return {
+        "format": _DETAIL_FORMAT,
+        "details": [
+            {
+                "job_id": detail.job_id,
+                "revision": detail.revision,
+                "receipt_sha256": detail.receipt_sha256,
+                "failure_stage": detail.failure_stage.value,
+                "result_subcode": detail.result_subcode,
+            }
+            for detail in sorted(details.values(), key=_detail_key)
+        ],
+    }
+
+
+def _parse_detail_document(value: object) -> dict[_DetailKey, _ReceiptDetail]:
+    if not isinstance(value, dict) or value.keys() != {"format", "details"}:
+        raise InstallJobStoreError
+    entries = value["details"]
+    if value["format"] != _DETAIL_FORMAT or not isinstance(entries, list):
+        raise InstallJobStoreError
+    if len(entries) > _MAX_DETAIL_JOBS:
+        raise InstallJobStoreError
+    details: dict[_DetailKey, _ReceiptDetail] = {}
+    for raw in entries:
+        if not isinstance(raw, dict) or raw.keys() != {
+            "job_id",
+            "revision",
+            "receipt_sha256",
+            "failure_stage",
+            "result_subcode",
+        }:
+            raise InstallJobStoreError
+        job_id = _safe_text(raw["job_id"], 32)
+        digest = _safe_text(raw["receipt_sha256"], 64)
+        subcode = raw["result_subcode"]
+        if (
+            _HEX_32.fullmatch(job_id) is None
+            or _SHA256.fullmatch(digest) is None
+            or (
+                subcode is not None
+                and (
+                    not isinstance(subcode, str)
+                    or len(subcode) > 96
+                    or _SUBCODE.fullmatch(subcode) is None
+                )
+            )
+        ):
+            raise InstallJobStoreError
+        try:
+            stage = InstallPhase(raw["failure_stage"])
+        except (TypeError, ValueError) as err:
+            raise InstallJobStoreError from err
+        if stage in _TERMINAL_PHASES:
+            raise InstallJobStoreError
+        detail = _ReceiptDetail(
+            job_id,
+            _integer(raw["revision"], 0, 2**63 - 1),
+            digest,
+            stage,
+            subcode,
+        )
+        key = _detail_key(detail)
+        if key in details:
+            raise InstallJobStoreError
+        details[key] = detail
+    return details
+
+
+def _validated_detail_document(
+    details: dict[_DetailKey, _ReceiptDetail],
+) -> dict[str, Any]:
+    document = _serialize_detail_document(details)
+    body = json.dumps(
+        {
+            "version": _STORE_VERSION,
+            "minor_version": 1,
+            "key": _DETAIL_STORE_KEY,
+            "data": document,
+        },
+        ensure_ascii=True,
+        allow_nan=False,
+        indent=2,
+    ).encode("ascii")
+    if not 1 <= len(body) <= _MAX_STORE_BYTES:
+        raise InstallJobStoreError
+    if _parse_detail_store_document(body) != details:
+        raise InstallJobStoreError
+    return document
+
+
+def _join_details(
+    jobs: dict[str, InstallJobReceipt], details: Mapping[_DetailKey, _ReceiptDetail]
+) -> dict[str, InstallJobReceipt]:
+    joined = jobs.copy()
+    for job_id, receipt in jobs.items():
+        detail = details.get((job_id, receipt.revision, _receipt_digest(receipt)))
+        if detail is None:
+            continue
+        if receipt.failure_stage is not None and (
+            receipt.failure_stage != detail.failure_stage
+            or receipt.result_subcode != detail.result_subcode
+        ):
+            raise InstallJobStoreError
+        joined[job_id] = replace(
+            receipt,
+            failure_stage=detail.failure_stage,
+            result_subcode=detail.result_subcode,
+        )
+        _validate_receipt_invariants(joined[job_id])
+    return joined
 
 
 def _store_presence(path_text: str) -> tuple[bool, bool]:
@@ -959,7 +1109,7 @@ def _metadata_identity(metadata: os.stat_result) -> tuple[int, ...]:
     )
 
 
-def _parse_store_document(body: bytes) -> dict[str, InstallJobReceipt]:
+def _parse_store_body(body: bytes, key: str) -> object:
     try:
         document = json.loads(
             body.decode("utf-8"), object_pairs_hook=_object_without_duplicates
@@ -980,13 +1130,23 @@ def _parse_store_document(body: bytes) -> dict[str, InstallJobReceipt]:
         or document["version"] != _STORE_VERSION
         or type(document["minor_version"]) is not int
         or document["minor_version"] != 1
-        or document["key"] != _STORE_KEY
+        or document["key"] != key
     ):
         raise InstallJobStoreError
-    return _parse_document(document["data"])
+    return document["data"]
 
 
-def _read_durable_jobs(path_text: str) -> dict[str, InstallJobReceipt]:
+def _parse_store_document(body: bytes) -> dict[str, InstallJobReceipt]:
+    return _parse_document(_parse_store_body(body, _STORE_KEY))
+
+
+def _parse_detail_store_document(body: bytes) -> dict[_DetailKey, _ReceiptDetail]:
+    return _parse_detail_document(_parse_store_body(body, _DETAIL_STORE_KEY))
+
+
+def _read_durable_document[ReadValue](
+    path_text: str, parse: Callable[[bytes], ReadValue]
+) -> ReadValue:
     """Read one exact private Store inode for external mutation authority."""
     flags = (
         os.O_RDONLY
@@ -1021,20 +1181,28 @@ def _read_durable_jobs(path_text: str) -> dict[str, InstallJobReceipt]:
             or len(body) != before.st_size
         ):
             raise InstallJobStoreError
-        jobs = _parse_store_document(bytes(body))
+        value = parse(bytes(body))
         final = os.fstat(file_fd)
         final_path = os.lstat(path_text)
         if _metadata_identity(after) != _metadata_identity(final) or _metadata_identity(
             final
         ) != _metadata_identity(final_path):
             raise InstallJobStoreError
-        return jobs
+        return value
     except InstallJobStoreError:
         raise
     except OSError as err:
         raise InstallJobStoreError from err
     finally:
         os.close(file_fd)
+
+
+def _read_durable_jobs(path_text: str) -> dict[str, InstallJobReceipt]:
+    return _read_durable_document(path_text, _parse_store_document)
+
+
+def _read_durable_details(path_text: str) -> dict[_DetailKey, _ReceiptDetail]:
+    return _read_durable_document(path_text, _parse_detail_store_document)
 
 
 class InstallJobManager:
@@ -1052,6 +1220,13 @@ class InstallJobManager:
             hass,
             _STORE_VERSION,
             _STORE_KEY,
+            private=True,
+            atomic_writes=True,
+        )
+        self._detail_store: Store[dict[str, Any]] = Store(
+            hass,
+            _STORE_VERSION,
+            _DETAIL_STORE_KEY,
             private=True,
             atomic_writes=True,
         )
@@ -1082,6 +1257,18 @@ class InstallJobManager:
             and receipt.executor_generation == generation
         }
 
+    async def _async_read_details(self) -> dict[_DetailKey, _ReceiptDetail]:
+        existed, corrupt = await self._hass.async_add_executor_job(
+            _store_presence, self._detail_store.path
+        )
+        if corrupt:
+            raise InstallJobStoreError
+        if not existed:
+            return {}
+        return await self._hass.async_add_executor_job(
+            _read_durable_details, self._detail_store.path
+        )
+
     async def _async_load_locked(
         self, *, refresh: bool = False
     ) -> dict[str, InstallJobReceipt]:
@@ -1099,6 +1286,7 @@ class InstallJobManager:
                 loaded = await self._hass.async_add_executor_job(
                     _read_durable_jobs, self._store.path
                 )
+            loaded = _join_details(loaded, await self._async_read_details())
             if self._jobs is not None and any(
                 loaded.get(job_id) != self._jobs.get(job_id)
                 for job_id in self._claimed_jobs
@@ -1124,6 +1312,49 @@ class InstallJobManager:
             ):
                 raise InstallJobStoreError
             cancellation: asyncio.CancelledError | None = None
+            retained_details = {
+                _detail_key(detail): detail
+                for receipt in jobs.values()
+                if (detail := _detail_for(receipt)) is not None
+            }
+            details = {
+                _detail_key(detail): detail
+                for receipt in self._jobs.values()
+                if (detail := _detail_for(receipt)) is not None
+            }
+            # Retain the current primary's details until its replacement is
+            # verified. An aborted write must not strand an old receipt.
+            details.update(retained_details)
+            stale_details = not details and bool(await self._async_read_details())
+            compact_document = (
+                _validated_detail_document(retained_details)
+                if details != retained_details or stale_details
+                else None
+            )
+            if details:
+                detail_document = _validated_detail_document(details)
+                _detail_save, failure, cancellation = await self._async_drain_operation(
+                    lambda: self._async_detail_store_save(detail_document),
+                    name=f"{DOMAIN}-install-job-detail-save",
+                    cancellation=cancellation,
+                )
+                (
+                    verified_details,
+                    read_error,
+                    cancellation,
+                ) = await self._async_drain_operation(
+                    self._async_read_details,
+                    name=f"{DOMAIN}-install-job-detail-readback",
+                    cancellation=cancellation,
+                )
+                if cancellation is not None:
+                    raise cancellation from (failure or read_error)
+                if failure is not None or read_error is not None:
+                    raise InstallJobStoreError from (failure or read_error)
+                if verified_details != details:
+                    raise InstallJobStoreError
+            else:
+                verified_details = {}
             _save_result, failure, cancellation = await self._async_drain_operation(
                 lambda: self._async_store_save(document),
                 name=f"{DOMAIN}-install-job-store-save",
@@ -1160,17 +1391,29 @@ class InstallJobManager:
                     if failure is None:
                         failure = read_error
                     if read_error is None:
-                        verified = verified_result
+                        if details:
+                            (
+                                reread_details,
+                                detail_error,
+                                cancellation,
+                            ) = await self._async_drain_operation(
+                                self._async_read_details,
+                                name=f"{DOMAIN}-install-job-detail-final-readback",
+                                cancellation=cancellation,
+                            )
+                            if failure is None:
+                                failure = detail_error
+                            if detail_error is None and reread_details != details:
+                                failure = InstallJobStoreError()
+                        verified = _join_details(verified_result, verified_details)
                         if (
                             verified != jobs
-                            or _serialize_document(verified) != document
+                            or _serialize_document(verified_result) != document
                         ) and failure is None:
                             failure = InstallJobStoreError()
 
-            if cancellation is not None:
-                if failure is not None:
-                    raise cancellation from failure
-                raise cancellation
+            if cancellation is not None and (failure is not None or verified is None):
+                raise cancellation from failure
             if failure is not None:
                 if isinstance(failure, asyncio.CancelledError):
                     raise InstallJobStoreError from failure
@@ -1200,12 +1443,42 @@ class InstallJobManager:
                 )
         self._jobs = verified
         self._reconcile_claims()
+        # A cancelled caller may still have committed a verified terminal
+        # receipt. Emit its warning, then revoke cached/claimed authority.
+        if cancellation is not None:
+            self._invalidate_cache()
+            raise cancellation
+        if compact_document is not None:
+            # Primary authority has committed. Cleanup is best-effort: an
+            # interrupted cleanup leaves at most 64 digest-bound stale entries
+            # (and at most 128 KiB), never a detail on the wrong receipt.
+            _compacted, cleanup_error, cancellation = await self._async_drain_operation(
+                lambda: self._async_detail_store_save(compact_document),
+                name=f"{DOMAIN}-install-job-detail-compact",
+                cancellation=None,
+            )
+            readback, read_error, cancellation = await self._async_drain_operation(
+                self._async_read_details,
+                name=f"{DOMAIN}-install-job-detail-compact-readback",
+                cancellation=cancellation,
+            )
+            cleanup_error = cleanup_error or read_error
+            if cleanup_error is not None or readback != retained_details:
+                _LOGGER.debug("Panel Assistant install detail cleanup deferred")
+            if cancellation is not None:
+                self._invalidate_cache()
+                raise cancellation from cleanup_error
 
     async def _async_store_save(self, document: dict[str, Any]) -> None:
         """Enter Store's immediate-write path without an intervening yield."""
         if self._hass.state in {CoreState.stopping, CoreState.final_write}:
             raise InstallJobStoreError
         await self._store.async_save(document)
+
+    async def _async_detail_store_save(self, document: dict[str, Any]) -> None:
+        if self._hass.state in {CoreState.stopping, CoreState.final_write}:
+            raise InstallJobStoreError
+        await self._detail_store.async_save(document)
 
     async def _async_drain_operation(
         self,
@@ -1252,8 +1525,11 @@ class InstallJobManager:
                 if not existed or corrupt:
                     raise InstallJobStoreError
                 snapshots.append(
-                    await self._hass.async_add_executor_job(
-                        _read_durable_jobs, self._store.path
+                    _join_details(
+                        await self._hass.async_add_executor_job(
+                            _read_durable_jobs, self._store.path
+                        ),
+                        await self._async_read_details(),
                     )
                 )
             if snapshots[0] != snapshots[1]:
