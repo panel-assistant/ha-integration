@@ -1090,11 +1090,9 @@ async def test_install_unavailable_duplicate_address_is_rejected_before_probe(
 
 
 @pytest.mark.parametrize("health_error", [CannotConnectError, InvalidResponseError])
-# "stable" is what the frontend submits for the recommended option; None omits
-# the field and takes the schema default.
-@pytest.mark.parametrize("candidate", [None, "stable"])
+@pytest.mark.parametrize("choice", [{}, {"release_candidate": "stable"}])
 async def test_install_candidate_readiness_is_non_mutating_until_confirmation(
-    hass: HomeAssistant, health_error: type[Exception], candidate: str | None
+    hass: HomeAssistant, health_error: type[Exception], choice: dict[str, str]
 ) -> None:
     """Both absent and invalid health fall through to a clean ADB classification."""
     probe_mock = AsyncMock(
@@ -1129,8 +1127,7 @@ async def test_install_candidate_readiness_is_non_mutating_until_confirmation(
         release_mock.assert_not_awaited()
         # An omitted choice takes the schema default, the newest stable release.
         confirm = await hass.config_entries.flow.async_configure(
-            choose["flow_id"],
-            {} if candidate is None else {"release_candidate": candidate},
+            choose["flow_id"], choice
         )
 
         assert confirm["type"] is FlowResultType.FORM
