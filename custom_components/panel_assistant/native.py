@@ -1,11 +1,13 @@
 """Native entities rendered from a panel's transport session.
 
-Dormant by default. Only the ``native_entities`` option in this integration's
-YAML turns them on; without it no native platform is set up and no registry
-entry is written. These entities render what the panel reports over the
-native transport beside the MQTT entities, so the two can be compared. Their
-commands reach the panel only while the entry's authority is native; otherwise
-each one fails with a translated error and MQTT carries the panel's commands.
+Set up for an entry whose Control option is native, which every panel added
+from 0.6.3 is, or for every entry when ``native_entities: true`` is in this
+integration's YAML; ``false`` there keeps them off everywhere. Otherwise no
+native platform is set up and no registry entry is written. These entities
+render what the panel reports over the native transport beside the MQTT
+entities, so the two can be compared. Their commands reach the panel only while
+the entry's authority is native; otherwise each one fails with a translated
+error and MQTT carries the panel's commands.
 
 Every entity's shape comes from the descriptor the panel sent in ``hello``: its
 platform, translation key, category, default enablement, device class, unit
