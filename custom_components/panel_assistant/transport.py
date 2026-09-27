@@ -1007,8 +1007,29 @@ class TransportSessions:
 
 
 def native_entities_enabled(hass: HomeAssistant) -> bool:
-    """Return whether native entities were turned on for this Home Assistant."""
-    return bool(hass.data.get(DOMAIN, {}).get(DATA_NATIVE_ENTITIES, False))
+    """Return whether native entities were turned on for every panel in YAML."""
+    return hass.data.get(DOMAIN, {}).get(DATA_NATIVE_ENTITIES) is True
+
+
+def native_entities_turned_off(hass: HomeAssistant) -> bool:
+    """Return whether YAML turned native entities off for every panel."""
+    return hass.data.get(DOMAIN, {}).get(DATA_NATIVE_ENTITIES) is False
+
+
+def native_enabled_for(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Return whether this entry may use native entities.
+
+    ``native_entities: true`` in YAML turns them on for every panel and
+    ``false`` turns them off for every panel. Without either, an entry has them
+    when it chose ``native``, which every panel added from 0.6.3 does, so
+    running a panel natively never needs a YAML edit.
+    """
+    if native_entities_turned_off(hass):
+        return False
+    return (
+        native_entities_enabled(hass)
+        or entry.options.get(CONF_AUTHORITY) == AUTHORITY_NATIVE
+    )
 
 
 def effective_authority(hass: HomeAssistant, entry: ConfigEntry) -> str:
@@ -1017,7 +1038,7 @@ def effective_authority(hass: HomeAssistant, entry: ConfigEntry) -> str:
     The entry's option counts only while native entities are turned on, so a
     release carries the choice dark and answers shadow.
     """
-    if not native_entities_enabled(hass):
+    if not native_enabled_for(hass, entry):
         return DEFAULT_AUTHORITY
     authority = entry.options.get(CONF_AUTHORITY, DEFAULT_AUTHORITY)
     return authority if authority in AUTHORITIES else DEFAULT_AUTHORITY
@@ -1962,7 +1983,7 @@ def ws_hello(
         for channel, descriptor in descriptors.items()
         if catalogue_entry(descriptor) is None
     )
-    if native_entities_enabled(hass):
+    if native_enabled_for(hass, entry):
         # A channel the hello also describes is served, whatever it claims.
         unsupported = frozenset(msg["unsupported"]).difference(descriptors)
         # Before the session opens: opening it is what tells a cutover waiting

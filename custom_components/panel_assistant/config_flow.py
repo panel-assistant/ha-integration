@@ -97,10 +97,11 @@ from .release import (
 from .release_catalog import async_list_install_choices, async_resolve_install_choice
 from .transport import (
     AUTHORITIES,
+    AUTHORITY_NATIVE,
     async_binding_request,
     async_discard_binding_request,
     effective_authority,
-    native_entities_enabled,
+    native_entities_turned_off,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -1157,6 +1158,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_create_entry(
             title=result.health.panel_id,
             data={CONF_ADDRESS: receipt.target.address},
+            options=_NEW_PANEL_OPTIONS,
         )
 
     def _show_install_result_retry(
@@ -1337,10 +1339,15 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_create_entry(
             title=self._discovery_title or health.panel_id,
             data=data,
+            options=_NEW_PANEL_OPTIONS,
         )
 
 
 _FRIENDLY_NAME_MAX_LENGTH = 64
+
+# A panel added from now on talks to Home Assistant natively. Existing entries
+# keep whatever they stored, so nobody is switched off MQTT unasked.
+_NEW_PANEL_OPTIONS: dict[str, Any] = {CONF_AUTHORITY: AUTHORITY_NATIVE}
 
 
 def _qualified_name(friendly: str, panel_id: str) -> str:
@@ -1490,7 +1497,7 @@ class HaPaneldOptionsFlow(OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Show or save the authority."""
-        if not native_entities_enabled(self.hass):
+        if native_entities_turned_off(self.hass):
             return self.async_abort(reason=ABORT_NATIVE_ENTITIES_DISABLED)
         if user_input is not None:
             return self.async_create_entry(

@@ -206,13 +206,14 @@ def supported(channels: Collection[str] = PANEL_CHANNELS) -> dict[str, Any]:
 async def _setup(
     hass: HomeAssistant,
     user_id: str,
-    native: bool,
+    native: bool | None,
     options: dict[str, Any] | None = None,
     described: Collection[str] | None = PANEL_CHANNELS,
 ) -> MockConfigEntry:
     """Set up a bound entry whose panel has described these channels before.
 
-    None sets up an entry whose panel has never said hello.
+    None sets up an entry whose panel has never said hello. ``native`` None
+    leaves ``native_entities`` out of YAML, as a fresh installation does.
     """
     data = {CONF_ADDRESS: "panel.local", CONF_TRANSPORT_USER_ID: user_id}
     if described is not None:
@@ -225,7 +226,7 @@ async def _setup(
     )
     config_entry.add_to_hass(hass)
     with panel_patches():
-        config = {DOMAIN: {"native_entities": True}} if native else {}
+        config = {} if native is None else {DOMAIN: {"native_entities": native}}
         assert await async_setup_component(hass, DOMAIN, config)
         await hass.async_block_till_done()
     assert config_entry.state is ConfigEntryState.LOADED

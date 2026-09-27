@@ -300,6 +300,7 @@ async def test_connect_existing_success(hass: HomeAssistant) -> None:
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "alpha"
     assert result["data"] == {CONF_ADDRESS: "panel.local"}
+    assert result["options"] == {"authority": "native"}
     assert result["result"].unique_id is None
 
 
@@ -415,6 +416,7 @@ async def test_zeroconf_requires_fresh_health_confirmation_before_entry_creation
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "alpha"
     assert result["data"] == {CONF_ADDRESS: "192.168.1.23"}
+    assert result["options"] == {"authority": "native"}
     assert result["result"].unique_id == DISCOVERY_ID
     assert health_mock.await_count >= 2
 
