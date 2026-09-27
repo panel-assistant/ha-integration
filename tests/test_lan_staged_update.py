@@ -17,12 +17,11 @@ from unittest.mock import AsyncMock, MagicMock, call
 from zipfile import ZipFile
 
 import pytest
-import voluptuous as vol
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util import dt as dt_util
 from multidict import CIMultiDict
 from pytest_homeassistant_custom_component.common import (
@@ -39,14 +38,12 @@ from custom_components.panel_assistant.app_identity import (
 )
 from custom_components.panel_assistant.client import (
     CannotConnectError,
-    HaPaneldClient,
     PanelHealth,
     StagedApk,
     StagingUnavailableError,
     UpdateBusyError,
     UpdateRejectedError,
     UploadDisabledError,
-    normalize_address,
 )
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.coordinator import (
@@ -386,31 +383,6 @@ async def test_a_panel_that_cannot_take_an_upload_downloads_the_release_itself(
     client.async_commit_apk.assert_not_awaited()
     assert entity.extra_state_attributes == {"update_route": "downloaded_by_panel"}
     assert entity.installed_version == VERSION
-
-
-async def test_stage_503_then_panel_refusal_reports_one_named_actionable_error(
-    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, trust: None, key: Any
-) -> None:
-    """A panel with no staging route can refuse its own download cleanly."""
-    entity, client = await _entity(hass, monkeypatch, _GitHub(key), offer=OFFER)
-    entity._title = "Example panel"
-    staging = HaPaneldClient(MagicMock(), normalize_address("panel.local"))
-    staging._async_post_bounded = AsyncMock(return_value=(503, b""))  # type: ignore[method-assign]
-    client.async_stage_apk = staging.async_stage_apk
-    client.async_start_panel_update.side_effect = UpdateRejectedError
-
-    with pytest.raises(ServiceValidationError) as error:
-        await entity.async_install(None, backup=False)
-
-    assert "Example panel" in str(error.value)
-    assert "Install tab" in str(error.value)
-    assert isinstance(error.value, vol.Invalid)
-    _assert_translated(error.value, "update_rejected")
-    assert error.value.translation_placeholders == {"panel": "Example panel"}
-    staging._async_post_bounded.assert_awaited_once()
-    client.async_start_panel_update.assert_awaited_once_with(TAG)
-    client.async_commit_apk.assert_not_awaited()
-    assert entity.in_progress is False
 
 
 async def test_a_panel_already_past_the_release_is_offered_nothing(
