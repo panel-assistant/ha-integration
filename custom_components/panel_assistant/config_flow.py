@@ -129,6 +129,9 @@ _DATA_SCHEMA = vol.Schema(
     {vol.Required(CONF_ADDRESS): TextSelector(TextSelectorConfig())}
 )
 _CONF_RELEASE_CANDIDATE = "release_candidate"
+# The recommended stable release's option value. The frontend treats an empty
+# value as unfilled, so a required selector offering "" can never be submitted.
+_STABLE_CHOICE = "stable"
 _DATA_DISCOVERY_NAMES = "discovery_names"
 _SETUP_POLL_SECONDS = 3
 _HOST_PROBE_SECONDS = 3
@@ -389,7 +392,11 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         )
         options: list[SelectOptionDict] = [
             *(
-                [SelectOptionDict(value="", label=f"{stable['tag']} (recommended)")]
+                [
+                    SelectOptionDict(
+                        value=_STABLE_CHOICE, label=f"{stable['tag']} (recommended)"
+                    )
+                ]
                 if stable is not None
                 else []
             ),
@@ -721,6 +728,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return self._show_choose_version()
 
         tag = user_input.get(_CONF_RELEASE_CANDIDATE, "")
+        if tag == _STABLE_CHOICE:
+            tag = ""
         releases = self._install_releases or []
         offered = {r["tag"] for r in releases if r["prerelease"]}
         if tag != "" and tag not in offered:

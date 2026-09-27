@@ -78,12 +78,12 @@ async def test_real_catalog_populates_selector_and_caches(hass):
     assert len(client.requests) == 2
     selector = form["data_schema"].schema["release_candidate"]
     assert selector.config["options"] == [
-        {"value": "", "label": "v1.2.3 (recommended)"},
+        {"value": "stable", "label": "v1.2.3 (recommended)"},
         {"value": "v1.3.0-rc2", "label": "v1.3.0-rc2 (test version)"},
     ]
     assert form["errors"] is None
     assert again["errors"] is None
-    assert form["data_schema"]({})["release_candidate"] == ""
+    assert form["data_schema"]({})["release_candidate"] == "stable"
     with pytest.raises(vol.Invalid):
         form["data_schema"]({"release_candidate": "v9.9.9-rc1"})
 
@@ -219,7 +219,7 @@ async def test_empty_catalogue_retry_submits_in_the_ui_and_offers_a_fresh_choice
     assert fresh["step_id"] == "choose_version"
     assert not fresh["errors"]
     options = fresh["data_schema"].schema["release_candidate"].config["options"]
-    assert [option["value"] for option in options] == [""]
+    assert [option["value"] for option in options] == ["stable"]
     assert catalog.await_count == 2
     mocks["stable"].assert_not_awaited()
     mocks["credential"].assert_not_awaited()
