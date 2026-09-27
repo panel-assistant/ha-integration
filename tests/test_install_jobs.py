@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import json
+import logging
 import os
 import threading
 from collections.abc import Generator
@@ -1466,6 +1467,35 @@ async def test_terminal_subcode_survives_a_new_manager_and_private_store(
     assert asdict(loaded).get("result_subcode") == (
         f"artifact:{ArtifactErrorCode.TIMEOUT.value}"
     )
+
+
+async def test_a_later_receipt_write_does_not_log_an_old_failure_again(
+    hass: HomeAssistant, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Adding another job cannot turn an earlier failure into another warning."""
+    manager = InstallJobManager(hass, now=Clock())
+    receipt = await receipt_at_phase(manager, InstallPhase.AUTHORIZING)
+    with caplog.at_level(logging.WARNING, logger=install_jobs.__name__):
+        failed = await manager.async_transition(
+            receipt.job_id,
+            receipt.revision,
+            InstallPhase.FAILED,
+            result_code=InstallResultCode.AUTHORIZATION_FAILED,
+            result_subcode="credential:unavailable",
+        )
+        await manager.async_create_or_join(
+            target(), artifact(), failed.plan_sha256, CREDENTIAL_ID
+        )
+        await InstallJobManager(hass).async_get(failed.job_id)
+
+    warnings = [
+        record
+        for record in caplog.records
+        if record.name == install_jobs.__name__ and record.levelno == logging.WARNING
+    ]
+    assert len(warnings) == 1
+    for detail in ("panel.local", "authorizing", "credential:unavailable"):
+        assert detail in warnings[0].getMessage()
 
 
 @pytest.mark.parametrize("phase", [InstallPhase.APPROVED, InstallPhase.FAILED])

@@ -3011,11 +3011,22 @@ async def test_final_verification_retry_and_recovery_boundaries(
         manager.async_transition.assert_not_awaited()
     else:
         assert result["reason"] == "install_recovery_required"
+        subcode = {
+            "pin_drift": "network:pinned_target_removed",
+            "credential_error": "credential:unavailable",
+            "credential_drift": "finalization:credential_changed",
+            "adb_identity": "adb:target_changed",
+            "adb_root": "adb:root_mode_changed",
+            "adb_package": "adb:installed_package_missing",
+            "health_invalid": "health:invalid_response",
+            "version_drift": "health:identity_mismatch",
+        }[failure]
         manager.async_transition.assert_awaited_once_with(
             receipt.job_id,
             receipt.revision,
             InstallPhase.RECOVERY_REQUIRED,
             result_code=InstallResultCode.VERIFICATION_REQUIRED,
+            result_subcode=subcode,
         )
     assert not hass.config_entries.async_entries(DOMAIN)
 
@@ -3074,6 +3085,7 @@ async def test_final_verification_requires_the_installed_package(
             receipt.revision,
             InstallPhase.RECOVERY_REQUIRED,
             result_code=InstallResultCode.VERIFICATION_REQUIRED,
+            result_subcode="health:identity_mismatch",
         )
 
 

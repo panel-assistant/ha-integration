@@ -463,9 +463,7 @@ class Harness:
         self.pin_arguments.append(pinned)
         self.pin_calls += 1
         if self.pin_calls == self.pin_error_at:
-            raise install_executor.InstallNetworkError(
-                self.pin_error_code
-            )
+            raise install_executor.InstallNetworkError(self.pin_error_code)
         if self.pin_calls == self.pin_wrong_at:
             return PinnedPanelTarget(
                 original=pinned.original,
@@ -1121,6 +1119,8 @@ async def test_new_process_quarantines_every_ambiguous_phase_without_adb(
 
     assert completed.phase is InstallPhase.RECOVERY_REQUIRED
     assert completed.result_code is InstallResultCode.VERIFICATION_REQUIRED
+    assert completed.failure_stage is phase
+    assert completed.result_subcode == "job:interrupted_mutation"
     assert harness.events == ["local_cleanup"]
     assert "stage" not in harness.events
     assert "install" not in harness.events
@@ -1218,6 +1218,8 @@ async def test_exhausted_safe_claim_cleans_real_custody_before_quarantine(
     assert not await hass.async_add_executor_job(custody.exists)
     assert quarantined.phase is InstallPhase.RECOVERY_REQUIRED
     assert quarantined.result_code is InstallResultCode.VERIFICATION_REQUIRED
+    assert quarantined.failure_stage is phase
+    assert quarantined.result_subcode == "job:attempts_exhausted"
     assert quarantined.attempt == receipt.attempt
     assert harness.events == []
 
@@ -1950,11 +1952,7 @@ async def test_adb_terminal_receipt_logs_one_coded_failure_at_its_actual_stage(
         completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
     loaded = await InstallJobManager(hass).async_get(receipt.job_id)
 
-    event = (
-        operation
-        if operation != "cleanup"
-        else "remote_cleanup:install_succeeded"
-    )
+    event = operation if operation != "cleanup" else "remote_cleanup:install_succeeded"
     assert harness.events.count(event) == 1
     assert loaded.phase is completed.phase is terminal_phase
     assert loaded.result_code is result_code
@@ -2020,9 +2018,7 @@ async def test_pinned_target_failure_retains_its_network_subcode(
     assert "stage" not in harness.events
     assert completed.phase is loaded.phase is InstallPhase.FAILED
     assert loaded.result_code is InstallResultCode.TRANSPORT_FAILED
-    assert asdict(loaded).get("result_subcode") == (
-        f"network:{error_code.value}"
-    )
+    assert asdict(loaded).get("result_subcode") == (f"network:{error_code.value}")
     assert asdict(loaded).get("failure_stage") is InstallPhase.PREFLIGHT
     warnings = [
         record

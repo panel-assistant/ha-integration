@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import json
+import logging
 import os
 import re
 import stat
@@ -36,6 +37,7 @@ from .install_network import (
 )
 from .release import artifact_identity_matches
 
+_LOGGER = logging.getLogger(__name__)
 _STORE_VERSION = 1
 _STORE_KEY = f"{DOMAIN}.install_jobs"
 _MANAGER_DATA_KEY = f"{DOMAIN}.install_job_manager"
@@ -58,6 +60,7 @@ _HEX_32 = re.compile(r"^[0-9a-f]{32}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _ADB_SERIAL = re.compile(r"^[A-Za-z0-9._:-]{1,128}$", flags=re.ASCII)
 _ABI = re.compile(r"^[A-Za-z0-9_.-]{1,64}$", flags=re.ASCII)
+_SUBCODE = re.compile(r"^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$", flags=re.ASCII)
 _APK_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.apk$")
 _DATABASE_COMPATIBILITY = re.compile(
     r"^hapaneld-db:v1:ha-paneld\.db:([1-9][0-9]*):([1-9][0-9]*)$"
@@ -410,6 +413,8 @@ class InstallJobReceipt:
     health_checked_at: str | None = None
     result_code: InstallResultCode | None = None
     consumed_entry_id: str | None = None
+    failure_stage: InstallPhase | None = None
+    result_subcode: str | None = None
 
     @property
     def is_terminal(self) -> bool:
@@ -613,7 +618,7 @@ def _is_config_entry_id(value: str) -> bool:
 
 
 def _parse_receipt(value: object) -> InstallJobReceipt:
-    if not isinstance(value, dict) or value.keys() != {
+    old_keys = {
         "job_id",
         "revision",
         "executor_generation",
@@ -631,7 +636,12 @@ def _parse_receipt(value: object) -> InstallJobReceipt:
         "health_checked_at",
         "result_code",
         "consumed_entry_id",
-    }:
+    }
+    detail_keys = {"failure_stage", "result_subcode"}
+    if not isinstance(value, dict) or value.keys() not in (
+        old_keys,
+        old_keys | detail_keys,
+    ):
         raise InstallJobStoreError
     job_id = _safe_text(value["job_id"], 32)
     plan_sha256 = _safe_text(value["plan_sha256"], 64)
@@ -648,6 +658,11 @@ def _parse_receipt(value: object) -> InstallJobReceipt:
             None
             if value["result_code"] is None
             else InstallResultCode(value["result_code"])
+        )
+        failure_stage = (
+            None
+            if value.get("failure_stage") is None
+            else InstallPhase(value["failure_stage"])
         )
     except (TypeError, ValueError) as err:
         raise InstallJobStoreError from err
@@ -691,12 +706,38 @@ def _parse_receipt(value: object) -> InstallJobReceipt:
         health_checked_at=health,
         result_code=result,
         consumed_entry_id=entry_id,
+        failure_stage=failure_stage,
+        result_subcode=value.get("result_subcode"),
     )
     _validate_receipt_invariants(receipt)
     return receipt
 
 
 def _validate_receipt_invariants(receipt: InstallJobReceipt) -> None:
+    if receipt.failure_stage is not None and not isinstance(
+        receipt.failure_stage, InstallPhase
+    ):
+        raise InstallJobStoreError
+    if receipt.result_subcode is not None and receipt.failure_stage is None:
+        raise InstallJobStoreError
+    if receipt.result_subcode is not None and (
+        not isinstance(receipt.result_subcode, str)
+        or len(receipt.result_subcode) > 96
+        or _SUBCODE.fullmatch(receipt.result_subcode) is None
+        or receipt.failure_stage in _TERMINAL_PHASES
+    ):
+        raise InstallJobStoreError
+    if receipt.phase not in {InstallPhase.FAILED, InstallPhase.RECOVERY_REQUIRED} and (
+        receipt.failure_stage is not None or receipt.result_subcode is not None
+    ):
+        raise InstallJobStoreError
+    if (
+        receipt.phase is InstallPhase.FAILED
+        and receipt.failure_stage is not None
+        and receipt.result_code
+        not in _FAILURE_CODES_BY_PHASE.get(receipt.failure_stage, frozenset())
+    ):
+        raise InstallJobStoreError
     if receipt.updated_at < receipt.created_at:
         raise InstallJobStoreError
     if (
@@ -785,6 +826,12 @@ def _serialize_receipt(receipt: InstallJobReceipt) -> dict[str, Any]:
     data["result_code"] = (
         None if receipt.result_code is None else receipt.result_code.value
     )
+    data["failure_stage"] = (
+        None if receipt.failure_stage is None else receipt.failure_stage.value
+    )
+    if receipt.failure_stage is None and receipt.result_subcode is None:
+        data.pop("failure_stage")
+        data.pop("result_subcode")
     return data
 
 
@@ -1136,6 +1183,21 @@ class InstallJobManager:
         except Exception as err:
             self._invalidate_cache()
             raise InstallJobStoreError from err
+        for job_id, receipt in verified.items():
+            previous = self._jobs.get(job_id) if self._jobs is not None else None
+            if receipt.phase in {
+                InstallPhase.FAILED,
+                InstallPhase.RECOVERY_REQUIRED,
+            } and (previous is None or not previous.is_terminal):
+                _LOGGER.warning(
+                    "Panel Assistant install failure panel=%s stage=%s "
+                    "subcode=%s result=%s job=%s",
+                    receipt.target.address,
+                    receipt.failure_stage.value if receipt.failure_stage else "unknown",
+                    receipt.result_subcode or "unknown",
+                    receipt.result_code.value if receipt.result_code else "unknown",
+                    receipt.job_id,
+                )
         self._jobs = verified
         self._reconcile_claims()
 
@@ -1412,6 +1474,8 @@ class InstallJobManager:
                     updated_at=_timestamp(self._now()),
                     phase=InstallPhase.RECOVERY_REQUIRED,
                     result_code=InstallResultCode.VERIFICATION_REQUIRED,
+                    failure_stage=current.phase,
+                    result_subcode="job:attempts_exhausted",
                 )
                 jobs[job_id] = exhausted_receipt
                 self._prune(jobs, exhausted_receipt.updated_at)
@@ -1430,6 +1494,14 @@ class InstallJobManager:
                 phase=phase,
                 attempt=current.attempt + 1,
                 result_code=result_code,
+                failure_stage=(
+                    current.phase if phase is InstallPhase.RECOVERY_REQUIRED else None
+                ),
+                result_subcode=(
+                    "job:interrupted_mutation"
+                    if phase is InstallPhase.RECOVERY_REQUIRED
+                    else None
+                ),
             )
             jobs[job_id] = updated
             self._prune(jobs, updated.updated_at)
@@ -1449,12 +1521,19 @@ class InstallJobManager:
         actual_apk_bytes: int | None = None,
         health_checked_at: str | None = None,
         result_code: InstallResultCode | None = None,
+        result_subcode: str | None = None,
         consumed_entry_id: str | None = None,
     ) -> InstallJobReceipt:
         """Advance one receipt with an explicit revision compare-and-swap."""
         if not isinstance(phase, InstallPhase):
             raise InstallJobTransitionError
         if result_code is not None and not isinstance(result_code, InstallResultCode):
+            raise InstallJobTransitionError
+        if result_subcode is not None and (
+            not isinstance(result_subcode, str)
+            or len(result_subcode) > 96
+            or _SUBCODE.fullmatch(result_subcode) is None
+        ):
             raise InstallJobTransitionError
         try:
             parsed_preflight_root_mode = (
@@ -1592,6 +1671,17 @@ class InstallJobManager:
                     )
                 ),
                 result_code=result_code,
+                failure_stage=(
+                    current.phase
+                    if phase in {InstallPhase.FAILED, InstallPhase.RECOVERY_REQUIRED}
+                    else None
+                ),
+                result_subcode=(
+                    result_subcode
+                    if phase in {InstallPhase.FAILED, InstallPhase.RECOVERY_REQUIRED}
+                    and result_code is not None
+                    else None
+                ),
                 consumed_entry_id=parsed_entry_id,
             )
             try:
