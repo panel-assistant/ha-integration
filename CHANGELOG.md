@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.6.2 - 2026-09-27
+
+### Fixed
+
+- **You can add a new panel again.** Choosing the recommended ha-paneld version left the field looking empty, and Home Assistant refused to continue with "Not all required fields are filled in". Once ha-paneld 0.9.8 replaced its test versions, that left no way to install on a new panel from the setup screen. The recommended version now fills in and the form moves on.
+
 ## 0.6.1 - 2026-09-26
 
 ### New
