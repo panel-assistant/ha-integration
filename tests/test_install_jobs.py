@@ -22,6 +22,7 @@ from homeassistant.helpers.storage import Store
 
 from custom_components.panel_assistant import install_jobs
 from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.install_artifacts import ArtifactErrorCode
 from custom_components.panel_assistant.install_jobs import (
     InstallArtifact,
     InstallJobCapacityError,
@@ -1382,6 +1383,117 @@ async def test_failure_result_taxonomy_is_exact_for_every_source_phase(
             result_code=result_code,
         )
     assert await manager.async_get(receipt.job_id) == receipt
+
+
+@pytest.mark.parametrize(
+    ("source_phase", "terminal_phase", "result_code", "expected_stage"),
+    [
+        (
+            InstallPhase.AUTHORIZING,
+            InstallPhase.FAILED,
+            InstallResultCode.AUTHORIZATION_FAILED,
+            InstallPhase.AUTHORIZING,
+        ),
+        (
+            InstallPhase.STAGING,
+            InstallPhase.RECOVERY_REQUIRED,
+            InstallResultCode.AMBIGUOUS_MUTATION,
+            InstallPhase.STAGING,
+        ),
+        (
+            InstallPhase.APPROVED,
+            InstallPhase.CANCELLED,
+            InstallResultCode.CANCELLED_BY_USER,
+            None,
+        ),
+        (
+            InstallPhase.HEALTHY_UNCLAIMED,
+            InstallPhase.CONSUMED,
+            InstallResultCode.ENTRY_CREATED,
+            None,
+        ),
+    ],
+)
+async def test_terminal_receipt_keeps_the_failure_source_phase(
+    hass: HomeAssistant,
+    source_phase: InstallPhase,
+    terminal_phase: InstallPhase,
+    result_code: InstallResultCode,
+    expected_stage: InstallPhase | None,
+) -> None:
+    """A terminal receipt keeps its source step only when work failed."""
+    manager = InstallJobManager(hass, now=Clock())
+    receipt = await receipt_at_phase(manager, source_phase)
+    if terminal_phase is InstallPhase.CANCELLED:
+        receipt = await manager.async_request_cancel(receipt.job_id, receipt.revision)
+    fields = (
+        {"consumed_entry_id": CURRENT_ENTRY_ID}
+        if terminal_phase is InstallPhase.CONSUMED
+        else {}
+    )
+    terminal = await manager.async_transition(
+        receipt.job_id,
+        receipt.revision,
+        terminal_phase,
+        result_code=result_code,
+        **fields,
+    )
+
+    loaded = await InstallJobManager(hass, now=Clock()).async_get(terminal.job_id)
+    assert loaded.phase is terminal_phase
+    assert loaded.result_code is result_code
+    assert asdict(loaded).get("failure_stage") == expected_stage
+    assert asdict(loaded).get("result_subcode") is None
+
+
+async def test_terminal_subcode_survives_a_new_manager_and_private_store(
+    hass: HomeAssistant,
+) -> None:
+    """A coded artifact failure remains distinguishable after Core reloads it."""
+    manager = InstallJobManager(hass, now=Clock())
+    receipt = await receipt_at_phase(manager, InstallPhase.DOWNLOADING)
+    failed = await manager.async_transition(
+        receipt.job_id,
+        receipt.revision,
+        InstallPhase.FAILED,
+        result_code=InstallResultCode.TRANSPORT_FAILED,
+        result_subcode=f"artifact:{ArtifactErrorCode.TIMEOUT.value}",
+    )
+
+    loaded = await InstallJobManager(hass, now=Clock()).async_get(failed.job_id)
+    assert loaded.result_code is InstallResultCode.TRANSPORT_FAILED
+    assert asdict(loaded).get("failure_stage") is InstallPhase.DOWNLOADING
+    assert asdict(loaded).get("result_subcode") == (
+        f"artifact:{ArtifactErrorCode.TIMEOUT.value}"
+    )
+
+
+@pytest.mark.parametrize("phase", [InstallPhase.APPROVED, InstallPhase.FAILED])
+def test_legacy_private_store_receipt_loads_without_new_failure_fields(
+    tmp_path: Path,
+    phase: InstallPhase,
+) -> None:
+    """An existing on-disk receipt still loads with empty failure detail."""
+    receipt = durable_receipt()
+    if phase is InstallPhase.FAILED:
+        receipt = replace(
+            receipt,
+            phase=InstallPhase.FAILED,
+            result_code=InstallResultCode.AUTHORIZATION_FAILED,
+        )
+    document = durable_store_document(receipt)
+    old_receipt = document["data"]["jobs"][0]
+    old_receipt.pop("failure_stage", None)
+    old_receipt.pop("result_subcode", None)
+    store_path = tmp_path / "panel_assistant.install_jobs"
+    write_durable_store(store_path, document)
+
+    loaded = _REAL_DURABLE_JOBS_READER(str(store_path))[old_receipt["job_id"]]
+    assert loaded.phase is phase
+    assert "failure_stage" in asdict(loaded)
+    assert loaded.failure_stage is None
+    assert "result_subcode" in asdict(loaded)
+    assert loaded.result_subcode is None
 
 
 async def test_cancel_is_requested_then_acknowledged_at_safe_phase(
