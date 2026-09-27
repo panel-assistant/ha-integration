@@ -17,10 +17,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from zipfile import ZipFile
 
 import pytest
+from aiohttp.web import HTTPBadRequest
 from homeassistant.components.update import UpdateEntityFeature
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -40,10 +41,12 @@ from custom_components.panel_assistant.build_feed import (
 )
 from custom_components.panel_assistant.client import (
     CannotConnectError,
+    HaPaneldClient,
     PanelHealth,
     StagedApk,
     UpdateApprovalRequiredError,
     UploadDisabledError,
+    normalize_address,
 )
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.coordinator import (
@@ -763,6 +766,61 @@ async def test_upload_disabled_is_reported(
     _assert_translated(error.value, "upload_disabled")
     client.async_commit_apk.assert_not_awaited()
     assert entity.in_progress is False
+
+
+async def test_stage_503_refusal_reports_one_named_actionable_error(
+    hass: HomeAssistant,
+    delivery: SimpleNamespace,
+    hass_client: Any,
+    hass_ws_client: Any,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A feed stage refusal stays translated and clean through both HA APIs."""
+    entity, client = _entity(hass)
+    entity._title = "Example panel"
+    staging = HaPaneldClient(MagicMock(), normalize_address("panel.local"))
+    staging._async_post_bounded = AsyncMock(return_value=(503, b""))  # type: ignore[method-assign]
+    client.async_stage_apk = staging.async_stage_apk
+
+    with pytest.raises(ServiceValidationError) as error:
+        await entity.async_install(None, False)
+
+    assert "Example panel" in str(error.value)
+    assert "Install tab" in str(error.value)
+    assert isinstance(error.value, HTTPBadRequest)
+    _assert_translated(error.value, "update_rejected")
+    assert error.value.translation_placeholders == {"panel": "Example panel"}
+    staging._async_post_bounded.assert_awaited_once()
+    client.async_commit_apk.assert_not_awaited()
+    client.async_start_panel_update.assert_not_awaited()
+    assert entity.in_progress is False
+
+    async def install_service(_call: Any) -> None:
+        await entity.async_install(None, False)
+
+    hass.services.async_register("test_refusal", "install", install_service)
+    assert await async_setup_component(hass, "http", {})
+    assert await async_setup_component(hass, "api", {})
+    assert await async_setup_component(hass, "websocket_api", {})
+    caplog.clear()
+    api = await hass_client()
+    rest = await api.post("/api/services/test_refusal/install", json={})
+    assert rest.status == 400
+    assert "Example panel" in await rest.text()
+
+    websocket = await hass_ws_client(hass)
+    await websocket.send_json_auto_id(
+        {"type": "call_service", "domain": "test_refusal", "service": "install"}
+    )
+    response = await websocket.receive_json()
+    assert response["error"]["code"] == "service_validation_error"
+    assert response["error"]["translation_domain"] == DOMAIN
+    assert response["error"]["translation_key"] == "update_rejected"
+    assert response["error"]["translation_placeholders"] == {"panel": "Example panel"}
+    errors = [record for record in caplog.records if record.levelno >= logging.ERROR]
+    assert len(errors) == 1
+    assert "Example panel" in errors[0].message
+    assert errors[0].exc_info is None
 
 
 async def test_wait_refuses_a_restart_into_a_different_build(

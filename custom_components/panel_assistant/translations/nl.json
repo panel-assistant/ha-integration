@@ -175,7 +175,7 @@
       "message": "Bevestig deze update op het paneel en probeer het dan nog eens"
     },
     "update_rejected": {
-      "message": "Het paneel heeft het updateverzoek geweigerd"
+      "message": "{panel} heeft het updateverzoek geweigerd. Controleer het tabblad Installeren op het paneel en probeer het opnieuw."
     },
     "update_not_accepted": {
       "message": "Het paneel heeft het updateverzoek niet geaccepteerd"

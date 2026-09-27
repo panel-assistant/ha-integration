@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import logging
 
+from aiohttp.web import HTTPBadRequest
 from homeassistant.components.update import (
     UpdateDeviceClass,
     UpdateEntity,
@@ -13,7 +14,7 @@ from homeassistant.components.update import (
 )
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -85,6 +86,21 @@ ROUTE_STAGED = "staged_by_home_assistant"
 ROUTE_PANEL = "downloaded_by_panel"
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class _UpdateRefusalError(ServiceValidationError, HTTPBadRequest):
+    """Report an expected refusal cleanly through both HA service transports."""
+
+    def __init__(self, panel: str) -> None:
+        message = (
+            f"{panel} refused the update request. "
+            "Check its Install tab, then try again."
+        )
+        HTTPBadRequest.__init__(self, text=message)
+        self._message = message
+        self.translation_domain = DOMAIN
+        self.translation_key = "update_rejected"
+        self.translation_placeholders = {"panel": panel}
 
 
 def _update_error(translation_key: str, fallback: str) -> HomeAssistantError:
@@ -452,58 +468,61 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
     ) -> None:
         """Start one exact stable offer, then follow the expected panel restart."""
         feed = self._feed_mode()
-        if feed is not None:
-            await self._async_install_feed_build(feed, version, backup)
-            return
-        offer = self._stable_target()
-        if (
-            self.in_progress
-            or backup
-            or offer is None
-            or version not in (None, offer.target_version)
-        ):
-            raise _update_error(
-                "update_unavailable",
-                "The requested ha-paneld update is unavailable",
-            )
-        release = self._host_release()
-        self._attr_in_progress = True
-        self.async_write_ha_state()
         try:
-            # Home Assistant sends the release over the LAN whenever it could
-            # authenticate it. Only a panel that cannot take an upload at all
-            # downloads the release itself, and verifies it itself.
-            if release is not None and release.tag == offer.tag:
-                if release.descriptor is None:
-                    # Keep the signed pair selected for this transaction even
-                    # if the shared release coordinator refreshes mid-install.
-                    successor = self._release.data if self._release else None
-                    if (
-                        successor is None
-                        or successor.tag != release.tag
-                        or successor.descriptor is None
-                        or successor.descriptor.package_id != SUCCESSOR_PACKAGE_ID
-                    ):
-                        raise _verification_error(release)
-                    if self.coordinator.data.health.version != release.version:
-                        await self._async_deliver_build(release)
-                    if reports_package(
-                        self.coordinator.data.health.package, SUCCESSOR_PACKAGE_ID
-                    ):
-                        # A connected bridge may already have completed its
-                        # own handover. Prove that result without reinstalling.
-                        await self._async_wait_for_build(
-                            successor, ("", LEGACY_PACKAGE_ID)
-                        )
-                    else:
-                        await self._async_deliver_build(successor, migration=True)
-                    return
-                if await self._async_deliver_build(release, fallback=True):
-                    return
-            await self._async_start_panel_download(offer)
-        finally:
-            self._attr_in_progress = False
+            if feed is not None:
+                await self._async_install_feed_build(feed, version, backup)
+                return
+            offer = self._stable_target()
+            if (
+                self.in_progress
+                or backup
+                or offer is None
+                or version not in (None, offer.target_version)
+            ):
+                raise _update_error(
+                    "update_unavailable",
+                    "The requested ha-paneld update is unavailable",
+                )
+            release = self._host_release()
+            self._attr_in_progress = True
             self.async_write_ha_state()
+            try:
+                # Home Assistant sends the release over the LAN whenever it could
+                # authenticate it. Only a panel that cannot take an upload at all
+                # downloads the release itself, and verifies it itself.
+                if release is not None and release.tag == offer.tag:
+                    if release.descriptor is None:
+                        # Keep the signed pair selected for this transaction even
+                        # if the shared release coordinator refreshes mid-install.
+                        successor = self._release.data if self._release else None
+                        if (
+                            successor is None
+                            or successor.tag != release.tag
+                            or successor.descriptor is None
+                            or successor.descriptor.package_id != SUCCESSOR_PACKAGE_ID
+                        ):
+                            raise _verification_error(release)
+                        if self.coordinator.data.health.version != release.version:
+                            await self._async_deliver_build(release)
+                        if reports_package(
+                            self.coordinator.data.health.package, SUCCESSOR_PACKAGE_ID
+                        ):
+                            # A connected bridge may already have completed its
+                            # own handover. Prove that result without reinstalling.
+                            await self._async_wait_for_build(
+                                successor, ("", LEGACY_PACKAGE_ID)
+                            )
+                        else:
+                            await self._async_deliver_build(successor, migration=True)
+                        return
+                    if await self._async_deliver_build(release, fallback=True):
+                        return
+                await self._async_start_panel_download(offer)
+            finally:
+                self._attr_in_progress = False
+                self.async_write_ha_state()
+        except UpdateRejectedError:
+            raise _UpdateRefusalError(self._title or "This panel") from None
 
     async def _async_start_panel_download(self, offer: PanelCachedUpdate) -> None:
         """Ask the panel to fetch, verify and install the release itself."""
@@ -517,10 +536,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             raise _update_error(
                 "update_approval_required",
                 "Approve this update on the panel, then try again",
-            ) from err
-        except UpdateRejectedError as err:
-            raise _update_error(
-                "update_rejected", "The panel refused the update request"
             ) from err
         except (CannotConnectError, InvalidResponseError) as err:
             raise _update_error(
@@ -750,10 +765,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             raise _update_error(
                 "update_approval_required",
                 "Approve this update on the panel, then try again",
-            ) from err
-        except UpdateRejectedError as err:
-            raise _update_error(
-                "update_rejected", "The panel refused the update request"
             ) from err
         except (CannotConnectError, InvalidResponseError) as err:
             raise _update_error(
