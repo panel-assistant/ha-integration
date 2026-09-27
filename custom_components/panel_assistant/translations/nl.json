@@ -206,11 +206,11 @@
         "step": {
           "confirm_bind": {
             "title": "Bevestig de gebruiker van het paneel",
-            "description": "Het paneel {panel} heeft gevraagd om verbinding te maken met Home Assistant als de gebruiker {user}. Bevestig dit alleen als {user} het account is dat je voor dit paneel hebt aangemaakt. Iedereen die is aangemeld bij Home Assistant kan vragen om als paneel verbinding te maken, dus als je dit verzoek niet herkent, sluit je dit dialoogvenster en negeer je de melding."
+            "description": "Het paneel {panel} heeft gevraagd om verbinding te maken met Home Assistant als de gebruiker {user}. Bevestig dit alleen als {user} het account is dat je voor dit paneel hebt aangemaakt. Na je bevestiging zou het paneel kort daarna verbinding moeten maken. Iedereen die is aangemeld bij Home Assistant kan vragen om als paneel verbinding te maken, dus als je dit verzoek niet herkent, sluit je dit dialoogvenster en negeer je de melding."
           },
           "confirm_rebind": {
             "title": "De gebruiker van het paneel wijzigen",
-            "description": "Het paneel {panel} is bevestigd voor de gebruiker {bound_user}, maar de gebruiker {user} heeft gevraagd om als dit paneel verbinding te maken. Bevestig dit alleen als je het account van dit paneel hebt gewijzigd in {user}: het paneel accepteert {bound_user} dan niet meer. Als je dat niet hebt gedaan, probeert iemand anders mogelijk het paneel over te nemen, dus sluit dit dialoogvenster en negeer de melding."
+            "description": "Het paneel {panel} is bevestigd voor de gebruiker {bound_user}, maar de gebruiker {user} heeft gevraagd om als dit paneel verbinding te maken. Bevestig dit alleen als je het account van dit paneel hebt gewijzigd in {user}: het paneel accepteert {bound_user} dan niet meer en zou kort daarna verbinding moeten maken. Als je dat niet hebt gedaan, probeert iemand anders mogelijk het paneel over te nemen, dus sluit dit dialoogvenster en negeer de melding."
           }
         },
         "abort": {
@@ -225,11 +225,11 @@
         "step": {
           "confirm_bind": {
             "title": "Bevestig de gebruiker van het paneel",
-            "description": "Het paneel {panel} heeft gevraagd om verbinding te maken met Home Assistant als de gebruiker {user}. Bevestig dit alleen als {user} het account is dat je voor dit paneel hebt aangemaakt. Iedereen die is aangemeld bij Home Assistant kan vragen om als paneel verbinding te maken, dus als je dit verzoek niet herkent, sluit je dit dialoogvenster en negeer je de melding."
+            "description": "Het paneel {panel} heeft gevraagd om verbinding te maken met Home Assistant als de gebruiker {user}. Bevestig dit alleen als {user} het account is dat je voor dit paneel hebt aangemaakt. Na je bevestiging zou het paneel kort daarna verbinding moeten maken. Iedereen die is aangemeld bij Home Assistant kan vragen om als paneel verbinding te maken, dus als je dit verzoek niet herkent, sluit je dit dialoogvenster en negeer je de melding."
           },
           "confirm_rebind": {
             "title": "De gebruiker van het paneel wijzigen",
-            "description": "Het paneel {panel} is bevestigd voor de gebruiker {bound_user}, maar de gebruiker {user} heeft gevraagd om als dit paneel verbinding te maken. Bevestig dit alleen als je het account van dit paneel hebt gewijzigd in {user}: het paneel accepteert {bound_user} dan niet meer. Als je dat niet hebt gedaan, probeert iemand anders mogelijk het paneel over te nemen, dus sluit dit dialoogvenster en negeer de melding."
+            "description": "Het paneel {panel} is bevestigd voor de gebruiker {bound_user}, maar de gebruiker {user} heeft gevraagd om als dit paneel verbinding te maken. Bevestig dit alleen als je het account van dit paneel hebt gewijzigd in {user}: het paneel accepteert {bound_user} dan niet meer en zou kort daarna verbinding moeten maken. Als je dat niet hebt gedaan, probeert iemand anders mogelijk het paneel over te nemen, dus sluit dit dialoogvenster en negeer de melding."
           }
         },
         "abort": {

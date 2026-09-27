@@ -184,11 +184,11 @@
         "step": {
           "confirm_bind": {
             "title": "Confirmer l'utilisateur du panneau",
-            "description": "Le panneau {panel} demande à se connecter à Home Assistant en tant qu'utilisateur {user}. Ne confirmez que si {user} est le compte que vous avez créé pour ce panneau. Toute personne connectée à Home Assistant peut demander à se connecter comme panneau : si vous ne reconnaissez pas cette demande, fermez cette boîte de dialogue et ignorez le problème."
+            "description": "Le panneau {panel} demande à se connecter à Home Assistant en tant qu'utilisateur {user}. Ne confirmez que si {user} est le compte que vous avez créé pour ce panneau. Après confirmation, le panneau devrait se connecter peu après. Toute personne connectée à Home Assistant peut demander à se connecter comme panneau : si vous ne reconnaissez pas cette demande, fermez cette boîte de dialogue et ignorez le problème."
           },
           "confirm_rebind": {
             "title": "Changer l'utilisateur du panneau",
-            "description": "Le panneau {panel} est confirmé pour l'utilisateur {bound_user}, mais l'utilisateur {user} demande à se connecter en tant que ce panneau. Ne confirmez que si vous avez remplacé le compte de ce panneau par {user} : le panneau n'acceptera plus {bound_user}. Sinon, quelqu'un d'autre essaie peut-être de prendre le contrôle du panneau : fermez cette boîte de dialogue et ignorez le problème."
+            "description": "Le panneau {panel} est confirmé pour l'utilisateur {bound_user}, mais l'utilisateur {user} demande à se connecter en tant que ce panneau. Ne confirmez que si vous avez remplacé le compte de ce panneau par {user} : le panneau n'acceptera plus {bound_user} et devrait se connecter peu après. Sinon, quelqu'un d'autre essaie peut-être de prendre le contrôle du panneau : fermez cette boîte de dialogue et ignorez le problème."
           }
         },
         "abort": {
@@ -203,11 +203,11 @@
         "step": {
           "confirm_bind": {
             "title": "Confirmer l'utilisateur du panneau",
-            "description": "Le panneau {panel} demande à se connecter à Home Assistant en tant qu'utilisateur {user}. Ne confirmez que si {user} est le compte que vous avez créé pour ce panneau. Toute personne connectée à Home Assistant peut demander à se connecter comme panneau : si vous ne reconnaissez pas cette demande, fermez cette boîte de dialogue et ignorez le problème."
+            "description": "Le panneau {panel} demande à se connecter à Home Assistant en tant qu'utilisateur {user}. Ne confirmez que si {user} est le compte que vous avez créé pour ce panneau. Après confirmation, le panneau devrait se connecter peu après. Toute personne connectée à Home Assistant peut demander à se connecter comme panneau : si vous ne reconnaissez pas cette demande, fermez cette boîte de dialogue et ignorez le problème."
           },
           "confirm_rebind": {
             "title": "Changer l'utilisateur du panneau",
-            "description": "Le panneau {panel} est confirmé pour l'utilisateur {bound_user}, mais l'utilisateur {user} demande à se connecter en tant que ce panneau. Ne confirmez que si vous avez remplacé le compte de ce panneau par {user} : le panneau n'acceptera plus {bound_user}. Sinon, quelqu'un d'autre essaie peut-être de prendre le contrôle du panneau : fermez cette boîte de dialogue et ignorez le problème."
+            "description": "Le panneau {panel} est confirmé pour l'utilisateur {bound_user}, mais l'utilisateur {user} demande à se connecter en tant que ce panneau. Ne confirmez que si vous avez remplacé le compte de ce panneau par {user} : le panneau n'acceptera plus {bound_user} et devrait se connecter peu après. Sinon, quelqu'un d'autre essaie peut-être de prendre le contrôle du panneau : fermez cette boîte de dialogue et ignorez le problème."
           }
         },
         "abort": {

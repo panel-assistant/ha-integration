@@ -1631,6 +1631,8 @@ async def test_binding_repair_is_translated_in_english(
     rebind = strings[f"{prefix}.fix_flow.step.confirm_rebind.description"]
     assert "{panel}" in bind and "{user}" in bind
     assert all(name in rebind for name in ("{panel}", "{user}", "{bound_user}"))
+    assert "connect shortly" in bind
+    assert "connect shortly" in rebind
     for reason in ("entry_removed", "user_unavailable"):
         assert strings[f"{prefix}.fix_flow.abort.{reason}"]
 

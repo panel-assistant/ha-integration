@@ -184,11 +184,11 @@
         "step": {
           "confirm_bind": {
             "title": "确认面板用户",
-            "description": "面板 {panel} 请求以用户 {user} 的身份连接到 Home Assistant。仅当 {user} 是你为此面板设置的账户时才确认。任何已登录 Home Assistant 的人都可以请求以面板身份连接，因此如果你不认识此请求，请关闭此对话框并忽略该问题。"
+            "description": "面板 {panel} 请求以用户 {user} 的身份连接到 Home Assistant。仅当 {user} 是你为此面板设置的账户时才确认。确认后，面板应该很快就会连接。任何已登录 Home Assistant 的人都可以请求以面板身份连接，因此如果你不认识此请求，请关闭此对话框并忽略该问题。"
           },
           "confirm_rebind": {
             "title": "更改面板用户",
-            "description": "面板 {panel} 已确认用于用户 {bound_user}，但用户 {user} 请求以此面板的身份连接。仅当你已将此面板的账户更改为 {user} 时才确认：之后面板将不再接受 {bound_user}。如果你没有更改，可能有其他人试图接管此面板，请关闭此对话框并忽略该问题。"
+            "description": "面板 {panel} 已确认用于用户 {bound_user}，但用户 {user} 请求以此面板的身份连接。仅当你已将此面板的账户更改为 {user} 时才确认：之后面板将不再接受 {bound_user}，并且应该很快就会连接。如果你没有更改，可能有其他人试图接管此面板，请关闭此对话框并忽略该问题。"
           }
         },
         "abort": {
@@ -203,11 +203,11 @@
         "step": {
           "confirm_bind": {
             "title": "确认面板用户",
-            "description": "面板 {panel} 请求以用户 {user} 的身份连接到 Home Assistant。仅当 {user} 是你为此面板设置的账户时才确认。任何已登录 Home Assistant 的人都可以请求以面板身份连接，因此如果你不认识此请求，请关闭此对话框并忽略该问题。"
+            "description": "面板 {panel} 请求以用户 {user} 的身份连接到 Home Assistant。仅当 {user} 是你为此面板设置的账户时才确认。确认后，面板应该很快就会连接。任何已登录 Home Assistant 的人都可以请求以面板身份连接，因此如果你不认识此请求，请关闭此对话框并忽略该问题。"
           },
           "confirm_rebind": {
             "title": "更改面板用户",
-            "description": "面板 {panel} 已确认用于用户 {bound_user}，但用户 {user} 请求以此面板的身份连接。仅当你已将此面板的账户更改为 {user} 时才确认：之后面板将不再接受 {bound_user}。如果你没有更改，可能有其他人试图接管此面板，请关闭此对话框并忽略该问题。"
+            "description": "面板 {panel} 已确认用于用户 {bound_user}，但用户 {user} 请求以此面板的身份连接。仅当你已将此面板的账户更改为 {user} 时才确认：之后面板将不再接受 {bound_user}，并且应该很快就会连接。如果你没有更改，可能有其他人试图接管此面板，请关闭此对话框并忽略该问题。"
           }
         },
         "abort": {

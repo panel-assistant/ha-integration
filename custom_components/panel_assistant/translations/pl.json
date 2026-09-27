@@ -206,11 +206,11 @@
         "step": {
           "confirm_bind": {
             "title": "Potwierdź użytkownika panelu",
-            "description": "Panel {panel} poprosił o połączenie z Home Assistant jako użytkownik {user}. Potwierdź tylko wtedy, gdy {user} to konto utworzone przez ciebie dla tego panelu. Każdy zalogowany w Home Assistant może poprosić o połączenie jako panel, więc jeśli nie rozpoznajesz tej prośby, zamknij to okno i zignoruj ten problem."
+            "description": "Panel {panel} poprosił o połączenie z Home Assistant jako użytkownik {user}. Potwierdź tylko wtedy, gdy {user} to konto utworzone przez ciebie dla tego panelu. Po potwierdzeniu panel powinien wkrótce się połączyć. Każdy zalogowany w Home Assistant może poprosić o połączenie jako panel, więc jeśli nie rozpoznajesz tej prośby, zamknij to okno i zignoruj ten problem."
           },
           "confirm_rebind": {
             "title": "Zmień użytkownika panelu",
-            "description": "Panel {panel} jest potwierdzony dla użytkownika {bound_user}, ale użytkownik {user} poprosił o połączenie jako ten panel. Potwierdź tylko wtedy, gdy konto tego panelu zostało zmienione przez ciebie na {user}: panel przestanie wtedy akceptować {bound_user}. Jeśli nie, ktoś inny może próbować przejąć panel, więc zamknij to okno i zignoruj ten problem."
+            "description": "Panel {panel} jest potwierdzony dla użytkownika {bound_user}, ale użytkownik {user} poprosił o połączenie jako ten panel. Potwierdź tylko wtedy, gdy konto tego panelu zostało zmienione przez ciebie na {user}: panel przestanie wtedy akceptować {bound_user} i powinien wkrótce się połączyć. Jeśli nie, ktoś inny może próbować przejąć panel, więc zamknij to okno i zignoruj ten problem."
           }
         },
         "abort": {
@@ -225,11 +225,11 @@
         "step": {
           "confirm_bind": {
             "title": "Potwierdź użytkownika panelu",
-            "description": "Panel {panel} poprosił o połączenie z Home Assistant jako użytkownik {user}. Potwierdź tylko wtedy, gdy {user} to konto utworzone przez ciebie dla tego panelu. Każdy zalogowany w Home Assistant może poprosić o połączenie jako panel, więc jeśli nie rozpoznajesz tej prośby, zamknij to okno i zignoruj ten problem."
+            "description": "Panel {panel} poprosił o połączenie z Home Assistant jako użytkownik {user}. Potwierdź tylko wtedy, gdy {user} to konto utworzone przez ciebie dla tego panelu. Po potwierdzeniu panel powinien wkrótce się połączyć. Każdy zalogowany w Home Assistant może poprosić o połączenie jako panel, więc jeśli nie rozpoznajesz tej prośby, zamknij to okno i zignoruj ten problem."
           },
           "confirm_rebind": {
             "title": "Zmień użytkownika panelu",
-            "description": "Panel {panel} jest potwierdzony dla użytkownika {bound_user}, ale użytkownik {user} poprosił o połączenie jako ten panel. Potwierdź tylko wtedy, gdy konto tego panelu zostało zmienione przez ciebie na {user}: panel przestanie wtedy akceptować {bound_user}. Jeśli nie, ktoś inny może próbować przejąć panel, więc zamknij to okno i zignoruj ten problem."
+            "description": "Panel {panel} jest potwierdzony dla użytkownika {bound_user}, ale użytkownik {user} poprosił o połączenie jako ten panel. Potwierdź tylko wtedy, gdy konto tego panelu zostało zmienione przez ciebie na {user}: panel przestanie wtedy akceptować {bound_user} i powinien wkrótce się połączyć. Jeśli nie, ktoś inny może próbować przejąć panel, więc zamknij to okno i zignoruj ten problem."
           }
         },
         "abort": {

@@ -184,11 +184,11 @@
         "step": {
           "confirm_bind": {
             "title": "Conferma l'utente del pannello",
-            "description": "Il pannello {panel} ha chiesto di connettersi a Home Assistant come utente {user}. Conferma solo se {user} è l'account che hai configurato per questo pannello. Chiunque abbia effettuato l'accesso a Home Assistant può chiedere di connettersi come pannello, quindi se non riconosci questa richiesta chiudi questa finestra e ignora il problema."
+            "description": "Il pannello {panel} ha chiesto di connettersi a Home Assistant come utente {user}. Conferma solo se {user} è l'account che hai configurato per questo pannello. Dopo la conferma, il pannello dovrebbe connettersi poco dopo. Chiunque abbia effettuato l'accesso a Home Assistant può chiedere di connettersi come pannello, quindi se non riconosci questa richiesta chiudi questa finestra e ignora il problema."
           },
           "confirm_rebind": {
             "title": "Cambia l'utente del pannello",
-            "description": "Il pannello {panel} è confermato per l'utente {bound_user}, ma l'utente {user} ha chiesto di connettersi come questo pannello. Conferma solo se hai cambiato l'account di questo pannello in {user}: il pannello smetterà di accettare {bound_user}. In caso contrario, qualcun altro potrebbe tentare di impossessarsi del pannello, quindi chiudi questa finestra e ignora il problema."
+            "description": "Il pannello {panel} è confermato per l'utente {bound_user}, ma l'utente {user} ha chiesto di connettersi come questo pannello. Conferma solo se hai cambiato l'account di questo pannello in {user}: il pannello smetterà di accettare {bound_user} e dovrebbe connettersi poco dopo. In caso contrario, qualcun altro potrebbe tentare di impossessarsi del pannello, quindi chiudi questa finestra e ignora il problema."
           }
         },
         "abort": {
@@ -203,11 +203,11 @@
         "step": {
           "confirm_bind": {
             "title": "Conferma l'utente del pannello",
-            "description": "Il pannello {panel} ha chiesto di connettersi a Home Assistant come utente {user}. Conferma solo se {user} è l'account che hai configurato per questo pannello. Chiunque abbia effettuato l'accesso a Home Assistant può chiedere di connettersi come pannello, quindi se non riconosci questa richiesta chiudi questa finestra e ignora il problema."
+            "description": "Il pannello {panel} ha chiesto di connettersi a Home Assistant come utente {user}. Conferma solo se {user} è l'account che hai configurato per questo pannello. Dopo la conferma, il pannello dovrebbe connettersi poco dopo. Chiunque abbia effettuato l'accesso a Home Assistant può chiedere di connettersi come pannello, quindi se non riconosci questa richiesta chiudi questa finestra e ignora il problema."
           },
           "confirm_rebind": {
             "title": "Cambia l'utente del pannello",
-            "description": "Il pannello {panel} è confermato per l'utente {bound_user}, ma l'utente {user} ha chiesto di connettersi come questo pannello. Conferma solo se hai cambiato l'account di questo pannello in {user}: il pannello smetterà di accettare {bound_user}. In caso contrario, qualcun altro potrebbe tentare di impossessarsi del pannello, quindi chiudi questa finestra e ignora il problema."
+            "description": "Il pannello {panel} è confermato per l'utente {bound_user}, ma l'utente {user} ha chiesto di connettersi come questo pannello. Conferma solo se hai cambiato l'account di questo pannello in {user}: il pannello smetterà di accettare {bound_user} e dovrebbe connettersi poco dopo. In caso contrario, qualcun altro potrebbe tentare di impossessarsi del pannello, quindi chiudi questa finestra e ignora il problema."
           }
         },
         "abort": {

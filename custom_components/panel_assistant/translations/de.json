@@ -184,11 +184,11 @@
         "step": {
           "confirm_bind": {
             "title": "Benutzer des Panels bestätigen",
-            "description": "Das Panel {panel} möchte sich als Benutzer {user} mit Home Assistant verbinden. Bestätige nur, wenn {user} das Konto ist, das du für dieses Panel eingerichtet hast. Jeder, der bei Home Assistant angemeldet ist, kann eine Verbindung als Panel anfordern. Wenn du diese Anfrage nicht kennst, schließe diesen Dialog und ignoriere das Problem."
+            "description": "Das Panel {panel} möchte sich als Benutzer {user} mit Home Assistant verbinden. Bestätige nur, wenn {user} das Konto ist, das du für dieses Panel eingerichtet hast. Nach deiner Bestätigung sollte sich das Panel in Kürze verbinden. Jeder, der bei Home Assistant angemeldet ist, kann eine Verbindung als Panel anfordern. Wenn du diese Anfrage nicht kennst, schließe diesen Dialog und ignoriere das Problem."
           },
           "confirm_rebind": {
             "title": "Benutzer des Panels ändern",
-            "description": "Das Panel {panel} ist für den Benutzer {bound_user} bestätigt, aber der Benutzer {user} möchte sich als dieses Panel verbinden. Bestätige nur, wenn du das Konto dieses Panels auf {user} geändert hast: Das Panel akzeptiert {bound_user} danach nicht mehr. Andernfalls versucht womöglich jemand anderes, das Panel zu übernehmen. Schließe dann diesen Dialog und ignoriere das Problem."
+            "description": "Das Panel {panel} ist für den Benutzer {bound_user} bestätigt, aber der Benutzer {user} möchte sich als dieses Panel verbinden. Bestätige nur, wenn du das Konto dieses Panels auf {user} geändert hast: Das Panel akzeptiert {bound_user} danach nicht mehr und sollte sich in Kürze verbinden. Andernfalls versucht womöglich jemand anderes, das Panel zu übernehmen. Schließe dann diesen Dialog und ignoriere das Problem."
           }
         },
         "abort": {
@@ -203,11 +203,11 @@
         "step": {
           "confirm_bind": {
             "title": "Benutzer des Panels bestätigen",
-            "description": "Das Panel {panel} möchte sich als Benutzer {user} mit Home Assistant verbinden. Bestätige nur, wenn {user} das Konto ist, das du für dieses Panel eingerichtet hast. Jeder, der bei Home Assistant angemeldet ist, kann eine Verbindung als Panel anfordern. Wenn du diese Anfrage nicht kennst, schließe diesen Dialog und ignoriere das Problem."
+            "description": "Das Panel {panel} möchte sich als Benutzer {user} mit Home Assistant verbinden. Bestätige nur, wenn {user} das Konto ist, das du für dieses Panel eingerichtet hast. Nach deiner Bestätigung sollte sich das Panel in Kürze verbinden. Jeder, der bei Home Assistant angemeldet ist, kann eine Verbindung als Panel anfordern. Wenn du diese Anfrage nicht kennst, schließe diesen Dialog und ignoriere das Problem."
           },
           "confirm_rebind": {
             "title": "Benutzer des Panels ändern",
-            "description": "Das Panel {panel} ist für den Benutzer {bound_user} bestätigt, aber der Benutzer {user} möchte sich als dieses Panel verbinden. Bestätige nur, wenn du das Konto dieses Panels auf {user} geändert hast: Das Panel akzeptiert {bound_user} danach nicht mehr. Andernfalls versucht womöglich jemand anderes, das Panel zu übernehmen. Schließe dann diesen Dialog und ignoriere das Problem."
+            "description": "Das Panel {panel} ist für den Benutzer {bound_user} bestätigt, aber der Benutzer {user} möchte sich als dieses Panel verbinden. Bestätige nur, wenn du das Konto dieses Panels auf {user} geändert hast: Das Panel akzeptiert {bound_user} danach nicht mehr und sollte sich in Kürze verbinden. Andernfalls versucht womöglich jemand anderes, das Panel zu übernehmen. Schließe dann diesen Dialog und ignoriere das Problem."
           }
         },
         "abort": {

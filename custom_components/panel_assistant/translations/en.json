@@ -515,11 +515,11 @@
         "step": {
           "confirm_bind": {
             "title": "Confirm the panel's user",
-            "description": "The panel {panel} asked to connect to Home Assistant as the user {user}. Confirm only if {user} is the account you set up for this panel. Anyone signed in to Home Assistant can ask to connect as a panel, so if you do not recognise this request, close this dialog and ignore the issue."
+            "description": "The panel {panel} asked to connect to Home Assistant as the user {user}. Confirm only if {user} is the account you set up for this panel. If you confirm, the panel should connect shortly afterwards. Anyone signed in to Home Assistant can ask to connect as a panel, so if you do not recognise this request, close this dialog and ignore the issue."
           },
           "confirm_rebind": {
             "title": "Change the panel's user",
-            "description": "The panel {panel} is confirmed for the user {bound_user}, but the user {user} asked to connect as it. Confirm only if you changed this panel's account to {user}: the panel then stops accepting {bound_user}. If you did not, someone else may be trying to take over the panel, so close this dialog and ignore the issue."
+            "description": "The panel {panel} is confirmed for the user {bound_user}, but the user {user} asked to connect as it. Confirm only if you changed this panel's account to {user}: the panel then stops accepting {bound_user} and should connect shortly afterwards. If you did not, someone else may be trying to take over the panel, so close this dialog and ignore the issue."
           }
         },
         "abort": {
@@ -534,11 +534,11 @@
         "step": {
           "confirm_bind": {
             "title": "Confirm the panel's user",
-            "description": "The panel {panel} asked to connect to Home Assistant as the user {user}. Confirm only if {user} is the account you set up for this panel. Anyone signed in to Home Assistant can ask to connect as a panel, so if you do not recognise this request, close this dialog and ignore the issue."
+            "description": "The panel {panel} asked to connect to Home Assistant as the user {user}. Confirm only if {user} is the account you set up for this panel. If you confirm, the panel should connect shortly afterwards. Anyone signed in to Home Assistant can ask to connect as a panel, so if you do not recognise this request, close this dialog and ignore the issue."
           },
           "confirm_rebind": {
             "title": "Change the panel's user",
-            "description": "The panel {panel} is confirmed for the user {bound_user}, but the user {user} asked to connect as it. Confirm only if you changed this panel's account to {user}: the panel then stops accepting {bound_user}. If you did not, someone else may be trying to take over the panel, so close this dialog and ignore the issue."
+            "description": "The panel {panel} is confirmed for the user {bound_user}, but the user {user} asked to connect as it. Confirm only if you changed this panel's account to {user}: the panel then stops accepting {bound_user} and should connect shortly afterwards. If you did not, someone else may be trying to take over the panel, so close this dialog and ignore the issue."
           }
         },
         "abort": {
