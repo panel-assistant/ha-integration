@@ -132,6 +132,9 @@ CAPABILITY_MQTT_WITHDRAW: Final = "mqtt_withdraw"
 # A panel that offers this receives a key to check the sidebar's proofs with
 # (see ``embed_proof.py``). It is granted whenever offered, under every authority.
 CAPABILITY_EMBED_PROOF: Final = "embed_proof"
+# A panel that offers this is an Assist satellite (see ``voice.py``). Voice has
+# no MQTT counterpart to defer to, so it is granted whenever offered.
+CAPABILITY_VOICE: Final = "voice"
 KNOWN_CAPABILITIES: Final = frozenset(
     {
         CAPABILITY_STATE,
@@ -140,6 +143,7 @@ KNOWN_CAPABILITIES: Final = frozenset(
         CAPABILITY_APPROVAL,
         CAPABILITY_MQTT_WITHDRAW,
         CAPABILITY_EMBED_PROOF,
+        CAPABILITY_VOICE,
     }
 )
 # What each authority lets a session use, before intersecting with what the
@@ -865,6 +869,10 @@ class PanelSession:
         default_factory=lambda: deque(maxlen=MAX_RECENT_OUTCOMES)
     )
     command_counts: dict[str, int] = field(default_factory=dict)
+    # The panel's own wake words and their pipelines, as it last reported them
+    # (``voice.VoiceConfiguration``). A projection of the panel's settings,
+    # never a second store: it ends with the session.
+    voice: Any = None
 
     def count(self, name: str) -> None:
         """Count one command fact for diagnostics."""
@@ -2037,6 +2045,8 @@ def ws_hello(
         capabilities |= {CAPABILITY_MQTT_WITHDRAW}
     if CAPABILITY_EMBED_PROOF in offered:
         capabilities |= {CAPABILITY_EMBED_PROOF}
+    if CAPABILITY_VOICE in offered:
+        capabilities |= {CAPABILITY_VOICE}
     mqtt_discovery = mqtt_discovery_claim(hass, entry)
     if mqtt_discovery == MQTT_DISCOVERY_WITHDRAW:
         # Whatever held the withdrawal back, such as a customised entity a

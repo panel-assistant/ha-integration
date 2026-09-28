@@ -61,6 +61,7 @@ from .transport import (
     native_enabled_for,
 )
 from .update_coordinator import PanelUpdateCoordinator
+from .voice import async_follow_voice, async_setup_voice, satellite_known
 
 PLATFORMS = [Platform.SENSOR, Platform.UPDATE]
 # Panels are config entries. YAML holds only development options: an optional
@@ -90,6 +91,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     # Before the commands exist, so no hello is answered without them.
     await async_load_removed_panels(hass)
     async_setup_transport(hass)
+    async_setup_voice(hass)
     async_setup_embed(hass)
     async_register_browser_delivery(hass)
     await async_register_browser_panel(hass)
@@ -211,6 +213,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     platforms = list(PLATFORMS)
     if native_enabled_for(hass, entry):
         platforms.extend(NATIVE_ONLY_PLATFORMS)
+    if satellite_known(hass, entry):
+        platforms.append(Platform.ASSIST_SATELLITE)
     runtime_data = entry.runtime_data = HaPaneldRuntimeData(
         client=client,
         coordinator=coordinator,
@@ -239,6 +243,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     )
     entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
     await hass.config_entries.async_forward_entry_setups(entry, platforms)
+    entry.async_on_unload(async_follow_voice(hass, entry, runtime_data.platforms))
     # The coordinator's listeners run on every poll and whenever the session
     # opens or closes, which is when the card can learn something new.
     entry.async_on_unload(

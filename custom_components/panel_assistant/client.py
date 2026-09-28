@@ -704,6 +704,20 @@ class HaPaneldClient:
             return
         raise CannotConnectError
 
+    async def async_set_voice_wake_words(self, wake_word_ids: list[str]) -> None:
+        """Write the panel's active wake words through its own settings store.
+
+        The panel validates them as it validates its Configure page, then
+        reports the result on its session.
+        """
+        status, _ = await self._async_post_bounded(
+            self.address.base_url.with_path(CONFIG_PATH),
+            {"voice_wake_words": json.dumps(wake_word_ids)},
+            _MAX_SETUP_BYTES,
+        )
+        if status != 200:
+            raise CannotConnectError
+
     @property
     def setup_url(self) -> str:
         """The panel's own setup wizard."""

@@ -29,7 +29,6 @@ FIRST = (
     "humidity",
     "relay1",
     "relay2",
-    "voice_enabled",
     "update_companion",
 )
 
@@ -99,9 +98,8 @@ async def test_an_unsupported_channel_loses_its_entity_and_its_support(
     await hass.async_block_till_done()
     kept = registry.async_get(light)
     temperature = _entity_id(hass, "sensor", "temperature")
-    voice = _entity_id(hass, "switch", "voice_assistant")
     relay2 = _entity_id(hass, "switch", "relay2")
-    assert None not in (temperature, voice, relay2)
+    assert None not in (temperature, relay2)
     reading = hass.states.get(light).state
     assert reading != STATE_UNAVAILABLE
 
@@ -112,17 +110,16 @@ async def test_an_unsupported_channel_loses_its_entity_and_its_support(
         hass_read_only_access_token,
         _hello_with(
             ("illuminance", "humidity", "update_companion"),
-            ["temperature", "voice_enabled", "relay2"],
+            ["temperature", "relay2"],
         ),
     )
 
     for platform, suffix in (
         ("sensor", "temperature"),
-        ("switch", "voice_assistant"),
         ("switch", "relay2"),
     ):
         assert _entity_id(hass, platform, suffix) is None, suffix
-    for entity_id in (temperature, voice, relay2):
+    for entity_id in (temperature, relay2):
         assert hass.states.get(entity_id) is None
     assert _supported(described) == [
         "humidity",
@@ -353,7 +350,7 @@ async def test_a_moved_mqtt_entity_goes_when_its_channel_is_unsupported(
     ("channel", "platform", "suffix"),
     [
         ("temperature", "sensor", "temperature"),
-        ("voice_enabled", "switch", "voice_assistant"),
+        ("voice_enabled", None, None),
         ("update_companion", "update", "ha_companion_update"),
         ("relay1", "switch", "relay1"),
         ("relay64", "switch", "relay64"),

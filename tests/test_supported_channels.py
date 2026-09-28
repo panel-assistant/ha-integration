@@ -305,7 +305,7 @@ async def test_a_leftover_waiting_for_its_channel_is_never_quarantined(
         ("switch", "relay1", "relay1"),
         ("switch", "relay64", "relay64"),
         ("light", "button_led2", "button_led2"),
-        ("switch", "voice_assistant", "voice_enabled"),
+        ("update", "ha_companion_update", "update_companion"),
         ("sensor", "diag_cpu", "diag_cpu"),
         ("switch", "relay0", None),
         ("switch", "relay65", None),

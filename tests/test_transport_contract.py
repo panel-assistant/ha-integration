@@ -38,7 +38,7 @@ SCHEMAS = {
 }
 
 _HA_VECTOR_REVISION = "f8f3bc883ebfa82ac957706dad363be4b42a1010"
-_ANDROID_PRODUCER_REVISION = "a4ce8c6b231dc8a116f3acc8f50dfec0c9d53fe0"
+_ANDROID_PRODUCER_REVISION = "21e3c51729d4f3d334b8cd6937c846d6e43dac67"
 
 
 def test_shared_vectors_name_the_ha_source_revision_vendored_by_android() -> None:

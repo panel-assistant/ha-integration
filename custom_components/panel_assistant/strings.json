@@ -351,17 +351,6 @@
       },
       "temperature": {
         "name": "Temperature"
-      },
-      "voice_state": {
-        "name": "Voice assistant state",
-        "state": {
-          "off": "Off",
-          "idle": "Idle",
-          "listening": "Listening",
-          "processing": "Processing",
-          "responding": "Responding",
-          "error": "Error"
-        }
       }
     },
     "switch": {
@@ -397,9 +386,6 @@
       },
       "touch_sound": {
         "name": "Touch sound"
-      },
-      "voice_enabled": {
-        "name": "Voice assistant"
       },
       "wake_on_wave": {
         "name": "Wake on wave"

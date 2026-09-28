@@ -219,16 +219,6 @@
       }
     },
     {
-      "channel": "voice_enabled",
-      "state": "known",
-      "value": false
-    },
-    {
-      "channel": "voice_state",
-      "state": "known",
-      "value": "off"
-    },
-    {
       "channel": "volume",
       "state": "known",
       "value": 0
