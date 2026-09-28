@@ -1752,7 +1752,7 @@ def _may_ask_to_bind(hass: HomeAssistant, connection: ActiveConnection) -> bool:
 
 @callback
 def async_record_binding_request(hass: HomeAssistant, did: str, user_id: str) -> None:
-    """Remember the account a panel with no config entry asked to connect as."""
+    """Remember the account a panel asked to connect as before binding."""
     requests: dict[str, tuple[str, datetime]] = hass.data.setdefault(
         DOMAIN, {}
     ).setdefault(DATA_BINDING_REQUESTS, {})
