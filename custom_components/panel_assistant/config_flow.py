@@ -1583,10 +1583,6 @@ class HaPaneldOptionsFlow(OptionsFlow):
             if (
                 actual.panel_id != expected.panel_id
                 or actual.package != expected.package
-                or (
-                    expected.discovery_id is not None
-                    and actual.discovery_id != expected.discovery_id
-                )
                 or (expected_did is not None and actual.discovery_id != expected_did)
             ):
                 return self._show_adb_authorization({"base": "panel_identity_changed"})
