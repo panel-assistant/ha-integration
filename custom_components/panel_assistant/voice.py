@@ -1,0 +1,306 @@
+"""The panel as an Assist satellite, over its own session.
+
+The panel owns the microphone, the wake word and its wake words' pipelines; it
+streams 16 kHz mono PCM16 after a wake word and plays what it is handed. Home
+Assistant runs the pipeline through the satellite entity
+(``assist_satellite.py``), exactly as it does for every other satellite.
+
+Three requests and one event kind carry it, all on the panel's session:
+
+- ``voice_configuration``: the panel reports its wake words, which are active,
+  and the pipeline each one runs. Sent after hello and whenever they change.
+- ``voice_run``: a subscription for one conversation turn. Its result names a
+  binary handler; each binary frame is that handler's byte then PCM, and a
+  frame of only that byte ends the audio. Its events tell the panel to stop
+  listening (``listen_end``), what to play (``play``) and that the turn is over
+  (``end``).
+- ``voice_played``: the panel finished playing a reply or an announcement.
+- ``voice_announce`` events on the hello subscription ask the panel to play an
+  announcement, and optionally to listen afterwards.
+
+A binary handler lives for one turn, never a session, because a connection has
+only 255 of them.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from collections.abc import AsyncIterator, Mapping
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Final
+
+import voluptuous as vol
+import yarl
+from homeassistant.components import websocket_api
+from homeassistant.components.assist_satellite import AssistSatelliteWakeWord
+from homeassistant.components.websocket_api.connection import ActiveConnection
+from homeassistant.components.websocket_api.decorators import websocket_command
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.network import is_hass_url
+
+from .const import DOMAIN
+from .transport import (
+    CAPABILITY_VOICE,
+    ERR_SESSION_UNKNOWN,
+    _bounded_list,
+    _code,
+    _plain_string,
+    _session_token,
+    async_get_sessions,
+)
+
+if TYPE_CHECKING:
+    from .assist_satellite import PanelAssistSatellite
+
+_LOGGER = logging.getLogger(__name__)
+
+COMMAND_VOICE_CONFIGURATION: Final = f"{DOMAIN}/voice_configuration"
+COMMAND_VOICE_RUN: Final = f"{DOMAIN}/voice_run"
+COMMAND_VOICE_PLAYED: Final = f"{DOMAIN}/voice_played"
+EVENT_VOICE_ANNOUNCE: Final = "voice_announce"
+
+ERR_VOICE_UNAVAILABLE: Final = "voice_unavailable"
+
+MAX_WAKE_WORDS: Final = 32
+# A turn whose audio stops arriving without its end frame ends here, so a
+# panel that vanished mid-sentence cannot hold the pipeline open.
+AUDIO_IDLE_TIMEOUT: Final = 5.0
+# At most this much unsent audio is held for a turn, about 20 seconds.
+MAX_QUEUED_FRAMES: Final = 2_000
+
+_DATA_SATELLITES: Final = f"{DOMAIN}_voice_satellites"
+_ANNOUNCE_ID_PATTERN: Final = r"^[A-Za-z0-9_-]{1,64}$"
+
+
+@dataclass(frozen=True, slots=True)
+class VoiceConfiguration:
+    """The panel's wake words, as it reported them."""
+
+    enabled: bool
+    wake_words: tuple[AssistSatelliteWakeWord, ...]
+    active: tuple[str, ...]
+    # Wake word ID to pipeline ID. Absent or blank means the preferred one.
+    pipelines: Mapping[str, str]
+
+    def phrase(self, wake_word_id: str | None) -> str | None:
+        """Return the phrase of one wake word."""
+        return next(
+            (w.wake_word for w in self.wake_words if w.id == wake_word_id), None
+        )
+
+
+_WAKE_WORD_SCHEMA: Final = vol.Schema(
+    {
+        vol.Required("id"): _code,
+        vol.Required("wake_word"): _plain_string(64),
+        vol.Optional("trained_languages", default=list): _bounded_list(
+            16, _plain_string(16)
+        ),
+    },
+    extra=vol.REMOVE_EXTRA,
+)
+
+
+def _pipelines(value: Any) -> dict[str, str]:
+    if type(value) is not dict or len(value) > MAX_WAKE_WORDS:
+        raise vol.Invalid("expected a bounded map of wake word to pipeline")
+    return {_code(key): _plain_string(64)(item) for key, item in value.items()}
+
+
+def _configuration_consistent(msg: dict[str, Any]) -> dict[str, Any]:
+    ids = [item["id"] for item in msg["wake_words"]]
+    if len(set(ids)) != len(ids) or not set(msg["active"]) <= set(ids):
+        raise vol.Invalid("active wake words must be among the available ones")
+    return msg
+
+
+VOICE_CONFIGURATION_SCHEMA: Final = vol.All(
+    vol.Schema(
+        {
+            vol.Required("type"): COMMAND_VOICE_CONFIGURATION,
+            vol.Required("session"): _session_token,
+            vol.Required("enabled"): bool,
+            vol.Required("wake_words"): _bounded_list(
+                MAX_WAKE_WORDS, _WAKE_WORD_SCHEMA
+            ),
+            vol.Required("active"): _bounded_list(MAX_WAKE_WORDS, _code),
+            vol.Optional("pipelines", default=dict): _pipelines,
+        },
+        extra=vol.REMOVE_EXTRA,
+    ),
+    _configuration_consistent,
+)
+
+VOICE_RUN_SCHEMA: Final = vol.Schema(
+    {
+        vol.Required("type"): COMMAND_VOICE_RUN,
+        vol.Required("session"): _session_token,
+        # The wake word that started this turn; null when it continues a
+        # conversation or follows an announcement.
+        vol.Optional("wake_word_id", default=None): vol.Any(None, _code),
+    },
+    extra=vol.REMOVE_EXTRA,
+)
+
+VOICE_PLAYED_SCHEMA: Final = vol.Schema(
+    {
+        vol.Required("type"): COMMAND_VOICE_PLAYED,
+        vol.Required("session"): _session_token,
+        # Names an announcement; absent for a turn's reply.
+        vol.Optional("announce_id"): vol.Match(_ANNOUNCE_ID_PATTERN),
+    },
+    extra=vol.REMOVE_EXTRA,
+)
+
+
+def satellites(hass: HomeAssistant) -> dict[str, PanelAssistSatellite]:
+    """Return the satellite entity of each entry that has one."""
+    return hass.data.setdefault(_DATA_SATELLITES, {})
+
+
+def panel_url(hass: HomeAssistant, url: str) -> str:
+    """Return a Home Assistant URL relative to Home Assistant.
+
+    The panel resolves it against the address its own session reached, which
+    it has just proved; Home Assistant's idea of its own address may be one
+    the panel cannot reach.
+    """
+    parsed = yarl.URL(url)
+    if parsed.is_absolute() and is_hass_url(hass, url):
+        return str(parsed.relative())
+    return url
+
+
+@dataclass(slots=True)
+class VoiceRun:
+    """One conversation turn the panel is streaming."""
+
+    connection: ActiveConnection
+    msg_id: int
+    wake_word_id: str | None
+    audio: asyncio.Queue[bytes | None]
+
+    @callback
+    def send(self, event: dict[str, Any]) -> None:
+        """Send one event on the turn's subscription."""
+        self.connection.send_message(websocket_api.event_message(self.msg_id, event))
+
+    async def stream(self) -> AsyncIterator[bytes]:
+        """Yield the turn's audio until its end frame, or until it stops."""
+        while True:
+            try:
+                chunk = await asyncio.wait_for(self.audio.get(), AUDIO_IDLE_TIMEOUT)
+            except TimeoutError:
+                _LOGGER.debug("Voice audio stopped arriving; ending the turn")
+                return
+            if not chunk:
+                return
+            yield chunk
+
+
+def _session_for(
+    hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
+) -> PanelAssistSatellite | None:
+    session = async_get_sessions(hass).for_request(msg["session"], connection)
+    if session is None:
+        connection.send_error(msg["id"], ERR_SESSION_UNKNOWN, "No such session.")
+        return None
+    satellite = satellites(hass).get(session.entry_id)
+    if CAPABILITY_VOICE not in session.capabilities or satellite is None:
+        connection.send_error(
+            msg["id"], ERR_VOICE_UNAVAILABLE, "Voice was not granted to this session."
+        )
+        return None
+    return satellite
+
+
+@callback
+@websocket_command(VOICE_CONFIGURATION_SCHEMA)
+def ws_voice_configuration(
+    hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Record the wake words the panel reports."""
+    session = async_get_sessions(hass).for_request(msg["session"], connection)
+    if session is None:
+        connection.send_error(msg["id"], ERR_SESSION_UNKNOWN, "No such session.")
+        return
+    if CAPABILITY_VOICE not in session.capabilities:
+        connection.send_error(
+            msg["id"], ERR_VOICE_UNAVAILABLE, "Voice was not granted to this session."
+        )
+        return
+    session.voice = VoiceConfiguration(
+        enabled=msg["enabled"],
+        wake_words=tuple(
+            AssistSatelliteWakeWord(
+                id=item["id"],
+                wake_word=item["wake_word"],
+                trained_languages=list(item["trained_languages"]),
+            )
+            for item in msg["wake_words"]
+        ),
+        active=tuple(msg["active"]),
+        pipelines=msg["pipelines"],
+    )
+    async_get_sessions(hass).mark_changed(session)
+    connection.send_result(msg["id"], {})
+
+
+@callback
+@websocket_command(vol.All(VOICE_RUN_SCHEMA))
+def ws_voice_run(
+    hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Run one conversation turn from the panel's audio."""
+    if (satellite := _session_for(hass, connection, msg)) is None:
+        return
+    audio: asyncio.Queue[bytes | None] = asyncio.Queue(MAX_QUEUED_FRAMES)
+
+    @callback
+    def _on_audio(_hass: HomeAssistant, _conn: ActiveConnection, data: bytes) -> None:
+        try:
+            audio.put_nowait(data or None)
+        except asyncio.QueueFull:
+            _LOGGER.debug("Voice audio queue full; dropping a frame")
+
+    handler_id, unregister = connection.async_register_binary_handler(_on_audio)
+    run = VoiceRun(connection, msg["id"], msg["wake_word_id"], audio)
+    task = satellite.platform.config_entry.async_create_background_task(
+        hass, satellite.async_run(run), f"{satellite.entity_id}_voice_run"
+    )
+
+    @callback
+    def _unsubscribe() -> None:
+        # The panel ended the turn, or its connection closed.
+        unregister()
+        task.cancel()
+
+    @callback
+    def _done(_task: asyncio.Task[None]) -> None:
+        unregister()
+        connection.subscriptions.pop(msg["id"], None)
+
+    task.add_done_callback(_done)
+    connection.subscriptions[msg["id"]] = _unsubscribe
+    connection.send_result(msg["id"], {"handler_id": handler_id})
+
+
+@callback
+@websocket_command(vol.All(VOICE_PLAYED_SCHEMA))
+def ws_voice_played(
+    hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Note that the panel finished playing a reply or an announcement."""
+    if (satellite := _session_for(hass, connection, msg)) is None:
+        return
+    satellite.async_played(msg.get("announce_id"))
+    connection.send_result(msg["id"], {})
+
+
+@callback
+def async_setup_voice(hass: HomeAssistant) -> None:
+    """Register the voice requests once for the domain, never per entry."""
+    websocket_api.async_register_command(hass, ws_voice_configuration)
+    websocket_api.async_register_command(hass, ws_voice_run)
+    websocket_api.async_register_command(hass, ws_voice_played)

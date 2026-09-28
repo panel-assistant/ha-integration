@@ -61,8 +61,9 @@ from .transport import (
     native_enabled_for,
 )
 from .update_coordinator import PanelUpdateCoordinator
+from .voice import async_setup_voice
 
-PLATFORMS = [Platform.SENSOR, Platform.UPDATE]
+PLATFORMS = [Platform.ASSIST_SATELLITE, Platform.SENSOR, Platform.UPDATE]
 # Panels are config entries. YAML holds only development options: an optional
 # build feed, without which nothing is fetched from anywhere but GitHub
 # releases, and native entities, which stay dormant unless turned on.
@@ -90,6 +91,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     # Before the commands exist, so no hello is answered without them.
     await async_load_removed_panels(hass)
     async_setup_transport(hass)
+    async_setup_voice(hass)
     async_setup_embed(hass)
     async_register_browser_delivery(hass)
     await async_register_browser_panel(hass)
