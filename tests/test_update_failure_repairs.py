@@ -118,6 +118,7 @@ def _entity(
         coordinator = BuildFeedCoordinator(hass, URL("https://feed.example/feed"))
         coordinator.data = BuildFeed(channel="maintainer", builds=(build,))
         coordinator.last_update_success = True
+        coordinator._verified_newest[LEGACY_PACKAGE_ID] = (build, b"apk")
     entity = HaPaneldUpdateEntity(
         "entry-id", health, updates, coordinator, title="Test panel"
     )
@@ -492,6 +493,13 @@ async def test_valid_feed_update_failure_before_commit_creates_repair(
 ) -> None:
     entity, client = _entity(hass, feed=True)
     selected = entity._feed.data.builds[0]
+    if failure == "download":
+        # An explicitly requested build outside the verified offer is still
+        # downloaded and checked on demand, and its failure creates a repair.
+        selected = replace(selected, version_code=103, apk_sha256="b" * 64)
+        entity._feed.data = BuildFeed(
+            channel="maintainer", builds=(selected, *entity._feed.data.builds)
+        )
     backup = AsyncMock(
         side_effect=OSError("backup unavailable") if failure == "backup" else None
     )
@@ -523,11 +531,15 @@ async def test_valid_feed_update_failure_before_commit_creates_repair(
         )
 
     with pytest.raises(HomeAssistantError):
-        await entity.async_install(None, backup=False)
+        await entity.async_install(
+            "103" if failure == "download" else None, backup=False
+        )
 
     backup.assert_awaited_once()
-    if failure != "backup":
+    if failure == "download":
         download.assert_awaited_once()
+    else:
+        download.assert_not_awaited()
     if failure in ("stage", "verification"):
         client.async_stage_apk.assert_awaited_once_with(b"apk")
     client.async_commit_apk.assert_not_awaited()
@@ -536,7 +548,7 @@ async def test_valid_feed_update_failure_before_commit_creates_repair(
         hass,
         "entry-id",
         "Test panel",
-        "0.9.10 build 102",
+        selected.label,
     )
     assert isinstance(repairs.record.await_args.args[4], HomeAssistantError)
     frozen = repairs.record.await_args.kwargs["artifact"]
