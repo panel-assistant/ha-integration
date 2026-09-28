@@ -17,12 +17,11 @@ from homeassistant.components.assist_satellite import (
     AssistSatelliteConfiguration,
     AssistSatelliteEntity,
     AssistSatelliteEntityFeature,
+    AssistSatelliteWakeWord,
 )
 from homeassistant.components.websocket_api.messages import event_message
-from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -41,6 +40,7 @@ from .voice import (
     VoiceConfiguration,
     VoiceRun,
     panel_url,
+    satellite_unique_id,
     satellites,
 )
 
@@ -50,39 +50,13 @@ _LOGGER = logging.getLogger(__name__)
 ANNOUNCE_TIMEOUT: Final = 5 * 60.0
 
 
-def _unique_id(entry_id: str) -> str:
-    return f"{entry_id}_assist_satellite"
-
-
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: HaPaneldConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Add the satellite once the panel has offered voice, and keep it."""
-    added = False
-
-    @callback
-    def _add_if_offered() -> None:
-        nonlocal added
-        session = async_get_sessions(hass).get(entry.entry_id)
-        if added or session is None or CAPABILITY_VOICE not in session.capabilities:
-            return
-        added = True
-        async_add_entities([PanelAssistSatellite(entry.entry_id)])
-
-    if er.async_get(hass).async_get_entity_id(
-        Platform.ASSIST_SATELLITE, DOMAIN, _unique_id(entry.entry_id)
-    ):
-        added = True
-        async_add_entities([PanelAssistSatellite(entry.entry_id)])
-    else:
-        _add_if_offered()
-    entry.async_on_unload(
-        async_dispatcher_connect(
-            hass, signal_session_changed(entry.entry_id), _add_if_offered
-        )
-    )
+    """Add the panel's satellite; the platform loads only once it offers voice."""
+    async_add_entities([PanelAssistSatellite(entry.entry_id)])
 
 
 class PanelAssistSatellite(AssistSatelliteEntity):
@@ -103,7 +77,7 @@ class PanelAssistSatellite(AssistSatelliteEntity):
     def __init__(self, entry_id: str) -> None:
         """Initialize the satellite of one panel entry."""
         self._entry_id = entry_id
-        self._attr_unique_id = _unique_id(entry_id)
+        self._attr_unique_id = satellite_unique_id(entry_id)
         self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry_id)})
         self._run: VoiceRun | None = None
         # Announcements the panel has not finished, with the session each was
@@ -166,7 +140,14 @@ class PanelAssistSatellite(AssistSatelliteEntity):
                 available_wake_words=[], active_wake_words=[], max_active_wake_words=1
             )
         return AssistSatelliteConfiguration(
-            available_wake_words=list(voice.wake_words),
+            available_wake_words=[
+                AssistSatelliteWakeWord(
+                    id=word.id,
+                    wake_word=word.phrase,
+                    trained_languages=list(word.languages),
+                )
+                for word in voice.wake_words
+            ],
             active_wake_words=list(voice.active),
             # Zero means no limit, but Core's selector compares against it, so
             # the limit is every wake word the panel has.
@@ -221,7 +202,9 @@ class PanelAssistSatellite(AssistSatelliteEntity):
             await self.async_accept_pipeline_from_satellite(
                 run.stream(),
                 wake_word_phrase=(
-                    voice.phrase(run.wake_word_id) if voice is not None else None
+                    None
+                    if voice is None or run.continued
+                    else voice.phrase(run.wake_word_id)
                 ),
             )
         finally:

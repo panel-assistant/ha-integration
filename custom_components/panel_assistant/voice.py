@@ -26,17 +26,20 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Callable, Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final
 
 import voluptuous as vol
 import yarl
 from homeassistant.components import websocket_api
-from homeassistant.components.assist_satellite import AssistSatelliteWakeWord
 from homeassistant.components.websocket_api.connection import ActiveConnection
 from homeassistant.components.websocket_api.decorators import websocket_command
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.network import is_hass_url
 
 from .const import DOMAIN
@@ -48,6 +51,7 @@ from .transport import (
     _plain_string,
     _session_token,
     async_get_sessions,
+    signal_session_changed,
 )
 
 if TYPE_CHECKING:
@@ -74,20 +78,27 @@ _ANNOUNCE_ID_PATTERN: Final = r"^[A-Za-z0-9_-]{1,64}$"
 
 
 @dataclass(frozen=True, slots=True)
+class WakeWord:
+    """One wake word the panel can listen for."""
+
+    id: str
+    phrase: str
+    languages: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class VoiceConfiguration:
     """The panel's wake words, as it reported them."""
 
     enabled: bool
-    wake_words: tuple[AssistSatelliteWakeWord, ...]
+    wake_words: tuple[WakeWord, ...]
     active: tuple[str, ...]
     # Wake word ID to pipeline ID. Absent or blank means the preferred one.
     pipelines: Mapping[str, str]
 
     def phrase(self, wake_word_id: str | None) -> str | None:
         """Return the phrase of one wake word."""
-        return next(
-            (w.wake_word for w in self.wake_words if w.id == wake_word_id), None
-        )
+        return next((w.phrase for w in self.wake_words if w.id == wake_word_id), None)
 
 
 _WAKE_WORD_SCHEMA: Final = vol.Schema(
@@ -139,6 +150,9 @@ VOICE_RUN_SCHEMA: Final = vol.Schema(
         # The wake word that started this turn; null when it continues a
         # conversation or follows an announcement.
         vol.Optional("wake_word_id", default=None): vol.Any(None, _code),
+        # A later turn of the same conversation: the wake word still names the
+        # pipeline, but nobody said it again.
+        vol.Optional("continued", default=False): bool,
     },
     extra=vol.REMOVE_EXTRA,
 )
@@ -179,6 +193,7 @@ class VoiceRun:
     connection: ActiveConnection
     msg_id: int
     wake_word_id: str | None
+    continued: bool
     audio: asyncio.Queue[bytes | None]
 
     @callback
@@ -233,11 +248,7 @@ def ws_voice_configuration(
     session.voice = VoiceConfiguration(
         enabled=msg["enabled"],
         wake_words=tuple(
-            AssistSatelliteWakeWord(
-                id=item["id"],
-                wake_word=item["wake_word"],
-                trained_languages=list(item["trained_languages"]),
-            )
+            WakeWord(item["id"], item["wake_word"], tuple(item["trained_languages"]))
             for item in msg["wake_words"]
         ),
         active=tuple(msg["active"]),
@@ -265,7 +276,7 @@ def ws_voice_run(
             _LOGGER.debug("Voice audio queue full; dropping a frame")
 
     handler_id, unregister = connection.async_register_binary_handler(_on_audio)
-    run = VoiceRun(connection, msg["id"], msg["wake_word_id"], audio)
+    run = VoiceRun(connection, msg["id"], msg["wake_word_id"], msg["continued"], audio)
     task = satellite.platform.config_entry.async_create_background_task(
         hass, satellite.async_run(run), f"{satellite.entity_id}_voice_run"
     )
@@ -304,3 +315,49 @@ def async_setup_voice(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_voice_configuration)
     websocket_api.async_register_command(hass, ws_voice_run)
     websocket_api.async_register_command(hass, ws_voice_played)
+
+
+def satellite_unique_id(entry_id: str) -> str:
+    """The unique ID of an entry's satellite entity."""
+    return f"{entry_id}_assist_satellite"
+
+
+def satellite_known(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Whether this panel has been a satellite before, so its entity is restored."""
+    return (
+        er.async_get(hass).async_get_entity_id(
+            Platform.ASSIST_SATELLITE, DOMAIN, satellite_unique_id(entry.entry_id)
+        )
+        is not None
+    )
+
+
+@callback
+def async_follow_voice(
+    hass: HomeAssistant, entry: ConfigEntry, platforms: list[Platform]
+) -> Callable[[], None]:
+    """Load the satellite platform the first time the panel offers voice.
+
+    Loading it pulls in Home Assistant's Assist stack, which a panel that
+    never offers voice should not cost anyone.
+    """
+
+    @callback
+    def _changed() -> None:
+        if Platform.ASSIST_SATELLITE in platforms:
+            return
+        session = async_get_sessions(hass).get(entry.entry_id)
+        if session is None or CAPABILITY_VOICE not in session.capabilities:
+            return
+        platforms.append(Platform.ASSIST_SATELLITE)
+        entry.async_create_task(
+            hass,
+            hass.config_entries.async_forward_entry_setups(
+                entry, [Platform.ASSIST_SATELLITE]
+            ),
+            f"{DOMAIN}_voice_platform",
+        )
+
+    return async_dispatcher_connect(
+        hass, signal_session_changed(entry.entry_id), _changed
+    )
