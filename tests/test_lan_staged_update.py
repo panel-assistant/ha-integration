@@ -256,7 +256,9 @@ def _snapshot(version: str, build: str, package: str | None) -> PanelSnapshot:
             config_hash="1a2b3c4d",
             package=package,
         ),
-        status=None,
+        status=PanelStatus(
+            warning_count=0, capability_count=0, install_capability="api"
+        ),
         status_error=None,
     )
 
@@ -289,7 +291,10 @@ async def _entity(
     health.data = PanelSnapshot(
         health=health.data.health,
         status=PanelStatus(
-            warning_count=0, capability_count=0, panel_assistant_update=offer
+            warning_count=0,
+            capability_count=0,
+            install_capability="api",
+            panel_assistant_update=offer,
         ),
         status_error=None,
     )
@@ -342,6 +347,44 @@ async def test_a_panel_without_internet_is_offered_the_release_home_assistant_fo
 
     assert entity.installed_version == "0.9.9"
     assert entity.latest_version == VERSION
+
+
+async def test_adb_only_panel_offers_host_release_despite_newer_panel_offer(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, trust: None, key: Any
+) -> None:
+    """An unreachable panel-only offer cannot hide an installable ADB release."""
+    entity, client = await _entity(
+        hass,
+        monkeypatch,
+        _GitHub(key),
+        offer=PanelCachedUpdate("0.9.9", "0.9.11", "v0.9.11"),
+    )
+    snapshot = entity.coordinator.data
+    entity.coordinator.data = PanelSnapshot(
+        health=snapshot.health,
+        status=PanelStatus(
+            warning_count=0,
+            capability_count=0,
+            install_capability="none",
+            panel_assistant_update=snapshot.status.panel_assistant_update,
+        ),
+        status_error=None,
+    )
+    entity._adb_ready_key = entity._route_key()
+    monkeypatch.setattr(
+        entity,
+        "_async_install_route",
+        AsyncMock(return_value=(panel_update.ROUTE_ADB, object(), object())),
+    )
+    delivered = AsyncMock()
+    monkeypatch.setattr(entity, "_async_deliver_adb", delivered)
+
+    assert entity.latest_version == VERSION
+    await entity.async_install(None, False)
+
+    delivered.assert_awaited_once()
+    assert delivered.await_args.args[0].tag == TAG
+    client.async_start_panel_update.assert_not_awaited()
 
 
 @pytest.mark.parametrize("offer", [None, OFFER], ids=["no-internet", "internet"])
@@ -797,6 +840,7 @@ async def test_bridge_label_does_not_hide_a_newer_panel_offer(
         status=PanelStatus(
             warning_count=0,
             capability_count=0,
+            install_capability="api",
             panel_assistant_update=PanelCachedUpdate(VERSION, "0.9.11", "v0.9.11"),
         ),
         status_error=None,

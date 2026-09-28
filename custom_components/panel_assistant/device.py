@@ -6,6 +6,7 @@ how a newly added field goes missing from one card. Every platform calls this in
 
 from __future__ import annotations
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -20,6 +21,16 @@ from .coordinator import PanelSnapshot
 # publishing a MAC through `connections`, would make two config entries write the same
 # device and risk the MQTT bridge's authority. This integration keeps its own
 # config-entry-scoped identity.
+
+
+def panel_display_name(hass: HomeAssistant, entry: ConfigEntry) -> str:
+    """Name a panel as Home Assistant does, including the user's device rename."""
+    device = dr.async_get(hass).async_get_device_by_identifier(
+        (DOMAIN, entry.entry_id), entry.entry_id
+    )
+    if device is None:
+        return entry.title
+    return device.name_by_user or device.name or entry.title
 
 
 def panel_device_info(

@@ -29,6 +29,7 @@ from yarl import URL
 
 from custom_components.panel_assistant import CONFIG_SCHEMA, async_setup
 from custom_components.panel_assistant import update as panel_update
+from custom_components.panel_assistant.adb_credentials import AdbCredentialError
 from custom_components.panel_assistant.app_identity import (
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
@@ -58,9 +59,15 @@ from custom_components.panel_assistant.feed_coordinator import (
     BuildFeedCoordinator,
     async_get_feed_coordinator,
 )
+from custom_components.panel_assistant.install_adb import InstallOutcome
+from custom_components.panel_assistant.install_network import PinnedPanelTarget
 from custom_components.panel_assistant.panel_backup import (
     PanelBackupInvalidError,
     async_store_panel_backup,
+)
+from custom_components.panel_assistant.provisioning import (
+    InstallTargetProbe,
+    InstallTargetState,
 )
 from custom_components.panel_assistant.release import (
     _RELEASE_SIGNER_CERTIFICATE_SHA256,
@@ -162,7 +169,10 @@ def _entity(
     health.data = PanelSnapshot(
         health=_health(version),
         status=PanelStatus(
-            warning_count=0, capability_count=0, panel_assistant_update=offer
+            warning_count=0,
+            capability_count=0,
+            install_capability="api",
+            panel_assistant_update=offer,
         ),
         status_error=None,
     )
@@ -235,7 +245,9 @@ def _restart_into(
                 config_hash="1a2b3c4d",
                 package=package,
             ),
-            status=None,
+            status=PanelStatus(
+                warning_count=0, capability_count=0, install_capability="api"
+            ),
             status_error=None,
         )
 
@@ -319,6 +331,30 @@ def test_feed_mode_offers_nothing_when_installed_is_newest(
     assert entity.latest_version == entity.installed_version == "0.9.7-rc4 build 772"
 
 
+async def test_feed_offer_is_withheld_when_no_install_route_works(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A verified build is still withheld from a panel that cannot install it."""
+    entity, client = _entity(hass)
+    entity.coordinator.data = PanelSnapshot(
+        health=entity.coordinator.data.health,
+        status=PanelStatus(
+            warning_count=0, capability_count=0, install_capability="none"
+        ),
+        status_error=None,
+    )
+    monkeypatch.setattr(
+        panel_update,
+        "async_get_durable_adb_credential",
+        AsyncMock(side_effect=AdbCredentialError),
+    )
+
+    assert entity.latest_version == entity.installed_version
+    with pytest.raises(HomeAssistantError, match="unavailable"):
+        await entity.async_install(None, False)
+    client.async_stage_apk.assert_not_awaited()
+
+
 # --- install -----------------------------------------------------------------
 
 
@@ -346,7 +382,9 @@ async def test_update_install_selects_the_installed_app_before_backup(
             config_hash=health.config_hash,
             package=package,
         ),
-        status=None,
+        status=PanelStatus(
+            warning_count=0, capability_count=0, install_capability="api"
+        ),
         status_error=None,
     )
     client.async_stage_apk.return_value = _preview(package=package or LEGACY_PACKAGE_ID)
@@ -374,6 +412,93 @@ async def test_update_install_selects_the_installed_app_before_backup(
     client.async_commit_apk.assert_awaited_once()
 
 
+@pytest.mark.parametrize("target_installed", [True, False])
+async def test_rootless_panel_uses_its_existing_authorized_adb_route(
+    hass: HomeAssistant,
+    delivery: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
+    target_installed: bool,
+) -> None:
+    """Only a matching installed package permits the authorized ADB offer."""
+    entity, client = _entity(hass)
+    client.address = normalize_address("192.168.1.10")
+    entity.coordinator.data = PanelSnapshot(
+        health=entity.coordinator.data.health,
+        status=PanelStatus(
+            warning_count=0, capability_count=0, install_capability="none"
+        ),
+        status_error=None,
+    )
+    pinned = PinnedPanelTarget(client.address, client.address)
+    credential = SimpleNamespace(signer=object(), generation_id="held-key")
+    probe = InstallTargetProbe(
+        state=InstallTargetState.MIGRATION_CANDIDATE,
+        serial="serial-a",
+        model="model-a",
+        primary_abi="arm64-v8a",
+        android_sdk=30,
+    )
+    monkeypatch.setattr(
+        panel_update,
+        "async_get_durable_adb_credential",
+        AsyncMock(return_value=credential),
+    )
+    monkeypatch.setattr(
+        panel_update, "async_pin_install_target", AsyncMock(return_value=pinned)
+    )
+    monkeypatch.setattr(
+        panel_update, "async_revalidate_install_target", AsyncMock(return_value=pinned)
+    )
+    monkeypatch.setattr(
+        panel_update, "async_probe_install_target", AsyncMock(return_value=probe)
+    )
+    preflight = AsyncMock(
+        return_value=SimpleNamespace(
+            target_installed=target_installed, root_mode="rootless"
+        )
+    )
+    monkeypatch.setattr(panel_update, "async_preflight_install", preflight)
+    launch = AsyncMock(return_value=panel_update.LaunchOutcome.STARTED)
+    monkeypatch.setattr(panel_update, "async_launch_installed_app", launch)
+    pinned_client = SimpleNamespace(
+        async_get_health=AsyncMock(return_value=entity.coordinator.data.health)
+    )
+    monkeypatch.setattr(panel_update, "HaPaneldClient", lambda *_args: pinned_client)
+
+    def install(
+        _target: Any, _signer: Any, _descriptor: Any, path: Path
+    ) -> InstallOutcome:
+        assert path.read_bytes() == APK
+        assert stat.S_IMODE(path.stat().st_mode) == 0o600
+        return InstallOutcome.INSTALLED
+
+    adb_install = AsyncMock(side_effect=install)
+    monkeypatch.setattr(panel_update, "async_update_installed_apk", adb_install)
+    _restart_into(entity, client, 772)
+
+    await entity._async_refresh_route()
+    entity._schedule_route_refresh()
+    await hass.async_block_till_done(wait_background_tasks=True)
+    preflight.assert_awaited_once()
+    if not target_installed:
+        assert entity.latest_version == entity.installed_version
+        adb_install.assert_not_awaited()
+        client.async_backup_panel.assert_not_awaited()
+        return
+    assert entity.latest_version == "0.9.7-rc4 build 772"
+    await entity.async_install(None, False)
+
+    adb_install.assert_awaited_once()
+    launch.assert_awaited_once()
+    preflight.assert_awaited()
+    client.async_stage_apk.assert_not_awaited()
+    client.async_commit_apk.assert_not_awaited()
+    client.async_start_panel_update.assert_not_awaited()
+    assert entity.extra_state_attributes == {
+        "update_route": "installed_by_home_assistant_adb"
+    }
+
+
 async def test_same_number_from_another_app_does_not_verify_the_install(
     hass: HomeAssistant, delivery: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -389,7 +514,9 @@ async def test_same_number_from_another_app_does_not_verify_the_install(
             config_hash=health.config_hash,
             package=SUCCESSOR_PACKAGE_ID,
         ),
-        status=None,
+        status=PanelStatus(
+            warning_count=0, capability_count=0, install_capability="api"
+        ),
         status_error=None,
     )
     client.async_stage_apk.return_value = _preview(package=SUCCESSOR_PACKAGE_ID)
@@ -655,7 +782,9 @@ async def test_a_build_for_another_app_id_is_refused_before_backup(
             config_hash=health.config_hash,
             package=package,
         ),
-        status=None,
+        status=PanelStatus(
+            warning_count=0, capability_count=0, install_capability="api"
+        ),
         status_error=None,
     )
 
@@ -878,7 +1007,11 @@ async def test_refresh_reads_diag_once_per_install(hass: HomeAssistant) -> None:
     assert entity._code_key == (NAME, "1000")
 
     entity.coordinator.data = PanelSnapshot(
-        health=_health(NAME, build="2000"), status=None, status_error=None
+        health=_health(NAME, build="2000"),
+        status=PanelStatus(
+            warning_count=0, capability_count=0, install_capability="api"
+        ),
+        status_error=None,
     )
     client.async_get_version_code.return_value = (NAME, 772)
     entity._handle_coordinator_update()
@@ -1008,7 +1141,11 @@ def _setup_patches(version_code: AsyncMock) -> Any:
         patch(f"{client}.async_get_health", AsyncMock(return_value=_health(NAME))),
         patch(
             f"{client}.async_get_status",
-            AsyncMock(return_value=PanelStatus(warning_count=0, capability_count=0)),
+            AsyncMock(
+                return_value=PanelStatus(
+                    warning_count=0, capability_count=0, install_capability="api"
+                )
+            ),
         ),
         patch(f"{client}.async_get_version_code", version_code),
         patch(

@@ -86,6 +86,7 @@ def _entity(
         status=PanelStatus(
             warning_count=0,
             capability_count=0,
+            install_capability="api",
             panel_assistant_update=PanelCachedUpdate("0.9.9", "0.9.10", "v0.9.10"),
         ),
         status_error=None,

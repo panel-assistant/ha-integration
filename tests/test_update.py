@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.panel_assistant import update as panel_update
+from custom_components.panel_assistant.adb_credentials import AdbCredentialError
 from custom_components.panel_assistant.client import (
     CannotConnectError,
     PanelHealth,
@@ -50,9 +51,11 @@ def _entity(
     offer: PanelCachedUpdate | None = OFFER,
     operation: PanelInstallStatus | None = None,
     update_error: str | None = None,
+    install_capability: str | None = "api",
 ) -> tuple[HaPaneldUpdateEntity, SimpleNamespace]:
     client = SimpleNamespace(
         configuration_url="http://panel.local:8888",
+        async_get_legacy_install_capability=AsyncMock(return_value=True),
         async_start_panel_update=AsyncMock(),
         async_get_panel_install_status=AsyncMock(),
     )
@@ -67,6 +70,7 @@ def _entity(
         status=PanelStatus(
             warning_count=0,
             capability_count=0,
+            install_capability=install_capability,
             panel_assistant_update=offer,
         ),
         status_error=None,
@@ -101,6 +105,42 @@ def test_update_entity_hides_downgrades_and_unsupported_updater(
 
     assert lower.latest_version == lower.installed_version
     assert stale.latest_version == stale.installed_version
+
+
+async def test_panel_without_an_install_route_offers_nothing(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A newer signed build is not actionable when the app cannot install it."""
+    entity, client = _entity(hass, install_capability="none")
+    monkeypatch.setattr(
+        panel_update,
+        "async_get_durable_adb_credential",
+        AsyncMock(side_effect=AdbCredentialError),
+    )
+
+    assert entity.latest_version == entity.installed_version
+    await entity._async_refresh_route()
+    assert (
+        "no verified signed build"
+        in entity.extra_state_attributes["update_unavailable_reason"]
+    )
+    with pytest.raises(HomeAssistantError, match="unavailable"):
+        await entity.async_install(None, backup=False)
+    client.async_start_panel_update.assert_not_awaited()
+
+
+async def test_older_api_panel_keeps_its_existing_update_route(
+    hass: HomeAssistant,
+) -> None:
+    """An older panel's reported privileged-route bit preserves API updates."""
+    entity, client = _entity(hass, install_capability=None)
+    entity.coordinator.async_request_refresh = AsyncMock()
+    entity._update_coordinator.async_request_refresh = AsyncMock()
+
+    assert entity.latest_version == entity.installed_version
+    await entity._async_refresh_route()
+    assert entity.latest_version == "0.9.10"
+    client.async_get_legacy_install_capability.assert_awaited()
 
 
 async def test_update_entity_starts_only_the_current_panel_offer(

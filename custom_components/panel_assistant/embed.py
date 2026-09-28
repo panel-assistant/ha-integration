@@ -47,6 +47,7 @@ from yarl import URL
 from . import embed_proof
 from .client import PanelAddress, normalize_address
 from .const import DOMAIN
+from .device import panel_display_name
 from .transport import PanelSession, async_get_sessions
 
 _LOGGER = logging.getLogger(__name__)
@@ -333,21 +334,6 @@ def _panel_device(hass: HomeAssistant, entry: ConfigEntry) -> dr.DeviceEntry | N
     return dr.async_get(hass).async_get_device_by_identifier(
         (DOMAIN, entry.entry_id), entry.entry_id
     )
-
-
-def panel_display_name(hass: HomeAssistant, entry: ConfigEntry) -> str:
-    """Prefer the device's own (possibly user-renamed) name over the raw entry.title.
-
-    The config entry title is set once, at add time, from the panel's reported panel_id
-    (a device identifier, not a friendly name). The device registry entry for the same
-    panel already carries whatever nicer name the panel itself reports, or a user's own
-    rename via the Devices page (name_by_user): this only changes which of those two
-    already-existing values the sidebar reads, not how either is set.
-    """
-    device = _panel_device(hass, entry)
-    if device is None:
-        return entry.title
-    return device.name_by_user or device.name or entry.title
 
 
 @require_admin

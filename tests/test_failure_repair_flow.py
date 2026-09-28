@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock
 import pytest
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.translation import async_get_translations
@@ -21,7 +22,9 @@ from custom_components.panel_assistant.const import DOMAIN, update_unique_id
 from custom_components.panel_assistant.failure_repair import (
     RetrySafetyHold,
     async_clear_update_failure,
+    async_failure_events,
     async_record_update_failure,
+    async_refresh_update_failure_name,
 )
 from custom_components.panel_assistant.install_jobs import InstallJobManager
 from tests import test_install_jobs as job_fixtures
@@ -30,6 +33,40 @@ from tests.test_install_failure_repairs import _authorization_failure
 from tests.test_install_jobs import Clock
 
 emulate_home_assistant_store_file = job_fixtures.emulate_home_assistant_store_file
+
+
+async def test_update_repair_names_the_home_assistant_panel_even_after_rename(
+    hass: HomeAssistant, repairs_ready: None
+) -> None:
+    """A code name in the entry title does not label a current Repair."""
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="BoardCode", data={CONF_ADDRESS: "panel.local"}
+    )
+    entry.add_to_hass(hass)
+    await async_record_update_failure(
+        hass, entry.entry_id, entry.title, "0.9.10", RuntimeError("update failed")
+    )
+    issue_id = next(
+        issue_id for (domain, issue_id) in ir.async_get(hass).issues if domain == DOMAIN
+    )
+    registry = dr.async_get(hass)
+    device = registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, entry.entry_id)},
+        name="BoardCode",
+    )
+    registry.async_update_device(device.id, name_by_user="Kitchen display")
+
+    async_refresh_update_failure_name(hass, entry.entry_id)
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.translation_placeholders == {"panel": "Kitchen display"}
+
+    await async_record_update_failure(
+        hass, entry.entry_id, entry.title, "0.9.11", RuntimeError("update failed")
+    )
+    events = await async_failure_events(hass, issue_id)
+    assert events[-1]["panel"] == "Kitchen display"
 
 
 @pytest.fixture

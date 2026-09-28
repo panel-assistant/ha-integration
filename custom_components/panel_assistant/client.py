@@ -428,6 +428,7 @@ def parse_update_approval_response(body: bytes) -> NoReturn:
 
 
 _MAX_DIAG_BYTES = 256 * 1024
+_MAX_LEGACY_INFO_BYTES = 256 * 1024
 _MAX_SETUP_BYTES = 64 * 1024
 # The panel verifies the address it is handed before answering, with its own
 # bounded probe, so this waits out that probe rather than the default request.
@@ -601,6 +602,25 @@ class HaPaneldClient:
             return parse_status_response(body.decode("utf-8"))
         except UnicodeDecodeError as err:
             raise InvalidResponseError from err
+
+    async def async_get_legacy_install_capability(self) -> bool:
+        """Read the old panel's privileged-route bit until it reports a typed one.
+
+        Older Android builds use this same live bit for their self-installer and
+        the `shot` field on the dashboard hydration response. This compatibility
+        read lets those panels update into the explicit status contract.
+        """
+        body = await self._async_get_bounded(
+            self.address.base_url.with_path("/api/v1/info"),
+            _MAX_LEGACY_INFO_BYTES,
+        )
+        try:
+            payload = json.loads(body)
+        except (UnicodeDecodeError, json.JSONDecodeError, RecursionError) as err:
+            raise InvalidResponseError from err
+        if not isinstance(payload, dict) or type(payload.get("shot")) is not bool:
+            raise InvalidResponseError
+        return bool(payload["shot"])
 
     async def async_get_panel_install_status(self) -> PanelInstallStatus:
         """Read fixed operation progress while an accepted update restarts the panel."""

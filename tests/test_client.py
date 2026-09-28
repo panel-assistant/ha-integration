@@ -694,6 +694,26 @@ def test_status_parser_accepts_historical_additive_shapes(
     assert status.capability_count == 0
 
 
+@pytest.mark.parametrize("capability", ["api", "none"])
+def test_status_parser_retains_panel_install_capability(capability: str) -> None:
+    """The update route reads a bounded panel decision, not display rows."""
+    status = parse_status_response(
+        json.dumps(
+            {"warnings": [], "capabilities": [], "install_capability": capability}
+        )
+    )
+
+    assert status.install_capability == capability
+    assert status.as_dict()["install_capability"] == capability
+
+
+def test_status_parser_treats_missing_install_capability_as_unknown() -> None:
+    """Older panels never claim a route they did not report."""
+    status = parse_status_response('{"warnings":[],"capabilities":[]}')
+
+    assert status.install_capability is None
+
+
 def test_status_parser_accepts_android_zigbee_and_signed_setting_bounds() -> None:
     """Current multicore CPU and signed OEM settings remain valid evidence."""
     document = {
@@ -962,6 +982,16 @@ async def test_client_reads_the_version_code_from_diag() -> None:
     url, kwargs = session.request
     assert str(url) == "http://panel.local:8888/api/v1/diag"
     assert kwargs["allow_redirects"] is False
+
+
+@pytest.mark.parametrize("ready", [True, False])
+async def test_client_reads_legacy_panel_install_privilege(ready: bool) -> None:
+    """Older panels report the same privileged-route observation as `shot`."""
+    session = _FakeSession(body=json.dumps({"shot": ready}).encode())
+
+    assert await _client(session).async_get_legacy_install_capability() is ready
+    assert session.request is not None
+    assert str(session.request[0]) == "http://panel.local:8888/api/v1/info"
 
 
 def test_parse_staged_apk_accepts_the_fixed_preview() -> None:

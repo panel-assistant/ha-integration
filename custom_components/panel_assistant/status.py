@@ -51,6 +51,7 @@ class PanelStatus:
 
     warning_count: int
     capability_count: int
+    install_capability: str | None = None
     zigbee_gateway: ComponentStatus | None = None
     storage_health: ComponentStatus | None = None
     renderer: ComponentStatus | None = None
@@ -64,6 +65,7 @@ class PanelStatus:
         return {
             "warning_count": self.warning_count,
             "capability_count": self.capability_count,
+            "install_capability": self.install_capability,
             "zigbee_gateway": _copy_component(self.zigbee_gateway),
             "storage_health": _copy_component(self.storage_health),
             "renderer": _copy_component(self.renderer),
@@ -498,10 +500,14 @@ def parse_status_response(body: str) -> PanelStatus:
     if not isinstance(parsed, dict):
         raise InvalidResponseError
     warning_count, capability_count = _validate_original_arrays(parsed)
+    install_capability = parsed.get("install_capability")
+    if install_capability not in (None, "api", "none"):
+        raise InvalidResponseError
 
     return PanelStatus(
         warning_count=warning_count,
         capability_count=capability_count,
+        install_capability=install_capability,
         zigbee_gateway=_sanitize_component(
             parsed,
             "zigbee_gateway",

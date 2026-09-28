@@ -18,6 +18,7 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.storage import Store
 
 from .const import DOMAIN, INTEGRATION_BUILD, INTEGRATION_VERSION
+from .device import panel_display_name
 
 if TYPE_CHECKING:
     from .install_jobs import InstallJobReceipt
@@ -185,7 +186,7 @@ async def async_record_update_failure(
     if entry is None or not isinstance(address, str):
         return
     issue_id = panel_failure_issue_id(f"update:{entry_id}")
-    panel = panel_title or entry.title
+    panel = panel_display_name(hass, entry)
     reason = str(error)
     event: dict[str, Any] = {
         "kind": "update",
@@ -202,6 +203,23 @@ async def async_record_update_failure(
     await _failure_store(hass).append(
         issue_id, event, lambda: _issue(hass, issue_id, panel, "update", reason)
     )
+
+
+def async_refresh_update_failure_name(hass: HomeAssistant, entry_id: str) -> None:
+    """Refresh an existing Repair after its panel device name becomes known."""
+    entry = hass.config_entries.async_get_entry(entry_id)
+    if entry is None:
+        return
+    issue_id = panel_failure_issue_id(f"update:{entry_id}")
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    if issue is None:
+        return
+    kind = (
+        "retry_hold"
+        if issue.translation_key == "installer_failure_retry_hold"
+        else "update"
+    )
+    _issue(hass, issue_id, panel_display_name(hass, entry), kind, "")
 
 
 async def async_clear_update_failure(hass: HomeAssistant, entry_id: str) -> None:
@@ -260,19 +278,30 @@ async def async_record_retry_hold(
 ) -> None:
     """Keep the repair and show why its latest Retry could not proceed."""
     reason = error.reason if isinstance(error, RetrySafetyHold) else "retry_failed"
+    entry_id = previous.get("entry_id")
+    entry = (
+        hass.config_entries.async_get_entry(entry_id)
+        if isinstance(entry_id, str)
+        else None
+    )
+    panel = (
+        panel_display_name(hass, entry)
+        if entry is not None
+        else str(previous.get("panel", "Panel"))
+    )
     await _failure_store(hass).append(
         issue_id,
         {
             "kind": "retry_hold",
             "at": datetime.now(UTC).isoformat(timespec="seconds"),
             "address": previous.get("address"),
-            "panel": previous.get("panel"),
+            "panel": panel,
             "reason": reason,
             "exception": "".join(traceback.format_exception(error))[-12000:],
             "previous": previous.get("job_id") or previous.get("entry_id"),
         },
     )
-    _issue(hass, issue_id, str(previous.get("panel", "Panel")), "retry_hold", reason)
+    _issue(hass, issue_id, panel, "retry_hold", reason)
 
 
 async def async_support_report(hass: HomeAssistant, issue_id: str) -> str:
