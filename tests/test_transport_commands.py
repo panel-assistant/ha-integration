@@ -38,7 +38,7 @@ _COMMAND_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 def _hello(capabilities: list[str] | None = None) -> dict[str, Any]:
     return {
         "type": "panel_assistant/hello",
-        "protocol": {"min": 1, "max": 1},
+        "protocol": {"min": 3, "max": 3},
         "did": DID,
         "app": {"version": "0.9.8-rc1", "version_code": 790},
         "contract_digest": "c" * 64,

@@ -267,6 +267,9 @@ async def test_only_this_identitys_native_entity_is_removed(
     old_temperature = _entity_id(hass, "sensor", "temperature")
     assert old_temperature is not None
 
+    # Explicit saved identity for this registry-ownership scenario. A health
+    # response alone cannot move an existing installation to another identity.
+    hass.config_entries.async_update_entry(described, unique_id=reset_did)
     coordinator = described.runtime_data.coordinator
     coordinator.async_set_updated_data(
         replace(

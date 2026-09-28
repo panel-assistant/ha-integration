@@ -761,6 +761,29 @@
     "panel_address_unverified": {
       "title": "{panel} ist umgezogen, die neue Adresse konnte aber nicht bestätigt werden",
       "description": "{panel} ist von {session_address} aus mit Home Assistant verbunden, seine Entitäten bleiben daher verfügbar. Home Assistant kann das Panel unter der gespeicherten Adresse {address} jedoch nicht lesen, und eine Prüfung unter {session_address} hat nicht als dieses Panel geantwortet, daher wurde die gespeicherte Adresse nicht geändert. Wenn das Panel umgezogen ist, fügen Sie es unter der neuen Adresse erneut hinzu; dadurch wird die gespeicherte Adresse aktualisiert. Der Hinweis verschwindet von selbst, sobald die gespeicherte Adresse antwortet."
+    },
+    "panel_identity_mismatch": {
+      "title": "Adresse für {panel} prüfen",
+      "description": "Unter {address} hat sich nicht {panel} gemeldet. Deshalb sind die Steuerelemente für dieses Panel vorübergehend deaktiviert. Prüfe, ob diese Adresse zum Panel gehört. Wenn sich seine Adresse geändert hat, füge es mit der aktuellen Adresse erneut hinzu."
+    },
+    "panel_identity_confirmation": {
+      "title": "Bestehende Einrichtung dieses Panels beibehalten",
+      "description": "{panel} unter {address} muss nach einem App-Update bestätigt werden. Bestätige, dass dies das Panel ist, dessen bestehende Einrichtung du beibehalten möchtest.",
+      "fix_flow": {
+        "step": {
+          "confirm_identity": {
+            "title": "Bestehende Einrichtung dieses Panels beibehalten",
+            "description": "Bestehende Entitäten und Einstellungen für {panel} unter {address} beibehalten?"
+          }
+        },
+        "abort": {
+          "entry_removed": "Dieses Panel wurde entfernt.",
+          "identity_changed": "Das Panel hat sich geändert, während diese Bestätigung geöffnet war. Öffne die neueste Reparaturmeldung und versuche es erneut."
+        },
+        "error": {
+          "cannot_connect": "Das Panel ist nicht erreichbar. Prüfe seine Verbindung und versuche es erneut."
+        }
+      }
     }
   },
   "options": {

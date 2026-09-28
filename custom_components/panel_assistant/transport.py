@@ -78,7 +78,7 @@ from .embed_proof import encode_key, new_key
 _LOGGER = logging.getLogger(__name__)
 
 PROTOCOL_MIN: Final = 1
-PROTOCOL_MAX: Final = 2
+PROTOCOL_MAX: Final = 3
 
 COMMAND_HELLO: Final = f"{DOMAIN}/hello"
 COMMAND_REPORT_STATE: Final = f"{DOMAIN}/report_state"
@@ -1864,13 +1864,10 @@ def _reported_did(entry: ConfigEntry) -> str | None:
 
 
 def _panel_did(entry: ConfigEntry) -> str | None:
-    """Return the identity an entry's panel reports, else its discovery ID."""
-    reported = _reported_did(entry)
-    if reported is not None:
-        return reported
+    """Return saved identity; only entries predating it may use reported identity."""
     if entry.unique_id is not None and is_valid_discovery_id(entry.unique_id):
         return entry.unique_id
-    return None
+    return _reported_did(entry)
 
 
 def _removed_panels(hass: HomeAssistant) -> Container[str]:
@@ -2009,6 +2006,24 @@ def ws_hello(
             return
         connection.send_error(
             msg["id"], ERR_UNKNOWN_PANEL, "No loaded panel entry has this identity."
+        )
+        return
+    from .identity import CONF_IDENTITY_PENDING, is_installation, legacy_peer_matches
+
+    coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
+    if (
+        entry.data.get(CONF_IDENTITY_PENDING) is not None
+        or getattr(coordinator, "identity_mismatch", False)
+        or (is_installation(entry) and high < 3)
+        or (
+            not is_installation(entry)
+            and (high >= 3 or not legacy_peer_matches(entry, connection.remote))
+        )
+    ):
+        connection.send_error(
+            msg["id"],
+            ERR_UNKNOWN_PANEL,
+            "The panel identity is not confirmed at this endpoint.",
         )
         return
     async_delete_merged_identity_issue(hass, entry)

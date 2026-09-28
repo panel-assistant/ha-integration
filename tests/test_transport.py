@@ -56,6 +56,7 @@ HEALTH = PanelHealth(
     build="1000",
     config_hash="1a2b3c4d",
     discovery_id=DID,
+    installation_identity=True,
 )
 STATUS = PanelStatus(warning_count=0, capability_count=0)
 
@@ -86,7 +87,7 @@ BUTTON_EVENT = {
 }
 HELLO: dict[str, Any] = {
     "type": "panel_assistant/hello",
-    "protocol": {"min": 1, "max": 1},
+    "protocol": {"min": 3, "max": 3},
     "did": DID,
     "app": {"version": "0.9.8-rc1", "version_code": 790},
     "contract_digest": DIGEST,
@@ -174,6 +175,7 @@ async def entry(
         title="alpha",
         data={
             CONF_ADDRESS: "panel.local",
+            "installation_identity": True,
             CONF_TRANSPORT_USER_ID: hass_read_only_user.id,
         },
     )
@@ -224,7 +226,7 @@ async def test_non_admin_panel_account_opens_a_session(
 
     assert response["success"], response
     result = response["result"]
-    assert result["protocol"] == 1
+    assert result["protocol"] == 3
     assert result["authority"] == "shadow"
     assert result["capabilities"] == ["events", "state"]
     assert result["channels"] == {"accepted": 3, "unknown": []}
@@ -519,7 +521,7 @@ async def test_malformed_envelope_is_invalid_format(
         ({"did": OTHER_DID}, "unknown_panel"),
         ({"did": None}, "panel_identity_unavailable"),
         ({"did": "absent"}, "panel_identity_unavailable"),
-        ({"protocol": {"min": 3, "max": 3}}, "protocol_unsupported"),
+        ({"protocol": {"min": 4, "max": 4}}, "protocol_unsupported"),
     ],
 )
 async def test_hello_refusals(
@@ -543,10 +545,10 @@ async def test_hello_refusals(
     assert async_get_sessions(hass).get(entry.entry_id) is None
     if code == "protocol_unsupported":
         assert response["error"]["translation_placeholders"] == {
-            "panel_min": "3",
-            "panel_max": "3",
+            "panel_min": "4",
+            "panel_max": "4",
             "integration_min": "1",
-            "integration_max": "2",
+            "integration_max": "3",
         }
 
 
@@ -582,6 +584,7 @@ async def test_entry_with_a_dead_address_still_accepts_its_panel(
         title="alpha",
         data={
             CONF_ADDRESS: "panel.local",
+            "installation_identity": True,
             CONF_TRANSPORT_USER_ID: hass_read_only_user.id,
         },
         unique_id=DID,
@@ -1235,18 +1238,19 @@ def test_attributes_are_bounded(attributes: Any) -> None:
         _validate_attributes(attributes)
 
 
-async def test_zeroconf_identity_matches_before_health_reports_one(
+async def test_missing_health_identity_refuses_saved_installation_session(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
     hass_read_only_user: Any,
 ) -> None:
-    """A discovered entry is found by its identity while health omits it."""
+    """A responding endpoint without identity cannot confirm the saved panel."""
     config_entry = MockConfigEntry(
         domain=DOMAIN,
         title="alpha",
         data={
             CONF_ADDRESS: "panel.local",
+            "installation_identity": True,
             CONF_TRANSPORT_USER_ID: hass_read_only_user.id,
         },
         unique_id=DID,
@@ -1277,9 +1281,9 @@ async def test_zeroconf_identity_matches_before_health_reports_one(
         await hass.async_block_till_done()
     client = await hass_ws_client(hass, hass_read_only_access_token)
 
-    await _open(client)
-
-    assert async_get_sessions(hass).get(config_entry.entry_id) is not None
+    response = await _send(client, _hello())
+    assert response["error"]["code"] == "unknown_panel"
+    assert async_get_sessions(hass).get(config_entry.entry_id) is None
     assert config_entry.unique_id == DID
 
 

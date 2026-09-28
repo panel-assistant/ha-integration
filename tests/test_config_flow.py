@@ -679,7 +679,7 @@ async def test_zeroconf_keeps_existing_entry_identity_without_contacting_panel(
         data={CONF_ADDRESS: "192.168.1.23"},
     )
     entry.add_to_hass(hass)
-    health_mock = AsyncMock()
+    health_mock = AsyncMock(return_value=DISCOVERY_HEALTH)
     with patch(
         "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
         health_mock,

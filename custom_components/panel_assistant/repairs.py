@@ -32,6 +32,7 @@ from .failure_repair import (
     async_retry_install_job,
     async_support_report,
 )
+from .identity import ISSUE_IDENTITY, confirm_identity
 from .install_executor import async_get_install_executor
 from .install_jobs import InstallPhase, async_get_install_job_manager
 from .migration_repair import (
@@ -53,6 +54,63 @@ ABORT_ENTRY_REMOVED = "entry_removed"
 ABORT_USER_UNAVAILABLE = "user_unavailable"
 ABORT_MIGRATION_UNFINISHED = "migration_unfinished"
 _NOT_SHOWN = object()
+
+
+class PanelIdentityFlow(RepairsFlow):
+    """Keep the existing setup only after rechecking the shown endpoint."""
+
+    def __init__(self, values: dict[str, str | int | float | None]) -> None:
+        self._values = dict(values)
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> RepairsFlowResult:
+        return await self.async_step_confirm_identity(user_input)
+
+    async def async_step_confirm_identity(
+        self, user_input: dict[str, Any] | None = None
+    ) -> RepairsFlowResult:
+        entry_id = self._values.get("entry_id")
+        entry = (
+            self.hass.config_entries.async_get_entry(entry_id)
+            if isinstance(entry_id, str)
+            else None
+        )
+        if entry is None:
+            return self.async_abort(reason="entry_removed")
+        errors = {}
+        if user_input is not None:
+            if entry.unique_id != self._values.get("legacy_did") or entry.data.get(
+                "address"
+            ) != self._values.get("address"):
+                return self.async_abort(reason="identity_changed")
+            try:
+                health = await HaPaneldClient(
+                    async_get_clientsession(self.hass),
+                    normalize_address(entry.data["address"]),
+                ).async_get_health()
+            except CannotConnectError, InvalidResponseError:
+                errors["base"] = "cannot_connect"
+            else:
+                # The request awaited I/O: recheck every saved value before mutation.
+                if (
+                    entry.unique_id != self._values.get("legacy_did")
+                    or entry.data.get("address") != self._values.get("address")
+                    or health.discovery_id != self._values.get("did")
+                    or health.legacy_discovery_id != self._values.get("legacy_did")
+                    or not confirm_identity(self.hass, entry, health)
+                ):
+                    return self.async_abort(reason="identity_changed")
+                return self.async_create_entry(data={})
+        return self.async_show_form(
+            step_id="confirm_identity",
+            data_schema=vol.Schema({}),
+            errors=errors,
+            description_placeholders={
+                "panel": entry.title,
+                "address": entry.data["address"],
+            },
+        )
 
 
 class PanelUserBindingFlow(RepairsFlow):
@@ -345,6 +403,8 @@ async def async_create_fix_flow(
 ) -> RepairsFlow:
     """Create the fix flow for a Panel Assistant issue."""
     values = data or {}
+    if issue_id.startswith(f"{ISSUE_IDENTITY}_"):
+        return PanelIdentityFlow(values)
     if issue_id.startswith(f"{ISSUE_INSTALLER_FAILURE}_"):
         return InstallerFailureFlow()
     if issue_id.startswith(f"{ISSUE_PANEL_MIGRATION_INCOMPLETE}_"):

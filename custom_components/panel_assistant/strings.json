@@ -1092,6 +1092,29 @@
     "panel_address_unverified": {
       "title": "{panel} has moved, and its new address could not be confirmed",
       "description": "{panel} is connected to Home Assistant from {session_address}, so its entities stay available, but Home Assistant cannot read the panel at its stored address {address}, and a check at {session_address} did not answer as this panel, so the stored address was not changed. If the panel has moved, add it again at its new address, which updates the stored address; the issue clears by itself once the stored address answers."
+    },
+    "panel_identity_mismatch": {
+      "title": "Check the address for {panel}",
+      "description": "{address} did not answer as {panel}, so its controls have been paused. Check that this address belongs to the panel. If the panel moved, add it again using its current address."
+    },
+    "panel_identity_confirmation": {
+      "title": "Keep this panel’s existing setup",
+      "description": "{panel} at {address} needs confirmation after an app update. Confirm that this is the panel whose existing setup you want to keep.",
+      "fix_flow": {
+        "step": {
+          "confirm_identity": {
+            "title": "Keep this panel’s existing setup",
+            "description": "Keep the existing entities and settings for {panel} at {address}?"
+          }
+        },
+        "abort": {
+          "entry_removed": "This panel has been removed.",
+          "identity_changed": "The panel changed while this confirmation was open. Open the latest repair and try again."
+        },
+        "error": {
+          "cannot_connect": "Cannot reach the panel. Check its connection and try again."
+        }
+      }
     }
   },
   "options": {

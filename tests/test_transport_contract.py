@@ -38,7 +38,7 @@ SCHEMAS = {
 }
 
 _HA_VECTOR_REVISION = "f8f3bc883ebfa82ac957706dad363be4b42a1010"
-_ANDROID_PRODUCER_REVISION = "a4ce8c6b231dc8a116f3acc8f50dfec0c9d53fe0"
+_ANDROID_PRODUCER_REVISION = "2fbb0ddeb130fd7dbba4a0b93c9790f4b6557d77"
 
 
 def test_shared_vectors_name_the_ha_source_revision_vendored_by_android() -> None:
@@ -133,7 +133,7 @@ def test_contract_code_lists_are_the_integrations_own() -> None:
     # The panel-owned v1 catalogue remains the fixture for v1 producers;
     # restart notices are an additive command gated by the negotiated v2 range.
     assert CONTRACT["protocol"] == {"min": 1, "max": 1}
-    assert (transport.PROTOCOL_MIN, transport.PROTOCOL_MAX) == (1, 2)
+    assert (transport.PROTOCOL_MIN, transport.PROTOCOL_MAX) == (1, 3)
     assert set(CONTRACT["commands"]) == set(SCHEMAS) - {
         transport.COMMAND_RESTART_NOTICE
     }
@@ -530,6 +530,8 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
         "merged_mqtt_device",
         "panel_update_required",
         "panel_migration_incomplete",
+        "panel_identity_confirmation",
+        "panel_identity_mismatch",
     }
     # Which binding issue is raised depends on whether the panel already has an
     # account, so that call passes a variable and the scan above sees no literal.

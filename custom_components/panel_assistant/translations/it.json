@@ -761,6 +761,29 @@
     "panel_address_unverified": {
       "title": "{panel} è stato spostato e il nuovo indirizzo non è stato confermato",
       "description": "{panel} è connesso a Home Assistant da {session_address}, quindi le sue entità restano disponibili, ma Home Assistant non riesce a leggere il pannello all'indirizzo salvato {address}, e una verifica su {session_address} non ha risposto come questo pannello, quindi l'indirizzo salvato non è stato cambiato. Se il pannello è stato spostato, aggiungilo di nuovo con il nuovo indirizzo, così l'indirizzo salvato viene aggiornato; l'avviso scompare da solo quando l'indirizzo salvato risponde."
+    },
+    "panel_identity_mismatch": {
+      "title": "Controlla l’indirizzo di {panel}",
+      "description": "La risposta di {address} non corrispondeva a {panel}, quindi i suoi controlli sono stati disattivati temporaneamente. Verifica che questo indirizzo appartenga al pannello. Se il suo indirizzo è cambiato, aggiungilo di nuovo usando quello attuale."
+    },
+    "panel_identity_confirmation": {
+      "title": "Mantieni la configurazione attuale di questo pannello",
+      "description": "{panel} all’indirizzo {address} richiede una conferma dopo un aggiornamento dell’app. Conferma che questo è il pannello di cui vuoi mantenere la configurazione attuale.",
+      "fix_flow": {
+        "step": {
+          "confirm_identity": {
+            "title": "Mantieni la configurazione attuale di questo pannello",
+            "description": "Mantenere le entità e le impostazioni attuali di {panel} all’indirizzo {address}?"
+          }
+        },
+        "abort": {
+          "entry_removed": "Questo pannello è stato rimosso.",
+          "identity_changed": "Il pannello è cambiato mentre questa conferma era aperta. Apri la segnalazione di riparazione più recente e riprova."
+        },
+        "error": {
+          "cannot_connect": "Impossibile raggiungere il pannello. Controlla la sua connessione e riprova."
+        }
+      }
     }
   },
   "options": {

@@ -10,7 +10,7 @@ import asyncio
 import hashlib
 import json
 from collections.abc import AsyncIterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from io import BytesIO
 from types import SimpleNamespace
 from typing import Any
@@ -255,6 +255,7 @@ def _snapshot(version: str, build: str, package: str | None) -> PanelSnapshot:
             build=build,
             config_hash="1a2b3c4d",
             package=package,
+            installation_identity=True,
         ),
         status=None,
         status_error=None,
@@ -580,14 +581,14 @@ async def test_bridge_bytes_must_match_their_own_signed_checksum(
     client.async_start_panel_update.assert_not_awaited()
 
 
-@pytest.mark.parametrize("resume_bridge", [False, True])
+@pytest.mark.parametrize("resume_bridge", [False, True, "old_identity"])
 @pytest.mark.parametrize("package", [None, LEGACY_PACKAGE_ID])
 async def test_offline_move_delivers_both_verified_identities(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     trust: None,
     key: Any,
-    resume_bridge: bool,
+    resume_bridge: bool | str,
     package: str | None,
 ) -> None:
     """One update action completes the move, including a retry after bridge install."""
@@ -596,6 +597,15 @@ async def test_offline_move_delivers_both_verified_identities(
     entity, client = await _entity(hass, monkeypatch, github, package=package)
     if resume_bridge:
         entity.coordinator.data = _snapshot(VERSION, "2000", LEGACY_PACKAGE_ID)
+        if resume_bridge == "old_identity":
+            entity.coordinator.data = replace(
+                entity.coordinator.data,
+                health=replace(
+                    entity.coordinator.data.health,
+                    build="1500",
+                    installation_identity=False,
+                ),
+            )
     client.async_get_successor_capability = AsyncMock(
         return_value=(SUCCESSOR_PACKAGE_ID, VERSION, None, False)
     )
@@ -621,7 +631,7 @@ async def test_offline_move_delivers_both_verified_identities(
     assert entity.state == "on"
     await entity.async_install(None, backup=False)
 
-    expected = [] if resume_bridge else [call(bridge)]
+    expected = [] if resume_bridge is True else [call(bridge)]
     expected.append(call(APK, migration_sha256=hashlib.sha256(APK).hexdigest()))
     assert client.async_stage_apk.await_args_list == expected
     assert entity.coordinator.data.health.package == SUCCESSOR_PACKAGE_ID

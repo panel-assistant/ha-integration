@@ -114,7 +114,7 @@ EXTRA_OBSERVATIONS = [
 def _hello(channels: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "type": "panel_assistant/hello",
-        "protocol": {"min": 1, "max": 1},
+        "protocol": {"min": 3, "max": 3},
         "did": DID,
         "app": {"version": "0.9.8-rc1", "version_code": 790},
         "contract_digest": "c" * 64,
@@ -692,7 +692,7 @@ async def test_the_panels_own_hello_is_fully_known_to_the_catalogue(
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
 ) -> None:
-    """The hello a panel built, and its report, need nothing unknown."""
+    """Captured panel channels with the current producer envelope stay known."""
     client = await hass_ws_client(hass, hass_read_only_access_token)
     message = deepcopy(PANEL_HELLO) | {"did": DID}
 
@@ -827,7 +827,7 @@ async def test_a_new_panel_identity_never_renders_into_the_old_entities(
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
 ) -> None:
-    """A factory-reset panel on the same entry gets its own entities."""
+    """An unconfirmed replacement cannot create or reuse this entry's entities."""
     client = await hass_ws_client(hass, hass_read_only_access_token)
     token = await _session(client)
     await _sync(hass, client, token)
@@ -841,14 +841,10 @@ async def test_a_new_panel_identity_never_renders_into_the_old_entities(
     coordinator.async_set_updated_data(replace(coordinator.data, health=health))
     again = await hass_ws_client(hass, hass_read_only_access_token)
     response = await _send(again, _hello(DESCRIPTORS) | {"did": reset_did})
-    assert response["success"], response
-    await _sync(hass, again, response["result"]["session"])
-
+    assert response["error"]["code"] == "unknown_panel"
     assert hass.states.get(old_relay).state == STATE_UNAVAILABLE
     registry = er.async_get(hass)
-    new_relay = registry.async_get_entity_id("switch", DOMAIN, f"{reset_did}_relay1")
-    assert new_relay is not None
-    assert hass.states.get(new_relay).state == "on"
+    assert registry.async_get_entity_id("switch", DOMAIN, f"{reset_did}_relay1") is None
 
 
 async def test_only_catalogued_attributes_are_shown(

@@ -54,6 +54,7 @@ class _FakeContent:
 
 class _FakeResponse:
     def __init__(self, status: int, body: bytes) -> None:
+        self.connection = None
         self.status = status
         self.content = _FakeContent(body)
 
@@ -1224,3 +1225,19 @@ def test_the_health_line_carries_the_build_number_beside_the_version() -> None:
     # One token, once: a second vc= is a contradictory line.
     with pytest.raises(InvalidResponseError):
         parse_health_response(f"{base} vc=904 vc=905\n")
+
+
+async def test_health_read_remembers_the_actual_http_peer(socket_enabled: None) -> None:
+    """A completed short HTTP response still supplies legacy hostname evidence."""
+    from aiohttp import ClientSession, web
+    from aiohttp.test_utils import TestServer
+
+    async def health(request: web.Request) -> web.Response:
+        return web.Response(body=HEALTH_FIXTURE.read_bytes())
+
+    app = web.Application()
+    app.router.add_get("/api/v1/health", health)
+    async with TestServer(app, host="127.0.0.1") as server, ClientSession() as session:
+        client = HaPaneldClient(session, normalize_address(f"127.0.0.1:{server.port}"))
+        await client.async_get_health()
+        assert client.health_peer == (str(client.health_url), "127.0.0.1")

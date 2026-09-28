@@ -491,6 +491,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         self, version: str | None, backup: bool, **_kwargs: object
     ) -> None:
         """Start one exact stable offer, then follow the expected panel restart."""
+        if self.coordinator.identity_mismatch:
+            raise _update_error("update_unavailable", "The panel identity has changed")
         feed = self._feed_mode()
         failure_artifact: dict[str, object] | None = None
         if feed is not None:
@@ -535,7 +537,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                             or successor.descriptor.package_id != SUCCESSOR_PACKAGE_ID
                         ):
                             raise _verification_error(release)
-                        if self.coordinator.data.health.version != release.version:
+                        if (
+                            self.coordinator.data.health.version != release.version
+                            or not self.coordinator.data.health.installation_identity
+                        ):
                             await self._async_deliver_build(release)
                         if reports_package(
                             self.coordinator.data.health.package, SUCCESSOR_PACKAGE_ID
@@ -748,6 +753,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         cannot take an upload at all, returns False before anything is
         installed, so the caller can use the panel's own route.
         """
+        if self.coordinator.identity_mismatch:
+            raise _update_error("update_unavailable", "The panel identity has changed")
         client = self.coordinator.client
         snapshot: PanelSnapshot | None = self.coordinator.data
         descriptor = artifact.descriptor
@@ -771,6 +778,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 raise _verification_error(artifact) from err
             if (
                 descriptor is None
+                or not snapshot.health.installation_identity
                 or package_id != SUCCESSOR_PACKAGE_ID
                 or snapshot.health.version != artifact.version
                 or capability[:2] != (package_id, artifact.version)

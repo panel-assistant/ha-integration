@@ -187,6 +187,10 @@ async def _async_reconcile_install_receipt(
 
 async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> bool:
     """Set up ha-paneld from a config entry."""
+    from homeassistant.exceptions import ConfigEntryNotReady
+
+    from .identity import reconcile_identity
+
     await _async_resume_install_jobs(hass)
     address = normalize_address(entry.data[CONF_ADDRESS])
     client = HaPaneldClient(async_get_clientsession(hass), address)
@@ -197,6 +201,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     # repairs the address. The entities load unavailable and become available
     # on the first answer from either side.
     await coordinator.async_refresh()
+    if not reconcile_identity(hass, entry):
+        raise ConfigEntryNotReady("Panel identity conflicts with its saved entities")
     update_coordinator = PanelUpdateCoordinator(hass, client)
     await update_coordinator.async_config_entry_first_refresh()
 

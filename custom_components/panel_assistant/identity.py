@@ -1,0 +1,349 @@
+"""Installation identity admission and preservation of an existing panel setup."""
+
+from __future__ import annotations
+
+import re
+from copy import deepcopy
+from hashlib import sha256
+from ipaddress import ip_address
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_ADDRESS
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import issue_registry as ir
+
+from .client import PanelHealth, is_valid_discovery_id, normalize_address
+from .const import CONF_CUTOVER, CONF_SUPPORTED_CHANNELS, DOMAIN
+
+CONF_INSTALL_IDENTITY = "installation_identity"
+CONF_PREVIOUS_IDENTITY = "previous_installation_identity"
+CONF_IDENTITY_PENDING = "identity_pending"
+ISSUE_IDENTITY = "panel_identity_confirmation"
+_UID = re.compile(r"[0-9a-f]{32}")
+
+
+def is_installation(entry: ConfigEntry) -> bool:
+    """Whether the saved identity was established by the installation protocol."""
+    return entry.data.get(CONF_INSTALL_IDENTITY) is True
+
+
+def identity_available(hass: HomeAssistant, entry: ConfigEntry, did: str) -> bool:
+    """Include unloaded entries when reserving an identity."""
+    return not any(
+        other.entry_id != entry.entry_id and other.unique_id == did
+        for other in hass.config_entries.async_entries(DOMAIN)
+    )
+
+
+def _native_identities(hass: HomeAssistant, entry: ConfigEntry) -> set[str]:
+    return {
+        item.unique_id[:64]
+        for item in er.async_entries_for_config_entry(
+            er.async_get(hass), entry.entry_id
+        )
+        if item.platform == DOMAIN and re.fullmatch(r"[0-9a-f]{64}_.+", item.unique_id)
+    }
+
+
+def migration_candidate(entry: ConfigEntry, health: PanelHealth) -> bool:
+    """A legacy hint identifies a migration candidate, never grants admission."""
+    return (
+        not is_installation(entry)
+        and entry.unique_id is not None
+        and health.installation_identity
+        and health.discovery_id is not None
+        and health.discovery_id != entry.unique_id
+        and health.legacy_discovery_id == entry.unique_id
+    )
+
+
+def _prior_installation(hass: HomeAssistant, entry: ConfigEntry, did: str) -> bool:
+    """Require surviving exclusive MQTT registry evidence from this cutover."""
+    record = entry.data.get(CONF_CUTOVER)
+    if not isinstance(record, dict) or record.get("did") != entry.unique_id:
+        return False
+    entities = record.get("entities", {})
+    if not isinstance(entities, dict):
+        return False
+    device_ids = {
+        item["mqtt_device_id"]
+        for item in entities.values()
+        if isinstance(item, dict) and isinstance(item.get("mqtt_device_id"), str)
+    }
+    if not device_ids:
+        return False
+    registry = dr.async_get(hass)
+    for device_id in device_ids:
+        device = registry.async_get(device_id)
+        if device is None:
+            return False
+        uids = {
+            value.removeprefix("ha-paneld-uid-")
+            for domain, value in device.identifiers
+            if domain == "mqtt" and value.startswith("ha-paneld-uid-")
+        }
+        if len(uids) != 1:
+            return False
+        uid = next(iter(uids))
+        if (
+            not _UID.fullmatch(uid)
+            or sha256(("panel-assistant-mdns-v1\0" + uid).encode()).hexdigest() != did
+        ):
+            return False
+        panel_ids = {
+            value
+            for domain, value in device.identifiers
+            if domain == "mqtt"
+            and value.startswith("ha-paneld-")
+            and not value.startswith(("ha-paneld-uid-", "ha-paneld-aid-"))
+        }
+        if panel_ids != {f"ha-paneld-{record.get('panel_id')}"}:
+            return False
+        for other in hass.config_entries.async_entries(DOMAIN):
+            if other.entry_id == entry.entry_id:
+                continue
+            if other.entry_id in device.config_entries:
+                return False
+            other_record = other.data.get(CONF_CUTOVER, {})
+            if isinstance(other_record, dict) and any(
+                isinstance(item, dict) and item.get("mqtt_device_id") == device_id
+                for item in other_record.get("entities", {}).values()
+            ):
+                return False
+    return True
+
+
+@callback
+def confirm_identity(
+    hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth
+) -> bool:
+    """Rekey owned native entities in place, committing the entry identity last.
+
+    No await divides preflight from registry updates. If a prior update was
+    interrupted, already migrated entries are left in place on the retry.
+    """
+    if not migration_candidate(entry, health):
+        return False
+    did = health.discovery_id
+    assert did is not None
+    pending = entry.data.get(CONF_IDENTITY_PENDING)
+    expected = {
+        "did": did,
+        "legacy_did": entry.unique_id,
+        "address": entry.data[CONF_ADDRESS],
+    }
+    if pending is not None and pending != expected:
+        return False
+    if not identity_available(hass, entry, did):
+        return False
+    if not _native_identities(hass, entry) <= {entry.unique_id, did}:
+        return False
+    registry = er.async_get(hass)
+    assert entry.unique_id is not None
+    prefix = f"{entry.unique_id}_"
+    changes = []
+    for item in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if item.platform != DOMAIN or not item.unique_id.startswith(prefix):
+            continue
+        target = did + item.unique_id[len(entry.unique_id) :]
+        holder = registry.async_get_entity_id(item.domain, DOMAIN, target)
+        if holder is not None and holder != item.entity_id:
+            return False
+        changes.append((item.entity_id, target))
+    from .transport import async_get_sessions
+
+    async_get_sessions(hass).close_entry(entry.entry_id, "entry_unloaded")
+    pending = {
+        "did": did,
+        "legacy_did": entry.unique_id,
+        "address": entry.data[CONF_ADDRESS],
+    }
+    hass.config_entries.async_update_entry(
+        entry, data={**entry.data, CONF_IDENTITY_PENDING: pending}
+    )
+    for entity_id, target in changes:
+        registry.async_update_entity(entity_id, new_unique_id=target)
+    data = deepcopy(dict(entry.data))
+    for key in (CONF_CUTOVER, CONF_SUPPORTED_CHANNELS):
+        value = data.get(key)
+        if isinstance(value, dict) and value.get("did") == entry.unique_id:
+            value["did"] = did
+    data[CONF_INSTALL_IDENTITY] = True
+    data[CONF_PREVIOUS_IDENTITY] = entry.unique_id
+    data.pop(CONF_IDENTITY_PENDING, None)
+    hass.config_entries.async_update_entry(entry, unique_id=did, data=data)
+    ir.async_delete_issue(hass, DOMAIN, f"{ISSUE_IDENTITY}_{entry.entry_id}")
+    ir.async_delete_issue(hass, DOMAIN, f"panel_identity_mismatch_{entry.entry_id}")
+    hass.async_create_task(hass.config_entries.async_reload(entry.entry_id))
+    return True
+
+
+@callback
+def reconcile_identity(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Finish saved registry rekeys before entities or sessions can be loaded.
+
+    Registry and config-entry storage save independently. Keeping the previous
+    identity makes either disk-write order recoverable after a Core restart.
+    """
+    previous = entry.data.get(CONF_PREVIOUS_IDENTITY)
+    if not isinstance(previous, str) or not is_installation(entry):
+        # Entity and entry storage can also persist in the opposite order.
+        # An unexplained native prefix must never create a second set under
+        # the old identity; health can still offer its administrator repair.
+        return _native_identities(hass, entry) <= {entry.unique_id}
+    did = entry.unique_id
+    if did is None or not identity_available(hass, entry, did):
+        return False
+    if not _native_identities(hass, entry) <= {previous, did}:
+        return False
+    registry = er.async_get(hass)
+    changes = []
+    for item in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if item.platform != DOMAIN or not item.unique_id.startswith(f"{previous}_"):
+            continue
+        target = did + item.unique_id[len(previous) :]
+        holder = registry.async_get_entity_id(item.domain, DOMAIN, target)
+        if holder is not None and holder != item.entity_id:
+            return False
+        changes.append((item.entity_id, target))
+    for entity_id, target in changes:
+        registry.async_update_entity(entity_id, new_unique_id=target)
+    return True
+
+
+@callback
+def _reject_health(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Withdraw both inbound and outbound authority for a changed endpoint."""
+    from homeassistant.helpers.update_coordinator import UpdateFailed
+
+    from .transport import async_get_sessions
+
+    if (
+        ir.async_get(hass).async_get_issue(DOMAIN, f"{ISSUE_IDENTITY}_{entry.entry_id}")
+        is None
+    ):
+        ir.async_create_issue(
+            hass,
+            DOMAIN,
+            f"panel_identity_mismatch_{entry.entry_id}",
+            is_fixable=False,
+            is_persistent=False,
+            severity=ir.IssueSeverity.ERROR,
+            translation_key="panel_identity_mismatch",
+            translation_placeholders={
+                "panel": entry.title,
+                "address": entry.data[CONF_ADDRESS],
+            },
+        )
+    coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
+    if coordinator is not None:
+        coordinator.identity_mismatch = True
+        coordinator.client.health_peer = None
+        coordinator.async_set_update_error(UpdateFailed("Panel identity changed"))
+    async_get_sessions(hass).close_entry(entry.entry_id, "entry_unloaded")
+    return False
+
+
+@callback
+def accept_health(hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth) -> bool:
+    """Reject a different panel before status or session state can change."""
+    did = health.discovery_id
+    if entry.unique_id is None:
+        recorded = _native_identities(hass, entry)
+        cutover = entry.data.get(CONF_CUTOVER)
+        old = cutover.get("did") if isinstance(cutover, dict) else None
+        if isinstance(old, str) and is_valid_discovery_id(old):
+            recorded.add(old)
+        if len(recorded) > 1:
+            return _reject_health(hass, entry)
+        if recorded:
+            # Older address-created entries kept their identity only in owned
+            # registry records. Preserve it before considering updated health.
+            hass.config_entries.async_update_entry(
+                entry, unique_id=next(iter(recorded))
+            )
+    pending = entry.data.get(CONF_IDENTITY_PENDING)
+    if isinstance(pending, dict):
+        if pending == {
+            "did": did,
+            "legacy_did": health.legacy_discovery_id,
+            "address": entry.data[CONF_ADDRESS],
+        } and confirm_identity(hass, entry, health):
+            return True
+        return _reject_health(hass, entry)
+    if entry.unique_id is None:
+        if did is None:
+            return True
+        if not identity_available(hass, entry, did):
+            return _reject_health(hass, entry)
+        data = dict(entry.data)
+        if health.installation_identity:
+            data[CONF_INSTALL_IDENTITY] = True
+        hass.config_entries.async_update_entry(entry, unique_id=did, data=data)
+        return True
+    if did == entry.unique_id:
+        ir.async_delete_issue(hass, DOMAIN, f"panel_identity_mismatch_{entry.entry_id}")
+        if health.installation_identity and not is_installation(entry):
+            hass.config_entries.async_update_entry(
+                entry, data={**entry.data, CONF_INSTALL_IDENTITY: True}
+            )
+        return True
+    if migration_candidate(entry, health):
+        assert did is not None
+        if _prior_installation(hass, entry, did) and confirm_identity(
+            hass, entry, health
+        ):
+            return True
+        ir.async_create_issue(
+            hass,
+            DOMAIN,
+            f"{ISSUE_IDENTITY}_{entry.entry_id}",
+            is_fixable=True,
+            is_persistent=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key=ISSUE_IDENTITY,
+            translation_placeholders={
+                "panel": entry.title,
+                "address": entry.data[CONF_ADDRESS],
+            },
+            data={
+                "entry_id": entry.entry_id,
+                "did": did,
+                "legacy_did": entry.unique_id,
+                "address": entry.data[CONF_ADDRESS],
+            },
+        )
+    return _reject_health(hass, entry)
+
+
+def legacy_peer_matches(entry: ConfigEntry, remote: str | None) -> bool:
+    """Legacy identities cannot move an entry to another endpoint."""
+    if not isinstance(remote, str):
+        return False
+    address = normalize_address(entry.data[CONF_ADDRESS])
+    expected = address.host
+    try:
+        ip_address(expected)
+    except ValueError:
+        coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
+        client = getattr(coordinator, "client", None)
+        peer = getattr(client, "health_peer", None)
+        snapshot = getattr(coordinator, "data", None)
+        health = getattr(snapshot, "health", None)
+        if (
+            not isinstance(peer, tuple)
+            or peer[0] != str(address.base_url.with_path("/api/v1/health"))
+            or getattr(health, "discovery_id", None) != entry.unique_id
+        ):
+            return False
+        expected = peer[1]
+    try:
+        actual_ip = ip_address(remote)
+        expected_ip = ip_address(expected)
+        return (getattr(actual_ip, "ipv4_mapped", None) or actual_ip) == (
+            getattr(expected_ip, "ipv4_mapped", None) or expected_ip
+        )
+    except ValueError:
+        return False

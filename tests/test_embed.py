@@ -52,11 +52,12 @@ HEALTH = PanelHealth(
     build="1000",
     config_hash="1a2b3c4d",
     discovery_id=DID,
+    installation_identity=True,
 )
 STATUS = PanelStatus(warning_count=0, capability_count=0)
 HELLO: dict[str, Any] = {
     "type": "panel_assistant/hello",
-    "protocol": {"min": 1, "max": 1},
+    "protocol": {"min": 3, "max": 3},
     "did": DID,
     "app": {"version": "0.9.8-rc1", "version_code": 790},
     "contract_digest": "c" * 64,
@@ -569,7 +570,7 @@ async def test_the_integration_never_creates_a_user_or_signs_a_panel_in(
     assert sorted(user.id for user in await hass.auth.async_get_users()) == (
         users_before
     )
-    assert set(entry.data) == {CONF_ADDRESS}
+    assert set(entry.data) == {CONF_ADDRESS, "installation_identity"}
     await hass.config_entries.async_remove(entry.entry_id)
     await hass.async_block_till_done()
     assert sorted(user.id for user in await hass.auth.async_get_users()) == (
