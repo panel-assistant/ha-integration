@@ -117,7 +117,8 @@ async def test_failed_attempts_keep_one_issue_per_panel_with_latest_diagnosis(
 
 
 async def test_repair_keeps_a_report_while_its_private_copy_is_pending(
-    hass: HomeAssistant, monkeypatch,
+    hass: HomeAssistant,
+    monkeypatch,
 ) -> None:
     saved = asyncio.Event()
     allow_save = asyncio.Event()
@@ -144,7 +145,8 @@ async def test_repair_keeps_a_report_while_its_private_copy_is_pending(
 
 
 async def test_report_recovers_from_committed_receipt_when_private_copy_is_missing(
-    hass: HomeAssistant, monkeypatch,
+    hass: HomeAssistant,
+    monkeypatch,
 ) -> None:
     manager = InstallJobManager(hass, now=Clock())
     receipt = await _authorization_failure(
