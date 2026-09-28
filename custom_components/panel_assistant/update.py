@@ -682,12 +682,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                         + _TERMINAL_STATUS_GRACE_SECONDS,
                     )
                 if asyncio.get_running_loop().time() >= terminal_status_deadline:
-                    if expected_version is None and (
-                        not running_seen or self._feed is not None
-                    ):
-                        # A signed-feed build may have the same version name,
-                        # and its new code may predate our first health sample.
-                        # Without the lost target, this status is not failure proof.
+                    if expected_version is None:
+                        # A stable or feed update may have finished before our
+                        # first health sample. Without its lost target, terminal
+                        # status alone is not proof that it failed.
                         return False
                     raise _update_error(
                         "update_not_complete", "The panel update did not complete"

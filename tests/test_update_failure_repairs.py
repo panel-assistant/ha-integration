@@ -34,6 +34,7 @@ from custom_components.panel_assistant.coordinator import (
 from custom_components.panel_assistant.feed_coordinator import BuildFeedCoordinator
 from custom_components.panel_assistant.release import _RELEASE_SIGNER_CERTIFICATE_SHA256
 from custom_components.panel_assistant.status import PanelCachedUpdate, PanelStatus
+from custom_components.panel_assistant.transport import async_get_sessions
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity
 from custom_components.panel_assistant.update_coordinator import (
     PanelUpdateCoordinator,
@@ -158,7 +159,7 @@ async def test_accepted_panel_update_failure_creates_repair(
     repairs.clear.assert_not_awaited()
 
 
-async def test_recovered_update_failure_creates_repair_without_requeue(
+async def test_recovered_terminal_without_target_is_unknown_without_requeue(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     repairs: SimpleNamespace,
@@ -187,13 +188,39 @@ async def test_recovered_update_failure_creates_repair_without_requeue(
     entity._resume_running_operation()
     observer = entity._observer_task
     assert observer is not None
-    with pytest.raises(HomeAssistantError, match="did not complete"):
-        await observer
+    await observer
 
-    repairs.record.assert_awaited_once()
-    assert repairs.record.await_args.args[3] is None
+    repairs.record.assert_not_awaited()
     assert entity._update_coordinator.async_request_refresh.await_count == 2
     repairs.clear.assert_not_awaited()
+    client.async_start_panel_update.assert_not_awaited()
+
+
+async def test_recovered_stalled_update_creates_repair_without_requeue(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    repairs: SimpleNamespace,
+) -> None:
+    entity, client = _entity(hass, recovered=True)
+    entity.coordinator.last_update_success = False
+    monkeypatch.setattr(panel_update, "_UPDATE_TIMEOUT_SECONDS", 0.01)
+    real_sleep = panel_update.asyncio.sleep
+
+    async def wait_past_deadline(_seconds: float) -> None:
+        await real_sleep(0.02)
+
+    monkeypatch.setattr(panel_update.asyncio, "sleep", wait_past_deadline)
+    entity._resume_running_operation()
+    observer = entity._observer_task
+    assert observer is not None
+
+    with pytest.raises(HomeAssistantError, match="did not return"):
+        await observer
+
+    async_get_sessions(hass).clear_restart_notice("entry-id")
+    repairs.record.assert_awaited_once()
+    assert repairs.record.await_args.args[3] is None
+    assert isinstance(repairs.record.await_args.args[4], HomeAssistantError)
     client.async_start_panel_update.assert_not_awaited()
 
 
@@ -313,12 +340,14 @@ async def test_recovered_feed_update_accepts_higher_code_with_same_name(
     client.async_start_panel_update.assert_not_awaited()
 
 
-async def test_recovered_feed_update_already_advanced_is_not_reported_failed(
+@pytest.mark.parametrize("feed", [False, True])
+async def test_recovered_update_already_advanced_is_not_reported_failed(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     repairs: SimpleNamespace,
+    feed: bool,
 ) -> None:
-    entity, client = _entity(hass, recovered=True, feed=True)
+    entity, client = _entity(hass, recovered=True, feed=feed)
     snapshot = entity.coordinator.data
     entity.coordinator.data = replace(
         snapshot,
