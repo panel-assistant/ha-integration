@@ -58,6 +58,7 @@ class FakePipeline:
 
     def __init__(self) -> None:
         self.calls: list[dict[str, Any]] = []
+        self.cancelled = False
         self.audio: list[bytes] = []
         self.events: list[PipelineEvent] = [
             PipelineEvent(PipelineEventType.STT_START),
@@ -79,8 +80,12 @@ class FakePipeline:
     async def __call__(self, hass: HomeAssistant, **kwargs: Any) -> None:
         self.calls.append(kwargs)
         stream: AsyncIterable[bytes] = kwargs["stt_stream"]
-        async for chunk in stream:
-            self.audio.append(chunk)
+        try:
+            async for chunk in stream:
+                self.audio.append(chunk)
+        except asyncio.CancelledError:
+            self.cancelled = True
+            raise
         callback: Callable[[PipelineEvent], None] = kwargs["event_callback"]
         for event in self.events:
             callback(event)
@@ -521,3 +526,93 @@ async def test_a_pipeline_keeps_its_colour_for_every_panel_and_across_restarts(
     more = [f"q{index}" for index in range(len(PIPELINE_COLORS) - 3)]
     await restarted.async_colors(more)
     assert (await restarted.async_colors(["late"]))["late"] == PIPELINE_COLORS[0]
+
+
+async def test_a_turn_is_refused_to_another_connection_and_to_a_panel_without_voice(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+    pipeline: FakePipeline,
+) -> None:
+    panel, _entity_id = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    # The session token is bound to the panel's own connection.
+    other = await hass_ws_client(hass, hass_read_only_access_token)
+    stolen = await _send(
+        other,
+        {"type": "panel_assistant/voice_run", "session": panel.token},
+    )
+    assert stolen["error"]["code"] == "session_unknown"
+
+    # A session that was not granted voice cannot start a turn.
+    await panel.client.close()
+    await hass.async_block_till_done()
+    silent = await _connect(
+        hass, hass_ws_client, hass_read_only_access_token, ["state", "events"]
+    )
+    refused = await silent.send(
+        {"type": "panel_assistant/voice_run", "session": silent.token}
+    )
+    assert refused["error"]["code"] == "voice_unavailable"
+    assert pipeline.calls == []
+
+
+async def test_leaving_a_turn_cancels_the_pipeline_and_releases_its_handler(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+    pipeline: FakePipeline,
+) -> None:
+    panel, _entity_id = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    run_id, handler = await _run(panel, "hey_jarvis")
+    await panel.client.send_bytes(bytes([handler]) + b"\x01\x02" * 160)
+    await hass.async_block_till_done()
+    assert pipeline.calls, "the turn never reached the pipeline"
+    left = await panel.send({"type": "unsubscribe_events", "subscription": run_id})
+    assert left["success"], left
+    await hass.async_block_till_done()
+    assert all(slot is None for slot in _connection_of(hass, entry).binary_handlers)
+    assert run_id not in _connection_of(hass, entry).subscriptions
+    assert pipeline.cancelled
+
+
+async def test_the_end_of_the_audio_survives_a_full_queue(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+    pipeline: FakePipeline,
+) -> None:
+    panel, _entity_id = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    gate = asyncio.Event()
+    stream_audio = pipeline.__call__
+
+    async def held(hass: HomeAssistant, **kwargs: Any) -> None:
+        await gate.wait()
+        await stream_audio(hass, **kwargs)
+
+    with (
+        patch("custom_components.panel_assistant.voice.MAX_QUEUED_FRAMES", 2),
+        patch(
+            "homeassistant.components.assist_satellite.entity.async_pipeline_from_audio_stream",
+            held,
+        ),
+    ):
+        run_id, handler = await _run(panel, "hey_jarvis")
+        for frame in (b"\x01", b"\x02", b"\x03", b"\x04"):
+            await panel.client.send_bytes(bytes([handler]) + frame * 320)
+        await panel.client.send_bytes(bytes([handler]))
+        await hass.async_block_till_done()
+        gate.set()
+        # Well inside the five-second idle timeout that a lost end would cost.
+        async with asyncio.timeout(2):
+            events = await _turn_events(panel, run_id)
+    assert events[-1] == {"kind": "end"}
+    assert pipeline.audio == [b"\x02" * 320]

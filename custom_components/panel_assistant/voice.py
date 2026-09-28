@@ -351,12 +351,32 @@ def ws_voice_run(
 
     @callback
     def _on_audio(_hass: HomeAssistant, _conn: ActiveConnection, data: bytes) -> None:
+        if not data:
+            # The end of the audio is never dropped: without it the turn waits
+            # out the idle timeout. Make room by dropping the oldest frame.
+            while True:
+                try:
+                    audio.put_nowait(None)
+                except asyncio.QueueFull:
+                    audio.get_nowait()
+                else:
+                    return
         try:
-            audio.put_nowait(data or None)
+            audio.put_nowait(data)
         except asyncio.QueueFull:
             _LOGGER.debug("Voice audio queue full; dropping a frame")
 
-    handler_id, unregister = connection.async_register_binary_handler(_on_audio)
+    handler_id, unregister_handler = connection.async_register_binary_handler(_on_audio)
+    registered = True
+
+    @callback
+    def unregister() -> None:
+        # Core frees the slot by index, and a later turn may already hold it.
+        nonlocal registered
+        if registered:
+            registered = False
+            unregister_handler()
+
     run = VoiceRun(connection, msg["id"], msg["wake_word_id"], msg["continued"], audio)
     task = entry.async_create_background_task(
         hass, satellite.async_run(run), f"{satellite.entity_id}_voice_run"
