@@ -10,8 +10,15 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from yarl import URL
 
-from .app_identity import LEGACY_PACKAGE_ID
-from .build_feed import BuildFeed, BuildFeedError, async_fetch_build_feed
+from .app_identity import ACCEPTED_PACKAGE_IDS, LEGACY_PACKAGE_ID
+from .build_feed import (
+    BuildFeed,
+    BuildFeedError,
+    FeedBuild,
+    async_download_build,
+    async_fetch_build_feed,
+    feed_release_artifact,
+)
 from .const import DOMAIN
 from .release import (
     ReleaseArtifact,
@@ -39,14 +46,45 @@ class BuildFeedCoordinator(DataUpdateCoordinator[BuildFeed]):
             update_interval=FEED_REFRESH,
         )
         self.feed_url = feed_url
+        self._verified_newest: dict[str, tuple[FeedBuild, bytes]] = {}
+
+    def verified_newest(self, package_id: str | None) -> FeedBuild | None:
+        """Return only a newest build whose exact APK is already verified here."""
+        verified = self._verified_newest.get(package_id or LEGACY_PACKAGE_ID)
+        return verified[0] if verified is not None else None
+
+    def verified_apk(self, build: FeedBuild) -> bytes | None:
+        """Keep the verified offer's bytes available for its install attempt."""
+        verified = self._verified_newest.get(build.package_id)
+        return verified[1] if verified is not None and verified[0] == build else None
 
     async def _async_update_data(self) -> BuildFeed:
         try:
-            return await async_fetch_build_feed(
-                async_get_clientsession(self.hass), self.feed_url
-            )
+            session = async_get_clientsession(self.hass)
+            feed = await async_fetch_build_feed(session, self.feed_url)
         except BuildFeedError as err:
             raise UpdateFailed("The build feed could not be authenticated") from err
+        verified: dict[str, tuple[FeedBuild, bytes]] = {}
+        for package_id in ACCEPTED_PACKAGE_IDS:
+            build = feed.newest(package_id)
+            if build is None:
+                continue
+            previous = self._verified_newest.get(package_id)
+            if previous is not None and previous[0] == build:
+                verified[package_id] = previous
+                continue
+            try:
+                apk = await async_download_build(session, feed_release_artifact(build))
+            except BuildFeedError:
+                _LOGGER.warning(
+                    "Signed build %s for %s has no verifiable APK; not offering it",
+                    build.version_code,
+                    package_id,
+                )
+                continue
+            verified[package_id] = (build, apk)
+        self._verified_newest = verified
+        return feed
 
 
 def async_get_feed_coordinator(hass: HomeAssistant) -> BuildFeedCoordinator | None:

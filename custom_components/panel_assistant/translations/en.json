@@ -166,7 +166,7 @@
     },
     "image": {
       "camera_snapshot": {
-        "name": "Camera snapshot (experimental)"
+        "name": "Camera snapshot"
       }
     },
     "light": {
@@ -361,7 +361,7 @@
         "name": "Auto sleep"
       },
       "camera_enabled": {
-        "name": "Camera (experimental)"
+        "name": "Camera"
       },
       "companion_auto_update": {
         "name": "Companion auto-update"

@@ -445,7 +445,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         """Report installed version if no newer panel-approved stable target exists."""
         feed = self._feed_mode()
         if feed is not None:
-            newest = feed.newest(self._feed_package())
+            newest = (
+                self._feed.verified_newest(self._feed_package()) if self._feed else None
+            )
             if (
                 newest is not None
                 and self._installed_code is not None
@@ -495,6 +497,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             build = await self._async_select_feed_build(feed, version, backup)
             target_version = build.label
             selected_artifact = feed_release_artifact(build)
+            verified_apk = self._feed.verified_apk(build) if self._feed else None
             failure_artifact = asdict(selected_artifact)
         else:
             offer = self._stable_target()
@@ -513,7 +516,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         self.async_write_ha_state()
         try:
             if feed is not None:
-                await self._async_deliver_build(selected_artifact)
+                await self._async_deliver_build(selected_artifact, apk=verified_apk)
             else:
                 assert offer is not None
                 release = self._host_release()
@@ -702,7 +705,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
     ) -> FeedBuild:
         """Resolve a valid signed-feed target before starting an update attempt."""
         package_id = self._feed_package()
-        newest = feed.newest(package_id)
+        newest = self._feed.verified_newest(package_id) if self._feed else None
         code = (
             parse_build_request(version)
             if version is not None
@@ -735,6 +738,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         self,
         artifact: ReleaseArtifact,
         *,
+        apk: bytes | None = None,
         fallback: bool = False,
         migration: bool = False,
     ) -> bool:
@@ -815,19 +819,20 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self._record_route(ROUTE_STAGED, artifact.tag)
             await self._async_wait_for_build(artifact, before, minimum_code=True)
             return True
-        try:
-            apk = await async_download_build(
-                async_get_clientsession(self.hass), artifact
-            )
-        except BuildDownloadError as err:
-            if fallback:
-                # Nothing was fetched, so nothing failed a check: the panel
-                # can still fetch and verify the release itself.
-                _LOGGER.warning("Could not download %s here: %s", artifact.tag, err)
-                return False
-            raise _verification_error(artifact) from err
-        except BuildFeedError as err:
-            raise _verification_error(artifact) from err
+        if apk is None:
+            try:
+                apk = await async_download_build(
+                    async_get_clientsession(self.hass), artifact
+                )
+            except BuildDownloadError as err:
+                if fallback:
+                    # Nothing was fetched, so nothing failed a check: the panel
+                    # can still fetch and verify the release itself.
+                    _LOGGER.warning("Could not download %s here: %s", artifact.tag, err)
+                    return False
+                raise _verification_error(artifact) from err
+            except BuildFeedError as err:
+                raise _verification_error(artifact) from err
         try:
             try:
                 staged = (

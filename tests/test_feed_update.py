@@ -34,6 +34,7 @@ from custom_components.panel_assistant.app_identity import (
     SUCCESSOR_PACKAGE_ID,
 )
 from custom_components.panel_assistant.build_feed import (
+    BuildDownloadError,
     BuildFeed,
     BuildFeedError,
     FeedBuild,
@@ -63,7 +64,6 @@ from custom_components.panel_assistant.panel_backup import (
 )
 from custom_components.panel_assistant.release import (
     _RELEASE_SIGNER_CERTIFICATE_SHA256,
-    ReleaseArtifact,
 )
 from custom_components.panel_assistant.status import PanelCachedUpdate, PanelStatus
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity
@@ -175,6 +175,10 @@ def _entity(
         coordinator = BuildFeedCoordinator(hass, FEED_URL)
         coordinator.data = feed if feed is not None else _feed_data(770, 771, 772)
         coordinator.last_update_success = True
+        for package_id in (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID):
+            newest = coordinator.data.newest(package_id)
+            if newest is not None:
+                coordinator._verified_newest[package_id] = (newest, APK)
     entity = HaPaneldUpdateEntity("entry-id", health, updates, coordinator)
     entity.hass = hass
     entity.async_write_ha_state = MagicMock()
@@ -346,15 +350,22 @@ async def test_update_install_selects_the_installed_app_before_backup(
         status_error=None,
     )
     client.async_stage_apk.return_value = _preview(package=package or LEGACY_PACKAGE_ID)
+    expected_apk = f"apk-for-{expected_code}-{package or LEGACY_PACKAGE_ID}".encode()
+    assert entity._feed is not None
+    selected_build = entity._feed.verified_newest(package)
+    assert selected_build is not None
+    entity._feed._verified_newest[selected_build.package_id] = (
+        selected_build,
+        expected_apk,
+    )
     _restart_into(entity, client, expected_code, package=package)
 
     assert entity.latest_version == f"0.9.7-rc4 build {expected_code}"
     await entity.async_install(None, False)
 
     client.async_backup_panel.assert_awaited_once()
-    artifact = delivery.download.await_args.args[1]
-    assert artifact.descriptor.package_id == (package or LEGACY_PACKAGE_ID)
-    assert artifact.descriptor.version_code == expected_code
+    client.async_stage_apk.assert_awaited_once_with(expected_apk)
+    delivery.download.assert_not_awaited()
     backups = list(delivery.backups.glob("entry-id-*.zip"))
     assert len(backups) == 1
     assert backups[0].read_bytes() == BACKUP
@@ -395,7 +406,7 @@ async def test_same_number_from_another_app_does_not_verify_the_install(
 async def test_install_delivers_the_newest_build_in_order(
     hass: HomeAssistant, delivery: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Backup, store, download, stage, commit, then wait for exactly 772."""
+    """Backup, store, stage verified bytes, commit, then wait for exactly 772."""
     entity, client = _entity(hass)
     calls: list[Any] = []
     stored: list[Path] = []
@@ -410,10 +421,7 @@ async def test_install_delivers_the_newest_build_in_order(
         stored.append(receipt.path)
         return receipt
 
-    async def download(session: object, artifact: ReleaseArtifact) -> bytes:
-        assert session is delivery.session
-        assert entity.in_progress is True
-        assert artifact.descriptor is not None
+    async def stage(apk: bytes) -> StagedApk:
         assert len(stored) == 1
         assert stored[0].read_bytes() == BACKUP
         receipt_path = stored[0].with_name(f"{stored[0].name}.json")
@@ -425,10 +433,6 @@ async def test_install_delivers_the_newest_build_in_order(
             "sha256": hashlib.sha256(BACKUP).hexdigest(),
             "entries": 2,
         }
-        calls.append(("download", artifact.descriptor.version_code))
-        return APK
-
-    async def stage(apk: bytes) -> StagedApk:
         calls.append(("stage", apk))
         return _preview()
 
@@ -438,7 +442,6 @@ async def test_install_delivers_the_newest_build_in_order(
     client.async_backup_panel = AsyncMock(side_effect=backup)
     client.async_stage_apk = AsyncMock(side_effect=stage)
     client.async_commit_apk = AsyncMock(side_effect=commit)
-    delivery.download.side_effect = download
     monkeypatch.setattr(panel_update, "async_store_panel_backup", store)
     _restart_into(entity, client, 772, calls)
 
@@ -447,12 +450,12 @@ async def test_install_delivers_the_newest_build_in_order(
     assert calls == [
         "backup",
         "store",
-        ("download", 772),
         ("stage", APK),
         ("commit", "tok-1"),
         "refresh",
         "diag",
     ]
+    delivery.download.assert_not_awaited()
     assert len(stored) == 1
     assert stored[0].parent == Path(hass.config.path(DOMAIN, "backups"))
     assert stored[0].name.startswith("entry-id-")
@@ -698,7 +701,7 @@ async def test_download_failure_never_stages(
     delivery.download.side_effect = BuildFeedError
 
     with pytest.raises(HomeAssistantError) as error:
-        await entity.async_install(None, False)
+        await entity.async_install("770", False)
 
     _assert_translated(error.value, "build_verification_failed")
     client.async_backup_panel.assert_awaited_once()
@@ -934,9 +937,17 @@ async def test_yaml_build_feed_creates_one_coordinator(hass: HomeAssistant) -> N
     config = {DOMAIN: {"build_feed": "https://x/maintainer.json"}}
     assert CONFIG_SCHEMA(config) == config
     fetch = AsyncMock(return_value=_feed_data(772))
+    download = AsyncMock(return_value=APK)
     browser, feed = _patched_setup(fetch)
 
-    with browser, feed:
+    with (
+        browser,
+        feed,
+        patch(
+            "custom_components.panel_assistant.feed_coordinator.async_download_build",
+            download,
+        ),
+    ):
         assert await async_setup(hass, config)
         await hass.async_block_till_done(wait_background_tasks=True)
 
@@ -945,6 +956,7 @@ async def test_yaml_build_feed_creates_one_coordinator(hass: HomeAssistant) -> N
     assert async_get_feed_coordinator(hass) is coordinator
     assert coordinator.feed_url == URL("https://x/maintainer.json")
     fetch.assert_awaited_once()
+    download.assert_awaited_once()
     assert fetch.await_args.args[1] == URL("https://x/maintainer.json")
     assert coordinator.data == _feed_data(772)
 
@@ -1050,9 +1062,17 @@ async def test_yaml_feed_reaches_the_panel_update_entity(hass: HomeAssistant) ->
     version_code = AsyncMock(return_value=(NAME, 771))
     patches = _setup_patches(version_code)
     fetch = AsyncMock(return_value=_feed_data(770, 771, 772))
+    download = AsyncMock(return_value=APK)
 
     with ExitStack() as stack:
-        for context in (patch(FETCH, fetch), *patches):
+        for context in (
+            patch(FETCH, fetch),
+            patch(
+                "custom_components.panel_assistant.feed_coordinator.async_download_build",
+                download,
+            ),
+            *patches,
+        ):
             stack.enter_context(context)
         assert await async_setup_component(
             hass, DOMAIN, {DOMAIN: {"build_feed": str(FEED_URL)}}
@@ -1062,6 +1082,7 @@ async def test_yaml_feed_reaches_the_panel_update_entity(hass: HomeAssistant) ->
         assert await hass.config_entries.async_unload(entry.entry_id)
 
     fetch.assert_awaited()
+    download.assert_awaited_once()
     version_code.assert_awaited_once()
     assert state.attributes["installed_version"] == "0.9.7-rc4 build 771"
     assert state.attributes["latest_version"] == "0.9.7-rc4 build 772"
@@ -1069,6 +1090,108 @@ async def test_yaml_feed_reaches_the_panel_update_entity(hass: HomeAssistant) ->
     assert state.attributes["supported_features"] & (
         UpdateEntityFeature.SPECIFIC_VERSION
     )
+
+
+@pytest.mark.parametrize("error", [BuildDownloadError, BuildFeedError])
+async def test_yaml_feed_does_not_offer_an_unverified_build(
+    hass: HomeAssistant, error: type[BuildFeedError]
+) -> None:
+    """A missing or mismatched APK makes a signed feed entry unofferable."""
+    entry = MockConfigEntry(domain=DOMAIN, data={CONF_ADDRESS: "panel.local"})
+    entry.add_to_hass(hass)
+    version_code = AsyncMock(return_value=(NAME, 771))
+    fetch = AsyncMock(return_value=_feed_data(770, 771, 772))
+    download = AsyncMock(side_effect=error)
+
+    with ExitStack() as stack:
+        for context in (
+            patch(FETCH, fetch),
+            patch(
+                "custom_components.panel_assistant.feed_coordinator.async_download_build",
+                download,
+                create=True,
+            ),
+            *_setup_patches(version_code),
+        ):
+            stack.enter_context(context)
+        assert await async_setup_component(
+            hass, DOMAIN, {DOMAIN: {"build_feed": str(FEED_URL)}}
+        )
+        await hass.async_block_till_done(wait_background_tasks=True)
+        state = _update_state(hass, entry)
+        assert await hass.config_entries.async_unload(entry.entry_id)
+
+    assert state.attributes["installed_version"] == "0.9.7-rc4 build 771"
+    assert state.attributes["latest_version"] == state.attributes["installed_version"]
+    assert state.state == "off"
+    download.assert_awaited_once()
+
+
+async def test_feed_offer_uses_the_verified_apk_after_its_origin_disappears(
+    hass: HomeAssistant, delivery: SimpleNamespace
+) -> None:
+    """The install uses the bytes checked for the offer, not a second fetch."""
+    entity, client = _entity(hass)
+    assert entity._feed is not None
+    entity._feed._verified_newest.clear()
+    fetch = AsyncMock(return_value=_feed_data(770, 771, 772))
+    verified_download = AsyncMock(return_value=APK)
+    with (
+        patch(FETCH, fetch),
+        patch(
+            "custom_components.panel_assistant.feed_coordinator.async_download_build",
+            verified_download,
+        ),
+    ):
+        await entity._feed.async_refresh()
+        verified_download.side_effect = BuildDownloadError
+        await entity._feed.async_refresh()
+
+    assert entity.latest_version == "0.9.7-rc4 build 772"
+    delivery.download.side_effect = BuildDownloadError
+    _restart_into(entity, client, 772)
+    await entity.async_install(None, False)
+
+    verified_download.assert_awaited_once()
+    delivery.download.assert_not_awaited()
+    client.async_stage_apk.assert_awaited_once_with(APK)
+    client.async_commit_apk.assert_awaited_once()
+
+
+async def test_new_unverifiable_feed_head_withdraws_the_old_offer(
+    hass: HomeAssistant,
+) -> None:
+    """A cached older APK cannot keep an obsolete offer alive."""
+    entity, _ = _entity(hass)
+    assert entity.latest_version == "0.9.7-rc4 build 772"
+    assert entity._feed is not None
+    with (
+        patch(FETCH, AsyncMock(return_value=_feed_data(770, 771, 773))),
+        patch(
+            "custom_components.panel_assistant.feed_coordinator.async_download_build",
+            AsyncMock(side_effect=BuildDownloadError),
+        ),
+    ):
+        await entity._feed.async_refresh()
+
+    assert entity.latest_version == entity.installed_version
+
+
+async def test_unverified_feed_head_refuses_unversioned_install(
+    hass: HomeAssistant, delivery: SimpleNamespace
+) -> None:
+    """The service's default target is exactly the build eligible for offer."""
+    entity, client = _entity(hass)
+    assert entity._feed is not None
+    entity._feed._verified_newest.clear()
+    delivery.download.side_effect = BuildDownloadError
+
+    with pytest.raises(HomeAssistantError) as error:
+        await entity.async_install(None, False)
+
+    _assert_translated(error.value, "update_unavailable")
+    client.async_backup_panel.assert_not_awaited()
+    delivery.download.assert_not_awaited()
 
 
 # --- backup store ------------------------------------------------------------
