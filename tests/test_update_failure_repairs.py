@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict, replace
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -16,6 +17,7 @@ from custom_components.panel_assistant.build_feed import (
     BuildDownloadError,
     BuildFeed,
     FeedBuild,
+    feed_release_artifact,
 )
 from custom_components.panel_assistant.client import (
     CannotConnectError,
@@ -152,6 +154,7 @@ async def test_accepted_panel_update_failure_creates_repair(
     )
     assert isinstance(repairs.record.await_args.args[4], HomeAssistantError)
     assert "did not complete" in str(repairs.record.await_args.args[4])
+    assert repairs.record.await_args.kwargs["artifact"] is None
     repairs.clear.assert_not_awaited()
 
 
@@ -162,23 +165,127 @@ async def test_recovered_update_failure_creates_repair_without_requeue(
 ) -> None:
     entity, client = _entity(hass, recovered=True)
     monkeypatch.setattr(panel_update, "_TERMINAL_STATUS_GRACE_SECONDS", 0)
+    monkeypatch.setattr(panel_update.asyncio, "sleep", AsyncMock())
+
+    statuses = iter(
+        [
+            PanelInstallStatus(running=True, component="ha-paneld"),
+            PanelInstallStatus(running=False, component="ha-paneld"),
+        ]
+    )
+
+    async def refresh_status() -> None:
+        entity._update_coordinator.data = PanelUpdateSnapshot(
+            operation=next(statuses), error=None
+        )
+
+    entity._update_coordinator.async_request_refresh = AsyncMock(
+        side_effect=refresh_status
+    )
 
     # The recovered observer is the production entry point after entity reload.
-    entity._update_coordinator.data = PanelUpdateSnapshot(
-        operation=PanelInstallStatus(running=True, component="ha-paneld"),
-        error=None,
-    )
     entity._resume_running_operation()
-    entity._update_coordinator.data = PanelUpdateSnapshot(
-        operation=PanelInstallStatus(running=False, component="ha-paneld"),
-        error=None,
-    )
     observer = entity._observer_task
     assert observer is not None
     with pytest.raises(HomeAssistantError, match="did not complete"):
         await observer
 
     repairs.record.assert_awaited_once()
+    assert repairs.record.await_args.args[3] is None
+    assert entity._update_coordinator.async_request_refresh.await_count == 2
+    repairs.clear.assert_not_awaited()
+    client.async_start_panel_update.assert_not_awaited()
+
+
+async def test_recovered_update_accepts_newer_health_when_offer_advanced(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    repairs: SimpleNamespace,
+) -> None:
+    entity, client = _entity(hass, recovered=True)
+    snapshot = entity.coordinator.data
+    entity.coordinator.data = PanelSnapshot(
+        health=snapshot.health,
+        status=PanelStatus(
+            warning_count=0,
+            capability_count=0,
+            panel_assistant_update=PanelCachedUpdate("0.9.9", "0.9.11", "v0.9.11"),
+        ),
+        status_error=None,
+    )
+    refreshes = 0
+
+    async def refresh_health() -> None:
+        nonlocal refreshes
+        refreshes += 1
+        if refreshes == 2:
+            entity.coordinator.data = PanelSnapshot(
+                health=PanelHealth(
+                    version="0.9.10",
+                    panel_id="alpha",
+                    build="102",
+                    config_hash="abcd",
+                ),
+                status=PanelStatus(warning_count=0, capability_count=0),
+                status_error=None,
+            )
+
+    entity.coordinator.async_request_refresh = AsyncMock(side_effect=refresh_health)
+    statuses = iter(
+        [
+            PanelInstallStatus(running=True, component="ha-paneld"),
+            PanelInstallStatus(running=False, component="ha-paneld"),
+        ]
+    )
+
+    async def refresh_status() -> None:
+        entity._update_coordinator.data = PanelUpdateSnapshot(
+            operation=next(statuses), error=None
+        )
+
+    entity._update_coordinator.async_request_refresh = AsyncMock(
+        side_effect=refresh_status
+    )
+    monkeypatch.setattr(panel_update, "_TERMINAL_STATUS_GRACE_SECONDS", 0)
+    monkeypatch.setattr(panel_update.asyncio, "sleep", AsyncMock())
+    entity._resume_running_operation()
+    observer = entity._observer_task
+    assert observer is not None
+    await observer
+
+    assert refreshes == 2
+    assert entity.installed_version == "0.9.10"
+    repairs.record.assert_not_awaited()
+    repairs.clear.assert_awaited_once_with(hass, "entry-id")
+    client.async_start_panel_update.assert_not_awaited()
+
+
+async def test_recovered_terminal_before_running_is_unknown(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    repairs: SimpleNamespace,
+) -> None:
+    entity, client = _entity(hass, recovered=True)
+    monkeypatch.setattr(panel_update, "_TERMINAL_STATUS_GRACE_SECONDS", 0)
+
+    async def refresh_status() -> None:
+        entity._update_coordinator.data = PanelUpdateSnapshot(
+            operation=PanelInstallStatus(running=False, component="ha-paneld"),
+            error=None,
+        )
+
+    entity._update_coordinator.async_request_refresh = AsyncMock(
+        side_effect=refresh_status
+    )
+    entity._resume_running_operation()
+    observer = entity._observer_task
+    assert observer is not None
+
+    await observer
+
+    entity._update_coordinator.async_request_refresh.assert_awaited_once()
+    repairs.record.assert_not_awaited()
+    repairs.clear.assert_not_awaited()
     client.async_start_panel_update.assert_not_awaited()
 
 
@@ -263,6 +370,7 @@ async def test_valid_feed_update_failure_before_commit_creates_repair(
     failure: str,
 ) -> None:
     entity, client = _entity(hass, feed=True)
+    selected = entity._feed.data.builds[0]
     backup = AsyncMock(
         side_effect=OSError("backup unavailable") if failure == "backup" else None
     )
@@ -276,6 +384,14 @@ async def test_valid_feed_update_failure_before_commit_creates_repair(
     monkeypatch.setattr(panel_update, "async_get_clientsession", lambda _hass: object())
     monkeypatch.setattr(panel_update, "async_download_build", download)
     if failure == "stage":
+
+        async def refresh_feed_during_backup(*_args: object) -> None:
+            entity._feed.data = BuildFeed(
+                channel="maintainer",
+                builds=(replace(selected, version_code=103, apk_sha256="b" * 64),),
+            )
+
+        backup.side_effect = refresh_feed_during_backup
         client.async_stage_apk.side_effect = UpdateBusyError
     elif failure == "verification":
         client.async_stage_apk.return_value = StagedApk(
@@ -302,6 +418,11 @@ async def test_valid_feed_update_failure_before_commit_creates_repair(
         "0.9.10 build 102",
     )
     assert isinstance(repairs.record.await_args.args[4], HomeAssistantError)
+    frozen = repairs.record.await_args.kwargs["artifact"]
+    assert frozen == asdict(feed_release_artifact(selected))
+    assert frozen["sha256"] == selected.apk_sha256
+    assert frozen["version"] == selected.version_name
+    assert frozen["descriptor"]["package_id"] == selected.package_id
     repairs.clear.assert_not_awaited()
 
 

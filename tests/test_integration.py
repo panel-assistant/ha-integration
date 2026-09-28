@@ -168,7 +168,7 @@ async def test_setup_entry_diagnostics_unload_reload(hass: HomeAssistant) -> Non
     health_mock = AsyncMock(side_effect=[DISCOVERY_HEALTH, BETA_HEALTH])
     status_mock = AsyncMock(return_value=STATUS)
     operation_mock = AsyncMock(
-        return_value=PanelInstallStatus(running=True, component="ha-paneld")
+        return_value=PanelInstallStatus(running=False, component="ha-paneld")
     )
     resume_mock = AsyncMock(return_value=())
     executor, manager = _installer_doubles(hass)
@@ -233,7 +233,7 @@ async def test_setup_entry_diagnostics_unload_reload(hass: HomeAssistant) -> Non
         assert (
             entry.runtime_data.update_coordinator.data.operation
             == PanelInstallStatus(
-                running=True,
+                running=False,
                 component="ha-paneld",
             )
         )
@@ -270,7 +270,7 @@ async def test_setup_entry_diagnostics_unload_reload(hass: HomeAssistant) -> Non
         assert (
             entry.runtime_data.update_coordinator.data.operation
             == PanelInstallStatus(
-                running=True,
+                running=False,
                 component="ha-paneld",
             )
         )

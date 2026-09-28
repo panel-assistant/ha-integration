@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import asdict
 from typing import Any
 
 import voluptuous as vol
@@ -38,6 +39,8 @@ from .migration_repair import (
     ISSUE_DATA_VERSION,
     ISSUE_PANEL_MIGRATION_INCOMPLETE,
 )
+from .release import ReleaseResolutionError
+from .release_catalog import async_resolve_install_choice
 from .transport import (
     BINDING_ISSUES,
     ISSUE_DATA_ENTRY_ID,
@@ -306,10 +309,24 @@ class InstallerFailureFlow(RepairsFlow):
             )
             if entity_id is None:
                 raise RetrySafetyHold("retry_update_unavailable")
+            saved_artifact = previous.get("artifact")
+            if isinstance(saved_artifact, dict):
+                tag = saved_artifact.get("tag")
+                if not isinstance(tag, str):
+                    raise RetrySafetyHold("retry_release_changed")
+                try:
+                    current = await async_resolve_install_choice(self.hass, tag)
+                except ReleaseResolutionError as err:
+                    raise RetrySafetyHold("retry_release_changed") from err
+                if asdict(current) != saved_artifact:
+                    raise RetrySafetyHold("retry_release_changed")
+            service_data = {"entity_id": entity_id}
+            if isinstance(previous.get("target_version"), str):
+                service_data["version"] = previous["target_version"]
             await self.hass.services.async_call(
                 Platform.UPDATE,
                 "install",
-                {"entity_id": entity_id, "version": previous["target_version"]},
+                service_data,
                 blocking=True,
             )
             return None

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import traceback
+from collections.abc import Callable
 from dataclasses import asdict, replace
 from datetime import UTC, datetime
 from hashlib import sha256
@@ -35,19 +36,20 @@ class RetrySafetyHold(Exception):
         super().__init__(reason)
 
 
-def panel_failure_issue_id(address: str) -> str:
-    """Keep the issue stable across install jobs and update attempts."""
-    return f"{ISSUE_INSTALLER_FAILURE}_{sha256(address.encode()).hexdigest()[:24]}"
+def panel_failure_issue_id(identity: str) -> str:
+    """Use physical install identity or the update entry, not a changeable address."""
+    return f"{ISSUE_INSTALLER_FAILURE}_{sha256(identity.encode()).hexdigest()[:24]}"
 
 
 class _FailureStore:
     """Serialize the small private history; the issue itself holds no report."""
 
     def __init__(self, hass: HomeAssistant) -> None:
-        self.store = Store[dict[str, Any]](hass, 1, _STORE_KEY, private=True)
+        self.store = Store[dict[str, Any]](
+            hass, 1, _STORE_KEY, private=True, atomic_writes=True
+        )
         self.lock = asyncio.Lock()
         self.records: dict[str, dict[str, Any]] | None = None
-        self.pending: dict[str, list[dict[str, Any]]] = {}
 
     async def load(self) -> dict[str, dict[str, Any]]:
         if self.records is None:
@@ -55,28 +57,40 @@ class _FailureStore:
             self.records = saved if isinstance(saved, dict) else {}
         return self.records
 
-    async def append(self, issue_id: str, event: dict[str, Any]) -> None:
+    async def append(
+        self,
+        issue_id: str,
+        event: dict[str, Any],
+        after_save: Callable[[], None] | None = None,
+    ) -> None:
         async with self.lock:
             records = await self.load()
             previous = records.get(issue_id, {})
             events = previous.get("events", [])
             if not isinstance(events, list):
                 events = []
-            records[issue_id] = {"events": [*events[-(_MAX_EVENTS - 1) :], event]}
-            await self.store.async_save(records)
-            queued = self.pending.get(issue_id)
-            if queued is not None:
-                if event in queued:
-                    queued.remove(event)
-                if not queued:
-                    self.pending.pop(issue_id, None)
+            updated = {
+                **records,
+                issue_id: {"events": [*events[-(_MAX_EVENTS - 1) :], event]},
+            }
+            await self.store.async_save(updated)
+            self.records = updated
+            if after_save is not None:
+                after_save()
 
-    async def clear(self, issue_id: str) -> None:
+    async def clear(
+        self, issue_id: str, after_clear: Callable[[], None] | None = None
+    ) -> None:
         async with self.lock:
             records = await self.load()
-            self.pending.pop(issue_id, None)
-            if records.pop(issue_id, None) is not None:
-                await self.store.async_save(records)
+            if issue_id in records:
+                updated = {
+                    key: value for key, value in records.items() if key != issue_id
+                }
+                await self.store.async_save(updated)
+                self.records = updated
+            if after_clear is not None:
+                after_clear()
 
 
 def _failure_store(hass: HomeAssistant) -> _FailureStore:
@@ -129,7 +143,7 @@ def _issue(
 
 def record_install_failure(hass: HomeAssistant, receipt: InstallJobReceipt) -> None:
     """Record a verified terminal receipt without delaying its store commit."""
-    issue_id = panel_failure_issue_id(receipt.target.address)
+    issue_id = panel_failure_issue_id(f"install:{receipt.target.adb_serial}")
     reason = receipt.result_code.value if receipt.result_code else "install_failed"
     event = {
         "kind": "install",
@@ -139,17 +153,21 @@ def record_install_failure(hass: HomeAssistant, receipt: InstallJobReceipt) -> N
         "job_id": receipt.job_id,
         "receipt": asdict(receipt),
     }
-    store = _failure_store(hass)
-    store.pending.setdefault(issue_id, []).append(event)
     _issue(hass, issue_id, receipt.target.address, "install", reason)
-    hass.async_create_task(store.append(issue_id, event), eager_start=False)
+    hass.async_create_task(
+        _failure_store(hass).append(issue_id, event), eager_start=False
+    )
 
 
 def clear_install_failure(hass: HomeAssistant, receipt: InstallJobReceipt) -> None:
     """A successful install makes its old error obsolete."""
-    issue_id = panel_failure_issue_id(receipt.target.address)
-    ir.async_delete_issue(hass, DOMAIN, issue_id)
-    hass.async_create_task(_failure_store(hass).clear(issue_id), eager_start=False)
+    issue_id = panel_failure_issue_id(f"install:{receipt.target.adb_serial}")
+    hass.async_create_task(
+        _failure_store(hass).clear(
+            issue_id, lambda: ir.async_delete_issue(hass, DOMAIN, issue_id)
+        ),
+        eager_start=False,
+    )
 
 
 async def async_record_update_failure(
@@ -158,16 +176,18 @@ async def async_record_update_failure(
     panel_title: str,
     target_version: str | None,
     error: BaseException,
+    *,
+    artifact: dict[str, Any] | None = None,
 ) -> None:
     """Retain the cause that Home Assistant's update toast otherwise loses."""
     entry = hass.config_entries.async_get_entry(entry_id)
     address = entry.data.get(CONF_ADDRESS) if entry else None
     if entry is None or not isinstance(address, str):
         return
-    issue_id = panel_failure_issue_id(address)
+    issue_id = panel_failure_issue_id(f"update:{entry_id}")
     panel = panel_title or entry.title
     reason = str(error)
-    event = {
+    event: dict[str, Any] = {
         "kind": "update",
         "at": datetime.now(UTC).isoformat(timespec="seconds"),
         "address": address,
@@ -177,8 +197,11 @@ async def async_record_update_failure(
         "target_version": target_version,
         "exception": "".join(traceback.format_exception(error))[-12000:],
     }
-    await _failure_store(hass).append(issue_id, event)
-    _issue(hass, issue_id, panel, "update", reason)
+    if artifact is not None:
+        event["artifact"] = artifact
+    await _failure_store(hass).append(
+        issue_id, event, lambda: _issue(hass, issue_id, panel, "update", reason)
+    )
 
 
 async def async_clear_update_failure(hass: HomeAssistant, entry_id: str) -> None:
@@ -187,9 +210,10 @@ async def async_clear_update_failure(hass: HomeAssistant, entry_id: str) -> None
     address = entry.data.get(CONF_ADDRESS) if entry else None
     if not isinstance(address, str):
         return
-    issue_id = panel_failure_issue_id(address)
-    ir.async_delete_issue(hass, DOMAIN, issue_id)
-    await _failure_store(hass).clear(issue_id)
+    issue_id = panel_failure_issue_id(f"update:{entry_id}")
+    await _failure_store(hass).clear(
+        issue_id, lambda: ir.async_delete_issue(hass, DOMAIN, issue_id)
+    )
 
 
 async def async_failure_events(
@@ -200,8 +224,30 @@ async def async_failure_events(
     async with store.lock:
         records = await store.load()
         value = records.get(issue_id, {}).get("events", [])
-        persisted = value if isinstance(value, list) else []
-        return [*persisted, *store.pending.get(issue_id, [])][-_MAX_EVENTS:]
+        if isinstance(value, list) and value:
+            return value
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    if issue is None:
+        return []
+    from .install_jobs import InstallPhase, async_get_install_job_manager
+
+    manager = await async_get_install_job_manager(hass)
+    receipts = await manager.async_list()
+    return [
+        {
+            "kind": "install",
+            "address": receipt.target.address,
+            "panel": receipt.target.address,
+            "reason": (
+                receipt.result_code.value if receipt.result_code else "install_failed"
+            ),
+            "job_id": receipt.job_id,
+            "receipt": asdict(receipt),
+        }
+        for receipt in receipts
+        if receipt.phase in {InstallPhase.FAILED, InstallPhase.RECOVERY_REQUIRED}
+        and panel_failure_issue_id(f"install:{receipt.target.adb_serial}") == issue_id
+    ]
 
 
 async def async_clear_failure(hass: HomeAssistant, issue_id: str) -> None:
@@ -263,7 +309,7 @@ async def async_retry_install_job(
     )
     from .install_plan import _build_artifact, build_install_plan
     from .provisioning import InstallTargetState, async_probe_install_target
-    from .release import is_rc_release_tag
+    from .release import is_feed_build_tag, is_rc_release_tag
     from .release_catalog import async_resolve_install_choice
 
     if previous.phase not in {InstallPhase.FAILED, InstallPhase.RECOVERY_REQUIRED}:
@@ -297,6 +343,7 @@ async def async_retry_install_job(
         rc_tag = (
             previous.artifact.release_tag
             if is_rc_release_tag(previous.artifact.release_tag)
+            or is_feed_build_tag(previous.artifact.release_tag)
             else None
         )
         release = await async_resolve_install_choice(hass, rc_tag)

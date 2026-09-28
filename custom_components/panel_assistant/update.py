@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+from dataclasses import asdict
 
 from aiohttp.web import HTTPBadRequest
 from homeassistant.components.update import (
@@ -282,19 +283,17 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         operation = self._update_coordinator.data.operation
         if (
             self._recovery_started
+            or (self._observer_task is not None and not self._observer_task.done())
             or operation is None
             or not operation.running
             or operation.component != "ha-paneld"
         ):
             return
-        offer = self._stable_target()
-        if offer is None:
-            return
         self._recovery_started = True
-        self._start_observer(offer.target_version, recovered=True)
+        self._start_observer(None, recovered=True)
 
     def _start_observer(
-        self, expected_version: str, *, recovered: bool = False
+        self, expected_version: str | None, *, recovered: bool = False
     ) -> asyncio.Task[None]:
         """Start or reuse the entity's sole bounded health observer."""
         if self._observer_task is not None and not self._observer_task.done():
@@ -308,10 +307,15 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         task.add_done_callback(self._observer_finished)
         return task
 
-    async def _run_observer(self, expected_version: str, *, recovered: bool) -> None:
+    async def _run_observer(
+        self,
+        expected_version: str | None,
+        *,
+        recovered: bool,
+    ) -> None:
         """Observe one target and release its latch before awaiters resume."""
         try:
-            await self._async_wait_for_installed_version(expected_version)
+            verified = await self._async_wait_for_installed_version(expected_version)
         except Exception as err:
             if recovered:
                 await async_record_update_failure(
@@ -323,7 +327,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 )
             raise
         else:
-            if recovered:
+            if recovered and verified:
                 await async_clear_update_failure(self.hass, self._entry_id)
         finally:
             self._attr_in_progress = False
@@ -486,9 +490,12 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
     ) -> None:
         """Start one exact stable offer, then follow the expected panel restart."""
         feed = self._feed_mode()
+        failure_artifact: dict[str, object] | None = None
         if feed is not None:
             build = await self._async_select_feed_build(feed, version, backup)
             target_version = build.label
+            selected_artifact = feed_release_artifact(build)
+            failure_artifact = asdict(selected_artifact)
         else:
             offer = self._stable_target()
             if (
@@ -506,7 +513,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         self.async_write_ha_state()
         try:
             if feed is not None:
-                await self._async_deliver_build(feed_release_artifact(build))
+                await self._async_deliver_build(selected_artifact)
             else:
                 assert offer is not None
                 release = self._host_release()
@@ -549,6 +556,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 self._title or "This panel",
                 target_version,
                 error,
+                artifact=failure_artifact,
             )
             raise error from None
         except Exception as err:
@@ -558,6 +566,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 self._title or "This panel",
                 target_version,
                 err,
+                artifact=failure_artifact,
             )
             raise
         else:
@@ -610,24 +619,44 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             )
         return True
 
-    async def _async_wait_for_installed_version(self, expected_version: str) -> None:
-        """Poll status through restart, then prove the health version changed."""
+    async def _async_wait_for_installed_version(
+        self, expected_version: str | None
+    ) -> bool:
+        """Poll through restart; return false when recovered outcome is unknown."""
+        starting_version = (
+            self.coordinator.data.health.version
+            if expected_version is None and self.coordinator.data is not None
+            else None
+        )
         deadline = asyncio.get_running_loop().time() + _UPDATE_TIMEOUT_SECONDS
         terminal_status_deadline: float | None = None
         restart_projected = False
+        running_seen = False
         while asyncio.get_running_loop().time() < deadline:
             await self.coordinator.async_request_refresh()
             restart_projected = self._show_accepted_restart(restart_projected)
-            if self.coordinator.last_update_success and (
+            snapshot = self.coordinator.data
+            verified = (
                 self.installed_version == expected_version
-            ):
+                if expected_version is not None
+                else snapshot is not None
+                and starting_version is not None
+                and is_newer_stable_version(snapshot.health.version, starting_version)
+            )
+            if self.coordinator.last_update_success and verified:
                 await self._update_coordinator.async_request_refresh()
-                return
+                return True
             try:
                 await self._update_coordinator.async_request_refresh()
                 status = self._update_coordinator.data.operation
             except CannotConnectError, InvalidResponseError:
                 status = None
+            if (
+                status is not None
+                and status.component == "ha-paneld"
+                and status.running
+            ):
+                running_seen = True
             if (
                 status is not None
                 and not status.running
@@ -643,10 +672,14 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                         + _TERMINAL_STATUS_GRACE_SECONDS,
                     )
                 if asyncio.get_running_loop().time() >= terminal_status_deadline:
+                    if expected_version is None and not running_seen:
+                        return False
                     raise _update_error(
                         "update_not_complete", "The panel update did not complete"
                     )
             await asyncio.sleep(_UPDATE_RECHECK_SECONDS)
+        if expected_version is None and not running_seen:
+            return False
         raise _update_error(
             "update_did_not_return", "The panel did not return after the update"
         )
