@@ -344,7 +344,7 @@ async def test_every_type_renders_under_the_native_unique_id(
     }
     assert by_suffix["relay1"].translation_key == "relay"
     assert by_suffix["diag_cpu"].entity_category == "diagnostic"
-    assert by_suffix["voice_assistant"].translation_key == "voice_enabled"
+    assert by_suffix["ha_companion_update"].translation_key == "update_companion"
     # Every entity sits on the entry's own device, next to the status sensor.
     status = er.async_get(hass).async_get(
         er.async_get(hass).async_get_entity_id(

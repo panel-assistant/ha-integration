@@ -320,7 +320,6 @@ async def test_forward_cutover_keeps_each_entity_and_its_customisations(
             ("light", "button_led2", {}),
             ("sensor", "diag_cpu", {"entity_category": EntityCategory.DIAGNOSTIC}),
             ("text", "home_dashboard", {}),
-            ("switch", "voice_assistant", {}),
         ],
     )
     registry = er.async_get(hass)
@@ -1625,7 +1624,8 @@ async def test_saving_the_option_reloads_exactly_once_and_data_writes_never(
         ("switch", "relay1", "relay"),
         ("switch", "relay64", "relay"),
         ("light", "button_led7", "button_led"),
-        ("switch", "voice_assistant", "voice_enabled"),
+        # The voice assistant is a satellite now, never a switch entity.
+        ("switch", "voice_assistant", None),
         ("update", "ha_paneld_update", "update_paneld"),
         ("sensor", "diag_cpu", "diag_cpu"),
         ("switch", "relay0", None),

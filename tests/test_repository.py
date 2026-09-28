@@ -356,7 +356,7 @@ def test_english_only_translations_are_exactly_the_dormant_native_surface() -> N
     paths = _english_only_paths(english)
     shared = _without(english, paths)
 
-    assert len(paths) == 63
+    assert len(paths) == 61
     assert all(path[:1] in {("entity",), ("exceptions",)} for path in paths)
     assert len(_translation_leaves(shared)) == 423
     for locale_path in sorted((INTEGRATION / "translations").glob("*.json")):

@@ -35,6 +35,7 @@ import yarl
 from homeassistant.components import websocket_api
 from homeassistant.components.websocket_api.connection import ActiveConnection
 from homeassistant.components.websocket_api.decorators import websocket_command
+from homeassistant.components.websocket_api.messages import event_message
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
@@ -170,7 +171,8 @@ VOICE_PLAYED_SCHEMA: Final = vol.Schema(
 
 def satellites(hass: HomeAssistant) -> dict[str, PanelAssistSatellite]:
     """Return the satellite entity of each entry that has one."""
-    return hass.data.setdefault(_DATA_SATELLITES, {})
+    known: dict[str, PanelAssistSatellite] = hass.data.setdefault(_DATA_SATELLITES, {})
+    return known
 
 
 def panel_url(hass: HomeAssistant, url: str) -> str:
@@ -199,7 +201,7 @@ class VoiceRun:
     @callback
     def send(self, event: dict[str, Any]) -> None:
         """Send one event on the turn's subscription."""
-        self.connection.send_message(websocket_api.event_message(self.msg_id, event))
+        self.connection.send_message(event_message(self.msg_id, event))
 
     async def stream(self) -> AsyncIterator[bytes]:
         """Yield the turn's audio until its end frame, or until it stops."""
@@ -266,6 +268,11 @@ def ws_voice_run(
     """Run one conversation turn from the panel's audio."""
     if (satellite := _session_for(hass, connection, msg)) is None:
         return
+    if (entry := satellite.platform.config_entry) is None:
+        connection.send_error(
+            msg["id"], ERR_VOICE_UNAVAILABLE, "The satellite has no entry."
+        )
+        return
     audio: asyncio.Queue[bytes | None] = asyncio.Queue(MAX_QUEUED_FRAMES)
 
     @callback
@@ -277,7 +284,7 @@ def ws_voice_run(
 
     handler_id, unregister = connection.async_register_binary_handler(_on_audio)
     run = VoiceRun(connection, msg["id"], msg["wake_word_id"], msg["continued"], audio)
-    task = satellite.platform.config_entry.async_create_background_task(
+    task = entry.async_create_background_task(
         hass, satellite.async_run(run), f"{satellite.entity_id}_voice_run"
     )
 
