@@ -51,6 +51,7 @@ from .client import (
     UpdateRejectedError,
     UploadDisabledError,
     is_newer_stable_version,
+    is_valid_discovery_id,
 )
 from .const import DOMAIN, update_unique_id
 from .coordinator import (
@@ -270,6 +271,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             else self._title or "This panel"
         )
 
+    def _entry_discovery_id(self) -> str | None:
+        entry = self.hass.config_entries.async_get_entry(self._entry_id)
+        unique_id = entry.unique_id if entry is not None else None
+        return unique_id if unique_id and is_valid_discovery_id(unique_id) else None
+
     def _route_key(self) -> tuple[object, ...] | None:
         snapshot: PanelSnapshot | None = self.coordinator.data
         if snapshot is None:
@@ -278,6 +284,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         return (
             snapshot.health.panel_id,
             snapshot.health.build,
+            snapshot.health.discovery_id,
+            self._entry_discovery_id(),
             getattr(self.coordinator.client, "address", None),
             self._api_capability(),
             artifact.sha256 if artifact else None,
@@ -412,6 +420,14 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             if (
                 pinned_health.panel_id != snapshot.health.panel_id
                 or pinned_health.package != snapshot.health.package
+                or (
+                    snapshot.health.discovery_id is not None
+                    and pinned_health.discovery_id != snapshot.health.discovery_id
+                )
+                or (
+                    (entry_did := self._entry_discovery_id()) is not None
+                    and pinned_health.discovery_id != entry_did
+                )
             ):
                 return None, None, None
             if credential is None:

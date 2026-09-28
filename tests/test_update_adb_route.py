@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+from dataclasses import replace
 from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -13,6 +14,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import storage
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 from yarl import URL
 
 from custom_components.panel_assistant import adb_credentials
@@ -50,7 +52,10 @@ def _backup() -> bytes:
 
 
 def _health(
-    *, panel_id: str = "panel-a", package: str = LEGACY_PACKAGE_ID
+    *,
+    panel_id: str = "panel-a",
+    package: str = LEGACY_PACKAGE_ID,
+    discovery_id: str | None = None,
 ) -> PanelHealth:
     return PanelHealth(
         version="0.9.7-rc4",
@@ -58,6 +63,7 @@ def _health(
         build="1000",
         config_hash="1a2b3c4d",
         package=package,
+        discovery_id=discovery_id,
     )
 
 
@@ -177,6 +183,49 @@ async def test_pinned_http_peer_mismatch_withholds_offer_and_install(
     assert caught.value.translation_key == "update_unavailable"
     route.client.async_backup_panel.assert_not_awaited()
     route.probe_target.assert_not_awaited()
+    route.adb_install.assert_not_awaited()
+
+
+async def test_pinned_peer_with_same_model_but_other_identity_gets_no_update(
+    route: SimpleNamespace, hass: HomeAssistant
+) -> None:
+    """An address reassigned to a similar panel cannot admit an ADB update."""
+    entry = MockConfigEntry(
+        domain=DOMAIN, entry_id="entry-id", unique_id="a" * 64, data={}
+    )
+    entry.add_to_hass(hass)
+    route.pinned_health.return_value = _health(discovery_id="b" * 64)
+
+    await route.entity._async_refresh_route()
+    assert route.entity.latest_version == route.entity.installed_version
+    with pytest.raises(HomeAssistantError) as caught:
+        await route.entity.async_install(None, False)
+
+    assert caught.value.translation_key == "update_unavailable"
+    route.probe_target.assert_not_awaited()
+    route.adb_install.assert_not_awaited()
+
+
+async def test_changed_health_identity_invalidates_cached_adb_offer(
+    route: SimpleNamespace, hass: HomeAssistant
+) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN, entry_id="entry-id", unique_id="a" * 64, data={}
+    )
+    entry.add_to_hass(hass)
+    route.entity.coordinator.data = replace(
+        route.entity.coordinator.data, health=_health(discovery_id="a" * 64)
+    )
+    route.pinned_health.return_value = _health(discovery_id="a" * 64)
+    await route.entity._async_refresh_route()
+    assert route.entity.latest_version == "0.9.7-rc4 build 772"
+
+    route.entity.coordinator.data = replace(
+        route.entity.coordinator.data, health=_health(discovery_id="b" * 64)
+    )
+    assert route.entity.latest_version == route.entity.installed_version
+    await route.entity._async_refresh_route()
+    route.preflight.assert_awaited_once()
     route.adb_install.assert_not_awaited()
 
 

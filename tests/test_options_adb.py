@@ -3,6 +3,7 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -95,8 +96,10 @@ async def test_existing_panel_options_authorize_adb_after_physical_approval(
     reload.assert_awaited_once_with(entry.entry_id)
 
 
+@pytest.mark.parametrize("observed_did", ["a" * 64, "b" * 64])
 async def test_existing_panel_adb_consent_refuses_changed_http_identity(
     hass: HomeAssistant,
+    observed_did: str,
 ) -> None:
     """A changed address never receives the persistent ADB key."""
     original = PanelHealth(
@@ -104,7 +107,7 @@ async def test_existing_panel_adb_consent_refuses_changed_http_identity(
         panel_id="jenna",
         build="998",
         config_hash="abcd1234",
-        discovery_id="a" * 64,
+        discovery_id=observed_did,
     )
     entry = MockConfigEntry(
         domain=DOMAIN,

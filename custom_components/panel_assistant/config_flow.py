@@ -1566,7 +1566,14 @@ class HaPaneldOptionsFlow(OptionsFlow):
         expected = self._current_panel_health()
         if expected is None:
             return self._show_adb_authorization({"base": "cannot_connect"})
-        expected_did = _panel_did(self.config_entry)
+        # The entry identity survives an address change even if a recent
+        # coordinator read followed that address to a different panel.
+        entry_did = self.config_entry.unique_id
+        expected_did = (
+            entry_did
+            if entry_did is not None and is_valid_discovery_id(entry_did)
+            else _panel_did(self.config_entry)
+        )
         try:
             address = normalize_address(self.config_entry.data[CONF_ADDRESS])
             target = await async_pin_install_target(self.hass, address)
@@ -1576,6 +1583,10 @@ class HaPaneldOptionsFlow(OptionsFlow):
             if (
                 actual.panel_id != expected.panel_id
                 or actual.package != expected.package
+                or (
+                    expected.discovery_id is not None
+                    and actual.discovery_id != expected.discovery_id
+                )
                 or (expected_did is not None and actual.discovery_id != expected_did)
             ):
                 return self._show_adb_authorization({"base": "panel_identity_changed"})
