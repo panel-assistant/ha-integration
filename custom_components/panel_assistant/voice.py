@@ -17,6 +17,10 @@ Three requests and one event kind carry it, all on the panel's session:
 - ``voice_played``: the panel finished playing a reply or an announcement.
 - ``voice_announce`` events on the hello subscription ask the panel to play an
   announcement, and optionally to listen afterwards.
+- ``voice_colors`` events on the hello subscription give the colour of each
+  wake word's pipeline, which the panel's listening overlay takes. Home
+  Assistant hands every pipeline one colour, kept for all panels, so a
+  pipeline looks the same wherever it answers.
 
 A binary handler lives for one turn, never a session, because a connection has
 only 255 of them.
@@ -26,7 +30,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator, Callable, Mapping
+from collections import Counter
+from collections.abc import AsyncIterator, Callable, Iterable, Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final
 
@@ -42,6 +47,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.network import is_hass_url
+from homeassistant.helpers.storage import Store
 
 from .const import DOMAIN
 from .transport import (
@@ -64,6 +70,7 @@ COMMAND_VOICE_CONFIGURATION: Final = f"{DOMAIN}/voice_configuration"
 COMMAND_VOICE_RUN: Final = f"{DOMAIN}/voice_run"
 COMMAND_VOICE_PLAYED: Final = f"{DOMAIN}/voice_played"
 EVENT_VOICE_ANNOUNCE: Final = "voice_announce"
+EVENT_VOICE_COLORS: Final = "voice_colors"
 
 ERR_VOICE_UNAVAILABLE: Final = "voice_unavailable"
 
@@ -75,6 +82,22 @@ AUDIO_IDLE_TIMEOUT: Final = 5.0
 MAX_QUEUED_FRAMES: Final = 2_000
 
 _DATA_SATELLITES: Final = f"{DOMAIN}_voice_satellites"
+_DATA_COLORS: Final = f"{DOMAIN}_voice_colors"
+_COLORS_STORAGE_KEY: Final = f"{DOMAIN}.voice_colors"
+_COLORS_STORAGE_VERSION: Final = 1
+
+# Distinct, saturated hues that read as a tint over a light or a dark
+# dashboard. The first is the overlay's colour before any is assigned.
+PIPELINE_COLORS: Final = (
+    "#00FF88",
+    "#3D8BFF",
+    "#FFB020",
+    "#FF4FD8",
+    "#22D3EE",
+    "#9B6BFF",
+    "#FF6B5B",
+    "#B6F03C",
+)
 _ANNOUNCE_ID_PATTERN: Final = r"^[A-Za-z0-9_-]{1,64}$"
 
 
@@ -173,6 +196,57 @@ def satellites(hass: HomeAssistant) -> dict[str, PanelAssistSatellite]:
     """Return the satellite entity of each entry that has one."""
     known: dict[str, PanelAssistSatellite] = hass.data.setdefault(_DATA_SATELLITES, {})
     return known
+
+
+class PipelineColors:
+    """Hands each pipeline one colour and keeps it, for every panel.
+
+    A pipeline seen for the first time takes the least used colour, so the
+    first few are all different; the assignment is stored and never moves.
+    """
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        """Initialize the assignments, loaded on first use."""
+        self._store: Store[dict[str, Any]] = Store(
+            hass, _COLORS_STORAGE_VERSION, _COLORS_STORAGE_KEY
+        )
+        self._assigned: dict[str, int] | None = None
+        self._lock = asyncio.Lock()
+
+    async def async_colors(self, pipeline_ids: Iterable[str]) -> dict[str, str]:
+        """Return the colour of each pipeline, assigning any new one."""
+        async with self._lock:
+            if self._assigned is None:
+                stored = await self._store.async_load() or {}
+                self._assigned = {
+                    str(pipeline_id): index
+                    for pipeline_id, index in dict(stored.get("pipelines", {})).items()
+                    if type(index) is int and 0 <= index < len(PIPELINE_COLORS)
+                }
+            assigned = self._assigned
+            wanted = list(dict.fromkeys(pipeline_ids))
+            fresh = [
+                pipeline_id for pipeline_id in wanted if pipeline_id not in assigned
+            ]
+            for pipeline_id in fresh:
+                used = Counter(assigned.values())
+                assigned[pipeline_id] = min(
+                    range(len(PIPELINE_COLORS)), key=lambda index: (used[index], index)
+                )
+            if fresh:
+                self._store.async_delay_save(lambda: {"pipelines": dict(assigned)}, 1.0)
+            return {
+                pipeline_id: PIPELINE_COLORS[assigned[pipeline_id]]
+                for pipeline_id in wanted
+            }
+
+
+def pipeline_colors(hass: HomeAssistant) -> PipelineColors:
+    """Return the one colour assignment Home Assistant keeps for all panels."""
+    colors: PipelineColors | None = hass.data.get(_DATA_COLORS)
+    if colors is None:
+        colors = hass.data[_DATA_COLORS] = PipelineColors(hass)
+    return colors
 
 
 def panel_url(hass: HomeAssistant, url: str) -> str:

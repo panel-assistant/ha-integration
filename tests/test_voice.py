@@ -12,9 +12,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    flush_store,
+)
 
 from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.voice import PIPELINE_COLORS, PipelineColors
 
 from .test_native import _setup
 from .test_transport import DID, WsClientFactory, _receive, _send
@@ -106,9 +110,23 @@ class Panel:
         self.subscription = hello["id"]
         self.result = hello["result"]
         self.token: str = hello["result"]["session"]
+        # Every voice_colors event, in order; the other tests read past them.
+        self.colors: list[dict[str, str]] = []
+
+    async def receive(self) -> dict[str, Any]:
+        while True:
+            message = await _receive(self.client)
+            event = message.get("event") or {}
+            if message.get("type") != "event" or event.get("kind") != "voice_colors":
+                return message
+            self.colors.append(event["colors"])
+
+    async def send(self, message: dict[str, Any]) -> dict[str, Any]:
+        await self.client.send_json_auto_id(message)
+        return await self.receive()
 
     async def configure(self, **changes: Any) -> dict[str, Any]:
-        return await _send(self.client, _configuration(self.token, **changes))
+        return await self.send(_configuration(self.token, **changes))
 
 
 async def _connect(
@@ -256,8 +274,7 @@ async def test_the_selector_reads_the_panels_wake_words_and_writes_them_back(
 async def _run(
     panel: Panel, wake_word_id: str | None, **fields: Any
 ) -> tuple[int, int]:
-    response = await _send(
-        panel.client,
+    response = await panel.send(
         {
             "type": "panel_assistant/voice_run",
             "session": panel.token,
@@ -273,7 +290,7 @@ async def _run(
 async def _turn_events(panel: Panel, run_id: int) -> list[dict[str, Any]]:
     events = []
     while True:
-        message = await _receive(panel.client)
+        message = await panel.receive()
         assert message["id"] == run_id, message
         events.append(message["event"])
         if message["event"]["kind"] == "end":
@@ -313,8 +330,8 @@ async def test_a_wake_word_turn_streams_to_the_pipeline_the_panel_named(
     ]
     # Held responding until the panel says it has played the reply.
     assert hass.states.get(entity_id).state == "responding"
-    played = await _send(
-        panel.client, {"type": "panel_assistant/voice_played", "session": panel.token}
+    played = await panel.send(
+        {"type": "panel_assistant/voice_played", "session": panel.token}
     )
     assert played["success"]
     await hass.async_block_till_done()
@@ -388,7 +405,7 @@ async def test_an_announcement_plays_on_the_panel_and_waits_for_it(
             blocking=True,
         )
     )
-    message = await _receive(panel.client)
+    message = await panel.receive()
     assert message["id"] == panel.subscription
     event = message["event"]
     assert event["kind"] == "voice_announce"
@@ -397,8 +414,7 @@ async def test_an_announcement_plays_on_the_panel_and_waits_for_it(
     assert event["url"].startswith("/local/doorbell.mp3")
     await asyncio.sleep(0)
     assert not call.done()
-    played = await _send(
-        panel.client,
+    played = await panel.send(
         {
             "type": "panel_assistant/voice_played",
             "session": panel.token,
@@ -427,7 +443,7 @@ async def test_an_announcement_fails_when_its_session_ends(
             blocking=True,
         )
     )
-    message = await _receive(panel.client)
+    message = await panel.receive()
     assert message["event"]["kind"] == "voice_announce"
     # The panel reconnects: the first session is superseded, and nothing it was
     # asked to play can finish on the new one.
@@ -435,3 +451,73 @@ async def test_an_announcement_fails_when_its_session_ends(
     with pytest.raises(HomeAssistantError):
         async with asyncio.timeout(5):
             await call
+
+
+async def _colors(panel: Panel) -> dict[str, str]:
+    """The next colours the panel was sent, read past or not."""
+    if not panel.colors:
+        message = await _receive(panel.client)
+        assert message["event"]["kind"] == "voice_colors", message
+        panel.colors.append(message["event"]["colors"])
+    return panel.colors.pop(0)
+
+
+async def test_each_wake_word_is_sent_the_colour_of_the_pipeline_it_runs(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+    pipeline: FakePipeline,
+) -> None:
+    panel, _entity_id = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    await hass.async_block_till_done()
+    # okay_nabu names a pipeline that is gone, so it runs, and looks like, the
+    # preferred one; hey_jarvis runs pipeline_b.
+    colors = await _colors(panel)
+    assert set(colors) == {"okay_nabu", "hey_jarvis"}
+    assert colors["okay_nabu"] != colors["hey_jarvis"]
+
+    assert (
+        await panel.configure(pipelines={"okay_nabu": "pipeline_b", "hey_jarvis": ""})
+    )["success"]
+    await hass.async_block_till_done()
+    assert await _colors(panel) == {
+        "okay_nabu": colors["hey_jarvis"],
+        "hey_jarvis": colors["okay_nabu"],
+    }
+
+    # Nothing changed, so nothing is sent again.
+    assert (
+        await panel.configure(
+            enabled=False, pipelines={"okay_nabu": "pipeline_b", "hey_jarvis": ""}
+        )
+    )["success"]
+    await hass.async_block_till_done()
+    assert panel.colors == []
+
+
+async def test_a_pipeline_keeps_its_colour_for_every_panel_and_across_restarts(
+    hass: HomeAssistant, hass_storage: dict[str, Any]
+) -> None:
+    first = PipelineColors(hass)
+    colors = await first.async_colors(["p1", "p2"])
+    assert colors == {"p1": PIPELINE_COLORS[0], "p2": PIPELINE_COLORS[1]}
+    again = await first.async_colors(["p3", "p2"])
+    assert again == {"p3": PIPELINE_COLORS[2], "p2": PIPELINE_COLORS[1]}
+
+    await flush_store(first._store)
+    assert hass_storage["panel_assistant.voice_colors"]["data"] == {
+        "pipelines": {"p1": 0, "p2": 1, "p3": 2}
+    }
+
+    restarted = PipelineColors(hass)
+    assert await restarted.async_colors(["p3", "p1"]) == {
+        "p3": PIPELINE_COLORS[2],
+        "p1": PIPELINE_COLORS[0],
+    }
+    # Once every colour is taken, a new pipeline shares the least used one.
+    more = [f"q{index}" for index in range(len(PIPELINE_COLORS) - 3)]
+    await restarted.async_colors(more)
+    assert (await restarted.async_colors(["late"]))["late"] == PIPELINE_COLORS[0]

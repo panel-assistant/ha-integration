@@ -12,6 +12,7 @@ from homeassistant.components.assist_pipeline import (
     PipelineEventType,
     async_get_pipelines,
 )
+from homeassistant.components.assist_pipeline.pipeline import async_get_pipeline
 from homeassistant.components.assist_satellite import (
     AssistSatelliteAnnouncement,
     AssistSatelliteConfiguration,
@@ -37,9 +38,11 @@ from .transport import (
 )
 from .voice import (
     EVENT_VOICE_ANNOUNCE,
+    EVENT_VOICE_COLORS,
     VoiceConfiguration,
     VoiceRun,
     panel_url,
+    pipeline_colors,
     satellite_unique_id,
     satellites,
 )
@@ -84,6 +87,8 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         # sent on: one that ends first cannot finish it.
         self._announcements: dict[str, tuple[str, asyncio.Future[bool]]] = {}
         self._continue_conversation = False
+        # The colours last sent, and the session they were sent on.
+        self._colors_sent: tuple[str, dict[str, str]] | None = None
 
     @property
     def _session(self) -> PanelSession | None:
@@ -112,6 +117,7 @@ class PanelAssistSatellite(AssistSatelliteEntity):
                 self.hass, signal_session_changed(self._entry_id), self._session_changed
             )
         )
+        self._schedule_colors()
 
     async def async_will_remove_from_hass(self) -> None:
         """Stop answering for the panel."""
@@ -125,6 +131,41 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         session = self._session
         self._fail_announcements(None if session is None else session.token)
         self.async_write_ha_state()
+        self._schedule_colors()
+
+    @callback
+    def _schedule_colors(self) -> None:
+        if self._voice is not None:
+            self.hass.async_create_task(
+                self._async_send_colors(), f"{self.entity_id}_voice_colors"
+            )
+
+    async def _async_send_colors(self) -> None:
+        """Tell the panel the colour of each wake word's pipeline, when it changed."""
+        voice = self._voice
+        if voice is None:
+            return
+        pipelines = {word.id: self._pipeline_of(word.id) for word in voice.wake_words}
+        preferred = async_get_pipeline(self.hass).id
+        by_pipeline = await pipeline_colors(self.hass).async_colors(
+            pipeline_id or preferred for pipeline_id in pipelines.values()
+        )
+        colors = {
+            wake_word_id: by_pipeline[pipeline_id or preferred]
+            for wake_word_id, pipeline_id in pipelines.items()
+        }
+        session = self._session
+        if session is None or session.voice is not voice:
+            return  # superseded; the newer configuration sends its own
+        if self._colors_sent == (session.token, colors):
+            return
+        self._colors_sent = (session.token, colors)
+        session.connection.send_message(
+            event_message(
+                session.subscription_id,
+                {"kind": EVENT_VOICE_COLORS, "colors": colors},
+            )
+        )
 
     @callback
     def _fail_announcements(self, live_token: str | None = None) -> None:
@@ -182,16 +223,27 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         wake_word_id = self._run.wake_word_id if self._run is not None else None
         if wake_word_id is None and voice.active:
             wake_word_id = voice.active[0]
-        pipeline_id = voice.pipelines.get(wake_word_id or "", "")
+        return self._pipeline_of(wake_word_id, warn=True)
+
+    @callback
+    def _pipeline_of(
+        self, wake_word_id: str | None, *, warn: bool = False
+    ) -> str | None:
+        """Return the pipeline a wake word names, or None for the preferred one."""
+        voice = self._voice
+        pipeline_id = (
+            "" if voice is None else voice.pipelines.get(wake_word_id or "", "")
+        )
         if not pipeline_id:
             return None
         if any(p.id == pipeline_id for p in async_get_pipelines(self.hass)):
             return pipeline_id
-        _LOGGER.warning(
-            "Pipeline %s for wake word %s no longer exists; using the preferred one",
-            pipeline_id,
-            wake_word_id,
-        )
+        if warn:
+            _LOGGER.warning(
+                "Pipeline %s for wake word %s is gone; using the preferred one",
+                pipeline_id,
+                wake_word_id,
+            )
         return None
 
     async def async_run(self, run: VoiceRun) -> None:
