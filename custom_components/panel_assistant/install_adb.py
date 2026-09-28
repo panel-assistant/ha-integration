@@ -1,4 +1,4 @@
-"""Bounded ADB primitives for a clean first installation.
+"""Bounded ADB primitives for a clean install or in-place app update.
 
 This module deliberately does not own orchestration.  Every public operation
 opens a fresh authenticated ADB connection and either returns a small,
@@ -81,6 +81,12 @@ _STAGE_TIMEOUT_SECONDS = 180.0
 _INSTALL_TIMEOUT_SECONDS = 180.0
 _LAUNCH_TIMEOUT_SECONDS = 30.0
 _CLEANUP_TIMEOUT_SECONDS = 30.0
+_UPDATE_TIMEOUT_SECONDS = (
+    _PREFLIGHT_TIMEOUT_SECONDS
+    + _STAGE_TIMEOUT_SECONDS
+    + _INSTALL_TIMEOUT_SECONDS
+    + _CLEANUP_TIMEOUT_SECONDS
+)
 _REMOTE_MODE = stat.S_IFREG | 0o644
 _JOB_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$", flags=re.ASCII)
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$", flags=re.ASCII)
@@ -571,6 +577,19 @@ def _install_command(nonce: str, remote_path: str, android_sdk: int) -> str:
         (
             f"echo HAPANELD_INSTALL_BEGIN:{nonce}",
             f"pm install {no_replace}{remote_path}",
+            f"echo HAPANELD_INSTALL_END:{nonce}:$?",
+        )
+    )
+
+
+def _update_install_command(nonce: str, remote_path: str) -> str:
+    """Replace only the installed package; Android checks signer and version."""
+    return "; ".join(
+        (
+            f"echo HAPANELD_INSTALL_BEGIN:{nonce}",
+            # Deliberately omit -d and -g: package manager refuses a downgrade
+            # or a signer mismatch, and existing permissions are left alone.
+            f"pm install -r {remote_path}",
             f"echo HAPANELD_INSTALL_END:{nonce}:$?",
         )
     )
@@ -1783,6 +1802,161 @@ async def async_install_staged_apk(
         raise InstallAdbError(code) from None
     finally:
         await _async_close(device)
+
+
+async def async_update_installed_apk(
+    target: AdbInstallTarget,
+    signer: PythonRSASigner,
+    descriptor: InstallDescriptor,
+    local_apk: Path,
+) -> InstallOutcome:
+    """Replace one already installed app using a fresh, pinned ADB target.
+
+    This is deliberately separate from clean installation. A verified APK is
+    pushed to a random owned path, then both panel identity and exclusive
+    ownership of the target package are re-proved before package mutation.
+    Android's package manager enforces signer and version checks for ``-r``;
+    this integration never supplies its downgrade override.
+    """
+    _validate_request(target, descriptor)
+    if not isinstance(local_apk, Path):
+        raise InstallAdbError(InstallAdbErrorCode.INVALID_REQUEST)
+    file_descriptor = await _async_open_verified_apk(local_apk, descriptor)
+    remote_path = _remote_path(token_hex(16))
+    device: AdbDeviceAsync | None = None
+    stage_started = False
+    install_started = False
+    install_definite = False
+    admitted_root_mode: AdbRootMode | None = None
+    try:
+        async with asyncio.timeout(_UPDATE_TIMEOUT_SECONDS):
+            device = await _async_connect(target, signer)
+            admitted = await _async_preflight_on_device(
+                device, target, descriptor, admit_installed_target=True
+            )
+            if not admitted.target_installed:
+                raise InstallAdbError(InstallAdbErrorCode.INSTALLED_PACKAGE_MISSING)
+            admitted_root_mode = admitted.root_mode
+            nonce = token_hex(16)
+            _parse_package_present(
+                await _async_shell(
+                    device,
+                    _package_command(nonce, descriptor.package_id),
+                    read_timeout=_READ_TIMEOUT_SECONDS,
+                ),
+                nonce,
+            )
+            nonce = token_hex(16)
+            occupied = _parse_path_state(
+                await _async_shell(
+                    device,
+                    _path_state_command(nonce, remote_path),
+                    read_timeout=_READ_TIMEOUT_SECONDS,
+                ),
+                nonce,
+            )
+            if occupied:
+                raise InstallAdbError(InstallAdbErrorCode.STAGING_PATH_OCCUPIED)
+            _validate_filesync_maxdata(device)
+            stage_started = True
+            await device.push(
+                f"/proc/self/fd/{file_descriptor}",
+                remote_path,
+                st_mode=_REMOTE_MODE,
+                mtime=int(time()),
+                transport_timeout_s=_TRANSPORT_TIMEOUT_SECONDS,
+                read_timeout_s=_INSTALL_READ_TIMEOUT_SECONDS,
+            )
+            await _async_verify_remote_artifact(device, remote_path, descriptor)
+            # The package and identity can change while the file crosses ADB.
+            admitted = await _async_preflight_on_device(
+                device, target, descriptor, admit_installed_target=True
+            )
+            assert admitted_root_mode is not None
+            _require_expected_root_mode(admitted.root_mode, admitted_root_mode)
+            if not admitted.target_installed:
+                raise InstallAdbError(InstallAdbErrorCode.INSTALLED_PACKAGE_MISSING)
+            nonce = token_hex(16)
+            _parse_package_present(
+                await _async_shell(
+                    device,
+                    _package_command(nonce, descriptor.package_id),
+                    read_timeout=_READ_TIMEOUT_SECONDS,
+                ),
+                nonce,
+            )
+            await _async_verify_remote_artifact(device, remote_path, descriptor)
+            nonce = token_hex(16)
+            install_started = True
+            outcome = _parse_install_outcome(
+                await _async_shell(
+                    device,
+                    _update_install_command(nonce, remote_path),
+                    read_timeout=_INSTALL_TIMEOUT_SECONDS,
+                    transport_timeout=_INSTALL_TIMEOUT_SECONDS,
+                ),
+                nonce,
+            )
+            install_definite = True
+            nonce = token_hex(16)
+            _parse_cleanup(
+                await _async_shell(
+                    device,
+                    _cleanup_command(nonce, remote_path),
+                    read_timeout=_READ_TIMEOUT_SECONDS,
+                ),
+                nonce,
+            )
+            return outcome
+    except InstallAdbError:
+        raise
+    except (
+        TimeoutError,
+        _MalformedAdbResponse,
+        _UnsafeAdbPacket,
+        *_ADB_EXCEPTIONS,
+    ):
+        code = (
+            InstallAdbErrorCode.CLEANUP_AMBIGUOUS
+            if install_definite
+            else InstallAdbErrorCode.INSTALL_AMBIGUOUS
+            if install_started
+            else InstallAdbErrorCode.STAGE_AMBIGUOUS
+            if stage_started
+            else InstallAdbErrorCode.TARGET_UNREACHABLE
+        )
+        raise InstallAdbError(code) from None
+    finally:
+        try:
+            # Before package mutation, the random path is ours to remove. Once
+            # pm install starts, an unknown outcome may still be reading it.
+            if stage_started and not install_started and device is not None:
+                try:
+                    assert admitted_root_mode is not None
+                    async with asyncio.timeout(_CLEANUP_TIMEOUT_SECONDS):
+                        await _async_require_identity_root(
+                            device, target, admitted_root_mode
+                        )
+                        nonce = token_hex(16)
+                        _parse_cleanup(
+                            await _async_shell(
+                                device,
+                                _cleanup_command(nonce, remote_path),
+                                read_timeout=_READ_TIMEOUT_SECONDS,
+                            ),
+                            nonce,
+                        )
+                except (
+                    InstallAdbError,
+                    TimeoutError,
+                    _MalformedAdbResponse,
+                    _UnsafeAdbPacket,
+                    *_ADB_EXCEPTIONS,
+                ):
+                    _LOGGER.warning("Could not clear an interrupted ADB update stage")
+            await _async_close(device)
+        finally:
+            os.close(file_descriptor)
 
 
 async def async_launch_installed_app(
