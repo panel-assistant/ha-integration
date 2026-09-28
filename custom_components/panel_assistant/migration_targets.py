@@ -33,7 +33,6 @@ from .install_network import is_allowed_install_address
 # Integration domain: (display name, runs only on Android screens).
 _HOST_SOURCES: dict[str, tuple[str, bool]] = {
     "fully_kiosk": ("Fully Kiosk", True),
-    "esphome": ("ESPHome", False),
     "shelly": ("Shelly", False),
 }
 _COMPANION = "Home Assistant Companion"
@@ -62,6 +61,16 @@ def _known(hass: HomeAssistant) -> list[tuple[str, str, str, bool]]:
                 found.append((host, entry.title, source, panel_only))
 
     devices = dr.async_get(hass)
+    # Homes hold hundreds of ESP32 boards, so ESPHome counts only for a device
+    # reporting an Android model: ESPHome on Android is used by wall panels.
+    for entry in hass.config_entries.async_entries("esphome"):
+        host = entry.data.get(CONF_HOST)
+        if isinstance(host, str) and any(
+            (device.model or "").startswith("Android ")
+            for device in dr.async_entries_for_config_entry(devices, entry.entry_id)
+        ):
+            found.append((host, entry.title, "ESPHome", True))
+
     for entity in er.async_get(hass).entities.values():
         if entity.platform != "mobile_app" or not entity.unique_id.endswith(
             _COMPANION_IP_SUFFIX

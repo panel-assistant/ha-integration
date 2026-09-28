@@ -562,9 +562,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 self._entry_id,
                 "app",
                 "update",
-                1000 * (
-                    _ANDROID_PACKAGE_INSTALL_MAX_SECONDS
-                    + _RESTART_HEALTH_GRACE_SECONDS
+                1000
+                * (
+                    _ANDROID_PACKAGE_INSTALL_MAX_SECONDS + _RESTART_HEALTH_GRACE_SECONDS
                 ),
             )
         return True

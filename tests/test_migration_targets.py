@@ -69,6 +69,17 @@ def _companion(hass: HomeAssistant, name: str, ip: str | None, key: str) -> None
     hass.states.async_set(entity.entity_id, ip)
 
 
+def _esphome(hass: HomeAssistant, title: str, host: str, model: str) -> None:
+    """An ESPHome entry whose device reports the given model."""
+    entry = MockConfigEntry(domain="esphome", title=title, data={CONF_HOST: host})
+    entry.add_to_hass(hass)
+    dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id,
+        connections={(dr.CONNECTION_NETWORK_MAC, f"02:00:00:00:00:{host[-2:]}")},
+        model=model,
+    )
+
+
 async def _add_panel_form(hass: HomeAssistant) -> dict:
     menu = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
@@ -93,8 +104,9 @@ async def test_form_offers_known_panels_adb_open_first(
     """ADB-open devices from any source; closed ones only from panel-only apps."""
     _host_entry(hass, "fully_kiosk", "Entry tablet", "192.168.1.10")
     _host_entry(hass, "fully_kiosk", "Stairs tablet", "192.168.1.11")
-    _host_entry(hass, "esphome", "Kiosk", "192.168.1.20")
-    _host_entry(hass, "esphome", "Boiler relay", "192.168.1.21")
+    _esphome(hass, "Kiosk", "192.168.1.20", "Android 14")
+    _esphome(hass, "Voice screen", "192.168.1.23", "Android 8.1.0")
+    _esphome(hass, "Boiler relay", "192.168.1.21", "Athom Plug V3")
     _host_entry(hass, "shelly", "Porch plug", "192.168.1.22")
     _host_entry(hass, "fully_kiosk", "Public", "8.8.8.8")
     _companion(hass, "Wall screen", "192.168.1.30", "a")
@@ -106,7 +118,9 @@ async def test_form_offers_known_panels_adb_open_first(
     MockConfigEntry(domain=DOMAIN, data={CONF_ADDRESS: "192.168.1.40"}).add_to_hass(
         hass
     )
-    adb_open.open.update({"192.168.1.10", "192.168.1.20", "192.168.1.30", "8.8.8.8"})
+    adb_open.open.update(
+        {"192.168.1.10", "192.168.1.20", "192.168.1.21", "192.168.1.30", "8.8.8.8"}
+    )
 
     form = await _add_panel_form(hass)
 
@@ -116,8 +130,11 @@ async def test_form_offers_known_panels_adb_open_first(
         ("192.168.1.20", "✓ Kiosk · ESPHome · 192.168.1.20"),
         ("192.168.1.30", "✓ Wall screen · Home Assistant Companion · 192.168.1.30"),
         ("192.168.1.11", "Stairs tablet · Fully Kiosk · 192.168.1.11"),
+        ("192.168.1.23", "Voice screen · ESPHome · 192.168.1.23"),
     ]
     assert "unavailable" not in adb_open.asked
+    # ESP32 boards are never probed, even one that would answer.
+    assert "192.168.1.21" not in adb_open.asked
 
 
 async def test_form_is_plain_address_entry_when_nothing_is_known(
