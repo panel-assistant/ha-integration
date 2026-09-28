@@ -225,6 +225,7 @@ async def test_changed_health_identity_invalidates_cached_adb_offer(
     )
     assert route.entity.latest_version == route.entity.installed_version
     await route.entity._async_refresh_route()
+    assert route.entity.latest_version == route.entity.installed_version
     route.preflight.assert_awaited_once()
     route.adb_install.assert_not_awaited()
 
