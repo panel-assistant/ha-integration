@@ -38,7 +38,7 @@ SCHEMAS = {
 }
 
 _HA_VECTOR_REVISION = "f8f3bc883ebfa82ac957706dad363be4b42a1010"
-_ANDROID_PRODUCER_REVISION = "a4ce8c6b231dc8a116f3acc8f50dfec0c9d53fe0"
+_ANDROID_PRODUCER_REVISION = "6058d769563f599eceb58b9ab6824b40f823c319"
 
 
 def test_shared_vectors_name_the_ha_source_revision_vendored_by_android() -> None:
@@ -244,8 +244,6 @@ def test_the_catalogue_describes_nothing_android_does_not_except_its_known_gaps(
         "auto_sleep_activity",
         "button",
         "camera_snapshot",
-        "reboot",
-        "reload",
     }
 
 
@@ -526,6 +524,7 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
     assert keys["issues"] == {
         "cutover_incomplete",
         "cutover_blocked_by_customised_entities",
+        "native_controls_unavailable",
         "merged_panel_identity",
         "merged_mqtt_device",
         "panel_update_required",

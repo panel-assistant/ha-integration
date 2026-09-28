@@ -5,7 +5,9 @@ running an ha-paneld release that does not negotiate its MQTT withdrawal still
 announces its MQTT discovery, and MQTT creates every entity a second time. So
 while this integration owns the panel's entities, each entity MQTT creates on
 the panel's MQTT device is quarantined: kept disabled and listed in the
-cutover record, with a Repairs issue saying which side to update. When a panel
+cutover record, with a Repairs issue saying which side to update. An MQTT
+command preserved because the panel has no native action is suspended in its
+same registry entry instead. When a panel
 that follows the withdrawal completes its full sync, the quarantined entities
 and the empty MQTT device are removed.
 
@@ -181,7 +183,12 @@ def _is_duplicate(
     # channel the panel has not described yet stays MQTT's until it has: no
     # native entity would replace it.
     if item.id in unmigrated and (
-        is_customised(item) or unmigrated[item.id] == CUTOVER_NOT_DESCRIBED
+        is_customised(item)
+        or unmigrated[item.id] == CUTOVER_NOT_DESCRIBED
+        or any(
+            row.get(CUTOVER_REGISTRY_ID) == item.id and "disabled_by_before" in row
+            for row in record.get(CUTOVER_UNMIGRATED, ())
+        )
     ):
         return False
     return _on_panel_device(hass, item, _panel_ids(entry, record))
@@ -360,7 +367,8 @@ class _EntryGuard:
         """
         data = event.data
         if data["action"] == "create" or (
-            data["action"] == "update" and "device_id" in data["changes"]
+            data["action"] == "update"
+            and {"device_id", "disabled_by"}.intersection(data["changes"])
         ):
             self.consider(data["entity_id"])
 
@@ -371,11 +379,18 @@ class _EntryGuard:
             self._hass, self._entry, dict(cutover_record(self._entry) or {})
         )
         item = er.async_get(self._hass).async_get(entity_id)
-        if (
-            item is None
-            or item.id in self._pending
-            or not _is_duplicate(self._hass, self._entry, item)
-        ):
+        if item is None or item.id in self._pending:
+            return
+        if self._suspended(item):
+            if item.disabled_by is None:
+                self._pending.add(item.id)
+                self._entry.async_create_background_task(
+                    self._hass,
+                    self._async_suspend(item.id, item.entity_id),
+                    f"{DOMAIN} suspend {item.entity_id}",
+                )
+            return
+        if not _is_duplicate(self._hass, self._entry, item):
             return
         self._pending.add(item.id)
         self._entry.async_create_background_task(
@@ -383,6 +398,29 @@ class _EntryGuard:
             self._async_quarantine(item.id, item.entity_id),
             f"{DOMAIN} quarantine {item.entity_id}",
         )
+
+    def _suspended(self, item: er.RegistryEntry) -> bool:
+        if (
+            item.platform != MQTT_DOMAIN
+            or entity_owner(self._hass, self._entry) != AUTHORITY_NATIVE
+        ):
+            return False
+        return any(
+            row.get(CUTOVER_REGISTRY_ID) == item.id and "disabled_by_before" in row
+            for row in (cutover_record(self._entry) or {}).get(CUTOVER_UNMIGRATED, ())
+        )
+
+    async def _async_suspend(self, registry_id: str, entity_id: str) -> None:
+        try:
+            await _async_wait_loaded(self._hass, entity_id)
+            registry = er.async_get(self._hass)
+            item = registry.entities.get_entry(registry_id)
+            if item is not None and self._suspended(item) and item.disabled_by is None:
+                registry.async_update_entity(
+                    item.entity_id, disabled_by=er.RegistryEntryDisabler.INTEGRATION
+                )
+        finally:
+            self._pending.discard(registry_id)
 
     async def _async_quarantine(self, registry_id: str, entity_id: str) -> None:
         # Wait for the entity to load before disabling it. The entity platform

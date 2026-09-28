@@ -276,6 +276,7 @@ ISSUE_DATA_USER_ID: Final = "user_id"
 # person's customisation and so hold back the panel's MQTT withdrawal.
 ISSUE_CUTOVER_INCOMPLETE: Final = "cutover_incomplete"
 ISSUE_CUTOVER_BLOCKED: Final = "cutover_blocked_by_customised_entities"
+ISSUE_NATIVE_CONTROLS_UNAVAILABLE: Final = "native_controls_unavailable"
 
 
 def signal_session_changed(entry_id: str) -> str:
@@ -1515,10 +1516,27 @@ def blocking_entity_ids(hass: HomeAssistant, entry: ConfigEntry) -> list[str]:
     registry = er.async_get(hass)
     blocking: list[str] = []
     for unmigrated in record.get(CUTOVER_UNMIGRATED, ()):
+        if "disabled_by_before" in unmigrated:
+            continue
         item = registry.entities.get_entry(unmigrated[CUTOVER_REGISTRY_ID])
         if item is not None and is_customised(item):
             blocking.append(item.entity_id)
     return sorted(blocking)
+
+
+def suspended_control_entity_ids(hass: HomeAssistant, entry: ConfigEntry) -> list[str]:
+    """Return preserved MQTT controls the native panel has not offered."""
+    record = cutover_record(entry)
+    if record is None:
+        return []
+    registry = er.async_get(hass)
+    return sorted(
+        item.entity_id
+        for row in record.get(CUTOVER_UNMIGRATED, ())
+        if "disabled_by_before" in row
+        and (item := registry.entities.get_entry(row[CUTOVER_REGISTRY_ID])) is not None
+        and item.platform == MQTT_DOMAIN
+    )
 
 
 def entity_owner(hass: HomeAssistant, entry: ConfigEntry) -> str:
@@ -1542,9 +1560,8 @@ def undescribed_entities(
 ) -> list[Mapping[str, Any]]:
     """Return the cutover's leftovers still waiting for their channel, as of now.
 
-    Each is an MQTT entity whose channel the catalogue knows but the panel had
-    not described when the move ran. One a person deleted since, or one no
-    longer MQTT's, no longer counts.
+    Each is an MQTT entity whose known channel the panel has not described.
+    One deleted since, or no longer MQTT's, no longer counts.
     """
     record = cutover_record(entry)
     if record is None:
@@ -1572,6 +1589,7 @@ def mqtt_discovery_claim(hass: HomeAssistant, entry: ConfigEntry) -> str:
         entity_owner(hass, entry) != AUTHORITY_NATIVE
         or blocking_entity_ids(hass, entry)
         or undescribed_entities(hass, entry)
+        or suspended_control_entity_ids(hass, entry)
     ):
         return MQTT_DISCOVERY_ANNOUNCE
     return MQTT_DISCOVERY_WITHDRAW
@@ -1653,6 +1671,8 @@ def async_remove_unsupported_channels(
         item = registry.async_get(entity_id)
         if item is None or item.config_entry_id != entry.entry_id:
             continue
+        if channel in {"reboot", "reload"}:
+            continue
         registry.async_remove(entity_id)
         removed.add(unique_id)
     if removed:
@@ -1705,11 +1725,35 @@ def async_raise_cutover_blocked_issue(
 
 
 @callback
+def async_raise_native_controls_unavailable_issue(
+    hass: HomeAssistant, entry: ConfigEntry, entity_ids: list[str]
+) -> None:
+    """Report controls that this panel has not offered over native transport."""
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        cutover_issue_id(ISSUE_NATIVE_CONTROLS_UNAVAILABLE, entry.entry_id),
+        is_fixable=False,
+        is_persistent=False,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key=ISSUE_NATIVE_CONTROLS_UNAVAILABLE,
+        translation_placeholders={
+            "panel": entry.title,
+            "entities": ", ".join(entity_ids),
+        },
+    )
+
+
+@callback
 def async_delete_cutover_issues(
     hass: HomeAssistant, entry_id: str, *issues: str
 ) -> None:
     """Delete an entry's cutover issues, or only the ones named."""
-    for issue in issues or (ISSUE_CUTOVER_INCOMPLETE, ISSUE_CUTOVER_BLOCKED):
+    for issue in issues or (
+        ISSUE_CUTOVER_INCOMPLETE,
+        ISSUE_CUTOVER_BLOCKED,
+        ISSUE_NATIVE_CONTROLS_UNAVAILABLE,
+    ):
         ir.async_delete_issue(hass, DOMAIN, cutover_issue_id(issue, entry_id))
 
 

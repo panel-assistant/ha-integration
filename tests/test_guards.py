@@ -805,6 +805,35 @@ async def test_an_unmigrated_entity_announced_again_is_quarantined(
     assert _issue(hass, ISSUE, entry.entry_id) is not None
 
 
+async def test_a_customised_unknown_mqtt_button_stays_suspended_on_rediscovery(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """MQTT re-enabling a preserved button cannot expose a dead control."""
+    mqtt = _mqtt(
+        hass,
+        [("switch", "relay1", {}), ("button", "mystery", {})],
+    )
+    registry = er.async_get(hass)
+    original = registry.async_update_entity(
+        mqtt["entity_ids"]["mystery"], name="My action"
+    )
+    entry = await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
+    await _settle(hass)
+    assert original.id not in _quarantined(entry)
+    assert _issue(hass, "native_controls_unavailable", entry.entry_id) is not None
+
+    registry.async_update_entity(original.entity_id, disabled_by=None)
+    await _settle(hass)
+    kept = registry.entities.get_entry(original.id)
+    assert kept is not None
+    assert (kept.entity_id, kept.name, kept.disabled_by) == (
+        original.entity_id,
+        "My action",
+        er.RegistryEntryDisabler.INTEGRATION,
+    )
+    assert original.id not in _quarantined(entry)
+
+
 async def test_reversal_removes_quarantined_duplicates_and_restores_entity_ids(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:

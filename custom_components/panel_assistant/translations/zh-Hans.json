@@ -224,6 +224,10 @@
       "title": "自定义的 MQTT 实体阻止了 {panel} 撤回 MQTT",
       "description": "Panel Assistant 现已拥有 {panel} 的实体，但这些 MQTT 实体没有对应的 Panel Assistant 实体，并且带有你自己设置的名称、图标、区域、标签、别名或隐藏、禁用设置：{entities}。删除它们或清除这些设置后，面板会在下次连接时撤回其 MQTT 实体。在此之前，它会继续通告全部 MQTT 实体。"
     },
+    "native_controls_unavailable": {
+      "title": "{panel} 上的原生控制不可用",
+      "description": "Panel Assistant 已停用这些 MQTT 控制，因为 {panel} 未提供对应的原生操作：{entities}。其配置和实体 ID 均已保留。请更新面板应用，检查操作所需条件，然后重新连接面板。通过 MQTT 重启同样需要 root 权限。如果某项控制以前可通过 MQTT 使用，可以暂时将面板切回 MQTT。"
+    },
     "merged_panel_identity": {
       "title": "分离已合并的面板：{panels}",
       "description": "面板 {panels} 报告了相同的设备身份，因此 Home Assistant 无法安全判断原生连接或实体属于哪个条目。原生连接会被拒绝，且不会迁移任何实体。请更新所有受影响面板上的 ha-paneld，使每个面板都有不同的身份，然后删除已合并的设备并让面板重新注册。"

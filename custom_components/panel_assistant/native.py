@@ -18,7 +18,9 @@ later session does not: a channel that disappears only becomes unavailable.
 The one exception is a hello that lists a channel as unsupported, the panel's
 explicit statement that it cannot serve it: that channel's native entity is
 removed (see ``async_remove_unsupported_channels``), and a later session that
-describes the channel again adds it anew.
+describes the channel again adds it anew. Existing reboot and reload entries
+are preserved, since a temporary helper or root loss must not erase their
+registry identity or customisation.
 """
 
 from __future__ import annotations

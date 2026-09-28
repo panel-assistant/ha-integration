@@ -555,6 +555,10 @@
       "title": "Customised MQTT entities hold back the MQTT withdrawal of {panel}",
       "description": "Panel Assistant now owns the entities of {panel}, but it has no equivalent for these MQTT entities, and they carry a name, icon, area, label, alias, or hidden or disabled setting of your own: {entities}. Delete them, or clear those settings, and the panel withdraws its MQTT entities the next time it connects. Until then it keeps announcing all of them."
     },
+    "native_controls_unavailable": {
+      "title": "Native controls unavailable on {panel}",
+      "description": "Panel Assistant disabled these MQTT controls because {panel} has not offered their native actions: {entities}. Their configuration and entity IDs are preserved. Update the panel app and check that its action prerequisites are available, then reconnect it. Reboot also requires root access under MQTT. If a control worked over MQTT before, switching this panel back to MQTT temporarily restores it."
+    },
     "merged_panel_identity": {
       "title": "Separate the merged panels: {panels}",
       "description": "The panels {panels} report the same device identity, so Home Assistant cannot safely decide which entry owns a native connection or entity. Their native connection is refused and no entities are moved. Update ha-paneld on every affected panel so each has a distinct identity, then delete the merged device and let the panels register again."

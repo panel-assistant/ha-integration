@@ -224,6 +224,10 @@
       "title": "Des entités MQTT personnalisées retiennent le retrait MQTT de {panel}",
       "description": "Panel Assistant possède désormais les entités de {panel}, mais il n'a pas d'équivalent pour ces entités MQTT, et elles portent un nom, une icône, une zone, une étiquette, un alias ou un réglage masqué ou désactivé de votre part : {entities}. Supprimez-les, ou effacez ces réglages, et le panneau retirera ses entités MQTT à sa prochaine connexion. D'ici là, il continue de toutes les annoncer."
     },
+    "native_controls_unavailable": {
+      "title": "Commandes natives indisponibles sur {panel}",
+      "description": "Panel Assistant a désactivé ces commandes MQTT car {panel} ne propose pas leurs actions natives : {entities}. Leur configuration et leurs identifiants d’entité sont conservés. Mettez à jour l’application du panneau, vérifiez les conditions nécessaires aux actions, puis reconnectez-le. Le redémarrage nécessite aussi un accès root avec MQTT. Si une commande fonctionnait auparavant avec MQTT, repassez temporairement à MQTT."
+    },
     "merged_panel_identity": {
       "title": "Séparer les panneaux fusionnés : {panels}",
       "description": "Les panneaux {panels} signalent la même identité d'appareil. Home Assistant ne peut donc pas déterminer de manière sûre à quelle entrée appartient une connexion ou une entité native. La connexion native est refusée et aucune entité n'est déplacée. Mettez à jour ha-paneld sur chaque panneau concerné afin que chacun possède une identité distincte, puis supprimez l'appareil fusionné et laissez les panneaux s'enregistrer à nouveau."
