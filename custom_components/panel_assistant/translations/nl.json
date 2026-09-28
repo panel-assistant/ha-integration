@@ -272,6 +272,510 @@
         }
       }
     },
+    "installer_failure": {
+      "title": "Installatie of update mislukt op {panel}",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Paneelfout oplossen",
+            "description": "Kies wat je nu wilt doen.",
+            "menu_options": {
+              "retry": "Opnieuw proberen",
+              "support_report": "Ondersteuningsrapport",
+              "clear_error": "Fout wissen"
+            }
+          },
+          "support_report": {
+            "title": "Ondersteuningsrapport",
+            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fout wissen",
+            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+          },
+          "retry_error": {
+            "title": "Opnieuw proberen is niet gelukt",
+            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+          }
+        },
+        "progress": {
+          "retrying": "Paneel controleren en veilig opnieuw proberen."
+        },
+        "error": {
+          "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
+          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
+          "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
+          "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
+          "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
+          "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
+        }
+      }
+    },
+    "installer_failure_authorization_failed": {
+      "title": "Paneel {panel} heeft de installatie niet toegestaan.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Paneelfout oplossen",
+            "description": "Kies wat je nu wilt doen.",
+            "menu_options": {
+              "retry": "Opnieuw proberen",
+              "support_report": "Ondersteuningsrapport",
+              "clear_error": "Fout wissen"
+            }
+          },
+          "support_report": {
+            "title": "Ondersteuningsrapport",
+            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fout wissen",
+            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+          },
+          "retry_error": {
+            "title": "Opnieuw proberen is niet gelukt",
+            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+          }
+        },
+        "progress": {
+          "retrying": "Paneel controleren en veilig opnieuw proberen."
+        },
+        "error": {
+          "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
+          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
+          "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
+          "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
+          "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
+          "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
+        }
+      }
+    },
+    "installer_failure_preflight_rejected": {
+      "title": "Paneel {panel} heeft de controles vóór de installatie niet doorstaan.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Paneelfout oplossen",
+            "description": "Kies wat je nu wilt doen.",
+            "menu_options": {
+              "retry": "Opnieuw proberen",
+              "support_report": "Ondersteuningsrapport",
+              "clear_error": "Fout wissen"
+            }
+          },
+          "support_report": {
+            "title": "Ondersteuningsrapport",
+            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fout wissen",
+            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+          },
+          "retry_error": {
+            "title": "Opnieuw proberen is niet gelukt",
+            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+          }
+        },
+        "progress": {
+          "retrying": "Paneel controleren en veilig opnieuw proberen."
+        },
+        "error": {
+          "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
+          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
+          "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
+          "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
+          "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
+          "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
+        }
+      }
+    },
+    "installer_failure_artifact_rejected": {
+      "title": "De appversie voor paneel {panel} kon niet worden gecontroleerd.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Paneelfout oplossen",
+            "description": "Kies wat je nu wilt doen.",
+            "menu_options": {
+              "retry": "Opnieuw proberen",
+              "support_report": "Ondersteuningsrapport",
+              "clear_error": "Fout wissen"
+            }
+          },
+          "support_report": {
+            "title": "Ondersteuningsrapport",
+            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fout wissen",
+            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+          },
+          "retry_error": {
+            "title": "Opnieuw proberen is niet gelukt",
+            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+          }
+        },
+        "progress": {
+          "retrying": "Paneel controleren en veilig opnieuw proberen."
+        },
+        "error": {
+          "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
+          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
+          "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
+          "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
+          "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
+          "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
+        }
+      }
+    },
+    "installer_failure_transport_failed": {
+      "title": "De verbinding met paneel {panel} is tijdens de installatie weggevallen.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Paneelfout oplossen",
+            "description": "Kies wat je nu wilt doen.",
+            "menu_options": {
+              "retry": "Opnieuw proberen",
+              "support_report": "Ondersteuningsrapport",
+              "clear_error": "Fout wissen"
+            }
+          },
+          "support_report": {
+            "title": "Ondersteuningsrapport",
+            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fout wissen",
+            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+          },
+          "retry_error": {
+            "title": "Opnieuw proberen is niet gelukt",
+            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+          }
+        },
+        "progress": {
+          "retrying": "Paneel controleren en veilig opnieuw proberen."
+        },
+        "error": {
+          "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
+          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
+          "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
+          "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
+          "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
+          "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
+        }
+      }
+    },
+    "installer_failure_install_failed": {
+      "title": "Android heeft de installatie van de app op paneel {panel} geweigerd.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Paneelfout oplossen",
+            "description": "Kies wat je nu wilt doen.",
+            "menu_options": {
+              "retry": "Opnieuw proberen",
+              "support_report": "Ondersteuningsrapport",
+              "clear_error": "Fout wissen"
+            }
+          },
+          "support_report": {
+            "title": "Ondersteuningsrapport",
+            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fout wissen",
+            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+          },
+          "retry_error": {
+            "title": "Opnieuw proberen is niet gelukt",
+            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+          }
+        },
+        "progress": {
+          "retrying": "Paneel controleren en veilig opnieuw proberen."
+        },
+        "error": {
+          "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
+          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
+          "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
+          "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
+          "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
+          "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
+        }
+      }
+    },
+    "installer_failure_launch_failed": {
+      "title": "De app is op {panel} geïnstalleerd, maar kon niet worden gestart.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Paneelfout oplossen",
+            "description": "Kies wat je nu wilt doen.",
+            "menu_options": {
+              "retry": "Opnieuw proberen",
+              "support_report": "Ondersteuningsrapport",
+              "clear_error": "Fout wissen"
+            }
+          },
+          "support_report": {
+            "title": "Ondersteuningsrapport",
+            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fout wissen",
+            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+          },
+          "retry_error": {
+            "title": "Opnieuw proberen is niet gelukt",
+            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+          }
+        },
+        "progress": {
+          "retrying": "Paneel controleren en veilig opnieuw proberen."
+        },
+        "error": {
+          "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
+          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
+          "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
+          "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
+          "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
+          "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
+        }
+      }
+    },
+    "installer_failure_health_check_failed": {
+      "title": "De app op {panel} heeft de gezondheidscontrole niet doorstaan.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Paneelfout oplossen",
+            "description": "Kies wat je nu wilt doen.",
+            "menu_options": {
+              "retry": "Opnieuw proberen",
+              "support_report": "Ondersteuningsrapport",
+              "clear_error": "Fout wissen"
+            }
+          },
+          "support_report": {
+            "title": "Ondersteuningsrapport",
+            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fout wissen",
+            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+          },
+          "retry_error": {
+            "title": "Opnieuw proberen is niet gelukt",
+            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+          }
+        },
+        "progress": {
+          "retrying": "Paneel controleren en veilig opnieuw proberen."
+        },
+        "error": {
+          "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
+          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
+          "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
+          "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
+          "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
+          "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
+        }
+      }
+    },
+    "installer_failure_ambiguous_mutation": {
+      "title": "De installatie kan paneel {panel} hebben gewijzigd; de toestand is onbekend.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Paneelfout oplossen",
+            "description": "Kies wat je nu wilt doen.",
+            "menu_options": {
+              "retry": "Opnieuw proberen",
+              "support_report": "Ondersteuningsrapport",
+              "clear_error": "Fout wissen"
+            }
+          },
+          "support_report": {
+            "title": "Ondersteuningsrapport",
+            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fout wissen",
+            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+          },
+          "retry_error": {
+            "title": "Opnieuw proberen is niet gelukt",
+            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+          }
+        },
+        "progress": {
+          "retrying": "Paneel controleren en veilig opnieuw proberen."
+        },
+        "error": {
+          "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
+          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
+          "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
+          "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
+          "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
+          "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
+        }
+      }
+    },
+    "installer_failure_verification_required": {
+      "title": "De app op {panel} moet worden gecontroleerd vóór een nieuwe installatie.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Paneelfout oplossen",
+            "description": "Kies wat je nu wilt doen.",
+            "menu_options": {
+              "retry": "Opnieuw proberen",
+              "support_report": "Ondersteuningsrapport",
+              "clear_error": "Fout wissen"
+            }
+          },
+          "support_report": {
+            "title": "Ondersteuningsrapport",
+            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fout wissen",
+            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+          },
+          "retry_error": {
+            "title": "Opnieuw proberen is niet gelukt",
+            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+          }
+        },
+        "progress": {
+          "retrying": "Paneel controleren en veilig opnieuw proberen."
+        },
+        "error": {
+          "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
+          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
+          "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
+          "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
+          "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
+          "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
+        }
+      }
+    },
+    "installer_failure_update": {
+      "title": "De update op paneel {panel} is niet voltooid.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Paneelfout oplossen",
+            "description": "Kies wat je nu wilt doen.",
+            "menu_options": {
+              "retry": "Opnieuw proberen",
+              "support_report": "Ondersteuningsrapport",
+              "clear_error": "Fout wissen"
+            }
+          },
+          "support_report": {
+            "title": "Ondersteuningsrapport",
+            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fout wissen",
+            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+          },
+          "retry_error": {
+            "title": "Opnieuw proberen is niet gelukt",
+            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+          }
+        },
+        "progress": {
+          "retrying": "Paneel controleren en veilig opnieuw proberen."
+        },
+        "error": {
+          "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
+          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
+          "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
+          "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
+          "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
+          "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
+        }
+      }
+    },
+    "installer_failure_retry_hold": {
+      "title": "Opnieuw proberen op paneel {panel} is onderbroken omdat de toestand niet veilig kon worden gecontroleerd.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Paneelfout oplossen",
+            "description": "Kies wat je nu wilt doen.",
+            "menu_options": {
+              "retry": "Opnieuw proberen",
+              "support_report": "Ondersteuningsrapport",
+              "clear_error": "Fout wissen"
+            }
+          },
+          "support_report": {
+            "title": "Ondersteuningsrapport",
+            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fout wissen",
+            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+          },
+          "retry_error": {
+            "title": "Opnieuw proberen is niet gelukt",
+            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+          }
+        },
+        "progress": {
+          "retrying": "Paneel controleren en veilig opnieuw proberen."
+        },
+        "error": {
+          "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
+          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
+          "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
+          "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
+          "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
+          "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
+        }
+      }
+    },
     "panel_address_unreachable": {
       "title": "Home Assistant kan {panel} niet bereiken op het opgeslagen adres",
       "description": "{panel} is verbonden met Home Assistant, dus de entiteiten blijven beschikbaar, maar Home Assistant kan het paneel op {address} niet lezen, en de verbinding die het onderhoudt, via {session_address}, biedt geen ander adres om te proberen. De webpoort van het paneel is mogelijk geblokkeerd tussen Home Assistant en het paneel. Als het paneel is verplaatst, voeg het dan opnieuw toe op het nieuwe adres, waardoor het opgeslagen adres wordt bijgewerkt; het probleem lost zich vanzelf op zodra het adres weer reageert."

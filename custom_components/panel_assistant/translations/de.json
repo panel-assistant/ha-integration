@@ -250,6 +250,510 @@
         }
       }
     },
+    "installer_failure": {
+      "title": "Installation oder Update auf {panel} fehlgeschlagen",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Panel-Fehler beheben",
+            "description": "Wähle den nächsten Schritt.",
+            "menu_options": {
+              "retry": "Erneut versuchen",
+              "support_report": "Supportbericht",
+              "clear_error": "Fehler löschen"
+            }
+          },
+          "support_report": {
+            "title": "Supportbericht",
+            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fehler löschen",
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+          },
+          "retry_error": {
+            "title": "Erneuter Versuch fehlgeschlagen",
+            "description": "Der erneute Versuch ist angehalten. Der Fehler bleibt in Reparaturen; Einzelheiten stehen im Supportbericht."
+          }
+        },
+        "progress": {
+          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+        },
+        "error": {
+          "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
+          "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
+          "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
+          "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
+          "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
+          "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
+        }
+      }
+    },
+    "installer_failure_authorization_failed": {
+      "title": "Panel {panel} hat die Installation nicht autorisiert.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Panel-Fehler beheben",
+            "description": "Wähle den nächsten Schritt.",
+            "menu_options": {
+              "retry": "Erneut versuchen",
+              "support_report": "Supportbericht",
+              "clear_error": "Fehler löschen"
+            }
+          },
+          "support_report": {
+            "title": "Supportbericht",
+            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fehler löschen",
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+          },
+          "retry_error": {
+            "title": "Erneuter Versuch fehlgeschlagen",
+            "description": "Der erneute Versuch ist angehalten. Der Fehler bleibt in Reparaturen; Einzelheiten stehen im Supportbericht."
+          }
+        },
+        "progress": {
+          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+        },
+        "error": {
+          "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
+          "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
+          "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
+          "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
+          "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
+          "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
+        }
+      }
+    },
+    "installer_failure_preflight_rejected": {
+      "title": "Panel {panel} hat die Prüfungen vor der Installation nicht bestanden.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Panel-Fehler beheben",
+            "description": "Wähle den nächsten Schritt.",
+            "menu_options": {
+              "retry": "Erneut versuchen",
+              "support_report": "Supportbericht",
+              "clear_error": "Fehler löschen"
+            }
+          },
+          "support_report": {
+            "title": "Supportbericht",
+            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fehler löschen",
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+          },
+          "retry_error": {
+            "title": "Erneuter Versuch fehlgeschlagen",
+            "description": "Der erneute Versuch ist angehalten. Der Fehler bleibt in Reparaturen; Einzelheiten stehen im Supportbericht."
+          }
+        },
+        "progress": {
+          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+        },
+        "error": {
+          "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
+          "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
+          "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
+          "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
+          "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
+          "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
+        }
+      }
+    },
+    "installer_failure_artifact_rejected": {
+      "title": "Die App-Version für Panel {panel} konnte nicht überprüft werden.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Panel-Fehler beheben",
+            "description": "Wähle den nächsten Schritt.",
+            "menu_options": {
+              "retry": "Erneut versuchen",
+              "support_report": "Supportbericht",
+              "clear_error": "Fehler löschen"
+            }
+          },
+          "support_report": {
+            "title": "Supportbericht",
+            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fehler löschen",
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+          },
+          "retry_error": {
+            "title": "Erneuter Versuch fehlgeschlagen",
+            "description": "Der erneute Versuch ist angehalten. Der Fehler bleibt in Reparaturen; Einzelheiten stehen im Supportbericht."
+          }
+        },
+        "progress": {
+          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+        },
+        "error": {
+          "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
+          "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
+          "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
+          "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
+          "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
+          "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
+        }
+      }
+    },
+    "installer_failure_transport_failed": {
+      "title": "Die Verbindung zu Panel {panel} ist während der Installation fehlgeschlagen.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Panel-Fehler beheben",
+            "description": "Wähle den nächsten Schritt.",
+            "menu_options": {
+              "retry": "Erneut versuchen",
+              "support_report": "Supportbericht",
+              "clear_error": "Fehler löschen"
+            }
+          },
+          "support_report": {
+            "title": "Supportbericht",
+            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fehler löschen",
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+          },
+          "retry_error": {
+            "title": "Erneuter Versuch fehlgeschlagen",
+            "description": "Der erneute Versuch ist angehalten. Der Fehler bleibt in Reparaturen; Einzelheiten stehen im Supportbericht."
+          }
+        },
+        "progress": {
+          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+        },
+        "error": {
+          "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
+          "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
+          "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
+          "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
+          "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
+          "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
+        }
+      }
+    },
+    "installer_failure_install_failed": {
+      "title": "Android hat die Installation der App auf Panel {panel} abgelehnt.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Panel-Fehler beheben",
+            "description": "Wähle den nächsten Schritt.",
+            "menu_options": {
+              "retry": "Erneut versuchen",
+              "support_report": "Supportbericht",
+              "clear_error": "Fehler löschen"
+            }
+          },
+          "support_report": {
+            "title": "Supportbericht",
+            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fehler löschen",
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+          },
+          "retry_error": {
+            "title": "Erneuter Versuch fehlgeschlagen",
+            "description": "Der erneute Versuch ist angehalten. Der Fehler bleibt in Reparaturen; Einzelheiten stehen im Supportbericht."
+          }
+        },
+        "progress": {
+          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+        },
+        "error": {
+          "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
+          "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
+          "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
+          "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
+          "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
+          "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
+        }
+      }
+    },
+    "installer_failure_launch_failed": {
+      "title": "Die App wurde auf {panel} installiert, konnte aber nicht gestartet werden.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Panel-Fehler beheben",
+            "description": "Wähle den nächsten Schritt.",
+            "menu_options": {
+              "retry": "Erneut versuchen",
+              "support_report": "Supportbericht",
+              "clear_error": "Fehler löschen"
+            }
+          },
+          "support_report": {
+            "title": "Supportbericht",
+            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fehler löschen",
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+          },
+          "retry_error": {
+            "title": "Erneuter Versuch fehlgeschlagen",
+            "description": "Der erneute Versuch ist angehalten. Der Fehler bleibt in Reparaturen; Einzelheiten stehen im Supportbericht."
+          }
+        },
+        "progress": {
+          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+        },
+        "error": {
+          "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
+          "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
+          "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
+          "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
+          "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
+          "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
+        }
+      }
+    },
+    "installer_failure_health_check_failed": {
+      "title": "Die App auf {panel} hat die Zustandsprüfung nicht bestanden.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Panel-Fehler beheben",
+            "description": "Wähle den nächsten Schritt.",
+            "menu_options": {
+              "retry": "Erneut versuchen",
+              "support_report": "Supportbericht",
+              "clear_error": "Fehler löschen"
+            }
+          },
+          "support_report": {
+            "title": "Supportbericht",
+            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fehler löschen",
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+          },
+          "retry_error": {
+            "title": "Erneuter Versuch fehlgeschlagen",
+            "description": "Der erneute Versuch ist angehalten. Der Fehler bleibt in Reparaturen; Einzelheiten stehen im Supportbericht."
+          }
+        },
+        "progress": {
+          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+        },
+        "error": {
+          "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
+          "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
+          "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
+          "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
+          "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
+          "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
+        }
+      }
+    },
+    "installer_failure_ambiguous_mutation": {
+      "title": "Die Installation könnte Panel {panel} verändert haben; sein Zustand ist unbekannt.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Panel-Fehler beheben",
+            "description": "Wähle den nächsten Schritt.",
+            "menu_options": {
+              "retry": "Erneut versuchen",
+              "support_report": "Supportbericht",
+              "clear_error": "Fehler löschen"
+            }
+          },
+          "support_report": {
+            "title": "Supportbericht",
+            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fehler löschen",
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+          },
+          "retry_error": {
+            "title": "Erneuter Versuch fehlgeschlagen",
+            "description": "Der erneute Versuch ist angehalten. Der Fehler bleibt in Reparaturen; Einzelheiten stehen im Supportbericht."
+          }
+        },
+        "progress": {
+          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+        },
+        "error": {
+          "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
+          "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
+          "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
+          "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
+          "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
+          "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
+        }
+      }
+    },
+    "installer_failure_verification_required": {
+      "title": "Die App auf {panel} muss vor einer weiteren Installation überprüft werden.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Panel-Fehler beheben",
+            "description": "Wähle den nächsten Schritt.",
+            "menu_options": {
+              "retry": "Erneut versuchen",
+              "support_report": "Supportbericht",
+              "clear_error": "Fehler löschen"
+            }
+          },
+          "support_report": {
+            "title": "Supportbericht",
+            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fehler löschen",
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+          },
+          "retry_error": {
+            "title": "Erneuter Versuch fehlgeschlagen",
+            "description": "Der erneute Versuch ist angehalten. Der Fehler bleibt in Reparaturen; Einzelheiten stehen im Supportbericht."
+          }
+        },
+        "progress": {
+          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+        },
+        "error": {
+          "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
+          "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
+          "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
+          "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
+          "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
+          "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
+        }
+      }
+    },
+    "installer_failure_update": {
+      "title": "Das Update auf Panel {panel} wurde nicht abgeschlossen.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Panel-Fehler beheben",
+            "description": "Wähle den nächsten Schritt.",
+            "menu_options": {
+              "retry": "Erneut versuchen",
+              "support_report": "Supportbericht",
+              "clear_error": "Fehler löschen"
+            }
+          },
+          "support_report": {
+            "title": "Supportbericht",
+            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fehler löschen",
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+          },
+          "retry_error": {
+            "title": "Erneuter Versuch fehlgeschlagen",
+            "description": "Der erneute Versuch ist angehalten. Der Fehler bleibt in Reparaturen; Einzelheiten stehen im Supportbericht."
+          }
+        },
+        "progress": {
+          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+        },
+        "error": {
+          "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
+          "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
+          "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
+          "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
+          "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
+          "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
+        }
+      }
+    },
+    "installer_failure_retry_hold": {
+      "title": "Der erneute Versuch auf Panel {panel} wurde angehalten, weil sein Zustand nicht sicher geprüft werden konnte.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Panel-Fehler beheben",
+            "description": "Wähle den nächsten Schritt.",
+            "menu_options": {
+              "retry": "Erneut versuchen",
+              "support_report": "Supportbericht",
+              "clear_error": "Fehler löschen"
+            }
+          },
+          "support_report": {
+            "title": "Supportbericht",
+            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Fehler löschen",
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+          },
+          "retry_error": {
+            "title": "Erneuter Versuch fehlgeschlagen",
+            "description": "Der erneute Versuch ist angehalten. Der Fehler bleibt in Reparaturen; Einzelheiten stehen im Supportbericht."
+          }
+        },
+        "progress": {
+          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+        },
+        "error": {
+          "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
+          "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
+          "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
+          "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
+          "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
+          "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
+        }
+      }
+    },
     "panel_address_unreachable": {
       "title": "Home Assistant erreicht {panel} unter der gespeicherten Adresse nicht",
       "description": "{panel} ist mit Home Assistant verbunden, seine Entitäten bleiben daher verfügbar. Home Assistant kann das Panel unter {address} jedoch nicht lesen, und die bestehende Verbindung von {session_address} nennt keine andere Adresse, die versucht werden könnte. Möglicherweise ist der Web-Port des Panels zwischen Home Assistant und dem Panel blockiert. Wenn das Panel umgezogen ist, fügen Sie es unter der neuen Adresse erneut hinzu; dadurch wird die gespeicherte Adresse aktualisiert. Der Hinweis verschwindet von selbst, sobald die Adresse wieder antwortet."

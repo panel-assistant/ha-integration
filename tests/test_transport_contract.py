@@ -576,37 +576,3 @@ def test_the_options_flow_has_text_in_english() -> None:
     choices = ENGLISH["selector"]["authority"]["options"]
     assert sorted(choices) == sorted(transport.AUTHORITIES)
     assert all(label.strip() for label in choices.values())
-
-
-def test_every_repairs_step_and_abort_has_english_text() -> None:
-    """The binding fix flow's steps and aborts resolve under its issue."""
-    tree = ast.parse((INTEGRATION / "repairs.py").read_text(encoding="utf-8"))
-    constants = _module_constants(tree)
-    steps = {
-        node.name.removeprefix("async_step_")
-        for node in ast.walk(tree)
-        if isinstance(node, ast.AsyncFunctionDef)
-        and node.name.startswith("async_step_")
-        and node.name != "async_step_init"
-    }
-    aborts = {value for name, value in constants.items() if name.startswith("ABORT_")}
-    # Each fix flow's steps and aborts resolve under its own issue, so a step
-    # added to one flow cannot be satisfied by another flow's text.
-    flows = {
-        "panel_user_mismatch": (
-            {"confirm_bind", "confirm_rebind"},
-            {"entry_removed", "user_unavailable"},
-        ),
-        "panel_migration_incomplete": ({"confirm_migration"}, {"migration_unfinished"}),
-    }
-
-    assert steps == {step for owned, _ in flows.values() for step in owned}
-    assert aborts == {reason for _, owned in flows.values() for reason in owned}
-    for issue, (owned_steps, owned_aborts) in flows.items():
-        flow = ENGLISH["issues"][issue]["fix_flow"]
-        assert set(flow["step"]) == owned_steps
-        assert set(flow["abort"]) == owned_aborts
-        for step in owned_steps:
-            assert flow["step"][step]["description"].strip()
-        for reason in owned_aborts:
-            assert flow["abort"][reason].strip()

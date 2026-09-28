@@ -250,6 +250,510 @@
         }
       }
     },
+    "installer_failure": {
+      "title": "Falló la instalación o actualización en {panel}",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolver el error del panel",
+            "description": "Elige qué hacer ahora.",
+            "menu_options": {
+              "retry": "Reintentar",
+              "support_report": "Informe de soporte",
+              "clear_error": "Borrar error"
+            }
+          },
+          "support_report": {
+            "title": "Informe de soporte",
+            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Borrar error",
+            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+          },
+          "retry_error": {
+            "title": "No se pudo completar el reintento",
+            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+          }
+        },
+        "progress": {
+          "retrying": "Comprobando el panel y reintentando de forma segura."
+        },
+        "error": {
+          "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
+          "retry_release_changed": "La versión elegida ya no coincide con la guardada. Inicia una instalación nueva.",
+          "retry_credential_changed": "La credencial ADB de Home Assistant ha cambiado. Comprueba el panel antes de reintentar.",
+          "retry_panel_ambiguous": "No se pudo verificar la aplicación instalada en el panel. No se inició otra instalación.",
+          "retry_cannot_prove_safe": "No se pudo comprobar el panel lo suficiente para reintentar con seguridad. Inténtalo más tarde.",
+          "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
+          "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
+          "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
+          "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
+        }
+      }
+    },
+    "installer_failure_authorization_failed": {
+      "title": "El panel {panel} no autorizó la instalación.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolver el error del panel",
+            "description": "Elige qué hacer ahora.",
+            "menu_options": {
+              "retry": "Reintentar",
+              "support_report": "Informe de soporte",
+              "clear_error": "Borrar error"
+            }
+          },
+          "support_report": {
+            "title": "Informe de soporte",
+            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Borrar error",
+            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+          },
+          "retry_error": {
+            "title": "No se pudo completar el reintento",
+            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+          }
+        },
+        "progress": {
+          "retrying": "Comprobando el panel y reintentando de forma segura."
+        },
+        "error": {
+          "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
+          "retry_release_changed": "La versión elegida ya no coincide con la guardada. Inicia una instalación nueva.",
+          "retry_credential_changed": "La credencial ADB de Home Assistant ha cambiado. Comprueba el panel antes de reintentar.",
+          "retry_panel_ambiguous": "No se pudo verificar la aplicación instalada en el panel. No se inició otra instalación.",
+          "retry_cannot_prove_safe": "No se pudo comprobar el panel lo suficiente para reintentar con seguridad. Inténtalo más tarde.",
+          "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
+          "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
+          "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
+          "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
+        }
+      }
+    },
+    "installer_failure_preflight_rejected": {
+      "title": "El panel {panel} no superó las comprobaciones previas a la instalación.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolver el error del panel",
+            "description": "Elige qué hacer ahora.",
+            "menu_options": {
+              "retry": "Reintentar",
+              "support_report": "Informe de soporte",
+              "clear_error": "Borrar error"
+            }
+          },
+          "support_report": {
+            "title": "Informe de soporte",
+            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Borrar error",
+            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+          },
+          "retry_error": {
+            "title": "No se pudo completar el reintento",
+            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+          }
+        },
+        "progress": {
+          "retrying": "Comprobando el panel y reintentando de forma segura."
+        },
+        "error": {
+          "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
+          "retry_release_changed": "La versión elegida ya no coincide con la guardada. Inicia una instalación nueva.",
+          "retry_credential_changed": "La credencial ADB de Home Assistant ha cambiado. Comprueba el panel antes de reintentar.",
+          "retry_panel_ambiguous": "No se pudo verificar la aplicación instalada en el panel. No se inició otra instalación.",
+          "retry_cannot_prove_safe": "No se pudo comprobar el panel lo suficiente para reintentar con seguridad. Inténtalo más tarde.",
+          "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
+          "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
+          "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
+          "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
+        }
+      }
+    },
+    "installer_failure_artifact_rejected": {
+      "title": "No se pudo verificar la versión de la aplicación para el panel {panel}.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolver el error del panel",
+            "description": "Elige qué hacer ahora.",
+            "menu_options": {
+              "retry": "Reintentar",
+              "support_report": "Informe de soporte",
+              "clear_error": "Borrar error"
+            }
+          },
+          "support_report": {
+            "title": "Informe de soporte",
+            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Borrar error",
+            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+          },
+          "retry_error": {
+            "title": "No se pudo completar el reintento",
+            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+          }
+        },
+        "progress": {
+          "retrying": "Comprobando el panel y reintentando de forma segura."
+        },
+        "error": {
+          "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
+          "retry_release_changed": "La versión elegida ya no coincide con la guardada. Inicia una instalación nueva.",
+          "retry_credential_changed": "La credencial ADB de Home Assistant ha cambiado. Comprueba el panel antes de reintentar.",
+          "retry_panel_ambiguous": "No se pudo verificar la aplicación instalada en el panel. No se inició otra instalación.",
+          "retry_cannot_prove_safe": "No se pudo comprobar el panel lo suficiente para reintentar con seguridad. Inténtalo más tarde.",
+          "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
+          "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
+          "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
+          "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
+        }
+      }
+    },
+    "installer_failure_transport_failed": {
+      "title": "Se perdió la conexión con el panel {panel} durante la instalación.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolver el error del panel",
+            "description": "Elige qué hacer ahora.",
+            "menu_options": {
+              "retry": "Reintentar",
+              "support_report": "Informe de soporte",
+              "clear_error": "Borrar error"
+            }
+          },
+          "support_report": {
+            "title": "Informe de soporte",
+            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Borrar error",
+            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+          },
+          "retry_error": {
+            "title": "No se pudo completar el reintento",
+            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+          }
+        },
+        "progress": {
+          "retrying": "Comprobando el panel y reintentando de forma segura."
+        },
+        "error": {
+          "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
+          "retry_release_changed": "La versión elegida ya no coincide con la guardada. Inicia una instalación nueva.",
+          "retry_credential_changed": "La credencial ADB de Home Assistant ha cambiado. Comprueba el panel antes de reintentar.",
+          "retry_panel_ambiguous": "No se pudo verificar la aplicación instalada en el panel. No se inició otra instalación.",
+          "retry_cannot_prove_safe": "No se pudo comprobar el panel lo suficiente para reintentar con seguridad. Inténtalo más tarde.",
+          "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
+          "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
+          "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
+          "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
+        }
+      }
+    },
+    "installer_failure_install_failed": {
+      "title": "Android rechazó la instalación de la aplicación en el panel {panel}.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolver el error del panel",
+            "description": "Elige qué hacer ahora.",
+            "menu_options": {
+              "retry": "Reintentar",
+              "support_report": "Informe de soporte",
+              "clear_error": "Borrar error"
+            }
+          },
+          "support_report": {
+            "title": "Informe de soporte",
+            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Borrar error",
+            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+          },
+          "retry_error": {
+            "title": "No se pudo completar el reintento",
+            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+          }
+        },
+        "progress": {
+          "retrying": "Comprobando el panel y reintentando de forma segura."
+        },
+        "error": {
+          "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
+          "retry_release_changed": "La versión elegida ya no coincide con la guardada. Inicia una instalación nueva.",
+          "retry_credential_changed": "La credencial ADB de Home Assistant ha cambiado. Comprueba el panel antes de reintentar.",
+          "retry_panel_ambiguous": "No se pudo verificar la aplicación instalada en el panel. No se inició otra instalación.",
+          "retry_cannot_prove_safe": "No se pudo comprobar el panel lo suficiente para reintentar con seguridad. Inténtalo más tarde.",
+          "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
+          "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
+          "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
+          "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
+        }
+      }
+    },
+    "installer_failure_launch_failed": {
+      "title": "La aplicación se instaló en {panel}, pero no se pudo iniciar.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolver el error del panel",
+            "description": "Elige qué hacer ahora.",
+            "menu_options": {
+              "retry": "Reintentar",
+              "support_report": "Informe de soporte",
+              "clear_error": "Borrar error"
+            }
+          },
+          "support_report": {
+            "title": "Informe de soporte",
+            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Borrar error",
+            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+          },
+          "retry_error": {
+            "title": "No se pudo completar el reintento",
+            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+          }
+        },
+        "progress": {
+          "retrying": "Comprobando el panel y reintentando de forma segura."
+        },
+        "error": {
+          "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
+          "retry_release_changed": "La versión elegida ya no coincide con la guardada. Inicia una instalación nueva.",
+          "retry_credential_changed": "La credencial ADB de Home Assistant ha cambiado. Comprueba el panel antes de reintentar.",
+          "retry_panel_ambiguous": "No se pudo verificar la aplicación instalada en el panel. No se inició otra instalación.",
+          "retry_cannot_prove_safe": "No se pudo comprobar el panel lo suficiente para reintentar con seguridad. Inténtalo más tarde.",
+          "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
+          "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
+          "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
+          "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
+        }
+      }
+    },
+    "installer_failure_health_check_failed": {
+      "title": "La aplicación de {panel} no superó la comprobación de estado.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolver el error del panel",
+            "description": "Elige qué hacer ahora.",
+            "menu_options": {
+              "retry": "Reintentar",
+              "support_report": "Informe de soporte",
+              "clear_error": "Borrar error"
+            }
+          },
+          "support_report": {
+            "title": "Informe de soporte",
+            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Borrar error",
+            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+          },
+          "retry_error": {
+            "title": "No se pudo completar el reintento",
+            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+          }
+        },
+        "progress": {
+          "retrying": "Comprobando el panel y reintentando de forma segura."
+        },
+        "error": {
+          "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
+          "retry_release_changed": "La versión elegida ya no coincide con la guardada. Inicia una instalación nueva.",
+          "retry_credential_changed": "La credencial ADB de Home Assistant ha cambiado. Comprueba el panel antes de reintentar.",
+          "retry_panel_ambiguous": "No se pudo verificar la aplicación instalada en el panel. No se inició otra instalación.",
+          "retry_cannot_prove_safe": "No se pudo comprobar el panel lo suficiente para reintentar con seguridad. Inténtalo más tarde.",
+          "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
+          "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
+          "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
+          "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
+        }
+      }
+    },
+    "installer_failure_ambiguous_mutation": {
+      "title": "La instalación pudo cambiar el panel {panel}; se desconoce su estado.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolver el error del panel",
+            "description": "Elige qué hacer ahora.",
+            "menu_options": {
+              "retry": "Reintentar",
+              "support_report": "Informe de soporte",
+              "clear_error": "Borrar error"
+            }
+          },
+          "support_report": {
+            "title": "Informe de soporte",
+            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Borrar error",
+            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+          },
+          "retry_error": {
+            "title": "No se pudo completar el reintento",
+            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+          }
+        },
+        "progress": {
+          "retrying": "Comprobando el panel y reintentando de forma segura."
+        },
+        "error": {
+          "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
+          "retry_release_changed": "La versión elegida ya no coincide con la guardada. Inicia una instalación nueva.",
+          "retry_credential_changed": "La credencial ADB de Home Assistant ha cambiado. Comprueba el panel antes de reintentar.",
+          "retry_panel_ambiguous": "No se pudo verificar la aplicación instalada en el panel. No se inició otra instalación.",
+          "retry_cannot_prove_safe": "No se pudo comprobar el panel lo suficiente para reintentar con seguridad. Inténtalo más tarde.",
+          "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
+          "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
+          "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
+          "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
+        }
+      }
+    },
+    "installer_failure_verification_required": {
+      "title": "Hay que verificar la aplicación de {panel} antes de volver a instalarla.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolver el error del panel",
+            "description": "Elige qué hacer ahora.",
+            "menu_options": {
+              "retry": "Reintentar",
+              "support_report": "Informe de soporte",
+              "clear_error": "Borrar error"
+            }
+          },
+          "support_report": {
+            "title": "Informe de soporte",
+            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Borrar error",
+            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+          },
+          "retry_error": {
+            "title": "No se pudo completar el reintento",
+            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+          }
+        },
+        "progress": {
+          "retrying": "Comprobando el panel y reintentando de forma segura."
+        },
+        "error": {
+          "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
+          "retry_release_changed": "La versión elegida ya no coincide con la guardada. Inicia una instalación nueva.",
+          "retry_credential_changed": "La credencial ADB de Home Assistant ha cambiado. Comprueba el panel antes de reintentar.",
+          "retry_panel_ambiguous": "No se pudo verificar la aplicación instalada en el panel. No se inició otra instalación.",
+          "retry_cannot_prove_safe": "No se pudo comprobar el panel lo suficiente para reintentar con seguridad. Inténtalo más tarde.",
+          "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
+          "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
+          "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
+          "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
+        }
+      }
+    },
+    "installer_failure_update": {
+      "title": "La actualización del panel {panel} no se completó.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolver el error del panel",
+            "description": "Elige qué hacer ahora.",
+            "menu_options": {
+              "retry": "Reintentar",
+              "support_report": "Informe de soporte",
+              "clear_error": "Borrar error"
+            }
+          },
+          "support_report": {
+            "title": "Informe de soporte",
+            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Borrar error",
+            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+          },
+          "retry_error": {
+            "title": "No se pudo completar el reintento",
+            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+          }
+        },
+        "progress": {
+          "retrying": "Comprobando el panel y reintentando de forma segura."
+        },
+        "error": {
+          "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
+          "retry_release_changed": "La versión elegida ya no coincide con la guardada. Inicia una instalación nueva.",
+          "retry_credential_changed": "La credencial ADB de Home Assistant ha cambiado. Comprueba el panel antes de reintentar.",
+          "retry_panel_ambiguous": "No se pudo verificar la aplicación instalada en el panel. No se inició otra instalación.",
+          "retry_cannot_prove_safe": "No se pudo comprobar el panel lo suficiente para reintentar con seguridad. Inténtalo más tarde.",
+          "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
+          "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
+          "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
+          "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
+        }
+      }
+    },
+    "installer_failure_retry_hold": {
+      "title": "Se detuvo el reintento en el panel {panel} porque no se pudo comprobar su estado de forma segura.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolver el error del panel",
+            "description": "Elige qué hacer ahora.",
+            "menu_options": {
+              "retry": "Reintentar",
+              "support_report": "Informe de soporte",
+              "clear_error": "Borrar error"
+            }
+          },
+          "support_report": {
+            "title": "Informe de soporte",
+            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Borrar error",
+            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+          },
+          "retry_error": {
+            "title": "No se pudo completar el reintento",
+            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+          }
+        },
+        "progress": {
+          "retrying": "Comprobando el panel y reintentando de forma segura."
+        },
+        "error": {
+          "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
+          "retry_release_changed": "La versión elegida ya no coincide con la guardada. Inicia una instalación nueva.",
+          "retry_credential_changed": "La credencial ADB de Home Assistant ha cambiado. Comprueba el panel antes de reintentar.",
+          "retry_panel_ambiguous": "No se pudo verificar la aplicación instalada en el panel. No se inició otra instalación.",
+          "retry_cannot_prove_safe": "No se pudo comprobar el panel lo suficiente para reintentar con seguridad. Inténtalo más tarde.",
+          "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
+          "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
+          "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
+          "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
+        }
+      }
+    },
     "panel_address_unreachable": {
       "title": "Home Assistant no puede alcanzar {panel} en su dirección guardada",
       "description": "{panel} está conectado a Home Assistant, por lo que sus entidades siguen disponibles, pero Home Assistant no puede leer el panel en {address}, y la conexión que mantiene, desde {session_address}, no ofrece otra dirección que probar. Puede que el puerto web del panel esté bloqueado entre Home Assistant y el panel. Si el panel se ha trasladado, vuelva a añadirlo con su nueva dirección, lo que actualiza la dirección guardada; el aviso desaparece por sí solo cuando la dirección vuelve a responder."

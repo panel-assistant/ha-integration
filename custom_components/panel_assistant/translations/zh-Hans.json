@@ -250,6 +250,510 @@
         }
       }
     },
+    "installer_failure": {
+      "title": "{panel} 安装或更新失败",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "解决面板错误",
+            "description": "选择下一步操作。",
+            "menu_options": {
+              "retry": "重试",
+              "support_report": "支持报告",
+              "clear_error": "清除错误"
+            }
+          },
+          "support_report": {
+            "title": "支持报告",
+            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "清除错误",
+            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+          },
+          "retry_error": {
+            "title": "重试未能完成",
+            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+          }
+        },
+        "progress": {
+          "retrying": "正在检查面板并安全地重试。"
+        },
+        "error": {
+          "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
+          "retry_release_changed": "所选应用版本不再与保存的版本一致。请开始新的安装。",
+          "retry_credential_changed": "Home Assistant 的 ADB 凭据已更改。重试前请检查面板。",
+          "retry_panel_ambiguous": "无法验证面板上已安装的应用。未开始新的安装。",
+          "retry_cannot_prove_safe": "无法充分确认面板状态，暂不能安全重试。请稍后再试。",
+          "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
+          "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
+          "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
+        }
+      }
+    },
+    "installer_failure_authorization_failed": {
+      "title": "面板 {panel} 未授权安装。",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "解决面板错误",
+            "description": "选择下一步操作。",
+            "menu_options": {
+              "retry": "重试",
+              "support_report": "支持报告",
+              "clear_error": "清除错误"
+            }
+          },
+          "support_report": {
+            "title": "支持报告",
+            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "清除错误",
+            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+          },
+          "retry_error": {
+            "title": "重试未能完成",
+            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+          }
+        },
+        "progress": {
+          "retrying": "正在检查面板并安全地重试。"
+        },
+        "error": {
+          "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
+          "retry_release_changed": "所选应用版本不再与保存的版本一致。请开始新的安装。",
+          "retry_credential_changed": "Home Assistant 的 ADB 凭据已更改。重试前请检查面板。",
+          "retry_panel_ambiguous": "无法验证面板上已安装的应用。未开始新的安装。",
+          "retry_cannot_prove_safe": "无法充分确认面板状态，暂不能安全重试。请稍后再试。",
+          "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
+          "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
+          "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
+        }
+      }
+    },
+    "installer_failure_preflight_rejected": {
+      "title": "面板 {panel} 未通过安装前检查。",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "解决面板错误",
+            "description": "选择下一步操作。",
+            "menu_options": {
+              "retry": "重试",
+              "support_report": "支持报告",
+              "clear_error": "清除错误"
+            }
+          },
+          "support_report": {
+            "title": "支持报告",
+            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "清除错误",
+            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+          },
+          "retry_error": {
+            "title": "重试未能完成",
+            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+          }
+        },
+        "progress": {
+          "retrying": "正在检查面板并安全地重试。"
+        },
+        "error": {
+          "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
+          "retry_release_changed": "所选应用版本不再与保存的版本一致。请开始新的安装。",
+          "retry_credential_changed": "Home Assistant 的 ADB 凭据已更改。重试前请检查面板。",
+          "retry_panel_ambiguous": "无法验证面板上已安装的应用。未开始新的安装。",
+          "retry_cannot_prove_safe": "无法充分确认面板状态，暂不能安全重试。请稍后再试。",
+          "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
+          "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
+          "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
+        }
+      }
+    },
+    "installer_failure_artifact_rejected": {
+      "title": "无法验证面板 {panel} 所需的应用版本。",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "解决面板错误",
+            "description": "选择下一步操作。",
+            "menu_options": {
+              "retry": "重试",
+              "support_report": "支持报告",
+              "clear_error": "清除错误"
+            }
+          },
+          "support_report": {
+            "title": "支持报告",
+            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "清除错误",
+            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+          },
+          "retry_error": {
+            "title": "重试未能完成",
+            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+          }
+        },
+        "progress": {
+          "retrying": "正在检查面板并安全地重试。"
+        },
+        "error": {
+          "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
+          "retry_release_changed": "所选应用版本不再与保存的版本一致。请开始新的安装。",
+          "retry_credential_changed": "Home Assistant 的 ADB 凭据已更改。重试前请检查面板。",
+          "retry_panel_ambiguous": "无法验证面板上已安装的应用。未开始新的安装。",
+          "retry_cannot_prove_safe": "无法充分确认面板状态，暂不能安全重试。请稍后再试。",
+          "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
+          "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
+          "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
+        }
+      }
+    },
+    "installer_failure_transport_failed": {
+      "title": "安装期间与面板 {panel} 的连接中断。",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "解决面板错误",
+            "description": "选择下一步操作。",
+            "menu_options": {
+              "retry": "重试",
+              "support_report": "支持报告",
+              "clear_error": "清除错误"
+            }
+          },
+          "support_report": {
+            "title": "支持报告",
+            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "清除错误",
+            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+          },
+          "retry_error": {
+            "title": "重试未能完成",
+            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+          }
+        },
+        "progress": {
+          "retrying": "正在检查面板并安全地重试。"
+        },
+        "error": {
+          "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
+          "retry_release_changed": "所选应用版本不再与保存的版本一致。请开始新的安装。",
+          "retry_credential_changed": "Home Assistant 的 ADB 凭据已更改。重试前请检查面板。",
+          "retry_panel_ambiguous": "无法验证面板上已安装的应用。未开始新的安装。",
+          "retry_cannot_prove_safe": "无法充分确认面板状态，暂不能安全重试。请稍后再试。",
+          "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
+          "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
+          "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
+        }
+      }
+    },
+    "installer_failure_install_failed": {
+      "title": "Android 拒绝在面板 {panel} 上安装应用。",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "解决面板错误",
+            "description": "选择下一步操作。",
+            "menu_options": {
+              "retry": "重试",
+              "support_report": "支持报告",
+              "clear_error": "清除错误"
+            }
+          },
+          "support_report": {
+            "title": "支持报告",
+            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "清除错误",
+            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+          },
+          "retry_error": {
+            "title": "重试未能完成",
+            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+          }
+        },
+        "progress": {
+          "retrying": "正在检查面板并安全地重试。"
+        },
+        "error": {
+          "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
+          "retry_release_changed": "所选应用版本不再与保存的版本一致。请开始新的安装。",
+          "retry_credential_changed": "Home Assistant 的 ADB 凭据已更改。重试前请检查面板。",
+          "retry_panel_ambiguous": "无法验证面板上已安装的应用。未开始新的安装。",
+          "retry_cannot_prove_safe": "无法充分确认面板状态，暂不能安全重试。请稍后再试。",
+          "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
+          "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
+          "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
+        }
+      }
+    },
+    "installer_failure_launch_failed": {
+      "title": "应用已安装到 {panel}，但无法启动。",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "解决面板错误",
+            "description": "选择下一步操作。",
+            "menu_options": {
+              "retry": "重试",
+              "support_report": "支持报告",
+              "clear_error": "清除错误"
+            }
+          },
+          "support_report": {
+            "title": "支持报告",
+            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "清除错误",
+            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+          },
+          "retry_error": {
+            "title": "重试未能完成",
+            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+          }
+        },
+        "progress": {
+          "retrying": "正在检查面板并安全地重试。"
+        },
+        "error": {
+          "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
+          "retry_release_changed": "所选应用版本不再与保存的版本一致。请开始新的安装。",
+          "retry_credential_changed": "Home Assistant 的 ADB 凭据已更改。重试前请检查面板。",
+          "retry_panel_ambiguous": "无法验证面板上已安装的应用。未开始新的安装。",
+          "retry_cannot_prove_safe": "无法充分确认面板状态，暂不能安全重试。请稍后再试。",
+          "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
+          "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
+          "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
+        }
+      }
+    },
+    "installer_failure_health_check_failed": {
+      "title": "面板 {panel} 上的应用未通过运行状况检查。",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "解决面板错误",
+            "description": "选择下一步操作。",
+            "menu_options": {
+              "retry": "重试",
+              "support_report": "支持报告",
+              "clear_error": "清除错误"
+            }
+          },
+          "support_report": {
+            "title": "支持报告",
+            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "清除错误",
+            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+          },
+          "retry_error": {
+            "title": "重试未能完成",
+            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+          }
+        },
+        "progress": {
+          "retrying": "正在检查面板并安全地重试。"
+        },
+        "error": {
+          "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
+          "retry_release_changed": "所选应用版本不再与保存的版本一致。请开始新的安装。",
+          "retry_credential_changed": "Home Assistant 的 ADB 凭据已更改。重试前请检查面板。",
+          "retry_panel_ambiguous": "无法验证面板上已安装的应用。未开始新的安装。",
+          "retry_cannot_prove_safe": "无法充分确认面板状态，暂不能安全重试。请稍后再试。",
+          "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
+          "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
+          "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
+        }
+      }
+    },
+    "installer_failure_ambiguous_mutation": {
+      "title": "安装可能已更改面板 {panel}；当前状态未知。",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "解决面板错误",
+            "description": "选择下一步操作。",
+            "menu_options": {
+              "retry": "重试",
+              "support_report": "支持报告",
+              "clear_error": "清除错误"
+            }
+          },
+          "support_report": {
+            "title": "支持报告",
+            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "清除错误",
+            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+          },
+          "retry_error": {
+            "title": "重试未能完成",
+            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+          }
+        },
+        "progress": {
+          "retrying": "正在检查面板并安全地重试。"
+        },
+        "error": {
+          "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
+          "retry_release_changed": "所选应用版本不再与保存的版本一致。请开始新的安装。",
+          "retry_credential_changed": "Home Assistant 的 ADB 凭据已更改。重试前请检查面板。",
+          "retry_panel_ambiguous": "无法验证面板上已安装的应用。未开始新的安装。",
+          "retry_cannot_prove_safe": "无法充分确认面板状态，暂不能安全重试。请稍后再试。",
+          "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
+          "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
+          "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
+        }
+      }
+    },
+    "installer_failure_verification_required": {
+      "title": "再次安装前需要验证面板 {panel} 上的应用。",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "解决面板错误",
+            "description": "选择下一步操作。",
+            "menu_options": {
+              "retry": "重试",
+              "support_report": "支持报告",
+              "clear_error": "清除错误"
+            }
+          },
+          "support_report": {
+            "title": "支持报告",
+            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "清除错误",
+            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+          },
+          "retry_error": {
+            "title": "重试未能完成",
+            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+          }
+        },
+        "progress": {
+          "retrying": "正在检查面板并安全地重试。"
+        },
+        "error": {
+          "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
+          "retry_release_changed": "所选应用版本不再与保存的版本一致。请开始新的安装。",
+          "retry_credential_changed": "Home Assistant 的 ADB 凭据已更改。重试前请检查面板。",
+          "retry_panel_ambiguous": "无法验证面板上已安装的应用。未开始新的安装。",
+          "retry_cannot_prove_safe": "无法充分确认面板状态，暂不能安全重试。请稍后再试。",
+          "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
+          "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
+          "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
+        }
+      }
+    },
+    "installer_failure_update": {
+      "title": "面板 {panel} 的更新未能完成。",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "解决面板错误",
+            "description": "选择下一步操作。",
+            "menu_options": {
+              "retry": "重试",
+              "support_report": "支持报告",
+              "clear_error": "清除错误"
+            }
+          },
+          "support_report": {
+            "title": "支持报告",
+            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "清除错误",
+            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+          },
+          "retry_error": {
+            "title": "重试未能完成",
+            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+          }
+        },
+        "progress": {
+          "retrying": "正在检查面板并安全地重试。"
+        },
+        "error": {
+          "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
+          "retry_release_changed": "所选应用版本不再与保存的版本一致。请开始新的安装。",
+          "retry_credential_changed": "Home Assistant 的 ADB 凭据已更改。重试前请检查面板。",
+          "retry_panel_ambiguous": "无法验证面板上已安装的应用。未开始新的安装。",
+          "retry_cannot_prove_safe": "无法充分确认面板状态，暂不能安全重试。请稍后再试。",
+          "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
+          "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
+          "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
+        }
+      }
+    },
+    "installer_failure_retry_hold": {
+      "title": "已暂停面板 {panel} 的重试，因为无法安全地确认其状态。",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "解决面板错误",
+            "description": "选择下一步操作。",
+            "menu_options": {
+              "retry": "重试",
+              "support_report": "支持报告",
+              "clear_error": "清除错误"
+            }
+          },
+          "support_report": {
+            "title": "支持报告",
+            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "清除错误",
+            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+          },
+          "retry_error": {
+            "title": "重试未能完成",
+            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+          }
+        },
+        "progress": {
+          "retrying": "正在检查面板并安全地重试。"
+        },
+        "error": {
+          "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
+          "retry_release_changed": "所选应用版本不再与保存的版本一致。请开始新的安装。",
+          "retry_credential_changed": "Home Assistant 的 ADB 凭据已更改。重试前请检查面板。",
+          "retry_panel_ambiguous": "无法验证面板上已安装的应用。未开始新的安装。",
+          "retry_cannot_prove_safe": "无法充分确认面板状态，暂不能安全重试。请稍后再试。",
+          "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
+          "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
+          "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
+        }
+      }
+    },
     "panel_address_unreachable": {
       "title": "Home Assistant 无法通过已保存的地址访问 {panel}",
       "description": "{panel} 已连接到 Home Assistant，因此其实体保持可用，但 Home Assistant 无法通过 {address} 读取该面板，而它当前从 {session_address} 建立的连接也没有提供其他可尝试的地址。面板的网页端口可能在 Home Assistant 与面板之间被阻断。如果面板已迁移，请使用新地址重新添加，已保存的地址会随之更新；地址恢复响应后，此提示会自动消失。"

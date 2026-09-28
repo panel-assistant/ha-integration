@@ -581,6 +581,510 @@
         }
       }
     },
+    "installer_failure": {
+      "title": "Install or update failed on {panel}",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolve panel error",
+            "description": "Choose what to do next.",
+            "menu_options": {
+              "retry": "Try again",
+              "support_report": "Support report",
+              "clear_error": "Clear error"
+            }
+          },
+          "support_report": {
+            "title": "Support report",
+            "description": "Copy this report into a GitHub issue or share it with an AI assistant when asking for help:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Clear error",
+            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+          },
+          "retry_error": {
+            "title": "Retry could not finish",
+            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+          }
+        },
+        "progress": {
+          "retrying": "Checking the panel and retrying safely."
+        },
+        "error": {
+          "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
+          "retry_release_changed": "The selected release no longer matches the saved release. Choose a new install attempt.",
+          "retry_credential_changed": "Home Assistant's ADB credential has changed. Check the panel before retrying.",
+          "retry_panel_ambiguous": "The installed app on the panel could not be verified. No new installation was started.",
+          "retry_cannot_prove_safe": "The panel could not be checked well enough for a safe retry. Try again later.",
+          "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
+          "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
+          "retry_failed": "The retry failed. The support report has details.",
+          "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
+        }
+      }
+    },
+    "installer_failure_authorization_failed": {
+      "title": "Panel {panel} did not authorize the installation.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolve panel error",
+            "description": "Choose what to do next.",
+            "menu_options": {
+              "retry": "Try again",
+              "support_report": "Support report",
+              "clear_error": "Clear error"
+            }
+          },
+          "support_report": {
+            "title": "Support report",
+            "description": "Copy this report into a GitHub issue or share it with an AI assistant when asking for help:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Clear error",
+            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+          },
+          "retry_error": {
+            "title": "Retry could not finish",
+            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+          }
+        },
+        "progress": {
+          "retrying": "Checking the panel and retrying safely."
+        },
+        "error": {
+          "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
+          "retry_release_changed": "The selected release no longer matches the saved release. Choose a new install attempt.",
+          "retry_credential_changed": "Home Assistant's ADB credential has changed. Check the panel before retrying.",
+          "retry_panel_ambiguous": "The installed app on the panel could not be verified. No new installation was started.",
+          "retry_cannot_prove_safe": "The panel could not be checked well enough for a safe retry. Try again later.",
+          "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
+          "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
+          "retry_failed": "The retry failed. The support report has details.",
+          "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
+        }
+      }
+    },
+    "installer_failure_preflight_rejected": {
+      "title": "Panel {panel} did not pass the checks needed to install.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolve panel error",
+            "description": "Choose what to do next.",
+            "menu_options": {
+              "retry": "Try again",
+              "support_report": "Support report",
+              "clear_error": "Clear error"
+            }
+          },
+          "support_report": {
+            "title": "Support report",
+            "description": "Copy this report into a GitHub issue or share it with an AI assistant when asking for help:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Clear error",
+            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+          },
+          "retry_error": {
+            "title": "Retry could not finish",
+            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+          }
+        },
+        "progress": {
+          "retrying": "Checking the panel and retrying safely."
+        },
+        "error": {
+          "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
+          "retry_release_changed": "The selected release no longer matches the saved release. Choose a new install attempt.",
+          "retry_credential_changed": "Home Assistant's ADB credential has changed. Check the panel before retrying.",
+          "retry_panel_ambiguous": "The installed app on the panel could not be verified. No new installation was started.",
+          "retry_cannot_prove_safe": "The panel could not be checked well enough for a safe retry. Try again later.",
+          "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
+          "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
+          "retry_failed": "The retry failed. The support report has details.",
+          "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
+        }
+      }
+    },
+    "installer_failure_artifact_rejected": {
+      "title": "The app release for panel {panel} could not be verified.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolve panel error",
+            "description": "Choose what to do next.",
+            "menu_options": {
+              "retry": "Try again",
+              "support_report": "Support report",
+              "clear_error": "Clear error"
+            }
+          },
+          "support_report": {
+            "title": "Support report",
+            "description": "Copy this report into a GitHub issue or share it with an AI assistant when asking for help:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Clear error",
+            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+          },
+          "retry_error": {
+            "title": "Retry could not finish",
+            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+          }
+        },
+        "progress": {
+          "retrying": "Checking the panel and retrying safely."
+        },
+        "error": {
+          "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
+          "retry_release_changed": "The selected release no longer matches the saved release. Choose a new install attempt.",
+          "retry_credential_changed": "Home Assistant's ADB credential has changed. Check the panel before retrying.",
+          "retry_panel_ambiguous": "The installed app on the panel could not be verified. No new installation was started.",
+          "retry_cannot_prove_safe": "The panel could not be checked well enough for a safe retry. Try again later.",
+          "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
+          "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
+          "retry_failed": "The retry failed. The support report has details.",
+          "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
+        }
+      }
+    },
+    "installer_failure_transport_failed": {
+      "title": "Connection to panel {panel} failed during installation.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolve panel error",
+            "description": "Choose what to do next.",
+            "menu_options": {
+              "retry": "Try again",
+              "support_report": "Support report",
+              "clear_error": "Clear error"
+            }
+          },
+          "support_report": {
+            "title": "Support report",
+            "description": "Copy this report into a GitHub issue or share it with an AI assistant when asking for help:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Clear error",
+            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+          },
+          "retry_error": {
+            "title": "Retry could not finish",
+            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+          }
+        },
+        "progress": {
+          "retrying": "Checking the panel and retrying safely."
+        },
+        "error": {
+          "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
+          "retry_release_changed": "The selected release no longer matches the saved release. Choose a new install attempt.",
+          "retry_credential_changed": "Home Assistant's ADB credential has changed. Check the panel before retrying.",
+          "retry_panel_ambiguous": "The installed app on the panel could not be verified. No new installation was started.",
+          "retry_cannot_prove_safe": "The panel could not be checked well enough for a safe retry. Try again later.",
+          "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
+          "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
+          "retry_failed": "The retry failed. The support report has details.",
+          "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
+        }
+      }
+    },
+    "installer_failure_install_failed": {
+      "title": "Android refused to install the app on panel {panel}.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolve panel error",
+            "description": "Choose what to do next.",
+            "menu_options": {
+              "retry": "Try again",
+              "support_report": "Support report",
+              "clear_error": "Clear error"
+            }
+          },
+          "support_report": {
+            "title": "Support report",
+            "description": "Copy this report into a GitHub issue or share it with an AI assistant when asking for help:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Clear error",
+            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+          },
+          "retry_error": {
+            "title": "Retry could not finish",
+            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+          }
+        },
+        "progress": {
+          "retrying": "Checking the panel and retrying safely."
+        },
+        "error": {
+          "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
+          "retry_release_changed": "The selected release no longer matches the saved release. Choose a new install attempt.",
+          "retry_credential_changed": "Home Assistant's ADB credential has changed. Check the panel before retrying.",
+          "retry_panel_ambiguous": "The installed app on the panel could not be verified. No new installation was started.",
+          "retry_cannot_prove_safe": "The panel could not be checked well enough for a safe retry. Try again later.",
+          "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
+          "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
+          "retry_failed": "The retry failed. The support report has details.",
+          "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
+        }
+      }
+    },
+    "installer_failure_launch_failed": {
+      "title": "The app was installed on {panel}, but could not be started.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolve panel error",
+            "description": "Choose what to do next.",
+            "menu_options": {
+              "retry": "Try again",
+              "support_report": "Support report",
+              "clear_error": "Clear error"
+            }
+          },
+          "support_report": {
+            "title": "Support report",
+            "description": "Copy this report into a GitHub issue or share it with an AI assistant when asking for help:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Clear error",
+            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+          },
+          "retry_error": {
+            "title": "Retry could not finish",
+            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+          }
+        },
+        "progress": {
+          "retrying": "Checking the panel and retrying safely."
+        },
+        "error": {
+          "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
+          "retry_release_changed": "The selected release no longer matches the saved release. Choose a new install attempt.",
+          "retry_credential_changed": "Home Assistant's ADB credential has changed. Check the panel before retrying.",
+          "retry_panel_ambiguous": "The installed app on the panel could not be verified. No new installation was started.",
+          "retry_cannot_prove_safe": "The panel could not be checked well enough for a safe retry. Try again later.",
+          "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
+          "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
+          "retry_failed": "The retry failed. The support report has details.",
+          "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
+        }
+      }
+    },
+    "installer_failure_health_check_failed": {
+      "title": "The app on {panel} did not pass its health check.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolve panel error",
+            "description": "Choose what to do next.",
+            "menu_options": {
+              "retry": "Try again",
+              "support_report": "Support report",
+              "clear_error": "Clear error"
+            }
+          },
+          "support_report": {
+            "title": "Support report",
+            "description": "Copy this report into a GitHub issue or share it with an AI assistant when asking for help:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Clear error",
+            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+          },
+          "retry_error": {
+            "title": "Retry could not finish",
+            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+          }
+        },
+        "progress": {
+          "retrying": "Checking the panel and retrying safely."
+        },
+        "error": {
+          "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
+          "retry_release_changed": "The selected release no longer matches the saved release. Choose a new install attempt.",
+          "retry_credential_changed": "Home Assistant's ADB credential has changed. Check the panel before retrying.",
+          "retry_panel_ambiguous": "The installed app on the panel could not be verified. No new installation was started.",
+          "retry_cannot_prove_safe": "The panel could not be checked well enough for a safe retry. Try again later.",
+          "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
+          "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
+          "retry_failed": "The retry failed. The support report has details.",
+          "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
+        }
+      }
+    },
+    "installer_failure_ambiguous_mutation": {
+      "title": "Installation may have changed panel {panel}; its state is unknown.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolve panel error",
+            "description": "Choose what to do next.",
+            "menu_options": {
+              "retry": "Try again",
+              "support_report": "Support report",
+              "clear_error": "Clear error"
+            }
+          },
+          "support_report": {
+            "title": "Support report",
+            "description": "Copy this report into a GitHub issue or share it with an AI assistant when asking for help:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Clear error",
+            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+          },
+          "retry_error": {
+            "title": "Retry could not finish",
+            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+          }
+        },
+        "progress": {
+          "retrying": "Checking the panel and retrying safely."
+        },
+        "error": {
+          "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
+          "retry_release_changed": "The selected release no longer matches the saved release. Choose a new install attempt.",
+          "retry_credential_changed": "Home Assistant's ADB credential has changed. Check the panel before retrying.",
+          "retry_panel_ambiguous": "The installed app on the panel could not be verified. No new installation was started.",
+          "retry_cannot_prove_safe": "The panel could not be checked well enough for a safe retry. Try again later.",
+          "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
+          "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
+          "retry_failed": "The retry failed. The support report has details.",
+          "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
+        }
+      }
+    },
+    "installer_failure_verification_required": {
+      "title": "The app on {panel} needs verification before another install.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolve panel error",
+            "description": "Choose what to do next.",
+            "menu_options": {
+              "retry": "Try again",
+              "support_report": "Support report",
+              "clear_error": "Clear error"
+            }
+          },
+          "support_report": {
+            "title": "Support report",
+            "description": "Copy this report into a GitHub issue or share it with an AI assistant when asking for help:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Clear error",
+            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+          },
+          "retry_error": {
+            "title": "Retry could not finish",
+            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+          }
+        },
+        "progress": {
+          "retrying": "Checking the panel and retrying safely."
+        },
+        "error": {
+          "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
+          "retry_release_changed": "The selected release no longer matches the saved release. Choose a new install attempt.",
+          "retry_credential_changed": "Home Assistant's ADB credential has changed. Check the panel before retrying.",
+          "retry_panel_ambiguous": "The installed app on the panel could not be verified. No new installation was started.",
+          "retry_cannot_prove_safe": "The panel could not be checked well enough for a safe retry. Try again later.",
+          "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
+          "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
+          "retry_failed": "The retry failed. The support report has details.",
+          "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
+        }
+      }
+    },
+    "installer_failure_update": {
+      "title": "The update on panel {panel} did not complete.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolve panel error",
+            "description": "Choose what to do next.",
+            "menu_options": {
+              "retry": "Try again",
+              "support_report": "Support report",
+              "clear_error": "Clear error"
+            }
+          },
+          "support_report": {
+            "title": "Support report",
+            "description": "Copy this report into a GitHub issue or share it with an AI assistant when asking for help:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Clear error",
+            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+          },
+          "retry_error": {
+            "title": "Retry could not finish",
+            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+          }
+        },
+        "progress": {
+          "retrying": "Checking the panel and retrying safely."
+        },
+        "error": {
+          "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
+          "retry_release_changed": "The selected release no longer matches the saved release. Choose a new install attempt.",
+          "retry_credential_changed": "Home Assistant's ADB credential has changed. Check the panel before retrying.",
+          "retry_panel_ambiguous": "The installed app on the panel could not be verified. No new installation was started.",
+          "retry_cannot_prove_safe": "The panel could not be checked well enough for a safe retry. Try again later.",
+          "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
+          "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
+          "retry_failed": "The retry failed. The support report has details.",
+          "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
+        }
+      }
+    },
+    "installer_failure_retry_hold": {
+      "title": "Retry on panel {panel} paused because its state could not be checked safely.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolve panel error",
+            "description": "Choose what to do next.",
+            "menu_options": {
+              "retry": "Try again",
+              "support_report": "Support report",
+              "clear_error": "Clear error"
+            }
+          },
+          "support_report": {
+            "title": "Support report",
+            "description": "Copy this report into a GitHub issue or share it with an AI assistant when asking for help:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Clear error",
+            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+          },
+          "retry_error": {
+            "title": "Retry could not finish",
+            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+          }
+        },
+        "progress": {
+          "retrying": "Checking the panel and retrying safely."
+        },
+        "error": {
+          "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
+          "retry_release_changed": "The selected release no longer matches the saved release. Choose a new install attempt.",
+          "retry_credential_changed": "Home Assistant's ADB credential has changed. Check the panel before retrying.",
+          "retry_panel_ambiguous": "The installed app on the panel could not be verified. No new installation was started.",
+          "retry_cannot_prove_safe": "The panel could not be checked well enough for a safe retry. Try again later.",
+          "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
+          "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
+          "retry_failed": "The retry failed. The support report has details.",
+          "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
+        }
+      }
+    },
     "panel_address_unreachable": {
       "title": "Home Assistant cannot reach {panel} at its stored address",
       "description": "{panel} is connected to Home Assistant, so its entities stay available, but Home Assistant cannot read the panel at {address}, and the connection it holds, from {session_address}, offers no other address to try. The panel's web port may be blocked between Home Assistant and the panel. If the panel has moved, add it again at its new address, which updates the stored address; the issue clears by itself once the address answers again."
