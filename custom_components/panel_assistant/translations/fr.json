@@ -72,11 +72,11 @@
       },
       "confirm_install_candidate": {
         "title": "Confirmer l'installation ou la récupération",
-        "description": "Vérifiez l'appareil et la version stable vérifiée :\n\n- Adresse : {address}\n- Modèle : {model}\n- Numéro de série : {serial}\n- ABI : {abi}\n- Android SDK : {sdk}\n- Version : {version}\n- Tag : {tag}\n- SHA-256 : {sha256}\n\nValidez pour contrôler de nouveau le panneau et adopter ces octets exacts s'ils sont déjà installés ou, si le panneau est propre, les télécharger, les vérifier, les installer, les lancer et contrôler leur état. Une installation contenant d'autres octets ne sera ni remplacée ni mise à niveau.\n\nUne fois l'appareil ajouté par Home Assistant, sélectionnez Configurer sur le panneau pour terminer la configuration guidée de ha-paneld. L'installation ne configure pas le tableau de bord."
+        "description": "Vérifiez l'appareil et la version stable vérifiée :\n\n- Adresse : {address}\n- Modèle : {model}\n- Numéro de série : {serial}\n- ABI : {abi}\n- Android SDK : {sdk}\n- Version : {version}\n- Tag : {tag}\n- SHA-256 : {sha256}\n\nValidez pour contrôler de nouveau le panneau et adopter ces octets exacts s'ils sont déjà installés ou, si le panneau est propre, les télécharger, les vérifier, les installer, les lancer et contrôler leur état. Une installation contenant d'autres octets ne sera ni remplacée ni mise à niveau.\n\nUne fois l'appareil ajouté par Home Assistant, suivez le lien de configuration dans le navigateur de la boîte de dialogue Ajouter depuis un ordinateur qui peut accéder au panneau sur le réseau local. Si demandé, autorisez ADB sur le panneau. L'installation ne configure pas le tableau de bord."
       },
       "confirm_install_rc": {
         "title": "Confirmer l'installation de la version candidate",
-        "description": "Tests uniquement : il s'agit d'une version candidate, et non d'une version stable, qui peut contenir des bugs.\n\nVérifiez l'appareil et la version candidate vérifiée :\n\n- Adresse : {address}\n- Modèle : {model}\n- Numéro de série : {serial}\n- ABI : {abi}\n- Android SDK : {sdk}\n- Version : {version}\n- Tag : {tag}\n- SHA-256 : {sha256}\n\nValidez pour autoriser cette version candidate exacte, contrôler de nouveau le panneau et adopter ces octets exacts s'ils sont déjà installés ou, si le panneau est propre, les télécharger, les vérifier, les installer, les lancer et contrôler leur état. Une installation contenant d'autres octets ne sera ni remplacée ni mise à niveau.\n\nUne fois l'appareil ajouté par Home Assistant, sélectionnez Configurer sur le panneau pour terminer la configuration guidée de ha-paneld. L'installation ne configure pas le tableau de bord."
+        "description": "Tests uniquement : il s'agit d'une version candidate, et non d'une version stable, qui peut contenir des bugs.\n\nVérifiez l'appareil et la version candidate vérifiée :\n\n- Adresse : {address}\n- Modèle : {model}\n- Numéro de série : {serial}\n- ABI : {abi}\n- Android SDK : {sdk}\n- Version : {version}\n- Tag : {tag}\n- SHA-256 : {sha256}\n\nValidez pour autoriser cette version candidate exacte, contrôler de nouveau le panneau et adopter ces octets exacts s'ils sont déjà installés ou, si le panneau est propre, les télécharger, les vérifier, les installer, les lancer et contrôler leur état. Une installation contenant d'autres octets ne sera ni remplacée ni mise à niveau.\n\nUne fois l'appareil ajouté par Home Assistant, suivez le lien de configuration dans le navigateur de la boîte de dialogue Ajouter depuis un ordinateur qui peut accéder au panneau sur le réseau local. Si demandé, autorisez ADB sur le panneau. L'installation ne configure pas le tableau de bord."
       },
       "release_preview_only": {
         "title": "La version ne peut pas être installée automatiquement",
@@ -84,11 +84,11 @@
       },
       "install_result": {
         "title": "Terminer la configuration du panneau",
-        "description": "ha-paneld {version} a été installé à l'adresse {address}.\n\nValidez pour relancer uniquement les vérifications finales en lecture seule de l'identité et de l'état. Aucune étape d'installation ne sera répétée.\n\nUne fois l'appareil ajouté par Home Assistant, sélectionnez Configurer sur le panneau pour connecter ha-paneld à Home Assistant et configurer le tableau de bord."
+        "description": "ha-paneld {version} a été installé à l'adresse {address}.\n\nValidez pour relancer uniquement les vérifications finales en lecture seule de l'identité et de l'état. Aucune étape d'installation ne sera répétée.\n\nUne fois l'appareil ajouté par Home Assistant, suivez le lien de configuration dans le navigateur de la boîte de dialogue Ajouter depuis un ordinateur qui peut accéder au panneau sur le réseau local. Si demandé, autorisez ADB sur le panneau."
       }
     },
     "progress": {
-      "installing": "Installation et vérification de ha-paneld à l'adresse {address}. Laissez cette boîte de dialogue ouverte pour terminer automatiquement. Vous pouvez la fermer : Home Assistant poursuivra la tâche d'installation, mais ne pourra pas ajouter l'appareil avant que vous ne rouvriez Paramètres → Appareils et services → Ajouter une intégration, sélectionniez Panel Assistant, choisissiez Ajouter un panneau de votre réseau et saisissiez la même adresse. Une fois l'appareil ajouté par Home Assistant, terminez la configuration guidée de ha-paneld sur le panneau."
+      "installing": "Installation et vérification de ha-paneld à l'adresse {address}. Laissez cette boîte de dialogue ouverte pour terminer automatiquement. Vous pouvez la fermer : Home Assistant poursuivra la tâche d'installation, mais ne pourra pas ajouter l'appareil avant que vous ne rouvriez Paramètres → Appareils et services → Ajouter une intégration, sélectionniez Panel Assistant, choisissiez Ajouter un panneau de votre réseau et saisissiez la même adresse. Une fois l'appareil ajouté par Home Assistant, suivez le lien de configuration dans le navigateur de la boîte de dialogue Ajouter depuis un ordinateur qui peut accéder au panneau sur le réseau local. Si demandé, autorisez ADB sur le panneau."
     },
     "error": {
       "cannot_connect": "Impossible de se connecter à un point de terminaison d'état ha-paneld valide.",
@@ -261,6 +261,30 @@
   },
   "options": {
     "step": {
+      "init": {
+        "title": "Configuration du panneau",
+        "description": "Poursuivez la configuration de ce panneau dans le navigateur ou modifiez son mode de connexion. Le panneau restera non associé tant que vous n'aurez pas confirmé le compte connecté.",
+        "menu_options": {
+          "onboarding": "Poursuivre la configuration",
+          "transport": "Paramètres de connexion"
+        }
+      },
+      "onboarding": {
+        "title": "Terminer la configuration de ce panneau",
+        "description": "Ouvrez la page de configuration du panneau dans un navigateur qui peut accéder au panneau sur votre réseau local. Connectez-vous avec le compte Home Assistant actuellement utilisé dans ce navigateur, choisissez le tableau de bord d’accueil et terminez la configuration sur cette page. Gardez cette boîte de dialogue ouverte ; vous reviendrez ici pour confirmer le compte. Si ce navigateur ne peut pas accéder au panneau, terminez la configuration plus tard depuis le réseau local du panneau. Si une autorisation pour le débogage Android est demandée, une personne doit toujours l’accorder sur le panneau."
+      },
+      "onboarding_wait": {
+        "title": "En attente de la connexion du panneau",
+        "description": "Le panneau n’a pas encore terminé sa configuration ni demandé la connexion d’un compte. Terminez la configuration sur sa page, puis cliquez sur Envoyer ici pour vérifier à nouveau. Le panneau reste non associé tant que vous n’avez pas confirmé son compte."
+      },
+      "onboarding_confirm": {
+        "title": "Confirmer le compte de ce panneau",
+        "description": "{panel} s’est connecté en tant que {user} et a demandé à se connecter. Confirmez uniquement s’il s’agit du compte que vous avez choisi pour ce panneau. Si vous passez cette étape, il restera non associé ; vous pourrez confirmer plus tard dans Réparations.",
+        "menu_options": {
+          "onboarding_bind": "Oui, connecter ce panneau",
+          "onboarding_skip": "Pas maintenant"
+        }
+      },
       "transport": {
         "title": "Connexion du panneau",
         "description": "Choisissez ce qui contrôle les entités et les commandes de ce panneau. En enregistrant Panel Assistant, Panel Assistant déplace vers lui les entités MQTT du panneau, en conservant leurs identifiants d'entité, leur historique et vos personnalisations, puis le panneau retire ses entités MQTT. En enregistrant MQTT, avec ou sans rapports natifs, elles reviennent à MQTT. Dans les deux cas, le panneau se reconnecte avec le nouveau choix.",

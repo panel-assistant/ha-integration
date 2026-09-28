@@ -72,11 +72,11 @@
       },
       "confirm_install_candidate": {
         "title": "Potwierdź instalację lub przywrócenie",
-        "description": "Sprawdź urządzenie i zweryfikowane wydanie stabilne:\n\n- Adres: {address}\n- Model: {model}\n- Numer seryjny: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Wersja: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nZatwierdź, aby ponownie sprawdzić panel, a następnie przejąć dokładnie te bajty, jeśli są już zainstalowane, lub pobrać je, zweryfikować, zainstalować, uruchomić i sprawdzić ich stan, jeśli panel jest czysty. Instalacja z innymi bajtami nie zostanie nadpisana ani zaktualizowana.\n\nGdy Home Assistant doda urządzenie, wybierz „Skonfiguruj” na panelu, aby dokończyć konfigurację z przewodnikiem w ha-paneld. Instalacja nie konfiguruje dashboardu."
+        "description": "Sprawdź urządzenie i zweryfikowane wydanie stabilne:\n\n- Adres: {address}\n- Model: {model}\n- Numer seryjny: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Wersja: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nZatwierdź, aby ponownie sprawdzić panel, a następnie przejąć dokładnie te bajty, jeśli są już zainstalowane, lub pobrać je, zweryfikować, zainstalować, uruchomić i sprawdzić ich stan, jeśli panel jest czysty. Instalacja z innymi bajtami nie zostanie nadpisana ani zaktualizowana.\n\nGdy Home Assistant doda urządzenie, otwórz link do konfiguracji w przeglądarce w oknie Dodawanie na komputerze, który ma dostęp do panelu w sieci lokalnej. Jeśli pojawi się prośba, zatwierdź ADB na panelu. Instalacja nie konfiguruje dashboardu."
       },
       "confirm_install_rc": {
         "title": "Potwierdź instalację wersji kandydującej",
-        "description": "Tylko do testów: to wersja kandydująca, a nie wydanie stabilne, i może zawierać błędy.\n\nSprawdź urządzenie i zweryfikowaną wersję kandydującą:\n\n- Adres: {address}\n- Model: {model}\n- Numer seryjny: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Wersja: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nZatwierdź, aby autoryzować dokładnie tę wersję kandydującą i ponownie sprawdzić panel, a następnie przejąć dokładnie te bajty, jeśli są już zainstalowane, lub pobrać je, zweryfikować, zainstalować, uruchomić i sprawdzić ich stan, jeśli panel jest czysty. Instalacja z innymi bajtami nie zostanie nadpisana ani zaktualizowana.\n\nGdy Home Assistant doda urządzenie, wybierz „Skonfiguruj” na panelu, aby dokończyć konfigurację z przewodnikiem w ha-paneld. Instalacja nie konfiguruje dashboardu."
+        "description": "Tylko do testów: to wersja kandydująca, a nie wydanie stabilne, i może zawierać błędy.\n\nSprawdź urządzenie i zweryfikowaną wersję kandydującą:\n\n- Adres: {address}\n- Model: {model}\n- Numer seryjny: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Wersja: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nZatwierdź, aby autoryzować dokładnie tę wersję kandydującą i ponownie sprawdzić panel, a następnie przejąć dokładnie te bajty, jeśli są już zainstalowane, lub pobrać je, zweryfikować, zainstalować, uruchomić i sprawdzić ich stan, jeśli panel jest czysty. Instalacja z innymi bajtami nie zostanie nadpisana ani zaktualizowana.\n\nGdy Home Assistant doda urządzenie, otwórz link do konfiguracji w przeglądarce w oknie Dodawanie na komputerze, który ma dostęp do panelu w sieci lokalnej. Jeśli pojawi się prośba, zatwierdź ADB na panelu. Instalacja nie konfiguruje dashboardu."
       },
       "release_preview_only": {
         "title": "Nie można zainstalować tej wersji automatycznie",
@@ -84,11 +84,11 @@
       },
       "install_result": {
         "title": "Dokończ konfigurację panelu",
-        "description": "ha-paneld {version} zostało zainstalowane pod adresem {address}.\n\nZatwierdź, aby ponowić tylko końcowe kontrole tożsamości i stanu (tylko do odczytu). Żaden krok instalacji nie zostanie powtórzony.\n\nGdy Home Assistant doda urządzenie, wybierz „Skonfiguruj” na panelu, aby połączyć ha-paneld z Home Assistant i skonfigurować dashboard."
+        "description": "ha-paneld {version} zostało zainstalowane pod adresem {address}.\n\nZatwierdź, aby ponowić tylko końcowe kontrole tożsamości i stanu (tylko do odczytu). Żaden krok instalacji nie zostanie powtórzony.\n\nGdy Home Assistant doda urządzenie, otwórz link do konfiguracji w przeglądarce w oknie Dodawanie na komputerze, który ma dostęp do panelu w sieci lokalnej. Jeśli pojawi się prośba, zatwierdź ADB na panelu."
       }
     },
     "progress": {
-      "installing": "Instalowanie i weryfikowanie ha-paneld pod adresem {address}. Pozostaw to okno otwarte, aby zakończyć automatycznie. Możesz je zamknąć, a Home Assistant będzie kontynuować zadanie instalacji, ale nie doda urządzenia, dopóki ponownie nie otworzysz Ustawienia → Urządzenia oraz usługi → Dodaj integrację, nie wybierzesz Panel Assistant, nie wybierzesz „Dodaj panel w swojej sieci” i nie wprowadzisz tego samego adresu. Gdy Home Assistant doda urządzenie, dokończ konfigurację z przewodnikiem ha-paneld na panelu."
+      "installing": "Instalowanie i weryfikowanie ha-paneld pod adresem {address}. Pozostaw to okno otwarte, aby zakończyć automatycznie. Możesz je zamknąć, a Home Assistant będzie kontynuować zadanie instalacji, ale nie doda urządzenia, dopóki ponownie nie otworzysz Ustawienia → Urządzenia oraz usługi → Dodaj integrację, nie wybierzesz Panel Assistant, nie wybierzesz „Dodaj panel w swojej sieci” i nie wprowadzisz tego samego adresu. Gdy Home Assistant doda urządzenie, otwórz link do konfiguracji w przeglądarce w oknie Dodawanie na komputerze, który ma dostęp do panelu w sieci lokalnej. Jeśli pojawi się prośba, zatwierdź ADB na panelu."
     },
     "error": {
       "cannot_connect": "Nie udało się nawiązać połączenia z prawidłowym punktem końcowym stanu działania usługi ha-paneld.",
@@ -283,6 +283,30 @@
   },
   "options": {
     "step": {
+      "init": {
+        "title": "Konfiguracja panelu",
+        "description": "Kontynuuj konfigurację tego panelu w przeglądarce lub zmień sposób połączenia. Panel pozostanie niepowiązany, dopóki nie potwierdzisz konta, na które się zalogowano.",
+        "menu_options": {
+          "onboarding": "Kontynuuj konfigurację",
+          "transport": "Ustawienia połączenia"
+        }
+      },
+      "onboarding": {
+        "title": "Dokończ konfigurację tego panelu",
+        "description": "Otwórz stronę konfiguracji panelu w przeglądarce, która ma dostęp do panelu w sieci lokalnej. Zaloguj się na konto Home Assistant używane obecnie w tej przeglądarce, wybierz główny pulpit i dokończ tam konfigurację. Pozostaw to okno dialogowe otwarte; potem wrócisz tutaj, aby potwierdzić konto. Jeśli ta przeglądarka nie ma dostępu do panelu, dokończ konfigurację później z sieci lokalnej panelu. Jeśli pojawi się prośba o zgodę na debugowanie systemu Android, ktoś nadal musi ją zatwierdzić przy panelu."
+      },
+      "onboarding_wait": {
+        "title": "Oczekiwanie na połączenie panelu",
+        "description": "Panel nie zakończył jeszcze konfiguracji ani nie poprosił o połączenie konta. Dokończ konfigurację na jego stronie, a następnie kliknij tutaj Prześlij, aby sprawdzić ponownie. Panel pozostanie niepowiązany, dopóki nie potwierdzisz jego konta."
+      },
+      "onboarding_confirm": {
+        "title": "Potwierdź konto tego panelu",
+        "description": "{panel} zalogował się jako {user} i poprosił o połączenie. Potwierdź tylko wtedy, gdy jest to konto wybrane dla tego panelu. Pominięcie pozostawi panel niepowiązany; możesz potwierdzić konto później w sekcji Naprawy.",
+        "menu_options": {
+          "onboarding_bind": "Tak, połącz ten panel",
+          "onboarding_skip": "Nie teraz"
+        }
+      },
       "transport": {
         "title": "Transport panelu",
         "description": "Wybierz, co steruje encjami i poleceniami tego panelu. Zapisanie opcji Panel Assistant przenosi encje MQTT panelu do Panel Assistant z zachowaniem ich identyfikatorów encji, historii i dostosowań, a następnie panel wycofuje swoje encje MQTT. Zapisanie opcji MQTT, z raportami natywnymi lub bez nich, przenosi je z powrotem do MQTT. W obu przypadkach panel łączy się ponownie z nowym wyborem.",

@@ -72,11 +72,11 @@
       },
       "confirm_install_candidate": {
         "title": "Confirmar la instalación o recuperación",
-        "description": "Comprueba el dispositivo y la versión estable verificada:\n\n- Dirección: {address}\n- Modelo: {model}\n- Número de serie: {serial}\n- ABI: {abi}\n- SDK de Android: {sdk}\n- Versión: {version}\n- Etiqueta: {tag}\n- SHA-256: {sha256}\n\nEnvía el formulario para volver a comprobar el panel y adoptar estos bytes exactos si ya están instalados o, si el panel está limpio, descargarlos, verificarlos, instalarlos, iniciarlos y comprobar su estado. No se sobrescribirá ni actualizará una instalación con bytes diferentes.\n\nCuando Home Assistant haya añadido el dispositivo, selecciona Configurar en el panel para completar la configuración guiada de ha-paneld. La instalación no configura el panel de control."
+        "description": "Comprueba el dispositivo y la versión estable verificada:\n\n- Dirección: {address}\n- Modelo: {model}\n- Número de serie: {serial}\n- ABI: {abi}\n- SDK de Android: {sdk}\n- Versión: {version}\n- Etiqueta: {tag}\n- SHA-256: {sha256}\n\nEnvía el formulario para volver a comprobar el panel y adoptar estos bytes exactos si ya están instalados o, si el panel está limpio, descargarlos, verificarlos, instalarlos, iniciarlos y comprobar su estado. No se sobrescribirá ni actualizará una instalación con bytes diferentes.\n\nCuando Home Assistant haya añadido el dispositivo, sigue el enlace de configuración en el navegador del cuadro de diálogo Añadir desde un ordenador que pueda acceder al panel por la red local. Si se solicita, autoriza ADB en el panel. La instalación no configura el panel de control."
       },
       "confirm_install_rc": {
         "title": "Confirmar la instalación de la versión candidata",
-        "description": "Solo para pruebas: esta es una versión candidata, no una versión estable, y puede contener errores.\n\nComprueba el dispositivo y la versión candidata verificada:\n\n- Dirección: {address}\n- Modelo: {model}\n- Número de serie: {serial}\n- ABI: {abi}\n- SDK de Android: {sdk}\n- Versión: {version}\n- Etiqueta: {tag}\n- SHA-256: {sha256}\n\nEnvía el formulario para autorizar esta versión candidata exacta, volver a comprobar el panel y adoptar estos bytes exactos si ya están instalados o, si el panel está limpio, descargarlos, verificarlos, instalarlos, iniciarlos y comprobar su estado. No se sobrescribirá ni actualizará una instalación con bytes diferentes.\n\nCuando Home Assistant haya añadido el dispositivo, selecciona Configurar en el panel para completar la configuración guiada de ha-paneld. La instalación no configura el panel de control."
+        "description": "Solo para pruebas: esta es una versión candidata, no una versión estable, y puede contener errores.\n\nComprueba el dispositivo y la versión candidata verificada:\n\n- Dirección: {address}\n- Modelo: {model}\n- Número de serie: {serial}\n- ABI: {abi}\n- SDK de Android: {sdk}\n- Versión: {version}\n- Etiqueta: {tag}\n- SHA-256: {sha256}\n\nEnvía el formulario para autorizar esta versión candidata exacta, volver a comprobar el panel y adoptar estos bytes exactos si ya están instalados o, si el panel está limpio, descargarlos, verificarlos, instalarlos, iniciarlos y comprobar su estado. No se sobrescribirá ni actualizará una instalación con bytes diferentes.\n\nCuando Home Assistant haya añadido el dispositivo, sigue el enlace de configuración en el navegador del cuadro de diálogo Añadir desde un ordenador que pueda acceder al panel por la red local. Si se solicita, autoriza ADB en el panel. La instalación no configura el panel de control."
       },
       "release_preview_only": {
         "title": "La versión no se puede instalar automáticamente",
@@ -84,11 +84,11 @@
       },
       "install_result": {
         "title": "Finalizar la configuración del panel",
-        "description": "ha-paneld {version} se ha instalado en {address}.\n\nEnvía el formulario para repetir únicamente las comprobaciones finales de identidad y estado, que son de solo lectura. No se repetirá ningún paso de la instalación.\n\nCuando Home Assistant haya añadido el dispositivo, selecciona Configurar en el panel para conectar ha-paneld con Home Assistant y configurar el panel de control."
+        "description": "ha-paneld {version} se ha instalado en {address}.\n\nEnvía el formulario para repetir únicamente las comprobaciones finales de identidad y estado, que son de solo lectura. No se repetirá ningún paso de la instalación.\n\nCuando Home Assistant haya añadido el dispositivo, sigue el enlace de configuración en el navegador del cuadro de diálogo Añadir desde un ordenador que pueda acceder al panel por la red local. Si se solicita, autoriza ADB en el panel."
       }
     },
     "progress": {
-      "installing": "Instalando y verificando ha-paneld en {address}. Deja abierto este cuadro de diálogo para que finalice automáticamente. Puedes cerrarlo y Home Assistant mantendrá el trabajo de instalación en ejecución, pero no podrá añadir el dispositivo hasta que vuelvas a abrir Ajustes → Dispositivos y servicios → Añadir integración, selecciones Panel Assistant, elijas Añadir un panel de tu red e introduzcas la misma dirección. Cuando Home Assistant haya añadido el dispositivo, completa la configuración guiada de ha-paneld en el panel."
+      "installing": "Instalando y verificando ha-paneld en {address}. Deja abierto este cuadro de diálogo para que finalice automáticamente. Puedes cerrarlo y Home Assistant mantendrá el trabajo de instalación en ejecución, pero no podrá añadir el dispositivo hasta que vuelvas a abrir Ajustes → Dispositivos y servicios → Añadir integración, selecciones Panel Assistant, elijas Añadir un panel de tu red e introduzcas la misma dirección. Cuando Home Assistant haya añadido el dispositivo, sigue el enlace de configuración en el navegador del cuadro de diálogo Añadir desde un ordenador que pueda acceder al panel por la red local. Si se solicita, autoriza ADB en el panel."
     },
     "error": {
       "cannot_connect": "No se puede conectar a un punto de conexión de estado válido de ha-paneld.",
@@ -261,6 +261,30 @@
   },
   "options": {
     "step": {
+      "init": {
+        "title": "Configuración del panel",
+        "description": "Continúa la configuración de este panel en el navegador o cambia su modo de conexión. El panel permanecerá sin vincular hasta que confirmes la cuenta con la que se ha iniciado sesión.",
+        "menu_options": {
+          "onboarding": "Continuar la configuración",
+          "transport": "Ajustes de conexión"
+        }
+      },
+      "onboarding": {
+        "title": "Terminar de configurar este panel",
+        "description": "Abre la página de configuración del panel desde un navegador que pueda acceder al panel en tu red local. Inicia sesión con la cuenta de Home Assistant que está abierta actualmente en ese navegador, elige el panel de control principal y termina allí la configuración. Mantén abierto este cuadro de diálogo; después volverás aquí para confirmar la cuenta. Si este navegador no puede acceder al panel, termina la configuración más tarde desde la red local del panel. Si se solicita autorización para la depuración de Android, una persona deberá concederla en el panel."
+      },
+      "onboarding_wait": {
+        "title": "Esperando a que se conecte el panel",
+        "description": "El panel aún no ha terminado la configuración ni ha solicitado conectar una cuenta. Completa su página de configuración y después pulsa Enviar aquí para comprobarlo de nuevo. El panel seguirá sin vincularse hasta que confirmes su cuenta."
+      },
+      "onboarding_confirm": {
+        "title": "Confirmar la cuenta de este panel",
+        "description": "{panel} ha iniciado sesión como {user} y ha solicitado conectarse. Confirma solo si es la cuenta que elegiste para este panel. Si omites este paso, quedará sin vincular; podrás confirmarlo más tarde en Reparaciones.",
+        "menu_options": {
+          "onboarding_bind": "Sí, conectar este panel",
+          "onboarding_skip": "Ahora no"
+        }
+      },
       "transport": {
         "title": "Conexión del panel",
         "description": "Elige qué controla las entidades y los comandos de este panel. Si guardas Panel Assistant, Panel Assistant traslada a sí mismo las entidades MQTT del panel, conservando sus ID de entidad, su historial y tus personalizaciones, y después el panel retira sus entidades MQTT. Si guardas MQTT, con o sin informes nativos, vuelven a MQTT. En ambos casos el panel se reconecta con la nueva opción.",

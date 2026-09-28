@@ -358,7 +358,7 @@ def test_english_only_translations_are_exactly_the_dormant_native_surface() -> N
 
     assert len(paths) == 63
     assert all(path[:1] in {("entity",), ("exceptions",)} for path in paths)
-    assert len(_translation_leaves(shared)) == 147
+    assert len(_translation_leaves(shared)) == 159
     for locale_path in sorted((INTEGRATION / "translations").glob("*.json")):
         if locale_path.name == "en.json":
             continue
@@ -389,7 +389,7 @@ def test_shipped_translation_catalogues_preserve_machine_contracts() -> None:
         "uk.json",
         "zh-Hans.json",
     ]
-    assert len(english) == 147
+    assert len(english) == 159
 
     for locale_path in locale_paths:
         target_catalogue = _without(
@@ -610,7 +610,7 @@ def test_install_flow_copy_covers_first_time_handoffs() -> None:
     assert "Leave this dialog open to finish automatically" in progress
     assert "Settings → Devices & services → Add integration" in progress
     assert "enter the same address" in progress
-    assert "complete ha-paneld's guided setup on the panel" in progress
+    assert "follow the browser setup link in the Add dialog" in progress
     assert "dedicated recovery workflow" not in all_errors
 
     abort = config["abort"]

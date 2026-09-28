@@ -72,11 +72,11 @@
       },
       "confirm_install_candidate": {
         "title": "Installation oder Wiederherstellung bestätigen",
-        "description": "Prüfe das Gerät und das verifizierte stabile Release:\n\n- Adresse: {address}\n- Modell: {model}\n- Seriennummer: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Version: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nMit Absenden wird das Panel erneut geprüft; sind exakt diese Bytes bereits installiert, werden sie übernommen, andernfalls werden sie auf einem sauberen Panel heruntergeladen, verifiziert, installiert, gestartet und auf Funktionsfähigkeit geprüft. Eine Installation mit anderen Bytes wird weder überschrieben noch aktualisiert.\n\nNachdem Home Assistant das Gerät hinzugefügt hat, wähle auf dem Panel die Einrichtung aus, um die geführte Einrichtung von ha-paneld abzuschließen. Die Installation konfiguriert das Dashboard nicht."
+        "description": "Prüfe das Gerät und das verifizierte stabile Release:\n\n- Adresse: {address}\n- Modell: {model}\n- Seriennummer: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Version: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nMit Absenden wird das Panel erneut geprüft; sind exakt diese Bytes bereits installiert, werden sie übernommen, andernfalls werden sie auf einem sauberen Panel heruntergeladen, verifiziert, installiert, gestartet und auf Funktionsfähigkeit geprüft. Eine Installation mit anderen Bytes wird weder überschrieben noch aktualisiert.\n\nNachdem Home Assistant das Gerät hinzugefügt hat, öffne den Link zur Browser-Einrichtung im Hinzufügen-Dialog auf einem Computer, der das Panel im lokalen Netzwerk erreichen kann. Bestätige die ADB-Freigabe bei Aufforderung am Panel. Die Installation konfiguriert das Dashboard nicht."
       },
       "confirm_install_rc": {
         "title": "Installation des Release Candidate bestätigen",
-        "description": "Nur für Tests: Dies ist ein Release Candidate, kein stabiles Release, und kann Fehler enthalten.\n\nPrüfe das Gerät und den verifizierten Release Candidate:\n\n- Adresse: {address}\n- Modell: {model}\n- Seriennummer: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Version: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nMit Absenden wird exakt dieser Kandidat autorisiert und das Panel erneut geprüft; sind exakt diese Bytes bereits installiert, werden sie übernommen, andernfalls werden sie auf einem sauberen Panel heruntergeladen, verifiziert, installiert, gestartet und auf Funktionsfähigkeit geprüft. Eine Installation mit anderen Bytes wird weder überschrieben noch aktualisiert.\n\nNachdem Home Assistant das Gerät hinzugefügt hat, wähle auf dem Panel die Einrichtung aus, um die geführte Einrichtung von ha-paneld abzuschließen. Die Installation konfiguriert das Dashboard nicht."
+        "description": "Nur für Tests: Dies ist ein Release Candidate, kein stabiles Release, und kann Fehler enthalten.\n\nPrüfe das Gerät und den verifizierten Release Candidate:\n\n- Adresse: {address}\n- Modell: {model}\n- Seriennummer: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Version: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nMit Absenden wird exakt dieser Kandidat autorisiert und das Panel erneut geprüft; sind exakt diese Bytes bereits installiert, werden sie übernommen, andernfalls werden sie auf einem sauberen Panel heruntergeladen, verifiziert, installiert, gestartet und auf Funktionsfähigkeit geprüft. Eine Installation mit anderen Bytes wird weder überschrieben noch aktualisiert.\n\nNachdem Home Assistant das Gerät hinzugefügt hat, öffne den Link zur Browser-Einrichtung im Hinzufügen-Dialog auf einem Computer, der das Panel im lokalen Netzwerk erreichen kann. Bestätige die ADB-Freigabe bei Aufforderung am Panel. Die Installation konfiguriert das Dashboard nicht."
       },
       "release_preview_only": {
         "title": "Release kann nicht automatisch installiert werden",
@@ -84,11 +84,11 @@
       },
       "install_result": {
         "title": "Panel-Einrichtung abschließen",
-        "description": "ha-paneld {version} wurde unter {address} installiert.\n\nWähle Absenden, um ausschließlich die abschließenden schreibgeschützten Identitäts- und Funktionsprüfungen zu wiederholen. Kein Installationsschritt wird wiederholt.\n\nNachdem Home Assistant das Gerät hinzugefügt hat, wähle auf dem Panel die Einrichtung aus, um ha-paneld mit Home Assistant zu verbinden und das Dashboard einzurichten."
+        "description": "ha-paneld {version} wurde unter {address} installiert.\n\nWähle Absenden, um ausschließlich die abschließenden schreibgeschützten Identitäts- und Funktionsprüfungen zu wiederholen. Kein Installationsschritt wird wiederholt.\n\nNachdem Home Assistant das Gerät hinzugefügt hat, öffne den Link zur Browser-Einrichtung im Hinzufügen-Dialog auf einem Computer, der das Panel im lokalen Netzwerk erreichen kann. Bestätige die ADB-Freigabe bei Aufforderung am Panel."
       }
     },
     "progress": {
-      "installing": "ha-paneld wird unter {address} installiert und verifiziert. Lass diesen Dialog geöffnet, damit der Vorgang automatisch abgeschlossen wird. Du kannst ihn schließen; Home Assistant führt den Installationsauftrag weiter aus, kann das Gerät jedoch erst hinzufügen, wenn du Einstellungen → Geräte & Dienste → Integration hinzufügen erneut öffnest, Panel Assistant auswählst, „Panel im Netzwerk hinzufügen“ wählst und dieselbe Adresse eingibst. Nachdem Home Assistant das Gerät hinzugefügt hat, schließe die geführte Einrichtung von ha-paneld auf dem Panel ab."
+      "installing": "ha-paneld wird unter {address} installiert und verifiziert. Lass diesen Dialog geöffnet, damit der Vorgang automatisch abgeschlossen wird. Du kannst ihn schließen; Home Assistant führt den Installationsauftrag weiter aus, kann das Gerät jedoch erst hinzufügen, wenn du Einstellungen → Geräte & Dienste → Integration hinzufügen erneut öffnest, Panel Assistant auswählst, „Panel im Netzwerk hinzufügen“ wählst und dieselbe Adresse eingibst. Nachdem Home Assistant das Gerät hinzugefügt hat, öffne den Link zur Browser-Einrichtung im Hinzufügen-Dialog auf einem Computer, der das Panel im lokalen Netzwerk erreichen kann. Bestätige die ADB-Freigabe bei Aufforderung am Panel."
     },
     "error": {
       "cannot_connect": "Es konnte keine Verbindung zu einem gültigen Funktionsstatus-Endpunkt von ha-paneld hergestellt werden.",
@@ -261,6 +261,30 @@
   },
   "options": {
     "step": {
+      "init": {
+        "title": "Panel-Einrichtung",
+        "description": "Setze die Browser-Einrichtung dieses Panels fort oder ändere seine Verbindungsart. Das Panel bleibt ungebunden, bis du das angemeldete Konto bestätigst.",
+        "menu_options": {
+          "onboarding": "Einrichtung fortsetzen",
+          "transport": "Verbindungseinstellungen"
+        }
+      },
+      "onboarding": {
+        "title": "Einrichtung dieses Panels abschließen",
+        "description": "Öffne die Einrichtungsseite des Panels in einem Browser, der das Panel in deinem lokalen Netzwerk erreichen kann. Melde dich mit dem Home Assistant-Konto an, das derzeit in diesem Browser angemeldet ist, wähle das Home-Dashboard und schließe dort die Einrichtung ab. Lass diesen Dialog geöffnet; anschließend gelangst du hierher zurück, um das Konto zu bestätigen. Wenn dieser Browser das Panel nicht erreichen kann, schließe die Einrichtung später aus dem lokalen Netzwerk des Panels ab. Eine eventuell angeforderte Freigabe für Android-Debugging muss weiterhin jemand direkt am Panel erteilen."
+      },
+      "onboarding_wait": {
+        "title": "Warten auf die Verbindung des Panels",
+        "description": "Das Panel hat die Einrichtung noch nicht abgeschlossen und noch keine Kontoverbindung angefordert. Schließe die Einrichtung auf seiner Einrichtungsseite ab und klicke dann hier auf Absenden, um erneut zu prüfen. Das Panel bleibt ungebunden, bis du sein Konto bestätigst."
+      },
+      "onboarding_confirm": {
+        "title": "Konto dieses Panels bestätigen",
+        "description": "{panel} hat sich als {user} angemeldet und möchte eine Verbindung herstellen. Bestätige nur, wenn du dieses Konto für das Panel ausgewählt hast. Wenn du überspringst, bleibt es ungebunden; du kannst es später unter Reparaturen bestätigen.",
+        "menu_options": {
+          "onboarding_bind": "Ja, dieses Panel verbinden",
+          "onboarding_skip": "Jetzt nicht"
+        }
+      },
       "transport": {
         "title": "Panel-Verbindung",
         "description": "Lege fest, was die Entitäten und Befehle dieses Panels steuert. Speicherst du Panel Assistant, zieht Panel Assistant die MQTT-Entitäten des Panels zu sich um und behält dabei ihre Entitäts-IDs, ihren Verlauf und deine Anpassungen; danach zieht das Panel seine MQTT-Entitäten zurück. Speicherst du MQTT, mit oder ohne native Berichte, gehen sie zurück an MQTT. In beiden Fällen verbindet sich das Panel mit der neuen Auswahl neu.",

@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant import config_entries
+from homeassistant.config_entries import FlowType
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -3313,6 +3314,125 @@ async def test_on_create_uses_actual_entry_id_and_never_fails_existing_entry(
         consumed_entry_id=entry.entry_id,
     )
     assert not executor.is_finalizer_active(receipt.job_id)
+
+
+async def test_fresh_install_continues_into_panel_setup_after_entry_creation(
+    hass: HomeAssistant,
+    hass_admin_user: Any,
+) -> None:
+    """The install lease is released before the owner signs in from a browser."""
+    receipt = _receipt(InstallPhase.HEALTHY_UNCLAIMED)
+    manager = _manager_for(receipt)
+    executor = _finalizing_executor(hass, manager)
+    flow = _direct_result_flow(hass, receipt, executor)
+    with _final_proof(manager):
+        created = await flow.async_step_install_result()
+    assert created["type"] is FlowResultType.CREATE_ENTRY
+    entry = MockConfigEntry(domain=DOMAIN, data={CONF_ADDRESS: TARGET.address})
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.panel_assistant.config_flow.async_offer_ha_url",
+        new_callable=AsyncMock,
+    ) as handover:
+        returned = await flow.async_on_create_entry({"result": entry})  # type: ignore[arg-type]
+
+    assert not executor.is_finalizer_active(receipt.job_id)
+    handover.assert_awaited_once()
+    assert returned["next_flow"][0] is FlowType.OPTIONS_FLOW
+    next_flow = hass.config_entries.options.async_get(returned["next_flow"][1])
+    assert next_flow["handler"] == entry.entry_id
+    assert next_flow["step_id"] == "onboarding"
+    assert next_flow["context"]["source"] == "onboarding"
+
+
+async def test_fresh_install_confirms_only_the_panels_requested_account(
+    hass: HomeAssistant,
+    hass_admin_user: Any,
+) -> None:
+    """Browser sign-in alone never binds; the named account needs admin consent."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="alpha",
+        data={CONF_ADDRESS: "192.168.1.23"},
+        unique_id=DISCOVERY_ID,
+        options={"authority": "native"},
+    )
+    entry.add_to_hass(hass)
+    signed_in = await hass.auth.async_create_user("Current administrator")
+    other = await hass.auth.async_create_user("Other account")
+    async_record_binding_request(hass, DISCOVERY_ID, signed_in.id)
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow.async_offer_ha_url",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_setup_complete",
+            AsyncMock(return_value=True),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=DISCOVERY_HEALTH),
+        ),
+    ):
+        opened = await hass.config_entries.options.async_init(
+            entry.entry_id, context={"source": "onboarding"}
+        )
+        assert opened["type"] is FlowResultType.EXTERNAL_STEP
+        assert opened["url"] == "http://192.168.1.23:8888/setup"
+        assert CONF_TRANSPORT_USER_ID not in entry.data
+        done = await hass.config_entries.options.async_configure(opened["flow_id"], {})
+        assert done["type"] is FlowResultType.EXTERNAL_STEP_DONE
+        menu = await hass.config_entries.options.async_configure(opened["flow_id"])
+        assert menu["type"] is FlowResultType.MENU
+        assert menu["description_placeholders"] == {
+            "panel": "alpha",
+            "user": "Current administrator",
+        }
+        # A different account cannot be smuggled in under the displayed name.
+        async_record_binding_request(hass, DISCOVERY_ID, other.id)
+        changed = await hass.config_entries.options.async_configure(
+            opened["flow_id"], {"next_step_id": "onboarding_bind"}
+        )
+        assert changed["type"] is FlowResultType.MENU
+        assert changed["description_placeholders"]["user"] == "Other account"
+        assert CONF_TRANSPORT_USER_ID not in entry.data
+        confirmed = await hass.config_entries.options.async_configure(
+            opened["flow_id"], {"next_step_id": "onboarding_bind"}
+        )
+    assert confirmed["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.data[CONF_TRANSPORT_USER_ID] == other.id
+    assert entry.options == {"authority": "native"}
+
+
+async def test_abandoned_fresh_install_can_resume_from_its_entry_options(
+    hass: HomeAssistant,
+    hass_admin_user: Any,
+) -> None:
+    """Closing the Add dialog cannot strand an unbound panel at Repairs alone."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="alpha",
+        data={CONF_ADDRESS: "192.168.1.23"},
+        options={"authority": "native"},
+    )
+    entry.add_to_hass(hass)
+    menu = await hass.config_entries.options.async_init(entry.entry_id)
+
+    assert menu["type"] is FlowResultType.MENU
+    assert menu["step_id"] == "init"
+    assert menu["menu_options"] == ["onboarding", "transport"]
+    with patch(
+        "custom_components.panel_assistant.config_flow.async_offer_ha_url",
+        new_callable=AsyncMock,
+    ) as handover:
+        opened = await hass.config_entries.options.async_configure(
+            menu["flow_id"], {"next_step_id": "onboarding"}
+        )
+    assert opened["type"] is FlowResultType.EXTERNAL_STEP
+    assert opened["url"] == "http://192.168.1.23:8888/setup"
+    handover.assert_awaited_once()
 
 
 async def test_flow_removal_releases_lease_and_only_cancels_local_waiter(

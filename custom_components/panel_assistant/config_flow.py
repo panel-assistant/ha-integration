@@ -15,6 +15,7 @@ from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
+    FlowType,
     OptionsFlow,
 )
 from homeassistant.const import CONF_ADDRESS
@@ -103,6 +104,8 @@ from .release_catalog import async_list_install_choices, async_resolve_install_c
 from .transport import (
     AUTHORITIES,
     AUTHORITY_NATIVE,
+    _panel_did,
+    async_bind_user,
     async_binding_request,
     async_discard_binding_request,
     effective_authority,
@@ -1198,7 +1201,21 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             else:
                 executor.release_finalizer(job_id, self.flow_id)
             self._finalizer_job_id = None
-        return await super().async_on_create_entry(result)
+        result = await super().async_on_create_entry(result)
+        if job_id is not None and isinstance(entry, ConfigEntry):
+            # Human sign-in must never retain the install finalizer lease. Core
+            # supports continuing into options only after adding the entry.
+            try:
+                continuation = await self.hass.config_entries.options.async_init(
+                    entry.entry_id, context={"source": "onboarding"}
+                )
+            except Exception:
+                _LOGGER.exception(
+                    "Could not open panel onboarding after entry creation"
+                )
+            else:
+                result["next_flow"] = (FlowType.OPTIONS_FLOW, continuation["flow_id"])
+        return result
 
     def async_remove(self) -> None:
         """Detach this UI flow without cancelling the process-owned worker."""
@@ -1486,20 +1503,138 @@ ABORT_NATIVE_ENTITIES_DISABLED = "native_entities_disabled"
 
 
 class HaPaneldOptionsFlow(OptionsFlow):
-    """Choose the panel's authority: MQTT, shadow reports, or native commands.
+    """Complete a fresh install, or choose the panel's transport authority.
 
-    The choice exists only while native entities are turned on. Saving a
+    The authority choice exists only while native entities are turned on. Saving a
     change ends a live panel session and reloads the entry, whose setup moves
     the panel's MQTT entities to this integration under native and back under
     the others, so the panel is granted the new authority when it says hello
     again.
     """
 
+    _setup_watch: asyncio.Task[None] | None = None
+    _pending_bind_user_id: str | None = None
+
+    def _onboarding_client(self) -> HaPaneldClient:
+        return HaPaneldClient(
+            async_get_clientsession(self.hass),
+            normalize_address(self.config_entry.data[CONF_ADDRESS]),
+        )
+
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Start at the transport step."""
+        if self.context.get("source") == "onboarding":
+            return await self.async_step_onboarding()
+        if CONF_TRANSPORT_USER_ID not in self.config_entry.data:
+            return self.async_show_menu(
+                step_id="init", menu_options=["onboarding", "transport"]
+            )
         return await self.async_step_transport(user_input)
+
+    async def async_step_onboarding(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Let the panel's own browser wizard obtain its own HA credentials."""
+        if user_input is not None:
+            return self.async_external_step_done(next_step_id="onboarding_confirm")
+        client = self._onboarding_client()
+        await async_offer_ha_url(self.hass, client)
+        if self._setup_watch is None or self._setup_watch.done():
+            self._setup_watch = self.hass.async_create_background_task(
+                self._async_watch_onboarding(),
+                f"{DOMAIN} watch install onboarding {self.flow_id}",
+            )
+        return self.async_external_step(step_id="onboarding", url=client.setup_url)
+
+    async def _async_watch_onboarding(self) -> None:
+        """Return to Add once setup and a verified panel request exist."""
+        client = self._onboarding_client()
+        deadline = asyncio.get_running_loop().time() + _SETUP_WATCH_SECONDS
+        while asyncio.get_running_loop().time() < deadline:
+            await asyncio.sleep(_SETUP_POLL_SECONDS)
+            try:
+                if not await client.async_get_setup_complete():
+                    continue
+                health = await client.async_get_health()
+            except HaPaneldError:
+                continue
+            did = health.discovery_id
+            if did is None or did != _panel_did(self.config_entry):
+                continue
+            if async_binding_request(self.hass, did) is None:
+                continue
+            with contextlib.suppress(UnknownFlow):
+                await self.hass.config_entries.options.async_configure(
+                    flow_id=self.flow_id, user_input={}
+                )
+            return
+
+    async def _onboarding_user(self) -> User | None:
+        """Resolve only a live request for this entry's verified panel."""
+        try:
+            if not await self._onboarding_client().async_get_setup_complete():
+                return None
+            health = await self._onboarding_client().async_get_health()
+        except HaPaneldError:
+            return None
+        did = health.discovery_id
+        if did is None or did != _panel_did(self.config_entry):
+            return None
+        user_id = async_binding_request(self.hass, did)
+        if user_id is None:
+            return None
+        user = await self.hass.auth.async_get_user(user_id)
+        if user is None or not user.is_active or user.system_generated:
+            return None
+        return user
+
+    async def async_step_onboarding_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Name the requesting account before administrator confirmation."""
+        user = await self._onboarding_user()
+        if user is None:
+            return self.async_show_form(
+                step_id="onboarding_wait", data_schema=vol.Schema({})
+            )
+        self._pending_bind_user_id = user.id
+        return self.async_show_menu(
+            step_id="onboarding_confirm",
+            menu_options=["onboarding_bind", "onboarding_skip"],
+            description_placeholders={
+                "panel": self.config_entry.title,
+                "user": user.name or "",
+            },
+        )
+
+    async def async_step_onboarding_wait(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        return await self.async_step_onboarding_confirm()
+
+    async def async_step_onboarding_bind(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Bind only the active account the administrator just saw."""
+        user = await self._onboarding_user()
+        if user is None or user.id != self._pending_bind_user_id:
+            return await self.async_step_onboarding_confirm()
+        async_bind_user(self.hass, self.config_entry, user.id)
+        async_discard_binding_request(self.hass, _panel_did(self.config_entry))
+        return self.async_create_entry(data=dict(self.config_entry.options))
+
+    async def async_step_onboarding_skip(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Leave the entry unbound; Repairs remains available later."""
+        return self.async_create_entry(data=dict(self.config_entry.options))
+
+    def async_remove(self) -> None:
+        if self._setup_watch is not None and not self._setup_watch.done():
+            self._setup_watch.cancel()
+        super().async_remove()
 
     async def async_step_transport(
         self, user_input: dict[str, Any] | None = None

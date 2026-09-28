@@ -72,11 +72,11 @@
       },
       "confirm_install_candidate": {
         "title": "Bevestig de installatie of het herstel",
-        "description": "Controleer het apparaat en de geverifieerde stabiele release:\n\n- Adres: {address}\n- Model: {model}\n- Serienummer: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Versie: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nKlik op ‘Verzenden’. Het installatieprogramma controleert het paneel opnieuw en neemt de installatie met precies deze bytes over als die al aanwezig is. Als het paneel schoon is, downloadt, verifieert, installeert en start het de gekozen versie en controleert de werking. Een installatie met andere bytes wordt niet overschreven of bijgewerkt.\n\nNadat Home Assistant het apparaat heeft toegevoegd, selecteer je ‘Instellen’ op het paneel om de begeleide installatie van ha-paneld te voltooien. De installatie configureert het dashboard niet."
+        "description": "Controleer het apparaat en de geverifieerde stabiele release:\n\n- Adres: {address}\n- Model: {model}\n- Serienummer: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Versie: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nKlik op ‘Verzenden’. Het installatieprogramma controleert het paneel opnieuw en neemt de installatie met precies deze bytes over als die al aanwezig is. Als het paneel schoon is, downloadt, verifieert, installeert en start het de gekozen versie en controleert de werking. Een installatie met andere bytes wordt niet overschreven of bijgewerkt.\n\nNadat Home Assistant het apparaat heeft toegevoegd, volg je de browserlink voor de installatie in het dialoogvenster Toevoegen op een computer die het paneel via het lokale netwerk kan bereiken. Keur ADB op het paneel goed als daarom wordt gevraagd. De installatie configureert het dashboard niet."
       },
       "confirm_install_rc": {
         "title": "Bevestig de installatie van de releasekandidaat",
-        "description": "Alleen voor testen: dit is een releasekandidaat, geen stabiele release, en kan fouten bevatten.\n\nControleer het apparaat en de geverifieerde releasekandidaat:\n\n- Adres: {address}\n- Model: {model}\n- Serienummer: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Versie: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nKlik op ‘Verzenden’ om precies deze kandidaat goed te keuren. Het installatieprogramma controleert het paneel opnieuw en neemt de installatie met precies deze bytes over als die al aanwezig is. Als het paneel schoon is, downloadt, verifieert, installeert en start het de gekozen kandidaat en controleert de werking. Een installatie met andere bytes wordt niet overschreven of bijgewerkt.\n\nNadat Home Assistant het apparaat heeft toegevoegd, selecteer je ‘Instellen’ op het paneel om de begeleide installatie van ha-paneld te voltooien. De installatie configureert het dashboard niet."
+        "description": "Alleen voor testen: dit is een releasekandidaat, geen stabiele release, en kan fouten bevatten.\n\nControleer het apparaat en de geverifieerde releasekandidaat:\n\n- Adres: {address}\n- Model: {model}\n- Serienummer: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Versie: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nKlik op ‘Verzenden’ om precies deze kandidaat goed te keuren. Het installatieprogramma controleert het paneel opnieuw en neemt de installatie met precies deze bytes over als die al aanwezig is. Als het paneel schoon is, downloadt, verifieert, installeert en start het de gekozen kandidaat en controleert de werking. Een installatie met andere bytes wordt niet overschreven of bijgewerkt.\n\nNadat Home Assistant het apparaat heeft toegevoegd, volg je de browserlink voor de installatie in het dialoogvenster Toevoegen op een computer die het paneel via het lokale netwerk kan bereiken. Keur ADB op het paneel goed als daarom wordt gevraagd. De installatie configureert het dashboard niet."
       },
       "release_preview_only": {
         "title": "De release kan niet automatisch worden geïnstalleerd",
@@ -84,11 +84,11 @@
       },
       "install_result": {
         "title": "De paneelconfiguratie afronden",
-        "description": "ha-paneld {version} is geïnstalleerd op {address}.\n\nKlik op ‘Verzenden’ om alleen de laatste identiteits- en statuscontroles (alleen-lezen) opnieuw uit te voeren. Er worden geen installatiestappen herhaald.\n\nNadat Home Assistant het apparaat heeft toegevoegd, selecteer je ‘Instellen’ op het paneel om ha-paneld te verbinden met Home Assistant en het dashboard te configureren."
+        "description": "ha-paneld {version} is geïnstalleerd op {address}.\n\nKlik op ‘Verzenden’ om alleen de laatste identiteits- en statuscontroles (alleen-lezen) opnieuw uit te voeren. Er worden geen installatiestappen herhaald.\n\nNadat Home Assistant het apparaat heeft toegevoegd, volg je de browserlink voor de installatie in het dialoogvenster Toevoegen op een computer die het paneel via het lokale netwerk kan bereiken. Keur ADB op het paneel goed als daarom wordt gevraagd."
       }
     },
     "progress": {
-      "installing": "ha-paneld wordt geïnstalleerd en gecontroleerd op {address}. Laat dit venster open staan, zodat het proces automatisch wordt voltooid. Je kunt het venster sluiten; Home Assistant zet de installatie dan door, maar het apparaat kan pas worden toegevoegd als je opnieuw naar Instellingen → Apparaten en diensten → Integratie toevoegen gaat, Panel Assistant selecteert, ‘Voeg een paneel op je netwerk toe’ kiest en hetzelfde adres invoert. Nadat Home Assistant het apparaat heeft toegevoegd, voltooi je de begeleide installatie van ha-paneld op het paneel."
+      "installing": "ha-paneld wordt geïnstalleerd en gecontroleerd op {address}. Laat dit venster open staan, zodat het proces automatisch wordt voltooid. Je kunt het venster sluiten; Home Assistant zet de installatie dan door, maar het apparaat kan pas worden toegevoegd als je opnieuw naar Instellingen → Apparaten en diensten → Integratie toevoegen gaat, Panel Assistant selecteert, ‘Voeg een paneel op je netwerk toe’ kiest en hetzelfde adres invoert. Nadat Home Assistant het apparaat heeft toegevoegd, volg je de browserlink voor de installatie in het dialoogvenster Toevoegen op een computer die het paneel via het lokale netwerk kan bereiken. Keur ADB op het paneel goed als daarom wordt gevraagd."
     },
     "error": {
       "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig ha-paneld-status-eindpunt.",
@@ -283,6 +283,30 @@
   },
   "options": {
     "step": {
+      "init": {
+        "title": "Paneel instellen",
+        "description": "Ga verder met de browserinstallatie van dit paneel of wijzig de verbindingswijze. Het paneel blijft ongekoppeld totdat je het aangemelde account bevestigt.",
+        "menu_options": {
+          "onboarding": "Installatie voortzetten",
+          "transport": "Verbindingsinstellingen"
+        }
+      },
+      "onboarding": {
+        "title": "Rond de installatie van dit paneel af",
+        "description": "Open de installatiepagina van het paneel in een browser die het paneel op je lokale netwerk kan bereiken. Meld je aan met het Home Assistant-account dat momenteel in die browser is aangemeld, kies het hoofddashboard en rond de installatie daar af. Laat dit dialoogvenster open; daarna kom je hier terug om het account te bevestigen. Als deze browser het paneel niet kan bereiken, rond de installatie dan later af vanaf het lokale netwerk van het paneel. Als toestemming voor Android-foutopsporing wordt gevraagd, moet iemand die nog steeds bij het paneel geven."
+      },
+      "onboarding_wait": {
+        "title": "Wachten tot het paneel verbinding maakt",
+        "description": "Het paneel heeft de installatie nog niet afgerond en nog geen accountverbinding aangevraagd. Rond de installatie op de installatiepagina af en klik hier op Verzenden om opnieuw te controleren. Het paneel blijft ongekoppeld totdat je het account bevestigt."
+      },
+      "onboarding_confirm": {
+        "title": "Bevestig het account van dit paneel",
+        "description": "{panel} is aangemeld als {user} en heeft gevraagd om verbinding te maken. Bevestig alleen als dit het account is dat je voor dit paneel hebt gekozen. Als je overslaat, blijft het ongekoppeld; je kunt het later bevestigen onder Reparaties.",
+        "menu_options": {
+          "onboarding_bind": "Ja, dit paneel verbinden",
+          "onboarding_skip": "Niet nu"
+        }
+      },
       "transport": {
         "title": "Verbindingswijze van het paneel",
         "description": "Kies wat de entiteiten en opdrachten van dit paneel aanstuurt. Als je Panel Assistant opslaat, worden de MQTT-entiteiten van het paneel naar Panel Assistant verplaatst, waarbij hun entiteits-ID’s, geschiedenis en aanpassingen behouden blijven, en het paneel trekt vervolgens zijn MQTT-entiteiten in. Als je MQTT opslaat, met of zonder native rapporten, worden ze teruggezet naar MQTT. Hoe dan ook maakt het paneel opnieuw verbinding met de nieuwe keuze.",

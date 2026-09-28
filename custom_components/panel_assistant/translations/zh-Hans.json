@@ -72,11 +72,11 @@
       },
       "confirm_install_candidate": {
         "title": "确认安装或恢复",
-        "description": "请核对设备和经过验证的稳定版本：\n\n- 地址：{address}\n- 型号：{model}\n- 序列号：{serial}\n- ABI：{abi}\n- Android SDK：{sdk}\n- 版本：{version}\n- 标签：{tag}\n- SHA-256：{sha256}\n\n提交后将重新检查面板：如果已安装完全相同的字节，则直接采用；如果面板为干净状态，则下载、验证、安装、启动并执行健康检查。字节不同的现有安装不会被覆盖或升级。\n\nHome Assistant 添加设备后，请在面板上选择“设置”，完成 ha-paneld 的引导式设置。安装过程不会配置仪表盘。"
+        "description": "请核对设备和经过验证的稳定版本：\n\n- 地址：{address}\n- 型号：{model}\n- 序列号：{serial}\n- ABI：{abi}\n- Android SDK：{sdk}\n- 版本：{version}\n- 标签：{tag}\n- SHA-256：{sha256}\n\n提交后将重新检查面板：如果已安装完全相同的字节，则直接采用；如果面板为干净状态，则下载、验证、安装、启动并执行健康检查。字节不同的现有安装不会被覆盖或升级。\n\nHome Assistant 添加设备后，请在能通过局域网访问面板的电脑上打开“添加”对话框中的浏览器设置链接。如有提示，请在面板上批准 ADB 调试。 安装过程不会配置仪表盘。"
       },
       "confirm_install_rc": {
         "title": "确认安装候选版本",
-        "description": "仅用于测试：这是候选版本而非稳定版本，可能包含错误。\n\n请核对设备和经过验证的候选版本：\n\n- 地址：{address}\n- 型号：{model}\n- 序列号：{serial}\n- ABI：{abi}\n- Android SDK：{sdk}\n- 版本：{version}\n- 标签：{tag}\n- SHA-256：{sha256}\n\n提交后将授权这个确切的候选版本并重新检查面板：如果已安装完全相同的字节，则直接采用；如果面板为干净状态，则下载、验证、安装、启动并执行健康检查。字节不同的现有安装不会被覆盖或升级。\n\nHome Assistant 添加设备后，请在面板上选择“设置”，完成 ha-paneld 的引导式设置。安装过程不会配置仪表盘。"
+        "description": "仅用于测试：这是候选版本而非稳定版本，可能包含错误。\n\n请核对设备和经过验证的候选版本：\n\n- 地址：{address}\n- 型号：{model}\n- 序列号：{serial}\n- ABI：{abi}\n- Android SDK：{sdk}\n- 版本：{version}\n- 标签：{tag}\n- SHA-256：{sha256}\n\n提交后将授权这个确切的候选版本并重新检查面板：如果已安装完全相同的字节，则直接采用；如果面板为干净状态，则下载、验证、安装、启动并执行健康检查。字节不同的现有安装不会被覆盖或升级。\n\nHome Assistant 添加设备后，请在能通过局域网访问面板的电脑上打开“添加”对话框中的浏览器设置链接。如有提示，请在面板上批准 ADB 调试。 安装过程不会配置仪表盘。"
       },
       "release_preview_only": {
         "title": "无法自动安装此版本",
@@ -84,11 +84,11 @@
       },
       "install_result": {
         "title": "完成面板设置",
-        "description": "ha-paneld {version} 已安装在 {address}。\n\n提交后只会重试最终的只读身份和健康检查，不会重复任何安装步骤。\n\nHome Assistant 添加设备后，请在面板上选择“设置”，将 ha-paneld 连接到 Home Assistant 并配置仪表盘。"
+        "description": "ha-paneld {version} 已安装在 {address}。\n\n提交后只会重试最终的只读身份和健康检查，不会重复任何安装步骤。\n\nHome Assistant 添加设备后，请在能通过局域网访问面板的电脑上打开“添加”对话框中的浏览器设置链接。如有提示，请在面板上批准 ADB 调试。"
       }
     },
     "progress": {
-      "installing": "正在 {address} 安装并验证 ha-paneld。请保持此对话框打开，安装将自动完成。您可以关闭对话框，Home Assistant 会继续运行安装任务，但必须重新打开“设置 → 设备与服务 → 添加集成”，选择 Panel Assistant，再选择“添加网络中的面板”并输入相同地址，才能添加设备。Home Assistant 添加设备后，请在面板上完成 ha-paneld 的引导式设置。"
+      "installing": "正在 {address} 安装并验证 ha-paneld。请保持此对话框打开，安装将自动完成。您可以关闭对话框，Home Assistant 会继续运行安装任务，但必须重新打开“设置 → 设备与服务 → 添加集成”，选择 Panel Assistant，再选择“添加网络中的面板”并输入相同地址，才能添加设备。Home Assistant 添加设备后，请在能通过局域网访问面板的电脑上打开“添加”对话框中的浏览器设置链接。如有提示，请在面板上批准 ADB 调试。"
     },
     "error": {
       "cannot_connect": "无法连接到有效的 ha-paneld 健康检查端点。",
@@ -261,6 +261,30 @@
   },
   "options": {
     "step": {
+      "init": {
+        "title": "面板设置",
+        "description": "继续在浏览器中设置此面板，或更改其连接方式。确认已登录的账户之前，面板将保持未绑定状态。",
+        "menu_options": {
+          "onboarding": "继续设置",
+          "transport": "连接设置"
+        }
+      },
+      "onboarding": {
+        "title": "完成此面板的设置",
+        "description": "请在能通过本地网络访问面板的浏览器中打开面板的设置页面。使用该浏览器当前登录的 Home Assistant 账户登录，选择主仪表板，并在该页面完成设置。保持此对话框打开；完成后会返回这里确认账户。如果此浏览器无法访问面板，请稍后在面板所在的本地网络中完成设置。如果系统要求批准 Android 调试，仍需有人在面板上操作。"
+      },
+      "onboarding_wait": {
+        "title": "等待面板连接",
+        "description": "面板尚未完成设置，也未请求连接账户。请完成面板设置页面上的操作，然后在此处点击“提交”再次检查。确认账户之前，面板将保持未绑定状态。"
+      },
+      "onboarding_confirm": {
+        "title": "确认此面板的账户",
+        "description": "{panel} 已以 {user} 的身份登录并请求连接。仅当这是你为此面板选择的账户时才确认。跳过后面板将保持未绑定；你可以稍后在“修复”中确认。",
+        "menu_options": {
+          "onboarding_bind": "是，连接此面板",
+          "onboarding_skip": "暂不"
+        }
+      },
       "transport": {
         "title": "面板连接",
         "description": "选择由什么控制此面板的实体和命令。保存 Panel Assistant 后，Panel Assistant 会把面板的 MQTT 实体迁移到自身，并保留其实体 ID、历史记录和你的自定义设置，随后面板会撤回其 MQTT 实体。保存 MQTT（无论是否带原生报告）会把它们迁回 MQTT。无论哪种情况，面板都会以新的选择重新连接。",

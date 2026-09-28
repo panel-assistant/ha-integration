@@ -2016,6 +2016,10 @@ def ws_hello(
     user_id = connection.user.id
     if entry.data.get(CONF_TRANSPORT_USER_ID) != user_id:
         if _may_ask_to_bind(hass, connection):
+            # The Add-panel continuation and Repairs consume the same
+            # authenticated, panel-originated request. Neither grants access.
+            if entry.data.get(CONF_TRANSPORT_USER_ID) is None:
+                async_record_binding_request(hass, did, user_id)
             async_raise_binding_issue(hass, entry, user_id)
         connection.send_error(
             msg["id"],

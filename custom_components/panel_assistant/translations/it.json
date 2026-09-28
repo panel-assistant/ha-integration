@@ -72,11 +72,11 @@
       },
       "confirm_install_candidate": {
         "title": "Conferma l'installazione o il ripristino",
-        "description": "Verifica il dispositivo e la versione stabile convalidata:\n\n- Indirizzo: {address}\n- Modello: {model}\n- Numero di serie: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Versione: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nSeleziona Invia per controllare nuovamente il pannello e adottare questi byte esatti se sono già installati oppure, se il pannello è pulito, scaricarli, verificarli, installarli, avviarli e verificarne lo stato. Un'installazione con byte diversi non verrà sovrascritta né aggiornata.\n\nDopo che Home Assistant avrà aggiunto il dispositivo, seleziona Configura sul pannello per completare la configurazione guidata di ha-paneld. L'installazione non configura la dashboard."
+        "description": "Verifica il dispositivo e la versione stabile convalidata:\n\n- Indirizzo: {address}\n- Modello: {model}\n- Numero di serie: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Versione: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nSeleziona Invia per controllare nuovamente il pannello e adottare questi byte esatti se sono già installati oppure, se il pannello è pulito, scaricarli, verificarli, installarli, avviarli e verificarne lo stato. Un'installazione con byte diversi non verrà sovrascritta né aggiornata.\n\nDopo che Home Assistant avrà aggiunto il dispositivo, segui il link alla configurazione nel browser nella finestra Aggiungi da un computer che può raggiungere il pannello sulla rete locale. Se richiesto, autorizza ADB sul pannello. L'installazione non configura la dashboard."
       },
       "confirm_install_rc": {
         "title": "Conferma l'installazione della release candidate",
-        "description": "Solo per i test: questa è una release candidate, non una versione stabile, e può contenere errori.\n\nVerifica il dispositivo e la release candidate convalidata:\n\n- Indirizzo: {address}\n- Modello: {model}\n- Numero di serie: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Versione: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nSeleziona Invia per autorizzare questa release candidate esatta, controllare nuovamente il pannello e adottare questi byte esatti se sono già installati oppure, se il pannello è pulito, scaricarli, verificarli, installarli, avviarli e verificarne lo stato. Un'installazione con byte diversi non verrà sovrascritta né aggiornata.\n\nDopo che Home Assistant avrà aggiunto il dispositivo, seleziona Configura sul pannello per completare la configurazione guidata di ha-paneld. L'installazione non configura la dashboard."
+        "description": "Solo per i test: questa è una release candidate, non una versione stabile, e può contenere errori.\n\nVerifica il dispositivo e la release candidate convalidata:\n\n- Indirizzo: {address}\n- Modello: {model}\n- Numero di serie: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Versione: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nSeleziona Invia per autorizzare questa release candidate esatta, controllare nuovamente il pannello e adottare questi byte esatti se sono già installati oppure, se il pannello è pulito, scaricarli, verificarli, installarli, avviarli e verificarne lo stato. Un'installazione con byte diversi non verrà sovrascritta né aggiornata.\n\nDopo che Home Assistant avrà aggiunto il dispositivo, segui il link alla configurazione nel browser nella finestra Aggiungi da un computer che può raggiungere il pannello sulla rete locale. Se richiesto, autorizza ADB sul pannello. L'installazione non configura la dashboard."
       },
       "release_preview_only": {
         "title": "La versione non può essere installata automaticamente",
@@ -84,11 +84,11 @@
       },
       "install_result": {
         "title": "Completa la configurazione del pannello",
-        "description": "ha-paneld {version} è stato installato all'indirizzo {address}.\n\nSeleziona Invia per ripetere solo i controlli finali in sola lettura dell'identità e dello stato di funzionamento. Nessun passaggio dell'installazione verrà ripetuto.\n\nDopo che Home Assistant avrà aggiunto il dispositivo, seleziona Configura sul pannello per collegare ha-paneld a Home Assistant e configurare la dashboard."
+        "description": "ha-paneld {version} è stato installato all'indirizzo {address}.\n\nSeleziona Invia per ripetere solo i controlli finali in sola lettura dell'identità e dello stato di funzionamento. Nessun passaggio dell'installazione verrà ripetuto.\n\nDopo che Home Assistant avrà aggiunto il dispositivo, segui il link alla configurazione nel browser nella finestra Aggiungi da un computer che può raggiungere il pannello sulla rete locale. Se richiesto, autorizza ADB sul pannello."
       }
     },
     "progress": {
-      "installing": "Installazione e verifica di ha-paneld all'indirizzo {address}. Lascia aperta questa finestra di dialogo per completare automaticamente l'operazione. Puoi chiuderla e Home Assistant continuerà a eseguire il processo di installazione, ma non potrà aggiungere il dispositivo finché non riaprirai Impostazioni → Dispositivi e servizi → Aggiungi integrazione, selezionerai Panel Assistant, sceglierai Aggiungi un pannello della tua rete e inserirai lo stesso indirizzo. Dopo che Home Assistant avrà aggiunto il dispositivo, completa la configurazione guidata di ha-paneld sul pannello."
+      "installing": "Installazione e verifica di ha-paneld all'indirizzo {address}. Lascia aperta questa finestra di dialogo per completare automaticamente l'operazione. Puoi chiuderla e Home Assistant continuerà a eseguire il processo di installazione, ma non potrà aggiungere il dispositivo finché non riaprirai Impostazioni → Dispositivi e servizi → Aggiungi integrazione, selezionerai Panel Assistant, sceglierai Aggiungi un pannello della tua rete e inserirai lo stesso indirizzo. Dopo che Home Assistant avrà aggiunto il dispositivo, segui il link alla configurazione nel browser nella finestra Aggiungi da un computer che può raggiungere il pannello sulla rete locale. Se richiesto, autorizza ADB sul pannello."
     },
     "error": {
       "cannot_connect": "Impossibile connettersi a un endpoint valido sullo stato di funzionamento di ha-paneld.",
@@ -261,6 +261,30 @@
   },
   "options": {
     "step": {
+      "init": {
+        "title": "Configurazione del pannello",
+        "description": "Continua la configurazione di questo pannello nel browser oppure cambia il metodo di connessione. Il pannello resterà non associato finché non confermerai l'account con cui è stato effettuato l'accesso.",
+        "menu_options": {
+          "onboarding": "Continua la configurazione",
+          "transport": "Impostazioni di connessione"
+        }
+      },
+      "onboarding": {
+        "title": "Completa la configurazione di questo pannello",
+        "description": "Apri la pagina di configurazione del pannello da un browser che possa raggiungerlo sulla tua rete locale. Accedi con l’account Home Assistant attualmente in uso in quel browser, scegli la dashboard principale e completa lì la configurazione. Tieni aperta questa finestra di dialogo: tornerai qui per confermare l’account. Se questo browser non riesce a raggiungere il pannello, completa la configurazione più tardi dalla rete locale del pannello. Se viene richiesta l’autorizzazione per il debug Android, una persona deve comunque concederla sul pannello."
+      },
+      "onboarding_wait": {
+        "title": "In attesa che il pannello si connetta",
+        "description": "Il pannello non ha ancora completato la configurazione né richiesto il collegamento di un account. Completa la sua pagina di configurazione, poi premi Invia qui per verificare di nuovo. Il pannello resta non associato finché non confermi il suo account."
+      },
+      "onboarding_confirm": {
+        "title": "Conferma l’account di questo pannello",
+        "description": "{panel} ha effettuato l’accesso come {user} e ha chiesto di connettersi. Conferma solo se questo è l’account che hai scelto per il pannello. Se salti questo passaggio, resterà non associato; potrai confermarlo più tardi in Riparazioni.",
+        "menu_options": {
+          "onboarding_bind": "Sì, connetti questo pannello",
+          "onboarding_skip": "Non ora"
+        }
+      },
       "transport": {
         "title": "Connessione del pannello",
         "description": "Scegli cosa controlla le entità e i comandi di questo pannello. Salvando Panel Assistant, Panel Assistant sposta a sé le entità MQTT del pannello, conservando i loro ID entità, la cronologia e le tue personalizzazioni, e poi il pannello ritira le sue entità MQTT. Salvando MQTT, con o senza report nativi, tornano a MQTT. In entrambi i casi il pannello si riconnette con la nuova scelta.",

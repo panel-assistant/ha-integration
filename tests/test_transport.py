@@ -1341,6 +1341,9 @@ async def test_squatter_cannot_bind_an_unbound_panel(
     assert issue.translation_key == "panel_awaiting_confirmation"
     assert issue.translation_placeholders == {"panel": "alpha"}
     assert issue.data == {"entry_id": entry.entry_id, "user_id": hass_read_only_user.id}
+    # The Add-panel continuation sees the same refused, authenticated request;
+    # recording it grants no session and does not replace administrator consent.
+    assert async_binding_request(hass, DID) == hass_read_only_user.id
 
 
 async def test_other_user_cannot_take_over_a_bound_panel(
