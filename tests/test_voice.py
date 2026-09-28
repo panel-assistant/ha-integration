@@ -183,6 +183,23 @@ async def test_voice_is_granted_under_shadow_and_the_satellite_joins_the_panel_d
     assert devices == {device}
 
 
+async def test_turning_the_voice_assistant_off_makes_the_satellite_unavailable(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+) -> None:
+    panel, entity_id = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    assert (await panel.configure(enabled=False))["success"]
+    await hass.async_block_till_done()
+    assert hass.states.get(entity_id).state == "unavailable"
+    assert (await panel.configure(enabled=True))["success"]
+    await hass.async_block_till_done()
+    assert hass.states.get(entity_id).state == "idle"
+
+
 async def test_a_panel_that_offers_no_voice_has_no_satellite(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,

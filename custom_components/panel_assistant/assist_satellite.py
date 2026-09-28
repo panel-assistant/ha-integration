@@ -99,8 +99,9 @@ class PanelAssistSatellite(AssistSatelliteEntity):
 
     @property
     def available(self) -> bool:
-        """Return whether the panel is connected and has said what it hears."""
-        return self._voice is not None
+        """Return whether the panel is connected with its voice assistant turned on."""
+        voice = self._voice
+        return voice is not None and voice.enabled
 
     async def async_added_to_hass(self) -> None:
         """Follow the panel's session."""
