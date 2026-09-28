@@ -260,6 +260,98 @@ async def test_recovered_update_accepts_newer_health_when_offer_advanced(
     client.async_start_panel_update.assert_not_awaited()
 
 
+async def test_recovered_feed_update_accepts_higher_code_with_same_name(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    repairs: SimpleNamespace,
+) -> None:
+    entity, client = _entity(hass, recovered=True, feed=True)
+    snapshot = entity.coordinator.data
+    entity.coordinator.data = replace(
+        snapshot,
+        health=replace(snapshot.health, version="0.9.10", version_code=101),
+    )
+    refreshes = 0
+
+    async def refresh_health() -> None:
+        nonlocal refreshes
+        refreshes += 1
+        if refreshes == 2:
+            current = entity.coordinator.data
+            entity.coordinator.data = replace(
+                current,
+                health=replace(current.health, build="102", version_code=102),
+            )
+
+    entity.coordinator.async_request_refresh = AsyncMock(side_effect=refresh_health)
+    statuses = iter(
+        [
+            PanelInstallStatus(running=True, component="ha-paneld"),
+            PanelInstallStatus(running=False, component="ha-paneld"),
+        ]
+    )
+
+    async def refresh_status() -> None:
+        entity._update_coordinator.data = PanelUpdateSnapshot(
+            operation=next(statuses), error=None
+        )
+
+    entity._update_coordinator.async_request_refresh = AsyncMock(
+        side_effect=refresh_status
+    )
+    monkeypatch.setattr(panel_update, "_TERMINAL_STATUS_GRACE_SECONDS", 0)
+    monkeypatch.setattr(panel_update.asyncio, "sleep", AsyncMock())
+
+    entity._resume_running_operation()
+    observer = entity._observer_task
+    assert observer is not None
+    await observer
+
+    assert refreshes == 2
+    repairs.record.assert_not_awaited()
+    repairs.clear.assert_awaited_once_with(hass, "entry-id")
+    client.async_start_panel_update.assert_not_awaited()
+
+
+async def test_recovered_feed_update_already_advanced_is_not_reported_failed(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    repairs: SimpleNamespace,
+) -> None:
+    entity, client = _entity(hass, recovered=True, feed=True)
+    snapshot = entity.coordinator.data
+    entity.coordinator.data = replace(
+        snapshot,
+        health=replace(snapshot.health, version="0.9.10", version_code=102),
+    )
+    statuses = iter(
+        [
+            PanelInstallStatus(running=True, component="ha-paneld"),
+            PanelInstallStatus(running=False, component="ha-paneld"),
+        ]
+    )
+
+    async def refresh_status() -> None:
+        entity._update_coordinator.data = PanelUpdateSnapshot(
+            operation=next(statuses), error=None
+        )
+
+    entity._update_coordinator.async_request_refresh = AsyncMock(
+        side_effect=refresh_status
+    )
+    monkeypatch.setattr(panel_update, "_TERMINAL_STATUS_GRACE_SECONDS", 0)
+    monkeypatch.setattr(panel_update.asyncio, "sleep", AsyncMock())
+
+    entity._resume_running_operation()
+    observer = entity._observer_task
+    assert observer is not None
+    await observer
+
+    repairs.record.assert_not_awaited()
+    repairs.clear.assert_not_awaited()
+    client.async_start_panel_update.assert_not_awaited()
+
+
 async def test_recovered_terminal_before_running_is_unknown(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,

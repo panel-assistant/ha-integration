@@ -623,8 +623,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         self, expected_version: str | None
     ) -> bool:
         """Poll through restart; return false when recovered outcome is unknown."""
-        starting_version = (
-            self.coordinator.data.health.version
+        starting_health = (
+            self.coordinator.data.health
             if expected_version is None and self.coordinator.data is not None
             else None
         )
@@ -640,8 +640,18 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 self.installed_version == expected_version
                 if expected_version is not None
                 else snapshot is not None
-                and starting_version is not None
-                and is_newer_stable_version(snapshot.health.version, starting_version)
+                and starting_health is not None
+                and (
+                    is_newer_stable_version(
+                        snapshot.health.version, starting_health.version
+                    )
+                    or (
+                        snapshot.health.version == starting_health.version
+                        and starting_health.version_code is not None
+                        and snapshot.health.version_code is not None
+                        and snapshot.health.version_code > starting_health.version_code
+                    )
+                )
             )
             if self.coordinator.last_update_success and verified:
                 await self._update_coordinator.async_request_refresh()
@@ -672,7 +682,12 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                         + _TERMINAL_STATUS_GRACE_SECONDS,
                     )
                 if asyncio.get_running_loop().time() >= terminal_status_deadline:
-                    if expected_version is None and not running_seen:
+                    if expected_version is None and (
+                        not running_seen or self._feed is not None
+                    ):
+                        # A signed-feed build may have the same version name,
+                        # and its new code may predate our first health sample.
+                        # Without the lost target, this status is not failure proof.
                         return False
                     raise _update_error(
                         "update_not_complete", "The panel update did not complete"
