@@ -224,6 +224,10 @@
       "title": "Entidades MQTT personalizadas retienen la retirada MQTT de {panel}",
       "description": "Panel Assistant ahora posee las entidades de {panel}, pero no tiene equivalente para estas entidades MQTT, y llevan un nombre, icono, área, etiqueta, alias o ajuste de ocultación o desactivación tuyo: {entities}. Elimínalas, o borra esos ajustes, y el panel retirará sus entidades MQTT la próxima vez que se conecte. Hasta entonces sigue anunciándolas todas."
     },
+    "native_controls_unavailable": {
+      "title": "Controles nativos no disponibles en {panel}",
+      "description": "Panel Assistant desactivó estos controles MQTT porque {panel} no ofrece sus acciones nativas: {entities}. Se conservan su configuración y sus ID de entidad. Actualiza la aplicación del panel, comprueba los requisitos de las acciones y vuelve a conectarlo. Reiniciar también requiere acceso root con MQTT. Si un control funcionaba antes con MQTT, puedes volver temporalmente a MQTT."
+    },
     "merged_panel_identity": {
       "title": "Separa los paneles combinados: {panels}",
       "description": "Los paneles {panels} comunican la misma identidad de dispositivo, por lo que Home Assistant no puede decidir de forma segura a qué entrada pertenece una conexión o entidad nativa. Se rechaza la conexión nativa y no se traslada ninguna entidad. Actualiza ha-paneld en cada panel afectado para que tenga una identidad distinta; después, elimina el dispositivo combinado y deja que los paneles vuelvan a registrarse."

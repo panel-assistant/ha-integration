@@ -23,6 +23,9 @@ A known suffix moves only once the panel has described its channel in a hello
 Until then the entity stays MQTT's, holds back the withdrawal, and the next
 setup after the panel describes the channel moves it. A first move waits for
 the panel's first hello, as it waits for its first health.
+Command entities waiting for a native descriptor are disabled while native
+authority holds the panel; their registry identity and prior disable setting
+are restored on reversal. Unknown MQTT buttons receive the same protection.
 
 Releasing the panel also happens when its entry is removed: Home Assistant
 calls ``async_remove_entry`` after the entry is gone from its entries but before
@@ -65,6 +68,7 @@ from .transport import (
     CUTOVER_ENTITIES,
     CUTOVER_IN_PROGRESS,
     CUTOVER_NOT_DESCRIBED,
+    CUTOVER_QUARANTINED,
     CUTOVER_REASON,
     CUTOVER_REGISTRY_ID,
     CUTOVER_REVERSING,
@@ -72,16 +76,19 @@ from .transport import (
     CUTOVER_UNMIGRATED,
     ISSUE_CUTOVER_BLOCKED,
     ISSUE_CUTOVER_INCOMPLETE,
+    ISSUE_NATIVE_CONTROLS_UNAVAILABLE,
     MQTT_DOMAIN,
     _panel_did,
     async_delete_cutover_issues,
     async_raise_cutover_blocked_issue,
     async_raise_cutover_incomplete_issue,
+    async_raise_native_controls_unavailable_issue,
     blocking_entity_ids,
     cutover_record,
     effective_authority,
     is_customised,
     supported_channels,
+    suspended_control_entity_ids,
     undescribed_entities,
 )
 
@@ -128,6 +135,9 @@ _KEY_ERROR: Final = "error"
 _KEY_REMOVED: Final = "removed"
 _KEY_DISABLED_BEFORE: Final = "disabled_by_before"
 _KEY_SUFFIX: Final = "unique_suffix"
+_COMMAND_PLATFORMS: Final = frozenset(
+    {"button", "light", "number", "select", "switch", "text"}
+)
 
 
 class CutoverStepFailed(Exception):
@@ -298,12 +308,34 @@ def _entity_info(item: er.RegistryEntry, suffix: str) -> dict[str, Any]:
     }
 
 
-def _disabled_by_us(info: dict[str, Any], item: er.RegistryEntry) -> bool:
-    """Return whether the entity's disable is this integration's own."""
-    return (
-        info[_KEY_DISABLED_BEFORE] is None
+def _restore_disable(
+    registry: er.EntityRegistry, info: dict[str, Any], item: er.RegistryEntry
+) -> None:
+    """Restore the recorded disable when we currently hold the registry entry."""
+    before = info[_KEY_DISABLED_BEFORE]
+    if (
+        item.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+        and before != "integration"
+    ):
+        registry.async_update_entity(
+            item.entity_id,
+            disabled_by=None if before is None else er.RegistryEntryDisabler(before),
+        )
+
+
+def _prior_disable(
+    item: er.RegistryEntry, previous: dict[str, Any], quarantined: list[str]
+) -> str | None:
+    """Recover provenance, including a duplicate disabled by the old guard."""
+    if _KEY_DISABLED_BEFORE in previous:
+        value: str | None = previous[_KEY_DISABLED_BEFORE]
+        return value
+    if (
+        item.id in quarantined
         and item.disabled_by is er.RegistryEntryDisabler.INTEGRATION
-    )
+    ):
+        return None
+    return None if item.disabled_by is None else item.disabled_by.value
 
 
 async def _async_migrate_one(
@@ -313,6 +345,7 @@ async def _async_migrate_one(
     item: er.RegistryEntry,
     suffix: str,
     device_id: str,
+    previous_unmigrated: dict[str, Any] | None = None,
 ) -> bool:
     """Move one MQTT entity to this integration, recording each step.
 
@@ -345,6 +378,11 @@ async def _async_migrate_one(
     info = entities.get(item.id)
     if info is None:
         info = entities[item.id] = _entity_info(item, suffix)
+        if (
+            previous_unmigrated is not None
+            and _KEY_DISABLED_BEFORE in previous_unmigrated
+        ):
+            info[_KEY_DISABLED_BEFORE] = previous_unmigrated[_KEY_DISABLED_BEFORE]
     info["entity_id"] = item.entity_id
     _write(hass, entry, record)
 
@@ -389,8 +427,7 @@ def _enable_if_ours(
         _write(hass, entry, record)
         return
     with _step(STEP_ENABLE, item.entity_id):
-        if _disabled_by_us(info, item):
-            registry.async_update_entity(item.entity_id, disabled_by=None)
+        _restore_disable(registry, info, item)
     info[CUTOVER_STATE] = ENTITY_DONE
     _write(hass, entry, record)
 
@@ -437,6 +474,12 @@ async def _async_forward(
     entities: dict[str, dict[str, Any]] = record[_KEY_ENTITIES]
     prefix = _mqtt_prefix(panel_id)
     unmigrated: list[dict[str, Any]] = []
+    previous_unmigrated = {
+        row[CUTOVER_REGISTRY_ID]: row
+        for row in record[CUTOVER_UNMIGRATED]
+        if CUTOVER_REGISTRY_ID in row
+    }
+    quarantined: list[str] = record.get(CUTOVER_QUARANTINED, [])
     # The work list. What an earlier attempt recorded and left on MQTT comes
     # first, under whatever prefix the panel carried then, so that a fresh
     # discovery under a new prefix never takes a recorded entity's target.
@@ -453,19 +496,61 @@ async def _async_forward(
         suffix = item.unique_id.removeprefix(prefix)
         catalogue = catalogue_entry_for_suffix(item.domain, suffix)
         if catalogue is None:
-            unmigrated.append(_unmigrated(item, suffix, REASON_UNKNOWN_SUFFIX))
+            row = _unmigrated(item, suffix, REASON_UNKNOWN_SUFFIX)
+            if item.domain == "button":
+                row[_KEY_DISABLED_BEFORE] = _prior_disable(
+                    item, previous_unmigrated.get(item.id, {}), quarantined
+                )
+            unmigrated.append(row)
         elif catalogue["channel"] in NOT_RENDERED:
             unmigrated.append(_unmigrated(item, suffix, REASON_NOT_RENDERED))
         elif (
             channel := catalogue_channel_for_suffix(item.domain, suffix)
         ) not in described:
-            unmigrated.append(_unmigrated(item, suffix, REASON_NOT_DESCRIBED, channel))
+            row = _unmigrated(item, suffix, REASON_NOT_DESCRIBED, channel)
+            if item.domain in _COMMAND_PLATFORMS:
+                row[_KEY_DISABLED_BEFORE] = _prior_disable(
+                    item, previous_unmigrated.get(item.id, {}), quarantined
+                )
+            unmigrated.append(row)
         else:
             work[item.id] = (item, suffix)
     for item, suffix in work.values():
-        if not await _async_migrate_one(hass, entry, record, item, suffix, device.id):
+        if not await _async_migrate_one(
+            hass,
+            entry,
+            record,
+            item,
+            suffix,
+            device.id,
+            previous_unmigrated.get(item.id),
+        ):
             unmigrated.append(_unmigrated(item, suffix, REASON_REDISCOVERED))
     record[CUTOVER_UNMIGRATED] = unmigrated
+    suspended_ids = {
+        row[CUTOVER_REGISTRY_ID] for row in unmigrated if _KEY_DISABLED_BEFORE in row
+    }
+    if quarantined:
+        record[CUTOVER_QUARANTINED] = [
+            registry_id
+            for registry_id in quarantined
+            if registry_id not in suspended_ids
+        ]
+    # Land the provenance before disabling a command. A failed disable is
+    # therefore reversible on the next setup or authority change.
+    _write(hass, entry, record)
+    for row in unmigrated:
+        if _KEY_DISABLED_BEFORE not in row:
+            continue
+        item = registry.entities.get_entry(row[CUTOVER_REGISTRY_ID])
+        if item is None or item.platform != MQTT_DOMAIN:
+            continue
+        with _step(STEP_DISABLE, item.entity_id):
+            if item.disabled_by is None:
+                registry.async_update_entity(
+                    item.entity_id, disabled_by=er.RegistryEntryDisabler.INTEGRATION
+                )
+            await _async_wait_unloaded(hass, item.entity_id)
 
     # Entities an earlier attempt moved but did not finish with, and ones a
     # person deleted since they were recorded.
@@ -495,6 +580,13 @@ def _report_blocking(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> None:
         async_raise_cutover_blocked_issue(hass, entry, blocking)
     else:
         async_delete_cutover_issues(hass, entry.entry_id, ISSUE_CUTOVER_BLOCKED)
+    suspended = suspended_control_entity_ids(hass, entry)
+    if suspended:
+        async_raise_native_controls_unavailable_issue(hass, entry, suspended)
+    else:
+        async_delete_cutover_issues(
+            hass, entry.entry_id, ISSUE_NATIVE_CONTROLS_UNAVAILABLE
+        )
 
 
 def _mqtt_entry_id(hass: HomeAssistant, recorded: str | None) -> str:
@@ -541,8 +633,7 @@ async def _async_reverse(
             # made before the move failed still goes, or MQTT keeps an entity
             # nobody chose to disable.
             with _step(STEP_ENABLE, item.entity_id):
-                if _disabled_by_us(info, item):
-                    registry.async_update_entity(item.entity_id, disabled_by=None)
+                _restore_disable(registry, info, item)
             info[CUTOVER_STATE] = ENTITY_REVERSED
             write(record)
             continue
@@ -561,8 +652,7 @@ async def _async_reverse(
         with _step(STEP_ENABLE, item.entity_id):
             # A disable this integration made and never cleared goes now,
             # while the entity is still its own: MQTT never sees it.
-            if _disabled_by_us(info, item):
-                registry.async_update_entity(item.entity_id, disabled_by=None)
+            _restore_disable(registry, info, item)
         device_id = info["mqtt_device_id"]
         if device_id is not None and device_registry.async_get(device_id) is None:
             device_id = None
@@ -584,6 +674,14 @@ async def _async_reverse(
             )
         info[CUTOVER_STATE] = ENTITY_REVERSED
         write(record)
+
+    for row in record.get(CUTOVER_UNMIGRATED, ()):
+        if _KEY_DISABLED_BEFORE not in row:
+            continue
+        item = registry.entities.get_entry(row[CUTOVER_REGISTRY_ID])
+        if item is not None and item.platform == MQTT_DOMAIN:
+            with _step(STEP_ENABLE, item.entity_id):
+                _restore_disable(registry, row, item)
 
     write(None)
     async_delete_cutover_issues(hass, entry.entry_id)
@@ -609,6 +707,7 @@ def cutover_reconciliation_needed(
             record is None
             or record.get(CUTOVER_STATE) != CUTOVER_COMPLETE
             or _newly_described(hass, entry)
+            or _newly_suspensible(hass, entry)
         )
     return record is not None
 
@@ -619,6 +718,27 @@ def _newly_described(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> bool:
     return described is not None and any(
         unmigrated.get(CUTOVER_CHANNEL) in described
         for unmigrated in undescribed_entities(hass, entry)
+    )
+
+
+def _newly_suspensible(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> bool:
+    """Upgrade old complete records with MQTT controls that stayed usable."""
+    registry = er.async_get(hass)
+    return any(
+        "disabled_by_before" not in row
+        and (item := registry.entities.get_entry(row[CUTOVER_REGISTRY_ID])) is not None
+        and item.platform == MQTT_DOMAIN
+        and (
+            (
+                row.get(CUTOVER_REASON) == REASON_NOT_DESCRIBED
+                and item.domain in _COMMAND_PLATFORMS
+            )
+            or (
+                row.get(CUTOVER_REASON) == REASON_UNKNOWN_SUFFIX
+                and item.domain == "button"
+            )
+        )
+        for row in (cutover_record(entry) or {}).get(CUTOVER_UNMIGRATED, ())
     )
 
 

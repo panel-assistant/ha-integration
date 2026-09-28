@@ -224,6 +224,10 @@
       "title": "Angepasste MQTT-Entitäten halten den MQTT-Rückzug von {panel} zurück",
       "description": "Panel Assistant besitzt jetzt die Entitäten von {panel}, hat aber für diese MQTT-Entitäten keine Entsprechung, und sie tragen einen Namen, ein Symbol, einen Bereich, ein Label, einen Alias oder eine Einstellung zum Ausblenden oder Deaktivieren von dir: {entities}. Lösche sie oder entferne diese Einstellungen, dann zieht das Panel seine MQTT-Entitäten beim nächsten Verbinden zurück. Bis dahin kündigt es sie weiterhin alle an."
     },
+    "native_controls_unavailable": {
+      "title": "Native Bedienelemente auf {panel} nicht verfügbar",
+      "description": "Panel Assistant hat diese MQTT-Bedienelemente deaktiviert, weil {panel} ihre nativen Aktionen nicht anbietet: {entities}. Konfiguration und Entitäts-IDs bleiben erhalten. Aktualisiere die Panel-App, prüfe die Voraussetzungen der Aktionen und verbinde das Panel erneut. Ein Neustart erfordert auch über MQTT Root-Zugriff. Falls ein Bedienelement zuvor über MQTT funktionierte, kannst du das Panel vorübergehend auf MQTT zurückstellen."
+    },
     "merged_panel_identity": {
       "title": "Zusammengeführte Panels trennen: {panels}",
       "description": "Die Panels {panels} melden dieselbe Geräteidentität. Home Assistant kann daher nicht sicher entscheiden, welchem Eintrag eine native Verbindung oder Entität gehört. Die native Verbindung wird abgelehnt und es werden keine Entitäten verschoben. Aktualisiere ha-paneld auf allen betroffenen Panels, damit jedes eine eigene Identität erhält. Lösche anschließend das zusammengeführte Gerät und lasse die Panels erneut registrieren."

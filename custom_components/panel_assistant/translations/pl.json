@@ -246,6 +246,10 @@
       "title": "Dostosowane encje MQTT wstrzymują wycofanie encji MQTT panelu {panel}",
       "description": "Panel Assistant jest teraz właścicielem encji panelu {panel}, ale nie ma odpowiedników dla tych encji MQTT, a mają one twoją własną nazwę, ikonę, obszar, etykietę, alias albo ustawienie ukrycia lub wyłączenia: {entities}. Usuń je lub wyczyść te ustawienia, a panel wycofa swoje encje MQTT przy następnym połączeniu. Do tego czasu nadal będzie ogłaszał wszystkie."
     },
+    "native_controls_unavailable": {
+      "title": "Natywne elementy sterujące niedostępne na {panel}",
+      "description": "Panel Assistant wyłączył te elementy sterujące MQTT, ponieważ {panel} nie udostępnia ich natywnych działań: {entities}. Konfiguracja i identyfikatory encji pozostają zachowane. Zaktualizuj aplikację panelu, sprawdź wymagania działań i połącz panel ponownie. Ponowne uruchomienie wymaga uprawnień root także przez MQTT. Jeśli element wcześniej działał przez MQTT, możesz tymczasowo przywrócić MQTT."
+    },
     "merged_panel_identity": {
       "title": "Rozdziel scalone panele: {panels}",
       "description": "Panele {panels} zgłaszają tę samą tożsamość urządzenia, więc Home Assistant nie może bezpiecznie ustalić, który wpis jest właścicielem natywnego połączenia lub encji. Ich natywne połączenie jest odrzucane i żadne encje nie są przenoszone. Zaktualizuj ha-paneld na każdym panelu, którego to dotyczy, tak aby każdy miał odrębną tożsamość, a następnie usuń scalone urządzenie i pozwól panelom zarejestrować się ponownie."

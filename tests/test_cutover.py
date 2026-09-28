@@ -3,6 +3,7 @@
 import asyncio
 import logging
 from collections.abc import Callable
+from copy import deepcopy
 from dataclasses import replace
 from datetime import timedelta
 from typing import Any
@@ -1362,6 +1363,157 @@ async def test_reversal_re_enables_an_entity_the_failed_move_had_disabled(
     assert item.disabled_by is None
     assert CONF_CUTOVER not in entry.data
     assert _issue(hass, "cutover_incomplete", entry.entry_id) is None
+
+
+async def test_unmigrated_buttons_keep_registry_identity_and_restore_disable(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """Unknown and undescribed MQTT buttons are disabled, then restored."""
+    mqtt = _mqtt(
+        hass,
+        [
+            ("switch", "relay1", {}),
+            ("button", "mystery", {}),
+            ("button", "reboot", {}),
+            ("button", "reload", {"disabled_by": er.RegistryEntryDisabler.USER}),
+            ("sensor", "diag_cpu", {}),
+            ("update", "other_update", {}),
+        ],
+    )
+    registry = er.async_get(hass)
+    registry.async_update_entity(mqtt["entity_ids"]["mystery"], name="Custom action")
+    before = {
+        suffix: registry.async_get(entity_id)
+        for suffix, entity_id in mqtt["entity_ids"].items()
+    }
+    entry = await _setup(
+        hass,
+        hass_read_only_user.id,
+        native=True,
+        options=NATIVE,
+        described={"relay1"},
+    )
+    record = _record(entry)
+    assert transport.mqtt_discovery_claim(hass, entry) == "announce"
+    for suffix in ("mystery", "reboot"):
+        original = before[suffix]
+        assert original is not None
+        item = registry.entities.get_entry(original.id)
+        assert item is not None
+        assert (item.entity_id, item.platform, item.name) == (
+            original.entity_id,
+            "mqtt",
+            original.name,
+        )
+        assert item.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+        assert original.id not in record.get("quarantined", [])
+    assert record["unmigrated"]
+    assert {
+        row["unique_suffix"]: row["disabled_by_before"]
+        for row in record["unmigrated"]
+        if "disabled_by_before" in row
+    } == {"mystery": None, "reboot": None, "reload": "user"}
+    for suffix in ("diag_cpu", "other_update", "reload"):
+        original = before[suffix]
+        assert original is not None
+        assert registry.entities.get_entry(original.id) == original
+    issue = _issue(hass, "native_controls_unavailable", entry.entry_id)
+    assert issue is not None
+    assert issue.translation_placeholders == {
+        "panel": "alpha",
+        "entities": ", ".join(
+            sorted(
+                mqtt["entity_ids"][suffix] for suffix in ("mystery", "reboot", "reload")
+            )
+        ),
+    }
+    assert (
+        _issue(hass, "cutover_blocked_by_customised_entities", entry.entry_id) is None
+    )
+
+    hass.config_entries.async_update_entry(entry, options={"authority": "mqtt"})
+    await _reload(hass, entry)
+    for original in before.values():
+        assert original is not None
+        current = registry.entities.get_entry(original.id)
+        assert current is not None
+        assert (
+            current.entity_id,
+            current.platform,
+            current.name,
+            current.disabled_by,
+        ) == (
+            original.entity_id,
+            original.platform,
+            original.name,
+            original.disabled_by,
+        )
+    assert CONF_CUTOVER not in entry.data
+    assert _issue(hass, "native_controls_unavailable", entry.entry_id) is None
+
+
+async def test_old_complete_cutover_recovers_a_quarantined_unknown_button(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """A previous release's duplicate record cannot later delete this button."""
+    mqtt = _mqtt(
+        hass,
+        [
+            ("switch", "relay1", {}),
+            ("button", "mystery", {}),
+            ("button", "mystery_user", {"disabled_by": er.RegistryEntryDisabler.USER}),
+        ],
+    )
+    registry = er.async_get(hass)
+    original = registry.async_get(mqtt["entity_ids"]["mystery"])
+    assert original is not None
+    user_disabled = registry.async_get(mqtt["entity_ids"]["mystery_user"])
+    assert user_disabled is not None
+    entry = await _setup(
+        hass,
+        hass_read_only_user.id,
+        native=True,
+        options=NATIVE,
+        described={"relay1"},
+    )
+    record = deepcopy(_record(entry))
+    for row in record["unmigrated"]:
+        if row["registry_id"] in {original.id, user_disabled.id}:
+            row.pop("disabled_by_before", None)
+    record["quarantined"] = [original.id, user_disabled.id]
+    hass.config_entries.async_update_entry(
+        entry, data={**entry.data, CONF_CUTOVER: record}
+    )
+
+    await _reload(hass, entry)
+    repaired = _record(entry)
+    (row,) = (
+        row for row in repaired["unmigrated"] if row["registry_id"] == original.id
+    )
+    assert row["disabled_by_before"] is None
+    (row,) = (
+        row for row in repaired["unmigrated"] if row["registry_id"] == user_disabled.id
+    )
+    assert row["disabled_by_before"] == "user"
+    assert repaired.get("quarantined") == []
+    assert transport.mqtt_discovery_claim(hass, entry) == "announce"
+    kept = registry.entities.get_entry(original.id)
+    assert kept is not None
+    assert (kept.platform, kept.entity_id, kept.disabled_by) == (
+        "mqtt",
+        original.entity_id,
+        er.RegistryEntryDisabler.INTEGRATION,
+    )
+    assert _issue(hass, "native_controls_unavailable", entry.entry_id) is not None
+
+    hass.config_entries.async_update_entry(entry, options={"authority": "mqtt"})
+    await _reload(hass, entry)
+    restored = registry.entities.get_entry(original.id)
+    assert restored is not None
+    assert (restored.entity_id, restored.disabled_by) == (original.entity_id, None)
+    restored_user = registry.entities.get_entry(user_disabled.id)
+    assert restored_user is not None
+    assert restored_user.disabled_by is er.RegistryEntryDisabler.USER
 
 
 async def test_turning_the_flag_off_reverses_the_next_setup(
