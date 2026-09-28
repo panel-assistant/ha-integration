@@ -33,6 +33,7 @@ from .client import (
     PanelHealth,
 )
 from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, update_unique_id
+from .identity import accept_health, is_installation
 from .status import PanelStatus
 from .transport import (
     PanelSession,
@@ -79,6 +80,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         )
         self.client = client
         self._entry_id = entry_id
+        self.identity_mismatch = False
 
     @property
     def connected(self) -> bool:
@@ -163,9 +165,16 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                     translation_key="health_update_failed",
                 ) from err
             health = recovered
+        entry = self._entry()
+        if entry is not None and not accept_health(self.hass, entry, health):
+            self.identity_mismatch = True
+            self.client.health_peer = None
+            raise UpdateFailed(
+                translation_domain=DOMAIN, translation_key="health_update_failed"
+            )
+        self.identity_mismatch = False
         if self._entry_id is not None:
             async_delete_address_issue(self.hass, self._entry_id)
-            self._learn_identity(health)
             if not self.connected:
                 sessions = async_get_sessions(self.hass)
                 if health.restart is None:
@@ -195,7 +204,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         """
         session = self._session()
         entry = self._entry()
-        if session is None or entry is None:
+        if session is None or entry is None or not is_installation(entry):
             return None
         stored = self.client.address
         candidate = session_candidate(session.remote, stored)
@@ -227,32 +236,6 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             entry.title,
         )
         return health
-
-    @callback
-    def _learn_identity(self, health: PanelHealth) -> None:
-        """Make the reported identity the entry's own, so it outlives the address.
-
-        A discovered entry carries its panel's identity from the start; one
-        added by address did not, and could match its panel's hello only
-        through a snapshot a successful poll had left behind. After a restart
-        with the stored address dead there was no snapshot, so the panel was
-        refused as unknown and could never repair the address. The identity
-        is recorded once, and never one another entry already holds.
-        """
-        entry = self._entry()
-        if (
-            entry is None
-            or entry.unique_id is not None
-            or health.discovery_id is None
-            or self.hass.config_entries.async_entry_for_domain_unique_id(
-                DOMAIN, health.discovery_id
-            )
-            is not None
-        ):
-            return
-        self.hass.config_entries.async_update_entry(
-            entry, unique_id=health.discovery_id
-        )
 
     @callback
     def _report(self, entry: ConfigEntry, issue: str, session_address: str) -> None:

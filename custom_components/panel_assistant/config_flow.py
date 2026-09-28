@@ -59,6 +59,7 @@ from .const import (
     help_url,
 )
 from .ha_url import async_offer_ha_url
+from .identity import CONF_INSTALL_IDENTITY, accept_health, is_installation
 from .install_adb import (
     AdbInstallTarget,
     InstallAdbError,
@@ -235,9 +236,12 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="invalid_discovery")
 
         await self.async_set_unique_id(discovery_id)
-        if self._address_is_configured(address.stored_value):
-            self._abort_if_unique_id_configured()
-            return self.async_abort(reason="already_configured")
+        for existing in self.hass.config_entries.async_entries(DOMAIN):
+            if (
+                existing.data.get(CONF_ADDRESS) == address.stored_value
+                and existing.unique_id == discovery_id
+            ):
+                return self.async_abort(reason="already_configured")
 
         try:
             health = await HaPaneldClient(
@@ -252,6 +256,15 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="unknown")
         if health.discovery_id != discovery_id:
             return self.async_abort(reason="invalid_discovery")
+        for existing in self.hass.config_entries.async_entries(DOMAIN):
+            if existing.data.get(CONF_ADDRESS) == address.stored_value:
+                accept_health(self.hass, existing, health)
+                return self.async_abort(reason="already_configured")
+        known = self.hass.config_entries.async_entry_for_domain_unique_id(
+            DOMAIN, discovery_id
+        )
+        if known is not None and not is_installation(known):
+            return self.async_abort(reason="already_configured")
         # A known panel advertising from a new address has moved, when its
         # stored address has stopped answering and it is not connected. Its
         # health has just answered as it at the new address, so the stored one
@@ -1268,7 +1281,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         self, address: PanelAddress, health: PanelHealth
     ) -> ConfigFlowResult:
         """Create an entry, confirming the panel's account first when one asked."""
-        self._async_abort_entries_match({CONF_ADDRESS: address.stored_value})
+        for existing in self.hass.config_entries.async_entries(DOMAIN):
+            if existing.data.get(CONF_ADDRESS) == address.stored_value:
+                accept_health(self.hass, existing, health)
+                return self.async_abort(reason="already_configured")
         # A panel that reports its identity is known by it. Adding a known panel
         # again, at the address it has moved to, repairs its entry's stored
         # address rather than creating a second entry for one panel: health at
@@ -1277,6 +1293,11 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             # A discovery card for this panel may be pending; it must not
             # refuse the person who is adding the panel by hand, and Core
             # closes that card itself when the entry is created.
+            known = self.hass.config_entries.async_entry_for_domain_unique_id(
+                DOMAIN, health.discovery_id
+            )
+            if known is not None and not is_installation(known):
+                return self.async_abort(reason="already_configured")
             await self.async_set_unique_id(health.discovery_id, raise_on_progress=False)
             self._abort_if_unique_id_configured(
                 updates={CONF_ADDRESS: address.stored_value}, reload_on_update=False
@@ -1367,6 +1388,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         """Create the entry, bound to a confirmed account or to none."""
         async_discard_binding_request(self.hass, health.discovery_id)
         data: dict[str, Any] = {CONF_ADDRESS: address.stored_value}
+        if health.installation_identity:
+            data[CONF_INSTALL_IDENTITY] = True
         if user_id is not None:
             data[CONF_TRANSPORT_USER_ID] = user_id
         # A discovered panel keeps the name its card promised. A manually added one

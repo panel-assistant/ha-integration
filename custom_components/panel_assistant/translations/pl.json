@@ -783,6 +783,29 @@
     "panel_address_unverified": {
       "title": "Panel {panel} został przeniesiony, a jego nowego adresu nie udało się potwierdzić",
       "description": "{panel} jest połączony z Home Assistant z adresu {session_address}, więc jego encje pozostają dostępne, ale Home Assistant nie może odczytać panelu pod zapisanym adresem {address}, a sprawdzenie pod adresem {session_address} nie dało odpowiedzi od tego panelu, więc zapisanego adresu nie zmieniono. Jeśli panel został przeniesiony, dodaj go ponownie pod nowym adresem, co zaktualizuje zapisany adres; problem zniknie sam, gdy zapisany adres odpowie."
+    },
+    "panel_identity_mismatch": {
+      "title": "Sprawdź adres panelu {panel}",
+      "description": "Odpowiedź z adresu {address} nie odpowiadała panelowi {panel}, dlatego sterowanie nim zostało tymczasowo wyłączone. Sprawdź, czy ten adres należy do panelu. Jeśli jego adres się zmienił, dodaj panel ponownie, używając aktualnego adresu."
+    },
+    "panel_identity_confirmation": {
+      "title": "Zachowaj dotychczasową konfigurację tego panelu",
+      "description": "{panel} pod adresem {address} wymaga potwierdzenia po aktualizacji aplikacji. Potwierdź, że to panel, którego dotychczasową konfigurację chcesz zachować.",
+      "fix_flow": {
+        "step": {
+          "confirm_identity": {
+            "title": "Zachowaj dotychczasową konfigurację tego panelu",
+            "description": "Zachować dotychczasowe encje i ustawienia panelu {panel} pod adresem {address}?"
+          }
+        },
+        "abort": {
+          "entry_removed": "Ten panel został usunięty.",
+          "identity_changed": "Panel zmienił się, gdy to okno potwierdzenia było otwarte. Otwórz najnowsze zgłoszenie w sekcji Naprawy i spróbuj ponownie."
+        },
+        "error": {
+          "cannot_connect": "Nie można połączyć się z panelem. Sprawdź jego połączenie i spróbuj ponownie."
+        }
+      }
     }
   },
   "options": {

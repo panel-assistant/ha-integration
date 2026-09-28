@@ -18,6 +18,7 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.identity import CONF_INSTALL_IDENTITY
 from custom_components.panel_assistant.voice import PIPELINE_COLORS, PipelineColors
 
 from .test_native import _setup
@@ -33,7 +34,7 @@ WAKE_WORDS = [
 def _hello(capabilities: list[str]) -> dict[str, Any]:
     return {
         "type": "panel_assistant/hello",
-        "protocol": {"min": 1, "max": 2},
+        "protocol": {"min": 3, "max": 3},
         "did": DID,
         "app": {"version": "0.9.9-rc1", "version_code": 990},
         "contract_digest": "c" * 64,
@@ -163,7 +164,11 @@ async def entry(hass: HomeAssistant, hass_read_only_user: Any) -> MockConfigEntr
     stack depends on; the test harness does not start it unasked.
     """
     assert await async_setup_component(hass, "homeassistant", {})
-    return await _setup(hass, hass_read_only_user.id, native=None, described=None)
+    entry = await _setup(hass, hass_read_only_user.id, native=None, described=None)
+    hass.config_entries.async_update_entry(
+        entry, data={**entry.data, CONF_INSTALL_IDENTITY: True}
+    )
+    return entry
 
 
 async def _ready(

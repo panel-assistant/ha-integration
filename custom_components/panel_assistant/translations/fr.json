@@ -761,6 +761,29 @@
     "panel_address_unverified": {
       "title": "{panel} a changé d'adresse et sa nouvelle adresse n'a pas pu être confirmée",
       "description": "{panel} est connecté à Home Assistant depuis {session_address}, ses entités restent donc disponibles, mais Home Assistant ne peut pas lire le panneau à son adresse enregistrée {address}, et une vérification à {session_address} n'a pas répondu comme ce panneau ; l'adresse enregistrée n'a donc pas été modifiée. Si le panneau a changé d'emplacement, ajoutez-le à nouveau avec sa nouvelle adresse, ce qui met à jour l'adresse enregistrée ; l'avertissement disparaît de lui-même dès que l'adresse enregistrée répond."
+    },
+    "panel_identity_mismatch": {
+      "title": "Vérifier l’adresse de {panel}",
+      "description": "La réponse de {address} ne correspondait pas à {panel}. Ses commandes ont donc été temporairement désactivées. Vérifiez que cette adresse appartient au panneau. Si son adresse a changé, ajoutez-le à nouveau avec son adresse actuelle."
+    },
+    "panel_identity_confirmation": {
+      "title": "Conserver la configuration actuelle de ce panneau",
+      "description": "{panel} à l’adresse {address} nécessite une confirmation après une mise à jour de l’application. Confirmez qu’il s’agit du panneau dont vous souhaitez conserver la configuration actuelle.",
+      "fix_flow": {
+        "step": {
+          "confirm_identity": {
+            "title": "Conserver la configuration actuelle de ce panneau",
+            "description": "Conserver les entités et les paramètres actuels de {panel} à l’adresse {address} ?"
+          }
+        },
+        "abort": {
+          "entry_removed": "Ce panneau a été supprimé.",
+          "identity_changed": "Le panneau a changé pendant que cette confirmation était ouverte. Ouvrez le dernier signalement dans Réparations et réessayez."
+        },
+        "error": {
+          "cannot_connect": "Le panneau est inaccessible. Vérifiez sa connexion et réessayez."
+        }
+      }
     }
   },
   "options": {

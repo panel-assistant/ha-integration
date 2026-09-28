@@ -64,6 +64,8 @@ _KNOWN_HEALTH_FIELDS = frozenset(
         "build",
         "cfg",
         "did",
+        "identity",
+        "legacy_did",
         "pkg",
         "vc",
         "ha",
@@ -151,6 +153,8 @@ class PanelHealth:
     ha_source: str | None = None
     ha_subscription_refused: bool = False
     discovery_id: str | None = None
+    legacy_discovery_id: str | None = None
+    installation_identity: bool = False
     # The application id the panel is actually running. Absent from builds made
     # before the identity migration, so never assumed.
     package: str | None = None
@@ -278,6 +282,15 @@ def parse_health_response(body: str) -> PanelHealth:
     discovery_id = fields.get("did")
     if discovery_id is not None and not is_valid_discovery_id(discovery_id):
         raise InvalidResponseError
+    if "identity" in fields and fields["identity"] != "install":
+        raise InvalidResponseError
+    if fields.get("identity") == "install" and discovery_id is None:
+        raise InvalidResponseError
+    legacy_discovery_id = fields.get("legacy_did")
+    if legacy_discovery_id is not None and not is_valid_discovery_id(
+        legacy_discovery_id
+    ):
+        raise InvalidResponseError
     package = fields.get("pkg")
     # Checked for shape only. Which application ids this integration accepts is
     # decided where an install or update is judged; an unfamiliar one here must
@@ -312,6 +325,8 @@ def parse_health_response(body: str) -> PanelHealth:
         ha_source=ha_source,
         ha_subscription_refused=fields.get("ha_refused") == "1",
         discovery_id=discovery_id,
+        legacy_discovery_id=legacy_discovery_id,
+        installation_identity=fields.get("identity") == "install",
         package=package,
         version_code=version_code,
         restart=restart,
@@ -498,6 +513,8 @@ class HaPaneldClient:
         """Initialize the client with Home Assistant's shared web session."""
         self._session = session
         self.address = address
+        self.health_peer: tuple[str, str] | None = None
+        self._health_response_peer: tuple[str, str] | None = None
 
     @property
     def configuration_url(self) -> str:
@@ -536,6 +553,25 @@ class HaPaneldClient:
             ) as response:
                 if response.status != 200:
                     raise CannotConnectError
+                if url == self.health_url:
+                    connection = response.connection
+                    transport = connection.transport if connection is not None else None
+                    if transport is None:
+                        # aiohttp releases a fully buffered short response before
+                        # entering this context; its response protocol still owns
+                        # the actual socket, unlike a fresh DNS lookup.
+                        protocol = getattr(response, "_protocol", None)
+                        transport = getattr(protocol, "transport", None)
+                    peer = (
+                        transport.get_extra_info("peername")
+                        if transport is not None
+                        else None
+                    )
+                    self._health_response_peer = (
+                        (str(url), peer[0])
+                        if isinstance(peer, tuple) and isinstance(peer[0], str)
+                        else None
+                    )
                 body = bytearray()
                 async for chunk in response.content.iter_chunked(maximum_bytes + 1):
                     body.extend(chunk)
@@ -579,9 +615,13 @@ class HaPaneldClient:
 
     async def async_get_health(self) -> PanelHealth:
         """Fetch and parse the bounded health response."""
+        self.health_peer = None
+        self._health_response_peer = None
         body = await self._async_get_bounded(self.health_url, MAX_HEALTH_RESPONSE_BYTES)
         try:
-            return parse_health_response(body.decode("utf-8"))
+            health = parse_health_response(body.decode("utf-8"))
+            self.health_peer = self._health_response_peer
+            return health
         except UnicodeDecodeError as err:
             raise InvalidResponseError from err
 

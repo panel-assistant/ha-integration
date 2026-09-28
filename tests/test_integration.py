@@ -165,7 +165,12 @@ def _assert_healthy_entry_loaded(hass: HomeAssistant, entry: MockConfigEntry) ->
 async def test_setup_entry_diagnostics_unload_reload(hass: HomeAssistant) -> None:
     """The vertical slice creates one device and unloads/reloads cleanly."""
     entry = _entry(hass)
-    health_mock = AsyncMock(side_effect=[DISCOVERY_HEALTH, BETA_HEALTH])
+    health_mock = AsyncMock(
+        side_effect=[
+            DISCOVERY_HEALTH,
+            replace(BETA_HEALTH, discovery_id=DISCOVERY_HEALTH.discovery_id),
+        ]
+    )
     status_mock = AsyncMock(return_value=STATUS)
     operation_mock = AsyncMock(
         return_value=PanelInstallStatus(running=False, component="ha-paneld")

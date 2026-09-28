@@ -880,11 +880,11 @@
       "unit": null
     }
   ],
-  "contract_digest": "93d4e8501c53d53a9933bda5785f3ac811cf143f2cf2bc5f3979a9b2a5fe99a3",
+  "contract_digest": "7476a36a6910541fe60bfb0cfbffc6726b0ffcdef2873de4f32bc7446c65e7cc",
   "did": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "protocol": {
-    "max": 1,
-    "min": 1
+    "min": 3,
+    "max": 3
   },
   "type": "panel_assistant/hello"
 }

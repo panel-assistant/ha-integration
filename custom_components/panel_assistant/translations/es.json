@@ -761,6 +761,29 @@
     "panel_address_unverified": {
       "title": "{panel} se ha trasladado y no se pudo confirmar su nueva dirección",
       "description": "{panel} está conectado a Home Assistant desde {session_address}, por lo que sus entidades siguen disponibles, pero Home Assistant no puede leer el panel en su dirección guardada {address}, y una comprobación en {session_address} no respondió como este panel, así que la dirección guardada no se ha cambiado. Si el panel se ha trasladado, vuelva a añadirlo con su nueva dirección, lo que actualiza la dirección guardada; el aviso desaparece por sí solo cuando la dirección guardada responde."
+    },
+    "panel_identity_mismatch": {
+      "title": "Comprobar la dirección de {panel}",
+      "description": "La respuesta de {address} no correspondía a {panel}, por lo que sus controles se han desactivado temporalmente. Comprueba que esta dirección pertenece al panel. Si su dirección ha cambiado, añádelo de nuevo con la dirección actual."
+    },
+    "panel_identity_confirmation": {
+      "title": "Conservar la configuración actual de este panel",
+      "description": "{panel} en {address} necesita confirmación tras una actualización de la aplicación. Confirma que este es el panel cuya configuración actual quieres conservar.",
+      "fix_flow": {
+        "step": {
+          "confirm_identity": {
+            "title": "Conservar la configuración actual de este panel",
+            "description": "¿Conservar las entidades y los ajustes actuales de {panel} en {address}?"
+          }
+        },
+        "abort": {
+          "entry_removed": "Este panel se ha eliminado.",
+          "identity_changed": "El panel ha cambiado mientras esta confirmación estaba abierta. Abre el aviso de reparación más reciente e inténtalo de nuevo."
+        },
+        "error": {
+          "cannot_connect": "No se puede acceder al panel. Comprueba su conexión e inténtalo de nuevo."
+        }
+      }
     }
   },
   "options": {

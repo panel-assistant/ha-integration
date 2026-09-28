@@ -761,6 +761,29 @@
     "panel_address_unverified": {
       "title": "{panel} 已迁移，但无法确认其新地址",
       "description": "{panel} 正从 {session_address} 连接到 Home Assistant，因此其实体保持可用，但 Home Assistant 无法通过已保存的地址 {address} 读取该面板，并且对 {session_address} 的检查未以该面板的身份作出响应，因此已保存的地址未被更改。如果面板已迁移，请使用新地址重新添加，已保存的地址会随之更新；已保存的地址恢复响应后，此提示会自动消失。"
+    },
+    "panel_identity_mismatch": {
+      "title": "检查 {panel} 的地址",
+      "description": "{address} 的响应与 {panel} 不符，因此已暂停此面板的控制功能。请检查此地址是否属于该面板。如果面板的地址已更改，请使用当前地址重新添加。"
+    },
+    "panel_identity_confirmation": {
+      "title": "保留此面板的现有配置",
+      "description": "地址为 {address} 的 {panel} 在应用更新后需要确认。请确认这就是你要保留现有配置的面板。",
+      "fix_flow": {
+        "step": {
+          "confirm_identity": {
+            "title": "保留此面板的现有配置",
+            "description": "是否保留地址为 {address} 的 {panel} 的现有实体和设置？"
+          }
+        },
+        "abort": {
+          "entry_removed": "此面板已被移除。",
+          "identity_changed": "此确认窗口打开期间，面板发生了变化。请打开最新的修复提示并重试。"
+        },
+        "error": {
+          "cannot_connect": "无法连接到面板。请检查其连接后重试。"
+        }
+      }
     }
   },
   "options": {

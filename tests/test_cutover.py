@@ -132,7 +132,7 @@ async def _reload(hass: HomeAssistant, entry: MockConfigEntry) -> None:
 
 
 _HELLO_TAIL: dict[str, Any] = {
-    "protocol": {"min": 1, "max": 1},
+    "protocol": {"min": 3, "max": 3},
     "did": DID,
     "app": {"version": "0.9.8-rc1", "version_code": 790},
     "contract_digest": "c" * 64,
@@ -1113,16 +1113,8 @@ async def test_two_loaded_entries_with_one_identity_refuse_to_move_anything(
 
     assert first.state is ConfigEntryState.LOADED
     assert second.state is ConfigEntryState.LOADED
-    record = _record(second)
-    assert record["state"] == "in_progress"
-    assert record["error"] == {
-        "step": "identity",
-        "exception": "ValueError",
-        "entity_id": None,
-    }
-    issue = _issue(hass, "cutover_incomplete", second.entry_id)
-    assert issue is not None
-    assert issue.translation_placeholders["step"] == "identity"
+    assert second.runtime_data.coordinator.last_update_success is False
+    assert CONF_CUTOVER not in second.data
     item = er.async_get(hass).async_get(mqtt["entity_ids"]["relay1"])
     assert item is not None
     assert item.platform == "mqtt"
@@ -1148,11 +1140,8 @@ async def test_an_unloaded_entry_with_one_identity_refuses_before_registry_write
 
     assert sibling.disabled_by is ConfigEntryDisabler.USER
     assert _snapshot(hass, mqtt["entry"].entry_id) == before
-    assert _record(entry)["error"] == {
-        "step": "identity",
-        "exception": "ValueError",
-        "entity_id": None,
-    }
+    assert entry.runtime_data.coordinator.last_update_success is False
+    assert CONF_CUTOVER not in entry.data
 
 
 async def test_a_foreign_native_target_is_refused_instead_of_removed(
@@ -1563,7 +1552,9 @@ async def test_a_shadow_setup_without_a_record_writes_nothing(
         entry = await _setup(hass, hass_read_only_user.id, native=True)
 
     # The panel's identity is recorded whatever the authority; nothing else is.
-    assert writes == [{"unique_id": DID}]
+    assert len(writes) == 1
+    assert writes[0]["unique_id"] == DID
+    assert entry.data["installation_identity"] is True
     assert CONF_CUTOVER not in entry.data
     assert _snapshot(hass, mqtt["entry"].entry_id) == before
 

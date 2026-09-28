@@ -37,8 +37,8 @@ SCHEMAS = {
     transport.COMMAND_RESTART_NOTICE: transport.RESTART_NOTICE_SCHEMA,
 }
 
-_HA_VECTOR_REVISION = "f8f3bc883ebfa82ac957706dad363be4b42a1010"
-_ANDROID_PRODUCER_REVISION = "21e3c51729d4f3d334b8cd6937c846d6e43dac67"
+_HA_VECTOR_REVISION = "8c70df5c299c840308c664f9ac2325eddcd8e88a"
+_ANDROID_PRODUCER_REVISION = "2fbb0ddeb130fd7dbba4a0b93c9790f4b6557d77"
 
 
 def test_shared_vectors_name_the_ha_source_revision_vendored_by_android() -> None:
@@ -133,7 +133,7 @@ def test_contract_code_lists_are_the_integrations_own() -> None:
     # The panel-owned v1 catalogue remains the fixture for v1 producers;
     # restart notices are an additive command gated by the negotiated v2 range.
     assert CONTRACT["protocol"] == {"min": 1, "max": 1}
-    assert (transport.PROTOCOL_MIN, transport.PROTOCOL_MAX) == (1, 2)
+    assert (transport.PROTOCOL_MIN, transport.PROTOCOL_MAX) == (1, 3)
     assert set(CONTRACT["commands"]) == set(SCHEMAS) - {
         transport.COMMAND_RESTART_NOTICE
     }
@@ -222,6 +222,10 @@ def test_every_android_channel_descriptor_is_its_catalogue_entry(
 ) -> None:
     """Each channel Android describes is the catalogue's entry, field for field."""
     entry = catalogue_entry(descriptor)
+    if descriptor["channel"] in {"voice_enabled", "voice_state"}:
+        # HA replaced these old entities with the Assist satellite.
+        assert entry is None
+        return
     assert entry is not None
     for field in _DESCRIPTOR_FIELDS:
         assert descriptor[field] == entry[field], field
@@ -232,8 +236,9 @@ def test_the_catalogue_describes_nothing_android_does_not_except_its_known_gaps(
 ):
     """Catalogue entries Android never describes are exactly the known ones."""
     described = {
-        catalogue_entry(descriptor)["translation_key"]  # type: ignore[index]
+        entry["translation_key"]
         for descriptor in ANDROID_PRODUCER["channelDescriptors"]
+        if (entry := catalogue_entry(descriptor)) is not None
     }
     missing = {
         entry["translation_key"]
@@ -530,6 +535,8 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
         "merged_mqtt_device",
         "panel_update_required",
         "panel_migration_incomplete",
+        "panel_identity_confirmation",
+        "panel_identity_mismatch",
     }
     # Which binding issue is raised depends on whether the panel already has an
     # account, so that call passes a variable and the scan above sees no literal.

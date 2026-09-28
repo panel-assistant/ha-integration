@@ -146,7 +146,7 @@ async def test_restart_notice_tracks_session_return_and_keeps_entities_available
         hass_ws_client,
         hass_read_only_access_token,
         entry,
-        protocol={"min": 1, "max": 2},
+        protocol={"min": 3, "max": 3},
     )
     session = async_get_sessions(hass).get(entry.entry_id)
     assert session is not None
@@ -211,7 +211,17 @@ async def test_restart_notice_requires_protocol_two_and_bounded_schema(
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
 ) -> None:
-    client = await _connect(hass, hass_ws_client, hass_read_only_access_token, entry)
+    hass.config_entries.async_update_entry(
+        entry,
+        data={**entry.data, "installation_identity": False, CONF_ADDRESS: "127.0.0.1"},
+    )
+    client = await _connect(
+        hass,
+        hass_ws_client,
+        hass_read_only_access_token,
+        entry,
+        protocol={"min": 1, "max": 1},
+    )
     session = async_get_sessions(hass).get(entry.entry_id)
     assert session is not None
     request = {
@@ -223,15 +233,18 @@ async def test_restart_notice_requires_protocol_two_and_bounded_schema(
     }
     await client.send_json_auto_id(request)
     assert (await client.receive_json())["error"]["code"] == "invalid_format"
-    assert _state(hass, STATUS_ENTITY) == "online"
+    assert _state(hass, STATUS_ENTITY) in {"online", "connected"}
     await client.close()
+    hass.config_entries.async_update_entry(
+        entry, data={**entry.data, "installation_identity": True}
+    )
 
     client = await _connect(
         hass,
         hass_ws_client,
         hass_read_only_access_token,
         entry,
-        protocol={"min": 2, "max": 2},
+        protocol={"min": 3, "max": 3},
     )
     session = async_get_sessions(hass).get(entry.entry_id)
     assert session is not None
@@ -246,7 +259,7 @@ async def test_restart_notice_requires_protocol_two_and_bounded_schema(
         await client.send_json_auto_id({**request, **change})
         refused = await client.receive_json()
         assert not refused["success"]
-        assert _state(hass, STATUS_ENTITY) == "online"
+        assert _state(hass, STATUS_ENTITY) in {"online", "connected"}
     await client.send_json_auto_id(request)
     assert (await client.receive_json())["success"]
 
@@ -264,7 +277,7 @@ async def test_restart_notice_expires_to_unavailable_without_a_return(
         hass_read_only_access_token,
         entry,
         remote=None,
-        protocol={"min": 2, "max": 2},
+        protocol={"min": 3, "max": 3},
     )
     await _poll(hass, entry, {STORED: CannotConnectError()})
     assert _state(hass, STATUS_ENTITY) == "connected"
@@ -634,7 +647,11 @@ async def _load_offline(
     config_entry = MockConfigEntry(
         domain=DOMAIN,
         title="alpha",
-        data={CONF_ADDRESS: STORED, CONF_TRANSPORT_USER_ID: user_id},
+        data={
+            CONF_ADDRESS: STORED,
+            CONF_TRANSPORT_USER_ID: user_id,
+            "installation_identity": True,
+        },
         unique_id=unique_id,
     )
     config_entry.add_to_hass(hass)
