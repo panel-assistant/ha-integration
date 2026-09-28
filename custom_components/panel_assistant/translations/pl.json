@@ -272,6 +272,510 @@
         }
       }
     },
+    "installer_failure": {
+      "title": "Instalacja lub aktualizacja na panelu {panel} nie powiodła się",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Rozwiąż błąd panelu",
+            "description": "Wybierz, co zrobić dalej.",
+            "menu_options": {
+              "retry": "Spróbuj ponownie",
+              "support_report": "Raport dla pomocy technicznej",
+              "clear_error": "Usuń błąd"
+            }
+          },
+          "support_report": {
+            "title": "Raport dla pomocy technicznej",
+            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Usuń błąd",
+            "description": "Usuń ten błąd i zapisany raport z Napraw. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+          },
+          "retry_error": {
+            "title": "Ponowna próba nie powiodła się",
+            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Naprawach; szczegóły są w raporcie."
+          }
+        },
+        "progress": {
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+        },
+        "error": {
+          "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
+          "retry_release_changed": "Wybrane wydanie nie odpowiada już zapisanemu wydaniu. Rozpocznij nową instalację.",
+          "retry_credential_changed": "Dane uwierzytelniające ADB w Home Assistant zmieniły się. Sprawdź panel przed ponowną próbą.",
+          "retry_panel_ambiguous": "Nie udało się zweryfikować aplikacji zainstalowanej na panelu. Nie rozpoczęto nowej instalacji.",
+          "retry_cannot_prove_safe": "Nie udało się dostatecznie sprawdzić panelu, by bezpiecznie ponowić próbę. Spróbuj później.",
+          "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
+          "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
+          "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz Naprawę ponownie, jeśli błąd wróci."
+        }
+      }
+    },
+    "installer_failure_authorization_failed": {
+      "title": "Panel {panel} nie zezwolił na instalację.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Rozwiąż błąd panelu",
+            "description": "Wybierz, co zrobić dalej.",
+            "menu_options": {
+              "retry": "Spróbuj ponownie",
+              "support_report": "Raport dla pomocy technicznej",
+              "clear_error": "Usuń błąd"
+            }
+          },
+          "support_report": {
+            "title": "Raport dla pomocy technicznej",
+            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Usuń błąd",
+            "description": "Usuń ten błąd i zapisany raport z Napraw. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+          },
+          "retry_error": {
+            "title": "Ponowna próba nie powiodła się",
+            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Naprawach; szczegóły są w raporcie."
+          }
+        },
+        "progress": {
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+        },
+        "error": {
+          "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
+          "retry_release_changed": "Wybrane wydanie nie odpowiada już zapisanemu wydaniu. Rozpocznij nową instalację.",
+          "retry_credential_changed": "Dane uwierzytelniające ADB w Home Assistant zmieniły się. Sprawdź panel przed ponowną próbą.",
+          "retry_panel_ambiguous": "Nie udało się zweryfikować aplikacji zainstalowanej na panelu. Nie rozpoczęto nowej instalacji.",
+          "retry_cannot_prove_safe": "Nie udało się dostatecznie sprawdzić panelu, by bezpiecznie ponowić próbę. Spróbuj później.",
+          "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
+          "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
+          "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz Naprawę ponownie, jeśli błąd wróci."
+        }
+      }
+    },
+    "installer_failure_preflight_rejected": {
+      "title": "Panel {panel} nie przeszedł kontroli wymaganych przed instalacją.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Rozwiąż błąd panelu",
+            "description": "Wybierz, co zrobić dalej.",
+            "menu_options": {
+              "retry": "Spróbuj ponownie",
+              "support_report": "Raport dla pomocy technicznej",
+              "clear_error": "Usuń błąd"
+            }
+          },
+          "support_report": {
+            "title": "Raport dla pomocy technicznej",
+            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Usuń błąd",
+            "description": "Usuń ten błąd i zapisany raport z Napraw. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+          },
+          "retry_error": {
+            "title": "Ponowna próba nie powiodła się",
+            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Naprawach; szczegóły są w raporcie."
+          }
+        },
+        "progress": {
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+        },
+        "error": {
+          "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
+          "retry_release_changed": "Wybrane wydanie nie odpowiada już zapisanemu wydaniu. Rozpocznij nową instalację.",
+          "retry_credential_changed": "Dane uwierzytelniające ADB w Home Assistant zmieniły się. Sprawdź panel przed ponowną próbą.",
+          "retry_panel_ambiguous": "Nie udało się zweryfikować aplikacji zainstalowanej na panelu. Nie rozpoczęto nowej instalacji.",
+          "retry_cannot_prove_safe": "Nie udało się dostatecznie sprawdzić panelu, by bezpiecznie ponowić próbę. Spróbuj później.",
+          "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
+          "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
+          "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz Naprawę ponownie, jeśli błąd wróci."
+        }
+      }
+    },
+    "installer_failure_artifact_rejected": {
+      "title": "Nie udało się zweryfikować wydania aplikacji dla panelu {panel}.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Rozwiąż błąd panelu",
+            "description": "Wybierz, co zrobić dalej.",
+            "menu_options": {
+              "retry": "Spróbuj ponownie",
+              "support_report": "Raport dla pomocy technicznej",
+              "clear_error": "Usuń błąd"
+            }
+          },
+          "support_report": {
+            "title": "Raport dla pomocy technicznej",
+            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Usuń błąd",
+            "description": "Usuń ten błąd i zapisany raport z Napraw. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+          },
+          "retry_error": {
+            "title": "Ponowna próba nie powiodła się",
+            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Naprawach; szczegóły są w raporcie."
+          }
+        },
+        "progress": {
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+        },
+        "error": {
+          "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
+          "retry_release_changed": "Wybrane wydanie nie odpowiada już zapisanemu wydaniu. Rozpocznij nową instalację.",
+          "retry_credential_changed": "Dane uwierzytelniające ADB w Home Assistant zmieniły się. Sprawdź panel przed ponowną próbą.",
+          "retry_panel_ambiguous": "Nie udało się zweryfikować aplikacji zainstalowanej na panelu. Nie rozpoczęto nowej instalacji.",
+          "retry_cannot_prove_safe": "Nie udało się dostatecznie sprawdzić panelu, by bezpiecznie ponowić próbę. Spróbuj później.",
+          "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
+          "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
+          "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz Naprawę ponownie, jeśli błąd wróci."
+        }
+      }
+    },
+    "installer_failure_transport_failed": {
+      "title": "Połączenie z panelem {panel} zostało przerwane podczas instalacji.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Rozwiąż błąd panelu",
+            "description": "Wybierz, co zrobić dalej.",
+            "menu_options": {
+              "retry": "Spróbuj ponownie",
+              "support_report": "Raport dla pomocy technicznej",
+              "clear_error": "Usuń błąd"
+            }
+          },
+          "support_report": {
+            "title": "Raport dla pomocy technicznej",
+            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Usuń błąd",
+            "description": "Usuń ten błąd i zapisany raport z Napraw. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+          },
+          "retry_error": {
+            "title": "Ponowna próba nie powiodła się",
+            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Naprawach; szczegóły są w raporcie."
+          }
+        },
+        "progress": {
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+        },
+        "error": {
+          "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
+          "retry_release_changed": "Wybrane wydanie nie odpowiada już zapisanemu wydaniu. Rozpocznij nową instalację.",
+          "retry_credential_changed": "Dane uwierzytelniające ADB w Home Assistant zmieniły się. Sprawdź panel przed ponowną próbą.",
+          "retry_panel_ambiguous": "Nie udało się zweryfikować aplikacji zainstalowanej na panelu. Nie rozpoczęto nowej instalacji.",
+          "retry_cannot_prove_safe": "Nie udało się dostatecznie sprawdzić panelu, by bezpiecznie ponowić próbę. Spróbuj później.",
+          "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
+          "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
+          "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz Naprawę ponownie, jeśli błąd wróci."
+        }
+      }
+    },
+    "installer_failure_install_failed": {
+      "title": "Android odrzucił instalację aplikacji na panelu {panel}.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Rozwiąż błąd panelu",
+            "description": "Wybierz, co zrobić dalej.",
+            "menu_options": {
+              "retry": "Spróbuj ponownie",
+              "support_report": "Raport dla pomocy technicznej",
+              "clear_error": "Usuń błąd"
+            }
+          },
+          "support_report": {
+            "title": "Raport dla pomocy technicznej",
+            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Usuń błąd",
+            "description": "Usuń ten błąd i zapisany raport z Napraw. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+          },
+          "retry_error": {
+            "title": "Ponowna próba nie powiodła się",
+            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Naprawach; szczegóły są w raporcie."
+          }
+        },
+        "progress": {
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+        },
+        "error": {
+          "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
+          "retry_release_changed": "Wybrane wydanie nie odpowiada już zapisanemu wydaniu. Rozpocznij nową instalację.",
+          "retry_credential_changed": "Dane uwierzytelniające ADB w Home Assistant zmieniły się. Sprawdź panel przed ponowną próbą.",
+          "retry_panel_ambiguous": "Nie udało się zweryfikować aplikacji zainstalowanej na panelu. Nie rozpoczęto nowej instalacji.",
+          "retry_cannot_prove_safe": "Nie udało się dostatecznie sprawdzić panelu, by bezpiecznie ponowić próbę. Spróbuj później.",
+          "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
+          "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
+          "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz Naprawę ponownie, jeśli błąd wróci."
+        }
+      }
+    },
+    "installer_failure_launch_failed": {
+      "title": "Aplikacja została zainstalowana na panelu {panel}, ale nie udało się jej uruchomić.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Rozwiąż błąd panelu",
+            "description": "Wybierz, co zrobić dalej.",
+            "menu_options": {
+              "retry": "Spróbuj ponownie",
+              "support_report": "Raport dla pomocy technicznej",
+              "clear_error": "Usuń błąd"
+            }
+          },
+          "support_report": {
+            "title": "Raport dla pomocy technicznej",
+            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Usuń błąd",
+            "description": "Usuń ten błąd i zapisany raport z Napraw. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+          },
+          "retry_error": {
+            "title": "Ponowna próba nie powiodła się",
+            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Naprawach; szczegóły są w raporcie."
+          }
+        },
+        "progress": {
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+        },
+        "error": {
+          "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
+          "retry_release_changed": "Wybrane wydanie nie odpowiada już zapisanemu wydaniu. Rozpocznij nową instalację.",
+          "retry_credential_changed": "Dane uwierzytelniające ADB w Home Assistant zmieniły się. Sprawdź panel przed ponowną próbą.",
+          "retry_panel_ambiguous": "Nie udało się zweryfikować aplikacji zainstalowanej na panelu. Nie rozpoczęto nowej instalacji.",
+          "retry_cannot_prove_safe": "Nie udało się dostatecznie sprawdzić panelu, by bezpiecznie ponowić próbę. Spróbuj później.",
+          "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
+          "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
+          "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz Naprawę ponownie, jeśli błąd wróci."
+        }
+      }
+    },
+    "installer_failure_health_check_failed": {
+      "title": "Aplikacja na panelu {panel} nie przeszła kontroli stanu.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Rozwiąż błąd panelu",
+            "description": "Wybierz, co zrobić dalej.",
+            "menu_options": {
+              "retry": "Spróbuj ponownie",
+              "support_report": "Raport dla pomocy technicznej",
+              "clear_error": "Usuń błąd"
+            }
+          },
+          "support_report": {
+            "title": "Raport dla pomocy technicznej",
+            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Usuń błąd",
+            "description": "Usuń ten błąd i zapisany raport z Napraw. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+          },
+          "retry_error": {
+            "title": "Ponowna próba nie powiodła się",
+            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Naprawach; szczegóły są w raporcie."
+          }
+        },
+        "progress": {
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+        },
+        "error": {
+          "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
+          "retry_release_changed": "Wybrane wydanie nie odpowiada już zapisanemu wydaniu. Rozpocznij nową instalację.",
+          "retry_credential_changed": "Dane uwierzytelniające ADB w Home Assistant zmieniły się. Sprawdź panel przed ponowną próbą.",
+          "retry_panel_ambiguous": "Nie udało się zweryfikować aplikacji zainstalowanej na panelu. Nie rozpoczęto nowej instalacji.",
+          "retry_cannot_prove_safe": "Nie udało się dostatecznie sprawdzić panelu, by bezpiecznie ponowić próbę. Spróbuj później.",
+          "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
+          "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
+          "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz Naprawę ponownie, jeśli błąd wróci."
+        }
+      }
+    },
+    "installer_failure_ambiguous_mutation": {
+      "title": "Instalacja mogła zmienić panel {panel}; jego stan jest nieznany.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Rozwiąż błąd panelu",
+            "description": "Wybierz, co zrobić dalej.",
+            "menu_options": {
+              "retry": "Spróbuj ponownie",
+              "support_report": "Raport dla pomocy technicznej",
+              "clear_error": "Usuń błąd"
+            }
+          },
+          "support_report": {
+            "title": "Raport dla pomocy technicznej",
+            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Usuń błąd",
+            "description": "Usuń ten błąd i zapisany raport z Napraw. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+          },
+          "retry_error": {
+            "title": "Ponowna próba nie powiodła się",
+            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Naprawach; szczegóły są w raporcie."
+          }
+        },
+        "progress": {
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+        },
+        "error": {
+          "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
+          "retry_release_changed": "Wybrane wydanie nie odpowiada już zapisanemu wydaniu. Rozpocznij nową instalację.",
+          "retry_credential_changed": "Dane uwierzytelniające ADB w Home Assistant zmieniły się. Sprawdź panel przed ponowną próbą.",
+          "retry_panel_ambiguous": "Nie udało się zweryfikować aplikacji zainstalowanej na panelu. Nie rozpoczęto nowej instalacji.",
+          "retry_cannot_prove_safe": "Nie udało się dostatecznie sprawdzić panelu, by bezpiecznie ponowić próbę. Spróbuj później.",
+          "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
+          "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
+          "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz Naprawę ponownie, jeśli błąd wróci."
+        }
+      }
+    },
+    "installer_failure_verification_required": {
+      "title": "Przed kolejną instalacją trzeba zweryfikować aplikację na panelu {panel}.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Rozwiąż błąd panelu",
+            "description": "Wybierz, co zrobić dalej.",
+            "menu_options": {
+              "retry": "Spróbuj ponownie",
+              "support_report": "Raport dla pomocy technicznej",
+              "clear_error": "Usuń błąd"
+            }
+          },
+          "support_report": {
+            "title": "Raport dla pomocy technicznej",
+            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Usuń błąd",
+            "description": "Usuń ten błąd i zapisany raport z Napraw. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+          },
+          "retry_error": {
+            "title": "Ponowna próba nie powiodła się",
+            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Naprawach; szczegóły są w raporcie."
+          }
+        },
+        "progress": {
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+        },
+        "error": {
+          "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
+          "retry_release_changed": "Wybrane wydanie nie odpowiada już zapisanemu wydaniu. Rozpocznij nową instalację.",
+          "retry_credential_changed": "Dane uwierzytelniające ADB w Home Assistant zmieniły się. Sprawdź panel przed ponowną próbą.",
+          "retry_panel_ambiguous": "Nie udało się zweryfikować aplikacji zainstalowanej na panelu. Nie rozpoczęto nowej instalacji.",
+          "retry_cannot_prove_safe": "Nie udało się dostatecznie sprawdzić panelu, by bezpiecznie ponowić próbę. Spróbuj później.",
+          "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
+          "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
+          "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz Naprawę ponownie, jeśli błąd wróci."
+        }
+      }
+    },
+    "installer_failure_update": {
+      "title": "Aktualizacja panelu {panel} nie została ukończona.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Rozwiąż błąd panelu",
+            "description": "Wybierz, co zrobić dalej.",
+            "menu_options": {
+              "retry": "Spróbuj ponownie",
+              "support_report": "Raport dla pomocy technicznej",
+              "clear_error": "Usuń błąd"
+            }
+          },
+          "support_report": {
+            "title": "Raport dla pomocy technicznej",
+            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Usuń błąd",
+            "description": "Usuń ten błąd i zapisany raport z Napraw. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+          },
+          "retry_error": {
+            "title": "Ponowna próba nie powiodła się",
+            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Naprawach; szczegóły są w raporcie."
+          }
+        },
+        "progress": {
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+        },
+        "error": {
+          "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
+          "retry_release_changed": "Wybrane wydanie nie odpowiada już zapisanemu wydaniu. Rozpocznij nową instalację.",
+          "retry_credential_changed": "Dane uwierzytelniające ADB w Home Assistant zmieniły się. Sprawdź panel przed ponowną próbą.",
+          "retry_panel_ambiguous": "Nie udało się zweryfikować aplikacji zainstalowanej na panelu. Nie rozpoczęto nowej instalacji.",
+          "retry_cannot_prove_safe": "Nie udało się dostatecznie sprawdzić panelu, by bezpiecznie ponowić próbę. Spróbuj później.",
+          "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
+          "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
+          "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz Naprawę ponownie, jeśli błąd wróci."
+        }
+      }
+    },
+    "installer_failure_retry_hold": {
+      "title": "Wstrzymano ponowną próbę na panelu {panel}, ponieważ nie udało się bezpiecznie sprawdzić jego stanu.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Rozwiąż błąd panelu",
+            "description": "Wybierz, co zrobić dalej.",
+            "menu_options": {
+              "retry": "Spróbuj ponownie",
+              "support_report": "Raport dla pomocy technicznej",
+              "clear_error": "Usuń błąd"
+            }
+          },
+          "support_report": {
+            "title": "Raport dla pomocy technicznej",
+            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Usuń błąd",
+            "description": "Usuń ten błąd i zapisany raport z Napraw. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+          },
+          "retry_error": {
+            "title": "Ponowna próba nie powiodła się",
+            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Naprawach; szczegóły są w raporcie."
+          }
+        },
+        "progress": {
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+        },
+        "error": {
+          "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
+          "retry_release_changed": "Wybrane wydanie nie odpowiada już zapisanemu wydaniu. Rozpocznij nową instalację.",
+          "retry_credential_changed": "Dane uwierzytelniające ADB w Home Assistant zmieniły się. Sprawdź panel przed ponowną próbą.",
+          "retry_panel_ambiguous": "Nie udało się zweryfikować aplikacji zainstalowanej na panelu. Nie rozpoczęto nowej instalacji.",
+          "retry_cannot_prove_safe": "Nie udało się dostatecznie sprawdzić panelu, by bezpiecznie ponowić próbę. Spróbuj później.",
+          "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
+          "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
+          "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz Naprawę ponownie, jeśli błąd wróci."
+        }
+      }
+    },
     "panel_address_unreachable": {
       "title": "Home Assistant nie może połączyć się z {panel} pod zapisanym adresem",
       "description": "{panel} jest połączony z Home Assistant, więc jego encje pozostają dostępne, ale Home Assistant nie może odczytać panelu pod adresem {address}, a połączenie, które Home Assistant utrzymuje z {session_address}, nie oferuje innego adresu do wypróbowania. Port sieciowy panelu może być zablokowany między Home Assistant a panelem. Jeśli panel został przeniesiony, dodaj go ponownie pod nowym adresem, co zaktualizuje zapisany adres; problem zniknie sam, gdy adres znów zacznie odpowiadać."

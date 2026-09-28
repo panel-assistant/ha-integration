@@ -250,6 +250,510 @@
         }
       }
     },
+    "installer_failure": {
+      "title": "Installazione o aggiornamento non riuscito su {panel}",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Risolvere l'errore del pannello",
+            "description": "Scegli cosa fare ora.",
+            "menu_options": {
+              "retry": "Riprova",
+              "support_report": "Rapporto di assistenza",
+              "clear_error": "Cancella errore"
+            }
+          },
+          "support_report": {
+            "title": "Rapporto di assistenza",
+            "description": "Copia questo rapporto in una segnalazione GitHub o condividilo con un assistente IA per chiedere aiuto:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Cancella errore",
+            "description": "Rimuovi questo errore e il rapporto salvato da Riparazioni. Il pannello non verrà modificato. Seleziona Invia per cancellarlo."
+          },
+          "retry_error": {
+            "title": "Nuovo tentativo non riuscito",
+            "description": "Il nuovo tentativo è sospeso. L'errore resta in Riparazioni; i dettagli sono nel rapporto di assistenza."
+          }
+        },
+        "progress": {
+          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza."
+        },
+        "error": {
+          "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
+          "retry_release_changed": "La versione scelta non corrisponde più a quella salvata. Avvia una nuova installazione.",
+          "retry_credential_changed": "Le credenziali ADB di Home Assistant sono cambiate. Controlla il pannello prima di riprovare.",
+          "retry_panel_ambiguous": "Non è stato possibile verificare l'app installata sul pannello. Non è stata avviata una nuova installazione.",
+          "retry_cannot_prove_safe": "Non è stato possibile controllare abbastanza il pannello per riprovare in sicurezza. Riprova più tardi.",
+          "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
+          "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
+          "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
+        }
+      }
+    },
+    "installer_failure_authorization_failed": {
+      "title": "Il pannello {panel} non ha autorizzato l'installazione.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Risolvere l'errore del pannello",
+            "description": "Scegli cosa fare ora.",
+            "menu_options": {
+              "retry": "Riprova",
+              "support_report": "Rapporto di assistenza",
+              "clear_error": "Cancella errore"
+            }
+          },
+          "support_report": {
+            "title": "Rapporto di assistenza",
+            "description": "Copia questo rapporto in una segnalazione GitHub o condividilo con un assistente IA per chiedere aiuto:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Cancella errore",
+            "description": "Rimuovi questo errore e il rapporto salvato da Riparazioni. Il pannello non verrà modificato. Seleziona Invia per cancellarlo."
+          },
+          "retry_error": {
+            "title": "Nuovo tentativo non riuscito",
+            "description": "Il nuovo tentativo è sospeso. L'errore resta in Riparazioni; i dettagli sono nel rapporto di assistenza."
+          }
+        },
+        "progress": {
+          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza."
+        },
+        "error": {
+          "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
+          "retry_release_changed": "La versione scelta non corrisponde più a quella salvata. Avvia una nuova installazione.",
+          "retry_credential_changed": "Le credenziali ADB di Home Assistant sono cambiate. Controlla il pannello prima di riprovare.",
+          "retry_panel_ambiguous": "Non è stato possibile verificare l'app installata sul pannello. Non è stata avviata una nuova installazione.",
+          "retry_cannot_prove_safe": "Non è stato possibile controllare abbastanza il pannello per riprovare in sicurezza. Riprova più tardi.",
+          "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
+          "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
+          "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
+        }
+      }
+    },
+    "installer_failure_preflight_rejected": {
+      "title": "Il pannello {panel} non ha superato i controlli prima dell'installazione.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Risolvere l'errore del pannello",
+            "description": "Scegli cosa fare ora.",
+            "menu_options": {
+              "retry": "Riprova",
+              "support_report": "Rapporto di assistenza",
+              "clear_error": "Cancella errore"
+            }
+          },
+          "support_report": {
+            "title": "Rapporto di assistenza",
+            "description": "Copia questo rapporto in una segnalazione GitHub o condividilo con un assistente IA per chiedere aiuto:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Cancella errore",
+            "description": "Rimuovi questo errore e il rapporto salvato da Riparazioni. Il pannello non verrà modificato. Seleziona Invia per cancellarlo."
+          },
+          "retry_error": {
+            "title": "Nuovo tentativo non riuscito",
+            "description": "Il nuovo tentativo è sospeso. L'errore resta in Riparazioni; i dettagli sono nel rapporto di assistenza."
+          }
+        },
+        "progress": {
+          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza."
+        },
+        "error": {
+          "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
+          "retry_release_changed": "La versione scelta non corrisponde più a quella salvata. Avvia una nuova installazione.",
+          "retry_credential_changed": "Le credenziali ADB di Home Assistant sono cambiate. Controlla il pannello prima di riprovare.",
+          "retry_panel_ambiguous": "Non è stato possibile verificare l'app installata sul pannello. Non è stata avviata una nuova installazione.",
+          "retry_cannot_prove_safe": "Non è stato possibile controllare abbastanza il pannello per riprovare in sicurezza. Riprova più tardi.",
+          "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
+          "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
+          "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
+        }
+      }
+    },
+    "installer_failure_artifact_rejected": {
+      "title": "Non è stato possibile verificare la versione dell'app per il pannello {panel}.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Risolvere l'errore del pannello",
+            "description": "Scegli cosa fare ora.",
+            "menu_options": {
+              "retry": "Riprova",
+              "support_report": "Rapporto di assistenza",
+              "clear_error": "Cancella errore"
+            }
+          },
+          "support_report": {
+            "title": "Rapporto di assistenza",
+            "description": "Copia questo rapporto in una segnalazione GitHub o condividilo con un assistente IA per chiedere aiuto:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Cancella errore",
+            "description": "Rimuovi questo errore e il rapporto salvato da Riparazioni. Il pannello non verrà modificato. Seleziona Invia per cancellarlo."
+          },
+          "retry_error": {
+            "title": "Nuovo tentativo non riuscito",
+            "description": "Il nuovo tentativo è sospeso. L'errore resta in Riparazioni; i dettagli sono nel rapporto di assistenza."
+          }
+        },
+        "progress": {
+          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza."
+        },
+        "error": {
+          "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
+          "retry_release_changed": "La versione scelta non corrisponde più a quella salvata. Avvia una nuova installazione.",
+          "retry_credential_changed": "Le credenziali ADB di Home Assistant sono cambiate. Controlla il pannello prima di riprovare.",
+          "retry_panel_ambiguous": "Non è stato possibile verificare l'app installata sul pannello. Non è stata avviata una nuova installazione.",
+          "retry_cannot_prove_safe": "Non è stato possibile controllare abbastanza il pannello per riprovare in sicurezza. Riprova più tardi.",
+          "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
+          "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
+          "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
+        }
+      }
+    },
+    "installer_failure_transport_failed": {
+      "title": "La connessione al pannello {panel} è fallita durante l'installazione.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Risolvere l'errore del pannello",
+            "description": "Scegli cosa fare ora.",
+            "menu_options": {
+              "retry": "Riprova",
+              "support_report": "Rapporto di assistenza",
+              "clear_error": "Cancella errore"
+            }
+          },
+          "support_report": {
+            "title": "Rapporto di assistenza",
+            "description": "Copia questo rapporto in una segnalazione GitHub o condividilo con un assistente IA per chiedere aiuto:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Cancella errore",
+            "description": "Rimuovi questo errore e il rapporto salvato da Riparazioni. Il pannello non verrà modificato. Seleziona Invia per cancellarlo."
+          },
+          "retry_error": {
+            "title": "Nuovo tentativo non riuscito",
+            "description": "Il nuovo tentativo è sospeso. L'errore resta in Riparazioni; i dettagli sono nel rapporto di assistenza."
+          }
+        },
+        "progress": {
+          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza."
+        },
+        "error": {
+          "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
+          "retry_release_changed": "La versione scelta non corrisponde più a quella salvata. Avvia una nuova installazione.",
+          "retry_credential_changed": "Le credenziali ADB di Home Assistant sono cambiate. Controlla il pannello prima di riprovare.",
+          "retry_panel_ambiguous": "Non è stato possibile verificare l'app installata sul pannello. Non è stata avviata una nuova installazione.",
+          "retry_cannot_prove_safe": "Non è stato possibile controllare abbastanza il pannello per riprovare in sicurezza. Riprova più tardi.",
+          "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
+          "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
+          "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
+        }
+      }
+    },
+    "installer_failure_install_failed": {
+      "title": "Android ha rifiutato l'installazione dell'app sul pannello {panel}.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Risolvere l'errore del pannello",
+            "description": "Scegli cosa fare ora.",
+            "menu_options": {
+              "retry": "Riprova",
+              "support_report": "Rapporto di assistenza",
+              "clear_error": "Cancella errore"
+            }
+          },
+          "support_report": {
+            "title": "Rapporto di assistenza",
+            "description": "Copia questo rapporto in una segnalazione GitHub o condividilo con un assistente IA per chiedere aiuto:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Cancella errore",
+            "description": "Rimuovi questo errore e il rapporto salvato da Riparazioni. Il pannello non verrà modificato. Seleziona Invia per cancellarlo."
+          },
+          "retry_error": {
+            "title": "Nuovo tentativo non riuscito",
+            "description": "Il nuovo tentativo è sospeso. L'errore resta in Riparazioni; i dettagli sono nel rapporto di assistenza."
+          }
+        },
+        "progress": {
+          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza."
+        },
+        "error": {
+          "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
+          "retry_release_changed": "La versione scelta non corrisponde più a quella salvata. Avvia una nuova installazione.",
+          "retry_credential_changed": "Le credenziali ADB di Home Assistant sono cambiate. Controlla il pannello prima di riprovare.",
+          "retry_panel_ambiguous": "Non è stato possibile verificare l'app installata sul pannello. Non è stata avviata una nuova installazione.",
+          "retry_cannot_prove_safe": "Non è stato possibile controllare abbastanza il pannello per riprovare in sicurezza. Riprova più tardi.",
+          "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
+          "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
+          "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
+        }
+      }
+    },
+    "installer_failure_launch_failed": {
+      "title": "L'app è stata installata su {panel}, ma non è stato possibile avviarla.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Risolvere l'errore del pannello",
+            "description": "Scegli cosa fare ora.",
+            "menu_options": {
+              "retry": "Riprova",
+              "support_report": "Rapporto di assistenza",
+              "clear_error": "Cancella errore"
+            }
+          },
+          "support_report": {
+            "title": "Rapporto di assistenza",
+            "description": "Copia questo rapporto in una segnalazione GitHub o condividilo con un assistente IA per chiedere aiuto:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Cancella errore",
+            "description": "Rimuovi questo errore e il rapporto salvato da Riparazioni. Il pannello non verrà modificato. Seleziona Invia per cancellarlo."
+          },
+          "retry_error": {
+            "title": "Nuovo tentativo non riuscito",
+            "description": "Il nuovo tentativo è sospeso. L'errore resta in Riparazioni; i dettagli sono nel rapporto di assistenza."
+          }
+        },
+        "progress": {
+          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza."
+        },
+        "error": {
+          "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
+          "retry_release_changed": "La versione scelta non corrisponde più a quella salvata. Avvia una nuova installazione.",
+          "retry_credential_changed": "Le credenziali ADB di Home Assistant sono cambiate. Controlla il pannello prima di riprovare.",
+          "retry_panel_ambiguous": "Non è stato possibile verificare l'app installata sul pannello. Non è stata avviata una nuova installazione.",
+          "retry_cannot_prove_safe": "Non è stato possibile controllare abbastanza il pannello per riprovare in sicurezza. Riprova più tardi.",
+          "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
+          "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
+          "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
+        }
+      }
+    },
+    "installer_failure_health_check_failed": {
+      "title": "L'app su {panel} non ha superato il controllo di funzionamento.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Risolvere l'errore del pannello",
+            "description": "Scegli cosa fare ora.",
+            "menu_options": {
+              "retry": "Riprova",
+              "support_report": "Rapporto di assistenza",
+              "clear_error": "Cancella errore"
+            }
+          },
+          "support_report": {
+            "title": "Rapporto di assistenza",
+            "description": "Copia questo rapporto in una segnalazione GitHub o condividilo con un assistente IA per chiedere aiuto:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Cancella errore",
+            "description": "Rimuovi questo errore e il rapporto salvato da Riparazioni. Il pannello non verrà modificato. Seleziona Invia per cancellarlo."
+          },
+          "retry_error": {
+            "title": "Nuovo tentativo non riuscito",
+            "description": "Il nuovo tentativo è sospeso. L'errore resta in Riparazioni; i dettagli sono nel rapporto di assistenza."
+          }
+        },
+        "progress": {
+          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza."
+        },
+        "error": {
+          "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
+          "retry_release_changed": "La versione scelta non corrisponde più a quella salvata. Avvia una nuova installazione.",
+          "retry_credential_changed": "Le credenziali ADB di Home Assistant sono cambiate. Controlla il pannello prima di riprovare.",
+          "retry_panel_ambiguous": "Non è stato possibile verificare l'app installata sul pannello. Non è stata avviata una nuova installazione.",
+          "retry_cannot_prove_safe": "Non è stato possibile controllare abbastanza il pannello per riprovare in sicurezza. Riprova più tardi.",
+          "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
+          "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
+          "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
+        }
+      }
+    },
+    "installer_failure_ambiguous_mutation": {
+      "title": "L'installazione potrebbe aver modificato il pannello {panel}; il suo stato è sconosciuto.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Risolvere l'errore del pannello",
+            "description": "Scegli cosa fare ora.",
+            "menu_options": {
+              "retry": "Riprova",
+              "support_report": "Rapporto di assistenza",
+              "clear_error": "Cancella errore"
+            }
+          },
+          "support_report": {
+            "title": "Rapporto di assistenza",
+            "description": "Copia questo rapporto in una segnalazione GitHub o condividilo con un assistente IA per chiedere aiuto:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Cancella errore",
+            "description": "Rimuovi questo errore e il rapporto salvato da Riparazioni. Il pannello non verrà modificato. Seleziona Invia per cancellarlo."
+          },
+          "retry_error": {
+            "title": "Nuovo tentativo non riuscito",
+            "description": "Il nuovo tentativo è sospeso. L'errore resta in Riparazioni; i dettagli sono nel rapporto di assistenza."
+          }
+        },
+        "progress": {
+          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza."
+        },
+        "error": {
+          "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
+          "retry_release_changed": "La versione scelta non corrisponde più a quella salvata. Avvia una nuova installazione.",
+          "retry_credential_changed": "Le credenziali ADB di Home Assistant sono cambiate. Controlla il pannello prima di riprovare.",
+          "retry_panel_ambiguous": "Non è stato possibile verificare l'app installata sul pannello. Non è stata avviata una nuova installazione.",
+          "retry_cannot_prove_safe": "Non è stato possibile controllare abbastanza il pannello per riprovare in sicurezza. Riprova più tardi.",
+          "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
+          "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
+          "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
+        }
+      }
+    },
+    "installer_failure_verification_required": {
+      "title": "L'app su {panel} deve essere verificata prima di un'altra installazione.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Risolvere l'errore del pannello",
+            "description": "Scegli cosa fare ora.",
+            "menu_options": {
+              "retry": "Riprova",
+              "support_report": "Rapporto di assistenza",
+              "clear_error": "Cancella errore"
+            }
+          },
+          "support_report": {
+            "title": "Rapporto di assistenza",
+            "description": "Copia questo rapporto in una segnalazione GitHub o condividilo con un assistente IA per chiedere aiuto:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Cancella errore",
+            "description": "Rimuovi questo errore e il rapporto salvato da Riparazioni. Il pannello non verrà modificato. Seleziona Invia per cancellarlo."
+          },
+          "retry_error": {
+            "title": "Nuovo tentativo non riuscito",
+            "description": "Il nuovo tentativo è sospeso. L'errore resta in Riparazioni; i dettagli sono nel rapporto di assistenza."
+          }
+        },
+        "progress": {
+          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza."
+        },
+        "error": {
+          "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
+          "retry_release_changed": "La versione scelta non corrisponde più a quella salvata. Avvia una nuova installazione.",
+          "retry_credential_changed": "Le credenziali ADB di Home Assistant sono cambiate. Controlla il pannello prima di riprovare.",
+          "retry_panel_ambiguous": "Non è stato possibile verificare l'app installata sul pannello. Non è stata avviata una nuova installazione.",
+          "retry_cannot_prove_safe": "Non è stato possibile controllare abbastanza il pannello per riprovare in sicurezza. Riprova più tardi.",
+          "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
+          "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
+          "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
+        }
+      }
+    },
+    "installer_failure_update": {
+      "title": "L'aggiornamento del pannello {panel} non è stato completato.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Risolvere l'errore del pannello",
+            "description": "Scegli cosa fare ora.",
+            "menu_options": {
+              "retry": "Riprova",
+              "support_report": "Rapporto di assistenza",
+              "clear_error": "Cancella errore"
+            }
+          },
+          "support_report": {
+            "title": "Rapporto di assistenza",
+            "description": "Copia questo rapporto in una segnalazione GitHub o condividilo con un assistente IA per chiedere aiuto:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Cancella errore",
+            "description": "Rimuovi questo errore e il rapporto salvato da Riparazioni. Il pannello non verrà modificato. Seleziona Invia per cancellarlo."
+          },
+          "retry_error": {
+            "title": "Nuovo tentativo non riuscito",
+            "description": "Il nuovo tentativo è sospeso. L'errore resta in Riparazioni; i dettagli sono nel rapporto di assistenza."
+          }
+        },
+        "progress": {
+          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza."
+        },
+        "error": {
+          "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
+          "retry_release_changed": "La versione scelta non corrisponde più a quella salvata. Avvia una nuova installazione.",
+          "retry_credential_changed": "Le credenziali ADB di Home Assistant sono cambiate. Controlla il pannello prima di riprovare.",
+          "retry_panel_ambiguous": "Non è stato possibile verificare l'app installata sul pannello. Non è stata avviata una nuova installazione.",
+          "retry_cannot_prove_safe": "Non è stato possibile controllare abbastanza il pannello per riprovare in sicurezza. Riprova più tardi.",
+          "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
+          "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
+          "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
+        }
+      }
+    },
+    "installer_failure_retry_hold": {
+      "title": "Il nuovo tentativo sul pannello {panel} è sospeso: non è stato possibile verificarne lo stato in sicurezza.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Risolvere l'errore del pannello",
+            "description": "Scegli cosa fare ora.",
+            "menu_options": {
+              "retry": "Riprova",
+              "support_report": "Rapporto di assistenza",
+              "clear_error": "Cancella errore"
+            }
+          },
+          "support_report": {
+            "title": "Rapporto di assistenza",
+            "description": "Copia questo rapporto in una segnalazione GitHub o condividilo con un assistente IA per chiedere aiuto:\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Cancella errore",
+            "description": "Rimuovi questo errore e il rapporto salvato da Riparazioni. Il pannello non verrà modificato. Seleziona Invia per cancellarlo."
+          },
+          "retry_error": {
+            "title": "Nuovo tentativo non riuscito",
+            "description": "Il nuovo tentativo è sospeso. L'errore resta in Riparazioni; i dettagli sono nel rapporto di assistenza."
+          }
+        },
+        "progress": {
+          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza."
+        },
+        "error": {
+          "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
+          "retry_release_changed": "La versione scelta non corrisponde più a quella salvata. Avvia una nuova installazione.",
+          "retry_credential_changed": "Le credenziali ADB di Home Assistant sono cambiate. Controlla il pannello prima di riprovare.",
+          "retry_panel_ambiguous": "Non è stato possibile verificare l'app installata sul pannello. Non è stata avviata una nuova installazione.",
+          "retry_cannot_prove_safe": "Non è stato possibile controllare abbastanza il pannello per riprovare in sicurezza. Riprova più tardi.",
+          "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
+          "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
+          "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
+        }
+      }
+    },
     "panel_address_unreachable": {
       "title": "Home Assistant non raggiunge {panel} all'indirizzo salvato",
       "description": "{panel} è connesso a Home Assistant, quindi le sue entità restano disponibili, ma Home Assistant non riesce a leggere il pannello all'indirizzo {address}, e la connessione che mantiene, da {session_address}, non offre nessun altro indirizzo da provare. La porta web del pannello potrebbe essere bloccata tra Home Assistant e il pannello. Se il pannello è stato spostato, aggiungilo di nuovo con il nuovo indirizzo, così l'indirizzo salvato viene aggiornato; l'avviso scompare da solo quando l'indirizzo risponde di nuovo."

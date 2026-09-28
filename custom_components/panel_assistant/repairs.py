@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import asyncio
+from dataclasses import asdict
 from typing import Any
 
 import voluptuous as vol
 from homeassistant.components.repairs import RepairsFlow, RepairsFlowResult
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import UnknownStep
+from homeassistant.data_entry_flow import FlowResultType, UnknownStep
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .app_identity import SUCCESSOR_PACKAGE_ID
@@ -18,12 +22,25 @@ from .client import (
     InvalidResponseError,
     normalize_address,
 )
-from .const import CONF_TRANSPORT_USER_ID
+from .const import CONF_TRANSPORT_USER_ID, DOMAIN, update_unique_id
+from .failure_repair import (
+    ISSUE_INSTALLER_FAILURE,
+    RetrySafetyHold,
+    async_clear_failure,
+    async_failure_events,
+    async_record_retry_hold,
+    async_retry_install_job,
+    async_support_report,
+)
+from .install_executor import async_get_install_executor
+from .install_jobs import InstallPhase, async_get_install_job_manager
 from .migration_repair import (
     ISSUE_DATA_ADDRESS,
     ISSUE_DATA_VERSION,
     ISSUE_PANEL_MIGRATION_INCOMPLETE,
 )
+from .release import ReleaseResolutionError
+from .release_catalog import async_resolve_install_choice
 from .transport import (
     BINDING_ISSUES,
     ISSUE_DATA_ENTRY_ID,
@@ -171,6 +188,156 @@ class PanelMigrationFlow(RepairsFlow):
         )
 
 
+class InstallerFailureFlow(RepairsFlow):
+    """Keep a failed panel's retry, report and clear action together."""
+
+    def __init__(self) -> None:
+        self._retry_task: asyncio.Task[str | None] | None = None
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> RepairsFlowResult:
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=["retry", "support_report", "clear_error"],
+        )
+
+    async def async_step_support_report(
+        self, user_input: dict[str, Any] | None = None
+    ) -> RepairsFlowResult:
+        if user_input is not None:
+            return await self.async_step_init()
+        return self.async_show_form(
+            step_id="support_report",
+            data_schema=vol.Schema({}),
+            description_placeholders={
+                "report": await async_support_report(self.hass, self.issue_id)
+            },
+        )
+
+    async def async_step_clear_error(
+        self, user_input: dict[str, Any] | None = None
+    ) -> RepairsFlowResult:
+        if user_input is None:
+            return self.async_show_form(
+                step_id="clear_error", data_schema=vol.Schema({})
+            )
+        await async_clear_failure(self.hass, self.issue_id)
+        return self.async_create_entry(data={})
+
+    async def async_step_retry(
+        self, user_input: dict[str, Any] | None = None
+    ) -> RepairsFlowResult:
+        """Retry in this repair, keeping the underlying installer process-owned."""
+        if self._retry_task is None:
+            self._retry_task = self.hass.async_create_task(
+                self._async_retry(), f"retry panel failure {self.issue_id}"
+            )
+        return await self.async_step_retry_progress()
+
+    async def async_step_retry_progress(
+        self, user_input: dict[str, Any] | None = None
+    ) -> RepairsFlowResult:
+        task = self._retry_task
+        if task is None:
+            return await self.async_step_init()
+        if not task.done():
+            return self.async_show_progress(
+                step_id="retry_progress",
+                progress_action="retrying",
+                progress_task=task,
+            )
+        return self.async_show_progress_done(next_step_id="retry_result")
+
+    async def async_step_retry_result(
+        self, user_input: dict[str, Any] | None = None
+    ) -> RepairsFlowResult:
+        task = self._retry_task
+        if task is None:
+            return await self.async_step_init()
+        try:
+            reason = task.result()
+        except Exception:
+            reason = "retry_failed"
+        self._retry_task = None
+        if reason is None:
+            await async_clear_failure(self.hass, self.issue_id)
+            return self.async_create_entry(data={})
+        return self.async_show_form(
+            step_id="retry_error",
+            data_schema=vol.Schema({}),
+            errors={"base": reason},
+        )
+
+    async def async_step_retry_error(
+        self, user_input: dict[str, Any] | None = None
+    ) -> RepairsFlowResult:
+        return await self.async_step_init()
+
+    async def _async_retry(self) -> str | None:
+        events = await async_failure_events(self.hass, self.issue_id)
+        previous = next(
+            (
+                event
+                for event in reversed(events)
+                if event.get("kind") in {"install", "update"}
+            ),
+            None,
+        )
+        if previous is None:
+            return "retry_cannot_prove_safe"
+        try:
+            if previous["kind"] == "install":
+                manager = await async_get_install_job_manager(self.hass)
+                receipt = await manager.async_get(previous["job_id"])
+                fresh = await async_retry_install_job(self.hass, receipt)
+                executor = await async_get_install_executor(self.hass)
+                finished = await executor.async_wait(fresh.job_id)
+                if finished.phase is not InstallPhase.HEALTHY_UNCLAIMED:
+                    return "retry_failed"
+                result = await self.hass.config_entries.flow.async_init(
+                    DOMAIN,
+                    context={"source": "repair_finalize"},
+                    data={"job_id": fresh.job_id},
+                )
+                if result["type"] is FlowResultType.CREATE_ENTRY:
+                    return None
+                return "retry_finalization"
+            entry_id = previous["entry_id"]
+            entity_id = er.async_get(self.hass).async_get_entity_id(
+                Platform.UPDATE, DOMAIN, update_unique_id(entry_id)
+            )
+            if entity_id is None:
+                raise RetrySafetyHold("retry_update_unavailable")
+            saved_artifact = previous.get("artifact")
+            if isinstance(saved_artifact, dict):
+                tag = saved_artifact.get("tag")
+                if not isinstance(tag, str):
+                    raise RetrySafetyHold("retry_release_changed")
+                try:
+                    current = await async_resolve_install_choice(self.hass, tag)
+                except ReleaseResolutionError as err:
+                    raise RetrySafetyHold("retry_release_changed") from err
+                if asdict(current) != saved_artifact:
+                    raise RetrySafetyHold("retry_release_changed")
+            service_data = {"entity_id": entity_id}
+            if isinstance(previous.get("target_version"), str):
+                service_data["version"] = previous["target_version"]
+            await self.hass.services.async_call(
+                Platform.UPDATE,
+                "install",
+                service_data,
+                blocking=True,
+            )
+            return None
+        except RetrySafetyHold as err:
+            await async_record_retry_hold(self.hass, self.issue_id, previous, err)
+            return err.reason
+        except Exception as err:
+            await async_record_retry_hold(self.hass, self.issue_id, previous, err)
+            return "retry_failed"
+
+
 async def async_create_fix_flow(
     hass: HomeAssistant,
     issue_id: str,
@@ -178,6 +345,8 @@ async def async_create_fix_flow(
 ) -> RepairsFlow:
     """Create the fix flow for a Panel Assistant issue."""
     values = data or {}
+    if issue_id.startswith(f"{ISSUE_INSTALLER_FAILURE}_"):
+        return InstallerFailureFlow()
     if issue_id.startswith(f"{ISSUE_PANEL_MIGRATION_INCOMPLETE}_"):
         address = values.get(ISSUE_DATA_ADDRESS)
         version = values.get(ISSUE_DATA_VERSION)

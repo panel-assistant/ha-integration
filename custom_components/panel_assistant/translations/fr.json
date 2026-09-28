@@ -250,6 +250,510 @@
         }
       }
     },
+    "installer_failure": {
+      "title": "Échec de l'installation ou de la mise à jour sur {panel}",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Résoudre l'erreur du panneau",
+            "description": "Choisissez la suite.",
+            "menu_options": {
+              "retry": "Réessayer",
+              "support_report": "Rapport d'assistance",
+              "clear_error": "Effacer l'erreur"
+            }
+          },
+          "support_report": {
+            "title": "Rapport d'assistance",
+            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Effacer l'erreur",
+            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+          },
+          "retry_error": {
+            "title": "Nouvelle tentative inachevée",
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+          }
+        },
+        "progress": {
+          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+        },
+        "error": {
+          "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
+          "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
+          "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
+          "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
+          "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
+          "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
+        }
+      }
+    },
+    "installer_failure_authorization_failed": {
+      "title": "Le panneau {panel} n'a pas autorisé l'installation.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Résoudre l'erreur du panneau",
+            "description": "Choisissez la suite.",
+            "menu_options": {
+              "retry": "Réessayer",
+              "support_report": "Rapport d'assistance",
+              "clear_error": "Effacer l'erreur"
+            }
+          },
+          "support_report": {
+            "title": "Rapport d'assistance",
+            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Effacer l'erreur",
+            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+          },
+          "retry_error": {
+            "title": "Nouvelle tentative inachevée",
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+          }
+        },
+        "progress": {
+          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+        },
+        "error": {
+          "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
+          "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
+          "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
+          "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
+          "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
+          "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
+        }
+      }
+    },
+    "installer_failure_preflight_rejected": {
+      "title": "Le panneau {panel} n'a pas réussi les vérifications préalables à l'installation.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Résoudre l'erreur du panneau",
+            "description": "Choisissez la suite.",
+            "menu_options": {
+              "retry": "Réessayer",
+              "support_report": "Rapport d'assistance",
+              "clear_error": "Effacer l'erreur"
+            }
+          },
+          "support_report": {
+            "title": "Rapport d'assistance",
+            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Effacer l'erreur",
+            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+          },
+          "retry_error": {
+            "title": "Nouvelle tentative inachevée",
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+          }
+        },
+        "progress": {
+          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+        },
+        "error": {
+          "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
+          "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
+          "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
+          "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
+          "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
+          "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
+        }
+      }
+    },
+    "installer_failure_artifact_rejected": {
+      "title": "La version de l'application destinée au panneau {panel} n'a pas pu être vérifiée.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Résoudre l'erreur du panneau",
+            "description": "Choisissez la suite.",
+            "menu_options": {
+              "retry": "Réessayer",
+              "support_report": "Rapport d'assistance",
+              "clear_error": "Effacer l'erreur"
+            }
+          },
+          "support_report": {
+            "title": "Rapport d'assistance",
+            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Effacer l'erreur",
+            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+          },
+          "retry_error": {
+            "title": "Nouvelle tentative inachevée",
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+          }
+        },
+        "progress": {
+          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+        },
+        "error": {
+          "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
+          "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
+          "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
+          "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
+          "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
+          "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
+        }
+      }
+    },
+    "installer_failure_transport_failed": {
+      "title": "La connexion au panneau {panel} a échoué pendant l'installation.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Résoudre l'erreur du panneau",
+            "description": "Choisissez la suite.",
+            "menu_options": {
+              "retry": "Réessayer",
+              "support_report": "Rapport d'assistance",
+              "clear_error": "Effacer l'erreur"
+            }
+          },
+          "support_report": {
+            "title": "Rapport d'assistance",
+            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Effacer l'erreur",
+            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+          },
+          "retry_error": {
+            "title": "Nouvelle tentative inachevée",
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+          }
+        },
+        "progress": {
+          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+        },
+        "error": {
+          "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
+          "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
+          "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
+          "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
+          "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
+          "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
+        }
+      }
+    },
+    "installer_failure_install_failed": {
+      "title": "Android a refusé l'installation de l'application sur le panneau {panel}.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Résoudre l'erreur du panneau",
+            "description": "Choisissez la suite.",
+            "menu_options": {
+              "retry": "Réessayer",
+              "support_report": "Rapport d'assistance",
+              "clear_error": "Effacer l'erreur"
+            }
+          },
+          "support_report": {
+            "title": "Rapport d'assistance",
+            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Effacer l'erreur",
+            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+          },
+          "retry_error": {
+            "title": "Nouvelle tentative inachevée",
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+          }
+        },
+        "progress": {
+          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+        },
+        "error": {
+          "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
+          "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
+          "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
+          "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
+          "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
+          "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
+        }
+      }
+    },
+    "installer_failure_launch_failed": {
+      "title": "L'application a été installée sur {panel}, mais n'a pas pu démarrer.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Résoudre l'erreur du panneau",
+            "description": "Choisissez la suite.",
+            "menu_options": {
+              "retry": "Réessayer",
+              "support_report": "Rapport d'assistance",
+              "clear_error": "Effacer l'erreur"
+            }
+          },
+          "support_report": {
+            "title": "Rapport d'assistance",
+            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Effacer l'erreur",
+            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+          },
+          "retry_error": {
+            "title": "Nouvelle tentative inachevée",
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+          }
+        },
+        "progress": {
+          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+        },
+        "error": {
+          "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
+          "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
+          "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
+          "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
+          "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
+          "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
+        }
+      }
+    },
+    "installer_failure_health_check_failed": {
+      "title": "L'application sur {panel} n'a pas réussi le contrôle de fonctionnement.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Résoudre l'erreur du panneau",
+            "description": "Choisissez la suite.",
+            "menu_options": {
+              "retry": "Réessayer",
+              "support_report": "Rapport d'assistance",
+              "clear_error": "Effacer l'erreur"
+            }
+          },
+          "support_report": {
+            "title": "Rapport d'assistance",
+            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Effacer l'erreur",
+            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+          },
+          "retry_error": {
+            "title": "Nouvelle tentative inachevée",
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+          }
+        },
+        "progress": {
+          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+        },
+        "error": {
+          "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
+          "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
+          "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
+          "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
+          "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
+          "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
+        }
+      }
+    },
+    "installer_failure_ambiguous_mutation": {
+      "title": "L'installation a peut-être modifié le panneau {panel} ; son état est inconnu.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Résoudre l'erreur du panneau",
+            "description": "Choisissez la suite.",
+            "menu_options": {
+              "retry": "Réessayer",
+              "support_report": "Rapport d'assistance",
+              "clear_error": "Effacer l'erreur"
+            }
+          },
+          "support_report": {
+            "title": "Rapport d'assistance",
+            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Effacer l'erreur",
+            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+          },
+          "retry_error": {
+            "title": "Nouvelle tentative inachevée",
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+          }
+        },
+        "progress": {
+          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+        },
+        "error": {
+          "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
+          "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
+          "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
+          "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
+          "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
+          "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
+        }
+      }
+    },
+    "installer_failure_verification_required": {
+      "title": "L'application sur {panel} doit être vérifiée avant une nouvelle installation.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Résoudre l'erreur du panneau",
+            "description": "Choisissez la suite.",
+            "menu_options": {
+              "retry": "Réessayer",
+              "support_report": "Rapport d'assistance",
+              "clear_error": "Effacer l'erreur"
+            }
+          },
+          "support_report": {
+            "title": "Rapport d'assistance",
+            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Effacer l'erreur",
+            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+          },
+          "retry_error": {
+            "title": "Nouvelle tentative inachevée",
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+          }
+        },
+        "progress": {
+          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+        },
+        "error": {
+          "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
+          "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
+          "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
+          "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
+          "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
+          "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
+        }
+      }
+    },
+    "installer_failure_update": {
+      "title": "La mise à jour du panneau {panel} ne s'est pas terminée.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Résoudre l'erreur du panneau",
+            "description": "Choisissez la suite.",
+            "menu_options": {
+              "retry": "Réessayer",
+              "support_report": "Rapport d'assistance",
+              "clear_error": "Effacer l'erreur"
+            }
+          },
+          "support_report": {
+            "title": "Rapport d'assistance",
+            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Effacer l'erreur",
+            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+          },
+          "retry_error": {
+            "title": "Nouvelle tentative inachevée",
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+          }
+        },
+        "progress": {
+          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+        },
+        "error": {
+          "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
+          "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
+          "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
+          "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
+          "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
+          "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
+        }
+      }
+    },
+    "installer_failure_retry_hold": {
+      "title": "Nouvelle tentative suspendue sur le panneau {panel} : son état n'a pas pu être vérifié sans risque.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Résoudre l'erreur du panneau",
+            "description": "Choisissez la suite.",
+            "menu_options": {
+              "retry": "Réessayer",
+              "support_report": "Rapport d'assistance",
+              "clear_error": "Effacer l'erreur"
+            }
+          },
+          "support_report": {
+            "title": "Rapport d'assistance",
+            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+          },
+          "clear_error": {
+            "title": "Effacer l'erreur",
+            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+          },
+          "retry_error": {
+            "title": "Nouvelle tentative inachevée",
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+          }
+        },
+        "progress": {
+          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+        },
+        "error": {
+          "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
+          "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
+          "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
+          "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
+          "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
+          "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
+        }
+      }
+    },
     "panel_address_unreachable": {
       "title": "Home Assistant ne peut pas joindre {panel} à son adresse enregistrée",
       "description": "{panel} est connecté à Home Assistant, ses entités restent donc disponibles, mais Home Assistant ne peut pas lire le panneau à l'adresse {address}, et la connexion qu'il maintient, depuis {session_address}, n'offre aucune autre adresse à essayer. Le port web du panneau est peut-être bloqué entre Home Assistant et le panneau. Si le panneau a changé d'emplacement, ajoutez-le à nouveau avec sa nouvelle adresse, ce qui met à jour l'adresse enregistrée ; l'avertissement disparaît de lui-même dès que l'adresse répond à nouveau."

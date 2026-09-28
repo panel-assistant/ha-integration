@@ -30,6 +30,7 @@ from homeassistant.util.ulid import bytes_to_ulid, ulid_to_bytes_or_none
 from .app_identity import is_accepted_package_id, launch_component_for
 from .client import InvalidAddressError, normalize_address
 from .const import DOMAIN
+from .failure_repair import clear_install_failure, record_install_failure
 from .install_network import (
     InstallNetworkError,
     _resolver_hostname,
@@ -1432,6 +1433,7 @@ class InstallJobManager:
                 InstallPhase.FAILED,
                 InstallPhase.RECOVERY_REQUIRED,
             } and (previous is None or not previous.is_terminal):
+                record_install_failure(self._hass, receipt)
                 _LOGGER.warning(
                     "Panel Assistant install failure panel=%s stage=%s "
                     "subcode=%s result=%s job=%s",
@@ -1441,6 +1443,10 @@ class InstallJobManager:
                     receipt.result_code.value if receipt.result_code else "unknown",
                     receipt.job_id,
                 )
+            elif receipt.phase is InstallPhase.CONSUMED and (
+                previous is None or previous.phase is not InstallPhase.CONSUMED
+            ):
+                clear_install_failure(self._hass, receipt)
         self._jobs = verified
         self._reconcile_claims()
         # A cancelled caller may still have committed a verified terminal

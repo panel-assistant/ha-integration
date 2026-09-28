@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+from dataclasses import asdict
 
 from aiohttp.web import HTTPBadRequest
 from homeassistant.components.update import (
@@ -25,6 +26,7 @@ from .build_feed import (
     BuildDownloadError,
     BuildFeed,
     BuildFeedError,
+    FeedBuild,
     async_download_build,
     build_label,
     feed_release_artifact,
@@ -48,6 +50,7 @@ from .coordinator import (
     PanelSnapshot,
 )
 from .device import panel_device_info
+from .failure_repair import async_clear_update_failure, async_record_update_failure
 from .feed_coordinator import (
     BuildFeedCoordinator,
     StableReleaseCoordinator,
@@ -280,34 +283,52 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         operation = self._update_coordinator.data.operation
         if (
             self._recovery_started
+            or (self._observer_task is not None and not self._observer_task.done())
             or operation is None
             or not operation.running
             or operation.component != "ha-paneld"
         ):
             return
-        offer = self._stable_target()
-        if offer is None:
-            return
         self._recovery_started = True
-        self._start_observer(offer.target_version)
+        self._start_observer(None, recovered=True)
 
-    def _start_observer(self, expected_version: str) -> asyncio.Task[None]:
+    def _start_observer(
+        self, expected_version: str | None, *, recovered: bool = False
+    ) -> asyncio.Task[None]:
         """Start or reuse the entity's sole bounded health observer."""
         if self._observer_task is not None and not self._observer_task.done():
             return self._observer_task
         self._attr_in_progress = True
         task = self.hass.async_create_task(
-            self._run_observer(expected_version),
+            self._run_observer(expected_version, recovered=recovered),
             f"observe ha-paneld update {self._entry_id}",
         )
         self._observer_task = task
         task.add_done_callback(self._observer_finished)
         return task
 
-    async def _run_observer(self, expected_version: str) -> None:
+    async def _run_observer(
+        self,
+        expected_version: str | None,
+        *,
+        recovered: bool,
+    ) -> None:
         """Observe one target and release its latch before awaiters resume."""
         try:
-            await self._async_wait_for_installed_version(expected_version)
+            verified = await self._async_wait_for_installed_version(expected_version)
+        except Exception as err:
+            if recovered:
+                await async_record_update_failure(
+                    self.hass,
+                    self._entry_id,
+                    self._title or "This panel",
+                    expected_version,
+                    err,
+                )
+            raise
+        else:
+            if recovered and verified:
+                await async_clear_update_failure(self.hass, self._entry_id)
         finally:
             self._attr_in_progress = False
             self._recovery_started = False
@@ -469,10 +490,13 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
     ) -> None:
         """Start one exact stable offer, then follow the expected panel restart."""
         feed = self._feed_mode()
-        try:
-            if feed is not None:
-                await self._async_install_feed_build(feed, version, backup)
-                return
+        failure_artifact: dict[str, object] | None = None
+        if feed is not None:
+            build = await self._async_select_feed_build(feed, version, backup)
+            target_version = build.label
+            selected_artifact = feed_release_artifact(build)
+            failure_artifact = asdict(selected_artifact)
+        else:
             offer = self._stable_target()
             if (
                 self.in_progress
@@ -484,10 +508,15 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     "update_unavailable",
                     "The requested ha-paneld update is unavailable",
                 )
-            release = self._host_release()
-            self._attr_in_progress = True
-            self.async_write_ha_state()
-            try:
+            target_version = offer.target_version
+        self._attr_in_progress = True
+        self.async_write_ha_state()
+        try:
+            if feed is not None:
+                await self._async_deliver_build(selected_artifact)
+            else:
+                assert offer is not None
+                release = self._host_release()
                 # Home Assistant sends the release over the LAN whenever it could
                 # authenticate it. Only a panel that cannot take an upload at all
                 # downloads the release itself, and verifies it itself.
@@ -515,15 +544,36 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                             )
                         else:
                             await self._async_deliver_build(successor, migration=True)
-                        return
-                    if await self._async_deliver_build(release, fallback=True):
-                        return
-                await self._async_start_panel_download(offer)
-            finally:
-                self._attr_in_progress = False
-                self.async_write_ha_state()
+                    elif not await self._async_deliver_build(release, fallback=True):
+                        await self._async_start_panel_download(offer)
+                else:
+                    await self._async_start_panel_download(offer)
         except UpdateRejectedError:
-            raise _UpdateRefusalError(self._title or "This panel") from None
+            error = _UpdateRefusalError(self._title or "This panel")
+            await async_record_update_failure(
+                self.hass,
+                self._entry_id,
+                self._title or "This panel",
+                target_version,
+                error,
+                artifact=failure_artifact,
+            )
+            raise error from None
+        except Exception as err:
+            await async_record_update_failure(
+                self.hass,
+                self._entry_id,
+                self._title or "This panel",
+                target_version,
+                err,
+                artifact=failure_artifact,
+            )
+            raise
+        else:
+            await async_clear_update_failure(self.hass, self._entry_id)
+        finally:
+            self._attr_in_progress = False
+            self.async_write_ha_state()
 
     async def _async_start_panel_download(self, offer: PanelCachedUpdate) -> None:
         """Ask the panel to fetch, verify and install the release itself."""
@@ -569,24 +619,54 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             )
         return True
 
-    async def _async_wait_for_installed_version(self, expected_version: str) -> None:
-        """Poll status through restart, then prove the health version changed."""
+    async def _async_wait_for_installed_version(
+        self, expected_version: str | None
+    ) -> bool:
+        """Poll through restart; return false when recovered outcome is unknown."""
+        starting_health = (
+            self.coordinator.data.health
+            if expected_version is None and self.coordinator.data is not None
+            else None
+        )
         deadline = asyncio.get_running_loop().time() + _UPDATE_TIMEOUT_SECONDS
         terminal_status_deadline: float | None = None
         restart_projected = False
+        running_seen = False
         while asyncio.get_running_loop().time() < deadline:
             await self.coordinator.async_request_refresh()
             restart_projected = self._show_accepted_restart(restart_projected)
-            if self.coordinator.last_update_success and (
+            snapshot = self.coordinator.data
+            verified = (
                 self.installed_version == expected_version
-            ):
+                if expected_version is not None
+                else snapshot is not None
+                and starting_health is not None
+                and (
+                    is_newer_stable_version(
+                        snapshot.health.version, starting_health.version
+                    )
+                    or (
+                        snapshot.health.version == starting_health.version
+                        and starting_health.version_code is not None
+                        and snapshot.health.version_code is not None
+                        and snapshot.health.version_code > starting_health.version_code
+                    )
+                )
+            )
+            if self.coordinator.last_update_success and verified:
                 await self._update_coordinator.async_request_refresh()
-                return
+                return True
             try:
                 await self._update_coordinator.async_request_refresh()
                 status = self._update_coordinator.data.operation
             except CannotConnectError, InvalidResponseError:
                 status = None
+            if (
+                status is not None
+                and status.component == "ha-paneld"
+                and status.running
+            ):
+                running_seen = True
             if (
                 status is not None
                 and not status.running
@@ -602,18 +682,25 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                         + _TERMINAL_STATUS_GRACE_SECONDS,
                     )
                 if asyncio.get_running_loop().time() >= terminal_status_deadline:
+                    if expected_version is None:
+                        # A stable or feed update may have finished before our
+                        # first health sample. Without its lost target, terminal
+                        # status alone is not proof that it failed.
+                        return False
                     raise _update_error(
                         "update_not_complete", "The panel update did not complete"
                     )
             await asyncio.sleep(_UPDATE_RECHECK_SECONDS)
+        if expected_version is None and not running_seen:
+            return False
         raise _update_error(
             "update_did_not_return", "The panel did not return after the update"
         )
 
-    async def _async_install_feed_build(
+    async def _async_select_feed_build(
         self, feed: BuildFeed, version: str | None, backup: bool
-    ) -> None:
-        """Back up, verify, upload and commit one signed feed build, then prove it."""
+    ) -> FeedBuild:
+        """Resolve a valid signed-feed target before starting an update attempt."""
         package_id = self._feed_package()
         newest = feed.newest(package_id)
         code = (
@@ -642,13 +729,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 "update_unavailable",
                 "The requested ha-paneld update is unavailable",
             )
-        self._attr_in_progress = True
-        self.async_write_ha_state()
-        try:
-            await self._async_deliver_build(feed_release_artifact(build))
-        finally:
-            self._attr_in_progress = False
-            self.async_write_ha_state()
+        return build
 
     async def _async_deliver_build(
         self,

@@ -192,6 +192,16 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             menu_options=["add_panel", "install_usb"],
         )
 
+    async def async_step_repair_finalize(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Let a Repairs retry use the ordinary verified entry-creation path."""
+        job_id = user_input.get("job_id") if user_input else None
+        if not isinstance(job_id, str):
+            return self.async_abort(reason="install_receipt_error")
+        self._pending_job_id = job_id
+        return await self.async_step_install_result()
+
     async def async_step_install_usb(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
