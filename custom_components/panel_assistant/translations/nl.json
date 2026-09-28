@@ -789,10 +789,11 @@
     "step": {
       "init": {
         "title": "Paneel instellen",
-        "description": "Ga verder met de browserinstallatie van dit paneel of wijzig de verbindingswijze. Het paneel blijft ongekoppeld totdat je het aangemelde account bevestigt.",
+        "description": "Ga verder met de configuratie van dit paneel, wijzig de verbinding of autoriseer ADB voor updates. Als het paneel nog niet gekoppeld is, bevestig dan het aangemelde account om de configuratie te voltooien.",
         "menu_options": {
           "onboarding": "Installatie voortzetten",
-          "transport": "Verbindingsinstellingen"
+          "transport": "Verbindingsinstellingen",
+          "authorize_adb": "ADB voor updates autoriseren"
         }
       },
       "onboarding": {
@@ -811,6 +812,10 @@
           "onboarding_skip": "Niet nu"
         }
       },
+      "authorize_adb": {
+        "title": "Home Assistant op {panel} autoriseren",
+        "description": "Kies Verzenden om de permanente ADB-sleutel van deze Home Assistant-installatie te maken of te laden en de openbare sleutel aan {panel} aan te bieden. Sta de Android-vraag voor foutopsporing op het fysieke paneel toe en verzend het formulier opnieuw. Android kan Home Assistant als een computer omschrijven. De toestemming geeft algemene ADB-shelltoegang zolang foutopsporing via het netwerk aanstaat; trek deze in via de ontwikkelaarsopties van het paneel. In deze stap wordt geen app geïnstalleerd."
+      },
       "transport": {
         "title": "Verbindingswijze van het paneel",
         "description": "Kies wat de entiteiten en opdrachten van dit paneel aanstuurt. Als je Panel Assistant opslaat, worden de MQTT-entiteiten van het paneel naar Panel Assistant verplaatst, waarbij hun entiteits-ID’s, geschiedenis en aanpassingen behouden blijven, en het paneel trekt vervolgens zijn MQTT-entiteiten in. Als je MQTT opslaat, met of zonder native rapporten, worden ze teruggezet naar MQTT. Hoe dan ook maakt het paneel opnieuw verbinding met de nieuwe keuze.",
@@ -818,6 +823,21 @@
           "authority": "Besturing"
         }
       }
+    },
+    "error": {
+      "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig ha-paneld-status-eindpunt.",
+      "invalid_install_address": "Voer alleen de hostnaam van het paneel of het IP-adres in. Het installatieprogramma gebruikt ha-paneld op poort 8888 en ADB op poort 5555 afzonderlijk.",
+      "install_resolution_failed": "Home Assistant kon dit paneeladres niet omzetten. Controleer het adres en de lokale DNS en probeer het daarna nog eens.",
+      "install_resolution_timeout": "De lokale naamomzetting is verlopen voordat het adres van het paneel veilig kon worden vastgelegd. Controleer de lokale DNS en probeer het dan nog eens.",
+      "install_too_many_addresses": "Deze hostnaam leverde te veel adressen op om veilig te kunnen vastleggen. Gebruik een speciale lokale hostnaam of een privé-IP-adres.",
+      "unsafe_install_target": "Installatie is alleen toegestaan op een privé-lokaal IPv4-adres of een uniek lokaal IPv6-adres. Er is geen ADB-verbinding geprobeerd.",
+      "install_target_changed": "De hostnaam verwijst niet meer naar hetzelfde vastgezette paneeladres. Er is geen ADB-sleutel of installatie verzonden. Controleer het adres en begin opnieuw.",
+      "adb_unreachable": "Het paneel reageerde wel, maar er kwam geen reactie op de Android Debug Bridge-poort (5555). Schakel op het paneel Android Debug Bridge in en sta dit toe via het netwerk, en probeer het dan nog eens. Als je het paneel kunt aansluiten op de computer waarop je nu surft, installeer dan via USB.",
+      "adb_still_unauthorized": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd. Bevestig de ADB-melding op het paneel en probeer het dan nog eens.",
+      "adb_credential_error": "Home Assistant kon de inloggegevens van ADB niet veilig laden of opslaan. Er is geen poging gedaan om het paneel te wijzigen. Controleer de opslag en logbestanden van Home Assistant voordat je het opnieuw probeert.",
+      "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket ha-paneld, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de handleiding voor veilig inrichten en herstel, waarnaar in de integratiedocumentatie wordt verwezen. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
+      "unknown": "Onverwachte fout",
+      "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert."
     },
     "abort": {
       "native_entities_disabled": "Native-entiteiten zijn voor deze Home Assistant niet ingeschakeld, dus MQTT regelt dit paneel."

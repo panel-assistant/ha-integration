@@ -767,10 +767,11 @@
     "step": {
       "init": {
         "title": "Configuración del panel",
-        "description": "Continúa la configuración de este panel en el navegador o cambia su modo de conexión. El panel permanecerá sin vincular hasta que confirmes la cuenta con la que se ha iniciado sesión.",
+        "description": "Continúe la configuración de este panel, cambie su transporte o autorice ADB para sus actualizaciones. Si el panel aún no está vinculado, confirme la cuenta que inició sesión para terminar la configuración.",
         "menu_options": {
           "onboarding": "Continuar la configuración",
-          "transport": "Ajustes de conexión"
+          "transport": "Ajustes de conexión",
+          "authorize_adb": "Autorizar ADB para actualizaciones"
         }
       },
       "onboarding": {
@@ -789,6 +790,10 @@
           "onboarding_skip": "Ahora no"
         }
       },
+      "authorize_adb": {
+        "title": "Autorizar Home Assistant en {panel}",
+        "description": "Pulse Enviar para crear o cargar la clave ADB persistente de esta instalación de Home Assistant y ofrecer su clave pública a {panel}. Apruebe la solicitud «Permitir depuración» de Android en el panel físico y vuelva a enviar el formulario. Android puede describir Home Assistant como un ordenador. La aprobación concede acceso general a la consola ADB mientras la depuración de red siga activada; puede revocarla en las opciones de desarrollador del panel. En este paso no se instala ninguna aplicación."
+      },
       "transport": {
         "title": "Conexión del panel",
         "description": "Elige qué controla las entidades y los comandos de este panel. Si guardas Panel Assistant, Panel Assistant traslada a sí mismo las entidades MQTT del panel, conservando sus ID de entidad, su historial y tus personalizaciones, y después el panel retira sus entidades MQTT. Si guardas MQTT, con o sin informes nativos, vuelven a MQTT. En ambos casos el panel se reconecta con la nueva opción.",
@@ -796,6 +801,21 @@
           "authority": "Control"
         }
       }
+    },
+    "error": {
+      "cannot_connect": "No se puede conectar a un punto de conexión de estado válido de ha-paneld.",
+      "invalid_install_address": "Introduce únicamente el nombre de host o la dirección IP del panel. El instalador utiliza por separado el puerto 8888 de ha-paneld y el puerto 5555 de ADB.",
+      "install_resolution_failed": "Home Assistant no ha podido resolver la dirección de este panel. Comprueba la dirección y el DNS local y vuelve a intentarlo.",
+      "install_resolution_timeout": "La resolución de nombres local ha agotado el tiempo de espera antes de que se pudiera fijar de forma segura la dirección del panel. Comprueba el DNS local y vuelve a intentarlo.",
+      "install_too_many_addresses": "Este nombre de host se ha resuelto en demasiadas direcciones para fijarlo de forma segura. Utiliza un nombre de host local dedicado o una dirección IP privada.",
+      "unsafe_install_target": "La instalación solo se permite en una dirección IPv4 local privada o una dirección local única IPv6 (ULA). No se ha intentado ninguna conexión ADB.",
+      "install_target_changed": "El nombre de host ya no se resuelve en la misma dirección fijada del panel. No se ha enviado al panel ninguna clave ADB ni ningún contenido de instalación. Comprueba la dirección y vuelve a empezar.",
+      "adb_unreachable": "El panel respondió, pero nada respondió en su puerto de Android Debug Bridge (5555). En el panel, activa Android Debug Bridge y permítelo por red, y vuelve a intentarlo. Si puedes conectar el panel al ordenador desde el que navegas, instala por USB en su lugar.",
+      "adb_still_unauthorized": "El panel todavía no ha aceptado esta instancia de Home Assistant. Acepta el aviso de ADB en el panel y vuelve a intentarlo.",
+      "adb_credential_error": "Home Assistant no ha podido cargar ni conservar de forma segura su credencial ADB. No se ha intentado modificar el panel. Comprueba el almacenamiento y los registros de Home Assistant antes de volver a intentarlo.",
+      "retained_or_ambiguous": "El panel podría contener un registro conservado del paquete ha-paneld o no se ha podido demostrar la ausencia del paquete. No se ha modificado el panel. Inténtalo una vez más si la conexión era inestable; de lo contrario, sigue la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración. No desinstales ni restablezcas la aplicación sin una copia de seguridad verificada.",
+      "unknown": "Error inesperado",
+      "panel_identity_changed": "La dirección ya no responde como este panel configurado. Compruebe el panel y su dirección antes de reintentar."
     },
     "abort": {
       "native_entities_disabled": "Las entidades nativas no están activadas en este Home Assistant, así que MQTT controla este panel."

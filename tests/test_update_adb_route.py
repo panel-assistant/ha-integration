@@ -4,16 +4,20 @@ from __future__ import annotations
 
 import hashlib
 from io import BytesIO
+from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from zipfile import ZipFile
 
 import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import storage
 from yarl import URL
 
+from custom_components.panel_assistant import adb_credentials
 from custom_components.panel_assistant import update as panel_update
+from custom_components.panel_assistant.adb_credentials import AdbCredentialError
 from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
 from custom_components.panel_assistant.build_feed import BuildFeed, FeedBuild
 from custom_components.panel_assistant.client import PanelHealth, normalize_address
@@ -173,6 +177,84 @@ async def test_pinned_http_peer_mismatch_withholds_offer_and_install(
     assert caught.value.translation_key == "update_unavailable"
     route.client.async_backup_panel.assert_not_awaited()
     route.probe_target.assert_not_awaited()
+    route.adb_install.assert_not_awaited()
+
+
+async def test_existing_keyless_shelly_offers_and_installs_from_ha(
+    route: SimpleNamespace, monkeypatch: pytest.MonkeyPatch, hass: HomeAssistant
+) -> None:
+    """An existing entry can use open ADB without prior HA key provisioning."""
+
+    # The HA pytest fixture mocks Store writes; exercise the durable file path.
+    async def write_data(store: storage.Store, data: dict[str, object]) -> None:
+        await store.hass.async_add_executor_job(store._write_data, data)
+
+    monkeypatch.setattr(
+        panel_update,
+        "async_get_adb_credential",
+        adb_credentials.async_get_adb_credential,
+    )
+    monkeypatch.setattr(
+        panel_update,
+        "async_get_durable_adb_credential",
+        adb_credentials.async_get_durable_adb_credential,
+    )
+    deliver = AsyncMock()
+    monkeypatch.setattr(route.entity, "_async_deliver_adb", deliver)
+    monkeypatch.setattr(panel_update, "async_clear_update_failure", AsyncMock())
+    key_path = Path(hass.config.path(".storage/panel_assistant.adb_key"))
+    await hass.async_add_executor_job(
+        lambda: key_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    )
+    assert not await hass.async_add_executor_job(key_path.exists)
+
+    with patch.object(storage.Store, "_async_write_data", write_data):
+        await route.entity._async_refresh_route()
+    assert route.entity.latest_version == "0.9.7-rc4 build 772"
+    await route.entity.async_install(None, False)
+
+    assert await hass.async_add_executor_job(key_path.exists)
+    assert (await adb_credentials.async_get_durable_adb_credential(hass)).generation_id
+    assert route.probe_target.await_args_list[0].args == (route.pinned.pinned,)
+    deliver.assert_awaited_once()
+    route.client.async_start_panel_update.assert_not_awaited()
+    route.client.async_stage_apk.assert_not_awaited()
+
+
+async def test_existing_protected_panel_without_key_offers_nothing(
+    route: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    route.get_credential.side_effect = AdbCredentialError()
+    route.probe_target.return_value = InstallTargetProbe(
+        state=InstallTargetState.ADB_UNAUTHORIZED
+    )
+    create_credential = AsyncMock()
+    monkeypatch.setattr(
+        panel_update, "async_get_adb_credential", create_credential, raising=False
+    )
+
+    await route.entity._async_refresh_route()
+    assert route.entity.latest_version == route.entity.installed_version
+    with pytest.raises(HomeAssistantError) as caught:
+        await route.entity.async_install(None, False)
+
+    assert caught.value.translation_key == "update_unavailable"
+    create_credential.assert_not_awaited()
+    route.client.async_backup_panel.assert_not_awaited()
+    route.adb_install.assert_not_awaited()
+
+
+async def test_corrupt_adb_store_does_not_gain_an_update_route(
+    route: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    route.get_credential.side_effect = AdbCredentialError()
+    create_credential = AsyncMock(side_effect=AdbCredentialError())
+    monkeypatch.setattr(panel_update, "async_get_adb_credential", create_credential)
+
+    await route.entity._async_refresh_route()
+
+    assert route.entity.latest_version == route.entity.installed_version
+    route.preflight.assert_not_awaited()
     route.adb_install.assert_not_awaited()
 
 

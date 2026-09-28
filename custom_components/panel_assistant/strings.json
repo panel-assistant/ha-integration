@@ -1098,10 +1098,11 @@
     "step": {
       "init": {
         "title": "Panel setup",
-        "description": "Continue this panel's browser setup or change its transport. The panel remains unbound until you confirm the signed-in account.",
+        "description": "Continue this panel’s setup, change its transport, or authorize ADB for panel updates. If the panel is still unbound, confirm its signed-in account to finish setup.",
         "menu_options": {
           "onboarding": "Continue setup",
-          "transport": "Transport settings"
+          "transport": "Transport settings",
+          "authorize_adb": "Authorize ADB for updates"
         }
       },
       "onboarding": {
@@ -1120,6 +1121,10 @@
           "onboarding_skip": "Not now"
         }
       },
+      "authorize_adb": {
+        "title": "Authorize Home Assistant on {panel}",
+        "description": "Select Submit to create or load this Home Assistant installation’s persistent ADB key and offer its public key to {panel}. Approve Android’s Allow debugging prompt on the physical panel, then submit again. Android may describe Home Assistant as a computer. Approval grants general ADB shell access while network debugging remains enabled; revoke it in the panel’s developer settings. No app is installed at this step."
+      },
       "transport": {
         "title": "Panel transport",
         "description": "Choose what controls this panel's entities and commands. Saving Panel Assistant moves the panel's MQTT entities to Panel Assistant, keeping their entity IDs, history and customisations, and the panel then withdraws its MQTT entities. Saving MQTT, with or without native reports, moves them back to MQTT. Either way the panel reconnects with the new choice.",
@@ -1127,6 +1132,21 @@
           "authority": "Control"
         }
       }
+    },
+    "error": {
+      "cannot_connect": "Unable to connect to a valid ha-paneld health endpoint.",
+      "invalid_install_address": "Enter only the panel hostname or IP address. The installer uses ha-paneld port 8888 and ADB port 5555 separately.",
+      "install_resolution_failed": "Home Assistant could not resolve this panel address. Check the address and local DNS, then try again.",
+      "install_resolution_timeout": "Local name resolution timed out before the panel address could be pinned safely. Check local DNS, then try again.",
+      "install_too_many_addresses": "This hostname resolved to too many addresses to pin safely. Use a dedicated local hostname or private IP address.",
+      "unsafe_install_target": "Installation is allowed only to a private local IPv4 address or a unique-local IPv6 address. No ADB connection was attempted.",
+      "install_target_changed": "The hostname no longer resolves to the same pinned panel address. No ADB key or installation was sent. Check the address and start again.",
+      "adb_unreachable": "The panel answered, but nothing answered on its Android Debug Bridge port (5555). On the panel, turn on Android Debug Bridge and allow it over the network, then try again. If you can plug the panel into the computer you are browsing on, install over USB instead.",
+      "adb_still_unauthorized": "The panel has not accepted this Home Assistant instance yet. Approve the ADB prompt on the panel, then try again.",
+      "adb_credential_error": "Home Assistant could not safely load or persist its ADB credential. No panel change was attempted. Check the Home Assistant storage and logs before retrying.",
+      "retained_or_ambiguous": "The panel may contain a retained ha-paneld package record or its package state could not be proven absent. No panel change was made. Retry once if the connection was unstable; otherwise follow the provisioning safety and recovery guide linked from the integration documentation. Do not uninstall or reset the app without a verified backup.",
+      "unknown": "Unexpected error",
+      "panel_identity_changed": "The address no longer answers as this configured panel. Check the panel and its address before retrying."
     },
     "abort": {
       "native_entities_disabled": "Native entities are not turned on for this Home Assistant, so MQTT controls this panel."

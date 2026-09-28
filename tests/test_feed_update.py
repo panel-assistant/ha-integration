@@ -348,6 +348,12 @@ async def test_feed_offer_is_withheld_when_no_install_route_works(
         "async_get_durable_adb_credential",
         AsyncMock(side_effect=AdbCredentialError),
     )
+    client.address = normalize_address("192.168.1.10")
+    monkeypatch.setattr(
+        panel_update,
+        "async_pin_install_target",
+        AsyncMock(side_effect=OSError("panel unreachable")),
+    )
 
     assert entity.latest_version == entity.installed_version
     with pytest.raises(HomeAssistantError, match="unavailable"):

@@ -26,6 +26,7 @@ from . import HaPaneldConfigEntry
 from .adb_credentials import (
     AdbCredential,
     AdbCredentialError,
+    async_get_adb_credential,
     async_get_durable_adb_credential,
 )
 from .app_identity import LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, reports_package
@@ -396,7 +397,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         if artifact is None or artifact.descriptor is None:
             return None, None, None
         try:
-            credential = await async_get_durable_adb_credential(self.hass)
+            try:
+                credential = await async_get_durable_adb_credential(self.hass)
+            except AdbCredentialError:
+                credential = None
             pinned = await async_pin_install_target(
                 self.hass, self.coordinator.client.address
             )
@@ -410,6 +414,23 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 or pinned_health.package != snapshot.health.package
             ):
                 return None, None, None
+            if credential is None:
+                # Running panels can have a config entry without an HA ADB key.
+                # Only an already-open ADB peer can establish this route without
+                # prompting the panel owner for authorization.
+                open_probe = await async_probe_install_target(pinned.pinned)
+                if open_probe.state not in {
+                    InstallTargetState.INSTALLED,
+                    InstallTargetState.MIGRATION_CANDIDATE,
+                } or None in (
+                    open_probe.serial,
+                    open_probe.model,
+                    open_probe.primary_abi,
+                    open_probe.android_sdk,
+                ):
+                    return None, None, None
+                await async_get_adb_credential(self.hass)
+                credential = await async_get_durable_adb_credential(self.hass)
             probe = await async_probe_install_target(pinned.pinned, credential.signer)
             if probe.state not in {
                 InstallTargetState.INSTALLED,

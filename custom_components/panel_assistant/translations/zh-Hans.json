@@ -767,10 +767,11 @@
     "step": {
       "init": {
         "title": "面板设置",
-        "description": "继续在浏览器中设置此面板，或更改其连接方式。确认已登录的账户之前，面板将保持未绑定状态。",
+        "description": "继续配置此面板、更改其连接方式，或授权 ADB 用于面板更新。如果面板尚未绑定，请确认已登录的账户以完成配置。",
         "menu_options": {
           "onboarding": "继续设置",
-          "transport": "连接设置"
+          "transport": "连接设置",
+          "authorize_adb": "授权 ADB 更新"
         }
       },
       "onboarding": {
@@ -789,6 +790,10 @@
           "onboarding_skip": "暂不"
         }
       },
+      "authorize_adb": {
+        "title": "在 {panel} 上授权 Home Assistant",
+        "description": "点击“提交”以创建或加载此 Home Assistant 安装的持久 ADB 密钥，并向 {panel} 提供公钥。在实体面板上批准 Android 的“允许调试”提示，然后再次提交。Android 可能将 Home Assistant 称为计算机。只要网络调试保持开启，此授权就允许一般 ADB shell 访问；可在面板的开发者选项中撤销。此步骤不会安装应用。"
+      },
       "transport": {
         "title": "面板连接",
         "description": "选择由什么控制此面板的实体和命令。保存 Panel Assistant 后，Panel Assistant 会把面板的 MQTT 实体迁移到自身，并保留其实体 ID、历史记录和你的自定义设置，随后面板会撤回其 MQTT 实体。保存 MQTT（无论是否带原生报告）会把它们迁回 MQTT。无论哪种情况，面板都会以新的选择重新连接。",
@@ -796,6 +801,21 @@
           "authority": "控制方式"
         }
       }
+    },
+    "error": {
+      "cannot_connect": "无法连接到有效的 ha-paneld 健康检查端点。",
+      "invalid_install_address": "请只输入面板主机名或 IP 地址。安装程序会分别使用 ha-paneld 端口 8888 和 ADB 端口 5555。",
+      "install_resolution_failed": "Home Assistant 无法解析此面板地址。请检查地址和本地 DNS，然后重试。",
+      "install_resolution_timeout": "在能够安全固定面板地址之前，本地名称解析已超时。请检查本地 DNS，然后重试。",
+      "install_too_many_addresses": "此主机名解析出的地址过多，无法安全固定。请使用专用的本地主机名或私有 IP 地址。",
+      "unsafe_install_target": "只允许安装到私有本地 IPv4 地址或 IPv6 唯一本地地址。未尝试 ADB 连接。",
+      "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥，也未执行安装。请检查地址并重新开始。",
+      "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到你正在使用的这台计算机上，也可以改用 USB 安装。",
+      "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
+      "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
+      "retained_or_ambiguous": "面板可能保留了 ha-paneld 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照集成文档中链接的配置安全与恢复指南操作。在备份经过验证之前，请勿卸载或重置应用。",
+      "unknown": "出现意外错误",
+      "panel_identity_changed": "该地址不再回应为已配置的面板。请检查面板及其地址后重试。"
     },
     "abort": {
       "native_entities_disabled": "此 Home Assistant 未启用原生实体，因此由 MQTT 控制此面板。"

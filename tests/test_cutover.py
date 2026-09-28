@@ -1597,6 +1597,9 @@ async def test_saving_the_option_reloads_exactly_once_and_data_writes_never(
         assert reload.call_count == 0
         # The same authority again.
         form = await hass.config_entries.options.async_init(entry.entry_id)
+        form = await hass.config_entries.options.async_configure(
+            form["flow_id"], {"next_step_id": "transport"}
+        )
         await hass.config_entries.options.async_configure(
             form["flow_id"], {"authority": "shadow"}
         )
@@ -1604,6 +1607,9 @@ async def test_saving_the_option_reloads_exactly_once_and_data_writes_never(
         assert reload.call_count == 0
 
         form = await hass.config_entries.options.async_init(entry.entry_id)
+        form = await hass.config_entries.options.async_configure(
+            form["flow_id"], {"next_step_id": "transport"}
+        )
         await hass.config_entries.options.async_configure(
             form["flow_id"], {"authority": "native"}
         )

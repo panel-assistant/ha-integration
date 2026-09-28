@@ -259,7 +259,12 @@ async def test_options_flow_aborts_without_native_entities(
     """A release carries the choice dark."""
     entry = await _setup(hass, hass_read_only_user.id, native=False)
 
-    result = await hass.config_entries.options.async_init(entry.entry_id)
+    menu = await hass.config_entries.options.async_init(entry.entry_id)
+    assert menu["type"] is FlowResultType.MENU
+    assert "authorize_adb" in menu["menu_options"]
+    result = await hass.config_entries.options.async_configure(
+        menu["flow_id"], {"next_step_id": "transport"}
+    )
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "native_entities_disabled"
@@ -271,6 +276,14 @@ def _default(result: Any, key: str) -> Any:
         if marker == key:
             return marker.default()
     raise AssertionError(key)
+
+
+async def _transport_form(hass: HomeAssistant, entry: MockConfigEntry) -> Any:
+    menu = await hass.config_entries.options.async_init(entry.entry_id)
+    assert menu["type"] is FlowResultType.MENU
+    return await hass.config_entries.options.async_configure(
+        menu["flow_id"], {"next_step_id": "transport"}
+    )
 
 
 async def test_changing_the_authority_ends_the_session_and_regrants(
@@ -285,7 +298,7 @@ async def test_changing_the_authority_ends_the_session_and_regrants(
     panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
     assert panel.result["authority"] == "shadow"
 
-    form = await hass.config_entries.options.async_init(entry.entry_id)
+    form = await _transport_form(hass, entry)
     assert form["type"] is FlowResultType.FORM
     assert form["step_id"] == "transport"
     assert _default(form, "authority") == "shadow"
@@ -310,7 +323,7 @@ async def test_changing_the_authority_ends_the_session_and_regrants(
     again = await _connect(hass, hass_ws_client, hass_read_only_access_token)
     assert again.result["authority"] == "native"
     assert again.result["capabilities"] == ["approval", "commands", "events", "state"]
-    form = await hass.config_entries.options.async_init(entry.entry_id)
+    form = await _transport_form(hass, entry)
     assert _default(form, "authority") == "native"
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
 
@@ -339,7 +352,7 @@ async def test_entry_writes_that_keep_the_authority_keep_the_session(
     await panel.nothing_sent()
     assert entry.runtime_data.client.address.host == "panel-2.local"
 
-    form = await hass.config_entries.options.async_init(entry.entry_id)
+    form = await _transport_form(hass, entry)
     await hass.config_entries.options.async_configure(
         form["flow_id"], {"authority": "native"}
     )
@@ -358,7 +371,7 @@ async def test_a_panel_that_chose_native_runs_natively_without_yaml(
     )
 
     assert transport.effective_authority(hass, entry) == "native"
-    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await _transport_form(hass, entry)
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "transport"
 
@@ -370,7 +383,7 @@ async def test_without_yaml_a_panel_that_chose_nothing_stays_shadow(
     entry = await _setup(hass, hass_read_only_user.id, native=None)
 
     assert transport.effective_authority(hass, entry) == "shadow"
-    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await _transport_form(hass, entry)
     assert result["type"] is FlowResultType.FORM
 
 

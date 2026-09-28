@@ -789,10 +789,11 @@
     "step": {
       "init": {
         "title": "Konfiguracja panelu",
-        "description": "Kontynuuj konfigurację tego panelu w przeglądarce lub zmień sposób połączenia. Panel pozostanie niepowiązany, dopóki nie potwierdzisz konta, na które się zalogowano.",
+        "description": "Kontynuuj konfigurację panelu, zmień sposób połączenia lub autoryzuj ADB do aktualizacji. Jeśli panel nie jest jeszcze powiązany, potwierdź zalogowane konto, aby ukończyć konfigurację.",
         "menu_options": {
           "onboarding": "Kontynuuj konfigurację",
-          "transport": "Ustawienia połączenia"
+          "transport": "Ustawienia połączenia",
+          "authorize_adb": "Autoryzuj ADB do aktualizacji"
         }
       },
       "onboarding": {
@@ -811,6 +812,10 @@
           "onboarding_skip": "Nie teraz"
         }
       },
+      "authorize_adb": {
+        "title": "Autoryzuj Home Assistant na panelu {panel}",
+        "description": "Wybierz Prześlij, aby utworzyć lub wczytać trwały klucz ADB tej instalacji Home Assistant i przekazać klucz publiczny panelowi {panel}. Zatwierdź monit systemu Android „Zezwól na debugowanie” bezpośrednio na panelu, a następnie prześlij formularz ponownie. Android może określić Home Assistant jako komputer. Zgoda daje ogólny dostęp do powłoki ADB, dopóki debugowanie sieciowe jest włączone; można ją cofnąć w opcjach programisty panelu. W tym kroku nie jest instalowana żadna aplikacja."
+      },
       "transport": {
         "title": "Transport panelu",
         "description": "Wybierz, co steruje encjami i poleceniami tego panelu. Zapisanie opcji Panel Assistant przenosi encje MQTT panelu do Panel Assistant z zachowaniem ich identyfikatorów encji, historii i dostosowań, a następnie panel wycofuje swoje encje MQTT. Zapisanie opcji MQTT, z raportami natywnymi lub bez nich, przenosi je z powrotem do MQTT. W obu przypadkach panel łączy się ponownie z nowym wyborem.",
@@ -818,6 +823,21 @@
           "authority": "Sterowanie"
         }
       }
+    },
+    "error": {
+      "cannot_connect": "Nie udało się nawiązać połączenia z prawidłowym punktem końcowym stanu działania usługi ha-paneld.",
+      "invalid_install_address": "Wprowadź tylko nazwę hosta lub adres IP panelu. Instalator osobno używa portu 8888 ha-paneld i portu 5555 ADB.",
+      "install_resolution_failed": "Home Assistant nie może rozpoznać adresu tego panelu. Sprawdź adres i lokalny DNS, a następnie spróbuj ponownie.",
+      "install_resolution_timeout": "Upłynął limit czasu lokalnego rozpoznawania nazwy, zanim adres panelu mógł zostać bezpiecznie ustalony. Sprawdź lokalny DNS, a następnie spróbuj ponownie.",
+      "install_too_many_addresses": "Ta nazwa hosta została rozpoznana jako zbyt wiele adresów, aby można było bezpiecznie ją przypiąć. Użyj dedykowanej lokalnej nazwy hosta lub prywatnego adresu IP.",
+      "unsafe_install_target": "Instalacja jest dozwolona wyłącznie pod prywatnym lokalnym adresem IPv4 lub unikalnym lokalnym adresem IPv6. Nie podjęto żadnej próby nawiązania połączenia typu ADB.",
+      "install_target_changed": "Nazwa hosta nie wskazuje już tego samego przypiętego adresu panelu. Nie wysłano klucza ADB ani instalacji. Sprawdź adres i zacznij od nowa.",
+      "adb_unreachable": "Panel odpowiedział, ale nic nie odpowiedziało na jego porcie Android Debug Bridge (5555). Na panelu włącz Android Debug Bridge i zezwól na jego działanie przez sieć, a następnie spróbuj ponownie. Jeśli możesz podłączyć panel do komputera, na którym przeglądasz tę stronę, zainstaluj zamiast tego przez USB.",
+      "adb_still_unauthorized": "Panel nie zaakceptował jeszcze tej instancji Home Assistant. Zatwierdź monit ADB na panelu, a następnie spróbuj ponownie.",
+      "adb_credential_error": "Home Assistant nie mógł bezpiecznie wczytać ani zapisać swoich danych uwierzytelniających ADB. Nie podjęto próby zmiany panelu. Przed ponowną próbą sprawdź pamięć i logi Home Assistant.",
+      "retained_or_ambiguous": "Panel może zawierać zachowany rekord pakietu ha-paneld albo nie udało się dowieść, że pakietu nie ma. Nie wprowadzono żadnych zmian w panelu. Spróbuj ponownie tylko raz, jeśli połączenie było niestabilne; w przeciwnym razie postępuj zgodnie z przewodnikiem bezpiecznej instalacji i odzyskiwania, do którego link znajduje się w dokumentacji integracji. Nie odinstalowuj ani nie resetuj aplikacji bez zweryfikowanej kopii zapasowej.",
+      "unknown": "Nieoczekiwany błąd",
+      "panel_identity_changed": "Ten adres nie odpowiada już jako skonfigurowany panel. Sprawdź panel i adres przed ponowną próbą."
     },
     "abort": {
       "native_entities_disabled": "Natywne encje nie są włączone dla tego Home Assistant, więc tym panelem steruje MQTT."

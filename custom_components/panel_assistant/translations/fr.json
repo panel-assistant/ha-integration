@@ -767,10 +767,11 @@
     "step": {
       "init": {
         "title": "Configuration du panneau",
-        "description": "Poursuivez la configuration de ce panneau dans le navigateur ou modifiez son mode de connexion. Le panneau restera non associé tant que vous n'aurez pas confirmé le compte connecté.",
+        "description": "Poursuivez la configuration de ce panneau, modifiez son mode de connexion ou autorisez ADB pour ses mises à jour. Si le panneau n’est pas encore associé, confirmez le compte connecté pour terminer la configuration.",
         "menu_options": {
           "onboarding": "Poursuivre la configuration",
-          "transport": "Paramètres de connexion"
+          "transport": "Paramètres de connexion",
+          "authorize_adb": "Autoriser ADB pour les mises à jour"
         }
       },
       "onboarding": {
@@ -789,6 +790,10 @@
           "onboarding_skip": "Pas maintenant"
         }
       },
+      "authorize_adb": {
+        "title": "Autoriser Home Assistant sur {panel}",
+        "description": "Cliquez sur Envoyer pour créer ou charger la clé ADB persistante de cette installation Home Assistant et présenter sa clé publique à {panel}. Acceptez la demande Android « Autoriser le débogage » sur le panneau physique, puis envoyez à nouveau le formulaire. Android peut présenter Home Assistant comme un ordinateur. Cette autorisation donne un accès général au shell ADB tant que le débogage réseau est actif ; vous pouvez la révoquer dans les options pour les développeurs du panneau. Aucune application n’est installée à cette étape."
+      },
       "transport": {
         "title": "Connexion du panneau",
         "description": "Choisissez ce qui contrôle les entités et les commandes de ce panneau. En enregistrant Panel Assistant, Panel Assistant déplace vers lui les entités MQTT du panneau, en conservant leurs identifiants d'entité, leur historique et vos personnalisations, puis le panneau retire ses entités MQTT. En enregistrant MQTT, avec ou sans rapports natifs, elles reviennent à MQTT. Dans les deux cas, le panneau se reconnecte avec le nouveau choix.",
@@ -796,6 +801,21 @@
           "authority": "Contrôle"
         }
       }
+    },
+    "error": {
+      "cannot_connect": "Impossible de se connecter à un point de terminaison d'état ha-paneld valide.",
+      "invalid_install_address": "Saisissez uniquement le nom d'hôte ou l'adresse IP du panneau. Le programme d'installation utilise séparément le port 8888 de ha-paneld et le port 5555 d'ADB.",
+      "install_resolution_failed": "Home Assistant n'a pas pu résoudre l'adresse de ce panneau. Vérifiez l'adresse et le DNS local, puis réessayez.",
+      "install_resolution_timeout": "Le délai de résolution locale du nom a expiré avant que l'adresse du panneau puisse être fixée de façon sûre. Vérifiez le DNS local, puis réessayez.",
+      "install_too_many_addresses": "Ce nom d'hôte correspond à un trop grand nombre d'adresses pour que l'une d'elles puisse être retenue de façon sûre. Utilisez un nom d'hôte local dédié ou une adresse IP privée.",
+      "unsafe_install_target": "L'installation n'est autorisée que si la cible est une adresse IPv4 locale privée ou une adresse IPv6 locale unique. Aucune connexion ADB n'a été tentée.",
+      "install_target_changed": "Le nom d'hôte ne renvoie plus la même adresse épinglée pour le panneau. Aucune clé ADB n'a été envoyée et aucune installation n'a été lancée. Vérifiez l'adresse et recommencez.",
+      "adb_unreachable": "Le panneau a répondu, mais rien n'a répondu sur son port Android Debug Bridge (5555). Sur le panneau, activez Android Debug Bridge et autorisez-le sur le réseau, puis réessayez. Si vous pouvez brancher le panneau sur l'ordinateur depuis lequel vous naviguez, installez plutôt par USB.",
+      "adb_still_unauthorized": "Le panneau n'a pas encore accepté cette instance de Home Assistant. Acceptez l'invite ADB sur le panneau, puis réessayez.",
+      "adb_credential_error": "Home Assistant n'a pas pu charger ou conserver son identifiant ADB de façon sûre. Aucune modification du panneau n'a été tentée. Vérifiez le stockage et les journaux de Home Assistant avant de réessayer.",
+      "retained_or_ambiguous": "Le panneau peut contenir un enregistrement conservé du paquet ha-paneld, ou il n'a pas été possible de confirmer qu'aucune trace de ce paquet n'y subsiste. Le panneau n'a pas été modifié. Réessayez une fois si la connexion était instable ; sinon, suivez le guide de sécurité et de récupération du provisionnement indiqué dans la documentation de l'intégration. Ne désinstallez pas et ne réinitialisez pas l'application sans disposer d'une sauvegarde vérifiée.",
+      "unknown": "Erreur inattendue",
+      "panel_identity_changed": "Cette adresse ne répond plus comme le panneau configuré. Vérifiez le panneau et son adresse avant de réessayer."
     },
     "abort": {
       "native_entities_disabled": "Les entités natives ne sont pas activées dans ce Home Assistant : MQTT contrôle donc ce panneau."

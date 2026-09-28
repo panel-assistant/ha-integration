@@ -1525,6 +1525,14 @@ class HaPaneldOptionsFlow(OptionsFlow):
     _setup_watch: asyncio.Task[None] | None = None
     _pending_bind_user_id: str | None = None
 
+    def _current_panel_health(self) -> PanelHealth | None:
+        """Use the loaded entry's panel identity for ADB consent."""
+        coordinator = getattr(
+            getattr(self.config_entry, "runtime_data", None), "coordinator", None
+        )
+        health = getattr(getattr(coordinator, "data", None), "health", None)
+        return health if isinstance(health, PanelHealth) else None
+
     def _onboarding_client(self) -> HaPaneldClient:
         return HaPaneldClient(
             async_get_clientsession(self.hass),
@@ -1537,11 +1545,83 @@ class HaPaneldOptionsFlow(OptionsFlow):
         """Start at the transport step."""
         if self.context.get("source") == "onboarding":
             return await self.async_step_onboarding()
+        if self._current_panel_health() is not None:
+            options = ["transport", "authorize_adb"]
+            if CONF_TRANSPORT_USER_ID not in self.config_entry.data:
+                options.insert(0, "onboarding")
+            return self.async_show_menu(step_id="init", menu_options=options)
         if CONF_TRANSPORT_USER_ID not in self.config_entry.data:
             return self.async_show_menu(
                 step_id="init", menu_options=["onboarding", "transport"]
             )
         return await self.async_step_transport(user_input)
+
+    async def async_step_authorize_adb(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Offer HA's durable ADB key only after explicit existing-panel consent."""
+        if user_input is None:
+            return self._show_adb_authorization()
+
+        expected = self._current_panel_health()
+        if expected is None:
+            return self._show_adb_authorization({"base": "cannot_connect"})
+        expected_did = _panel_did(self.config_entry)
+        try:
+            address = normalize_address(self.config_entry.data[CONF_ADDRESS])
+            target = await async_pin_install_target(self.hass, address)
+            actual = await HaPaneldClient(
+                async_get_clientsession(self.hass), target.pinned
+            ).async_get_health()
+            if (
+                actual.panel_id != expected.panel_id
+                or actual.package != expected.package
+                or (expected_did is not None and actual.discovery_id != expected_did)
+            ):
+                return self._show_adb_authorization({"base": "panel_identity_changed"})
+            await async_revalidate_install_target(self.hass, target)
+            signer = await async_get_adb_signer(self.hass)
+            probe = await async_probe_install_target(target.pinned, signer)
+            await async_revalidate_install_target(self.hass, target)
+        except InstallNetworkError as err:
+            return self._show_adb_authorization({"base": _install_network_error(err)})
+        except CannotConnectError, InvalidResponseError:
+            return self._show_adb_authorization({"base": "cannot_connect"})
+        except AdbCredentialError:
+            return self._show_adb_authorization({"base": "adb_credential_error"})
+        except Exception:
+            _LOGGER.exception(
+                "Unexpected exception authorizing ADB for configured panel"
+            )
+            return self._show_adb_authorization({"base": "unknown"})
+
+        if probe.state is InstallTargetState.ADB_UNAUTHORIZED:
+            return self._show_adb_authorization({"base": "adb_still_unauthorized"})
+        if probe.state in {
+            InstallTargetState.INSTALLED,
+            InstallTargetState.MIGRATION_CANDIDATE,
+        }:
+            if await self.hass.config_entries.async_reload(self.config_entry.entry_id):
+                return self.async_create_entry(data=dict(self.config_entry.options))
+            return self._show_adb_authorization({"base": "unknown"})
+        return self._show_adb_authorization(
+            {
+                "base": {
+                    InstallTargetState.ADB_UNREACHABLE: "adb_unreachable",
+                    InstallTargetState.RETAINED_OR_AMBIGUOUS: "retained_or_ambiguous",
+                }.get(probe.state, "panel_identity_changed")
+            }
+        )
+
+    def _show_adb_authorization(
+        self, errors: dict[str, str] | None = None
+    ) -> ConfigFlowResult:
+        return self.async_show_form(
+            step_id="authorize_adb",
+            data_schema=vol.Schema({}),
+            description_placeholders={"panel": self.config_entry.title},
+            errors=errors,
+        )
 
     async def async_step_onboarding(
         self, user_input: dict[str, Any] | None = None
