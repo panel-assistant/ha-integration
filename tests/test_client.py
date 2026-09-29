@@ -464,6 +464,23 @@ def test_status_parser_projects_every_device_card_fact() -> None:
     assert device.area == "Study"
 
 
+@pytest.mark.parametrize("area", ["null", " NuLl "])
+def test_status_parser_omits_legacy_literal_null_area(area: str) -> None:
+    """A legacy panel's bad area never reaches cards or diagnostics."""
+    body = json.dumps(
+        {
+            "warnings": [],
+            "capabilities": [],
+            "panel_assistant_device": {"name": "Alpha panel", "area": area},
+        }
+    )
+
+    device = parse_status_response(body).panel_assistant_device
+    assert device is not None
+    assert device.name == "Alpha panel"
+    assert device.area is None
+
+
 @pytest.mark.parametrize(
     ("body", "expected"),
     [

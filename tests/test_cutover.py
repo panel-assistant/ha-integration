@@ -318,7 +318,13 @@ async def test_cutover_does_not_copy_an_accidental_null_area(
     registry = dr.async_get(hass)
     registry.async_update_device(mqtt["device"].id, area_id=accidental.id)
 
-    entry = await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
+    with patch.object(
+        registry, "async_update_device", wraps=registry.async_update_device
+    ) as updates:
+        entry = await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
+    assert not any(
+        call.kwargs.get("area_id") == accidental.id for call in updates.call_args_list
+    )
 
     own = registry.async_get_device_by_identifier(
         (DOMAIN, entry.entry_id), entry.entry_id
