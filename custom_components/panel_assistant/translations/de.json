@@ -780,13 +780,13 @@
       "description": "Unter {address} hat sich nicht {panel} gemeldet. Deshalb sind die Steuerelemente für dieses Panel vorübergehend deaktiviert. Prüfe, ob diese Adresse zum Panel gehört. Wenn sich seine Adresse geändert hat, füge es mit der aktuellen Adresse erneut hinzu."
     },
     "panel_identity_confirmation": {
-      "title": "Bestehende Einrichtung dieses Panels beibehalten",
-      "description": "{panel} unter {address} muss nach einem App-Update bestätigt werden. Bestätige, dass dies das Panel ist, dessen bestehende Einrichtung du beibehalten möchtest.",
+      "title": "Bestehende Einrichtung für {panel} behalten",
+      "description": "{panel} unter {address} benötigt nach einem App-Update eine Bestätigung. Öffne diese Reparatur, um alle ausstehenden Panels zu prüfen und ihre Einrichtungen mit einer Aktion zu behalten.",
       "fix_flow": {
         "step": {
           "confirm_identity": {
-            "title": "Bestehende Einrichtung dieses Panels beibehalten",
-            "description": "Bestehende Entitäten und Einstellungen für {panel} unter {address} beibehalten?"
+            "title": "Aufgeführte Panel-Einrichtungen behalten",
+            "description": "Bestehende Entitäten und Einstellungen für alle diese Panels behalten?\n\n{panels}\n\nEinmal absenden, um alle aufgeführten Panels zu bestätigen."
           }
         },
         "abort": {
@@ -794,7 +794,7 @@
           "identity_changed": "Das Panel hat sich geändert, während diese Bestätigung geöffnet war. Öffne die neueste Reparaturmeldung und versuche es erneut."
         },
         "error": {
-          "cannot_connect": "Das Panel ist nicht erreichbar. Prüfe seine Verbindung und versuche es erneut."
+          "cannot_connect": "Nicht alle aufgeführten Panels sind erreichbar. Prüfe ihre Verbindungen und versuche es erneut."
         }
       }
     }

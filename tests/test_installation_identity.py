@@ -183,9 +183,20 @@ async def test_repair_rechecks_conflicts_and_the_shown_panel(
     assert registry.async_get(entity.entity_id).unique_id == entity.unique_id
 
 
-@pytest.mark.parametrize("proof", ["exclusive", "merged", "deleted"])
+@pytest.mark.parametrize(
+    "proof",
+    [
+        "exclusive",
+        "merged",
+        "deleted",
+        "deleted_merged",
+        "pruned",
+        "shared_legacy",
+        "previous_legacy",
+    ],
+)
 async def test_automatic_upgrade_requires_surviving_exclusive_installation_proof(
-    hass, hass_read_only_user, proof
+    hass, hass_ws_client, hass_read_only_user, hass_read_only_access_token, proof
 ):
     from hashlib import sha256
 
@@ -197,7 +208,7 @@ async def test_automatic_upgrade_requires_surviving_exclusive_installation_proof
     mqtt = MockConfigEntry(domain="mqtt", data={})
     mqtt.add_to_hass(hass)
     identifiers = {("mqtt", "ha-paneld-alpha"), ("mqtt", f"ha-paneld-uid-{uid}")}
-    if proof == "merged":
+    if proof in ("merged", "deleted_merged"):
         identifiers.add(("mqtt", "ha-paneld-beta"))
     device = dr.async_get(hass).async_get_or_create(
         config_entry_id=mqtt.entry_id, identifiers=identifiers
@@ -218,17 +229,58 @@ async def test_automatic_upgrade_requires_surviving_exclusive_installation_proof
         "supported_channels": {"did": DID, "channels": ["relay1"]},
     }
     hass.config_entries.async_update_entry(entry, data=data)
-    if proof == "deleted":
+    if proof in ("deleted", "deleted_merged", "pruned"):
         dr.async_get(hass).async_remove_device(device.id)
+        if proof == "pruned":
+            from freezegun import freeze_time
+
+            dr.async_get(hass).async_clear_config_entry(mqtt.entry_id)
+            with freeze_time("2099-01-01"):
+                dr.async_get(hass).async_purge_expired_orphaned_devices()
+    if proof in ("shared_legacy", "previous_legacy"):
+        other = MockConfigEntry(
+            domain=DOMAIN,
+            unique_id=DID if proof == "shared_legacy" else OTHER_DID,
+            title="beta",
+            data={
+                CONF_ADDRESS: "other.local",
+                **(
+                    {
+                        "previous_installation_identity": DID,
+                        "installation_identity": True,
+                    }
+                    if proof == "previous_legacy"
+                    else {}
+                ),
+            },
+        )
+        other.add_to_hass(hass)
+        from custom_components.panel_assistant.identity import accept_health
+
+        if proof == "shared_legacy":
+            assert not accept_health(hass, other, _health(OTHER_DID))
     with patch.object(hass.config_entries, "async_reload", AsyncMock()):
         await _poll(hass, entry, {STORED: _health(new_did)})
         await hass.async_block_till_done()
-    if proof == "exclusive":
+    if proof in ("exclusive", "deleted"):
         assert entry.unique_id == new_did
         assert registry.async_get(entity.entity_id).id == entity.id
         assert registry.async_get(entity.entity_id).unique_id == f"{new_did}_relay1"
         assert entry.data["cutover"]["did"] == new_did
         assert entry.data["supported_channels"]["did"] == new_did
+        from homeassistant.helpers import issue_registry as ir
+
+        from .test_transport import _hello
+
+        assert (
+            ir.async_get(hass).async_get_issue(
+                DOMAIN, f"panel_identity_confirmation_{entry.entry_id}"
+            )
+            is None
+        )
+        client = await hass_ws_client(hass, hass_read_only_access_token)
+        response = await _send(client, _hello(did=new_did))
+        assert response["success"], response
     else:
         assert entry.unique_id == DID
         assert registry.async_get(entity.entity_id).unique_id == f"{DID}_relay1"
@@ -629,3 +681,56 @@ async def test_old_address_entry_keeps_identity_from_its_owned_entities(
         )
         is not None
     )
+
+
+async def test_identity_repair_admits_the_panels_next_connection(
+    hass, hass_ws_client, hass_read_only_user, hass_read_only_access_token
+):
+    """Confirmation admits the next hello without changing the account binding."""
+    from homeassistant.helpers import issue_registry as ir
+
+    from custom_components.panel_assistant.repairs import async_create_fix_flow
+    from custom_components.panel_assistant.transport import async_get_sessions
+
+    from .test_transport import _hello
+
+    entry = await _load(hass, hass_read_only_user.id, address="127.0.0.1")
+    hass.config_entries.async_update_entry(
+        entry, data={**entry.data, "installation_identity": False}
+    )
+    await _poll(hass, entry, {"127.0.0.1": _health(OTHER_DID)})
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    refused = await _send(client, _hello(did=OTHER_DID))
+    assert refused["error"]["code"] == "unknown_panel"
+    assert async_get_sessions(hass).get(entry.entry_id) is None
+    issue = ir.async_get(hass).async_get_issue(
+        DOMAIN, f"panel_identity_confirmation_{entry.entry_id}"
+    )
+    flow = await async_create_fix_flow(hass, issue.issue_id, issue.data)
+    flow.hass = hass
+    await flow.async_step_init()
+    with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=_health(OTHER_DID)),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=STATUS),
+        ),
+        patch(
+            "custom_components.panel_assistant.async_resume_loaded_install_jobs",
+            AsyncMock(return_value=()),
+        ),
+        patch(
+            "custom_components.panel_assistant._async_reconcile_install_receipt",
+            AsyncMock(),
+        ),
+    ):
+        assert (await flow.async_step_confirm_identity({}))[
+            "type"
+        ] is FlowResultType.CREATE_ENTRY
+        await hass.async_block_till_done()
+    accepted = await _send(client, _hello(did=OTHER_DID))
+    assert accepted["success"], accepted
+    assert async_get_sessions(hass).get(entry.entry_id).did == OTHER_DID

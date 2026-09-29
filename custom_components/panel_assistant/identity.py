@@ -60,7 +60,13 @@ def migration_candidate(entry: ConfigEntry, health: PanelHealth) -> bool:
 
 
 def _prior_installation(hass: HomeAssistant, entry: ConfigEntry, did: str) -> bool:
-    """Require surviving exclusive MQTT registry evidence from this cutover."""
+    """Require exclusive MQTT evidence, including records retained after cleanup."""
+    if any(
+        other.entry_id != entry.entry_id
+        and entry.unique_id in (other.unique_id, other.data.get(CONF_PREVIOUS_IDENTITY))
+        for other in hass.config_entries.async_entries(DOMAIN)
+    ):
+        return False
     record = entry.data.get(CONF_CUTOVER)
     if not isinstance(record, dict) or record.get("did") != entry.unique_id:
         return False
@@ -76,7 +82,9 @@ def _prior_installation(hass: HomeAssistant, entry: ConfigEntry, did: str) -> bo
         return False
     registry = dr.async_get(hass)
     for device_id in device_ids:
-        device = registry.async_get(device_id)
+        device = registry.async_get(device_id) or registry.deleted_devices.get(
+            device_id
+        )
         if device is None:
             return False
         uids = {
@@ -116,14 +124,10 @@ def _prior_installation(hass: HomeAssistant, entry: ConfigEntry, did: str) -> bo
 
 
 @callback
-def confirm_identity(
+def can_confirm_identity(
     hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth
 ) -> bool:
-    """Rekey owned native entities in place, committing the entry identity last.
-
-    No await divides preflight from registry updates. If a prior update was
-    interrupted, already migrated entries are left in place on the retry.
-    """
+    """Preflight identity adoption without changing any registry or entry."""
     if not migration_candidate(entry, health):
         return False
     did = health.discovery_id
@@ -143,7 +147,6 @@ def confirm_identity(
     registry = er.async_get(hass)
     assert entry.unique_id is not None
     prefix = f"{entry.unique_id}_"
-    changes = []
     for item in er.async_entries_for_config_entry(registry, entry.entry_id):
         if item.platform != DOMAIN or not item.unique_id.startswith(prefix):
             continue
@@ -151,7 +154,24 @@ def confirm_identity(
         holder = registry.async_get_entity_id(item.domain, DOMAIN, target)
         if holder is not None and holder != item.entity_id:
             return False
-        changes.append((item.entity_id, target))
+    return True
+
+
+@callback
+def confirm_identity(
+    hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth
+) -> bool:
+    """Rekey owned entities in place, committing the entry identity last."""
+    if not can_confirm_identity(hass, entry, health):
+        return False
+    did = health.discovery_id
+    assert did is not None and entry.unique_id is not None
+    registry = er.async_get(hass)
+    changes = [
+        (item.entity_id, did + item.unique_id[len(entry.unique_id) :])
+        for item in er.async_entries_for_config_entry(registry, entry.entry_id)
+        if item.platform == DOMAIN and item.unique_id.startswith(f"{entry.unique_id}_")
+    ]
     from .transport import async_get_sessions
 
     async_get_sessions(hass).close_entry(entry.entry_id, "entry_unloaded")

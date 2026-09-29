@@ -1115,13 +1115,13 @@
       "description": "{address} did not answer as {panel}, so its controls have been paused. Check that this address belongs to the panel. If the panel moved, add it again using its current address."
     },
     "panel_identity_confirmation": {
-      "title": "Keep this panel’s existing setup",
-      "description": "{panel} at {address} needs confirmation after an app update. Confirm that this is the panel whose existing setup you want to keep.",
+      "title": "Keep the existing setup for {panel}",
+      "description": "{panel} at {address} needs confirmation after an app update. Open this repair to review all panels awaiting confirmation and keep their existing setups with one action.",
       "fix_flow": {
         "step": {
           "confirm_identity": {
-            "title": "Keep this panel’s existing setup",
-            "description": "Keep the existing entities and settings for {panel} at {address}?"
+            "title": "Keep the listed panel setups",
+            "description": "Keep the existing entities and settings for all these panels?\n\n{panels}\n\nSubmit once to confirm every panel listed above."
           }
         },
         "abort": {
@@ -1129,7 +1129,7 @@
           "identity_changed": "The panel changed while this confirmation was open. Open the latest repair and try again."
         },
         "error": {
-          "cannot_connect": "Cannot reach the panel. Check its connection and try again."
+          "cannot_connect": "Cannot reach every listed panel. Check their connections and try again."
         }
       }
     }

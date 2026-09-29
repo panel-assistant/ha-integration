@@ -12,6 +12,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType, UnknownStep
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .app_identity import SUCCESSOR_PACKAGE_ID
@@ -20,6 +21,7 @@ from .client import (
     HaPaneldClient,
     InvalidAddressError,
     InvalidResponseError,
+    is_valid_discovery_id,
     normalize_address,
 )
 from .const import CONF_TRANSPORT_USER_ID, DOMAIN, update_unique_id
@@ -32,7 +34,12 @@ from .failure_repair import (
     async_retry_install_job,
     async_support_report,
 )
-from .identity import ISSUE_IDENTITY, confirm_identity
+from .identity import (
+    ISSUE_IDENTITY,
+    can_confirm_identity,
+    confirm_identity,
+    is_installation,
+)
 from .install_executor import async_get_install_executor
 from .install_jobs import InstallPhase, async_get_install_job_manager
 from .migration_repair import (
@@ -57,59 +64,127 @@ _NOT_SHOWN = object()
 
 
 class PanelIdentityFlow(RepairsFlow):
-    """Keep the existing setup only after rechecking the shown endpoint."""
+    """Confirm exactly the pending panel setups shown when this flow opened."""
 
     def __init__(self, values: dict[str, str | int | float | None]) -> None:
         self._values = dict(values)
+        self._candidates: list[dict[str, Any]] | None = None
+        self._registered: set[str] = set()
+        self._panels = ""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> RepairsFlowResult:
-        return await self.async_step_confirm_identity(user_input)
+        # Core passes issue metadata here; only the next step accepts consent.
+        return await self.async_step_confirm_identity()
+
+    def _unchanged(self, values: dict[str, Any]) -> bool:
+        entry = self.hass.config_entries.async_get_entry(values["entry_id"])
+        if (
+            entry is None
+            or is_installation(entry)
+            or entry.unique_id != values["legacy_did"]
+            or entry.data.get("address") != values["address"]
+        ):
+            return False
+        try:
+            normalize_address(values["address"])
+        except InvalidAddressError:
+            return False
+        if values["entry_id"] in self._registered:
+            issue = ir.async_get(self.hass).async_get_issue(
+                DOMAIN, f"{ISSUE_IDENTITY}_{entry.entry_id}"
+            )
+            if issue is None or issue.data != values:
+                return False
+        return True
 
     async def async_step_confirm_identity(
         self, user_input: dict[str, Any] | None = None
     ) -> RepairsFlowResult:
-        entry_id = self._values.get("entry_id")
-        entry = (
-            self.hass.config_entries.async_get_entry(entry_id)
-            if isinstance(entry_id, str)
-            else None
-        )
-        if entry is None:
-            return self.async_abort(reason="entry_removed")
+        if self._candidates is None:
+            registry = ir.async_get(self.hass)
+            snapshot_values: list[dict[str, Any]] = [self._values]
+            for (domain, issue_id), issue in registry.issues.items():
+                if (
+                    domain == DOMAIN
+                    and issue.translation_key == ISSUE_IDENTITY
+                    and issue.is_fixable
+                    and isinstance(issue.data, dict)
+                    and isinstance(issue.data.get("entry_id"), str)
+                    and issue_id == f"{ISSUE_IDENTITY}_{issue.data.get('entry_id')}"
+                ):
+                    entry_id = issue.data["entry_id"]
+                    assert isinstance(entry_id, str)
+                    self._registered.add(entry_id)
+                    if issue.data.get("entry_id") != self._values.get("entry_id"):
+                        snapshot_values.append(dict(issue.data))
+            self._candidates = []
+            names = []
+            for candidate in snapshot_values:
+                if (
+                    not all(
+                        isinstance(candidate.get(key), str)
+                        for key in ("entry_id", "did", "legacy_did", "address")
+                    )
+                    or not is_valid_discovery_id(candidate["did"])
+                    or not is_valid_discovery_id(candidate["legacy_did"])
+                    or candidate["did"] == candidate["legacy_did"]
+                    or not self._unchanged(candidate)
+                ):
+                    if candidate is self._values:
+                        return self.async_abort(reason="identity_changed")
+                    continue
+                entry = self.hass.config_entries.async_get_entry(candidate["entry_id"])
+                assert entry is not None
+                self._candidates.append(candidate)
+                names.append(f"- {entry.title} ({candidate['address']})")
+            self._panels = "\n".join(names)
+        if not self._candidates or not all(
+            self._unchanged(values) for values in self._candidates
+        ):
+            return self.async_abort(reason="identity_changed")
         errors = {}
         if user_input is not None:
-            if entry.unique_id != self._values.get("legacy_did") or entry.data.get(
-                "address"
-            ) != self._values.get("address"):
-                return self.async_abort(reason="identity_changed")
+            healths = []
             try:
-                health = await HaPaneldClient(
-                    async_get_clientsession(self.hass),
-                    normalize_address(entry.data["address"]),
-                ).async_get_health()
-            except CannotConnectError, InvalidResponseError:
+                for values in self._candidates:
+                    healths.append(
+                        await HaPaneldClient(
+                            async_get_clientsession(self.hass),
+                            normalize_address(values["address"]),
+                        ).async_get_health()
+                    )
+            except CannotConnectError, InvalidResponseError, InvalidAddressError:
                 errors["base"] = "cannot_connect"
             else:
-                # The request awaited I/O: recheck every saved value before mutation.
-                if (
-                    entry.unique_id != self._values.get("legacy_did")
-                    or entry.data.get("address") != self._values.get("address")
-                    or health.discovery_id != self._values.get("did")
-                    or health.legacy_discovery_id != self._values.get("legacy_did")
-                    or not confirm_identity(self.hass, entry, health)
-                ):
+                # All reads finish before checking the entire frozen batch. No
+                # await divides these checks from the registry mutations below.
+                targets = [values["did"] for values in self._candidates]
+                if len(set(targets)) != len(targets):
                     return self.async_abort(reason="identity_changed")
+                entries = []
+                for values, health in zip(self._candidates, healths, strict=True):
+                    if not self._unchanged(values):
+                        return self.async_abort(reason="identity_changed")
+                    entry = self.hass.config_entries.async_get_entry(values["entry_id"])
+                    assert entry is not None
+                    if (
+                        health.discovery_id != values["did"]
+                        or health.legacy_discovery_id != values["legacy_did"]
+                        or not can_confirm_identity(self.hass, entry, health)
+                    ):
+                        return self.async_abort(reason="identity_changed")
+                    entries.append(entry)
+                for entry, health in zip(entries, healths, strict=True):
+                    if not confirm_identity(self.hass, entry, health):
+                        return self.async_abort(reason="identity_changed")
                 return self.async_create_entry(data={})
         return self.async_show_form(
             step_id="confirm_identity",
             data_schema=vol.Schema({}),
             errors=errors,
-            description_placeholders={
-                "panel": entry.title,
-                "address": entry.data["address"],
-            },
+            description_placeholders={"panels": self._panels},
         )
 
 

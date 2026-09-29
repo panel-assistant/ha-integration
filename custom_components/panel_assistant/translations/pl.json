@@ -820,13 +820,13 @@
       "description": "Odpowiedź z adresu {address} nie odpowiadała panelowi {panel}, dlatego sterowanie nim zostało tymczasowo wyłączone. Sprawdź, czy ten adres należy do panelu. Jeśli jego adres się zmienił, dodaj panel ponownie, używając aktualnego adresu."
     },
     "panel_identity_confirmation": {
-      "title": "Zachowaj dotychczasową konfigurację tego panelu",
-      "description": "{panel} pod adresem {address} wymaga potwierdzenia po aktualizacji aplikacji. Potwierdź, że to panel, którego dotychczasową konfigurację chcesz zachować.",
+      "title": "Zachowaj konfigurację panelu {panel}",
+      "description": "Panel {panel} pod adresem {address} wymaga potwierdzenia po aktualizacji aplikacji. Otwórz tę naprawę, aby sprawdzić wszystkie oczekujące panele i zachować ich konfiguracje jednym działaniem.",
       "fix_flow": {
         "step": {
           "confirm_identity": {
-            "title": "Zachowaj dotychczasową konfigurację tego panelu",
-            "description": "Zachować dotychczasowe encje i ustawienia panelu {panel} pod adresem {address}?"
+            "title": "Zachowaj konfiguracje wymienionych paneli",
+            "description": "Zachować istniejące encje i ustawienia wszystkich tych paneli?\n\n{panels}\n\nZatwierdź raz, aby potwierdzić wszystkie wymienione panele."
           }
         },
         "abort": {
@@ -834,7 +834,7 @@
           "identity_changed": "Panel zmienił się, gdy to okno potwierdzenia było otwarte. Otwórz najnowsze zgłoszenie w sekcji Naprawy i spróbuj ponownie."
         },
         "error": {
-          "cannot_connect": "Nie można połączyć się z panelem. Sprawdź jego połączenie i spróbuj ponownie."
+          "cannot_connect": "Nie można połączyć się ze wszystkimi wymienionymi panelami. Sprawdź ich połączenia i spróbuj ponownie."
         }
       }
     }

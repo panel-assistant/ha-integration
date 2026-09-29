@@ -780,13 +780,13 @@
       "description": "La réponse de {address} ne correspondait pas à {panel}. Ses commandes ont donc été temporairement désactivées. Vérifiez que cette adresse appartient au panneau. Si son adresse a changé, ajoutez-le à nouveau avec son adresse actuelle."
     },
     "panel_identity_confirmation": {
-      "title": "Conserver la configuration actuelle de ce panneau",
-      "description": "{panel} à l’adresse {address} nécessite une confirmation après une mise à jour de l’application. Confirmez qu’il s’agit du panneau dont vous souhaitez conserver la configuration actuelle.",
+      "title": "Conserver la configuration de {panel}",
+      "description": "{panel} à {address} nécessite une confirmation après une mise à jour. Ouvrez cette réparation pour examiner tous les panneaux en attente et conserver leurs configurations en une seule action.",
       "fix_flow": {
         "step": {
           "confirm_identity": {
-            "title": "Conserver la configuration actuelle de ce panneau",
-            "description": "Conserver les entités et les paramètres actuels de {panel} à l’adresse {address} ?"
+            "title": "Conserver les configurations indiquées",
+            "description": "Conserver les entités et les paramètres existants de tous ces panneaux ?\n\n{panels}\n\nValidez une seule fois pour confirmer tous les panneaux indiqués."
           }
         },
         "abort": {
@@ -794,7 +794,7 @@
           "identity_changed": "Le panneau a changé pendant que cette confirmation était ouverte. Ouvrez le dernier signalement dans Réparations et réessayez."
         },
         "error": {
-          "cannot_connect": "Le panneau est inaccessible. Vérifiez sa connexion et réessayez."
+          "cannot_connect": "Certains panneaux indiqués sont injoignables. Vérifiez leurs connexions et réessayez."
         }
       }
     }

@@ -499,9 +499,16 @@ def _raised_translation_keys() -> dict[str, set[str]]:
                 else getattr(node.func, "id", "")
             )
             if name == "_update_error" and node.args:
-                key = _resolve(node.args[0], constants)
-                assert key is not None, f"{path.name}:{node.lineno}"
-                keys["exceptions"].add(key)
+                argument = node.args[0]
+                branches = (
+                    (argument.body, argument.orelse)
+                    if isinstance(argument, ast.IfExp)
+                    else (argument,)
+                )
+                for branch in branches:
+                    key = _resolve(branch, constants)
+                    assert key is not None, f"{path.name}:{node.lineno}"
+                    keys["exceptions"].add(key)
                 continue
             for keyword in node.keywords:
                 if keyword.arg != "translation_key":

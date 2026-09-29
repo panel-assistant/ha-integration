@@ -780,13 +780,13 @@
       "description": "La respuesta de {address} no correspondía a {panel}, por lo que sus controles se han desactivado temporalmente. Comprueba que esta dirección pertenece al panel. Si su dirección ha cambiado, añádelo de nuevo con la dirección actual."
     },
     "panel_identity_confirmation": {
-      "title": "Conservar la configuración actual de este panel",
-      "description": "{panel} en {address} necesita confirmación tras una actualización de la aplicación. Confirma que este es el panel cuya configuración actual quieres conservar.",
+      "title": "Conservar la configuración de {panel}",
+      "description": "{panel} en {address} necesita confirmación tras actualizar la aplicación. Abre esta reparación para revisar todos los paneles pendientes y conservar sus configuraciones con una sola acción.",
       "fix_flow": {
         "step": {
           "confirm_identity": {
-            "title": "Conservar la configuración actual de este panel",
-            "description": "¿Conservar las entidades y los ajustes actuales de {panel} en {address}?"
+            "title": "Conservar las configuraciones indicadas",
+            "description": "¿Conservar las entidades y los ajustes existentes de todos estos paneles?\n\n{panels}\n\nEnvía una vez para confirmar todos los paneles indicados."
           }
         },
         "abort": {
@@ -794,7 +794,7 @@
           "identity_changed": "El panel ha cambiado mientras esta confirmación estaba abierta. Abre el aviso de reparación más reciente e inténtalo de nuevo."
         },
         "error": {
-          "cannot_connect": "No se puede acceder al panel. Comprueba su conexión e inténtalo de nuevo."
+          "cannot_connect": "No se puede conectar con todos los paneles indicados. Comprueba sus conexiones e inténtalo de nuevo."
         }
       }
     }

@@ -820,13 +820,13 @@
       "description": "Het antwoord van {address} kwam niet overeen met {panel}. Daarom is de bediening van dit paneel tijdelijk uitgeschakeld. Controleer of dit adres bij het paneel hoort. Als het adres is gewijzigd, voeg het paneel dan opnieuw toe met het huidige adres."
     },
     "panel_identity_confirmation": {
-      "title": "De bestaande configuratie van dit paneel behouden",
-      "description": "{panel} op {address} heeft na een app-update bevestiging nodig. Bevestig dat dit het paneel is waarvan je de bestaande configuratie wilt behouden.",
+      "title": "Bestaande instellingen van {panel} behouden",
+      "description": "{panel} op {address} heeft bevestiging nodig na een app-update. Open deze reparatie om alle wachtende panelen te bekijken en hun instellingen met één actie te behouden.",
       "fix_flow": {
         "step": {
           "confirm_identity": {
-            "title": "De bestaande configuratie van dit paneel behouden",
-            "description": "De bestaande entiteiten en instellingen voor {panel} op {address} behouden?"
+            "title": "Instellingen van vermelde panelen behouden",
+            "description": "De bestaande entiteiten en instellingen van al deze panelen behouden?\n\n{panels}\n\nVerzend één keer om alle vermelde panelen te bevestigen."
           }
         },
         "abort": {
@@ -834,7 +834,7 @@
           "identity_changed": "Het paneel is gewijzigd terwijl deze bevestiging openstond. Open de nieuwste reparatiemelding en probeer het opnieuw."
         },
         "error": {
-          "cannot_connect": "Het paneel is niet bereikbaar. Controleer de verbinding en probeer het opnieuw."
+          "cannot_connect": "Niet alle vermelde panelen zijn bereikbaar. Controleer hun verbindingen en probeer het opnieuw."
         }
       }
     }

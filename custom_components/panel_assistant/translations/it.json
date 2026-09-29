@@ -780,13 +780,13 @@
       "description": "La risposta di {address} non corrispondeva a {panel}, quindi i suoi controlli sono stati disattivati temporaneamente. Verifica che questo indirizzo appartenga al pannello. Se il suo indirizzo è cambiato, aggiungilo di nuovo usando quello attuale."
     },
     "panel_identity_confirmation": {
-      "title": "Mantieni la configurazione attuale di questo pannello",
-      "description": "{panel} all’indirizzo {address} richiede una conferma dopo un aggiornamento dell’app. Conferma che questo è il pannello di cui vuoi mantenere la configurazione attuale.",
+      "title": "Mantieni la configurazione di {panel}",
+      "description": "{panel} all’indirizzo {address} richiede conferma dopo un aggiornamento. Apri questa riparazione per controllare tutti i pannelli in attesa e mantenere le loro configurazioni con una sola azione.",
       "fix_flow": {
         "step": {
           "confirm_identity": {
-            "title": "Mantieni la configurazione attuale di questo pannello",
-            "description": "Mantenere le entità e le impostazioni attuali di {panel} all’indirizzo {address}?"
+            "title": "Mantieni le configurazioni elencate",
+            "description": "Mantenere le entità e le impostazioni esistenti di tutti questi pannelli?\n\n{panels}\n\nInvia una sola volta per confermare tutti i pannelli elencati."
           }
         },
         "abort": {
@@ -794,7 +794,7 @@
           "identity_changed": "Il pannello è cambiato mentre questa conferma era aperta. Apri la segnalazione di riparazione più recente e riprova."
         },
         "error": {
-          "cannot_connect": "Impossibile raggiungere il pannello. Controlla la sua connessione e riprova."
+          "cannot_connect": "Non tutti i pannelli elencati sono raggiungibili. Controlla le connessioni e riprova."
         }
       }
     }
