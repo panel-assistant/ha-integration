@@ -17,6 +17,7 @@ from homeassistant.config_entries import (
 )
 from homeassistant.const import CONF_ADDRESS, EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
@@ -305,6 +306,39 @@ async def test_delayed_native_cutover_can_be_cancelled_before_health_recovers(
             original.unique_id,
             original.config_entry_id,
         )
+
+
+@pytest.mark.parametrize("area_name", ["null", " NuLl "])
+async def test_cutover_does_not_copy_an_accidental_null_area(
+    hass: HomeAssistant, hass_read_only_user: Any, area_name: str
+) -> None:
+    """A legacy MQTT device can keep its record without moving our device to `null`."""
+    mqtt = _mqtt(hass, [("switch", "relay1", {})])
+    areas = ar.async_get(hass)
+    accidental = areas.async_get_or_create(area_name)
+    registry = dr.async_get(hass)
+    registry.async_update_device(mqtt["device"].id, area_id=accidental.id)
+
+    with patch.object(
+        registry, "async_update_device", wraps=registry.async_update_device
+    ) as updates:
+        entry = await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
+    assert not any(
+        call.kwargs.get("area_id") == accidental.id for call in updates.call_args_list
+    )
+
+    own = registry.async_get_device_by_identifier(
+        (DOMAIN, entry.entry_id), entry.entry_id
+    )
+    assert own is not None
+    assert own.area_id is None
+    assert registry.async_get(mqtt["device"].id).area_id == accidental.id
+    assert areas.async_get_area(accidental.id) == accidental
+
+    registry.async_update_device(own.id, area_id=accidental.id)
+    await _reload(hass, entry)
+    assert registry.async_get(own.id).area_id is None
+    assert areas.async_get_area(accidental.id) == accidental
 
 
 async def test_forward_cutover_keeps_each_entity_and_its_customisations(

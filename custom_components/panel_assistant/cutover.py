@@ -52,7 +52,7 @@ from homeassistant.helpers.event import async_track_state_change_event
 from .const import CONF_CUTOVER, DOMAIN
 from .contract import catalogue_channel_for_suffix, catalogue_entry_for_suffix
 from .coordinator import PanelSnapshot
-from .device import panel_device_info
+from .device import is_literal_null_area, panel_device_info
 from .guards import (
     RecordWriter,
     _on_panel_device,
@@ -270,7 +270,12 @@ def _own_device(
         ),
     )
     panel_device = mqtt_device(hass, panel_id)
-    if device.area_id is None and panel_device is not None and panel_device.area_id:
+    if (
+        device.area_id is None
+        and panel_device is not None
+        and panel_device.area_id
+        and not is_literal_null_area(hass, panel_device.area_id)
+    ):
         device_registry.async_update_device(device.id, area_id=panel_device.area_id)
     return device
 

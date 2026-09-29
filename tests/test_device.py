@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+import pytest
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -204,3 +206,55 @@ async def test_refreshing_never_creates_a_card(hass: HomeAssistant) -> None:
         )
         is None
     )
+
+
+@pytest.mark.parametrize("reported_area", ["null", " NuLl "])
+async def test_literal_null_report_does_not_create_an_area(
+    hass: HomeAssistant, reported_area: str
+) -> None:
+    """A stored panel value of `null` cannot seed a new HA area."""
+    entry = MockConfigEntry(domain=DOMAIN, title="alpha")
+    entry.add_to_hass(hass)
+    info = panel_device_info(
+        entry.entry_id, _snapshot(PanelDevice(area=reported_area)), URL
+    )
+
+    assert "suggested_area" not in info
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id, **info
+    )
+    assert device.area_id is None
+    assert not ar.async_get(hass).areas
+
+
+@pytest.mark.parametrize("area_name", ["null", " NuLl "])
+async def test_existing_literal_null_assignment_is_cleared_once(
+    hass: HomeAssistant, area_name: str
+) -> None:
+    """Repair our device assignment while preserving all area records and real moves."""
+    entry = MockConfigEntry(domain=DOMAIN, title="alpha")
+    entry.add_to_hass(hass)
+    areas = ar.async_get(hass)
+    accidental = areas.async_get_or_create(area_name)
+    study = areas.async_get_or_create("Study")
+    registry = dr.async_get(hass)
+    device = registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, entry.entry_id)},
+    )
+    registry.async_update_device(device.id, area_id=accidental.id)
+    info = panel_device_info(entry.entry_id, _snapshot(PanelDevice(area="null")), URL)
+
+    async_refresh_panel_device(hass, entry.entry_id, info)
+    assert registry.async_get(device.id).area_id is None
+    assert areas.async_get_area(accidental.id) == accidental
+    async_refresh_panel_device(hass, entry.entry_id, info)
+    assert registry.async_get(device.id).area_id is None
+
+    registry.async_update_device(device.id, area_id=study.id)
+    async_refresh_panel_device(hass, entry.entry_id, info)
+    assert registry.async_get(device.id).area_id == study.id
+
+    registry.async_update_device(device.id, area_id="unavailable_area")
+    async_refresh_panel_device(hass, entry.entry_id, info)
+    assert registry.async_get(device.id).area_id == "unavailable_area"

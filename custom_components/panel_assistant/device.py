@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.typing import UNDEFINED
@@ -80,7 +81,7 @@ def panel_device_info(
         info["model"] = device.model
     # Home Assistant applies suggested_area only when it first registers the device and
     # never overrides a later manual move, matching the panel's own request semantics.
-    if device.area:
+    if device.area and not _is_null_area_name(device.area):
         info["suggested_area"] = device.area
     return info
 
@@ -108,6 +109,16 @@ def _software_version(
     return health.version
 
 
+def _is_null_area_name(name: str) -> bool:
+    return name.strip().casefold() == "null"
+
+
+def is_literal_null_area(hass: HomeAssistant, area_id: str | None) -> bool:
+    """Identify the accidental area by its name, preserving every other area ID."""
+    area = ar.async_get(hass).async_get_area(area_id) if area_id else None
+    return area is not None and _is_null_area_name(area.name)
+
+
 @callback
 def async_refresh_panel_device(
     hass: HomeAssistant, entry_id: str, info: DeviceInfo
@@ -125,6 +136,7 @@ def async_refresh_panel_device(
     # A field the card leaves out keeps its registered value.
     registry.async_update_device(
         device.id,
+        area_id=None if is_literal_null_area(hass, device.area_id) else UNDEFINED,
         manufacturer=info.get("manufacturer", UNDEFINED),
         model=info.get("model", UNDEFINED),
         sw_version=info.get("sw_version", UNDEFINED),

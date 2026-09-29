@@ -321,6 +321,8 @@ def _panel_device(root: Mapping[str, object]) -> PanelDevice | None:
         if name not in value:
             continue
         raw = value[name]
+        if name == "area" and isinstance(raw, str) and raw.strip().casefold() == "null":
+            continue
         # The panel drops a field it cannot state safely, so a present but unusable
         # value is a contract breach, not something to quietly clean up here.
         if (
