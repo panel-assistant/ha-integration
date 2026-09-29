@@ -35,6 +35,7 @@ from custom_components.panel_assistant.coordinator import (
     PanelSnapshot,
 )
 from custom_components.panel_assistant.failure_repair import (
+    async_clear_update_failure_if_installed,
     async_failure_events,
     async_record_update_failure,
     panel_failure_issue_id,
@@ -749,6 +750,34 @@ async def test_feed_failure_repair_uses_diagnostic_code_instead_of_health_label(
     await coordinator.async_refresh()
     assert ir.async_get(hass).async_get_issue("panel_assistant", issue_id) is None
     assert await async_failure_events(hass, issue_id) == []
+
+
+async def test_verified_update_clears_orphan_repair_without_saved_report(
+    hass: HomeAssistant,
+) -> None:
+    entry = MockConfigEntry(
+        domain="panel_assistant",
+        title="Test panel",
+        data={CONF_ADDRESS: "panel.local"},
+    )
+    entry.add_to_hass(hass)
+    issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
+    ir.async_create_issue(
+        hass,
+        "panel_assistant",
+        issue_id,
+        is_fixable=True,
+        is_persistent=True,
+        severity=ir.IssueSeverity.ERROR,
+        translation_key="installer_failure_update",
+        translation_placeholders={"panel": entry.title},
+        data={"key": issue_id},
+    )
+
+    await async_clear_update_failure_if_installed(
+        hass, entry.entry_id, "0.9.10", 102, verified_success=True
+    )
+    assert ir.async_get(hass).async_get_issue("panel_assistant", issue_id) is None
 
 
 async def test_installing_older_named_feed_build_keeps_newer_failure_repair(
