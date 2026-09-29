@@ -18,6 +18,7 @@ from unittest.mock import AsyncMock, MagicMock, call
 from zipfile import ZipFile
 
 import pytest
+from aiohttp import ClientConnectorError
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from homeassistant import config_entries
@@ -407,6 +408,37 @@ async def test_a_stable_update_is_staged_by_home_assistant_not_fetched_by_the_pa
     client.async_commit_apk.assert_awaited_once_with("tok-1")
     client.async_start_panel_update.assert_not_awaited()
     assert entity.extra_state_attributes == {"update_route": "staged_by_home_assistant"}
+    assert entity.installed_version == VERSION
+    assert entity.in_progress is False
+
+
+async def test_staged_commit_retries_only_the_unstarted_call(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, trust: None, key: Any
+) -> None:
+    """A refused connection retries the same staged token without restaging."""
+    entity, client = await _entity(hass, monkeypatch, _GitHub(key))
+    install_started = client.async_commit_apk.side_effect
+    connect_error = CannotConnectError()
+    connect_error.__cause__ = ClientConnectorError(
+        SimpleNamespace(host="panel.local", port=8888, ssl=False),
+        OSError(111, "Connection refused"),
+    )
+    attempts = 0
+
+    async def commit(token: str) -> None:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise connect_error
+        await install_started(token)
+
+    client.async_commit_apk.side_effect = commit
+
+    await entity.async_install(None, backup=False)
+
+    client.async_stage_apk.assert_awaited_once_with(APK)
+    assert client.async_commit_apk.await_args_list == [call("tok-1"), call("tok-1")]
+    client.async_start_panel_update.assert_not_awaited()
     assert entity.installed_version == VERSION
     assert entity.in_progress is False
 

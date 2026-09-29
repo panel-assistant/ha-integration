@@ -5,10 +5,12 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import asdict
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
+from aiohttp import ClientConnectorError
 from aiohttp.web import HTTPBadRequest
 from homeassistant.components.update import (
     UpdateDeviceClass,
@@ -157,6 +159,17 @@ def _verification_error(artifact: ReleaseArtifact) -> HomeAssistantError:
     return _update_error(
         "release_verification_failed", "The release did not match its signature"
     )
+
+
+async def _retry_unstarted_install(start: Callable[[], Awaitable[None]]) -> None:
+    """Retry once only when no connection was made to the panel."""
+    try:
+        await start()
+    except CannotConnectError as err:
+        if not isinstance(err.__cause__, ClientConnectorError):
+            raise
+        await asyncio.sleep(1)
+        await start()
 
 
 async def async_setup_entry(
@@ -901,7 +914,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
     async def _async_start_panel_download(self, offer: PanelCachedUpdate) -> None:
         """Ask the panel to fetch, verify and install the release itself."""
         try:
-            await self.coordinator.client.async_start_panel_update(offer.tag)
+            await _retry_unstarted_install(
+                lambda: self.coordinator.client.async_start_panel_update(offer.tag)
+            )
         except UpdateBusyError as err:
             raise _update_error(
                 "update_busy", "The panel is busy with another operation"
@@ -1159,7 +1174,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 with contextlib.suppress(HaPaneldError):
                     await client.async_discard_apk(staged.token)
                 raise _verification_error(artifact)
-            await client.async_commit_apk(staged.token)
+            await _retry_unstarted_install(
+                lambda: client.async_commit_apk(staged.token)
+            )
         except UploadDisabledError as err:
             raise _update_error(
                 "upload_disabled", "The panel does not accept app uploads"

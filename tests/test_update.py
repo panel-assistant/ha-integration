@@ -2,9 +2,10 @@
 
 import asyncio
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, call
 
 import pytest
+from aiohttp import ClientConnectorError
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
@@ -37,6 +38,16 @@ HEALTH = PanelHealth(
     config_hash="1a2b3c4d",
 )
 OFFER = PanelCachedUpdate("0.9.9", "0.9.10", "v0.9.10")
+
+
+def _connection_refused() -> CannotConnectError:
+    """The real client wraps a failed connection before sending the request."""
+    error = CannotConnectError()
+    error.__cause__ = ClientConnectorError(
+        SimpleNamespace(host="panel.local", port=8888, ssl=False),
+        OSError(111, "Connection refused"),
+    )
+    return error
 
 
 def _assert_translated(error: HomeAssistantError, key: str) -> None:
@@ -143,12 +154,15 @@ async def test_older_api_panel_keeps_its_existing_update_route(
     client.async_get_legacy_install_capability.assert_awaited()
 
 
+@pytest.mark.parametrize("first_connect_refused", [False, True])
 async def test_update_entity_starts_only_the_current_panel_offer(
-    hass: HomeAssistant,
+    hass: HomeAssistant, first_connect_refused: bool
 ) -> None:
-    """The standard HA action starts one exact tag and proves the replacement health."""
+    """The HA action retries only an unstarted call and proves the new health."""
     entity, client = _entity(hass)
     entity.async_write_ha_state = MagicMock()
+    if first_connect_refused:
+        client.async_start_panel_update.side_effect = [_connection_refused(), None]
 
     async def refresh_health() -> None:
         entity.coordinator.data = PanelSnapshot(
@@ -167,8 +181,31 @@ async def test_update_entity_starts_only_the_current_panel_offer(
 
     await entity.async_install(None, backup=False)
 
-    client.async_start_panel_update.assert_awaited_once_with("v0.9.10")
+    assert client.async_start_panel_update.await_args_list == [call("v0.9.10")] * (
+        2 if first_connect_refused else 1
+    )
     assert entity.installed_version == "0.9.10"
+    assert entity.in_progress is False
+
+
+async def test_panel_refusal_after_unstarted_call_is_not_retried(
+    hass: HomeAssistant,
+) -> None:
+    """A panel's second-call refusal remains final and keeps its existing error."""
+    entity, client = _entity(hass)
+    client.async_start_panel_update.side_effect = [
+        _connection_refused(),
+        UpdateRejectedError(),
+    ]
+
+    with pytest.raises(HomeAssistantError, match="refused") as error:
+        await entity.async_install(None, backup=False)
+
+    _assert_translated(error.value, "update_rejected")
+    assert client.async_start_panel_update.await_args_list == [
+        call("v0.9.10"),
+        call("v0.9.10"),
+    ]
     assert entity.in_progress is False
 
 
@@ -230,18 +267,28 @@ async def test_update_entity_requests_physical_approval_without_retrying(
     client.async_start_panel_update.assert_awaited_once_with("v0.9.10")
 
 
+@pytest.mark.parametrize("preconnect", [False, True])
 async def test_update_entity_localizes_transport_failure(
-    hass: HomeAssistant,
+    hass: HomeAssistant, preconnect: bool
 ) -> None:
-    """A rejected transport response uses the integration exception catalogue."""
+    """An exhausted retry is idle and still offers the build; ambiguity stays final."""
     entity, client = _entity(hass)
-    client.async_start_panel_update.side_effect = CannotConnectError
+    client.async_start_panel_update.side_effect = (
+        [_connection_refused(), _connection_refused()]
+        if preconnect
+        else CannotConnectError
+    )
 
     with pytest.raises(HomeAssistantError, match="did not accept") as error:
         await entity.async_install(None, backup=False)
 
     _assert_translated(error.value, "update_not_accepted")
-    client.async_start_panel_update.assert_awaited_once_with("v0.9.10")
+    assert client.async_start_panel_update.await_args_list == [call("v0.9.10")] * (
+        2 if preconnect else 1
+    )
+    assert entity.latest_version == "0.9.10"
+    assert entity.in_progress is False
+    assert entity.extra_state_attributes == {}
 
 
 async def test_update_entity_reports_a_completed_panel_operation_without_new_health(
