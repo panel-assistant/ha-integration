@@ -625,7 +625,9 @@ class HaPaneldClient:
         except UnicodeDecodeError as err:
             raise InvalidResponseError from err
 
-    async def async_get_status(self, *, update_owner: bool = False) -> PanelStatus:
+    async def async_get_status(
+        self, *, update_owner: bool = False, home_proof: bool = False
+    ) -> PanelStatus:
         """Fetch and parse the bounded, privacy-safe status response.
 
         With ``update_owner`` the request tells the panel this Home Assistant
@@ -634,7 +636,9 @@ class HaPaneldClient:
         from .status import parse_status_response
 
         body = await self._async_get_bounded(
-            self.status_url,
+            self.status_url.with_query({"home_proof": "1"})
+            if home_proof
+            else self.status_url,
             MAX_STATUS_RESPONSE_BYTES,
             {UPDATE_OWNER_HEADER: "1"} if update_owner else None,
         )

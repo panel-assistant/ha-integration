@@ -286,6 +286,17 @@ async def _entity(
         async_start_panel_update=AsyncMock(),
         async_get_panel_install_status=AsyncMock(),
         async_get_version_code=AsyncMock(return_value=(VERSION, CODE)),
+        async_get_status=AsyncMock(
+            return_value=PanelStatus(
+                warning_count=0,
+                capability_count=0,
+                home_ui={
+                    "state": "ready",
+                    "reason": "dashboard",
+                    "evidence": "foreground",
+                },
+            )
+        ),
         async_offer_installed_successor=AsyncMock(),
     )
     health = HaPaneldDataUpdateCoordinator(hass, client)  # type: ignore[arg-type]

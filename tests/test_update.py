@@ -24,6 +24,7 @@ from custom_components.panel_assistant.coordinator import (
     HaPaneldDataUpdateCoordinator,
     PanelSnapshot,
 )
+from custom_components.panel_assistant.release import ReleaseArtifact
 from custom_components.panel_assistant.status import PanelCachedUpdate, PanelStatus
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity
 from custom_components.panel_assistant.update_coordinator import (
@@ -69,6 +70,17 @@ def _entity(
         async_get_legacy_install_capability=AsyncMock(return_value=True),
         async_start_panel_update=AsyncMock(),
         async_get_panel_install_status=AsyncMock(),
+        async_get_status=AsyncMock(
+            return_value=PanelStatus(
+                warning_count=0,
+                capability_count=0,
+                home_ui={
+                    "state": "ready",
+                    "reason": "dashboard",
+                    "evidence": "foreground",
+                },
+            )
+        ),
     )
     health = HaPaneldDataUpdateCoordinator(hass, client)  # type: ignore[arg-type]
     health.data = PanelSnapshot(
@@ -207,6 +219,47 @@ async def test_panel_refusal_after_unstarted_call_is_not_retried(
         call("v0.9.10"),
     ]
     assert entity.in_progress is False
+
+
+@pytest.mark.parametrize("home_state", ["blocked", "unknown", "setup", None])
+async def test_matching_update_health_requires_ready_home_proof(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, home_state: str | None
+) -> None:
+    """A restarted HTTP service cannot finish without the visible HOME proof."""
+    entity, client = _entity(hass)
+    entity.coordinator.data = PanelSnapshot(
+        health=PanelHealth(
+            version="0.9.10",
+            panel_id="alpha",
+            build="1001",
+            config_hash="1a2b3c4d",
+            package="io.panelassistant.android",
+        ),
+        status=PanelStatus(warning_count=0, capability_count=0),
+        status_error=None,
+    )
+    entity.coordinator.async_request_refresh = AsyncMock()
+    client.async_get_status = AsyncMock(
+        return_value=SimpleNamespace(
+            home_ui=(
+                {"state": home_state, "reason": "chooser", "evidence": "resolver"}
+                if home_state is not None
+                else None
+            )
+        )
+    )
+    entity.coordinator.last_update_success = True
+
+    monkeypatch.setattr(panel_update, "_ANDROID_PACKAGE_INSTALL_MAX_SECONDS", 0)
+    monkeypatch.setattr(panel_update, "_RESTART_HEALTH_GRACE_SECONDS", 0.05)
+    monkeypatch.setattr(panel_update, "_UPDATE_RECHECK_SECONDS", 0.001)
+    artifact = ReleaseArtifact("v0.9.10", "0.9.10", "app.apk", "", "")
+
+    with pytest.raises(HomeAssistantError, match="did not complete"):
+        await entity._async_wait_for_build(
+            artifact, ("1000", "io.panelassistant.android")
+        )
+    client.async_get_status.assert_awaited()
 
 
 @pytest.mark.parametrize("version", ["0.9.9", "0.9.11"])

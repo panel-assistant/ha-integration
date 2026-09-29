@@ -71,6 +71,7 @@ from custom_components.panel_assistant.install_network import (
     PinnedPanelTarget,
 )
 from custom_components.panel_assistant.release import InstallDescriptor, ReleaseArtifact
+from custom_components.panel_assistant.status import PanelStatus
 
 APK_SHA256 = "a" * 64
 CREDENTIAL_ID = "b" * 64
@@ -341,6 +342,8 @@ class Harness:
         self.launch_outcome = LaunchOutcome.STARTED
         self.health_error: Exception | None = None
         self.health_calls = 0
+        self.home_ui_state: str | None = "setup"
+        self.home_proof_calls = 0
         # Scripted `pkg=` answers, consumed in order; the last one repeats. A
         # string is that reply's reported package, an exception is raised.
         self.health_packages: list[Exception | str | None] = []
@@ -434,6 +437,25 @@ class Harness:
                     build="release",
                     config_hash="01234567",
                     package=package,
+                )
+
+            async def async_get_status(
+                self, *, home_proof: bool = False
+            ) -> PanelStatus:
+                assert home_proof
+                harness.home_proof_calls += 1
+                return PanelStatus(
+                    warning_count=0,
+                    capability_count=0,
+                    home_ui=(
+                        {
+                            "state": harness.home_ui_state,
+                            "reason": "activity",
+                            "evidence": "foreground",
+                        }
+                        if harness.home_ui_state is not None
+                        else None
+                    ),
                 )
 
             async def async_get_setup_state(self) -> PanelSetupState:
@@ -2471,6 +2493,25 @@ async def test_health_poll_is_bounded_and_never_claims_success_on_transport_fail
     assert completed.result_code is InstallResultCode.VERIFICATION_REQUIRED
 
 
+@pytest.mark.parametrize("home_state", ["blocked", "unknown", None])
+async def test_healthy_new_install_requires_home_proof(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, home_state: str | None
+) -> None:
+    """The installed app answering HTTP is insufficient without HOME proof."""
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    harness = Harness(monkeypatch)
+    harness.home_ui_state = home_state
+    monkeypatch.setattr(install_executor, "_HEALTH_ATTEMPTS", 2)
+    monkeypatch.setattr(install_executor, "_HEALTH_RETRY_SECONDS", 0)
+
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert harness.home_proof_calls == 2
+    assert completed.phase is InstallPhase.RECOVERY_REQUIRED
+    assert completed.result_code is InstallResultCode.VERIFICATION_REQUIRED
+
+
 async def test_version_mismatch_never_becomes_healthy_or_creates_entry(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -2878,6 +2919,7 @@ class FinalProof:
     package: str | None = None
     version: str | None = None
     hold_health: bool = False
+    home_ui_state: str = "setup"
 
     def __post_init__(self) -> None:
         self.health_started = asyncio.Event()
@@ -2900,6 +2942,20 @@ class FinalProof:
                     build="1",
                     config_hash="1a2b3c4d",
                     package=proof.package,
+                )
+
+            async def async_get_status(
+                self, *, home_proof: bool = False
+            ) -> PanelStatus:
+                assert home_proof
+                return PanelStatus(
+                    warning_count=0,
+                    capability_count=0,
+                    home_ui={
+                        "state": proof.home_ui_state,
+                        "reason": "activity",
+                        "evidence": "foreground",
+                    },
                 )
 
         self.monkeypatch.setattr(
@@ -3141,6 +3197,21 @@ async def test_final_proof_applies_the_installed_app_rule(
         assert stored.phase is InstallPhase.RECOVERY_REQUIRED
         assert stored.result_code is InstallResultCode.VERIFICATION_REQUIRED
         assert leases.released == [receipt.job_id]
+
+
+async def test_final_proof_rejects_home_chooser_after_matching_health(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The finalizer cannot create an entry over Android's launcher chooser."""
+    receipt, manager = await seed_healthy(hass)
+    FinalProof(monkeypatch, home_ui_state="blocked")
+    executor, _ = counting_executor(hass, manager)
+
+    verdict = await executor.async_verify_finalization(receipt.job_id, "flow_one")
+
+    assert verdict.outcome is FinalizationOutcome.RECOVERY_REQUIRED
+    stored = await manager.async_get(receipt.job_id)
+    assert stored.phase is InstallPhase.RECOVERY_REQUIRED
 
 
 @pytest.mark.parametrize(
