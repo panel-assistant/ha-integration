@@ -63,7 +63,7 @@ from .coordinator import (
 )
 from .device import panel_device_info, panel_display_name
 from .failure_repair import (
-    async_clear_update_failure,
+    async_clear_update_failure_if_installed,
     async_record_update_failure,
     async_refresh_update_failure_name,
 )
@@ -597,6 +597,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         recovered: bool,
     ) -> None:
         """Observe one target and release its latch before awaiters resume."""
+        starting_health = (
+            self.coordinator.data.health
+            if recovered and self.coordinator.data
+            else None
+        )
         try:
             verified = await self._async_wait_for_installed_version(expected_version)
         except Exception as err:
@@ -607,11 +612,24 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     self._panel_name(),
                     expected_version,
                     err,
+                    observed_before=(
+                        starting_health.version,
+                        starting_health.version_code,
+                    )
+                    if starting_health is not None
+                    else None,
                 )
             raise
         else:
             if recovered and verified:
-                await async_clear_update_failure(self.hass, self._entry_id)
+                health = self.coordinator.data.health
+                await async_clear_update_failure_if_installed(
+                    self.hass,
+                    self._entry_id,
+                    health.version,
+                    health.version_code,
+                    verified_success=True,
+                )
         finally:
             self._attr_in_progress = False
             self._recovery_started = False
@@ -848,7 +866,13 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     assert release is not None
                     assert adb_target is not None and adb_credential is not None
                     await self._async_deliver_adb(release, adb_target, adb_credential)
-                    await async_clear_update_failure(self.hass, self._entry_id)
+                    await async_clear_update_failure_if_installed(
+                        self.hass,
+                        self._entry_id,
+                        target_version,
+                        None,
+                        verified_success=True,
+                    )
                     return
                 # Home Assistant sends the release over the LAN whenever it could
                 # authenticate it. Only a panel that cannot take an upload at all
@@ -906,7 +930,13 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             )
             raise
         else:
-            await async_clear_update_failure(self.hass, self._entry_id)
+            await async_clear_update_failure_if_installed(
+                self.hass,
+                self._entry_id,
+                selected_artifact.version if feed is not None else target_version,
+                build.version_code if feed is not None else None,
+                verified_success=True,
+            )
         finally:
             self._attr_in_progress = False
             self.async_write_ha_state()

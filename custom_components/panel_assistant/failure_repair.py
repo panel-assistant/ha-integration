@@ -17,6 +17,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.storage import Store
 
+from .build_feed import parse_build_request
+from .client import is_newer_stable_version
 from .const import DOMAIN, INTEGRATION_BUILD, INTEGRATION_VERSION
 from .device import panel_display_name
 
@@ -80,10 +82,15 @@ class _FailureStore:
                 after_save()
 
     async def clear(
-        self, issue_id: str, after_clear: Callable[[], None] | None = None
+        self,
+        issue_id: str,
+        after_clear: Callable[[], None] | None = None,
+        when: Callable[[dict[str, Any]], bool] | None = None,
     ) -> None:
         async with self.lock:
             records = await self.load()
+            if when is not None and not when(records.get(issue_id, {})):
+                return
             if issue_id in records:
                 updated = {
                     key: value for key, value in records.items() if key != issue_id
@@ -179,6 +186,7 @@ async def async_record_update_failure(
     error: BaseException,
     *,
     artifact: dict[str, Any] | None = None,
+    observed_before: tuple[str, int | None] | None = None,
 ) -> None:
     """Retain the cause that Home Assistant's update toast otherwise loses."""
     entry = hass.config_entries.async_get_entry(entry_id)
@@ -200,6 +208,8 @@ async def async_record_update_failure(
     }
     if artifact is not None:
         event["artifact"] = artifact
+    if observed_before is not None:
+        event["observed_before"] = list(observed_before)
     await _failure_store(hass).append(
         issue_id, event, lambda: _issue(hass, issue_id, panel, "update", reason)
     )
@@ -222,15 +232,55 @@ def async_refresh_update_failure_name(hass: HomeAssistant, entry_id: str) -> Non
     _issue(hass, issue_id, panel_display_name(hass, entry), kind, "")
 
 
-async def async_clear_update_failure(hass: HomeAssistant, entry_id: str) -> None:
-    """A verified update removes its earlier failure for this panel."""
-    entry = hass.config_entries.async_get_entry(entry_id)
-    address = entry.data.get(CONF_ADDRESS) if entry else None
-    if not isinstance(address, str):
-        return
+async def async_clear_update_failure_if_installed(
+    hass: HomeAssistant,
+    entry_id: str,
+    installed_version: str,
+    installed_code: int | None,
+    *,
+    verified_success: bool = False,
+) -> None:
+    """Resolve a saved failure only after this panel reaches its failed build."""
     issue_id = panel_failure_issue_id(f"update:{entry_id}")
+    if ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None:
+        return
+
+    def reached(record: dict[str, Any]) -> bool:
+        events = record.get("events", [])
+        if not isinstance(events, list):
+            return False
+        previous = next(
+            (
+                event
+                for event in reversed(events)
+                if isinstance(event, dict) and event.get("kind") == "update"
+            ),
+            None,
+        )
+        target = previous.get("target_version") if previous is not None else None
+        if not isinstance(target, str):
+            before = previous.get("observed_before") if previous is not None else None
+            if isinstance(before, list) and len(before) == 2:
+                old_version, old_code = before
+                if isinstance(old_version, str):
+                    return is_newer_stable_version(installed_version, old_version) or (
+                        installed_version == old_version
+                        and isinstance(old_code, int)
+                        and installed_code is not None
+                        and installed_code > old_code
+                    )
+            return verified_success
+        target_code = parse_build_request(target)
+        if target_code is not None:
+            return installed_code is not None and installed_code >= target_code
+        return installed_version == target or is_newer_stable_version(
+            installed_version, target
+        )
+
     await _failure_store(hass).clear(
-        issue_id, lambda: ir.async_delete_issue(hass, DOMAIN, issue_id)
+        issue_id,
+        lambda: ir.async_delete_issue(hass, DOMAIN, issue_id),
+        reached,
     )
 
 

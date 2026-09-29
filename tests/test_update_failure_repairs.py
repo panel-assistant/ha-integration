@@ -7,8 +7,11 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import issue_registry as ir
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 from yarl import URL
 
 from custom_components.panel_assistant import update as panel_update
@@ -31,6 +34,11 @@ from custom_components.panel_assistant.coordinator import (
     HaPaneldDataUpdateCoordinator,
     PanelSnapshot,
 )
+from custom_components.panel_assistant.failure_repair import (
+    async_failure_events,
+    async_record_update_failure,
+    panel_failure_issue_id,
+)
 from custom_components.panel_assistant.feed_coordinator import BuildFeedCoordinator
 from custom_components.panel_assistant.release import _RELEASE_SIGNER_CERTIFICATE_SHA256
 from custom_components.panel_assistant.status import PanelCachedUpdate, PanelStatus
@@ -50,7 +58,10 @@ def repairs(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
         panel_update, "async_record_update_failure", calls.record, raising=False
     )
     monkeypatch.setattr(
-        panel_update, "async_clear_update_failure", calls.clear, raising=False
+        panel_update,
+        "async_clear_update_failure_if_installed",
+        calls.clear,
+        raising=False,
     )
     return calls
 
@@ -223,6 +234,7 @@ async def test_recovered_stalled_update_creates_repair_without_requeue(
     repairs.record.assert_awaited_once()
     assert repairs.record.await_args.args[3] is None
     assert isinstance(repairs.record.await_args.args[4], HomeAssistantError)
+    assert repairs.record.await_args.kwargs["observed_before"] == ("0.9.9", None)
     client.async_start_panel_update.assert_not_awaited()
 
 
@@ -285,7 +297,9 @@ async def test_recovered_update_accepts_newer_health_when_offer_advanced(
     assert refreshes == 2
     assert entity.installed_version == "0.9.10"
     repairs.record.assert_not_awaited()
-    repairs.clear.assert_awaited_once_with(hass, "entry-id")
+    repairs.clear.assert_awaited_once_with(
+        hass, "entry-id", "0.9.10", None, verified_success=True
+    )
     client.async_start_panel_update.assert_not_awaited()
 
 
@@ -338,7 +352,9 @@ async def test_recovered_feed_update_accepts_higher_code_with_same_name(
 
     assert refreshes == 2
     repairs.record.assert_not_awaited()
-    repairs.clear.assert_awaited_once_with(hass, "entry-id")
+    repairs.clear.assert_awaited_once_with(
+        hass, "entry-id", "0.9.10", 102, verified_success=True
+    )
     client.async_start_panel_update.assert_not_awaited()
 
 
@@ -431,8 +447,117 @@ async def test_verified_panel_success_clears_previous_repair(
     await entity.async_install(None, backup=False)
 
     client.async_start_panel_update.assert_awaited_once()
-    repairs.clear.assert_awaited_once_with(hass, "entry-id")
+    repairs.clear.assert_awaited_once_with(
+        hass, "entry-id", "0.9.10", None, verified_success=True
+    )
     repairs.record.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    ("target", "earlier", "reached", "clears", "observed_before"),
+    [
+        ("0.9.10", ("0.9.9", None), ("0.9.10", None), True, None),
+        ("0.9.10", ("0.9.9", None), ("0.9.11", None), True, None),
+        ("0.9.7-rc4 build 102", ("0.9.7-rc4", 101), ("0.9.7-rc4", 102), True, None),
+        ("0.9.7-rc4 build 102", ("0.9.7-rc4", 101), ("0.9.7-rc4", 103), True, None),
+        ("0.9.7-rc4 build 102", ("0.9.7-rc4", 101), ("0.9.7-rc4", None), False, None),
+        (None, ("0.9.9", None), ("0.9.11", 103), False, None),
+        (None, ("0.9.7-rc4", 101), ("0.9.7-rc4", 102), True, ("0.9.7-rc4", 101)),
+    ],
+)
+async def test_accepted_health_poll_clears_repair_when_failed_build_is_reached(
+    hass: HomeAssistant,
+    target: str | None,
+    earlier: tuple[str, int | None],
+    reached: tuple[str, int | None],
+    clears: bool,
+    observed_before: tuple[str, int | None] | None,
+) -> None:
+    entry = MockConfigEntry(
+        domain="panel_assistant",
+        title="Test panel",
+        data={CONF_ADDRESS: "panel.local"},
+    )
+    entry.add_to_hass(hass)
+    issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
+    await async_record_update_failure(
+        hass,
+        entry.entry_id,
+        entry.title,
+        target,
+        RuntimeError("interrupted rollout"),
+        observed_before=observed_before,
+    )
+    hass.data.pop("panel_assistant.failure_repair_store", None)
+    client = SimpleNamespace(
+        async_get_health=AsyncMock(),
+        async_get_status=AsyncMock(return_value=PanelStatus(0, 0)),
+    )
+    coordinator = HaPaneldDataUpdateCoordinator(hass, client, entry.entry_id)  # type: ignore[arg-type]
+
+    client.async_get_health.return_value = PanelHealth(
+        version=earlier[0],
+        version_code=earlier[1],
+        panel_id="alpha",
+        build="earlier",
+        config_hash="abcd",
+    )
+    await coordinator.async_refresh()
+    assert ir.async_get(hass).async_get_issue("panel_assistant", issue_id) is not None
+    assert (await async_failure_events(hass, issue_id))[-1][
+        "reason"
+    ] == "interrupted rollout"
+
+    client.async_get_health.return_value = PanelHealth(
+        version=reached[0],
+        version_code=reached[1],
+        panel_id="alpha",
+        build="reached",
+        config_hash="abcd",
+    )
+    await coordinator.async_refresh()
+    assert (
+        ir.async_get(hass).async_get_issue("panel_assistant", issue_id) is None
+    ) is clears
+    if clears:
+        assert await async_failure_events(hass, issue_id) == []
+    else:
+        assert (await async_failure_events(hass, issue_id))[-1][
+            "reason"
+        ] == "interrupted rollout"
+
+
+async def test_installing_older_named_feed_build_keeps_newer_failure_repair(
+    hass: HomeAssistant,
+) -> None:
+    entry = MockConfigEntry(
+        domain="panel_assistant",
+        title="Test panel",
+        data={CONF_ADDRESS: "panel.local"},
+    )
+    entry.add_to_hass(hass)
+    issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
+    await async_record_update_failure(
+        hass,
+        entry.entry_id,
+        entry.title,
+        "0.9.10 build 103",
+        RuntimeError("newer update failed"),
+    )
+    entity, _client = _entity(hass, feed=True)
+    entity._entry_id = entry.entry_id
+    entity._async_install_route = AsyncMock(
+        return_value=(panel_update.ROUTE_PANEL, None, None)
+    )
+    entity._async_deliver_build = AsyncMock()
+
+    await entity.async_install("0.9.10 build 102", backup=False)
+
+    entity._async_deliver_build.assert_awaited_once()
+    assert ir.async_get(hass).async_get_issue("panel_assistant", issue_id) is not None
+    assert (await async_failure_events(hass, issue_id))[-1][
+        "reason"
+    ] == "newer update failed"
 
 
 async def test_invalid_request_does_not_create_repair(

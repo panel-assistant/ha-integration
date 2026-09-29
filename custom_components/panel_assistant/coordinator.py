@@ -174,6 +174,11 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             )
         self.identity_mismatch = False
         if self._entry_id is not None:
+            from .failure_repair import async_clear_update_failure_if_installed
+
+            await async_clear_update_failure_if_installed(
+                self.hass, self._entry_id, health.version, health.version_code
+            )
             async_delete_address_issue(self.hass, self._entry_id)
             if not self.connected:
                 sessions = async_get_sessions(self.hass)

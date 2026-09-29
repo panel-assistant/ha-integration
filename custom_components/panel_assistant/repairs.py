@@ -367,8 +367,20 @@ class InstallerFailureFlow(RepairsFlow):
             )
             if entity_id is None:
                 raise RetrySafetyHold("retry_update_unavailable")
+            state = self.hass.states.get(entity_id)
+            offered = state.attributes.get("latest_version") if state else None
+            installed = (
+                state.attributes.get("installed_version", state.state)
+                if state
+                else None
+            )
+            current_retry = (
+                isinstance(offered, str)
+                and offered != installed
+                and offered != previous.get("target_version")
+            )
             saved_artifact = previous.get("artifact")
-            if isinstance(saved_artifact, dict):
+            if isinstance(saved_artifact, dict) and not current_retry:
                 tag = saved_artifact.get("tag")
                 if not isinstance(tag, str):
                     raise RetrySafetyHold("retry_release_changed")
@@ -379,7 +391,7 @@ class InstallerFailureFlow(RepairsFlow):
                 if asdict(current) != saved_artifact:
                     raise RetrySafetyHold("retry_release_changed")
             service_data = {"entity_id": entity_id}
-            if isinstance(previous.get("target_version"), str):
+            if not current_retry and isinstance(previous.get("target_version"), str):
                 service_data["version"] = previous["target_version"]
             await self.hass.services.async_call(
                 Platform.UPDATE,

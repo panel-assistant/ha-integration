@@ -21,7 +21,7 @@ from custom_components.panel_assistant.build_feed import feed_release_artifact
 from custom_components.panel_assistant.const import DOMAIN, update_unique_id
 from custom_components.panel_assistant.failure_repair import (
     RetrySafetyHold,
-    async_clear_update_failure,
+    async_clear_update_failure_if_installed,
     async_failure_events,
     async_record_update_failure,
     async_refresh_update_failure_name,
@@ -240,7 +240,9 @@ async def test_update_repair_retries_via_home_assistant_and_clears_on_success(
 
     async def installed(service) -> None:
         calls.append(service.data)
-        await async_clear_update_failure(hass, entry.entry_id)
+        await async_clear_update_failure_if_installed(
+            hass, entry.entry_id, "0.9.10", None
+        )
 
     hass.services.async_register("update", "install", installed)
     admin = await hass_client()
@@ -324,6 +326,72 @@ async def test_update_retry_holds_when_signed_feed_artifact_changed(
     assert calls == []
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue.issue_id) is not None
     resolver.assert_awaited_once_with(hass, original.tag)
+
+
+async def test_superseded_update_repair_retries_current_offer(
+    hass: HomeAssistant,
+    repairs_ready: None,
+    hass_client: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="Test panel", data={CONF_ADDRESS: "panel.local"}
+    )
+    entry.add_to_hass(hass)
+    old = feed_release_artifact(_build(102))
+    await async_record_update_failure(
+        hass,
+        entry.entry_id,
+        entry.title,
+        "0.9.7-rc4 build 102",
+        RuntimeError("staging failed"),
+        artifact=asdict(old),
+    )
+    issue_id = next(
+        issue_id for (domain, issue_id) in ir.async_get(hass).issues if domain == DOMAIN
+    )
+    entity = er.async_get(hass).async_get_or_create(
+        "update", DOMAIN, update_unique_id(entry.entry_id)
+    )
+    hass.states.async_set(
+        entity.entity_id,
+        "0.9.7-rc4",
+        {
+            "installed_version": "0.9.7-rc4 build 101",
+            "latest_version": "0.9.7-rc4 build 103",
+        },
+    )
+    calls = []
+
+    async def installed(service) -> None:
+        calls.append(service.data)
+        await async_clear_update_failure_if_installed(
+            hass, entry.entry_id, "0.9.7-rc4", 103
+        )
+
+    hass.services.async_register("update", "install", installed)
+    resolver = AsyncMock(side_effect=AssertionError("old release must not be retried"))
+    monkeypatch.setattr(panel_repairs, "async_resolve_install_choice", resolver)
+    admin = await hass_client()
+    response = await admin.post(
+        "/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue_id}
+    )
+    menu = await response.json()
+    assert menu["menu_options"] == ["retry", "support_report", "clear_error"]
+    response = await admin.post(
+        f"/api/repairs/issues/fix/{menu['flow_id']}", json={"next_step_id": "retry"}
+    )
+    result = await response.json()
+    if result["type"] == "progress":
+        await hass.async_block_till_done()
+        response = await admin.post(
+            f"/api/repairs/issues/fix/{menu['flow_id']}", json={}
+        )
+        result = await response.json()
+    assert result["type"] == "create_entry"
+    assert calls == [{"entity_id": entity.entity_id}]
+    assert resolver.await_count == 0
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
 
 
 @pytest.mark.parametrize(
