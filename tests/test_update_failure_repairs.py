@@ -39,7 +39,10 @@ from custom_components.panel_assistant.failure_repair import (
     async_record_update_failure,
     panel_failure_issue_id,
 )
-from custom_components.panel_assistant.feed_coordinator import BuildFeedCoordinator
+from custom_components.panel_assistant.feed_coordinator import (
+    DATA_BUILD_FEED,
+    BuildFeedCoordinator,
+)
 from custom_components.panel_assistant.release import _RELEASE_SIGNER_CERTIFICATE_SHA256
 from custom_components.panel_assistant.status import PanelCachedUpdate, PanelStatus
 from custom_components.panel_assistant.transport import async_get_sessions
@@ -517,6 +520,86 @@ async def test_accepted_health_poll_clears_repair_when_failed_build_is_reached(
         config_hash="abcd",
     )
     await coordinator.async_refresh()
+    assert (
+        ir.async_get(hass).async_get_issue("panel_assistant", issue_id) is None
+    ) is clears
+    if clears:
+        assert await async_failure_events(hass, issue_id) == []
+    else:
+        assert (await async_failure_events(hass, issue_id))[-1][
+            "reason"
+        ] == "interrupted rollout"
+
+
+@pytest.mark.parametrize(
+    ("installed_code", "verified", "feed_ok", "package", "clears"),
+    [
+        pytest.param(102, True, True, LEGACY_PACKAGE_ID, True, id="current"),
+        pytest.param(103, True, True, LEGACY_PACKAGE_ID, True, id="newer"),
+        pytest.param(101, True, True, LEGACY_PACKAGE_ID, False, id="below"),
+        pytest.param(102, False, True, LEGACY_PACKAGE_ID, False, id="unverified"),
+        pytest.param(102, True, False, LEGACY_PACKAGE_ID, False, id="stale-feed"),
+        pytest.param(
+            102, True, True, "io.panelassistant.android", False, id="other-package"
+        ),
+        pytest.param(None, True, True, LEGACY_PACKAGE_ID, False, id="unknown-code"),
+    ],
+)
+async def test_older_targetless_repair_clears_only_at_verified_current_feed_build(
+    hass: HomeAssistant,
+    installed_code: int | None,
+    verified: bool,
+    feed_ok: bool,
+    package: str,
+    clears: bool,
+) -> None:
+    entry = MockConfigEntry(
+        domain="panel_assistant",
+        title="Test panel",
+        data={CONF_ADDRESS: "panel.local"},
+    )
+    entry.add_to_hass(hass)
+    issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
+    await async_record_update_failure(
+        hass, entry.entry_id, entry.title, None, RuntimeError("interrupted rollout")
+    )
+    hass.data.pop("panel_assistant.failure_repair_store", None)
+
+    build = FeedBuild(
+        version_code=102,
+        version_name="0.9.10",
+        apk_url=URL("https://feed.example/apk"),
+        apk_sha256="a" * 64,
+        apk_size=3,
+        commit="0" * 40,
+        database_compatibility="hapaneld-db:v1:ha-paneld.db:11:14",
+        min_sdk=26,
+        published="2026-09-28T00:00:00Z",
+        package_id=LEGACY_PACKAGE_ID,
+    )
+    feed = BuildFeedCoordinator(hass, URL("https://feed.example/feed"))
+    feed.data = BuildFeed(channel="maintainer", builds=(build,))
+    feed.last_update_success = feed_ok
+    if verified:
+        feed._verified_newest[LEGACY_PACKAGE_ID] = (build, b"apk")
+    hass.data.setdefault("panel_assistant", {})[DATA_BUILD_FEED] = feed
+
+    client = SimpleNamespace(
+        async_get_health=AsyncMock(
+            return_value=PanelHealth(
+                version="0.9.10",
+                version_code=installed_code,
+                panel_id="alpha",
+                build="installed",
+                config_hash="abcd",
+                package=package,
+            )
+        ),
+        async_get_status=AsyncMock(return_value=PanelStatus(0, 0)),
+    )
+    coordinator = HaPaneldDataUpdateCoordinator(hass, client, entry.entry_id)  # type: ignore[arg-type]
+    await coordinator.async_refresh()
+
     assert (
         ir.async_get(hass).async_get_issue("panel_assistant", issue_id) is None
     ) is clears

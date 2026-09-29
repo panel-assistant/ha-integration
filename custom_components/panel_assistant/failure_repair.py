@@ -239,6 +239,7 @@ async def async_clear_update_failure_if_installed(
     installed_code: int | None,
     *,
     verified_success: bool = False,
+    verified_current_code: int | None = None,
 ) -> None:
     """Resolve a saved failure only after this panel reaches its failed build."""
     issue_id = panel_failure_issue_id(f"update:{entry_id}")
@@ -262,14 +263,21 @@ async def async_clear_update_failure_if_installed(
             before = previous.get("observed_before") if previous is not None else None
             if isinstance(before, list) and len(before) == 2:
                 old_version, old_code = before
-                if isinstance(old_version, str):
-                    return is_newer_stable_version(installed_version, old_version) or (
+                if isinstance(old_version, str) and (
+                    is_newer_stable_version(installed_version, old_version)
+                    or (
                         installed_version == old_version
                         and isinstance(old_code, int)
                         and installed_code is not None
                         and installed_code > old_code
                     )
-            return verified_success
+                ):
+                    return True
+            return verified_success or (
+                verified_current_code is not None
+                and installed_code is not None
+                and installed_code >= verified_current_code
+            )
         target_code = parse_build_request(target)
         if target_code is not None:
             return installed_code is not None and installed_code >= target_code
