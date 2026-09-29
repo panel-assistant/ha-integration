@@ -98,6 +98,10 @@ class CannotConnectError(HaPaneldError):
     """Raised when a panel cannot be reached."""
 
 
+class NotABridgeError(HaPaneldError):
+    """Raised when the panel explicitly refuses successor handover."""
+
+
 class InvalidResponseError(HaPaneldError):
     """Raised when a panel does not return the health contract."""
 
@@ -551,6 +555,8 @@ class HaPaneldClient:
                 headers={"Cache-Control": "no-cache", **(extra_headers or {})},
                 timeout=ClientTimeout(total=DEFAULT_TIMEOUT_SECONDS),
             ) as response:
+                if response.status == 404 and url.path == "/api/v1/successor":
+                    raise NotABridgeError
                 if response.status != 200:
                     raise CannotConnectError
                 if url == self.health_url:

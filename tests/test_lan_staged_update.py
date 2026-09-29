@@ -38,14 +38,17 @@ from custom_components.panel_assistant.app_identity import (
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
 )
+from custom_components.panel_assistant.build_feed import BuildDownloadError
 from custom_components.panel_assistant.client import (
     CannotConnectError,
+    HaPaneldClient,
     PanelHealth,
     StagedApk,
     StagingUnavailableError,
     UpdateBusyError,
     UpdateRejectedError,
     UploadDisabledError,
+    normalize_address,
 )
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.coordinator import (
@@ -714,6 +717,8 @@ async def test_offline_move_delivers_both_verified_identities(
     client.async_commit_apk.side_effect = commit
     entity.coordinator.async_request_refresh = AsyncMock()
 
+    if resume_bridge is True:
+        await entity._async_refresh_route()
     assert entity.state == "on"
     await entity.async_install(None, backup=False)
 
@@ -772,11 +777,97 @@ async def test_retry_refuses_untrusted_installed_successor(
 
     with pytest.raises(HomeAssistantError) as error:
         await entity.async_install(None, backup=False)
-    _assert_translated(error.value, "release_verification_failed")
+    _assert_translated(error.value, "successor_untrusted")
     client.async_stage_apk.assert_not_awaited()
     client.async_commit_apk.assert_not_awaited()
     client.async_offer_installed_successor.assert_not_awaited()
     assert not github.apk_downloaded
+
+
+async def test_not_a_bridge_refusal_withholds_handover_and_explains_helper_step(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+) -> None:
+    """A real capability 404 must never advertise a handover or blame signatures."""
+    github = _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=b"bridge")
+    entity, client = await _entity(hass, monkeypatch, github)
+    entity.coordinator.data = _snapshot(VERSION, "2000", LEGACY_PACKAGE_ID)
+    response = MagicMock()
+    response.status = 404
+    session = MagicMock()
+    session.get.return_value.__aenter__.return_value = response
+    client.async_get_successor_capability = HaPaneldClient(
+        session, normalize_address("panel.local")
+    ).async_get_successor_capability
+
+    await entity._async_refresh_route()
+    assert entity.state == "off"
+    assert entity.latest_version == entity.installed_version
+    with pytest.raises(HomeAssistantError) as error:
+        await entity.async_install(None, backup=False)
+    _assert_translated(error.value, "bridge_not_ready")
+    assert (
+        "root helper"
+        in entity._attr_extra_state_attributes[panel_update.ROUTE_UNAVAILABLE_ATTRIBUTE]
+    )
+    client.async_backup_panel.assert_not_awaited()
+    client.async_stage_apk.assert_not_awaited()
+    client.async_commit_apk.assert_not_awaited()
+
+    client.async_get_successor_capability = AsyncMock(
+        return_value=(SUCCESSOR_PACKAGE_ID, VERSION, None, False)
+    )
+    entity._schedule_route_refresh()
+    assert entity._route_task is not None
+    await entity._route_task
+    assert entity.state == "on"
+    assert entity.latest_version == VERSION
+
+
+async def test_installed_successor_handover_refusal_names_panel_action(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+) -> None:
+    entity, client = await _entity(
+        hass,
+        monkeypatch,
+        _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=b"bridge"),
+    )
+    entity.coordinator.data = _snapshot(VERSION, "2000", LEGACY_PACKAGE_ID)
+    client.async_get_successor_capability = AsyncMock(
+        return_value=(SUCCESSOR_PACKAGE_ID, VERSION, CODE, False)
+    )
+    client.async_offer_installed_successor.side_effect = UpdateRejectedError
+
+    with pytest.raises(HomeAssistantError) as error:
+        await entity.async_install(None, backup=False)
+    _assert_translated(error.value, "bridge_handover_refused")
+    client.async_stage_apk.assert_not_awaited()
+    client.async_commit_apk.assert_not_awaited()
+
+
+async def test_missing_release_download_is_not_called_a_bad_signature(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+) -> None:
+    entity, client = await _entity(hass, monkeypatch, _GitHub(key))
+    monkeypatch.setattr(
+        panel_update, "async_download_build", AsyncMock(side_effect=BuildDownloadError)
+    )
+    artifact = entity._host_release()
+    assert artifact is not None
+
+    with pytest.raises(HomeAssistantError) as error:
+        await entity._async_deliver_build(artifact)
+    _assert_translated(error.value, "release_download_failed")
+    client.async_stage_apk.assert_not_awaited()
+    client.async_commit_apk.assert_not_awaited()
 
 
 @pytest.mark.parametrize(
@@ -802,7 +893,12 @@ async def test_successor_is_never_sent_without_matching_bridge_capability(
         client.async_get_successor_capability.side_effect = CannotConnectError
     with pytest.raises(HomeAssistantError) as error:
         await entity.async_install(None, backup=False)
-    _assert_translated(error.value, "release_verification_failed")
+    _assert_translated(
+        error.value,
+        "bridge_capability_unavailable"
+        if capability is None
+        else "bridge_details_changed",
+    )
     client.async_stage_apk.assert_not_awaited()
     client.async_commit_apk.assert_not_awaited()
     client.async_start_panel_update.assert_not_awaited()
@@ -850,7 +946,14 @@ async def test_successor_verification_refusal_never_installs_or_downloads_on_pan
     client.async_stage_apk.side_effect = stage
     with pytest.raises(HomeAssistantError) as error:
         await entity.async_install(None, backup=False)
-    _assert_translated(error.value, "release_verification_failed")
+    _assert_translated(
+        error.value,
+        "release_verification_failed"
+        if defect == "checksum"
+        else "panel_changed_during_update"
+        if defect.endswith("race")
+        else "staged_app_mismatch",
+    )
     if defect == "checksum":
         client.async_stage_apk.assert_not_awaited()
     else:
@@ -898,9 +1001,18 @@ async def test_bridge_label_does_not_hide_a_newer_panel_offer(
         ),
         status_error=None,
     )
+    client.async_get_successor_capability = AsyncMock(side_effect=CannotConnectError)
     assert entity.installed_version == f"{VERSION} (bridge)"
     assert entity.latest_version == "0.9.11"
     assert entity.state == "on"
+
+    async def panel_updated(_tag: str) -> None:
+        entity.coordinator.data = _snapshot("0.9.11", "3000", LEGACY_PACKAGE_ID)
+
+    client.async_start_panel_update.side_effect = panel_updated
+    await entity.async_install("0.9.11", backup=False)
+    client.async_start_panel_update.assert_awaited_once_with("v0.9.11")
+    client.async_get_successor_capability.assert_not_awaited()
     client.async_stage_apk.assert_not_awaited()
 
 
@@ -926,7 +1038,7 @@ async def test_bridge_stage_must_pass_the_same_identity_checks(
     client.async_stage_apk.return_value = preview
     with pytest.raises(HomeAssistantError) as error:
         await entity.async_install(None, backup=False)
-    _assert_translated(error.value, "release_verification_failed")
+    _assert_translated(error.value, "staged_app_mismatch")
     client.async_stage_apk.assert_awaited_once_with(b"bridge")
     client.async_discard_apk.assert_awaited_once_with("tok-1")
     client.async_commit_apk.assert_not_awaited()
@@ -949,7 +1061,7 @@ async def test_identity_change_during_upload_refuses_commit(
     client.async_stage_apk.side_effect = stage
     with pytest.raises(HomeAssistantError) as error:
         await entity.async_install(None, backup=False)
-    _assert_translated(error.value, "release_verification_failed")
+    _assert_translated(error.value, "panel_changed_during_update")
     client.async_discard_apk.assert_awaited_once_with("tok-1")
     client.async_commit_apk.assert_not_awaited()
 
@@ -995,7 +1107,7 @@ async def test_a_staged_app_that_is_not_the_signed_release_is_discarded_on_both_
     with pytest.raises(HomeAssistantError) as error:
         await entity.async_install(None, backup=False)
 
-    _assert_translated(error.value, "release_verification_failed")
+    _assert_translated(error.value, "staged_app_mismatch")
     client.async_discard_apk.assert_awaited_once_with("tok-1")
     client.async_commit_apk.assert_not_awaited()
     client.async_start_panel_update.assert_not_awaited()

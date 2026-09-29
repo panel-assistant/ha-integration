@@ -47,6 +47,7 @@ from .client import (
     HaPaneldClient,
     HaPaneldError,
     InvalidResponseError,
+    NotABridgeError,
     StagingUnavailableError,
     UpdateApprovalRequiredError,
     UpdateBusyError,
@@ -314,7 +315,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         if not self.coordinator.last_update_success:
             return False
         if self._api_capability() == "api":
-            return True
+            return (
+                not self._bridge_handover_due()
+                or self._legacy_api_ready_key == self._route_key()
+            )
         if (
             self._api_capability() is None
             and self._legacy_api_ready_key is not None
@@ -340,14 +344,17 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         return None
 
     def _schedule_route_refresh(self) -> None:
-        if self._api_capability() == "api":
+        if self._api_capability() == "api" and not self._bridge_handover_due():
             self._adb_ready_key = None
             self._legacy_api_ready_key = None
             self._route_checked_key = None
             return
         if self._adb_artifact() is None and self._stable_target() is None:
             return
-        if self._route_checked_key == self._route_key():
+        if (
+            self._route_checked_key == self._route_key()
+            and not self._bridge_handover_due()
+        ):
             return
         if self._route_task is not None and not self._route_task.done():
             return
@@ -360,7 +367,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
     def _route_refresh_finished(self, task: asyncio.Task[None]) -> None:
         if self._route_task is task:
             self._route_task = None
-            self._schedule_route_refresh()
+            if self._route_checked_key != self._route_key():
+                self._schedule_route_refresh()
 
     def _cancel_route_refresh(self) -> None:
         task = self._route_task
@@ -370,6 +378,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
 
     async def _async_refresh_route(self) -> None:
         key = self._route_key()
+        error: Exception | None = None
         try:
             route, _target, _credential = await self._async_install_route()
         except Exception as err:
@@ -377,16 +386,18 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 "Could not check update route for %s: %s", self._entry_id, err
             )
             route = None
+            error = err
         if key == self._route_key():
             self._route_checked_key = key
             self._adb_ready_key = key if route == ROUTE_ADB else None
-            self._legacy_api_ready_key = (
-                key if route == ROUTE_PANEL and self._api_capability() is None else None
-            )
+            self._legacy_api_ready_key = key if route == ROUTE_PANEL else None
             attributes = dict(self._attr_extra_state_attributes)
             if not self._has_install_route():
                 attributes[ROUTE_UNAVAILABLE_ATTRIBUTE] = (
-                    "Panel Assistant has no verified signed build for this ADB update."
+                    str(error)
+                    if isinstance(error, HomeAssistantError)
+                    else "Panel Assistant has no verified signed build "
+                    "for this ADB update."
                     if self._adb_artifact() is None
                     else "The panel cannot install this update itself, and Panel "
                     "Assistant has no usable authorized ADB route."
@@ -403,6 +414,20 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         snapshot: PanelSnapshot | None = self.coordinator.data
         if snapshot is None or not self.coordinator.last_update_success:
             return None, None, None
+        if self._bridge_handover_due():
+            bridge = self._host_release()
+            successor = self._release.data if self._release else None
+            if (
+                bridge is None
+                or successor is None
+                or successor.tag != bridge.tag
+                or successor.descriptor is None
+            ):
+                raise _update_error(
+                    "release_pair_unavailable",
+                    "The matching new-app release is unavailable",
+                )
+            await self._async_check_successor(successor, snapshot)
         capability = self._api_capability()
         if capability is None:
             try:
@@ -710,6 +735,67 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             return None
         return release
 
+    def _bridge_handover_due(self) -> bool:
+        snapshot: PanelSnapshot | None = self.coordinator.data
+        release = self._host_release()
+        panel_offer = self._offered_update()
+        return bool(
+            snapshot is not None
+            and self._feed_mode() is None
+            and release is not None
+            and release.descriptor is None
+            and snapshot.health.version == release.version
+            and snapshot.health.installation_identity
+            and reports_package(snapshot.health.package, LEGACY_PACKAGE_ID)
+            and (
+                panel_offer is None
+                or not is_newer_stable_version(
+                    panel_offer.target_version, release.version
+                )
+            )
+        )
+
+    async def _async_check_successor(
+        self, artifact: ReleaseArtifact, snapshot: PanelSnapshot
+    ) -> int | None:
+        """Use the panel's handover answer for both offer and install admission."""
+        descriptor = artifact.descriptor
+        if descriptor is None or descriptor.package_id != SUCCESSOR_PACKAGE_ID:
+            raise _update_error(
+                "release_pair_unavailable",
+                "The matching new-app release is unavailable",
+            )
+        if (
+            not snapshot.health.installation_identity
+            or snapshot.health.version != artifact.version
+        ):
+            raise _update_error(
+                "bridge_details_changed", "The panel's handover details changed"
+            )
+        try:
+            capability = await self.coordinator.client.async_get_successor_capability()
+        except NotABridgeError as err:
+            raise _update_error(
+                "bridge_not_ready",
+                "The panel cannot hand over to the new app yet; "
+                "update its bundled root helper first",
+            ) from err
+        except HaPaneldError as err:
+            raise _update_error(
+                "bridge_capability_unavailable",
+                "The panel's handover capability could not be checked",
+            ) from err
+        if capability[3]:
+            raise _update_error(
+                "successor_untrusted",
+                "The installed new app is not trusted for handover",
+            )
+        if capability[:2] != (descriptor.package_id, artifact.version):
+            raise _update_error(
+                "bridge_details_changed", "The panel's handover details changed"
+            )
+        return capability[2]
+
     def _stable_target(self) -> PanelCachedUpdate | None:
         """Return the newer of the panel's own offer and the release found here."""
         offer = self._offered_update()
@@ -864,7 +950,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                             or successor.descriptor is None
                             or successor.descriptor.package_id != SUCCESSOR_PACKAGE_ID
                         ):
-                            raise _verification_error(release)
+                            raise _update_error(
+                                "release_pair_unavailable",
+                                "The matching new-app release is unavailable",
+                            )
                         if (
                             self.coordinator.data.health.version != release.version
                             or not self.coordinator.data.health.installation_identity
@@ -1098,24 +1187,16 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             )
         running_package = LEGACY_PACKAGE_ID if migration else package_id
         if not reports_package(snapshot.health.package, running_package):
-            raise _verification_error(artifact)
+            raise _update_error(
+                "panel_changed_during_update",
+                "The panel changed while preparing the update",
+            )
         before = (snapshot.health.build, snapshot.health.package)
         installed_successor_code: int | None = None
         if migration:
-            try:
-                capability = await client.async_get_successor_capability()
-            except HaPaneldError as err:
-                raise _verification_error(artifact) from err
-            if (
-                descriptor is None
-                or not snapshot.health.installation_identity
-                or package_id != SUCCESSOR_PACKAGE_ID
-                or snapshot.health.version != artifact.version
-                or capability[:2] != (package_id, artifact.version)
-                or capability[3]
-            ):
-                raise _verification_error(artifact)
-            installed_successor_code = capability[2]
+            installed_successor_code = await self._async_check_successor(
+                artifact, snapshot
+            )
         await self._async_backup_panel()
         if (
             migration
@@ -1130,8 +1211,14 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     "update_approval_required",
                     "Approve this update on the panel, then try again",
                 ) from err
+            except UpdateBusyError as err:
+                raise _update_error(
+                    "update_busy", "The panel is busy with another operation"
+                ) from err
             except HaPaneldError as err:
-                raise _verification_error(artifact) from err
+                raise _update_error(
+                    "bridge_handover_refused", "The panel refused the app handover"
+                ) from err
             self._record_route(ROUTE_STAGED, artifact.tag)
             await self._async_wait_for_build(artifact, before, minimum_code=True)
             return True
@@ -1146,7 +1233,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     # can still fetch and verify the release itself.
                     _LOGGER.warning("Could not download %s here: %s", artifact.tag, err)
                     return False
-                raise _verification_error(artifact) from err
+                raise _update_error(
+                    "release_download_failed", "The app release could not be downloaded"
+                ) from err
             except BuildFeedError as err:
                 raise _verification_error(artifact) from err
         try:
@@ -1161,19 +1250,28 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     return False
                 raise
             health = self.coordinator.data.health if self.coordinator.data else None
-            if (
-                staged.package != package_id
-                # Ordinary updates stay in-place. Only an explicitly capable
-                # bridge may stage its exact signed successor for handover.
-                or health is None
+            panel_changed = (
+                health is None
                 or not reports_package(health.package, running_package)
                 or (migration and health.version != artifact.version)
+            )
+            staged_mismatch = (
+                staged.package != package_id
                 or staged.signer != _RELEASE_SIGNER_CERTIFICATE_SHA256
                 or staged.version != artifact.version
-            ):
+            )
+            if panel_changed or staged_mismatch:
                 with contextlib.suppress(HaPaneldError):
                     await client.async_discard_apk(staged.token)
-                raise _verification_error(artifact)
+                if panel_changed:
+                    raise _update_error(
+                        "panel_changed_during_update",
+                        "The panel changed while preparing the update",
+                    )
+                raise _update_error(
+                    "staged_app_mismatch",
+                    "The staged app does not match the signed release details",
+                )
             await _retry_unstarted_install(
                 lambda: client.async_commit_apk(staged.token)
             )
@@ -1240,7 +1338,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             or snapshot is None
             or not reports_package(snapshot.health.package, descriptor.package_id)
         ):
-            raise _verification_error(artifact)
+            raise _update_error(
+                "panel_changed_during_update",
+                "The panel changed while preparing the update",
+            )
         before = (snapshot.health.build, snapshot.health.package)
         await self._async_backup_panel()
         if apk is None:
@@ -1248,7 +1349,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 apk = await async_download_build(
                     async_get_clientsession(self.hass), artifact
                 )
-            except (BuildDownloadError, BuildFeedError) as err:
+            except BuildDownloadError as err:
+                raise _update_error(
+                    "release_download_failed", "The app release could not be downloaded"
+                ) from err
+            except BuildFeedError as err:
                 raise _verification_error(artifact) from err
         # A download or backup may take minutes. Re-prove the same panel and
         # credential immediately before replacing its installed package.
@@ -1366,13 +1471,12 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                             self._code_key = (health.version, health.build)
                         return
             await asyncio.sleep(_UPDATE_RECHECK_SECONDS)
+        if build_seen_without_home:
+            raise _update_error(
+                "update_not_complete", "The panel update did not complete"
+            )
         raise _update_error(
-            "update_not_complete"
-            if build_seen_without_home
-            else "update_did_not_return",
-            "The panel update did not complete"
-            if build_seen_without_home
-            else "The panel did not return after the update",
+            "update_did_not_return", "The panel did not return after the update"
         )
 
 
