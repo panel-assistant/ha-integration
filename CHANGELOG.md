@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Fixed
+
+- Panels using an older identity can reconnect after their network address changes. Panel Assistant verifies the new address and keeps the existing device and entities, while refusing conflicting identity claims.
+- Panels can report primary and secondary interface addresses, so Panel Assistant can verify a reachable address when the connection arrives through a router or proxy.
+
 ## 0.6.3 - 2026-09-27
 
 ### Fixed

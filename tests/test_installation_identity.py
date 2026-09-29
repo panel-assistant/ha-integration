@@ -383,7 +383,13 @@ async def test_legacy_clone_cannot_take_another_panels_session(
         entry, data={**entry.data, "installation_identity": False}
     )
     client = await hass_ws_client(hass, hass_read_only_access_token)
-    response = await _send(client, _hello(protocol={"min": 1, "max": 1}))
+    # Both endpoints still report the shared legacy identity: this is a clone,
+    # not the original panel moving away from a dead address.
+    with patch(
+        "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+        AsyncMock(return_value=entry.runtime_data.coordinator.data.health),
+    ):
+        response = await _send(client, _hello(protocol={"min": 1, "max": 1}))
     assert response["success"] is False
     assert response["error"]["code"] == "unknown_panel"
     assert async_get_sessions(hass).get(entry.entry_id) is None
@@ -536,9 +542,26 @@ async def test_legacy_hostname_uses_only_the_verified_saved_http_peer(
         hass.config_entries.async_update_entry(
             entry, data={**entry.data, CONF_ADDRESS: "changed.local"}
         )
-    client = await hass_ws_client(hass, hass_read_only_access_token)
-    response = await _send(client, _hello(protocol={"min": 1, "max": 1}))
-    assert response["success"] is accepted
+    # A different peer cannot move an endpoint that still answers this DID.
+    # Recovery now performs fresh health I/O instead of refusing every new peer.
+    with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(
+                return_value=parse_health_response(
+                    f"ha-paneld 0.9.8-rc2 panel=alpha build=1000 cfg=1a2b3c4d did={DID}"
+                )
+            ),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=STATUS),
+        ),
+    ):
+        client = await hass_ws_client(hass, hass_read_only_access_token)
+        response = await _send(client, _hello(protocol={"min": 1, "max": 1}))
+        assert response["success"] is accepted
+        await hass.async_block_till_done()
 
 
 async def test_discovery_mismatch_immediately_withdraws_existing_authority(

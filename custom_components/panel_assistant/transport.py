@@ -7,8 +7,9 @@ session: when the connection closes, Home Assistant unsubscribes it, and that
 is the signal that the panel is gone.
 
 Everything a panel sends is untrusted. Each message is validated and bounded
-before anything is stored, stored values are the validated copies, and no
-handler performs I/O, so Home Assistant applies them in arrival order.
+before anything is stored. Established-session handlers perform no I/O. A
+moved legacy panel must complete bounded health verification before its hello
+can grant a session.
 
 ``hello`` answers with the entry's authority. By default that is ``shadow``:
 MQTT owns every panel entity and its commands, and the panel reports its state
@@ -42,6 +43,7 @@ from collections import deque
 from collections.abc import Callable, Collection, Container, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from ipaddress import ip_address
 from typing import Any, Final
 
 import voluptuous as vol
@@ -52,7 +54,7 @@ from homeassistant.components.websocket_api.const import ERR_INVALID_FORMAT
 from homeassistant.components.websocket_api.decorators import websocket_command
 from homeassistant.components.websocket_api.messages import event_message
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNKNOWN
+from homeassistant.const import CONF_ADDRESS, STATE_OFF, STATE_ON, STATE_UNKNOWN
 from homeassistant.core import Event, HomeAssistant, State, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
@@ -394,6 +396,25 @@ def _bounded_list(max_length: int, item: Any) -> Callable[[Any], list[Any]]:
     return validate
 
 
+def _interface_address(value: Any) -> str:
+    """Bound panel address hints to usable, unscoped IP literals."""
+    if not isinstance(value, str) or len(value) > 45 or "%" in value:
+        raise vol.Invalid("expected an IP address")
+    try:
+        parsed = ip_address(value)
+        address = getattr(parsed, "ipv4_mapped", None) or parsed
+    except ValueError as err:
+        raise vol.Invalid("expected an IP address") from err
+    if (
+        address.is_loopback
+        or address.is_link_local
+        or address.is_unspecified
+        or address.is_multicast
+    ):
+        raise vol.Invalid("expected a panel interface address")
+    return str(address)
+
+
 def _options(value: Any) -> list[str]:
     options = _bounded_list(MAX_OPTIONS, _code)(value)
     if not options or len(set(options)) != len(options):
@@ -500,6 +521,7 @@ HELLO_SCHEMA: Final = vol.Schema(
             },
             extra=vol.REMOVE_EXTRA,
         ),
+        vol.Optional("addresses", default=list): _bounded_list(16, _interface_address),
         vol.Required("contract_digest"): _digest,
         vol.Required("capabilities"): _bounded_list(MAX_CAPABILITIES, _code),
         vol.Required("channels"): _channels,
@@ -834,6 +856,7 @@ class PanelSession:
     # there has proved the same identity, which the coordinator does before
     # adopting it. Never shown: an address identifies a network.
     remote: str | None = field(default=None, repr=False)
+    addresses: tuple[str, ...] = field(default=(), repr=False)
     # Described channels the vendored catalogue does not know. They are
     # accepted and their reports stored, but nothing renders them.
     unknown_channels: frozenset[str] = frozenset()
@@ -2063,14 +2086,14 @@ def ws_hello(
     from .identity import CONF_IDENTITY_PENDING, is_installation, legacy_peer_matches
 
     coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
+    legacy_move = not is_installation(entry) and not legacy_peer_matches(
+        entry, connection.remote
+    )
     if (
         entry.data.get(CONF_IDENTITY_PENDING) is not None
-        or getattr(coordinator, "identity_mismatch", False)
+        or (getattr(coordinator, "identity_mismatch", False) and not legacy_move)
         or (is_installation(entry) and high < 3)
-        or (
-            not is_installation(entry)
-            and (high >= 3 or not legacy_peer_matches(entry, connection.remote))
-        )
+        or (not is_installation(entry) and high >= 3)
     ):
         connection.send_error(
             msg["id"],
@@ -2078,8 +2101,6 @@ def ws_hello(
             "The panel identity is not confirmed at this endpoint.",
         )
         return
-    async_delete_merged_identity_issue(hass, entry)
-
     user_id = connection.user.id
     if entry.data.get(CONF_TRANSPORT_USER_ID) != user_id:
         if _may_ask_to_bind(hass, connection):
@@ -2094,6 +2115,31 @@ def ws_hello(
             "An administrator has not confirmed this user for this panel.",
         )
         return
+    pending = hass.data[DOMAIN].get("address_proofs", {})
+    if entry.entry_id in pending:
+        pending[entry.entry_id].conflicted = True
+        connection.send_error(
+            msg["id"], ERR_UNKNOWN_PANEL, "Competing panel address proofs."
+        )
+        return
+    if legacy_move:
+        _start_address_proof(hass, connection, msg, entry, high)
+        return
+    _accept_hello(hass, connection, msg, entry, high)
+
+
+@callback
+def _accept_hello(
+    hass: HomeAssistant,
+    connection: ActiveConnection,
+    msg: dict[str, Any],
+    entry: ConfigEntry,
+    high: int,
+) -> None:
+    """Grant a session only after synchronous admission or completed address proof."""
+    did = msg["did"]
+    user_id = connection.user.id
+    async_delete_merged_identity_issue(hass, entry)
     async_delete_binding_issue(hass, entry.entry_id, user_id)
 
     authority = effective_authority(hass, entry)
@@ -2142,6 +2188,7 @@ def ws_hello(
         descriptors=descriptors,
         opened_at=dt_util.utcnow(),
         remote=connection.remote if isinstance(connection.remote, str) else None,
+        addresses=tuple(msg.get("addresses", ())),
         unknown_channels=unknown,
         authority=authority,
         mqtt_discovery=mqtt_discovery,
@@ -2165,6 +2212,123 @@ def ws_hello(
         }
     async_get_sessions(hass).open(session)
     connection.send_result(msg["id"], result)
+
+
+@dataclass(slots=True)
+class _AddressProof:
+    """One bounded proof per entry; another requester invalidates both attempts."""
+
+    conflicted: bool = False
+
+
+@callback
+def _start_address_proof(
+    hass: HomeAssistant,
+    connection: ActiveConnection,
+    msg: dict[str, Any],
+    entry: ConfigEntry,
+    high: int,
+) -> None:
+    from .address import async_probe_addresses, session_candidates
+    from .client import normalize_address
+    from .identity import CONF_IDENTITY_PENDING, accept_health, is_installation
+
+    did = msg["did"]
+    stored = entry.data[CONF_ADDRESS]
+    runtime = entry.runtime_data
+    coordinator = runtime.coordinator
+    proof = _AddressProof()
+    pending = hass.data[DOMAIN].setdefault("address_proofs", {})
+
+    def valid() -> bool:
+        return (
+            not proof.conflicted
+            and _may_ask_to_bind(hass, connection)
+            and connection.user.is_active
+            and hass.config_entries.async_get_entry(entry.entry_id) is entry
+            and entry in hass.config_entries.async_loaded_entries(DOMAIN)
+            and entry.runtime_data is runtime
+            and entry.data[CONF_ADDRESS] == stored
+            and entry.data.get(CONF_TRANSPORT_USER_ID) == connection.user.id
+            and entry.data.get(CONF_IDENTITY_PENDING) is None
+            and not is_installation(entry)
+            and [
+                other.entry_id
+                for other in hass.config_entries.async_entries(DOMAIN)
+                if _panel_did(other) == did
+            ]
+            == [entry.entry_id]
+            and async_get_sessions(hass).get(entry.entry_id) is None
+        )
+
+    def refuse() -> None:
+        connection.send_error(
+            msg["id"], ERR_UNKNOWN_PANEL, "The panel address could not be verified."
+        )
+
+    if not valid():
+        refuse()
+        return
+    candidates = session_candidates(
+        connection.remote, normalize_address(stored), tuple(msg.get("addresses", ()))
+    )
+    if not candidates:
+        refuse()
+        return
+    pending[entry.entry_id] = proof
+
+    async def verify() -> None:
+        try:
+            async with asyncio.timeout(10):
+                previous, *answers = await async_probe_addresses(
+                    hass, (normalize_address(stored), *candidates)
+                )
+                if not valid() or (
+                    previous is not None and previous.discovery_id == did
+                ):
+                    refuse()
+                    return
+                for candidate, health in zip(candidates, answers, strict=True):
+                    if not valid():
+                        refuse()
+                        return
+                    if health is None or health.discovery_id != did:
+                        continue
+                    # Installation identity requires protocol 3 enrollment;
+                    # a legacy address proof cannot establish that provenance.
+                    if health.installation_identity or not accept_health(
+                        hass, entry, health
+                    ):
+                        refuse()
+                        return
+                    # No await divides the final ownership check, address write,
+                    # and session grant. The normal entry listener moves polling.
+                    hass.config_entries.async_update_entry(
+                        entry, data={**entry.data, CONF_ADDRESS: candidate.stored_value}
+                    )
+                    coordinator.identity_mismatch = False
+                    _accept_hello(hass, connection, msg, entry, high)
+                    return
+                refuse()
+        except TimeoutError:
+            refuse()
+        finally:
+            if pending.get(entry.entry_id) is proof:
+                pending.pop(entry.entry_id)
+            if connection.subscriptions.get(msg["id"]) is cancel:
+                connection.subscriptions.pop(msg["id"])
+
+    @callback
+    def cancel() -> None:
+        proof.conflicted = True
+        if pending.get(entry.entry_id) is proof:
+            pending.pop(entry.entry_id)
+        task.cancel()
+
+    connection.subscriptions[msg["id"]] = cancel
+    task = hass.async_create_task(
+        verify(), f"{DOMAIN} verify moved panel address", eager_start=False
+    )
 
 
 @callback

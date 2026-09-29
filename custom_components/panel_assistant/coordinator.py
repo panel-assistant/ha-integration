@@ -10,7 +10,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
@@ -22,8 +21,9 @@ from .address import (
     ISSUE_PANEL_ADDRESS_UNREACHABLE,
     ISSUE_PANEL_ADDRESS_UNVERIFIED,
     async_delete_address_issue,
+    async_probe_addresses,
     async_raise_address_issue,
-    session_candidate,
+    session_candidates,
 )
 from .client import (
     CannotConnectError,
@@ -155,6 +155,9 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
 
     async def _async_update_data(self) -> PanelSnapshot:
         """Fetch health authority, then best-effort sanitized status."""
+        entry = self._entry()
+        address = self.client.address
+        stored_value = entry.data[CONF_ADDRESS] if entry is not None else None
         try:
             health = await self.client.async_get_health()
         except HaPaneldError as err:
@@ -165,6 +168,18 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                     translation_key="health_update_failed",
                 ) from err
             health = recovered
+        else:
+            # A moved-panel hello or an address edit can retire this request
+            # while it is in flight. Its answer has no authority at the new address.
+            if (
+                self._entry() is not entry
+                or self.client.address != address
+                or (entry is not None and entry.data[CONF_ADDRESS] != stored_value)
+            ):
+                self.client.health_peer = None
+                raise UpdateFailed(
+                    translation_domain=DOMAIN, translation_key="health_update_failed"
+                )
         entry = self._entry()
         if entry is not None and not accept_health(self.hass, entry, health):
             self.identity_mismatch = True
@@ -207,22 +222,29 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         if session is None or entry is None or not is_installation(entry):
             return None
         stored = self.client.address
-        candidate = session_candidate(session.remote, stored)
-        if candidate is None:
+        stored_value = entry.data[CONF_ADDRESS]
+        candidates = session_candidates(session.remote, stored, session.addresses)
+        if not candidates:
             self._report(
                 entry, ISSUE_PANEL_ADDRESS_UNREACHABLE, session.remote or stored.host
             )
             return None
-        try:
-            health = await HaPaneldClient(
-                async_get_clientsession(self.hass), candidate
-            ).async_get_health()
-        except HaPaneldError:
-            health = None
-        # A panel that does not report its identity cannot prove it is the one
-        # holding the session, so its address is never adopted from one.
-        if health is None or health.discovery_id != session.did:
-            self._report(entry, ISSUE_PANEL_ADDRESS_UNVERIFIED, candidate.host)
+        answers = await async_probe_addresses(self.hass, candidates)
+        for candidate, health in zip(candidates, answers, strict=True):  # noqa: B007 — used after the loop
+            if health is not None and health.discovery_id == session.did:
+                break
+        else:
+            self._report(entry, ISSUE_PANEL_ADDRESS_UNVERIFIED, candidates[0].host)
+            return None
+        # A superseded session or edited entry cannot move an endpoint after I/O.
+        if (
+            self._session() is not session
+            or self._entry() is not entry
+            or self.client.address != stored
+            or entry.data[CONF_ADDRESS] != stored_value
+            or not is_installation(entry)
+            or entry.unique_id != session.did
+        ):
             return None
         # The entry is the one record of the address. Its update listener
         # moves the running client, before this returns, so the status read

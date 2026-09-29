@@ -1167,3 +1167,150 @@ async def test_known_panel_advertising_its_stored_address_changes_nothing(
     assert result["reason"] == "already_configured"
     health_mock.assert_not_awaited()
     assert entry.data[CONF_ADDRESS] == MOVED
+
+
+async def test_reported_secondary_address_recovers_panel_behind_router(
+    hass, entry, hass_ws_client, hass_read_only_access_token
+):
+    """A failed primary address falls back to the panel's verified secondary."""
+    primary, secondary, router = "192.168.4.20", "192.168.5.20", "192.168.4.1"
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await _open(client, addresses=[primary, secondary])
+    session = async_get_sessions(hass).get(entry.entry_id)
+    assert session is not None
+    session.remote = router
+    card = dr.async_get(hass).async_get_device_by_identifier(
+        (DOMAIN, entry.entry_id), entry.entry_id
+    )
+    assert card is not None
+    card_id, entry_id = card.id, entry.entry_id
+
+    await _poll(
+        hass,
+        entry,
+        {
+            STORED: CannotConnectError(),
+            primary: CannotConnectError(),
+            secondary: HEALTH,
+            router: replace(HEALTH, discovery_id=OTHER_DID),
+        },
+    )
+
+    assert entry.data[CONF_ADDRESS] == secondary
+    assert entry.runtime_data.client.address == normalize_address(secondary)
+    assert entry.runtime_data.coordinator.last_update_success
+    assert entry.entry_id == entry_id
+    assert (
+        dr.async_get(hass)
+        .async_get_device_by_identifier((DOMAIN, entry.entry_id), entry.entry_id)
+        .id
+        == card_id
+    )
+    assert async_get_sessions(hass).get(entry.entry_id) is session
+    assert _issue(hass, entry) is None
+
+
+async def test_closed_session_cannot_adopt_a_late_health_answer(
+    hass, entry, hass_ws_client, hass_read_only_access_token
+):
+    """An HTTP result from a retired connection cannot move the saved endpoint."""
+    client = await _connect(hass, hass_ws_client, hass_read_only_access_token, entry)
+    started, release = asyncio.Event(), asyncio.Event()
+
+    async def delayed_health(panel_client):
+        if panel_client.address.host == STORED:
+            raise CannotConnectError()
+        started.set()
+        await release.wait()
+        return HEALTH
+
+    with patch(
+        "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+        delayed_health,
+    ):
+        poll = asyncio.create_task(entry.runtime_data.coordinator.async_refresh())
+        await asyncio.wait_for(started.wait(), 1)
+        await client.close()
+        # Closing the session is observable before its delayed HTTP read completes.
+        async_get_sessions(hass).close_entry(entry.entry_id, "entry_unloaded")
+        release.set()
+        await asyncio.wait_for(poll, 1)
+
+    assert entry.data[CONF_ADDRESS] == STORED
+    assert async_get_sessions(hass).get(entry.entry_id) is None
+    assert not entry.runtime_data.coordinator.last_update_success
+
+
+async def test_address_edit_during_health_proof_is_not_overwritten(
+    hass, entry, hass_ws_client, hass_read_only_access_token
+):
+    """An entry update wins before its asynchronous client listener has run."""
+    await _connect(hass, hass_ws_client, hass_read_only_access_token, entry)
+    chosen = "192.168.8.11"
+
+    async def health(panel_client):
+        if panel_client.address.host == STORED:
+            raise CannotConnectError()
+        hass.config_entries.async_update_entry(
+            entry, data={**entry.data, CONF_ADDRESS: chosen}
+        )
+        return HEALTH
+
+    with (
+        patch.object(HaPaneldClient, "async_get_health", health),
+        patch.object(
+            HaPaneldClient, "async_get_status", AsyncMock(return_value=STATUS)
+        ),
+    ):
+        await entry.runtime_data.coordinator.async_refresh()
+        await hass.async_block_till_done()
+    assert entry.data[CONF_ADDRESS] == chosen
+    assert entry.runtime_data.client.address == normalize_address(chosen)
+
+
+async def test_old_address_poll_cannot_close_newly_admitted_moved_panel(
+    hass, entry, hass_ws_client, hass_read_only_access_token
+):
+    """A response from a recycled address cannot revoke the proven new session."""
+    from .test_transport import _hello, _send
+
+    hass.config_entries.async_update_entry(
+        entry, data={**entry.data, "installation_identity": False}
+    )
+    await hass.async_block_till_done()
+    coordinator = entry.runtime_data.coordinator
+    started, release = asyncio.Event(), asyncio.Event()
+    legacy_health = replace(HEALTH, installation_identity=False)
+
+    async def health(panel_client):
+        if panel_client.address.host == STORED:
+            if panel_client is entry.runtime_data.client:
+                started.set()
+                await release.wait()
+            return replace(legacy_health, discovery_id=OTHER_DID)
+        return legacy_health
+
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    with (
+        patch.object(HaPaneldClient, "async_get_health", health),
+        patch.object(
+            HaPaneldClient, "async_get_status", AsyncMock(return_value=STATUS)
+        ),
+    ):
+        poll = asyncio.create_task(coordinator.async_refresh())
+        await asyncio.wait_for(started.wait(), 1)
+        try:
+            response = await _send(
+                client, _hello(protocol={"min": 1, "max": 2}, addresses=[MOVED])
+            )
+            assert response["success"], response
+            session = async_get_sessions(hass).get(entry.entry_id)
+            assert session is not None
+        finally:
+            release.set()
+            await asyncio.wait_for(poll, 1)
+        await hass.async_block_till_done()
+
+    assert entry.data[CONF_ADDRESS] == MOVED
+    assert async_get_sessions(hass).get(entry.entry_id) is session
+    assert not coordinator.identity_mismatch

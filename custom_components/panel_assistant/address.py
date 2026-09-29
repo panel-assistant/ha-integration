@@ -1,24 +1,30 @@
 """Where a connected panel can be reached, and the report when it cannot be.
 
-The stored address is where Home Assistant polls the panel. A panel's own
-session knows the address it is talking from, which is the one place the
-stored address can be repaired from when the panel has moved: no discovery has
-to reach Home Assistant, and no new message has to be invented. What may be
-written is a separate question from whether the panel is available, and is
-answered here: a candidate is only ever adopted after a health read at that
-address has proved the same identity. A refused candidate leaves the stored
-address alone and says so as a Repairs issue.
+The stored address is where Home Assistant polls the panel. Its authenticated
+session supplies peer and interface addresses to try when the panel moves.
+Availability and permission to replace the stored address remain separate:
+a candidate is adopted only after a health read proves the same identity.
+A refused candidate leaves the stored address alone.
 """
 
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 from typing import Final
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .client import InvalidAddressError, PanelAddress, normalize_address
+from .client import (
+    HaPaneldClient,
+    HaPaneldError,
+    InvalidAddressError,
+    PanelAddress,
+    PanelHealth,
+    normalize_address,
+)
 from .const import DOMAIN
 
 # The panel is connected, but the stored address does not answer and the
@@ -70,6 +76,34 @@ def session_candidate(remote: str | None, stored: PanelAddress) -> PanelAddress 
     if candidate == stored:
         return None
     return candidate
+
+
+def session_candidates(
+    remote: str | None, stored: PanelAddress, reported: tuple[str, ...] = ()
+) -> tuple[PanelAddress, ...]:
+    """Prefer the panel's interface addresses over a possible NAT/proxy peer."""
+    return tuple(
+        dict.fromkeys(
+            candidate
+            for host in (*reported, remote)
+            if (candidate := session_candidate(host, stored)) is not None
+        )
+    )
+
+
+async def async_probe_addresses(
+    hass: HomeAssistant, addresses: tuple[PanelAddress, ...]
+) -> list[PanelHealth | None]:
+    """Read bounded candidates together so a dead primary cannot starve its siblings."""
+    http = async_get_clientsession(hass)
+
+    async def probe(address: PanelAddress) -> PanelHealth | None:
+        try:
+            return await HaPaneldClient(http, address).async_get_health()
+        except HaPaneldError:
+            return None
+
+    return list(await asyncio.gather(*(probe(address) for address in addresses)))
 
 
 @callback
