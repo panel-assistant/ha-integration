@@ -10,6 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.update_coordinator import (
@@ -176,24 +177,36 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             )
         self.identity_mismatch = False
         if self._entry_id is not None:
-            from .failure_repair import async_clear_update_failure_if_installed
+            from .failure_repair import (
+                async_clear_update_failure_if_installed,
+                panel_failure_issue_id,
+            )
 
-            feed = async_get_feed_coordinator(self.hass)
-            current = (
-                feed.verified_newest(health.package or LEGACY_PACKAGE_ID)
-                if feed is not None
-                and feed.last_update_success
-                and feed.data is not None
-                else None
-            )
-            current_code = current.version_code if current is not None else None
-            await async_clear_update_failure_if_installed(
-                self.hass,
-                self._entry_id,
-                health.version,
-                health.version_code,
-                verified_current_code=current_code,
-            )
+            issue_id = panel_failure_issue_id(f"update:{self._entry_id}")
+            if ir.async_get(self.hass).async_get_issue(DOMAIN, issue_id) is not None:
+                try:
+                    name, installed_code = await self.client.async_get_version_code()
+                except HaPaneldError:
+                    installed_code = None
+                else:
+                    if name != health.version:
+                        installed_code = None
+                feed = async_get_feed_coordinator(self.hass)
+                current = (
+                    feed.verified_newest(health.package or LEGACY_PACKAGE_ID)
+                    if feed is not None
+                    and feed.last_update_success
+                    and feed.data is not None
+                    else None
+                )
+                current_code = current.version_code if current is not None else None
+                await async_clear_update_failure_if_installed(
+                    self.hass,
+                    self._entry_id,
+                    health.version,
+                    installed_code,
+                    verified_current_code=current_code,
+                )
             async_delete_address_issue(self.hass, self._entry_id)
             if not self.connected:
                 sessions = async_get_sessions(self.hass)

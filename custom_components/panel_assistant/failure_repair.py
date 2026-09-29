@@ -260,19 +260,23 @@ async def async_clear_update_failure_if_installed(
         )
         target = previous.get("target_version") if previous is not None else None
         if not isinstance(target, str):
-            before = previous.get("observed_before") if previous is not None else None
-            if isinstance(before, list) and len(before) == 2:
-                old_version, old_code = before
-                if isinstance(old_version, str) and (
-                    is_newer_stable_version(installed_version, old_version)
-                    or (
-                        installed_version == old_version
-                        and isinstance(old_code, int)
-                        and installed_code is not None
-                        and installed_code > old_code
-                    )
-                ):
-                    return True
+            if previous is None:
+                return False
+            before = previous.get("observed_before")
+            if "observed_before" in previous:
+                if isinstance(before, list) and len(before) == 2:
+                    old_version, old_code = before
+                    if isinstance(old_version, str) and (
+                        is_newer_stable_version(installed_version, old_version)
+                        or (
+                            installed_version == old_version
+                            and isinstance(old_code, int)
+                            and installed_code is not None
+                            and installed_code > old_code
+                        )
+                    ):
+                        return True
+                return verified_success
             return verified_success or (
                 verified_current_code is not None
                 and installed_code is not None

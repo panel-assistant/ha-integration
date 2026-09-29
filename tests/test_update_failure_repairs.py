@@ -496,7 +496,16 @@ async def test_accepted_health_poll_clears_repair_when_failed_build_is_reached(
     client = SimpleNamespace(
         async_get_health=AsyncMock(),
         async_get_status=AsyncMock(return_value=PanelStatus(0, 0)),
+        async_get_version_code=AsyncMock(),
     )
+
+    async def read_code() -> tuple[str, int]:
+        health = client.async_get_health.return_value
+        if health.version_code is None:
+            raise CannotConnectError
+        return health.version, health.version_code
+
+    client.async_get_version_code.side_effect = read_code
     coordinator = HaPaneldDataUpdateCoordinator(hass, client, entry.entry_id)  # type: ignore[arg-type]
 
     client.async_get_health.return_value = PanelHealth(
@@ -532,25 +541,108 @@ async def test_accepted_health_poll_clears_repair_when_failed_build_is_reached(
 
 
 @pytest.mark.parametrize(
-    ("installed_code", "verified", "feed_ok", "package", "clears"),
+    (
+        "installed_code",
+        "diag",
+        "verified",
+        "feed_ok",
+        "package",
+        "observed_before",
+        "clears",
+    ),
     [
-        pytest.param(102, True, True, LEGACY_PACKAGE_ID, True, id="current"),
-        pytest.param(103, True, True, LEGACY_PACKAGE_ID, True, id="newer"),
-        pytest.param(101, True, True, LEGACY_PACKAGE_ID, False, id="below"),
-        pytest.param(102, False, True, LEGACY_PACKAGE_ID, False, id="unverified"),
-        pytest.param(102, True, False, LEGACY_PACKAGE_ID, False, id="stale-feed"),
         pytest.param(
-            102, True, True, "io.panelassistant.android", False, id="other-package"
+            102,
+            ("0.9.10", 102),
+            True,
+            True,
+            LEGACY_PACKAGE_ID,
+            None,
+            True,
+            id="current",
         ),
-        pytest.param(None, True, True, LEGACY_PACKAGE_ID, False, id="unknown-code"),
+        pytest.param(
+            103, ("0.9.10", 103), True, True, LEGACY_PACKAGE_ID, None, True, id="newer"
+        ),
+        pytest.param(
+            101, ("0.9.10", 101), True, True, LEGACY_PACKAGE_ID, None, False, id="below"
+        ),
+        pytest.param(
+            102,
+            ("0.9.10", 101),
+            True,
+            True,
+            LEGACY_PACKAGE_ID,
+            None,
+            False,
+            id="diag-below",
+        ),
+        pytest.param(
+            102,
+            ("0.9.9", 102),
+            True,
+            True,
+            LEGACY_PACKAGE_ID,
+            None,
+            False,
+            id="diag-name-mismatch",
+        ),
+        pytest.param(
+            102, None, True, True, LEGACY_PACKAGE_ID, None, False, id="diag-unavailable"
+        ),
+        pytest.param(
+            102,
+            ("0.9.10", 102),
+            False,
+            True,
+            LEGACY_PACKAGE_ID,
+            None,
+            False,
+            id="unverified",
+        ),
+        pytest.param(
+            102,
+            ("0.9.10", 102),
+            True,
+            False,
+            LEGACY_PACKAGE_ID,
+            None,
+            False,
+            id="stale-feed",
+        ),
+        pytest.param(
+            102,
+            ("0.9.10", 102),
+            True,
+            True,
+            "io.panelassistant.android",
+            None,
+            False,
+            id="other-package",
+        ),
+        pytest.param(
+            None, None, True, True, LEGACY_PACKAGE_ID, None, False, id="unknown-code"
+        ),
+        pytest.param(
+            102,
+            ("0.9.10", 102),
+            True,
+            True,
+            LEGACY_PACKAGE_ID,
+            ("0.9.10", 102),
+            False,
+            id="fresh-failure-no-advance",
+        ),
     ],
 )
 async def test_older_targetless_repair_clears_only_at_verified_current_feed_build(
     hass: HomeAssistant,
     installed_code: int | None,
+    diag: tuple[str, int] | None,
     verified: bool,
     feed_ok: bool,
     package: str,
+    observed_before: tuple[str, int] | None,
     clears: bool,
 ) -> None:
     entry = MockConfigEntry(
@@ -561,7 +653,12 @@ async def test_older_targetless_repair_clears_only_at_verified_current_feed_buil
     entry.add_to_hass(hass)
     issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
     await async_record_update_failure(
-        hass, entry.entry_id, entry.title, None, RuntimeError("interrupted rollout")
+        hass,
+        entry.entry_id,
+        entry.title,
+        None,
+        RuntimeError("interrupted rollout"),
+        observed_before=observed_before,
     )
     hass.data.pop("panel_assistant.failure_repair_store", None)
 
@@ -596,6 +693,9 @@ async def test_older_targetless_repair_clears_only_at_verified_current_feed_buil
             )
         ),
         async_get_status=AsyncMock(return_value=PanelStatus(0, 0)),
+        async_get_version_code=AsyncMock(
+            return_value=diag, side_effect=CannotConnectError if diag is None else None
+        ),
     )
     coordinator = HaPaneldDataUpdateCoordinator(hass, client, entry.entry_id)  # type: ignore[arg-type]
     await coordinator.async_refresh()
@@ -609,6 +709,46 @@ async def test_older_targetless_repair_clears_only_at_verified_current_feed_buil
         assert (await async_failure_events(hass, issue_id))[-1][
             "reason"
         ] == "interrupted rollout"
+
+
+async def test_feed_failure_repair_uses_diagnostic_code_instead_of_health_label(
+    hass: HomeAssistant,
+) -> None:
+    entry = MockConfigEntry(
+        domain="panel_assistant",
+        title="Test panel",
+        data={CONF_ADDRESS: "panel.local"},
+    )
+    entry.add_to_hass(hass)
+    issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
+    await async_record_update_failure(
+        hass,
+        entry.entry_id,
+        entry.title,
+        "0.9.10 build 102",
+        RuntimeError("interrupted rollout"),
+    )
+    client = SimpleNamespace(
+        async_get_health=AsyncMock(
+            return_value=PanelHealth(
+                version="0.9.10",
+                version_code=102,
+                panel_id="alpha",
+                build="installed",
+                config_hash="abcd",
+            )
+        ),
+        async_get_status=AsyncMock(return_value=PanelStatus(0, 0)),
+        async_get_version_code=AsyncMock(return_value=("0.9.10", 101)),
+    )
+    coordinator = HaPaneldDataUpdateCoordinator(hass, client, entry.entry_id)  # type: ignore[arg-type]
+
+    await coordinator.async_refresh()
+    assert ir.async_get(hass).async_get_issue("panel_assistant", issue_id) is not None
+    client.async_get_version_code.return_value = ("0.9.10", 102)
+    await coordinator.async_refresh()
+    assert ir.async_get(hass).async_get_issue("panel_assistant", issue_id) is None
+    assert await async_failure_events(hass, issue_id) == []
 
 
 async def test_installing_older_named_feed_build_keeps_newer_failure_repair(
