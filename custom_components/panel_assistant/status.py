@@ -55,6 +55,7 @@ class PanelStatus:
     zigbee_gateway: ComponentStatus | None = None
     storage_health: ComponentStatus | None = None
     renderer: ComponentStatus | None = None
+    home_ui: ComponentStatus | None = None
     camera: ComponentStatus | None = None
     power_safety: ComponentStatus | None = None
     panel_assistant_update: PanelCachedUpdate | None = None
@@ -69,6 +70,7 @@ class PanelStatus:
             "zigbee_gateway": _copy_component(self.zigbee_gateway),
             "storage_health": _copy_component(self.storage_health),
             "renderer": _copy_component(self.renderer),
+            "home_ui": _copy_component(self.home_ui),
             "camera": _copy_component(self.camera),
             "power_safety": _copy_component(self.power_safety),
             "panel_assistant_update": (
@@ -389,6 +391,27 @@ _RENDERER_FIELDS: dict[str, FieldValidator] = {
     "theme_overridden": _boolean,
 }
 
+
+def _home_ui_state(value: object) -> str:
+    if value not in ("ready", "setup", "blocked", "unknown"):
+        raise InvalidResponseError
+    return str(value)
+
+
+_HOME_UI_FIELDS: dict[str, FieldValidator] = {
+    "state": _home_ui_state,
+    "reason": _token,
+    "evidence": _token,
+}
+
+
+def home_ui_allows(status: PanelStatus, *, setup: bool = False) -> bool:
+    """Accept only a fresh, complete HOME proof for this completion path."""
+    return status.home_ui is not None and status.home_ui.get("state") in (
+        ("ready", "setup") if setup else ("ready",)
+    )
+
+
 _CAMERA_FIELDS: dict[str, FieldValidator] = {
     "state": _token,
     "outcome": _token,
@@ -520,6 +543,12 @@ def parse_status_response(body: str) -> PanelStatus:
         ),
         renderer=_sanitize_component(
             parsed, "renderer", _RENDERER_FIELDS, frozenset({"mode", "state"})
+        ),
+        home_ui=_sanitize_component(
+            parsed,
+            "home_ui",
+            _HOME_UI_FIELDS,
+            frozenset({"state", "reason", "evidence"}),
         ),
         camera=_sanitize_component(
             parsed, "camera", _CAMERA_FIELDS, frozenset({"state"})

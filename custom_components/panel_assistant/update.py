@@ -93,7 +93,7 @@ from .release import (
     ReleaseArtifact,
     is_feed_build_tag,
 )
-from .status import PanelCachedUpdate
+from .status import PanelCachedUpdate, home_ui_allows
 from .transport import async_get_sessions
 from .update_coordinator import PanelUpdateCoordinator
 
@@ -1303,6 +1303,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             + _RESTART_HEALTH_GRACE_SECONDS
         )
         restart_projected = False
+        build_seen_without_home = False
         while loop.time() < deadline:
             await self.coordinator.async_request_refresh()
             restart_projected = self._show_accepted_restart(restart_projected)
@@ -1317,27 +1318,44 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     or (build is None and health.package == SUCCESSOR_PACKAGE_ID)
                 )
             ):
-                if build is None:
-                    return
-                try:
-                    _name, code = await self.coordinator.client.async_get_version_code()
-                except HaPaneldError:
-                    code = None
-                if code is not None and (
-                    code >= build.version_code
-                    if minimum_code
-                    else code == build.version_code
-                ):
-                    self._installed_code = code
-                    self._code_key = (health.version, health.build)
-                    return
-                if code is not None:
-                    raise _update_error(
-                        "update_not_complete", "The panel update did not complete"
-                    )
+                code = None
+                if build is not None:
+                    try:
+                        (
+                            _name,
+                            code,
+                        ) = await self.coordinator.client.async_get_version_code()
+                    except HaPaneldError:
+                        code = None
+                    if code is not None and not (
+                        code >= build.version_code
+                        if minimum_code
+                        else code == build.version_code
+                    ):
+                        raise _update_error(
+                            "update_not_complete", "The panel update did not complete"
+                        )
+                if build is None or code is not None:
+                    build_seen_without_home = True
+                    try:
+                        status = await self.coordinator.client.async_get_status(
+                            home_proof=True
+                        )
+                    except HaPaneldError:
+                        status = None
+                    if status is not None and home_ui_allows(status):
+                        if code is not None:
+                            self._installed_code = code
+                            self._code_key = (health.version, health.build)
+                        return
             await asyncio.sleep(_UPDATE_RECHECK_SECONDS)
         raise _update_error(
-            "update_did_not_return", "The panel did not return after the update"
+            "update_not_complete"
+            if build_seen_without_home
+            else "update_did_not_return",
+            "The panel update did not complete"
+            if build_seen_without_home
+            else "The panel did not return after the update",
         )
 
 

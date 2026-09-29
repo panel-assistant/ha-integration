@@ -77,6 +77,7 @@ from custom_components.panel_assistant.release import (
     ReleaseArtifact,
     ReleaseResolutionError,
 )
+from custom_components.panel_assistant.status import PanelStatus
 from custom_components.panel_assistant.transport import (
     async_binding_request,
     async_record_binding_request,
@@ -2937,6 +2938,20 @@ def _final_proof(
             f"{_FINAL}.HaPaneldClient.async_get_health",
             health
             or AsyncMock(return_value=replace(HEALTH, version=ARTIFACT.version_name)),
+        ),
+        patch(
+            f"{_FINAL}.HaPaneldClient.async_get_status",
+            AsyncMock(
+                return_value=PanelStatus(
+                    warning_count=0,
+                    capability_count=0,
+                    home_ui={
+                        "state": "setup",
+                        "reason": "activity",
+                        "evidence": "foreground",
+                    },
+                )
+            ),
         ),
     ):
         yield

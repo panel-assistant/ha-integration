@@ -882,6 +882,43 @@ async def test_client_fetches_canonical_status_endpoint() -> None:
     assert kwargs["headers"] == {"Cache-Control": "no-cache"}
 
 
+async def test_client_requests_fresh_home_proof_only_when_asked() -> None:
+    """Install completion pays for foreground observation on its own request."""
+    body = (
+        b'{"warnings":[],"capabilities":[],"home_ui":'
+        b'{"state":"blocked","reason":"chooser","evidence":"resolver"}}'
+    )
+    session = _FakeSession(body=body)
+    client = HaPaneldClient(session, normalize_address("panel.local"))  # type: ignore[arg-type]
+
+    status = await client.async_get_status(home_proof=True)
+
+    assert status.home_ui == {
+        "state": "blocked",
+        "reason": "chooser",
+        "evidence": "resolver",
+    }
+    assert session.request is not None
+    url, _ = session.request
+    assert str(url) == "http://panel.local:8888/api/v1/status?home_proof=1"
+
+
+@pytest.mark.parametrize(
+    "home_ui",
+    [
+        {"state": "ready", "reason": "activity"},
+        {"state": "healthy", "reason": "activity", "evidence": "foreground"},
+        {"state": "ready", "reason": "not a token", "evidence": "foreground"},
+    ],
+)
+def test_status_rejects_incomplete_or_invalid_home_proof(home_ui: object) -> None:
+    """A malformed positive proof cannot be silently interpreted as ready."""
+    with pytest.raises(InvalidResponseError):
+        parse_status_response(
+            json.dumps({"warnings": [], "capabilities": [], "home_ui": home_ui})
+        )
+
+
 async def test_client_claims_the_panel_update_only_when_asked() -> None:
     """The owner header rides only on a status poll that claims the update."""
     session = _FakeSession(body=STATUS_FIXTURE.read_bytes())

@@ -92,6 +92,7 @@ from .migration_repair import (
     async_raise_panel_migration_incomplete,
 )
 from .release import InstallDescriptor, ReleaseArtifact, is_feed_build_tag
+from .status import home_ui_allows
 
 _LOGGER = logging.getLogger(__name__)
 _EXECUTOR_DATA_KEY = f"{DOMAIN}.install_executor"
@@ -550,10 +551,9 @@ class InstallExecutor:
                 return FinalizationResult(FinalizationOutcome.RETRY)
             return await self._async_reject_healthy(receipt, _result_subcode(err))
 
+        panel = HaPaneldClient(async_get_clientsession(self._hass), adb_target.address)
         try:
-            health = await HaPaneldClient(
-                async_get_clientsession(self._hass), adb_target.address
-            ).async_get_health()
+            health = await panel.async_get_health()
         except CannotConnectError:
             return FinalizationResult(FinalizationOutcome.RETRY)
         except InvalidResponseError:
@@ -561,6 +561,14 @@ class InstallExecutor:
 
         if not health_is_installed_app(health, receipt.artifact):
             return await self._async_reject_healthy(receipt, "health:identity_mismatch")
+        try:
+            status = await panel.async_get_status(home_proof=True)
+        except CannotConnectError:
+            return FinalizationResult(FinalizationOutcome.RETRY)
+        except InvalidResponseError:
+            return await self._async_reject_healthy(receipt, "home_ui:invalid_response")
+        if not home_ui_allows(status, setup=True):
+            return await self._async_reject_healthy(receipt, "home_ui:not_ready")
         return FinalizationResult(FinalizationOutcome.VERIFIED, health)
 
     async def _async_reject_healthy(
@@ -1294,7 +1302,19 @@ class InstallExecutor:
                 if not last:
                     await asyncio.sleep(_HEALTH_RETRY_SECONDS)
                 continue
-            if not handover or last or health_is_installed_app(health, artifact):
+            if health_is_installed_app(health, artifact):
+                try:
+                    status = await client.async_get_status(home_proof=True)
+                except CannotConnectError, InvalidResponseError:
+                    failure_subcode = "home_ui:unavailable"
+                else:
+                    if home_ui_allows(status, setup=True):
+                        return health, None
+                    failure_subcode = "home_ui:not_ready"
+                if not last:
+                    await asyncio.sleep(_HEALTH_RETRY_SECONDS)
+                continue
+            if not handover or last:
                 return health, None
             # Something healthy answered, but it is not the app just installed:
             # on a migrating panel the legacy app still owns the port.
