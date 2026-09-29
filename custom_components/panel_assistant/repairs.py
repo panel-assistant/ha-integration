@@ -12,6 +12,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType, UnknownStep
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .app_identity import SUCCESSOR_PACKAGE_ID
@@ -318,6 +319,13 @@ class InstallerFailureFlow(RepairsFlow):
         except Exception:
             reason = "retry_failed"
         self._retry_task = None
+        if reason == "_update_completed":
+            if (
+                ir.async_get(self.hass).async_get_issue(DOMAIN, self.issue_id)
+                is not None
+            ):
+                return await self.async_step_init()
+            return self.async_create_entry(data={})
         if reason is None:
             await async_clear_failure(self.hass, self.issue_id)
             return self.async_create_entry(data={})
@@ -399,7 +407,7 @@ class InstallerFailureFlow(RepairsFlow):
                 service_data,
                 blocking=True,
             )
-            return None
+            return "_update_completed"
         except RetrySafetyHold as err:
             await async_record_retry_hold(self.hass, self.issue_id, previous, err)
             return err.reason

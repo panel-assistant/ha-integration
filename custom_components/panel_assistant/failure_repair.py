@@ -273,8 +273,10 @@ async def async_clear_update_failure_if_installed(
         target_code = parse_build_request(target)
         if target_code is not None:
             return installed_code is not None and installed_code >= target_code
+        # A prerelease of a later version is newer than the failed stable
+        # version; one of the same version has not reached that stable build.
         return installed_version == target or is_newer_stable_version(
-            installed_version, target
+            installed_version.split("-", 1)[0], target
         )
 
     await _failure_store(hass).clear(

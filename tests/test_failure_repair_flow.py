@@ -328,11 +328,13 @@ async def test_update_retry_holds_when_signed_feed_artifact_changed(
     resolver.assert_awaited_once_with(hass, original.tag)
 
 
+@pytest.mark.parametrize("new_failure_after_retry", [False, True])
 async def test_superseded_update_repair_retries_current_offer(
     hass: HomeAssistant,
     repairs_ready: None,
     hass_client: Any,
     monkeypatch: pytest.MonkeyPatch,
+    new_failure_after_retry: bool,
 ) -> None:
     entry = MockConfigEntry(
         domain=DOMAIN, title="Test panel", data={CONF_ADDRESS: "panel.local"}
@@ -368,6 +370,14 @@ async def test_superseded_update_repair_retries_current_offer(
         await async_clear_update_failure_if_installed(
             hass, entry.entry_id, "0.9.7-rc4", 103
         )
+        if new_failure_after_retry:
+            await async_record_update_failure(
+                hass,
+                entry.entry_id,
+                entry.title,
+                "0.9.7-rc4 build 104",
+                RuntimeError("next update failed"),
+            )
 
     hass.services.async_register("update", "install", installed)
     resolver = AsyncMock(side_effect=AssertionError("old release must not be retried"))
@@ -388,10 +398,16 @@ async def test_superseded_update_repair_retries_current_offer(
             f"/api/repairs/issues/fix/{menu['flow_id']}", json={}
         )
         result = await response.json()
-    assert result["type"] == "create_entry"
+    assert result["type"] == ("menu" if new_failure_after_retry else "create_entry")
     assert calls == [{"entity_id": entity.entity_id}]
     assert resolver.await_count == 0
-    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+    assert (
+        ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+    ) is new_failure_after_retry
+    if new_failure_after_retry:
+        assert (await async_failure_events(hass, issue_id))[-1][
+            "reason"
+        ] == "next update failed"
 
 
 @pytest.mark.parametrize(

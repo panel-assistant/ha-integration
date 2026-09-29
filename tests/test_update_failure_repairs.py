@@ -458,6 +458,7 @@ async def test_verified_panel_success_clears_previous_repair(
     [
         ("0.9.10", ("0.9.9", None), ("0.9.10", None), True, None),
         ("0.9.10", ("0.9.9", None), ("0.9.11", None), True, None),
+        ("0.9.10", ("0.9.9", None), ("0.9.11-rc1", 103), True, None),
         ("0.9.7-rc4 build 102", ("0.9.7-rc4", 101), ("0.9.7-rc4", 102), True, None),
         ("0.9.7-rc4 build 102", ("0.9.7-rc4", 101), ("0.9.7-rc4", 103), True, None),
         ("0.9.7-rc4 build 102", ("0.9.7-rc4", 101), ("0.9.7-rc4", None), False, None),
