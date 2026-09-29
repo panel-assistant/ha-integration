@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-import json
+import re
 import traceback
 from collections.abc import Callable
 from dataclasses import asdict, replace
@@ -307,14 +307,54 @@ async def async_record_retry_hold(
 async def async_support_report(hass: HomeAssistant, issue_id: str) -> str:
     """Produce a copyable, unredacted report for support."""
     events = await async_failure_events(hass, issue_id)
-    return "\n".join(
-        (
-            f"Panel Assistant {INTEGRATION_VERSION} build {INTEGRATION_BUILD}",
-            f"Home Assistant {ha_version}",
-            f"Repair: {issue_id}",
-            json.dumps(events, indent=2, ensure_ascii=False, default=str),
+
+    def detail_lines(path: str, value: Any) -> list[str]:
+        if isinstance(value, dict) and value:
+            return [
+                line
+                for key, item in value.items()
+                for line in detail_lines(f"{path}.{key}" if path else str(key), item)
+            ]
+        if isinstance(value, list) and value:
+            return [
+                line
+                for index, item in enumerate(value)
+                for line in detail_lines(f"{path}[{index}]", item)
+            ]
+        scalar = "null" if value is None else str(value)
+        escaped = scalar.replace("\r", "\\r")
+        if "\n" in escaped:
+            return [f"{path}:", *(f"  {line}" for line in escaped.split("\n"))]
+        return [f"{path}: {escaped}"]
+
+    def summary(value: Any) -> str:
+        single_line = str(value).replace("\r", " ").replace("\n", " ")
+        return re.sub(r"([\\`*\[\]<>])", r"\\\1", single_line)
+
+    lines = [
+        "## Panel Assistant support report",
+        f"**Panel Assistant:** {INTEGRATION_VERSION} build {INTEGRATION_BUILD}  ",
+        f"**Home Assistant:** {ha_version}  ",
+        f"**Repair:** {issue_id}",
+    ]
+    for index, event in enumerate(events, start=1):
+        details = "\n".join(detail_lines("", event))
+        longest_ticks = max((len(run) for run in re.findall(r"`+", details)), default=0)
+        fence = "`" * max(3, longest_ticks + 1)
+        lines.extend(
+            (
+                "",
+                f"### Failure {index} — {summary(event.get('kind', 'unknown'))}",
+                f"**Panel:** {summary(event.get('panel', 'unknown'))}  ",
+                f"**Reason:** {summary(event.get('reason', 'unknown'))}",
+                "",
+                "Full details:",
+                f"{fence}text",
+                details,
+                fence,
+            )
         )
-    )
+    return "\n".join(lines)
 
 
 async def async_retry_install_job(

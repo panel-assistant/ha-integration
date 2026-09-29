@@ -291,7 +291,7 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej](https://panel-assistant.io/go/support-report)\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant](https://panel-assistant.io/go/report-issue). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
           },
           "clear_error": {
             "title": "Usuń błąd",
@@ -333,7 +333,7 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej](https://panel-assistant.io/go/support-report)\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant](https://panel-assistant.io/go/report-issue). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
           },
           "clear_error": {
             "title": "Usuń błąd",
@@ -375,7 +375,7 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej](https://panel-assistant.io/go/support-report)\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant](https://panel-assistant.io/go/report-issue). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
           },
           "clear_error": {
             "title": "Usuń błąd",
@@ -417,7 +417,7 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej](https://panel-assistant.io/go/support-report)\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant](https://panel-assistant.io/go/report-issue). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
           },
           "clear_error": {
             "title": "Usuń błąd",
@@ -459,7 +459,7 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej](https://panel-assistant.io/go/support-report)\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant](https://panel-assistant.io/go/report-issue). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
           },
           "clear_error": {
             "title": "Usuń błąd",
@@ -501,7 +501,7 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej](https://panel-assistant.io/go/support-report)\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant](https://panel-assistant.io/go/report-issue). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
           },
           "clear_error": {
             "title": "Usuń błąd",
@@ -543,7 +543,7 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej](https://panel-assistant.io/go/support-report)\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant](https://panel-assistant.io/go/report-issue). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
           },
           "clear_error": {
             "title": "Usuń błąd",
@@ -585,7 +585,7 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej](https://panel-assistant.io/go/support-report)\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant](https://panel-assistant.io/go/report-issue). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
           },
           "clear_error": {
             "title": "Usuń błąd",
@@ -627,7 +627,7 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej](https://panel-assistant.io/go/support-report)\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant](https://panel-assistant.io/go/report-issue). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
           },
           "clear_error": {
             "title": "Usuń błąd",
@@ -669,7 +669,7 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej](https://panel-assistant.io/go/support-report)\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant](https://panel-assistant.io/go/report-issue). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
           },
           "clear_error": {
             "title": "Usuń błąd",
@@ -711,7 +711,7 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej](https://panel-assistant.io/go/support-report)\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant](https://panel-assistant.io/go/report-issue). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
           },
           "clear_error": {
             "title": "Usuń błąd",
@@ -753,7 +753,7 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "Skopiuj ten raport do zgłoszenia w GitHubie lub udostępnij go asystentowi AI, aby uzyskać pomoc:\n\n```\n{report}\n```"
+            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej](https://panel-assistant.io/go/support-report)\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant](https://panel-assistant.io/go/report-issue). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
           },
           "clear_error": {
             "title": "Usuń błąd",

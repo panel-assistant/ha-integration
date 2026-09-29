@@ -149,10 +149,15 @@ async def test_support_report_keeps_unredacted_receipt_details_in_admin_flow(
     form = await response.json()
     assert form["step_id"] == "support_report"
     report = form["description_placeholders"]["report"]
+    assert report.startswith("## Panel Assistant support report\n")
+    assert "### Failure 1 — install" in report
+    assert "**Panel:** kitchen.local" in report
+    assert "**Reason:** authorization_failed" in report
+    assert "```text\n" in report
     assert "KITCHEN-123" in report
     assert "192.168.250.23" in report
-    assert '"failure_stage": "authorizing"' in report
-    assert '"result_subcode": "adb:authorization_failed"' in report
+    assert "receipt.failure_stage: authorizing" in report
+    assert "receipt.result_subcode: adb:authorization_failed" in report
     assert "Panel Assistant" in report
     hass.data.pop(f"{DOMAIN}.failure_repair_store")
     assert "KITCHEN-123" in await panel_repairs.async_support_report(
@@ -206,6 +211,32 @@ async def test_retry_safety_hold_stays_in_repairs_and_updates_report(
     retry.assert_awaited_once()
     report = await panel_repairs.async_support_report(hass, issue.issue_id)
     assert "retry_target_changed" in report
+
+
+async def test_support_report_keeps_multiline_update_details_inside_a_code_fence(
+    hass: HomeAssistant, repairs_ready: None
+) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="Kitchen", data={CONF_ADDRESS: "kitchen.local"}
+    )
+    entry.add_to_hass(hass)
+    await async_record_update_failure(
+        hass,
+        entry.entry_id,
+        entry.title,
+        "0.9.10",
+        RuntimeError("download failed\n### misleading heading"),
+        artifact={"note": "three ticks ``` and a newline\nremain"},
+    )
+    issue_id = next(
+        issue_id for (domain, issue_id) in ir.async_get(hass).issues if domain == DOMAIN
+    )
+    report = await panel_repairs.async_support_report(hass, issue_id)
+    assert "**Reason:** download failed ### misleading heading" in report
+    assert "\n### misleading heading\n" not in report
+    assert "````text\n" in report
+    assert "artifact.note:\n  three ticks ``` and a newline\n  remain" in report
+    assert "target_version: 0.9.10" in report
 
 
 async def test_update_repair_retries_via_home_assistant_and_clears_on_success(
@@ -350,7 +381,10 @@ async def test_every_localized_failure_opens_a_labeled_repair_flow(
         assert "{panel}" in strings[f"{prefix}.title"]
         assert strings[f"{prefix}.fix_flow.step.init.menu_options.retry"]
         assert strings[f"{prefix}.fix_flow.step.init.menu_options.clear_error"]
-        assert (
-            "{report}" in strings[f"{prefix}.fix_flow.step.support_report.description"]
-        )
+        description = strings[f"{prefix}.fix_flow.step.support_report.description"]
+        assert description.startswith("### [")
+        assert "](https://panel-assistant.io/go/support-report)" in description
+        assert "](https://panel-assistant.io/go/report-issue)" in description
+        assert "\n\n{report}" in description
+        assert "```\n{report}\n```" not in description
         assert strings[f"{prefix}.fix_flow.error.retry_target_changed"]

@@ -291,7 +291,7 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+            "description": "### [Dit ondersteuningsrapport gebruiken](https://panel-assistant.io/go/support-report)\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie](https://panel-assistant.io/go/report-issue). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
           },
           "clear_error": {
             "title": "Fout wissen",
@@ -333,7 +333,7 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+            "description": "### [Dit ondersteuningsrapport gebruiken](https://panel-assistant.io/go/support-report)\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie](https://panel-assistant.io/go/report-issue). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
           },
           "clear_error": {
             "title": "Fout wissen",
@@ -375,7 +375,7 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+            "description": "### [Dit ondersteuningsrapport gebruiken](https://panel-assistant.io/go/support-report)\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie](https://panel-assistant.io/go/report-issue). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
           },
           "clear_error": {
             "title": "Fout wissen",
@@ -417,7 +417,7 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+            "description": "### [Dit ondersteuningsrapport gebruiken](https://panel-assistant.io/go/support-report)\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie](https://panel-assistant.io/go/report-issue). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
           },
           "clear_error": {
             "title": "Fout wissen",
@@ -459,7 +459,7 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+            "description": "### [Dit ondersteuningsrapport gebruiken](https://panel-assistant.io/go/support-report)\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie](https://panel-assistant.io/go/report-issue). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
           },
           "clear_error": {
             "title": "Fout wissen",
@@ -501,7 +501,7 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+            "description": "### [Dit ondersteuningsrapport gebruiken](https://panel-assistant.io/go/support-report)\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie](https://panel-assistant.io/go/report-issue). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
           },
           "clear_error": {
             "title": "Fout wissen",
@@ -543,7 +543,7 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+            "description": "### [Dit ondersteuningsrapport gebruiken](https://panel-assistant.io/go/support-report)\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie](https://panel-assistant.io/go/report-issue). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
           },
           "clear_error": {
             "title": "Fout wissen",
@@ -585,7 +585,7 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+            "description": "### [Dit ondersteuningsrapport gebruiken](https://panel-assistant.io/go/support-report)\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie](https://panel-assistant.io/go/report-issue). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
           },
           "clear_error": {
             "title": "Fout wissen",
@@ -627,7 +627,7 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+            "description": "### [Dit ondersteuningsrapport gebruiken](https://panel-assistant.io/go/support-report)\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie](https://panel-assistant.io/go/report-issue). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
           },
           "clear_error": {
             "title": "Fout wissen",
@@ -669,7 +669,7 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+            "description": "### [Dit ondersteuningsrapport gebruiken](https://panel-assistant.io/go/support-report)\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie](https://panel-assistant.io/go/report-issue). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
           },
           "clear_error": {
             "title": "Fout wissen",
@@ -711,7 +711,7 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+            "description": "### [Dit ondersteuningsrapport gebruiken](https://panel-assistant.io/go/support-report)\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie](https://panel-assistant.io/go/report-issue). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
           },
           "clear_error": {
             "title": "Fout wissen",
@@ -753,7 +753,7 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "Kopieer dit rapport naar een GitHub-issue of deel het met een AI-assistent als je hulp vraagt:\n\n```\n{report}\n```"
+            "description": "### [Dit ondersteuningsrapport gebruiken](https://panel-assistant.io/go/support-report)\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie](https://panel-assistant.io/go/report-issue). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
           },
           "clear_error": {
             "title": "Fout wissen",

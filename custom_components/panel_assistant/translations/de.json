@@ -269,7 +269,7 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+            "description": "### [So verwenden Sie diesen Supportbericht](https://panel-assistant.io/go/support-report)\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration](https://panel-assistant.io/go/report-issue). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
@@ -311,7 +311,7 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+            "description": "### [So verwenden Sie diesen Supportbericht](https://panel-assistant.io/go/support-report)\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration](https://panel-assistant.io/go/report-issue). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
@@ -353,7 +353,7 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+            "description": "### [So verwenden Sie diesen Supportbericht](https://panel-assistant.io/go/support-report)\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration](https://panel-assistant.io/go/report-issue). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
@@ -395,7 +395,7 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+            "description": "### [So verwenden Sie diesen Supportbericht](https://panel-assistant.io/go/support-report)\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration](https://panel-assistant.io/go/report-issue). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
@@ -437,7 +437,7 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+            "description": "### [So verwenden Sie diesen Supportbericht](https://panel-assistant.io/go/support-report)\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration](https://panel-assistant.io/go/report-issue). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
@@ -479,7 +479,7 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+            "description": "### [So verwenden Sie diesen Supportbericht](https://panel-assistant.io/go/support-report)\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration](https://panel-assistant.io/go/report-issue). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
@@ -521,7 +521,7 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+            "description": "### [So verwenden Sie diesen Supportbericht](https://panel-assistant.io/go/support-report)\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration](https://panel-assistant.io/go/report-issue). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
@@ -563,7 +563,7 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+            "description": "### [So verwenden Sie diesen Supportbericht](https://panel-assistant.io/go/support-report)\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration](https://panel-assistant.io/go/report-issue). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
@@ -605,7 +605,7 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+            "description": "### [So verwenden Sie diesen Supportbericht](https://panel-assistant.io/go/support-report)\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration](https://panel-assistant.io/go/report-issue). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
@@ -647,7 +647,7 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+            "description": "### [So verwenden Sie diesen Supportbericht](https://panel-assistant.io/go/support-report)\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration](https://panel-assistant.io/go/report-issue). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
@@ -689,7 +689,7 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+            "description": "### [So verwenden Sie diesen Supportbericht](https://panel-assistant.io/go/support-report)\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration](https://panel-assistant.io/go/report-issue). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
@@ -731,7 +731,7 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "Kopiere diesen Bericht in ein GitHub-Issue oder teile ihn mit einem KI-Assistenten, wenn du Hilfe suchst:\n\n```\n{report}\n```"
+            "description": "### [So verwenden Sie diesen Supportbericht](https://panel-assistant.io/go/support-report)\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration](https://panel-assistant.io/go/report-issue). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
