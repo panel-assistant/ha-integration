@@ -269,7 +269,7 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+            "description": "### [Comment utiliser ce rapport d’assistance](https://panel-assistant.io/go/support-report)\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant](https://panel-assistant.io/go/report-issue). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
@@ -311,7 +311,7 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+            "description": "### [Comment utiliser ce rapport d’assistance](https://panel-assistant.io/go/support-report)\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant](https://panel-assistant.io/go/report-issue). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
@@ -353,7 +353,7 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+            "description": "### [Comment utiliser ce rapport d’assistance](https://panel-assistant.io/go/support-report)\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant](https://panel-assistant.io/go/report-issue). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
@@ -395,7 +395,7 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+            "description": "### [Comment utiliser ce rapport d’assistance](https://panel-assistant.io/go/support-report)\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant](https://panel-assistant.io/go/report-issue). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
@@ -437,7 +437,7 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+            "description": "### [Comment utiliser ce rapport d’assistance](https://panel-assistant.io/go/support-report)\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant](https://panel-assistant.io/go/report-issue). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
@@ -479,7 +479,7 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+            "description": "### [Comment utiliser ce rapport d’assistance](https://panel-assistant.io/go/support-report)\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant](https://panel-assistant.io/go/report-issue). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
@@ -521,7 +521,7 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+            "description": "### [Comment utiliser ce rapport d’assistance](https://panel-assistant.io/go/support-report)\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant](https://panel-assistant.io/go/report-issue). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
@@ -563,7 +563,7 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+            "description": "### [Comment utiliser ce rapport d’assistance](https://panel-assistant.io/go/support-report)\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant](https://panel-assistant.io/go/report-issue). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
@@ -605,7 +605,7 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+            "description": "### [Comment utiliser ce rapport d’assistance](https://panel-assistant.io/go/support-report)\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant](https://panel-assistant.io/go/report-issue). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
@@ -647,7 +647,7 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+            "description": "### [Comment utiliser ce rapport d’assistance](https://panel-assistant.io/go/support-report)\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant](https://panel-assistant.io/go/report-issue). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
@@ -689,7 +689,7 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+            "description": "### [Comment utiliser ce rapport d’assistance](https://panel-assistant.io/go/support-report)\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant](https://panel-assistant.io/go/report-issue). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
@@ -731,7 +731,7 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "Copiez ce rapport dans un ticket GitHub ou partagez-le avec un assistant IA pour demander de l'aide :\n\n```\n{report}\n```"
+            "description": "### [Comment utiliser ce rapport d’assistance](https://panel-assistant.io/go/support-report)\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant](https://panel-assistant.io/go/report-issue). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
           },
           "clear_error": {
             "title": "Effacer l'erreur",

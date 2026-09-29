@@ -269,7 +269,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+            "description": "### [Cómo usar este informe de soporte](https://panel-assistant.io/go/support-report)\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant](https://panel-assistant.io/go/report-issue). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -311,7 +311,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+            "description": "### [Cómo usar este informe de soporte](https://panel-assistant.io/go/support-report)\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant](https://panel-assistant.io/go/report-issue). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -353,7 +353,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+            "description": "### [Cómo usar este informe de soporte](https://panel-assistant.io/go/support-report)\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant](https://panel-assistant.io/go/report-issue). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -395,7 +395,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+            "description": "### [Cómo usar este informe de soporte](https://panel-assistant.io/go/support-report)\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant](https://panel-assistant.io/go/report-issue). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -437,7 +437,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+            "description": "### [Cómo usar este informe de soporte](https://panel-assistant.io/go/support-report)\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant](https://panel-assistant.io/go/report-issue). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -479,7 +479,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+            "description": "### [Cómo usar este informe de soporte](https://panel-assistant.io/go/support-report)\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant](https://panel-assistant.io/go/report-issue). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -521,7 +521,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+            "description": "### [Cómo usar este informe de soporte](https://panel-assistant.io/go/support-report)\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant](https://panel-assistant.io/go/report-issue). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -563,7 +563,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+            "description": "### [Cómo usar este informe de soporte](https://panel-assistant.io/go/support-report)\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant](https://panel-assistant.io/go/report-issue). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -605,7 +605,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+            "description": "### [Cómo usar este informe de soporte](https://panel-assistant.io/go/support-report)\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant](https://panel-assistant.io/go/report-issue). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -647,7 +647,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+            "description": "### [Cómo usar este informe de soporte](https://panel-assistant.io/go/support-report)\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant](https://panel-assistant.io/go/report-issue). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -689,7 +689,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+            "description": "### [Cómo usar este informe de soporte](https://panel-assistant.io/go/support-report)\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant](https://panel-assistant.io/go/report-issue). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -731,7 +731,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "Copia este informe en una incidencia de GitHub o compártelo con un asistente de IA para pedir ayuda:\n\n```\n{report}\n```"
+            "description": "### [Cómo usar este informe de soporte](https://panel-assistant.io/go/support-report)\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant](https://panel-assistant.io/go/report-issue). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",

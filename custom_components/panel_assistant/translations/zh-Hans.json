@@ -269,7 +269,7 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+            "description": "### [如何使用此支持报告](https://panel-assistant.io/go/support-report)\n\n将下方报告复制到 [Panel Assistant 集成的新问题](https://panel-assistant.io/go/report-issue)。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
           },
           "clear_error": {
             "title": "清除错误",
@@ -311,7 +311,7 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+            "description": "### [如何使用此支持报告](https://panel-assistant.io/go/support-report)\n\n将下方报告复制到 [Panel Assistant 集成的新问题](https://panel-assistant.io/go/report-issue)。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
           },
           "clear_error": {
             "title": "清除错误",
@@ -353,7 +353,7 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+            "description": "### [如何使用此支持报告](https://panel-assistant.io/go/support-report)\n\n将下方报告复制到 [Panel Assistant 集成的新问题](https://panel-assistant.io/go/report-issue)。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
           },
           "clear_error": {
             "title": "清除错误",
@@ -395,7 +395,7 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+            "description": "### [如何使用此支持报告](https://panel-assistant.io/go/support-report)\n\n将下方报告复制到 [Panel Assistant 集成的新问题](https://panel-assistant.io/go/report-issue)。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
           },
           "clear_error": {
             "title": "清除错误",
@@ -437,7 +437,7 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+            "description": "### [如何使用此支持报告](https://panel-assistant.io/go/support-report)\n\n将下方报告复制到 [Panel Assistant 集成的新问题](https://panel-assistant.io/go/report-issue)。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
           },
           "clear_error": {
             "title": "清除错误",
@@ -479,7 +479,7 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+            "description": "### [如何使用此支持报告](https://panel-assistant.io/go/support-report)\n\n将下方报告复制到 [Panel Assistant 集成的新问题](https://panel-assistant.io/go/report-issue)。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
           },
           "clear_error": {
             "title": "清除错误",
@@ -521,7 +521,7 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+            "description": "### [如何使用此支持报告](https://panel-assistant.io/go/support-report)\n\n将下方报告复制到 [Panel Assistant 集成的新问题](https://panel-assistant.io/go/report-issue)。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
           },
           "clear_error": {
             "title": "清除错误",
@@ -563,7 +563,7 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+            "description": "### [如何使用此支持报告](https://panel-assistant.io/go/support-report)\n\n将下方报告复制到 [Panel Assistant 集成的新问题](https://panel-assistant.io/go/report-issue)。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
           },
           "clear_error": {
             "title": "清除错误",
@@ -605,7 +605,7 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+            "description": "### [如何使用此支持报告](https://panel-assistant.io/go/support-report)\n\n将下方报告复制到 [Panel Assistant 集成的新问题](https://panel-assistant.io/go/report-issue)。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
           },
           "clear_error": {
             "title": "清除错误",
@@ -647,7 +647,7 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+            "description": "### [如何使用此支持报告](https://panel-assistant.io/go/support-report)\n\n将下方报告复制到 [Panel Assistant 集成的新问题](https://panel-assistant.io/go/report-issue)。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
           },
           "clear_error": {
             "title": "清除错误",
@@ -689,7 +689,7 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+            "description": "### [如何使用此支持报告](https://panel-assistant.io/go/support-report)\n\n将下方报告复制到 [Panel Assistant 集成的新问题](https://panel-assistant.io/go/report-issue)。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
           },
           "clear_error": {
             "title": "清除错误",
@@ -731,7 +731,7 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "将此报告复制到 GitHub 问题中，或分享给 AI 助手以寻求帮助：\n\n```\n{report}\n```"
+            "description": "### [如何使用此支持报告](https://panel-assistant.io/go/support-report)\n\n将下方报告复制到 [Panel Assistant 集成的新问题](https://panel-assistant.io/go/report-issue)。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
           },
           "clear_error": {
             "title": "清除错误",
