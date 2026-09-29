@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
@@ -207,28 +208,34 @@ async def test_refreshing_never_creates_a_card(hass: HomeAssistant) -> None:
     )
 
 
-async def test_literal_null_report_does_not_create_an_area(hass: HomeAssistant) -> None:
+@pytest.mark.parametrize("reported_area", ["null", " NuLl "])
+async def test_literal_null_report_does_not_create_an_area(
+    hass: HomeAssistant, reported_area: str
+) -> None:
     """A stored panel value of `null` cannot seed a new HA area."""
     entry = MockConfigEntry(domain=DOMAIN, title="alpha")
     entry.add_to_hass(hass)
-    info = panel_device_info(entry.entry_id, _snapshot(PanelDevice(area="null")), URL)
+    info = panel_device_info(
+        entry.entry_id, _snapshot(PanelDevice(area=reported_area)), URL
+    )
 
     assert "suggested_area" not in info
     device = dr.async_get(hass).async_get_or_create(
         config_entry_id=entry.entry_id, **info
     )
     assert device.area_id is None
-    assert ar.async_get(hass).async_get_area_by_name("null") is None
+    assert not ar.async_get(hass).areas
 
 
+@pytest.mark.parametrize("area_name", ["null", " NuLl "])
 async def test_existing_literal_null_assignment_is_cleared_once(
-    hass: HomeAssistant,
+    hass: HomeAssistant, area_name: str
 ) -> None:
     """Repair our device assignment while preserving all area records and real moves."""
     entry = MockConfigEntry(domain=DOMAIN, title="alpha")
     entry.add_to_hass(hass)
     areas = ar.async_get(hass)
-    accidental = areas.async_get_or_create("null")
+    accidental = areas.async_get_or_create(area_name)
     study = areas.async_get_or_create("Study")
     registry = dr.async_get(hass)
     device = registry.async_get_or_create(

@@ -307,13 +307,14 @@ async def test_delayed_native_cutover_can_be_cancelled_before_health_recovers(
         )
 
 
+@pytest.mark.parametrize("area_name", ["null", " NuLl "])
 async def test_cutover_does_not_copy_an_accidental_null_area(
-    hass: HomeAssistant, hass_read_only_user: Any
+    hass: HomeAssistant, hass_read_only_user: Any, area_name: str
 ) -> None:
     """A legacy MQTT device can keep its record without moving our device to `null`."""
     mqtt = _mqtt(hass, [("switch", "relay1", {})])
     areas = ar.async_get(hass)
-    accidental = areas.async_get_or_create("null")
+    accidental = areas.async_get_or_create(area_name)
     registry = dr.async_get(hass)
     registry.async_update_device(mqtt["device"].id, area_id=accidental.id)
 

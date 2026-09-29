@@ -70,7 +70,7 @@ def panel_device_info(
         info["model"] = device.model
     # Home Assistant applies suggested_area only when it first registers the device and
     # never overrides a later manual move, matching the panel's own request semantics.
-    if device.area and device.area != "null":
+    if device.area and not _is_null_area_name(device.area):
         info["suggested_area"] = device.area
     return info
 
@@ -98,10 +98,14 @@ def _software_version(
     return health.version
 
 
+def _is_null_area_name(name: str) -> bool:
+    return name.strip().casefold() == "null"
+
+
 def is_literal_null_area(hass: HomeAssistant, area_id: str | None) -> bool:
     """Identify the accidental area by its name, preserving every other area ID."""
     area = ar.async_get(hass).async_get_area(area_id) if area_id else None
-    return area is not None and area.name == "null"
+    return area is not None and _is_null_area_name(area.name)
 
 
 @callback
