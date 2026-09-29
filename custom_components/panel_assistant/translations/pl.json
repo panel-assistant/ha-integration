@@ -177,6 +177,33 @@
     "update_rejected": {
       "message": "{panel} odrzucił żądanie aktualizacji. Sprawdź kartę Instalacja na panelu, a następnie spróbuj ponownie."
     },
+    "bridge_not_ready": {
+      "message": "Panel nie jest jeszcze gotowy do przekazania sterowania nowej aplikacji. Najpierw zaktualizuj dołączony program pomocniczy root, a potem spróbuj ponownie."
+    },
+    "release_pair_unavailable": {
+      "message": "Odpowiednia wersja nowej aplikacji jest niedostępna. Spróbuj ponownie później."
+    },
+    "panel_changed_during_update": {
+      "message": "Panel zmienił się podczas aktualizacji. Odśwież widok i spróbuj ponownie."
+    },
+    "bridge_details_changed": {
+      "message": "Dane przekazania sterowania panelem zmieniły się. Odśwież widok i spróbuj ponownie."
+    },
+    "bridge_capability_unavailable": {
+      "message": "Nie można sprawdzić, czy panel jest gotowy do przekazania sterowania. Sprawdź połączenie z panelem i spróbuj ponownie."
+    },
+    "successor_untrusted": {
+      "message": "Zainstalowana nowa aplikacja nie jest zaufana do przekazania sterowania. Sprawdź kartę Instalacja na panelu."
+    },
+    "bridge_handover_refused": {
+      "message": "Panel odmówił przekazania sterowania aplikacji. Sprawdź kartę Instalacja na panelu."
+    },
+    "release_download_failed": {
+      "message": "Nie udało się pobrać wersji aplikacji. Sprawdź połączenie i spróbuj ponownie."
+    },
+    "staged_app_mismatch": {
+      "message": "Przygotowana aplikacja nie zgadzała się z danymi podpisanej wersji. Nic nie zostało zainstalowane."
+    },
     "update_not_accepted": {
       "message": "Panel nie przyjął żądania aktualizacji"
     },

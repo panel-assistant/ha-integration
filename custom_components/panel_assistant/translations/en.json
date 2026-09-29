@@ -433,6 +433,33 @@
     "update_rejected": {
       "message": "{panel} refused the update request. Check its Install tab, then try again."
     },
+    "bridge_not_ready": {
+      "message": "The panel is not ready to hand over to the new app. Update its bundled root helper first, then try again."
+    },
+    "release_pair_unavailable": {
+      "message": "The matching new-app release is unavailable. Try again later."
+    },
+    "panel_changed_during_update": {
+      "message": "The panel changed during the update. Refresh and try again."
+    },
+    "bridge_details_changed": {
+      "message": "The panel handover details changed. Refresh and try again."
+    },
+    "bridge_capability_unavailable": {
+      "message": "Cannot check the panel handover readiness. Check the panel connection, then try again."
+    },
+    "successor_untrusted": {
+      "message": "The installed new app is not trusted for handover. Check the panel Install tab."
+    },
+    "bridge_handover_refused": {
+      "message": "The panel refused the app handover. Check the panel Install tab."
+    },
+    "release_download_failed": {
+      "message": "The app release could not be downloaded. Check the connection, then try again."
+    },
+    "staged_app_mismatch": {
+      "message": "The staged app did not match the signed release details, so nothing was installed."
+    },
     "update_not_accepted": {
       "message": "The panel did not accept the update request"
     },

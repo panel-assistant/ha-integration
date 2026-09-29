@@ -177,6 +177,33 @@
     "update_rejected": {
       "message": "{panel} heeft het updateverzoek geweigerd. Controleer het tabblad Installeren op het paneel en probeer het opnieuw."
     },
+    "bridge_not_ready": {
+      "message": "Het paneel is nog niet klaar om over te dragen aan de nieuwe app. Werk eerst de meegeleverde roothelper bij en probeer het opnieuw."
+    },
+    "release_pair_unavailable": {
+      "message": "De bijbehorende release van de nieuwe app is niet beschikbaar. Probeer het later opnieuw."
+    },
+    "panel_changed_during_update": {
+      "message": "Het paneel is tijdens de update gewijzigd. Vernieuw de pagina en probeer het opnieuw."
+    },
+    "bridge_details_changed": {
+      "message": "De overdrachtsgegevens van het paneel zijn gewijzigd. Vernieuw de pagina en probeer het opnieuw."
+    },
+    "bridge_capability_unavailable": {
+      "message": "Kan niet controleren of het paneel klaar is voor de overdracht. Controleer de verbinding met het paneel en probeer het opnieuw."
+    },
+    "successor_untrusted": {
+      "message": "De geïnstalleerde nieuwe app wordt niet vertrouwd voor de overdracht. Controleer het tabblad Installeren op het paneel."
+    },
+    "bridge_handover_refused": {
+      "message": "Het paneel heeft de overdracht aan de app geweigerd. Controleer het tabblad Installeren op het paneel."
+    },
+    "release_download_failed": {
+      "message": "De app-release kon niet worden gedownload. Controleer de verbinding en probeer het opnieuw."
+    },
+    "staged_app_mismatch": {
+      "message": "De klaargezette app kwam niet overeen met de gegevens van de ondertekende release. Er is niets geïnstalleerd."
+    },
     "update_not_accepted": {
       "message": "Het paneel heeft het updateverzoek niet geaccepteerd"
     },

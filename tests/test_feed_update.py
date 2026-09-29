@@ -740,7 +740,7 @@ async def test_preview_mismatch_discards_and_never_commits(
     with pytest.raises(HomeAssistantError) as error:
         await entity.async_install(None, False)
 
-    _assert_translated(error.value, "build_verification_failed")
+    _assert_translated(error.value, "staged_app_mismatch")
     client.async_discard_apk.assert_awaited_once_with("tok-1")
     client.async_commit_apk.assert_not_awaited()
     assert entity.in_progress is False
@@ -773,7 +773,7 @@ async def test_identity_change_during_upload_refuses_commit(
     with pytest.raises(HomeAssistantError) as error:
         await entity.async_install(None, False)
 
-    _assert_translated(error.value, "build_verification_failed")
+    _assert_translated(error.value, "panel_changed_during_update")
     client.async_backup_panel.assert_awaited_once()
     client.async_discard_apk.assert_awaited_once_with("tok-1")
     client.async_commit_apk.assert_not_awaited()
@@ -833,7 +833,7 @@ async def test_delivery_refuses_an_identity_change_before_backup(
     )
     with pytest.raises(HomeAssistantError) as error:
         await entity._async_deliver_build(selected)
-    _assert_translated(error.value, "build_verification_failed")
+    _assert_translated(error.value, "panel_changed_during_update")
     client.async_backup_panel.assert_not_awaited()
     delivery.download.assert_not_awaited()
     client.async_stage_apk.assert_not_awaited()
