@@ -805,7 +805,6 @@
     },
     "panel_identity_confirmation": {
       "title": "保留 {panel} 的现有设置",
-      "description": "{panel}（地址：{address}）在应用更新后需要确认。打开此修复，查看所有等待确认的面板，并通过一次操作保留其现有设置。",
       "fix_flow": {
         "step": {
           "confirm_identity": {

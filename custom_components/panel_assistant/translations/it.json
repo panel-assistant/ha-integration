@@ -805,7 +805,6 @@
     },
     "panel_identity_confirmation": {
       "title": "Mantieni la configurazione di {panel}",
-      "description": "{panel} all’indirizzo {address} richiede conferma dopo un aggiornamento. Apri questa riparazione per controllare tutti i pannelli in attesa e mantenere le loro configurazioni con una sola azione.",
       "fix_flow": {
         "step": {
           "confirm_identity": {

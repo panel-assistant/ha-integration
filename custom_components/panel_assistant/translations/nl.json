@@ -845,7 +845,6 @@
     },
     "panel_identity_confirmation": {
       "title": "Bestaande instellingen van {panel} behouden",
-      "description": "{panel} op {address} heeft bevestiging nodig na een app-update. Open deze reparatie om alle wachtende panelen te bekijken en hun instellingen met één actie te behouden.",
       "fix_flow": {
         "step": {
           "confirm_identity": {

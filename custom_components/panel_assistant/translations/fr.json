@@ -805,7 +805,6 @@
     },
     "panel_identity_confirmation": {
       "title": "Conserver la configuration de {panel}",
-      "description": "{panel} à {address} nécessite une confirmation après une mise à jour. Ouvrez cette réparation pour examiner tous les panneaux en attente et conserver leurs configurations en une seule action.",
       "fix_flow": {
         "step": {
           "confirm_identity": {

@@ -805,7 +805,6 @@
     },
     "panel_identity_confirmation": {
       "title": "Bestehende Einrichtung für {panel} behalten",
-      "description": "{panel} unter {address} benötigt nach einem App-Update eine Bestätigung. Öffne diese Reparatur, um alle ausstehenden Panels zu prüfen und ihre Einrichtungen mit einer Aktion zu behalten.",
       "fix_flow": {
         "step": {
           "confirm_identity": {

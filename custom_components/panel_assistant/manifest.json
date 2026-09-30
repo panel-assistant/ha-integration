@@ -1,8 +1,8 @@
 {
   "domain": "panel_assistant",
   "name": "Panel Assistant",
-  "codeowners": ["@maxlyth"],
   "after_dependencies": ["assist_pipeline"],
+  "codeowners": ["@maxlyth"],
   "config_flow": true,
   "dependencies": ["http", "panel_custom", "websocket_api"],
   "documentation": "https://github.com/panel-assistant/ha-integration",

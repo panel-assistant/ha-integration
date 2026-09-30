@@ -805,7 +805,6 @@
     },
     "panel_identity_confirmation": {
       "title": "Conservar la configuración de {panel}",
-      "description": "{panel} en {address} necesita confirmación tras actualizar la aplicación. Abre esta reparación para revisar todos los paneles pendientes y conservar sus configuraciones con una sola acción.",
       "fix_flow": {
         "step": {
           "confirm_identity": {

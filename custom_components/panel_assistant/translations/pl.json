@@ -845,7 +845,6 @@
     },
     "panel_identity_confirmation": {
       "title": "Zachowaj konfigurację panelu {panel}",
-      "description": "Panel {panel} pod adresem {address} wymaga potwierdzenia po aktualizacji aplikacji. Otwórz tę naprawę, aby sprawdzić wszystkie oczekujące panele i zachować ich konfiguracje jednym działaniem.",
       "fix_flow": {
         "step": {
           "confirm_identity": {

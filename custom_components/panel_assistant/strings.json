@@ -1140,7 +1140,6 @@
     },
     "panel_identity_confirmation": {
       "title": "Keep the existing setup for {panel}",
-      "description": "{panel} at {address} needs confirmation after an app update. Open this repair to review all panels awaiting confirmation and keep their existing setups with one action.",
       "fix_flow": {
         "step": {
           "confirm_identity": {

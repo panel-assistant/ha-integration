@@ -156,7 +156,7 @@ async def test_localized_identity_repair_names_panel_and_frozen_fleet(hass, lang
     )
     strings = await async_get_translations(hass, language, "issues", {DOMAIN})
     prefix = f"component.{DOMAIN}.issues.{ISSUE_IDENTITY}"
-    for field in ("title", "description"):
+    for field in ("title",):
         rendered = strings[f"{prefix}.{field}"].format(**issue.translation_placeholders)
         assert first[0].title in rendered
     _, shown = await _open(hass, first[0])
