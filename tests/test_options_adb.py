@@ -261,7 +261,7 @@ async def test_adb_authorization_repair_retries_after_physical_approval(
     reload.assert_awaited_once_with(entry.entry_id)
 
 
-@pytest.mark.parametrize("entry_did", ["a" * 64, None])
+@pytest.mark.parametrize("entry_did", ["a" * 64, None, "b" * 64])
 async def test_adb_authorization_repair_refuses_changed_panel(
     hass: HomeAssistant, hass_client: Any, entry_did: str | None
 ) -> None:
