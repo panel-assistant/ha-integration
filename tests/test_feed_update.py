@@ -1083,6 +1083,7 @@ def _patched_setup(fetch: AsyncMock) -> Any:
 
 async def test_yaml_build_feed_creates_one_coordinator(hass: HomeAssistant) -> None:
     """The one YAML key stores a feed coordinator and reads the feed once."""
+    assert await async_setup_component(hass, "http", {})
     config = {DOMAIN: {"build_feed": "https://x/maintainer.json"}}
     assert CONFIG_SCHEMA(config) == config
     fetch = AsyncMock(return_value=_feed_data(772))
@@ -1114,6 +1115,7 @@ async def test_yaml_invalid_build_feed_is_logged_and_ignored(
     hass: HomeAssistant, caplog: pytest.LogCaptureFixture
 ) -> None:
     """A plaintext feed URL is refused loudly and nothing is fetched."""
+    assert await async_setup_component(hass, "http", {})
     fetch = AsyncMock()
     browser, feed = _patched_setup(fetch)
 
@@ -1137,6 +1139,7 @@ async def test_no_yaml_means_no_feed(
     hass: HomeAssistant, config: dict[str, Any]
 ) -> None:
     """Without the key there is no coordinator and no fetch."""
+    assert await async_setup_component(hass, "http", {})
     fetch = AsyncMock()
     browser, feed = _patched_setup(fetch)
 

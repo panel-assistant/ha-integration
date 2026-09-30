@@ -18,6 +18,7 @@ from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import instance_id
 from homeassistant.helpers import label_registry as lr
 from homeassistant.helpers.entity import entity_sources
 from pytest_homeassistant_custom_component.common import (
@@ -1099,6 +1100,7 @@ async def test_the_live_hello_result_matches_its_conformance_vector(
         for v in VECTORS["results"]
         if v["name"] == "hello_result_native_withdraw_granted"
     )
+    hass.config.internal_url = "http://runtime-ha.local:8123"
     _mqtt(hass, [("switch", "relay1", {})])
     await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
     client = await hass_ws_client(hass, hass_read_only_access_token)
@@ -1108,8 +1110,17 @@ async def test_the_live_hello_result_matches_its_conformance_vector(
     assert response["success"], response
     result = response["result"]
     expected = vector["result"]
-    assert set(result) == set(expected)
+    assert set(result) == set(expected) | {"connection"}
     for key in ("protocol", "authority", "mqtt_discovery", "capabilities", "channels"):
         assert result[key] == expected[key], key
     assert isinstance(result["session"], str) and result["session"]
     assert set(result["integration"]) == set(expected["integration"])
+    assert hass.config.api is not None
+    assert result["connection"] == {
+        "instance_id": await instance_id.async_get(hass),
+        "user_id": hass_read_only_user.id,
+        "urls": [
+            "http://runtime-ha.local:8123",
+            f"http://{hass.config.api.local_ip}:{hass.config.api.port}",
+        ],
+    }

@@ -155,6 +155,15 @@ class _PanelServer(AbstractContextManager["_PanelServer"]):
                         b"ha-paneld 0.1.0 panel=runtime_negative build=100 "
                         b"cfg=1a2b3c4d ha=normal ha_src=mqtt\n"
                     )
+                elif self.path == "/api/v1/status?home_proof=1":
+                    # Installer completion asks for fresh HOME evidence, while
+                    # ordinary reads below still exercise invalid status data.
+                    mode = "home_proof"
+                    body = (
+                        b'{"warnings":[],"capabilities":[],'
+                        b'"home_ui":{"state":"ready","reason":"ready",'
+                        b'"evidence":"runtime_fixture"}}\n'
+                    )
                 elif self.path == "/api/v1/status":
                     mode = mode_path.read_text(encoding="ascii").strip()
                     if mode == "valid":
@@ -505,6 +514,10 @@ def main() -> int:
 
         modes = Counter(mode for path, mode, _size in events if path.endswith("status"))
         _require(modes["valid"] >= 1, "valid status fixture was not requested")
+        _require(
+            any(mode == "home_proof" for _path, mode, _size in events),
+            "installer completion never requested fresh HOME evidence",
+        )
         _require(modes["malformed"] >= 1, "malformed status was not requested")
         _require(modes["oversized"] >= 1, "oversized status was not requested")
         oversized_sizes = [
