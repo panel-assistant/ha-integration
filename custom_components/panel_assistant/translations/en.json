@@ -616,7 +616,7 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report](https://panel-assistant.io/go/support-report)\n\nCopy the report below into a [new Panel Assistant integration issue](https://panel-assistant.io/go/report-issue). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
           },
           "clear_error": {
             "title": "Clear error",
@@ -658,7 +658,7 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report](https://panel-assistant.io/go/support-report)\n\nCopy the report below into a [new Panel Assistant integration issue](https://panel-assistant.io/go/report-issue). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
           },
           "clear_error": {
             "title": "Clear error",
@@ -700,7 +700,7 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report](https://panel-assistant.io/go/support-report)\n\nCopy the report below into a [new Panel Assistant integration issue](https://panel-assistant.io/go/report-issue). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
           },
           "clear_error": {
             "title": "Clear error",
@@ -742,7 +742,7 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report](https://panel-assistant.io/go/support-report)\n\nCopy the report below into a [new Panel Assistant integration issue](https://panel-assistant.io/go/report-issue). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
           },
           "clear_error": {
             "title": "Clear error",
@@ -784,7 +784,7 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report](https://panel-assistant.io/go/support-report)\n\nCopy the report below into a [new Panel Assistant integration issue](https://panel-assistant.io/go/report-issue). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
           },
           "clear_error": {
             "title": "Clear error",
@@ -826,7 +826,7 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report](https://panel-assistant.io/go/support-report)\n\nCopy the report below into a [new Panel Assistant integration issue](https://panel-assistant.io/go/report-issue). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
           },
           "clear_error": {
             "title": "Clear error",
@@ -868,7 +868,7 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report](https://panel-assistant.io/go/support-report)\n\nCopy the report below into a [new Panel Assistant integration issue](https://panel-assistant.io/go/report-issue). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
           },
           "clear_error": {
             "title": "Clear error",
@@ -910,7 +910,7 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report](https://panel-assistant.io/go/support-report)\n\nCopy the report below into a [new Panel Assistant integration issue](https://panel-assistant.io/go/report-issue). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
           },
           "clear_error": {
             "title": "Clear error",
@@ -952,7 +952,7 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report](https://panel-assistant.io/go/support-report)\n\nCopy the report below into a [new Panel Assistant integration issue](https://panel-assistant.io/go/report-issue). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
           },
           "clear_error": {
             "title": "Clear error",
@@ -994,7 +994,7 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report](https://panel-assistant.io/go/support-report)\n\nCopy the report below into a [new Panel Assistant integration issue](https://panel-assistant.io/go/report-issue). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
           },
           "clear_error": {
             "title": "Clear error",
@@ -1037,7 +1037,7 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report](https://panel-assistant.io/go/support-report)\n\nCopy the report below into a [new Panel Assistant integration issue](https://panel-assistant.io/go/report-issue). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
           },
           "clear_error": {
             "title": "Clear error",
@@ -1099,7 +1099,7 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report](https://panel-assistant.io/go/support-report)\n\nCopy the report below into a [new Panel Assistant integration issue](https://panel-assistant.io/go/report-issue). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
           },
           "clear_error": {
             "title": "Clear error",
@@ -1173,7 +1173,7 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report](https://panel-assistant.io/go/support-report)\n\nCopy the report below into a [new Panel Assistant integration issue](https://panel-assistant.io/go/report-issue). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
           },
           "clear_error": {
             "title": "Clear error",

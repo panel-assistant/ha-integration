@@ -2,13 +2,14 @@
   "domain": "panel_assistant",
   "name": "Panel Assistant",
   "codeowners": ["@maxlyth"],
+  "after_dependencies": ["assist_pipeline"],
   "config_flow": true,
   "dependencies": ["http", "panel_custom", "websocket_api"],
   "documentation": "https://github.com/panel-assistant/ha-integration",
   "integration_type": "device",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/panel-assistant/ha-integration/issues",
-  "requirements": ["adb-shell[async]==0.4.4"],
+  "requirements": ["adb-shell[async]>=0.4.4"],
   "version": "0.7.0-rc1",
   "zeroconf": ["_ha-paneld._tcp.local."]
 }

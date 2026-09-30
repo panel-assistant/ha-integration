@@ -281,7 +281,7 @@
           },
           "support_report": {
             "title": "Rapporto di assistenza",
-            "description": "### [Come usare questo rapporto di assistenza](https://panel-assistant.io/go/support-report)\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant](https://panel-assistant.io/go/report-issue). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
+            "description": "### [Come usare questo rapporto di assistenza]({guide_url})\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant]({issue_url}). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
           },
           "clear_error": {
             "title": "Cancella errore",
@@ -323,7 +323,7 @@
           },
           "support_report": {
             "title": "Rapporto di assistenza",
-            "description": "### [Come usare questo rapporto di assistenza](https://panel-assistant.io/go/support-report)\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant](https://panel-assistant.io/go/report-issue). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
+            "description": "### [Come usare questo rapporto di assistenza]({guide_url})\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant]({issue_url}). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
           },
           "clear_error": {
             "title": "Cancella errore",
@@ -365,7 +365,7 @@
           },
           "support_report": {
             "title": "Rapporto di assistenza",
-            "description": "### [Come usare questo rapporto di assistenza](https://panel-assistant.io/go/support-report)\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant](https://panel-assistant.io/go/report-issue). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
+            "description": "### [Come usare questo rapporto di assistenza]({guide_url})\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant]({issue_url}). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
           },
           "clear_error": {
             "title": "Cancella errore",
@@ -407,7 +407,7 @@
           },
           "support_report": {
             "title": "Rapporto di assistenza",
-            "description": "### [Come usare questo rapporto di assistenza](https://panel-assistant.io/go/support-report)\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant](https://panel-assistant.io/go/report-issue). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
+            "description": "### [Come usare questo rapporto di assistenza]({guide_url})\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant]({issue_url}). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
           },
           "clear_error": {
             "title": "Cancella errore",
@@ -449,7 +449,7 @@
           },
           "support_report": {
             "title": "Rapporto di assistenza",
-            "description": "### [Come usare questo rapporto di assistenza](https://panel-assistant.io/go/support-report)\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant](https://panel-assistant.io/go/report-issue). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
+            "description": "### [Come usare questo rapporto di assistenza]({guide_url})\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant]({issue_url}). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
           },
           "clear_error": {
             "title": "Cancella errore",
@@ -491,7 +491,7 @@
           },
           "support_report": {
             "title": "Rapporto di assistenza",
-            "description": "### [Come usare questo rapporto di assistenza](https://panel-assistant.io/go/support-report)\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant](https://panel-assistant.io/go/report-issue). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
+            "description": "### [Come usare questo rapporto di assistenza]({guide_url})\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant]({issue_url}). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
           },
           "clear_error": {
             "title": "Cancella errore",
@@ -533,7 +533,7 @@
           },
           "support_report": {
             "title": "Rapporto di assistenza",
-            "description": "### [Come usare questo rapporto di assistenza](https://panel-assistant.io/go/support-report)\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant](https://panel-assistant.io/go/report-issue). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
+            "description": "### [Come usare questo rapporto di assistenza]({guide_url})\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant]({issue_url}). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
           },
           "clear_error": {
             "title": "Cancella errore",
@@ -575,7 +575,7 @@
           },
           "support_report": {
             "title": "Rapporto di assistenza",
-            "description": "### [Come usare questo rapporto di assistenza](https://panel-assistant.io/go/support-report)\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant](https://panel-assistant.io/go/report-issue). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
+            "description": "### [Come usare questo rapporto di assistenza]({guide_url})\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant]({issue_url}). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
           },
           "clear_error": {
             "title": "Cancella errore",
@@ -617,7 +617,7 @@
           },
           "support_report": {
             "title": "Rapporto di assistenza",
-            "description": "### [Come usare questo rapporto di assistenza](https://panel-assistant.io/go/support-report)\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant](https://panel-assistant.io/go/report-issue). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
+            "description": "### [Come usare questo rapporto di assistenza]({guide_url})\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant]({issue_url}). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
           },
           "clear_error": {
             "title": "Cancella errore",
@@ -659,7 +659,7 @@
           },
           "support_report": {
             "title": "Rapporto di assistenza",
-            "description": "### [Come usare questo rapporto di assistenza](https://panel-assistant.io/go/support-report)\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant](https://panel-assistant.io/go/report-issue). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
+            "description": "### [Come usare questo rapporto di assistenza]({guide_url})\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant]({issue_url}). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
           },
           "clear_error": {
             "title": "Cancella errore",
@@ -702,7 +702,7 @@
           },
           "support_report": {
             "title": "Rapporto di assistenza",
-            "description": "### [Come usare questo rapporto di assistenza](https://panel-assistant.io/go/support-report)\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant](https://panel-assistant.io/go/report-issue). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
+            "description": "### [Come usare questo rapporto di assistenza]({guide_url})\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant]({issue_url}). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
           },
           "clear_error": {
             "title": "Cancella errore",
@@ -764,7 +764,7 @@
           },
           "support_report": {
             "title": "Rapporto di assistenza",
-            "description": "### [Come usare questo rapporto di assistenza](https://panel-assistant.io/go/support-report)\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant](https://panel-assistant.io/go/report-issue). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
+            "description": "### [Come usare questo rapporto di assistenza]({guide_url})\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant]({issue_url}). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
           },
           "clear_error": {
             "title": "Cancella errore",
@@ -838,7 +838,7 @@
           },
           "support_report": {
             "title": "Rapporto di assistenza",
-            "description": "### [Come usare questo rapporto di assistenza](https://panel-assistant.io/go/support-report)\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant](https://panel-assistant.io/go/report-issue). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
+            "description": "### [Come usare questo rapporto di assistenza]({guide_url})\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant]({issue_url}). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
           },
           "clear_error": {
             "title": "Cancella errore",

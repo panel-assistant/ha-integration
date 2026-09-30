@@ -472,8 +472,8 @@ async def test_every_localized_failure_opens_a_labeled_repair_flow(
         assert strings[f"{prefix}.fix_flow.step.init.menu_options.clear_error"]
         description = strings[f"{prefix}.fix_flow.step.support_report.description"]
         assert description.startswith("### [")
-        assert "](https://panel-assistant.io/go/support-report)" in description
-        assert "](https://panel-assistant.io/go/report-issue)" in description
+        assert "]({guide_url})" in description
+        assert "]({issue_url})" in description
         assert "\n\n{report}" in description
         assert "```\n{report}\n```" not in description
         assert strings[f"{prefix}.fix_flow.error.retry_target_changed"]

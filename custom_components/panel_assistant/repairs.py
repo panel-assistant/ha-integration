@@ -69,6 +69,10 @@ ABORT_MIGRATION_UNFINISHED = "migration_unfinished"
 _NOT_SHOWN = object()
 
 
+SUPPORT_REPORT_GUIDE_URL = "https://panel-assistant.io/go/support-report"
+REPORT_ISSUE_URL = "https://panel-assistant.io/go/report-issue"
+
+
 class PanelIdentityFlow(RepairsFlow):
     """Confirm exactly the pending panel setups shown when this flow opened."""
 
@@ -395,7 +399,9 @@ class InstallerFailureFlow(RepairsFlow):
             step_id="support_report",
             data_schema=vol.Schema({}),
             description_placeholders={
-                "report": await async_support_report(self.hass, self.issue_id)
+                "report": await async_support_report(self.hass, self.issue_id),
+                "guide_url": SUPPORT_REPORT_GUIDE_URL,
+                "issue_url": REPORT_ISSUE_URL,
             },
         )
 

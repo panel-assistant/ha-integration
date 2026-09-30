@@ -137,6 +137,7 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
 
     assert manifest == {
         "codeowners": ["@maxlyth"],
+        "after_dependencies": ["assist_pipeline"],
         "config_flow": True,
         "dependencies": ["http", "panel_custom", "websocket_api"],
         "documentation": "https://github.com/panel-assistant/ha-integration",
@@ -145,7 +146,7 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
         "iot_class": "local_polling",
         "issue_tracker": "https://github.com/panel-assistant/ha-integration/issues",
         "name": "Panel Assistant",
-        "requirements": ["adb-shell[async]==0.4.4"],
+        "requirements": ["adb-shell[async]>=0.4.4"],
         "version": "0.7.0-rc1",
         "zeroconf": ["_ha-paneld._tcp.local."],
     }
