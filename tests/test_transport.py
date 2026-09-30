@@ -17,6 +17,7 @@ from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import instance_id
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.translation import async_get_translations
@@ -226,6 +227,9 @@ async def test_non_admin_panel_account_opens_a_session(
 
     assert response["success"], response
     result = response["result"]
+    assert result["connection"]["instance_id"] == await instance_id.async_get(hass)
+    assert result["connection"]["user_id"] == hass_read_only_user.id
+    assert isinstance(result["connection"]["urls"], list)
     assert result["protocol"] == 3
     assert result["authority"] == "shadow"
     assert result["capabilities"] == ["events", "state"]
@@ -1819,3 +1823,109 @@ async def test_the_two_binding_questions_never_stand_together(
         )
         is None
     )
+
+
+async def test_instance_probe_without_credentials_returns_own_identity(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_client_no_auth: Any,
+) -> None:
+    """An alternate can be checked before WS, refresh or browser credentials move."""
+    browser = await hass_client_no_auth()
+    own = await instance_id.async_get(hass)
+    for suffix in ("", "?instance_id=" + "0" * 32):
+        response = await browser.get("/api/panel_assistant/instance" + suffix)
+        assert response.status == 200
+        assert await response.json() == {"instance_id": own}
+        assert response.headers["Cache-Control"] == "no-store"
+        assert "Set-Cookie" not in response.headers
+    # An entry reload must not rotate the server identity or remove the probe.
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    response = await browser.get("/api/panel_assistant/instance")
+    assert await response.json() == {"instance_id": own}
+
+
+@pytest.mark.parametrize(
+    ("internal", "external", "tls", "expected"),
+    [
+        (
+            "http://HA.local:80/",
+            "https://ha.example.com/",
+            False,
+            ["http://ha.local", "http://192.0.2.50:8123", "https://ha.example.com"],
+        ),
+        (
+            None,
+            "https://ha.example.com",
+            False,
+            ["http://192.0.2.50:8123", "https://ha.example.com"],
+        ),
+        (
+            "https://ha.example.com",
+            "https://ha.example.com/",
+            True,
+            ["https://ha.example.com"],
+        ),
+        (None, None, True, []),
+        ("http://user:secret@ha.local", "https://ha.example.com/path", True, []),
+        ("http://ha.local?token=secret", "https://ha.example.com/#fragment", True, []),
+        ("ftp://ha.local", "http://127.0.0.1:8123", True, []),
+        ("http://ha.local/path/..", "https://ha.example.com?", True, []),
+        ("http://ha.local/\t", "http://ha.local:" + "9" * 9, True, []),
+        ("http://" + "a" * 2049, "http://169.254.1.1:8123", True, []),
+        ("http://0.0.0.0:8123", "http://224.0.0.1:8123", True, []),
+        ("http://[fe80::1%25eth0]:8123", "http://localhost:8123", True, []),
+        ("http://[2001:db8::1]:8123/", None, True, ["http://[2001:db8::1]:8123"]),
+    ],
+)
+async def test_hello_connection_routes_are_local_first_bounded_origins(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    internal: str | None,
+    external: str | None,
+    tls: bool,
+    expected: list[str],
+) -> None:
+    """Core URLs become alternatives; raw endpoints cannot smuggle credentials."""
+    # Assign directly to cover even corrupt/stale config the settings UI refuses.
+    hass.config.internal_url = internal
+    hass.config.external_url = external
+    hass.config.api = SimpleNamespace(local_ip="192.0.2.50", port=8123, use_ssl=tls)
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    reply = await _send(client, _hello())
+    assert reply["success"], reply
+    assert reply["result"]["connection"]["urls"] == expected
+
+
+async def test_hello_advertises_cloud_after_local_and_external(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The cloud can recover an unreachable LAN, without replacing local routes."""
+    from custom_components.panel_assistant import ha_url
+
+    core_get_url = ha_url.get_url
+
+    def get_url(hass: HomeAssistant, **options: Any) -> str:
+        if options.get("require_cloud"):
+            return "https://cloud.example.com/"
+        return core_get_url(hass, **options)
+
+    monkeypatch.setattr(ha_url, "get_url", get_url)
+    hass.config.internal_url = "http://ha.local:8123"
+    hass.config.external_url = "https://external.example.com"
+    hass.config.api = SimpleNamespace(local_ip="192.0.2.50", port=8123, use_ssl=False)
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    reply = await _send(client, _hello())
+    assert reply["success"], reply
+    assert reply["result"]["connection"]["urls"] == [
+        "http://ha.local:8123",
+        "http://192.0.2.50:8123",
+        "https://external.example.com",
+        "https://cloud.example.com",
+    ]

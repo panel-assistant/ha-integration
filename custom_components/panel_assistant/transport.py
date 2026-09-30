@@ -76,6 +76,7 @@ from .const import (
 )
 from .contract import CONTRACT, catalogue_entry, catalogue_entry_for_channel
 from .embed_proof import encode_key, new_key
+from .ha_url import DATA_INSTANCE_ID, async_connection_urls
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -2201,6 +2202,11 @@ def _accept_hello(
         "mqtt_discovery": mqtt_discovery,
         "capabilities": sorted(capabilities),
         "integration": {"version": INTEGRATION_VERSION},
+        "connection": {
+            "instance_id": hass.data[DOMAIN][DATA_INSTANCE_ID],
+            "user_id": user_id,
+            "urls": async_connection_urls(hass),
+        },
         # Unknown descriptors are accepted too, but render nothing.
         "channels": {"accepted": len(descriptors), "unknown": sorted(unknown)},
     }

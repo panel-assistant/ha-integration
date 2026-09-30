@@ -40,6 +40,7 @@ from .guards import (
     async_remember_removed_panel,
     async_start_guards,
 )
+from .ha_url import async_setup_connection_info
 from .install_artifacts import register_feed_download_host
 from .install_executor import (
     async_get_install_executor,
@@ -90,6 +91,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     )
     # Before the commands exist, so no hello is answered without them.
     await async_load_removed_panels(hass)
+    await async_setup_connection_info(hass)
     async_setup_transport(hass)
     async_setup_voice(hass)
     async_setup_embed(hass)
