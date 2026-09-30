@@ -58,10 +58,15 @@ def async_request_adb_authorization(hass: HomeAssistant, entry_id: str) -> None:
     failed = ir.async_get(hass).async_get_issue(
         DOMAIN, panel_failure_issue_id(f"update:{entry_id}")
     )
-    if (
-        failed is not None
-        and failed.translation_key == "installer_failure_adb_authorization"
-    ):
+    if failed is not None:
+        _issue(
+            hass,
+            panel_failure_issue_id(f"update:{entry_id}"),
+            panel_display_name(hass, entry),
+            "update",
+            "adb_authorization_required",
+            entry_id,
+        )
         return
     ir.async_create_issue(
         hass,
@@ -190,7 +195,7 @@ def _issue(
     else:
         translation_key = ISSUE_INSTALLER_FAILURE
     if translation_key == "installer_failure_adb_authorization" and entry_id:
-        async_clear_adb_authorization(hass, entry_id)
+        ir.async_delete_issue(hass, DOMAIN, adb_authorization_issue_id(entry_id))
     ir.async_create_issue(
         hass,
         DOMAIN,

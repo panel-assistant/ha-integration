@@ -35,6 +35,7 @@ from custom_components.panel_assistant.coordinator import (
 )
 from custom_components.panel_assistant.failure_repair import (
     adb_authorization_issue_id,
+    async_clear_adb_authorization,
     async_failure_events,
     panel_failure_issue_id,
 )
@@ -343,9 +344,22 @@ async def test_existing_protected_panel_without_key_offers_nothing(
     assert failure is not None
     assert failure.translation_key == "installer_failure_adb_authorization"
     assert failure.data["entry_id"] == entry.entry_id
+    events = await async_failure_events(hass, panel_failure_issue_id("update:entry-id"))
+    assert events[-1]["reason"] == str(caught.value)
+    assert events[-1]["target_version"] == "0.9.7-rc4 build 772"
+    async_clear_adb_authorization(hass, entry.entry_id)
+    await route.entity._async_refresh_route()
+    repeated = ir.async_get(hass).async_get_issue(
+        DOMAIN, panel_failure_issue_id("update:entry-id")
+    )
+    assert repeated is not None
+    assert repeated.translation_key == "installer_failure_adb_authorization"
     assert (
-        await async_failure_events(hass, panel_failure_issue_id("update:entry-id"))
-    )[-1]["reason"] == str(caught.value)
+        ir.async_get(hass).async_get_issue(
+            DOMAIN, adb_authorization_issue_id(entry.entry_id)
+        )
+        is None
+    )
     create_credential.assert_not_awaited()
     route.client.async_backup_panel.assert_not_awaited()
     route.adb_install.assert_not_awaited()
