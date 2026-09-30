@@ -62,10 +62,15 @@ jobs:
           fi
           frontend_requirement=$("$VENV/bin/python" -c 'import json, pathlib, homeassistant; path = pathlib.Path(homeassistant.__file__).parent / "components/frontend/manifest.json"; print(json.loads(path.read_text())["requirements"][0])')
           "$VENV/bin/python" -m pip install "$frontend_requirement"
-          # The voice tests load Home Assistant's own conversation and Assist pipeline components, whose
+          # The voice tests load Home Assistant's own voice components (Assist satellite and everything it depends on), whose
           # requirements are installed only when Home Assistant sets them up, so install the versions this
           # Home Assistant release declares.
-          voice_requirements=$("$VENV/bin/python" -c 'import json, pathlib, homeassistant; root = pathlib.Path(homeassistant.__file__).parent / "components"; print(" ".join(r for c in ("conversation", "assist_pipeline") for r in json.loads((root / c / "manifest.json").read_text()).get("requirements", [])))')
+          voice_requirements=$("$VENV/bin/python" -c 'import json, pathlib, homeassistant; root = pathlib.Path(homeassistant.__file__).parent / "components"; seen, todo, reqs = set(), ["assist_satellite", "assist_pipeline", "conversation"], []
+          while todo:
+              c = todo.pop()
+              if c in seen or not (root / c / "manifest.json").exists(): continue
+              seen.add(c); m = json.loads((root / c / "manifest.json").read_text()); reqs += m.get("requirements", []); todo += m.get("dependencies", []) + m.get("after_dependencies", [])
+          print(" ".join(sorted(set(reqs))))')
           if [ -n "$voice_requirements" ]; then "$VENV/bin/python" -m pip install $voice_requirements; fi
       - name: Use the test environment
         run: echo "$VENV/bin" >> "$GITHUB_PATH"
