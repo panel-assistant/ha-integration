@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 import voluptuous as vol
@@ -62,7 +63,12 @@ from .transport import (
     native_enabled_for,
 )
 from .update_coordinator import PanelUpdateCoordinator
-from .voice import async_follow_voice, async_setup_voice, satellite_known
+from .voice import (
+    async_follow_voice,
+    async_load_voice,
+    async_setup_voice,
+    satellite_known,
+)
 
 PLATFORMS = [Platform.SENSOR, Platform.UPDATE]
 # Panels are config entries. YAML holds only development options: an optional
@@ -125,6 +131,7 @@ class HaPaneldRuntimeData:
     coordinator: HaPaneldDataUpdateCoordinator
     update_coordinator: PanelUpdateCoordinator
     platforms: list[Platform]
+    voice_setup: Callable[[], Awaitable[None]] | None = None
     # The authority this load was set up with. Only a change of the effective
     # authority reloads the entry, so its cutover runs; writes to the entry's
     # data, as binding and the cutover record make, do not.
@@ -221,8 +228,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     platforms = list(PLATFORMS)
     if native_enabled_for(hass, entry):
         platforms.extend(NATIVE_ONLY_PLATFORMS)
-    if satellite_known(hass, entry):
-        platforms.append(Platform.ASSIST_SATELLITE)
     runtime_data = entry.runtime_data = HaPaneldRuntimeData(
         client=client,
         coordinator=coordinator,
@@ -251,7 +256,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     )
     entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
     await hass.config_entries.async_forward_entry_setups(entry, platforms)
-    entry.async_on_unload(async_follow_voice(hass, entry, runtime_data.platforms))
+    if satellite_known(hass, entry):
+        await async_load_voice(hass, entry, platforms)
+    runtime_data.voice_setup = async_follow_voice(hass, entry, platforms)
     async_refresh_panel_device(
         hass,
         entry.entry_id,
@@ -313,6 +320,8 @@ async def _async_entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 async def async_unload_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> bool:
     """Unload a ha-paneld config entry."""
+    if entry.runtime_data.voice_setup is not None:
+        await entry.runtime_data.voice_setup()
     return await hass.config_entries.async_unload_platforms(
         entry, entry.runtime_data.platforms
     )

@@ -31,7 +31,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections import Counter
-from collections.abc import AsyncIterator, Callable, Iterable, Mapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final
 
@@ -41,9 +41,10 @@ from homeassistant.components import websocket_api
 from homeassistant.components.websocket_api.connection import ActiveConnection
 from homeassistant.components.websocket_api.decorators import websocket_command
 from homeassistant.components.websocket_api.messages import event_message
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_platform
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.network import is_hass_url
@@ -433,32 +434,69 @@ def satellite_known(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
 
+async def async_load_voice(
+    hass: HomeAssistant, entry: ConfigEntry, platforms: list[Platform]
+) -> None:
+    """Finish optional voice setup before recording it for unload."""
+    previous = set(entity_platform.async_get_platforms(hass, DOMAIN))
+    try:
+        await hass.config_entries.async_forward_entry_setups(
+            entry, [Platform.ASSIST_SATELLITE]
+        )
+    except Exception:
+        _LOGGER.exception("Unable to load the panel's voice platform")
+    # Forwarding does not return the platform's setup result. Core records it
+    # only after setup and all entity-add tasks finish, including disabled
+    # entities that never enter our satellite registry.
+    loaded = [
+        platform
+        for platform in entity_platform.async_get_platforms(hass, DOMAIN)
+        if platform not in previous
+        and platform.domain == Platform.ASSIST_SATELLITE
+        and platform.config_entry is entry
+    ]
+    if loaded and all(platform._setup_complete for platform in loaded):
+        platforms.append(Platform.ASSIST_SATELLITE)
+    elif loaded:
+        # Core keeps the entity platform even when its setup fails. Remove
+        # this attempt so a later hello can retry without half-registration.
+        await hass.config_entries.async_forward_entry_unload(
+            entry, Platform.ASSIST_SATELLITE
+        )
+
+
 @callback
 def async_follow_voice(
     hass: HomeAssistant, entry: ConfigEntry, platforms: list[Platform]
-) -> Callable[[], None]:
-    """Load the satellite platform the first time the panel offers voice.
-
-    Loading it pulls in Home Assistant's Assist stack, which a panel that
-    never offers voice should not cost anyone.
-    """
+) -> Callable[[], Awaitable[None]]:
+    """Load voice when offered, and let unload await its pending setup."""
+    task: asyncio.Task[None] | None = None
 
     @callback
     def _changed() -> None:
-        if Platform.ASSIST_SATELLITE in platforms:
+        nonlocal task
+        if (
+            entry.state is not ConfigEntryState.LOADED
+            or Platform.ASSIST_SATELLITE in platforms
+            or (task is not None and not task.done())
+        ):
             return
         session = async_get_sessions(hass).get(entry.entry_id)
         if session is None or CAPABILITY_VOICE not in session.capabilities:
             return
-        platforms.append(Platform.ASSIST_SATELLITE)
-        entry.async_create_task(
+        task = entry.async_create_task(
             hass,
-            hass.config_entries.async_forward_entry_setups(
-                entry, [Platform.ASSIST_SATELLITE]
-            ),
+            async_load_voice(hass, entry, platforms),
             f"{DOMAIN}_voice_platform",
+            eager_start=False,
         )
 
-    return async_dispatcher_connect(
-        hass, signal_session_changed(entry.entry_id), _changed
+    entry.async_on_unload(
+        async_dispatcher_connect(hass, signal_session_changed(entry.entry_id), _changed)
     )
+
+    async def _wait() -> None:
+        if task is not None:
+            await task
+
+    return _wait
