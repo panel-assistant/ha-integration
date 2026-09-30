@@ -2,12 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 0.7.0-rc1 - 2026-09-30
+
+This release pairs with ha-paneld v0.9.9-rc1, the last panel release that supports MQTT and the last one that can move an older MQTT panel over to Panel Assistant's own connection. If your panels still use MQTT, please move them now. Future feature releases will build on Panel Assistant and its connection, so MQTT set-ups will not get new features after this. MQTT still works in this release.
+
+**Trying this release candidate through HACS:** open **Settings, Devices & services, HACS**, then the **Panel Assistant** device. Its **Pre-release** switch is under **Diagnostic** and disabled by default: enable it, turn it on, and HACS offers release candidates as updates.
+
+### Moving off MQTT
+
+- **Move your panels now.** Update each panel to ha-paneld v0.9.9-rc1, add it to Panel Assistant, then choose **Configure** on the panel and set **Control** to **Panel Assistant**. No YAML is needed.
+
+### New
+
+- **Update panels that have no internet access.** Home Assistant now downloads and checks the signed release itself and hands it to the panel over your local network.
+- **Restart notices.** While a panel restarts, its status and the sidebar say so for a short time instead of it just going quiet.
+- **Pick a known panel when adding one.** The add-panel flow now offers panels it already knows about.
+- **Readable support reports.** Installer reports are laid out for people to read, and installer failures show up in Repairs.
+- **Builds on the device card.** You can see which build each panel and the integration are running.
+- **Voice assistant preview.** A panel that offers voice appears as an Assist satellite on its own device, with a listening colour per pipeline. This is an early preview that may change.
+
+### Improved
+
+- **Hands-free identity upgrade.** Panels moving to the new app identity finish the handover on their own, even without internet access, and keep their device and entities.
+- **Panels that move address are followed.** A moved panel is verified at its new address and keeps its device and entities.
+- **IPv6-only panels can be added.** Panels found over IPv6 alone are now offered.
+- **Clearer ADB update approval.** Approving an update over ADB is easier to find, names the panel and clears itself once done.
 
 ### Fixed
 
-- Panels using an older identity can reconnect after their network address changes. Panel Assistant verifies the new address and keeps the existing device and entities, while refusing conflicting identity claims.
-- Panels can report primary and secondary interface addresses, so Panel Assistant can verify a reachable address when the connection arrives through a router or proxy.
+- **Update repairs clear themselves.** A failed update repair retries the current release and disappears once the panel is on the right build.
+- **Panels no longer show a "null" area.** Panels stuck with a literal null area are repaired.
+- **Installs are more reliable.** An install only completes once the panel is confirmed as the home screen, and your existing setup is kept.
 
 ## 0.6.3 - 2026-09-27
 
