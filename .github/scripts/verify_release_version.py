@@ -10,7 +10,7 @@ from pathlib import Path
 
 DEFAULT_MANIFEST = Path("custom_components/panel_assistant/manifest.json")
 RELEASE_VERSION = re.compile(
-    r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:b(?:0|[1-9][0-9]*))?"
+    r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:b(?:0|[1-9][0-9]*)|-rc[1-9][0-9]*)?"
 )
 
 
@@ -32,7 +32,7 @@ def verify_release_version(tag: str, manifest_path: Path) -> None:
         msg = f"release tag {tag!r} does not match manifest version {version!r}"
         raise ValueError(msg)
     if RELEASE_VERSION.fullmatch(version) is None:
-        msg = "release version must use major.minor.patch with an optional bN suffix"
+        msg = "release version must be major.minor.patch, optionally with bN or -rcN"
         raise ValueError(msg)
 
 

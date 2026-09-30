@@ -164,7 +164,10 @@ def test_release_version_guard_accepts_current_and_prerelease_versions(
     verifier.verify_release_version("0.3.0b2", manifest)
 
 
-@pytest.mark.parametrize("version", ["1.0.0", "1.0.1", "1.2.0b0", "2.0.0b12", "0.9.0"])
+@pytest.mark.parametrize(
+    "version",
+    ["1.0.0", "1.0.1", "1.2.0b0", "2.0.0b12", "0.9.0", "0.7.0-rc1", "1.0.0-rc12"],
+)
 def test_release_version_guard_accepts_semantic_versions(
     tmp_path: Path, version: str
 ) -> None:
@@ -184,6 +187,11 @@ def test_release_version_guard_accepts_semantic_versions(
         "1.0.0b",
         "1.0.0b01",
         "1.0.0-rc.1",
+        "1.0.0-rc0",
+        "1.0.0-rc01",
+        "1.0.0rc1",
+        "1.0.0-rc",
+        "1.0.0-beta1",
         "1.0.0.dev0",
         "1.0.0+7",
         "1.0.0\n",
