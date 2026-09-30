@@ -360,7 +360,7 @@ async def test_failed_update_repair_can_authorize_without_clearing_failure(
         is_fixable=True,
         is_persistent=True,
         severity=ir.IssueSeverity.ERROR,
-        translation_key="installer_failure_update",
+        translation_key="installer_failure_adb_authorization",
         translation_placeholders={"panel": "Jenna"},
         data={"key": issue_id, "entry_id": entry.entry_id},
     )
@@ -386,5 +386,8 @@ async def test_failed_update_repair_can_authorize_without_clearing_failure(
         )
         back = await response.json()
     assert back["type"] == "menu"
-    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.translation_key == "installer_failure_update"
+    assert "authorize_adb" not in back["menu_options"]
     authorize.assert_awaited_once_with(hass, entry)

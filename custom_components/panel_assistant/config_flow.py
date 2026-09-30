@@ -58,6 +58,7 @@ from .const import (
     DOMAIN,
     help_url,
 )
+from .failure_repair import async_clear_adb_authorization
 from .ha_url import async_offer_ha_url
 from .identity import CONF_INSTALL_IDENTITY, accept_health, is_installation
 from .install_adb import (
@@ -1650,6 +1651,7 @@ class HaPaneldOptionsFlow(OptionsFlow):
         error = await async_authorize_existing_panel_adb(self.hass, self.config_entry)
         if error is not None:
             return self._show_adb_authorization({"base": error})
+        async_clear_adb_authorization(self.hass, self.config_entry.entry_id)
         return self.async_create_entry(data=dict(self.config_entry.options))
 
     def _show_adb_authorization(

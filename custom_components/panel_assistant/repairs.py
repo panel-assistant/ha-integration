@@ -33,6 +33,7 @@ from .failure_repair import (
     ISSUE_INSTALLER_FAILURE,
     RetrySafetyHold,
     adb_authorization_issue_id,
+    async_clear_adb_authorization,
     async_clear_failure,
     async_failure_events,
     async_record_retry_hold,
@@ -368,6 +369,7 @@ class InstallerFailureFlow(RepairsFlow):
         if user_input is not None:
             error = await async_authorize_existing_panel_adb(self.hass, entry)
             if error is None:
+                async_clear_adb_authorization(self.hass, entry.entry_id)
                 return await self.async_step_init()
             return self._show_adb_authorization(
                 panel_display_name(self.hass, entry), {"base": error}
@@ -559,9 +561,7 @@ class AdbAuthorizationFlow(RepairsFlow):
         if user_input is not None:
             error = await async_authorize_existing_panel_adb(self.hass, entry)
             if error is None:
-                ir.async_delete_issue(
-                    self.hass, DOMAIN, adb_authorization_issue_id(self._entry_id)
-                )
+                async_clear_adb_authorization(self.hass, self._entry_id)
                 return self.async_create_entry(data={})
             return self._show_authorization(
                 panel_display_name(self.hass, entry), {"base": error}

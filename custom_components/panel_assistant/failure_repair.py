@@ -79,6 +79,15 @@ def async_request_adb_authorization(hass: HomeAssistant, entry_id: str) -> None:
 def async_clear_adb_authorization(hass: HomeAssistant, entry_id: str) -> None:
     """An admitted ADB route no longer needs an approval request."""
     ir.async_delete_issue(hass, DOMAIN, adb_authorization_issue_id(entry_id))
+    issue_id = panel_failure_issue_id(f"update:{entry_id}")
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    entry = hass.config_entries.async_get_entry(entry_id)
+    if (
+        entry is not None
+        and issue is not None
+        and issue.translation_key == "installer_failure_adb_authorization"
+    ):
+        _issue(hass, issue_id, panel_display_name(hass, entry), "update", "")
 
 
 class _FailureStore:
