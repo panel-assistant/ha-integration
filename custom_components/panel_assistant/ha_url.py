@@ -1,4 +1,8 @@
-"""Choosing the Home Assistant address to hand a panel.
+"""Home Assistant addresses for setup and authenticated connection recovery.
+
+Native handshakes also advertise bounded local and external alternatives. The
+panel checks this instance's public identity before sending credentials on an
+alternate. The narrower setup handover policy below remains independent.
 
 When this integration installs or adopts a panel it already knows where Home
 Assistant is, so making the panel's owner type that address into the panel's
@@ -43,13 +47,21 @@ correction when it does not answer, rather than this module trying to guess.
 from __future__ import annotations
 
 import logging
+from contextlib import suppress
+from ipaddress import ip_address
 
-from homeassistant.core import HomeAssistant
+from aiohttp import web
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import instance_id
+from homeassistant.helpers.http import HomeAssistantView
 from homeassistant.helpers.network import NoURLAvailableError, get_url
+from yarl import URL
 
 from .client import HaPaneldClient, HaPaneldError
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+DATA_INSTANCE_ID = "ha_instance_id"
 
 
 def async_panel_facing_url(hass: HomeAssistant) -> str | None:
@@ -113,3 +125,102 @@ async def async_offer_ha_url(hass: HomeAssistant, client: HaPaneldClient) -> Non
         await client.async_hand_over_ha_url(ha_url)
     except HaPaneldError:
         _LOGGER.debug("Panel did not accept the Home Assistant address %s", ha_url)
+
+
+async def async_setup_connection_info(hass: HomeAssistant) -> None:
+    """Load Core's durable identity before accepting any panel handshake."""
+    own_id = await instance_id.async_get(hass)
+    hass.data[DOMAIN][DATA_INSTANCE_ID] = own_id
+    hass.http.register_view(InstanceView(own_id))
+
+
+class InstanceView(HomeAssistantView):
+    """Identify this server before a panel sends credentials to a learned route.
+
+    This public identity check prevents accidental cross-instance fallback on a
+    trusted LAN. It is not cryptographic authentication of an HTTP server.
+    """
+
+    url = "/api/panel_assistant/instance"
+    name = "api:panel_assistant:instance"
+    requires_auth = False
+
+    def __init__(self, own_id: str) -> None:
+        """Keep the same identity that the authenticated hello advertises."""
+        self.own_id = own_id
+
+    @callback
+    def get(self, request: web.Request) -> web.Response:
+        """Return only our identity, never an identity supplied by the caller."""
+        return web.json_response(
+            {"instance_id": self.own_id}, headers={"Cache-Control": "no-store"}
+        )
+
+
+def _connection_origin(value: str) -> str | None:
+    """Admit bounded credential-free origins; discovery and redirects add none."""
+    if len(value) > 2048 or any(ord(char) <= 32 or ord(char) == 127 for char in value):
+        return None
+    try:
+        url = URL(value)
+        host = url.host
+        if (
+            url.scheme not in {"http", "https"}
+            or not host
+            or url.user is not None
+            or url.password is not None
+            or URL(value, encoded=True).raw_path not in {"", "/"}
+            or "?" in value
+            or "#" in value
+            or "%" in host
+            or "\\" in value
+            or url.port is None
+            or not 0 < url.port <= 65535
+            or host.lower().rstrip(".") == "localhost"
+        ):
+            return None
+        try:
+            address = ip_address(host)
+        except ValueError:
+            pass
+        else:
+            if (
+                address.is_loopback
+                or address.is_unspecified
+                or address.is_multicast
+                or address.is_link_local
+            ):
+                return None
+        if url.is_default_port():
+            url = url.with_port(None)
+        return str(url.origin())
+    except ValueError, UnicodeError:
+        return None
+
+
+def async_connection_urls(hass: HomeAssistant) -> list[str]:
+    """Offer Core-owned local routes first, then external and cloud routes.
+
+    The configured panel URL remains the panel's preferred route. These hints
+    grant no authority until its credential-free instance check succeeds.
+    """
+    candidates = [hass.config.internal_url]
+    # Core's helper returns only one internal route. Keep its directly detected
+    # address too, so a configured hostname can survive DNS failure. Never
+    # invent a plaintext route or bypass certificate validation for TLS Core.
+    if (api := hass.config.api) is not None and not api.use_ssl:
+        candidates.append(
+            str(URL.build(scheme="http", host=api.local_ip, port=api.port))
+        )
+    candidates.append(hass.config.external_url)
+    with suppress(NoURLAvailableError, ValueError):
+        candidates.append(get_url(hass, require_cloud=True))
+    result: list[str] = []
+    for value in candidates:
+        if (
+            value is not None
+            and (origin := _connection_origin(value)) is not None
+            and origin not in result
+        ):
+            result.append(origin)
+    return result[:4]
