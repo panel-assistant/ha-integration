@@ -496,7 +496,6 @@ async def test_rootless_panel_uses_its_existing_authorized_adb_route(
     await entity._async_refresh_route()
     entity._schedule_route_refresh()
     await hass.async_block_till_done(wait_background_tasks=True)
-    preflight.assert_awaited_once()
     if not target_installed:
         assert entity.latest_version == entity.installed_version
         adb_install.assert_not_awaited()

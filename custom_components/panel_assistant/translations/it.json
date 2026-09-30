@@ -184,7 +184,10 @@
     "panel_backup_failed": { "message": "Non è stato possibile eseguire il backup del pannello, quindi non è stato installato nulla" },
     "build_verification_failed": { "message": "La build non corrispondeva al feed delle build firmato, quindi non è stato installato nulla" },
     "release_verification_failed": { "message": "La release non corrispondeva alla sua firma, quindi non è stato installato nulla" },
-    "upload_disabled": { "message": "Il pannello non accetta caricamenti di app; attiva il caricamento APK nelle sue impostazioni" }
+    "upload_disabled": { "message": "Il pannello non accetta caricamenti di app; attiva il caricamento APK nelle sue impostazioni" },
+    "adb_authorization_required": {
+      "message": "Manca l’autorizzazione ADB per {panel}. Apri Riparazioni in Home Assistant per autorizzare gli aggiornamenti, poi approva «Consenti debug» sul pannello fisico quando richiesto."
+    }
   },
   "issues": {
     "panel_user_mismatch": {
@@ -692,6 +695,7 @@
             "description": "Scegli cosa fare ora.",
             "menu_options": {
               "retry": "Riprova",
+              "authorize_adb": "Autorizza ADB per gli aggiornamenti",
               "support_report": "Rapporto di assistenza",
               "clear_error": "Cancella errore"
             }
@@ -707,6 +711,10 @@
           "retry_error": {
             "title": "Nuovo tentativo non riuscito",
             "description": "Il nuovo tentativo è sospeso. L'errore resta in Riparazioni; i dettagli sono nel rapporto di assistenza."
+          },
+          "authorize_adb": {
+            "title": "Autorizza Home Assistant su {panel}",
+            "description": "Premi Invia per creare o caricare la chiave ADB persistente di questa installazione di Home Assistant e presentare la sua chiave pubblica a {panel}. Approva la richiesta Android «Consenti debug» sul pannello fisico, poi invia di nuovo il modulo. Android potrebbe indicare Home Assistant come un computer. L’approvazione concede accesso generale alla shell ADB finché il debug di rete resta attivo; puoi revocarla nelle opzioni sviluppatore del pannello. In questo passaggio non viene installata alcuna app."
           }
         },
         "progress": {
@@ -721,7 +729,23 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
-          "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
+          "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna.",
+          "cannot_connect": "Impossibile connettersi a un endpoint valido sullo stato di funzionamento di ha-paneld.",
+          "invalid_install_address": "Inserisci solo il nome host o l'indirizzo IP del pannello. Il programma di installazione usa separatamente la porta 8888 di ha-paneld e la porta 5555 di ADB.",
+          "install_resolution_failed": "Home Assistant non è riuscito a risolvere l'indirizzo di questo pannello. Controlla l'indirizzo e il DNS locale, quindi riprova.",
+          "install_resolution_timeout": "La risoluzione locale del nome non è stata completata in tempo per fissare in modo sicuro l'indirizzo del pannello. Controlla il DNS locale, quindi riprova.",
+          "install_too_many_addresses": "Questo nome host è stato risolto in troppi indirizzi per poterlo fissare in modo sicuro. Usa un nome host locale dedicato o un indirizzo IP privato.",
+          "unsafe_install_target": "L'installazione è consentita solo su un indirizzo IPv4 locale privato o su un indirizzo IPv6 univoco locale. Non è stata tentata alcuna connessione ADB.",
+          "install_target_changed": "Il nome host non si risolve più nello stesso indirizzo del pannello fissato in precedenza. Non è stata inviata alcuna chiave ADB e non è stata avviata alcuna installazione. Controlla l'indirizzo e ricomincia.",
+          "adb_unreachable": "Il pannello ha risposto, ma nulla ha risposto sulla sua porta Android Debug Bridge (5555). Sul pannello attiva Android Debug Bridge e consentilo via rete, poi riprova. Se puoi collegare il pannello al computer da cui stai navigando, installa invece tramite USB.",
+          "adb_still_unauthorized": "Il pannello non ha ancora accettato questa istanza di Home Assistant. Approva la richiesta ADB sul pannello, quindi riprova.",
+          "adb_credential_error": "Home Assistant non è riuscito a caricare o conservare in modo sicuro le proprie credenziali ADB. Non è stata tentata alcuna modifica del pannello. Controlla lo spazio di archiviazione e i registri di Home Assistant prima di riprovare.",
+          "retained_or_ambiguous": "Il pannello potrebbe contenere un record conservato del pacchetto ha-paneld oppure non è stato possibile dimostrare che il pacchetto sia assente. Il pannello non è stato modificato. Riprova una volta se la connessione era instabile; in caso contrario, segui la guida alla sicurezza e al ripristino del provisioning indicata nella documentazione dell'integrazione. Non disinstallare o reimpostare l'app senza un backup verificato.",
+          "unknown": "Errore imprevisto",
+          "panel_identity_changed": "L’indirizzo non risponde più come questo pannello configurato. Controlla il pannello e il suo indirizzo prima di riprovare."
+        },
+        "abort": {
+          "entry_removed": "Questo pannello è stato rimosso."
         }
       }
     },
@@ -795,6 +819,98 @@
         },
         "error": {
           "cannot_connect": "Non tutti i pannelli elencati sono raggiungibili. Controlla le connessioni e riprova."
+        }
+      }
+    },
+    "installer_failure_adb_authorization": {
+      "title": "Manca l’autorizzazione ADB per {panel}.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Risolvere l'errore del pannello",
+            "description": "Manca l’autorizzazione ADB per {panel}. Scegli «Autorizza ADB per gli aggiornamenti», poi approva «Consenti debug» sul pannello fisico quando richiesto.",
+            "menu_options": {
+              "retry": "Riprova",
+              "authorize_adb": "Autorizza ADB per gli aggiornamenti",
+              "support_report": "Rapporto di assistenza",
+              "clear_error": "Cancella errore"
+            }
+          },
+          "support_report": {
+            "title": "Rapporto di assistenza",
+            "description": "### [Come usare questo rapporto di assistenza](https://panel-assistant.io/go/support-report)\n\nCopia il rapporto qui sotto in una [nuova segnalazione per l’integrazione Panel Assistant](https://panel-assistant.io/go/report-issue). Se chiedi aiuto a un assistente IA, fornisci il rapporto insieme al prompt nella pagina di guida collegata.\n\n{report}"
+          },
+          "clear_error": {
+            "title": "Cancella errore",
+            "description": "Rimuovi questo errore e il rapporto salvato da Riparazioni. Il pannello non verrà modificato. Seleziona Invia per cancellarlo."
+          },
+          "retry_error": {
+            "title": "Nuovo tentativo non riuscito",
+            "description": "Il nuovo tentativo è sospeso. L'errore resta in Riparazioni; i dettagli sono nel rapporto di assistenza."
+          },
+          "authorize_adb": {
+            "title": "Autorizza Home Assistant su {panel}",
+            "description": "Premi Invia per creare o caricare la chiave ADB persistente di questa installazione di Home Assistant e presentare la sua chiave pubblica a {panel}. Approva la richiesta Android «Consenti debug» sul pannello fisico, poi invia di nuovo il modulo. Android potrebbe indicare Home Assistant come un computer. L’approvazione concede accesso generale alla shell ADB finché il debug di rete resta attivo; puoi revocarla nelle opzioni sviluppatore del pannello. In questo passaggio non viene installata alcuna app."
+          }
+        },
+        "progress": {
+          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza."
+        },
+        "error": {
+          "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
+          "retry_release_changed": "La versione scelta non corrisponde più a quella salvata. Avvia una nuova installazione.",
+          "retry_credential_changed": "Le credenziali ADB di Home Assistant sono cambiate. Controlla il pannello prima di riprovare.",
+          "retry_panel_ambiguous": "Non è stato possibile verificare l'app installata sul pannello. Non è stata avviata una nuova installazione.",
+          "retry_cannot_prove_safe": "Non è stato possibile controllare abbastanza il pannello per riprovare in sicurezza. Riprova più tardi.",
+          "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
+          "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
+          "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna.",
+          "cannot_connect": "Impossibile connettersi a un endpoint valido sullo stato di funzionamento di ha-paneld.",
+          "invalid_install_address": "Inserisci solo il nome host o l'indirizzo IP del pannello. Il programma di installazione usa separatamente la porta 8888 di ha-paneld e la porta 5555 di ADB.",
+          "install_resolution_failed": "Home Assistant non è riuscito a risolvere l'indirizzo di questo pannello. Controlla l'indirizzo e il DNS locale, quindi riprova.",
+          "install_resolution_timeout": "La risoluzione locale del nome non è stata completata in tempo per fissare in modo sicuro l'indirizzo del pannello. Controlla il DNS locale, quindi riprova.",
+          "install_too_many_addresses": "Questo nome host è stato risolto in troppi indirizzi per poterlo fissare in modo sicuro. Usa un nome host locale dedicato o un indirizzo IP privato.",
+          "unsafe_install_target": "L'installazione è consentita solo su un indirizzo IPv4 locale privato o su un indirizzo IPv6 univoco locale. Non è stata tentata alcuna connessione ADB.",
+          "install_target_changed": "Il nome host non si risolve più nello stesso indirizzo del pannello fissato in precedenza. Non è stata inviata alcuna chiave ADB e non è stata avviata alcuna installazione. Controlla l'indirizzo e ricomincia.",
+          "adb_unreachable": "Il pannello ha risposto, ma nulla ha risposto sulla sua porta Android Debug Bridge (5555). Sul pannello attiva Android Debug Bridge e consentilo via rete, poi riprova. Se puoi collegare il pannello al computer da cui stai navigando, installa invece tramite USB.",
+          "adb_still_unauthorized": "Il pannello non ha ancora accettato questa istanza di Home Assistant. Approva la richiesta ADB sul pannello, quindi riprova.",
+          "adb_credential_error": "Home Assistant non è riuscito a caricare o conservare in modo sicuro le proprie credenziali ADB. Non è stata tentata alcuna modifica del pannello. Controlla lo spazio di archiviazione e i registri di Home Assistant prima di riprovare.",
+          "retained_or_ambiguous": "Il pannello potrebbe contenere un record conservato del pacchetto ha-paneld oppure non è stato possibile dimostrare che il pacchetto sia assente. Il pannello non è stato modificato. Riprova una volta se la connessione era instabile; in caso contrario, segui la guida alla sicurezza e al ripristino del provisioning indicata nella documentazione dell'integrazione. Non disinstallare o reimpostare l'app senza un backup verificato.",
+          "unknown": "Errore imprevisto",
+          "panel_identity_changed": "L’indirizzo non risponde più come questo pannello configurato. Controlla il pannello e il suo indirizzo prima di riprovare."
+        },
+        "abort": {
+          "entry_removed": "Questo pannello è stato rimosso."
+        }
+      }
+    },
+    "adb_update_authorization": {
+      "title": "Manca l’autorizzazione ADB per {panel}.",
+      "fix_flow": {
+        "step": {
+          "authorize_adb": {
+            "title": "Autorizza Home Assistant su {panel}",
+            "description": "Premi Invia per creare o caricare la chiave ADB persistente di questa installazione di Home Assistant e presentare la sua chiave pubblica a {panel}. Approva la richiesta Android «Consenti debug» sul pannello fisico, poi invia di nuovo il modulo. Android potrebbe indicare Home Assistant come un computer. L’approvazione concede accesso generale alla shell ADB finché il debug di rete resta attivo; puoi revocarla nelle opzioni sviluppatore del pannello. In questo passaggio non viene installata alcuna app."
+          }
+        },
+        "error": {
+          "cannot_connect": "Impossibile connettersi a un endpoint valido sullo stato di funzionamento di ha-paneld.",
+          "invalid_install_address": "Inserisci solo il nome host o l'indirizzo IP del pannello. Il programma di installazione usa separatamente la porta 8888 di ha-paneld e la porta 5555 di ADB.",
+          "install_resolution_failed": "Home Assistant non è riuscito a risolvere l'indirizzo di questo pannello. Controlla l'indirizzo e il DNS locale, quindi riprova.",
+          "install_resolution_timeout": "La risoluzione locale del nome non è stata completata in tempo per fissare in modo sicuro l'indirizzo del pannello. Controlla il DNS locale, quindi riprova.",
+          "install_too_many_addresses": "Questo nome host è stato risolto in troppi indirizzi per poterlo fissare in modo sicuro. Usa un nome host locale dedicato o un indirizzo IP privato.",
+          "unsafe_install_target": "L'installazione è consentita solo su un indirizzo IPv4 locale privato o su un indirizzo IPv6 univoco locale. Non è stata tentata alcuna connessione ADB.",
+          "install_target_changed": "Il nome host non si risolve più nello stesso indirizzo del pannello fissato in precedenza. Non è stata inviata alcuna chiave ADB e non è stata avviata alcuna installazione. Controlla l'indirizzo e ricomincia.",
+          "adb_unreachable": "Il pannello ha risposto, ma nulla ha risposto sulla sua porta Android Debug Bridge (5555). Sul pannello attiva Android Debug Bridge e consentilo via rete, poi riprova. Se puoi collegare il pannello al computer da cui stai navigando, installa invece tramite USB.",
+          "adb_still_unauthorized": "Il pannello non ha ancora accettato questa istanza di Home Assistant. Approva la richiesta ADB sul pannello, quindi riprova.",
+          "adb_credential_error": "Home Assistant non è riuscito a caricare o conservare in modo sicuro le proprie credenziali ADB. Non è stata tentata alcuna modifica del pannello. Controlla lo spazio di archiviazione e i registri di Home Assistant prima di riprovare.",
+          "retained_or_ambiguous": "Il pannello potrebbe contenere un record conservato del pacchetto ha-paneld oppure non è stato possibile dimostrare che il pacchetto sia assente. Il pannello non è stato modificato. Riprova una volta se la connessione era instabile; in caso contrario, segui la guida alla sicurezza e al ripristino del provisioning indicata nella documentazione dell'integrazione. Non disinstallare o reimpostare l'app senza un backup verificato.",
+          "unknown": "Errore imprevisto",
+          "panel_identity_changed": "L’indirizzo non risponde più come questo pannello configurato. Controlla il pannello e il suo indirizzo prima di riprovare."
+        },
+        "abort": {
+          "entry_removed": "Questo pannello è stato rimosso."
         }
       }
     }

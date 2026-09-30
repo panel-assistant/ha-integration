@@ -11,15 +11,20 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from zipfile import ZipFile
 
 import pytest
+from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers import storage
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from yarl import URL
 
 from custom_components.panel_assistant import adb_credentials
 from custom_components.panel_assistant import update as panel_update
-from custom_components.panel_assistant.adb_credentials import AdbCredentialError
+from custom_components.panel_assistant.adb_credentials import (
+    AdbCredentialError,
+    AdbCredentialMissingError,
+)
 from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
 from custom_components.panel_assistant.build_feed import BuildFeed, FeedBuild
 from custom_components.panel_assistant.client import PanelHealth, normalize_address
@@ -27,6 +32,11 @@ from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.coordinator import (
     HaPaneldDataUpdateCoordinator,
     PanelSnapshot,
+)
+from custom_components.panel_assistant.failure_repair import (
+    adb_authorization_issue_id,
+    async_failure_events,
+    panel_failure_issue_id,
 )
 from custom_components.panel_assistant.feed_coordinator import BuildFeedCoordinator
 from custom_components.panel_assistant.install_adb import InstallOutcome, LaunchOutcome
@@ -251,15 +261,30 @@ async def test_existing_keyless_shelly_offers_and_installs_from_ha(
     )
     deliver = AsyncMock()
     monkeypatch.setattr(route.entity, "_async_deliver_adb", deliver)
-    monkeypatch.setattr(panel_update, "async_clear_update_failure", AsyncMock())
     key_path = Path(hass.config.path(".storage/panel_assistant.adb_key"))
     await hass.async_add_executor_job(
         lambda: key_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     )
     assert not await hass.async_add_executor_job(key_path.exists)
 
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        entry_id="entry-id",
+        title="Kitchen display",
+        data={CONF_ADDRESS: "192.168.1.10"},
+    )
+    entry.add_to_hass(hass)
+    route.probe_target.return_value = InstallTargetProbe(
+        state=InstallTargetState.ADB_UNREACHABLE
+    )
+    await route.entity._async_refresh_route()
+    assert route.entity.latest_version == route.entity.installed_version
+    assert not await hass.async_add_executor_job(key_path.exists)
+    route.probe_target.return_value = route.probe
+    route.probe_target.reset_mock()
     with patch.object(storage.Store, "_async_write_data", write_data):
-        await route.entity._async_refresh_route()
+        route.entity._handle_coordinator_update()
+        await hass.async_block_till_done()
     assert route.entity.latest_version == "0.9.7-rc4 build 772"
     await route.entity.async_install(None, False)
 
@@ -272,9 +297,16 @@ async def test_existing_keyless_shelly_offers_and_installs_from_ha(
 
 
 async def test_existing_protected_panel_without_key_offers_nothing(
-    route: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+    route: SimpleNamespace, monkeypatch: pytest.MonkeyPatch, hass: HomeAssistant
 ) -> None:
-    route.get_credential.side_effect = AdbCredentialError()
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        entry_id="entry-id",
+        title="Kitchen display",
+        data={CONF_ADDRESS: "192.168.1.10"},
+    )
+    entry.add_to_hass(hass)
+    route.get_credential.side_effect = AdbCredentialMissingError()
     route.probe_target.return_value = InstallTargetProbe(
         state=InstallTargetState.ADB_UNAUTHORIZED
     )
@@ -285,10 +317,35 @@ async def test_existing_protected_panel_without_key_offers_nothing(
 
     await route.entity._async_refresh_route()
     assert route.entity.latest_version == route.entity.installed_version
+    issue = ir.async_get(hass).async_get_issue(
+        DOMAIN, adb_authorization_issue_id(entry.entry_id)
+    )
+    assert issue is not None
+    assert issue.translation_placeholders == {"panel": "Kitchen display"}
+    assert issue.data == {"entry_id": entry.entry_id}
+    assert (
+        "ADB authorization"
+        in route.entity.extra_state_attributes["update_unavailable_reason"]
+    )
     with pytest.raises(HomeAssistantError) as caught:
         await route.entity.async_install(None, False)
-
-    assert caught.value.translation_key == "update_unavailable"
+    assert caught.value.translation_key == "adb_authorization_required"
+    assert "Kitchen display" in str(caught.value)
+    assert (
+        ir.async_get(hass).async_get_issue(
+            DOMAIN, adb_authorization_issue_id(entry.entry_id)
+        )
+        is None
+    )
+    failure = ir.async_get(hass).async_get_issue(
+        DOMAIN, panel_failure_issue_id("update:entry-id")
+    )
+    assert failure is not None
+    assert failure.translation_key == "installer_failure_adb_authorization"
+    assert failure.data["entry_id"] == entry.entry_id
+    assert (
+        await async_failure_events(hass, panel_failure_issue_id("update:entry-id"))
+    )[-1]["reason"] == str(caught.value)
     create_credential.assert_not_awaited()
     route.client.async_backup_panel.assert_not_awaited()
     route.adb_install.assert_not_awaited()
@@ -304,6 +361,8 @@ async def test_corrupt_adb_store_does_not_gain_an_update_route(
     await route.entity._async_refresh_route()
 
     assert route.entity.latest_version == route.entity.installed_version
+    create_credential.assert_not_awaited()
+    route.probe_target.assert_not_awaited()
     route.preflight.assert_not_awaited()
     route.adb_install.assert_not_awaited()
 
@@ -328,7 +387,11 @@ async def test_adb_probe_refusal_withholds_offer_and_install(
     with pytest.raises(HomeAssistantError) as caught:
         await route.entity.async_install(None, False)
 
-    assert caught.value.translation_key == "update_unavailable"
+    assert caught.value.translation_key == (
+        "adb_authorization_required"
+        if state is InstallTargetState.ADB_UNAUTHORIZED
+        else "update_unavailable"
+    )
     route.client.async_backup_panel.assert_not_awaited()
     route.preflight.assert_not_awaited()
     route.adb_install.assert_not_awaited()

@@ -28,6 +28,7 @@ from . import HaPaneldConfigEntry
 from .adb_credentials import (
     AdbCredential,
     AdbCredentialError,
+    AdbCredentialMissingError,
     async_get_adb_credential,
     async_get_durable_adb_credential,
 )
@@ -64,9 +65,11 @@ from .coordinator import (
 )
 from .device import panel_device_info, panel_display_name
 from .failure_repair import (
+    async_clear_adb_authorization,
     async_clear_update_failure_if_installed,
     async_record_update_failure,
     async_refresh_update_failure_name,
+    async_request_adb_authorization,
 )
 from .feed_coordinator import (
     BuildFeedCoordinator,
@@ -77,6 +80,7 @@ from .feed_coordinator import (
 from .install_adb import (
     AdbInstallTarget,
     InstallAdbError,
+    InstallAdbErrorCode,
     InstallOutcome,
     LaunchOutcome,
     async_launch_installed_app,
@@ -353,6 +357,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             return
         if (
             self._route_checked_key == self._route_key()
+            and self._has_install_route()
             and not self._bridge_handover_due()
         ):
             return
@@ -445,7 +450,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         try:
             try:
                 credential = await async_get_durable_adb_credential(self.hass)
-            except AdbCredentialError:
+            except AdbCredentialMissingError:
                 credential = None
             pinned = await async_pin_install_target(
                 self.hass, self.coordinator.client.address
@@ -473,6 +478,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 # Only an already-open ADB peer can establish this route without
                 # prompting the panel owner for authorization.
                 open_probe = await async_probe_install_target(pinned.pinned)
+                if open_probe.state is InstallTargetState.ADB_UNAUTHORIZED:
+                    raise self._adb_authorization_error()
                 if open_probe.state not in {
                     InstallTargetState.INSTALLED,
                     InstallTargetState.MIGRATION_CANDIDATE,
@@ -486,6 +493,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 await async_get_adb_credential(self.hass)
                 credential = await async_get_durable_adb_credential(self.hass)
             probe = await async_probe_install_target(pinned.pinned, credential.signer)
+            if probe.state is InstallTargetState.ADB_UNAUTHORIZED:
+                raise self._adb_authorization_error()
             if probe.state not in {
                 InstallTargetState.INSTALLED,
                 InstallTargetState.MIGRATION_CANDIDATE,
@@ -516,15 +525,31 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             if not admitted.target_installed:
                 return None, None, None
             await async_revalidate_install_target(self.hass, pinned)
+        except InstallAdbError as err:
+            if err.code is InstallAdbErrorCode.AUTHORIZATION_REQUIRED:
+                raise self._adb_authorization_error() from err
+            return None, None, None
         except (
             AdbCredentialError,
-            InstallAdbError,
             InstallNetworkError,
             HaPaneldError,
             OSError,
         ):
             return None, None, None
+        async_clear_adb_authorization(self.hass, self._entry_id)
         return ROUTE_ADB, target, credential
+
+    def _adb_authorization_error(self) -> HomeAssistantError:
+        async_request_adb_authorization(self.hass, self._entry_id)
+        panel = self._panel_name()
+        return HomeAssistantError(
+            f"ADB authorization is missing for {panel}. "
+            "Open its Home Assistant Repair to authorize updates, then approve "
+            "Allow debugging on that panel when asked.",
+            translation_domain=DOMAIN,
+            translation_key="adb_authorization_required",
+            translation_placeholders={"panel": panel},
+        )
 
     def _refresh_installed_code(self) -> None:
         """Read the running build number once per install, never per poll."""
@@ -886,7 +911,26 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         """Start one exact stable offer, then follow the expected panel restart."""
         if self.coordinator.identity_mismatch:
             raise _update_error("update_unavailable", "The panel identity has changed")
-        route, adb_target, adb_credential = await self._async_install_route()
+        try:
+            route, adb_target, adb_credential = await self._async_install_route()
+        except HomeAssistantError as route_error:
+            if route_error.translation_key == "adb_authorization_required":
+                artifact = self._adb_artifact()
+                failed_target = version
+                if failed_target is None and artifact is not None:
+                    failed_target = (
+                        build_label(artifact.version, artifact.descriptor.version_code)
+                        if self._feed_mode() is not None and artifact.descriptor
+                        else artifact.version
+                    )
+                await async_record_update_failure(
+                    self.hass,
+                    self._entry_id,
+                    self._panel_name(),
+                    failed_target,
+                    route_error,
+                )
+            raise
         if route is None:
             error = _update_error(
                 "update_unavailable", "The requested ha-paneld update is unavailable"

@@ -448,6 +448,10 @@ async def test_every_localized_failure_opens_a_labeled_repair_flow(
     hass: HomeAssistant, repairs_ready: None, language: str
 ) -> None:
     strings = await async_get_translations(hass, language, "issues", {DOMAIN})
+    adb_prefix = f"component.{DOMAIN}.issues.adb_update_authorization"
+    assert "{panel}" in strings[f"{adb_prefix}.title"]
+    assert "{panel}" in strings[f"{adb_prefix}.fix_flow.step.authorize_adb.description"]
+    assert strings[f"{adb_prefix}.fix_flow.error.adb_still_unauthorized"]
     for cause in (
         "authorization_failed",
         "preflight_rejected",
@@ -459,6 +463,7 @@ async def test_every_localized_failure_opens_a_labeled_repair_flow(
         "ambiguous_mutation",
         "verification_required",
         "update",
+        "adb_authorization",
         "retry_hold",
     ):
         prefix = f"component.{DOMAIN}.issues.installer_failure_{cause}"

@@ -19,7 +19,7 @@ from homeassistant.config_entries import (
     OptionsFlow,
 )
 from homeassistant.const import CONF_ADDRESS
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import UnknownFlow
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
@@ -1535,6 +1535,67 @@ def _install_terminal_abort_reason(receipt: InstallJobReceipt) -> str:
 ABORT_NATIVE_ENTITIES_DISABLED = "native_entities_disabled"
 
 
+async def async_authorize_existing_panel_adb(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> str | None:
+    """Authorize the loaded entry's pinned panel through the existing ADB seam."""
+    coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
+    expected = getattr(getattr(coordinator, "data", None), "health", None)
+    if not isinstance(expected, PanelHealth):
+        return "cannot_connect"
+    # The entry identity survives an address change even if a recent
+    # coordinator read followed that address to a different panel.
+    entry_did = entry.unique_id
+    expected_did = (
+        entry_did
+        if entry_did is not None and is_valid_discovery_id(entry_did)
+        else _panel_did(entry)
+    )
+    try:
+        address = normalize_address(entry.data[CONF_ADDRESS])
+        target = await async_pin_install_target(hass, address)
+        actual = await HaPaneldClient(
+            async_get_clientsession(hass), target.pinned
+        ).async_get_health()
+        if (
+            actual.panel_id != expected.panel_id
+            or actual.package != expected.package
+            or (
+                expected.discovery_id is not None
+                and actual.discovery_id != expected.discovery_id
+            )
+            or (expected_did is not None and actual.discovery_id != expected_did)
+        ):
+            return "panel_identity_changed"
+        await async_revalidate_install_target(hass, target)
+        signer = await async_get_adb_signer(hass)
+        probe = await async_probe_install_target(target.pinned, signer)
+        await async_revalidate_install_target(hass, target)
+    except InstallNetworkError as err:
+        return _install_network_error(err)
+    except CannotConnectError, InvalidResponseError:
+        return "cannot_connect"
+    except AdbCredentialError:
+        return "adb_credential_error"
+    except Exception:
+        _LOGGER.exception("Unexpected exception authorizing ADB for configured panel")
+        return "unknown"
+
+    if probe.state is InstallTargetState.ADB_UNAUTHORIZED:
+        return "adb_still_unauthorized"
+    if probe.state in {
+        InstallTargetState.INSTALLED,
+        InstallTargetState.MIGRATION_CANDIDATE,
+    }:
+        if await hass.config_entries.async_reload(entry.entry_id):
+            return None
+        return "unknown"
+    return {
+        InstallTargetState.ADB_UNREACHABLE: "adb_unreachable",
+        InstallTargetState.RETAINED_OR_AMBIGUOUS: "retained_or_ambiguous",
+    }.get(probe.state, "panel_identity_changed")
+
+
 class HaPaneldOptionsFlow(OptionsFlow):
     """Complete a fresh install, or choose the panel's transport authority.
 
@@ -1586,62 +1647,10 @@ class HaPaneldOptionsFlow(OptionsFlow):
         if user_input is None:
             return self._show_adb_authorization()
 
-        expected = self._current_panel_health()
-        if expected is None:
-            return self._show_adb_authorization({"base": "cannot_connect"})
-        # The entry identity survives an address change even if a recent
-        # coordinator read followed that address to a different panel.
-        entry_did = self.config_entry.unique_id
-        expected_did = (
-            entry_did
-            if entry_did is not None and is_valid_discovery_id(entry_did)
-            else _panel_did(self.config_entry)
-        )
-        try:
-            address = normalize_address(self.config_entry.data[CONF_ADDRESS])
-            target = await async_pin_install_target(self.hass, address)
-            actual = await HaPaneldClient(
-                async_get_clientsession(self.hass), target.pinned
-            ).async_get_health()
-            if (
-                actual.panel_id != expected.panel_id
-                or actual.package != expected.package
-                or (expected_did is not None and actual.discovery_id != expected_did)
-            ):
-                return self._show_adb_authorization({"base": "panel_identity_changed"})
-            await async_revalidate_install_target(self.hass, target)
-            signer = await async_get_adb_signer(self.hass)
-            probe = await async_probe_install_target(target.pinned, signer)
-            await async_revalidate_install_target(self.hass, target)
-        except InstallNetworkError as err:
-            return self._show_adb_authorization({"base": _install_network_error(err)})
-        except CannotConnectError, InvalidResponseError:
-            return self._show_adb_authorization({"base": "cannot_connect"})
-        except AdbCredentialError:
-            return self._show_adb_authorization({"base": "adb_credential_error"})
-        except Exception:
-            _LOGGER.exception(
-                "Unexpected exception authorizing ADB for configured panel"
-            )
-            return self._show_adb_authorization({"base": "unknown"})
-
-        if probe.state is InstallTargetState.ADB_UNAUTHORIZED:
-            return self._show_adb_authorization({"base": "adb_still_unauthorized"})
-        if probe.state in {
-            InstallTargetState.INSTALLED,
-            InstallTargetState.MIGRATION_CANDIDATE,
-        }:
-            if await self.hass.config_entries.async_reload(self.config_entry.entry_id):
-                return self.async_create_entry(data=dict(self.config_entry.options))
-            return self._show_adb_authorization({"base": "unknown"})
-        return self._show_adb_authorization(
-            {
-                "base": {
-                    InstallTargetState.ADB_UNREACHABLE: "adb_unreachable",
-                    InstallTargetState.RETAINED_OR_AMBIGUOUS: "retained_or_ambiguous",
-                }.get(probe.state, "panel_identity_changed")
-            }
-        )
+        error = await async_authorize_existing_panel_adb(self.hass, self.config_entry)
+        if error is not None:
+            return self._show_adb_authorization({"base": error})
+        return self.async_create_entry(data=dict(self.config_entry.options))
 
     def _show_adb_authorization(
         self, errors: dict[str, str] | None = None

@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from .install_jobs import InstallJobReceipt
 
 ISSUE_INSTALLER_FAILURE = "installer_failure"
+ISSUE_ADB_AUTHORIZATION = "adb_update_authorization"
 _STORE_KEY = f"{DOMAIN}.failure_repairs"
 _DATA_KEY = f"{DOMAIN}.failure_repair_store"
 _MAX_EVENTS = 16
@@ -42,6 +43,42 @@ class RetrySafetyHold(Exception):
 def panel_failure_issue_id(identity: str) -> str:
     """Use physical install identity or the update entry, not a changeable address."""
     return f"{ISSUE_INSTALLER_FAILURE}_{sha256(identity.encode()).hexdigest()[:24]}"
+
+
+def adb_authorization_issue_id(entry_id: str) -> str:
+    """Keep the authorization request attached to the configured panel."""
+    return f"{ISSUE_ADB_AUTHORIZATION}_{entry_id}"
+
+
+def async_request_adb_authorization(hass: HomeAssistant, entry_id: str) -> None:
+    """Ask for the physical approval by the panel's Home Assistant name."""
+    entry = hass.config_entries.async_get_entry(entry_id)
+    if entry is None:
+        return
+    failed = ir.async_get(hass).async_get_issue(
+        DOMAIN, panel_failure_issue_id(f"update:{entry_id}")
+    )
+    if (
+        failed is not None
+        and failed.translation_key == "installer_failure_adb_authorization"
+    ):
+        return
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        adb_authorization_issue_id(entry_id),
+        is_fixable=True,
+        is_persistent=True,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key=ISSUE_ADB_AUTHORIZATION,
+        translation_placeholders={"panel": panel_display_name(hass, entry)},
+        data={"entry_id": entry_id},
+    )
+
+
+def async_clear_adb_authorization(hass: HomeAssistant, entry_id: str) -> None:
+    """An admitted ADB route no longer needs an approval request."""
+    ir.async_delete_issue(hass, DOMAIN, adb_authorization_issue_id(entry_id))
 
 
 class _FailureStore:
@@ -126,16 +163,25 @@ _INSTALL_CAUSES = frozenset(
 
 
 def _issue(
-    hass: HomeAssistant, issue_id: str, panel: str, kind: str, reason: str
+    hass: HomeAssistant,
+    issue_id: str,
+    panel: str,
+    kind: str,
+    reason: str,
+    entry_id: str | None = None,
 ) -> None:
     if kind == "install" and reason in _INSTALL_CAUSES:
         translation_key = f"{ISSUE_INSTALLER_FAILURE}_{reason}"
+    elif kind == "update" and reason == "adb_authorization_required":
+        translation_key = "installer_failure_adb_authorization"
     elif kind == "update":
         translation_key = f"{ISSUE_INSTALLER_FAILURE}_update"
     elif kind == "retry_hold":
         translation_key = f"{ISSUE_INSTALLER_FAILURE}_retry_hold"
     else:
         translation_key = ISSUE_INSTALLER_FAILURE
+    if translation_key == "installer_failure_adb_authorization" and entry_id:
+        async_clear_adb_authorization(hass, entry_id)
     ir.async_create_issue(
         hass,
         DOMAIN,
@@ -145,7 +191,7 @@ def _issue(
         severity=ir.IssueSeverity.ERROR,
         translation_key=translation_key,
         translation_placeholders={"panel": panel},
-        data={"key": issue_id},
+        data={"key": issue_id, **({"entry_id": entry_id} if entry_id else {})},
     )
 
 
@@ -211,7 +257,18 @@ async def async_record_update_failure(
     if observed_before is not None:
         event["observed_before"] = list(observed_before)
     await _failure_store(hass).append(
-        issue_id, event, lambda: _issue(hass, issue_id, panel, "update", reason)
+        issue_id,
+        event,
+        lambda: _issue(
+            hass,
+            issue_id,
+            panel,
+            "update",
+            getattr(error, "translation_key", None) or reason,
+            entry_id
+            if getattr(error, "translation_key", None) == "adb_authorization_required"
+            else None,
+        ),
     )
 
 
@@ -229,7 +286,18 @@ def async_refresh_update_failure_name(hass: HomeAssistant, entry_id: str) -> Non
         if issue.translation_key == "installer_failure_retry_hold"
         else "update"
     )
-    _issue(hass, issue_id, panel_display_name(hass, entry), kind, "")
+    _issue(
+        hass,
+        issue_id,
+        panel_display_name(hass, entry),
+        kind,
+        "adb_authorization_required"
+        if issue.translation_key == "installer_failure_adb_authorization"
+        else "",
+        entry_id
+        if issue.translation_key == "installer_failure_adb_authorization"
+        else None,
+    )
 
 
 async def async_clear_update_failure_if_installed(

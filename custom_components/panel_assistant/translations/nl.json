@@ -224,6 +224,9 @@
     },
     "upload_disabled": {
       "message": "Het paneel accepteert geen app-uploads; schakel in de instellingen de optie ‘APK-upload’ in"
+    },
+    "adb_authorization_required": {
+      "message": "ADB-autorisatie ontbreekt voor {panel}. Open Reparaties in Home Assistant om updates te autoriseren en keur op het fysieke paneel ‘Debuggen toestaan’ goed wanneer daarom wordt gevraagd."
     }
   },
   "issues": {
@@ -732,6 +735,7 @@
             "description": "Kies wat je nu wilt doen.",
             "menu_options": {
               "retry": "Opnieuw proberen",
+              "authorize_adb": "ADB voor updates autoriseren",
               "support_report": "Ondersteuningsrapport",
               "clear_error": "Fout wissen"
             }
@@ -747,6 +751,10 @@
           "retry_error": {
             "title": "Opnieuw proberen is niet gelukt",
             "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+          },
+          "authorize_adb": {
+            "title": "Home Assistant op {panel} autoriseren",
+            "description": "Kies Verzenden om de permanente ADB-sleutel van deze Home Assistant-installatie te maken of te laden en de openbare sleutel aan {panel} aan te bieden. Sta de Android-vraag voor foutopsporing op het fysieke paneel toe en verzend het formulier opnieuw. Android kan Home Assistant als een computer omschrijven. De toestemming geeft algemene ADB-shelltoegang zolang foutopsporing via het netwerk aanstaat; trek deze in via de ontwikkelaarsopties van het paneel. In deze stap wordt geen app geïnstalleerd."
           }
         },
         "progress": {
@@ -761,7 +769,23 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
-          "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
+          "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt.",
+          "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig ha-paneld-status-eindpunt.",
+          "invalid_install_address": "Voer alleen de hostnaam van het paneel of het IP-adres in. Het installatieprogramma gebruikt ha-paneld op poort 8888 en ADB op poort 5555 afzonderlijk.",
+          "install_resolution_failed": "Home Assistant kon dit paneeladres niet omzetten. Controleer het adres en de lokale DNS en probeer het daarna nog eens.",
+          "install_resolution_timeout": "De lokale naamomzetting is verlopen voordat het adres van het paneel veilig kon worden vastgelegd. Controleer de lokale DNS en probeer het dan nog eens.",
+          "install_too_many_addresses": "Deze hostnaam leverde te veel adressen op om veilig te kunnen vastleggen. Gebruik een speciale lokale hostnaam of een privé-IP-adres.",
+          "unsafe_install_target": "Installatie is alleen toegestaan op een privé-lokaal IPv4-adres of een uniek lokaal IPv6-adres. Er is geen ADB-verbinding geprobeerd.",
+          "install_target_changed": "De hostnaam verwijst niet meer naar hetzelfde vastgezette paneeladres. Er is geen ADB-sleutel of installatie verzonden. Controleer het adres en begin opnieuw.",
+          "adb_unreachable": "Het paneel reageerde wel, maar er kwam geen reactie op de Android Debug Bridge-poort (5555). Schakel op het paneel Android Debug Bridge in en sta dit toe via het netwerk, en probeer het dan nog eens. Als je het paneel kunt aansluiten op de computer waarop je nu surft, installeer dan via USB.",
+          "adb_still_unauthorized": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd. Bevestig de ADB-melding op het paneel en probeer het dan nog eens.",
+          "adb_credential_error": "Home Assistant kon de inloggegevens van ADB niet veilig laden of opslaan. Er is geen poging gedaan om het paneel te wijzigen. Controleer de opslag en logbestanden van Home Assistant voordat je het opnieuw probeert.",
+          "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket ha-paneld, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de handleiding voor veilig inrichten en herstel, waarnaar in de integratiedocumentatie wordt verwezen. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
+          "unknown": "Onverwachte fout",
+          "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert."
+        },
+        "abort": {
+          "entry_removed": "Dit paneel is verwijderd."
         }
       }
     },
@@ -835,6 +859,98 @@
         },
         "error": {
           "cannot_connect": "Niet alle vermelde panelen zijn bereikbaar. Controleer hun verbindingen en probeer het opnieuw."
+        }
+      }
+    },
+    "installer_failure_adb_authorization": {
+      "title": "ADB-autorisatie ontbreekt voor {panel}.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Paneelfout oplossen",
+            "description": "ADB-autorisatie ontbreekt voor {panel}. Kies ‘ADB voor updates autoriseren’ en keur op het fysieke paneel ‘Debuggen toestaan’ goed wanneer daarom wordt gevraagd.",
+            "menu_options": {
+              "retry": "Opnieuw proberen",
+              "authorize_adb": "ADB voor updates autoriseren",
+              "support_report": "Ondersteuningsrapport",
+              "clear_error": "Fout wissen"
+            }
+          },
+          "support_report": {
+            "title": "Ondersteuningsrapport",
+            "description": "### [Dit ondersteuningsrapport gebruiken](https://panel-assistant.io/go/support-report)\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie](https://panel-assistant.io/go/report-issue). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
+          },
+          "clear_error": {
+            "title": "Fout wissen",
+            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+          },
+          "retry_error": {
+            "title": "Opnieuw proberen is niet gelukt",
+            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+          },
+          "authorize_adb": {
+            "title": "Home Assistant op {panel} autoriseren",
+            "description": "Kies Verzenden om de permanente ADB-sleutel van deze Home Assistant-installatie te maken of te laden en de openbare sleutel aan {panel} aan te bieden. Sta de Android-vraag voor foutopsporing op het fysieke paneel toe en verzend het formulier opnieuw. Android kan Home Assistant als een computer omschrijven. De toestemming geeft algemene ADB-shelltoegang zolang foutopsporing via het netwerk aanstaat; trek deze in via de ontwikkelaarsopties van het paneel. In deze stap wordt geen app geïnstalleerd."
+          }
+        },
+        "progress": {
+          "retrying": "Paneel controleren en veilig opnieuw proberen."
+        },
+        "error": {
+          "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
+          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
+          "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
+          "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
+          "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
+          "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt.",
+          "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig ha-paneld-status-eindpunt.",
+          "invalid_install_address": "Voer alleen de hostnaam van het paneel of het IP-adres in. Het installatieprogramma gebruikt ha-paneld op poort 8888 en ADB op poort 5555 afzonderlijk.",
+          "install_resolution_failed": "Home Assistant kon dit paneeladres niet omzetten. Controleer het adres en de lokale DNS en probeer het daarna nog eens.",
+          "install_resolution_timeout": "De lokale naamomzetting is verlopen voordat het adres van het paneel veilig kon worden vastgelegd. Controleer de lokale DNS en probeer het dan nog eens.",
+          "install_too_many_addresses": "Deze hostnaam leverde te veel adressen op om veilig te kunnen vastleggen. Gebruik een speciale lokale hostnaam of een privé-IP-adres.",
+          "unsafe_install_target": "Installatie is alleen toegestaan op een privé-lokaal IPv4-adres of een uniek lokaal IPv6-adres. Er is geen ADB-verbinding geprobeerd.",
+          "install_target_changed": "De hostnaam verwijst niet meer naar hetzelfde vastgezette paneeladres. Er is geen ADB-sleutel of installatie verzonden. Controleer het adres en begin opnieuw.",
+          "adb_unreachable": "Het paneel reageerde wel, maar er kwam geen reactie op de Android Debug Bridge-poort (5555). Schakel op het paneel Android Debug Bridge in en sta dit toe via het netwerk, en probeer het dan nog eens. Als je het paneel kunt aansluiten op de computer waarop je nu surft, installeer dan via USB.",
+          "adb_still_unauthorized": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd. Bevestig de ADB-melding op het paneel en probeer het dan nog eens.",
+          "adb_credential_error": "Home Assistant kon de inloggegevens van ADB niet veilig laden of opslaan. Er is geen poging gedaan om het paneel te wijzigen. Controleer de opslag en logbestanden van Home Assistant voordat je het opnieuw probeert.",
+          "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket ha-paneld, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de handleiding voor veilig inrichten en herstel, waarnaar in de integratiedocumentatie wordt verwezen. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
+          "unknown": "Onverwachte fout",
+          "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert."
+        },
+        "abort": {
+          "entry_removed": "Dit paneel is verwijderd."
+        }
+      }
+    },
+    "adb_update_authorization": {
+      "title": "ADB-autorisatie ontbreekt voor {panel}.",
+      "fix_flow": {
+        "step": {
+          "authorize_adb": {
+            "title": "Home Assistant op {panel} autoriseren",
+            "description": "Kies Verzenden om de permanente ADB-sleutel van deze Home Assistant-installatie te maken of te laden en de openbare sleutel aan {panel} aan te bieden. Sta de Android-vraag voor foutopsporing op het fysieke paneel toe en verzend het formulier opnieuw. Android kan Home Assistant als een computer omschrijven. De toestemming geeft algemene ADB-shelltoegang zolang foutopsporing via het netwerk aanstaat; trek deze in via de ontwikkelaarsopties van het paneel. In deze stap wordt geen app geïnstalleerd."
+          }
+        },
+        "error": {
+          "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig ha-paneld-status-eindpunt.",
+          "invalid_install_address": "Voer alleen de hostnaam van het paneel of het IP-adres in. Het installatieprogramma gebruikt ha-paneld op poort 8888 en ADB op poort 5555 afzonderlijk.",
+          "install_resolution_failed": "Home Assistant kon dit paneeladres niet omzetten. Controleer het adres en de lokale DNS en probeer het daarna nog eens.",
+          "install_resolution_timeout": "De lokale naamomzetting is verlopen voordat het adres van het paneel veilig kon worden vastgelegd. Controleer de lokale DNS en probeer het dan nog eens.",
+          "install_too_many_addresses": "Deze hostnaam leverde te veel adressen op om veilig te kunnen vastleggen. Gebruik een speciale lokale hostnaam of een privé-IP-adres.",
+          "unsafe_install_target": "Installatie is alleen toegestaan op een privé-lokaal IPv4-adres of een uniek lokaal IPv6-adres. Er is geen ADB-verbinding geprobeerd.",
+          "install_target_changed": "De hostnaam verwijst niet meer naar hetzelfde vastgezette paneeladres. Er is geen ADB-sleutel of installatie verzonden. Controleer het adres en begin opnieuw.",
+          "adb_unreachable": "Het paneel reageerde wel, maar er kwam geen reactie op de Android Debug Bridge-poort (5555). Schakel op het paneel Android Debug Bridge in en sta dit toe via het netwerk, en probeer het dan nog eens. Als je het paneel kunt aansluiten op de computer waarop je nu surft, installeer dan via USB.",
+          "adb_still_unauthorized": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd. Bevestig de ADB-melding op het paneel en probeer het dan nog eens.",
+          "adb_credential_error": "Home Assistant kon de inloggegevens van ADB niet veilig laden of opslaan. Er is geen poging gedaan om het paneel te wijzigen. Controleer de opslag en logbestanden van Home Assistant voordat je het opnieuw probeert.",
+          "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket ha-paneld, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de handleiding voor veilig inrichten en herstel, waarnaar in de integratiedocumentatie wordt verwezen. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
+          "unknown": "Onverwachte fout",
+          "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert."
+        },
+        "abort": {
+          "entry_removed": "Dit paneel is verwijderd."
         }
       }
     }

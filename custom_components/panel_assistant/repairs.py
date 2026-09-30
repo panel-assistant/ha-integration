@@ -8,6 +8,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.components.repairs import RepairsFlow, RepairsFlowResult
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType, UnknownStep
@@ -24,10 +25,14 @@ from .client import (
     is_valid_discovery_id,
     normalize_address,
 )
+from .config_flow import async_authorize_existing_panel_adb
 from .const import CONF_TRANSPORT_USER_ID, DOMAIN, update_unique_id
+from .device import panel_display_name
 from .failure_repair import (
+    ISSUE_ADB_AUTHORIZATION,
     ISSUE_INSTALLER_FAILURE,
     RetrySafetyHold,
+    adb_authorization_issue_id,
     async_clear_failure,
     async_failure_events,
     async_record_retry_hold,
@@ -330,9 +335,49 @@ class InstallerFailureFlow(RepairsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> RepairsFlowResult:
+        options = ["retry", "support_report", "clear_error"]
+        if self._adb_entry() is not None:
+            options.insert(1, "authorize_adb")
         return self.async_show_menu(
             step_id="init",
-            menu_options=["retry", "support_report", "clear_error"],
+            menu_options=options,
+        )
+
+    def _adb_entry(self) -> ConfigEntry | None:
+        issue = ir.async_get(self.hass).async_get_issue(DOMAIN, self.issue_id)
+        data = issue.data if issue is not None else None
+        entry_id = data.get("entry_id") if isinstance(data, dict) else None
+        entry = (
+            self.hass.config_entries.async_get_entry(entry_id)
+            if isinstance(entry_id, str)
+            else None
+        )
+        return entry if entry is not None and entry.domain == DOMAIN else None
+
+    async def async_step_authorize_adb(
+        self, user_input: dict[str, Any] | None = None
+    ) -> RepairsFlowResult:
+        """Restore ADB trust, then leave the failed update report available."""
+        entry = self._adb_entry()
+        if entry is None:
+            return self.async_abort(reason=ABORT_ENTRY_REMOVED)
+        if user_input is not None:
+            error = await async_authorize_existing_panel_adb(self.hass, entry)
+            if error is None:
+                return await self.async_step_init()
+            return self._show_adb_authorization(
+                panel_display_name(self.hass, entry), {"base": error}
+            )
+        return self._show_adb_authorization(panel_display_name(self.hass, entry))
+
+    def _show_adb_authorization(
+        self, panel: str, errors: dict[str, str] | None = None
+    ) -> RepairsFlowResult:
+        return self.async_show_form(
+            step_id="authorize_adb",
+            data_schema=vol.Schema({}),
+            description_placeholders={"panel": panel},
+            errors=errors,
         )
 
     async def async_step_support_report(
@@ -490,6 +535,46 @@ class InstallerFailureFlow(RepairsFlow):
             return "retry_failed"
 
 
+class AdbAuthorizationFlow(RepairsFlow):
+    """Offer the configured panel the same authorization as its Options flow."""
+
+    def __init__(self, entry_id: str) -> None:
+        self._entry_id = entry_id
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> RepairsFlowResult:
+        return await self.async_step_authorize_adb()
+
+    async def async_step_authorize_adb(
+        self, user_input: dict[str, Any] | None = None
+    ) -> RepairsFlowResult:
+        entry = self.hass.config_entries.async_get_entry(self._entry_id)
+        if entry is None or entry.domain != DOMAIN:
+            return self.async_abort(reason=ABORT_ENTRY_REMOVED)
+        if user_input is not None:
+            error = await async_authorize_existing_panel_adb(self.hass, entry)
+            if error is None:
+                ir.async_delete_issue(
+                    self.hass, DOMAIN, adb_authorization_issue_id(self._entry_id)
+                )
+                return self.async_create_entry(data={})
+            return self._show_authorization(
+                panel_display_name(self.hass, entry), {"base": error}
+            )
+        return self._show_authorization(panel_display_name(self.hass, entry))
+
+    def _show_authorization(
+        self, panel: str, errors: dict[str, str] | None = None
+    ) -> RepairsFlowResult:
+        return self.async_show_form(
+            step_id="authorize_adb",
+            data_schema=vol.Schema({}),
+            description_placeholders={"panel": panel},
+            errors=errors,
+        )
+
+
 async def async_create_fix_flow(
     hass: HomeAssistant,
     issue_id: str,
@@ -497,6 +582,13 @@ async def async_create_fix_flow(
 ) -> RepairsFlow:
     """Create the fix flow for a Panel Assistant issue."""
     values = data or {}
+    if issue_id.startswith(f"{ISSUE_ADB_AUTHORIZATION}_"):
+        entry_id = values.get("entry_id")
+        if not isinstance(entry_id, str) or issue_id != adb_authorization_issue_id(
+            entry_id
+        ):
+            raise UnknownStep
+        return AdbAuthorizationFlow(entry_id)
     if issue_id.startswith(f"{ISSUE_IDENTITY}_"):
         return PanelIdentityFlow(values)
     if issue_id.startswith(f"{ISSUE_INSTALLER_FAILURE}_"):

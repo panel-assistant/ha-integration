@@ -42,6 +42,10 @@ class AdbCredentialError(Exception):
     """Raised when the durable ADB credential cannot be loaded safely."""
 
 
+class AdbCredentialMissingError(AdbCredentialError):
+    """No durable key exists; unlike invalid storage it may be established."""
+
+
 @dataclass(frozen=True, repr=False, slots=True)
 class _StoredCredential:
     private_key: str
@@ -293,6 +297,8 @@ def _read_durable_credential(path_text: str) -> _StoredCredential:
     )
     try:
         file_fd = os.open(path_text, flags)
+    except FileNotFoundError as err:
+        raise AdbCredentialMissingError from err
     except OSError as err:
         raise AdbCredentialError from err
     try:

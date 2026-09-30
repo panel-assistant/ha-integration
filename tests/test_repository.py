@@ -358,7 +358,7 @@ def test_english_only_translations_are_exactly_the_dormant_native_surface() -> N
 
     assert len(paths) == 61
     assert all(path[:1] in {("entity",), ("exceptions",)} for path in paths)
-    assert len(_translation_leaves(shared)) == 459
+    assert len(_translation_leaves(shared)) == 533
     for locale_path in sorted((INTEGRATION / "translations").glob("*.json")):
         if locale_path.name == "en.json":
             continue
@@ -389,7 +389,7 @@ def test_shipped_translation_catalogues_preserve_machine_contracts() -> None:
         "uk.json",
         "zh-Hans.json",
     ]
-    assert len(english) == 459
+    assert len(english) == 533
 
     for locale_path in locale_paths:
         target_catalogue = _without(
@@ -439,7 +439,7 @@ def test_destructive_recovery_instructions_stay_prohibitions_in_drafted_locales(
         for path, text in english.items()
         if re.search(r"\bDo not [^.]*\b(uninstall|reset)\b", text)
     }
-    assert len(prohibited) == 5
+    assert len(prohibited) == 8
     for locale, positive in _POSITIVE_DESTRUCTIVE_COMMANDS.items():
         target = _translation_leaves(
             _load_translation_catalogue(INTEGRATION / "translations" / f"{locale}.json")

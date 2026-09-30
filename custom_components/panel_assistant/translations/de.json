@@ -184,7 +184,10 @@
     "panel_backup_failed": { "message": "Das Panel konnte nicht gesichert werden, daher wurde nichts installiert" },
     "build_verification_failed": { "message": "Der Build stimmte nicht mit dem signierten Build-Feed überein, daher wurde nichts installiert" },
     "release_verification_failed": { "message": "Das Release stimmte nicht mit seiner Signatur überein, daher wurde nichts installiert" },
-    "upload_disabled": { "message": "Das Panel nimmt keine App-Uploads an; aktiviere den APK-Upload in seinen Einstellungen" }
+    "upload_disabled": { "message": "Das Panel nimmt keine App-Uploads an; aktiviere den APK-Upload in seinen Einstellungen" },
+    "adb_authorization_required": {
+      "message": "Für {panel} fehlt die ADB-Autorisierung. Öffnen Sie Reparaturen in Home Assistant, um Updates zu autorisieren, und bestätigen Sie auf dem physischen Panel „Debugging zulassen“, wenn Sie dazu aufgefordert werden."
+    }
   },
   "issues": {
     "panel_user_mismatch": {
@@ -692,6 +695,7 @@
             "description": "Wähle den nächsten Schritt.",
             "menu_options": {
               "retry": "Erneut versuchen",
+              "authorize_adb": "ADB für Updates autorisieren",
               "support_report": "Supportbericht",
               "clear_error": "Fehler löschen"
             }
@@ -707,6 +711,10 @@
           "retry_error": {
             "title": "Erneuter Versuch fehlgeschlagen",
             "description": "Der erneute Versuch ist angehalten. Der Fehler bleibt in Reparaturen; Einzelheiten stehen im Supportbericht."
+          },
+          "authorize_adb": {
+            "title": "Home Assistant auf {panel} autorisieren",
+            "description": "Mit Absenden wird der dauerhafte ADB-Schlüssel dieser Home Assistant-Installation erstellt oder geladen und sein öffentlicher Schlüssel an {panel} gesendet. Bestätigen Sie die Android-Anfrage „Debugging zulassen“ direkt am Panel und senden Sie das Formular danach erneut ab. Android kann Home Assistant als Computer bezeichnen. Die Freigabe gewährt allgemeinen ADB-Shell-Zugriff, solange Netzwerk-Debugging aktiviert ist; sie kann in den Entwickleroptionen des Panels widerrufen werden. In diesem Schritt wird keine App installiert."
           }
         },
         "progress": {
@@ -721,7 +729,23 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
-          "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
+          "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt.",
+          "cannot_connect": "Es konnte keine Verbindung zu einem gültigen Funktionsstatus-Endpunkt von ha-paneld hergestellt werden.",
+          "invalid_install_address": "Gib nur den Hostnamen oder die IP-Adresse des Panels ein. Das Installationsprogramm verwendet den ha-paneld-Port 8888 und den ADB-Port 5555 getrennt.",
+          "install_resolution_failed": "Home Assistant konnte diese Paneladresse nicht auflösen. Prüfe die Adresse und das lokale DNS und versuche es erneut.",
+          "install_resolution_timeout": "Bei der lokalen Namensauflösung trat eine Zeitüberschreitung auf, bevor die Paneladresse sicher festgelegt werden konnte. Prüfe das lokale DNS und versuche es erneut.",
+          "install_too_many_addresses": "Dieser Hostname wurde in zu viele Adressen aufgelöst, um ihn sicher festzulegen. Verwende einen dedizierten lokalen Hostnamen oder eine private IP-Adresse.",
+          "unsafe_install_target": "Die Installation ist nur auf einer privaten lokalen IPv4-Adresse oder einer Unique-Local-IPv6-Adresse zulässig. Es wurde keine ADB-Verbindung versucht.",
+          "install_target_changed": "Der Hostname wird nicht mehr in dieselbe festgelegte Paneladresse aufgelöst. Es wurden weder ein ADB-Schlüssel noch eine Installation gesendet. Prüfe die Adresse und beginne erneut.",
+          "adb_unreachable": "Das Panel hat geantwortet, aber auf seinem Android-Debug-Bridge-Port (5555) kam keine Antwort. Aktiviere auf dem Panel Android Debug Bridge und erlaube den Zugriff über das Netzwerk, und versuche es erneut. Wenn du das Panel an den Computer anschließen kannst, auf dem du gerade surfst, installiere stattdessen über USB.",
+          "adb_still_unauthorized": "Das Panel hat diese Home Assistant-Instanz noch nicht akzeptiert. Bestätige die ADB-Aufforderung auf dem Panel und versuche es erneut.",
+          "adb_credential_error": "Home Assistant konnte seine ADB-Anmeldedaten nicht sicher laden oder dauerhaft speichern. Es wurde keine Änderung am Panel versucht. Prüfe vor einem erneuten Versuch den Speicher und die Protokolle von Home Assistant.",
+          "retained_or_ambiguous": "Das Panel enthält möglicherweise einen zurückbehaltenen Paketeintrag von ha-paneld, oder es konnte nicht nachgewiesen werden, dass das Paket nicht vorhanden ist. Am Panel wurde nichts geändert. Versuche es einmal erneut, falls die Verbindung instabil war; folge andernfalls der in der Integrationsdokumentation verlinkten Anleitung zur sicheren Bereitstellung und Wiederherstellung. Deinstalliere die App nicht und setze sie nicht zurück, wenn keine verifizierte Sicherung vorhanden ist.",
+          "unknown": "Unerwarteter Fehler",
+          "panel_identity_changed": "Die Adresse antwortet nicht mehr als dieses konfigurierte Panel. Prüfen Sie Panel und Adresse und versuchen Sie es erneut."
+        },
+        "abort": {
+          "entry_removed": "Dieses Panel wurde entfernt."
         }
       }
     },
@@ -795,6 +819,98 @@
         },
         "error": {
           "cannot_connect": "Nicht alle aufgeführten Panels sind erreichbar. Prüfe ihre Verbindungen und versuche es erneut."
+        }
+      }
+    },
+    "installer_failure_adb_authorization": {
+      "title": "Die ADB-Autorisierung für {panel} fehlt.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Panel-Fehler beheben",
+            "description": "Für {panel} fehlt die ADB-Autorisierung. Wählen Sie „ADB für Updates autorisieren“ und bestätigen Sie auf dem physischen Panel „Debugging zulassen“, wenn Sie dazu aufgefordert werden.",
+            "menu_options": {
+              "retry": "Erneut versuchen",
+              "authorize_adb": "ADB für Updates autorisieren",
+              "support_report": "Supportbericht",
+              "clear_error": "Fehler löschen"
+            }
+          },
+          "support_report": {
+            "title": "Supportbericht",
+            "description": "### [So verwenden Sie diesen Supportbericht](https://panel-assistant.io/go/support-report)\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration](https://panel-assistant.io/go/report-issue). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
+          },
+          "clear_error": {
+            "title": "Fehler löschen",
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+          },
+          "retry_error": {
+            "title": "Erneuter Versuch fehlgeschlagen",
+            "description": "Der erneute Versuch ist angehalten. Der Fehler bleibt in Reparaturen; Einzelheiten stehen im Supportbericht."
+          },
+          "authorize_adb": {
+            "title": "Home Assistant auf {panel} autorisieren",
+            "description": "Mit Absenden wird der dauerhafte ADB-Schlüssel dieser Home Assistant-Installation erstellt oder geladen und sein öffentlicher Schlüssel an {panel} gesendet. Bestätigen Sie die Android-Anfrage „Debugging zulassen“ direkt am Panel und senden Sie das Formular danach erneut ab. Android kann Home Assistant als Computer bezeichnen. Die Freigabe gewährt allgemeinen ADB-Shell-Zugriff, solange Netzwerk-Debugging aktiviert ist; sie kann in den Entwickleroptionen des Panels widerrufen werden. In diesem Schritt wird keine App installiert."
+          }
+        },
+        "progress": {
+          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+        },
+        "error": {
+          "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
+          "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
+          "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
+          "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
+          "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
+          "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt.",
+          "cannot_connect": "Es konnte keine Verbindung zu einem gültigen Funktionsstatus-Endpunkt von ha-paneld hergestellt werden.",
+          "invalid_install_address": "Gib nur den Hostnamen oder die IP-Adresse des Panels ein. Das Installationsprogramm verwendet den ha-paneld-Port 8888 und den ADB-Port 5555 getrennt.",
+          "install_resolution_failed": "Home Assistant konnte diese Paneladresse nicht auflösen. Prüfe die Adresse und das lokale DNS und versuche es erneut.",
+          "install_resolution_timeout": "Bei der lokalen Namensauflösung trat eine Zeitüberschreitung auf, bevor die Paneladresse sicher festgelegt werden konnte. Prüfe das lokale DNS und versuche es erneut.",
+          "install_too_many_addresses": "Dieser Hostname wurde in zu viele Adressen aufgelöst, um ihn sicher festzulegen. Verwende einen dedizierten lokalen Hostnamen oder eine private IP-Adresse.",
+          "unsafe_install_target": "Die Installation ist nur auf einer privaten lokalen IPv4-Adresse oder einer Unique-Local-IPv6-Adresse zulässig. Es wurde keine ADB-Verbindung versucht.",
+          "install_target_changed": "Der Hostname wird nicht mehr in dieselbe festgelegte Paneladresse aufgelöst. Es wurden weder ein ADB-Schlüssel noch eine Installation gesendet. Prüfe die Adresse und beginne erneut.",
+          "adb_unreachable": "Das Panel hat geantwortet, aber auf seinem Android-Debug-Bridge-Port (5555) kam keine Antwort. Aktiviere auf dem Panel Android Debug Bridge und erlaube den Zugriff über das Netzwerk, und versuche es erneut. Wenn du das Panel an den Computer anschließen kannst, auf dem du gerade surfst, installiere stattdessen über USB.",
+          "adb_still_unauthorized": "Das Panel hat diese Home Assistant-Instanz noch nicht akzeptiert. Bestätige die ADB-Aufforderung auf dem Panel und versuche es erneut.",
+          "adb_credential_error": "Home Assistant konnte seine ADB-Anmeldedaten nicht sicher laden oder dauerhaft speichern. Es wurde keine Änderung am Panel versucht. Prüfe vor einem erneuten Versuch den Speicher und die Protokolle von Home Assistant.",
+          "retained_or_ambiguous": "Das Panel enthält möglicherweise einen zurückbehaltenen Paketeintrag von ha-paneld, oder es konnte nicht nachgewiesen werden, dass das Paket nicht vorhanden ist. Am Panel wurde nichts geändert. Versuche es einmal erneut, falls die Verbindung instabil war; folge andernfalls der in der Integrationsdokumentation verlinkten Anleitung zur sicheren Bereitstellung und Wiederherstellung. Deinstalliere die App nicht und setze sie nicht zurück, wenn keine verifizierte Sicherung vorhanden ist.",
+          "unknown": "Unerwarteter Fehler",
+          "panel_identity_changed": "Die Adresse antwortet nicht mehr als dieses konfigurierte Panel. Prüfen Sie Panel und Adresse und versuchen Sie es erneut."
+        },
+        "abort": {
+          "entry_removed": "Dieses Panel wurde entfernt."
+        }
+      }
+    },
+    "adb_update_authorization": {
+      "title": "Die ADB-Autorisierung für {panel} fehlt.",
+      "fix_flow": {
+        "step": {
+          "authorize_adb": {
+            "title": "Home Assistant auf {panel} autorisieren",
+            "description": "Mit Absenden wird der dauerhafte ADB-Schlüssel dieser Home Assistant-Installation erstellt oder geladen und sein öffentlicher Schlüssel an {panel} gesendet. Bestätigen Sie die Android-Anfrage „Debugging zulassen“ direkt am Panel und senden Sie das Formular danach erneut ab. Android kann Home Assistant als Computer bezeichnen. Die Freigabe gewährt allgemeinen ADB-Shell-Zugriff, solange Netzwerk-Debugging aktiviert ist; sie kann in den Entwickleroptionen des Panels widerrufen werden. In diesem Schritt wird keine App installiert."
+          }
+        },
+        "error": {
+          "cannot_connect": "Es konnte keine Verbindung zu einem gültigen Funktionsstatus-Endpunkt von ha-paneld hergestellt werden.",
+          "invalid_install_address": "Gib nur den Hostnamen oder die IP-Adresse des Panels ein. Das Installationsprogramm verwendet den ha-paneld-Port 8888 und den ADB-Port 5555 getrennt.",
+          "install_resolution_failed": "Home Assistant konnte diese Paneladresse nicht auflösen. Prüfe die Adresse und das lokale DNS und versuche es erneut.",
+          "install_resolution_timeout": "Bei der lokalen Namensauflösung trat eine Zeitüberschreitung auf, bevor die Paneladresse sicher festgelegt werden konnte. Prüfe das lokale DNS und versuche es erneut.",
+          "install_too_many_addresses": "Dieser Hostname wurde in zu viele Adressen aufgelöst, um ihn sicher festzulegen. Verwende einen dedizierten lokalen Hostnamen oder eine private IP-Adresse.",
+          "unsafe_install_target": "Die Installation ist nur auf einer privaten lokalen IPv4-Adresse oder einer Unique-Local-IPv6-Adresse zulässig. Es wurde keine ADB-Verbindung versucht.",
+          "install_target_changed": "Der Hostname wird nicht mehr in dieselbe festgelegte Paneladresse aufgelöst. Es wurden weder ein ADB-Schlüssel noch eine Installation gesendet. Prüfe die Adresse und beginne erneut.",
+          "adb_unreachable": "Das Panel hat geantwortet, aber auf seinem Android-Debug-Bridge-Port (5555) kam keine Antwort. Aktiviere auf dem Panel Android Debug Bridge und erlaube den Zugriff über das Netzwerk, und versuche es erneut. Wenn du das Panel an den Computer anschließen kannst, auf dem du gerade surfst, installiere stattdessen über USB.",
+          "adb_still_unauthorized": "Das Panel hat diese Home Assistant-Instanz noch nicht akzeptiert. Bestätige die ADB-Aufforderung auf dem Panel und versuche es erneut.",
+          "adb_credential_error": "Home Assistant konnte seine ADB-Anmeldedaten nicht sicher laden oder dauerhaft speichern. Es wurde keine Änderung am Panel versucht. Prüfe vor einem erneuten Versuch den Speicher und die Protokolle von Home Assistant.",
+          "retained_or_ambiguous": "Das Panel enthält möglicherweise einen zurückbehaltenen Paketeintrag von ha-paneld, oder es konnte nicht nachgewiesen werden, dass das Paket nicht vorhanden ist. Am Panel wurde nichts geändert. Versuche es einmal erneut, falls die Verbindung instabil war; folge andernfalls der in der Integrationsdokumentation verlinkten Anleitung zur sicheren Bereitstellung und Wiederherstellung. Deinstalliere die App nicht und setze sie nicht zurück, wenn keine verifizierte Sicherung vorhanden ist.",
+          "unknown": "Unerwarteter Fehler",
+          "panel_identity_changed": "Die Adresse antwortet nicht mehr als dieses konfigurierte Panel. Prüfen Sie Panel und Adresse und versuchen Sie es erneut."
+        },
+        "abort": {
+          "entry_removed": "Dieses Panel wurde entfernt."
         }
       }
     }

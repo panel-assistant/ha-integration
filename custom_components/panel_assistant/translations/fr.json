@@ -184,7 +184,10 @@
     "panel_backup_failed": { "message": "Le panneau n'a pas pu être sauvegardé, rien n'a donc été installé" },
     "build_verification_failed": { "message": "Le build ne correspondait pas au flux de builds signé, rien n'a donc été installé" },
     "release_verification_failed": { "message": "La version ne correspondait pas à sa signature, donc rien n'a été installé" },
-    "upload_disabled": { "message": "Le panneau n'accepte pas les envois d'applications ; activez l'envoi d'APK dans ses paramètres" }
+    "upload_disabled": { "message": "Le panneau n'accepte pas les envois d'applications ; activez l'envoi d'APK dans ses paramètres" },
+    "adb_authorization_required": {
+      "message": "L’autorisation ADB manque pour {panel}. Ouvrez Réparations dans Home Assistant pour autoriser les mises à jour, puis acceptez « Autoriser le débogage » sur le panneau physique lorsque vous y êtes invité."
+    }
   },
   "issues": {
     "panel_user_mismatch": {
@@ -692,6 +695,7 @@
             "description": "Choisissez la suite.",
             "menu_options": {
               "retry": "Réessayer",
+              "authorize_adb": "Autoriser ADB pour les mises à jour",
               "support_report": "Rapport d'assistance",
               "clear_error": "Effacer l'erreur"
             }
@@ -707,6 +711,10 @@
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
             "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+          },
+          "authorize_adb": {
+            "title": "Autoriser Home Assistant sur {panel}",
+            "description": "Cliquez sur Envoyer pour créer ou charger la clé ADB persistante de cette installation Home Assistant et présenter sa clé publique à {panel}. Acceptez la demande Android « Autoriser le débogage » sur le panneau physique, puis envoyez à nouveau le formulaire. Android peut présenter Home Assistant comme un ordinateur. Cette autorisation donne un accès général au shell ADB tant que le débogage réseau est actif ; vous pouvez la révoquer dans les options pour les développeurs du panneau. Aucune application n’est installée à cette étape."
           }
         },
         "progress": {
@@ -721,7 +729,23 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
-          "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
+          "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient.",
+          "cannot_connect": "Impossible de se connecter à un point de terminaison d'état ha-paneld valide.",
+          "invalid_install_address": "Saisissez uniquement le nom d'hôte ou l'adresse IP du panneau. Le programme d'installation utilise séparément le port 8888 de ha-paneld et le port 5555 d'ADB.",
+          "install_resolution_failed": "Home Assistant n'a pas pu résoudre l'adresse de ce panneau. Vérifiez l'adresse et le DNS local, puis réessayez.",
+          "install_resolution_timeout": "Le délai de résolution locale du nom a expiré avant que l'adresse du panneau puisse être fixée de façon sûre. Vérifiez le DNS local, puis réessayez.",
+          "install_too_many_addresses": "Ce nom d'hôte correspond à un trop grand nombre d'adresses pour que l'une d'elles puisse être retenue de façon sûre. Utilisez un nom d'hôte local dédié ou une adresse IP privée.",
+          "unsafe_install_target": "L'installation n'est autorisée que si la cible est une adresse IPv4 locale privée ou une adresse IPv6 locale unique. Aucune connexion ADB n'a été tentée.",
+          "install_target_changed": "Le nom d'hôte ne renvoie plus la même adresse épinglée pour le panneau. Aucune clé ADB n'a été envoyée et aucune installation n'a été lancée. Vérifiez l'adresse et recommencez.",
+          "adb_unreachable": "Le panneau a répondu, mais rien n'a répondu sur son port Android Debug Bridge (5555). Sur le panneau, activez Android Debug Bridge et autorisez-le sur le réseau, puis réessayez. Si vous pouvez brancher le panneau sur l'ordinateur depuis lequel vous naviguez, installez plutôt par USB.",
+          "adb_still_unauthorized": "Le panneau n'a pas encore accepté cette instance de Home Assistant. Acceptez l'invite ADB sur le panneau, puis réessayez.",
+          "adb_credential_error": "Home Assistant n'a pas pu charger ou conserver son identifiant ADB de façon sûre. Aucune modification du panneau n'a été tentée. Vérifiez le stockage et les journaux de Home Assistant avant de réessayer.",
+          "retained_or_ambiguous": "Le panneau peut contenir un enregistrement conservé du paquet ha-paneld, ou il n'a pas été possible de confirmer qu'aucune trace de ce paquet n'y subsiste. Le panneau n'a pas été modifié. Réessayez une fois si la connexion était instable ; sinon, suivez le guide de sécurité et de récupération du provisionnement indiqué dans la documentation de l'intégration. Ne désinstallez pas et ne réinitialisez pas l'application sans disposer d'une sauvegarde vérifiée.",
+          "unknown": "Erreur inattendue",
+          "panel_identity_changed": "Cette adresse ne répond plus comme le panneau configuré. Vérifiez le panneau et son adresse avant de réessayer."
+        },
+        "abort": {
+          "entry_removed": "Ce panneau a été supprimé."
         }
       }
     },
@@ -795,6 +819,98 @@
         },
         "error": {
           "cannot_connect": "Certains panneaux indiqués sont injoignables. Vérifiez leurs connexions et réessayez."
+        }
+      }
+    },
+    "installer_failure_adb_authorization": {
+      "title": "L’autorisation ADB manque pour {panel}.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Résoudre l'erreur du panneau",
+            "description": "L’autorisation ADB manque pour {panel}. Choisissez « Autoriser ADB pour les mises à jour », puis acceptez « Autoriser le débogage » sur le panneau physique lorsque vous y êtes invité.",
+            "menu_options": {
+              "retry": "Réessayer",
+              "authorize_adb": "Autoriser ADB pour les mises à jour",
+              "support_report": "Rapport d'assistance",
+              "clear_error": "Effacer l'erreur"
+            }
+          },
+          "support_report": {
+            "title": "Rapport d'assistance",
+            "description": "### [Comment utiliser ce rapport d’assistance](https://panel-assistant.io/go/support-report)\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant](https://panel-assistant.io/go/report-issue). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
+          },
+          "clear_error": {
+            "title": "Effacer l'erreur",
+            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+          },
+          "retry_error": {
+            "title": "Nouvelle tentative inachevée",
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+          },
+          "authorize_adb": {
+            "title": "Autoriser Home Assistant sur {panel}",
+            "description": "Cliquez sur Envoyer pour créer ou charger la clé ADB persistante de cette installation Home Assistant et présenter sa clé publique à {panel}. Acceptez la demande Android « Autoriser le débogage » sur le panneau physique, puis envoyez à nouveau le formulaire. Android peut présenter Home Assistant comme un ordinateur. Cette autorisation donne un accès général au shell ADB tant que le débogage réseau est actif ; vous pouvez la révoquer dans les options pour les développeurs du panneau. Aucune application n’est installée à cette étape."
+          }
+        },
+        "progress": {
+          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+        },
+        "error": {
+          "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
+          "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
+          "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
+          "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
+          "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
+          "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient.",
+          "cannot_connect": "Impossible de se connecter à un point de terminaison d'état ha-paneld valide.",
+          "invalid_install_address": "Saisissez uniquement le nom d'hôte ou l'adresse IP du panneau. Le programme d'installation utilise séparément le port 8888 de ha-paneld et le port 5555 d'ADB.",
+          "install_resolution_failed": "Home Assistant n'a pas pu résoudre l'adresse de ce panneau. Vérifiez l'adresse et le DNS local, puis réessayez.",
+          "install_resolution_timeout": "Le délai de résolution locale du nom a expiré avant que l'adresse du panneau puisse être fixée de façon sûre. Vérifiez le DNS local, puis réessayez.",
+          "install_too_many_addresses": "Ce nom d'hôte correspond à un trop grand nombre d'adresses pour que l'une d'elles puisse être retenue de façon sûre. Utilisez un nom d'hôte local dédié ou une adresse IP privée.",
+          "unsafe_install_target": "L'installation n'est autorisée que si la cible est une adresse IPv4 locale privée ou une adresse IPv6 locale unique. Aucune connexion ADB n'a été tentée.",
+          "install_target_changed": "Le nom d'hôte ne renvoie plus la même adresse épinglée pour le panneau. Aucune clé ADB n'a été envoyée et aucune installation n'a été lancée. Vérifiez l'adresse et recommencez.",
+          "adb_unreachable": "Le panneau a répondu, mais rien n'a répondu sur son port Android Debug Bridge (5555). Sur le panneau, activez Android Debug Bridge et autorisez-le sur le réseau, puis réessayez. Si vous pouvez brancher le panneau sur l'ordinateur depuis lequel vous naviguez, installez plutôt par USB.",
+          "adb_still_unauthorized": "Le panneau n'a pas encore accepté cette instance de Home Assistant. Acceptez l'invite ADB sur le panneau, puis réessayez.",
+          "adb_credential_error": "Home Assistant n'a pas pu charger ou conserver son identifiant ADB de façon sûre. Aucune modification du panneau n'a été tentée. Vérifiez le stockage et les journaux de Home Assistant avant de réessayer.",
+          "retained_or_ambiguous": "Le panneau peut contenir un enregistrement conservé du paquet ha-paneld, ou il n'a pas été possible de confirmer qu'aucune trace de ce paquet n'y subsiste. Le panneau n'a pas été modifié. Réessayez une fois si la connexion était instable ; sinon, suivez le guide de sécurité et de récupération du provisionnement indiqué dans la documentation de l'intégration. Ne désinstallez pas et ne réinitialisez pas l'application sans disposer d'une sauvegarde vérifiée.",
+          "unknown": "Erreur inattendue",
+          "panel_identity_changed": "Cette adresse ne répond plus comme le panneau configuré. Vérifiez le panneau et son adresse avant de réessayer."
+        },
+        "abort": {
+          "entry_removed": "Ce panneau a été supprimé."
+        }
+      }
+    },
+    "adb_update_authorization": {
+      "title": "L’autorisation ADB manque pour {panel}.",
+      "fix_flow": {
+        "step": {
+          "authorize_adb": {
+            "title": "Autoriser Home Assistant sur {panel}",
+            "description": "Cliquez sur Envoyer pour créer ou charger la clé ADB persistante de cette installation Home Assistant et présenter sa clé publique à {panel}. Acceptez la demande Android « Autoriser le débogage » sur le panneau physique, puis envoyez à nouveau le formulaire. Android peut présenter Home Assistant comme un ordinateur. Cette autorisation donne un accès général au shell ADB tant que le débogage réseau est actif ; vous pouvez la révoquer dans les options pour les développeurs du panneau. Aucune application n’est installée à cette étape."
+          }
+        },
+        "error": {
+          "cannot_connect": "Impossible de se connecter à un point de terminaison d'état ha-paneld valide.",
+          "invalid_install_address": "Saisissez uniquement le nom d'hôte ou l'adresse IP du panneau. Le programme d'installation utilise séparément le port 8888 de ha-paneld et le port 5555 d'ADB.",
+          "install_resolution_failed": "Home Assistant n'a pas pu résoudre l'adresse de ce panneau. Vérifiez l'adresse et le DNS local, puis réessayez.",
+          "install_resolution_timeout": "Le délai de résolution locale du nom a expiré avant que l'adresse du panneau puisse être fixée de façon sûre. Vérifiez le DNS local, puis réessayez.",
+          "install_too_many_addresses": "Ce nom d'hôte correspond à un trop grand nombre d'adresses pour que l'une d'elles puisse être retenue de façon sûre. Utilisez un nom d'hôte local dédié ou une adresse IP privée.",
+          "unsafe_install_target": "L'installation n'est autorisée que si la cible est une adresse IPv4 locale privée ou une adresse IPv6 locale unique. Aucune connexion ADB n'a été tentée.",
+          "install_target_changed": "Le nom d'hôte ne renvoie plus la même adresse épinglée pour le panneau. Aucune clé ADB n'a été envoyée et aucune installation n'a été lancée. Vérifiez l'adresse et recommencez.",
+          "adb_unreachable": "Le panneau a répondu, mais rien n'a répondu sur son port Android Debug Bridge (5555). Sur le panneau, activez Android Debug Bridge et autorisez-le sur le réseau, puis réessayez. Si vous pouvez brancher le panneau sur l'ordinateur depuis lequel vous naviguez, installez plutôt par USB.",
+          "adb_still_unauthorized": "Le panneau n'a pas encore accepté cette instance de Home Assistant. Acceptez l'invite ADB sur le panneau, puis réessayez.",
+          "adb_credential_error": "Home Assistant n'a pas pu charger ou conserver son identifiant ADB de façon sûre. Aucune modification du panneau n'a été tentée. Vérifiez le stockage et les journaux de Home Assistant avant de réessayer.",
+          "retained_or_ambiguous": "Le panneau peut contenir un enregistrement conservé du paquet ha-paneld, ou il n'a pas été possible de confirmer qu'aucune trace de ce paquet n'y subsiste. Le panneau n'a pas été modifié. Réessayez une fois si la connexion était instable ; sinon, suivez le guide de sécurité et de récupération du provisionnement indiqué dans la documentation de l'intégration. Ne désinstallez pas et ne réinitialisez pas l'application sans disposer d'une sauvegarde vérifiée.",
+          "unknown": "Erreur inattendue",
+          "panel_identity_changed": "Cette adresse ne répond plus comme le panneau configuré. Vérifiez le panneau et son adresse avant de réessayer."
+        },
+        "abort": {
+          "entry_removed": "Ce panneau a été supprimé."
         }
       }
     }

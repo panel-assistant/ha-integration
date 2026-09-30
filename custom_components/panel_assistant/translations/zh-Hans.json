@@ -184,7 +184,10 @@
     "panel_backup_failed": { "message": "无法备份面板，因此未安装任何内容" },
     "build_verification_failed": { "message": "该构建与已签名的构建源不一致，因此未安装任何内容" },
     "release_verification_failed": { "message": "该版本与其签名不符，因此未安装任何内容" },
-    "upload_disabled": { "message": "面板不接受应用上传；请在其设置中开启 APK 上传" }
+    "upload_disabled": { "message": "面板不接受应用上传；请在其设置中开启 APK 上传" },
+    "adb_authorization_required": {
+      "message": "{panel} 缺少 ADB 授权。请打开 Home Assistant 的“修复”以授权更新，并在出现提示时到实体面板上批准“允许调试”。"
+    }
   },
   "issues": {
     "panel_user_mismatch": {
@@ -692,6 +695,7 @@
             "description": "选择下一步操作。",
             "menu_options": {
               "retry": "重试",
+              "authorize_adb": "授权 ADB 更新",
               "support_report": "支持报告",
               "clear_error": "清除错误"
             }
@@ -707,6 +711,10 @@
           "retry_error": {
             "title": "重试未能完成",
             "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+          },
+          "authorize_adb": {
+            "title": "在 {panel} 上授权 Home Assistant",
+            "description": "点击“提交”以创建或加载此 Home Assistant 安装的持久 ADB 密钥，并向 {panel} 提供公钥。在实体面板上批准 Android 的“允许调试”提示，然后再次提交。Android 可能将 Home Assistant 称为计算机。只要网络调试保持开启，此授权就允许一般 ADB shell 访问；可在面板的开发者选项中撤销。此步骤不会安装应用。"
           }
         },
         "progress": {
@@ -721,7 +729,23 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
-          "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
+          "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。",
+          "cannot_connect": "无法连接到有效的 ha-paneld 健康检查端点。",
+          "invalid_install_address": "请只输入面板主机名或 IP 地址。安装程序会分别使用 ha-paneld 端口 8888 和 ADB 端口 5555。",
+          "install_resolution_failed": "Home Assistant 无法解析此面板地址。请检查地址和本地 DNS，然后重试。",
+          "install_resolution_timeout": "在能够安全固定面板地址之前，本地名称解析已超时。请检查本地 DNS，然后重试。",
+          "install_too_many_addresses": "此主机名解析出的地址过多，无法安全固定。请使用专用的本地主机名或私有 IP 地址。",
+          "unsafe_install_target": "只允许安装到私有本地 IPv4 地址或 IPv6 唯一本地地址。未尝试 ADB 连接。",
+          "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥，也未执行安装。请检查地址并重新开始。",
+          "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到你正在使用的这台计算机上，也可以改用 USB 安装。",
+          "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
+          "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
+          "retained_or_ambiguous": "面板可能保留了 ha-paneld 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照集成文档中链接的配置安全与恢复指南操作。在备份经过验证之前，请勿卸载或重置应用。",
+          "unknown": "出现意外错误",
+          "panel_identity_changed": "该地址不再回应为已配置的面板。请检查面板及其地址后重试。"
+        },
+        "abort": {
+          "entry_removed": "此面板已被移除。"
         }
       }
     },
@@ -795,6 +819,98 @@
         },
         "error": {
           "cannot_connect": "无法连接所有列出的面板。请检查其连接并重试。"
+        }
+      }
+    },
+    "installer_failure_adb_authorization": {
+      "title": "{panel} 缺少 ADB 授权。",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "解决面板错误",
+            "description": "{panel} 缺少 ADB 授权。请选择“授权 ADB 更新”，并在出现提示时到实体面板上批准“允许调试”。",
+            "menu_options": {
+              "retry": "重试",
+              "authorize_adb": "授权 ADB 更新",
+              "support_report": "支持报告",
+              "clear_error": "清除错误"
+            }
+          },
+          "support_report": {
+            "title": "支持报告",
+            "description": "### [如何使用此支持报告](https://panel-assistant.io/go/support-report)\n\n将下方报告复制到 [Panel Assistant 集成的新问题](https://panel-assistant.io/go/report-issue)。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
+          },
+          "clear_error": {
+            "title": "清除错误",
+            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+          },
+          "retry_error": {
+            "title": "重试未能完成",
+            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+          },
+          "authorize_adb": {
+            "title": "在 {panel} 上授权 Home Assistant",
+            "description": "点击“提交”以创建或加载此 Home Assistant 安装的持久 ADB 密钥，并向 {panel} 提供公钥。在实体面板上批准 Android 的“允许调试”提示，然后再次提交。Android 可能将 Home Assistant 称为计算机。只要网络调试保持开启，此授权就允许一般 ADB shell 访问；可在面板的开发者选项中撤销。此步骤不会安装应用。"
+          }
+        },
+        "progress": {
+          "retrying": "正在检查面板并安全地重试。"
+        },
+        "error": {
+          "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
+          "retry_release_changed": "所选应用版本不再与保存的版本一致。请开始新的安装。",
+          "retry_credential_changed": "Home Assistant 的 ADB 凭据已更改。重试前请检查面板。",
+          "retry_panel_ambiguous": "无法验证面板上已安装的应用。未开始新的安装。",
+          "retry_cannot_prove_safe": "无法充分确认面板状态，暂不能安全重试。请稍后再试。",
+          "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
+          "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
+          "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。",
+          "cannot_connect": "无法连接到有效的 ha-paneld 健康检查端点。",
+          "invalid_install_address": "请只输入面板主机名或 IP 地址。安装程序会分别使用 ha-paneld 端口 8888 和 ADB 端口 5555。",
+          "install_resolution_failed": "Home Assistant 无法解析此面板地址。请检查地址和本地 DNS，然后重试。",
+          "install_resolution_timeout": "在能够安全固定面板地址之前，本地名称解析已超时。请检查本地 DNS，然后重试。",
+          "install_too_many_addresses": "此主机名解析出的地址过多，无法安全固定。请使用专用的本地主机名或私有 IP 地址。",
+          "unsafe_install_target": "只允许安装到私有本地 IPv4 地址或 IPv6 唯一本地地址。未尝试 ADB 连接。",
+          "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥，也未执行安装。请检查地址并重新开始。",
+          "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到你正在使用的这台计算机上，也可以改用 USB 安装。",
+          "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
+          "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
+          "retained_or_ambiguous": "面板可能保留了 ha-paneld 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照集成文档中链接的配置安全与恢复指南操作。在备份经过验证之前，请勿卸载或重置应用。",
+          "unknown": "出现意外错误",
+          "panel_identity_changed": "该地址不再回应为已配置的面板。请检查面板及其地址后重试。"
+        },
+        "abort": {
+          "entry_removed": "此面板已被移除。"
+        }
+      }
+    },
+    "adb_update_authorization": {
+      "title": "{panel} 缺少 ADB 授权。",
+      "fix_flow": {
+        "step": {
+          "authorize_adb": {
+            "title": "在 {panel} 上授权 Home Assistant",
+            "description": "点击“提交”以创建或加载此 Home Assistant 安装的持久 ADB 密钥，并向 {panel} 提供公钥。在实体面板上批准 Android 的“允许调试”提示，然后再次提交。Android 可能将 Home Assistant 称为计算机。只要网络调试保持开启，此授权就允许一般 ADB shell 访问；可在面板的开发者选项中撤销。此步骤不会安装应用。"
+          }
+        },
+        "error": {
+          "cannot_connect": "无法连接到有效的 ha-paneld 健康检查端点。",
+          "invalid_install_address": "请只输入面板主机名或 IP 地址。安装程序会分别使用 ha-paneld 端口 8888 和 ADB 端口 5555。",
+          "install_resolution_failed": "Home Assistant 无法解析此面板地址。请检查地址和本地 DNS，然后重试。",
+          "install_resolution_timeout": "在能够安全固定面板地址之前，本地名称解析已超时。请检查本地 DNS，然后重试。",
+          "install_too_many_addresses": "此主机名解析出的地址过多，无法安全固定。请使用专用的本地主机名或私有 IP 地址。",
+          "unsafe_install_target": "只允许安装到私有本地 IPv4 地址或 IPv6 唯一本地地址。未尝试 ADB 连接。",
+          "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥，也未执行安装。请检查地址并重新开始。",
+          "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到你正在使用的这台计算机上，也可以改用 USB 安装。",
+          "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
+          "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
+          "retained_or_ambiguous": "面板可能保留了 ha-paneld 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照集成文档中链接的配置安全与恢复指南操作。在备份经过验证之前，请勿卸载或重置应用。",
+          "unknown": "出现意外错误",
+          "panel_identity_changed": "该地址不再回应为已配置的面板。请检查面板及其地址后重试。"
+        },
+        "abort": {
+          "entry_removed": "此面板已被移除。"
         }
       }
     }
