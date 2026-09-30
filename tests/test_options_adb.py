@@ -374,6 +374,7 @@ async def test_failed_update_repair_can_authorize_without_clearing_failure(
         )
         menu = await response.json()
         assert "authorize_adb" in menu["menu_options"]
+        assert menu["description_placeholders"] == {"panel": "Jenna"}
         response = await admin.post(
             f"/api/repairs/issues/fix/{menu['flow_id']}",
             json={"next_step_id": "authorize_adb"},

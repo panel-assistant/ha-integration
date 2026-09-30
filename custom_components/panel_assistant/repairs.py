@@ -336,11 +336,15 @@ class InstallerFailureFlow(RepairsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> RepairsFlowResult:
         options = ["retry", "support_report", "clear_error"]
-        if self._adb_entry() is not None:
+        entry = self._adb_entry()
+        if entry is not None:
             options.insert(1, "authorize_adb")
         return self.async_show_menu(
             step_id="init",
             menu_options=options,
+            description_placeholders=(
+                {"panel": panel_display_name(self.hass, entry)} if entry else None
+            ),
         )
 
     def _adb_entry(self) -> ConfigEntry | None:
