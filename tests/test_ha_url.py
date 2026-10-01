@@ -243,6 +243,29 @@ async def test_the_setup_marker_goes_alone_when_there_is_no_url_to_send(
     assert outcome == "handed_over_without_url"
 
 
+async def test_tls_core_without_an_internal_url_posts_only_the_setup_marker(
+    hass: HomeAssistant,
+) -> None:
+    """Core cannot offer a LAN URL, but adoption still skips the MQTT step."""
+    from custom_components.panel_assistant.client import HaPaneldClient
+
+    await _set_urls(hass, internal=None, external="https://ha.example.com")
+    hass.config.api = _core_api(local_ip="192.0.2.50", use_ssl=True)
+    client = HaPaneldClient(Mock(), PanelAddress(host="panel.local", port=8888))
+    client._async_get_bounded = AsyncMock(
+        return_value=b'{"complete":false,"handover":{"supported":true}}'
+    )
+    post = AsyncMock(return_value=(200, b"{}"))
+    client._async_post_bounded = post
+
+    outcome = await async_offer_ha_url(hass, client)
+
+    assert outcome == "handed_over_without_url"
+    post.assert_awaited_once()
+    assert str(post.call_args.args[0]).endswith("/api/v1/config")
+    assert post.call_args.args[1] == {"ha_setup_handover": "true"}
+
+
 async def test_a_panel_that_will_not_say_is_not_guessed_at(hass: HomeAssistant) -> None:
     """An unreadable setup state is not an invitation to post the key anyway."""
     await _set_urls(hass, internal="http://192.0.2.5:8123", external=None)
