@@ -14,12 +14,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.const import DOMAIN, update_unique_id
 from custom_components.panel_assistant.contract import catalogue_entry_for_channel
 
 from .test_cutover import NATIVE, _mqtt, _record, _reload
 from .test_native import _hello, _observations, _report, _setup
-from .test_supported_channels import _panel_descriptors, _supported
+from .test_supported_channels import _panel_descriptors, _producer_hello, _supported
 from .test_transport import DID, WsClientFactory, _send
 
 # What the panel describes before it learns which hardware it lacks.
@@ -159,6 +159,81 @@ async def test_an_unsupported_companion_update_loses_its_native_entity(
     assert _entity_id(hass, "update", "ha_companion_update") is None
     assert hass.states.get(companion) is None
     assert "update_companion" not in _supported(described)
+
+
+async def test_current_android_retires_old_auto_update_controls_on_upgrade(
+    hass: HomeAssistant,
+    hass_read_only_user: Any,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """A real new hello removes old updater controls and preserves explicit updates."""
+    retired = {
+        "self_update",
+        "update_channel",
+        "companion_auto_update",
+        "companion_update_channel",
+        "webview_auto_update",
+    }
+    retained = {"relay1", "update_paneld", "update_companion"}
+    entry = await _setup(hass, hass_read_only_user.id, native=True, described=None)
+    old_descriptors = _panel_descriptors(*sorted(retired | retained))
+    assert {
+        descriptor["channel"] for descriptor in old_descriptors
+    } == retired | retained
+    await _say_hello(
+        hass,
+        hass_ws_client,
+        hass_read_only_access_token,
+        _hello(old_descriptors),
+    )
+    registry = er.async_get(hass)
+    old_entities: dict[str, str] = {}
+    for descriptor in old_descriptors:
+        if descriptor["channel"] == "update_paneld":
+            # PA's receipt-bound update entity owns app updates rather than
+            # rendering the older panel's update descriptor a second time.
+            continue
+        entity_id = registry.async_get_entity_id(
+            descriptor["platform"], DOMAIN, f"{DID}_{descriptor['unique_suffix']}"
+        )
+        assert entity_id is not None, descriptor["channel"]
+        old_entities[descriptor["channel"]] = entity_id
+    app_update_id = registry.async_get_entity_id(
+        "update", DOMAIN, update_unique_id(entry.entry_id)
+    )
+    assert app_update_id is not None
+    app_update = registry.async_get(app_update_id)
+    kept_entities = {
+        channel: registry.async_get(entity_id)
+        for channel, entity_id in old_entities.items()
+        if channel in retained
+    }
+    entry_entities = {
+        item.entity_id
+        for item in er.async_entries_for_config_entry(registry, entry.entry_id)
+    }
+
+    message = _producer_hello()
+    assert retired <= set(message["unsupported"])
+    assert retired.isdisjoint(
+        descriptor["channel"] for descriptor in message["channels"]
+    )
+    await _say_hello(hass, hass_ws_client, hass_read_only_access_token, message)
+
+    for channel in retired:
+        entity_id = old_entities[channel]
+        assert registry.async_get(entity_id) is None, channel
+        assert hass.states.get(entity_id) is None, channel
+    assert retired.isdisjoint(_supported(entry))
+    assert retained <= set(_supported(entry))
+    assert {
+        item.entity_id
+        for item in er.async_entries_for_config_entry(registry, entry.entry_id)
+    } == entry_entities - {old_entities[channel] for channel in retired}
+    for channel, item in kept_entities.items():
+        assert registry.async_get(old_entities[channel]) == item, channel
+    assert registry.async_get(app_update_id) == app_update
 
 
 async def test_unsupported_without_an_entity_or_catalogue_entry_changes_nothing(
