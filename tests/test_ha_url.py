@@ -25,7 +25,7 @@ class _FakePanel:
 
     def __init__(self, state: PanelSetupState | Exception) -> None:
         self._state = state
-        self.handed_over: list[str] = []
+        self.handed_over: list[str | None] = []
         self.hand_over_error: Exception | None = None
         self.state_reads = 0
 
@@ -35,7 +35,7 @@ class _FakePanel:
             raise self._state
         return self._state
 
-    async def async_hand_over_ha_url(self, ha_url: str) -> None:
+    async def async_hand_over_ha_url(self, ha_url: str | None) -> None:
         if self.hand_over_error is not None:
             raise self.hand_over_error
         self.handed_over.append(ha_url)
@@ -224,16 +224,23 @@ async def test_a_panel_that_has_finished_setup_is_left_alone(
     assert panel.handed_over == []
 
 
-async def test_nothing_is_sent_when_there_is_no_url_to_send(
+async def test_the_setup_marker_goes_alone_when_there_is_no_url_to_send(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Home Assistant still set this panel up, so its wizard must not ask for MQTT.
+
+    Without the marker a panel whose Home Assistant has no panel-facing URL
+    (TLS on Core, no internal URL) would meet the broker step it cannot pass.
+    """
+
     def _raise(_hass: HomeAssistant, **_kwargs: Any) -> str:
         raise NoURLAvailableError
 
     monkeypatch.setattr("custom_components.panel_assistant.ha_url.get_url", _raise)
     panel = _FakePanel(PanelSetupState(complete=False, accepts_handover=True))
-    await async_offer_ha_url(hass, panel)  # type: ignore[arg-type]
-    assert panel.handed_over == []
+    outcome = await async_offer_ha_url(hass, panel)  # type: ignore[arg-type]
+    assert panel.handed_over == [None]
+    assert outcome == "handed_over_without_url"
 
 
 async def test_a_panel_that_will_not_say_is_not_guessed_at(hass: HomeAssistant) -> None:
@@ -291,6 +298,29 @@ async def test_the_handover_posts_the_marker_and_the_url_together(
         key in posted["form"]
         for key in ("ha_token", "ha_refresh_token", "token", "password")
     )
+
+
+async def test_without_a_url_only_the_marker_goes_on_the_wire(
+    hass: HomeAssistant,
+) -> None:
+    """The address key is left out, never sent empty: the panel stores what it gets."""
+    from custom_components.panel_assistant.client import HaPaneldClient
+
+    client = HaPaneldClient(Mock(), PanelAddress(host="panel.local", port=8888))
+    posted: dict[str, Any] = {}
+
+    async def _fake_post(
+        url: Any, form: dict[str, str], *_args: Any, **_kwargs: Any
+    ) -> tuple[int, bytes]:
+        posted["url"] = str(url)
+        posted["form"] = form
+        return 200, b"{}"
+
+    client._async_post_bounded = _fake_post  # type: ignore[assignment,method-assign]
+    await client.async_hand_over_ha_url(None)
+
+    assert posted["url"].endswith("/api/v1/config")
+    assert posted["form"] == {"ha_setup_handover": "true"}
 
 
 async def test_the_panel_owns_the_verdict_so_a_refusal_is_not_a_delivery_failure(

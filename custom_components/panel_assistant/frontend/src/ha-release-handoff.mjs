@@ -1,6 +1,13 @@
 import { MAX_FEED_BYTES, MAX_TAG_LENGTH, isBuildTag, isRcTag, isStableTag } from './release-identity.mjs';
 
 const API = '/api/panel_assistant/usb/release';
+// The installer page reads the panel's address over USB but holds no Home
+// Assistant credential, so it asks this window to tell the panel Home Assistant
+// set it up. The server validates the address; this only refuses obvious junk.
+const HANDOVER_API = '/api/panel_assistant/usb/handover';
+const HANDOVER_MS = 35000;
+const IPV4 = /(?:[0-9]{1,3}\.){3}[0-9]{1,3}/;
+const OUTCOME = /[a-z_]{1,48}/;
 const MAX_APK = 64 * 1024 * 1024;
 // A reloaded installer window (a back button, a refresh) asks again with the
 // same nonce. The verified bytes stay available to it this long, and no longer
@@ -84,6 +91,7 @@ export function startReleaseHandoff(hass, installerUrl, {
   let delivered;
   let sweep;
   let serveTimer;
+  let handingOver = false;
   const stopServing = () => {
     clearInterval(sweep);
     clearTimeout(serveTimer);
@@ -147,9 +155,41 @@ export function startReleaseHandoff(hass, installerUrl, {
       finish(error instanceof HandoffError ? error.code : 'delivery_failed');
     }
   }
+  // Only for the window that verified the bundle this one is still serving.
+  async function handOver(data) {
+    if (handingOver || !finished || !delivered || child.closed ||
+      !keys(data, ['type', 'nonce', 'address']) || !matches(IPV4, data.address)) return;
+    handingOver = true;
+    const reply = (type, extra = {}) => {
+      try { if (!child.closed) child.postMessage({ type, nonce, ...extra }, targetOrigin); } catch { /* window gone */ }
+    };
+    // An immediate acknowledgement lets the installer tell this Home Assistant
+    // from an older one that ignores the request, without waiting for the panel.
+    reply('ha-paneld/usb-handover-accepted');
+    let outcome;
+    try {
+      const response = await hass.fetchWithAuth(HANDOVER_API, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: data.address }), redirect: 'error',
+        signal: AbortSignal.timeout(HANDOVER_MS),
+      });
+      const body = await response.json().catch(() => null);
+      const answer = response.status === 200 ? body?.outcome : body?.error;
+      outcome = matches(OUTCOME, answer) ? answer : `http_${response.status}`;
+    } catch {
+      outcome = 'request_failed';
+    } finally {
+      handingOver = false;
+    }
+    reply('ha-paneld/usb-handover-result', { outcome });
+  }
   function receive(event) {
-    if (event.source !== child || event.origin !== targetOrigin ||
-      !keys(event.data, ['type', 'nonce']) || event.data.nonce !== nonce) return;
+    if (event.source !== child || event.origin !== targetOrigin) return;
+    if (event.data?.type === 'ha-paneld/usb-handover' && event.data.nonce === nonce) {
+      void handOver(event.data);
+      return;
+    }
+    if (!keys(event.data, ['type', 'nonce']) || event.data.nonce !== nonce) return;
     if (event.data.type === 'ha-paneld/usb-ready') {
       if (!acceptedReady && !finished) { acceptedReady = true; void deliver(); }
       // The same window reloaded: hand it the same verified bytes again.
