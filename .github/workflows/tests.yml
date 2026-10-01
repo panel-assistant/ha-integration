@@ -21,8 +21,30 @@ env:
   VENV: /home/runner/ci-venv
 
 jobs:
+  # A release tag points at a commit main has already tested; this decides
+  # whether the matrix has anything left to prove.
+  gate:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      run: ${{ steps.gate.outputs.run }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          sparse-checkout: .github/scripts
+      - name: Skip a tag whose commit already passed
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/already_passed.sh
+
   tests:
     name: Home Assistant ${{ matrix.home-assistant }}
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
