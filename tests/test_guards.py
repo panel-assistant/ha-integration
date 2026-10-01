@@ -61,6 +61,19 @@ CAPABLE = ["state", "events", "commands", "approval", "mqtt_withdraw"]
 MOVED = [("switch", "relay1"), ("number", "volume"), ("sensor", "diag_cpu")]
 
 
+# These tests stand for a panel whose ha-paneld predates the withdrawal unless
+# a session or health says otherwise: what MQTT rediscovers comes from it.
+OLDER = "0.9.7"
+OLDER_HELLO: dict[str, Any] = {"app": {"version": OLDER, "version_code": 700}}
+
+
+@pytest.fixture(autouse=True)
+def _older_panel() -> Iterator[None]:
+    """Health reports a release that does not follow the withdrawal."""
+    with patch("tests.test_native.HEALTH", replace(HEALTH, version=OLDER)):
+        yield
+
+
 @pytest.fixture(autouse=True)
 def _short_load_wait() -> Iterator[None]:
     """An entity created in the registry alone never loads; do not wait long."""
@@ -136,8 +149,14 @@ def _loaded(hass: HomeAssistant, entity_id: str) -> bool:
 async def _capable_sync(
     hass: HomeAssistant, client: Any, capabilities: list[str]
 ) -> dict[str, Any]:
-    """Open a session offering these capabilities and complete its full sync."""
-    response = await _send(client, _hello(DESCRIPTORS) | {"capabilities": capabilities})
+    """Open a session offering these capabilities and complete its full sync.
+
+    A panel that does not offer the withdrawal reports the older release.
+    """
+    hello = _hello(DESCRIPTORS) | {"capabilities": capabilities}
+    if "mqtt_withdraw" not in capabilities:
+        hello |= OLDER_HELLO
+    response = await _send(client, hello)
     assert response["success"], response
     result: dict[str, Any] = response["result"]
     await _sync(hass, client, result["session"])
@@ -147,7 +166,10 @@ async def _capable_sync(
 
 @contextmanager
 def _panel_id(panel_id: str) -> Iterator[None]:
-    with patch("tests.test_native.HEALTH", replace(HEALTH, panel_id=panel_id)):
+    with patch(
+        "tests.test_native.HEALTH",
+        replace(HEALTH, panel_id=panel_id, version=OLDER),
+    ):
         yield
 
 
@@ -276,7 +298,9 @@ async def test_a_session_without_mqtt_withdraw_asks_for_the_panel_update(
     assert _issue(hass, ISSUE, entry.entry_id) is None
 
     client = await hass_ws_client(hass, hass_read_only_access_token)
-    older = await _send(client, {"type": "panel_assistant/hello"} | _HELLO_TAIL)
+    older = await _send(
+        client, {"type": "panel_assistant/hello"} | _HELLO_TAIL | OLDER_HELLO
+    )
     assert older["success"], older
 
     issue = _issue(hass, ISSUE, entry.entry_id)
@@ -770,6 +794,52 @@ async def test_setup_quarantines_rediscovered_duplicates_beside_a_customised_one
     assert _issue(hass, ISSUE, entry.entry_id) is not None
     assert writes == []
     assert _record(entry) == record
+
+
+async def test_a_panel_already_on_the_withdrawal_release_is_never_asked_to_update(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """Duplicates quarantined at startup, before the panel's session opens.
+
+    A customised entity holds the claim at announce, so MQTT rediscovers the
+    moved entities on every start. A panel whose health reports a release that
+    follows the withdrawal is not asked for a version it already runs.
+    """
+    mqtt = _mqtt(
+        hass,
+        [("switch", "relay1", {}), ("number", "volume", {}), ("switch", "mystery", {})],
+    )
+    er.async_get(hass).async_update_entity(mqtt["entity_ids"]["mystery"], name="Mine")
+    with patch("tests.test_native.HEALTH", replace(HEALTH, version="0.9.9-rc2")):
+        entry = await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
+        assert await hass.config_entries.async_unload(entry.entry_id)
+        await hass.async_block_till_done()
+        duplicates = [
+            _create_mqtt(hass, mqtt, "switch", "relay1"),
+            _create_mqtt(hass, mqtt, "number", "volume"),
+        ]
+        with panel_patches():
+            assert await hass.config_entries.async_setup(entry.entry_id)
+            await _settle(hass)
+
+        assert sorted(_quarantined(entry)) == sorted(item.id for item in duplicates)
+        assert _issue(hass, ISSUE, entry.entry_id) is None
+
+        # MQTT rediscovers another while no session is open.
+        held_back = _create_mqtt(hass, mqtt, "sensor", "diag_cpu")
+        await _settle(hass)
+        assert held_back.id in _quarantined(entry)
+        assert _issue(hass, ISSUE, entry.entry_id) is None
+
+    # The same start with a panel on an older release asks for the update.
+    await _reload(hass, entry)
+    await _settle(hass)
+    issue = _issue(hass, ISSUE, entry.entry_id)
+    assert issue is not None
+    assert issue.translation_placeholders == {
+        "panel": "alpha",
+        "required_version": "0.9.8-rc1",
+    }
 
 
 async def test_an_unmigrated_entity_announced_again_is_quarantined(
