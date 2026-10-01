@@ -21,7 +21,7 @@ from homeassistant.components.update import (
     UpdateEntityFeature,
 )
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -769,6 +769,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self._stop_redraw()
             self._stop_redraw = None
 
+    @callback
     def _redraw(self, _now: datetime) -> None:
         self.async_write_ha_state()
 

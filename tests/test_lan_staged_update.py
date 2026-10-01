@@ -9,8 +9,10 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import threading
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field, replace
+from datetime import timedelta
 from io import BytesIO
 from itertools import pairwise
 from types import SimpleNamespace
@@ -638,6 +640,52 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
     )
     if move:
         assert coordinator.data.health.package == SUCCESSOR_PACKAGE_ID
+
+
+async def test_the_update_bar_redraws_itself_between_polls_until_the_end(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, trust: None, key: Any
+) -> None:
+    """While the panel installs, Core's own timer moves the bar, then stops."""
+    real_sleep = asyncio.sleep
+    entity, client = await _entity(hass, monkeypatch, _GitHub(key))
+    clock = 0.0
+    monkeypatch.setattr(panel_update, "_now", lambda: clock)
+    drawn: list[tuple[int, int | None]] = []
+
+    def write() -> None:
+        drawn.append((threading.get_ident(), entity.update_percentage))
+
+    entity.async_write_ha_state = write  # type: ignore[method-assign]
+    installing, finish = asyncio.Event(), asyncio.Event()
+    accept = client.async_commit_apk.side_effect
+
+    async def commit(token: str) -> None:
+        installing.set()
+        await finish.wait()
+        await accept(token)
+
+    client.async_commit_apk.side_effect = commit
+    install = hass.async_create_task(entity.async_install(None, backup=False))
+
+    async def redraws() -> list[tuple[int, int | None]]:
+        drawn.clear()
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=3))
+        for _ in range(20):
+            await real_sleep(0.01)
+        return list(drawn)
+
+    try:
+        await asyncio.wait_for(installing.wait(), 5)
+        clock = 30.0
+        moving = await redraws()
+        assert moving
+        assert {thread for thread, _ in moving} == {threading.get_ident()}
+        assert all(value is not None and value > 0 for _, value in moving)
+    finally:
+        finish.set()
+        await install
+    clock = 300.0
+    assert await redraws() == []
 
 
 @pytest.mark.parametrize("refusal", [UploadDisabledError, StagingUnavailableError])
