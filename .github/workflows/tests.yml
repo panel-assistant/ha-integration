@@ -84,10 +84,10 @@ jobs:
           fi
           frontend_requirement=$("$VENV/bin/python" -c 'import json, pathlib, homeassistant; path = pathlib.Path(homeassistant.__file__).parent / "components/frontend/manifest.json"; print(json.loads(path.read_text())["requirements"][0])')
           "$VENV/bin/python" -m pip install "$frontend_requirement"
-          # The voice tests load Home Assistant's own voice components (Assist satellite and everything it depends on), whose
+          # Voice and camera tests import Home Assistant components whose
           # requirements are installed only when Home Assistant sets them up, so install the versions this
           # Home Assistant release declares.
-          voice_requirements=$("$VENV/bin/python" -c 'import json, pathlib, homeassistant; root = pathlib.Path(homeassistant.__file__).parent / "components"; seen, todo, reqs = set(), ["assist_satellite", "assist_pipeline", "conversation"], []
+          voice_requirements=$("$VENV/bin/python" -c 'import json, pathlib, homeassistant; root = pathlib.Path(homeassistant.__file__).parent / "components"; seen, todo, reqs = set(), ["assist_satellite", "assist_pipeline", "conversation", "camera", "stream"], []
           while todo:
               c = todo.pop()
               if c in seen or not (root / c / "manifest.json").exists(): continue

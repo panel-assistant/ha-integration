@@ -60,6 +60,7 @@ CONF_NATIVE_ENTITIES: Final = "native_entities"
 NATIVE_ONLY_PLATFORMS: Final = (
     Platform.BINARY_SENSOR,
     Platform.BUTTON,
+    Platform.CAMERA,
     Platform.EVENT,
     Platform.IMAGE,
     Platform.LIGHT,

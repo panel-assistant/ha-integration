@@ -1325,3 +1325,30 @@ async def test_health_read_remembers_the_actual_http_peer(socket_enabled: None) 
         client = HaPaneldClient(session, normalize_address(f"127.0.0.1:{server.port}"))
         await client.async_get_health()
         assert client.health_peer == (str(client.health_url), "127.0.0.1")
+
+
+@pytest.mark.parametrize(
+    "status,body,error",
+    [
+        (200, b"\xff\xd8fresh\xff\xd9", None),
+        (403, b"refused", CannotConnectError),
+        (200, b"x" * (2 * 1024 * 1024 + 1), InvalidResponseError),
+    ],
+    ids=["fresh-jpeg", "panel-refusal", "oversized-response"],
+)
+async def test_camera_snapshot_is_fresh_bounded_and_refuses_redirects(
+    status: int,
+    body: bytes,
+    error: type[Exception] | None,
+) -> None:
+    """Camera media uses the same bounded current-panel HTTP authority as health."""
+    session = _FakeSession(status=status, body=body)
+    client = _client(session)
+    if error is not None:
+        with pytest.raises(error):
+            await client.async_get_camera_snapshot()
+    else:
+        assert await client.async_get_camera_snapshot() == body
+    assert session.request is not None
+    assert session.request[1]["allow_redirects"] is False
+    assert session.request[0].path == "/api/v1/camera/snapshot.jpg"

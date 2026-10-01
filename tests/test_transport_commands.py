@@ -412,6 +412,8 @@ async def test_a_dark_option_change_keeps_a_shadow_session(
     ("domain", "suffix", "service", "data", "value"),
     [
         ("switch", "relay1", "turn_on", {}, True),
+        ("camera", "camera", "turn_on", {}, True),
+        ("camera", "camera", "turn_off", {}, False),
         ("switch", "relay1", "turn_off", {}, False),
         ("light", "screen", "turn_on", {}, {"on": True}),
         (
@@ -464,7 +466,7 @@ async def test_each_platform_sends_its_typed_value(
         "deadline_ms",
     }
     assert command["session"] == panel.token
-    assert command["channel"] == suffix
+    assert command["channel"] == ("camera_enabled" if suffix == "camera" else suffix)
     assert command["value"] == value
     assert type(command["value"]) is type(value)
     assert command["deadline_ms"] == 10000
@@ -479,7 +481,7 @@ async def test_each_platform_sends_its_typed_value(
     assert commands["pending"] == 0
     assert [
         (r["channel"], r["outcome"], r["code"], r["late"]) for r in commands["recent"]
-    ] == [(suffix, "applied", None, False)]
+    ] == [("camera_enabled" if suffix == "camera" else suffix, "applied", None, False)]
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
 
 

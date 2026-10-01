@@ -52,6 +52,22 @@ def catalogue_entry(descriptor: Mapping[str, Any]) -> dict[str, Any] | None:
     family = descriptor["family"]
     if family is None:
         entry = _BY_CHANNEL.get(descriptor["channel"])
+        # Older apps still describe their camera control as a switch. Keep that
+        # exact shape usable while Home Assistant is updated before the app.
+        if (
+            entry is not None
+            and descriptor["channel"] == "camera_enabled"
+            and descriptor["platform"] == "switch"
+            and descriptor["translation_key"] == "camera_enabled"
+            and descriptor["unique_suffix"] == "camera_enabled"
+        ):
+            entry = entry | {
+                "platform": "switch",
+                "translation_key": "camera_enabled",
+                "unique_suffix": "camera_enabled",
+                "entity_category": "config",
+                "enabled_default": False,
+            }
         suffix = None if entry is None else entry["unique_suffix"]
     else:
         entry = _BY_FAMILY.get(family)
