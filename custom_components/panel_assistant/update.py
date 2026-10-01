@@ -83,12 +83,14 @@ from .feed_coordinator import (
 )
 from .install_adb import (
     AdbInstallTarget,
+    AdbRootMode,
     InstallAdbError,
     InstallAdbErrorCode,
     InstallOutcome,
     LaunchOutcome,
     async_launch_installed_app,
     async_preflight_install,
+    async_repair_installed_app_permissions,
     async_update_installed_apk,
 )
 from .install_network import (
@@ -502,79 +504,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 credential = await async_get_durable_adb_credential(self.hass)
             except AdbCredentialMissingError:
                 credential = None
-            pinned = await async_pin_install_target(
-                self.hass, self.coordinator.client.address
-            )
-            # Bind the ADB peer to the same pinned HTTP panel, even when the
-            # stored address is a DNS name that can resolve more than once.
-            pinned_health = await HaPaneldClient(
-                async_get_clientsession(self.hass), pinned.pinned
-            ).async_get_health()
-            if (
-                pinned_health.panel_id != snapshot.health.panel_id
-                or pinned_health.package != snapshot.health.package
-                or (
-                    snapshot.health.discovery_id is not None
-                    and pinned_health.discovery_id != snapshot.health.discovery_id
-                )
-                or (
-                    (entry_did := self._entry_discovery_id()) is not None
-                    and pinned_health.discovery_id != entry_did
-                )
-            ):
+            admitted = await self._async_admit_adb_target(artifact, credential)
+            if admitted is None:
                 return None, None, None
-            if credential is None:
-                # Running panels can have a config entry without an HA ADB key.
-                # Only an already-open ADB peer can establish this route without
-                # prompting the panel owner for authorization.
-                open_probe = await async_probe_install_target(pinned.pinned)
-                if open_probe.state is InstallTargetState.ADB_UNAUTHORIZED:
-                    raise self._adb_authorization_error()
-                if open_probe.state not in {
-                    InstallTargetState.INSTALLED,
-                    InstallTargetState.MIGRATION_CANDIDATE,
-                } or None in (
-                    open_probe.serial,
-                    open_probe.model,
-                    open_probe.primary_abi,
-                    open_probe.android_sdk,
-                ):
-                    return None, None, None
-                await async_get_adb_credential(self.hass)
-                credential = await async_get_durable_adb_credential(self.hass)
-            probe = await async_probe_install_target(pinned.pinned, credential.signer)
-            if probe.state is InstallTargetState.ADB_UNAUTHORIZED:
-                raise self._adb_authorization_error()
-            if probe.state not in {
-                InstallTargetState.INSTALLED,
-                InstallTargetState.MIGRATION_CANDIDATE,
-            } or None in (
-                probe.serial,
-                probe.model,
-                probe.primary_abi,
-                probe.android_sdk,
-            ):
-                return None, None, None
-            assert probe.serial is not None
-            assert probe.model is not None
-            assert probe.primary_abi is not None
-            assert probe.android_sdk is not None
-            target = AdbInstallTarget(
-                address=pinned.pinned,
-                serial=probe.serial,
-                model=probe.model,
-                primary_abi=probe.primary_abi,
-                android_sdk=probe.android_sdk,
-            )
-            admitted = await async_preflight_install(
-                target,
-                credential.signer,
-                artifact.descriptor,
-                admit_installed_target=True,
-            )
-            if not admitted.target_installed:
-                return None, None, None
-            await async_revalidate_install_target(self.hass, pinned)
+            target, credential, _root_mode = admitted
         except InstallAdbError as err:
             if err.code is InstallAdbErrorCode.AUTHORIZATION_REQUIRED:
                 raise self._adb_authorization_error() from err
@@ -588,6 +521,129 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             return None, None, None
         async_clear_adb_authorization(self.hass, self._entry_id)
         return ROUTE_ADB, target, credential
+
+    async def _async_admit_adb_target(
+        self, artifact: ReleaseArtifact, credential: AdbCredential | None
+    ) -> tuple[AdbInstallTarget, AdbCredential, AdbRootMode] | None:
+        """Bind an ADB target to the live HTTP identity and exact signed artifact."""
+        snapshot = self.coordinator.data
+        if (
+            snapshot is None
+            or not self.coordinator.last_update_success
+            or artifact.descriptor is None
+        ):
+            return None
+        pinned = await async_pin_install_target(
+            self.hass, self.coordinator.client.address
+        )
+        # Bind the ADB peer to the same pinned HTTP panel, even when the
+        # stored address is a DNS name that can resolve more than once.
+        pinned_health = await HaPaneldClient(
+            async_get_clientsession(self.hass), pinned.pinned
+        ).async_get_health()
+        if (
+            pinned_health.panel_id != snapshot.health.panel_id
+            or pinned_health.package != snapshot.health.package
+            or (
+                snapshot.health.discovery_id is not None
+                and pinned_health.discovery_id != snapshot.health.discovery_id
+            )
+            or (
+                (entry_did := self._entry_discovery_id()) is not None
+                and pinned_health.discovery_id != entry_did
+            )
+        ):
+            return None
+        if credential is None:
+            # Running panels can have a config entry without an HA ADB key.
+            # Only an already-open ADB peer can establish this route without
+            # prompting the panel owner for authorization.
+            open_probe = await async_probe_install_target(pinned.pinned)
+            if open_probe.state is InstallTargetState.ADB_UNAUTHORIZED:
+                raise InstallAdbError(InstallAdbErrorCode.AUTHORIZATION_REQUIRED)
+            if open_probe.state not in {
+                InstallTargetState.INSTALLED,
+                InstallTargetState.MIGRATION_CANDIDATE,
+            } or None in (
+                open_probe.serial,
+                open_probe.model,
+                open_probe.primary_abi,
+                open_probe.android_sdk,
+            ):
+                return None
+            await async_get_adb_credential(self.hass)
+            credential = await async_get_durable_adb_credential(self.hass)
+        probe = await async_probe_install_target(pinned.pinned, credential.signer)
+        if probe.state is InstallTargetState.ADB_UNAUTHORIZED:
+            raise InstallAdbError(InstallAdbErrorCode.AUTHORIZATION_REQUIRED)
+        if probe.state not in {
+            InstallTargetState.INSTALLED,
+            InstallTargetState.MIGRATION_CANDIDATE,
+        } or None in (
+            probe.serial,
+            probe.model,
+            probe.primary_abi,
+            probe.android_sdk,
+        ):
+            return None
+        assert probe.serial is not None
+        assert probe.model is not None
+        assert probe.primary_abi is not None
+        assert probe.android_sdk is not None
+        target = AdbInstallTarget(
+            address=pinned.pinned,
+            serial=probe.serial,
+            model=probe.model,
+            primary_abi=probe.primary_abi,
+            android_sdk=probe.android_sdk,
+        )
+        admitted = await async_preflight_install(
+            target,
+            credential.signer,
+            artifact.descriptor,
+            admit_installed_target=True,
+        )
+        if not admitted.target_installed:
+            return None
+        await async_revalidate_install_target(self.hass, pinned)
+        return target, credential, admitted.root_mode
+
+    async def _async_repair_update_permissions(self, artifact: ReleaseArtifact) -> None:
+        """Reuse already-authorized ADB after a healthy LAN update, without relaunch."""
+        snapshot = self.coordinator.data
+        descriptor = artifact.descriptor
+        if (
+            descriptor is None
+            or snapshot is None
+            or self.coordinator.identity_mismatch
+            or not self.coordinator.last_update_success
+            or snapshot.health.version != artifact.version
+            or not reports_package(snapshot.health.package, descriptor.package_id)
+        ):
+            return
+        try:
+            # A successful update never requests new ADB trust or creates a key.
+            credential = await async_get_durable_adb_credential(self.hass)
+            admitted = await self._async_admit_adb_target(artifact, credential)
+            if admitted is None:
+                return
+            target, credential, root_mode = admitted
+            await async_repair_installed_app_permissions(
+                target,
+                credential.signer,
+                descriptor,
+                expected_root_mode=root_mode,
+            )
+        except (
+            AdbCredentialError,
+            InstallAdbError,
+            InstallNetworkError,
+            HaPaneldError,
+            OSError,
+        ):
+            # The dashboard already runs. An unavailable optional repair route
+            # does not change the successful update's result.
+            return
 
     def _adb_authorization_error(self) -> HomeAssistantError:
         async_request_adb_authorization(self.hass, self._entry_id)
@@ -1123,6 +1179,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             build = await self._async_select_feed_build(feed, version, backup)
             target_version = build.label
             selected_artifact = feed_release_artifact(build)
+            repair_artifact: ReleaseArtifact | None = selected_artifact
             verified_apk = self._feed.verified_apk(build) if self._feed else None
             failure_artifact = asdict(selected_artifact)
             if route == ROUTE_ADB and selected_artifact.descriptor is None:
@@ -1151,6 +1208,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     "The requested ha-paneld update is unavailable",
                 )
             target_version = offer.target_version
+            release = self._host_release()
+            repair_artifact = release
         self._begin_attempt()
         self.async_write_ha_state()
         try:
@@ -1164,7 +1223,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     await self._async_deliver_build(selected_artifact, apk=verified_apk)
             else:
                 assert offer is not None
-                release = self._host_release()
                 if route == ROUTE_ADB:
                     assert release is not None
                     assert adb_target is not None and adb_credential is not None
@@ -1195,6 +1253,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                                 "release_pair_unavailable",
                                 "The matching new-app release is unavailable",
                             )
+                        repair_artifact = successor
                         bridge_delivered = False
                         if (
                             self.coordinator.data.health.version != release.version
@@ -1249,6 +1308,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 )
             raise
         else:
+            if route != ROUTE_ADB and repair_artifact is not None:
+                await self._async_repair_update_permissions(repair_artifact)
             await async_clear_update_failure_if_installed(
                 self.hass,
                 self._entry_id,

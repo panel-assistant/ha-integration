@@ -2115,6 +2115,90 @@ async def async_update_installed_apk(
             os.close(file_descriptor)
 
 
+async def _async_repair_app_permissions(
+    device: AdbDeviceAsync,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+) -> None:
+    """Share observed grant repair between startup and an already-running update."""
+    nonce = token_hex(16)
+    _parse_package_present(
+        await _async_shell(
+            device,
+            _package_command(nonce, descriptor.package_id),
+            read_timeout=_READ_TIMEOUT_SECONDS,
+        ),
+        nonce,
+    )
+    if target.android_sdk >= _NOTIFICATIONS_RUNTIME_SDK:
+        # Never a reason not to start: a refusal is reported, and the app
+        # still runs without notification visibility.
+        nonce = token_hex(16)
+        if not _parse_notification_grant(
+            await _async_shell(
+                device,
+                _notification_grant_command(nonce, descriptor.package_id),
+                read_timeout=_READ_TIMEOUT_SECONDS,
+            ),
+            nonce,
+        ):
+            _LOGGER.warning(
+                "The panel did not grant %s the notification permission. "
+                "The app runs without it; allow it on the panel in Android "
+                "Settings, under the app's Notifications",
+                descriptor.package_id,
+            )
+    # The same rule as notifications: a refusal is reported, never fatal.
+    nonce = token_hex(16)
+    if not _parse_permission_grant(
+        await _async_shell(
+            device,
+            _permission_grant_command(nonce, descriptor.package_id),
+            read_timeout=_READ_TIMEOUT_SECONDS,
+        ),
+        nonce,
+        descriptor.package_id,
+    ):
+        _LOGGER.warning(
+            "The panel did not grant %s every permission it needs: "
+            "modify system settings, display over other apps and its "
+            "accessibility service, camera and microphone where present. "
+            "Controls that depend on them, such as "
+            "touch sounds, stay unavailable; allow them on the panel in "
+            "Android Settings, under the app",
+            descriptor.package_id,
+        )
+
+
+async def async_repair_installed_app_permissions(
+    target: AdbInstallTarget,
+    signer: PythonRSASigner,
+    descriptor: InstallDescriptor,
+    *,
+    expected_root_mode: AdbRootMode,
+) -> None:
+    """Repair an installed app's grants without relaunching or replacing it."""
+    _validate_request(target, descriptor)
+    _validate_expected_root_mode(expected_root_mode)
+    device: AdbDeviceAsync | None = None
+    try:
+        async with asyncio.timeout(_LAUNCH_TIMEOUT_SECONDS):
+            device = await _async_connect(target, signer)
+            await _async_require_identity_root(device, target, expected_root_mode)
+            await _async_repair_app_permissions(device, target, descriptor)
+    except InstallAdbError:
+        raise
+    except (
+        TimeoutError,
+        _MalformedAdbResponse,
+        _UnsafeAdbPacket,
+        *_ADB_EXCEPTIONS,
+    ):
+        raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE) from None
+    finally:
+        await _async_close(device)
+
+
 async def async_launch_installed_app(
     target: AdbInstallTarget,
     signer: PythonRSASigner,
@@ -2131,53 +2215,7 @@ async def async_launch_installed_app(
         async with asyncio.timeout(_LAUNCH_TIMEOUT_SECONDS):
             device = await _async_connect(target, signer)
             await _async_require_identity_root(device, target, expected_root_mode)
-            nonce = token_hex(16)
-            _parse_package_present(
-                await _async_shell(
-                    device,
-                    _package_command(nonce, descriptor.package_id),
-                    read_timeout=_READ_TIMEOUT_SECONDS,
-                ),
-                nonce,
-            )
-            if target.android_sdk >= _NOTIFICATIONS_RUNTIME_SDK:
-                # Never a reason not to start: a refusal is reported, and the app
-                # still runs without notification visibility.
-                nonce = token_hex(16)
-                if not _parse_notification_grant(
-                    await _async_shell(
-                        device,
-                        _notification_grant_command(nonce, descriptor.package_id),
-                        read_timeout=_READ_TIMEOUT_SECONDS,
-                    ),
-                    nonce,
-                ):
-                    _LOGGER.warning(
-                        "The panel did not grant %s the notification permission. "
-                        "The app runs without it; allow it on the panel in Android "
-                        "Settings, under the app's Notifications",
-                        descriptor.package_id,
-                    )
-            # The same rule as notifications: a refusal is reported, never fatal.
-            nonce = token_hex(16)
-            if not _parse_permission_grant(
-                await _async_shell(
-                    device,
-                    _permission_grant_command(nonce, descriptor.package_id),
-                    read_timeout=_READ_TIMEOUT_SECONDS,
-                ),
-                nonce,
-                descriptor.package_id,
-            ):
-                _LOGGER.warning(
-                    "The panel did not grant %s every permission it needs: "
-                    "modify system settings, display over other apps and its "
-                    "accessibility service, camera and microphone where present. "
-                    "Controls that depend on them, such as "
-                    "touch sounds, stay unavailable; allow them on the panel in "
-                    "Android Settings, under the app",
-                    descriptor.package_id,
-                )
+            await _async_repair_app_permissions(device, target, descriptor)
             nonce = token_hex(16)
             mutation_started = True
             return _parse_launch_outcome(
