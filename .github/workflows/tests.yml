@@ -111,7 +111,7 @@ jobs:
       - name: Run type checks
         run: mypy custom_components/panel_assistant
       - name: Run tests
-        run: python -m pytest
+        run: python -m pytest -n auto
       - name: Prove restart and replay safety in real Core processes
         run: >-
           python tests/runtime/core_negative_harness.py
