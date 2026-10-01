@@ -1009,6 +1009,48 @@ async def test_a_bridge_update_that_cannot_hand_over_yet_is_still_a_success(
     assert entity.coordinator.data.health.version == VERSION
 
 
+@pytest.mark.parametrize(
+    ("refusal", "translation", "recorded_failure"),
+    [
+        (NotABridgeError, "bridge_not_ready", False),
+        (CannotConnectError, "bridge_capability_unavailable", True),
+    ],
+    ids=["not-ready", "unreachable"],
+)
+async def test_a_handover_refused_after_admission_opens_a_repair_only_for_a_fault(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    refusal: type[Exception],
+    translation: str,
+    recorded_failure: bool,
+) -> None:
+    """Ready when the press was admitted, refused once the install asks again."""
+    github = _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=b"bridge")
+    entity, client = await _entity(hass, monkeypatch, github)
+    entity.coordinator.data = _snapshot(VERSION, "2000", LEGACY_PACKAGE_ID)
+    asked = 0
+
+    async def capability() -> tuple[str, str, int | None, bool]:
+        nonlocal asked
+        asked += 1
+        if asked > 1:
+            raise refusal
+        return (SUCCESSOR_PACKAGE_ID, VERSION, None, False)
+
+    client.async_get_successor_capability = AsyncMock(side_effect=capability)
+    recorded = AsyncMock()
+    monkeypatch.setattr(panel_update, "async_record_update_failure", recorded)
+
+    with pytest.raises(HomeAssistantError) as error:
+        await entity.async_install(None, backup=False)
+    _assert_translated(error.value, translation)
+    assert asked > 1
+    assert recorded.await_count == (1 if recorded_failure else 0)
+    client.async_commit_apk.assert_not_awaited()
+
+
 async def test_bridge_label_does_not_hide_a_newer_panel_offer(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
