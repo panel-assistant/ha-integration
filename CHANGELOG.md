@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.7.0-rc2 - 2026-10-01
+
+The second release candidate for Panel Assistant 0.7.0 brings smoother panel updates, helpful Repairs and a native camera. Reminder: 0.7.0 is the last Panel Assistant release that supports MQTT panels and the last that moves them over to its own connection. Pairs with ha-paneld v0.9.9-rc2.
+
+### New
+
+- **Panel cameras as native camera entities.** A panel with a camera now appears in Home Assistant as a camera, with no MQTT involved.
+- **A Repair to move off MQTT.** Each panel that has used MQTT gets a Repairs item that moves it to Panel Assistant's own connection. Panels that never used MQTT never see it.
+- **A Repair when Home Assistant needs a restart.** After you install a newer Panel Assistant, Repairs tells you a restart is needed to load it.
+
+### Improved
+
+- **Panel updates are easier to follow.** The update dialog shows one steady step line, moves at a pace that matches what the panel is doing, and finishes only once the panel is showing its dashboard again.
+- **An update stays offered until the panel is back.** The update is only marked done once the restarted panel has proven it is running.
+- **Network installs match USB installs.** A panel installed over the network gets the same Android permissions as one installed over USB, so touch sounds and similar controls work straight away. If a panel refuses one, the log says so and the install still finishes.
+- **The sidebar works on a phone.** The Panel Assistant header now has Home Assistant's menu button and an overflow menu, stays on one row, and shows a dot only for notifications that are really there.
+
+### Fixed
+
+- **No more false update Repairs.** Panel Assistant no longer asks a panel to update to a version it already runs, such as the stray "update to 0.9.8-rc1" Repair.
+- **New panels finish setup without MQTT.** Panels added on a system without MQTT no longer get stuck partway through setup.
+- **No alarming messages while a panel is getting ready.** A panel that cannot hand over to Panel Assistant yet now waits quietly instead of showing an error.
+- **USB-installed panels know Home Assistant set them up.** These panels now skip asking where Home Assistant is.
+
 ## 0.7.0-rc1 - 2026-09-30
 
 This release pairs with ha-paneld v0.9.9-rc1, the last panel release that supports MQTT and the last one that can move an older MQTT panel over to Panel Assistant's own connection. If your panels still use MQTT, please move them now. Future feature releases will build on Panel Assistant and its connection, so MQTT set-ups will not get new features after this. MQTT still works in this release.
