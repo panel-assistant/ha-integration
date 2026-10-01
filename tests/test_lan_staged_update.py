@@ -537,7 +537,7 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
     coordinator = entity.coordinator
     coordinator.last_update_success = True
     restarted: PanelSnapshot | None = None
-    absent = 0
+    answering = absent = accepted = 0
 
     async def stage(_apk: bytes, **kwargs: Any) -> StagedApk:
         migrating = kwargs.get("migration_sha256") is not None
@@ -546,7 +546,7 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
         )
 
     async def accept(*_args: Any) -> None:
-        nonlocal restarted, absent
+        nonlocal restarted, absent, answering, accepted
         staged = client.async_stage_apk.await_args
         migrating = staged is not None and staged.kwargs.get("migration_sha256")
         restarted = _snapshot(
@@ -554,12 +554,15 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
             "3000" if migrating else "2000",
             SUCCESSOR_PACKAGE_ID if migrating else LEGACY_PACKAGE_ID,
         )
-        absent = 3
+        # The old app answers while it installs the new one, then restarts.
+        answering, absent, accepted = 1, 3, len(shown)
 
     async def refresh() -> None:
         # Each poll ends in the coordinator's listener write, as in Core.
-        nonlocal absent, restarted
-        if absent:
+        nonlocal absent, restarted, answering
+        if answering:
+            answering -= 1
+        elif absent:
             absent -= 1
             coordinator.last_update_success = False
         else:
@@ -574,11 +577,14 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
         entity._handle_coordinator_update()
 
     ready = client.async_get_status.return_value
-    starting = replace(ready, home_ui={**ready.home_ui, "state": "starting"})
+    builtin = {"mode": "builtin", "state": "unobserved", "rendered": False}
+    unrendered = replace(ready, renderer=builtin)
+    rendered = replace(ready, renderer={**builtin, "state": "rendered"})
 
     async def status(**_kwargs: Any) -> PanelStatus:
-        # The new app answers before its dashboard is on screen.
-        return starting if client.async_get_status.await_count % 2 else ready
+        # The new app's dashboard reads ready from its first status screen,
+        # before the Home Assistant frontend connects.
+        return unrendered if client.async_get_status.await_count % 2 else rendered
 
     client.async_get_status = AsyncMock(side_effect=status)
     client.async_stage_apk.side_effect = (
@@ -594,17 +600,29 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
 
     working = [state for state in shown if state["in_progress"]]
     assert any(not state["available"] for state in shown) is False
+    # One line names the step for the whole update, so the layout holds.
+    assert all(state["release_summary"] for state in working)
     restarting = [
-        state["update_percentage"] for state in working if state["release_summary"]
+        state["update_percentage"]
+        for state in working
+        if "restarting" in state["release_summary"]
     ]
     assert restarting
     # The last restart is the one into the target; a bridge's comes earlier.
-    assert 50 <= restarting[-1] <= 80
+    assert 50 <= restarting[-1] <= 75
     assert (restarting[0] < 50) is move
     progress = [state["update_percentage"] for state in working]
     assert None not in progress
     assert progress == sorted(progress)
-    assert progress[-1] >= 50
+    # Installing, restarting and loading the dashboard each get a share of
+    # the bar, rather than the first half passing before the install starts.
+    installing = [
+        state["update_percentage"]
+        for state in shown[accepted:]
+        if state["in_progress"] and "installing" in state["release_summary"]
+    ]
+    assert any(20 <= value < 50 for value in installing) is not move
+    assert progress[-1] >= 80
     assert {state["installed_version"] for state in working} == {start}
     assert {state["latest_version"] for state in working} == {VERSION}
     assert shown[-1]["in_progress"] is False
@@ -615,7 +633,7 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
         client.async_get_status.await_count
         == {
             "update": 2,
-            "panel-download": 0,
+            "panel-download": 2,
             "bridge-handover": 4,
         }[route]
     )
