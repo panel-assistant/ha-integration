@@ -860,10 +860,22 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
 
     @property
     def release_summary(self) -> str | None:
-        """Say that the panel is restarting, the one step that has no screen."""
-        if self._restarting():
-            return f"{self._panel_name()} is restarting into the new version."
-        return None
+        """Name the update's current step on one line that stays put.
+
+        The line is there for the whole update so the dialog's layout does
+        not jump as steps change; only its words do.
+        """
+        attempt = self._attempt
+        if attempt is None:
+            return None
+        panel = self._panel_name()
+        if attempt.stage == "away":
+            return f"{panel} is restarting into the new version."
+        if attempt.stage == "back":
+            return f"{panel} is opening its dashboard."
+        if attempt.stage == "installing":
+            return f"{panel} is installing the new version."
+        return f"Preparing the update for {panel}."
 
     @property
     def in_progress(self) -> bool:

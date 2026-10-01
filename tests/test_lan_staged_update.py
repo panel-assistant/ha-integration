@@ -600,8 +600,12 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
 
     working = [state for state in shown if state["in_progress"]]
     assert any(not state["available"] for state in shown) is False
+    # One line names the step for the whole update, so the layout holds.
+    assert all(state["release_summary"] for state in working)
     restarting = [
-        state["update_percentage"] for state in working if state["release_summary"]
+        state["update_percentage"]
+        for state in working
+        if "restarting" in state["release_summary"]
     ]
     assert restarting
     # The last restart is the one into the target; a bridge's comes earlier.
@@ -615,7 +619,7 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
     installing = [
         state["update_percentage"]
         for state in shown[accepted:]
-        if state["in_progress"] and not state["release_summary"]
+        if state["in_progress"] and "installing" in state["release_summary"]
     ]
     assert any(20 <= value < 50 for value in installing) is not move
     assert progress[-1] >= 80
