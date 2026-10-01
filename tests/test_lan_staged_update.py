@@ -506,15 +506,18 @@ async def test_accepted_update_projects_restart_when_panel_disappears(
         sessions.clear_restart_notice("entry-id")
 
 
-@pytest.mark.parametrize("move", [False, True], ids=["update", "bridge-handover"])
+@pytest.mark.parametrize("route", ["update", "panel-download", "bridge-handover"])
 async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     trust: None,
     key: Any,
-    move: bool,
+    route: str,
 ) -> None:
     """Never Unavailable, a bar that only rises, and the new version only at the end."""
+    move = route == "bridge-handover"
+    # A wait that can never succeed fails in a second, not fourteen minutes.
+    monkeypatch.setattr(panel_update, "_UPDATE_TIMEOUT_SECONDS", 1)
     github = (
         _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=b"bridge")
         if move
@@ -542,9 +545,10 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
             package=SUCCESSOR_PACKAGE_ID if migrating else LEGACY_PACKAGE_ID
         )
 
-    async def commit(_token: str) -> None:
+    async def accept(*_args: Any) -> None:
         nonlocal restarted, absent
-        migrating = client.async_stage_apk.await_args.kwargs.get("migration_sha256")
+        staged = client.async_stage_apk.await_args
+        migrating = staged is not None and staged.kwargs.get("migration_sha256")
         restarted = _snapshot(
             VERSION,
             "3000" if migrating else "2000",
@@ -574,8 +578,11 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
         return starting if client.async_get_status.await_count % 2 else ready
 
     client.async_get_status = AsyncMock(side_effect=status)
-    client.async_stage_apk.side_effect = stage
-    client.async_commit_apk.side_effect = commit
+    client.async_stage_apk.side_effect = (
+        StagingUnavailableError if route == "panel-download" else stage
+    )
+    client.async_commit_apk.side_effect = accept
+    client.async_start_panel_update.side_effect = accept
     coordinator.async_request_refresh = AsyncMock(side_effect=refresh)  # type: ignore[method-assign]
     try:
         await entity.async_install(None, backup=False)
@@ -600,7 +607,15 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
     assert shown[-1]["in_progress"] is False
     assert shown[-1]["installed_version"] == VERSION
     assert client.async_stage_apk.await_count == (2 if move else 1)
-    assert client.async_get_status.await_count == (4 if move else 2)
+    assert client.async_start_panel_update.await_count == (route == "panel-download")
+    assert (
+        client.async_get_status.await_count
+        == {
+            "update": 2,
+            "panel-download": 0,
+            "bridge-handover": 4,
+        }[route]
+    )
     if move:
         assert coordinator.data.health.package == SUCCESSOR_PACKAGE_ID
 

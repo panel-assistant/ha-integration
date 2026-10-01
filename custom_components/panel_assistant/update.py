@@ -792,6 +792,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         ):
             return
         attempt.restart_projected = True
+        # The restart is the install's second half; the write about to follow
+        # shows it there, not where a panel's own download had reached.
+        low, high = attempt.band
+        attempt.percentage = max(attempt.percentage, (low + high) // 2)
         sessions = async_get_sessions(self.hass)
         if sessions.restart_notice(self._entry_id) is None:
             sessions.set_restart_notice(
@@ -1271,7 +1275,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             if self.coordinator.available:
                 self._restart_progress(10, 45)
             else:
-                self._advance(50)
                 self._restart_progress()
             snapshot = self.coordinator.data
             verified = (
