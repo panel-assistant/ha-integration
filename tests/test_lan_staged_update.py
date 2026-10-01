@@ -607,7 +607,13 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
     assert any(not state["available"] for state in shown) is False
     # One line names the step for the whole update, so the layout holds.
     assert all(state["release_summary"] for state in working)
-    assert any("restarting" in state["release_summary"] for state in working)
+    # The line names each delivery's restart: the bridge's, then the new app's.
+    steps = [state["release_summary"] for state in working]
+    restarts = sum(
+        "restarting" in step and "restarting" not in before
+        for before, step in pairwise(["", *steps])
+    )
+    assert restarts == (2 if move else 1)
     progress = [state["update_percentage"] for state in working]
     assert None not in progress
     # The bar follows time: it only rises, never leaps, and keeps the last
