@@ -40,6 +40,7 @@ from homeassistant.util import dt as dt_util
 
 from .client import is_valid_discovery_id
 from .const import CONF_CUTOVER, DOMAIN, PANEL_MQTT_WITHDRAW_VERSION
+from .native_move import panel_follows_mqtt_withdrawal
 from .transport import (
     AUTHORITY_NATIVE,
     CUTOVER_ENTITIES,
@@ -241,7 +242,17 @@ def _report_merged_mqtt_device(
 
 @callback
 def async_raise_panel_update_required(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Report that the panel announces MQTT entities this integration owns."""
+    """Report that the panel announces MQTT entities this integration owns.
+
+    Only a panel not known to run a release that follows the withdrawal is
+    asked to update. One that does may still have duplicates to quarantine:
+    MQTT rediscovers them before its session opens, or while a customised
+    entity holds the claim at announce. Its session cleans them up, so asking
+    it for a version it already runs would be false.
+    """
+    if panel_follows_mqtt_withdrawal(hass, entry):
+        async_delete_panel_update_required(hass, entry.entry_id)
+        return
     ir.async_create_issue(
         hass,
         DOMAIN,
