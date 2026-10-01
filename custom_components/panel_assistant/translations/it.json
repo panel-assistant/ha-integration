@@ -169,7 +169,7 @@
     "update_busy": { "message": "Il pannello è occupato con un'altra operazione" },
     "update_approval_required": { "message": "Approva questo aggiornamento sul pannello, quindi riprova" },
     "update_rejected": { "message": "{panel} ha rifiutato la richiesta di aggiornamento. Controlla la scheda Installa del pannello, poi riprova." },
-    "bridge_not_ready": { "message": "Il pannello non è ancora pronto a trasferire il controllo alla nuova app. Aggiorna prima l'helper root incluso, poi riprova." },
+    "bridge_not_ready": { "message": "Il pannello non può ancora passare alla nuova app. Panel Assistant proporrà di nuovo il passaggio non appena sarà possibile." },
     "release_pair_unavailable": { "message": "La versione corrispondente della nuova app non è disponibile. Riprova più tardi." },
     "panel_changed_during_update": { "message": "Il pannello è cambiato durante l’aggiornamento. Aggiorna la pagina e riprova." },
     "bridge_details_changed": { "message": "I dati di trasferimento del pannello sono cambiati. Aggiorna la pagina e riprova." },

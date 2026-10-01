@@ -169,7 +169,7 @@
     "update_busy": { "message": "Das Panel ist mit einem anderen Vorgang beschäftigt" },
     "update_approval_required": { "message": "Genehmigen Sie dieses Update auf dem Panel und versuchen Sie es erneut" },
     "update_rejected": { "message": "{panel} hat die Update-Anfrage abgelehnt. Prüfe den Tab „Installieren“ auf dem Panel und versuche es erneut." },
-    "bridge_not_ready": { "message": "Das Panel ist noch nicht bereit für die Übergabe an die neue App. Aktualisieren Sie zuerst den mitgelieferten Root-Helper und versuchen Sie es erneut." },
+    "bridge_not_ready": { "message": "Das Panel kann noch nicht zur neuen App wechseln. Panel Assistant bietet den Wechsel erneut an, sobald es möglich ist." },
     "release_pair_unavailable": { "message": "Die passende Version der neuen App ist nicht verfügbar. Versuchen Sie es später erneut." },
     "panel_changed_during_update": { "message": "Das Panel hat sich während des Updates geändert. Aktualisieren Sie die Ansicht und versuchen Sie es erneut." },
     "bridge_details_changed": { "message": "Die Angaben zur Übergabe des Panels haben sich geändert. Aktualisieren Sie die Ansicht und versuchen Sie es erneut." },

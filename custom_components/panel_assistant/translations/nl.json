@@ -178,7 +178,7 @@
       "message": "{panel} heeft het updateverzoek geweigerd. Controleer het tabblad Installeren op het paneel en probeer het opnieuw."
     },
     "bridge_not_ready": {
-      "message": "Het paneel is nog niet klaar om over te dragen aan de nieuwe app. Werk eerst de meegeleverde roothelper bij en probeer het opnieuw."
+      "message": "Het paneel kan nog niet naar de nieuwe app overstappen. Panel Assistant biedt de overstap opnieuw aan zodra het kan."
     },
     "release_pair_unavailable": {
       "message": "De bijbehorende release van de nieuwe app is niet beschikbaar. Probeer het later opnieuw."

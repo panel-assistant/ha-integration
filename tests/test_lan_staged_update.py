@@ -42,6 +42,7 @@ from custom_components.panel_assistant.build_feed import BuildDownloadError
 from custom_components.panel_assistant.client import (
     CannotConnectError,
     HaPaneldClient,
+    NotABridgeError,
     PanelHealth,
     StagedApk,
     StagingUnavailableError,
@@ -784,7 +785,7 @@ async def test_retry_refuses_untrusted_installed_successor(
     assert not github.apk_downloaded
 
 
-async def test_not_a_bridge_refusal_withholds_handover_and_explains_helper_step(
+async def test_not_a_bridge_refusal_withholds_handover_without_a_problem_report(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     trust: None,
@@ -802,16 +803,21 @@ async def test_not_a_bridge_refusal_withholds_handover_and_explains_helper_step(
         session, normalize_address("panel.local")
     ).async_get_successor_capability
 
+    recorded = AsyncMock()
+    monkeypatch.setattr(panel_update, "async_record_update_failure", recorded)
+
     await entity._async_refresh_route()
     assert entity.state == "off"
     assert entity.latest_version == entity.installed_version
+    # Nothing newer exists and nothing is lost, so the owner is shown no problem.
+    assert (
+        panel_update.ROUTE_UNAVAILABLE_ATTRIBUTE
+        not in entity._attr_extra_state_attributes
+    )
     with pytest.raises(HomeAssistantError) as error:
         await entity.async_install(None, backup=False)
     _assert_translated(error.value, "bridge_not_ready")
-    assert (
-        "root helper"
-        in entity._attr_extra_state_attributes[panel_update.ROUTE_UNAVAILABLE_ATTRIBUTE]
-    )
+    recorded.assert_not_awaited()
     client.async_backup_panel.assert_not_awaited()
     client.async_stage_apk.assert_not_awaited()
     client.async_commit_apk.assert_not_awaited()
@@ -981,6 +987,68 @@ async def test_a_bridge_that_already_handed_over_is_not_reinstalled(
     client.async_start_panel_update.assert_not_awaited()
     client.async_get_version_code.assert_awaited_once()
     assert entity.coordinator.data.health.package == SUCCESSOR_PACKAGE_ID
+
+
+async def test_a_bridge_update_that_cannot_hand_over_yet_is_still_a_success(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+) -> None:
+    """The newer bridge installed; the move to the new app waits without a repair."""
+    github = _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=b"bridge")
+    entity, client = await _entity(hass, monkeypatch, github)
+    client.async_get_successor_capability = AsyncMock(side_effect=NotABridgeError)
+    recorded = AsyncMock()
+    monkeypatch.setattr(panel_update, "async_record_update_failure", recorded)
+
+    await entity.async_install(None, backup=False)
+    client.async_stage_apk.assert_awaited_once_with(b"bridge")
+    client.async_commit_apk.assert_awaited_once_with("tok-1")
+    recorded.assert_not_awaited()
+    assert entity.coordinator.data.health.version == VERSION
+
+
+@pytest.mark.parametrize(
+    ("refusal", "translation", "recorded_failure"),
+    [
+        (NotABridgeError, "bridge_not_ready", False),
+        (CannotConnectError, "bridge_capability_unavailable", True),
+    ],
+    ids=["not-ready", "unreachable"],
+)
+async def test_a_handover_refused_after_admission_opens_a_repair_only_for_a_fault(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    refusal: type[Exception],
+    translation: str,
+    recorded_failure: bool,
+) -> None:
+    """Ready when the press was admitted, refused once the install asks again."""
+    github = _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=b"bridge")
+    entity, client = await _entity(hass, monkeypatch, github)
+    entity.coordinator.data = _snapshot(VERSION, "2000", LEGACY_PACKAGE_ID)
+    asked = 0
+
+    async def capability() -> tuple[str, str, int | None, bool]:
+        nonlocal asked
+        asked += 1
+        if asked > 1:
+            raise refusal
+        return (SUCCESSOR_PACKAGE_ID, VERSION, None, False)
+
+    client.async_get_successor_capability = AsyncMock(side_effect=capability)
+    recorded = AsyncMock()
+    monkeypatch.setattr(panel_update, "async_record_update_failure", recorded)
+
+    with pytest.raises(HomeAssistantError) as error:
+        await entity.async_install(None, backup=False)
+    _assert_translated(error.value, translation)
+    assert asked > 1
+    assert recorded.await_count == (1 if recorded_failure else 0)
+    client.async_commit_apk.assert_not_awaited()
 
 
 async def test_bridge_label_does_not_hide_a_newer_panel_offer(

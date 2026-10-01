@@ -178,7 +178,7 @@
       "message": "{panel} odrzucił żądanie aktualizacji. Sprawdź kartę Instalacja na panelu, a następnie spróbuj ponownie."
     },
     "bridge_not_ready": {
-      "message": "Panel nie jest jeszcze gotowy do przekazania sterowania nowej aplikacji. Najpierw zaktualizuj dołączony program pomocniczy root, a potem spróbuj ponownie."
+      "message": "Panel nie może jeszcze przejść na nową aplikację. Panel Assistant ponownie zaproponuje przejście, gdy będzie to możliwe."
     },
     "release_pair_unavailable": {
       "message": "Odpowiednia wersja nowej aplikacji jest niedostępna. Spróbuj ponownie później."
