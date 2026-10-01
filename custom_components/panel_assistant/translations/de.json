@@ -263,6 +263,25 @@
       "title": "ha-paneld auf {panel} aktualisieren",
       "description": "Panel Assistant besitzt jetzt die Entitäten von {panel}, aber die Version von ha-paneld auf diesem Panel kündigt sie weiterhin über MQTT an, sodass MQTT sie ein zweites Mal anlegt. Panel Assistant deaktiviert diese Duplikate. Aktualisiere ha-paneld auf {panel} auf Version {required_version} oder neuer; Panel Assistant selbst braucht keine Aktualisierung. Sobald sich das aktualisierte Panel verbindet, werden die deaktivierten Duplikate gelöscht und dieses Problem verschwindet."
     },
+    "move_to_native_connection": {
+      "title": "{panel} auf die eigene Verbindung von Panel Assistant umstellen",
+      "fix_flow": {
+        "step": {
+          "confirm_move": {
+            "title": "{panel} von MQTT wegbewegen",
+            "description": "Die MQTT-Unterstützung endet nach dieser Release-Reihe: Spätere Versionen von ha-paneld und Panel Assistant steuern Panels nur noch über die eigene Verbindung von Panel Assistant. {panel} jetzt umzustellen bewirkt genau dasselbe wie die Auswahl von Panel Assistant unter Steuerung in seinen Optionen. Seine Entitäten behalten ihre Entitäts-IDs, ihren Verlauf und ihre Anpassungen, und das Panel kündigt sie danach nicht mehr über MQTT an. Wähle Absenden, um es umzustellen; das Panel verbindet sich mit der neuen Auswahl erneut."
+          }
+        },
+        "abort": {
+          "entry_removed": "Dieses Panel wurde aus Home Assistant entfernt.",
+          "update_first": "Aktualisiere zuerst ha-paneld auf {panel} auf Version {required_version} oder neuer und stelle es dann um."
+        }
+      }
+    },
+    "update_before_native_move": {
+      "title": "ha-paneld auf {panel} aktualisieren, bevor es von MQTT wegbewegt wird",
+      "description": "Die MQTT-Unterstützung endet nach dieser Release-Reihe, daher muss {panel} auf die eigene Verbindung von Panel Assistant umgestellt werden. Die darauf laufende Version von ha-paneld, {version}, kann ihre Entitäten noch nicht übergeben. Aktualisiere ha-paneld auf {panel} auf Version {required_version} oder neuer; dieses Problem bietet dann die Umstellung an."
+    },
     "panel_migration_incomplete": {
       "title": "Das Panel unter {address} hat den Wechsel zur neuen App noch nicht abgeschlossen",
       "fix_flow": {

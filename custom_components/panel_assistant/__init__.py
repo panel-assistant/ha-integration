@@ -48,6 +48,7 @@ from .install_executor import (
     async_resume_loaded_install_jobs,
 )
 from .native import CONF_NATIVE_ENTITIES, NATIVE_ONLY_PLATFORMS
+from .native_move import async_delete_native_move_issues, async_evaluate_native_move
 from .restart_repair import async_setup_restart_check
 from .transport import (
     DATA_NATIVE_ENTITIES,
@@ -289,6 +290,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
             )
         )
     )
+    # Every poll and every session opening or closing can tell the panel's
+    # version, which decides whether its move to native is offered.
+    async_evaluate_native_move(hass, entry)
+    entry.async_on_unload(
+        coordinator.async_add_listener(lambda: async_evaluate_native_move(hass, entry))
+    )
     # Register last so this coordinator listener is removed first on unload,
     # even when a later teardown callback fails.
     entry.async_on_unload(
@@ -338,6 +345,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
     """
     async_delete_binding_issue(hass, entry.entry_id)
     async_delete_cutover_issues(hass, entry.entry_id)
+    async_delete_native_move_issues(hass, entry.entry_id)
     async_delete_merged_identity_issue(hass, entry)
     async_get_sessions(hass).forget_entry(entry.entry_id)
     record = cutover_record(entry)

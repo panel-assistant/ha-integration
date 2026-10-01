@@ -545,11 +545,13 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
         "native_controls_unavailable",
         "merged_panel_identity",
         "merged_mqtt_device",
+        "move_to_native_connection",
         "panel_update_required",
         "panel_migration_incomplete",
         "panel_identity_confirmation",
         "panel_identity_mismatch",
         "restart_required",
+        "update_before_native_move",
     }
     # Which binding issue is raised depends on whether the panel already has an
     # account, so that call passes a variable and the scan above sees no literal.

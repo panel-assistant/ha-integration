@@ -1138,6 +1138,16 @@ def effective_authority(hass: HomeAssistant, entry: ConfigEntry) -> str:
     return authority if authority in AUTHORITIES else DEFAULT_AUTHORITY
 
 
+def authority_options(entry: ConfigEntry, authority: str) -> dict[str, Any]:
+    """Return the entry's options with this authority chosen.
+
+    Saving them is the whole of a change of authority: the entry's update
+    listener ends the panel's session and reloads the entry, whose setup runs
+    the cutover the new authority asks for.
+    """
+    return {**entry.options, CONF_AUTHORITY: authority}
+
+
 @callback
 def async_apply_authority(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """End a live session whose granted authority is no longer the entry's.

@@ -110,6 +110,7 @@ from .transport import (
     async_bind_user,
     async_binding_request,
     async_discard_binding_request,
+    authority_options,
     effective_authority,
     native_entities_turned_off,
 )
@@ -1775,10 +1776,7 @@ class HaPaneldOptionsFlow(OptionsFlow):
             return self.async_abort(reason=ABORT_NATIVE_ENTITIES_DISABLED)
         if user_input is not None:
             return self.async_create_entry(
-                data={
-                    **self.config_entry.options,
-                    CONF_AUTHORITY: user_input[CONF_AUTHORITY],
-                }
+                data=authority_options(self.config_entry, user_input[CONF_AUTHORITY])
             )
         schema = vol.Schema(
             {

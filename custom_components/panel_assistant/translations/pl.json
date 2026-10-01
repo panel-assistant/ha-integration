@@ -303,6 +303,25 @@
       "title": "Zaktualizuj ha-paneld na panelu {panel}",
       "description": "Panel Assistant jest teraz właścicielem encji panelu {panel}, ale wersja ha-paneld na tym panelu nadal ogłasza je przez MQTT, więc MQTT tworzy je po raz drugi. Panel Assistant wyłącza te duplikaty. Zaktualizuj ha-paneld na panelu {panel} do wersji {required_version} lub nowszej; sam Panel Assistant nie wymaga aktualizacji. Gdy zaktualizowany panel się połączy, wyłączone duplikaty zostaną usunięte, a ten problem zniknie."
     },
+    "move_to_native_connection": {
+      "title": "Przenieś {panel} na własne połączenie Panel Assistant",
+      "fix_flow": {
+        "step": {
+          "confirm_move": {
+            "title": "Odłącz {panel} od MQTT",
+            "description": "Obsługa MQTT kończy się po tej serii wydań: kolejne wersje ha-paneld i Panel Assistant sterują panelami wyłącznie przez własne połączenie Panel Assistant. Przeniesienie {panel} teraz robi dokładnie to samo, co wybranie Panel Assistant w opcji Sterowanie w jego opcjach. Jego encje zachowują identyfikatory encji, historię i dostosowania, a panel przestaje ogłaszać je przez MQTT. Wybierz Zatwierdź, aby go przenieść; panel połączy się ponownie z nowym wyborem."
+          }
+        },
+        "abort": {
+          "entry_removed": "Ten panel został usunięty z Home Assistant.",
+          "update_first": "Najpierw zaktualizuj ha-paneld na {panel} do wersji {required_version} lub nowszej, a potem go przenieś."
+        }
+      }
+    },
+    "update_before_native_move": {
+      "title": "Zaktualizuj ha-paneld na {panel} przed odłączeniem go od MQTT",
+      "description": "Obsługa MQTT kończy się po tej serii wydań, więc {panel} musi przejść na własne połączenie Panel Assistant. Działająca na nim wersja ha-paneld, {version}, nie potrafi jeszcze przekazać swoich encji. Zaktualizuj ha-paneld na {panel} do wersji {required_version} lub nowszej; wtedy ten problem zaproponuje przeniesienie."
+    },
     "panel_migration_incomplete": {
       "title": "Panel pod adresem {address} nie zakończył jeszcze przechodzenia na nową aplikację",
       "fix_flow": {

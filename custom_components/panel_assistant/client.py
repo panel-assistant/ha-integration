@@ -390,6 +390,42 @@ def is_newer_stable_version(candidate: str, installed: str) -> bool:
     return "-" in installed
 
 
+def _prerelease_key(identifier: str) -> tuple[int, str, int]:
+    """Order one pre-release identifier, ``rc10`` after ``rc9``."""
+    if identifier.isdigit():
+        return (0, "", int(identifier))
+    stem = identifier.rstrip("0123456789")
+    digits = identifier[len(stem) :]
+    return (1, stem, int(digits) if digits else -1)
+
+
+def _version_key(
+    value: str,
+) -> tuple[tuple[int, int, int], bool, tuple[tuple[int, str, int], ...]] | None:
+    match = _VERSION_PATTERN.fullmatch(value)
+    if match is None:
+        return None
+    core = (int(match.group(1)), int(match.group(2)), int(match.group(3)))
+    _, _, prerelease = value.partition("-")
+    return (
+        core,
+        not prerelease,
+        tuple(_prerelease_key(part) for part in prerelease.split(".") if part),
+    )
+
+
+def is_version_at_least(version: str, minimum: str) -> bool | None:
+    """Return whether a panel's SemVer is the minimum or later, None if unknown.
+
+    A release is later than its own release candidates. A free-form feed build
+    name says nothing about its place in the release order, so it is unknown.
+    """
+    current, required = _version_key(version), _version_key(minimum)
+    if current is None or required is None:
+        return None
+    return current >= required
+
+
 def parse_panel_install_status(body: bytes) -> PanelInstallStatus:
     """Parse only the fixed progress fields needed to recover a self-update."""
     document = _load_json_object(body)

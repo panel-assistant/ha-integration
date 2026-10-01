@@ -303,6 +303,25 @@
       "title": "Update ha-paneld op {panel}",
       "description": "Panel Assistant is nu eigenaar van de entiteiten van {panel}, maar de versie van ha-paneld op dat paneel meldt ze nog steeds via MQTT, waardoor MQTT ze een tweede keer aanmaakt. Panel Assistant schakelt die duplicaten uit. Werk ha-paneld op {panel} bij naar versie {required_version} of hoger; Panel Assistant zelf hoeft niet bijgewerkt te worden. Zodra het bijgewerkte paneel verbinding maakt, worden de uitgeschakelde duplicaten verwijderd en is dit probleem opgelost."
     },
+    "move_to_native_connection": {
+      "title": "Zet {panel} over naar de eigen verbinding van Panel Assistant",
+      "fix_flow": {
+        "step": {
+          "confirm_move": {
+            "title": "Haal {panel} van MQTT af",
+            "description": "Ondersteuning voor MQTT stopt na deze releasereeks: latere versies van ha-paneld en Panel Assistant besturen panelen alleen nog via de eigen verbinding van Panel Assistant. {panel} nu overzetten doet precies wat het kiezen van Panel Assistant onder Besturing in de opties doet. De entiteiten behouden hun entiteit-ID's, geschiedenis en aanpassingen, en daarna kondigt het paneel ze niet meer via MQTT aan. Selecteer Verzenden om het over te zetten; het paneel maakt opnieuw verbinding met de nieuwe keuze."
+          }
+        },
+        "abort": {
+          "entry_removed": "Dit paneel is uit Home Assistant verwijderd.",
+          "update_first": "Werk eerst ha-paneld op {panel} bij naar versie {required_version} of later en zet het daarna over."
+        }
+      }
+    },
+    "update_before_native_move": {
+      "title": "Werk ha-paneld op {panel} bij voordat het van MQTT af gaat",
+      "description": "Ondersteuning voor MQTT stopt na deze releasereeks, dus {panel} moet over naar de eigen verbinding van Panel Assistant. De versie van ha-paneld die het draait, {version}, kan zijn entiteiten nog niet overdragen. Werk ha-paneld op {panel} bij naar versie {required_version} of later; dit probleem biedt daarna de overstap aan."
+    },
     "panel_migration_incomplete": {
       "title": "Het paneel op {address} is nog niet helemaal overgestapt naar de nieuwe app",
       "fix_flow": {
