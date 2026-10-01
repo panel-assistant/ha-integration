@@ -1,9 +1,11 @@
 """Shared pytest fixtures for ha-paneld."""
 
 from collections.abc import Generator
+from shutil import copytree, ignore_patterns
 from unittest.mock import AsyncMock
 
 import pytest
+from pytest_homeassistant_custom_component.common import get_test_config_dir
 
 from custom_components.panel_assistant import config_flow, feed_coordinator
 from custom_components.panel_assistant.client import (
@@ -11,6 +13,25 @@ from custom_components.panel_assistant.client import (
     PanelInstallStatus,
     PanelSetupState,
 )
+
+
+@pytest.fixture
+def hass_config_dir(tmp_path_factory: pytest.TempPathFactory) -> str:
+    """Give every test its own config directory.
+
+    The fixture default is one directory inside the installed test package,
+    shared by every process, so parallel workers deleted each other's
+    `.storage` files. Stored state left there by earlier runs is not copied.
+    """
+    path = tmp_path_factory.mktemp("hass_config")
+    copytree(
+        get_test_config_dir(),
+        path,
+        symlinks=True,
+        dirs_exist_ok=True,
+        ignore=ignore_patterns(".storage"),
+    )
+    return str(path)
 
 
 @pytest.fixture(autouse=True)

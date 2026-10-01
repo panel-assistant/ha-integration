@@ -18,8 +18,17 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Skip a tag whose commit already passed
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/already_passed.sh
       - name: Run Hassfest
+        if: steps.gate.outputs.run == 'true'
         uses: home-assistant/actions/hassfest@a7c616ce81ccda50150bf1595786c71b1883fabb # master
