@@ -281,6 +281,8 @@ def _permissions_output(
             "1",
             "WRITE_SETTINGS: allow",
             "SYSTEM_ALERT_WINDOW: allow",
+            "unsupported",
+            "unsupported",
         ],
         0,
     )
