@@ -6,10 +6,11 @@ export const SIDEBAR_MESSAGES = Object.freeze({
   versionLabel: '{version} build {build}',
   menu: 'Open navigation',
   choosePanel: 'Panel',
+  more: 'More options',
   addPanel: 'Add panel',
-  addPanelShort: 'Add',
   integrationSettings: 'Integration settings',
   device: "This panel's Home Assistant device",
+  showDevice: 'Show device',
   github: 'GitHub',
   unreachable: 'unreachable',
   restarting: 'Restarting ({reason})',
@@ -39,6 +40,7 @@ const STATES = new Set(['reachable', 'unreachable', 'not_loaded', 'restarting'])
 const REASONS = new Set(['update', 'settings', 'recovery', 'reboot']);
 // Include a short app restart notice even when this sidebar was already open.
 const REFRESH_MS = 5000;
+const NOTIFICATION_EVENTS = new Set(['current', 'added', 'updated', 'removed']);
 
 export function parsePanels(value) {
   if (!value || !Array.isArray(value.panels) || value.panels.length > 200) throw Error('invalid panels');
@@ -87,7 +89,7 @@ function writeSelection(entryId) {
 
 export class PanelAssistantSidebar extends HTMLElement {
   #hass; #panel; #narrow = false; #connection; #panels = null; #listState = 'loading'; #listGeneration = 0;
-  #signature = ''; #selected = null; #session = null; #timer = null;
+  #signature = ''; #selected = null; #session = null; #timer = null; #alerts = null;
   #onReady = () => this.#reconnected();
   constructor() {
     super();
@@ -104,8 +106,9 @@ export class PanelAssistantSidebar extends HTMLElement {
       button,select,a{font:inherit;font-size:1rem;min-height:44px;box-sizing:border-box;border-radius:6px}
       button{display:inline-flex;align-items:center;justify-content:center;min-width:44px;padding:0;color:inherit;background:transparent;border:0;cursor:pointer}
       button svg{width:24px;height:24px;fill:currentColor}
-      #menu{background:rgba(255,255,255,.18);border-radius:8px}
-      #menu svg{width:26px;height:26px}
+      #menu,#overflow{position:relative;flex-shrink:0;width:48px;height:48px;border-radius:50%}
+      /* The alert dot is Home Assistant's own menu-button dot. */
+      #dot{pointer-events:none;position:absolute;top:9px;inset-inline-end:7px;width:12px;height:12px;box-sizing:content-box;background:var(--accent-color,#ff9800);border-radius:50%;border:2px solid var(--app-header-background-color,var(--primary-color,#03a9f4))}
       label{display:flex;align-items:center;gap:8px;flex:0 0 auto}
       select{flex:0 0 auto;width:auto;min-width:140px;padding:0 8px;color:#212121;background:#fff;border:1px solid rgba(0,0,0,.15)}
       #spacer{flex:1 1 auto}
@@ -120,7 +123,9 @@ export class PanelAssistantSidebar extends HTMLElement {
       #settings svg{width:22px;height:22px}
       #device{min-width:36px;padding:0;justify-content:center}
       #device svg{width:20px;height:20px}
-      #slot{display:contents}
+      #slot,#more{display:contents}
+      .menu-icon,.item-label,#backdrop{display:none}
+      #add-label{display:inline}
       #status{margin:0;padding:16px;color:var(--secondary-text-color,#727272)}
       #loading{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:16px;text-align:center;color:var(--secondary-text-color,#727272)}
       .spinner{animation:pa-spin .9s linear infinite}
@@ -128,23 +133,40 @@ export class PanelAssistantSidebar extends HTMLElement {
       #loading-text{margin:0;font-size:.9375rem;color:var(--primary-text-color,#212121)}
       #loading-hint{margin:4px 0 0;font-size:.8125rem}
       iframe{flex:1;border:0;width:100%;display:block;background:var(--card-background-color,#fff)}
-      /* On a phone the header is one row: the picker takes the room left and its caption stays for screen readers. */
-      [data-narrow] header{flex-wrap:nowrap;gap:4px;padding:4px 8px}
+      /* On a phone the header is one row like Home Assistant's own panels: menu button, picker, and a
+         vertical ellipsis that opens the remaining links as a menu. The picker caption stays for screen readers. */
+      [data-narrow] header{position:relative;flex-wrap:nowrap;gap:4px;padding:3px 4px}
       [data-narrow] #icon,[data-narrow] #spacer{display:none}
       [data-narrow] #picker{flex:1 1 auto;min-width:0}
       [data-narrow] #picker>span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
       [data-narrow] select{flex:1 1 auto;width:100%;min-width:0;text-overflow:ellipsis}
-      [data-narrow] #add{padding:0 10px}
+      [data-narrow] #more{display:none}
+      [data-narrow] #more[data-open]{display:flex;flex-direction:column;position:absolute;z-index:2;top:calc(100% - 4px);inset-inline-end:4px;min-width:200px;max-width:calc(100% - 8px);padding:8px 0;box-sizing:border-box;background:var(--card-background-color,#fff);color:var(--primary-text-color,#212121);border-radius:4px;box-shadow:0 2px 4px -1px rgba(0,0,0,.2),0 4px 5px rgba(0,0,0,.14),0 1px 10px rgba(0,0,0,.12)}
+      [data-narrow] #more a{justify-content:flex-start;gap:16px;width:100%;min-height:48px;padding:0 16px;border-radius:0;background:none;color:inherit}
+      [data-narrow] #more a:focus-visible,[data-narrow] #more a:hover{background:var(--secondary-background-color,rgba(0,0,0,.06))}
+      [data-narrow] #more a svg{width:24px;height:24px;flex-shrink:0;fill:var(--secondary-text-color,#727272)}
+      [data-narrow] #more .menu-icon{display:block}
+      [data-narrow] #more .wide-icon{display:none}
+      [data-narrow] #more .item-label{display:inline}
+      [data-narrow] #device{order:1}
+      [data-narrow] #add{order:2}
+      [data-narrow] #settings{order:3}
+      [data-narrow] #github{order:4}
+      [data-narrow] #backdrop:not([hidden]){display:block;position:fixed;inset:0;z-index:1}
     </style><div class="root" id="root"><header>
-      <button id="menu" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"/></svg></button>
+      <button id="menu" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"/></svg><span id="dot"></span></button>
       <img id="icon" src="${BRAND_ICON}" alt="">
       <h1 id="title" data-message="title"></h1><span id="version"></span>
       <label id="picker"><span data-message="choosePanel"></span><select id="panels"></select></label>
-      <a id="device"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/></svg></a>
+      <button id="overflow" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,16A2,2 0 0,1 14,18A2,2 0 0,1 12,20A2,2 0 0,1 10,18A2,2 0 0,1 12,16M12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10M12,4A2,2 0 0,1 14,6A2,2 0 0,1 12,8A2,2 0 0,1 10,6A2,2 0 0,1 12,4Z"/></svg></button>
+      <div id="backdrop"></div>
+      <div id="more">
+      <a id="device"><svg class="wide-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/></svg><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19,18H5V6H19M21,4H3C1.89,4 1,4.89 1,6V18A2,2 0 0,0 3,20H21A2,2 0 0,0 23,18V6C23,4.89 22.1,4 21,4Z"/></svg><span class="item-label" data-message="showDevice"></span></a>
       <div id="spacer"></div>
-      <a id="github" href="${REPO_URL}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${GH_ICON}"/></svg></a>
-      <a id="add"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg><span id="add-label" data-message="addPanel"></span></a>
-      <a id="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg></a>
+      <a id="github" href="${REPO_URL}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${GH_ICON}"/></svg><span class="item-label" data-message="github"></span></a>
+      <a id="add"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg><span id="add-label" class="item-label" data-message="addPanel"></span></a>
+      <a id="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg><span class="item-label" data-message="integrationSettings"></span></a>
+      </div>
       <div id="slot"></div>
     </header><p id="status" role="status" aria-live="polite"></p><div id="loading" hidden><svg class="spinner" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="19" stroke="var(--divider-color,#e0e0e0)" stroke-width="4" fill="none"></circle><circle cx="24" cy="24" r="19" stroke="var(--app-header-background-color,var(--primary-color,#03a9f4))" stroke-width="4" stroke-linecap="round" stroke-dasharray="119.4" stroke-dashoffset="89.5" fill="none"></circle></svg><p id="loading-text" role="status" aria-live="polite"></p><p id="loading-hint" data-message="loadingHint"></p></div><iframe id="frame"></iframe></div>`;
     const root = this.shadowRoot;
@@ -153,6 +175,20 @@ export class PanelAssistantSidebar extends HTMLElement {
     menu.setAttribute('aria-label', SIDEBAR_MESSAGES.menu);
     menu.hidden = true;
     menu.addEventListener('click', () => this.dispatchEvent(new CustomEvent('hass-toggle-menu', { bubbles: true, composed: true })));
+    const overflow = root.querySelector('#overflow');
+    overflow.setAttribute('aria-label', SIDEBAR_MESSAGES.more);
+    overflow.setAttribute('title', SIDEBAR_MESSAGES.more);
+    overflow.hidden = true;
+    root.querySelector('#backdrop').hidden = true;
+    root.querySelector('#dot').hidden = true;
+    overflow.addEventListener('click', () => this.#setMenuOpen(!this.#menuOpen()));
+    // The backdrop covers the frame too, so a tap anywhere outside the menu closes it.
+    root.querySelector('#backdrop').addEventListener('click', () => this.#setMenuOpen(false));
+    root.querySelector('#root').addEventListener('keydown', event => {
+      if (event.key !== 'Escape' || !this.#menuOpen()) return;
+      this.#setMenuOpen(false);
+      overflow.focus?.();
+    });
     root.querySelector('#frame').setAttribute('title', SIDEBAR_MESSAGES.frameTitle);
     const settings = root.querySelector('#settings');
     settings.setAttribute('aria-label', SIDEBAR_MESSAGES.integrationSettings);
@@ -160,11 +196,13 @@ export class PanelAssistantSidebar extends HTMLElement {
     const github = root.querySelector('#github');
     github.setAttribute('aria-label', SIDEBAR_MESSAGES.github);
     github.setAttribute('title', SIDEBAR_MESSAGES.github);
+    github.addEventListener('click', () => this.#setMenuOpen(false));
     const device = root.querySelector('#device');
     device.setAttribute('aria-label', SIDEBAR_MESSAGES.device);
     device.setAttribute('title', SIDEBAR_MESSAGES.device);
     device.addEventListener('click', event => {
       const path = device.getAttribute('href');
+      this.#setMenuOpen(false);
       if (!path || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault();
       navigate(path);
@@ -173,6 +211,7 @@ export class PanelAssistantSidebar extends HTMLElement {
       const link = root.querySelector(`#${id}`);
       link.setAttribute('href', path);
       link.addEventListener('click', event => {
+        this.#setMenuOpen(false);
         if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
         event.preventDefault();
         navigate(path);
@@ -187,6 +226,7 @@ export class PanelAssistantSidebar extends HTMLElement {
     const previous = this.#hass;
     this.#hass = value;
     if (!this.isConnected) return;
+    this.#syncAlerts();
     if (previous?.connection !== value?.connection || previous?.user?.id !== value?.user?.id ||
       previous?.user?.is_admin !== value?.user?.is_admin) { this.#restart(); return; }
     if (previous?.language !== value?.language || Boolean(previous?.themes?.darkMode) !== Boolean(value?.themes?.darkMode)) {
@@ -206,15 +246,62 @@ export class PanelAssistantSidebar extends HTMLElement {
     const box = root.querySelector('#root');
     if (this.#narrow) box.setAttribute('data-narrow', ''); else box.removeAttribute('data-narrow');
     root.querySelector('#menu').hidden = !this.#narrow;
+    root.querySelector('#overflow').hidden = !this.#narrow;
     root.querySelector('#title').hidden = this.#narrow;
     root.querySelector('#version').hidden = this.#narrow;
-    root.querySelector('#github').hidden = this.#narrow;
-    root.querySelector('#add-label').textContent = SIDEBAR_MESSAGES[this.#narrow ? 'addPanelShort' : 'addPanel'];
+    // The same links are inline on a wide screen and menu items on a phone.
+    const more = root.querySelector('#more');
+    if (this.#narrow) more.setAttribute('role', 'menu'); else more.removeAttribute('role');
+    for (const id of ['device', 'github', 'add', 'settings']) {
+      const link = root.querySelector(`#${id}`);
+      if (this.#narrow) link.setAttribute('role', 'menuitem'); else link.removeAttribute('role');
+    }
+    if (!this.#narrow) this.#setMenuOpen(false);
+    this.#syncAlerts();
+  }
+
+  #menuOpen() { return this.shadowRoot.querySelector('#more').getAttribute('data-open') !== null; }
+  #setMenuOpen(open) {
+    const root = this.shadowRoot;
+    const more = root.querySelector('#more');
+    const show = open && this.#narrow;
+    if (show) more.setAttribute('data-open', ''); else more.removeAttribute('data-open');
+    root.querySelector('#backdrop').hidden = !show;
+    root.querySelector('#overflow').setAttribute('aria-expanded', String(show));
+  }
+
+  // Home Assistant's menu button shows a dot while persistent notifications exist; on a phone this
+  // header replaces it, so it keeps the dot from the same subscription.
+  #syncAlerts() {
+    const connection = this.isConnected && this.#narrow ? this.#hass?.connection : undefined;
+    const alerts = this.#alerts;
+    if (alerts?.connection === connection) return;
+    if (alerts) {
+      this.#alerts = null;
+      alerts.unsubscribe?.then(unsubscribe => unsubscribe()).catch(() => {});
+      this.shadowRoot.querySelector('#dot').hidden = true;
+    }
+    if (!connection?.subscribeMessage) return;
+    const next = { connection, notifications: {}, unsubscribe: null };
+    this.#alerts = next;
+    next.unsubscribe = Promise.resolve()
+      .then(() => connection.subscribeMessage(event => this.#onNotifications(next, event), { type: 'persistent_notification/subscribe' }));
+    next.unsubscribe.catch(() => {});
+  }
+
+  #onNotifications(alerts, event) {
+    if (this.#alerts !== alerts || !NOTIFICATION_EVENTS.has(event?.type) || !event.notifications || typeof event.notifications !== 'object') return;
+    // `current` is the server's whole snapshot (also after a reconnect resubscribes), so it replaces what is held.
+    if (event.type === 'current') alerts.notifications = { ...event.notifications };
+    else if (event.type === 'removed') for (const id of Object.keys(event.notifications)) delete alerts.notifications[id];
+    else alerts.notifications = { ...alerts.notifications, ...event.notifications };
+    this.shadowRoot.querySelector('#dot').hidden = Object.keys(alerts.notifications).length === 0;
   }
 
   connectedCallback() {
     clearInterval(this.#timer);
     this.#restart();
+    this.#syncAlerts();
     this.#timer = setInterval(() => this.#loadList(), REFRESH_MS);
   }
   disconnectedCallback() {
@@ -223,6 +310,7 @@ export class PanelAssistantSidebar extends HTMLElement {
     this.#listGeneration++;
     this.#detach();
     this.#endSession();
+    this.#syncAlerts();
   }
 
   #admin() { return this.#hass?.user?.is_admin === true; }
