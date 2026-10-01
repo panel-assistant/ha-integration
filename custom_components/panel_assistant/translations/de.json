@@ -249,7 +249,7 @@
     },
     "native_controls_unavailable": {
       "title": "Native Bedienelemente auf {panel} nicht verfügbar",
-      "description": "Panel Assistant hat diese MQTT-Bedienelemente deaktiviert, weil {panel} ihre nativen Aktionen nicht anbietet: {entities}. Konfiguration und Entitäts-IDs bleiben erhalten. Aktualisiere die Panel-App, prüfe die Voraussetzungen der Aktionen und verbinde das Panel erneut. Ein Neustart erfordert auch über MQTT Root-Zugriff. Falls ein Bedienelement zuvor über MQTT funktionierte, kannst du das Panel vorübergehend auf MQTT zurückstellen."
+      "description": "Panel Assistant hat diese MQTT-Bedienelemente deaktiviert, weil {panel} ihre nativen Aktionen nicht anbietet: {entities}. Konfiguration und Entitäts-IDs bleiben erhalten. Aktualisiere die Panel-App, prüfe, ob die Voraussetzungen der Aktionen verfügbar sind, und verbinde das Panel erneut. Ein Neustart erfordert auch über MQTT Root-Zugriff. Falls ein Bedienelement zuvor über MQTT funktionierte, wird es durch das vorübergehende Zurückstellen dieses Panels auf MQTT wiederhergestellt."
     },
     "merged_panel_identity": {
       "title": "Zusammengeführte Panels trennen: {panels}",
@@ -327,7 +327,7 @@
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
-          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Wähle einen neuen Installationsversuch.",
           "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
           "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
           "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
@@ -369,7 +369,7 @@
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
-          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Wähle einen neuen Installationsversuch.",
           "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
           "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
           "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
@@ -411,7 +411,7 @@
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
-          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Wähle einen neuen Installationsversuch.",
           "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
           "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
           "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
@@ -453,7 +453,7 @@
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
-          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Wähle einen neuen Installationsversuch.",
           "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
           "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
           "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
@@ -495,7 +495,7 @@
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
-          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Wähle einen neuen Installationsversuch.",
           "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
           "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
           "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
@@ -537,7 +537,7 @@
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
-          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Wähle einen neuen Installationsversuch.",
           "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
           "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
           "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
@@ -579,7 +579,7 @@
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
-          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Wähle einen neuen Installationsversuch.",
           "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
           "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
           "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
@@ -621,7 +621,7 @@
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
-          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Wähle einen neuen Installationsversuch.",
           "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
           "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
           "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
@@ -663,7 +663,7 @@
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
-          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Wähle einen neuen Installationsversuch.",
           "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
           "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
           "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
@@ -705,7 +705,7 @@
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
-          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Wähle einen neuen Installationsversuch.",
           "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
           "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
           "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
@@ -744,7 +744,7 @@
           },
           "authorize_adb": {
             "title": "Home Assistant auf {panel} autorisieren",
-            "description": "Mit Absenden wird der dauerhafte ADB-Schlüssel dieser Home Assistant-Installation erstellt oder geladen und sein öffentlicher Schlüssel an {panel} gesendet. Bestätigen Sie die Android-Anfrage „Debugging zulassen“ direkt am Panel und senden Sie das Formular danach erneut ab. Android kann Home Assistant als Computer bezeichnen. Die Freigabe gewährt allgemeinen ADB-Shell-Zugriff, solange Netzwerk-Debugging aktiviert ist; sie kann in den Entwickleroptionen des Panels widerrufen werden. In diesem Schritt wird keine App installiert."
+            "description": "Mit Absenden wird der dauerhafte ADB-Schlüssel dieser Home Assistant-Installation erstellt oder geladen und sein öffentlicher Schlüssel an {panel} gesendet. Bestätige die Android-Anfrage „Debugging zulassen“ direkt am Panel und sende das Formular danach erneut ab. Android kann Home Assistant als Computer bezeichnen. Die Freigabe gewährt allgemeinen ADB-Shell-Zugriff, solange Netzwerk-Debugging aktiviert ist; widerrufe sie in den Entwickleroptionen des Panels. In diesem Schritt wird keine App installiert."
           }
         },
         "progress": {
@@ -752,7 +752,7 @@
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
-          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Wähle einen neuen Installationsversuch.",
           "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
           "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
           "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
@@ -810,7 +810,7 @@
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
-          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Wähle einen neuen Installationsversuch.",
           "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
           "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
           "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
@@ -879,7 +879,7 @@
           },
           "authorize_adb": {
             "title": "Home Assistant auf {panel} autorisieren",
-            "description": "Mit Absenden wird der dauerhafte ADB-Schlüssel dieser Home Assistant-Installation erstellt oder geladen und sein öffentlicher Schlüssel an {panel} gesendet. Bestätigen Sie die Android-Anfrage „Debugging zulassen“ direkt am Panel und senden Sie das Formular danach erneut ab. Android kann Home Assistant als Computer bezeichnen. Die Freigabe gewährt allgemeinen ADB-Shell-Zugriff, solange Netzwerk-Debugging aktiviert ist; sie kann in den Entwickleroptionen des Panels widerrufen werden. In diesem Schritt wird keine App installiert."
+            "description": "Mit Absenden wird der dauerhafte ADB-Schlüssel dieser Home Assistant-Installation erstellt oder geladen und sein öffentlicher Schlüssel an {panel} gesendet. Bestätige die Android-Anfrage „Debugging zulassen“ direkt am Panel und sende das Formular danach erneut ab. Android kann Home Assistant als Computer bezeichnen. Die Freigabe gewährt allgemeinen ADB-Shell-Zugriff, solange Netzwerk-Debugging aktiviert ist; widerrufe sie in den Entwickleroptionen des Panels. In diesem Schritt wird keine App installiert."
           }
         },
         "progress": {
@@ -887,7 +887,7 @@
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
-          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Starte eine neue Installation.",
+          "retry_release_changed": "Die gewählte Version stimmt nicht mehr mit der gespeicherten Version überein. Wähle einen neuen Installationsversuch.",
           "retry_credential_changed": "Die ADB-Zugangsdaten von Home Assistant haben sich geändert. Prüfe das Panel vor einem erneuten Versuch.",
           "retry_panel_ambiguous": "Die installierte App auf dem Panel konnte nicht überprüft werden. Es wurde keine neue Installation gestartet.",
           "retry_cannot_prove_safe": "Das Panel konnte für einen sicheren erneuten Versuch nicht ausreichend geprüft werden. Versuche es später erneut.",
@@ -920,7 +920,7 @@
         "step": {
           "authorize_adb": {
             "title": "Home Assistant auf {panel} autorisieren",
-            "description": "Mit Absenden wird der dauerhafte ADB-Schlüssel dieser Home Assistant-Installation erstellt oder geladen und sein öffentlicher Schlüssel an {panel} gesendet. Bestätigen Sie die Android-Anfrage „Debugging zulassen“ direkt am Panel und senden Sie das Formular danach erneut ab. Android kann Home Assistant als Computer bezeichnen. Die Freigabe gewährt allgemeinen ADB-Shell-Zugriff, solange Netzwerk-Debugging aktiviert ist; sie kann in den Entwickleroptionen des Panels widerrufen werden. In diesem Schritt wird keine App installiert."
+            "description": "Mit Absenden wird der dauerhafte ADB-Schlüssel dieser Home Assistant-Installation erstellt oder geladen und sein öffentlicher Schlüssel an {panel} gesendet. Bestätige die Android-Anfrage „Debugging zulassen“ direkt am Panel und sende das Formular danach erneut ab. Android kann Home Assistant als Computer bezeichnen. Die Freigabe gewährt allgemeinen ADB-Shell-Zugriff, solange Netzwerk-Debugging aktiviert ist; widerrufe sie in den Entwickleroptionen des Panels. In diesem Schritt wird keine App installiert."
           }
         },
         "error": {
@@ -948,7 +948,7 @@
     "step": {
       "init": {
         "title": "Panel-Einrichtung",
-        "description": "Setze die Einrichtung dieses Panels fort, ändere seine Verbindungsart oder autorisiere ADB für Panel-Updates. Falls das Panel noch nicht verbunden ist, bestätige zum Abschluss das angemeldete Konto.",
+        "description": "Setze die Einrichtung dieses Panels fort, ändere seine Verbindungsart oder autorisiere ADB für Panel-Updates. Falls das Panel noch ungebunden ist, bestätige zum Abschluss das angemeldete Konto.",
         "menu_options": {
           "onboarding": "Einrichtung fortsetzen",
           "transport": "Verbindungseinstellungen",
@@ -973,7 +973,7 @@
       },
       "authorize_adb": {
         "title": "Home Assistant auf {panel} autorisieren",
-        "description": "Mit Absenden wird der dauerhafte ADB-Schlüssel dieser Home Assistant-Installation erstellt oder geladen und sein öffentlicher Schlüssel an {panel} gesendet. Bestätigen Sie die Android-Anfrage „Debugging zulassen“ direkt am Panel und senden Sie das Formular danach erneut ab. Android kann Home Assistant als Computer bezeichnen. Die Freigabe gewährt allgemeinen ADB-Shell-Zugriff, solange Netzwerk-Debugging aktiviert ist; sie kann in den Entwickleroptionen des Panels widerrufen werden. In diesem Schritt wird keine App installiert."
+        "description": "Mit Absenden wird der dauerhafte ADB-Schlüssel dieser Home Assistant-Installation erstellt oder geladen und sein öffentlicher Schlüssel an {panel} gesendet. Bestätige die Android-Anfrage „Debugging zulassen“ direkt am Panel und sende das Formular danach erneut ab. Android kann Home Assistant als Computer bezeichnen. Die Freigabe gewährt allgemeinen ADB-Shell-Zugriff, solange Netzwerk-Debugging aktiviert ist; widerrufe sie in den Entwickleroptionen des Panels. In diesem Schritt wird keine App installiert."
       },
       "transport": {
         "title": "Panel-Verbindung",

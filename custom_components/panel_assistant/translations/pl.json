@@ -289,7 +289,7 @@
     },
     "native_controls_unavailable": {
       "title": "Natywne elementy sterujące niedostępne na {panel}",
-      "description": "Panel Assistant wyłączył te elementy sterujące MQTT, ponieważ {panel} nie udostępnia ich natywnych działań: {entities}. Konfiguracja i identyfikatory encji pozostają zachowane. Zaktualizuj aplikację panelu, sprawdź wymagania działań i połącz panel ponownie. Ponowne uruchomienie wymaga uprawnień root także przez MQTT. Jeśli element wcześniej działał przez MQTT, możesz tymczasowo przywrócić MQTT."
+      "description": "Panel Assistant wyłączył te elementy sterujące MQTT, ponieważ {panel} nie udostępnia ich natywnych działań: {entities}. Konfiguracja i identyfikatory encji pozostają zachowane. Zaktualizuj aplikację panelu i sprawdź, czy wymagania dotyczące jej działań są spełnione, a następnie połącz panel ponownie. Ponowne uruchomienie wymaga uprawnień root także przez MQTT. Jeśli element sterujący wcześniej działał przez MQTT, przełączenie tego panelu z powrotem na MQTT tymczasowo przywróci jego działanie."
     },
     "merged_panel_identity": {
       "title": "Rozdziel scalone panele: {panels}",
@@ -505,7 +505,7 @@
       }
     },
     "installer_failure_transport_failed": {
-      "title": "Połączenie z panelem {panel} zostało przerwane podczas instalacji.",
+      "title": "Podczas instalacji wystąpił błąd połączenia z panelem {panel}.",
       "fix_flow": {
         "step": {
           "init": {
@@ -863,7 +863,7 @@
     },
     "panel_address_unreachable": {
       "title": "Home Assistant nie może połączyć się z {panel} pod zapisanym adresem",
-      "description": "{panel} jest połączony z Home Assistant, więc jego encje pozostają dostępne, ale Home Assistant nie może odczytać panelu pod adresem {address}, a połączenie, które Home Assistant utrzymuje z {session_address}, nie oferuje innego adresu do wypróbowania. Port sieciowy panelu może być zablokowany między Home Assistant a panelem. Jeśli panel został przeniesiony, dodaj go ponownie pod nowym adresem, co zaktualizuje zapisany adres; problem zniknie sam, gdy adres znów zacznie odpowiadać."
+      "description": "{panel} jest połączony z Home Assistant, więc jego encje pozostają dostępne, ale Home Assistant nie może odczytać panelu pod adresem {address}, a utrzymywane połączenie z {session_address} nie oferuje innego adresu do wypróbowania. Port interfejsu WWW panelu może być zablokowany między Home Assistant a panelem. Jeśli panel został przeniesiony, dodaj go ponownie pod nowym adresem, co zaktualizuje zapisany adres; problem zniknie sam, gdy adres znów zacznie odpowiadać."
     },
     "panel_address_unverified": {
       "title": "Panel {panel} został przeniesiony, a jego nowego adresu nie udało się potwierdzić",
@@ -997,11 +997,11 @@
       },
       "onboarding": {
         "title": "Dokończ konfigurację tego panelu",
-        "description": "Otwórz stronę konfiguracji panelu w przeglądarce, która ma dostęp do panelu w sieci lokalnej. Zaloguj się na konto Home Assistant używane obecnie w tej przeglądarce, wybierz główny pulpit i dokończ tam konfigurację. Pozostaw to okno dialogowe otwarte; potem wrócisz tutaj, aby potwierdzić konto. Jeśli ta przeglądarka nie ma dostępu do panelu, dokończ konfigurację później z sieci lokalnej panelu. Jeśli pojawi się prośba o zgodę na debugowanie systemu Android, ktoś nadal musi ją zatwierdzić przy panelu."
+        "description": "Otwórz stronę konfiguracji panelu w przeglądarce, która ma dostęp do panelu w sieci lokalnej. Zaloguj się na konto Home Assistant używane obecnie w tej przeglądarce, wybierz główny pulpit i dokończ tam konfigurację. Pozostaw to okno dialogowe otwarte; wróci ono tutaj do potwierdzenia konta. Jeśli ta przeglądarka nie ma dostępu do panelu, dokończ konfigurację później z sieci lokalnej panelu. Jeśli pojawi się prośba o zgodę na debugowanie systemu Android, ktoś nadal musi ją zatwierdzić przy panelu."
       },
       "onboarding_wait": {
         "title": "Oczekiwanie na połączenie panelu",
-        "description": "Panel nie zakończył jeszcze konfiguracji ani nie poprosił o połączenie konta. Dokończ konfigurację na jego stronie, a następnie kliknij tutaj Prześlij, aby sprawdzić ponownie. Panel pozostanie niepowiązany, dopóki nie potwierdzisz jego konta."
+        "description": "Panel nie zakończył jeszcze konfiguracji ani nie poprosił o połączenie z użyciem konta. Dokończ konfigurację na jego stronie, a następnie kliknij tutaj Prześlij, aby sprawdzić ponownie. Panel pozostanie niepowiązany, dopóki nie potwierdzisz jego konta."
       },
       "onboarding_confirm": {
         "title": "Potwierdź konto tego panelu",

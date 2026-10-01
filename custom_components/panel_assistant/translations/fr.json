@@ -60,7 +60,7 @@
       },
       "confirm_user": {
         "title": "Confirmer le compte de ce panneau",
-        "description": "Le panneau {panel} est connecté à Home Assistant en tant que {user} et demande à se connecter. Confirmer ce compte est tout ce que ce panneau attend encore de vous : il termine ensuite son installation tout seul. Toute personne connectée à Home Assistant peut demander à se connecter comme panneau : ne confirmez donc que si {user} est le compte que vous avez créé pour ce panneau. Si vous passez cette étape, le panneau est quand même ajouté, mais il reste déconnecté jusqu'à ce que vous confirmiez le compte dans Paramètres, puis Réparations.",
+        "description": "Le panneau {panel} est connecté à Home Assistant en tant que {user} et demande à se connecter. Confirmer ce compte est tout ce que ce panneau attend encore de vous : il termine ensuite son installation tout seul. Toute personne connectée à Home Assistant peut demander à se connecter comme panneau : ne confirmez donc que si {user} est le compte que vous avez configuré pour ce panneau. Si vous passez cette étape, le panneau est quand même ajouté, mais il reste déconnecté jusqu'à ce que vous confirmiez le compte dans Paramètres, puis Réparations.",
         "menu_options": {
           "bind_user": "Oui, connecter ce panneau",
           "skip_binding": "Pas maintenant"
@@ -207,7 +207,7 @@
         "step": {
           "confirm_bind": {
             "title": "Confirmer l'utilisateur du panneau",
-            "description": "Le panneau {panel} demande à se connecter à Home Assistant en tant qu'utilisateur {user}. Ne confirmez que si {user} est le compte que vous avez créé pour ce panneau. Après confirmation, le panneau devrait se connecter peu après. Toute personne connectée à Home Assistant peut demander à se connecter comme panneau : si vous ne reconnaissez pas cette demande, fermez cette boîte de dialogue et ignorez le problème."
+            "description": "Le panneau {panel} demande à se connecter à Home Assistant en tant qu'utilisateur {user}. Ne confirmez que si {user} est le compte que vous avez configuré pour ce panneau. Après confirmation, le panneau devrait se connecter peu après. Toute personne connectée à Home Assistant peut demander à se connecter comme panneau : si vous ne reconnaissez pas cette demande, fermez cette boîte de dialogue et ignorez le problème."
           },
           "confirm_rebind": {
             "title": "Changer l'utilisateur du panneau",
@@ -226,7 +226,7 @@
         "step": {
           "confirm_bind": {
             "title": "Confirmer l'utilisateur du panneau",
-            "description": "Le panneau {panel} demande à se connecter à Home Assistant en tant qu'utilisateur {user}. Ne confirmez que si {user} est le compte que vous avez créé pour ce panneau. Après confirmation, le panneau devrait se connecter peu après. Toute personne connectée à Home Assistant peut demander à se connecter comme panneau : si vous ne reconnaissez pas cette demande, fermez cette boîte de dialogue et ignorez le problème."
+            "description": "Le panneau {panel} demande à se connecter à Home Assistant en tant qu'utilisateur {user}. Ne confirmez que si {user} est le compte que vous avez configuré pour ce panneau. Après confirmation, le panneau devrait se connecter peu après. Toute personne connectée à Home Assistant peut demander à se connecter comme panneau : si vous ne reconnaissez pas cette demande, fermez cette boîte de dialogue et ignorez le problème."
           },
           "confirm_rebind": {
             "title": "Changer l'utilisateur du panneau",
@@ -249,7 +249,7 @@
     },
     "native_controls_unavailable": {
       "title": "Commandes natives indisponibles sur {panel}",
-      "description": "Panel Assistant a désactivé ces commandes MQTT car {panel} ne propose pas leurs actions natives : {entities}. Leur configuration et leurs identifiants d’entité sont conservés. Mettez à jour l’application du panneau, vérifiez les conditions nécessaires aux actions, puis reconnectez-le. Le redémarrage nécessite aussi un accès root avec MQTT. Si une commande fonctionnait auparavant avec MQTT, repassez temporairement à MQTT."
+      "description": "Panel Assistant a désactivé ces commandes MQTT car {panel} ne propose pas leurs actions natives : {entities}. Leur configuration et leurs identifiants d’entité sont conservés. Mettez à jour l’application du panneau, vérifiez que les conditions nécessaires aux actions sont réunies, puis reconnectez-le. Le redémarrage nécessite aussi un accès root avec MQTT. Si une commande fonctionnait auparavant avec MQTT, repasser ce panneau à MQTT la rétablit temporairement."
     },
     "merged_panel_identity": {
       "title": "Séparer les panneaux fusionnés : {panels}",
@@ -327,7 +327,7 @@
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
-          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Choisissez une nouvelle tentative d'installation.",
           "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
           "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
           "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
@@ -369,7 +369,7 @@
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
-          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Choisissez une nouvelle tentative d'installation.",
           "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
           "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
           "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
@@ -411,7 +411,7 @@
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
-          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Choisissez une nouvelle tentative d'installation.",
           "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
           "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
           "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
@@ -453,7 +453,7 @@
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
-          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Choisissez une nouvelle tentative d'installation.",
           "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
           "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
           "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
@@ -495,7 +495,7 @@
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
-          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Choisissez une nouvelle tentative d'installation.",
           "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
           "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
           "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
@@ -537,7 +537,7 @@
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
-          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Choisissez une nouvelle tentative d'installation.",
           "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
           "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
           "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
@@ -579,7 +579,7 @@
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
-          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Choisissez une nouvelle tentative d'installation.",
           "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
           "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
           "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
@@ -621,7 +621,7 @@
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
-          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Choisissez une nouvelle tentative d'installation.",
           "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
           "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
           "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
@@ -663,7 +663,7 @@
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
-          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Choisissez une nouvelle tentative d'installation.",
           "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
           "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
           "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
@@ -705,7 +705,7 @@
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
-          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Choisissez une nouvelle tentative d'installation.",
           "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
           "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
           "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
@@ -744,7 +744,7 @@
           },
           "authorize_adb": {
             "title": "Autoriser Home Assistant sur {panel}",
-            "description": "Cliquez sur Envoyer pour créer ou charger la clé ADB persistante de cette installation Home Assistant et présenter sa clé publique à {panel}. Acceptez la demande Android « Autoriser le débogage » sur le panneau physique, puis envoyez à nouveau le formulaire. Android peut présenter Home Assistant comme un ordinateur. Cette autorisation donne un accès général au shell ADB tant que le débogage réseau est actif ; vous pouvez la révoquer dans les options pour les développeurs du panneau. Aucune application n’est installée à cette étape."
+            "description": "Cliquez sur Envoyer pour créer ou charger la clé ADB persistante de cette installation Home Assistant et présenter sa clé publique à {panel}. Acceptez la demande Android « Autoriser le débogage » sur le panneau physique, puis envoyez à nouveau le formulaire. Android peut présenter Home Assistant comme un ordinateur. Cette autorisation donne un accès général au shell ADB tant que le débogage réseau est actif ; révoquez-la dans les options pour les développeurs du panneau. Aucune application n’est installée à cette étape."
           }
         },
         "progress": {
@@ -752,7 +752,7 @@
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
-          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Choisissez une nouvelle tentative d'installation.",
           "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
           "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
           "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
@@ -810,7 +810,7 @@
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
-          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Choisissez une nouvelle tentative d'installation.",
           "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
           "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
           "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
@@ -823,11 +823,11 @@
     },
     "panel_address_unreachable": {
       "title": "Home Assistant ne peut pas joindre {panel} à son adresse enregistrée",
-      "description": "{panel} est connecté à Home Assistant, ses entités restent donc disponibles, mais Home Assistant ne peut pas lire le panneau à l'adresse {address}, et la connexion qu'il maintient, depuis {session_address}, n'offre aucune autre adresse à essayer. Le port web du panneau est peut-être bloqué entre Home Assistant et le panneau. Si le panneau a changé d'emplacement, ajoutez-le à nouveau avec sa nouvelle adresse, ce qui met à jour l'adresse enregistrée ; l'avertissement disparaît de lui-même dès que l'adresse répond à nouveau."
+      "description": "{panel} est connecté à Home Assistant, ses entités restent donc disponibles, mais Home Assistant ne peut pas lire le panneau à l'adresse {address}, et la connexion qu'il maintient, depuis {session_address}, n'offre aucune autre adresse à essayer. Le port web du panneau est peut-être bloqué entre Home Assistant et le panneau. Si le panneau a changé d'adresse, ajoutez-le à nouveau avec sa nouvelle adresse, ce qui met à jour l'adresse enregistrée ; l'avertissement disparaît de lui-même dès que l'adresse répond à nouveau."
     },
     "panel_address_unverified": {
       "title": "{panel} a changé d'adresse et sa nouvelle adresse n'a pas pu être confirmée",
-      "description": "{panel} est connecté à Home Assistant depuis {session_address}, ses entités restent donc disponibles, mais Home Assistant ne peut pas lire le panneau à son adresse enregistrée {address}, et une vérification à {session_address} n'a pas répondu comme ce panneau ; l'adresse enregistrée n'a donc pas été modifiée. Si le panneau a changé d'emplacement, ajoutez-le à nouveau avec sa nouvelle adresse, ce qui met à jour l'adresse enregistrée ; l'avertissement disparaît de lui-même dès que l'adresse enregistrée répond."
+      "description": "{panel} est connecté à Home Assistant depuis {session_address}, ses entités restent donc disponibles, mais Home Assistant ne peut pas lire le panneau à son adresse enregistrée {address}, et une vérification à {session_address} n'a pas répondu comme ce panneau ; l'adresse enregistrée n'a donc pas été modifiée. Si le panneau a changé d'adresse, ajoutez-le à nouveau avec sa nouvelle adresse, ce qui met à jour l'adresse enregistrée ; l'avertissement disparaît de lui-même dès que l'adresse enregistrée répond."
     },
     "panel_identity_mismatch": {
       "title": "Vérifier l’adresse de {panel}",
@@ -879,7 +879,7 @@
           },
           "authorize_adb": {
             "title": "Autoriser Home Assistant sur {panel}",
-            "description": "Cliquez sur Envoyer pour créer ou charger la clé ADB persistante de cette installation Home Assistant et présenter sa clé publique à {panel}. Acceptez la demande Android « Autoriser le débogage » sur le panneau physique, puis envoyez à nouveau le formulaire. Android peut présenter Home Assistant comme un ordinateur. Cette autorisation donne un accès général au shell ADB tant que le débogage réseau est actif ; vous pouvez la révoquer dans les options pour les développeurs du panneau. Aucune application n’est installée à cette étape."
+            "description": "Cliquez sur Envoyer pour créer ou charger la clé ADB persistante de cette installation Home Assistant et présenter sa clé publique à {panel}. Acceptez la demande Android « Autoriser le débogage » sur le panneau physique, puis envoyez à nouveau le formulaire. Android peut présenter Home Assistant comme un ordinateur. Cette autorisation donne un accès général au shell ADB tant que le débogage réseau est actif ; révoquez-la dans les options pour les développeurs du panneau. Aucune application n’est installée à cette étape."
           }
         },
         "progress": {
@@ -887,7 +887,7 @@
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
-          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Lancez une nouvelle installation.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Choisissez une nouvelle tentative d'installation.",
           "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
           "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
           "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
@@ -920,7 +920,7 @@
         "step": {
           "authorize_adb": {
             "title": "Autoriser Home Assistant sur {panel}",
-            "description": "Cliquez sur Envoyer pour créer ou charger la clé ADB persistante de cette installation Home Assistant et présenter sa clé publique à {panel}. Acceptez la demande Android « Autoriser le débogage » sur le panneau physique, puis envoyez à nouveau le formulaire. Android peut présenter Home Assistant comme un ordinateur. Cette autorisation donne un accès général au shell ADB tant que le débogage réseau est actif ; vous pouvez la révoquer dans les options pour les développeurs du panneau. Aucune application n’est installée à cette étape."
+            "description": "Cliquez sur Envoyer pour créer ou charger la clé ADB persistante de cette installation Home Assistant et présenter sa clé publique à {panel}. Acceptez la demande Android « Autoriser le débogage » sur le panneau physique, puis envoyez à nouveau le formulaire. Android peut présenter Home Assistant comme un ordinateur. Cette autorisation donne un accès général au shell ADB tant que le débogage réseau est actif ; révoquez-la dans les options pour les développeurs du panneau. Aucune application n’est installée à cette étape."
           }
         },
         "error": {
@@ -957,11 +957,11 @@
       },
       "onboarding": {
         "title": "Terminer la configuration de ce panneau",
-        "description": "Ouvrez la page de configuration du panneau dans un navigateur qui peut accéder au panneau sur votre réseau local. Connectez-vous avec le compte Home Assistant actuellement utilisé dans ce navigateur, choisissez le tableau de bord d’accueil et terminez la configuration sur cette page. Gardez cette boîte de dialogue ouverte ; vous reviendrez ici pour confirmer le compte. Si ce navigateur ne peut pas accéder au panneau, terminez la configuration plus tard depuis le réseau local du panneau. Si une autorisation pour le débogage Android est demandée, une personne doit toujours l’accorder sur le panneau."
+        "description": "Ouvrez la page de configuration du panneau dans un navigateur qui peut accéder au panneau sur votre réseau local. Connectez-vous avec le compte Home Assistant actuellement utilisé dans ce navigateur, choisissez le tableau de bord d’accueil et terminez la configuration sur cette page. Gardez cette boîte de dialogue ouverte ; elle reviendra ici pour vous permettre de confirmer le compte. Si ce navigateur ne peut pas accéder au panneau, terminez la configuration plus tard depuis le réseau local du panneau. Si une autorisation pour le débogage Android est demandée, une personne doit toujours l’accorder sur le panneau."
       },
       "onboarding_wait": {
         "title": "En attente de la connexion du panneau",
-        "description": "Le panneau n’a pas encore terminé sa configuration ni demandé la connexion d’un compte. Terminez la configuration sur sa page, puis cliquez sur Envoyer ici pour vérifier à nouveau. Le panneau reste non associé tant que vous n’avez pas confirmé son compte."
+        "description": "Le panneau n’a pas encore terminé sa configuration ni demandé à se connecter avec un compte. Terminez la configuration sur sa page, puis cliquez sur Envoyer ici pour vérifier à nouveau. Le panneau reste non associé tant que vous n’avez pas confirmé son compte."
       },
       "onboarding_confirm": {
         "title": "Confirmer le compte de ce panneau",
@@ -973,7 +973,7 @@
       },
       "authorize_adb": {
         "title": "Autoriser Home Assistant sur {panel}",
-        "description": "Cliquez sur Envoyer pour créer ou charger la clé ADB persistante de cette installation Home Assistant et présenter sa clé publique à {panel}. Acceptez la demande Android « Autoriser le débogage » sur le panneau physique, puis envoyez à nouveau le formulaire. Android peut présenter Home Assistant comme un ordinateur. Cette autorisation donne un accès général au shell ADB tant que le débogage réseau est actif ; vous pouvez la révoquer dans les options pour les développeurs du panneau. Aucune application n’est installée à cette étape."
+        "description": "Cliquez sur Envoyer pour créer ou charger la clé ADB persistante de cette installation Home Assistant et présenter sa clé publique à {panel}. Acceptez la demande Android « Autoriser le débogage » sur le panneau physique, puis envoyez à nouveau le formulaire. Android peut présenter Home Assistant comme un ordinateur. Cette autorisation donne un accès général au shell ADB tant que le débogage réseau est actif ; révoquez-la dans les options pour les développeurs du panneau. Aucune application n’est installée à cette étape."
       },
       "transport": {
         "title": "Connexion du panneau",

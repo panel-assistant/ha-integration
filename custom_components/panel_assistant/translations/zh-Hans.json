@@ -107,7 +107,7 @@
       "installed_without_health": "ha-paneld 软件包已安装，但其健康检查端点未响应。此流程不会覆盖或修复该安装。请勿重试自动安装；请在面板上打开 ha-paneld，或按照集成文档中链接的配置安全与恢复指南操作。恢复为正常运行的安装后，请重新开始以连接面板。",
       "retained_or_ambiguous": "面板可能保留了 ha-paneld 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照集成文档中链接的配置安全与恢复指南操作。在备份经过验证之前，请勿卸载或重置应用。",
       "incompatible": "未找到 ha-paneld 软件包，但面板的 Android SDK 或处理器架构不受支持。未下载或安装 APK。",
-      "cannot_resolve_release": "已找到可安装的候选版本，但 Home Assistant 无法解析并验证所选的 ha-paneld 版本。未下载或安装 APK。请检查互联网连接；如果测试候选版本，请确认确切标签及其带签名的发布资源已发布。不会改用其他版本。",
+      "cannot_resolve_release": "已找到安装候选面板，但 Home Assistant 无法解析并验证所选的 ha-paneld 版本。未下载或安装 APK。请检查互联网连接；如果测试候选版本，请确认确切标签及其带签名的发布资源已发布。不会改用其他版本。",
       "invalid_release_candidate": "请从列表中选择一个版本。",
       "install_candidate_changed": "预览后，面板身份或软件包的安装及残留状态发生了变化。未创建安装任务。请检查面板后重新开始。",
       "installed_artifact_mismatch": "已安装的应用与所选版本并非逐字节相同，因此 Home Assistant 没有覆盖它；请选择其确切版本，或按照配置安全与恢复指南操作。",
@@ -249,7 +249,7 @@
     },
     "native_controls_unavailable": {
       "title": "{panel} 上的原生控制不可用",
-      "description": "Panel Assistant 已停用这些 MQTT 控制，因为 {panel} 未提供对应的原生操作：{entities}。其配置和实体 ID 均已保留。请更新面板应用，检查操作所需条件，然后重新连接面板。通过 MQTT 重启同样需要 root 权限。如果某项控制以前可通过 MQTT 使用，可以暂时将面板切回 MQTT。"
+      "description": "Panel Assistant 已停用这些 MQTT 控制，因为 {panel} 未提供对应的原生操作：{entities}。其配置和实体 ID 均已保留。请更新面板应用，检查操作所需条件，然后重新连接面板。通过 MQTT 重启同样需要 root 权限。如果某项控制以前可通过 MQTT 使用，暂时将此面板切回 MQTT 即可恢复该控制。"
     },
     "merged_panel_identity": {
       "title": "分离已合并的面板：{panels}",
@@ -465,7 +465,7 @@
       }
     },
     "installer_failure_transport_failed": {
-      "title": "安装期间与面板 {panel} 的连接中断。",
+      "title": "安装期间连接面板 {panel} 失败。",
       "fix_flow": {
         "step": {
           "init": {
@@ -961,7 +961,7 @@
       },
       "onboarding_wait": {
         "title": "等待面板连接",
-        "description": "面板尚未完成设置，也未请求连接账户。请完成面板设置页面上的操作，然后在此处点击“提交”再次检查。确认账户之前，面板将保持未绑定状态。"
+        "description": "面板尚未完成设置，也尚未请求以账户身份连接。请完成面板设置页面上的操作，然后在此处点击“提交”再次检查。确认账户之前，面板将保持未绑定状态。"
       },
       "onboarding_confirm": {
         "title": "确认此面板的账户",

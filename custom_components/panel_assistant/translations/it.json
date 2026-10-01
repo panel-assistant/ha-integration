@@ -249,7 +249,7 @@
     },
     "native_controls_unavailable": {
       "title": "Controlli nativi non disponibili su {panel}",
-      "description": "Panel Assistant ha disabilitato questi controlli MQTT perché {panel} non offre le relative azioni native: {entities}. La configurazione e gli ID delle entità sono conservati. Aggiorna l’app del pannello, verifica i requisiti delle azioni e riconnettilo. Anche con MQTT, il riavvio richiede l’accesso root. Se un controllo funzionava prima con MQTT, puoi tornare temporaneamente a MQTT."
+      "description": "Panel Assistant ha disabilitato questi controlli MQTT perché {panel} non ha offerto le relative azioni native: {entities}. La configurazione e gli ID delle entità sono conservati. Aggiorna l’app del pannello, verifica che i requisiti delle azioni siano disponibili, quindi riconnettilo. Anche con MQTT, il riavvio richiede l’accesso root. Se un controllo funzionava prima con MQTT, riportare temporaneamente questo pannello a MQTT lo ripristina."
     },
     "merged_panel_identity": {
       "title": "Separa i pannelli uniti: {panels}",

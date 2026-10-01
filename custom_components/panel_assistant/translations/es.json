@@ -107,7 +107,7 @@
       "installed_without_health": "El paquete ha-paneld está instalado, pero su punto de conexión de estado no ha respondido. Este flujo no lo sobrescribirá ni reparará. No repitas la instalación automática; abre ha-paneld en el panel o sigue la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración. Cuando hayas restaurado una instalación que funcione correctamente, vuelve a empezar para conectarla.",
       "retained_or_ambiguous": "El panel podría contener un registro conservado del paquete ha-paneld o no se ha podido demostrar la ausencia del paquete. No se ha modificado el panel. Inténtalo una vez más si la conexión era inestable; de lo contrario, sigue la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración. No desinstales ni restablezcas la aplicación sin una copia de seguridad verificada.",
       "incompatible": "No se ha encontrado el paquete ha-paneld, pero el SDK de Android o la arquitectura del procesador del panel no son compatibles. No se ha descargado ni instalado ningún APK.",
-      "cannot_resolve_release": "Se ha encontrado una versión candidata para instalar, pero Home Assistant no ha podido resolver ni verificar la versión seleccionada de ha-paneld. No se ha descargado ni instalado ningún APK. Comprueba el acceso a Internet y, si estás probando una versión candidata, que la etiqueta exacta esté publicada con sus recursos firmados. No se sustituirá por ninguna otra versión.",
+      "cannot_resolve_release": "Se ha encontrado un candidato para instalar, pero Home Assistant no ha podido resolver ni verificar la versión seleccionada de ha-paneld. No se ha descargado ni instalado ningún APK. Comprueba el acceso a Internet y, si estás probando una versión candidata, que la etiqueta exacta esté publicada con sus recursos firmados. No se sustituirá por ninguna otra versión.",
       "invalid_release_candidate": "Elige una versión de la lista.",
       "install_candidate_changed": "La identidad del panel o el estado confirmado de ausencia del paquete han cambiado después de la vista previa. No se ha creado ninguna tarea de instalación. Comprueba el panel y vuelve a empezar.",
       "installed_artifact_mismatch": "La aplicación instalada no es idéntica byte a byte a la versión elegida, por lo que Home Assistant no la ha sobrescrito; elige su versión exacta o sigue la guía de seguridad y recuperación del aprovisionamiento.",
@@ -249,7 +249,7 @@
     },
     "native_controls_unavailable": {
       "title": "Controles nativos no disponibles en {panel}",
-      "description": "Panel Assistant desactivó estos controles MQTT porque {panel} no ofrece sus acciones nativas: {entities}. Se conservan su configuración y sus ID de entidad. Actualiza la aplicación del panel, comprueba los requisitos de las acciones y vuelve a conectarlo. Reiniciar también requiere acceso root con MQTT. Si un control funcionaba antes con MQTT, puedes volver temporalmente a MQTT."
+      "description": "Panel Assistant desactivó estos controles MQTT porque {panel} no ofrece sus acciones nativas: {entities}. Se conservan su configuración y sus ID de entidad. Actualiza la aplicación del panel, comprueba que los requisitos de las acciones estén disponibles y vuelve a conectarlo. Reiniciar también requiere acceso root con MQTT. Si un control funcionaba antes con MQTT, volver temporalmente a MQTT en este panel lo restaura."
     },
     "merged_panel_identity": {
       "title": "Separa los paneles combinados: {panels}",
@@ -311,7 +311,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
+            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -353,7 +353,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
+            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -395,7 +395,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
+            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -437,7 +437,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
+            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -465,7 +465,7 @@
       }
     },
     "installer_failure_transport_failed": {
-      "title": "Se perdió la conexión con el panel {panel} durante la instalación.",
+      "title": "Falló la conexión con el panel {panel} durante la instalación.",
       "fix_flow": {
         "step": {
           "init": {
@@ -479,7 +479,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
+            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -521,7 +521,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
+            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -563,7 +563,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
+            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -605,7 +605,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
+            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -647,7 +647,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
+            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -689,7 +689,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
+            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -732,7 +732,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
+            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -744,7 +744,7 @@
           },
           "authorize_adb": {
             "title": "Autorizar Home Assistant en {panel}",
-            "description": "Pulse Enviar para crear o cargar la clave ADB persistente de esta instalación de Home Assistant y ofrecer su clave pública a {panel}. Apruebe la solicitud «Permitir depuración» de Android en el panel físico y vuelva a enviar el formulario. Android puede describir Home Assistant como un ordenador. La aprobación concede acceso general a la consola ADB mientras la depuración de red siga activada; puede revocarla en las opciones de desarrollador del panel. En este paso no se instala ninguna aplicación."
+            "description": "Selecciona Enviar para crear o cargar la clave ADB persistente de esta instalación de Home Assistant y ofrecer su clave pública a {panel}. Aprueba la solicitud «Permitir depuración» de Android en el panel físico y vuelve a enviar el formulario. Android puede describir Home Assistant como un ordenador. La aprobación concede acceso general a la consola ADB mientras la depuración de red siga activada; revócala en las opciones de desarrollador del panel. En este paso no se instala ninguna aplicación."
           }
         },
         "progress": {
@@ -794,7 +794,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
+            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -867,7 +867,7 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, entrégale el informe junto con el texto de la guía enlazada.\n\n{report}"
+            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
           },
           "clear_error": {
             "title": "Borrar error",
@@ -879,7 +879,7 @@
           },
           "authorize_adb": {
             "title": "Autorizar Home Assistant en {panel}",
-            "description": "Pulse Enviar para crear o cargar la clave ADB persistente de esta instalación de Home Assistant y ofrecer su clave pública a {panel}. Apruebe la solicitud «Permitir depuración» de Android en el panel físico y vuelva a enviar el formulario. Android puede describir Home Assistant como un ordenador. La aprobación concede acceso general a la consola ADB mientras la depuración de red siga activada; puede revocarla en las opciones de desarrollador del panel. En este paso no se instala ninguna aplicación."
+            "description": "Selecciona Enviar para crear o cargar la clave ADB persistente de esta instalación de Home Assistant y ofrecer su clave pública a {panel}. Aprueba la solicitud «Permitir depuración» de Android en el panel físico y vuelve a enviar el formulario. Android puede describir Home Assistant como un ordenador. La aprobación concede acceso general a la consola ADB mientras la depuración de red siga activada; revócala en las opciones de desarrollador del panel. En este paso no se instala ninguna aplicación."
           }
         },
         "progress": {
@@ -920,7 +920,7 @@
         "step": {
           "authorize_adb": {
             "title": "Autorizar Home Assistant en {panel}",
-            "description": "Pulse Enviar para crear o cargar la clave ADB persistente de esta instalación de Home Assistant y ofrecer su clave pública a {panel}. Apruebe la solicitud «Permitir depuración» de Android en el panel físico y vuelva a enviar el formulario. Android puede describir Home Assistant como un ordenador. La aprobación concede acceso general a la consola ADB mientras la depuración de red siga activada; puede revocarla en las opciones de desarrollador del panel. En este paso no se instala ninguna aplicación."
+            "description": "Selecciona Enviar para crear o cargar la clave ADB persistente de esta instalación de Home Assistant y ofrecer su clave pública a {panel}. Aprueba la solicitud «Permitir depuración» de Android en el panel físico y vuelve a enviar el formulario. Android puede describir Home Assistant como un ordenador. La aprobación concede acceso general a la consola ADB mientras la depuración de red siga activada; revócala en las opciones de desarrollador del panel. En este paso no se instala ninguna aplicación."
           }
         },
         "error": {
@@ -957,11 +957,11 @@
       },
       "onboarding": {
         "title": "Terminar de configurar este panel",
-        "description": "Abre la página de configuración del panel desde un navegador que pueda acceder al panel en tu red local. Inicia sesión con la cuenta de Home Assistant que está abierta actualmente en ese navegador, elige el panel de control principal y termina allí la configuración. Mantén abierto este cuadro de diálogo; después volverás aquí para confirmar la cuenta. Si este navegador no puede acceder al panel, termina la configuración más tarde desde la red local del panel. Si se solicita autorización para la depuración de Android, una persona deberá concederla en el panel."
+        "description": "Abre la página de configuración del panel desde un navegador que pueda acceder al panel en tu red local. Inicia sesión con la cuenta de Home Assistant que está abierta actualmente en ese navegador, elige el panel de control principal y termina allí la configuración. Mantén abierto este cuadro de diálogo; volverá aquí para confirmar la cuenta. Si este navegador no puede acceder al panel, termina la configuración más tarde desde la red local del panel. Si se solicita autorización para la depuración de Android, una persona deberá concederla en el panel."
       },
       "onboarding_wait": {
         "title": "Esperando a que se conecte el panel",
-        "description": "El panel aún no ha terminado la configuración ni ha solicitado conectar una cuenta. Completa su página de configuración y después pulsa Enviar aquí para comprobarlo de nuevo. El panel seguirá sin vincularse hasta que confirmes su cuenta."
+        "description": "El panel aún no ha terminado la configuración ni ha solicitado conectarse como una cuenta. Completa su página de configuración y después pulsa Enviar aquí para comprobarlo de nuevo. El panel seguirá sin vincularse hasta que confirmes su cuenta."
       },
       "onboarding_confirm": {
         "title": "Confirmar la cuenta de este panel",
@@ -973,7 +973,7 @@
       },
       "authorize_adb": {
         "title": "Autorizar Home Assistant en {panel}",
-        "description": "Pulse Enviar para crear o cargar la clave ADB persistente de esta instalación de Home Assistant y ofrecer su clave pública a {panel}. Apruebe la solicitud «Permitir depuración» de Android en el panel físico y vuelva a enviar el formulario. Android puede describir Home Assistant como un ordenador. La aprobación concede acceso general a la consola ADB mientras la depuración de red siga activada; puede revocarla en las opciones de desarrollador del panel. En este paso no se instala ninguna aplicación."
+        "description": "Selecciona Enviar para crear o cargar la clave ADB persistente de esta instalación de Home Assistant y ofrecer su clave pública a {panel}. Aprueba la solicitud «Permitir depuración» de Android en el panel físico y vuelve a enviar el formulario. Android puede describir Home Assistant como un ordenador. La aprobación concede acceso general a la consola ADB mientras la depuración de red siga activada; revócala en las opciones de desarrollador del panel. En este paso no se instala ninguna aplicación."
       },
       "transport": {
         "title": "Conexión del panel",

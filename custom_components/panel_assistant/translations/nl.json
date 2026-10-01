@@ -123,11 +123,11 @@
     },
     "abort": {
       "already_configured": "Dit paneel is al ingesteld.",
-      "invalid_discovery": "Het gevonden paneel bleek niet dezelfde werkende ha-paneld-installatie te zijn. Er is geen Home Assistant-item of paneelinstelling gewijzigd.",
+      "invalid_discovery": "Er kon niet worden aangetoond dat het gevonden paneel dezelfde werkende ha-paneld-installatie was. Er is geen Home Assistant-item of paneelinstelling gewijzigd.",
       "install_cancelled": "De installatie is geannuleerd voordat er een APK was geïnstalleerd. Er is geen Home Assistant-item aangemaakt. Voeg de Panel Assistant-integratie toe en voer hetzelfde paneeladres in om het nog eens te proberen.",
       "install_cancelled_after_staging_cleanup": "De installatie is geannuleerd en de klaargezette APK is vóór de installatie verwijderd. Er is geen Home Assistant-item aangemaakt. Voeg de Panel Assistant-integratie toe en voer hetzelfde paneeladres in om het nog eens te proberen.",
       "install_authorization_failed": "Home Assistant kon de opgeslagen inloggegevens van ADB niet veilig laden of valideren. Er was geen APK geïnstalleerd. Controleer de opslag en logbestanden van Home Assistant, voeg vervolgens de Panel Assistant-integratie toe en voer hetzelfde adres in om het nog eens te proberen.",
-      "install_preflight_rejected": "Het paneel bleek geen schone, compatibele installatielocatie meer te zijn. Er was geen APK geïnstalleerd. Breng de toestand van het paneel in overeenstemming met de beschrijving in de integratiedocumentatie voordat je opnieuw begint met hetzelfde adres.",
+      "install_preflight_rejected": "Er kon niet langer worden aangetoond dat het paneel een schoon, compatibel installatiedoel was. Er is geen APK geïnstalleerd. Breng de toestand van het paneel in overeenstemming met de beschrijving in de integratiedocumentatie voordat je opnieuw begint met hetzelfde adres.",
       "install_artifact_rejected": "Home Assistant heeft de download of het klaarzetten van de release vóór de installatie van het pakket afgewezen. Er is geen APK geïnstalleerd. Controleer de internetverbinding, opslagruimte en logbestanden van Home Assistant en begin dan opnieuw met hetzelfde adres.",
       "install_transport_failed": "Home Assistant kon de verbinding, het downloaden of het klaarzetten vóór de installatie niet voltooien. Er is geen APK geïnstalleerd. Controleer het paneel, het netwerk, de internettoegang van Home Assistant en de logbestanden, en begin dan opnieuw met hetzelfde adres.",
       "install_package_failed": "Android heeft de APK definitief geweigerd en Home Assistant heeft het klaargezette bestand verwijderd. Er is geen app of Home Assistant-item aangemaakt. Controleer de compatibiliteit van het paneel en de beschikbare opslagruimte voordat je opnieuw begint.",
@@ -289,7 +289,7 @@
     },
     "native_controls_unavailable": {
       "title": "Native bediening niet beschikbaar op {panel}",
-      "description": "Panel Assistant heeft deze MQTT-bediening uitgeschakeld omdat {panel} de bijbehorende native acties niet aanbiedt: {entities}. De configuratie en entiteits-ID’s blijven behouden. Werk de paneelapp bij, controleer de vereisten voor de acties en verbind het paneel opnieuw. Opnieuw opstarten vereist ook via MQTT roottoegang. Als een bediening eerder via MQTT werkte, kun je het paneel tijdelijk terugzetten op MQTT."
+      "description": "Panel Assistant heeft deze MQTT-bediening uitgeschakeld omdat {panel} de bijbehorende native acties niet aanbiedt: {entities}. De configuratie en entiteits-ID’s blijven behouden. Werk de paneelapp bij, controleer of aan de vereisten voor de acties is voldaan en verbind het paneel opnieuw. Opnieuw opstarten vereist ook via MQTT roottoegang. Als een bediening eerder via MQTT werkte, herstelt het tijdelijk terugzetten van dit paneel op MQTT die bediening."
     },
     "merged_panel_identity": {
       "title": "Maak de samengevoegde panelen weer apart: {panels}",
@@ -367,8 +367,8 @@
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
-          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
-          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen release komt niet meer overeen met de opgeslagen release. Kies een nieuwe installatiepoging.",
+          "retry_credential_changed": "De ADB-inloggegevens van Home Assistant zijn gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
           "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
           "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
@@ -409,8 +409,8 @@
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
-          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
-          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen release komt niet meer overeen met de opgeslagen release. Kies een nieuwe installatiepoging.",
+          "retry_credential_changed": "De ADB-inloggegevens van Home Assistant zijn gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
           "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
           "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
@@ -451,8 +451,8 @@
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
-          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
-          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen release komt niet meer overeen met de opgeslagen release. Kies een nieuwe installatiepoging.",
+          "retry_credential_changed": "De ADB-inloggegevens van Home Assistant zijn gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
           "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
           "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
@@ -493,8 +493,8 @@
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
-          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
-          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen release komt niet meer overeen met de opgeslagen release. Kies een nieuwe installatiepoging.",
+          "retry_credential_changed": "De ADB-inloggegevens van Home Assistant zijn gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
           "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
           "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
@@ -505,7 +505,7 @@
       }
     },
     "installer_failure_transport_failed": {
-      "title": "De verbinding met paneel {panel} is tijdens de installatie weggevallen.",
+      "title": "De verbinding met paneel {panel} is tijdens de installatie mislukt.",
       "fix_flow": {
         "step": {
           "init": {
@@ -535,8 +535,8 @@
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
-          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
-          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen release komt niet meer overeen met de opgeslagen release. Kies een nieuwe installatiepoging.",
+          "retry_credential_changed": "De ADB-inloggegevens van Home Assistant zijn gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
           "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
           "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
@@ -577,8 +577,8 @@
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
-          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
-          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen release komt niet meer overeen met de opgeslagen release. Kies een nieuwe installatiepoging.",
+          "retry_credential_changed": "De ADB-inloggegevens van Home Assistant zijn gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
           "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
           "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
@@ -619,8 +619,8 @@
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
-          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
-          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen release komt niet meer overeen met de opgeslagen release. Kies een nieuwe installatiepoging.",
+          "retry_credential_changed": "De ADB-inloggegevens van Home Assistant zijn gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
           "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
           "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
@@ -661,8 +661,8 @@
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
-          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
-          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen release komt niet meer overeen met de opgeslagen release. Kies een nieuwe installatiepoging.",
+          "retry_credential_changed": "De ADB-inloggegevens van Home Assistant zijn gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
           "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
           "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
@@ -703,8 +703,8 @@
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
-          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
-          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen release komt niet meer overeen met de opgeslagen release. Kies een nieuwe installatiepoging.",
+          "retry_credential_changed": "De ADB-inloggegevens van Home Assistant zijn gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
           "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
           "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
@@ -745,8 +745,8 @@
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
-          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
-          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen release komt niet meer overeen met de opgeslagen release. Kies een nieuwe installatiepoging.",
+          "retry_credential_changed": "De ADB-inloggegevens van Home Assistant zijn gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
           "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
           "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
@@ -792,8 +792,8 @@
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
-          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
-          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen release komt niet meer overeen met de opgeslagen release. Kies een nieuwe installatiepoging.",
+          "retry_credential_changed": "De ADB-inloggegevens van Home Assistant zijn gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
           "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
           "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
@@ -850,8 +850,8 @@
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
-          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
-          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen release komt niet meer overeen met de opgeslagen release. Kies een nieuwe installatiepoging.",
+          "retry_credential_changed": "De ADB-inloggegevens van Home Assistant zijn gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
           "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
           "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
@@ -871,7 +871,7 @@
     },
     "panel_identity_mismatch": {
       "title": "Controleer het adres van {panel}",
-      "description": "Het antwoord van {address} kwam niet overeen met {panel}. Daarom is de bediening van dit paneel tijdelijk uitgeschakeld. Controleer of dit adres bij het paneel hoort. Als het adres is gewijzigd, voeg het paneel dan opnieuw toe met het huidige adres."
+      "description": "Op {address} kwam geen antwoord dat overeenkwam met {panel}, dus de bediening van dit paneel is tijdelijk uitgeschakeld. Controleer of dit adres bij het paneel hoort. Als het adres is gewijzigd, voeg het paneel dan opnieuw toe met het huidige adres."
     },
     "panel_identity_confirmation": {
       "title": "Bestaande instellingen van {panel} behouden",
@@ -927,8 +927,8 @@
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
-          "retry_release_changed": "De gekozen versie komt niet meer overeen met de opgeslagen versie. Start een nieuwe installatie.",
-          "retry_credential_changed": "De ADB-toegang van Home Assistant is gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen release komt niet meer overeen met de opgeslagen release. Kies een nieuwe installatiepoging.",
+          "retry_credential_changed": "De ADB-inloggegevens van Home Assistant zijn gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
           "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
           "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
