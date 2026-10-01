@@ -128,7 +128,14 @@ export class PanelAssistantSidebar extends HTMLElement {
       #loading-text{margin:0;font-size:.9375rem;color:var(--primary-text-color,#212121)}
       #loading-hint{margin:4px 0 0;font-size:.8125rem}
       iframe{flex:1;border:0;width:100%;display:block;background:var(--card-background-color,#fff)}
-    </style><div class="root"><header>
+      /* On a phone the header is one row: the picker takes the room left and its caption stays for screen readers. */
+      [data-narrow] header{flex-wrap:nowrap;gap:4px;padding:4px 8px}
+      [data-narrow] #icon,[data-narrow] #spacer{display:none}
+      [data-narrow] #picker{flex:1 1 auto;min-width:0}
+      [data-narrow] #picker>span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+      [data-narrow] select{flex:1 1 auto;width:100%;min-width:0;text-overflow:ellipsis}
+      [data-narrow] #add{padding:0 10px}
+    </style><div class="root" id="root"><header>
       <button id="menu" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"/></svg></button>
       <img id="icon" src="${BRAND_ICON}" alt="">
       <h1 id="title" data-message="title"></h1><span id="version"></span>
@@ -196,6 +203,8 @@ export class PanelAssistantSidebar extends HTMLElement {
   set narrow(value) {
     this.#narrow = value === true;
     const root = this.shadowRoot;
+    const box = root.querySelector('#root');
+    if (this.#narrow) box.setAttribute('data-narrow', ''); else box.removeAttribute('data-narrow');
     root.querySelector('#menu').hidden = !this.#narrow;
     root.querySelector('#title').hidden = this.#narrow;
     root.querySelector('#version').hidden = this.#narrow;
