@@ -765,13 +765,17 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self._attempt.restart_projected = False
 
     def _advance(self, phase: float) -> None:
-        """Move the bar to `phase` of the current delivery, never backwards."""
+        """Move the bar to `phase` of the current delivery.
+
+        Stages only move forward and each starts above the last, so the bar
+        never falls; the update sequence test holds that.
+        """
         attempt = self._attempt
         if attempt is None:
             return
         low, high = attempt.band
         percentage = int(low + (high - low) * phase / 100)
-        if percentage > attempt.percentage:
+        if percentage != attempt.percentage:
             attempt.percentage = percentage
             self.async_write_ha_state()
 
