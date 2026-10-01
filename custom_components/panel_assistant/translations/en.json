@@ -434,7 +434,7 @@
       "message": "{panel} refused the update request. Check its Install tab, then try again."
     },
     "bridge_not_ready": {
-      "message": "The panel is not ready to hand over to the new app. Update its bundled root helper first, then try again."
+      "message": "The panel cannot move to the new app yet. Panel Assistant offers the move again once it can."
     },
     "release_pair_unavailable": {
       "message": "The matching new-app release is unavailable. Try again later."

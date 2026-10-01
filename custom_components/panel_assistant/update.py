@@ -154,6 +154,14 @@ def _update_error(translation_key: str, fallback: str) -> HomeAssistantError:
     )
 
 
+def _bridge_not_ready(error: Exception | None) -> bool:
+    """The bridge cannot hand over yet: not a fault, and nothing for the owner to do."""
+    return (
+        isinstance(error, HomeAssistantError)
+        and error.translation_key == "bridge_not_ready"
+    )
+
+
 def _verification_error(artifact: ReleaseArtifact) -> HomeAssistantError:
     """Name what failed to verify: a feed build, or a GitHub release."""
     if is_feed_build_tag(artifact.tag):
@@ -397,7 +405,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self._adb_ready_key = key if route == ROUTE_ADB else None
             self._legacy_api_ready_key = key if route == ROUTE_PANEL else None
             attributes = dict(self._attr_extra_state_attributes)
-            if not self._has_install_route():
+            # A bridge that cannot hand over yet has nothing newer to install and
+            # loses nothing, so it reads as up to date rather than as a problem.
+            if not self._has_install_route() and not _bridge_not_ready(error):
                 attributes[ROUTE_UNAVAILABLE_ATTRIBUTE] = (
                     str(error)
                     if isinstance(error, HomeAssistantError)
@@ -820,8 +830,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         except NotABridgeError as err:
             raise _update_error(
                 "bridge_not_ready",
-                "The panel cannot hand over to the new app yet; "
-                "update its bundled root helper first",
+                "The panel cannot move to the new app yet; "
+                "it is offered again once it can",
             ) from err
         except HaPaneldError as err:
             raise _update_error(
@@ -1022,11 +1032,13 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                                 "release_pair_unavailable",
                                 "The matching new-app release is unavailable",
                             )
+                        bridge_delivered = False
                         if (
                             self.coordinator.data.health.version != release.version
                             or not self.coordinator.data.health.installation_identity
                         ):
                             await self._async_deliver_build(release)
+                            bridge_delivered = True
                         if reports_package(
                             self.coordinator.data.health.package, SUCCESSOR_PACKAGE_ID
                         ):
@@ -1036,7 +1048,15 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                                 successor, ("", LEGACY_PACKAGE_ID)
                             )
                         else:
-                            await self._async_deliver_build(successor, migration=True)
+                            try:
+                                await self._async_deliver_build(
+                                    successor, migration=True
+                                )
+                            except HomeAssistantError as err:
+                                # The bridge update itself installed. The move to
+                                # the new app is offered once the panel can make it.
+                                if not (bridge_delivered and _bridge_not_ready(err)):
+                                    raise
                     elif not await self._async_deliver_build(release, fallback=True):
                         await self._async_start_panel_download(offer)
                 else:
@@ -1053,14 +1073,15 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             )
             raise error from None
         except Exception as err:
-            await async_record_update_failure(
-                self.hass,
-                self._entry_id,
-                self._panel_name(),
-                target_version,
-                err,
-                artifact=failure_artifact,
-            )
+            if not _bridge_not_ready(err):
+                await async_record_update_failure(
+                    self.hass,
+                    self._entry_id,
+                    self._panel_name(),
+                    target_version,
+                    err,
+                    artifact=failure_artifact,
+                )
             raise
         else:
             await async_clear_update_failure_if_installed(

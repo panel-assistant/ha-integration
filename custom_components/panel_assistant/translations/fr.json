@@ -169,7 +169,7 @@
     "update_busy": { "message": "Le panneau est occupé par une autre opération" },
     "update_approval_required": { "message": "Approuvez cette mise à jour sur le panneau, puis réessayez" },
     "update_rejected": { "message": "{panel} a refusé la demande de mise à jour. Vérifiez l'onglet Installer du panneau, puis réessayez." },
-    "bridge_not_ready": { "message": "Le panneau n'est pas encore prêt à transférer le contrôle à la nouvelle application. Mettez d'abord à jour l'utilitaire root intégré, puis réessayez." },
+    "bridge_not_ready": { "message": "Le panneau ne peut pas encore passer à la nouvelle application. Panel Assistant proposera de nouveau le passage dès que possible." },
     "release_pair_unavailable": { "message": "La version correspondante de la nouvelle application n'est pas disponible. Réessayez plus tard." },
     "panel_changed_during_update": { "message": "Le panneau a changé pendant la mise à jour. Actualisez la page, puis réessayez." },
     "bridge_details_changed": { "message": "Les données de transfert du panneau ont changé. Actualisez la page, puis réessayez." },
