@@ -1676,8 +1676,13 @@ async def test_an_unavailable_adb_repair_keeps_a_successful_lan_dashboard_runnin
     else:
         panel.devices[1].connect_error = OSError("ADB disconnected")
 
-    await entity.async_install(None, False)
+    failure = None
+    try:
+        await entity.async_install(None, False)
+    except AdbCredentialError as err:
+        failure = err
 
+    assert failure is None, "ADB unavailability must preserve a successful LAN update"
     assert not (tmp_path / "calls").exists()
     assert entity.installed_version == VERSION
     assert entity.in_progress is False

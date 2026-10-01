@@ -679,6 +679,8 @@ async def test_a_readback_without_an_allowed_grant_is_reported_and_still_starts(
     refused: str,
 ) -> None:
     (tmp_path / f"refuse.{refused}").touch()
+    if refused == "enabled_accessibility_services":
+        (tmp_path / "accessibility_enabled").write_text("1\n")
 
     fake = await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
 
@@ -703,6 +705,7 @@ async def test_a_service_list_changed_mid_grant_is_left_alone_and_reported(
         "com.example.reader/.ReaderService\n"
     )
     raced = "com.example.reader/.ReaderService:org.other/.Helper"
+    (tmp_path / "accessibility_enabled").write_text("1\n")
     (tmp_path / "race.enabled_accessibility_services").write_text(raced + "\n")
 
     await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
