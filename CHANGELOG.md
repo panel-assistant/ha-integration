@@ -33,6 +33,7 @@ This release pairs with ha-paneld v0.9.9-rc1, the last panel release that suppor
 - **Update repairs clear themselves.** A failed update repair retries the current release and disappears once the panel is on the right build.
 - **Panels no longer show a "null" area.** Panels stuck with a literal null area are repaired.
 - **Installs are more reliable.** An install only completes once the panel is confirmed as the home screen, and your existing setup is kept.
+- A panel installed over the network gets the same Android permissions as one installed over USB: changing system settings, showing over other apps and its accessibility service. Touch sounds and other controls that need them no longer stay unavailable after a network install. If the panel refuses any of them, the Home Assistant log reports it and the install still finishes.
 
 ## 0.6.3 - 2026-09-27
 

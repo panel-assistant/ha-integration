@@ -697,7 +697,11 @@ def test_the_two_identity_modules_state_exactly_the_same_values() -> None:
         "legacy: m.LEGACY_PACKAGE_ID,"
         "successor: m.SUCCESSOR_PACKAGE_ID,"
         "launch: Object.fromEntries("
-        "m.ACCEPTED_PACKAGE_IDS.map(id => [id, m.launchComponentFor(id)]))"
+        "m.ACCEPTED_PACKAGE_IDS.map(id => [id, m.launchComponentFor(id)])),"
+        "accessibility: Object.fromEntries("
+        "m.ACCEPTED_PACKAGE_IDS.map(id => [id, m.accessibilityComponentFor(id)])),"
+        "equivalent: Object.fromEntries("
+        "m.ACCEPTED_PACKAGE_IDS.map(id => [id, m.accessibilityComponentsFor(id)]))"
         "}));"
     )
     javascript = json.loads(
@@ -715,6 +719,14 @@ def test_the_two_identity_modules_state_exactly_the_same_values() -> None:
     assert javascript["legacy"] == app_identity.LEGACY_PACKAGE_ID
     assert javascript["successor"] == app_identity.SUCCESSOR_PACKAGE_ID
     assert javascript["launch"] == dict(app_identity.LAUNCH_COMPONENTS)
+    # Both installers write the accessibility service into one device-wide list.
+    assert javascript["accessibility"] == dict(app_identity.ACCESSIBILITY_COMPONENTS)
+    assert javascript["equivalent"] == {
+        package_id: list(spellings)
+        for package_id, spellings in (
+            app_identity.EQUIVALENT_ACCESSIBILITY_COMPONENTS.items()
+        )
+    }
 
     # And the successor never carries the shorthand, in either copy.
     for package_id, component in javascript["launch"].items():

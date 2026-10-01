@@ -9,7 +9,7 @@ import { createUsbTransactionPorts } from './usb-transaction-ports.mjs';
 import { createInstallController } from './install-controller.mjs';
 import { INSTALL_MESSAGES, installProgress, errorView } from './install-view.mjs';
 import { INSTALL_SCREEN_MESSAGES as screen } from './install-screen-messages.mjs';
-import { handoffOptions, receiveReleaseHandoff } from './release-handoff.mjs';
+import { handOverThenOpen, handoffOptions, receiveReleaseHandoff, requestSetupHandover } from './release-handoff.mjs';
 import { readSetupUrl } from './panel-address.mjs';
 import { renderJourney } from './wizard-look.mjs';
 
@@ -36,7 +36,7 @@ const manager = window.isSecureContext && navigator.usb
   ? new AdbDaemonWebUsbDeviceManager(boundedUsb(navigator.usb)) : undefined;
 const supported = Boolean(manager && navigator.locks && globalThis.indexedDB);
 let pinned, release, raw, adb, sessionAdb, store, controller;
-let handoff, incomingAuthenticate;
+let handoff, handoffSettings, incomingAuthenticate;
 let busy = false, quarantined = false;
 let receipt = null;
 let deadline;
@@ -295,7 +295,13 @@ async function installAll() {
   progress('stepOpening', 100);
   const url = await readSetupUrl(sessionAdb, newNonce);
   support('Setup address', url ?? 'not found; setup continues on the panel');
-  finish(url);
+  // The install is done: losing USB from here on is not a failure.
+  finished = true;
+  await handOverThenOpen(url, {
+    handover: address => requestSetupHandover({ options: handoffSettings, address }),
+    support,
+    open: finish,
+  });
 }
 
 function finish(url) {
@@ -326,6 +332,7 @@ if (!supported) {
 } else if (window.location.hash) {
   try {
     const options = handoffOptions(window.location.hash);
+    handoffSettings = options;
     busy = true;
     const slow = setTimeout(() => { element('preparing-text').textContent = screen.preparingSlow; }, 15000);
     handoff = receiveReleaseHandoff({ options });

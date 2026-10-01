@@ -94,3 +94,50 @@ export function receiveReleaseHandoff({ windowObject = window,
   try { reply('ha-paneld/usb-ready'); } catch { cancel(); }
   return Object.freeze({ completion, cancel });
 }
+
+// Before the browser leaves for the panel's own setup, ask the Home Assistant
+// window that opened this page to tell the panel Home Assistant set it up, so
+// its wizard skips the steps Home Assistant answers. Never rejects: whatever
+// happens, setup still opens, and the outcome goes to the support log. An older
+// Home Assistant ignores the request, so a missing acknowledgement ends the
+// wait quickly; an acknowledged one waits for the panel's own answer.
+export function requestSetupHandover({ windowObject = window, options, address,
+  ackMs = 3000, resultMs = 40000 } = {}) {
+  return new Promise(resolve => {
+    const source = windowObject.opener;
+    if (!options || !source || source.closed) { resolve('no_home_assistant_window'); return; }
+    let timer;
+    const done = outcome => {
+      clearTimeout(timer);
+      windowObject.removeEventListener('message', receive);
+      resolve(outcome);
+    };
+    function receive(event) {
+      if (event.source !== source || event.origin !== options.origin ||
+          event.data?.nonce !== options.nonce) return;
+      if (event.data.type === 'ha-paneld/usb-handover-accepted') {
+        clearTimeout(timer);
+        timer = setTimeout(() => done('no_result'), resultMs);
+      } else if (event.data.type === 'ha-paneld/usb-handover-result') {
+        const outcome = event.data.outcome;
+        done(typeof outcome === 'string' && /^[a-z0-9_]{1,48}$/.test(outcome) ? outcome : 'invalid_result');
+      }
+    }
+    windowObject.addEventListener('message', receive);
+    timer = setTimeout(() => done('no_reply'), ackMs);
+    try {
+      source.postMessage({ type: 'ha-paneld/usb-handover', nonce: options.nonce, address }, options.origin);
+    } catch { done('no_home_assistant_window'); }
+  });
+}
+
+// The order that matters: the handover lands before the panel's setup page is
+// opened, because the wizard decides its steps when it loads.
+export async function handOverThenOpen(url, { handover, support, open }) {
+  if (url) {
+    const outcome = await Promise.resolve().then(() => handover(new URL(url).hostname))
+      .catch(() => 'failed');
+    support('Setup handover', outcome);
+  }
+  open(url);
+}

@@ -41,6 +41,8 @@ from adb_shell.transport.tcp_transport_async import TcpTransportAsync
 
 from .app_identity import (
     ACCEPTED_PACKAGE_IDS,
+    ACCESSIBILITY_COMPONENTS,
+    EQUIVALENT_ACCESSIBILITY_COMPONENTS,
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
     counterpart_of,
@@ -636,6 +638,90 @@ def _parse_notification_grant(body: bytes, nonce: str) -> bool:
     except _MalformedAdbResponse:
         return False
     return bool(lines) and all(_NOTIFICATIONS_GRANTED.fullmatch(line) for line in lines)
+
+
+_SERVICES_SETTING = "settings get secure enabled_accessibility_services"
+_SERVICE_COMPONENT = re.compile(
+    r"[A-Za-z][A-Za-z0-9_.]*/[A-Za-z.][A-Za-z0-9_.$]*", flags=re.ASCII
+)
+_APPOP_ALLOWED = r"{}: allow(?:; [\x20-\x7e]{{1,1024}})?"
+
+
+def _permission_grant_command(nonce: str, package_id: str) -> str:
+    """Grant what the USB installer grants, then read back what Android kept.
+
+    Settings writes, the overlay and the accessibility service are what the
+    panel's controls need, and the browser installer's permission contract grants
+    them the same way. The service is appended to the device-wide list, never
+    replacing it, and only when no spelling of it is already there, so a rerun
+    writes nothing and other apps' services stay enabled. The list read before
+    the write is printed so the readback can prove nothing was dropped. Grant
+    output is discarded; only the readback decides.
+    """
+    component = ACCESSIBILITY_COMPONENTS[package_id]
+    known = "|".join(
+        f"*:{name}:*" for name in EQUIVALENT_ACCESSIBILITY_COMPONENTS[package_id]
+    )
+    quiet = ">/dev/null 2>&1"
+    return "; ".join(
+        (
+            f"echo HAPANELD_PERMISSIONS_BEGIN:{nonce}",
+            f"before=$({_SERVICES_SETTING})",
+            'echo "$before"',
+            'case ":$before:" in '
+            f"{known}) ;; "
+            f'*) case "$before" in ""|null) after=\'{component}\' ;; '
+            f'*) after="$before:{component}" ;; esac; '
+            f'[ "$({_SERVICES_SETTING})" = "$before" ] && '
+            f'settings put secure enabled_accessibility_services "$after" {quiet} ;; '
+            "esac",
+            f"appops set {package_id} WRITE_SETTINGS allow {quiet}",
+            f"appops set {package_id} SYSTEM_ALERT_WINDOW allow {quiet}",
+            f"settings put secure accessibility_enabled 1 {quiet}",
+            _SERVICES_SETTING,
+            "settings get secure accessibility_enabled",
+            f"appops get {package_id} WRITE_SETTINGS",
+            f"appops get {package_id} SYSTEM_ALERT_WINDOW",
+            f"echo HAPANELD_PERMISSIONS_END:{nonce}:$?",
+        )
+    )
+
+
+def _expected_services(before: str, package_id: str) -> str | None:
+    """The list after a grant, as the browser contract's ``expectedServices``."""
+    services = [] if before in ("", "null") else before.split(":")
+    if (
+        len(before) > 4096
+        or len(services) > 64
+        or len(set(services)) != len(services)
+        or not all(_SERVICE_COMPONENT.fullmatch(name) for name in services)
+    ):
+        return None
+    known = EQUIVALENT_ACCESSIBILITY_COMPONENTS[package_id]
+    if any(name in known for name in services):
+        return before
+    return ":".join((*services, ACCESSIBILITY_COMPONENTS[package_id]))
+
+
+def _parse_permission_grant(body: bytes, nonce: str, package_id: str) -> bool:
+    """Granted only when every readback line shows the grant and no service lost."""
+    try:
+        lines, status = _parse_single_section(body, prefix="PERMISSIONS", nonce=nonce)
+    except _MalformedAdbResponse:
+        return False
+    if status != 0 or len(lines) != 5:
+        return False
+    before, after, enabled, write_settings, overlay = lines
+    expected = _expected_services(before, package_id)
+    return (
+        expected is not None
+        and after == expected
+        and enabled == "1"
+        and re.fullmatch(_APPOP_ALLOWED.format("WRITE_SETTINGS"), write_settings)
+        is not None
+        and re.fullmatch(_APPOP_ALLOWED.format("SYSTEM_ALERT_WINDOW"), overlay)
+        is not None
+    )
 
 
 def _launch_command(nonce: str, package_id: str) -> str:
@@ -2002,6 +2088,25 @@ async def async_launch_installed_app(
                         "Settings, under the app's Notifications",
                         descriptor.package_id,
                     )
+            # The same rule as notifications: a refusal is reported, never fatal.
+            nonce = token_hex(16)
+            if not _parse_permission_grant(
+                await _async_shell(
+                    device,
+                    _permission_grant_command(nonce, descriptor.package_id),
+                    read_timeout=_READ_TIMEOUT_SECONDS,
+                ),
+                nonce,
+                descriptor.package_id,
+            ):
+                _LOGGER.warning(
+                    "The panel did not grant %s every permission it needs: "
+                    "modify system settings, display over other apps and its "
+                    "accessibility service. Controls that depend on them, such as "
+                    "touch sounds, stay unavailable; allow them on the panel in "
+                    "Android Settings, under the app",
+                    descriptor.package_id,
+                )
             nonce = token_hex(16)
             mutation_started = True
             return _parse_launch_outcome(

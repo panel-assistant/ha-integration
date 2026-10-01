@@ -32,8 +32,8 @@ network from the party making it:
   address, not anything discovered on the network. Discovery is what the panel
   already does for itself when nobody hands it anything.
 
-Returning nothing is therefore a normal, safe outcome, not a failure: the panel
-asks exactly as it does today.
+Returning no address is therefore a normal, safe outcome, not a failure: the
+panel is still told that Home Assistant set it up, and asks only for the address.
 
 What this module cannot do is tell whether the address it picked is reachable
 *from the panel*. ``get_url`` answers from Home Assistant's own network position,
@@ -85,7 +85,7 @@ def async_panel_facing_url(hass: HomeAssistant) -> str | None:
         return None
 
 
-async def async_offer_ha_url(hass: HomeAssistant, client: HaPaneldClient) -> None:
+async def async_offer_ha_url(hass: HomeAssistant, client: HaPaneldClient) -> str:
     """Hand a panel Home Assistant's address, if this panel is one that wants it.
 
     Used by every path that installs or adopts a panel, so that "Home Assistant
@@ -93,7 +93,7 @@ async def async_offer_ha_url(hass: HomeAssistant, client: HaPaneldClient) -> Non
     design: the handover saves the panel's owner a question, and nothing about an
     install or an adoption should fail because that convenience did not land.
 
-    Three reasons to say nothing at all:
+    Two reasons to say nothing at all:
 
     * **The panel has finished setup.** There is no question left to save, and a
       configured panel's address is not ours to change.
@@ -101,8 +101,11 @@ async def async_offer_ha_url(hass: HomeAssistant, client: HaPaneldClient) -> Non
       refuses an unknown key *and* does so atomically, so posting to an older
       panel would reject the whole request rather than ignore one field. The
       advertisement is the version gate; see ``PanelSetupState``.
-    * **Home Assistant has no address to offer.** Nothing to hand over, so the
-      panel asks as it always did.
+
+    With no address to offer, the setup marker still goes on its own: the panel
+    then skips the steps Home Assistant answers and asks only for the address.
+
+    The returned outcome is for support logs only; no caller branches on it.
 
     Whether the address actually works is the panel's decision, not this one: it
     verifies what it is handed from its own network and shows a correction when
@@ -112,19 +115,18 @@ async def async_offer_ha_url(hass: HomeAssistant, client: HaPaneldClient) -> Non
         state = await client.async_get_setup_state()
     except HaPaneldError:
         _LOGGER.debug("Panel did not report its setup state; not handing over a URL")
-        return
-    if state.complete or not state.accepts_handover:
-        return
+        return "setup_state_unreadable"
+    if state.complete:
+        return "setup_complete"
+    if not state.accepts_handover:
+        return "handover_unsupported"
     ha_url = async_panel_facing_url(hass)
-    if ha_url is None:
-        _LOGGER.debug(
-            "No Home Assistant URL is available to hand a panel; it will ask instead"
-        )
-        return
     try:
         await client.async_hand_over_ha_url(ha_url)
     except HaPaneldError:
         _LOGGER.debug("Panel did not accept the Home Assistant address %s", ha_url)
+        return "handover_refused"
+    return "handed_over" if ha_url is not None else "handed_over_without_url"
 
 
 async def async_setup_connection_info(hass: HomeAssistant) -> None:

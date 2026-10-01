@@ -736,17 +736,25 @@ class HaPaneldClient:
             handover_reason=_optional_string(handover.get("reason")),
         )
 
-    async def async_hand_over_ha_url(self, ha_url: str) -> None:
-        """Tell the panel where Home Assistant is, for it to verify and accept.
+    async def async_hand_over_ha_url(self, ha_url: str | None) -> None:
+        """Tell the panel Home Assistant set it up, and where Home Assistant is.
 
         The panel decides whether the address answers from its own network; this
         only delivers it. A refusal to accept the address is not reported here,
         because it is not a delivery failure: the panel stores what it was given
         either way and reports the verdict on its setup state.
+
+        With no address the marker still goes alone, so the panel's wizard skips
+        the steps Home Assistant answers and asks only for the address. The
+        address key is omitted rather than sent empty, because the panel stores
+        whatever value it is handed.
         """
+        form = {"ha_setup_handover": "true"}
+        if ha_url is not None:
+            form["ha_url_handover"] = ha_url
         status, _ = await self._async_post_bounded(
             self.address.base_url.with_path(CONFIG_PATH),
-            {"ha_setup_handover": "true", "ha_url_handover": ha_url},
+            form,
             _MAX_SETUP_BYTES,
             _HANDOVER_TIMEOUT_SECONDS,
         )

@@ -8,6 +8,7 @@ import json
 import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from ipaddress import IPv4Address, ip_address
 from typing import Any
 
 from aiohttp import web
@@ -25,7 +26,9 @@ from .browser_release_cache import (
     BrowserReleaseCacheErrorCode,
 )
 from .build_feed import FeedInstallBundle
-from .const import DOMAIN
+from .client import HaPaneldClient, InvalidAddressError, PanelAddress, normalize_address
+from .const import DEFAULT_PORT, DOMAIN
+from .ha_url import async_offer_ha_url
 from .release import is_feed_build_tag, is_rc_release_tag
 from .release_catalog import async_list_install_choices
 
@@ -36,6 +39,7 @@ _DOWNLOAD_TIMEOUT = 60.0
 _CHUNK_SIZE = 64 * 1024
 _HEADERS = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
 _ID = re.compile(r"[0-9a-f]{32}")
+_HANDOVER_TIMEOUT = 30.0
 
 
 def _error(code: str, status: int) -> web.Response:
@@ -56,7 +60,7 @@ def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
-async def _selection(request: web.Request) -> str | None:
+async def _json_object(request: web.Request) -> dict[str, Any]:
     if (
         request.query
         or request.content_type != "application/json"
@@ -70,7 +74,14 @@ async def _selection(request: web.Request) -> str | None:
             if len(body) > _BODY_LIMIT:
                 raise ValueError
     value = json.loads(body, object_pairs_hook=_unique_object)
-    if not isinstance(value, dict) or set(value) - {"release_candidate"}:
+    if not isinstance(value, dict):
+        raise ValueError
+    return value
+
+
+async def _selection(request: web.Request) -> str | None:
+    value = await _json_object(request)
+    if set(value) - {"release_candidate"}:
         raise ValueError
     if not value:
         return None
@@ -257,6 +268,69 @@ class BrowserApkView(HomeAssistantView):
         return response
 
 
+def _usb_panel_address(value: object) -> PanelAddress:
+    """Admit only a home-network IPv4 panel on the app's own port."""
+    if not isinstance(value, str):
+        raise ValueError
+    try:
+        address = normalize_address(value)
+        host = ip_address(address.host)
+    except (InvalidAddressError, ValueError) as error:
+        raise ValueError from error
+    if address.port != DEFAULT_PORT or not isinstance(host, IPv4Address):
+        raise ValueError
+    # The same three RFC 1918 ranges the installer page accepts when it reads
+    # the panel's address over USB (`isPrivate` in panel-address.mjs): a panel
+    # on the home network, never a host this server could be steered to reach.
+    first, second = host.packed[:2]
+    if not (
+        first == 10
+        or (first == 172 and 16 <= second <= 31)
+        or (first == 192 and second == 168)
+    ):
+        raise ValueError
+    return address
+
+
+class BrowserSetupHandoverView(HomeAssistantView):
+    """Tell a USB-installed panel that Home Assistant set it up.
+
+    The installer page reads the panel's address over USB and has no Home
+    Assistant credential; this admin's own Home Assistant window relays the
+    address here. The handover itself is the one every other install path
+    uses, so the panel's wizard skips the same steps whichever way it arrived.
+    """
+
+    url = "/api/panel_assistant/usb/handover"
+    name = "api:panel_assistant:usb:handover"
+    requires_auth = True
+
+    def __init__(self, service: BrowserDelivery) -> None:
+        self.service = service
+
+    @require_admin
+    async def post(self, request: web.Request) -> web.Response:
+        try:
+            async with self.service.async_admit():
+                try:
+                    value = await _json_object(request)
+                    if set(value) != {"address"}:
+                        raise ValueError
+                    address = _usb_panel_address(value["address"])
+                except ValueError, TimeoutError, ConnectionError:
+                    return _error("browser_handover_invalid_request", 400)
+                client = HaPaneldClient(
+                    async_get_clientsession(self.service.hass), address
+                )
+                async with asyncio.timeout(_HANDOVER_TIMEOUT):
+                    outcome = await async_offer_ha_url(self.service.hass, client)
+                return web.json_response({"outcome": outcome}, headers=_HEADERS)
+        except BrowserReleaseCacheError as error:
+            return _cache_error(error)
+        except Exception:
+            return _error("browser_handover_failed", 503)
+
+
 @callback
 def async_register_browser_delivery(hass: HomeAssistant) -> None:
     """Register once per domain, without requiring a panel config entry."""
@@ -267,5 +341,6 @@ def async_register_browser_delivery(hass: HomeAssistant) -> None:
     hass.http.register_view(BrowserReleaseCatalogView(service))
     hass.http.register_view(BrowserReleaseView(service))
     hass.http.register_view(BrowserApkView(service))
+    hass.http.register_view(BrowserSetupHandoverView(service))
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, service.async_stop)
     data[DATA_BROWSER_DELIVERY] = service
