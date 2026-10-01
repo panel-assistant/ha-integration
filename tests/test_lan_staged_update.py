@@ -563,9 +563,12 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
             absent -= 1
             coordinator.last_update_success = False
         else:
-            # A panel that answers again ends its restart notice, as in Core.
-            coordinator.last_update_success = True
+            # A panel that answers again ends its restart notice inside the
+            # poll, and the session-change listener writes before the poll
+            # is marked successful, as seen on a real panel.
             async_get_sessions(hass).clear_restart_notice("entry-id")
+            entity._handle_coordinator_update()
+            coordinator.last_update_success = True
             if restarted is not None:
                 coordinator.data, restarted = restarted, None
         entity._handle_coordinator_update()

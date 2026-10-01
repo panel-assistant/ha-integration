@@ -809,9 +809,17 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             )
 
     def _restarting(self) -> bool:
+        """The panel is away for the restart its accepted update causes.
+
+        Held for the whole delivery, not only while the notice is retained:
+        the returning panel's poll ends the notice before it is marked a
+        success, and a write in between would otherwise read Unavailable.
+        The delivery's own wait still bounds it.
+        """
         return (
             self._attempt is not None
-            and async_get_sessions(self.hass).restart_notice(self._entry_id) is not None
+            and self._attempt.restart_projected
+            and not self.coordinator.available
         )
 
     @property
