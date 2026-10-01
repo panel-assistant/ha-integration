@@ -260,6 +260,35 @@ def _notifications_output(nonce: str, *, granted: bool = True) -> bytes:
     return _single_output("NOTIFICATIONS", nonce, [line], 0)
 
 
+_ACCESSIBILITY_SERVICES = {
+    "io.github.maxlyth.hapaneld": (
+        "io.github.maxlyth.hapaneld/.input.PanelAccessibilityService"
+    ),
+    "io.panelassistant.android": (
+        "io.panelassistant.android/"
+        "io.github.maxlyth.hapaneld.input.PanelAccessibilityService"
+    ),
+}
+
+
+def _permissions_output(
+    nonce: str, package_id: str = "io.github.maxlyth.hapaneld"
+) -> bytes:
+    """A fresh panel's readback after every grant took."""
+    return _single_output(
+        "PERMISSIONS",
+        nonce,
+        [
+            "null",
+            _ACCESSIBILITY_SERVICES[package_id],
+            "1",
+            "WRITE_SETTINGS: allow",
+            "SYSTEM_ALERT_WINDOW: allow",
+        ],
+        0,
+    )
+
+
 def _remote_output(
     nonce: str,
     *,
@@ -599,9 +628,10 @@ async def test_su_never_wraps_mutation_commands(
             [
                 _single_output("PACKAGE", NONCES[2], ["package:/data/app/base.apk"], 0),
                 _notifications_output(NONCES[3]),
+                _permissions_output(NONCES[4]),
                 _single_output(
                     "LAUNCH",
-                    NONCES[4],
+                    NONCES[5],
                     [
                         "Starting: Intent { "
                         "cmp=io.github.maxlyth.hapaneld/.MainActivity }"
@@ -2678,7 +2708,8 @@ async def test_launch_uses_exact_descriptor_package_and_component_once(
                 "PACKAGE", NONCES[1], ["package:/data/app/ha-paneld/base.apk"], 0
             ),
             _notifications_output(NONCES[2]),
-            _single_output("LAUNCH", NONCES[3], ["Status: ok"], 0),
+            _permissions_output(NONCES[3]),
+            _single_output("LAUNCH", NONCES[4], ["Status: ok"], 0),
         ]
     )
     _install_fakes(monkeypatch, [fake])
@@ -2691,11 +2722,12 @@ async def test_launch_uses_exact_descriptor_package_and_component_once(
     )
 
     assert outcome is LaunchOutcome.STARTED
-    assert len(fake.commands) == 4
+    assert len(fake.commands) == 5
     assert "HAPANELD_POSTURE_BEGIN" in fake.commands[0]
     assert "HAPANELD_PACKAGE_BEGIN" in fake.commands[1]
     assert "HAPANELD_NOTIFICATIONS_BEGIN" in fake.commands[2]
-    assert "HAPANELD_LAUNCH_BEGIN" in fake.commands[3]
+    assert "HAPANELD_PERMISSIONS_BEGIN" in fake.commands[3]
+    assert "HAPANELD_LAUNCH_BEGIN" in fake.commands[4]
     assert fake.commands.count(fake.commands[-1]) == 1
     assert (
         "am start -W -n io.github.maxlyth.hapaneld/.MainActivity "
@@ -2716,7 +2748,8 @@ async def test_launch_returns_refused_only_for_ordinary_am_start_failure(
                 "PACKAGE", NONCES[1], ["package:/data/app/ha-paneld/base.apk"], 0
             ),
             _notifications_output(NONCES[2]),
-            _single_output("LAUNCH", NONCES[3], ["Error: refused"], 1),
+            _permissions_output(NONCES[3]),
+            _single_output("LAUNCH", NONCES[4], ["Error: refused"], 1),
         ]
     )
     _install_fakes(monkeypatch, [fake])
@@ -2731,6 +2764,47 @@ async def test_launch_returns_refused_only_for_ordinary_am_start_failure(
     assert outcome is LaunchOutcome.REFUSED
 
 
+# A stand-in for the panel's `settings` and `appops` commands, kept as files so a
+# test can read what the real grant program left behind. `refuse.<OP or key>`
+# makes a write accept the command and change nothing, as a locked-down ROM does;
+# `race.<key>` is another app's write that lands just after the first read.
+_STAND_IN_PANEL = r"""
+settings() {
+  if [ "$1" = get ]; then
+    if [ -f "$STATE/$3" ]; then cat "$STATE/$3"; else echo null; fi
+    if [ -f "$STATE/race.$3" ]; then mv "$STATE/race.$3" "$STATE/$3"; fi
+  else
+    echo "settings $*" >> "$STATE/calls"
+    [ -f "$STATE/refuse.$3" ] || printf '%s\n' "$4" > "$STATE/$3"
+  fi
+}
+appops() {
+  if [ "$1" = set ]; then
+    echo "appops $*" >> "$STATE/calls"
+    [ -f "$STATE/refuse.$3" ] || echo "$4" > "$STATE/appop.$2.$3"
+  elif [ -f "$STATE/appop.$2.$3" ]; then
+    echo "$3: $(cat "$STATE/appop.$2.$3"); time=+2s12ms ago"
+  else
+    echo "$3: default"
+  fi
+}
+"""
+
+
+def _run_on_stand_in_panel(command: str, state: Path) -> bytes:
+    return subprocess.run(
+        ["/bin/sh", "-c", _STAND_IN_PANEL + command],
+        capture_output=True,
+        check=True,
+        env={"PATH": os.environ["PATH"], "STATE": str(state)},
+    ).stdout
+
+
+def _panel_value(state: Path, name: str) -> str | None:
+    path = state / name
+    return path.read_text().strip() if path.exists() else None
+
+
 class _RoutingFakeDevice(FakeDevice):
     """Answers each command by the section it opens, so a test can observe order.
 
@@ -2738,9 +2812,10 @@ class _RoutingFakeDevice(FakeDevice):
     this one lets the observed command list itself be the assertion.
     """
 
-    def __init__(self, *, sdk: int = 34) -> None:
+    def __init__(self, state: Path, *, sdk: int = 34) -> None:
         super().__init__([])
         self.sdk = sdk
+        self.state = state
 
     async def streaming_shell(
         self, command: str, **kwargs: Any
@@ -2758,6 +2833,8 @@ class _RoutingFakeDevice(FakeDevice):
             )
         elif prefix == "NOTIFICATIONS":
             yield _notifications_output(nonce)
+        elif prefix == "PERMISSIONS":
+            yield _run_on_stand_in_panel(command, self.state)
         else:
             assert prefix == "LAUNCH", command
             yield _single_output("LAUNCH", nonce, ["Status: ok"], 0)
@@ -2769,8 +2846,9 @@ async def test_launch_grants_notifications_before_the_first_start_from_android_1
     target: AdbInstallTarget,
     descriptor: InstallDescriptor,
     caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
 ) -> None:
-    fake = _RoutingFakeDevice()
+    fake = _RoutingFakeDevice(tmp_path)
     _install_fakes(monkeypatch, [fake])
 
     outcome = await async_launch_installed_app(
@@ -2788,7 +2866,7 @@ async def test_launch_grants_notifications_before_the_first_start_from_android_1
         index for index, command in enumerate(fake.commands) if "am start" in command
     ]
     assert grants == [2]
-    assert starts == [3]
+    assert starts == [4]
     assert "dumpsys package io.github.maxlyth.hapaneld" in fake.commands[2]
     assert "notification permission" not in caplog.text
 
@@ -2798,8 +2876,9 @@ async def test_launch_below_android_13_grants_nothing(
     signer: PythonRSASigner,
     target: AdbInstallTarget,
     descriptor: InstallDescriptor,
+    tmp_path: Path,
 ) -> None:
-    fake = _RoutingFakeDevice(sdk=32)
+    fake = _RoutingFakeDevice(tmp_path, sdk=32)
     _install_fakes(monkeypatch, [fake])
 
     outcome = await async_launch_installed_app(
@@ -2810,7 +2889,7 @@ async def test_launch_below_android_13_grants_nothing(
     )
 
     assert outcome is LaunchOutcome.STARTED
-    assert len(fake.commands) == 3
+    assert len(fake.commands) == 4
     assert not any("POST_NOTIFICATIONS" in command for command in fake.commands)
 
 
@@ -2847,7 +2926,8 @@ async def test_a_refused_or_unreadable_grant_is_reported_and_never_stops_the_sta
                 "PACKAGE", NONCES[1], ["package:/data/app/ha-paneld/base.apk"], 0
             ),
             notifications,
-            _single_output("LAUNCH", NONCES[3], ["Status: ok"], 0),
+            _permissions_output(NONCES[3]),
+            _single_output("LAUNCH", NONCES[4], ["Status: ok"], 0),
         ]
     )
     _install_fakes(monkeypatch, [fake])
@@ -2857,7 +2937,7 @@ async def test_a_refused_or_unreadable_grant_is_reported_and_never_stops_the_sta
     )
 
     assert outcome is LaunchOutcome.STARTED
-    assert "am start" in fake.commands[3]
+    assert "am start" in fake.commands[4]
     assert [
         record.levelno
         for record in caplog.records
@@ -2884,7 +2964,8 @@ async def test_a_grant_over_a_persons_denial_reads_back_as_granted(
                 "PACKAGE", NONCES[1], ["package:/data/app/ha-paneld/base.apk"], 0
             ),
             _single_output("NOTIFICATIONS", NONCES[2], [overridden], 0),
-            _single_output("LAUNCH", NONCES[3], ["Status: ok"], 0),
+            _permissions_output(NONCES[3]),
+            _single_output("LAUNCH", NONCES[4], ["Status: ok"], 0),
         ]
     )
     _install_fakes(monkeypatch, [fake])
@@ -2930,6 +3011,177 @@ def test_the_grant_program_grants_over_a_persons_denial(tmp_path: Path) -> None:
         assert _run_notification_program(flags, calls) == [grant], flags
 
 
+_GRANT_WARNING = "every permission it needs"
+
+
+async def _launch_on(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    installed: InstallDescriptor,
+    state: Path,
+) -> _RoutingFakeDevice:
+    fake = _RoutingFakeDevice(state)
+    _install_fakes(monkeypatch, [fake])
+    outcome = await async_launch_installed_app(
+        target, signer, installed, expected_root_mode=AdbRootMode.ROOTLESS
+    )
+    assert outcome is LaunchOutcome.STARTED
+    return fake
+
+
+@pytest.mark.parametrize("identity", ["legacy", "successor"])
+async def test_a_fresh_install_gets_the_usb_installers_grants_before_its_first_start(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+    successor_descriptor: InstallDescriptor,
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+    identity: str,
+) -> None:
+    installed = descriptor if identity == "legacy" else successor_descriptor
+    package_id = installed.package_id
+
+    fake = await _launch_on(monkeypatch, signer, target, installed, tmp_path)
+
+    assert _panel_value(tmp_path, f"appop.{package_id}.WRITE_SETTINGS") == "allow"
+    assert _panel_value(tmp_path, f"appop.{package_id}.SYSTEM_ALERT_WINDOW") == "allow"
+    assert (
+        _panel_value(tmp_path, "enabled_accessibility_services")
+        == (_ACCESSIBILITY_SERVICES[package_id])
+    )
+    assert _panel_value(tmp_path, "accessibility_enabled") == "1"
+    grants = [i for i, c in enumerate(fake.commands) if "appops set" in c]
+    starts = [i for i, c in enumerate(fake.commands) if "am start" in c]
+    assert len(grants) == 1
+    assert grants[0] < starts[0]
+    assert _GRANT_WARNING not in caplog.text
+
+
+async def test_other_apps_accessibility_services_stay_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    successor_descriptor: InstallDescriptor,
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+) -> None:
+    others = "com.example.reader/.ReaderService:org.other/org.other.a11y.Helper"
+    (tmp_path / "enabled_accessibility_services").write_text(others + "\n")
+
+    await _launch_on(monkeypatch, signer, target, successor_descriptor, tmp_path)
+
+    assert _panel_value(tmp_path, "enabled_accessibility_services") == (
+        f"{others}:{_ACCESSIBILITY_SERVICES[successor_descriptor.package_id]}"
+    )
+    assert _GRANT_WARNING not in caplog.text
+
+
+@pytest.mark.parametrize(
+    "refused",
+    [
+        "WRITE_SETTINGS",
+        "SYSTEM_ALERT_WINDOW",
+        "enabled_accessibility_services",
+        "accessibility_enabled",
+    ],
+)
+async def test_a_readback_without_an_allowed_grant_is_reported_and_still_starts(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+    refused: str,
+) -> None:
+    (tmp_path / f"refuse.{refused}").touch()
+
+    fake = await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert "am start" in fake.commands[-1]
+    assert [
+        record.levelno
+        for record in caplog.records
+        if f"did not grant io.github.maxlyth.hapaneld {_GRANT_WARNING}"
+        in record.getMessage()
+    ] == [logging.WARNING]
+
+
+async def test_a_service_list_changed_mid_grant_is_left_alone_and_reported(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "enabled_accessibility_services").write_text(
+        "com.example.reader/.ReaderService\n"
+    )
+    raced = "com.example.reader/.ReaderService:org.other/.Helper"
+    (tmp_path / "race.enabled_accessibility_services").write_text(raced + "\n")
+
+    await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert _panel_value(tmp_path, "enabled_accessibility_services") == raced
+    assert _GRANT_WARNING in caplog.text
+
+
+async def test_a_service_list_that_is_not_components_is_reported(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "enabled_accessibility_services").write_text("not a component\n")
+
+    fake = await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert "am start" in fake.commands[-1]
+    assert _GRANT_WARNING in caplog.text
+
+
+@pytest.mark.parametrize(
+    "already",
+    [
+        None,
+        "io.github.maxlyth.hapaneld/"
+        "io.github.maxlyth.hapaneld.input.PanelAccessibilityService",
+    ],
+)
+async def test_a_rerun_writes_no_second_copy_of_the_service(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+    already: str | None,
+) -> None:
+    if already is not None:
+        (tmp_path / "enabled_accessibility_services").write_text(
+            f"com.example.reader/.ReaderService:{already}\n"
+        )
+    else:
+        await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
+    services = _panel_value(tmp_path, "enabled_accessibility_services")
+    (tmp_path / "calls").write_text("")
+
+    await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert _panel_value(tmp_path, "enabled_accessibility_services") == services
+    assert "enabled_accessibility_services" not in (tmp_path / "calls").read_text()
+    assert _panel_value(tmp_path, f"appop.{LEGACY_PACKAGE_ID}.WRITE_SETTINGS") == (
+        "allow"
+    )
+    assert _GRANT_WARNING not in caplog.text
+
+
 @pytest.mark.parametrize("status", [2, 126, 127, 130, 137, 255])
 async def test_abnormal_launch_exit_is_ambiguous_after_start_attempt(
     monkeypatch: pytest.MonkeyPatch,
@@ -2945,7 +3197,8 @@ async def test_abnormal_launch_exit_is_ambiguous_after_start_attempt(
                 "PACKAGE", NONCES[1], ["package:/data/app/ha-paneld/base.apk"], 0
             ),
             _notifications_output(NONCES[2]),
-            _single_output("LAUNCH", NONCES[3], ["abnormal"], status),
+            _permissions_output(NONCES[3]),
+            _single_output("LAUNCH", NONCES[4], ["abnormal"], status),
         ]
     )
     _install_fakes(monkeypatch, [fake])
@@ -3521,7 +3774,8 @@ async def test_each_identity_is_launched_by_its_own_exact_component(
                     "PACKAGE", NONCES[1], ["package:/data/app/ha-paneld/base.apk"], 0
                 ),
                 _notifications_output(NONCES[2]),
-                _single_output("LAUNCH", NONCES[3], ["Status: ok"], 0),
+                _permissions_output(NONCES[3], installed.package_id),
+                _single_output("LAUNCH", NONCES[4], ["Status: ok"], 0),
             ]
         )
         _install_fakes(monkeypatch, [fake])
@@ -3538,11 +3792,12 @@ async def test_each_identity_is_launched_by_its_own_exact_component(
             f"am start -W -n {component} -p {installed.package_id}"
             in (fake.commands[-1])
         )
-        assert f"pm path {installed.package_id}" in fake.commands[-3]
+        assert f"pm path {installed.package_id}" in fake.commands[-4]
         assert (
             f"pm grant {installed.package_id} android.permission.POST_NOTIFICATIONS"
-            in fake.commands[-2]
+            in fake.commands[-3]
         )
+        assert _ACCESSIBILITY_SERVICES[installed.package_id] in fake.commands[-2]
 
 
 _INSTALLED_APK_PATH = "/data/app/~~aBc==/io.github.maxlyth.hapaneld-xY9==/base.apk"

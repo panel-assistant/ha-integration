@@ -13,9 +13,9 @@ something that does not exist on the panel:
   ``io.github.maxlyth.hapaneld`` for both builds. Android resolves the
   ``<id>/.Class`` shorthand against the *application id*, so the shorthand is
   correct only for the legacy id; the successor needs the fully qualified class.
-  The accessibility component has the same problem and is defined in the
-  browser installer's own ``app-identity.mjs``, the only side that writes it:
-  nothing here grants permissions.
+  The accessibility component has the same problem. Both installers write it,
+  so it is defined here and in the browser installer's ``app-identity.mjs``, and
+  a test compares the two copies by value.
 * The schema identifier strings, the database compatibility pattern and the
   MQTT identifiers are frozen on the legacy spelling on purpose, because
   released integrations compare them byte for byte. They are not derived from
@@ -54,6 +54,37 @@ LAUNCH_COMPONENTS: Mapping[str, str] = MappingProxyType(
 def is_accepted_package_id(package_id: object) -> bool:
     """Return whether this is one of the two installable panel application ids."""
     return isinstance(package_id, str) and package_id in ACCEPTED_PACKAGE_IDS
+
+
+#: The accessibility service written into the device-wide list, per id. The
+#: successor's class keeps the legacy namespace, as with the launcher.
+ACCESSIBILITY_COMPONENTS: Mapping[str, str] = MappingProxyType(
+    {
+        LEGACY_PACKAGE_ID: (
+            "io.github.maxlyth.hapaneld/.input.PanelAccessibilityService"
+        ),
+        SUCCESSOR_PACKAGE_ID: (
+            "io.panelassistant.android/"
+            "io.github.maxlyth.hapaneld.input.PanelAccessibilityService"
+        ),
+    }
+)
+
+#: Every spelling Android reads back for an enabled service of this id: for the
+#: legacy id the class lives in the id's own package, so both forms name it.
+EQUIVALENT_ACCESSIBILITY_COMPONENTS: Mapping[str, tuple[str, ...]] = MappingProxyType(
+    {
+        LEGACY_PACKAGE_ID: (
+            "io.github.maxlyth.hapaneld/.input.PanelAccessibilityService",
+            "io.github.maxlyth.hapaneld/"
+            "io.github.maxlyth.hapaneld.input.PanelAccessibilityService",
+        ),
+        SUCCESSOR_PACKAGE_ID: (
+            "io.panelassistant.android/"
+            "io.github.maxlyth.hapaneld.input.PanelAccessibilityService",
+        ),
+    }
+)
 
 
 def launch_component_for(package_id: str) -> str:
