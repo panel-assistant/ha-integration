@@ -6,8 +6,10 @@ import asyncio
 import contextlib
 import logging
 import math
+import time
 from collections.abc import Awaitable, Callable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -24,6 +26,7 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.event import async_track_time_interval
 
 from . import HaPaneldConfigEntry
 from .adb_credentials import (
@@ -143,23 +146,25 @@ class _Attempt:
 
     installed: str | None
     latest: str | None
-    percentage: int = 0
-    # The share of the bar one delivery fills: the bridge, then its successor.
-    band: tuple[int, int] = (0, 100)
+    started: float = field(default_factory=lambda: _now())
     # After the panel accepts: installing, then away restarting, then back on
-    # the target build until its dashboard shows. None until accepted.
+    # the target build until its dashboard shows. None until accepted. Names
+    # the step on the dialog's line; the bar follows time alone.
     stage: str | None = None
-    stage_at: float = 0.0
     restart_projected: bool = False
 
 
-# Each stage's share of a delivery's bar and how fast it approaches its top,
-# sized by how long the stage takes on a panel (about 30 s each on 2026-10-01).
-_STAGES: dict[str, tuple[float, float, float]] = {
-    "installing": (20, 45, 20),
-    "away": (50, 75, 20),
-    "back": (80, 95, 15),
-}
+_STAGES = ("installing", "away", "back")
+# The bar follows elapsed time on one curve, so no step can make it jump.
+# Fifty measured fleet updates (2026-09/10) took 75 s at the median, 112 s at
+# the 90th percentile and 262 s at most; this pace puts those at about 60 %,
+# 74 % and 92 %, and the bar never passes 95 % until the update ends.
+_PROGRESS_PACE_SECONDS = 75
+_PROGRESS_REDRAW = timedelta(seconds=2)
+
+
+def _now() -> float:
+    return time.monotonic()
 
 
 class _UpdateRefusalError(ServiceValidationError, HTTPBadRequest):
@@ -281,6 +286,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         self._attr_unique_id = update_unique_id(entry_id)
         self._attr_in_progress = False
         self._attempt: _Attempt | None = None
+        self._stop_redraw: Callable[[], None] | None = None
         self._observer_task: asyncio.Task[None] | None = None
         self._recovery_started = False
         self._attr_extra_state_attributes = {}
@@ -751,59 +757,38 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         """Fix what the update shows until the panel runs the target build."""
         if self._attempt is None:
             self._attempt = _Attempt(self.installed_version, self.latest_version)
+            self._stop_redraw = async_track_time_interval(
+                self.hass, self._redraw, _PROGRESS_REDRAW
+            )
         self._attr_in_progress = True
 
     def _end_attempt(self) -> None:
         self._attempt = None
         self._attr_in_progress = False
+        if self._stop_redraw is not None:
+            self._stop_redraw()
+            self._stop_redraw = None
 
-    def _band(self, low: int, high: int) -> None:
-        """Give the next delivery its own share of one continuous bar."""
+    def _redraw(self, _now: datetime) -> None:
+        self.async_write_ha_state()
+
+    def _next_delivery(self) -> None:
+        """The bridge's successor: its own steps, on the same bar."""
         if self._attempt is not None:
-            self._attempt.band = (low, high)
             self._attempt.stage = None
             self._attempt.restart_projected = False
 
-    def _advance(self, phase: float) -> None:
-        """Move the bar to `phase` of the current delivery.
-
-        Stages only move forward and each starts above the last, so the bar
-        never falls; the update sequence test holds that.
-        """
-        attempt = self._attempt
-        if attempt is None:
-            return
-        low, high = attempt.band
-        percentage = int(low + (high - low) * phase / 100)
-        if percentage != attempt.percentage:
-            attempt.percentage = percentage
-            self.async_write_ha_state()
-
     def _enter(self, stage: str, *, write: bool = True) -> None:
-        """Start a later stage of the delivery at the bottom of its share."""
+        """Move the step line on; steps never go back within a delivery."""
         attempt = self._attempt
         if attempt is None or (
             attempt.stage is not None
-            and list(_STAGES).index(stage) <= list(_STAGES).index(attempt.stage)
+            and _STAGES.index(stage) <= _STAGES.index(attempt.stage)
         ):
             return
         attempt.stage = stage
-        attempt.stage_at = asyncio.get_running_loop().time()
         if write:
-            self._advance(_STAGES[stage][0])
-        else:
-            low, high = attempt.band
-            floor = int(low + (high - low) * _STAGES[stage][0] / 100)
-            attempt.percentage = max(attempt.percentage, floor)
-
-    def _tick(self) -> None:
-        """Keep the bar moving within the current stage, short of its end."""
-        attempt = self._attempt
-        if attempt is None or attempt.stage is None:
-            return
-        low, high, pace = _STAGES[attempt.stage]
-        waited = asyncio.get_running_loop().time() - attempt.stage_at
-        self._advance(high - (high - low) * math.exp(-waited / pace))
+            self.async_write_ha_state()
 
     def _hold_through_restart(self) -> None:
         """Show an accepted update's absent app as restarting, once.
@@ -820,7 +805,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         ):
             return
         attempt.restart_projected = True
-        # The write about to follow shows the restart's share of the bar.
+        # The write about to follow names the restart.
         self._enter("away", write=False)
         sessions = async_get_sessions(self.hass)
         if sessions.restart_notice(self._entry_id) is None:
@@ -855,8 +840,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
 
     @property
     def update_percentage(self) -> int | None:
-        """Report how far the current update has got."""
-        return self._attempt.percentage if self._attempt is not None else None
+        """Report how far the current update has got, by time alone."""
+        if self._attempt is None:
+            return None
+        waited = max(0.0, _now() - self._attempt.started)
+        return int(95 * (1 - math.exp(-waited / _PROGRESS_PACE_SECONDS)))
 
     @property
     def release_summary(self) -> str | None:
@@ -1211,10 +1199,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                             self.coordinator.data.health.version != release.version
                             or not self.coordinator.data.health.installation_identity
                         ):
-                            self._band(0, 50)
                             await self._async_deliver_build(release)
                             bridge_delivered = True
-                            self._band(50, 100)
+                            self._next_delivery()
                         if reports_package(
                             self.coordinator.data.health.package, SUCCESSOR_PACKAGE_ID
                         ):
@@ -1317,7 +1304,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         while asyncio.get_running_loop().time() < deadline:
             await self.coordinator.async_request_refresh()
             self._hold_through_restart()
-            self._tick()
             snapshot = self.coordinator.data
             verified = (
                 self._running_version() == expected_version
@@ -1491,7 +1477,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self._enter("installing")
             await self._async_wait_for_build(artifact, before, minimum_code=True)
             return True
-        self._advance(10)
         if apk is None:
             try:
                 apk = await async_download_build(
@@ -1519,7 +1504,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 if fallback:
                     return False
                 raise
-            self._advance(15)
             health = self.coordinator.data.health if self.coordinator.data else None
             panel_changed = (
                 health is None
@@ -1616,7 +1600,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             )
         before = (snapshot.health.build, snapshot.health.package)
         await self._async_backup_panel()
-        self._advance(10)
         if apk is None:
             try:
                 apk = await async_download_build(
@@ -1702,7 +1685,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         while loop.time() < deadline:
             await self.coordinator.async_request_refresh()
             self._hold_through_restart()
-            self._tick()
             health = self.coordinator.data.health if self.coordinator.data else None
             if (
                 self.coordinator.last_update_success

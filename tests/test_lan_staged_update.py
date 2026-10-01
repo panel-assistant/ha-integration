@@ -12,6 +12,7 @@ import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field, replace
 from io import BytesIO
+from itertools import pairwise
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, call
@@ -537,7 +538,9 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
     coordinator = entity.coordinator
     coordinator.last_update_success = True
     restarted: PanelSnapshot | None = None
-    answering = absent = accepted = 0
+    answering = absent = 0
+    clock = 0.0
+    monkeypatch.setattr(panel_update, "_now", lambda: clock)
 
     async def stage(_apk: bytes, **kwargs: Any) -> StagedApk:
         migrating = kwargs.get("migration_sha256") is not None
@@ -546,7 +549,7 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
         )
 
     async def accept(*_args: Any) -> None:
-        nonlocal restarted, absent, answering, accepted
+        nonlocal restarted, absent, answering
         staged = client.async_stage_apk.await_args
         migrating = staged is not None and staged.kwargs.get("migration_sha256")
         restarted = _snapshot(
@@ -555,11 +558,13 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
             SUCCESSOR_PACKAGE_ID if migrating else LEGACY_PACKAGE_ID,
         )
         # The old app answers while it installs the new one, then restarts.
-        answering, absent, accepted = 1, 3, len(shown)
+        answering, absent = 1, 3
 
     async def refresh() -> None:
-        # Each poll ends in the coordinator's listener write, as in Core.
-        nonlocal absent, restarted, answering
+        # Each poll ends in the coordinator's listener write, as in Core, and
+        # the panel takes ten seconds between polls.
+        nonlocal absent, restarted, answering, clock
+        clock += 10
         if answering:
             answering -= 1
         elif absent:
@@ -602,27 +607,15 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
     assert any(not state["available"] for state in shown) is False
     # One line names the step for the whole update, so the layout holds.
     assert all(state["release_summary"] for state in working)
-    restarting = [
-        state["update_percentage"]
-        for state in working
-        if "restarting" in state["release_summary"]
-    ]
-    assert restarting
-    # The last restart is the one into the target; a bridge's comes earlier.
-    assert 50 <= restarting[-1] <= 75
-    assert (restarting[0] < 50) is move
+    assert any("restarting" in state["release_summary"] for state in working)
     progress = [state["update_percentage"] for state in working]
     assert None not in progress
+    # The bar follows time: it only rises, never leaps, and keeps the last
+    # few percent for the end.
     assert progress == sorted(progress)
-    # Installing, restarting and loading the dashboard each get a share of
-    # the bar, rather than the first half passing before the install starts.
-    installing = [
-        state["update_percentage"]
-        for state in shown[accepted:]
-        if state["in_progress"] and "installing" in state["release_summary"]
-    ]
-    assert any(20 <= value < 50 for value in installing) is not move
-    assert progress[-1] >= 80
+    assert max(b - a for a, b in pairwise(progress)) <= 15
+    assert progress[-1] <= 95
+    assert progress[-1] - progress[0] >= 40
     assert {state["installed_version"] for state in working} == {start}
     assert {state["latest_version"] for state in working} == {VERSION}
     assert shown[-1]["in_progress"] is False
