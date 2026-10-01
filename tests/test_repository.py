@@ -327,7 +327,7 @@ def _english_only_paths(catalogue: dict[str, Any]) -> set[tuple[str, ...]]:
         ("entity", channel["platform"], channel["translation_key"])
         for channel in contract["channels"]
     }
-    # The current camera replaces this native-only switch, but old apps remain supported.
+    # The camera replaces this native-only switch, but old apps remain supported.
     paths.add(("entity", "switch", "camera_enabled"))
     paths.update(
         ("exceptions", code)
