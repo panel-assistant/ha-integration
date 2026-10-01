@@ -340,16 +340,18 @@ test('a connection change moves the ready listener and reloads the list', async 
 test('menu toggles only when narrow and links navigate inside Home Assistant', async () => {
   const { panel, $ } = await mount(fakeHass(), true);
   assert.equal($('#menu').hidden, false);
+  assert.equal($('#overflow').hidden, false);
   assert.equal($('#title').hidden, true);
   assert.equal($('#version').hidden, true);
-  assert.equal($('#github').hidden, true);
-  assert.equal($('#add-label').textContent, SIDEBAR_MESSAGES.addPanelShort);
+  assert.equal($('#more').getAttribute('role'), 'menu');
+  for (const id of ['#device', '#github', '#add', '#settings']) assert.equal($(id).getAttribute('role'), 'menuitem', id);
   panel.narrow = false;
   assert.equal($('#menu').hidden, true);
+  assert.equal($('#overflow').hidden, true);
   assert.equal($('#title').hidden, false);
   assert.equal($('#version').hidden, false);
-  assert.equal($('#github').hidden, false);
-  assert.equal($('#add-label').textContent, SIDEBAR_MESSAGES.addPanel);
+  assert.equal($('#more').getAttribute('role'), null, 'wide, the links are inline, not a menu');
+  for (const id of ['#device', '#github', '#add', '#settings']) assert.equal($(id).getAttribute('role'), null, id);
   $('#menu').fire('click');
   assert.deepEqual([panel.events[0].type, panel.events[0].bubbles, panel.events[0].composed], ['hass-toggle-menu', true, true]);
   let changed;
@@ -362,6 +364,71 @@ test('menu toggles only when narrow and links navigate inside Home Assistant', a
   assert.equal($('#settings').getAttribute('href'), '/config/integrations/integration/panel_assistant');
   $('#settings').fire('click', { button: 0, ctrlKey: true, preventDefault: () => prevented++ });
   assert.equal(prevented, 1);
+});
+
+test('on a phone the ellipsis opens the links as a menu that any choice, outside tap or Escape closes', async () => {
+  const { panel, $ } = await mount(fakeHass(), true);
+  const open = () => $('#more').getAttribute('data-open') !== null;
+  const expanded = () => $('#overflow').getAttribute('aria-expanded');
+  assert.deepEqual([open(), $('#backdrop').hidden, expanded()], [false, true, 'false']);
+  assert.equal($('#overflow').getAttribute('aria-haspopup'), 'menu');
+  $('#overflow').fire('click');
+  assert.deepEqual([open(), $('#backdrop').hidden, expanded()], [true, false, 'true']);
+  $('#overflow').fire('click');
+  assert.equal(open(), false, 'the ellipsis toggles');
+  $('#overflow').fire('click'); $('#backdrop').fire('click');
+  assert.deepEqual([open(), $('#backdrop').hidden], [false, true], 'a tap outside, including over the frame, closes it');
+  $('#overflow').fire('click'); $('#root').fire('keydown', { key: 'Enter' });
+  assert.equal(open(), true, 'only Escape closes from the keyboard');
+  $('#root').fire('keydown', { key: 'Escape' });
+  assert.equal(open(), false);
+  for (const id of ['#device', '#github', '#add', '#settings']) {
+    $('#overflow').fire('click');
+    $(id).fire('click', { button: 0, preventDefault() {} });
+    assert.equal(open(), false, `${id} closes the menu`);
+  }
+  $('#overflow').fire('click');
+  panel.narrow = false;
+  assert.deepEqual([open(), $('#backdrop').hidden, expanded()], [false, true, 'false'], 'widening closes it');
+  $('#overflow').fire('click');
+  assert.equal(open(), false, 'never opens on a wide screen');
+});
+
+test('on a phone the menu button carries Home Assistant\'s notification dot', async () => {
+  const hass = fakeHass();
+  const { panel, $, subs } = await mount(hass, true);
+  const alerts = () => subs.filter(sub => sub.message.type === 'persistent_notification/subscribe');
+  assert.equal(alerts().length, 1);
+  assert.equal(alerts()[0].options, undefined, 'Home Assistant resubscribes it after a reconnect');
+  const sub = alerts()[0];
+  assert.equal($('#dot').hidden, true);
+  sub.callback({ type: 'current', notifications: {} });
+  assert.equal($('#dot').hidden, true);
+  sub.callback({ type: 'added', notifications: { a: { message: 'x' }, b: { message: 'y' } } });
+  assert.equal($('#dot').hidden, false);
+  sub.callback({ type: 'removed', notifications: { a: {} } });
+  assert.equal($('#dot').hidden, false, 'one notification is left');
+  for (const junk of [{ kind: 'opened', url: url(TOKEN) }, { type: 'removed' }, { type: 'bogus', notifications: { b: {} } }, null]) sub.callback(junk);
+  assert.equal($('#dot').hidden, false, 'other events never change the dot');
+  sub.callback({ type: 'removed', notifications: { b: {} } });
+  assert.equal($('#dot').hidden, true);
+  sub.callback({ type: 'updated', notifications: { c: {} } });
+  assert.equal($('#dot').hidden, false);
+
+  panel.narrow = false; await tick();
+  assert.equal(sub.unsubscribed, 1, 'a wide screen shows Home Assistant\'s own sidebar, so no dot');
+  assert.equal($('#dot').hidden, true);
+  sub.callback({ type: 'added', notifications: { d: {} } });
+  assert.equal($('#dot').hidden, true, 'an ended subscription is ignored');
+  panel.narrow = true; await tick();
+  assert.equal(alerts().length, 2);
+  const next = fakeHass();
+  panel.hass = next; await tick();
+  assert.equal(alerts()[1].unsubscribed, 1, 'a new connection replaces the subscription');
+  assert.equal(next.connection.subscriptions.filter(s => s.message.type === 'persistent_notification/subscribe').length, 1);
+  panel.isConnected = false; panel.disconnectedCallback(); await tick();
+  assert.equal(next.connection.subscriptions.find(s => s.message.type === 'persistent_notification/subscribe').unsubscribed, 1);
+  assert.equal(subs.filter(s => s.message.type === 'persistent_notification/subscribe' && !s.unsubscribed).length, 0);
 });
 
 test('a refresh lost in transit keeps the session so a reconnect resumes it', async () => {
@@ -424,6 +491,11 @@ test('every SIDEBAR_MESSAGES key renders through the real component; nothing is 
     seen(element.textContent);
   }
   seen(bare.shadowRoot.querySelector('#menu').getAttribute('aria-label'));
+  seen(bare.shadowRoot.querySelector('#overflow').getAttribute('aria-label'));
+  for (const key of ['showDevice', 'github', 'integrationSettings']) {
+    assert.ok(header.find(e => e.dataset.message === key), `no menu label for "${key}"`);
+    seen(header.find(e => e.dataset.message === key).textContent);
+  }
   seen(bare.shadowRoot.querySelector('#settings').getAttribute('aria-label'));
   seen(bare.shadowRoot.querySelector('#github').getAttribute('aria-label'));
   seen(bare.shadowRoot.querySelector('#device').getAttribute('aria-label'));
