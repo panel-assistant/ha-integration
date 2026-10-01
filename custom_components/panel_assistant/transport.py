@@ -235,6 +235,7 @@ PLATFORMS: Final = frozenset(
     {
         "binary_sensor",
         "button",
+        "camera",
         "event",
         "image",
         "light",
@@ -781,6 +782,7 @@ def _not_reported(_value: Any, _descriptor: Mapping[str, Any]) -> Any:
 _VALUE_VALIDATORS: Final[dict[str, Callable[[Any, Mapping[str, Any]], Any]]] = {
     "binary_sensor": _validate_boolean,
     "button": _not_reported,
+    "camera": _validate_boolean,
     "event": _not_reported,
     "image": _validate_image,
     "light": _validate_light,
@@ -2170,6 +2172,26 @@ def _accept_hello(
         # Before the session opens: opening it is what tells a cutover waiting
         # for the panel's channels to run. The entry was found by this very
         # identity, so the entities removed are this panel's own.
+        if (
+            "camera_enabled" in descriptors
+            and "camera_enabled" not in unknown
+            and descriptors["camera_enabled"]["platform"] == "camera"
+        ) or "camera_enabled" in unsupported:
+            registry = er.async_get(hass)
+            legacy_id = registry.async_get_entity_id(
+                "switch", DOMAIN, f"{did}_camera_enabled"
+            )
+            if (
+                legacy_id is not None
+                and (legacy := registry.async_get(legacy_id)) is not None
+                and legacy.config_entry_id == entry.entry_id
+            ):
+                registry.async_remove(legacy_id)
+                async_dispatcher_send(
+                    hass,
+                    signal_native_removed(entry.entry_id),
+                    frozenset({legacy.unique_id}),
+                )
         async_remove_unsupported_channels(hass, entry, did, unsupported)
         async_record_supported_channels(
             hass, entry, did, frozenset(descriptors).difference(unknown), unsupported

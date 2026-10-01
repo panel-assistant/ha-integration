@@ -329,6 +329,7 @@ async def test_every_type_renders_under_the_native_unique_id(
     assert platforms == {
         "binary_sensor",
         "button",
+        "camera",
         "event",
         "image",
         "light",
@@ -647,6 +648,8 @@ async def test_events_fire_once_per_counted_event_id(
     ("domain", "suffix", "service", "data"),
     [
         ("switch", "relay1", "turn_on", {}),
+        ("camera", "camera", "turn_on", {}),
+        ("camera", "camera", "turn_off", {}),
         ("switch", "relay1", "turn_off", {}),
         ("light", "screen", "turn_on", {}),
         ("light", "screen", "turn_off", {}),
@@ -775,12 +778,12 @@ async def test_reload_unloads_every_native_platform_and_adds_each_entity_once(
     hass_read_only_access_token: str,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A reload tears down all eleven platforms and the next session re-adds."""
+    """A reload tears down all twelve platforms and the next session re-adds."""
     client = await hass_ws_client(hass, hass_read_only_access_token)
     token = await _session(client)
     await _sync(hass, client, token)
     before = _registry_digest(hass, native.entry_id)
-    assert len(native.runtime_data.platforms) == 11
+    assert len(native.runtime_data.platforms) == 12
 
     with (
         patch(

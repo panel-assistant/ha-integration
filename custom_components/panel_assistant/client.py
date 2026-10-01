@@ -653,6 +653,13 @@ class HaPaneldClient:
         except UnicodeDecodeError as err:
             raise InvalidResponseError from err
 
+    async def async_get_camera_snapshot(self) -> bytes:
+        """Request a fresh, bounded JPEG from this verified panel address."""
+        return await self._async_get_bounded(
+            self.address.base_url.with_path("/api/v1/camera/snapshot.jpg"),
+            2 * 1024 * 1024,
+        )
+
     async def async_get_legacy_install_capability(self) -> bool:
         """Read the old panel's privileged-route bit until it reports a typed one.
 

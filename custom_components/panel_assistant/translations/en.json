@@ -143,6 +143,11 @@
     }
   },
   "entity": {
+    "camera": {
+      "camera": {
+        "name": "Camera"
+      }
+    },
     "binary_sensor": {
       "auto_sleep_activity": {
         "name": "Auto-sleep activity"
@@ -354,14 +359,14 @@
       }
     },
     "switch": {
+      "camera_enabled": {
+        "name": "Camera"
+      },
       "auto_brightness": {
         "name": "Auto-brightness"
       },
       "auto_sleep": {
         "name": "Auto sleep"
-      },
-      "camera_enabled": {
-        "name": "Camera"
       },
       "companion_auto_update": {
         "name": "Companion auto-update"
