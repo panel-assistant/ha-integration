@@ -291,7 +291,9 @@ export class PanelAssistantSidebar extends HTMLElement {
 
   #onNotifications(alerts, event) {
     if (this.#alerts !== alerts || !NOTIFICATION_EVENTS.has(event?.type) || !event.notifications || typeof event.notifications !== 'object') return;
-    if (event.type === 'removed') for (const id of Object.keys(event.notifications)) delete alerts.notifications[id];
+    // `current` is the server's whole snapshot (also after a reconnect resubscribes), so it replaces what is held.
+    if (event.type === 'current') alerts.notifications = { ...event.notifications };
+    else if (event.type === 'removed') for (const id of Object.keys(event.notifications)) delete alerts.notifications[id];
     else alerts.notifications = { ...alerts.notifications, ...event.notifications };
     this.shadowRoot.querySelector('#dot').hidden = Object.keys(alerts.notifications).length === 0;
   }

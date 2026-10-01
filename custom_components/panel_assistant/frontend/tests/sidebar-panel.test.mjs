@@ -414,6 +414,14 @@ test('on a phone the menu button carries Home Assistant\'s notification dot', as
   assert.equal($('#dot').hidden, true);
   sub.callback({ type: 'updated', notifications: { c: {} } });
   assert.equal($('#dot').hidden, false);
+  sub.callback({ type: 'current', notifications: {} });
+  assert.equal($('#dot').hidden, true, 'a fresh snapshot replaces the held notifications (one dismissed during an outage)');
+  sub.callback({ type: 'current', notifications: { e: {} } });
+  sub.callback({ type: 'current', notifications: { f: {} } });
+  sub.callback({ type: 'removed', notifications: { f: {} } });
+  assert.equal($('#dot').hidden, true, 'e left with the earlier snapshot');
+  sub.callback({ type: 'added', notifications: { c: {} } });
+  assert.equal($('#dot').hidden, false);
 
   panel.narrow = false; await tick();
   assert.equal(sub.unsubscribed, 1, 'a wide screen shows Home Assistant\'s own sidebar, so no dot');

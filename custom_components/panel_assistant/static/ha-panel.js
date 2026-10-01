@@ -229,7 +229,8 @@ class we extends HTMLElement {
   }
   #E(e, t) {
     if (!(this.#p !== e || !fe.has(t?.type) || !t.notifications || typeof t.notifications != "object")) {
-      if (t.type === "removed") for (const n of Object.keys(t.notifications)) delete e.notifications[n];
+      if (t.type === "current") e.notifications = { ...t.notifications };
+      else if (t.type === "removed") for (const n of Object.keys(t.notifications)) delete e.notifications[n];
       else e.notifications = { ...e.notifications, ...t.notifications };
       this.shadowRoot.querySelector("#dot").hidden = Object.keys(e.notifications).length === 0;
     }
