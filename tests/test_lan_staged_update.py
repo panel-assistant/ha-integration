@@ -506,6 +506,105 @@ async def test_accepted_update_projects_restart_when_panel_disappears(
         sessions.clear_restart_notice("entry-id")
 
 
+@pytest.mark.parametrize("move", [False, True], ids=["update", "bridge-handover"])
+async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    move: bool,
+) -> None:
+    """Never Unavailable, a bar that only rises, and the new version only at the end."""
+    github = (
+        _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=b"bridge")
+        if move
+        else _GitHub(key)
+    )
+    entity, client = await _entity(hass, monkeypatch, github)
+    client.async_get_successor_capability = AsyncMock(
+        return_value=(SUCCESSOR_PACKAGE_ID, VERSION, None, False)
+    )
+    start = entity.installed_version
+    shown: list[dict[str, Any]] = []
+
+    def write() -> None:
+        shown.append({"available": entity.available, **entity.state_attributes})
+
+    entity.async_write_ha_state = write  # type: ignore[method-assign]
+    coordinator = entity.coordinator
+    coordinator.last_update_success = True
+    restarted: PanelSnapshot | None = None
+    absent = 0
+
+    async def stage(_apk: bytes, **kwargs: Any) -> StagedApk:
+        migrating = kwargs.get("migration_sha256") is not None
+        return _preview(
+            package=SUCCESSOR_PACKAGE_ID if migrating else LEGACY_PACKAGE_ID
+        )
+
+    async def commit(_token: str) -> None:
+        nonlocal restarted, absent
+        migrating = client.async_stage_apk.await_args.kwargs.get("migration_sha256")
+        restarted = _snapshot(
+            VERSION,
+            "3000" if migrating else "2000",
+            SUCCESSOR_PACKAGE_ID if migrating else LEGACY_PACKAGE_ID,
+        )
+        absent = 3
+
+    async def refresh() -> None:
+        # Each poll ends in the coordinator's listener write, as in Core.
+        nonlocal absent, restarted
+        if absent:
+            absent -= 1
+            coordinator.last_update_success = False
+        else:
+            # A panel that answers again ends its restart notice, as in Core.
+            coordinator.last_update_success = True
+            async_get_sessions(hass).clear_restart_notice("entry-id")
+            if restarted is not None:
+                coordinator.data, restarted = restarted, None
+        entity._handle_coordinator_update()
+
+    ready = client.async_get_status.return_value
+    starting = replace(ready, home_ui={**ready.home_ui, "state": "starting"})
+
+    async def status(**_kwargs: Any) -> PanelStatus:
+        # The new app answers before its dashboard is on screen.
+        return starting if client.async_get_status.await_count % 2 else ready
+
+    client.async_get_status = AsyncMock(side_effect=status)
+    client.async_stage_apk.side_effect = stage
+    client.async_commit_apk.side_effect = commit
+    coordinator.async_request_refresh = AsyncMock(side_effect=refresh)  # type: ignore[method-assign]
+    try:
+        await entity.async_install(None, backup=False)
+    finally:
+        async_get_sessions(hass).clear_restart_notice("entry-id")
+
+    working = [state for state in shown if state["in_progress"]]
+    assert any(not state["available"] for state in shown) is False
+    restarting = [
+        state["update_percentage"] for state in working if state["release_summary"]
+    ]
+    assert restarting
+    # The last restart is the one into the target; a bridge's comes earlier.
+    assert 50 <= restarting[-1] <= 80
+    assert (restarting[0] < 50) is move
+    progress = [state["update_percentage"] for state in working]
+    assert None not in progress
+    assert progress == sorted(progress)
+    assert progress[-1] >= 50
+    assert {state["installed_version"] for state in working} == {start}
+    assert {state["latest_version"] for state in working} == {VERSION}
+    assert shown[-1]["in_progress"] is False
+    assert shown[-1]["installed_version"] == VERSION
+    assert client.async_stage_apk.await_count == (2 if move else 1)
+    assert client.async_get_status.await_count == (4 if move else 2)
+    if move:
+        assert coordinator.data.health.package == SUCCESSOR_PACKAGE_ID
+
+
 @pytest.mark.parametrize("refusal", [UploadDisabledError, StagingUnavailableError])
 async def test_a_panel_that_cannot_take_an_upload_downloads_the_release_itself(
     hass: HomeAssistant,
