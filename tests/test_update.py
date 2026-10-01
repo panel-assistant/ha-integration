@@ -221,7 +221,9 @@ async def test_panel_refusal_after_unstarted_call_is_not_retried(
     assert entity.in_progress is False
 
 
-@pytest.mark.parametrize("home_state", ["blocked", "unknown", "setup", None])
+@pytest.mark.parametrize(
+    "home_state", ["blocked", "unknown", "setup", None, "ready-unrendered"]
+)
 async def test_matching_update_health_requires_ready_home_proof(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, home_state: str | None
 ) -> None:
@@ -239,13 +241,26 @@ async def test_matching_update_health_requires_ready_home_proof(
         status_error=None,
     )
     entity.coordinator.async_request_refresh = AsyncMock()
+    # A built-in dashboard in front but still on a status screen reads ready.
+    unrendered = home_state == "ready-unrendered"
     client.async_get_status = AsyncMock(
-        return_value=SimpleNamespace(
+        return_value=PanelStatus(
+            warning_count=0,
+            capability_count=0,
             home_ui=(
-                {"state": home_state, "reason": "chooser", "evidence": "resolver"}
+                {
+                    "state": "ready" if unrendered else home_state,
+                    "reason": "chooser",
+                    "evidence": "resolver",
+                }
                 if home_state is not None
                 else None
-            )
+            ),
+            renderer=(
+                {"mode": "builtin", "state": "unobserved", "rendered": False}
+                if unrendered
+                else None
+            ),
         )
     )
     entity.coordinator.last_update_success = True

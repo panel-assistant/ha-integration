@@ -146,8 +146,20 @@ class _Attempt:
     percentage: int = 0
     # The share of the bar one delivery fills: the bridge, then its successor.
     band: tuple[int, int] = (0, 100)
-    accepted_at: float | None = None
+    # After the panel accepts: installing, then away restarting, then back on
+    # the target build until its dashboard shows. None until accepted.
+    stage: str | None = None
+    stage_at: float = 0.0
     restart_projected: bool = False
+
+
+# Each stage's share of a delivery's bar and how fast it approaches its top,
+# sized by how long the stage takes on a panel (about 30 s each on 2026-10-01).
+_STAGES: dict[str, tuple[float, float, float]] = {
+    "installing": (20, 45, 20),
+    "away": (50, 75, 20),
+    "back": (80, 95, 15),
+}
 
 
 class _UpdateRefusalError(ServiceValidationError, HTTPBadRequest):
@@ -657,7 +669,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         self._recovery_started = True
         self._start_observer(None, recovered=True)
         # Found running after a reload: the panel already took the update.
-        self._accepted(10)
+        self._enter("installing")
 
     def _start_observer(
         self, expected_version: str | None, *, recovered: bool = False
@@ -749,7 +761,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         """Give the next delivery its own share of one continuous bar."""
         if self._attempt is not None:
             self._attempt.band = (low, high)
-            self._attempt.accepted_at = None
+            self._attempt.stage = None
             self._attempt.restart_projected = False
 
     def _advance(self, phase: float) -> None:
@@ -763,19 +775,31 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             attempt.percentage = percentage
             self.async_write_ha_state()
 
-    def _accepted(self, phase: float = 50) -> None:
-        """The panel took the update; from here its app is expected to restart."""
-        if self._attempt is not None:
-            self._attempt.accepted_at = asyncio.get_running_loop().time()
-        self._advance(phase)
-
-    def _restart_progress(self, low: float = 50, high: float = 80) -> None:
-        """Keep the bar moving while the panel restarts, short of completion."""
+    def _enter(self, stage: str, *, write: bool = True) -> None:
+        """Start a later stage of the delivery at the bottom of its share."""
         attempt = self._attempt
-        if attempt is None or attempt.accepted_at is None:
+        if attempt is None or (
+            attempt.stage is not None
+            and list(_STAGES).index(stage) <= list(_STAGES).index(attempt.stage)
+        ):
             return
-        waited = asyncio.get_running_loop().time() - attempt.accepted_at
-        self._advance(high - (high - low) * math.exp(-waited / 30))
+        attempt.stage = stage
+        attempt.stage_at = asyncio.get_running_loop().time()
+        if write:
+            self._advance(_STAGES[stage][0])
+        else:
+            low, high = attempt.band
+            floor = int(low + (high - low) * _STAGES[stage][0] / 100)
+            attempt.percentage = max(attempt.percentage, floor)
+
+    def _tick(self) -> None:
+        """Keep the bar moving within the current stage, short of its end."""
+        attempt = self._attempt
+        if attempt is None or attempt.stage is None:
+            return
+        low, high, pace = _STAGES[attempt.stage]
+        waited = asyncio.get_running_loop().time() - attempt.stage_at
+        self._advance(high - (high - low) * math.exp(-waited / pace))
 
     def _hold_through_restart(self) -> None:
         """Show an accepted update's absent app as restarting, once.
@@ -786,16 +810,14 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         attempt = self._attempt
         if (
             attempt is None
-            or attempt.accepted_at is None
+            or attempt.stage is None
             or attempt.restart_projected
             or self.coordinator.available
         ):
             return
         attempt.restart_projected = True
-        # The restart is the install's second half; the write about to follow
-        # shows it there, not where a panel's own download had reached.
-        low, high = attempt.band
-        attempt.percentage = max(attempt.percentage, (low + high) // 2)
+        # The write about to follow shows the restart's share of the bar.
+        self._enter("away", write=False)
         sessions = async_get_sessions(self.hass)
         if sessions.restart_notice(self._entry_id) is None:
             sessions.set_restart_notice(
@@ -1182,7 +1204,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                         ):
                             # A connected bridge may already have completed its
                             # own handover. Prove that result without reinstalling.
-                            self._accepted()
+                            self._enter("installing")
                             await self._async_wait_for_build(
                                 successor, ("", LEGACY_PACKAGE_ID)
                             )
@@ -1254,7 +1276,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 "update_not_accepted", "The panel did not accept the update request"
             ) from err
         self._record_route(ROUTE_PANEL, offer.tag)
-        self._accepted(10)
+        self._enter("installing")
         observer = self._start_observer(offer.target_version)
         self.async_write_ha_state()
         await observer
@@ -1279,11 +1301,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         while asyncio.get_running_loop().time() < deadline:
             await self.coordinator.async_request_refresh()
             self._hold_through_restart()
-            # The panel downloads and installs while it still answers.
-            if self.coordinator.available:
-                self._restart_progress(10, 45)
-            else:
-                self._restart_progress()
+            self._tick()
             snapshot = self.coordinator.data
             verified = (
                 self._running_version() == expected_version
@@ -1303,8 +1321,20 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 )
             )
             if self.coordinator.last_update_success and verified:
-                await self._update_coordinator.async_request_refresh()
-                return True
+                # The new build answers; the update ends once its dashboard
+                # shows, as on the staged route.
+                self._enter("back")
+                try:
+                    home = await self.coordinator.client.async_get_status(
+                        home_proof=True
+                    )
+                except HaPaneldError:
+                    home = None
+                if home is not None and home_ui_allows(home):
+                    await self._update_coordinator.async_request_refresh()
+                    return True
+                await asyncio.sleep(_UPDATE_RECHECK_SECONDS)
+                continue
             try:
                 await self._update_coordinator.async_request_refresh()
                 status = self._update_coordinator.data.operation
@@ -1442,7 +1472,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     "bridge_handover_refused", "The panel refused the app handover"
                 ) from err
             self._record_route(ROUTE_STAGED, artifact.tag)
-            self._accepted()
+            self._enter("installing")
             await self._async_wait_for_build(artifact, before, minimum_code=True)
             return True
         self._advance(10)
@@ -1473,7 +1503,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 if fallback:
                     return False
                 raise
-            self._advance(40)
+            self._advance(15)
             health = self.coordinator.data.health if self.coordinator.data else None
             panel_changed = (
                 health is None
@@ -1518,7 +1548,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 "update_not_accepted", "The panel did not accept the update request"
             ) from err
         self._record_route(ROUTE_STAGED, artifact.tag)
-        self._accepted()
+        self._enter("installing")
         await self._async_wait_for_build(artifact, before)
         return True
 
@@ -1609,7 +1639,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             ) from err
         if outcome is InstallOutcome.REFUSED:
             raise _UpdateRefusalError(self._panel_name())
-        self._accepted()
+        self._enter("installing")
         try:
             installed = await async_preflight_install(
                 target,
@@ -1656,7 +1686,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         while loop.time() < deadline:
             await self.coordinator.async_request_refresh()
             self._hold_through_restart()
-            self._restart_progress()
+            self._tick()
             health = self.coordinator.data.health if self.coordinator.data else None
             if (
                 self.coordinator.last_update_success
@@ -1687,7 +1717,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                         )
                 if build is None or code is not None:
                     build_seen_without_home = True
-                    self._advance(90)
+                    self._enter("back")
                     try:
                         status = await self.coordinator.client.async_get_status(
                             home_proof=True

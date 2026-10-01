@@ -408,9 +408,26 @@ _HOME_UI_FIELDS: dict[str, FieldValidator] = {
 
 
 def home_ui_allows(status: PanelStatus, *, setup: bool = False) -> bool:
-    """Accept only a fresh, complete HOME proof for this completion path."""
-    return status.home_ui is not None and status.home_ui.get("state") in (
-        ("ready", "setup") if setup else ("ready",)
+    """Accept only a fresh, complete HOME proof for this completion path.
+
+    Outside setup, a built-in dashboard must also be rendered: its activity
+    is in front, and so reads ready, while it still shows a status screen
+    before the Home Assistant frontend connects.
+    """
+    if setup:
+        return status.home_ui is not None and status.home_ui.get("state") in (
+            "ready",
+            "setup",
+        )
+    renderer = status.renderer
+    return (
+        status.home_ui is not None
+        and status.home_ui.get("state") == "ready"
+        and (
+            renderer is None
+            or renderer.get("mode") != "builtin"
+            or renderer.get("state") == "rendered"
+        )
     )
 
 
