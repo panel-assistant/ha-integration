@@ -139,7 +139,7 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
         "codeowners": ["@maxlyth"],
         "after_dependencies": ["assist_pipeline"],
         "config_flow": True,
-        "dependencies": ["http", "panel_custom", "websocket_api"],
+        "dependencies": ["http", "panel_custom", "stream", "websocket_api"],
         "documentation": "https://github.com/panel-assistant/ha-integration",
         "domain": "panel_assistant",
         "integration_type": "device",
@@ -327,6 +327,8 @@ def _english_only_paths(catalogue: dict[str, Any]) -> set[tuple[str, ...]]:
         ("entity", channel["platform"], channel["translation_key"])
         for channel in contract["channels"]
     }
+    # The current camera replaces this native-only switch, but old apps remain supported.
+    paths.add(("entity", "switch", "camera_enabled"))
     paths.update(
         ("exceptions", code)
         for code in (
@@ -365,7 +367,7 @@ def test_english_only_translations_are_exactly_the_dormant_native_surface() -> N
     paths = _english_only_paths(english)
     shared = _without(english, paths)
 
-    assert len(paths) == 61
+    assert len(paths) == 62
     assert all(path[:1] in {("entity",), ("exceptions",)} for path in paths)
     assert len(_translation_leaves(shared)) == 535
     for locale_path in sorted((INTEGRATION / "translations").glob("*.json")):
