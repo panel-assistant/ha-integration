@@ -4,7 +4,9 @@ MQTT support ends after this release line, and so does the only way to move a
 panel's entities off it. So a panel whose entities MQTT still controls (the
 ``mqtt`` and ``shadow`` authorities) gets a Repairs issue whose fix does
 exactly what choosing Panel Assistant under Configure, Control does: it saves
-the native authority, and the entry's reload runs the cutover.
+the native authority, and the entry's reload runs the cutover. Only a panel
+that has really been an MQTT panel here is asked: one that never used MQTT
+would only be confused by the offer.
 
 A panel whose ha-paneld predates the MQTT withdrawal would announce its MQTT
 entities again after the move, so it is asked to update first instead. A panel
@@ -24,15 +26,21 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import issue_registry as ir
 
-from .client import is_version_at_least
-from .const import DOMAIN, PANEL_MQTT_WITHDRAW_VERSION
+from .const import CONF_AUTHORITY, DOMAIN, PANEL_MQTT_WITHDRAW_VERSION
 from .device import panel_display_name
+from .guards import (
+    _panel_ids,
+    mqtt_device,
+    panel_follows_mqtt_withdrawal,
+    reported_panel_version,
+)
 from .transport import (
+    AUTHORITY_MQTT,
     AUTHORITY_NATIVE,
     ISSUE_CUTOVER_INCOMPLETE,
-    async_get_sessions,
     authority_options,
     cutover_issue_id,
+    cutover_record,
     effective_authority,
     native_entities_turned_off,
 )
@@ -55,38 +63,6 @@ def update_before_move_issue_id(entry_id: str) -> str:
     return cutover_issue_id(ISSUE_UPDATE_BEFORE_MOVE, entry_id)
 
 
-def reported_panel_version(hass: HomeAssistant, entry: ConfigEntry) -> str | None:
-    """Return the ha-paneld version the panel reported most recently.
-
-    A live session's hello is the panel speaking now; health is the latest
-    poll; a closed session is what the panel said before it went away.
-    """
-    sessions = async_get_sessions(hass)
-    if (session := sessions.get(entry.entry_id)) is not None:
-        return session.app_version
-    coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
-    health = getattr(getattr(coordinator, "data", None), "health", None)
-    version = getattr(health, "version", None)
-    if isinstance(version, str):
-        return version
-    if (session := sessions.latest(entry.entry_id)) is not None:
-        return session.app_version
-    return None
-
-
-def panel_follows_mqtt_withdrawal(
-    hass: HomeAssistant, entry: ConfigEntry
-) -> bool | None:
-    """Return whether the panel's version negotiates its MQTT withdrawal.
-
-    None when no version is known, or the version is a feed build's own name.
-    """
-    version = reported_panel_version(hass, entry)
-    if version is None:
-        return None
-    return is_version_at_least(version, PANEL_MQTT_WITHDRAW_VERSION)
-
-
 @callback
 def async_delete_native_move_issues(hass: HomeAssistant, entry_id: str) -> None:
     """Withdraw both of an entry's move issues."""
@@ -94,12 +70,30 @@ def async_delete_native_move_issues(hass: HomeAssistant, entry_id: str) -> None:
     ir.async_delete_issue(hass, DOMAIN, update_before_move_issue_id(entry_id))
 
 
+def has_mqtt_history(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Return whether this panel has ever been an MQTT panel here.
+
+    MQTT knows a device for it, under the panel ID it reports or the one a
+    cutover recorded, or MQTT was chosen outright. A panel added natively,
+    left at the shadow default and never announced over MQTT, has nothing to
+    move, and an offer to move it would only confuse someone who never used
+    MQTT.
+    """
+    if entry.options.get(CONF_AUTHORITY) == AUTHORITY_MQTT:
+        return True
+    return any(
+        mqtt_device(hass, panel_id) is not None
+        for panel_id in _panel_ids(entry, dict(cutover_record(entry) or {}))
+    )
+
+
 def _nothing_to_offer(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Return whether there is nothing to offer: native already, or a cutover
-    that failed, whose own issue says how it carries on.
+    """Return whether there is nothing to offer: never on MQTT, native
+    already, or a cutover that failed, whose own issue says how it carries on.
     """
     return (
-        effective_authority(hass, entry) == AUTHORITY_NATIVE
+        not has_mqtt_history(hass, entry)
+        or effective_authority(hass, entry) == AUTHORITY_NATIVE
         or ir.async_get(hass).async_get_issue(
             DOMAIN, cutover_issue_id(ISSUE_CUTOVER_INCOMPLETE, entry.entry_id)
         )

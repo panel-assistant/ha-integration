@@ -38,9 +38,8 @@ from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .client import is_valid_discovery_id
+from .client import is_valid_discovery_id, is_version_at_least
 from .const import CONF_CUTOVER, DOMAIN, PANEL_MQTT_WITHDRAW_VERSION
-from .native_move import panel_follows_mqtt_withdrawal
 from .transport import (
     AUTHORITY_NATIVE,
     CUTOVER_ENTITIES,
@@ -193,6 +192,38 @@ def _is_duplicate(
     ):
         return False
     return _on_panel_device(hass, item, _panel_ids(entry, record))
+
+
+def reported_panel_version(hass: HomeAssistant, entry: ConfigEntry) -> str | None:
+    """Return the ha-paneld version the panel reported most recently.
+
+    A live session's hello is the panel speaking now; health is the latest
+    poll; a closed session is what the panel said before it went away.
+    """
+    sessions = async_get_sessions(hass)
+    if (session := sessions.get(entry.entry_id)) is not None:
+        return session.app_version
+    coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
+    health = getattr(getattr(coordinator, "data", None), "health", None)
+    version = getattr(health, "version", None)
+    if isinstance(version, str):
+        return version
+    if (session := sessions.latest(entry.entry_id)) is not None:
+        return session.app_version
+    return None
+
+
+def panel_follows_mqtt_withdrawal(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> bool | None:
+    """Return whether the panel's version negotiates its MQTT withdrawal.
+
+    None when no version is known, or the version is a feed build's own name.
+    """
+    version = reported_panel_version(hass, entry)
+    if version is None:
+        return None
+    return is_version_at_least(version, PANEL_MQTT_WITHDRAW_VERSION)
 
 
 def panel_update_required_issue_id(entry_id: str) -> str:
