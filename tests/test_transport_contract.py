@@ -38,7 +38,7 @@ SCHEMAS = {
 }
 
 _HA_VECTOR_REVISION = "8c70df5c299c840308c664f9ac2325eddcd8e88a"
-_ANDROID_PRODUCER_REVISION = "6058d769563f599eceb58b9ab6824b40f823c319"
+_ANDROID_PRODUCER_REVISION = "fc4d41bba3d906b5a289fe6771ff81aae9e4f48c"
 
 
 def test_shared_vectors_name_the_ha_source_revision_vendored_by_android() -> None:
@@ -231,10 +231,10 @@ def test_every_android_channel_descriptor_is_its_catalogue_entry(
         assert descriptor[field] == entry[field], field
 
 
-def test_the_catalogue_describes_nothing_android_does_not_except_its_known_gaps() -> (
+def test_the_catalogue_preserves_old_panel_channels_absent_from_current_android() -> (
     None
 ):
-    """Catalogue entries Android never describes are exactly the known ones."""
+    """The compatibility catalogue retains retired and hardware-only channels."""
     described = {
         entry["translation_key"]
         for descriptor in ANDROID_PRODUCER["channelDescriptors"]
@@ -249,6 +249,11 @@ def test_the_catalogue_describes_nothing_android_does_not_except_its_known_gaps(
         "auto_sleep_activity",
         "button",
         "camera_snapshot",
+        "self_update",
+        "update_channel",
+        "companion_auto_update",
+        "companion_update_channel",
+        "webview_auto_update",
     }
 
 
