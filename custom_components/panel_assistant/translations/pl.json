@@ -230,6 +230,17 @@
     }
   },
   "issues": {
+      "restart_required": {
+        "title": "Uruchom ponownie Home Assistant, aby dokończyć aktualizację Panel Assistant",
+        "fix_flow": {
+          "step": {
+            "confirm_restart": {
+              "title": "Uruchom ponownie Home Assistant",
+              "description": "Panel Assistant {installed} jest zainstalowany, ale Home Assistant nadal używa wersji {loaded}. Nowa wersja zacznie działać po ponownym uruchomieniu Home Assistant. Wybierz Prześlij, aby teraz ponownie uruchomić Home Assistant."
+            }
+          }
+        }
+      },
     "panel_user_mismatch": {
       "title": "Potwierdź użytkownika Home Assistant dla {panel}",
       "fix_flow": {

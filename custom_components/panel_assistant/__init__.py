@@ -48,6 +48,7 @@ from .install_executor import (
     async_resume_loaded_install_jobs,
 )
 from .native import CONF_NATIVE_ENTITIES, NATIVE_ONLY_PLATFORMS
+from .restart_repair import async_setup_restart_check
 from .transport import (
     DATA_NATIVE_ENTITIES,
     DEFAULT_AUTHORITY,
@@ -103,6 +104,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async_setup_embed(hass)
     async_register_browser_delivery(hass)
     await async_register_browser_panel(hass)
+    await async_setup_restart_check(hass)
     feed = config.get(DOMAIN, {}).get(CONF_BUILD_FEED)
     if feed is not None:
         try:

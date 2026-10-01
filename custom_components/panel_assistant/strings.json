@@ -525,6 +525,17 @@
     }
   },
   "issues": {
+      "restart_required": {
+        "title": "Restart Home Assistant to finish updating Panel Assistant",
+        "fix_flow": {
+          "step": {
+            "confirm_restart": {
+              "title": "Restart Home Assistant",
+              "description": "Panel Assistant {installed} is installed, but Home Assistant is still running {loaded}. The new version starts working after Home Assistant restarts. Select Submit to restart Home Assistant now."
+            }
+          }
+        }
+      },
     "panel_user_mismatch": {
       "title": "Confirm the Home Assistant user for {panel}",
       "fix_flow": {

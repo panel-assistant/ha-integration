@@ -230,6 +230,17 @@
     }
   },
   "issues": {
+      "restart_required": {
+        "title": "Перезапустіть Home Assistant, щоб завершити оновлення Panel Assistant",
+        "fix_flow": {
+          "step": {
+            "confirm_restart": {
+              "title": "Перезапустити Home Assistant",
+              "description": "Panel Assistant {installed} встановлено, але Home Assistant досі виконує {loaded}. Нова версія почне працювати після перезапуску Home Assistant. Виберіть Надіслати, щоб перезапустити Home Assistant зараз."
+            }
+          }
+        }
+      },
     "panel_user_mismatch": {
       "title": "Підтвердьте користувача Home Assistant для {panel}",
       "fix_flow": {

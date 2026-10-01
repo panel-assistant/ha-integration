@@ -230,6 +230,17 @@
     }
   },
   "issues": {
+      "restart_required": {
+        "title": "Herstart Home Assistant om de update van Panel Assistant af te ronden",
+        "fix_flow": {
+          "step": {
+            "confirm_restart": {
+              "title": "Home Assistant herstarten",
+              "description": "Panel Assistant {installed} is geïnstalleerd, maar Home Assistant draait nog {loaded}. De nieuwe versie werkt pas nadat Home Assistant opnieuw is gestart. Kies Verzenden om Home Assistant nu te herstarten."
+            }
+          }
+        }
+      },
     "panel_user_mismatch": {
       "title": "Bevestig de Home Assistant-gebruiker voor {panel}",
       "fix_flow": {

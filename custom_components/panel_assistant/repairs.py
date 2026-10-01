@@ -55,6 +55,7 @@ from .migration_repair import (
 )
 from .release import ReleaseResolutionError
 from .release_catalog import async_resolve_install_choice
+from .restart_repair import ISSUE_RESTART_REQUIRED, RestartRequiredFlow
 from .transport import (
     BINDING_ISSUES,
     ISSUE_DATA_ENTRY_ID,
@@ -592,6 +593,8 @@ async def async_create_fix_flow(
 ) -> RepairsFlow:
     """Create the fix flow for a Panel Assistant issue."""
     values = data or {}
+    if issue_id == ISSUE_RESTART_REQUIRED:
+        return RestartRequiredFlow()
     if issue_id.startswith(f"{ISSUE_ADB_AUTHORIZATION}_"):
         entry_id = values.get("entry_id")
         if not isinstance(entry_id, str) or issue_id != adb_authorization_issue_id(

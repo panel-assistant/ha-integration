@@ -190,6 +190,17 @@
     }
   },
   "issues": {
+      "restart_required": {
+        "title": "Home Assistant neu starten, um das Update von Panel Assistant abzuschließen",
+        "fix_flow": {
+          "step": {
+            "confirm_restart": {
+              "title": "Home Assistant neu starten",
+              "description": "Panel Assistant {installed} ist installiert, aber Home Assistant führt noch {loaded} aus. Die neue Version ist erst nach einem Neustart von Home Assistant aktiv. Wähle Absenden, um Home Assistant jetzt neu zu starten."
+            }
+          }
+        }
+      },
     "panel_user_mismatch": {
       "title": "Home Assistant-Benutzer für {panel} bestätigen",
       "fix_flow": {

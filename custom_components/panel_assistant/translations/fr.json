@@ -190,6 +190,17 @@
     }
   },
   "issues": {
+      "restart_required": {
+        "title": "Redémarrez Home Assistant pour terminer la mise à jour de Panel Assistant",
+        "fix_flow": {
+          "step": {
+            "confirm_restart": {
+              "title": "Redémarrer Home Assistant",
+              "description": "Panel Assistant {installed} est installé, mais Home Assistant exécute toujours {loaded}. La nouvelle version prend effet après le redémarrage de Home Assistant. Sélectionnez Valider pour redémarrer Home Assistant maintenant."
+            }
+          }
+        }
+      },
     "panel_user_mismatch": {
       "title": "Confirmer l'utilisateur Home Assistant de {panel}",
       "fix_flow": {

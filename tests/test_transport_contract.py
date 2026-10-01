@@ -544,6 +544,7 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
         "panel_migration_incomplete",
         "panel_identity_confirmation",
         "panel_identity_mismatch",
+        "restart_required",
     }
     # Which binding issue is raised depends on whether the panel already has an
     # account, so that call passes a variable and the scan above sees no literal.

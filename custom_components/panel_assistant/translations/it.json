@@ -190,6 +190,17 @@
     }
   },
   "issues": {
+      "restart_required": {
+        "title": "Riavvia Home Assistant per completare l'aggiornamento di Panel Assistant",
+        "fix_flow": {
+          "step": {
+            "confirm_restart": {
+              "title": "Riavvia Home Assistant",
+              "description": "Panel Assistant {installed} è installato, ma Home Assistant sta ancora eseguendo {loaded}. La nuova versione entra in funzione dopo il riavvio di Home Assistant. Seleziona Invia per riavviare Home Assistant ora."
+            }
+          }
+        }
+      },
     "panel_user_mismatch": {
       "title": "Conferma l'utente Home Assistant per {panel}",
       "fix_flow": {

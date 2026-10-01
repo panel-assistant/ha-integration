@@ -12,6 +12,7 @@ from homeassistant.core import HomeAssistant
 from . import HaPaneldConfigEntry
 from .const import CONF_CUTOVER, CONF_TRANSPORT_USER_ID, INTEGRATION_BUILD
 from .coordinator import PanelSnapshot
+from .restart_repair import restart_pending
 from .transport import (
     cutover_record,
     effective_authority,
@@ -72,7 +73,11 @@ async def async_get_config_entry_diagnostics(
         shadow = {"error": SHADOW_ERROR_COMPARISON_FAILED}
     if shadow is not None:
         transport["shadow"] = shadow
-    return {**_diagnostics(entry), "transport": transport}
+    return {
+        **_diagnostics(entry),
+        "restart_pending": restart_pending(hass),
+        "transport": transport,
+    }
 
 
 def _diagnostics(entry: HaPaneldConfigEntry) -> dict[str, Any]:
