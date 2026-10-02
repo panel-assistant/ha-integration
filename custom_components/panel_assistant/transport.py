@@ -77,6 +77,7 @@ from .const import (
 from .contract import CONTRACT, catalogue_entry, catalogue_entry_for_channel
 from .embed_proof import encode_key, new_key
 from .ha_url import DATA_INSTANCE_ID, async_connection_urls
+from .lifecycle import DATA_LIFECYCLE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -953,6 +954,19 @@ class TransportSessions:
         self._last_by_entry: dict[str, PanelSession] = {}
         self._restart: dict[str, RestartNotice] = {}
         self._restart_timers: dict[str, asyncio.TimerHandle] = {}
+
+    @callback
+    def broadcast_lifecycle(self, lifecycle: dict[str, Any]) -> None:
+        """Best-effort notification to every authority; one failure is isolated."""
+        for session in tuple(self._by_entry.values()):
+            try:
+                session.connection.send_message(
+                    event_message(
+                        session.subscription_id, {"kind": "lifecycle", **lifecycle}
+                    )
+                )
+            except Exception:
+                _LOGGER.debug("Could not enqueue Core lifecycle notice", exc_info=True)
 
     def restart_notice(self, entry_id: str) -> RestartNotice | None:
         """Return only an unexpired notice."""
@@ -2234,6 +2248,7 @@ def _accept_hello(
         "mqtt_discovery": mqtt_discovery,
         "capabilities": sorted(capabilities),
         "integration": {"version": INTEGRATION_VERSION},
+        "lifecycle": hass.data[DOMAIN][DATA_LIFECYCLE].snapshot(),
         "connection": {
             "instance_id": hass.data[DOMAIN][DATA_INSTANCE_ID],
             "user_id": user_id,
