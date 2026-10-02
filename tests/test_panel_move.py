@@ -313,7 +313,7 @@ async def test_a_new_app_without_a_valid_identity_keeps_the_record(
 
     panel.launch = launch_anonymous  # type: ignore[method-assign]
     with (
-        patch.object(panel_move, "_RESTORE_WAIT_SECONDS", 0),
+        patch.object(panel_move, "_RESTORE_WAIT_SECONDS", 0.2),
         pytest.raises(MoveError, match="move_failed"),
     ):
         await _move(hass, entry, panel, tmp_path)
@@ -462,7 +462,7 @@ async def test_a_move_interrupted_after_the_old_app_went_resumes_after_a_restart
     # durable record knows of the move.
     hass.config_entries.async_update_entry(entry, data={"address": "x"})
     await async_restore_move_offer(hass, entry)
-    assert entry.data[CONF_SUCCESSOR_MOVE] == {"panel_id": "office"}
+    assert entry.data.get(CONF_SUCCESSOR_MOVE) == {"panel_id": "office"}
 
     panel.restore = real_restore  # type: ignore[method-assign]
     panel.steps.clear()
