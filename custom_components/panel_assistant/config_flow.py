@@ -810,7 +810,9 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 self.hass, self._pending_install_target
             )
             signer = await async_get_adb_signer(self.hass)
-            probe = await async_probe_install_target(target.pinned, signer)
+            probe = await async_probe_install_target(
+                target.pinned, signer, authorize=True
+            )
         except InstallNetworkError as err:
             return self._show_authorize_adb({"base": _install_network_error(err)})
         except AdbCredentialError:
@@ -1571,7 +1573,7 @@ async def async_authorize_existing_panel_adb(
             return "panel_identity_changed"
         await async_revalidate_install_target(hass, target)
         signer = await async_get_adb_signer(hass)
-        probe = await async_probe_install_target(target.pinned, signer)
+        probe = await async_probe_install_target(target.pinned, signer, authorize=True)
         await async_revalidate_install_target(hass, target)
     except InstallNetworkError as err:
         return _install_network_error(err)

@@ -201,6 +201,22 @@ async def test_adb_authorization_repair_retries_after_physical_approval(
         original=PanelAddress(host="panel.local", port=8888),
         pinned=PanelAddress(host="192.168.1.23", port=8888),
     )
+    signer = object()
+    offered_keys: list[object] = []
+    physically_approved = False
+
+    async def probe_protected_panel(
+        _address: PanelAddress,
+        candidate_signer: object | None = None,
+        *,
+        authorize: bool = False,
+    ) -> InstallTargetProbe:
+        if authorize and candidate_signer is signer:
+            offered_keys.append(candidate_signer)
+            if physically_approved:
+                return InstallTargetProbe(state=InstallTargetState.INSTALLED)
+        return InstallTargetProbe(state=InstallTargetState.ADB_UNAUTHORIZED)
+
     with (
         patch(
             "custom_components.panel_assistant.config_flow.async_pin_install_target",
@@ -216,20 +232,19 @@ async def test_adb_authorization_repair_retries_after_physical_approval(
         ),
         patch(
             "custom_components.panel_assistant.config_flow.async_get_adb_signer",
-            AsyncMock(return_value=object()),
+            AsyncMock(return_value=signer),
         ) as get_signer,
         patch(
             "custom_components.panel_assistant.config_flow.async_probe_install_target",
-            AsyncMock(
-                side_effect=[
-                    InstallTargetProbe(state=InstallTargetState.ADB_UNAUTHORIZED),
-                    InstallTargetProbe(state=InstallTargetState.INSTALLED),
-                ]
-            ),
+            AsyncMock(side_effect=probe_protected_panel),
         ) as probe,
         patch.object(
             hass.config_entries, "async_reload", AsyncMock(return_value=True)
         ) as reload,
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
+            AsyncMock(),
+        ) as install_manager,
     ):
         admin = await hass_client()
         response = await admin.post(
@@ -242,6 +257,7 @@ async def test_adb_authorization_repair_retries_after_physical_approval(
         assert opened["description_placeholders"] == {"panel": "Office display"}
         get_signer.assert_not_awaited()
         probe.assert_not_awaited()
+        assert offered_keys == []
 
         response = await admin.post(
             f"/api/repairs/issues/fix/{opened['flow_id']}", json={}
@@ -250,14 +266,17 @@ async def test_adb_authorization_repair_retries_after_physical_approval(
         assert pending["errors"] == {"base": "adb_still_unauthorized"}
         assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
         reload.assert_not_awaited()
+        assert offered_keys == [signer]
 
+        physically_approved = True
         response = await admin.post(
             f"/api/repairs/issues/fix/{opened['flow_id']}", json={}
         )
         done = await response.json()
     assert done["type"] == "create_entry"
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
-    assert get_signer.await_count == 2
+    assert offered_keys == [signer, signer]
+    install_manager.assert_not_awaited()
     reload.assert_awaited_once_with(entry.entry_id)
 
 
