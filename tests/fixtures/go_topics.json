@@ -9,6 +9,7 @@
     "install-integration",
     "issues",
     "panel-access",
+    "panel-cannot-update",
     "panel-unreachable",
     "prepare-a-panel",
     "report-issue",
