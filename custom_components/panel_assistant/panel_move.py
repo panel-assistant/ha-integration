@@ -67,6 +67,7 @@ from .client import (
     PanelHealth,
     UpdateApprovalRequiredError,
     UpdateBusyError,
+    _version_key,
     is_valid_discovery_id,
 )
 from .const import DOMAIN
@@ -231,32 +232,46 @@ def _successor_artifact(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> ReleaseArtifact | None:
     """The compatible new app on this panel's current PA-managed channel."""
+    snapshot = entry.runtime_data.coordinator.data
+    if snapshot is None:
+        return None
     allow_prerelease = prereleases_allowed(entry)
     feed = async_get_feed_coordinator(hass)
-    artifact = None
-    if feed is not None:
-        build = feed.verified_newest(
-            SUCCESSOR_PACKAGE_ID, allow_prerelease=allow_prerelease
+    candidates: list[ReleaseArtifact] = []
+    if feed is not None and feed.last_update_success and feed.data:
+        candidates.extend(
+            feed_release_artifact(build)
+            for build in feed.data.builds
+            if build.package_id == SUCCESSOR_PACKAGE_ID
         )
-        if build is not None:
-            artifact = feed_release_artifact(build)
-    if artifact is None:
-        artifact = async_get_stable_release_coordinator(hass).artifact_for(
-            SUCCESSOR_PACKAGE_ID, allow_prerelease=allow_prerelease
-        )
-    if (
-        artifact is not None
-        and artifact.descriptor is not None
-        and artifact.descriptor.package_id == SUCCESSOR_PACKAGE_ID
-        and build_allowed(
-            artifact.version,
-            artifact.protocol_min,
-            artifact.protocol_max,
-            allow_prerelease=allow_prerelease,
-        )
-    ):
-        return artifact
-    return None
+    candidates.extend(
+        async_get_stable_release_coordinator(hass).candidates_for(SUCCESSOR_PACKAGE_ID)
+    )
+    return max(
+        (
+            artifact
+            for artifact in candidates
+            if artifact.descriptor is not None
+            and artifact.descriptor.package_id == SUCCESSOR_PACKAGE_ID
+            and build_allowed(
+                artifact.version,
+                artifact.protocol_min,
+                artifact.protocol_max,
+                allow_prerelease=allow_prerelease,
+            )
+            and version_allowed(
+                artifact.version,
+                artifact.descriptor.version_code,
+                snapshot.health.version,
+                snapshot.health.version_code,
+            )
+        ),
+        key=lambda artifact: (
+            _version_key(artifact.version),
+            artifact.descriptor.version_code if artifact.descriptor else 0,
+        ),
+        default=None,
+    )
 
 
 #: The app_state namespaces a restore writes back onto the panel that made the

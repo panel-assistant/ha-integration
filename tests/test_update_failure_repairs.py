@@ -43,6 +43,7 @@ from custom_components.panel_assistant.failure_repair import (
 from custom_components.panel_assistant.feed_coordinator import (
     DATA_BUILD_FEED,
     BuildFeedCoordinator,
+    StableReleaseCoordinator,
 )
 from custom_components.panel_assistant.release import _RELEASE_SIGNER_CERTIFICATE_SHA256
 from custom_components.panel_assistant.status import PanelCachedUpdate, PanelStatus
@@ -143,13 +144,10 @@ def _entity(
         coordinator = BuildFeedCoordinator(hass, URL("https://feed.example/feed"))
         coordinator.data = BuildFeed(channel="maintainer", builds=(build,))
         coordinator.last_update_success = True
-        for allow_prerelease in (False, True):
-            coordinator._verified_newest[LEGACY_PACKAGE_ID, allow_prerelease] = (
-                build,
-                b"apk",
-            )
+        coordinator._verified_apks[build.apk_sha256] = b"apk"
     host_artifact = replace(feed_release_artifact(build), tag="v0.9.10")
-    host = SimpleNamespace(artifact_for=lambda *_args, **_kwargs: host_artifact)
+    host = StableReleaseCoordinator(hass)
+    host._candidates[host_artifact.tag, LEGACY_PACKAGE_ID] = host_artifact
     entity = HaPaneldUpdateEntity(
         "entry-id",
         health,
@@ -706,8 +704,7 @@ async def test_older_targetless_repair_clears_only_at_verified_current_feed_buil
     feed.data = BuildFeed(channel="maintainer", builds=(build,))
     feed.last_update_success = feed_ok
     if verified:
-        for allow_prerelease in (False, True):
-            feed._verified_newest[LEGACY_PACKAGE_ID, allow_prerelease] = (build, b"apk")
+        feed._verified_apks[build.apk_sha256] = b"apk"
     hass.data.setdefault("panel_assistant", {})[DATA_BUILD_FEED] = feed
 
     client = SimpleNamespace(

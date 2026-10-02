@@ -19,7 +19,7 @@ from .build_feed import (
     async_fetch_build_feed,
     feed_release_artifact,
 )
-from .client import is_version_at_least
+from .client import _version_key
 from .const import DOMAIN
 from .release import (
     ReleaseArtifact,
@@ -47,30 +47,71 @@ class BuildFeedCoordinator(DataUpdateCoordinator[BuildFeed]):
             update_interval=FEED_REFRESH,
         )
         self.feed_url = feed_url
-        self._verified_newest: dict[tuple[str, bool], tuple[FeedBuild, bytes]] = {}
+        self._verified_apks: dict[str, bytes] = {}
 
     def verified_newest(
         self, package_id: str | None, *, allow_prerelease: bool | None = None
     ) -> FeedBuild | None:
         """Return only a newest build whose exact APK is already verified here."""
-        verified = self._verified_newest.get(
+        feed: BuildFeed | None = self.data
+        if feed is None:
+            return None
+        if allow_prerelease is None:
+            allow_prerelease = prereleases_allowed()
+        build = max(
             (
-                package_id or LEGACY_PACKAGE_ID,
-                prereleases_allowed() if allow_prerelease is None else allow_prerelease,
-            )
+                candidate
+                for candidate in feed.builds
+                if candidate.package_id == (package_id or LEGACY_PACKAGE_ID)
+                and build_allowed(
+                    candidate.version_name,
+                    candidate.protocol_min,
+                    candidate.protocol_max,
+                    allow_prerelease=allow_prerelease,
+                )
+            ),
+            key=lambda candidate: (
+                _version_key(candidate.version_name) or ((0, 0, 0), False, ()),
+                candidate.version_code,
+            ),
+            default=None,
         )
-        return verified[0] if verified is not None else None
+        return (
+            build
+            if build is not None and self.verified_apk(build) is not None
+            else None
+        )
 
     def verified_apk(self, build: FeedBuild) -> bytes | None:
         """Keep the verified offer's bytes available for its install attempt."""
-        return next(
-            (
-                apk
-                for selected, apk in self._verified_newest.values()
-                if selected == build
-            ),
-            None,
-        )
+        if self.data is not None and build in self.data.builds:
+            apk = self._verified_apks.get(build.apk_sha256)
+            if apk is not None and len(apk) == build.apk_size:
+                return apk
+        return None
+
+    async def async_verify_build(self, build: FeedBuild) -> bytes | None:
+        """Verify a selected authenticated candidate before offering its APK."""
+        if self.data is None or build not in self.data.builds:
+            return None
+        apk = self.verified_apk(build)
+        if apk is not None:
+            return apk
+        try:
+            apk = await async_download_build(
+                async_get_clientsession(self.hass), feed_release_artifact(build)
+            )
+        except BuildFeedError:
+            _LOGGER.warning(
+                "Signed build %s for %s has no verifiable APK; not offering it",
+                build.version_code,
+                build.package_id,
+            )
+            return None
+        if self.data is None or build not in self.data.builds:
+            return None
+        self._verified_apks[build.apk_sha256] = apk
+        return apk
 
     async def _async_update_data(self) -> BuildFeed:
         try:
@@ -78,13 +119,15 @@ class BuildFeedCoordinator(DataUpdateCoordinator[BuildFeed]):
             feed = await async_fetch_build_feed(session, self.feed_url)
         except BuildFeedError as err:
             raise UpdateFailed("The build feed could not be authenticated") from err
-        verified: dict[tuple[str, bool], tuple[FeedBuild, bytes]] = {}
+        current_hashes = {build.apk_sha256 for build in feed.builds}
         cached = {
-            build.apk_sha256: apk for build, apk in self._verified_newest.values()
+            sha256: apk
+            for sha256, apk in self._verified_apks.items()
+            if sha256 in current_hashes
         }
         for package_id in ACCEPTED_PACKAGE_IDS:
             for allow_prerelease in (False, True):
-                build = next(
+                build = max(
                     (
                         candidate
                         for candidate in feed.builds
@@ -96,12 +139,16 @@ class BuildFeedCoordinator(DataUpdateCoordinator[BuildFeed]):
                             allow_prerelease=allow_prerelease,
                         )
                     ),
-                    None,
+                    key=lambda candidate: (
+                        _version_key(candidate.version_name) or ((0, 0, 0), False, ()),
+                        candidate.version_code,
+                    ),
+                    default=None,
                 )
                 if build is None:
                     continue
                 apk = cached.get(build.apk_sha256)
-                if apk is None:
+                if apk is None or len(apk) != build.apk_size:
                     try:
                         apk = await async_download_build(
                             session, feed_release_artifact(build)
@@ -115,8 +162,7 @@ class BuildFeedCoordinator(DataUpdateCoordinator[BuildFeed]):
                         )
                         continue
                     cached[build.apk_sha256] = apk
-                verified[package_id, allow_prerelease] = (build, apk)
-        self._verified_newest = verified
+        self._verified_apks = cached
         return feed
 
 
@@ -144,8 +190,15 @@ class StableReleaseCoordinator(DataUpdateCoordinator[ReleaseArtifact | None]):
             name=f"{DOMAIN} stable release",
             update_interval=STABLE_REFRESH,
         )
-        self._artifacts: dict[tuple[str, bool], ReleaseArtifact] = {}
         self._candidates: dict[tuple[str, str], ReleaseArtifact] = {}
+
+    def candidates_for(self, package_id: str) -> tuple[ReleaseArtifact, ...]:
+        """Return every authenticated candidate for installed-state selection."""
+        return tuple(
+            artifact
+            for (_, candidate_package), artifact in self._candidates.items()
+            if candidate_package == package_id
+        )
 
     def artifact_for(
         self,
@@ -170,11 +223,24 @@ class StableReleaseCoordinator(DataUpdateCoordinator[ReleaseArtifact | None]):
                 )
                 else None
             )
-        return self._artifacts.get(
+        return max(
             (
-                package_id,
-                prereleases_allowed() if allow_prerelease is None else allow_prerelease,
-            )
+                candidate
+                for candidate in self.candidates_for(package_id)
+                if build_allowed(
+                    candidate.version,
+                    candidate.protocol_min,
+                    candidate.protocol_max,
+                    allow_prerelease=allow_prerelease,
+                )
+            ),
+            key=lambda candidate: (
+                _version_key(candidate.version) or ((0, 0, 0), False, ()),
+                candidate.descriptor.version_code
+                if candidate.descriptor is not None
+                else 0,
+            ),
+            default=None,
         )
 
     async def _async_update_data(self) -> ReleaseArtifact | None:
@@ -189,7 +255,6 @@ class StableReleaseCoordinator(DataUpdateCoordinator[ReleaseArtifact | None]):
             raise UpdateFailed(
                 "The recent releases could not be authenticated"
             ) from err
-        selected: dict[tuple[str, bool], ReleaseArtifact] = {}
         authenticated: dict[tuple[str, str], ReleaseArtifact] = {}
         for bundle, bridge in candidates:
             for artifact in (bundle.artifact, bridge):
@@ -201,22 +266,6 @@ class StableReleaseCoordinator(DataUpdateCoordinator[ReleaseArtifact | None]):
                     else LEGACY_PACKAGE_ID
                 )
                 authenticated[artifact.tag, package_id] = artifact
-                for allow_prerelease in (False, True):
-                    if not build_allowed(
-                        artifact.version,
-                        artifact.protocol_min,
-                        artifact.protocol_max,
-                        allow_prerelease=allow_prerelease,
-                    ):
-                        continue
-                    previous = selected.get((package_id, allow_prerelease))
-                    if previous is None or (
-                        artifact.version != previous.version
-                        and is_version_at_least(artifact.version, previous.version)
-                        is True
-                    ):
-                        selected[package_id, allow_prerelease] = artifact
-        self._artifacts = selected
         self._candidates = authenticated
         return self.artifact_for(ACCEPTED_PACKAGE_IDS[-1]) or self.artifact_for(
             LEGACY_PACKAGE_ID
