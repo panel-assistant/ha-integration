@@ -191,33 +191,51 @@
     }
   },
   "issues": {
-      "move_to_new_app": {
-        "title": "将 {panel} 迁移到新应用",
-        "fix_flow": {
-          "step": {
-            "confirm_move": {
-              "title": "将 {panel} 迁移到新应用",
-              "description": "{panel} 仍在运行旧版 ha-paneld 应用。Panel Assistant 会通过你的网络将其迁移到新应用，并保留其设置：先在这里备份面板，然后安装新应用，再移除旧应用。迁移期间面板应用会重启一次。如果面板显示“允许 USB 调试吗？”，请点按“允许”，如有“一律允许使用这台计算机进行调试”选项请勾选。你无需 root 面板，也无需输入任何命令。选择“提交”即可迁移。"
-            }
-          },
-          "progress": {
-            "moving": "正在将 {panel} 迁移到新应用。这需要几分钟；请保持面板开机。"
-          },
-          "abort": {
-            "entry_removed": "此面板已从 Home Assistant 中移除。",
-            "already_moved": "{panel} 已在运行新应用，无需迁移。",
-            "release_unavailable": "Panel Assistant 暂时无法获取新应用的发布版本。请检查 Home Assistant 能否访问互联网，然后重试。",
-            "adb_authorization": "{panel} 尚未允许 Panel Assistant 连接。请查看面板：如果显示“允许 USB 调试吗？”，请勾选“一律允许使用这台计算机进行调试”并点按“允许”，然后重新打开此修复。",
-            "adb_unreachable": "Panel Assistant 无法连接到 {panel} 进行迁移。请确认面板已开机、与 Home Assistant 位于同一网络，并且已在面板应用的设置中开启网络调试，然后重新打开此修复。",
-            "backup_failed": "Panel Assistant 无法为 {panel} 完成完整备份，因此未做任何更改。请几分钟后重试。",
-            "new_app_is_home": "{panel} 停留在之前一次未完成的迁移中，此版本暂时无法完成。未做任何更改。Panel Assistant 的后续版本会修复此问题。",
-            "move_failed": "{panel} 的迁移未完成。其设置已备份在 Home Assistant 中，面板仍保持可用的界面。重新打开此修复即可从中断处继续。",
-            "panel_changed": "在 {panel} 地址上响应的设备不是 Panel Assistant 所知的面板，因此未做任何更改。如果面板已被更换或重置，请将其从 Home Assistant 中移除后重新添加。",
-            "busy": "{panel} 正在进行更新或另一次迁移。请在其完成后重试。",
-            "restore_approval": "{panel} 需要在其屏幕上确认后才能恢复设置。请在面板上确认，然后重新打开此修复。"
+    "move_to_new_app": {
+      "title": "将 {panel} 迁移到新应用",
+      "fix_flow": {
+        "step": {
+          "confirm_move": {
+            "title": "将 {panel} 迁移到新应用",
+            "description": "{panel} 仍在运行旧版 ha-paneld 应用。Panel Assistant 会通过你的网络将其迁移到新应用，并保留其设置：先在这里备份面板，然后安装新应用，再移除旧应用。迁移期间面板应用会重启一次。如果面板显示“允许 USB 调试吗？”，请点按“允许”，如有“一律允许使用这台计算机进行调试”选项请勾选。你无需 root 面板，也无需输入任何命令。选择“提交”即可迁移。"
           }
+        },
+        "progress": {
+          "moving": "正在将 {panel} 迁移到新应用。这需要几分钟；请保持面板开机。"
+        },
+        "abort": {
+          "entry_removed": "此面板已从 Home Assistant 中移除。",
+          "already_moved": "{panel} 已在运行新应用，无需迁移。",
+          "release_unavailable": "Panel Assistant 暂时无法获取新应用的发布版本。请检查 Home Assistant 能否访问互联网，然后重试。",
+          "adb_authorization": "{panel} 尚未允许 Panel Assistant 连接。请查看面板：如果显示“允许 USB 调试吗？”，请勾选“一律允许使用这台计算机进行调试”并点按“允许”，然后重新打开此修复。",
+          "adb_unreachable": "Panel Assistant 无法连接到 {panel} 进行迁移。请确认面板已开机、与 Home Assistant 位于同一网络，并且已在面板应用的设置中开启网络调试，然后重新打开此修复。",
+          "backup_failed": "Panel Assistant 无法为 {panel} 完成完整备份，因此未做任何更改。请几分钟后重试。",
+          "new_app_is_home": "{panel} 停留在之前一次未完成的迁移中，此版本暂时无法完成。未做任何更改。Panel Assistant 的后续版本会修复此问题。",
+          "move_failed": "{panel} 的迁移未完成。其设置已备份在 Home Assistant 中，面板仍保持可用的界面。重新打开此修复即可从中断处继续。",
+          "panel_changed": "在 {panel} 地址上响应的设备不是 Panel Assistant 所知的面板，因此未做任何更改。如果面板已被更换或重置，请将其从 Home Assistant 中移除后重新添加。",
+          "busy": "{panel} 正在进行更新或另一次迁移。请在其完成后重试。",
+          "restore_approval": "{panel} 需要在其屏幕上确认后才能恢复设置。请在面板上确认，然后重新打开此修复。"
         }
-      },
+      }
+    },
+    "panel_permissions": {
+      "title": "{panel} 的权限需要处理。",
+      "fix_flow": {
+        "step": {
+          "commission_permissions": {
+            "title": "检查 {panel} 的权限",
+            "description": "{panel} 的仪表盘仍可使用。在实体面板上打开 Android 设置 → 应用 → ha-paneld。允许列表中显示的相机和麦克风权限，以及通知。在特殊应用权限中，允许 ha-paneld 修改系统设置和显示在其他应用上层。在无障碍设置中启用 ha-paneld 服务。返回此处并选择提交，再次检查权限。"
+          }
+        },
+        "error": {
+          "permissions_missing": "面板仍报告缺少权限。请在面板上完成上述步骤，然后再次提交。",
+          "permissions_unreadable": "Home Assistant 无法确认此面板的所有必要权限。请检查面板是否已连接，然后再次提交。"
+        },
+        "abort": {
+          "entry_removed": "此面板已被移除。"
+        }
+      }
+    },
       "restart_required": {
         "title": "重启 Home Assistant 以完成 Panel Assistant 的更新",
         "fix_flow": {

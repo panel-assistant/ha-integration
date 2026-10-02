@@ -1689,9 +1689,9 @@ async def test_primary_write_failure_leaves_orphan_detail_unattached_until_retry
             )
 
         assert hass_storage[f"{DOMAIN}.install_jobs"] == primary_before
-        detail_document = hass_storage[f"{DOMAIN}.install_jobs.details"]["data"]
-        assert len(detail_document["details"]) == 1
-        assert detail_document["details"][0]["job_id"] == receipt.job_id
+        details = hass_storage.get(f"{DOMAIN}.install_jobs.details", {}).get("data", {})
+        assert len(details.get("details", [])) == 1
+        assert details["details"][0]["job_id"] == receipt.job_id
         assert not [
             record
             for record in caplog.records

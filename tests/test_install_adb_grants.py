@@ -46,6 +46,11 @@ settings() {
   if [ "$1" = get ]; then
     if [ -f "$STATE/$3" ]; then cat "$STATE/$3"; else echo null; fi
     if [ -f "$STATE/race.$3" ]; then mv "$STATE/race.$3" "$STATE/$3"; fi
+    if [ -f "$STATE/fail_after_first.$3" ]; then
+      mv "$STATE/fail_after_first.$3" "$STATE/read_fail.$3"
+      return 0
+    fi
+    [ ! -f "$STATE/read_fail.$3" ]
   else
     echo "settings $*" >> "$STATE/calls"
     [ -f "$STATE/refuse.$3" ] || printf '%s\n' "$4" > "$STATE/$3"
@@ -55,11 +60,38 @@ appops() {
   if [ "$1" = set ]; then
     echo "appops $*" >> "$STATE/calls"
     [ -f "$STATE/refuse.$3" ] || echo "$4" > "$STATE/appop.$2.$3"
+  elif [ -f "$STATE/unreadable.$3" ]; then
+    cat "$STATE/unreadable.$3"
   elif [ -f "$STATE/appop.$2.$3" ]; then
     echo "$3: $(cat "$STATE/appop.$2.$3"); time=+2s12ms ago"
   else
     echo "$3: default"
   fi
+  if [ "$1" = get ]; then [ ! -f "$STATE/read_fail.$3" ]; fi
+}
+pm() {
+  if [ "$1" = has-feature ]; then
+    if [ -f "$STATE/feature.$2" ]; then cat "$STATE/feature.$2"; else echo false; fi
+    if [ -f "$STATE/read_fail.$2" ]; then return 2; fi
+  elif [ "$1" = grant ]; then
+    echo "pm $*" >> "$STATE/calls"
+    [ -f "$STATE/refuse.$3" ] || echo true > "$STATE/permission.$2.$3"
+  fi
+}
+dumpsys() {
+  if [ -f "$STATE/unreadable.permissions" ]; then
+    cat "$STATE/unreadable.permissions"
+    return
+  fi
+  for permission in POST_NOTIFICATIONS CAMERA RECORD_AUDIO; do
+    permission="android.permission.$permission"
+    granted=false
+    if [ -f "$STATE/permission.$2.$permission" ]; then
+      granted=$(cat "$STATE/permission.$2.$permission")
+    fi
+    echo "      $permission: granted=$granted, flags=[ USER_SET|USER_FIXED]"
+  done
+  [ ! -f "$STATE/read_fail.permissions" ]
 }
 """
 
@@ -104,9 +136,7 @@ class _RoutingFakeDevice(FakeDevice):
             yield _single_output(
                 "PACKAGE", nonce, ["package:/data/app/ha-paneld/base.apk"], 0
             )
-        elif prefix == "NOTIFICATIONS":
-            yield _notifications_output(nonce)
-        elif prefix == "PERMISSIONS":
+        elif prefix in ("NOTIFICATIONS", "PERMISSIONS"):
             yield _run_on_stand_in_panel(command, self.state)
         else:
             assert prefix == "LAUNCH", command
@@ -333,6 +363,284 @@ async def test_a_fresh_install_gets_the_usb_installers_grants_before_its_first_s
     assert _GRANT_WARNING not in caplog.text
 
 
+def _seed_granted_panel(state: Path, package_id: str) -> None:
+    (state / "enabled_accessibility_services").write_text(
+        f"com.example.reader/.ReaderService:{_ACCESSIBILITY_SERVICES[package_id]}\n"
+    )
+    (state / "accessibility_enabled").write_text("1\n")
+    for operation in ("WRITE_SETTINGS", "SYSTEM_ALERT_WINDOW"):
+        (state / f"appop.{package_id}.{operation}").write_text("allow\n")
+    for feature in ("camera.any", "microphone"):
+        (state / f"feature.android.hardware.{feature}").write_text("true\n")
+    for permission in ("POST_NOTIFICATIONS", "CAMERA", "RECORD_AUDIO"):
+        (state / f"permission.{package_id}.android.permission.{permission}").write_text(
+            "true\n"
+        )
+
+
+async def test_an_update_preserves_every_existing_grant_without_writing(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    successor_descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    _seed_granted_panel(tmp_path, successor_descriptor.package_id)
+
+    await _launch_on(monkeypatch, signer, target, successor_descriptor, tmp_path)
+
+    assert not (tmp_path / "calls").exists()
+
+
+@pytest.mark.parametrize("identity", ["legacy", "successor"])
+async def test_an_update_restores_hardware_permissions_without_enabling_features(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    successor_descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    identity: str,
+) -> None:
+    installed = descriptor if identity == "legacy" else successor_descriptor
+    for feature in ("camera.any", "microphone"):
+        (tmp_path / f"feature.android.hardware.{feature}").write_text("true\n")
+    (tmp_path / "camera_enabled").write_text("0\n")
+    (tmp_path / "voice_enabled").write_text("0\n")
+
+    await _launch_on(monkeypatch, signer, target, installed, tmp_path)
+
+    for permission in ("CAMERA", "RECORD_AUDIO"):
+        assert (
+            _panel_value(
+                tmp_path,
+                f"permission.{installed.package_id}.android.permission.{permission}",
+            )
+            == "true"
+        )
+    assert _panel_value(tmp_path, "camera_enabled") == "0"
+    assert _panel_value(tmp_path, "voice_enabled") == "0"
+
+
+@pytest.mark.parametrize(
+    "before",
+    [
+        "not a component",
+        "org.other/.Helper:org.other/.Helper",
+        "org.other/.Helper\norg.other/.Another",
+        ":".join(f"org.other/.Helper{i}" for i in range(65)),
+        "org.other/." + "H" * 4096,
+    ],
+)
+async def test_an_unreadable_accessibility_list_is_never_rewritten(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    before: str,
+) -> None:
+    (tmp_path / "enabled_accessibility_services").write_text(before + "\n")
+
+    fake = await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert _panel_value(tmp_path, "enabled_accessibility_services") == before
+    assert (
+        "settings put secure enabled_accessibility_services"
+        not in (tmp_path / "calls").read_text()
+    )
+    assert "am start" in fake.commands[-1]
+
+
+async def test_unreadable_operations_and_hardware_permissions_are_never_repaired(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    _seed_granted_panel(tmp_path, descriptor.package_id)
+    for operation in ("WRITE_SETTINGS", "SYSTEM_ALERT_WINDOW"):
+        (tmp_path / f"unreadable.{operation}").write_text("permission denied\n")
+    (tmp_path / "unreadable.permissions").write_text("permission denied\n")
+    (tmp_path / "feature.android.hardware.camera.any").write_text("unknown\n")
+    (tmp_path / "feature.android.hardware.microphone").write_text("unknown\n")
+
+    fake = await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert not (tmp_path / "calls").exists()
+    assert "am start" in fake.commands[-1]
+    assert _GRANT_WARNING in caplog.text
+
+
+async def test_a_refused_hardware_grant_retries_then_converges_without_writes(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    permission = "android.permission.CAMERA"
+    (tmp_path / "feature.android.hardware.camera.any").write_text("true\n")
+    refusal = tmp_path / f"refuse.{permission}"
+    refusal.touch()
+
+    await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
+    assert (
+        _panel_value(tmp_path, f"permission.{descriptor.package_id}.{permission}")
+        is None
+    )
+    assert _GRANT_WARNING in caplog.text
+    refusal.unlink()
+    await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
+    assert (
+        _panel_value(tmp_path, f"permission.{descriptor.package_id}.{permission}")
+        == "true"
+    )
+    (tmp_path / "calls").write_text("")
+
+    await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert (tmp_path / "calls").read_text() == ""
+
+
+@pytest.mark.parametrize(
+    ("camera", "microphone"), [(True, False), (False, True), (False, False)]
+)
+async def test_runtime_repairs_follow_each_actual_hardware_feature(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    camera: bool,
+    microphone: bool,
+) -> None:
+    for feature, present in (("camera.any", camera), ("microphone", microphone)):
+        (tmp_path / f"feature.android.hardware.{feature}").write_text(
+            str(present).lower() + "\n"
+        )
+
+    await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
+
+    for permission, present in (("CAMERA", camera), ("RECORD_AUDIO", microphone)):
+        assert _panel_value(
+            tmp_path,
+            f"permission.{descriptor.package_id}.android.permission.{permission}",
+        ) == ("true" if present else None)
+
+
+@pytest.mark.parametrize(
+    "read_fail",
+    [
+        "permissions",
+        "WRITE_SETTINGS",
+        "SYSTEM_ALERT_WINDOW",
+        "enabled_accessibility_services",
+        "accessibility_enabled",
+        "android.hardware.camera.any",
+        "android.hardware.microphone",
+    ],
+)
+async def test_a_failed_read_does_not_prove_a_missing_grant(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    read_fail: str,
+) -> None:
+    package_id = descriptor.package_id
+    _seed_granted_panel(tmp_path, package_id)
+    (tmp_path / f"read_fail.{read_fail}").touch()
+    if read_fail == "permissions":
+        for permission in ("POST_NOTIFICATIONS", "CAMERA", "RECORD_AUDIO"):
+            (
+                tmp_path / f"permission.{package_id}.android.permission.{permission}"
+            ).write_text("false\n")
+    elif read_fail in ("WRITE_SETTINGS", "SYSTEM_ALERT_WINDOW"):
+        (tmp_path / f"appop.{package_id}.{read_fail}").write_text("deny\n")
+    elif read_fail == "enabled_accessibility_services":
+        (tmp_path / read_fail).write_text("null\n")
+    elif read_fail == "accessibility_enabled":
+        (tmp_path / read_fail).write_text("0\n")
+    else:
+        permission = "CAMERA" if read_fail.endswith("camera.any") else "RECORD_AUDIO"
+        (
+            tmp_path / f"permission.{package_id}.android.permission.{permission}"
+        ).write_text("false\n")
+
+    fake = await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert not (tmp_path / "calls").exists()
+    assert "am start" in fake.commands[-1]
+
+
+async def test_a_successor_shorthand_is_preserved_but_does_not_enable_the_service(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    successor_descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    invalid = "io.panelassistant.android/.input.PanelAccessibilityService"
+    (tmp_path / "enabled_accessibility_services").write_text(invalid + "\n")
+
+    await _launch_on(monkeypatch, signer, target, successor_descriptor, tmp_path)
+
+    assert _panel_value(tmp_path, "enabled_accessibility_services") == (
+        f"{invalid}:{_ACCESSIBILITY_SERVICES[successor_descriptor.package_id]}"
+    )
+
+
+async def test_a_failed_list_recheck_prevents_rewriting_other_services(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    _seed_granted_panel(tmp_path, descriptor.package_id)
+    other = "com.example.reader/.ReaderService"
+    (tmp_path / "enabled_accessibility_services").write_text(other + "\n")
+    (tmp_path / "fail_after_first.enabled_accessibility_services").touch()
+
+    await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert _panel_value(tmp_path, "enabled_accessibility_services") == other
+    assert not (tmp_path / "calls").exists()
+
+
+@pytest.mark.parametrize("failed", [False, True])
+async def test_an_unproved_service_binding_leaves_both_secure_settings_untouched(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    failed: bool,
+) -> None:
+    own = _ACCESSIBILITY_SERVICES[descriptor.package_id]
+    before = own if failed else f"unreadable:{own}"
+    (tmp_path / "enabled_accessibility_services").write_text(before + "\n")
+    (tmp_path / "accessibility_enabled").write_text("0\n")
+    if failed:
+        (tmp_path / "read_fail.enabled_accessibility_services").touch()
+
+    fake = await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert _panel_value(tmp_path, "enabled_accessibility_services") == before
+    assert _panel_value(tmp_path, "accessibility_enabled") == "0"
+    assert "settings put secure" not in (tmp_path / "calls").read_text()
+    assert (
+        _panel_value(tmp_path, f"appop.{descriptor.package_id}.WRITE_SETTINGS")
+        == "allow"
+    )
+    assert "am start" in fake.commands[-1]
+
+
 async def test_other_apps_accessibility_services_stay_enabled(
     monkeypatch: pytest.MonkeyPatch,
     signer: PythonRSASigner,  # noqa: F811
@@ -371,6 +679,8 @@ async def test_a_readback_without_an_allowed_grant_is_reported_and_still_starts(
     refused: str,
 ) -> None:
     (tmp_path / f"refuse.{refused}").touch()
+    if refused == "enabled_accessibility_services":
+        (tmp_path / "accessibility_enabled").write_text("1\n")
 
     fake = await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
 
@@ -395,6 +705,7 @@ async def test_a_service_list_changed_mid_grant_is_left_alone_and_reported(
         "com.example.reader/.ReaderService\n"
     )
     raced = "com.example.reader/.ReaderService:org.other/.Helper"
+    (tmp_path / "accessibility_enabled").write_text("1\n")
     (tmp_path / "race.enabled_accessibility_services").write_text(raced + "\n")
 
     await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)

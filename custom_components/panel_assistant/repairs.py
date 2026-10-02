@@ -27,6 +27,7 @@ from .client import (
 )
 from .config_flow import async_authorize_existing_panel_adb
 from .const import CONF_TRANSPORT_USER_ID, DOMAIN, update_unique_id
+from .coordinator import HaPaneldDataUpdateCoordinator, PanelSnapshot
 from .device import panel_display_name
 from .failure_repair import (
     ISSUE_ADB_AUTHORIZATION,
@@ -65,9 +66,11 @@ from .panel_move import (
     SuccessorMoveFlow,
     move_issue_id,
 )
+from .permission_repair import ISSUE_PANEL_PERMISSIONS, permission_issue_id
 from .release import ReleaseResolutionError
 from .release_catalog import async_resolve_install_choice
 from .restart_repair import ISSUE_RESTART_REQUIRED, RestartRequiredFlow
+from .status import permissions_held
 from .transport import (
     BINDING_ISSUES,
     ISSUE_DATA_ENTRY_ID,
@@ -560,6 +563,67 @@ class InstallerFailureFlow(RepairsFlow):
             return "retry_failed"
 
 
+class PanelPermissionFlow(RepairsFlow):
+    """Explain manual commissioning and recheck what the named panel now holds."""
+
+    def __init__(self, entry_id: str) -> None:
+        self._entry_id = entry_id
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> RepairsFlowResult:
+        return await self.async_step_commission_permissions()
+
+    async def async_step_commission_permissions(
+        self, user_input: dict[str, Any] | None = None
+    ) -> RepairsFlowResult:
+        entry = self.hass.config_entries.async_get_entry(self._entry_id)
+        if entry is None or entry.domain != DOMAIN:
+            return self.async_abort(reason=ABORT_ENTRY_REMOVED)
+        errors = {}
+        if user_input is not None:
+            coordinator = getattr(
+                getattr(entry, "runtime_data", None), "coordinator", None
+            )
+            if isinstance(coordinator, HaPaneldDataUpdateCoordinator):
+                previous = coordinator.data
+                # async_refresh waits for a fresh read; async_request_refresh
+                # may merely schedule a debounced poll and retain old data.
+                await coordinator.async_refresh()
+                if (
+                    self.hass.config_entries.async_get_entry(self._entry_id)
+                    is not entry
+                ):
+                    return self.async_abort(reason=ABORT_ENTRY_REMOVED)
+                snapshot: PanelSnapshot | None = coordinator.data
+                if (
+                    not coordinator.last_update_success
+                    or snapshot is previous
+                    or getattr(
+                        getattr(entry, "runtime_data", None), "coordinator", None
+                    )
+                    is not coordinator
+                ):
+                    snapshot = None
+                status = snapshot.status if snapshot is not None else None
+                if status is not None and permissions_held(status):
+                    return self.async_create_entry(data={})
+                if (
+                    status is not None
+                    and status.permissions is not None
+                    and "missing" in status.permissions.values()
+                ):
+                    errors["base"] = "permissions_missing"
+            if not errors:
+                errors["base"] = "permissions_unreadable"
+        return self.async_show_form(
+            step_id="commission_permissions",
+            data_schema=vol.Schema({}),
+            description_placeholders={"panel": panel_display_name(self.hass, entry)},
+            errors=errors,
+        )
+
+
 class AdbAuthorizationFlow(RepairsFlow):
     """Offer the configured panel the same authorization as its Options flow."""
 
@@ -607,6 +671,11 @@ async def async_create_fix_flow(
     values = data or {}
     if issue_id == ISSUE_RESTART_REQUIRED:
         return RestartRequiredFlow()
+    if issue_id.startswith(f"{ISSUE_PANEL_PERMISSIONS}_"):
+        entry_id = values.get("entry_id")
+        if not isinstance(entry_id, str) or issue_id != permission_issue_id(entry_id):
+            raise UnknownStep
+        return PanelPermissionFlow(entry_id)
     if issue_id.startswith(f"{ISSUE_ADB_AUTHORIZATION}_"):
         entry_id = values.get("entry_id")
         if not isinstance(entry_id, str) or issue_id != adb_authorization_issue_id(

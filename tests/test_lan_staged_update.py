@@ -9,18 +9,21 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import re
 import threading
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field, replace
 from datetime import timedelta
 from io import BytesIO
 from itertools import pairwise
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, call
 from zipfile import ZipFile
 
 import pytest
+from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 from aiohttp import ClientConnectorError
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
@@ -38,6 +41,11 @@ from yarl import URL
 
 from custom_components.panel_assistant import feed_coordinator, release
 from custom_components.panel_assistant import update as panel_update
+from custom_components.panel_assistant.adb_credentials import (
+    AdbCredential,
+    AdbCredentialError,
+    AdbCredentialMissingError,
+)
 from custom_components.panel_assistant.app_identity import (
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
@@ -61,12 +69,24 @@ from custom_components.panel_assistant.coordinator import (
     PanelSnapshot,
 )
 from custom_components.panel_assistant.feed_coordinator import StableReleaseCoordinator
+from custom_components.panel_assistant.install_network import PinnedPanelTarget
+from custom_components.panel_assistant.provisioning import (
+    InstallTargetProbe,
+    InstallTargetState,
+)
 from custom_components.panel_assistant.status import PanelCachedUpdate, PanelStatus
 from custom_components.panel_assistant.transport import async_get_sessions
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity
 from custom_components.panel_assistant.update_coordinator import (
     PanelUpdateCoordinator,
     PanelUpdateSnapshot,
+)
+
+from .test_install_adb import _install_fakes, _preflight_output, signer  # noqa: F401
+from .test_install_adb_grants import (
+    _panel_value,
+    _RoutingFakeDevice,
+    _seed_granted_panel,
 )
 
 TAG = "v0.9.10"
@@ -1289,3 +1309,227 @@ async def test_the_shared_release_outlives_the_panel_that_first_asked_for_it(
 
     remove_listener()
     assert str(release._LATEST_RELEASE_URL) in github.requests
+
+
+class _InstalledPanel(_RoutingFakeDevice):
+    present = True
+    malformed = False
+    package_id = LEGACY_PACKAGE_ID
+
+    async def streaming_shell(
+        self, command: str, **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        match = re.search(r"HAPANELD_PREFLIGHT_BEGIN:([0-9a-f]{32})", command)
+        if match is None:
+            async for packet in super().streaming_shell(command, **kwargs):
+                yield packet
+            return
+        self.commands.append(command)
+        self.shell_kwargs.append(kwargs)
+        if self.malformed:
+            yield b"unreadable package-manager response\n"
+        else:
+            yield _preflight_output(
+                match.group(1),
+                package_lines=["package:/data/app/ha-paneld/base.apk"]
+                if self.present and self.package_id == LEGACY_PACKAGE_ID
+                else [],
+                successor_package_lines=["package:/data/app/panel-assistant/base.apk"]
+                if self.present and self.package_id == SUCCESSOR_PACKAGE_ID
+                else [],
+            )
+
+
+async def _lan_grant_repair_panel(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    key: Any,
+    adb_signer: PythonRSASigner,
+    tmp_path: Path,
+    *,
+    handover: bool = False,
+) -> SimpleNamespace:
+    hass.config.config_dir = str(tmp_path)
+    github = (
+        _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=b"bridge")
+        if handover
+        else _GitHub(key)
+    )
+    entity, client = await _entity(hass, monkeypatch, github)
+    if handover:
+
+        async def refresh() -> None:
+            entity.coordinator.data = _snapshot(VERSION, "2000", SUCCESSOR_PACKAGE_ID)
+
+        entity.coordinator.async_request_refresh = AsyncMock(side_effect=refresh)
+    assert entity.latest_version == VERSION
+    client.address = normalize_address("192.168.1.23")
+    pinned = PinnedPanelTarget(client.address, client.address)
+    credential = AdbCredential(adb_signer, "existing-host-key")
+    for feature in ("camera.any", "microphone"):
+        (tmp_path / f"feature.android.hardware.{feature}").write_text("true\n")
+    devices = [_InstalledPanel(tmp_path), _InstalledPanel(tmp_path)]
+    for device in devices:
+        device.package_id = SUCCESSOR_PACKAGE_ID if handover else LEGACY_PACKAGE_ID
+    _install_fakes(monkeypatch, devices)
+
+    async def durable_key(_hass: HomeAssistant) -> AdbCredential:
+        # The dashboard and exact target must be proved before ADB repair.
+        assert entity.coordinator.data.health.version == VERSION
+        assert client.async_commit_apk.await_count == 1
+        assert client.async_get_status.await_count > 0
+        return credential
+
+    key_load = AsyncMock(side_effect=durable_key)
+    monkeypatch.setattr(panel_update, "async_get_durable_adb_credential", key_load)
+    create_key = AsyncMock(side_effect=AssertionError("repair created a new key"))
+    monkeypatch.setattr(panel_update, "async_get_adb_credential", create_key)
+    request_authorization = MagicMock(
+        side_effect=AssertionError("repair requested authorization")
+    )
+    monkeypatch.setattr(
+        panel_update, "async_request_adb_authorization", request_authorization
+    )
+    monkeypatch.setattr(
+        panel_update, "async_pin_install_target", AsyncMock(return_value=pinned)
+    )
+    monkeypatch.setattr(
+        panel_update, "async_revalidate_install_target", AsyncMock(return_value=pinned)
+    )
+    probe = AsyncMock(
+        return_value=InstallTargetProbe(
+            state=InstallTargetState.INSTALLED,
+            serial="SERIAL-1",
+            model="Test Panel",
+            primary_abi="arm64-v8a",
+            android_sdk=34,
+        )
+    )
+    monkeypatch.setattr(panel_update, "async_probe_install_target", probe)
+    pinned_client = SimpleNamespace(
+        async_get_health=AsyncMock(side_effect=lambda: entity.coordinator.data.health)
+    )
+    monkeypatch.setattr(panel_update, "HaPaneldClient", lambda *_args: pinned_client)
+
+    return SimpleNamespace(
+        entity=entity,
+        client=client,
+        devices=devices,
+        key_load=key_load,
+        probe=probe,
+        pinned_client=pinned_client,
+        create_key=create_key,
+        request_authorization=request_authorization,
+    )
+
+
+@pytest.mark.parametrize("held", [False, True])
+@pytest.mark.parametrize("handover", [False, True], ids=["legacy", "handover"])
+async def test_a_lan_update_repairs_missing_grants_and_preserves_held_grants(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    signer: PythonRSASigner,  # noqa: F811
+    tmp_path: Path,
+    held: bool,
+    handover: bool,
+) -> None:
+    panel = await _lan_grant_repair_panel(
+        hass, monkeypatch, key, signer, tmp_path, handover=handover
+    )
+    entity, devices = panel.entity, panel.devices
+    package_id = SUCCESSOR_PACKAGE_ID if handover else LEGACY_PACKAGE_ID
+    if held:
+        _seed_granted_panel(tmp_path, package_id)
+
+    await entity.async_install(None, False)
+
+    for permission in ("CAMERA", "RECORD_AUDIO", "POST_NOTIFICATIONS"):
+        assert (
+            _panel_value(
+                tmp_path, f"permission.{package_id}.android.permission.{permission}"
+            )
+            == "true"
+        )
+    assert _panel_value(tmp_path, "accessibility_enabled") == "1"
+    for operation in ("WRITE_SETTINGS", "SYSTEM_ALERT_WINDOW"):
+        assert _panel_value(tmp_path, f"appop.{package_id}.{operation}") == "allow"
+    commands = [command for device in devices for command in device.commands]
+    assert not any(
+        "am start" in command or "pm install" in command for command in commands
+    )
+    if held:
+        assert not (tmp_path / "calls").exists()
+    assert entity.installed_version == VERSION
+    assert entity.in_progress is False
+
+
+@pytest.mark.parametrize(
+    "unavailable",
+    [
+        "missing-key",
+        "invalid-key",
+        "unauthorized",
+        "unreachable",
+        "foreign-http-panel",
+        "entry-discovery-mismatch",
+        "missing-installed-package",
+        "unreadable-preflight",
+        "repair-connection-lost",
+    ],
+)
+async def test_an_unavailable_adb_repair_keeps_a_successful_lan_dashboard_running(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    signer: PythonRSASigner,  # noqa: F811
+    tmp_path: Path,
+    unavailable: str,
+) -> None:
+    panel = await _lan_grant_repair_panel(hass, monkeypatch, key, signer, tmp_path)
+    entity = panel.entity
+    if unavailable == "missing-key":
+        panel.key_load.side_effect = AdbCredentialMissingError
+    elif unavailable == "invalid-key":
+        panel.key_load.side_effect = AdbCredentialError
+    elif unavailable == "unauthorized":
+        panel.probe.return_value = InstallTargetProbe(
+            state=InstallTargetState.ADB_UNAUTHORIZED
+        )
+    elif unavailable == "unreachable":
+        panel.probe.return_value = InstallTargetProbe(
+            state=InstallTargetState.ADB_UNREACHABLE
+        )
+    elif unavailable == "foreign-http-panel":
+        panel.pinned_client.async_get_health.side_effect = lambda: replace(
+            entity.coordinator.data.health, panel_id="another-panel"
+        )
+    elif unavailable == "entry-discovery-mismatch":
+        monkeypatch.setattr(entity, "_entry_discovery_id", lambda: "pa-expected")
+        panel.pinned_client.async_get_health.side_effect = lambda: replace(
+            entity.coordinator.data.health, discovery_id="pa-other"
+        )
+    elif unavailable == "missing-installed-package":
+        panel.devices[0].present = False
+    elif unavailable == "unreadable-preflight":
+        panel.devices[0].malformed = True
+    else:
+        panel.devices[1].connect_error = OSError("ADB disconnected")
+
+    failure = None
+    try:
+        await entity.async_install(None, False)
+    except AdbCredentialError as err:
+        failure = err
+
+    assert failure is None, "ADB unavailability must preserve a successful LAN update"
+    assert not (tmp_path / "calls").exists()
+    assert entity.installed_version == VERSION
+    assert entity.in_progress is False
+    panel.create_key.assert_not_awaited()
+    panel.request_authorization.assert_not_called()
+    assert not any(
+        "am start" in command for device in panel.devices for command in device.commands
+    )

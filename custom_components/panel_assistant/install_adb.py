@@ -608,20 +608,41 @@ _NOTIFICATIONS_GRANTED = re.compile(
 )
 
 
+def _runtime_permission_repair_command(package_id: str, permission: str) -> str:
+    """Read a runtime grant, repair a proved denial, and read what Android kept."""
+    permission_pattern = re.escape(permission)
+    denied = (
+        rf"[[:space:]]*{permission_pattern}: granted=false"
+        r"(, flags=\[[ A-Z0-9_|]*\])?[[:space:]]*"
+    )
+    read = (
+        f"runtime_dump=$(dumpsys package {package_id}); "
+        'runtime_status=$?; runtime=; if [ "$runtime_status" -eq 0 ]; then '
+        "runtime=$(printf '%s\\n' \"$runtime_dump\" | "
+        f"grep -F '{permission}: granted='); fi"
+    )
+    # A missing or malformed dump is unknown, never evidence of a missing grant.
+    return (
+        f"{read}; "
+        'if [ -n "$runtime" ] && ! printf \'%s\\n\' "$runtime" | '
+        f"grep -Evq '^{denied}$'; then "
+        f"pm grant {package_id} {permission} >/dev/null 2>&1; {read}; fi"
+    )
+
+
 def _notification_grant_command(nonce: str, package_id: str) -> str:
-    """Grant notifications before the first start, then read back what Android kept.
+    """Repair missing notifications before the first start, then read them back.
 
     The service notification is part of keeping a wall panel working, so the
     installer grants it whatever a person once answered: a "Don't allow" may have
     been a mis-tap or a prompt nobody saw, and a shell grant overrides it. The
     grant's output is discarded; only the package manager's readback decides.
     """
-    grep = f"grep '{_NOTIFICATIONS_PERMISSION}: granted='"
     return "; ".join(
         (
             f"echo HAPANELD_NOTIFICATIONS_BEGIN:{nonce}",
-            f"pm grant {package_id} {_NOTIFICATIONS_PERMISSION} >/dev/null 2>&1",
-            f"dumpsys package {package_id} | {grep}",
+            _runtime_permission_repair_command(package_id, _NOTIFICATIONS_PERMISSION),
+            "printf '%s\\n' \"$runtime\"",
             f"echo HAPANELD_NOTIFICATIONS_END:{nonce}:$?",
         )
     )
@@ -630,7 +651,7 @@ def _notification_grant_command(nonce: str, package_id: str) -> str:
 def _parse_notification_grant(body: bytes, nonce: str) -> bool:
     """Granted only when every runtime-permission line Android printed says so.
 
-    The exit status is grep's and adds nothing: it fails exactly when no line matched.
+    Only the complete permission lines matter; failed or empty reads prove nothing.
     """
     try:
         lines, _status = _parse_single_section(
@@ -649,13 +670,13 @@ _APPOP_ALLOWED = r"{}: allow(?:; [\x20-\x7e]{{1,1024}})?"
 
 
 def _permission_grant_command(nonce: str, package_id: str) -> str:
-    """Grant what the USB installer grants, then read back what Android kept.
+    """Repair only grants Android proves missing before an install or update start.
 
     Settings writes, the overlay and the accessibility service are what the
     panel's controls need, and the browser installer's permission contract grants
     them the same way. The service is appended to the device-wide list, never
-    replacing it, and only when no spelling of it is already there, so a rerun
-    writes nothing and other apps' services stay enabled. The list read before
+    replacing it, and only after validating it and finding no valid spelling.
+    A rerun writes nothing and other apps' services stay enabled. The list read before
     the write is printed so the readback can prove nothing was dropped. Grant
     output is discarded; only the readback decides.
     """
@@ -664,25 +685,72 @@ def _permission_grant_command(nonce: str, package_id: str) -> str:
         f"*:{name}:*" for name in EQUIVALENT_ACCESSIBILITY_COMPONENTS[package_id]
     )
     quiet = ">/dev/null 2>&1"
+    runtime_grants = []
+    for feature, permission in (
+        ("camera.any", "CAMERA"),
+        ("microphone", "RECORD_AUDIO"),
+    ):
+        granted = (
+            rf"[[:space:]]*android\.permission\.{permission}: granted=true"
+            r"(, flags=\[[ A-Z0-9_|]*\])?[[:space:]]*"
+        )
+        runtime_grants.append(
+            f"feature=$(pm has-feature android.hardware.{feature}); feature_status=$?; "
+            'if [ "$feature" = true ] && [ "$feature_status" -eq 0 ]; then '
+            + _runtime_permission_repair_command(
+                package_id, f"android.permission.{permission}"
+            )
+            + '; if [ -n "$runtime" ] && ! printf \'%s\\n\' "$runtime" | '
+            f"grep -Evq '^{granted}$'; then echo granted; else echo unknown; fi; "
+            'elif [ "$feature" = false ] && [ "$feature_status" -le 1 ]; '
+            "then echo unsupported; else echo unknown; fi"
+        )
     return "; ".join(
         (
             f"echo HAPANELD_PERMISSIONS_BEGIN:{nonce}",
             f"before=$({_SERVICES_SETTING})",
+            "before_status=$?",
             'echo "$before"',
+            'after="$before"',
+            'valid=1; [ "${#before}" -le 4096 ] || valid=0; '
+            "case \"$before\" in *'\n'*) valid=0 ;; esac; "
+            'case "$before" in ""|null) ;; *) rest="$before"; seen=:; count=0; '
+            "while :; do service=${rest%%:*}; count=$((count+1)); "
+            'if [ "$count" -gt 64 ] || ! printf \'%s\\n\' "$service" | '
+            "grep -Eq '^[A-Za-z][A-Za-z0-9_.]*/[A-Za-z.][A-Za-z0-9_.$]*$'; "
+            "then valid=0; break; fi; "
+            'case "$seen" in *:"$service":*) valid=0; break ;; esac; '
+            'seen="$seen$service:"; case "$rest" in *:*) rest=${rest#*:} ;; '
+            "*) break ;; esac; done ;; esac; "
+            'if [ "$before_status" -eq 0 ] && [ "$valid" -eq 1 ]; then '
             'case ":$before:" in '
             f"{known}) ;; "
             f'*) case "$before" in ""|null) after=\'{component}\' ;; '
             f'*) after="$before:{component}" ;; esac; '
-            f'[ "$({_SERVICES_SETTING})" = "$before" ] && '
+            f"current=$({_SERVICES_SETTING}); current_status=$?; "
+            '[ "$current_status" -eq 0 ] && [ "$current" = "$before" ] && '
             f'settings put secure enabled_accessibility_services "$after" {quiet} ;; '
-            "esac",
-            f"appops set {package_id} WRITE_SETTINGS allow {quiet}",
-            f"appops set {package_id} SYSTEM_ALERT_WINDOW allow {quiet}",
-            f"settings put secure accessibility_enabled 1 {quiet}",
+            "esac; fi",
+            "for operation in WRITE_SETTINGS SYSTEM_ALERT_WINDOW; do "
+            f'mode=$(appops get {package_id} "$operation"); mode_status=$?; '
+            'if [ "$mode_status" -eq 0 ] && [ -n "$mode" ] && '
+            '! printf \'%s\\n\' "$mode" | grep -Evq "^($operation: '
+            "(default|deny|ignore|foreground|errored)(; [ -~]+)?|"
+            'No operations\\.)$"; then '
+            f'appops set {package_id} "$operation" allow {quiet}; fi; done',
+            f"observed=$({_SERVICES_SETTING}); observed_status=$?; "
+            'if [ "$before_status" -eq 0 ] && [ "$valid" -eq 1 ] && '
+            '[ "$observed_status" -eq 0 ] && [ "$observed" = "$after" ]; then '
+            f'case ":$observed:" in {known}) '
+            "enabled=$(settings get secure accessibility_enabled); enabled_status=$?; "
+            'if [ "$enabled_status" -eq 0 ]; then case "$enabled" in 0|null) '
+            f"settings put secure accessibility_enabled 1 {quiet} ;; esac; fi ;; "
+            "esac; fi",
             _SERVICES_SETTING,
             "settings get secure accessibility_enabled",
             f"appops get {package_id} WRITE_SETTINGS",
             f"appops get {package_id} SYSTEM_ALERT_WINDOW",
+            *runtime_grants,
             f"echo HAPANELD_PERMISSIONS_END:{nonce}:$?",
         )
     )
@@ -710,9 +778,9 @@ def _parse_permission_grant(body: bytes, nonce: str, package_id: str) -> bool:
         lines, status = _parse_single_section(body, prefix="PERMISSIONS", nonce=nonce)
     except _MalformedAdbResponse:
         return False
-    if status != 0 or len(lines) != 5:
+    if status != 0 or len(lines) != 7:
         return False
-    before, after, enabled, write_settings, overlay = lines
+    before, after, enabled, write_settings, overlay, camera, microphone = lines
     expected = _expected_services(before, package_id)
     return (
         expected is not None
@@ -722,6 +790,8 @@ def _parse_permission_grant(body: bytes, nonce: str, package_id: str) -> bool:
         is not None
         and re.fullmatch(_APPOP_ALLOWED.format("SYSTEM_ALERT_WINDOW"), overlay)
         is not None
+        and camera in ("granted", "unsupported")
+        and microphone in ("granted", "unsupported")
     )
 
 
@@ -2046,6 +2116,90 @@ async def async_update_installed_apk(
             os.close(file_descriptor)
 
 
+async def _async_repair_app_permissions(
+    device: AdbDeviceAsync,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+) -> None:
+    """Share observed grant repair between startup and an already-running update."""
+    nonce = token_hex(16)
+    _parse_package_present(
+        await _async_shell(
+            device,
+            _package_command(nonce, descriptor.package_id),
+            read_timeout=_READ_TIMEOUT_SECONDS,
+        ),
+        nonce,
+    )
+    if target.android_sdk >= _NOTIFICATIONS_RUNTIME_SDK:
+        # Never a reason not to start: a refusal is reported, and the app
+        # still runs without notification visibility.
+        nonce = token_hex(16)
+        if not _parse_notification_grant(
+            await _async_shell(
+                device,
+                _notification_grant_command(nonce, descriptor.package_id),
+                read_timeout=_READ_TIMEOUT_SECONDS,
+            ),
+            nonce,
+        ):
+            _LOGGER.warning(
+                "The panel did not grant %s the notification permission. "
+                "The app runs without it; allow it on the panel in Android "
+                "Settings, under the app's Notifications",
+                descriptor.package_id,
+            )
+    # The same rule as notifications: a refusal is reported, never fatal.
+    nonce = token_hex(16)
+    if not _parse_permission_grant(
+        await _async_shell(
+            device,
+            _permission_grant_command(nonce, descriptor.package_id),
+            read_timeout=_READ_TIMEOUT_SECONDS,
+        ),
+        nonce,
+        descriptor.package_id,
+    ):
+        _LOGGER.warning(
+            "The panel did not grant %s every permission it needs: "
+            "modify system settings, display over other apps and its "
+            "accessibility service, camera and microphone where present. "
+            "Controls that depend on them, such as "
+            "touch sounds, stay unavailable; allow them on the panel in "
+            "Android Settings, under the app",
+            descriptor.package_id,
+        )
+
+
+async def async_repair_installed_app_permissions(
+    target: AdbInstallTarget,
+    signer: PythonRSASigner,
+    descriptor: InstallDescriptor,
+    *,
+    expected_root_mode: AdbRootMode,
+) -> None:
+    """Repair an installed app's grants without relaunching or replacing it."""
+    _validate_request(target, descriptor)
+    _validate_expected_root_mode(expected_root_mode)
+    device: AdbDeviceAsync | None = None
+    try:
+        async with asyncio.timeout(_LAUNCH_TIMEOUT_SECONDS):
+            device = await _async_connect(target, signer)
+            await _async_require_identity_root(device, target, expected_root_mode)
+            await _async_repair_app_permissions(device, target, descriptor)
+    except InstallAdbError:
+        raise
+    except (
+        TimeoutError,
+        _MalformedAdbResponse,
+        _UnsafeAdbPacket,
+        *_ADB_EXCEPTIONS,
+    ):
+        raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE) from None
+    finally:
+        await _async_close(device)
+
+
 async def async_launch_installed_app(
     target: AdbInstallTarget,
     signer: PythonRSASigner,
@@ -2062,52 +2216,7 @@ async def async_launch_installed_app(
         async with asyncio.timeout(_LAUNCH_TIMEOUT_SECONDS):
             device = await _async_connect(target, signer)
             await _async_require_identity_root(device, target, expected_root_mode)
-            nonce = token_hex(16)
-            _parse_package_present(
-                await _async_shell(
-                    device,
-                    _package_command(nonce, descriptor.package_id),
-                    read_timeout=_READ_TIMEOUT_SECONDS,
-                ),
-                nonce,
-            )
-            if target.android_sdk >= _NOTIFICATIONS_RUNTIME_SDK:
-                # Never a reason not to start: a refusal is reported, and the app
-                # still runs without notification visibility.
-                nonce = token_hex(16)
-                if not _parse_notification_grant(
-                    await _async_shell(
-                        device,
-                        _notification_grant_command(nonce, descriptor.package_id),
-                        read_timeout=_READ_TIMEOUT_SECONDS,
-                    ),
-                    nonce,
-                ):
-                    _LOGGER.warning(
-                        "The panel did not grant %s the notification permission. "
-                        "The app runs without it; allow it on the panel in Android "
-                        "Settings, under the app's Notifications",
-                        descriptor.package_id,
-                    )
-            # The same rule as notifications: a refusal is reported, never fatal.
-            nonce = token_hex(16)
-            if not _parse_permission_grant(
-                await _async_shell(
-                    device,
-                    _permission_grant_command(nonce, descriptor.package_id),
-                    read_timeout=_READ_TIMEOUT_SECONDS,
-                ),
-                nonce,
-                descriptor.package_id,
-            ):
-                _LOGGER.warning(
-                    "The panel did not grant %s every permission it needs: "
-                    "modify system settings, display over other apps and its "
-                    "accessibility service. Controls that depend on them, such as "
-                    "touch sounds, stay unavailable; allow them on the panel in "
-                    "Android Settings, under the app",
-                    descriptor.package_id,
-                )
+            await _async_repair_app_permissions(device, target, descriptor)
             nonce = token_hex(16)
             mutation_started = True
             return _parse_launch_outcome(

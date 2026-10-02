@@ -191,33 +191,51 @@
     }
   },
   "issues": {
-      "move_to_new_app": {
-        "title": "Passer {panel} à la nouvelle app",
-        "fix_flow": {
-          "step": {
-            "confirm_move": {
-              "title": "Passer {panel} à la nouvelle app",
-              "description": "{panel} utilise encore l’ancienne app ha-paneld. Panel Assistant le passe à la nouvelle app via votre réseau en conservant ses réglages : il sauvegarde d’abord le panneau ici, installe la nouvelle app, puis supprime l’ancienne. L’app du panneau redémarre une fois pendant l’opération. Si le panneau affiche « Autoriser le débogage USB ? », appuyez sur « Autoriser » en cochant « Toujours autoriser cet ordinateur » si cette option est proposée. Vous n’avez pas besoin de rooter le panneau ni de saisir de commandes. Sélectionnez « Valider » pour le passer à la nouvelle app."
-            }
-          },
-          "progress": {
-            "moving": "Passage de {panel} à la nouvelle app. Cela prend quelques minutes ; laissez le panneau allumé."
-          },
-          "abort": {
-            "entry_removed": "Ce panneau a été supprimé de Home Assistant.",
-            "already_moved": "{panel} utilise déjà la nouvelle app. Il n’y avait rien à faire.",
-            "release_unavailable": "Panel Assistant n’a pas pu obtenir la version de la nouvelle app pour le moment. Vérifiez que Home Assistant accède à Internet, puis réessayez.",
-            "adb_authorization": "{panel} n’a pas encore autorisé Panel Assistant à se connecter. Regardez le panneau : s’il affiche « Autoriser le débogage USB ? », appuyez sur « Autoriser » en cochant « Toujours autoriser cet ordinateur », puis rouvrez cette réparation.",
-            "adb_unreachable": "Panel Assistant n’a pas pu se connecter à {panel} pour le passer à la nouvelle app. Vérifiez que le panneau est allumé, sur le même réseau que Home Assistant, et que le débogage réseau est activé dans les réglages de l’app du panneau, puis rouvrez cette réparation.",
-            "backup_failed": "Panel Assistant n’a pas pu faire une sauvegarde complète de {panel} ; rien n’a donc été modifié. Réessayez dans quelques minutes.",
-            "new_app_is_home": "{panel} est resté à mi-chemin d’un passage précédent que cette version ne peut pas encore terminer. Rien n’a été modifié. Une version ultérieure de Panel Assistant le réparera.",
-            "move_failed": "Le passage de {panel} n’est pas allé jusqu’au bout. Ses réglages sont sauvegardés dans Home Assistant et le panneau garde un écran qui fonctionne. Rouvrez cette réparation pour reprendre là où il s’est arrêté.",
-            "panel_changed": "L’appareil qui répond à l’adresse de {panel} n’est pas le panneau que connaît Panel Assistant ; rien n’a donc été modifié. Si le panneau a été remplacé ou réinitialisé, supprimez-le de Home Assistant puis ajoutez-le à nouveau.",
-            "busy": "{panel} est occupé par une mise à jour ou un autre passage. Réessayez une fois l’opération terminée.",
-            "restore_approval": "{panel} demande une approbation sur son écran avant de pouvoir restaurer ses réglages. Approuvez-la sur le panneau, puis rouvrez cette réparation."
+    "move_to_new_app": {
+      "title": "Passer {panel} à la nouvelle app",
+      "fix_flow": {
+        "step": {
+          "confirm_move": {
+            "title": "Passer {panel} à la nouvelle app",
+            "description": "{panel} utilise encore l’ancienne app ha-paneld. Panel Assistant le passe à la nouvelle app via votre réseau en conservant ses réglages : il sauvegarde d’abord le panneau ici, installe la nouvelle app, puis supprime l’ancienne. L’app du panneau redémarre une fois pendant l’opération. Si le panneau affiche « Autoriser le débogage USB ? », appuyez sur « Autoriser » en cochant « Toujours autoriser cet ordinateur » si cette option est proposée. Vous n’avez pas besoin de rooter le panneau ni de saisir de commandes. Sélectionnez « Valider » pour le passer à la nouvelle app."
           }
+        },
+        "progress": {
+          "moving": "Passage de {panel} à la nouvelle app. Cela prend quelques minutes ; laissez le panneau allumé."
+        },
+        "abort": {
+          "entry_removed": "Ce panneau a été supprimé de Home Assistant.",
+          "already_moved": "{panel} utilise déjà la nouvelle app. Il n’y avait rien à faire.",
+          "release_unavailable": "Panel Assistant n’a pas pu obtenir la version de la nouvelle app pour le moment. Vérifiez que Home Assistant accède à Internet, puis réessayez.",
+          "adb_authorization": "{panel} n’a pas encore autorisé Panel Assistant à se connecter. Regardez le panneau : s’il affiche « Autoriser le débogage USB ? », appuyez sur « Autoriser » en cochant « Toujours autoriser cet ordinateur », puis rouvrez cette réparation.",
+          "adb_unreachable": "Panel Assistant n’a pas pu se connecter à {panel} pour le passer à la nouvelle app. Vérifiez que le panneau est allumé, sur le même réseau que Home Assistant, et que le débogage réseau est activé dans les réglages de l’app du panneau, puis rouvrez cette réparation.",
+          "backup_failed": "Panel Assistant n’a pas pu faire une sauvegarde complète de {panel} ; rien n’a donc été modifié. Réessayez dans quelques minutes.",
+          "new_app_is_home": "{panel} est resté à mi-chemin d’un passage précédent que cette version ne peut pas encore terminer. Rien n’a été modifié. Une version ultérieure de Panel Assistant le réparera.",
+          "move_failed": "Le passage de {panel} n’est pas allé jusqu’au bout. Ses réglages sont sauvegardés dans Home Assistant et le panneau garde un écran qui fonctionne. Rouvrez cette réparation pour reprendre là où il s’est arrêté.",
+          "panel_changed": "L’appareil qui répond à l’adresse de {panel} n’est pas le panneau que connaît Panel Assistant ; rien n’a donc été modifié. Si le panneau a été remplacé ou réinitialisé, supprimez-le de Home Assistant puis ajoutez-le à nouveau.",
+          "busy": "{panel} est occupé par une mise à jour ou un autre passage. Réessayez une fois l’opération terminée.",
+          "restore_approval": "{panel} demande une approbation sur son écran avant de pouvoir restaurer ses réglages. Approuvez-la sur le panneau, puis rouvrez cette réparation."
         }
-      },
+      }
+    },
+    "panel_permissions": {
+      "title": "Les autorisations de {panel} nécessitent votre attention.",
+      "fix_flow": {
+        "step": {
+          "commission_permissions": {
+            "title": "Vérifier les autorisations de {panel}",
+            "description": "Le tableau de bord de {panel} reste disponible. Sur le panneau physique, ouvrez Paramètres Android → Applications → ha-paneld. Autorisez l’accès à la caméra et au microphone s’ils sont proposés, ainsi que les notifications. Dans Accès spécial des applications, autorisez ha-paneld à Modifier les paramètres système et à Afficher par-dessus les autres applications. Dans Accessibilité, activez le service ha-paneld. Revenez ici et sélectionnez Envoyer pour vérifier à nouveau les autorisations."
+          }
+        },
+        "error": {
+          "permissions_missing": "Le panneau signale toujours une autorisation manquante. Effectuez les étapes sur le panneau, puis envoyez à nouveau.",
+          "permissions_unreadable": "Home Assistant n’a pas pu vérifier toutes les autorisations requises sur ce panneau. Vérifiez sa connexion, puis envoyez à nouveau."
+        },
+        "abort": {
+          "entry_removed": "Ce panneau a été supprimé."
+        }
+      }
+    },
       "restart_required": {
         "title": "Redémarrez Home Assistant pour terminer la mise à jour de Panel Assistant",
         "fix_flow": {
