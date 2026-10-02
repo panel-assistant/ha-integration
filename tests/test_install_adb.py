@@ -54,6 +54,10 @@ APK_BYTES = b"signed apk fixture"
 APK_SHA256 = hashlib.sha256(APK_BYTES).hexdigest()
 
 
+async def _allow_install() -> None:
+    """Admit the already-selected fixture in the transport-only tests."""
+
+
 def _staged() -> StagedApk:
     return StagedApk(
         job_id=JOB_ID,
@@ -662,6 +666,7 @@ async def test_su_never_wraps_mutation_commands(
                 descriptor,
                 JOB_ID,
                 expected_root_mode=AdbRootMode.ROOT_SU,
+                before_install=_allow_install,
             )
             is InstallOutcome.INSTALLED
         )
@@ -1287,6 +1292,7 @@ async def test_invalid_expected_root_mode_fails_before_panel_contact(
                 descriptor,
                 JOB_ID,
                 expected_root_mode=invalid_root_mode,  # type: ignore[arg-type]
+                before_install=_allow_install,
             )
         elif operation == "launch":
             await async_launch_installed_app(
@@ -2153,6 +2159,7 @@ async def test_install_root_drift_or_signal_proof_blocks_package_mutation(
             descriptor,
             JOB_ID,
             expected_root_mode=AdbRootMode.ROOTLESS,
+            before_install=_allow_install,
         )
 
     assert caught.value.code is expected_error
@@ -2182,6 +2189,7 @@ async def test_install_uses_no_replacement_or_grant_flags(
         descriptor,
         JOB_ID,
         expected_root_mode=AdbRootMode.ROOTLESS,
+        before_install=_allow_install,
     )
 
     assert outcome is InstallOutcome.INSTALLED
@@ -2222,7 +2230,9 @@ async def test_in_place_update_rechecks_installed_identity_and_cleans_its_stage(
         ]
     )
     _install_update_fake(monkeypatch, fake)
-    outcome = await async_update_installed_apk(target, signer, descriptor, apk)
+    outcome = await async_update_installed_apk(
+        target, signer, descriptor, apk, before_install=_allow_install
+    )
 
     assert outcome is InstallOutcome.INSTALLED
     assert len(fake.pushes) == 1
@@ -2246,7 +2256,9 @@ async def test_in_place_update_refuses_missing_package_before_push(
     fake = FakeDevice([_preflight_output(NONCES[0])])
     _install_update_fake(monkeypatch, fake)
     with pytest.raises(InstallAdbError) as caught:
-        await async_update_installed_apk(target, signer, descriptor, apk)
+        await async_update_installed_apk(
+            target, signer, descriptor, apk, before_install=_allow_install
+        )
     assert caught.value.code is InstallAdbErrorCode.INSTALLED_PACKAGE_MISSING
     assert fake.pushes == []
     assert all("pm install" not in command for command in fake.commands)
@@ -2271,7 +2283,9 @@ async def test_in_place_update_refuses_only_retained_data_before_push(
     )
     _install_update_fake(monkeypatch, fake)
     with pytest.raises(InstallAdbError) as caught:
-        await async_update_installed_apk(target, signer, descriptor, apk)
+        await async_update_installed_apk(
+            target, signer, descriptor, apk, before_install=_allow_install
+        )
     assert caught.value.code is InstallAdbErrorCode.INSTALLED_PACKAGE_MISSING
     assert fake.pushes == []
 
@@ -2287,7 +2301,9 @@ async def test_in_place_update_refuses_bad_local_bytes_before_connecting(
     _write_private_apk(apk, b"tampered")
     _install_fakes(monkeypatch, [])
     with pytest.raises(InstallAdbError) as caught:
-        await async_update_installed_apk(target, signer, descriptor, apk)
+        await async_update_installed_apk(
+            target, signer, descriptor, apk, before_install=_allow_install
+        )
     assert caught.value.code is InstallAdbErrorCode.LOCAL_ARTIFACT_INVALID
 
 
@@ -2311,7 +2327,9 @@ async def test_in_place_update_refuses_a_second_accepted_package(
     )
     _install_update_fake(monkeypatch, fake)
     with pytest.raises(InstallAdbError) as caught:
-        await async_update_installed_apk(target, signer, descriptor, apk)
+        await async_update_installed_apk(
+            target, signer, descriptor, apk, before_install=_allow_install
+        )
     assert caught.value.code is InstallAdbErrorCode.TARGET_NOT_CLEAN
     assert fake.pushes == []
 
@@ -2338,7 +2356,9 @@ async def test_in_place_update_revalidates_identity_after_transfer(
     )
     _install_update_fake(monkeypatch, fake)
     with pytest.raises(InstallAdbError) as caught:
-        await async_update_installed_apk(target, signer, descriptor, apk)
+        await async_update_installed_apk(
+            target, signer, descriptor, apk, before_install=_allow_install
+        )
     assert caught.value.code is InstallAdbErrorCode.TARGET_CHANGED
     assert all("pm install" not in command for command in fake.commands)
     assert all("rm -f" not in command for command in fake.commands)
@@ -2366,7 +2386,9 @@ async def test_in_place_update_refuses_root_mode_change_after_transfer(
     )
     _install_update_fake(monkeypatch, fake)
     with pytest.raises(InstallAdbError) as caught:
-        await async_update_installed_apk(target, signer, descriptor, apk)
+        await async_update_installed_apk(
+            target, signer, descriptor, apk, before_install=_allow_install
+        )
     assert caught.value.code is InstallAdbErrorCode.ROOT_MODE_CHANGED
     assert all("pm install" not in command for command in fake.commands)
 
@@ -2393,7 +2415,9 @@ async def test_in_place_update_cleans_bad_stage_before_install(
     )
     _install_update_fake(monkeypatch, fake)
     with pytest.raises(InstallAdbError) as caught:
-        await async_update_installed_apk(target, signer, descriptor, apk)
+        await async_update_installed_apk(
+            target, signer, descriptor, apk, before_install=_allow_install
+        )
     assert caught.value.code is InstallAdbErrorCode.STAGE_VERIFICATION_FAILED
     assert all("pm install" not in command for command in fake.commands)
     assert "rm -f " + REMOTE_PATH in fake.commands[-1]
@@ -2455,12 +2479,16 @@ async def test_in_place_update_classifies_package_manager_and_transport_outcomes
 
     if isinstance(expected, InstallAdbErrorCode):
         with pytest.raises(InstallAdbError) as caught:
-            await async_update_installed_apk(target, signer, descriptor, apk)
+            await async_update_installed_apk(
+                target, signer, descriptor, apk, before_install=_allow_install
+            )
         assert caught.value.code is expected
         assert all("rm -f" not in command for command in fake.commands)
     else:
         assert (
-            await async_update_installed_apk(target, signer, descriptor, apk)
+            await async_update_installed_apk(
+                target, signer, descriptor, apk, before_install=_allow_install
+            )
             is expected
         )
         assert "rm -f " + REMOTE_PATH in fake.commands[-1]
@@ -2488,6 +2516,7 @@ async def test_api26_uses_legacy_nonreplacement_default_without_unknown_flag(
         descriptor,
         JOB_ID,
         expected_root_mode=AdbRootMode.ROOTLESS,
+        before_install=_allow_install,
     )
 
     assert outcome is InstallOutcome.INSTALLED
@@ -2512,6 +2541,7 @@ async def test_install_revalidates_identity_before_reading_or_mutating_stage(
             descriptor,
             JOB_ID,
             expected_root_mode=AdbRootMode.ROOTLESS,
+            before_install=_allow_install,
         )
 
     assert caught.value.code is InstallAdbErrorCode.TARGET_CHANGED
@@ -2551,6 +2581,7 @@ async def test_install_transport_eof_or_malformed_result_is_ambiguous(
             descriptor,
             JOB_ID,
             expected_root_mode=AdbRootMode.ROOTLESS,
+            before_install=_allow_install,
         )
 
     assert caught.value.code is InstallAdbErrorCode.INSTALL_AMBIGUOUS
@@ -2578,6 +2609,7 @@ async def test_noncanonical_nonzero_install_exit_is_ambiguous(
             descriptor,
             JOB_ID,
             expected_root_mode=AdbRootMode.ROOTLESS,
+            before_install=_allow_install,
         )
 
     assert caught.value.code is InstallAdbErrorCode.INSTALL_AMBIGUOUS
@@ -2612,6 +2644,7 @@ async def test_canonical_failure_with_abnormal_install_exit_is_ambiguous(
             descriptor,
             JOB_ID,
             expected_root_mode=AdbRootMode.ROOTLESS,
+            before_install=_allow_install,
         )
 
     assert caught.value.code is InstallAdbErrorCode.INSTALL_AMBIGUOUS
@@ -2638,6 +2671,7 @@ async def test_package_manager_definite_refusal_is_not_ambiguous(
         descriptor,
         JOB_ID,
         expected_root_mode=AdbRootMode.ROOTLESS,
+        before_install=_allow_install,
     )
 
     assert outcome is InstallOutcome.REFUSED

@@ -653,7 +653,9 @@ class Harness:
         job_id: str,
         *,
         expected_root_mode: AdbRootMode,
+        before_install,
     ) -> InstallOutcome:
+        await before_install()
         self.events.append("install")
         self.install_arguments.append(
             (target, signer, descriptor, job_id, expected_root_mode)

@@ -539,7 +539,14 @@ async def _async_install_successor(
                 expected_root_mode=admitted.root_mode,
             )
         try:
-            await _async_admit_successor(entry, artifact)
+            outcome = await async_install_staged_apk(
+                target,
+                signer,
+                descriptor,
+                job_id,
+                expected_root_mode=admitted.root_mode,
+                before_install=lambda: _async_admit_successor(entry, artifact),
+            )
         except MoveError:
             await async_cleanup_staged_apk(
                 target,
@@ -549,9 +556,6 @@ async def _async_install_successor(
                 expected_root_mode=admitted.root_mode,
             )
             raise
-        outcome = await async_install_staged_apk(
-            target, signer, descriptor, job_id, expected_root_mode=admitted.root_mode
-        )
         await async_cleanup_staged_apk(
             target,
             signer,

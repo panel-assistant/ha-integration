@@ -16,6 +16,7 @@ import os
 import re
 import shlex
 import stat
+from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from dataclasses import dataclass
 from enum import StrEnum
@@ -1921,6 +1922,7 @@ async def async_install_staged_apk(
     job_id: str,
     *,
     expected_root_mode: AdbRootMode,
+    before_install: Callable[[], Awaitable[None]],
 ) -> InstallOutcome:
     """Revalidate and run exactly one non-replacing package installation."""
     _validate_request(target, descriptor)
@@ -1934,6 +1936,7 @@ async def async_install_staged_apk(
             preflight = await _async_preflight_on_device(device, target, descriptor)
             _require_expected_root_mode(preflight.root_mode, expected_root_mode)
             await _async_verify_remote_artifact(device, remote_path, descriptor)
+            await before_install()
             nonce = token_hex(16)
             mutation_started = True
             body = await _async_shell(
@@ -1966,6 +1969,8 @@ async def async_update_installed_apk(
     signer: PythonRSASigner,
     descriptor: InstallDescriptor,
     local_apk: Path,
+    *,
+    before_install: Callable[[], Awaitable[None]],
 ) -> InstallOutcome:
     """Replace one already installed app using a fresh, pinned ADB target.
 
@@ -2043,6 +2048,7 @@ async def async_update_installed_apk(
                 nonce,
             )
             await _async_verify_remote_artifact(device, remote_path, descriptor)
+            await before_install()
             nonce = token_hex(16)
             install_started = True
             outcome = _parse_install_outcome(

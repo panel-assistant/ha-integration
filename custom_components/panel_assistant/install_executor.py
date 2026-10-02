@@ -863,12 +863,19 @@ class InstallExecutor:
                         credential, receipt = await self._async_mutation_authority(
                             receipt, execution
                         )
+
+                        async def admit_install(
+                            artifact: InstallArtifact = receipt.artifact,
+                        ) -> None:
+                            _require_build_admission(artifact)
+
                         outcome = await async_install_staged_apk(
                             execution.adb_target,
                             credential.signer,
                             execution.descriptor,
                             _REMOTE_STAGING_SLOT_ID,
                             expected_root_mode=_root_mode(receipt),
+                            before_install=admit_install,
                         )
                     except ArtifactCustodyError:
                         # Admission refused before the package manager ran;

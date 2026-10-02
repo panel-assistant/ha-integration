@@ -330,6 +330,48 @@ async def test_update_entity_maps_a_panel_refusal_without_retrying(
     client.async_start_panel_update.assert_awaited_once_with("v0.9.10")
 
 
+async def test_unstarted_panel_download_retry_rechecks_current_consent(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A refused connection never spends consent on a later fresh request."""
+    from dataclasses import replace
+
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.panel_assistant import update_policy
+    from custom_components.panel_assistant.const import CONF_PRERELEASE_PANEL_BUILDS
+
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "0.7.0")
+    monkeypatch.setattr(panel_update.asyncio, "sleep", AsyncMock())
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        entry_id="entry-id",
+        data={},
+        options={CONF_PRERELEASE_PANEL_BUILDS: True},
+    )
+    entry.add_to_hass(hass)
+    entity, client = _entity(hass)
+    artifact = replace(
+        entity._release.artifact_for(), tag="v0.9.10-rc1", version="0.9.10-rc1"
+    )
+    sent = []
+
+    async def start(tag):
+        sent.append(tag)
+        hass.config_entries.async_update_entry(
+            entry, options={CONF_PRERELEASE_PANEL_BUILDS: False}
+        )
+        raise _connection_refused()
+
+    client.async_start_panel_update.side_effect = start
+    with pytest.raises(HomeAssistantError) as caught:
+        await entity._async_start_panel_download(
+            PanelCachedUpdate("0.9.9", artifact.version, artifact.tag), artifact
+        )
+    _assert_translated(caught.value, "update_unavailable")
+    assert sent == [artifact.tag]
+
+
 async def test_update_entity_requests_physical_approval_without_retrying(
     hass: HomeAssistant,
 ) -> None:

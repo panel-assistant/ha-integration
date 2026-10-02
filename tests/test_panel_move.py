@@ -1053,7 +1053,12 @@ async def test_move_rechecks_changed_admission_before_each_apk_mutation(
     monkeypatch.setattr(panel_move, "async_download_build", download)
     monkeypatch.setattr(panel_move, "async_preflight_install", preflight)
     monkeypatch.setattr(panel_move, "async_stage_apk", stage)
-    install = AsyncMock(return_value=InstallOutcome.INSTALLED)
+
+    async def install(*_args, before_install, **_kwargs):
+        await before_install()
+        events.append("install")
+        return InstallOutcome.INSTALLED
+
     monkeypatch.setattr(panel_move, "async_install_staged_apk", install)
     cleanup = AsyncMock()
     monkeypatch.setattr(panel_move, "async_cleanup_staged_apk", cleanup)
@@ -1062,7 +1067,7 @@ async def test_move_rechecks_changed_admission_before_each_apk_mutation(
     assert failure.value.reason == panel_move.REASON_RELEASE_UNAVAILABLE
     assert "download" in events
     assert ("stage" in events) is (revoke_at == "stage")
-    install.assert_not_awaited()
+    assert "install" not in events
     if revoke_at == "stage":
         assert cleanup.await_count == 1
         assert (
@@ -1071,3 +1076,94 @@ async def test_move_rechecks_changed_admission_before_each_apk_mutation(
         )
     else:
         cleanup.assert_not_awaited()
+
+
+async def test_move_revocation_during_final_adb_verification_cleans_without_install(
+    hass, entry, monkeypatch
+):
+    """The real ADB transaction cannot turn a prepared Move into a refused install."""
+    import re
+
+    from adb_shell.auth.sign_pythonrsa import PythonRSASigner
+
+    from custom_components.panel_assistant import update_policy
+    from custom_components.panel_assistant.client import normalize_address
+    from custom_components.panel_assistant.const import CONF_PRERELEASE_PANEL_BUILDS
+
+    from .test_install_adb import (
+        JOB_ID,
+        REMOTE_PATH,
+        FakeDevice,
+        _cleanup_output,
+        _identity_root_output,
+        _install_fakes,
+        _preflight_output,
+        _remote_output,
+        _single_output,
+    )
+
+    _attach(entry, FakePanel())
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "0.7.0")
+    hass.config_entries.async_update_entry(
+        entry, options={CONF_PRERELEASE_PANEL_BUILDS: True}
+    )
+    artifact = await _publish_move_candidate(
+        hass, monkeypatch, "release", "0.9.8-rc1", (3, 3)
+    )
+    staged = install_adb.StagedApk(
+        JOB_ID, REMOTE_PATH, artifact.descriptor.apk_size, artifact.sha256
+    )
+    monkeypatch.setattr(panel_move, "token_hex", lambda _size: JOB_ID)
+    monkeypatch.setattr(
+        panel_move, "async_download_build", AsyncMock(return_value=b"apk")
+    )
+    monkeypatch.setattr(
+        panel_move,
+        "async_preflight_install",
+        AsyncMock(
+            return_value=SimpleNamespace(
+                migration_candidate=True, root_mode=install_adb.AdbRootMode.ROOTLESS
+            )
+        ),
+    )
+    monkeypatch.setattr(panel_move, "async_stage_apk", AsyncMock(return_value=staged))
+
+    class MovingDevice(FakeDevice):
+        async def streaming_shell(self, command, **kwargs):
+            self.commands.append(command)
+            kind, nonce = re.search(
+                r"HAPANELD_(PREFLIGHT|ARTIFACT|POSTURE|INSTALL|CLEANUP)_BEGIN:([0-9a-f]+)",
+                command,
+            ).groups()
+            if kind == "PREFLIGHT":
+                body = _preflight_output(
+                    nonce, retained_lines=[f"package:{LEGACY_PACKAGE_ID}"]
+                )
+            elif kind == "ARTIFACT":
+                hass.config_entries.async_update_entry(
+                    entry, options={CONF_PRERELEASE_PANEL_BUILDS: False}
+                )
+                body = _remote_output(
+                    nonce, size=artifact.descriptor.apk_size, sha256=artifact.sha256
+                )
+            elif kind == "POSTURE":
+                body = _identity_root_output(nonce)
+            elif kind == "INSTALL":
+                body = _single_output("INSTALL", nonce, ["Success"], 0)
+            else:
+                body = _cleanup_output(nonce)
+            yield body
+
+    install_device, cleanup_device = MovingDevice([]), MovingDevice([])
+    _install_fakes(monkeypatch, [install_device, cleanup_device])
+    target = install_adb.AdbInstallTarget(
+        normalize_address("192.168.1.23"), "SERIAL-1", "Test Panel", "arm64-v8a", 34
+    )
+    with pytest.raises(MoveError) as caught:
+        await panel_move._async_install_successor(
+            hass, entry, target, object.__new__(PythonRSASigner)
+        )
+    assert caught.value.reason == panel_move.REASON_RELEASE_UNAVAILABLE
+    assert not any("pm install " in cmd for cmd in install_device.commands)
+    assert f"rm -f {REMOTE_PATH}" in cleanup_device.commands[-1]
+    assert install_device.closed and cleanup_device.closed

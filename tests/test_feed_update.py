@@ -273,6 +273,42 @@ def _restart_into(
     client.async_get_version_code = AsyncMock(side_effect=diag)
 
 
+async def test_unstarted_staged_commit_retry_rechecks_current_consent(
+    hass: HomeAssistant, delivery: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Revocation after an unconnected commit discards the prepared upload."""
+    from custom_components.panel_assistant import update_policy
+    from custom_components.panel_assistant.const import CONF_PRERELEASE_PANEL_BUILDS
+
+    from .test_update import _connection_refused
+
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "0.7.0")
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        entry_id="entry-id",
+        data={},
+        options={CONF_PRERELEASE_PANEL_BUILDS: True},
+    )
+    entry.add_to_hass(hass)
+    entity, client = _entity(hass)
+    _restart_into(entity, client, 772)
+    sent = []
+
+    async def commit(token):
+        sent.append(token)
+        hass.config_entries.async_update_entry(
+            entry, options={CONF_PRERELEASE_PANEL_BUILDS: False}
+        )
+        raise _connection_refused()
+
+    client.async_commit_apk.side_effect = commit
+    with pytest.raises(HomeAssistantError) as caught:
+        await entity.async_install(None, False)
+    _assert_translated(caught.value, "update_unavailable")
+    assert sent == ["tok-1"]
+    client.async_discard_apk.assert_awaited_once_with("tok-1")
+
+
 # --- presentation ------------------------------------------------------------
 
 
@@ -484,11 +520,15 @@ async def test_rootless_panel_uses_its_existing_authorized_adb_route(
     )
     monkeypatch.setattr(panel_update, "HaPaneldClient", lambda *_args: pinned_client)
 
-    def install(
-        _target: Any, _signer: Any, _descriptor: Any, path: Path
+    async def install(
+        _target: Any, _signer: Any, _descriptor: Any, path: Path, *, before_install
     ) -> InstallOutcome:
-        assert path.read_bytes() == APK
-        assert stat.S_IMODE(path.stat().st_mode) == 0o600
+        await before_install()
+        assert await hass.async_add_executor_job(path.read_bytes) == APK
+        assert (
+            stat.S_IMODE((await hass.async_add_executor_job(path.stat)).st_mode)
+            == 0o600
+        )
         return InstallOutcome.INSTALLED
 
     adb_install = AsyncMock(side_effect=install)

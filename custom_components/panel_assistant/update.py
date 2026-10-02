@@ -1009,6 +1009,13 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             else self._installed_code,
         )
 
+    async def _async_admit_artifact(self, artifact: ReleaseArtifact) -> None:
+        """Check current consent for this exact candidate before a fresh command."""
+        if not self._artifact_allowed(artifact):
+            raise _update_error(
+                "update_unavailable", "The requested update is unavailable"
+            )
+
     def _host_release(self) -> ReleaseArtifact | None:
         """Return the release authenticated here, when newer than the panel's."""
         snapshot: PanelSnapshot | None = self.coordinator.data
@@ -1391,18 +1398,17 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         self, offer: PanelCachedUpdate, artifact: ReleaseArtifact | None
     ) -> None:
         """Ask the panel to fetch only the host-admitted release."""
-        if (
-            artifact is None
-            or artifact.tag != offer.tag
-            or not self._artifact_allowed(artifact)
-        ):
+        if artifact is None or artifact.tag != offer.tag:
             raise _update_error(
                 "update_unavailable", "The requested update is unavailable"
             )
+
+        async def start() -> None:
+            await self._async_admit_artifact(artifact)
+            await self.coordinator.client.async_start_panel_update(offer.tag)
+
         try:
-            await _retry_unstarted_install(
-                lambda: self.coordinator.client.async_start_panel_update(offer.tag)
-            )
+            await _retry_unstarted_install(start)
         except UpdateBusyError as err:
             raise _update_error(
                 "update_busy", "The panel is busy with another operation"
@@ -1659,12 +1665,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 or not reports_package(health.package, running_package)
                 or (migration and health.version != artifact.version)
             )
-            if not self._artifact_allowed(artifact):
-                with contextlib.suppress(HaPaneldError):
-                    await client.async_discard_apk(staged.token)
-                raise _update_error(
-                    "update_unavailable", "The requested update is unavailable"
-                )
             staged_mismatch = (
                 staged.package != package_id
                 or staged.signer != _RELEASE_SIGNER_CERTIFICATE_SHA256
@@ -1682,9 +1682,17 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     "staged_app_mismatch",
                     "The staged app does not match the signed release details",
                 )
-            await _retry_unstarted_install(
-                lambda: client.async_commit_apk(staged.token)
-            )
+
+            async def commit() -> None:
+                try:
+                    await self._async_admit_artifact(artifact)
+                except HomeAssistantError:
+                    with contextlib.suppress(HaPaneldError):
+                        await client.async_discard_apk(staged.token)
+                    raise
+                await client.async_commit_apk(staged.token)
+
+            await _retry_unstarted_install(commit)
         except UploadDisabledError as err:
             raise _update_error(
                 "upload_disabled", "The panel does not accept app uploads"
@@ -1790,7 +1798,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 await self.hass.async_add_executor_job(file.write, apk)
                 await self.hass.async_add_executor_job(file.flush)
                 outcome = await async_update_installed_apk(
-                    target, credential.signer, descriptor, Path(file.name)
+                    target,
+                    credential.signer,
+                    descriptor,
+                    Path(file.name),
+                    before_install=lambda: self._async_admit_artifact(artifact),
                 )
         except InstallAdbError as err:
             raise _update_error(
