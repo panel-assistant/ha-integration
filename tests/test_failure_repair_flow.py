@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock
 import pytest
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
@@ -439,6 +440,62 @@ async def test_superseded_update_repair_retries_current_offer(
         assert (await async_failure_events(hass, issue_id))[-1][
             "reason"
         ] == "next update failed"
+
+
+async def test_update_retry_on_a_panel_already_current_clears_without_installing(
+    hass: HomeAssistant,
+    repairs_ready: None,
+    hass_client: Any,
+) -> None:
+    """The update landed after Panel Assistant stopped waiting for it."""
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="Test panel", data={CONF_ADDRESS: "panel.local"}
+    )
+    entry.add_to_hass(hass)
+    await async_record_update_failure(
+        hass,
+        entry.entry_id,
+        entry.title,
+        None,
+        RuntimeError("The panel did not return after the update"),
+    )
+    issue_id = next(
+        issue_id for (domain, issue_id) in ir.async_get(hass).issues if domain == DOMAIN
+    )
+    entity = er.async_get(hass).async_get_or_create(
+        "update", DOMAIN, update_unique_id(entry.entry_id)
+    )
+    hass.states.async_set(
+        entity.entity_id,
+        "off",
+        {"installed_version": "0.9.9-rc3", "latest_version": "0.9.9-rc3"},
+    )
+    calls = []
+
+    async def install(service) -> None:
+        calls.append(service.data)
+        raise HomeAssistantError("No update available")
+
+    hass.services.async_register("update", "install", install)
+    admin = await hass_client()
+    response = await admin.post(
+        "/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue_id}
+    )
+    menu = await response.json()
+    response = await admin.post(
+        f"/api/repairs/issues/fix/{menu['flow_id']}", json={"next_step_id": "retry"}
+    )
+    result = await response.json()
+    if result["type"] == "progress":
+        await hass.async_block_till_done()
+        response = await admin.post(
+            f"/api/repairs/issues/fix/{menu['flow_id']}", json={}
+        )
+        result = await response.json()
+
+    assert result["type"] == "create_entry"
+    assert calls == []
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
 
 
 @pytest.mark.parametrize(

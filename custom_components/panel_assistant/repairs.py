@@ -9,7 +9,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.components.repairs import RepairsFlow, RepairsFlowResult
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
+from homeassistant.const import STATE_OFF, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType, UnknownStep
 from homeassistant.helpers import entity_registry as er
@@ -529,6 +529,17 @@ class InstallerFailureFlow(RepairsFlow):
                 if state
                 else None
             )
+            if (
+                state is not None
+                and state.state == STATE_OFF
+                and isinstance(installed, str)
+                and offered == installed
+            ):
+                # The panel already runs the newest build on offer: the update
+                # that failed to report back has since landed, or nothing newer
+                # exists. There is nothing to install, so the failure is over;
+                # asking Home Assistant to install would only be refused.
+                return None
             current_retry = (
                 isinstance(offered, str)
                 and offered != installed
