@@ -10,6 +10,7 @@ from zipfile import ZipFile
 
 import pytest
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -24,6 +25,7 @@ from custom_components.panel_assistant.client import (
     UpdateBusyError,
 )
 from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.identity import adopt_moved_identity
 from custom_components.panel_assistant.install_adb import (
     LaunchOutcome,
     MoveObservation,
@@ -420,3 +422,30 @@ async def test_a_restore_still_running_is_waited_out(
 
     assert panel.restores == 2 and not busy[0]
     assert CONF_SUCCESSOR_MOVE not in entry.data
+
+
+async def test_a_moved_panel_keeps_its_entities_under_the_new_identity(
+    hass: HomeAssistant, entry: MockConfigEntry
+) -> None:
+    registry = er.async_get(hass)
+    sensor = registry.async_get_or_create(
+        "sensor", DOMAIN, f"{OLD_DID}_status", config_entry=entry
+    )
+
+    assert adopt_moved_identity(hass, entry, NEW_DID)
+    await hass.async_block_till_done()
+
+    assert entry.unique_id == NEW_DID
+    moved = registry.async_get(sensor.entity_id)
+    assert moved is not None and moved.unique_id == f"{NEW_DID}_status"
+
+
+async def test_an_identity_another_panel_holds_is_never_adopted(
+    hass: HomeAssistant, entry: MockConfigEntry
+) -> None:
+    MockConfigEntry(
+        domain=DOMAIN, unique_id=NEW_DID, data={"address": "y"}
+    ).add_to_hass(hass)
+
+    assert not adopt_moved_identity(hass, entry, NEW_DID)
+    assert entry.unique_id == OLD_DID
