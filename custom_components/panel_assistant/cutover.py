@@ -264,7 +264,6 @@ def _own_device(
         **panel_device_info(
             entry.entry_id,
             runtime_data.coordinator.data,
-            runtime_data.client.configuration_url,
             entry.title,
             runtime_data.coordinator.app_build,
         ),

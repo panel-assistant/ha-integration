@@ -280,7 +280,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
         panel_device_info(
             entry.entry_id,
             coordinator.data,
-            client.configuration_url,
             entry.title,
             coordinator.app_build,
         ),
@@ -295,7 +294,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
                 panel_device_info(
                     entry.entry_id,
                     coordinator.data,
-                    client.configuration_url,
                     entry.title,
                     coordinator.app_build,
                 ),

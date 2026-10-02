@@ -63,19 +63,20 @@ function xe(i) {
   }
 }
 class we extends HTMLElement {
+  #e;
+  #o;
   #t;
-  #d;
-  #e = !1;
-  #s;
-  #o = null;
-  #n = "loading";
-  #a = 0;
+  #i = !1;
+  #g;
+  #n = null;
+  #r = "loading";
+  #d = 0;
   #h = "";
-  #r = null;
-  #i = null;
-  #u = null;
+  #a = null;
+  #s = null;
   #p = null;
-  #m = () => this.#j();
+  #A = null;
+  #I = () => this.#L();
   constructor() {
     super(), this.attachShadow({ mode: "open" }), this.shadowRoot.innerHTML = `<style>
       :host{display:block;height:100vh;height:100dvh;overflow:hidden;background:var(--primary-background-color,#fafafa);color:var(--primary-text-color,#212121)}
@@ -156,79 +157,86 @@ class we extends HTMLElement {
     const t = e.querySelector("#menu");
     t.setAttribute("aria-label", f.menu), t.hidden = !0, t.addEventListener("click", () => this.dispatchEvent(new CustomEvent("hass-toggle-menu", { bubbles: !0, composed: !0 })));
     const n = e.querySelector("#overflow");
-    n.setAttribute("aria-label", f.more), n.setAttribute("title", f.more), n.hidden = !0, e.querySelector("#backdrop").hidden = !0, e.querySelector("#dot").hidden = !0, n.addEventListener("click", () => this.#g(!this.#I())), e.querySelector("#backdrop").addEventListener("click", () => this.#g(!1)), e.querySelector("#root").addEventListener("keydown", (s) => {
-      s.key !== "Escape" || !this.#I() || (this.#g(!1), n.focus?.());
+    n.setAttribute("aria-label", f.more), n.setAttribute("title", f.more), n.hidden = !0, e.querySelector("#backdrop").hidden = !0, e.querySelector("#dot").hidden = !0, n.addEventListener("click", () => this.#u(!this.#M())), e.querySelector("#backdrop").addEventListener("click", () => this.#u(!1)), e.querySelector("#root").addEventListener("keydown", (s) => {
+      s.key !== "Escape" || !this.#M() || (this.#u(!1), n.focus?.());
     }), e.querySelector("#frame").setAttribute("title", f.frameTitle);
-    const a = e.querySelector("#settings");
-    a.setAttribute("aria-label", f.integrationSettings), a.setAttribute("title", f.integrationSettings);
-    const r = e.querySelector("#github");
-    r.setAttribute("aria-label", f.github), r.setAttribute("title", f.github), r.addEventListener("click", () => this.#g(!1));
+    const r = e.querySelector("#settings");
+    r.setAttribute("aria-label", f.integrationSettings), r.setAttribute("title", f.integrationSettings);
+    const a = e.querySelector("#github");
+    a.setAttribute("aria-label", f.github), a.setAttribute("title", f.github), a.addEventListener("click", () => this.#u(!1));
     const d = e.querySelector("#device");
     d.setAttribute("aria-label", f.device), d.setAttribute("title", f.device), d.addEventListener("click", (s) => {
       const g = d.getAttribute("href");
-      this.#g(!1), !(!g || s.defaultPrevented || s.button !== 0 || s.metaKey || s.ctrlKey || s.shiftKey || s.altKey) && (s.preventDefault(), G(g));
+      this.#u(!1), !(!g || s.defaultPrevented || s.button !== 0 || s.metaKey || s.ctrlKey || s.shiftKey || s.altKey) && (s.preventDefault(), G(g));
     });
     for (const [s, g] of [["add", he], ["settings", ge]]) {
       const l = e.querySelector(`#${s}`);
       l.setAttribute("href", g), l.addEventListener("click", (c) => {
-        this.#g(!1), !(c.defaultPrevented || c.button !== 0 || c.metaKey || c.ctrlKey || c.shiftKey || c.altKey) && (c.preventDefault(), G(g));
+        this.#u(!1), !(c.defaultPrevented || c.button !== 0 || c.metaKey || c.ctrlKey || c.shiftKey || c.altKey) && (c.preventDefault(), G(g));
       });
     }
-    e.querySelector("#panels").addEventListener("change", (s) => this.#C(s.target.value)), this.#c();
+    e.querySelector("#panels").addEventListener("change", (s) => this.#v(s.target.value)), this.#c();
   }
   get hass() {
-    return this.#t;
+    return this.#e;
   }
   set hass(e) {
-    const t = this.#t;
-    if (this.#t = e, !!this.isConnected) {
-      if (this.#A(), t?.connection !== e?.connection || t?.user?.id !== e?.user?.id || t?.user?.is_admin !== e?.user?.is_admin) {
-        this.#x();
+    const t = this.#e;
+    if (this.#e = e, !!this.isConnected) {
+      if (this.#f(), t?.connection !== e?.connection || t?.user?.id !== e?.user?.id || t?.user?.is_admin !== e?.user?.is_admin) {
+        this.#w();
         return;
       }
-      (t?.language !== e?.language || !!t?.themes?.darkMode != !!e?.themes?.darkMode) && (this.#l(), this.#y());
+      (t?.language !== e?.language || !!t?.themes?.darkMode != !!e?.themes?.darkMode) && (this.#l(), this.#m());
     }
   }
   get panel() {
-    return this.#d;
+    return this.#o;
   }
   set panel(e) {
-    this.#d = e, this.shadowRoot.querySelector("#version").textContent = me(e?.config);
+    this.#o = e, this.shadowRoot.querySelector("#version").textContent = me(e?.config);
+  }
+  get route() {
+    return this.#t;
+  }
+  set route(e) {
+    const t = this.#t?.path;
+    this.#t = e, t !== e?.path && this.#v(e?.path?.slice(1));
   }
   get narrow() {
-    return this.#e;
+    return this.#i;
   }
   set narrow(e) {
-    this.#e = e === !0;
+    this.#i = e === !0;
     const t = this.shadowRoot, n = t.querySelector("#root");
-    this.#e ? n.setAttribute("data-narrow", "") : n.removeAttribute("data-narrow"), t.querySelector("#menu").hidden = !this.#e, t.querySelector("#overflow").hidden = !this.#e, t.querySelector("#title").hidden = this.#e, t.querySelector("#version").hidden = this.#e;
-    const a = t.querySelector("#more");
-    this.#e ? a.setAttribute("role", "menu") : a.removeAttribute("role");
-    for (const r of ["device", "github", "add", "settings"]) {
-      const d = t.querySelector(`#${r}`);
-      this.#e ? d.setAttribute("role", "menuitem") : d.removeAttribute("role");
+    this.#i ? n.setAttribute("data-narrow", "") : n.removeAttribute("data-narrow"), t.querySelector("#menu").hidden = !this.#i, t.querySelector("#overflow").hidden = !this.#i, t.querySelector("#title").hidden = this.#i, t.querySelector("#version").hidden = this.#i;
+    const r = t.querySelector("#more");
+    this.#i ? r.setAttribute("role", "menu") : r.removeAttribute("role");
+    for (const a of ["device", "github", "add", "settings"]) {
+      const d = t.querySelector(`#${a}`);
+      this.#i ? d.setAttribute("role", "menuitem") : d.removeAttribute("role");
     }
-    this.#e || this.#g(!1), this.#A();
+    this.#i || this.#u(!1), this.#f();
   }
-  #I() {
+  #M() {
     return this.shadowRoot.querySelector("#more").getAttribute("data-open") !== null;
   }
-  #g(e) {
-    const t = this.shadowRoot, n = t.querySelector("#more"), a = e && this.#e;
-    a ? n.setAttribute("data-open", "") : n.removeAttribute("data-open"), t.querySelector("#backdrop").hidden = !a, t.querySelector("#overflow").setAttribute("aria-expanded", String(a));
+  #u(e) {
+    const t = this.shadowRoot, n = t.querySelector("#more"), r = e && this.#i;
+    r ? n.setAttribute("data-open", "") : n.removeAttribute("data-open"), t.querySelector("#backdrop").hidden = !r, t.querySelector("#overflow").setAttribute("aria-expanded", String(r));
   }
   // Home Assistant's menu button shows a dot while persistent notifications exist; on a phone this
   // header replaces it, so it keeps the dot from the same subscription.
-  #A() {
-    const e = this.isConnected && this.#e ? this.#t?.connection : void 0, t = this.#p;
-    if (t?.connection === e || (t && (this.#p = null, t.unsubscribe?.then((a) => a()).catch(() => {
+  #f() {
+    const e = this.isConnected && this.#i ? this.#e?.connection : void 0, t = this.#A;
+    if (t?.connection === e || (t && (this.#A = null, t.unsubscribe?.then((r) => r()).catch(() => {
     }), this.shadowRoot.querySelector("#dot").hidden = !0), !e?.subscribeMessage)) return;
     const n = { connection: e, notifications: {}, unsubscribe: null };
-    this.#p = n, n.unsubscribe = Promise.resolve().then(() => e.subscribeMessage((a) => this.#E(n, a), { type: "persistent_notification/subscribe" })), n.unsubscribe.catch(() => {
+    this.#A = n, n.unsubscribe = Promise.resolve().then(() => e.subscribeMessage((r) => this.#D(n, r), { type: "persistent_notification/subscribe" })), n.unsubscribe.catch(() => {
     });
   }
-  #E(e, t) {
-    if (!(this.#p !== e || !fe.has(t?.type) || !t.notifications || typeof t.notifications != "object")) {
+  #D(e, t) {
+    if (!(this.#A !== e || !fe.has(t?.type) || !t.notifications || typeof t.notifications != "object")) {
       if (t.type === "current") e.notifications = { ...t.notifications };
       else if (t.type === "removed") for (const n of Object.keys(t.notifications)) delete e.notifications[n];
       else e.notifications = { ...e.notifications, ...t.notifications };
@@ -236,23 +244,23 @@ class we extends HTMLElement {
     }
   }
   connectedCallback() {
-    clearInterval(this.#u), this.#x(), this.#A(), this.#u = setInterval(() => this.#b(), Ae);
+    clearInterval(this.#p), this.#w(), this.#f(), this.#p = setInterval(() => this.#y(), Ae);
   }
   disconnectedCallback() {
-    clearInterval(this.#u), this.#u = null, this.#a++, this.#M(), this.#l(), this.#A();
+    clearInterval(this.#p), this.#p = null, this.#d++, this.#x(), this.#l(), this.#f();
   }
-  #f() {
-    return this.#t?.user?.is_admin === !0;
-  }
-  #M() {
-    this.#s?.removeEventListener?.("ready", this.#m), this.#s = void 0;
+  #b() {
+    return this.#e?.user?.is_admin === !0;
   }
   #x() {
-    this.#M(), this.#l(), this.#o = null, this.#h = "", this.#n = "loading", this.#f() && this.#t.connection && (this.#s = this.#t.connection, this.#s.addEventListener("ready", this.#m)), this.#b();
+    this.#g?.removeEventListener?.("ready", this.#I), this.#g = void 0;
   }
-  async #b() {
-    const e = ++this.#a;
-    if (!this.#f()) {
+  #w() {
+    this.#x(), this.#l(), this.#n = null, this.#h = "", this.#r = "loading", this.#b() && this.#e.connection && (this.#g = this.#e.connection, this.#g.addEventListener("ready", this.#I)), this.#y();
+  }
+  async #y() {
+    const e = ++this.#d;
+    if (!this.#b()) {
       this.#c();
       return;
     }
@@ -260,93 +268,93 @@ class we extends HTMLElement {
     try {
       let n;
       try {
-        n = await this.#t.callWS({ type: "panel_assistant/embed_panels" });
-      } catch (a) {
-        if (this.#o) return;
-        throw a;
+        n = await this.#e.callWS({ type: "panel_assistant/embed_panels" });
+      } catch (r) {
+        if (this.#n) return;
+        throw r;
       }
       t = be(n);
     } catch {
-      if (e !== this.#a) return;
-      this.#o = null, this.#n = "failed", this.#l(), this.#c();
+      if (e !== this.#d) return;
+      this.#n = null, this.#r = "failed", this.#l(), this.#c();
       return;
     }
-    if (e === this.#a) {
-      if (this.#o = t, this.#n = t.length ? "ready" : "empty", !t.some((n) => n.entry_id === this.#r)) {
-        const n = Me();
-        this.#r = t.some((a) => a.entry_id === n) ? n : t[0]?.entry_id ?? null;
+    if (e === this.#d) {
+      if (this.#n = t, this.#r = t.length ? "ready" : "empty", !t.some((n) => n.entry_id === this.#a)) {
+        const n = this.#t?.path?.slice(1), r = t.some((a) => a.entry_id === n) ? n : Me();
+        this.#a = t.some((a) => a.entry_id === r) ? r : t[0]?.entry_id ?? null;
       }
-      this.#y();
+      this.#m();
     }
   }
-  #C(e) {
-    !this.#o?.some((t) => t.entry_id === e) || e === this.#r || (this.#r = e, xe(e), this.#l(), this.#y());
+  #v(e) {
+    !this.#n?.some((t) => t.entry_id === e) || e === this.#a || (this.#a = e, xe(e), this.#l(), this.#m());
   }
   // Opens a session when the selected panel is reachable and none is live for it.
-  #y() {
-    const e = this.#o?.find((n) => n.entry_id === this.#r), t = this.#i;
-    !e || e.state !== "reachable" ? t && !(t.state === "closed" && t.entryId === e?.entry_id) && this.#l() : (!t || t.entryId !== e.entry_id || !["opening", "open"].includes(t.state)) && (this.#l(), this.#w(e.entry_id, null, null)), this.#c();
+  #m() {
+    const e = this.#n?.find((n) => n.entry_id === this.#a), t = this.#s;
+    !e || e.state !== "reachable" ? t && !(t.state === "closed" && t.entryId === e?.entry_id) && this.#l() : (!t || t.entryId !== e.entry_id || !["opening", "open"].includes(t.state)) && (this.#l(), this.#E(e.entry_id, null, null)), this.#c();
   }
-  #w(e, t, n) {
-    const a = this.#t, r = { entryId: e, token: t, url: n, state: "opening", code: null, unsubscribe: null };
-    this.#i = r;
+  #E(e, t, n) {
+    const r = this.#e, a = { entryId: e, token: t, url: n, state: "opening", code: null, unsubscribe: null };
+    this.#s = a;
     const d = {
       type: "panel_assistant/embed_session",
       entry_id: e,
-      language: a.language,
-      theme: a.themes?.darkMode ? "dark" : "light",
+      language: r.language,
+      theme: r.themes?.darkMode ? "dark" : "light",
       ...t ? { resume: t } : {}
     };
-    r.unsubscribe = Promise.resolve().then(() => a.connection.subscribeMessage((s) => this.#D(r, s), d, { resubscribe: !1 })), r.unsubscribe.catch((s) => {
-      this.#i === r && (r.state = "failed", r.code = s?.code ?? null, this.#v(), this.#c());
+    a.unsubscribe = Promise.resolve().then(() => r.connection.subscribeMessage((s) => this.#j(a, s), d, { resubscribe: !1 })), a.unsubscribe.catch((s) => {
+      this.#s === a && (a.state = "failed", a.code = s?.code ?? null, this.#C(), this.#c());
     });
   }
-  #D(e, t) {
-    if (!(this.#i !== e || !t))
+  #j(e, t) {
+    if (!(this.#s !== e || !t))
       if (t.kind === "opened") {
         const n = ye(t.url);
         if (!n) {
-          this.#l(), this.#i = { entryId: e.entryId, state: "failed", code: null, unsubscribe: null }, this.#c();
+          this.#l(), this.#s = { entryId: e.entryId, state: "failed", code: null, unsubscribe: null }, this.#c();
           return;
         }
         e.token = n, e.url = t.url, e.state = "open";
-        const a = this.shadowRoot.querySelector("#frame");
-        a.getAttribute("src") !== t.url && a.setAttribute("src", t.url), this.#c();
-      } else t.kind === "closed" && (this.#l(), this.#i = { entryId: e.entryId, state: "closed", code: null, unsubscribe: null }, this.#c(), this.#b());
+        const r = this.shadowRoot.querySelector("#frame");
+        r.getAttribute("src") !== t.url && r.setAttribute("src", t.url), this.#c();
+      } else t.kind === "closed" && (this.#l(), this.#s = { entryId: e.entryId, state: "closed", code: null, unsubscribe: null }, this.#c(), this.#y());
   }
   // The connection came back; subscriptions made with resubscribe:false are gone, and
   // their unsubscribe functions must not be called: command ids restart per socket.
-  #j() {
-    const e = this.#i;
-    !this.isConnected || !e || !["opening", "open"].includes(e.state) || (this.#w(e.entryId, e.token, e.url), this.#c());
+  #L() {
+    const e = this.#s;
+    !this.isConnected || !e || !["opening", "open"].includes(e.state) || (this.#E(e.entryId, e.token, e.url), this.#c());
   }
   #l() {
-    const e = this.#i;
-    this.#i = null, e && (e.state = "ended", e.unsubscribe?.then((t) => t()).catch(() => {
-    }), this.#v());
+    const e = this.#s;
+    this.#s = null, e && (e.state = "ended", e.unsubscribe?.then((t) => t()).catch(() => {
+    }), this.#C());
   }
-  #v() {
+  #C() {
     this.shadowRoot.querySelector("#frame").removeAttribute("src");
   }
   #c() {
-    const e = this.shadowRoot, t = e.querySelector("#panels"), n = this.#f() ? this.#o ?? [] : [], a = JSON.stringify(n);
-    if (a !== this.#h) {
-      this.#h = a, t.replaceChildren();
+    const e = this.shadowRoot, t = e.querySelector("#panels"), n = this.#b() ? this.#n ?? [] : [], r = JSON.stringify(n);
+    if (r !== this.#h) {
+      this.#h = r, t.replaceChildren();
       for (const u of n) {
         const y = document.createElement("option");
         y.value = u.entry_id, y.textContent = u.state === "reachable" ? u.title : u.state === "restarting" ? `${u.title} (${f.restarting.replace("{reason}", u.reason)})` : `${u.title} (${f[u.state]})`, t.append(y);
       }
     }
-    t.value = this.#r ?? "", e.querySelector("#picker").hidden = n.length === 0;
-    const r = n.find((u) => u.entry_id === this.#r), d = e.querySelector("#device");
-    d.hidden = !r?.device_id, r?.device_id && d.setAttribute("href", `/config/devices/device/${encodeURIComponent(r.device_id)}`);
-    const s = this.#i, g = e.querySelector("#frame");
+    t.value = this.#a ?? "", e.querySelector("#picker").hidden = n.length === 0;
+    const a = n.find((u) => u.entry_id === this.#a), d = e.querySelector("#device");
+    d.hidden = !a?.device_id, a?.device_id && d.setAttribute("href", `/config/devices/device/${encodeURIComponent(a.device_id)}`);
+    const s = this.#s, g = e.querySelector("#frame");
     let l = "", c = !1;
-    this.#f() ? this.#n !== "ready" ? l = this.#n : s?.state === "closed" && s.entryId === r?.entry_id ? l = "closed" : r?.state === "restarting" ? l = "restarting" : r?.state === "unreachable" ? l = "unreachableBody" : r?.state === "not_loaded" ? l = "notLoadedBody" : s?.state === "failed" ? l = s.code === "not_loaded" ? "notLoadedBody" : "failed" : s?.state !== "open" && !g.getAttribute("src") && (c = !0) : l = "admin";
+    this.#b() ? this.#r !== "ready" ? l = this.#r : s?.state === "closed" && s.entryId === a?.entry_id ? l = "closed" : a?.state === "restarting" ? l = "restarting" : a?.state === "unreachable" ? l = "unreachableBody" : a?.state === "not_loaded" ? l = "notLoadedBody" : s?.state === "failed" ? l = s.code === "not_loaded" ? "notLoadedBody" : "failed" : s?.state !== "open" && !g.getAttribute("src") && (c = !0) : l = "admin";
     const A = e.querySelector("#status");
-    A.textContent = l === "restarting" ? f.restarting.replace("{reason}", r.reason) : l ? f[l] : "", A.hidden = !l;
+    A.textContent = l === "restarting" ? f.restarting.replace("{reason}", a.reason) : l ? f[l] : "", A.hidden = !l;
     const I = e.querySelector("#loading");
-    I.hidden = !c, c && (e.querySelector("#loading-text").textContent = Ie(r?.title)), g.hidden = !g.getAttribute("src");
+    I.hidden = !c, c && (e.querySelector("#loading-text").textContent = Ie(a?.title)), g.hidden = !g.getAttribute("src");
   }
 }
 customElements.get("panel-assistant-sidebar") || customElements.define("panel-assistant-sidebar", we);
@@ -377,18 +385,18 @@ function p(i, e = "invalid_response") {
 function C(i, e, t = !1) {
   p(typeof i == "string" && i.length <= Math.ceil(e / 3) * 4 && D(/(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?/, i));
   const n = atob(i);
-  return p(btoa(n) === i && n.length > 0 && (t ? n.length === e : n.length <= e)), Uint8Array.from(n, (a) => a.charCodeAt(0));
+  return p(btoa(n) === i && n.length > 0 && (t ? n.length === e : n.length <= e)), Uint8Array.from(n, (r) => r.charCodeAt(0));
 }
 async function V(i, e, t, n = null) {
   p(i.status === 200 && !i.redirected && i.body);
-  const a = i.headers.get("content-length");
-  if (a !== null) {
-    p(D(/0|[1-9][0-9]*/, a));
-    const l = Number(a);
+  const r = i.headers.get("content-length");
+  if (r !== null) {
+    p(D(/0|[1-9][0-9]*/, r));
+    const l = Number(r);
     p(Number.isSafeInteger(l) && l <= e && (n === null || l === n));
   }
-  const r = i.body.getReader(), d = () => {
-    r.cancel().catch(() => {
+  const a = i.body.getReader(), d = () => {
+    a.cancel().catch(() => {
     });
   };
   t.addEventListener("abort", d, { once: !0 });
@@ -397,21 +405,21 @@ async function V(i, e, t, n = null) {
   try {
     for (; ; ) {
       p(!t.aborted, "cancelled");
-      const l = await r.read();
+      const l = await a.read();
       if (p(!t.aborted, "cancelled"), l.done) break;
       g += l.value.byteLength, p(g <= e && (n === null || g <= n)), s.push(l.value);
     }
-    return p(g > 0 && (a === null || g === Number(a)) && (n === null || g === n)), new Blob(s);
+    return p(g > 0 && (r === null || g === Number(r)) && (n === null || g === n)), new Blob(s);
   } finally {
-    t.removeEventListener("abort", d), d(), r.releaseLock();
+    t.removeEventListener("abort", d), d(), a.releaseLock();
   }
 }
 function He(i, e, {
   rcTag: t = null,
   onState: n = () => {
   },
-  windowObject: a = window,
-  timeoutMs: r = 3e5
+  windowObject: r = window,
+  timeoutMs: a = 3e5
 } = {}) {
   let d, s;
   const g = new Promise((o, b) => {
@@ -419,7 +427,7 @@ function He(i, e, {
   }), l = new AbortController();
   let c = !1, A, I, u, y, Q = !1, R = !1, w, P, H, N = !1;
   const L = () => {
-    clearInterval(P), clearTimeout(H), w = void 0, a.removeEventListener("message", q);
+    clearInterval(P), clearTimeout(H), w = void 0, r.removeEventListener("message", q);
   }, j = (o) => {
     try {
       n(o);
@@ -520,11 +528,11 @@ function He(i, e, {
     }
   }
   try {
-    p(i && typeof i.fetchWithAuth == "function" && (t === null || ne(t) || O(t)) && Number.isSafeInteger(r) && r > 0 && r <= 3e5, "invalid_request");
+    p(i && typeof i.fetchWithAuth == "function" && (t === null || ne(t) || O(t)) && Number.isSafeInteger(a) && a > 0 && a <= 3e5, "invalid_request");
     const o = new URL(e);
     p(!o.username && !o.password && !o.hash && (o.protocol === "https:" || o.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(o.hostname)), "invalid_destination"), u = o.origin;
     const b = new Uint8Array(16);
-    a.crypto.getRandomValues(b), y = Array.from(b, (h) => h.toString(16).padStart(2, "0")).join(""), o.hash = new URLSearchParams({ ha_origin: a.location.origin, nonce: y, rc: t ?? "" }).toString(), a.addEventListener("message", q), A = a.open(o.href, "_blank"), p(A, "popup_blocked"), I = setTimeout(() => v("timeout"), r), j("waiting");
+    r.crypto.getRandomValues(b), y = Array.from(b, (h) => h.toString(16).padStart(2, "0")).join(""), o.hash = new URLSearchParams({ ha_origin: r.location.origin, nonce: y, rc: t ?? "" }).toString(), r.addEventListener("message", q), A = r.open(o.href, "_blank"), p(A, "popup_blocked"), I = setTimeout(() => v("timeout"), a), j("waiting");
   } catch (o) {
     v(o instanceof S ? o.code : "invalid_request");
   }
@@ -543,13 +551,13 @@ function qe(i) {
 function Ge(i) {
   m(B(i, ["releases"]) && Array.isArray(i.releases) && i.releases.length <= W + Z);
   const e = /* @__PURE__ */ new Set();
-  let t = 0, n = 0, a = 0;
-  return Object.freeze(i.releases.map((r) => B(r, ["tag", "prerelease", "name"]) ? (m(qe(r) && !e.has(r.tag) && ++a <= Z), e.add(r.tag), Object.freeze({ tag: r.tag, prerelease: !0, name: r.name })) : (m(B(r, ["tag", "prerelease"]) && typeof r.prerelease == "boolean" && (r.prerelease ? ne(r.tag) : ie(r.tag)) && !e.has(r.tag) && ++n <= W), e.add(r.tag), r.prerelease || m(++t <= 1), Object.freeze({ tag: r.tag, prerelease: r.prerelease }))));
+  let t = 0, n = 0, r = 0;
+  return Object.freeze(i.releases.map((a) => B(a, ["tag", "prerelease", "name"]) ? (m(qe(a) && !e.has(a.tag) && ++r <= Z), e.add(a.tag), Object.freeze({ tag: a.tag, prerelease: !0, name: a.name })) : (m(B(a, ["tag", "prerelease"]) && typeof a.prerelease == "boolean" && (a.prerelease ? ne(a.tag) : ie(a.tag)) && !e.has(a.tag) && ++n <= W), e.add(a.tag), a.prerelease || m(++t <= 1), Object.freeze({ tag: a.tag, prerelease: a.prerelease }))));
 }
 async function Ye(i, { signal: e, timeoutMs: t = 15e3 } = {}) {
-  const n = new AbortController(), a = () => n.abort();
-  e?.addEventListener("abort", a, { once: !0 }), e?.aborted && a();
-  const r = setTimeout(a, t);
+  const n = new AbortController(), r = () => n.abort();
+  e?.addEventListener("abort", r, { once: !0 }), e?.aborted && r();
+  const a = setTimeout(r, t);
   let d, s;
   const g = new Promise((l, c) => {
     s = () => c(new Error("Release catalogue cancelled"));
@@ -575,7 +583,7 @@ async function Ye(i, { signal: e, timeoutMs: t = 15e3 } = {}) {
       return m(I > 0 && (c === null || I === Number(c))), Ge(JSON.parse(await new Blob(A).text()));
     })()]);
   } finally {
-    clearTimeout(r), e?.removeEventListener("abort", a), n.signal.removeEventListener("abort", s), n.abort(), d && d.cancel().catch(() => {
+    clearTimeout(a), e?.removeEventListener("abort", r), n.signal.removeEventListener("abort", s), n.abort(), d && d.cancel().catch(() => {
     });
   }
 }
@@ -649,16 +657,16 @@ button.primary:disabled,button.secondary:disabled{background:var(--disabled-bg);
   failed: "That didn’t work. Press Continue to try again."
 });
 class Ze extends HTMLElement {
-  #t;
-  #d;
   #e;
+  #o;
+  #t;
   // A finished transfer keeps answering a reloaded installer window until this
   // page goes away or a new transfer starts.
-  #s;
-  #o = "ready";
+  #i;
+  #g = "ready";
   #n;
-  #a = "loading";
-  #h = [];
+  #r = "loading";
+  #d = [];
   constructor() {
     super(), this.attachShadow({ mode: "open" }), this.shadowRoot.innerHTML = `<style>${We}
       :host{display:block;min-height:100%;background:var(--bg);padding:24px 16px}
@@ -680,73 +688,73 @@ class Ze extends HTMLElement {
     </main>`;
     for (const e of this.shadowRoot.querySelectorAll("[data-message]"))
       e.textContent = M[e.dataset.message];
-    this.shadowRoot.querySelector("#start").addEventListener("click", () => this.#u()), this.shadowRoot.querySelector("#cancel").addEventListener("click", () => this.#e?.cancel()), this.shadowRoot.querySelector("#retry").addEventListener("click", () => this.#r()), this.shadowRoot.querySelector("#release").addEventListener("change", () => this.#i()), this.#i();
+    this.shadowRoot.querySelector("#start").addEventListener("click", () => this.#s()), this.shadowRoot.querySelector("#cancel").addEventListener("click", () => this.#t?.cancel()), this.shadowRoot.querySelector("#retry").addEventListener("click", () => this.#h()), this.shadowRoot.querySelector("#release").addEventListener("change", () => this.#a()), this.#a();
   }
   set hass(e) {
-    const t = this.#t?.user?.id !== e?.user?.id || this.#t?.user?.is_admin !== e?.user?.is_admin || this.#t?.connection !== e?.connection || this.#t?.auth !== e?.auth;
-    this.#t = e;
+    const t = this.#e?.user?.id !== e?.user?.id || this.#e?.user?.is_admin !== e?.user?.is_admin || this.#e?.connection !== e?.connection || this.#e?.auth !== e?.auth;
+    this.#e = e;
     const n = e?.themes?.darkMode;
-    typeof n == "boolean" && this.setAttribute?.("theme", n ? "dark" : "light"), t && (this.#e?.cancel(), this.#r()), this.#i();
+    typeof n == "boolean" && this.setAttribute?.("theme", n ? "dark" : "light"), t && (this.#t?.cancel(), this.#h()), this.#a();
   }
   set panel(e) {
-    const t = this.#d?.config?.installer_url !== e?.config?.installer_url;
-    t && this.#e?.cancel(), this.#d = e, t && this.#r(), this.#i();
+    const t = this.#o?.config?.installer_url !== e?.config?.installer_url;
+    t && this.#t?.cancel(), this.#o = e, t && this.#h(), this.#a();
   }
   connectedCallback() {
-    this.#r();
+    this.#h();
   }
   disconnectedCallback() {
-    this.#e?.cancel(), this.#s?.cancel(), this.#s = void 0, this.#n?.abort(), this.#n = void 0;
+    this.#t?.cancel(), this.#i?.cancel(), this.#i = void 0, this.#n?.abort(), this.#n = void 0;
   }
-  async #r() {
-    if (this.#n?.abort(), this.#n = void 0, this.#h = [], this.#a = "loading", this.shadowRoot.querySelector("#release").replaceChildren(), this.#i(), !this.isConnected || this.#t?.user?.is_admin !== !0 || !this.#d?.config?.installer_url) return;
+  async #h() {
+    if (this.#n?.abort(), this.#n = void 0, this.#d = [], this.#r = "loading", this.shadowRoot.querySelector("#release").replaceChildren(), this.#a(), !this.isConnected || this.#e?.user?.is_admin !== !0 || !this.#o?.config?.installer_url) return;
     const e = new AbortController();
     this.#n = e;
     try {
-      const t = await Ye(this.#t, { signal: e.signal });
+      const t = await Ye(this.#e, { signal: e.signal });
       if (this.#n !== e) return;
-      this.#h = t, this.#a = t.length ? "ready" : "empty";
-      const n = this.shadowRoot.querySelector("#release"), a = document.createElement("option");
-      a.value = "", a.textContent = M.choose, a.disabled = !0, n.append(a);
-      const r = t.find((d) => !d.prerelease)?.tag ?? "";
+      this.#d = t, this.#r = t.length ? "ready" : "empty";
+      const n = this.shadowRoot.querySelector("#release"), r = document.createElement("option");
+      r.value = "", r.textContent = M.choose, r.disabled = !0, n.append(r);
+      const a = t.find((d) => !d.prerelease)?.tag ?? "";
       for (const d of t) {
         const s = document.createElement("option");
         s.value = d.tag;
-        const g = d.tag === r ? M.recommended : d.name ? M.devBuild : d.prerelease ? M.testing : "";
+        const g = d.tag === a ? M.recommended : d.name ? M.devBuild : d.prerelease ? M.testing : "";
         s.textContent = `${d.name ?? d.tag.replace(/^v/, "")}${g ? ` (${g})` : ""}`, n.append(s);
       }
-      n.value = r;
+      n.value = a;
     } catch {
       if (this.#n !== e) return;
-      this.#a = "catalogError";
+      this.#r = "catalogError";
     } finally {
-      this.#n === e && (this.#n = void 0, this.#i());
+      this.#n === e && (this.#n = void 0, this.#a());
     }
   }
-  #i() {
-    const e = this.#t?.user?.is_admin === !0, t = typeof this.#d?.config?.installer_url == "string" && this.#d.config.installer_url.length > 0, n = this.#h.find((s) => s.tag === this.shadowRoot.querySelector("#release").value);
-    this.shadowRoot.querySelector("#start").disabled = !e || !t || !!this.#e || !n, this.shadowRoot.querySelector("#cancel").disabled = !this.#e, this.shadowRoot.querySelector("#release").disabled = !!this.#e || this.#a !== "ready";
-    const a = this.shadowRoot.querySelector("#catalog-status");
-    a.textContent = e && t && this.#a !== "ready" ? M[this.#a] : "", a.hidden = !a.textContent, this.shadowRoot.querySelector("#retry").hidden = !e || !t || !["catalogError", "empty"].includes(this.#a), this.shadowRoot.querySelector("#cancel").hidden = !this.#e;
-    const r = e ? t ? this.#o : "unavailable" : "admin", d = this.shadowRoot.querySelector("#status");
-    d.textContent = Object.hasOwn(M, r) ? M[r] : M.failed, d.hidden = !d.textContent;
+  #a() {
+    const e = this.#e?.user?.is_admin === !0, t = typeof this.#o?.config?.installer_url == "string" && this.#o.config.installer_url.length > 0, n = this.#d.find((s) => s.tag === this.shadowRoot.querySelector("#release").value);
+    this.shadowRoot.querySelector("#start").disabled = !e || !t || !!this.#t || !n, this.shadowRoot.querySelector("#cancel").disabled = !this.#t, this.shadowRoot.querySelector("#release").disabled = !!this.#t || this.#r !== "ready";
+    const r = this.shadowRoot.querySelector("#catalog-status");
+    r.textContent = e && t && this.#r !== "ready" ? M[this.#r] : "", r.hidden = !r.textContent, this.shadowRoot.querySelector("#retry").hidden = !e || !t || !["catalogError", "empty"].includes(this.#r), this.shadowRoot.querySelector("#cancel").hidden = !this.#t;
+    const a = e ? t ? this.#g : "unavailable" : "admin", d = this.shadowRoot.querySelector("#status");
+    d.textContent = Object.hasOwn(M, a) ? M[a] : M.failed, d.hidden = !d.textContent;
   }
-  #u() {
-    if (this.#e || this.#t?.user?.is_admin !== !0) return;
-    const e = this.#h.find((n) => n.tag === this.shadowRoot.querySelector("#release").value);
+  #s() {
+    if (this.#t || this.#e?.user?.is_admin !== !0) return;
+    const e = this.#d.find((n) => n.tag === this.shadowRoot.querySelector("#release").value);
     if (!e || !this.isConnected) return;
-    this.#s?.cancel(), this.#s = void 0;
-    const t = He(this.#t, this.#d?.config?.installer_url, {
+    this.#i?.cancel(), this.#i = void 0;
+    const t = He(this.#e, this.#o?.config?.installer_url, {
       rcTag: e.prerelease ? e.tag : null,
       onState: (n) => {
-        this.#o = n, this.#i();
+        this.#g = n, this.#a();
       }
     });
-    this.#e = t, this.#i(), t.completion.then(() => {
-      this.#e === t && (this.#s = t);
+    this.#t = t, this.#a(), t.completion.then(() => {
+      this.#t === t && (this.#i = t);
     }, () => {
     }).finally(() => {
-      this.#e === t && (this.#e = void 0), this.#i();
+      this.#t === t && (this.#t = void 0), this.#a();
     });
   }
 }

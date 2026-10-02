@@ -73,10 +73,10 @@ function fakeHass({ panels = [row('one'), row('two')], admin = true, language = 
   return hass;
 }
 
-async function mount(hass, narrow = false) {
+async function mount(hass, narrow = false, path = '') {
   intervals = [];
   const panel = new PanelAssistantSidebar();
-  panel.hass = hass; panel.narrow = narrow;
+  panel.hass = hass; panel.narrow = narrow; panel.route = { path };
   panel.isConnected = true; panel.connectedCallback(); await tick();
   const $ = selector => panel.shadowRoot.querySelector(selector);
   return { panel, $, subs: hass.connection.subscriptions };
@@ -218,6 +218,31 @@ test('selection is remembered, survives broken storage and restarts the session'
     mounted.$('#panels').fire('change', { target: { value: 'two' } }); await tick();
     assert.equal(mounted.subs[1].message.entry_id, 'two');
   } finally { globalThis.localStorage = saved; store.clear(); }
+});
+
+test('a device route opens its panel ahead of the remembered choice and can change in place', async () => {
+  store.set(SELECTION_KEY, 'one');
+  const { panel, $, subs } = await mount(fakeHass(), false, '/two');
+  assert.equal(subs[0].message.entry_id, 'two');
+  assert.equal($('#panels').value, 'two');
+  panel.route = { path: '/one' }; await tick();
+  assert.equal(subs[0].unsubscribed, 1);
+  assert.equal(subs[1].message.entry_id, 'one');
+  $('#panels').fire('change', { target: { value: 'two' } }); await tick();
+  panel.route = { path: '/one' }; await tick();
+  intervals[0].fn(); await tick();
+  assert.equal(subs.length, 3, 'the same route and polling do not undo a manual choice');
+  assert.equal($('#panels').value, 'two');
+  panel.isConnected = false; panel.disconnectedCallback(); await tick();
+  store.clear();
+});
+
+test('an unknown device route uses the existing remembered-panel fallback', async () => {
+  store.set(SELECTION_KEY, 'two');
+  const { panel, subs } = await mount(fakeHass(), false, '/missing');
+  assert.equal(subs[0].message.entry_id, 'two');
+  panel.isConnected = false; panel.disconnectedCallback(); await tick();
+  store.clear();
 });
 
 test('language or theme changes reopen without resume; other hass updates do not', async () => {

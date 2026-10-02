@@ -66,7 +66,6 @@ def _entity(
     install_capability: str | None = "api",
 ) -> tuple[HaPaneldUpdateEntity, SimpleNamespace]:
     client = SimpleNamespace(
-        configuration_url="http://panel.local:8888",
         async_get_legacy_install_capability=AsyncMock(return_value=True),
         async_start_panel_update=AsyncMock(),
         async_get_panel_install_status=AsyncMock(),

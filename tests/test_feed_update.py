@@ -156,7 +156,6 @@ def _entity(
     installed_code: int | None = 771,
 ) -> tuple[HaPaneldUpdateEntity, SimpleNamespace]:
     client = SimpleNamespace(
-        configuration_url="http://panel.local:8888",
         async_start_panel_update=AsyncMock(),
         async_get_panel_install_status=AsyncMock(),
         async_get_version_code=AsyncMock(return_value=(version, installed_code)),

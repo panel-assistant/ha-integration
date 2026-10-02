@@ -306,7 +306,6 @@ async def _entity(
     monkeypatch.setattr(panel_update, "async_get_clientsession", lambda _h: github)
     monkeypatch.setattr(panel_update.asyncio, "sleep", AsyncMock())
     client = SimpleNamespace(
-        configuration_url="http://panel.local:8888",
         async_backup_panel=AsyncMock(return_value=_backup()),
         async_stage_apk=AsyncMock(return_value=_preview()),
         async_commit_apk=AsyncMock(),

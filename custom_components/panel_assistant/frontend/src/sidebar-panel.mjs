@@ -88,7 +88,7 @@ function writeSelection(entryId) {
 }
 
 export class PanelAssistantSidebar extends HTMLElement {
-  #hass; #panel; #narrow = false; #connection; #panels = null; #listState = 'loading'; #listGeneration = 0;
+  #hass; #panel; #route; #narrow = false; #connection; #panels = null; #listState = 'loading'; #listGeneration = 0;
   #signature = ''; #selected = null; #session = null; #timer = null; #alerts = null;
   #onReady = () => this.#reconnected();
   constructor() {
@@ -239,6 +239,12 @@ export class PanelAssistantSidebar extends HTMLElement {
     this.#panel = value;
     this.shadowRoot.querySelector('#version').textContent = versionText(value?.config);
   }
+  get route() { return this.#route; }
+  set route(value) {
+    const previous = this.#route?.path;
+    this.#route = value;
+    if (previous !== value?.path) this.#choose(value?.path?.slice(1));
+  }
   get narrow() { return this.#narrow; }
   set narrow(value) {
     this.#narrow = value === true;
@@ -358,7 +364,8 @@ export class PanelAssistantSidebar extends HTMLElement {
     this.#panels = panels;
     this.#listState = panels.length ? 'ready' : 'empty';
     if (!panels.some(panel => panel.entry_id === this.#selected)) {
-      const stored = readSelection();
+      const requested = this.#route?.path?.slice(1);
+      const stored = panels.some(panel => panel.entry_id === requested) ? requested : readSelection();
       this.#selected = panels.some(panel => panel.entry_id === stored) ? stored : panels[0]?.entry_id ?? null;
     }
     this.#reconcile();

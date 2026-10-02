@@ -1134,7 +1134,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         return panel_device_info(
             self._entry_id,
             self.coordinator.data,
-            self.coordinator.client.configuration_url,
             self._title,
             self.coordinator.app_build,
         )
