@@ -395,6 +395,9 @@ class InstallArtifact:
     supported_abis: tuple[str, ...]
     database_compatibility: str
     launch_component: str
+    protocol_min: int | None = None
+    protocol_max: int | None = None
+    prerelease_opt_in: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -515,7 +518,7 @@ def _parse_target(value: object) -> InstallTarget:
 
 
 def _parse_artifact(value: object) -> InstallArtifact:
-    if not isinstance(value, dict) or value.keys() != {
+    required_keys = {
         "descriptor_schema",
         "release_tag",
         "version_name",
@@ -529,8 +532,22 @@ def _parse_artifact(value: object) -> InstallArtifact:
         "supported_abis",
         "database_compatibility",
         "launch_component",
-    }:
+    }
+    if not isinstance(value, dict) or value.keys() not in (
+        required_keys,
+        required_keys | {"prerelease_opt_in"},
+        required_keys | {"protocol_min", "protocol_max"},
+        required_keys | {"protocol_min", "protocol_max", "prerelease_opt_in"},
+    ):
         raise InstallJobStoreError
+    prerelease_opt_in = value.get("prerelease_opt_in", False)
+    if type(prerelease_opt_in) is not bool:
+        raise InstallJobStoreError
+    protocol_min = value.get("protocol_min")
+    protocol_max = value.get("protocol_max")
+    if protocol_min is not None or protocol_max is not None:
+        protocol_min = _integer(protocol_min, 1, 2**31 - 1)
+        protocol_max = _integer(protocol_max, protocol_min, 2**31 - 1)
     release_tag = _safe_text(value["release_tag"], _MAX_RELEASE_TEXT_LENGTH)
     version_name = _safe_text(value["version_name"], _MAX_RELEASE_TEXT_LENGTH)
     apk_name = _safe_text(value["apk_name"], _MAX_APK_NAME_LENGTH)
@@ -579,7 +596,21 @@ def _parse_artifact(value: object) -> InstallArtifact:
         supported_abis=_SUPPORTED_ABIS,
         database_compatibility=database,
         launch_component=launch_component_for(package_id),
+        protocol_min=protocol_min,
+        protocol_max=protocol_max,
+        prerelease_opt_in=prerelease_opt_in,
     )
+
+
+def _artifact_document(artifact: InstallArtifact) -> dict[str, Any]:
+    """Preserve historical plan hashes when no range proof was recorded."""
+    document = asdict(artifact)
+    if artifact.protocol_min is None and artifact.protocol_max is None:
+        document.pop("protocol_min")
+        document.pop("protocol_max")
+    if not artifact.prerelease_opt_in:
+        document.pop("prerelease_opt_in")
+    return document
 
 
 def install_plan_sha256(
@@ -596,7 +627,7 @@ def install_plan_sha256(
     document = {
         "schema": _PLAN_SCHEMA,
         "target": asdict(parsed_target),
-        "artifact": asdict(parsed_artifact),
+        "artifact": _artifact_document(parsed_artifact),
         "adb_credential_id": credential_id,
     }
     canonical = (
@@ -815,7 +846,8 @@ def _validate_receipt_invariants(receipt: InstallJobReceipt) -> None:
 
 def _serialize_receipt(receipt: InstallJobReceipt) -> dict[str, Any]:
     data = asdict(receipt)
-    # The primary Store is read by older binaries with an exact V1 key set.
+    data["artifact"] = _artifact_document(receipt.artifact)
+    # Failure details remain separate from the primary receipt Store.
     data.pop("failure_stage")
     data.pop("result_subcode")
     data["phase"] = receipt.phase.value

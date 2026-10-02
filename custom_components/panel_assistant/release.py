@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, NoReturn
 
 from aiohttp import ClientError, ClientSession, ClientTimeout
@@ -38,6 +38,11 @@ _MAX_SIGNATURE_RESPONSE_BYTES = 512
 # The closed v1 descriptor is currently well below 1 KiB.  Four KiB leaves room
 # for bounded schema evolution without accepting an arbitrary release payload.
 _MAX_INSTALL_DESCRIPTOR_BYTES = 4 * 1024
+_MAX_PROTOCOL_METADATA_BYTES = 128 * 1024
+_MAX_PROTOCOL_ARTIFACTS = 500
+_PROTOCOL_METADATA_SCHEMA = "io.github.maxlyth.hapaneld.protocol.v1"
+_PROTOCOL_METADATA_FIELDS = frozenset({"schema", "artifacts"})
+_PROTOCOL_ARTIFACT_FIELDS = frozenset({"apkSha256", "protocolMin", "protocolMax"})
 _MAX_RELEASE_ASSETS = 128
 _MAX_REDIRECTS = 3
 _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
@@ -136,6 +141,8 @@ class ReleaseArtifact:
     apk_url: str
     sha256: str
     descriptor: InstallDescriptor | None = None
+    protocol_min: int | None = None
+    protocol_max: int | None = None
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -241,6 +248,11 @@ def release_descriptor_name(tag: str) -> str:
     on the legacy spelling, like the descriptor schema identifier.
     """
     return f"ha-paneld-{tag}-install.json"
+
+
+def release_protocol_name(tag: str) -> str:
+    """Name the separately signed, exact-APK native protocol metadata."""
+    return f"ha-paneld-{tag}-protocol.json"
 
 
 def artifact_identity_matches(
@@ -440,15 +452,21 @@ def _parse_release_metadata(
     )
     descriptor_name = release_descriptor_name(tag)
     descriptor_names = frozenset({descriptor_name, f"{descriptor_name}.sig"})
+    protocol_name = release_protocol_name(tag)
+    protocol_names = frozenset({protocol_name, f"{protocol_name}.sig"})
     bridge_name = release_apk_name(tag, LEGACY_PACKAGE_ID)
     bridge_names = frozenset(
         {bridge_name, f"{bridge_name}.sha256", f"{bridge_name}.sha256.sig"}
     )
-    relevant_names = descriptor_names | {
-        name
-        for candidate in candidates
-        for name in (candidate, f"{candidate}.sha256", f"{candidate}.sha256.sig")
-    }
+    relevant_names = (
+        descriptor_names
+        | protocol_names
+        | {
+            name
+            for candidate in candidates
+            for name in (candidate, f"{candidate}.sha256", f"{candidate}.sha256.sig")
+        }
+    )
     selected: dict[str, URL] = {}
     invalid_bridge = False
 
@@ -492,10 +510,14 @@ def _parse_release_metadata(
     selected = {
         name: url
         for name, url in selected.items()
-        if name in required_names or name in descriptor_names
+        if name in required_names or name in descriptor_names or name in protocol_names
     }
     selected_descriptor_names = descriptor_names.intersection(selected)
     if selected_descriptor_names and selected_descriptor_names != descriptor_names:
+        raise ReleaseResolutionError
+
+    selected_protocol_names = protocol_names.intersection(selected)
+    if selected_protocol_names and selected_protocol_names != protocol_names:
         raise ReleaseResolutionError
 
     return tag, apk_name, selected
@@ -539,6 +561,75 @@ def _bounded_integer(value: object, minimum: int, maximum: int) -> int:
     if not minimum <= value <= maximum:
         raise ReleaseResolutionError
     return value
+
+
+def parse_protocol_metadata(
+    body: bytes, signature: bytes
+) -> dict[str, tuple[int, int]]:
+    """Authenticate a closed canonical list of exact APK protocol ranges."""
+    if len(body) > _MAX_PROTOCOL_METADATA_BYTES:
+        raise ReleaseResolutionError
+    _verify_detached_signature(body, signature)
+    try:
+        document: Any = json.loads(
+            body.decode("ascii"),
+            object_pairs_hook=_object_without_duplicates,
+            parse_constant=_reject_json_constant,
+        )
+    except (UnicodeDecodeError, ValueError, RecursionError) as err:
+        raise ReleaseResolutionError from err
+    if (
+        not isinstance(document, dict)
+        or document.keys() != _PROTOCOL_METADATA_FIELDS
+        or document["schema"] != _PROTOCOL_METADATA_SCHEMA
+        or not isinstance(document["artifacts"], list)
+        or len(document["artifacts"]) > _MAX_PROTOCOL_ARTIFACTS
+    ):
+        raise ReleaseResolutionError
+    try:
+        canonical = (
+            json.dumps(
+                document,
+                ensure_ascii=True,
+                allow_nan=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            )
+            + "\n"
+        ).encode("ascii")
+    except (TypeError, ValueError, UnicodeEncodeError) as err:
+        raise ReleaseResolutionError from err
+    if body != canonical:
+        raise ReleaseResolutionError
+    ranges: dict[str, tuple[int, int]] = {}
+    previous_sha = ""
+    for entry in document["artifacts"]:
+        if not isinstance(entry, dict) or entry.keys() != _PROTOCOL_ARTIFACT_FIELDS:
+            raise ReleaseResolutionError
+        sha256 = entry["apkSha256"]
+        if (
+            not isinstance(sha256, str)
+            or _SHA256_PATTERN.fullmatch(sha256) is None
+            or sha256 <= previous_sha
+        ):
+            raise ReleaseResolutionError
+        minimum = _bounded_integer(entry["protocolMin"], 1, _MAX_ANDROID_VERSION_CODE)
+        maximum = _bounded_integer(
+            entry["protocolMax"], minimum, _MAX_ANDROID_VERSION_CODE
+        )
+        ranges[sha256] = (minimum, maximum)
+        previous_sha = sha256
+    return ranges
+
+
+def _bind_release_protocol(
+    artifact: ReleaseArtifact, ranges: dict[str, tuple[int, int]]
+) -> ReleaseArtifact:
+    """Require a signed range for the resolved artifact's exact checksum."""
+    if artifact.sha256 not in ranges:
+        raise ReleaseResolutionError
+    minimum, maximum = ranges[artifact.sha256]
+    return replace(artifact, protocol_min=minimum, protocol_max=maximum)
 
 
 def _parse_install_descriptor(
@@ -804,4 +895,24 @@ async def _async_resolve_release(
                 apk_url=str(assets[bridge_name]),
                 sha256=bridge_sha256,
             )
+    protocol_name = release_protocol_name(tag)
+    if protocol_name in assets:
+        protocol_body = await _async_fetch_bounded(
+            session,
+            assets[protocol_name],
+            _MAX_PROTOCOL_METADATA_BYTES,
+            allow_release_redirects=True,
+            headers=_ASSET_HEADERS,
+        )
+        protocol_signature = await _async_fetch_bounded(
+            session,
+            assets[f"{protocol_name}.sig"],
+            _MAX_SIGNATURE_RESPONSE_BYTES,
+            allow_release_redirects=True,
+            headers=_ASSET_HEADERS,
+        )
+        ranges = parse_protocol_metadata(protocol_body, protocol_signature)
+        artifact = _bind_release_protocol(artifact, ranges)
+        if bridge is not None:
+            bridge = _bind_release_protocol(bridge, ranges)
     return artifact, metadata, bridge

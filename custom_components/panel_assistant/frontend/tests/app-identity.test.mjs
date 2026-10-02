@@ -50,34 +50,20 @@ test('the preflight reads each accepted package and its data on its own', () => 
   }
 });
 
-test('an old package with no new package is a migration candidate, nothing else is', () => {
+test('USB classification refuses existing panels including legacy to successor migration', () => {
   const none = new Set();
-  // A clean target holds neither package: either identity may be installed and
-  // no handover is expected.
-  assert.equal(classifyTarget(SUCCESSOR_PACKAGE_ID, [], none), false);
-  assert.equal(classifyTarget(LEGACY_PACKAGE_ID, [], none), false);
-  // Old only: the successor installs beside it and the panel hands over. Its
-  // own data is what the handover migrates, so that residue is expected.
-  assert.equal(classifyTarget(SUCCESSOR_PACKAGE_ID, [LEGACY_PACKAGE_ID], none), true);
-  assert.equal(
-    classifyTarget(SUCCESSOR_PACKAGE_ID, [LEGACY_PACKAGE_ID], new Set([LEGACY_PACKAGE_ID])), true);
-  // Both present, or the target already installed: the refusal is unchanged.
-  for (const installed of [[LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID], [SUCCESSOR_PACKAGE_ID]]) {
-    assert.throws(() => classifyTarget(SUCCESSOR_PACKAGE_ID, installed, none), notClean);
+  for (const target of ACCEPTED_PACKAGE_IDS) {
+    assert.equal(classifyTarget(target, [], none), false);
+    for (const installed of [[LEGACY_PACKAGE_ID], [SUCCESSOR_PACKAGE_ID], ACCEPTED_PACKAGE_IDS]) {
+      assert.throws(() => classifyTarget(target, installed, none), notClean);
+      for (const packageId of ACCEPTED_PACKAGE_IDS) {
+        assert.throws(() => classifyTarget(target, installed, new Set([packageId])), notClean);
+      }
+    }
+    for (const packageId of ACCEPTED_PACKAGE_IDS) {
+      assert.throws(() => classifyTarget(target, [], new Set([packageId])), notClean);
+    }
   }
-  // New only, installing the legacy build: never a migration, always refused.
-  assert.throws(() => classifyTarget(LEGACY_PACKAGE_ID, [SUCCESSOR_PACKAGE_ID], none), notClean);
-  assert.throws(() => classifyTarget(LEGACY_PACKAGE_ID, [LEGACY_PACKAGE_ID], none), notClean);
-  // Residue of the package being installed is still unclean, and so is legacy
-  // residue with no legacy package to migrate from.
-  assert.throws(
-    () => classifyTarget(SUCCESSOR_PACKAGE_ID, [], new Set([SUCCESSOR_PACKAGE_ID])), notClean);
-  assert.throws(
-    () => classifyTarget(SUCCESSOR_PACKAGE_ID, [], new Set([LEGACY_PACKAGE_ID])), notClean);
-  assert.throws(() => classifyTarget(
-    SUCCESSOR_PACKAGE_ID, [LEGACY_PACKAGE_ID], new Set([SUCCESSOR_PACKAGE_ID])), notClean);
-  assert.throws(
-    () => classifyTarget(LEGACY_PACKAGE_ID, [], new Set([LEGACY_PACKAGE_ID])), notClean);
 });
 
 // Whole-body cases: `classifyTarget` above is the rule, these prove the wiring
@@ -112,23 +98,20 @@ function preflightBody({ installed = [], residue = [] } = {}) {
 test('a whole preflight body reads each identity from its own sections', () => {
   for (const packageId of ACCEPTED_PACKAGE_IDS) {
     const clean = parsePreflight(preflightBody(), nonce, { ...DESCRIPTOR, packageId });
-    assert.equal(clean.migrationCandidate, false);
     assert.equal(clean.rootMode, 'rootless');
+    assert.equal(clean.installationAdmission, 'clean_preflight');
   }
 
-  const migrating = parsePreflight(
-    preflightBody({ installed: [LEGACY_PACKAGE_ID], residue: [LEGACY_PACKAGE_ID] }),
-    nonce, { ...DESCRIPTOR, packageId: SUCCESSOR_PACKAGE_ID });
-  assert.equal(migrating.migrationCandidate, true);
-
-  // The same body, installing the legacy build, is the refusal it always was.
-  assert.throws(() => parsePreflight(preflightBody({ installed: [LEGACY_PACKAGE_ID] }),
-    nonce, { ...DESCRIPTOR, packageId: LEGACY_PACKAGE_ID }), notClean);
-  // The successor's own sections are read as the successor's, not the legacy's.
-  assert.throws(() => parsePreflight(preflightBody({ installed: [SUCCESSOR_PACKAGE_ID] }),
-    nonce, { ...DESCRIPTOR, packageId: SUCCESSOR_PACKAGE_ID }), notClean);
-  assert.throws(() => parsePreflight(preflightBody({ residue: [SUCCESSOR_PACKAGE_ID] }),
-    nonce, { ...DESCRIPTOR, packageId: SUCCESSOR_PACKAGE_ID }), notClean);
+  for (const target of ACCEPTED_PACKAGE_IDS) {
+    for (const installed of ACCEPTED_PACKAGE_IDS) {
+      assert.throws(() => parsePreflight(preflightBody({ installed: [installed] }),
+        nonce, { ...DESCRIPTOR, packageId: target }), notClean);
+    }
+    for (const residue of ACCEPTED_PACKAGE_IDS) {
+      assert.throws(() => parsePreflight(preflightBody({ residue: [residue] }),
+        nonce, { ...DESCRIPTOR, packageId: target }), notClean);
+    }
+  }
 });
 
 function delegatedBody(residue = []) {
@@ -147,13 +130,9 @@ function delegatedBody(residue = []) {
 }
 
 test('root judges residue by the same rule the preflight already applied', () => {
-  assert.equal(parseDelegatedProof(delegatedBody(), nonce, false), true);
-  // The old app's own data is what a handover migrates.
-  assert.equal(parseDelegatedProof(delegatedBody([LEGACY_PACKAGE_ID]), nonce, true), true);
-  // Without a handover it is residue like any other, and the successor's data
-  // is never excused, because that is the package being installed.
-  assert.throws(() => parseDelegatedProof(delegatedBody([LEGACY_PACKAGE_ID]), nonce, false),
-    error => error instanceof DelegatedProofError && error.code === 'target_not_clean');
-  assert.throws(() => parseDelegatedProof(delegatedBody([SUCCESSOR_PACKAGE_ID]), nonce, true),
-    error => error.code === 'target_not_clean');
+  assert.equal(parseDelegatedProof(delegatedBody(), nonce), true);
+  for (const packageId of ACCEPTED_PACKAGE_IDS) {
+    assert.throws(() => parseDelegatedProof(delegatedBody([packageId]), nonce),
+      error => error instanceof DelegatedProofError && error.code === 'target_not_clean');
+  }
 });

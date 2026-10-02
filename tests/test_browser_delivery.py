@@ -107,7 +107,6 @@ async def test_idempotent_no_entries_and_exact_public_bytes(endpoint, hass):
         "{",
         '{"url":"https://example.com"}',
         '{"release_candidate":null}',
-        '{"release_candidate":"v1.2.3"}',
         '{"release_candidate":"v1.2.3-rc1","release_candidate":"v1.2.3-rc2"}',
         " " * 1025 + "{}",
     ],
@@ -121,12 +120,11 @@ async def test_closed_body_schema(endpoint, body):
     endpoint.service.cache.async_prepare.assert_not_called()
 
 
-async def test_exact_rc_and_query_refusal(endpoint):
-    response = await endpoint.client.post(URL, json={"release_candidate": "v1.2.3-rc1"})
+@pytest.mark.parametrize("tag", ["v1.2.3", "v1.2.3-rc1"])
+async def test_exact_release_and_query_refusal(endpoint, tag):
+    response = await endpoint.client.post(URL, json={"release_candidate": tag})
     assert response.status == 200
-    assert endpoint.service.cache.async_prepare.call_args.kwargs == {
-        "rc_tag": "v1.2.3-rc1"
-    }
+    assert endpoint.service.cache.async_prepare.call_args.kwargs == {"rc_tag": tag}
     response = await endpoint.client.post(URL + "?url=https://example.com", json={})
     assert response.status == 400
     response = await endpoint.client.get(

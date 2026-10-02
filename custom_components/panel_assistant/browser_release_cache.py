@@ -23,6 +23,7 @@ from .build_feed import FeedInstallBundle
 from .install_artifacts import InstallArtifact
 from .release import InstallReleaseBundle
 from .release_catalog import async_resolve_install_bundle_choice
+from .update_policy import build_allowed, prereleases_allowed
 
 _CAPACITY = 2
 _TTL_SECONDS = 900.0
@@ -141,6 +142,12 @@ class BrowserReleaseCache:
                 and not entry.retiring
                 and entry.rc_tag == rc_tag
                 and entry.expires > monotonic()
+                and build_allowed(
+                    entry.record.bundle.artifact.version,
+                    entry.record.bundle.artifact.protocol_min,
+                    entry.record.bundle.artifact.protocol_max,
+                    allow_prerelease=prereleases_allowed() or rc_tag is not None,
+                )
             ):
                 return entry.record
         if self._busy:
@@ -207,6 +214,12 @@ class BrowserReleaseCache:
             or entry.retiring
             or entry.user_id != user_id
             or entry.expires <= monotonic()
+            or not build_allowed(
+                entry.record.bundle.artifact.version,
+                entry.record.bundle.artifact.protocol_min,
+                entry.record.bundle.artifact.protocol_max,
+                allow_prerelease=prereleases_allowed() or entry.rc_tag is not None,
+            )
         ):
             raise BrowserReleaseCacheError(BrowserReleaseCacheErrorCode.NOT_FOUND)
         entry.leases += 1

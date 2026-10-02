@@ -998,7 +998,8 @@
         "menu_options": {
           "onboarding": "Einrichtung fortsetzen",
           "transport": "Verbindungseinstellungen",
-          "authorize_adb": "ADB für Updates autorisieren"
+          "authorize_adb": "ADB für Updates autorisieren",
+          "updates": "Panel-Updates"
         }
       },
       "onboarding": {
@@ -1026,6 +1027,16 @@
         "description": "Lege fest, was die Entitäten und Befehle dieses Panels steuert. Speicherst du Panel Assistant, zieht Panel Assistant die MQTT-Entitäten des Panels zu sich um und behält dabei ihre Entitäts-IDs, ihren Verlauf und deine Anpassungen; danach zieht das Panel seine MQTT-Entitäten zurück. Speicherst du MQTT, mit oder ohne native Berichte, gehen sie zurück an MQTT. In beiden Fällen verbindet sich das Panel mit der neuen Auswahl neu.",
         "data": {
           "authority": "Steuerung"
+        }
+      },
+      "updates": {
+        "title": "Panel-Updates",
+        "description": "Wähle, welche Builds der Panel-App dieses Panel erhalten darf. Jeder Build muss mit dem laufenden Panel Assistant kompatibel sein.",
+        "data": {
+          "prerelease_panel_builds": "Vorabversionen der Panel-App zulassen"
+        },
+        "data_description": {
+          "prerelease_panel_builds": "Eine Vorabversion von Panel Assistant erlaubt bereits Vorabversionen der Panel-App."
         }
       }
     },

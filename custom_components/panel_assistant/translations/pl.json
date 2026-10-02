@@ -1038,7 +1038,8 @@
         "menu_options": {
           "onboarding": "Kontynuuj konfigurację",
           "transport": "Ustawienia połączenia",
-          "authorize_adb": "Autoryzuj ADB do aktualizacji"
+          "authorize_adb": "Autoryzuj ADB do aktualizacji",
+          "updates": "Aktualizacje panelu"
         }
       },
       "onboarding": {
@@ -1066,6 +1067,16 @@
         "description": "Wybierz, co steruje encjami i poleceniami tego panelu. Zapisanie opcji Panel Assistant przenosi encje MQTT panelu do Panel Assistant z zachowaniem ich identyfikatorów encji, historii i dostosowań, a następnie panel wycofuje swoje encje MQTT. Zapisanie opcji MQTT, z raportami natywnymi lub bez nich, przenosi je z powrotem do MQTT. W obu przypadkach panel łączy się ponownie z nowym wyborem.",
         "data": {
           "authority": "Sterowanie"
+        }
+      },
+      "updates": {
+        "title": "Aktualizacje panelu",
+        "description": "Wybierz, jakie kompilacje aplikacji panelu może otrzymywać ten panel. Każda kompilacja musi być zgodna z działającym Panel Assistant.",
+        "data": {
+          "prerelease_panel_builds": "Zezwalaj na wersje wstępne aplikacji panelu"
+        },
+        "data_description": {
+          "prerelease_panel_builds": "Wstępna wersja Panel Assistant już zezwala na wersje wstępne aplikacji panelu."
         }
       }
     },

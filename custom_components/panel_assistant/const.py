@@ -14,7 +14,11 @@ INTEGRATION_VERSION: str = json.loads(
 # The public version (manifest.json) only changes when something ships. This
 # build number tells builds apart in between: it counts the commits that have
 # changed this integration.
-INTEGRATION_BUILD = 320
+INTEGRATION_BUILD = 321
+
+# The native transport range this running integration can serve.
+PROTOCOL_MIN = 1
+PROTOCOL_MAX = 3
 
 # Every outward link goes through the site's own redirect rather than a page
 # path, so pages can move. The version and build travel with it, so a later
@@ -80,6 +84,8 @@ CONF_TRANSPORT_USER_ID = "transport_user_id"
 # The entry option choosing who owns a panel's entities and commands. It takes
 # effect only while native entities are turned on.
 CONF_AUTHORITY = "authority"
+# A stable integration may admit prerelease panel builds for this panel only.
+CONF_PRERELEASE_PANEL_BUILDS = "prerelease_panel_builds"
 # The entry data key holding the record of a panel's entity cutover: which MQTT
 # entities were moved to this integration, and how far the move got.
 CONF_CUTOVER = "cutover"

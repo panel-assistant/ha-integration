@@ -125,26 +125,43 @@ def _entity(
     )
     updates.async_request_refresh = AsyncMock()
     coordinator = None
+    build = FeedBuild(
+        version_code=102,
+        version_name="0.9.10",
+        apk_url=URL("https://feed.example/apk"),
+        apk_sha256="a" * 64,
+        apk_size=3,
+        commit="0" * 40,
+        database_compatibility="hapaneld-db:v1:ha-paneld.db:11:14",
+        min_sdk=26,
+        published="2026-09-28T00:00:00Z",
+        package_id=LEGACY_PACKAGE_ID,
+        protocol_min=3,
+        protocol_max=3,
+    )
     if feed:
-        build = FeedBuild(
-            version_code=102,
-            version_name="0.9.10",
-            apk_url=URL("https://feed.example/apk"),
-            apk_sha256="a" * 64,
-            apk_size=3,
-            commit="0" * 40,
-            database_compatibility="hapaneld-db:v1:ha-paneld.db:11:14",
-            min_sdk=26,
-            published="2026-09-28T00:00:00Z",
-            package_id=LEGACY_PACKAGE_ID,
-        )
         coordinator = BuildFeedCoordinator(hass, URL("https://feed.example/feed"))
         coordinator.data = BuildFeed(channel="maintainer", builds=(build,))
         coordinator.last_update_success = True
-        coordinator._verified_newest[LEGACY_PACKAGE_ID] = (build, b"apk")
+        for allow_prerelease in (False, True):
+            coordinator._verified_newest[LEGACY_PACKAGE_ID, allow_prerelease] = (
+                build,
+                b"apk",
+            )
+    host_artifact = replace(feed_release_artifact(build), tag="v0.9.10")
+    host = SimpleNamespace(artifact_for=lambda *_args, **_kwargs: host_artifact)
     entity = HaPaneldUpdateEntity(
-        "entry-id", health, updates, coordinator, title="Test panel"
+        "entry-id",
+        health,
+        updates,
+        coordinator,
+        title="Test panel",
+        release=host,
     )
+    if not feed:
+        # The repair tests observe the admitted panel-download route; the LAN
+        # suite independently exercises authenticated bytes, backup and staging.
+        entity._async_deliver_build = AsyncMock(return_value=False)
     entity.hass = hass
     entity.entity_id = "update.kitchen_panel"
     entity.async_write_ha_state = MagicMock()
@@ -682,12 +699,15 @@ async def test_older_targetless_repair_clears_only_at_verified_current_feed_buil
         min_sdk=26,
         published="2026-09-28T00:00:00Z",
         package_id=LEGACY_PACKAGE_ID,
+        protocol_min=3,
+        protocol_max=3,
     )
     feed = BuildFeedCoordinator(hass, URL("https://feed.example/feed"))
     feed.data = BuildFeed(channel="maintainer", builds=(build,))
     feed.last_update_success = feed_ok
     if verified:
-        feed._verified_newest[LEGACY_PACKAGE_ID] = (build, b"apk")
+        for allow_prerelease in (False, True):
+            feed._verified_newest[LEGACY_PACKAGE_ID, allow_prerelease] = (build, b"apk")
     hass.data.setdefault("panel_assistant", {})[DATA_BUILD_FEED] = feed
 
     client = SimpleNamespace(

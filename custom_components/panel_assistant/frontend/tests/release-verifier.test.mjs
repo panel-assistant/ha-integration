@@ -44,7 +44,7 @@ const verify = (value, expectedRcTag) =>
   verifyReleaseBundle(value, { expectedRcTag }, release.publicKey);
 const refuses = promise => assert.rejects(promise, ReleaseVerificationError);
 
-const RELEASES = [['v0.9.8', null], ['v0.9.8-rc2', 'v0.9.8-rc2']];
+const RELEASES = [['v0.9.8', null], ['v0.9.8', 'v0.9.8'], ['v0.9.8-rc2', 'v0.9.8-rc2']];
 const IDENTITIES = [['legacy', LEGACY_PACKAGE_ID], ['successor', SUCCESSOR_PACKAGE_ID]];
 
 for (const [tag, expectedRcTag] of RELEASES) {
@@ -108,4 +108,8 @@ test('either half signed by any other key is refused for both identities', async
     await refuses(verify(await bundle('v0.9.8', packageId, { checksumKey: stranger.privateKey }), null));
     await refuses(verify(await bundle('v0.9.8', packageId, { descriptorKey: stranger.privateKey }), null));
   }
+});
+
+test('byte verifier default alone never admits an unsolicited RC', async () => {
+  await refuses(verify(await bundle('v0.9.8-rc2', LEGACY_PACKAGE_ID), null));
 });

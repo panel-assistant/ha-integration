@@ -12,8 +12,7 @@ export const HA_INSTALL_MESSAGES = Object.freeze({
   loading: 'Loading versions…',
   catalogError: 'The list of versions couldn’t be loaded.',
   empty: 'No versions are available yet. Try again later.',
-  choose: 'Choose a version',
-  recommended: 'recommended',
+  choose: 'Follow Panel Assistant’s channel (recommended)',
   testing: 'test version',
   devBuild: 'dev build',
   retry: 'Try again',
@@ -114,20 +113,18 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
       const placeholder = document.createElement('option');
       placeholder.value = '';
       placeholder.textContent = HA_INSTALL_MESSAGES.choose;
-      placeholder.disabled = true;
+      placeholder.disabled = false;
       select.append(placeholder);
-      const recommended = releases.find(release => !release.prerelease)?.tag ?? '';
       for (const release of releases) {
         const option = document.createElement('option');
         option.value = release.tag;
         // A dev build from the signed feed is named by version and build number.
-        const note = release.tag === recommended ? HA_INSTALL_MESSAGES.recommended
-          : release.name ? HA_INSTALL_MESSAGES.devBuild
-            : release.prerelease ? HA_INSTALL_MESSAGES.testing : '';
+        const note = release.name ? HA_INSTALL_MESSAGES.devBuild
+          : release.prerelease ? HA_INSTALL_MESSAGES.testing : '';
         option.textContent = `${release.name ?? release.tag.replace(/^v/, '')}${note ? ` (${note})` : ''}`;
         select.append(option);
       }
-      select.value = recommended;
+      select.value = '';
     } catch {
       if (this.#catalogRequest !== request) return;
       this.#catalogState = 'catalogError';
@@ -139,7 +136,8 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
     const allowed = this.#hass?.user?.is_admin === true;
     const configured = typeof this.#panel?.config?.installer_url === 'string' &&
       this.#panel.config.installer_url.length > 0;
-    const selected = this.#releases.find(release => release.tag === this.shadowRoot.querySelector('#release').value);
+    const selection = this.shadowRoot.querySelector('#release').value;
+    const selected = selection === '' ? this.#releases[0] : this.#releases.find(release => release.tag === selection);
     this.shadowRoot.querySelector('#start').disabled = !allowed || !configured || Boolean(this.#transfer) || !selected;
     this.shadowRoot.querySelector('#cancel').disabled = !this.#transfer;
     this.shadowRoot.querySelector('#release').disabled = Boolean(this.#transfer) || this.#catalogState !== 'ready';
@@ -155,12 +153,13 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
   }
   #start() {
     if (this.#transfer || this.#hass?.user?.is_admin !== true) return;
-    const release = this.#releases.find(item => item.tag === this.shadowRoot.querySelector('#release').value);
+    const selection = this.shadowRoot.querySelector('#release').value;
+    const release = selection === '' ? this.#releases[0] : this.#releases.find(item => item.tag === selection);
     if (!release || !this.isConnected) return;
     this.#served?.cancel();
     this.#served = undefined;
     const transfer = startReleaseHandoff(this.#hass, this.#panel?.config?.installer_url, {
-      rcTag: release.prerelease ? release.tag : null,
+      rcTag: selection || null,
       onState: state => { this.#status = state; this.#render(); },
     });
     this.#transfer = transfer;

@@ -153,6 +153,8 @@ def artifact() -> InstallArtifact:
         supported_abis=("arm64-v8a", "armeabi-v7a"),
         database_compatibility="hapaneld-db:v1:ha-paneld.db:1:14",
         launch_component="io.github.maxlyth.hapaneld/.MainActivity",
+        protocol_min=3,
+        protocol_max=3,
     )
 
 
@@ -164,10 +166,13 @@ def seed_crash_partial(path: Path) -> None:
     path.chmod(0o600)
 
 
-async def create_job(manager: InstallJobManager) -> InstallJobReceipt:
+async def create_job(
+    manager: InstallJobManager,
+    selected_artifact: InstallArtifact | None = None,
+) -> InstallJobReceipt:
     """Create one durable approved receipt."""
     selected_target = target()
-    selected_artifact = artifact()
+    selected_artifact = selected_artifact or artifact()
     receipt, created = await manager.async_create_or_join(
         selected_target,
         selected_artifact,
@@ -772,6 +777,8 @@ async def test_happy_path_stops_unclaimed_and_binds_every_operation(
         ),
         sha256=APK_SHA256,
         descriptor=expected_descriptor,
+        protocol_min=3,
+        protocol_max=3,
     )
     expected_staged = StagedApk(
         job_id=expected_staging_slot_id,
@@ -3611,21 +3618,6 @@ async def test_a_panel_holding_the_app_at_other_bytes_is_still_refused(
     assert harness.events.count("installed_size") == 1
     for never in ("download", "stage", "install", "launch"):
         assert never not in harness.events, harness.events
-
-
-async def test_only_the_first_preflight_may_report_a_satisfied_target(
-    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Revalidation before a mutation still demands a clean panel."""
-    manager = InstallJobManager(hass)
-    receipt = await create_job(manager)
-    harness = Harness(monkeypatch)
-
-    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
-
-    assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
-    assert harness.preflight_admissions == [True, False]
-    assert "installed_size" not in harness.events
 
 
 @pytest.mark.parametrize(

@@ -1338,7 +1338,8 @@
         "menu_options": {
           "onboarding": "Continue setup",
           "transport": "Transport settings",
-          "authorize_adb": "Authorize ADB for updates"
+          "authorize_adb": "Authorize ADB for updates",
+          "updates": "Panel updates"
         }
       },
       "onboarding": {
@@ -1366,6 +1367,16 @@
         "description": "Choose what controls this panel's entities and commands. Saving Panel Assistant moves the panel's MQTT entities to Panel Assistant, keeping their entity IDs, history and customisations, and the panel then withdraws its MQTT entities. Saving MQTT, with or without native reports, moves them back to MQTT. Either way the panel reconnects with the new choice.",
         "data": {
           "authority": "Control"
+        }
+      },
+      "updates": {
+        "title": "Panel updates",
+        "description": "Choose which panel app builds this panel may receive. Every build must be compatible with the running Panel Assistant.",
+        "data": {
+          "prerelease_panel_builds": "Allow prerelease panel builds"
+        },
+        "data_description": {
+          "prerelease_panel_builds": "A prerelease Panel Assistant already allows prerelease panel builds."
         }
       }
     },

@@ -23,6 +23,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import UnknownFlow
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
@@ -53,6 +54,7 @@ from .client import (
 )
 from .const import (
     CONF_AUTHORITY,
+    CONF_PRERELEASE_PANEL_BUILDS,
     CONF_TRANSPORT_USER_ID,
     DEFAULT_PORT,
     DOMAIN,
@@ -114,6 +116,7 @@ from .transport import (
     effective_authority,
     native_entities_turned_off,
 )
+from .update_policy import prereleases_allowed
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -423,31 +426,22 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Offer the newest stable release first, then published test releases."""
         releases = self._install_releases or []
-        stable = next(
-            (release for release in releases if not release["prerelease"]), None
-        )
         options: list[SelectOptionDict] = [
-            *(
-                [
-                    SelectOptionDict(
-                        value=_STABLE_CHOICE, label=f"{stable['tag']} (recommended)"
-                    )
-                ]
-                if stable is not None
-                else []
-            ),
-            *[
-                SelectOptionDict(
-                    value=str(release["tag"]),
-                    label=(
-                        f"{release['name']} (dev build)"
-                        if "name" in release
-                        else f"{release['tag']} (test version)"
-                    ),
-                )
-                for release in releases
-                if release["prerelease"]
-            ],
+            SelectOptionDict(
+                value=(
+                    _STABLE_CHOICE
+                    if index == 0
+                    and (not release["prerelease"] or prereleases_allowed())
+                    else str(release["tag"])
+                ),
+                label=(
+                    f"{release.get('name', release['tag'])} (recommended)"
+                    if index == 0
+                    and (not release["prerelease"] or prereleases_allowed())
+                    else str(release.get("name", release["tag"]))
+                ),
+            )
+            for index, release in enumerate(releases)
         ]
         # With nothing to choose, an empty form still submits, which reloads.
         schema = (
@@ -768,12 +762,12 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         if tag == _STABLE_CHOICE:
             tag = ""
         releases = self._install_releases or []
-        offered = {r["tag"] for r in releases if r["prerelease"]}
+        offered = {r["tag"] for r in releases}
         if tag != "" and tag not in offered:
             return self._show_choose_version(
                 {_CONF_RELEASE_CANDIDATE: "invalid_release_candidate"}
             )
-        if tag == "" and not any(not r["prerelease"] for r in releases):
+        if tag == "" and not releases:
             return self._show_choose_version({"base": "release_selection_required"})
         self._pending_rc_tag = tag or None
         try:
@@ -999,6 +993,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id=(
                 "confirm_install_rc"
                 if self._pending_rc_tag is not None
+                and self._pending_release is not None
+                and "-" in self._pending_release.version
                 else "confirm_install_candidate"
             ),
             data_schema=vol.Schema({}),
@@ -1194,7 +1190,14 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_create_entry(
             title=result.health.panel_id,
             data={CONF_ADDRESS: receipt.target.address},
-            options=_NEW_PANEL_OPTIONS,
+            options={
+                **_NEW_PANEL_OPTIONS,
+                **(
+                    {CONF_PRERELEASE_PANEL_BUILDS: True}
+                    if receipt.artifact.prerelease_opt_in
+                    else {}
+                ),
+            },
         )
 
     def _show_install_result_retry(
@@ -1599,7 +1602,7 @@ async def async_authorize_existing_panel_adb(
 
 
 class HaPaneldOptionsFlow(OptionsFlow):
-    """Complete a fresh install, or choose the panel's transport authority.
+    """Complete setup, choose transport authority, or configure panel updates.
 
     The authority choice exists only while native entities are turned on. Saving a
     change ends a live panel session and reloads the entry, whose setup moves
@@ -1628,19 +1631,48 @@ class HaPaneldOptionsFlow(OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Start at the transport step."""
+        """Offer this panel's setup, transport, updates and available ADB consent."""
         if self.context.get("source") == "onboarding":
             return await self.async_step_onboarding()
         if self._current_panel_health() is not None:
-            options = ["transport", "authorize_adb"]
+            options = ["transport", "updates", "authorize_adb"]
             if CONF_TRANSPORT_USER_ID not in self.config_entry.data:
                 options.insert(0, "onboarding")
             return self.async_show_menu(step_id="init", menu_options=options)
         if CONF_TRANSPORT_USER_ID not in self.config_entry.data:
             return self.async_show_menu(
-                step_id="init", menu_options=["onboarding", "transport"]
+                step_id="init", menu_options=["onboarding", "transport", "updates"]
             )
-        return await self.async_step_transport(user_input)
+        return self.async_show_menu(
+            step_id="init", menu_options=["transport", "updates"]
+        )
+
+    async def async_step_updates(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Allow prerelease panel builds for this panel, retaining other options."""
+        if user_input is not None:
+            return self.async_create_entry(
+                data={
+                    **self.config_entry.options,
+                    CONF_PRERELEASE_PANEL_BUILDS: user_input[
+                        CONF_PRERELEASE_PANEL_BUILDS
+                    ],
+                }
+            )
+        return self.async_show_form(
+            step_id="updates",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_PRERELEASE_PANEL_BUILDS,
+                        default=self.config_entry.options.get(
+                            CONF_PRERELEASE_PANEL_BUILDS, False
+                        ),
+                    ): BooleanSelector()
+                }
+            ),
+        )
 
     async def async_step_authorize_adb(
         self, user_input: dict[str, Any] | None = None

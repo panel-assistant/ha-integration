@@ -119,6 +119,8 @@ def _build(code: int, package_id: str = LEGACY_PACKAGE_ID) -> FeedBuild:
         min_sdk=26,
         package_id=package_id,
         published="2026-09-11T10:00:00Z",
+        protocol_min=3,
+        protocol_max=3,
     )
 
 
@@ -199,7 +201,7 @@ def _entity(
         for package_id in (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID):
             newest = coordinator.data.newest(package_id)
             if newest is not None:
-                coordinator._verified_newest[package_id] = (newest, APK)
+                coordinator._verified_newest[package_id, True] = (newest, APK)
     entity = HaPaneldUpdateEntity("entry-id", health, updates, coordinator)
     entity.hass = hass
     entity.async_write_ha_state = MagicMock()
@@ -285,7 +287,7 @@ def test_without_a_feed_behaviour_is_unchanged(hass: HomeAssistant) -> None:
     assert not stable.supported_features & UpdateEntityFeature.SPECIFIC_VERSION
     assert stable._feed_mode() is None
     assert stable.installed_version == "0.9.9"
-    assert stable.latest_version == "0.9.10"
+    assert stable.latest_version == stable.installed_version
     assert stable.version_is_newer("0.9.10", "0.9.9") is True
     stable._refresh_installed_code()
     assert stable._code_task is None
@@ -295,12 +297,12 @@ def test_without_a_feed_behaviour_is_unchanged(hass: HomeAssistant) -> None:
 async def test_feed_with_unknown_installed_code_falls_back_to_stable(
     hass: HomeAssistant, delivery: SimpleNamespace
 ) -> None:
-    """Until the panel's build number is read, the stable offer stays in charge."""
+    """A panel-cached offer cannot prove range compatibility while diagnostics load."""
     entity, client = _entity(hass, version="0.9.9", offer=OFFER, installed_code=None)
 
     assert entity._feed_mode() is None
     assert entity.installed_version == "0.9.9"
-    assert entity.latest_version == "0.9.10"
+    assert entity.latest_version == entity.installed_version
     assert entity.version_is_newer("0.9.10", "0.9.9") is True
 
     with pytest.raises(HomeAssistantError) as error:
@@ -319,7 +321,7 @@ def test_failed_feed_read_falls_back_to_stable(hass: HomeAssistant) -> None:
 
     assert entity._feed_mode() is None
     assert entity.installed_version == "0.9.9"
-    assert entity.latest_version == "0.9.10"
+    assert entity.latest_version == entity.installed_version
 
 
 def test_feed_mode_names_builds_and_offers_the_newest(hass: HomeAssistant) -> None:
@@ -409,7 +411,7 @@ async def test_update_install_selects_the_installed_app_before_backup(
     assert entity._feed is not None
     selected_build = entity._feed.verified_newest(package)
     assert selected_build is not None
-    entity._feed._verified_newest[selected_build.package_id] = (
+    entity._feed._verified_newest[selected_build.package_id, True] = (
         selected_build,
         expected_apk,
     )
@@ -1488,3 +1490,201 @@ async def test_a_panel_state_capture_error_stops_the_update_before_download(
     delivery.download.assert_not_awaited()
     client.async_stage_apk.assert_not_awaited()
     client.async_commit_apk.assert_not_awaited()
+
+
+async def test_feed_skips_unknown_and_incompatible_heads_before_download(
+    hass: HomeAssistant,
+) -> None:
+    """An unsupported newest build cannot hide the next compatible update."""
+    feed = BuildFeed(
+        "maintainer",
+        (
+            replace(_build(775), protocol_min=None, protocol_max=None),
+            replace(_build(774), protocol_min=4, protocol_max=4),
+            _build(772),
+        ),
+    )
+    entity, _ = _entity(hass, feed=feed)
+    assert entity._feed is not None
+    entity._feed._verified_newest.clear()
+    download = AsyncMock(return_value=APK)
+    with (
+        patch(FETCH, AsyncMock(return_value=feed)),
+        patch(
+            "custom_components.panel_assistant.feed_coordinator.async_download_build",
+            download,
+        ),
+    ):
+        await entity._feed.async_refresh()
+
+    assert entity.latest_version == _build(772).label
+    assert [
+        call.args[1].descriptor.version_code for call in download.await_args_list
+    ] == [772]
+
+
+@pytest.mark.parametrize(
+    ("pa_version", "opt_in", "expected_code"),
+    [
+        ("0.7.0", False, 772),
+        ("0.7.0", True, 773),
+        ("0.7.0-rc3", False, 773),
+    ],
+)
+async def test_feed_channel_follows_loaded_pa_and_entry_opt_in(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    pa_version: str,
+    opt_in: bool,
+    expected_code: int,
+) -> None:
+    from custom_components.panel_assistant import update_policy
+    from custom_components.panel_assistant.const import CONF_PRERELEASE_PANEL_BUILDS
+
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", pa_version)
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        entry_id="entry-id",
+        options={CONF_PRERELEASE_PANEL_BUILDS: opt_in},
+    )
+    entry.add_to_hass(hass)
+    final = replace(_build(772), version_name="0.9.10")
+    rc = replace(_build(773), version_name="0.9.11-rc1")
+    feed = BuildFeed("maintainer", (rc, final))
+    entity, _ = _entity(hass, version="0.9.9", feed=feed)
+    assert entity._feed is not None
+    entity._feed._verified_newest.clear()
+    with (
+        patch(FETCH, AsyncMock(return_value=feed)),
+        patch(
+            "custom_components.panel_assistant.feed_coordinator.async_download_build",
+            AsyncMock(return_value=APK),
+        ),
+    ):
+        await entity._feed.async_refresh()
+    assert entity.latest_version == feed.find(expected_code, LEGACY_PACKAGE_ID).label
+
+
+async def test_prerelease_channel_includes_newer_final_promotion(
+    hass: HomeAssistant,
+) -> None:
+    final = replace(_build(772), version_name="0.9.7")
+    feed = BuildFeed("maintainer", (final,))
+    entity, _ = _entity(hass, feed=feed)
+    assert entity.latest_version == final.label
+    assert entity.version_is_newer("0.9.7", "0.9.7-rc4")
+
+
+async def test_shared_feed_keeps_both_channels_for_both_app_identities(
+    hass: HomeAssistant,
+) -> None:
+    builds = tuple(
+        replace(_build(code, package), version_name=name)
+        for package in (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID)
+        for code, name in ((773, "0.9.11-rc1"), (772, "0.9.10"))
+    )
+    coordinator = BuildFeedCoordinator(hass, FEED_URL)
+    download = AsyncMock(return_value=APK)
+    with (
+        patch(FETCH, AsyncMock(return_value=BuildFeed("maintainer", builds))),
+        patch(
+            "custom_components.panel_assistant.feed_coordinator.async_download_build",
+            download,
+        ),
+    ):
+        await coordinator.async_refresh()
+    for package in (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID):
+        stable = coordinator.verified_newest(package, allow_prerelease=False)
+        testing = coordinator.verified_newest(package, allow_prerelease=True)
+        assert stable is not None and stable.version_code == 772
+        assert testing is not None and testing.version_code == 773
+    # Each exact byte hash is fetched once even when both policy choices share it.
+    assert download.await_count == 2
+
+
+@pytest.mark.parametrize(
+    ("candidate_version", "candidate_code", "minimum", "maximum", "pa_version"),
+    [
+        ("1.1.0", 773, None, None, "0.7.0-rc3"),
+        ("1.1.0", 773, 4, 4, "0.7.0-rc3"),
+        ("1.1.0-rc1", 773, 3, 3, "0.7.0"),
+        ("1.0.0", 770, 3, 3, "0.7.0-rc3"),
+        ("0.9.9", 773, 3, 3, "0.7.0-rc3"),
+    ],
+    ids=["unknown", "incompatible", "stable-channel", "older-code", "older-version"],
+)
+async def test_explicit_feed_install_refuses_unadmitted_candidate_before_backup(
+    hass: HomeAssistant,
+    delivery: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
+    candidate_version: str,
+    candidate_code: int,
+    minimum: int | None,
+    maximum: int | None,
+    pa_version: str,
+) -> None:
+    from custom_components.panel_assistant import update_policy
+
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", pa_version)
+    candidate = replace(
+        _build(candidate_code),
+        version_name=candidate_version,
+        protocol_min=minimum,
+        protocol_max=maximum,
+    )
+    entity, client = _entity(
+        hass, version="1.0.0", feed=BuildFeed("maintainer", (candidate,))
+    )
+    with pytest.raises(HomeAssistantError) as caught:
+        await entity.async_install(str(candidate_code), False)
+    assert caught.value.translation_key == "update_unavailable"
+    client.async_backup_panel.assert_not_awaited()
+    client.async_stage_apk.assert_not_awaited()
+    client.async_commit_apk.assert_not_awaited()
+    delivery.download.assert_not_awaited()
+
+
+async def test_changed_running_pa_policy_discards_staged_prerelease_before_commit(
+    hass: HomeAssistant,
+    delivery: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from custom_components.panel_assistant import update_policy
+
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "0.7.0-rc3")
+    entity, client = _entity(hass)
+
+    async def stage(_apk: bytes) -> StagedApk:
+        monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "0.7.0")
+        return _preview()
+
+    client.async_stage_apk.side_effect = stage
+    with pytest.raises(HomeAssistantError) as caught:
+        await entity.async_install(None, False)
+    assert caught.value.translation_key == "update_unavailable"
+    client.async_discard_apk.assert_awaited_once_with("tok-1")
+    client.async_commit_apk.assert_not_awaited()
+
+
+async def test_post_one_release_uses_native_version_code_without_feed_diagnostics(
+    hass: HomeAssistant,
+    delivery: SimpleNamespace,
+) -> None:
+    """A newer version label cannot permit a lower Android build number."""
+    candidate = feed_release_artifact(replace(_build(772), version_name="1.1.0"))
+    entity, client = _entity(
+        hass, version="1.0.0", with_feed=False, installed_code=None
+    )
+    snapshot = entity.coordinator.data
+    entity.coordinator.data = replace(
+        snapshot,
+        health=replace(snapshot.health, version_code=800),
+    )
+    entity._release = SimpleNamespace(artifact_for=lambda *_args, **_kwargs: candidate)
+    assert entity.latest_version == entity.installed_version
+    with pytest.raises(HomeAssistantError) as caught:
+        await entity.async_install(None, False)
+    assert caught.value.translation_key == "update_unavailable"
+    client.async_backup_panel.assert_not_awaited()
+    client.async_stage_apk.assert_not_awaited()
+    delivery.download.assert_not_awaited()

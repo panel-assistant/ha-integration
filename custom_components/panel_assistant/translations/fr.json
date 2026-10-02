@@ -998,7 +998,8 @@
         "menu_options": {
           "onboarding": "Poursuivre la configuration",
           "transport": "Paramètres de connexion",
-          "authorize_adb": "Autoriser ADB pour les mises à jour"
+          "authorize_adb": "Autoriser ADB pour les mises à jour",
+          "updates": "Mises à jour du panneau"
         }
       },
       "onboarding": {
@@ -1026,6 +1027,16 @@
         "description": "Choisissez ce qui contrôle les entités et les commandes de ce panneau. En enregistrant Panel Assistant, Panel Assistant déplace vers lui les entités MQTT du panneau, en conservant leurs identifiants d'entité, leur historique et vos personnalisations, puis le panneau retire ses entités MQTT. En enregistrant MQTT, avec ou sans rapports natifs, elles reviennent à MQTT. Dans les deux cas, le panneau se reconnecte avec le nouveau choix.",
         "data": {
           "authority": "Contrôle"
+        }
+      },
+      "updates": {
+        "title": "Mises à jour du panneau",
+        "description": "Choisissez les versions de l’application du panneau que ce panneau peut recevoir. Chaque version doit être compatible avec le Panel Assistant en cours d’exécution.",
+        "data": {
+          "prerelease_panel_builds": "Autoriser les préversions de l’application du panneau"
+        },
+        "data_description": {
+          "prerelease_panel_builds": "Une préversion de Panel Assistant autorise déjà les préversions de l’application du panneau."
         }
       }
     },

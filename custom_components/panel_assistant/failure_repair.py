@@ -524,7 +524,6 @@ async def async_retry_install_job(
     )
     from .install_plan import _build_artifact, build_install_plan
     from .provisioning import InstallTargetState, async_probe_install_target
-    from .release import is_feed_build_tag, is_rc_release_tag
     from .release_catalog import async_resolve_install_choice
 
     if previous.phase not in {InstallPhase.FAILED, InstallPhase.RECOVERY_REQUIRED}:
@@ -555,14 +554,14 @@ async def async_retry_install_job(
             previous.target.android_sdk,
         ):
             raise RetrySafetyHold("retry_target_changed")
-        rc_tag = (
-            previous.artifact.release_tag
-            if is_rc_release_tag(previous.artifact.release_tag)
-            or is_feed_build_tag(previous.artifact.release_tag)
-            else None
-        )
+        rc_tag = previous.artifact.release_tag
         release = await async_resolve_install_choice(hass, rc_tag)
-        if _build_artifact(release, rc_tag) != previous.artifact:
+        if (
+            _build_artifact(
+                release, rc_tag, prerelease_opt_in=previous.artifact.prerelease_opt_in
+            )
+            != previous.artifact
+        ):
             raise RetrySafetyHold("retry_release_changed")
         if probe.state in {
             InstallTargetState.INSTALLED,
@@ -598,7 +597,12 @@ async def async_retry_install_job(
                 raise RetrySafetyHold("retry_panel_ambiguous")
             probe = replace(probe, installed_artifact_size=installed_bytes)
         plan = build_install_plan(
-            target, probe, release, credential.generation_id, expected_rc_tag=rc_tag
+            target,
+            probe,
+            release,
+            credential.generation_id,
+            expected_rc_tag=rc_tag,
+            prerelease_opt_in=previous.artifact.prerelease_opt_in,
         )
         if plan.target != previous.target or plan.artifact != previous.artifact:
             raise RetrySafetyHold("retry_target_changed")

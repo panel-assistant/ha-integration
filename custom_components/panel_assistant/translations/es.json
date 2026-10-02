@@ -998,7 +998,8 @@
         "menu_options": {
           "onboarding": "Continuar la configuración",
           "transport": "Ajustes de conexión",
-          "authorize_adb": "Autorizar ADB para actualizaciones"
+          "authorize_adb": "Autorizar ADB para actualizaciones",
+          "updates": "Actualizaciones del panel"
         }
       },
       "onboarding": {
@@ -1026,6 +1027,16 @@
         "description": "Elige qué controla las entidades y los comandos de este panel. Si guardas Panel Assistant, Panel Assistant traslada a sí mismo las entidades MQTT del panel, conservando sus ID de entidad, su historial y tus personalizaciones, y después el panel retira sus entidades MQTT. Si guardas MQTT, con o sin informes nativos, vuelven a MQTT. En ambos casos el panel se reconecta con la nueva opción.",
         "data": {
           "authority": "Control"
+        }
+      },
+      "updates": {
+        "title": "Actualizaciones del panel",
+        "description": "Elige qué compilaciones de la app del panel puede recibir este panel. Cada compilación debe ser compatible con el Panel Assistant en ejecución.",
+        "data": {
+          "prerelease_panel_builds": "Permitir versiones preliminares de la app del panel"
+        },
+        "data_description": {
+          "prerelease_panel_builds": "Una versión preliminar de Panel Assistant ya permite versiones preliminares de la app del panel."
         }
       }
     },

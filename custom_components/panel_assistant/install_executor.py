@@ -93,6 +93,7 @@ from .migration_repair import (
 )
 from .release import InstallDescriptor, ReleaseArtifact, is_feed_build_tag
 from .status import home_ui_allows
+from .update_policy import build_allowed, prereleases_allowed
 
 _LOGGER = logging.getLogger(__name__)
 _EXECUTOR_DATA_KEY = f"{DOMAIN}.install_executor"
@@ -688,6 +689,7 @@ class InstallExecutor:
                             )
                 elif phase is InstallPhase.DOWNLOADING:
                     try:
+                        _require_build_admission(receipt.artifact)
                         local_artifact = await async_download_install_artifact(
                             self._hass,
                             async_get_clientsession(self._hass),
@@ -751,6 +753,7 @@ class InstallExecutor:
                         )
                 elif phase is InstallPhase.REVALIDATING:
                     try:
+                        _require_build_admission(receipt.artifact)
                         if local_artifact is None:
                             local_artifact = await self._async_ensure_local_artifact(
                                 receipt, execution
@@ -816,6 +819,13 @@ class InstallExecutor:
                         _require_staged(staged, receipt.artifact)
                     except _CancellationObserved as err:
                         receipt = err.receipt
+                    except ArtifactCustodyError as err:
+                        receipt = await self._async_cleanup_local_then_fail(
+                            receipt,
+                            execution.execution_id,
+                            InstallResultCode.ARTIFACT_REJECTED,
+                            _result_subcode(err),
+                        )
                     except (AdbCredentialError, InstallNetworkError) as err:
                         receipt = await self._async_cleanup_local_then_fail(
                             receipt,
@@ -859,6 +869,12 @@ class InstallExecutor:
                             execution.descriptor,
                             _REMOTE_STAGING_SLOT_ID,
                             expected_root_mode=_root_mode(receipt),
+                        )
+                    except ArtifactCustodyError:
+                        # Admission refused before the package manager ran;
+                        # the staged file has the same safe cleanup as refusal.
+                        receipt = await self._async_install_refused(
+                            receipt, execution, staged
                         )
                     except (AdbCredentialError, InstallNetworkError) as err:
                         receipt = await self._async_recovery(
@@ -1095,6 +1111,8 @@ class InstallExecutor:
             current.job_id, current.revision, current.phase
         )
         credential = await self._async_current_credential(current)
+        if current.phase in {InstallPhase.STAGING, InstallPhase.INSTALLING}:
+            _require_build_admission(current.artifact)
         return credential, current
 
     async def _async_cleanup_authority(
@@ -1117,6 +1135,7 @@ class InstallExecutor:
     async def _async_ensure_local_artifact(
         self, receipt: InstallJobReceipt, execution: _FrozenExecution
     ) -> CustodiedArtifact:
+        _require_build_admission(receipt.artifact)
         local = await async_download_install_artifact(
             self._hass,
             async_get_clientsession(self._hass),
@@ -1544,9 +1563,22 @@ def _frozen_execution(
             apk_url=_apk_url(receipt, feed_url),
             sha256=receipt.artifact.apk_sha256,
             descriptor=descriptor,
+            protocol_min=receipt.artifact.protocol_min,
+            protocol_max=receipt.artifact.protocol_max,
         ),
         execution_id=execution_id,
     )
+
+
+def _require_build_admission(artifact: InstallArtifact) -> None:
+    """Recheck the running PA policy before retrieving or mutating an APK."""
+    if not build_allowed(
+        artifact.version_name,
+        artifact.protocol_min,
+        artifact.protocol_max,
+        allow_prerelease=prereleases_allowed() or artifact.prerelease_opt_in,
+    ):
+        raise ArtifactCustodyError(ArtifactErrorCode.CONTRACT_INVALID)
 
 
 async def _require_pin(hass: HomeAssistant, pinned: PinnedPanelTarget) -> None:

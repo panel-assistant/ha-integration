@@ -89,12 +89,21 @@ test('ignores wrong source, origin, nonce and additional message keys', async ()
   await tick(); assert.equal(f.calls.length, 0);
   f.handle.cancel(); await assert.rejects(f.handle.completion, { code: 'cancelled' });
 });
-test('RC is selected explicitly in fragment and POST, without stable fallback', async () => {
-  const m = metadata(); m.tag = 'v1.2.3-rc2';
+for (const tag of ['v1.2.3', 'v1.2.3-rc2']) test(`${tag} is selected exactly in fragment and POST`, async () => {
+  const m = metadata(); m.tag = tag;
   const f = fixture([json(m), new Response('apk')], { rcTag: m.tag });
   assert.equal(new URLSearchParams(f.opened.url.hash.slice(1)).get('rc'), m.tag);
   f.send('ready'); await tick();
   assert.deepEqual(JSON.parse(f.calls[0][1].body), { release_candidate: m.tag });
+  f.send('verified'); await f.handle.completion;
+  f.handle.cancel();
+});
+test('PA may recommend a prerelease when no exact selection was supplied', async () => {
+  const m = metadata(); m.tag = 'v1.2.3-rc2';
+  const f = fixture([json(m), new Response('apk')]);
+  f.send('ready'); await tick(); await tick();
+  assert.deepEqual(JSON.parse(f.calls[0][1].body), {});
+  assert.equal(f.posts[0][0].bundle.tag, m.tag);
   f.send('verified'); await f.handle.completion;
   f.handle.cancel();
 });
@@ -111,7 +120,7 @@ for (const [name, mutate] of [
   ['unknown URL field', (m) => { m.url = 'https://evil.example'; }],
   ['path-like identifier', (m) => { m.id = '../secret'; }],
   ['APK limit', (m) => { m.apk_size = 64 * 1024 * 1024 + 1; }],
-  ['stable channel mismatch', (m) => { m.tag = 'v1.2.3-rc1'; }],
+  ['unrecognized GitHub tag', (m) => { m.tag = 'v1.2.3-beta1'; }],
   ['signature length', (m) => { m.checksum_signature = btoa('s'.repeat(255)); }],
   ['checksum limit', (m) => { m.checksum = btoa('c'.repeat(513)); }],
   ['descriptor limit', (m) => { m.descriptor = btoa('d'.repeat(4097)); }],
@@ -182,6 +191,8 @@ test('a signed feed at its full 256 KiB fits the feed response bound', async () 
   f.handle.cancel();
 });
 for (const [name, rcTag, mutate] of [
+  ['another stable release', 'v1.2.3', () => ({ ...metadata(), tag: 'v1.2.2' })],
+  ['an RC instead of the selected stable release', 'v1.2.3', () => ({ ...metadata(), tag: 'v1.2.3-rc2' })],
   ['GitHub fields for a feed tag', 'build-772', () => metadata()],
   ['GitHub fields named with the feed tag', 'build-772', () => ({ ...metadata(), tag: 'build-772' })],
   ['feed fields for an RC tag', 'v1.2.3-rc2', () => ({ ...feedMetadata(), tag: 'v1.2.3-rc2' })],

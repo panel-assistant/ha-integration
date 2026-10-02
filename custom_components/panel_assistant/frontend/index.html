@@ -12,8 +12,6 @@
     details summary { cursor: pointer; }
     details pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 16rem; overflow: auto;
       background: var(--bg); border-radius: .5rem; padding: .75rem; }
-    .advanced label { font-weight: 400; color: var(--dim); }
-    .advanced input[type=text] { display: block; width: 100%; margin-top: .35rem; padding: .5rem; font: inherit; }
     footer { text-align: center; font-size: .8rem; margin-top: 1rem; }
     footer a { color: var(--dim); }
   </style>
@@ -66,12 +64,7 @@
       <button id="retry" class="primary" data-screen-message="tryAgain"></button>
     </section>
 
-    <details id="advanced" class="advanced" hidden>
-      <summary data-screen-message="advanced"></summary>
-      <label><span data-screen-message="releaseFiles"></span> <input id="bundle-files" type="file" multiple accept=".apk,.sha256,.sig,.json"></label>
-      <label><span data-screen-message="releaseRc"></span> <input id="bundle-rc" type="text" maxlength="64" autocomplete="off" spellcheck="false" data-screen-placeholder="releaseRcExample"></label>
-      <button id="verify-bundle" data-screen-message="verifyRelease"></button>
-    </details>
+
 
     <details id="support">
       <summary data-screen-message="details"></summary>
