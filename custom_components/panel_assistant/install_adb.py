@@ -2363,7 +2363,10 @@ _SUCCESSOR_RECORDS_DIRECTORY = (
 _SUCCESSOR_RECORDS_COMMAND = (
     "for p in 'su 0' 'su root'; do "
     "r=$(printf '%s\\n' '"
-    f"[ -d /data/data/{SUCCESSOR_PACKAGE_ID} ] || exit 3; "
+    # Only a directory that exists and can be listed counts as read: an
+    # absent or unlistable one is unknown, never an empty set of records.
+    f"[ -d {_SUCCESSOR_RECORDS_DIRECTORY} ] || exit 3; "
+    f"ls {_SUCCESSOR_RECORDS_DIRECTORY} >/dev/null 2>&1 || exit 3; "
     f"for f in {_SUCCESSOR_RECORDS_DIRECTORY}/*; do "
     '[ -e "$f" ] && echo "record:${f##*/}"; done; echo records:read'
     "' | timeout 3 $p sh 2>/dev/null) && "
