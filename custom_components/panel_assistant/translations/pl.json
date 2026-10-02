@@ -338,6 +338,10 @@
       "title": "Natywne elementy sterujące niedostępne na {panel}",
       "description": "Panel Assistant wyłączył te elementy sterujące MQTT, ponieważ {panel} nie udostępnia ich natywnych działań: {entities}. Konfiguracja i identyfikatory encji pozostają zachowane. Zaktualizuj aplikację panelu i sprawdź, czy wymagania dotyczące jej działań są spełnione, a następnie połącz panel ponownie. Ponowne uruchomienie wymaga uprawnień root także przez MQTT. Jeśli element sterujący wcześniej działał przez MQTT, przełączenie tego panelu z powrotem na MQTT tymczasowo przywróci jego działanie."
     },
+    "no_update_route": {
+      "title": "{panel} nie może otrzymywać aktualizacji aplikacji",
+      "description": "Panel Assistant nie może zainstalować aktualizacji aplikacji na {panel}, więc pozostaje on w bieżącej wersji. Wszystko inne w panelu działa dalej, dlatego łatwo to przeoczyć. Zwykle dzieje się tak po zmianie wprowadzonej na samym panelu, takiej jak aktualizacja oprogramowania układowego lub przywrócenie ustawień. Wybierz Dowiedz się więcej, aby poznać kroki dla tego panelu. Zgłoszono: {reason}"
+    },
     "merged_panel_identity": {
       "title": "Rozdziel scalone panele: {panels}",
       "description": "Panele {panels} zgłaszają tę samą tożsamość urządzenia, więc Home Assistant nie może bezpiecznie ustalić, który wpis jest właścicielem natywnego połączenia lub encji. Ich natywne połączenie jest odrzucane i żadne encje nie są przenoszone. Zaktualizuj ha-paneld na każdym panelu, którego to dotyczy, tak aby każdy miał odrębną tożsamość, a następnie usuń scalone urządzenie i pozwól panelom zarejestrować się ponownie."

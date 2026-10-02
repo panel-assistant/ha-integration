@@ -298,6 +298,10 @@
       "title": "Native Bedienelemente auf {panel} nicht verfügbar",
       "description": "Panel Assistant hat diese MQTT-Bedienelemente deaktiviert, weil {panel} ihre nativen Aktionen nicht anbietet: {entities}. Konfiguration und Entitäts-IDs bleiben erhalten. Aktualisiere die Panel-App, prüfe, ob die Voraussetzungen der Aktionen verfügbar sind, und verbinde das Panel erneut. Ein Neustart erfordert auch über MQTT Root-Zugriff. Falls ein Bedienelement zuvor über MQTT funktionierte, wird es durch das vorübergehende Zurückstellen dieses Panels auf MQTT wiederhergestellt."
     },
+    "no_update_route": {
+      "title": "{panel} kann keine App-Updates empfangen",
+      "description": "Panel Assistant kann auf {panel} keine App-Updates installieren, daher bleibt es auf der aktuellen Version. Alles andere am Panel funktioniert weiter, weshalb dies leicht zu übersehen ist. Meist folgt es auf eine Änderung am Panel selbst, etwa ein Firmware-Update oder ein Zurücksetzen. Wähle Mehr erfahren für die Schritte zu diesem Panel. Gemeldet: {reason}"
+    },
     "merged_panel_identity": {
       "title": "Zusammengeführte Panels trennen: {panels}",
       "description": "Die Panels {panels} melden dieselbe Geräteidentität. Home Assistant kann daher nicht sicher entscheiden, welchem Eintrag eine native Verbindung oder Entität gehört. Die native Verbindung wird abgelehnt und es werden keine Entitäten verschoben. Aktualisiere ha-paneld auf allen betroffenen Panels, damit jedes eine eigene Identität erhält. Lösche anschließend das zusammengeführte Gerät und lasse die Panels erneut registrieren."

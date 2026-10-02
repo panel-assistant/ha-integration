@@ -114,6 +114,7 @@ from .release import (
 from .status import PanelCachedUpdate, home_ui_allows
 from .transport import async_get_sessions
 from .update_coordinator import PanelUpdateCoordinator
+from .update_route_repair import async_reconcile_update_route_issue
 
 _ANDROID_DOWNLOAD_MAX_SECONDS = 10 * 60
 _ANDROID_PACKAGE_INSTALL_MAX_SECONDS = 3 * 60
@@ -454,8 +455,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             attributes = dict(self._attr_extra_state_attributes)
             # A bridge that cannot hand over yet has nothing newer to install and
             # loses nothing, so it reads as up to date rather than as a problem.
+            entry = self.hass.config_entries.async_get_entry(self._entry_id)
+            snapshot: PanelSnapshot | None = self.coordinator.data
             if not self._has_install_route() and not _bridge_not_ready(error):
-                attributes[ROUTE_UNAVAILABLE_ATTRIBUTE] = (
+                reason = (
                     str(error)
                     if isinstance(error, HomeAssistantError)
                     else "Panel Assistant has no verified signed build "
@@ -464,8 +467,27 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     else "The panel cannot install this update itself, and Panel "
                     "Assistant has no usable authorized ADB route."
                 )
+                attributes[ROUTE_UNAVAILABLE_ATTRIBUTE] = reason
+                # Say it now, while the vendor change that caused it is still
+                # the owner's most recent memory, rather than at the next
+                # release when they would have to reconstruct what altered.
+                if entry is not None:
+                    async_reconcile_update_route_issue(
+                        self.hass,
+                        entry,
+                        has_route=False,
+                        status=snapshot.status if snapshot else None,
+                        reason=reason,
+                    )
             else:
                 attributes.pop(ROUTE_UNAVAILABLE_ATTRIBUTE, None)
+                if entry is not None:
+                    async_reconcile_update_route_issue(
+                        self.hass,
+                        entry,
+                        has_route=True,
+                        status=snapshot.status if snapshot else None,
+                    )
             self._attr_extra_state_attributes = attributes
         self.async_write_ha_state()
 

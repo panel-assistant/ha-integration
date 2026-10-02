@@ -298,6 +298,10 @@
       "title": "Controlli nativi non disponibili su {panel}",
       "description": "Panel Assistant ha disabilitato questi controlli MQTT perché {panel} non ha offerto le relative azioni native: {entities}. La configurazione e gli ID delle entità sono conservati. Aggiorna l’app del pannello, verifica che i requisiti delle azioni siano disponibili, quindi riconnettilo. Anche con MQTT, il riavvio richiede l’accesso root. Se un controllo funzionava prima con MQTT, riportare temporaneamente questo pannello a MQTT lo ripristina."
     },
+    "no_update_route": {
+      "title": "{panel} non può ricevere aggiornamenti dell'app",
+      "description": "Panel Assistant non può installare aggiornamenti dell'app su {panel}, che quindi resta alla versione attuale. Tutto il resto del pannello continua a funzionare, perciò è facile non accorgersene. Di solito accade dopo una modifica eseguita sul pannello stesso, come un aggiornamento del firmware o un ripristino. Seleziona Ulteriori informazioni per i passaggi relativi a questo pannello. Segnalato: {reason}"
+    },
     "merged_panel_identity": {
       "title": "Separa i pannelli uniti: {panels}",
       "description": "I pannelli {panels} segnalano la stessa identità del dispositivo, quindi Home Assistant non può stabilire in modo sicuro a quale voce appartenga una connessione o un'entità nativa. La connessione nativa viene rifiutata e nessuna entità viene spostata. Aggiorna ha-paneld su ogni pannello interessato affinché ciascuno abbia un'identità distinta, quindi elimina il dispositivo unito e lascia che i pannelli si registrino di nuovo."
