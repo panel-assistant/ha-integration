@@ -547,6 +547,7 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
         "merged_mqtt_device",
         "move_to_native_connection",
         "panel_update_required",
+        "panel_permissions",
         "panel_migration_incomplete",
         "panel_identity_confirmation",
         "panel_identity_mismatch",

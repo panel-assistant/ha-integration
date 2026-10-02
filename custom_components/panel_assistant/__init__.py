@@ -48,6 +48,7 @@ from .install_executor import (
     async_get_install_executor,
     async_resume_loaded_install_jobs,
 )
+from .lifecycle import async_setup_lifecycle
 from .native import CONF_NATIVE_ENTITIES, NATIVE_ONLY_PLATFORMS
 from .native_move import async_delete_native_move_issues, async_evaluate_native_move
 from .permission_repair import permission_issue_id
@@ -102,6 +103,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     # Before the commands exist, so no hello is answered without them.
     await async_load_removed_panels(hass)
     await async_setup_connection_info(hass)
+    await async_setup_lifecycle(hass)
     async_setup_transport(hass)
     async_setup_voice(hass)
     async_setup_embed(hass)
