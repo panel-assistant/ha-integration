@@ -1,6 +1,7 @@
 """Hidden panel registration, static delivery and retry contracts."""
 
 import asyncio
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -21,6 +22,9 @@ async def panel_http(hass, tmp_path, monkeypatch):
     static = tmp_path / "static"
     static.mkdir()
     (static / "ha-panel.js").write_text("export const testModule = true;\n")
+    (static / "pickles.svg").write_bytes(
+        (Path(browser_panel.__file__).parent / "static" / "pickles.svg").read_bytes()
+    )
     (tmp_path / "private.txt").write_text("not a static asset")
     monkeypatch.setattr(browser_panel, "STATIC_PATH", static)
     assert await async_setup_component(hass, "http", {})
@@ -99,6 +103,13 @@ async def test_actual_static_scope_and_cache(hass, hass_client_no_auth):
     assert response.status == 200
     assert await response.text() == "export const testModule = true;\n"
     assert "max-age" not in response.headers.get("Cache-Control", "")
+    response = await client.get("/panel_assistant/usb/pickles.svg")
+    assert response.status == 200
+    assert response.content_type == "image/svg+xml"
+    assert (
+        await response.read()
+        == (browser_panel.STATIC_PATH / "pickles.svg").read_bytes()
+    )
     for path in ("private.txt", "manifest.json", "browser_panel.py"):
         response = await client.get(f"/panel_assistant/usb/{path}")
         assert response.status == 404
