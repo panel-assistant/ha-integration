@@ -14,6 +14,9 @@ from homeassistant.helpers.translation import async_get_translations
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.panel_assistant import update as panel_update
+from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
+from custom_components.panel_assistant.build_feed import BuildDownloadError
 from custom_components.panel_assistant.client import (
     CannotConnectError,
     HaPaneldClient,
@@ -28,9 +31,12 @@ from custom_components.panel_assistant.failure_repair import (
     async_clear_update_failure_if_installed,
     panel_failure_issue_id,
 )
+from custom_components.panel_assistant.release import ReleaseArtifact
 from custom_components.panel_assistant.status import parse_status_response
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity
 from custom_components.panel_assistant.update_coordinator import PanelUpdateCoordinator
+
+from .test_lan_staged_update import _backup
 
 HELD = {
     "notifications": "held",
@@ -339,21 +345,35 @@ async def test_successful_panel_update_keeps_its_dashboard_and_permission_warnin
         "install_capability": "api",
         "permissions": {**HELD, "camera": "missing"},
         "home_ui": {"state": "ready", "reason": "dashboard", "evidence": "foreground"},
-        "panel_assistant_update": {
-            "state": "available",
-            "current_version": HEALTH.version,
-            "target_version": "0.9.10",
-            "tag": "v0.9.10",
-        },
     }
+    artifact = ReleaseArtifact(
+        "v0.9.10",
+        "0.9.10",
+        "app.apk",
+        "https://github.com/app.apk",
+        "a" * 64,
+        descriptor=SimpleNamespace(package_id=LEGACY_PACKAGE_ID, version_code=101),
+        protocol_min=3,
+        protocol_max=3,
+    )
+    release = SimpleNamespace(artifact_for=lambda *_args, **_kwargs: artifact)
+    # The authenticated PA offer owns admission. A failed host download still
+    # exercises the production panel-download route and its success observer.
+    monkeypatch.setattr(
+        panel_update,
+        "async_download_build",
+        AsyncMock(side_effect=BuildDownloadError("host download unavailable")),
+    )
 
     async def installed(tag: str) -> None:
         assert tag == "v0.9.10"
         health.return_value = replace(HEALTH, version="0.9.10", build="101")
-        document.pop("panel_assistant_update")
 
     with (
         patch.object(coordinator.client, "async_get_health", health),
+        patch.object(
+            coordinator.client, "async_backup_panel", AsyncMock(return_value=_backup())
+        ),
         patch.object(
             coordinator.client,
             "async_get_status",
@@ -378,7 +398,9 @@ async def test_successful_panel_update_keeps_its_dashboard_and_permission_warnin
         assert _issue(hass, entry) is not None
         updates = PanelUpdateCoordinator(hass, coordinator.client)
         await updates.async_refresh()
-        entity = HaPaneldUpdateEntity(entry.entry_id, coordinator, updates)
+        entity = HaPaneldUpdateEntity(
+            entry.entry_id, coordinator, updates, release=release
+        )
         entity.hass = hass
         entity.async_write_ha_state = MagicMock()
         # Poll the real coordinator immediately so the test exercises the
@@ -392,6 +414,7 @@ async def test_successful_panel_update_keeps_its_dashboard_and_permission_warnin
         assert coordinator.available
         assert coordinator.data.status.home_ui["state"] == "ready"
         assert _issue(hass, entry) is not None
+        assert entity.extra_state_attributes["update_route"] == "downloaded_by_panel"
         await updates.async_shutdown()
 
 

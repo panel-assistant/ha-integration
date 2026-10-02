@@ -1181,7 +1181,15 @@ async def test_the_live_hello_result_matches_its_conformance_vector(
     result = response["result"]
     expected = vector["result"]
     assert set(result) == set(expected) | {"connection"}
-    for key in ("protocol", "authority", "mqtt_discovery", "capabilities", "channels"):
+    for key in (
+        "protocol",
+        "authority",
+        "mqtt_discovery",
+        "capabilities",
+        "channels",
+        "lifecycle",
+        "update_policy",
+    ):
         assert result[key] == expected[key], key
     assert isinstance(result["session"], str) and result["session"]
     assert set(result["integration"]) == set(expected["integration"])

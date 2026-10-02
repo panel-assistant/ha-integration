@@ -43,6 +43,15 @@ FROZEN_TRANSLATION_TOKENS = (
     "8888",
     "5555",
 )
+# Current main has 564 shared leaves; the five PA-owned update options add
+# this finite translated surface. Pin it and the total to catch omissions.
+PA_UPDATE_TRANSLATION_ADDITIONS = {
+    "options.step.init.menu_options.updates",
+    "options.step.updates.title",
+    "options.step.updates.description",
+    "options.step.updates.data.prerelease_panel_builds",
+    "options.step.updates.data_description.prerelease_panel_builds",
+}
 
 
 def _translation_leaves(
@@ -369,7 +378,15 @@ def test_english_only_translations_are_exactly_the_dormant_native_surface() -> N
 
     assert len(paths) == 62
     assert all(path[:1] in {("entity",), ("exceptions",)} for path in paths)
-    assert len(_translation_leaves(shared)) == 569
+    shared_leaves = _translation_leaves(shared)
+    additions = {
+        ".".join(path)
+        for path in shared_leaves
+        if path[:3] == ("options", "step", "updates")
+        or path == ("options", "step", "init", "menu_options", "updates")
+    }
+    assert additions == PA_UPDATE_TRANSLATION_ADDITIONS
+    assert len(shared_leaves) == 564 + len(PA_UPDATE_TRANSLATION_ADDITIONS)
     for locale_path in sorted((INTEGRATION / "translations").glob("*.json")):
         if locale_path.name == "en.json":
             continue
@@ -400,7 +417,7 @@ def test_shipped_translation_catalogues_preserve_machine_contracts() -> None:
         "uk.json",
         "zh-Hans.json",
     ]
-    assert len(english) == 569
+    assert len(english) == 564 + len(PA_UPDATE_TRANSLATION_ADDITIONS)
 
     for locale_path in locale_paths:
         target_catalogue = _without(

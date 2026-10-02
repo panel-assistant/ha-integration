@@ -837,6 +837,17 @@
         "channels": {
           "accepted": 0,
           "unknown": []
+        },
+        "lifecycle": {
+          "phase": "ready",
+          "reason": "unknown",
+          "elapsed_ms": null,
+          "expected_ms": null
+        },
+        "update_policy": {
+          "protocolMin": 1,
+          "protocolMax": 3,
+          "prerelease": true
         }
       },
       "valid": true
