@@ -168,6 +168,27 @@ def async_evaluate_successor_move(hass: HomeAssistant, entry: ConfigEntry) -> No
     )
 
 
+async def async_recover_moved_identity(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Before setup checks identity, finish adopting a finished move's identity.
+
+    Adoption saves the entity registry and the config entry separately. When
+    only the registry reached disk, the entry comes back with the old identity
+    over entities already keyed to the new one, and setup would refuse it; the
+    durable record names the identity this integration adopted, so it is
+    adopted again here, without a reload, before any check runs.
+    """
+    record = await hass.async_add_executor_job(
+        _read_record_quietly, _record_path(hass, entry.entry_id)
+    )
+    adopted = record.get("new_did") if record is not None else None
+    if (
+        record is not None
+        and isinstance(adopted, str)
+        and entry.unique_id == record.get("legacy_did")
+    ):
+        adopt_moved_identity(hass, entry, adopted, reload=False)
+
+
 async def async_restore_move_offer(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Offer an unfinished move again after a restart, from its durable record.
 
@@ -185,8 +206,6 @@ async def async_restore_move_offer(hass: HomeAssistant, entry: ConfigEntry) -> N
             await hass.async_add_executor_job(
                 _settle_record, hass, entry.entry_id, adopted
             )
-        elif record is not None and entry.unique_id == record.get("legacy_did"):
-            adopt_moved_identity(hass, entry, adopted)
         return
     if record is not None and not isinstance(entry.data.get(CONF_SUCCESSOR_MOVE), dict):
         hass.config_entries.async_update_entry(
@@ -221,8 +240,27 @@ def _successor_artifact(hass: HomeAssistant) -> ReleaseArtifact | None:
     return None
 
 
-def verify_move_receipt(data: bytes) -> tuple[str, str]:
-    """Prove a backup is the old app's whole state; return its panel and device ids.
+#: The app_state namespaces a restore writes back onto the panel that made the
+#: backup: the panel's ``StateBackupPolicy`` DEVICE_LOCAL set. A restore that
+#: writes fewer of the receipt's rows in them than it carries is incomplete.
+_DEVICE_LOCAL_NAMESPACES: Final = frozenset(
+    {
+        "controller-state",
+        "auto-sleep-learning",
+        "profile-calibration",
+        "performance-binding",
+        "shizuku-consent",
+        "power-safety-acknowledgement",
+        "wifi-stability",
+    }
+)
+
+
+def verify_move_receipt(data: bytes) -> tuple[str, str, int]:
+    """Prove a backup is the old app's whole state.
+
+    Return its panel id, its device's discovery id and how many of its state
+    rows a restore onto the same panel must write back.
 
     The receipt is what the new app is restored from after the old app is
     removed, so beyond a readable archive it must name the old app, carry the
@@ -231,8 +269,24 @@ def verify_move_receipt(data: bytes) -> tuple[str, str]:
     try:
         with ZipFile(BytesIO(data)) as archive:
             manifest = json.loads(archive.read("manifest.json"))
+            entry = (
+                manifest.get("state", {}).get("entry")
+                if isinstance(manifest, dict)
+                and isinstance(manifest.get("state"), dict)
+                else None
+            )
+            rows = (
+                archive.read(entry).decode("utf-8").splitlines()
+                if isinstance(entry, str)
+                else []
+            )
     except (BadZipFile, OSError, ValueError, KeyError) as err:
         raise PanelBackupInvalidError from err
+    carried = sum(
+        1
+        for row in rows
+        if len(fields := row.split("\t")) > 4 and fields[1] in _DEVICE_LOCAL_NAMESPACES
+    )
     state = manifest.get("state") if isinstance(manifest, dict) else None
     panel_id = manifest.get("panel_id") if isinstance(manifest, dict) else None
     discovery_id = manifest.get("discovery_id") if isinstance(manifest, dict) else None
@@ -247,7 +301,7 @@ def verify_move_receipt(data: bytes) -> tuple[str, str]:
         or not panel_id
     ):
         raise PanelBackupInvalidError
-    return panel_id, discovery_id
+    return panel_id, discovery_id, carried
 
 
 def _record_path(hass: HomeAssistant, entry_id: str) -> Path:
@@ -491,7 +545,7 @@ async def _async_take_receipt(
         raise MoveError(REASON_PANEL_CHANGED)
     try:
         data = await client.async_backup_panel()
-        panel_id, discovery_id = verify_move_receipt(data)
+        panel_id, discovery_id, carried = verify_move_receipt(data)
     except (HaPaneldError, PanelBackupInvalidError) as err:
         raise MoveError(REASON_BACKUP_FAILED) from err
     if bound is not None and discovery_id != bound:
@@ -510,6 +564,7 @@ async def _async_take_receipt(
         "legacy_did": entry.unique_id or discovery_id,
         "discovery_id": discovery_id,
         "serial": target.serial,
+        "carried": carried,
     }
 
 
@@ -677,7 +732,13 @@ async def _async_settled(entry: ConfigEntry, record: dict[str, Any]) -> PanelHea
             outcome = None
         if outcome is not None:
             succeeded, rows = outcome
-            if not succeeded or rows <= 0:
+            carried = record.get("carried")
+            if (
+                not succeeded
+                or not isinstance(carried, int)
+                or rows < carried
+                or rows <= 0 < carried
+            ):
                 raise MoveError(REASON_MOVE_FAILED)
             break
         if asyncio.get_running_loop().time() >= deadline:

@@ -51,7 +51,11 @@ from .install_executor import (
 from .lifecycle import async_setup_lifecycle
 from .native import CONF_NATIVE_ENTITIES, NATIVE_ONLY_PLATFORMS
 from .native_move import async_delete_native_move_issues, async_evaluate_native_move
-from .panel_move import async_evaluate_successor_move, async_restore_move_offer
+from .panel_move import (
+    async_evaluate_successor_move,
+    async_recover_moved_identity,
+    async_restore_move_offer,
+)
 from .permission_repair import permission_issue_id
 from .restart_repair import async_setup_restart_check
 from .transport import (
@@ -211,6 +215,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     from .identity import reconcile_identity
 
     await _async_resume_install_jobs(hass)
+    # A finished move may have left its new identity saved in the entity
+    # registry only; adopt it before anything compares identities.
+    await async_recover_moved_identity(hass, entry)
     address = normalize_address(entry.data[CONF_ADDRESS])
     client = HaPaneldClient(async_get_clientsession(hass), address)
     coordinator = HaPaneldDataUpdateCoordinator(hass, client, entry.entry_id)

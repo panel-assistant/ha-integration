@@ -171,7 +171,9 @@ def confirm_identity(
 
 
 @callback
-def adopt_moved_identity(hass: HomeAssistant, entry: ConfigEntry, did: str) -> bool:
+def adopt_moved_identity(
+    hass: HomeAssistant, entry: ConfigEntry, did: str, *, reload: bool = True
+) -> bool:
     """Rekey an entry to the identity of the app Panel Assistant moved it to.
 
     The move is this integration's own action: it backed the old app up,
@@ -196,12 +198,14 @@ def adopt_moved_identity(hass: HomeAssistant, entry: ConfigEntry, did: str) -> b
         )
         if holder is not None and holder != item.entity_id:
             return False
-    _commit_identity(hass, entry, did)
+    _commit_identity(hass, entry, did, reload=reload)
     return True
 
 
 @callback
-def _commit_identity(hass: HomeAssistant, entry: ConfigEntry, did: str) -> None:
+def _commit_identity(
+    hass: HomeAssistant, entry: ConfigEntry, did: str, *, reload: bool = True
+) -> None:
     """Rekey owned entities in place, committing the entry identity last."""
     assert entry.unique_id is not None
     registry = er.async_get(hass)
@@ -234,7 +238,8 @@ def _commit_identity(hass: HomeAssistant, entry: ConfigEntry, did: str) -> None:
     hass.config_entries.async_update_entry(entry, unique_id=did, data=data)
     ir.async_delete_issue(hass, DOMAIN, f"{ISSUE_IDENTITY}_{entry.entry_id}")
     ir.async_delete_issue(hass, DOMAIN, f"panel_identity_mismatch_{entry.entry_id}")
-    hass.async_create_task(hass.config_entries.async_reload(entry.entry_id))
+    if reload:
+        hass.async_create_task(hass.config_entries.async_reload(entry.entry_id))
 
 
 @callback

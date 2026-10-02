@@ -27,7 +27,10 @@ from custom_components.panel_assistant.client import (
     UpdateBusyError,
 )
 from custom_components.panel_assistant.const import DOMAIN
-from custom_components.panel_assistant.identity import adopt_moved_identity
+from custom_components.panel_assistant.identity import (
+    adopt_moved_identity,
+    reconcile_identity,
+)
 from custom_components.panel_assistant.install_adb import (
     InstallAdbError,
     InstallAdbErrorCode,
@@ -43,6 +46,7 @@ from custom_components.panel_assistant.panel_move import (
     MoveError,
     async_evaluate_successor_move,
     async_move_to_new_app,
+    async_recover_moved_identity,
     async_restore_move_offer,
     claim_panel_operation,
     move_issue_id,
@@ -69,7 +73,15 @@ def _archive(**manifest: Any) -> bytes:
     buffer = BytesIO()
     with ZipFile(buffer, "w") as archive:
         archive.writestr("manifest.json", json.dumps(body))
-        archive.writestr("state/app-state.txt", "x")
+        archive.writestr(
+            "state/app-state.txt",
+            "".join(
+                f"S\t{namespace}\tkey{index}\tstring\tvalue\t1\n"
+                for index, namespace in enumerate(
+                    ("controller-state", "controller-state", "wifi-stability", "config")
+                )
+            ),
+        )
     return buffer.getvalue()
 
 
@@ -91,7 +103,7 @@ class FakePanel:
         self.did: str | None = OLD_DID
         self.restores = 0
         self.running_restore = 0
-        self.outcome: tuple[bool, int] = (True, 16)
+        self.outcome: tuple[bool, int] = (True, 3)
         self.successor_launched = False
         self.steps: list[str] = []
         self.backup = _archive()
@@ -605,7 +617,7 @@ async def test_the_repair_follows_the_package_and_the_record(
 
 
 def test_a_receipt_must_be_the_old_apps_whole_state() -> None:
-    assert verify_move_receipt(_archive()) == ("office", OLD_DID)
+    assert verify_move_receipt(_archive()) == ("office", OLD_DID, 3)
     for broken in (
         _archive(package=SUCCESSOR_PACKAGE_ID),
         _archive(state={"rows": 0}),
@@ -709,7 +721,9 @@ async def test_a_new_app_that_has_run_beside_the_old_one_is_kept(
 
 
 @pytest.mark.parametrize(
-    "outcome", [(False, 16), (True, 0)], ids=["restore-failed", "state-not-written"]
+    "outcome",
+    [(False, 3), (True, 0), (True, 2)],
+    ids=["restore-failed", "state-not-written", "state-partly-written"],
 )
 async def test_an_incomplete_restore_keeps_the_record_and_the_offer(
     hass: HomeAssistant,
@@ -740,11 +754,13 @@ async def test_the_record_outlives_the_adoption_until_it_is_saved(
     assert CONF_SUCCESSOR_MOVE not in entry.data
 
     # Core stopped before it saved the adopted identity: the entry comes back
-    # with the old one, and the record adopts the new identity again.
+    # with the old one, and the record adopts the new identity again before
+    # setup compares identities.
     hass.config_entries.async_update_entry(entry, unique_id=OLD_DID)
     with patch.object(panel_move, "adopt_moved_identity") as adopt:
-        await async_restore_move_offer(hass, entry)
-    adopt.assert_called_once_with(hass, entry, NEW_DID)
+        await async_recover_moved_identity(hass, entry)
+    adopt.assert_called_once_with(hass, entry, NEW_DID, reload=False)
+    await async_restore_move_offer(hass, entry)
     assert record.exists()
 
     # Saved: the next setup reads the new identity back from disk and settles.
@@ -756,3 +772,58 @@ async def test_the_record_outlives_the_adoption_until_it_is_saved(
     _save_entry(storage, entry.entry_id, NEW_DID)
     await async_restore_move_offer(hass, entry)
     assert not record.exists()
+
+
+@pytest.mark.parametrize("saved_first", ["registry", "entry"])
+async def test_setup_passes_its_identity_gate_whichever_save_landed_first(
+    hass: HomeAssistant, entry: MockConfigEntry, saved_first: str
+) -> None:
+    """Adoption writes the registry and the entry separately; a stop between
+    the two leaves one of them behind, and setup must still accept the entry."""
+    registry = er.async_get(hass)
+    path = Path(hass.config.path(DOMAIN, "backups", f"{entry.entry_id}-move.json"))
+    _write_record_file(path)
+    if saved_first == "registry":
+        registry.async_get_or_create(
+            "sensor", DOMAIN, f"{NEW_DID}_status", config_entry=entry
+        )
+    else:
+        registry.async_get_or_create(
+            "sensor", DOMAIN, f"{OLD_DID}_status", config_entry=entry
+        )
+        hass.config_entries.async_update_entry(
+            entry,
+            unique_id=NEW_DID,
+            data={
+                **entry.data,
+                "installation_identity": True,
+                "previous_installation_identity": OLD_DID,
+            },
+        )
+
+    await async_recover_moved_identity(hass, entry)
+
+    assert entry.unique_id == NEW_DID
+    assert reconcile_identity(hass, entry)
+    assert {
+        item.unique_id
+        for item in er.async_entries_for_config_entry(registry, entry.entry_id)
+    } == {f"{NEW_DID}_status"}
+
+
+def _write_record_file(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "receipt": "r",
+                "sha256": "s",
+                "panel_id": "office",
+                "config_hash": LEGACY_CFG,
+                "legacy_did": OLD_DID,
+                "serial": SERIAL,
+                "carried": 3,
+                "new_did": NEW_DID,
+            }
+        )
+    )
