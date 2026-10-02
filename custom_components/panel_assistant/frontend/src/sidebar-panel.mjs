@@ -179,6 +179,7 @@ export class PanelAssistantSidebar extends HTMLElement {
       </div>
       <div id="slot"></div>
     </header><div id="failure" hidden><img id="pickles" src="/panel_assistant/usb/pickles.svg" alt=""><p id="pickles-story" data-message="picklesStory"></p><p id="failure-status" role="status" aria-live="polite"></p><p id="next-step"></p></div><p id="status" role="status" aria-live="polite"></p><div id="loading" hidden><svg class="spinner" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="19" stroke="var(--divider-color,#e0e0e0)" stroke-width="4" fill="none"></circle><circle cx="24" cy="24" r="19" stroke="var(--app-header-background-color,var(--primary-color,#03a9f4))" stroke-width="4" stroke-linecap="round" stroke-dasharray="119.4" stroke-dashoffset="89.5" fill="none"></circle></svg><p id="loading-text" role="status" aria-live="polite"></p><p id="loading-hint" data-message="loadingHint"></p></div><iframe id="frame"></iframe></div>`;
+    // Pickles art: https://github.com/maxlyth/pickles. Recopy static/pickles.svg for upstream fixes.
     const root = this.shadowRoot;
     for (const element of root.querySelectorAll('[data-message]')) element.textContent = SIDEBAR_MESSAGES[element.dataset.message];
     const menu = root.querySelector('#menu');
