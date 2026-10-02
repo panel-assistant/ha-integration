@@ -122,7 +122,7 @@ def route(
     feed = BuildFeedCoordinator(hass, URL("https://feed.example/maintainer.json"))
     feed.data = BuildFeed(channel="maintainer", builds=(build,))
     feed.last_update_success = True
-    feed._verified_newest[LEGACY_PACKAGE_ID, True] = (build, apk)
+    feed._verified_apks[build.apk_sha256] = apk
     entity = HaPaneldUpdateEntity("entry-id", coordinator, updates, feed)
     entity.hass = hass
     entity.async_write_ha_state = MagicMock()

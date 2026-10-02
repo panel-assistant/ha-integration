@@ -25,6 +25,7 @@ from custom_components.panel_assistant.coordinator import (
     HaPaneldDataUpdateCoordinator,
     PanelSnapshot,
 )
+from custom_components.panel_assistant.feed_coordinator import StableReleaseCoordinator
 from custom_components.panel_assistant.release import ReleaseArtifact
 from custom_components.panel_assistant.status import PanelCachedUpdate, PanelStatus
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity
@@ -111,7 +112,8 @@ def _entity(
         protocol_min=3,
         protocol_max=3,
     )
-    host = SimpleNamespace(artifact_for=lambda *_args, **_kwargs: artifact)
+    host = StableReleaseCoordinator(hass)
+    host._candidates[artifact.tag, LEGACY_PACKAGE_ID] = artifact
     entity = HaPaneldUpdateEntity("entry-id", health, updates, release=host)
     # These tests exercise the admitted panel-download route and its observer;
     # signed LAN staging and backup execution are exercised in the LAN suite.
@@ -352,7 +354,9 @@ async def test_unstarted_panel_download_retry_rechecks_current_consent(
     entry.add_to_hass(hass)
     entity, client = _entity(hass)
     artifact = replace(
-        entity._release.artifact_for(), tag="v0.9.10-rc1", version="0.9.10-rc1"
+        entity._release.artifact_for(LEGACY_PACKAGE_ID),
+        tag="v0.9.10-rc1",
+        version="0.9.10-rc1",
     )
     sent = []
 

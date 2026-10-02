@@ -31,6 +31,7 @@ from custom_components.panel_assistant.failure_repair import (
     async_clear_update_failure_if_installed,
     panel_failure_issue_id,
 )
+from custom_components.panel_assistant.feed_coordinator import StableReleaseCoordinator
 from custom_components.panel_assistant.release import ReleaseArtifact
 from custom_components.panel_assistant.status import parse_status_response
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity
@@ -356,7 +357,8 @@ async def test_successful_panel_update_keeps_its_dashboard_and_permission_warnin
         protocol_min=3,
         protocol_max=3,
     )
-    release = SimpleNamespace(artifact_for=lambda *_args, **_kwargs: artifact)
+    release = StableReleaseCoordinator(hass)
+    release._candidates[artifact.tag, LEGACY_PACKAGE_ID] = artifact
     # The authenticated PA offer owns admission. A failed host download still
     # exercises the production panel-download route and its success observer.
     monkeypatch.setattr(
