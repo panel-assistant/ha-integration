@@ -5,11 +5,15 @@ from __future__ import annotations
 import asyncio
 import struct
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
 from adb_shell import constants as adb_constants
+from adb_shell.adb_message import AdbMessage  # type: ignore[import-untyped]
+from adb_shell.auth.keygen import keygen
+from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 from adb_shell.exceptions import AdbConnectionError, DeviceAuthError
 from adb_shell.transport.tcp_transport_async import TcpTransportAsync
 
@@ -165,9 +169,10 @@ class _MaliciousConnectionReader:
 class _FakeConnectionWriter:
     def __init__(self) -> None:
         self.closed = False
+        self.data = bytearray()
 
-    def write(self, _data: bytes) -> None:
-        return None
+    def write(self, data: bytes) -> None:
+        self.data.extend(data)
 
     async def drain(self) -> None:
         return None
@@ -234,12 +239,12 @@ async def test_install_candidate_requires_two_complete_package_manager_proofs(
         "default_transport_timeout_s": 5.0,
         "banner": "ha-paneld-home-assistant",
     }
-    assert fake.connect_kwargs == {
-        "rsa_keys": [],
-        "transport_timeout_s": 5.0,
-        "auth_timeout_s": 5.0,
-        "read_timeout_s": 5.0,
-    }
+    assert fake.connect_kwargs is not None
+    assert fake.connect_kwargs["rsa_keys"] == []
+    assert all(
+        fake.connect_kwargs[name] == 5.0
+        for name in ("transport_timeout_s", "auth_timeout_s", "read_timeout_s")
+    )
     assert len(fake.commands) == 3
     assert "pm path io.github.maxlyth.hapaneld" in fake.commands[0][0]
     assert "pm list packages -u io.github.maxlyth.hapaneld" in fake.commands[1][0]
@@ -511,26 +516,153 @@ async def test_authentication_request_is_reported_without_a_shell_command(
     assert fake.closed is True
 
 
-async def test_explicit_authorization_probe_uses_only_the_supplied_signer(
+@pytest.fixture
+def adb_signer(tmp_path: Path) -> PythonRSASigner:
+    """Use a disposable real ADB identity for the library handshake."""
+    key_path = tmp_path / "adb-key"
+    keygen(str(key_path))
+    return PythonRSASigner(
+        key_path.with_suffix(".pub").read_text(), key_path.read_text()
+    )
+
+
+def _install_adb_handshake(
     monkeypatch: pytest.MonkeyPatch,
+    *,
+    reject_signature: bool = False,
+    approve_public_key: bool = False,
+) -> _FakeConnectionWriter:
+    """Replay a protected peer through the real bounded socket transport."""
+    reader = asyncio.StreamReader()
+    writer = _FakeConnectionWriter()
+
+    def receive(command: bytes, arg0: int, arg1: int, data: bytes = b"") -> None:
+        packet = AdbMessage(command, arg0, arg1, data)
+        reader.feed_data(packet.pack() + data)
+
+    receive(adb_constants.AUTH, adb_constants.AUTH_TOKEN, 0, b"a" * 20)
+    if reject_signature:
+        receive(adb_constants.AUTH, adb_constants.AUTH_TOKEN, 0, b"b" * 20)
+    if not reject_signature or approve_public_key:
+        receive(
+            adb_constants.CNXN,
+            adb_constants.VERSION,
+            adb_constants.MAX_ADB_DATA,
+            b"device::panel\0",
+        )
+        for local_id, output in enumerate(
+            (
+                _presence_output(successor_present=True),
+                _target_facts_output(nonce=_SECOND_NONCE),
+            ),
+            start=1,
+        ):
+            receive(adb_constants.OKAY, local_id, local_id)
+            receive(adb_constants.WRTE, local_id, local_id, output)
+            receive(adb_constants.CLSE, local_id, local_id)
+    reader.feed_eof()
+
+    async def open_connection(
+        host: str, port: int
+    ) -> tuple[asyncio.StreamReader, _FakeConnectionWriter]:
+        assert (host, port) == ("panel.local", 5555)
+        return reader, writer
+
+    nonces = iter((_FIRST_NONCE, _SECOND_NONCE))
+    monkeypatch.setattr(provisioning, "token_hex", lambda _bytes: next(nonces))
+    monkeypatch.setattr(asyncio, "open_connection", open_connection)
+    return writer
+
+
+def _sent_adb_packets(
+    writer: _FakeConnectionWriter,
+) -> list[tuple[bytes, int, bytes]]:
+    """Decode the host packets that would have reached adbd."""
+    packets = []
+    data = bytes(writer.data)
+    while data:
+        command, arg0, _arg1, length, _checksum, _magic = struct.unpack(
+            adb_constants.MESSAGE_FORMAT, data[: adb_constants.MESSAGE_SIZE]
+        )
+        start = adb_constants.MESSAGE_SIZE
+        packets.append(
+            (adb_constants.WIRE_TO_ID[command], arg0, data[start : start + length])
+        )
+        data = data[start + length :]
+    return packets
+
+
+async def test_rejected_signature_does_not_prompt_without_authorization(
+    monkeypatch: pytest.MonkeyPatch, adb_signer: PythonRSASigner
 ) -> None:
-    """The post-consent connection offers exactly the persisted ADB identity."""
-    signer = object()
-    fake = _FakeAdbDevice(
-        [], connect_error=DeviceAuthError("Device authentication required")
-    )
-    _install_fake(monkeypatch, fake)
+    """A global key rejected by this panel cannot cause an approval prompt."""
+    writer = _install_adb_handshake(monkeypatch, reject_signature=True)
 
-    probe = await async_probe_install_target(
-        normalize_address("panel.local"),
-        signer,  # type: ignore[arg-type]
-    )
+    async with asyncio.timeout(1):
+        probe = await async_probe_install_target(
+            normalize_address("panel.local"), adb_signer
+        )
 
+    packets = _sent_adb_packets(writer)
+    assert packets[1][:2] == (adb_constants.AUTH, adb_constants.AUTH_SIGNATURE)
+    assert not any(
+        command == adb_constants.AUTH and arg0 == adb_constants.AUTH_RSAPUBLICKEY
+        for command, arg0, _data in packets
+    )
     assert probe.state is InstallTargetState.ADB_UNAUTHORIZED
-    assert fake.connect_kwargs is not None
-    assert fake.connect_kwargs["rsa_keys"] == [signer]
-    assert fake.commands == []
-    assert fake.closed is True
+    assert all(command != adb_constants.OPEN for command, _arg0, _data in packets)
+    assert writer.closed is True
+
+
+async def test_explicit_authorization_offers_public_key_after_signature_rejection(
+    monkeypatch: pytest.MonkeyPatch, adb_signer: PythonRSASigner
+) -> None:
+    """Consent permits the exact host key offer and physical Allow completes it."""
+    writer = _install_adb_handshake(
+        monkeypatch, reject_signature=True, approve_public_key=True
+    )
+
+    async with asyncio.timeout(1):
+        probe = await async_probe_install_target(
+            normalize_address("panel.local"), adb_signer, authorize=True
+        )
+
+    packets = _sent_adb_packets(writer)
+    assert packets[1][:2] == (adb_constants.AUTH, adb_constants.AUTH_SIGNATURE)
+    public_key = adb_signer.GetPublicKey()
+    assert public_key is not None
+    assert packets[2] == (
+        adb_constants.AUTH,
+        adb_constants.AUTH_RSAPUBLICKEY,
+        public_key.encode("ascii") + b"\0",
+    )
+    assert probe.state is InstallTargetState.INSTALLED
+    assert probe.serial == "WF1589T-0123"
+    assert writer.closed is True
+
+
+async def test_trusted_signer_authenticates_without_public_key_offer(
+    monkeypatch: pytest.MonkeyPatch, adb_signer: PythonRSASigner
+) -> None:
+    """A panel already trusting the HA key keeps its passive read-only route."""
+    writer = _install_adb_handshake(monkeypatch)
+
+    async with asyncio.timeout(1):
+        probe = await async_probe_install_target(
+            normalize_address("panel.local"), adb_signer
+        )
+
+    auth_packets = [
+        packet
+        for packet in _sent_adb_packets(writer)
+        if packet[0] == adb_constants.AUTH
+    ]
+    assert [(arg0, data) for _command, arg0, data in auth_packets] == [
+        (adb_constants.AUTH_SIGNATURE, adb_signer.Sign(b"a" * 20))
+    ]
+    assert probe.state is InstallTargetState.INSTALLED
+    assert probe.serial == "WF1589T-0123"
+    assert writer.closed is True
 
 
 async def test_connection_packet_body_is_bounded_before_socket_read(

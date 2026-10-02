@@ -1465,7 +1465,22 @@ async def test_install_authorization_approval_reaches_release_preview(
         primary_abi="arm64-v8a",
         android_sdk=31,
     )
-    probe_mock = AsyncMock(side_effect=[_probe("adb_unauthorized"), candidate])
+    offered_keys: list[object] = []
+    physically_approved = False
+
+    async def probe_protected_panel(
+        _address: PanelAddress,
+        candidate_signer: object | None = None,
+        *,
+        authorize: bool = False,
+    ) -> InstallTargetProbe:
+        if authorize and candidate_signer is signer:
+            offered_keys.append(candidate_signer)
+            if physically_approved:
+                return candidate
+        return _probe("adb_unauthorized")
+
+    probe_mock = AsyncMock(side_effect=probe_protected_panel)
     release_mock = AsyncMock(return_value=RELEASE)
     with (
         patch(
@@ -1492,6 +1507,14 @@ async def test_install_authorization_approval_reaches_release_preview(
                 form["flow_id"], {CONF_ADDRESS: "panel.local"}
             ),
         )
+        assert offered_keys == []
+        pending = await hass.config_entries.flow.async_configure(
+            authorize["flow_id"], {}
+        )
+        assert pending["step_id"] == "authorize_adb"
+        assert pending["errors"] == {"base": "adb_still_unauthorized"}
+        assert offered_keys == [signer]
+        physically_approved = True
         result = await hass.config_entries.flow.async_configure(
             authorize["flow_id"], {}
         )
@@ -1508,10 +1531,7 @@ async def test_install_authorization_approval_reaches_release_preview(
         "tag": "v0.9.7",
         "sha256": "a" * 64,
     }
-    signer_mock.assert_awaited_once_with(hass)
-    assert probe_mock.await_args_list[0].args[0].stored_value == "192.168.1.23"
-    assert probe_mock.await_args_list[1].args[0].stored_value == "192.168.1.23"
-    assert probe_mock.await_args_list[1].args[1] is signer
+    assert offered_keys == [signer, signer]
     release_mock.assert_awaited_once()
     assert not hass.config_entries.async_entries(DOMAIN)
 

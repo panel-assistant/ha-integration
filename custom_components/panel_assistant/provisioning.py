@@ -434,13 +434,22 @@ async def _async_close(device: AdbDeviceAsync) -> None:
             await device.close()
 
 
+def _refuse_authorization(_device: object) -> None:
+    """Stop before offering a public key outside an explicit consent step."""
+    raise DeviceAuthError("ADB authorization requires explicit consent")
+
+
 async def async_probe_install_target(
-    address: PanelAddress, signer: PythonRSASigner | None = None
+    address: PanelAddress,
+    signer: PythonRSASigner | None = None,
+    *,
+    authorize: bool = False,
 ) -> InstallTargetProbe:
     """Probe package absence without claiming installation admission.
 
-    When a signer is supplied, ADB may present its public key to the panel so the
-    user can approve this Home Assistant instance explicitly. An
+    A signer authenticates existing trust without prompting. Only an explicit
+    authorization step may set ``authorize`` to offer its public key for the
+    owner to approve on the panel. An
     ``INSTALL_CANDIDATE`` result still requires a later privileged residual-state
     check before any installation may be admitted.
     """
@@ -457,6 +466,7 @@ async def async_probe_install_target(
         async with asyncio.timeout(_CONNECT_TIMEOUT_SECONDS):
             connected = await device.connect(
                 rsa_keys=[] if signer is None else [signer],
+                auth_callback=None if authorize else _refuse_authorization,
                 transport_timeout_s=_CONNECT_TIMEOUT_SECONDS,
                 auth_timeout_s=_CONNECT_TIMEOUT_SECONDS,
                 read_timeout_s=_CONNECT_TIMEOUT_SECONDS,

@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from zipfile import ZipFile
 
 import pytest
+from adb_shell.exceptions import DeviceAuthError
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -19,7 +20,7 @@ from homeassistant.helpers import storage
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from yarl import URL
 
-from custom_components.panel_assistant import adb_credentials
+from custom_components.panel_assistant import adb_credentials, provisioning
 from custom_components.panel_assistant import update as panel_update
 from custom_components.panel_assistant.adb_credentials import (
     AdbCredentialError,
@@ -297,9 +298,14 @@ async def test_existing_keyless_shelly_offers_and_installs_from_ha(
     route.client.async_stage_apk.assert_not_awaited()
 
 
-async def test_existing_protected_panel_without_key_offers_nothing(
-    route: SimpleNamespace, monkeypatch: pytest.MonkeyPatch, hass: HomeAssistant
+@pytest.mark.parametrize("stored_key", [False, True])
+async def test_existing_protected_panel_requires_explicit_authorization(
+    route: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
+    hass: HomeAssistant,
+    stored_key: bool,
 ) -> None:
+    """Background refresh and install admission never prompt a protected panel."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         entry_id="entry-id",
@@ -307,9 +313,26 @@ async def test_existing_protected_panel_without_key_offers_nothing(
         data={CONF_ADDRESS: "192.168.1.10"},
     )
     entry.add_to_hass(hass)
-    route.get_credential.side_effect = AdbCredentialMissingError()
-    route.probe_target.return_value = InstallTargetProbe(
-        state=InstallTargetState.ADB_UNAUTHORIZED
+    if not stored_key:
+        route.get_credential.side_effect = AdbCredentialMissingError()
+    prompts: list[object] = []
+
+    async def reject_untrusted_key(**kwargs: object) -> bool:
+        if not kwargs["rsa_keys"]:
+            raise DeviceAuthError("No key available")
+        # A protected peer rejected the signature, including a global HA key
+        # trusted by another panel. adb-shell calls this before offering a key.
+        if callback := kwargs.get("auth_callback"):
+            callback(device)
+        prompts.append(kwargs["rsa_keys"])
+        raise DeviceAuthError("Waiting for physical approval")
+
+    device = SimpleNamespace(connect=reject_untrusted_key, close=AsyncMock())
+    monkeypatch.setattr(provisioning, "AdbDeviceAsync", lambda *_a, **_kw: device)
+    monkeypatch.setattr(
+        panel_update,
+        "async_probe_install_target",
+        provisioning.async_probe_install_target,
     )
     create_credential = AsyncMock()
     monkeypatch.setattr(
@@ -360,6 +383,7 @@ async def test_existing_protected_panel_without_key_offers_nothing(
         )
         is None
     )
+    assert prompts == []
     create_credential.assert_not_awaited()
     route.client.async_backup_panel.assert_not_awaited()
     route.adb_install.assert_not_awaited()
