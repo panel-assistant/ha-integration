@@ -150,6 +150,9 @@ test('an opened event with a foreign URL never loads the frame', async () => {
   subs[0].callback({ kind: 'opened', url: 'https://evil.example/' });
   assert.equal($('#frame').getAttribute('src'), null);
   assert.equal($('#status').textContent, SIDEBAR_MESSAGES.failed);
+  assert.equal($('#failure').hidden, false);
+  assert.equal($('#failure-status').textContent, SIDEBAR_MESSAGES.failed);
+  assert.equal($('#next-step').textContent, SIDEBAR_MESSAGES.failedNext);
 });
 
 test('a reconnect resumes the token and reloads the frame only for a different URL', async () => {
@@ -179,10 +182,14 @@ test('a closed session clears the frame, refreshes the list and reopens once rea
   assert.equal(subs.length, 1);
   assert.equal(hass.calls, 2);
   assert.equal($('#status').textContent, SIDEBAR_MESSAGES.closed);
+  assert.equal($('#failure').hidden, false);
+  assert.equal($('#failure-status').textContent, SIDEBAR_MESSAGES.closed);
+  assert.equal($('#next-step').textContent, SIDEBAR_MESSAGES.closedNext);
   hass.panels = [row('one'), row('two')];
   intervals[0].fn(); await tick();
   assert.equal(subs.length, 2);
   assert.equal(subs[1].message.resume, undefined);
+  assert.equal($('#failure').hidden, true);
 });
 
 test('a rejected subscription shows a message and only the list refresh retries', async () => {
@@ -589,8 +596,50 @@ test('every SIDEBAR_MESSAGES key renders through the real component; nothing is 
   assert.equal(versionText({ version: '1.2.3', build: 9 }),
     SIDEBAR_MESSAGES.versionLabel.replace('{version}', '1.2.3').replace('{build}', '9'));
 
+  for (const state of ['unreachable', 'not_loaded']) {
+    const { $ } = await mount(fakeHass({ panels: [row('one', state)] }));
+    seen($('#pickles-story').textContent);
+    seen($('#next-step').textContent);
+  }
+  {
+    const hass = fakeHass(); hass.callWS = async () => { throw Error('offline'); };
+    seen((await mount(hass)).$('#next-step').textContent);
+  }
+  {
+    const hass = fakeHass(); const { $, subs } = await mount(hass);
+    hass.panels = [row('one', 'not_loaded')];
+    subs[0].callback({ kind: 'closed', reason: 'entry_unloaded' }); await tick();
+    seen($('#next-step').textContent);
+  }
+
   for (const [key, value] of Object.entries(SIDEBAR_MESSAGES)) {
     if (key === 'versionLabel' || key === 'opening' || key === 'restarting') continue;
     assert.ok(observed.has(value), `SIDEBAR_MESSAGES.${key} ("${value}") was never rendered by the sidebar`);
+  }
+});
+
+test('page failures show Pickles, a real diagnostic and a next step; recovery clears them', async () => {
+  for (const [state, diagnostic, next] of [
+    ['unreachable', 'unreachableBody', 'unreachableNext'],
+    ['not_loaded', 'notLoadedBody', 'notLoadedNext'],
+  ]) {
+    const hass = fakeHass({ panels: [row('one', state, '<img src=x onerror=alert(1)>')] });
+    const { $, panel } = await mount(hass);
+    assert.equal($('#failure').hidden, false);
+    assert.equal($('#pickles').getAttribute('src'), '/panel_assistant/usb/pickles.svg');
+    assert.equal($('#pickles-story').textContent, SIDEBAR_MESSAGES.picklesStory);
+    assert.equal($('#failure-status').textContent, SIDEBAR_MESSAGES[diagnostic]);
+    assert.equal($('#next-step').textContent, SIDEBAR_MESSAGES[next]);
+    assert.equal($('#frame').hidden, true);
+    hass.panels = [row('one')]; await intervals[0].fn(); await tick();
+    assert.equal($('#failure').hidden, true);
+    assert.equal($('#next-step').textContent, '');
+    panel.disconnectedCallback();
+  }
+  for (const hass of [fakeHass({ admin: false }), fakeHass({ panels: [] }),
+    fakeHass({ panels: [{ ...row('one', 'restarting'), reason: 'update' }] }), fakeHass()]) {
+    const { $, panel } = await mount(hass);
+    assert.equal($('#failure').hidden, true);
+    panel.disconnectedCallback();
   }
 });
