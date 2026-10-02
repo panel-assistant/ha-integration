@@ -177,6 +177,17 @@ async def async_restore_move_offer(hass: HomeAssistant, entry: ConfigEntry) -> N
     record = await hass.async_add_executor_job(
         _read_record_quietly, _record_path(hass, entry.entry_id)
     )
+    adopted = record.get("new_did") if record is not None else None
+    if isinstance(adopted, str):
+        # The move finished. Once its identity is on disk the record goes;
+        # an entry that came back with the old identity adopts it again.
+        if entry.unique_id == adopted:
+            await hass.async_add_executor_job(
+                _settle_record, hass, entry.entry_id, adopted
+            )
+        elif record is not None and entry.unique_id == record.get("legacy_did"):
+            adopt_moved_identity(hass, entry, adopted)
+        return
     if record is not None and not isinstance(entry.data.get(CONF_SUCCESSOR_MOVE), dict):
         hass.config_entries.async_update_entry(
             entry,
@@ -289,12 +300,38 @@ async def _async_save_record(
     )
 
 
-async def _async_forget_record(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    path = _record_path(hass, entry.entry_id)
-    await hass.async_add_executor_job(path.unlink, True)
+async def _async_withdraw_offer(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """The move is done: stop offering it. The durable record stays until the
+    adopted identity is on disk (``async_restore_move_offer``)."""
     data = dict(entry.data)
     if data.pop(CONF_SUCCESSOR_MOVE, None) is not None:
         hass.config_entries.async_update_entry(entry, data=data)
+    ir.async_delete_issue(hass, DOMAIN, move_issue_id(entry.entry_id))
+
+
+def _saved_unique_id(hass: HomeAssistant, entry_id: str) -> str | None:
+    """The entry's identity as Home Assistant last wrote it to disk."""
+    try:
+        stored = json.loads(
+            Path(hass.config.path(".storage", "core.config_entries")).read_text(
+                encoding="utf-8"
+            )
+        )
+    except OSError, ValueError:
+        return None
+    for item in stored.get("data", {}).get("entries", []):
+        if isinstance(item, dict) and item.get("entry_id") == entry_id:
+            unique_id = item.get("unique_id")
+            return unique_id if isinstance(unique_id, str) else None
+    return None
+
+
+def _settle_record(hass: HomeAssistant, entry_id: str, adopted: str) -> bool:
+    """Delete a finished move's record once its identity is durably saved."""
+    if _saved_unique_id(hass, entry_id) != adopted:
+        return False
+    _record_path(hass, entry_id).unlink(missing_ok=True)
+    return True
 
 
 def _operations(hass: HomeAssistant) -> set[str]:
@@ -492,17 +529,17 @@ async def _async_retire_legacy(
     if (
         observed.successor_installed
         and not ours
-        and observed.home == SUCCESSOR_PACKAGE_ID
+        and (observed.home == SUCCESSOR_PACKAGE_ID or not observed.successor_unlaunched)
     ):
-        # The new app already owns HOME beside the old one: a part-finished
-        # self-handover this release does not repair.
+        # A new app this integration did not install has run beside the old
+        # one, so it may hold state of its own: a part-finished self-handover,
+        # or a panel set up on the new app first. Nothing proves that state
+        # disposable, so it is left exactly as it is.
         raise MoveError(REASON_NEW_APP_IS_HOME)
     # The receipt comes first, from the old app answering as the panel's owner.
     record = await _async_take_receipt(hass, entry, target)
     if observed.successor_installed and not ours:
-        # A new app beside an old app that still owns the panel's port and its
-        # HOME never left its waiting state: its only data is a copy of the
-        # state the receipt above has just taken, so removing it loses nothing.
+        # Android still marks it never launched, so it holds no state at all.
         observed = await _async_step(target, signer, MoveStep.REMOVE_SUCCESSOR)
         if observed.successor_installed or not observed.legacy_installed:
             raise MoveError(REASON_MOVE_FAILED)
@@ -572,7 +609,7 @@ async def _async_restore(
     if not (resumed and serving):
         await _async_start_clean(hass, entry, target, signer)
     await _async_restore_twice(entry, data, record)
-    return await _async_settled(entry, data, record)
+    return await _async_settled(entry, record)
 
 
 async def _async_start_clean(
@@ -623,24 +660,26 @@ async def _async_restore_twice(
     await _async_send_restore(client, data)
 
 
-async def _async_settled(
-    entry: ConfigEntry, data: bytes, record: dict[str, Any]
-) -> PanelHealth:
-    """Wait for the last restore to finish, then prove what the panel runs.
+async def _async_settled(entry: ConfigEntry, record: dict[str, Any]) -> PanelHealth:
+    """Wait for the last restore to finish whole, then prove what the panel runs.
 
     Health can show the restored id and configuration before the restore that
-    wrote them has finished, so the restore lane must be free again first.
+    wrote them has finished, and an ordinary restore forgives a failed write of
+    the panel's own state, so the restore's own outcome must show it succeeded
+    and wrote the state rows the receipt carries.
     """
     client: HaPaneldClient = entry.runtime_data.client
     deadline = asyncio.get_running_loop().time() + _RESTORE_WAIT_SECONDS
     while True:
         try:
-            if await client.async_restore_lane_free(data):
-                break
-        except UpdateApprovalRequiredError as err:
-            raise MoveError(REASON_RESTORE_APPROVAL) from err
+            outcome = await client.async_get_restore_outcome()
         except HaPaneldError:
-            pass
+            outcome = None
+        if outcome is not None:
+            succeeded, rows = outcome
+            if not succeeded or rows <= 0:
+                raise MoveError(REASON_MOVE_FAILED)
+            break
         if asyncio.get_running_loop().time() >= deadline:
             raise MoveError(REASON_MOVE_FAILED)
         await asyncio.sleep(_POLL_SECONDS)
@@ -718,10 +757,17 @@ async def _async_move(hass: HomeAssistant, entry: ConfigEntry) -> None:
     health = await _async_restore(hass, entry, target, signer, record, resumed=resumed)
     did = health.discovery_id
     assert did is not None
-    if did != entry.unique_id and not adopt_moved_identity(hass, entry, did):
-        raise MoveError(REASON_MOVE_FAILED)
-    await _async_forget_record(hass, entry)
-    ir.async_delete_issue(hass, DOMAIN, move_issue_id(entry.entry_id))
+    if did != entry.unique_id:
+        # The entry is saved a moment after it changes, so the record keeps
+        # authority, naming the identity adopted, until a later setup reads
+        # the new identity back from disk.
+        record = {**record, "new_did": did}
+        await hass.async_add_executor_job(
+            _write_record, _record_path(hass, entry.entry_id), record
+        )
+        if not adopt_moved_identity(hass, entry, did):
+            raise MoveError(REASON_MOVE_FAILED)
+    await _async_withdraw_offer(hass, entry)
     _LOGGER.info("Moved %s to %s", entry.title, SUCCESSOR_PACKAGE_ID)
 
 
@@ -735,8 +781,8 @@ async def _async_finish_adopted(
         raise MoveError(REASON_MOVE_FAILED) from err
     if not _restored(health, record) or health.discovery_id != entry.unique_id:
         raise MoveError(REASON_PANEL_CHANGED)
-    await _async_forget_record(hass, entry)
-    ir.async_delete_issue(hass, DOMAIN, move_issue_id(entry.entry_id))
+    await _async_withdraw_offer(hass, entry)
+    raise MoveError(REASON_ALREADY_MOVED)
 
 
 class SuccessorMoveFlow(RepairsFlow):

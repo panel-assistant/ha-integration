@@ -2205,6 +2205,9 @@ class MoveObservation:
     successor_installed: bool
     #: The package HOME resolves to now, or None when nothing single answers.
     home: str | None
+    #: The new app is installed and has never run: Android still marks it not
+    #: launched, which no start of any of its components leaves set.
+    successor_unlaunched: bool = False
 
 
 _HOME_QUERY = (
@@ -2249,6 +2252,8 @@ def _move_command(nonce: str, step: MoveStep) -> str:
                 f"package:*) echo installed:{package} ;; esac"
                 for package in (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID)
             ),
+            f'case "$(dumpsys package {SUCCESSOR_PACKAGE_ID} 2>/dev/null)" in '
+            f"*notLaunched=true*) echo unlaunched:{SUCCESSOR_PACKAGE_ID} ;; esac",
             f'echo "home:$({_HOME_QUERY})"',
             f"echo HAPANELD_MOVE_END:{nonce}:0",
         )
@@ -2263,11 +2268,15 @@ def _parse_move(body: bytes, nonce: str) -> MoveObservation:
         for line in lines
         if line.startswith("installed:")
     }
+    unlaunched = [
+        line for line in lines if line == f"unlaunched:{SUCCESSOR_PACKAGE_ID}"
+    ]
     if (
         status_code != 0
         or len(homes) != 1
         or not installed <= {LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID}
-        or len(homes) + len(installed) != len(lines)
+        or len(unlaunched) > 1
+        or len(homes) + len(installed) + len(unlaunched) != len(lines)
     ):
         raise _MalformedAdbResponse
     home = homes[0].removeprefix("home:").strip()
@@ -2277,6 +2286,7 @@ def _parse_move(body: bytes, nonce: str) -> MoveObservation:
         successor_installed=SUCCESSOR_PACKAGE_ID in installed,
         # The system chooser and an empty answer are not a HOME.
         home=package if slash and package and package != "android" else None,
+        successor_unlaunched=bool(unlaunched) and SUCCESSOR_PACKAGE_ID in installed,
     )
 
 

@@ -90,20 +90,28 @@ class FakePanel:
         self.cfg = LEGACY_CFG
         self.did: str | None = OLD_DID
         self.restores = 0
-        self.lane_busy = 0
+        self.running_restore = 0
+        self.outcome: tuple[bool, int] = (True, 16)
+        self.successor_launched = False
         self.steps: list[str] = []
         self.backup = _archive()
         self.serial = SERIAL
         self.retire_fails: str | None = None
 
     def observe(self) -> MoveObservation:
-        return MoveObservation(self.legacy, self.successor, self.home)
+        return MoveObservation(
+            self.legacy,
+            self.successor,
+            self.home,
+            self.successor and not self.successor_launched,
+        )
 
     async def step(self, _target: Any, _signer: Any, step: MoveStep) -> MoveObservation:
         self.steps.append(step.value)
         if step is MoveStep.REMOVE_SUCCESSOR:
             assert self.home != SUCCESSOR_PACKAGE_ID
             self.successor = self.successor_state = False
+            self.successor_launched = False
         elif step is MoveStep.CLAIM_HOME:
             assert self.successor
             self.home = SUCCESSOR_PACKAGE_ID
@@ -132,6 +140,7 @@ class FakePanel:
         assert not self.legacy, "new app started beside the old one"
         assert not self.successor_state, "new app started with stale state"
         self.running = SUCCESSOR_PACKAGE_ID
+        self.successor_launched = True
         self.panel_id, self.cfg, self.did = "office_new", "00000001", NEW_DID
         self.successor_state = True
         return LaunchOutcome.STARTED
@@ -163,15 +172,15 @@ class FakePanel:
         if self.panel_id == "office":
             self.cfg = LEGACY_CFG
         self.panel_id = "office"
-        # The restore keeps the lane for a while after health shows its result.
-        self.lane_busy = 2
+        # The restore keeps running for a while after health shows its result.
+        self.running_restore = 2
 
-    async def lane_free(self, _data: bytes) -> bool:
+    async def restore_outcome(self) -> tuple[bool, int] | None:
         self.steps.append("LANE")
-        if self.lane_busy:
-            self.lane_busy -= 1
-            return False
-        return True
+        if self.running_restore:
+            self.running_restore -= 1
+            return None
+        return self.outcome
 
 
 @pytest.fixture
@@ -188,7 +197,7 @@ def _attach(entry: MockConfigEntry, panel: FakePanel) -> None:
         async_get_health=panel.health,
         async_backup_panel=panel.backup_panel,
         async_restore_panel=panel.restore,
-        async_restore_lane_free=panel.lane_free,
+        async_get_restore_outcome=panel.restore_outcome,
         address=None,
     )
     snapshot = SimpleNamespace(
@@ -254,6 +263,16 @@ async def _move(
     return adopted
 
 
+def _save_entry(storage: Path, entry_id: str, unique_id: str) -> None:
+    """Stand in for Home Assistant's delayed save of the config entries."""
+    storage.parent.mkdir(parents=True, exist_ok=True)
+    storage.write_text(
+        json.dumps(
+            {"data": {"entries": [{"entry_id": entry_id, "unique_id": unique_id}]}}
+        )
+    )
+
+
 def _record_file(hass: HomeAssistant, entry: MockConfigEntry) -> Path:
     return Path(hass.config.path(DOMAIN, "backups", f"{entry.entry_id}-move.json"))
 
@@ -282,7 +301,6 @@ async def test_a_kiosk_panel_moves_with_home_safe_and_settings_restored(
     assert (panel.panel_id, panel.cfg) == ("office", LEGACY_CFG)
     assert adopted == [NEW_DID]
     assert CONF_SUCCESSOR_MOVE not in entry.data
-    assert not _record_file(hass, entry).exists()
 
 
 async def test_the_record_is_forgotten_only_after_the_restore_finished(
@@ -296,7 +314,7 @@ async def test_the_record_is_forgotten_only_after_the_restore_finished(
 
     last_restore = len(panel.steps) - panel.steps[::-1].index("RESTORE") - 1
     assert panel.steps[last_restore + 1 :] == ["LANE", "LANE", "LANE"]
-    assert not _record_file(hass, entry).exists()
+    assert CONF_SUCCESSOR_MOVE not in entry.data
 
 
 async def test_a_new_app_without_a_valid_identity_keeps_the_record(
@@ -339,7 +357,7 @@ async def test_a_refused_handover_leftover_is_removed_after_the_receipt(
 ) -> None:
     """State (a)/(b): the new app sits passive beside the old one."""
     panel = FakePanel()
-    panel.successor = panel.successor_state = True
+    panel.successor = True
     _attach(entry, panel)
 
     await _move(hass, entry, panel, tmp_path)
@@ -439,7 +457,7 @@ async def test_a_move_stopped_before_the_old_app_went_finishes_on_retry(
     ]
     assert "REMOVE_SUCCESSOR" not in panel.steps
     assert not panel.legacy and adopted == [NEW_DID]
-    assert not _record_file(hass, entry).exists()
+    assert CONF_SUCCESSOR_MOVE not in entry.data
 
 
 async def test_a_move_interrupted_after_the_old_app_went_resumes_after_a_restart(
@@ -536,7 +554,7 @@ async def test_a_moved_panel_is_a_no_op(
 
     with pytest.raises(MoveError, match="already_moved"):
         await _move(hass, entry, panel, tmp_path)
-    assert panel.steps == ["OBSERVE"]
+    assert panel.steps == []
 
 
 async def test_a_restore_still_running_is_waited_out(
@@ -673,3 +691,68 @@ async def test_an_identity_another_panel_holds_is_never_adopted(
 
     assert not adopt_moved_identity(hass, entry, NEW_DID)
     assert entry.unique_id == OLD_DID
+
+
+async def test_a_new_app_that_has_run_beside_the_old_one_is_kept(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
+) -> None:
+    """It may have been set up on its own first: nothing proves it empty."""
+    panel = FakePanel(home="com.android.launcher3")
+    panel.successor = panel.successor_launched = True
+    _attach(entry, panel)
+
+    with pytest.raises(MoveError, match="new_app_is_home"):
+        await _move(hass, entry, panel, tmp_path)
+
+    assert panel.steps == ["OBSERVE"]
+    assert panel.successor and panel.legacy
+
+
+@pytest.mark.parametrize(
+    "outcome", [(False, 16), (True, 0)], ids=["restore-failed", "state-not-written"]
+)
+async def test_an_incomplete_restore_keeps_the_record_and_the_offer(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    tmp_path: Path,
+    outcome: tuple[bool, int],
+) -> None:
+    panel = FakePanel()
+    panel.outcome = outcome
+    _attach(entry, panel)
+
+    with pytest.raises(MoveError, match="move_failed"):
+        await _move(hass, entry, panel, tmp_path)
+
+    assert _record_file(hass, entry).exists()
+    assert entry.data.get(CONF_SUCCESSOR_MOVE) == {"panel_id": "office"}
+    assert entry.unique_id == OLD_DID
+
+
+async def test_the_record_outlives_the_adoption_until_it_is_saved(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
+) -> None:
+    panel = FakePanel()
+    _attach(entry, panel)
+    await _move(hass, entry, panel, tmp_path)
+    record = _record_file(hass, entry)
+    assert record.exists() and json.loads(record.read_text())["new_did"] == NEW_DID
+    assert CONF_SUCCESSOR_MOVE not in entry.data
+
+    # Core stopped before it saved the adopted identity: the entry comes back
+    # with the old one, and the record adopts the new identity again.
+    hass.config_entries.async_update_entry(entry, unique_id=OLD_DID)
+    with patch.object(panel_move, "adopt_moved_identity") as adopt:
+        await async_restore_move_offer(hass, entry)
+    adopt.assert_called_once_with(hass, entry, NEW_DID)
+    assert record.exists()
+
+    # Saved: the next setup reads the new identity back from disk and settles.
+    hass.config_entries.async_update_entry(entry, unique_id=NEW_DID)
+    storage = Path(hass.config.path(".storage", "core.config_entries"))
+    _save_entry(storage, entry.entry_id, OLD_DID)
+    await async_restore_move_offer(hass, entry)
+    assert record.exists()
+    _save_entry(storage, entry.entry_id, NEW_DID)
+    await async_restore_move_offer(hass, entry)
+    assert not record.exists()

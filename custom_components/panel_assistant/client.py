@@ -866,27 +866,40 @@ class HaPaneldClient:
             raise UpdateRejectedError
         raise CannotConnectError
 
-    async def async_restore_lane_free(self, data: bytes) -> bool:
-        """Return whether the panel has no restore or install still running.
+    async def async_get_restore_outcome(self) -> tuple[bool, int] | None:
+        """Return the finished restore's outcome: success, and state rows written.
 
-        A preview of the same backup takes the panel's operation lane only when
-        it is free and writes nothing, so its answer is the lane's state.
+        None while an operation runs or when the last one was not a restore.
+        The panel writes carried state rows all together or not at all, and
+        reports how many landed.
         """
-        status, body = await self._async_post_bounded(
-            self.address.base_url.with_path(RESTORE_PATH).with_query(dry_run="1"),
-            data,
-            _MAX_RESTORE_RESPONSE_BYTES,
-            _BACKUP_TIMEOUT_SECONDS,
-        )
-        if status == 200:
-            return True
-        if status == 409:
-            return False
-        if status == 202:
-            parse_update_approval_response(body)
-        if 400 <= status < 500:
-            raise UpdateRejectedError
-        raise CannotConnectError
+        try:
+            status = json.loads(
+                await self._async_get_bounded(
+                    self.install_status_url, MAX_INSTALL_RESPONSE_BYTES
+                )
+            )
+        except ValueError as err:
+            raise InvalidResponseError from err
+        if (
+            not isinstance(status, dict)
+            or status.get("running") is not False
+            or status.get("component") != "Restore"
+        ):
+            return None
+        result = status.get("result")
+        presentation = status.get("presentation")
+        succeeded = isinstance(result, dict) and result.get("status") == "succeeded"
+        rows = 0
+        if (
+            isinstance(presentation, dict)
+            and presentation.get("code") == "restore-completed-with-state"
+            and isinstance(presentation.get("params"), dict)
+        ):
+            count = presentation["params"].get("count")
+            if isinstance(count, str) and count.isdigit():
+                rows = int(count)
+        return succeeded, rows
 
     async def async_get_successor_capability(self) -> tuple[str, str, int | None, bool]:
         """Read the bridge's explicit LAN handover capability, never infer it."""
