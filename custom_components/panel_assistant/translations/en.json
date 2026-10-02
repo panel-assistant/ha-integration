@@ -530,6 +530,24 @@
     }
   },
   "issues": {
+    "panel_permissions": {
+      "title": "Permissions need attention on {panel}.",
+      "fix_flow": {
+        "step": {
+          "commission_permissions": {
+            "title": "Check permissions on {panel}",
+            "description": "The dashboard on {panel} remains available. On the physical panel, open Android Settings → Apps → ha-paneld. Allow camera and microphone access where listed, and notifications. Under Special app access, allow Modify system settings and Display over other apps for ha-paneld. Under Accessibility, enable the ha-paneld service. Return here and select Submit to check the permissions again."
+          }
+        },
+        "error": {
+          "permissions_missing": "The panel still reports a missing permission. Complete the steps on the panel, then submit again.",
+          "permissions_unreadable": "Home Assistant could not verify every required permission on this panel. Check that the panel is connected, then submit again."
+        },
+        "abort": {
+          "entry_removed": "This panel has been removed."
+        }
+      }
+    },
       "restart_required": {
         "title": "Restart Home Assistant to finish updating Panel Assistant",
         "fix_flow": {

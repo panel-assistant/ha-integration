@@ -190,6 +190,24 @@
     }
   },
   "issues": {
+    "panel_permissions": {
+      "title": "{panel} 的权限需要处理。",
+      "fix_flow": {
+        "step": {
+          "commission_permissions": {
+            "title": "检查 {panel} 的权限",
+            "description": "{panel} 的仪表盘仍可使用。在实体面板上打开 Android 设置 → 应用 → ha-paneld。允许列表中显示的相机和麦克风权限，以及通知。在特殊应用权限中，允许 ha-paneld 修改系统设置和显示在其他应用上层。在无障碍设置中启用 ha-paneld 服务。返回此处并选择提交，再次检查权限。"
+          }
+        },
+        "error": {
+          "permissions_missing": "面板仍报告缺少权限。请在面板上完成上述步骤，然后再次提交。",
+          "permissions_unreadable": "Home Assistant 无法确认此面板的所有必要权限。请检查面板是否已连接，然后再次提交。"
+        },
+        "abort": {
+          "entry_removed": "此面板已被移除。"
+        }
+      }
+    },
       "restart_required": {
         "title": "重启 Home Assistant 以完成 Panel Assistant 的更新",
         "fix_flow": {

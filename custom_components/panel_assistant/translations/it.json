@@ -190,6 +190,24 @@
     }
   },
   "issues": {
+    "panel_permissions": {
+      "title": "Le autorizzazioni su {panel} richiedono attenzione.",
+      "fix_flow": {
+        "step": {
+          "commission_permissions": {
+            "title": "Verifica le autorizzazioni su {panel}",
+            "description": "La dashboard su {panel} resta disponibile. Sul pannello fisico, apri Impostazioni Android → App → ha-paneld. Consenti l’accesso a fotocamera e microfono, se elencati, e le notifiche. In Accesso speciale alle app, consenti a ha-paneld di Modificare le impostazioni di sistema e Mostrare sopra altre app. In Accessibilità, attiva il servizio ha-paneld. Torna qui e seleziona Invia per verificare di nuovo le autorizzazioni."
+          }
+        },
+        "error": {
+          "permissions_missing": "Il pannello segnala ancora un’autorizzazione mancante. Completa i passaggi sul pannello e invia di nuovo.",
+          "permissions_unreadable": "Home Assistant non ha potuto verificare tutte le autorizzazioni necessarie su questo pannello. Verifica che sia connesso e invia di nuovo."
+        },
+        "abort": {
+          "entry_removed": "Questo pannello è stato rimosso."
+        }
+      }
+    },
       "restart_required": {
         "title": "Riavvia Home Assistant per completare l'aggiornamento di Panel Assistant",
         "fix_flow": {

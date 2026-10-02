@@ -280,7 +280,7 @@ def _permissions_output(
             _ACCESSIBILITY_SERVICES[package_id],
             "1",
             "WRITE_SETTINGS: allow",
-            "SYSTEM_ALERT_WINDOW: allow",
+            "SYSTEM_ALERT_WINDOW: allow\nunsupported\nunsupported",
         ],
         0,
     )

@@ -133,7 +133,7 @@ async def test_repair_preserves_entry_device_and_entity_ids(hass: HomeAssistant)
     assert updated.device_id == device.id
     assert updated.unique_id == f"{OTHER_DID}_relay1"
     assert entry.unique_id == OTHER_DID
-    assert entry.data["installation_identity"] is True
+    assert entry.data.get("installation_identity") is True
     assert (await flow.async_step_confirm_identity({}))["type"] is FlowResultType.ABORT
 
 

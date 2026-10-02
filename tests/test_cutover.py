@@ -1524,7 +1524,7 @@ async def test_old_complete_cutover_recovers_a_quarantined_unknown_button(
     (row,) = (
         row for row in repaired["unmigrated"] if row["registry_id"] == original.id
     )
-    assert row["disabled_by_before"] is None
+    assert "disabled_by_before" in row and row["disabled_by_before"] is None
     (row,) = (
         row for row in repaired["unmigrated"] if row["registry_id"] == user_disabled.id
     )

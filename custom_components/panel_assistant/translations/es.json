@@ -190,6 +190,24 @@
     }
   },
   "issues": {
+    "panel_permissions": {
+      "title": "Los permisos de {panel} requieren atención.",
+      "fix_flow": {
+        "step": {
+          "commission_permissions": {
+            "title": "Comprobar los permisos de {panel}",
+            "description": "El panel de control de {panel} sigue disponible. En el panel físico, abre Ajustes de Android → Aplicaciones → ha-paneld. Permite el acceso a la cámara y al micrófono si aparecen, y las notificaciones. En Acceso especial de aplicaciones, permite a ha-paneld Modificar ajustes del sistema y Mostrar sobre otras aplicaciones. En Accesibilidad, activa el servicio de ha-paneld. Vuelve aquí y selecciona Enviar para comprobar los permisos de nuevo."
+          }
+        },
+        "error": {
+          "permissions_missing": "El panel sigue indicando que falta un permiso. Completa los pasos en el panel y vuelve a enviar.",
+          "permissions_unreadable": "Home Assistant no pudo verificar todos los permisos necesarios en este panel. Comprueba que esté conectado y vuelve a enviar."
+        },
+        "abort": {
+          "entry_removed": "Este panel se ha eliminado."
+        }
+      }
+    },
       "restart_required": {
         "title": "Reinicia Home Assistant para terminar de actualizar Panel Assistant",
         "fix_flow": {
