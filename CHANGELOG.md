@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.7.0-rc3 - 2026-10-02
+
+**Sorry, Sonoff NSPanel Pro owners.** The move to the app's new name was first built the way ha-paneld did everything in its MQTT-only days: entirely on the panel. The panel had to hand itself over to the new app, and that needed the root helper, which since version 0.9.4 has to be registered in the panel's system partition. On some NSPanel Pros that partition is full, so the helper could not go in, even though the app on these panels can use root by itself and doesn't need the helper to run. If your panel got stuck partway through the move, refused to install, or Panel Assistant 0.6.3 told you "The release did not match its signature, so nothing was installed", that was down to this approach, not your panel. Please don't install Magisk or delete anything from the system partition to get round it; you should never need to.
+
+The fix plays to what Panel Assistant is there for. Instead of asking each panel to move itself, Panel Assistant 0.7.0-rc3 does the heavy lifting from Home Assistant: it shows a Repair for each panel that still needs to move, and one click backs the panel up, moves it to the new app over your network and keeps its settings. If the panel asks whether to allow USB debugging, tap Allow. Having one central Panel Assistant looking after the panels has already made this move far simpler, and it is how future moves will be done. One case isn't handled yet: if the new app has already run beside the old app, for example after an earlier attempt, the Repair says so and changes nothing; a later release will cover it. The ha-paneld 0.9.9-rc3 installer also stops failing on these panels: when there is nowhere to put the helper, it warns and finishes without it. Thank you to everyone who reported this and sent logs.
+
+Pairs with ha-paneld v0.9.9-rc3.
+
+### New
+
+- **Move a panel to the new app from Home Assistant.** A panel still running the old ha-paneld app, including one whose move to the new app was refused or stopped partway, gets a Repair called "Move (panel name) to the new app". One click backs the panel up into Home Assistant, installs the new app over your network, carries its settings across and removes the old app. You don't need to root the panel or type any commands. If the panel asks whether to allow USB debugging, tap Allow. If the new app has already run beside the old app, the Repair says so and changes nothing for now.
+- **A Repair when a panel is missing an Android permission.** When Panel Assistant installs or updates the app on a panel it is allowed to reach over network debugging, it puts back any permission the app needs that Android shows as missing, and leaves the rest alone. If the panel still reports a missing permission, a Repair shows the steps to take on the panel.
+- **Panels hear about Home Assistant restarts.** Panel Assistant tells each panel when Home Assistant is shutting down and when it is ready again, and, once it has timed a restart, how long one usually takes on your system.
+
+### Improved
+
+- **Updates no longer start a panel's own move.** Updating a panel that still runs the old app now points you to its Repair instead, so the two cannot get in each other's way.
+
+### Fixed
+
+- **Translations.** Corrections from the quarterly review of the translated text in every language.
+
 ## 0.7.0-rc2 - 2026-10-01
 
 The second release candidate for Panel Assistant 0.7.0 brings smoother panel updates, helpful Repairs and a native camera. Reminder: 0.7.0 is the last Panel Assistant release that supports MQTT panels and the last that moves them over to its own connection. Pairs with ha-paneld v0.9.9-rc2.
