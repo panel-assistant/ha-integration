@@ -116,7 +116,7 @@ from .release import (
 from .status import PanelCachedUpdate, home_ui_allows
 from .transport import async_get_sessions
 from .update_coordinator import PanelUpdateCoordinator
-from .update_policy import build_allowed, prereleases_allowed
+from .update_policy import build_allowed, prereleases_allowed, version_allowed
 
 _ANDROID_DOWNLOAD_MAX_SECONDS = 10 * 60
 _ANDROID_PACKAGE_INSTALL_MAX_SECONDS = 3 * 60
@@ -998,25 +998,16 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         snapshot: PanelSnapshot | None = self.coordinator.data
         if snapshot is None:
             return False
-        installed = _version_key(snapshot.health.version)
-        candidate = _version_key(artifact.version)
-        if installed is None or candidate is None:
-            return False
-        if installed[0] >= (1, 0, 0):
-            installed_code = (
-                snapshot.health.version_code
-                if snapshot.health.version_code is not None
-                else self._installed_code
-            )
-            if candidate < installed:
-                return False
-            if (
-                artifact.descriptor is not None
-                and installed_code is not None
-                and artifact.descriptor.version_code < installed_code
-            ):
-                return False
-        return True
+        return version_allowed(
+            artifact.version,
+            artifact.descriptor.version_code
+            if artifact.descriptor is not None
+            else None,
+            snapshot.health.version,
+            snapshot.health.version_code
+            if snapshot.health.version_code is not None
+            else self._installed_code,
+        )
 
     def _host_release(self) -> ReleaseArtifact | None:
         """Return the release authenticated here, when newer than the panel's."""

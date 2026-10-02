@@ -1,6 +1,7 @@
 """Panel Assistant moves a panel from the old app id to the new one over ADB."""
 
 import json
+from dataclasses import replace
 from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
@@ -27,6 +28,7 @@ from custom_components.panel_assistant.client import (
     UpdateBusyError,
 )
 from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.feed_coordinator import StableReleaseCoordinator
 from custom_components.panel_assistant.identity import (
     adopt_moved_identity,
     reconcile_identity,
@@ -53,6 +55,8 @@ from custom_components.panel_assistant.panel_move import (
     release_panel_operation,
     verify_move_receipt,
 )
+
+_STABLE_RELEASE_READ = StableReleaseCoordinator._async_update_data
 
 OLD_DID = "a" * 64
 NEW_DID = "b" * 64
@@ -241,8 +245,11 @@ def _patches(panel: FakePanel, tmp_path: Path, adopted: list[str]) -> Any:
     async def target(*_args: Any) -> Any:
         return SimpleNamespace(serial=panel.serial), "key"
 
-    descriptor = SimpleNamespace(package_id=SUCCESSOR_PACKAGE_ID)
-    artifact = SimpleNamespace(descriptor=descriptor)
+    from custom_components.panel_assistant.build_feed import feed_release_artifact
+
+    from .test_feed_install_paths import _build
+
+    artifact = feed_release_artifact(_build(package_id=SUCCESSOR_PACKAGE_ID))
     return [
         patch.object(panel_move, "_successor_artifact", return_value=artifact),
         patch.object(panel_move, "_async_target", target),
@@ -827,3 +834,240 @@ def _write_record_file(path: Path) -> None:
             }
         )
     )
+
+
+async def _publish_move_candidate(hass, monkeypatch, source, version, protocol_range):
+    """Refresh the real coordinators from their authenticated-reader seams."""
+    from custom_components.panel_assistant import feed_coordinator, release_catalog
+    from custom_components.panel_assistant.build_feed import (
+        BuildFeed,
+        feed_release_artifact,
+    )
+    from custom_components.panel_assistant.feed_coordinator import (
+        DATA_BUILD_FEED,
+        DATA_STABLE_RELEASE,
+        BuildFeedCoordinator,
+        StableReleaseCoordinator,
+    )
+
+    from .test_feed_install_paths import FEED_URL, _build
+
+    build = replace(
+        _build(package_id=SUCCESSOR_PACKAGE_ID),
+        version_name=version,
+        protocol_min=protocol_range[0],
+        protocol_max=protocol_range[1],
+    )
+    artifact = feed_release_artifact(build)
+    monkeypatch.setattr(
+        StableReleaseCoordinator, "_async_update_data", _STABLE_RELEASE_READ
+    )
+    stable = StableReleaseCoordinator(hass)
+    hass.data.setdefault(DOMAIN, {})[DATA_STABLE_RELEASE] = stable
+    monkeypatch.setattr(
+        release_catalog,
+        "async_resolve_update_candidates",
+        AsyncMock(
+            return_value=[(SimpleNamespace(artifact=artifact), None)]
+            if source == "release"
+            else []
+        ),
+    )
+    await stable.async_refresh()
+    if source == "feed":
+        feed = BuildFeedCoordinator(hass, FEED_URL)
+        hass.data[DOMAIN][DATA_BUILD_FEED] = feed
+        monkeypatch.setattr(
+            feed_coordinator,
+            "async_fetch_build_feed",
+            AsyncMock(return_value=BuildFeed("maintainer", (build,))),
+        )
+        monkeypatch.setattr(
+            feed_coordinator, "async_download_build", AsyncMock(return_value=b"apk")
+        )
+        await feed.async_refresh()
+    return artifact
+
+
+@pytest.mark.parametrize("source", ["feed", "release"])
+@pytest.mark.parametrize(
+    "pa_version,opt_in,version,protocol_range,installed_version,installed_code,allowed",
+    [
+        ("1.0.0", False, "1.2.0", (3, 3), "0.9.9", None, True),
+        ("1.0.0", False, "1.2.0-rc1", (3, 3), "0.9.9", None, False),
+        ("1.0.0", True, "1.2.0-rc1", (3, 3), "0.9.9", None, True),
+        ("1.0.0-rc1", False, "1.2.0-rc1", (3, 3), "0.9.9", None, True),
+        ("1.0.0", True, "1.2.0", (None, None), "0.9.9", None, False),
+        ("1.0.0", True, "1.2.0", (4, 4), "0.9.9", None, False),
+        ("1.0.0", False, "1.1.0", (3, 3), "1.2.0", 772, False),
+        ("1.0.0", False, "1.2.0", (3, 3), "1.2.0", 773, False),
+        ("1.0.0", False, "1.2.0", (3, 3), "1.2.0", 772, True),
+        ("1.0.0", False, "1.3.0", (3, 3), "1.2.0", None, True),
+        ("1.0.0", False, "0.9.8", (3, 3), "0.9.9", 773, True),
+        ("1.0.0", False, "1.2.0", (3, 3), None, None, False),
+    ],
+    ids=[
+        "stable",
+        "rc-refused",
+        "panel-opt-in",
+        "pa-rc",
+        "unknown",
+        "disjoint",
+        "semantic-downgrade",
+        "code-downgrade",
+        "same-build",
+        "unknown-old-code",
+        "pre-1-recovery",
+        "offline",
+    ],
+)
+async def test_move_installs_only_the_current_panel_policy_candidate(
+    hass,
+    entry,
+    monkeypatch,
+    source,
+    pa_version,
+    opt_in,
+    version,
+    protocol_range,
+    installed_version,
+    installed_code,
+    allowed,
+):
+    """The Repair's actual selector and installer respect source proof and opt-in."""
+    from custom_components.panel_assistant import update_policy
+    from custom_components.panel_assistant.install_adb import InstallOutcome
+
+    _attach(entry, FakePanel())
+    entry.runtime_data.client.async_get_health = (
+        AsyncMock(side_effect=HaPaneldError)
+        if installed_version is None
+        else AsyncMock(
+            return_value=PanelHealth(
+                version=installed_version,
+                version_code=installed_code,
+                panel_id="office",
+                build="observed",
+                config_hash=LEGACY_CFG,
+                package=LEGACY_PACKAGE_ID,
+            )
+        )
+    )
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", pa_version)
+    hass.config_entries.async_update_entry(
+        entry, options={"prerelease_panel_builds": opt_in}
+    )
+    artifact = await _publish_move_candidate(
+        hass, monkeypatch, source, version, protocol_range
+    )
+    events = []
+
+    async def download(*_args):
+        events.append("download")
+        return b"apk"
+
+    async def stage(*_args, **_kwargs):
+        events.append("stage")
+        return "staged"
+
+    async def install(*_args, **_kwargs):
+        events.append("install")
+        return InstallOutcome.INSTALLED
+
+    monkeypatch.setattr(panel_move, "async_download_build", download)
+    monkeypatch.setattr(
+        panel_move,
+        "async_preflight_install",
+        AsyncMock(
+            return_value=SimpleNamespace(migration_candidate=True, root_mode="none")
+        ),
+    )
+    monkeypatch.setattr(panel_move, "async_stage_apk", stage)
+    monkeypatch.setattr(panel_move, "async_install_staged_apk", install)
+    cleanup = AsyncMock()
+    monkeypatch.setattr(panel_move, "async_cleanup_staged_apk", cleanup)
+    if allowed:
+        assert await panel_move._async_install_successor(
+            hass, entry, "target", "key"
+        ) == (artifact)
+        assert events == ["download", "stage", "install"]
+        assert (
+            cleanup.await_args.args[3]
+            is install_adb.DefiniteCleanupReason.INSTALL_SUCCEEDED
+        )
+    else:
+        with pytest.raises(MoveError) as failure:
+            await panel_move._async_install_successor(hass, entry, "target", "key")
+        assert failure.value.reason == panel_move.REASON_RELEASE_UNAVAILABLE
+        assert events == []
+        cleanup.assert_not_awaited()
+
+
+@pytest.mark.parametrize("change", ["channel", "semantic", "code"])
+@pytest.mark.parametrize("revoke_at", ["download", "preflight", "stage"])
+async def test_move_rechecks_changed_admission_before_each_apk_mutation(
+    hass, entry, monkeypatch, revoke_at, change
+):
+    """Changed admission refuses the next APK mutation and clears its staged custody."""
+    from custom_components.panel_assistant import update_policy
+    from custom_components.panel_assistant.install_adb import InstallOutcome
+
+    _attach(entry, FakePanel())
+    installed = [await entry.runtime_data.client.async_get_health()]
+    entry.runtime_data.client.async_get_health = AsyncMock(
+        side_effect=lambda: installed[0]
+    )
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "1.0.0")
+    hass.config_entries.async_update_entry(
+        entry, options={"prerelease_panel_builds": True}
+    )
+    await _publish_move_candidate(hass, monkeypatch, "release", "1.2.0-rc1", (3, 3))
+    events = []
+
+    def observe(step):
+        events.append(step)
+        if step == revoke_at:
+            if change == "channel":
+                hass.config_entries.async_update_entry(
+                    entry, options={"prerelease_panel_builds": False}
+                )
+            else:
+                installed[0] = replace(
+                    installed[0],
+                    version="1.3.0" if change == "semantic" else "1.2.0-rc1",
+                    version_code=773,
+                )
+
+    async def download(*_args):
+        observe("download")
+        return b"apk"
+
+    async def preflight(*_args):
+        observe("preflight")
+        return SimpleNamespace(migration_candidate=True, root_mode="none")
+
+    async def stage(*_args, **_kwargs):
+        observe("stage")
+        return "staged"
+
+    monkeypatch.setattr(panel_move, "async_download_build", download)
+    monkeypatch.setattr(panel_move, "async_preflight_install", preflight)
+    monkeypatch.setattr(panel_move, "async_stage_apk", stage)
+    install = AsyncMock(return_value=InstallOutcome.INSTALLED)
+    monkeypatch.setattr(panel_move, "async_install_staged_apk", install)
+    cleanup = AsyncMock()
+    monkeypatch.setattr(panel_move, "async_cleanup_staged_apk", cleanup)
+    with pytest.raises(MoveError) as failure:
+        await panel_move._async_install_successor(hass, entry, "target", "key")
+    assert failure.value.reason == panel_move.REASON_RELEASE_UNAVAILABLE
+    assert "download" in events
+    assert ("stage" in events) is (revoke_at == "stage")
+    install.assert_not_awaited()
+    if revoke_at == "stage":
+        assert cleanup.await_count == 1
+        assert (
+            cleanup.await_args.args[3]
+            is install_adb.DefiniteCleanupReason.INSTALL_REFUSED
+        )
+    else:
+        cleanup.assert_not_awaited()

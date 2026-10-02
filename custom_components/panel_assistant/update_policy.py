@@ -53,6 +53,29 @@ def build_allowed(
     return version is not None and (version[1] or allow_prerelease is True)
 
 
+def version_allowed(
+    version_name: str,
+    version_code: int | None,
+    installed_version: str,
+    installed_code: int | None,
+) -> bool:
+    """Apply the same post-1.0 ordering to updates and identity moves."""
+    installed = _version_key(installed_version)
+    candidate = _version_key(version_name)
+    if installed is None or candidate is None:
+        return False
+    if installed[0] >= (1, 0, 0):
+        if candidate < installed:
+            return False
+        if (
+            version_code is not None
+            and installed_code is not None
+            and version_code < installed_code
+        ):
+            return False
+    return True
+
+
 def policy_for(entry: ConfigEntry | None = None) -> dict[str, int | bool]:
     """Advertise this entry's current policy in its authenticated hello grant."""
     return {
