@@ -590,7 +590,7 @@ async def test_same_number_from_another_app_does_not_verify_the_install(
     with pytest.raises(HomeAssistantError) as error:
         await entity.async_install(None, False)
 
-    _assert_translated(error.value, "update_did_not_return")
+    _assert_translated(error.value, "update_not_complete")
     client.async_commit_apk.assert_awaited_once()
 
 

@@ -182,7 +182,6 @@
     "staged_app_mismatch": { "message": "L’app preparata non corrispondeva ai dati della versione firmata. Non è stato installato nulla." },
     "update_not_accepted": { "message": "Il pannello non ha accettato la richiesta di aggiornamento" },
     "update_not_complete": { "message": "L'aggiornamento del pannello non è stato completato" },
-    "update_did_not_return": { "message": "Il pannello non è tornato disponibile dopo l'aggiornamento" },
     "panel_backup_failed": { "message": "Non è stato possibile eseguire il backup del pannello, quindi non è stato installato nulla" },
     "build_verification_failed": { "message": "La build non corrispondeva al feed delle build firmato, quindi non è stato installato nulla" },
     "release_verification_failed": { "message": "La release non corrispondeva alla sua firma, quindi non è stato installato nulla" },

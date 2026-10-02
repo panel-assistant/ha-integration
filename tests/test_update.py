@@ -430,7 +430,8 @@ async def test_update_entity_reports_a_completed_panel_operation_without_new_hea
         ),
         error=None,
     )
-    monkeypatch.setattr(panel_update, "_TERMINAL_STATUS_GRACE_SECONDS", 0)
+    monkeypatch.setattr(panel_update, "_UPDATE_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(panel_update, "_UPDATE_RECHECK_SECONDS", 0.01)
 
     with pytest.raises(HomeAssistantError, match="did not complete") as error:
         await entity.async_install(None, backup=False)

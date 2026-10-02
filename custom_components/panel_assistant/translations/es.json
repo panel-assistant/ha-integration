@@ -182,7 +182,6 @@
     "staged_app_mismatch": { "message": "La aplicación preparada no coincidía con los datos de la versión firmada, por lo que no se instaló nada." },
     "update_not_accepted": { "message": "El panel no aceptó la solicitud de actualización" },
     "update_not_complete": { "message": "La actualización del panel no se completó" },
-    "update_did_not_return": { "message": "El panel no volvió después de la actualización" },
     "panel_backup_failed": { "message": "No se pudo hacer una copia de seguridad del panel, así que no se instaló nada" },
     "build_verification_failed": { "message": "La compilación no coincidía con el feed de compilaciones firmado, así que no se instaló nada" },
     "release_verification_failed": { "message": "La versión no coincidía con su firma, así que no se instaló nada" },
