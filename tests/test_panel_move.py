@@ -1,6 +1,7 @@
 """Panel Assistant moves a panel from the old app id to the new one over ADB."""
 
 import json
+import re
 from dataclasses import replace
 from hashlib import sha256
 from io import BytesIO
@@ -26,6 +27,7 @@ from custom_components.panel_assistant.client import (
     PanelHealth,
     UpdateApprovalRequiredError,
     UpdateBusyError,
+    normalize_address,
 )
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.feed_coordinator import StableReleaseCoordinator
@@ -34,8 +36,11 @@ from custom_components.panel_assistant.identity import (
     reconcile_identity,
 )
 from custom_components.panel_assistant.install_adb import (
+    AdbInstallTarget,
+    AdbRootMode,
     InstallAdbError,
     InstallAdbErrorCode,
+    InstallOutcome,
     LaunchOutcome,
     MoveObservation,
     MoveStep,
@@ -113,6 +118,12 @@ class FakePanel:
         self.backup = _archive()
         self.serial = SERIAL
         self.retire_fails: str | None = None
+        self.accepted_artifact: Any = None
+        self.installed_descriptor: Any = None
+        self.installed_digest: str | None = None
+        self.installed_size: int | None = None
+        self.root_mode = AdbRootMode.ROOTLESS
+        self.adb_reads: list[Any] = []
 
     def observe(self) -> MoveObservation:
         return MoveObservation(
@@ -146,13 +157,17 @@ class FakePanel:
             self.running = None
         return self.observe()
 
-    async def install(self, *_args: Any) -> None:
+    async def install(self, *_args: Any) -> tuple[Any, AdbRootMode]:
         self.steps.append("INSTALL")
         assert self.legacy and not self.successor
         self.successor = True
+        self.installed_descriptor = self.accepted_artifact.descriptor
+        return self.accepted_artifact, self.root_mode
 
     async def launch(self, *_args: Any, **_kwargs: Any) -> LaunchOutcome:
         self.steps.append("LAUNCH")
+        assert _args[2] == self.installed_descriptor, "another build launched"
+        assert _kwargs["expected_root_mode"] == self.root_mode
         assert not self.legacy, "new app started beside the old one"
         assert not self.successor_state, "new app started with stale state"
         self.running = SUCCESSOR_PACKAGE_ID
@@ -231,7 +246,9 @@ def _attach(entry: MockConfigEntry, panel: FakePanel) -> None:
     )
 
 
-def _patches(panel: FakePanel, tmp_path: Path, adopted: list[str]) -> Any:
+def _patches(
+    panel: FakePanel, tmp_path: Path, adopted: list[str], *, real_install: bool = False
+) -> Any:
     async def store(_hass: Any, _entry_id: str, _code: Any, data: bytes) -> Any:
         path = tmp_path / "receipt.zip"
         path.write_bytes(data)
@@ -242,29 +259,111 @@ def _patches(panel: FakePanel, tmp_path: Path, adopted: list[str]) -> Any:
         _hass.config_entries.async_update_entry(entry, unique_id=did)
         return True
 
+    from adb_shell.auth.sign_pythonrsa import PythonRSASigner
+
     async def target(*_args: Any) -> Any:
-        return SimpleNamespace(serial=panel.serial), "key"
+        return AdbInstallTarget(
+            normalize_address("192.168.1.23"),
+            panel.serial,
+            "Test Panel",
+            "arm64-v8a",
+            34,
+        ), object.__new__(PythonRSASigner)
 
     from custom_components.panel_assistant.build_feed import feed_release_artifact
 
     from .test_feed_install_paths import _build
+    from .test_install_adb import (
+        FakeDevice,
+        _identity_root_output,
+        _installed_artifact_output,
+        _single_output,
+    )
+
+    class InstalledDevice(FakeDevice):
+        async def streaming_shell(self, command: str, **_kwargs: Any) -> Any:
+            self.commands.append(command)
+            kind, nonce = re.search(
+                r"HAPANELD_(POSTURE|PACKAGE|ARTIFACT)_BEGIN:([0-9a-f]+)", command
+            ).groups()
+            apk_path = f"/data/app/{SUCCESSOR_PACKAGE_ID}/base.apk"
+            if kind == "POSTURE":
+                body = _identity_root_output(
+                    nonce,
+                    serial=panel.serial,
+                    uid="0" if panel.root_mode is AdbRootMode.ROOT_ADBD else "2000",
+                )
+            elif kind == "PACKAGE":
+                body = _single_output(
+                    kind, nonce, [f"package:{apk_path}"] if panel.successor else [], 0
+                )
+            else:
+                descriptor = panel.installed_descriptor
+                assert descriptor is not None, "installed bytes were never identified"
+                body = _installed_artifact_output(
+                    nonce,
+                    path=apk_path,
+                    size=panel.installed_size
+                    if panel.installed_size is not None
+                    else descriptor.apk_size,
+                    sha256=panel.installed_digest or descriptor.apk_sha256,
+                )
+            yield body
+
+    def device(*_args: Any, **_kwargs: Any) -> InstalledDevice:
+        found = InstalledDevice([])
+        panel.adb_reads.append(found)
+        return found
 
     artifact = feed_release_artifact(_build(package_id=SUCCESSOR_PACKAGE_ID))
-    return [
-        patch.object(panel_move, "_successor_artifact", return_value=artifact),
+    if panel.accepted_artifact is None:
+        panel.accepted_artifact = artifact
+    patches = [
+        patch.object(install_adb, "AdbDeviceAsync", device),
         patch.object(panel_move, "_async_target", target),
         patch.object(panel_move, "async_move_step", panel.step),
-        patch.object(panel_move, "_async_install_successor", panel.install),
         patch.object(panel_move, "async_store_panel_backup", store),
         patch.object(
             panel_move,
             "async_preflight_install",
-            AsyncMock(return_value=SimpleNamespace(root_mode="none")),
+            AsyncMock(
+                return_value=SimpleNamespace(
+                    migration_candidate=True, root_mode=panel.root_mode
+                )
+            ),
         ),
         patch.object(panel_move, "async_launch_installed_app", panel.launch),
         patch.object(panel_move, "adopt_moved_identity", adopt),
         patch.object(panel_move, "_POLL_SECONDS", 0),
     ]
+    if real_install:
+
+        async def install(*_args: Any, before_install: Any, **_kwargs: Any) -> Any:
+            await before_install()
+            await panel.install()
+            panel.installed_descriptor = _args[2]
+            return InstallOutcome.INSTALLED
+
+        patches.extend(
+            [
+                patch.object(
+                    panel_move, "async_download_build", AsyncMock(return_value=b"apk")
+                ),
+                patch.object(
+                    panel_move, "async_stage_apk", AsyncMock(return_value="staged")
+                ),
+                patch.object(panel_move, "async_install_staged_apk", install),
+                patch.object(panel_move, "async_cleanup_staged_apk", AsyncMock()),
+            ]
+        )
+    else:
+        patches.extend(
+            [
+                patch.object(panel_move, "_successor_artifact", return_value=artifact),
+                patch.object(panel_move, "_async_install_successor", panel.install),
+            ]
+        )
+    return patches
 
 
 async def _move(
@@ -467,8 +566,8 @@ async def test_a_move_stopped_before_the_old_app_went_finishes_on_retry(
     panel.steps.clear()
     adopted = await _move(hass, entry, panel, tmp_path)
 
-    # Its own new app beside the old one is kept, and a fresh receipt is taken
-    # from the old app that still owns the panel.
+    # Its installed APK is kept, with a fresh receipt from the old app
+    # that still owns this panel.
     assert [s for s in panel.steps if s != "LANE"][:3] == [
         "OBSERVE",
         "BACKUP",
@@ -836,7 +935,9 @@ def _write_record_file(path: Path) -> None:
     )
 
 
-async def _publish_move_candidate(hass, monkeypatch, source, version, protocol_range):
+async def _publish_move_candidate(
+    hass, monkeypatch, source, version, protocol_range, *, code=772
+):
     """Refresh the real coordinators from their authenticated-reader seams."""
     from custom_components.panel_assistant import feed_coordinator, release_catalog
     from custom_components.panel_assistant.build_feed import (
@@ -853,7 +954,11 @@ async def _publish_move_candidate(hass, monkeypatch, source, version, protocol_r
     from .test_feed_install_paths import FEED_URL, _build
 
     build = replace(
-        _build(package_id=SUCCESSOR_PACKAGE_ID),
+        _build(
+            code=code,
+            sha=sha256(str(code).encode()).hexdigest(),
+            package_id=SUCCESSOR_PACKAGE_ID,
+        ),
         version_name=version,
         protocol_min=protocol_range[0],
         protocol_max=protocol_range[1],
@@ -979,7 +1084,9 @@ async def test_move_installs_only_the_current_panel_policy_candidate(
         panel_move,
         "async_preflight_install",
         AsyncMock(
-            return_value=SimpleNamespace(migration_candidate=True, root_mode="none")
+            return_value=SimpleNamespace(
+                migration_candidate=True, root_mode=AdbRootMode.ROOTLESS
+            )
         ),
     )
     monkeypatch.setattr(panel_move, "async_stage_apk", stage)
@@ -989,7 +1096,7 @@ async def test_move_installs_only_the_current_panel_policy_candidate(
     if allowed:
         assert await panel_move._async_install_successor(
             hass, entry, "target", "key"
-        ) == (artifact)
+        ) == (artifact, AdbRootMode.ROOTLESS)
         assert events == ["download", "stage", "install"]
         assert (
             cleanup.await_args.args[3]
@@ -1044,7 +1151,7 @@ async def test_move_rechecks_changed_admission_before_each_apk_mutation(
 
     async def preflight(*_args):
         observe("preflight")
-        return SimpleNamespace(migration_candidate=True, root_mode="none")
+        return SimpleNamespace(migration_candidate=True, root_mode=AdbRootMode.ROOTLESS)
 
     async def stage(*_args, **_kwargs):
         observe("stage")
@@ -1167,3 +1274,341 @@ async def test_move_revocation_during_final_adb_verification_cleans_without_inst
     assert not any("pm install " in cmd for cmd in install_device.commands)
     assert f"rm -f {REMOTE_PATH}" in cleanup_device.commands[-1]
     assert install_device.closed and cleanup_device.closed
+
+
+async def _policy_move(hass, entry, panel, tmp_path):
+    """Run the public Move with its real selector and accepted-install policy."""
+    patches = _patches(panel, tmp_path, [], real_install=True)
+    for item in patches:
+        item.start()
+    try:
+        await async_move_to_new_app(hass, entry)
+    finally:
+        for item in patches:
+            item.stop()
+
+
+async def _empty_move_catalogue(hass, monkeypatch):
+    from custom_components.panel_assistant import feed_coordinator, release_catalog
+    from custom_components.panel_assistant.build_feed import BuildFeed
+    from custom_components.panel_assistant.feed_coordinator import (
+        DATA_BUILD_FEED,
+        DATA_STABLE_RELEASE,
+    )
+
+    monkeypatch.setattr(
+        release_catalog, "async_resolve_update_candidates", AsyncMock(return_value=[])
+    )
+    monkeypatch.setattr(
+        feed_coordinator,
+        "async_fetch_build_feed",
+        AsyncMock(return_value=BuildFeed("maintainer", ())),
+    )
+    for key in (DATA_STABLE_RELEASE, DATA_BUILD_FEED):
+        if coordinator := hass.data[DOMAIN].get(key):
+            await coordinator.async_refresh()
+
+
+@pytest.mark.parametrize(
+    "source,version,change_at",
+    [
+        ("feed", "1.2.0-rc1", "install"),
+        ("release", "1.2.0-rc1", "retire"),
+        ("release", "1.2.0", "retire"),
+    ],
+    ids=[
+        "feed-consent-after-install",
+        "release-consent-after-retire",
+        "stable-feed-gone",
+    ],
+)
+async def test_an_accepted_move_finishes_after_current_admission_changes(
+    hass, entry, tmp_path, monkeypatch, source, version, change_at
+):
+    """An accepted APK still launches and restores after consent/catalogue changes."""
+    from custom_components.panel_assistant import update_policy
+
+    panel = FakePanel()
+    _attach(entry, panel)
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "1.0.0")
+    hass.config_entries.async_update_entry(
+        entry, options={"prerelease_panel_builds": True}
+    )
+    panel.accepted_artifact = await _publish_move_candidate(
+        hass, monkeypatch, source, version, (3, 3)
+    )
+    install, step = panel.install, panel.step
+
+    async def change_admission():
+        hass.config_entries.async_update_entry(
+            entry, options={"prerelease_panel_builds": False}
+        )
+        if version == "1.2.0":
+            await _empty_move_catalogue(hass, monkeypatch)
+
+    async def installed(*args):
+        result = await install(*args)
+        if change_at == "install":
+            await change_admission()
+        return result
+
+    async def moved(*args):
+        result = await step(*args)
+        if args[-1] is MoveStep.RETIRE_LEGACY and change_at == "retire":
+            await change_admission()
+        return result
+
+    panel.install, panel.step = installed, moved
+    await _policy_move(hass, entry, panel, tmp_path)
+
+    assert panel.steps.count("INSTALL") == panel.steps.count("LAUNCH") == 1
+    assert panel.restores == 2 and not panel.legacy
+    assert panel.home == SUCCESSOR_PACKAGE_ID
+    assert (panel.panel_id, panel.cfg) == ("office", LEGACY_CFG)
+    assert entry.unique_id == NEW_DID and CONF_SUCCESSOR_MOVE not in entry.data
+    assert len(panel.adb_reads) >= 2
+    assert all(device.closed for device in panel.adb_reads)
+
+
+@pytest.mark.parametrize("catalogue", ["empty", "different-build"])
+async def test_a_restart_before_launch_recovers_the_recorded_build(
+    hass, entry, tmp_path, monkeypatch, catalogue
+):
+    """Only the durable receipt remains; recovery uses its APK despite a new feed."""
+    from custom_components.panel_assistant import update_policy
+
+    panel = FakePanel()
+    _attach(entry, panel)
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "1.0.0")
+    hass.config_entries.async_update_entry(
+        entry, options={"prerelease_panel_builds": True}
+    )
+    panel.accepted_artifact = await _publish_move_candidate(
+        hass, monkeypatch, "release", "1.2.0-rc1", (3, 3)
+    )
+    launch = panel.launch
+
+    async def interrupted(*_args, **_kwargs):
+        raise InstallAdbError(InstallAdbErrorCode.INSTALL_AMBIGUOUS)
+
+    panel.launch = interrupted
+    with pytest.raises(MoveError):
+        await _policy_move(hass, entry, panel, tmp_path)
+    assert not panel.legacy and not panel.successor_launched
+    assert _record_file(hass, entry).exists()
+
+    # The delayed entry save was lost with Core; rehydrate only its durable offer.
+    hass.config_entries.async_update_entry(
+        entry, data={"address": "x"}, options={"prerelease_panel_builds": False}
+    )
+    await async_restore_move_offer(hass, entry)
+    if catalogue == "empty":
+        await _empty_move_catalogue(hass, monkeypatch)
+    else:
+        await _publish_move_candidate(
+            hass, monkeypatch, "release", "1.3.0", (3, 3), code=773
+        )
+    panel.launch = launch
+    panel.steps.clear()
+    await _policy_move(hass, entry, panel, tmp_path)
+
+    assert "INSTALL" not in panel.steps
+    assert panel.steps.count("LAUNCH") == 1 and panel.restores == 2
+    assert (panel.panel_id, panel.cfg) == ("office", LEGACY_CFG)
+    assert entry.unique_id == NEW_DID and CONF_SUCCESSOR_MOVE not in entry.data
+
+
+@pytest.mark.parametrize("interrupt_at", [MoveStep.CLAIM_HOME, MoveStep.RETIRE_LEGACY])
+async def test_a_legacy_present_retry_keeps_the_accepted_install(
+    hass, entry, tmp_path, monkeypatch, interrupt_at
+):
+    """A stop before HOME or retirement resumes without another install."""
+    from custom_components.panel_assistant import update_policy
+
+    panel = FakePanel()
+    _attach(entry, panel)
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "1.0.0")
+    hass.config_entries.async_update_entry(
+        entry, options={"prerelease_panel_builds": True}
+    )
+    panel.accepted_artifact = await _publish_move_candidate(
+        hass, monkeypatch, "release", "1.2.0-rc1", (3, 3)
+    )
+    step = panel.step
+
+    async def interrupted(*args):
+        if args[-1] is interrupt_at:
+            raise InstallAdbError(InstallAdbErrorCode.INSTALL_AMBIGUOUS)
+        return await step(*args)
+
+    panel.step = interrupted
+    with pytest.raises(MoveError):
+        await _policy_move(hass, entry, panel, tmp_path)
+    assert panel.legacy and panel.successor
+    assert _record_file(hass, entry).exists()
+    receipt = json.loads(_record_file(hass, entry).read_text())["receipt"]
+    original_receipt = await hass.async_add_executor_job(Path(receipt).read_bytes)
+
+    hass.config_entries.async_update_entry(
+        entry, options={"prerelease_panel_builds": False}
+    )
+    await _empty_move_catalogue(hass, monkeypatch)
+    panel.step = step
+    panel.steps.clear()
+    await _policy_move(hass, entry, panel, tmp_path)
+
+    assert not {"REMOVE_SUCCESSOR", "INSTALL"}.intersection(panel.steps)
+    assert "RETIRE_LEGACY" in panel.steps and panel.restores == 2
+    assert (
+        await hass.async_add_executor_job(Path(receipt).read_bytes) == original_receipt
+    )
+    assert (panel.panel_id, panel.cfg) == ("office", LEGACY_CFG)
+
+
+@pytest.mark.parametrize(
+    "mismatch,legacy_present",
+    [("digest", True), ("size", False), ("root", False)],
+    ids=[
+        "different-digest-before-retire",
+        "different-size-before-reset",
+        "root-changed",
+    ],
+)
+async def test_recovery_refuses_an_installed_build_that_no_longer_matches(
+    hass, entry, tmp_path, monkeypatch, mismatch, legacy_present
+):
+    """Exact APK/root proof precedes retirement, reset, launch and receipt restores."""
+    panel = FakePanel()
+    _attach(entry, panel)
+    step, launch = panel.step, panel.launch
+
+    async def interrupted_step(*args):
+        if args[-1] is MoveStep.CLAIM_HOME and legacy_present:
+            raise InstallAdbError(InstallAdbErrorCode.INSTALL_AMBIGUOUS)
+        return await step(*args)
+
+    async def interrupted_launch(*_args, **_kwargs):
+        raise InstallAdbError(InstallAdbErrorCode.INSTALL_AMBIGUOUS)
+
+    panel.step, panel.launch = interrupted_step, interrupted_launch
+    with pytest.raises(MoveError):
+        await _move(hass, entry, panel, tmp_path)
+    assert panel.legacy is legacy_present
+    record_before = _record_file(hass, entry).read_bytes()
+    receipt = Path(json.loads(record_before)["receipt"])
+    receipt_before = await hass.async_add_executor_job(receipt.read_bytes)
+    if mismatch == "digest":
+        panel.installed_digest = "f" * 64
+    elif mismatch == "size":
+        panel.installed_size = panel.installed_descriptor.apk_size + 1
+    else:
+        panel.root_mode = AdbRootMode.ROOT_ADBD
+    panel.successor_state = True
+    panel.step, panel.launch = step, launch
+    panel.steps.clear()
+
+    with pytest.raises(MoveError):
+        await _move(hass, entry, panel, tmp_path)
+
+    assert set(panel.steps) <= {"OBSERVE", "BACKUP"} and panel.successor_state
+    assert panel.legacy is legacy_present and panel.restores == 0
+    assert _record_file(hass, entry).read_bytes() == record_before
+    assert await hass.async_add_executor_job(receipt.read_bytes) == receipt_before
+    async_evaluate_successor_move(hass, entry)
+    assert (DOMAIN, move_issue_id(entry.entry_id)) in ir.async_get(hass).issues
+
+
+@pytest.mark.parametrize(
+    "descriptor,successor_installed",
+    [(None, True), (None, False), ({"package_id": SUCCESSOR_PACKAGE_ID}, True)],
+    ids=["missing-installed", "missing-absent", "malformed-installed"],
+)
+async def test_an_unfinished_receipt_without_exact_build_identity_stays_untouched(
+    hass, entry, tmp_path, monkeypatch, descriptor, successor_installed
+):
+    """Older or malformed receipts keep the Repair and never guess a replacement APK."""
+    from custom_components.panel_assistant import update_policy
+
+    panel = FakePanel()
+    _attach(entry, panel)
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "1.0.0")
+    panel.accepted_artifact = await _publish_move_candidate(
+        hass, monkeypatch, "release", "1.2.0", (3, 3)
+    )
+    step = panel.step
+
+    async def interrupted(*args):
+        if args[-1] is MoveStep.CLAIM_HOME:
+            raise InstallAdbError(InstallAdbErrorCode.INSTALL_AMBIGUOUS)
+        return await step(*args)
+
+    panel.step = interrupted
+    with pytest.raises(MoveError):
+        await _policy_move(hass, entry, panel, tmp_path)
+    record = json.loads(_record_file(hass, entry).read_text())
+    if descriptor is None:
+        record.pop("successor_descriptor", None)
+        record.pop("successor_root_mode", None)
+    else:
+        record["successor_descriptor"] = descriptor
+    _record_file(hass, entry).write_text(json.dumps(record))
+    record_before = _record_file(hass, entry).read_bytes()
+    receipt = Path(record["receipt"])
+    receipt_before = await hass.async_add_executor_job(receipt.read_bytes)
+    panel.step = step
+    panel.successor = successor_installed
+    panel.successor_state = True
+    panel.steps.clear()
+
+    with pytest.raises(MoveError):
+        await _policy_move(hass, entry, panel, tmp_path)
+
+    assert set(panel.steps) <= {"OBSERVE", "BACKUP"} and panel.successor_state
+    assert panel.legacy and panel.restores == 0
+    assert panel.successor is successor_installed
+    assert _record_file(hass, entry).read_bytes() == record_before
+    assert await hass.async_add_executor_job(receipt.read_bytes) == receipt_before
+    async_evaluate_successor_move(hass, entry)
+    assert (DOMAIN, move_issue_id(entry.entry_id)) in ir.async_get(hass).issues
+
+
+async def test_a_receipt_does_not_admit_a_fresh_successor_install(
+    hass, entry, tmp_path, monkeypatch
+):
+    """If the accepted APK has gone, a replacement still requires current consent."""
+    from custom_components.panel_assistant import update_policy
+
+    panel = FakePanel()
+    _attach(entry, panel)
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "1.0.0")
+    hass.config_entries.async_update_entry(
+        entry, options={"prerelease_panel_builds": True}
+    )
+    panel.accepted_artifact = await _publish_move_candidate(
+        hass, monkeypatch, "release", "1.2.0-rc1", (3, 3)
+    )
+    step = panel.step
+
+    async def interrupted(*args):
+        if args[-1] is MoveStep.CLAIM_HOME:
+            raise InstallAdbError(InstallAdbErrorCode.INSTALL_AMBIGUOUS)
+        return await step(*args)
+
+    panel.step = interrupted
+    with pytest.raises(MoveError):
+        await _policy_move(hass, entry, panel, tmp_path)
+    assert panel.legacy and _record_file(hass, entry).exists()
+    record_before = _record_file(hass, entry).read_bytes()
+    panel.successor = False
+    panel.step = step
+    panel.steps.clear()
+    hass.config_entries.async_update_entry(
+        entry, options={"prerelease_panel_builds": False}
+    )
+
+    with pytest.raises(MoveError, match="release_unavailable"):
+        await _policy_move(hass, entry, panel, tmp_path)
+
+    assert panel.steps == ["OBSERVE"]
+    assert panel.legacy and not panel.successor
+    assert _record_file(hass, entry).read_bytes() == record_before
