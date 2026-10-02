@@ -24,8 +24,8 @@ from .release import (
     artifact_identity_matches,
     is_feed_build_tag,
     is_install_release_tag,
-    is_rc_release_tag,
 )
+from .update_policy import build_allowed, prereleases_allowed
 
 # Frozen on the legacy spelling: released integrations compare it byte for byte.
 _DESCRIPTOR_SCHEMA = "io.github.maxlyth.hapaneld.install.v1"
@@ -190,18 +190,19 @@ def _build_target(
 
 
 def _selection_matches(release_tag: str, expected_tag: str | None) -> bool:
-    """No selection means the stable release; otherwise exactly what was chosen."""
+    """Bind an explicit selection exactly; the default follows running PA."""
     if expected_tag is None:
-        return is_install_release_tag(release_tag) and not is_rc_release_tag(
-            release_tag
-        )
+        return is_install_release_tag(release_tag)
     return release_tag == expected_tag and (
-        is_rc_release_tag(expected_tag) or is_feed_build_tag(expected_tag)
+        is_install_release_tag(expected_tag) or is_feed_build_tag(expected_tag)
     )
 
 
 def _build_artifact(
-    release: ReleaseArtifact, expected_rc_tag: str | None
+    release: ReleaseArtifact,
+    expected_rc_tag: str | None,
+    *,
+    prerelease_opt_in: bool | None = None,
 ) -> InstallArtifact:
     if not isinstance(release, ReleaseArtifact):
         raise InstallPlanError(InstallPlanErrorCode.INVALID_RELEASE)
@@ -262,6 +263,18 @@ def _build_artifact(
     ):
         raise InstallPlanError(InstallPlanErrorCode.INVALID_RELEASE)
 
+    if prerelease_opt_in is None:
+        prerelease_opt_in = expected_rc_tag is not None and "-" in release.version
+    elif type(prerelease_opt_in) is not bool:
+        raise InstallPlanError(InstallPlanErrorCode.INVALID_RELEASE)
+    if not build_allowed(
+        release.version,
+        release.protocol_min,
+        release.protocol_max,
+        allow_prerelease=prereleases_allowed() or prerelease_opt_in,
+    ):
+        raise InstallPlanError(InstallPlanErrorCode.INCOMPATIBLE_RELEASE)
+
     return InstallArtifact(
         descriptor_schema=descriptor.schema,
         release_tag=descriptor.release_tag,
@@ -276,6 +289,9 @@ def _build_artifact(
         supported_abis=descriptor.supported_abis,
         database_compatibility=descriptor.database_compatibility,
         launch_component=descriptor.launch_component,
+        protocol_min=release.protocol_min,
+        protocol_max=release.protocol_max,
+        prerelease_opt_in=prerelease_opt_in,
     )
 
 
@@ -286,13 +302,16 @@ def build_install_plan(
     adb_credential_id: str,
     *,
     expected_rc_tag: str | None = None,
+    prerelease_opt_in: bool | None = None,
 ) -> InstallPlan:
     """Validate and bind one exact target, release, and ADB key generation."""
     # Target first, as before: the package id no longer has to be known to
     # validate the target, so an input bad in both ways reports the target
     # error a consumer branching on the code already expects.
     target = _build_target(pinned_target, probe)
-    artifact = _build_artifact(release, expected_rc_tag)
+    artifact = _build_artifact(
+        release, expected_rc_tag, prerelease_opt_in=prerelease_opt_in
+    )
     if (
         probe.state is not InstallTargetState.INSTALL_CANDIDATE
         and probe.installed_artifact_size != artifact.apk_size

@@ -2,7 +2,6 @@ import { Adb, AdbDaemonTransport } from '@yume-chan/adb';
 import AdbWebCredentialStore from '@yume-chan/adb-credential-web';
 import { AdbDaemonWebUsbDeviceManager } from '@yume-chan/adb-daemon-webusb';
 import { boundedUsb } from './usb-bounds.mjs';
-import { verifySelectedBundle } from './selected-bundle.mjs';
 import { inspectSessionTarget } from './session-target.mjs';
 import { openJobStore } from './job-store.mjs';
 import { createUsbTransactionPorts } from './usb-transaction-ports.mjs';
@@ -19,9 +18,6 @@ import { renderJourney } from './wizard-look.mjs';
 // below still runs, and technical detail only reaches "Details for support".
 
 const element = id => document.getElementById(id);
-const files = element('bundle-files');
-const rc = element('bundle-rc');
-const verify = element('verify-bundle');
 const connect = element('connect');
 const install = element('install');
 for (const node of document.querySelectorAll('[data-screen-message]')) {
@@ -35,7 +31,7 @@ const STEPS = ['preparing', 'connect', 'allow', 'confirm', 'progress', 'done', '
 const manager = window.isSecureContext && navigator.usb
   ? new AdbDaemonWebUsbDeviceManager(boundedUsb(navigator.usb)) : undefined;
 const supported = Boolean(manager && navigator.locks && globalThis.indexedDB);
-let pinned, release, raw, adb, sessionAdb, store, controller;
+let release, raw, adb, sessionAdb, store, controller;
 let handoff, handoffSettings, incomingAuthenticate;
 let busy = false, quarantined = false;
 let receipt = null;
@@ -104,11 +100,9 @@ function quarantine(message = INSTALL_MESSAGES.installErrorConnection) {
 
 function ensureCurrent() {
   if (quarantined) throw new Error('session_closed');
-  if (incomingAuthenticate) return;
-  if (!pinned || rc.value !== pinned.tag || files.files.length !== pinned.files.length ||
-      pinned.files.some((file, index) => files.files[index] !== file)) {
-    quarantine(INSTALL_MESSAGES.installErrorArtifact);
-    throw new Error('selection_changed');
+  if (!incomingAuthenticate || !window.opener || window.opener.closed) {
+    quarantine(screen.handoffFailure);
+    throw new Error('handoff_invalid');
   }
 }
 
@@ -151,32 +145,12 @@ function releaseReady(verified) {
   if (!supported) element('error-text').textContent = screen.unsupported;
 }
 
-function selectionChanged() {
-  if (handoff || busy) { quarantine(INSTALL_MESSAGES.installErrorArtifact); return; }
-  pinned = release = undefined;
-}
-files.addEventListener('change', selectionChanged);
-rc.addEventListener('input', selectionChanged);
 // Starting again stays in this window: the Home Assistant tab hands a reloaded
 // window the same verified release, and the saved job resumes where it stopped.
 element('retry').addEventListener('click', () => { window.location.reload(); });
 let leaving = false;
 let finished = false;
 window.addEventListener('pagehide', () => { if (!leaving) quarantine(screen.pageClosed); });
-
-verify.addEventListener('click', async () => {
-  if (busy) return;
-  busy = true;
-  release = undefined;
-  pinned = Object.freeze({ files: Object.freeze(Array.from(files.files)), tag: rc.value });
-  show('preparing');
-  try {
-    const verified = await Promise.race([stopPromise,
-      verifySelectedBundle(pinned.files, { expectedRcTag: pinned.tag || null })]);
-    ensureCurrent();
-    releaseReady(verified);
-  } catch (error) { fail(error); } finally { busy = false; }
-});
 
 connect.addEventListener('click', async () => {
   if (busy || !release || quarantined) return;
@@ -216,8 +190,7 @@ connect.addEventListener('click', async () => {
         adb: sessionAdb, usbDevice: raw, ensureCurrent,
         authenticate: async () => {
           ensureCurrent();
-          const verified = incomingAuthenticate ? await incomingAuthenticate() :
-            await verifySelectedBundle(pinned.files, { expectedRcTag: pinned.tag || null });
+          const verified = await incomingAuthenticate();
           ensureCurrent();
           return verified;
         },
@@ -346,10 +319,6 @@ if (!supported) {
   } catch { quarantine(screen.handoffFailure); busy = false; }
   element('retry').textContent = screen.backToHa;
 } else {
-  // No Home Assistant handover: only the advanced file route is available.
-  show('connect');
-  connect.disabled = true;
-  element('advanced').hidden = false;
-  element('advanced').open = true;
-  verify.addEventListener('click', () => { connect.disabled = false; }, { once: true });
+  quarantine(screen.handoffFailure);
+  element('retry').textContent = screen.backToHa;
 }

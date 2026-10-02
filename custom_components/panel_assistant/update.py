@@ -58,6 +58,7 @@ from .client import (
     UpdateBusyError,
     UpdateRejectedError,
     UploadDisabledError,
+    _version_key,
     is_newer_stable_version,
     is_valid_discovery_id,
 )
@@ -114,6 +115,7 @@ from .release import (
 from .status import PanelCachedUpdate, home_ui_allows
 from .transport import async_get_sessions
 from .update_coordinator import PanelUpdateCoordinator
+from .update_policy import build_allowed, prereleases_allowed, version_allowed
 
 _ANDROID_DOWNLOAD_MAX_SECONDS = 10 * 60
 _ANDROID_PACKAGE_INSTALL_MAX_SECONDS = 3 * 60
@@ -129,7 +131,7 @@ _UPDATE_TIMEOUT_SECONDS = (
 _UPDATE_RECHECK_SECONDS = 2
 _TERMINAL_STATUS_GRACE_SECONDS = 60
 # The first ha-paneld release that can be backed up and sent an app over the LAN.
-# An older panel is offered only what it finds itself, which it installs itself.
+# Older panels cannot use this route to receive an authenticated replacement.
 _FIRST_LAN_UPDATE_VERSION = "0.8.6"
 # Which way the last update reached the panel, shown on the entity.
 ROUTE_ATTRIBUTE = "update_route"
@@ -255,7 +257,7 @@ async def async_setup_entry(
 
 
 class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
-    """Project a selected stable update through the panel's own transaction."""
+    """Project a policy-admitted update through the panel's own transaction."""
 
     _attr_device_class = UpdateDeviceClass.FIRMWARE
     _attr_has_entity_name = True
@@ -282,7 +284,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         # A signed build feed, when configured. Internal builds
         # share one version name, so they are told apart by build number.
         self._feed = feed
-        # The latest stable release as Home Assistant itself authenticated it,
+        # The compatible release as Home Assistant itself authenticated it,
         # so a panel without internet access is offered and sent it too.
         self._release = release
         self._installed_code: int | None = None
@@ -333,6 +335,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         super()._handle_coordinator_update()
 
     def _handle_offer_refresh(self) -> None:
+        self._route_checked_key = None
         self._schedule_route_refresh()
         self.async_write_ha_state()
 
@@ -361,7 +364,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self._entry_discovery_id(),
             getattr(self.coordinator.client, "address", None),
             self._api_capability(),
-            artifact.sha256 if artifact else None,
+            artifact,
         )
 
     def _api_capability(self) -> str | None:
@@ -391,19 +394,22 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         )
 
     def _adb_artifact(self) -> ReleaseArtifact | None:
-        feed = self._feed_mode()
-        if feed is not None:
-            newest = (
-                self._feed.verified_newest(self._feed_package()) if self._feed else None
-            )
-            return feed_release_artifact(newest) if newest is not None else None
-        release = self._host_release()
-        if release is not None and release.descriptor is not None:
-            return release
-        return None
+        artifact = self._host_release()
+        return artifact if artifact is not None and artifact.descriptor else None
 
     def _schedule_route_refresh(self) -> None:
-        if self._api_capability() == "api" and not self._bridge_handover_due():
+        artifact = self._host_release()
+        build = self._selected_feed_build(artifact)
+        needs_verification = (
+            build is not None
+            and self._feed is not None
+            and self._feed.verified_apk(build) is None
+        )
+        if (
+            self._api_capability() == "api"
+            and not self._bridge_handover_due()
+            and not needs_verification
+        ):
             self._adb_ready_key = None
             self._legacy_api_ready_key = None
             self._route_checked_key = None
@@ -440,6 +446,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         key = self._route_key()
         error: Exception | None = None
         try:
+            build = self._selected_feed_build(self._host_release())
+            if build is not None and self._feed is not None:
+                await self._feed.async_verify_build(build)
             route, _target, _credential = await self._async_install_route()
         except Exception as err:
             _LOGGER.debug(
@@ -478,7 +487,15 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             return None, None, None
         if self._bridge_handover_due():
             bridge = self._host_release()
-            successor = self._release.data if self._release else None
+            successor = (
+                self._release.artifact_for(
+                    SUCCESSOR_PACKAGE_ID,
+                    allow_prerelease=self._allow_prerelease(),
+                    tag=bridge.tag,
+                )
+                if self._release and bridge is not None
+                else None
+            )
             if (
                 bridge is None
                 or successor is None
@@ -664,9 +681,14 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
 
     def _refresh_installed_code(self) -> None:
         """Read the running build number once per install, never per poll."""
-        if self._feed is None or not self.coordinator.last_update_success:
+        if not self.coordinator.last_update_success:
             return
         health = self.coordinator.data.health
+        if health.version_code is not None:
+            self._installed_code = health.version_code
+            return
+        if self._feed is None:
+            return
         key = (health.version, health.build)
         if key == self._code_key or (
             self._code_task is not None and not self._code_task.done()
@@ -700,15 +722,35 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             await self._release.async_refresh()
 
     def _feed_mode(self) -> BuildFeed | None:
-        """Return the feed only when it and the panel's build number are known."""
+        """Use feed delivery only when the chosen artifact comes from the feed."""
+        artifact = self._host_release()
+        return (
+            self._feed.data
+            if self._feed is not None
+            and artifact is not None
+            and is_feed_build_tag(artifact.tag)
+            else None
+        )
+
+    def _selected_feed_build(
+        self, artifact: ReleaseArtifact | None
+    ) -> FeedBuild | None:
+        """Find the exact signed feed record chosen for this panel."""
         if (
-            self._feed is None
-            or not self._feed.last_update_success
+            artifact is None
+            or not is_feed_build_tag(artifact.tag)
+            or self._feed is None
             or self._feed.data is None
-            or self._installed_code is None
         ):
             return None
-        return self._feed.data
+        return next(
+            (
+                build
+                for build in self._feed.data.builds
+                if feed_release_artifact(build) == artifact
+            ),
+            None,
+        )
 
     def _feed_package(self) -> str | None:
         """Choose the package the panel actually runs, including old reports."""
@@ -954,9 +996,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         if snapshot is None:
             return None
         version = snapshot.health.version
-        if self._feed_mode() is not None and self._installed_code is not None:
-            return build_label(version, self._installed_code)
-        release = self._host_release()
+        artifact = self._host_release()
+        release = artifact
         if (
             release is not None
             and release.descriptor is None
@@ -965,55 +1006,129 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             # Core hides equal versions before asking version_is_newer. Name
             # the installed bridge so its unfinished handover stays visible.
             return f"{version} (bridge)"
+        code = snapshot.health.version_code or self._installed_code
+        if code is not None and (
+            (
+                self._feed is not None
+                and self._feed.last_update_success
+                and self._feed.data is not None
+            )
+            or (
+                artifact is not None
+                and artifact.descriptor is not None
+                and artifact.version == version
+            )
+        ):
+            return build_label(version, code)
         return version
 
-    def _offered_update(self) -> PanelCachedUpdate | None:
-        """Return only a fresh cached stable target matching installed health."""
+    def _allow_prerelease(self) -> bool:
+        entry = self.hass.config_entries.async_get_entry(self._entry_id)
+        return prereleases_allowed(entry)
+
+    def _artifact_allowed(self, artifact: ReleaseArtifact) -> bool:
+        """Recheck policy and prevent a post-1.0 downgrade before delivery."""
+        if not build_allowed(
+            artifact.version,
+            artifact.protocol_min,
+            artifact.protocol_max,
+            allow_prerelease=self._allow_prerelease(),
+        ):
+            return False
         snapshot: PanelSnapshot | None = self.coordinator.data
         if snapshot is None:
-            return None
-        status = snapshot.status
-        offer = status.panel_assistant_update if status is not None else None
-        if (
-            offer is None
-            or offer.current_version != snapshot.health.version
-            or not is_newer_stable_version(
-                offer.target_version, snapshot.health.version
+            return False
+        return version_allowed(
+            artifact.version,
+            artifact.descriptor.version_code
+            if artifact.descriptor is not None
+            else None,
+            snapshot.health.version,
+            snapshot.health.version_code
+            if snapshot.health.version_code is not None
+            else self._installed_code,
+        )
+
+    async def _async_admit_artifact(self, artifact: ReleaseArtifact) -> None:
+        """Check current consent for this exact candidate before a fresh command."""
+        if not self._artifact_allowed(artifact):
+            raise _update_error(
+                "update_unavailable", "The requested update is unavailable"
             )
-        ):
-            return None
-        return offer
 
     def _host_release(self) -> ReleaseArtifact | None:
-        """Return the release authenticated here, when newer than the panel's."""
+        """Choose the newest eligible artifact across the authenticated sources."""
         snapshot: PanelSnapshot | None = self.coordinator.data
-        release = (
-            self._release.artifact_for(snapshot.health.package or LEGACY_PACKAGE_ID)
-            if self._release is not None and snapshot is not None
-            else None
-        )
-        if (
-            snapshot is None
-            or release is None
-            or not (
-                is_newer_stable_version(release.version, snapshot.health.version)
-                # A bridge at the release version still owes its handover.
-                or (
-                    release.descriptor is None
-                    and release.version == snapshot.health.version
-                )
-            )
-            or is_newer_stable_version(
-                _FIRST_LAN_UPDATE_VERSION, snapshot.health.version
-            )
+        if snapshot is None or is_newer_stable_version(
+            _FIRST_LAN_UPDATE_VERSION, snapshot.health.version
         ):
             return None
-        return release
+        package_id = snapshot.health.package or LEGACY_PACKAGE_ID
+        candidates: list[ReleaseArtifact] = []
+        if (
+            self._feed is not None
+            and self._feed.last_update_success
+            and self._feed.data
+        ):
+            candidates.extend(
+                feed_release_artifact(build)
+                for build in self._feed.data.builds
+                if build.package_id == package_id
+                and (
+                    snapshot.health.version_code is not None
+                    or self._installed_code is not None
+                )
+            )
+        if self._release is not None:
+            candidates.extend(self._release.candidates_for(package_id))
+        installed_key = _version_key(snapshot.health.version)
+        if installed_key is None:
+            return None
+        installed_code = snapshot.health.version_code or self._installed_code
+        eligible = []
+        for artifact in candidates:
+            if not self._artifact_allowed(artifact):
+                continue
+            code = artifact.descriptor.version_code if artifact.descriptor else None
+            candidate_key = _version_key(artifact.version)
+            if candidate_key is None:
+                continue
+            if (
+                candidate_key > installed_key
+                or (
+                    artifact.version == snapshot.health.version
+                    and code is not None
+                    and installed_code is not None
+                    and code > installed_code
+                )
+                # An installed bridge still owes its one-way handover.
+                or (
+                    artifact.descriptor is None
+                    and artifact.version == snapshot.health.version
+                )
+            ):
+                eligible.append(artifact)
+        return max(
+            eligible,
+            key=lambda artifact: (
+                _version_key(artifact.version),
+                artifact.descriptor.version_code if artifact.descriptor else 0,
+            ),
+            default=None,
+        )
+
+    def _offer_label(self, artifact: ReleaseArtifact) -> str:
+        """Keep same-version rebuilds distinguishable in Home Assistant."""
+        if artifact.descriptor is not None and (
+            is_feed_build_tag(artifact.tag)
+            or artifact.version == self.coordinator.data.health.version
+        ):
+            return build_label(artifact.version, artifact.descriptor.version_code)
+        return artifact.version
 
     def _bridge_handover_due(self) -> bool:
         snapshot: PanelSnapshot | None = self.coordinator.data
         release = self._host_release()
-        panel_offer = self._offered_update()
         return bool(
             snapshot is not None
             and self._feed_mode() is None
@@ -1022,12 +1137,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             and snapshot.health.version == release.version
             and snapshot.health.installation_identity
             and reports_package(snapshot.health.package, LEGACY_PACKAGE_ID)
-            and (
-                panel_offer is None
-                or not is_newer_stable_version(
-                    panel_offer.target_version, release.version
-                )
-            )
         )
 
     async def _async_check_successor(
@@ -1072,61 +1181,59 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         return capability[2]
 
     def _stable_target(self) -> PanelCachedUpdate | None:
-        """Return the newer of the panel's own offer and the release found here."""
-        offer = self._offered_update()
+        """Project only the host's authenticated compatible release."""
         release = self._host_release()
-        if release is None or (
-            offer is not None
-            and is_newer_stable_version(offer.target_version, release.version)
-        ):
-            return offer
+        if release is None:
+            return None
         return PanelCachedUpdate(
-            self.coordinator.data.health.version, release.version, release.tag
+            self.coordinator.data.health.version,
+            self._offer_label(release),
+            release.tag,
         )
 
     @property
     def latest_version(self) -> str | None:
-        """Report installed version if no newer panel-approved stable target exists."""
+        """Report the installed version when no newer admitted target exists."""
         if self._attempt is not None:
             return self._attempt.latest
         if not self._has_install_route():
             return self.installed_version
-        feed = self._feed_mode()
-        if feed is not None:
-            newest = (
-                self._feed.verified_newest(self._feed_package()) if self._feed else None
-            )
-            if (
-                newest is not None
-                and self._installed_code is not None
-                and newest.version_code > self._installed_code
-            ):
-                return newest.label
+        artifact = self._host_release()
+        if artifact is None:
             return self.installed_version
-        offer = self._stable_target()
-        if self._adb_ready_key == self._route_key() and self._api_capability() != "api":
-            release = self._adb_artifact()
-            if release is not None:
-                return release.version
-        return offer.target_version if offer is not None else self.installed_version
+        build = self._selected_feed_build(artifact)
+        if (
+            build is not None
+            and self._feed is not None
+            and self._feed.verified_apk(build) is None
+        ):
+            return self.installed_version
+        return self._offer_label(artifact)
 
     def version_is_newer(self, latest_version: str, installed_version: str) -> bool:
-        """Use the same stable-versus-RC comparison as the bounded client parser."""
-        if self._feed_mode() is not None:
-            latest = parse_build_request(latest_version)
-            installed = parse_build_request(installed_version)
-            if latest is not None and installed is not None:
-                return latest > installed
+        """Compare semantic version first and build number only as a tie-break."""
         release = self._host_release()
         if (
             release is not None
             and release.descriptor is None
             and installed_version == f"{release.version} (bridge)"
         ):
-            if latest_version == release.version:
-                return True
-            installed_version = release.version
-        return is_newer_stable_version(latest_version, installed_version)
+            return latest_version == release.version
+        latest_name = latest_version.partition(" build ")[0]
+        installed_name = installed_version.partition(" build ")[0]
+        latest_key = _version_key(latest_name)
+        installed_key = _version_key(installed_name)
+        if latest_key is None or installed_key is None:
+            return False
+        if latest_key != installed_key:
+            return latest_key > installed_key
+        latest_code = parse_build_request(latest_version)
+        installed_code = parse_build_request(installed_version)
+        return (
+            latest_code is not None
+            and installed_code is not None
+            and latest_code > installed_code
+        )
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -1152,7 +1259,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             release_panel_operation(self.hass, self._entry_id)
 
     async def _async_install_claimed(self, version: str | None, backup: bool) -> None:
-        """Start one exact stable offer, then follow the expected panel restart."""
+        """Start one exact admitted offer, then follow the expected panel restart."""
         if self.coordinator.identity_mismatch:
             raise _update_error("update_unavailable", "The panel identity has changed")
         try:
@@ -1188,7 +1295,17 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     error,
                 )
             raise error
+        chosen_artifact = self._host_release()
         feed = self._feed_mode()
+        if (
+            version is not None
+            and parse_build_request(version) is not None
+            and self._feed is not None
+            and (
+                chosen_artifact is None or version != self._offer_label(chosen_artifact)
+            )
+        ):
+            feed = self._feed.data
         failure_artifact: dict[str, object] | None = None
         if feed is not None:
             build = await self._async_select_feed_build(feed, version, backup)
@@ -1209,7 +1326,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 if release is not None:
                     offer = PanelCachedUpdate(
                         self.coordinator.data.health.version,
-                        release.version,
+                        self._offer_label(release),
                         release.tag,
                     )
             if (
@@ -1257,7 +1374,15 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     if release.descriptor is None:
                         # Keep the signed pair selected for this transaction even
                         # if the shared release coordinator refreshes mid-install.
-                        successor = self._release.data if self._release else None
+                        successor = (
+                            self._release.artifact_for(
+                                SUCCESSOR_PACKAGE_ID,
+                                allow_prerelease=self._allow_prerelease(),
+                                tag=release.tag,
+                            )
+                            if self._release
+                            else None
+                        )
                         if (
                             successor is None
                             or successor.tag != release.tag
@@ -1302,9 +1427,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                                     "Repair in Settings",
                                 )
                     elif not await self._async_deliver_build(release, fallback=True):
-                        await self._async_start_panel_download(offer)
+                        await self._async_start_panel_download(offer, release)
                 else:
-                    await self._async_start_panel_download(offer)
+                    await self._async_start_panel_download(offer, release)
         except UpdateRejectedError:
             error = _UpdateRefusalError(self._panel_name())
             await async_record_update_failure(
@@ -1333,7 +1458,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             await async_clear_update_failure_if_installed(
                 self.hass,
                 self._entry_id,
-                selected_artifact.version if feed is not None else target_version,
+                selected_artifact.version
+                if feed is not None
+                else release.version
+                if release
+                else target_version,
                 build.version_code if feed is not None else None,
                 verified_success=True,
             )
@@ -1341,12 +1470,21 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self._end_attempt()
             self.async_write_ha_state()
 
-    async def _async_start_panel_download(self, offer: PanelCachedUpdate) -> None:
-        """Ask the panel to fetch, verify and install the release itself."""
-        try:
-            await _retry_unstarted_install(
-                lambda: self.coordinator.client.async_start_panel_update(offer.tag)
+    async def _async_start_panel_download(
+        self, offer: PanelCachedUpdate, artifact: ReleaseArtifact | None
+    ) -> None:
+        """Ask the panel to fetch only the host-admitted release."""
+        if artifact is None or artifact.tag != offer.tag:
+            raise _update_error(
+                "update_unavailable", "The requested update is unavailable"
             )
+
+        async def start() -> None:
+            await self._async_admit_artifact(artifact)
+            await self.coordinator.client.async_start_panel_update(offer.tag)
+
+        try:
+            await _retry_unstarted_install(start)
         except UpdateBusyError as err:
             raise _update_error(
                 "update_busy", "The panel is busy with another operation"
@@ -1388,7 +1526,14 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self._hold_through_restart()
             snapshot = self.coordinator.data
             verified = (
-                self._running_version() == expected_version
+                snapshot is not None
+                and snapshot.health.version == expected_version.partition(" build ")[0]
+                and (
+                    parse_build_request(expected_version) is None
+                    or snapshot.health.version_code
+                    == parse_build_request(expected_version)
+                    or self._installed_code == parse_build_request(expected_version)
+                )
                 if expected_version is not None
                 else snapshot is not None
                 and starting_health is not None
@@ -1465,7 +1610,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
     ) -> FeedBuild:
         """Resolve a valid signed-feed target before starting an update attempt."""
         package_id = self._feed_package()
-        newest = self._feed.verified_newest(package_id) if self._feed else None
+        newest = self._selected_feed_build(self._host_release())
         code = (
             parse_build_request(version)
             if version is not None
@@ -1486,7 +1631,20 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self.in_progress
             or backup
             or build is None
-            or build.version_code == self._installed_code
+            or (
+                build.version_name == self.coordinator.data.health.version
+                and build.version_code
+                == (self.coordinator.data.health.version_code or self._installed_code)
+            )
+            or (
+                self.coordinator.data.health.version_code is None
+                and self._installed_code is None
+            )
+            or (
+                version is None
+                and (self._feed is None or self._feed.verified_apk(build) is None)
+            )
+            or not self._artifact_allowed(feed_release_artifact(build))
         ):
             raise _update_error(
                 "update_unavailable",
@@ -1510,6 +1668,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         """
         if self.coordinator.identity_mismatch:
             raise _update_error("update_unavailable", "The panel identity has changed")
+        if not self._artifact_allowed(artifact):
+            raise _update_error(
+                "update_unavailable", "The requested update is unavailable"
+            )
         client = self.coordinator.client
         snapshot: PanelSnapshot | None = self.coordinator.data
         descriptor = artifact.descriptor
@@ -1609,9 +1771,17 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     "staged_app_mismatch",
                     "The staged app does not match the signed release details",
                 )
-            await _retry_unstarted_install(
-                lambda: client.async_commit_apk(staged.token)
-            )
+
+            async def commit() -> None:
+                try:
+                    await self._async_admit_artifact(artifact)
+                except HomeAssistantError:
+                    with contextlib.suppress(HaPaneldError):
+                        await client.async_discard_apk(staged.token)
+                    raise
+                await client.async_commit_apk(staged.token)
+
+            await _retry_unstarted_install(commit)
         except UploadDisabledError as err:
             raise _update_error(
                 "upload_disabled", "The panel does not accept app uploads"
@@ -1671,6 +1841,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         """Send one signed replacement through the already-authorized ADB peer."""
         descriptor = artifact.descriptor
         snapshot: PanelSnapshot | None = self.coordinator.data
+        if not self._artifact_allowed(artifact):
+            raise _update_error(
+                "update_unavailable", "The requested update is unavailable"
+            )
         if (
             descriptor is None
             or snapshot is None
@@ -1697,7 +1871,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         # credential immediately before replacing its installed package.
         route, fresh_target, fresh_credential = await self._async_install_route()
         if (
-            route != ROUTE_ADB
+            not self._artifact_allowed(artifact)
+            or route != ROUTE_ADB
             or fresh_target != target
             or fresh_credential is None
             or fresh_credential.generation_id != credential.generation_id
@@ -1712,7 +1887,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 await self.hass.async_add_executor_job(file.write, apk)
                 await self.hass.async_add_executor_job(file.flush)
                 outcome = await async_update_installed_apk(
-                    target, credential.signer, descriptor, Path(file.name)
+                    target,
+                    credential.signer,
+                    descriptor,
+                    Path(file.name),
+                    before_install=lambda: self._async_admit_artifact(artifact),
                 )
         except InstallAdbError as err:
             raise _update_error(

@@ -36,6 +36,13 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
     if (receipt.target.usbVendorId !== usbDevice.vendorId || receipt.target.usbProductId !== usbDevice.productId ||
         receipt.target.usbSerial !== (usbDevice.serialNumber ?? '')) fail('target_changed');
   };
+  const admission = async (receipt, release) => {
+    binding(receipt, release);
+    const current = await authenticate();
+    if (current?.kind !== 'authenticated-apk-bytes' ||
+        JSON.stringify(current.descriptor) !== JSON.stringify(release.descriptor)) fail('artifact_changed');
+    binding(receipt, release);
+  };
   const posture = async (receipt, release) => {
     binding(receipt, release);
     const n = nonce();
@@ -149,6 +156,7 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
       const n = nonce();
       if (parsePathState(await readShell(adb, buildPathState(n, receipt.id)), n)) fail('staging_path_exists');
       binding(receipt, release);
+      await admission(receipt, release);
       await uploadApk(adb, receipt.id, release, { ensureCurrent: guard, quarantine: stop,
         onProgress: onUploadProgress });
       uploadedJob = receipt.id;
@@ -160,6 +168,7 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
       await staged(receipt, release);
       binding(receipt, release);
       const n = nonce();
+      await admission(receipt, release);
       const result = parseInstall(await readShell(adb, buildInstall(n, receipt.id, receipt.target.androidSdk),
         { timeoutMs: 180000 }), n);
       if (result !== 'installed') fail('install_refused');
@@ -184,8 +193,7 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
       const existing = parsePermissionRead(await readShell(adb, buildPermissionRead(n), {maximum: 8192}), n);
       binding(receipt, release);
       n = nonce();
-      // Grants go to the package this release installs, which on a migrating
-      // panel is not the package that panel was already running.
+      // Grants go to the package whose installed bytes were verified above.
       const packageId = release.descriptor.packageId;
       parsePermissionGrant(await readShell(adb,
         buildPermissionGrant(n, receipt.target.androidSdk, existing, packageId),

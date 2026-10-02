@@ -999,7 +999,8 @@
         "menu_options": {
           "onboarding": "Continua la configurazione",
           "transport": "Impostazioni di connessione",
-          "authorize_adb": "Autorizza ADB per gli aggiornamenti"
+          "authorize_adb": "Autorizza ADB per gli aggiornamenti",
+          "updates": "Aggiornamenti del pannello"
         }
       },
       "onboarding": {
@@ -1027,6 +1028,16 @@
         "description": "Scegli cosa controlla le entità e i comandi di questo pannello. Salvando Panel Assistant, Panel Assistant sposta a sé le entità MQTT del pannello, conservando i loro ID entità, la cronologia e le tue personalizzazioni, e poi il pannello ritira le sue entità MQTT. Salvando MQTT, con o senza report nativi, tornano a MQTT. In entrambi i casi il pannello si riconnette con la nuova scelta.",
         "data": {
           "authority": "Controllo"
+        }
+      },
+      "updates": {
+        "title": "Aggiornamenti del pannello",
+        "description": "Scegli quali build dell’app del pannello può ricevere questo pannello. Ogni build deve essere compatibile con il Panel Assistant in esecuzione.",
+        "data": {
+          "prerelease_panel_builds": "Consenti versioni preliminari dell’app del pannello"
+        },
+        "data_description": {
+          "prerelease_panel_builds": "Una versione preliminare di Panel Assistant consente già versioni preliminari dell’app del pannello."
         }
       }
     },

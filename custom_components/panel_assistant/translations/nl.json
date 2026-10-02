@@ -1039,7 +1039,8 @@
         "menu_options": {
           "onboarding": "Installatie voortzetten",
           "transport": "Verbindingsinstellingen",
-          "authorize_adb": "ADB voor updates autoriseren"
+          "authorize_adb": "ADB voor updates autoriseren",
+          "updates": "Paneelupdates"
         }
       },
       "onboarding": {
@@ -1067,6 +1068,16 @@
         "description": "Kies wat de entiteiten en opdrachten van dit paneel aanstuurt. Als je Panel Assistant opslaat, worden de MQTT-entiteiten van het paneel naar Panel Assistant verplaatst, waarbij hun entiteits-ID’s, geschiedenis en aanpassingen behouden blijven, en het paneel trekt vervolgens zijn MQTT-entiteiten in. Als je MQTT opslaat, met of zonder native rapporten, worden ze teruggezet naar MQTT. Hoe dan ook maakt het paneel opnieuw verbinding met de nieuwe keuze.",
         "data": {
           "authority": "Besturing"
+        }
+      },
+      "updates": {
+        "title": "Paneelupdates",
+        "description": "Kies welke builds van de paneelapp dit paneel mag ontvangen. Elke build moet compatibel zijn met de draaiende Panel Assistant.",
+        "data": {
+          "prerelease_panel_builds": "Voorlopige versies van de paneelapp toestaan"
+        },
+        "data_description": {
+          "prerelease_panel_builds": "Een voorlopige versie van Panel Assistant staat voorlopige versies van de paneelapp al toe."
         }
       }
     },

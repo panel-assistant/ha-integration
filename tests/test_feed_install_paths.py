@@ -60,6 +60,8 @@ def _build(
         min_sdk=26,
         published="2026-09-11T10:00:00Z",
         package_id=package_id,
+        protocol_min=3,
+        protocol_max=3,
     )
 
 
@@ -105,17 +107,37 @@ def test_identity_rule_binds_each_kind_of_artifact() -> None:
 # --- one list, one resolver ------------------------------------------------------
 
 
-async def test_both_paths_list_github_then_feed_builds(hass: HomeAssistant) -> None:
+async def test_both_paths_list_newest_compatible_versions_first(
+    hass: HomeAssistant,
+) -> None:
     _install_feed(hass, _build(772), _build(771, hashlib.sha256(b"771").hexdigest()))
     github = [{"tag": "v0.9.7-rc3", "prerelease": True}]
     with patch.object(
-        release_catalog, "async_list_install_releases", AsyncMock(return_value=github)
+        release_catalog,
+        "async_resolve_update_candidates",
+        AsyncMock(
+            return_value=[
+                (
+                    SimpleNamespace(
+                        artifact=SimpleNamespace(
+                            tag=choice["tag"],
+                            version=choice["tag"][1:],
+                            protocol_min=3,
+                            protocol_max=3,
+                            descriptor=SimpleNamespace(version_code=770),
+                        )
+                    ),
+                    None,
+                )
+                for choice in github
+            ]
+        ),
     ):
         choices = await release_catalog.async_list_install_choices(hass)
     assert choices == [
-        {"tag": "v0.9.7-rc3", "prerelease": True},
         {"tag": "build-772", "prerelease": True, "name": "0.9.7-rc4 build 772"},
         {"tag": "build-771", "prerelease": True, "name": "0.9.7-rc4 build 771"},
+        {"tag": "v0.9.7-rc3", "prerelease": True},
     ]
 
 
@@ -127,7 +149,7 @@ async def test_catalog_resolves_each_app_at_the_same_build_number(
     )
     _install_feed(hass, _build(772), successor)
     with patch.object(
-        release_catalog, "async_list_install_releases", AsyncMock(return_value=[])
+        release_catalog, "async_resolve_update_candidates", AsyncMock(return_value=[])
     ):
         choices = await release_catalog.async_list_install_choices(hass)
     assert [choice["tag"] for choice in choices] == ["build-772", "build-772-successor"]
@@ -142,7 +164,7 @@ async def test_github_outage_still_offers_feed_builds_but_not_nothing(
     hass: HomeAssistant,
 ) -> None:
     outage = AsyncMock(side_effect=ReleaseResolutionError)
-    with patch.object(release_catalog, "async_list_install_releases", outage):
+    with patch.object(release_catalog, "async_resolve_update_candidates", outage):
         with pytest.raises(ReleaseResolutionError):
             await release_catalog.async_list_install_choices(hass)
         _install_feed(hass, _build())
@@ -153,7 +175,25 @@ async def test_github_outage_still_offers_feed_builds_but_not_nothing(
 async def test_without_a_feed_the_list_is_github_only(hass: HomeAssistant) -> None:
     github = [{"tag": "v0.9.6", "prerelease": False}]
     with patch.object(
-        release_catalog, "async_list_install_releases", AsyncMock(return_value=github)
+        release_catalog,
+        "async_resolve_update_candidates",
+        AsyncMock(
+            return_value=[
+                (
+                    SimpleNamespace(
+                        artifact=SimpleNamespace(
+                            tag=choice["tag"],
+                            version=choice["tag"][1:],
+                            protocol_min=3,
+                            protocol_max=3,
+                            descriptor=SimpleNamespace(version_code=770),
+                        )
+                    ),
+                    None,
+                )
+                for choice in github
+            ]
+        ),
     ):
         assert await release_catalog.async_list_install_choices(hass) == github
 

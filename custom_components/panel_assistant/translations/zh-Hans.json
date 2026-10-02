@@ -999,7 +999,8 @@
         "menu_options": {
           "onboarding": "继续设置",
           "transport": "连接设置",
-          "authorize_adb": "授权 ADB 更新"
+          "authorize_adb": "授权 ADB 更新",
+          "updates": "面板更新"
         }
       },
       "onboarding": {
@@ -1027,6 +1028,16 @@
         "description": "选择由什么控制此面板的实体和命令。保存 Panel Assistant 后，Panel Assistant 会把面板的 MQTT 实体迁移到自身，并保留其实体 ID、历史记录和你的自定义设置，随后面板会撤回其 MQTT 实体。保存 MQTT（无论是否带原生报告）会把它们迁回 MQTT。无论哪种情况，面板都会以新的选择重新连接。",
         "data": {
           "authority": "控制方式"
+        }
+      },
+      "updates": {
+        "title": "面板更新",
+        "description": "选择此面板可以接收的面板应用构建版本。每个构建版本都必须与正在运行的 Panel Assistant 兼容。",
+        "data": {
+          "prerelease_panel_builds": "允许面板应用预发布版本"
+        },
+        "data_description": {
+          "prerelease_panel_builds": "预发布版 Panel Assistant 已允许面板应用预发布版本。"
         }
       }
     },

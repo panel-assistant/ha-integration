@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from aiohttp import ClientSession
@@ -28,6 +28,7 @@ from .release import (
     _MAX_ANDROID_SDK,
     _MAX_ANDROID_VERSION_CODE,
     _MAX_APK_BYTES,
+    _MAX_PROTOCOL_METADATA_BYTES,
     _RELEASE_SIGNER_CERTIFICATE_SHA256,
     _REPOSITORY_RELEASE_ROOT,
     _SHA256_PATTERN,
@@ -44,6 +45,7 @@ from .release import (
     _verify_detached_signature,
     feed_build_tag,
     is_install_release_tag,
+    parse_protocol_metadata,
     release_apk_name,
 )
 
@@ -103,6 +105,8 @@ class FeedBuild:
     min_sdk: int
     published: str
     package_id: str
+    protocol_min: int | None = None
+    protocol_max: int | None = None
 
     @property
     def label(self) -> str:
@@ -163,6 +167,8 @@ def feed_release_artifact(build: FeedBuild) -> ReleaseArtifact:
         apk_name=apk_name,
         apk_url=str(build.apk_url),
         sha256=build.apk_sha256,
+        protocol_min=build.protocol_min,
+        protocol_max=build.protocol_max,
         descriptor=InstallDescriptor(
             schema=_INSTALL_DESCRIPTOR_SCHEMA,
             release_tag=tag,
@@ -345,9 +351,40 @@ def parse_build_feed(body: bytes, signature: bytes, feed_url: URL) -> BuildFeed:
     )
 
 
+def bind_build_feed_protocol(
+    feed: BuildFeed, body: bytes, signature: bytes
+) -> BuildFeed:
+    """Attach authenticated ranges only to exact hashes retained in the feed.
+
+    Older retained builds may lack proof; they remain unknown for admission to
+    refuse, without inventing historical compatibility or changing signed V1.
+    """
+    try:
+        ranges = parse_protocol_metadata(body, signature)
+    except ReleaseResolutionError as err:
+        raise BuildFeedError from err
+    return replace(
+        feed,
+        builds=tuple(
+            replace(
+                build,
+                protocol_min=ranges[build.apk_sha256][0],
+                protocol_max=ranges[build.apk_sha256][1],
+            )
+            if build.apk_sha256 in ranges
+            else replace(build, protocol_min=None, protocol_max=None)
+            for build in feed.builds
+        ),
+    )
+
+
 async def async_fetch_build_feed(session: ClientSession, feed_url: URL) -> BuildFeed:
-    """Fetch the feed and its signature from exactly the configured URL."""
+    """Fetch V1 feed and signed protocol companion from configured siblings."""
     signature_url = feed_url.with_name(f"{feed_url.name}.sig")
+    protocol_url = feed_url.with_name(
+        f"{feed_url.name.removesuffix('.json')}.protocol.json"
+    )
+    protocol_signature_url = protocol_url.with_name(f"{protocol_url.name}.sig")
     try:
         body = await _async_fetch_bounded(
             session,
@@ -365,7 +402,25 @@ async def async_fetch_build_feed(session: ClientSession, feed_url: URL) -> Build
         )
     except ReleaseResolutionError as err:
         raise BuildFeedError from err
-    return parse_build_feed(body, signature, feed_url)
+    feed = parse_build_feed(body, signature, feed_url)
+    try:
+        protocol_body = await _async_fetch_bounded(
+            session,
+            protocol_url,
+            _MAX_PROTOCOL_METADATA_BYTES,
+            allow_release_redirects=False,
+            headers=_FEED_HEADERS,
+        )
+        protocol_signature = await _async_fetch_bounded(
+            session,
+            protocol_signature_url,
+            _MAX_SIGNATURE_BYTES,
+            allow_release_redirects=False,
+            headers=_FEED_HEADERS,
+        )
+    except ReleaseResolutionError as err:
+        raise BuildFeedError from err
+    return bind_build_feed_protocol(feed, protocol_body, protocol_signature)
 
 
 async def async_download_build(

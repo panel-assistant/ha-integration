@@ -258,42 +258,6 @@ async def create(
     )
 
 
-@pytest.mark.parametrize("tag", ["v0.1.0", "v0.9.7-rc3"])
-async def test_stable_and_rc_receipts_restart_without_changing_frozen_plan(
-    hass: HomeAssistant, tag: str
-) -> None:
-    """Legacy stable shape and approved RC identity both survive durable reload."""
-    selected = replace(
-        artifact(),
-        release_tag=tag,
-        version_name=tag[1:],
-        apk_name=f"ha-paneld-{tag}-manual-setup-required.apk",
-    )
-    manager = InstallJobManager(hass, now=Clock())
-    receipt, created = await create(manager, install_artifact=selected)
-    assert created is True
-    persisted = install_jobs._serialize_receipt(receipt)
-    assert persisted["artifact"] == {
-        **asdict(selected),
-        "supported_abis": list(selected.supported_abis),
-    }
-    restarted = InstallJobManager(hass, now=Clock())
-    loaded = await restarted.async_get(receipt.job_id)
-    assert loaded == receipt
-    joined, created_again = await create(restarted, install_artifact=selected)
-    assert created_again is False
-    assert joined == receipt
-    different = replace(
-        selected,
-        release_tag="v0.9.7-rc4",
-        version_name="0.9.7-rc4",
-        apk_name="ha-paneld-v0.9.7-rc4-manual-setup-required.apk",
-    )
-    with pytest.raises(InstallJobConflictError):
-        await create(restarted, install_artifact=different)
-    assert await restarted.async_get(receipt.job_id) == receipt
-
-
 @pytest.mark.parametrize(
     "tag",
     [

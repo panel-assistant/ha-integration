@@ -29,7 +29,7 @@ from .build_feed import FeedInstallBundle
 from .client import HaPaneldClient, InvalidAddressError, PanelAddress, normalize_address
 from .const import DEFAULT_PORT, DOMAIN
 from .ha_url import async_offer_ha_url
-from .release import is_feed_build_tag, is_rc_release_tag
+from .release import is_feed_build_tag, is_install_release_tag
 from .release_catalog import async_list_install_choices
 
 DATA_BROWSER_DELIVERY = "browser_delivery"
@@ -86,7 +86,7 @@ async def _selection(request: web.Request) -> str | None:
     if not value:
         return None
     tag = value["release_candidate"]
-    if not (is_rc_release_tag(tag) or is_feed_build_tag(tag)):
+    if not (is_install_release_tag(tag) or is_feed_build_tag(tag)):
         raise ValueError
     assert isinstance(tag, str)
     return tag

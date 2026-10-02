@@ -15,6 +15,7 @@ from homeassistant.auth import EVENT_USER_REMOVED
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import instance_id
@@ -123,6 +124,89 @@ async def _open(client: Any, **changes: Any) -> str:
     assert response["success"], response
     token: str = response["result"]["session"]
     return token
+
+
+@pytest.mark.parametrize(
+    "pa_version,initial_opt_in,expected_initial,revoked",
+    [
+        ("1.0.0", False, False, True),
+        ("1.0.0", True, True, True),
+        ("1.0.0-rc1", False, True, False),
+    ],
+)
+async def test_panel_update_options_regrant_live_authenticated_policy(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    pa_version: str,
+    initial_opt_in: bool,
+    expected_initial: bool,
+    revoked: bool,
+) -> None:
+    """Changing the granted channel revokes its token; PA prerelease stays allowed."""
+    hass.config_entries.async_update_entry(
+        entry,
+        options={"authority": "shadow", "prerelease_panel_builds": initial_opt_in},
+    )
+    await hass.async_block_till_done()
+    data_before = dict(entry.data)
+    identity_before = entry.unique_id
+    with patch(
+        "custom_components.panel_assistant.update_policy.INTEGRATION_VERSION",
+        pa_version,
+    ):
+        client = await hass_ws_client(hass, hass_read_only_access_token)
+        response = await _send(client, _hello())
+        assert response["success"]
+        assert response["result"]["update_policy"] == {
+            "protocolMin": 1,
+            "protocolMax": 3,
+            "prerelease": expected_initial,
+        }
+        old_token = response["result"]["session"]
+        opened = await hass.config_entries.options.async_init(entry.entry_id)
+        assert opened["type"] is FlowResultType.MENU
+        form = await hass.config_entries.options.async_configure(
+            opened["flow_id"], {"next_step_id": "updates"}
+        )
+        assert form["type"] is FlowResultType.FORM
+        assert form["data_schema"]({}) == {"prerelease_panel_builds": initial_opt_in}
+        saved = await hass.config_entries.options.async_configure(
+            opened["flow_id"], {"prerelease_panel_builds": not initial_opt_in}
+        )
+        assert saved["type"] is FlowResultType.CREATE_ENTRY
+        await hass.async_block_till_done()
+        assert entry.options == {
+            "authority": "shadow",
+            "prerelease_panel_builds": not initial_opt_in,
+        }
+        assert dict(entry.data) == data_before
+        assert entry.unique_id == identity_before
+        if revoked:
+            closed = await _receive(client)
+            assert closed["event"] == {
+                "kind": "session_closed",
+                "reason": "update_policy_changed",
+            }
+        reported = await _send(
+            client,
+            {
+                "type": "panel_assistant/report_state",
+                "session": old_token,
+                "sync": "delta",
+                "observations": [],
+            },
+        )
+        assert reported["success"] is (not revoked)
+        reconnected = await hass_ws_client(hass, hass_read_only_access_token)
+        renewed = await _send(reconnected, _hello())
+        assert renewed["success"]
+        assert renewed["result"]["update_policy"] == {
+            "protocolMin": 1,
+            "protocolMax": 3,
+            "prerelease": "-" in pa_version or not initial_opt_in,
+        }
 
 
 def _registry_digest(hass: HomeAssistant, entry_id: str) -> tuple[list[Any], list[Any]]:

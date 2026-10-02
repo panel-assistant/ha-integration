@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-from custom_components.panel_assistant import install_plan
+from custom_components.panel_assistant import install_plan, update_policy
 from custom_components.panel_assistant.client import PanelAddress
 from custom_components.panel_assistant.install_jobs import InstallJobStoreError
 from custom_components.panel_assistant.install_network import PinnedPanelTarget
@@ -74,6 +74,8 @@ def release(**changes: object) -> ReleaseArtifact:
         apk_url="https://github.invalid/secret-location.apk?token=do-not-persist",
         sha256=APK_SHA256,
         descriptor=descriptor(),
+        protocol_min=3,
+        protocol_max=3,
     )
     return replace(value, **changes)
 
@@ -101,11 +103,12 @@ def test_rc_plan_binds_only_explicit_exact_opt_in() -> None:
     assert plan.artifact.apk_name == "ha-paneld-v0.9.7-rc3-manual-setup-required.apk"
     stable = build_install_plan(pinned_target(), probe(), release(), CREDENTIAL_ID)
     assert plan.plan_sha256 != stable.plan_sha256
-    assert asdict(plan.artifact).keys() == asdict(stable.artifact).keys()
+    assert plan.artifact.prerelease_opt_in
+    assert not stable.artifact.prerelease_opt_in
 
 
 @pytest.mark.parametrize(
-    "requested", [None, "", "v0.9.7", "v0.9.7-rc4", "v0.9.7-rc03", True, 3]
+    "requested", ["", "v0.9.7", "v0.9.7-rc4", "v0.9.7-rc03", True, 3]
 )
 def test_rc_plan_refuses_missing_malformed_or_different_opt_in(
     requested: object,
@@ -131,6 +134,67 @@ def test_rc_plan_refuses_stable_substitution() -> None:
             expected_rc_tag="v0.9.7-rc3",
         )
     assert caught.value.code is InstallPlanErrorCode.INVALID_RELEASE
+
+
+@pytest.mark.parametrize("minimum,maximum", [(4, 5), (0, 3), (3, 2), (True, 3)])
+def test_new_install_refuses_incompatible_native_range(
+    minimum: object, maximum: object
+) -> None:
+    with pytest.raises(InstallPlanError) as caught:
+        build_install_plan(
+            pinned_target(),
+            probe(),
+            release(protocol_min=minimum, protocol_max=maximum),
+            CREDENTIAL_ID,
+        )
+    assert caught.value.code is InstallPlanErrorCode.INCOMPATIBLE_RELEASE
+
+
+def test_new_install_refuses_historical_release_without_native_range() -> None:
+    unknown = ReleaseArtifact(
+        tag="v0.1.0",
+        version="0.1.0",
+        apk_name="ha-paneld-v0.1.0-manual-setup-required.apk",
+        apk_url="https://github.invalid/app.apk",
+        sha256=APK_SHA256,
+        descriptor=descriptor(),
+    )
+    with pytest.raises(InstallPlanError) as caught:
+        build_install_plan(pinned_target(), probe(), unknown, CREDENTIAL_ID)
+    assert caught.value.code is InstallPlanErrorCode.INCOMPATIBLE_RELEASE
+
+
+def test_default_install_follows_running_pa_without_persisting_implicit_opt_in(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "0.7.0-rc2")
+    plan = build_install_plan(pinned_target(), probe(), rc_release(), CREDENTIAL_ID)
+    assert plan.artifact.release_tag == "v0.9.7-rc3"
+    assert not plan.artifact.prerelease_opt_in
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "0.7.0")
+    with pytest.raises(InstallPlanError) as caught:
+        build_install_plan(pinned_target(), probe(), rc_release(), CREDENTIAL_ID)
+    assert caught.value.code is InstallPlanErrorCode.INCOMPATIBLE_RELEASE
+    explicitly_selected = build_install_plan(
+        pinned_target(),
+        probe(),
+        rc_release(),
+        CREDENTIAL_ID,
+        expected_rc_tag="v0.9.7-rc3",
+    )
+    assert explicitly_selected.artifact.prerelease_opt_in
+
+
+def test_exact_stable_selection_never_grants_prerelease_consent() -> None:
+    plan = build_install_plan(
+        pinned_target(),
+        probe(),
+        release(),
+        CREDENTIAL_ID,
+        expected_rc_tag="v0.1.0",
+    )
+    assert plan.artifact.version_name == "0.1.0"
+    assert not plan.artifact.prerelease_opt_in
 
 
 def assert_error(
@@ -177,6 +241,9 @@ def test_build_maps_every_field_and_hashes_exact_canonical_plan() -> None:
         "supported_abis": ("arm64-v8a", "armeabi-v7a"),
         "database_compatibility": "hapaneld-db:v1:ha-paneld.db:1:14",
         "launch_component": "io.github.maxlyth.hapaneld/.MainActivity",
+        "protocol_min": 3,
+        "protocol_max": 3,
+        "prerelease_opt_in": False,
     }
     assert plan.adb_credential_id == CREDENTIAL_ID
     canonical = (
@@ -184,7 +251,11 @@ def test_build_maps_every_field_and_hashes_exact_canonical_plan() -> None:
             {
                 "schema": "io.github.maxlyth.hapaneld.install-plan.v1",
                 "target": asdict(plan.target),
-                "artifact": asdict(plan.artifact),
+                "artifact": {
+                    key: value
+                    for key, value in asdict(plan.artifact).items()
+                    if key != "prerelease_opt_in"
+                },
                 "adb_credential_id": CREDENTIAL_ID,
             },
             ensure_ascii=True,

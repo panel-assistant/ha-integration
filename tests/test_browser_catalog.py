@@ -6,7 +6,6 @@ import pytest
 from homeassistant.setup import async_setup_component
 
 from custom_components.panel_assistant import browser_delivery as delivery
-from custom_components.panel_assistant import release_catalog
 
 URL = "/api/panel_assistant/usb/releases"
 
@@ -16,7 +15,7 @@ async def catalog_endpoint(hass, hass_client, monkeypatch):
     assert await async_setup_component(hass, "http", {})
     delivery.async_register_browser_delivery(hass)
     listing = AsyncMock(return_value=[{"tag": "v1.2.3-rc1", "prerelease": True}])
-    monkeypatch.setattr(release_catalog, "async_list_install_releases", listing)
+    monkeypatch.setattr(delivery, "async_list_install_choices", listing)
     return await hass_client(), listing
 
 

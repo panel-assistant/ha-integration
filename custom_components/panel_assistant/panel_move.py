@@ -32,6 +32,7 @@ import json
 import logging
 import os
 from collections.abc import Callable
+from dataclasses import asdict
 from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
@@ -66,6 +67,7 @@ from .client import (
     PanelHealth,
     UpdateApprovalRequiredError,
     UpdateBusyError,
+    _version_key,
     is_valid_discovery_id,
 )
 from .const import DOMAIN
@@ -77,6 +79,7 @@ from .feed_coordinator import (
 from .identity import adopt_moved_identity
 from .install_adb import (
     AdbInstallTarget,
+    AdbRootMode,
     DefiniteCleanupReason,
     InstallAdbError,
     InstallAdbErrorCode,
@@ -86,6 +89,7 @@ from .install_adb import (
     MoveStep,
     async_cleanup_staged_apk,
     async_install_staged_apk,
+    async_installed_artifact_size,
     async_launch_installed_app,
     async_move_step,
     async_preflight_install,
@@ -94,7 +98,8 @@ from .install_adb import (
 from .install_network import InstallNetworkError, async_pin_install_target
 from .panel_backup import PanelBackupInvalidError, async_store_panel_backup
 from .provisioning import InstallTargetState, async_probe_install_target
-from .release import ReleaseArtifact
+from .release import InstallDescriptor, ReleaseArtifact
+from .update_policy import build_allowed, prereleases_allowed, version_allowed
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -223,21 +228,50 @@ def _read_record_quietly(path: Path) -> dict[str, Any] | None:
         return {"panel_id": ""}
 
 
-def _successor_artifact(hass: HomeAssistant) -> ReleaseArtifact | None:
-    """The new app's signed APK: the configured build feed first, else stable."""
+def _successor_artifact(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> ReleaseArtifact | None:
+    """The compatible new app on this panel's current PA-managed channel."""
+    snapshot = entry.runtime_data.coordinator.data
+    if snapshot is None:
+        return None
+    allow_prerelease = prereleases_allowed(entry)
     feed = async_get_feed_coordinator(hass)
-    if feed is not None:
-        build = feed.verified_newest(SUCCESSOR_PACKAGE_ID)
-        if build is not None:
-            return feed_release_artifact(build)
-    stable = async_get_stable_release_coordinator(hass).data
-    if (
-        stable is not None
-        and stable.descriptor is not None
-        and stable.descriptor.package_id == SUCCESSOR_PACKAGE_ID
-    ):
-        return stable
-    return None
+    candidates: list[ReleaseArtifact] = []
+    if feed is not None and feed.last_update_success and feed.data:
+        candidates.extend(
+            feed_release_artifact(build)
+            for build in feed.data.builds
+            if build.package_id == SUCCESSOR_PACKAGE_ID
+        )
+    candidates.extend(
+        async_get_stable_release_coordinator(hass).candidates_for(SUCCESSOR_PACKAGE_ID)
+    )
+    return max(
+        (
+            artifact
+            for artifact in candidates
+            if artifact.descriptor is not None
+            and artifact.descriptor.package_id == SUCCESSOR_PACKAGE_ID
+            and build_allowed(
+                artifact.version,
+                artifact.protocol_min,
+                artifact.protocol_max,
+                allow_prerelease=allow_prerelease,
+            )
+            and version_allowed(
+                artifact.version,
+                artifact.descriptor.version_code,
+                snapshot.health.version,
+                snapshot.health.version_code,
+            )
+        ),
+        key=lambda artifact: (
+            _version_key(artifact.version),
+            artifact.descriptor.version_code if artifact.descriptor else 0,
+        ),
+        default=None,
+    )
 
 
 #: The app_state namespaces a restore writes back onto the panel that made the
@@ -473,12 +507,33 @@ async def _async_health(
         await asyncio.sleep(_POLL_SECONDS)
 
 
+async def _async_admit_successor(entry: ConfigEntry, artifact: ReleaseArtifact) -> None:
+    """Recheck current policy against live installed health at each APK boundary."""
+    try:
+        health = await entry.runtime_data.client.async_get_health()
+    except HaPaneldError as err:
+        raise MoveError(REASON_RELEASE_UNAVAILABLE) from err
+    if not build_allowed(
+        artifact.version,
+        artifact.protocol_min,
+        artifact.protocol_max,
+        allow_prerelease=prereleases_allowed(entry),
+    ) or not version_allowed(
+        artifact.version,
+        artifact.descriptor.version_code if artifact.descriptor is not None else None,
+        health.version,
+        health.version_code,
+    ):
+        raise MoveError(REASON_RELEASE_UNAVAILABLE)
+
+
 async def _async_install_successor(
-    hass: HomeAssistant, target: AdbInstallTarget, signer: Any
-) -> ReleaseArtifact:
-    artifact = _successor_artifact(hass)
+    hass: HomeAssistant, entry: ConfigEntry, target: AdbInstallTarget, signer: Any
+) -> tuple[ReleaseArtifact, AdbRootMode]:
+    artifact = _successor_artifact(hass, entry)
     if artifact is None or artifact.descriptor is None:
         raise MoveError(REASON_RELEASE_UNAVAILABLE)
+    await _async_admit_successor(entry, artifact)
     try:
         apk = await async_download_build(async_get_clientsession(hass), artifact)
     except (BuildDownloadError, BuildFeedError) as err:
@@ -492,6 +547,7 @@ async def _async_install_successor(
         with NamedTemporaryFile(prefix="panel-assistant-move-", suffix=".apk") as file:
             await hass.async_add_executor_job(file.write, apk)
             await hass.async_add_executor_job(file.flush)
+            await _async_admit_successor(entry, artifact)
             staged = await async_stage_apk(
                 target,
                 signer,
@@ -500,9 +556,24 @@ async def _async_install_successor(
                 Path(file.name),
                 expected_root_mode=admitted.root_mode,
             )
-        outcome = await async_install_staged_apk(
-            target, signer, descriptor, job_id, expected_root_mode=admitted.root_mode
-        )
+        try:
+            outcome = await async_install_staged_apk(
+                target,
+                signer,
+                descriptor,
+                job_id,
+                expected_root_mode=admitted.root_mode,
+                before_install=lambda: _async_admit_successor(entry, artifact),
+            )
+        except MoveError:
+            await async_cleanup_staged_apk(
+                target,
+                signer,
+                staged,
+                DefiniteCleanupReason.INSTALL_REFUSED,
+                expected_root_mode=admitted.root_mode,
+            )
+            raise
         await async_cleanup_staged_apk(
             target,
             signer,
@@ -520,7 +591,7 @@ async def _async_install_successor(
         raise MoveError(REASON_MOVE_FAILED) from err
     if outcome is not InstallOutcome.INSTALLED:
         raise MoveError(REASON_MOVE_FAILED)
-    return artifact
+    return artifact, admitted.root_mode
 
 
 async def _async_take_receipt(
@@ -593,13 +664,14 @@ async def _async_retire_legacy(
     target: AdbInstallTarget,
     signer: Any,
     observed: MoveObservation,
-    ours: bool,
+    previous: dict[str, Any] | None,
 ) -> dict[str, Any]:
     """Steps 1 to 4: receipt, new app installed, HOME safe, old app removed.
 
-    ``ours`` is a move this integration recorded for this device: a new app
+    ``previous`` is a move this integration recorded for this device: a new app
     beside the old one is then the one it installed, even if it owns HOME.
     """
+    ours = previous is not None
     if (
         observed.successor_installed
         and not ours
@@ -612,6 +684,12 @@ async def _async_retire_legacy(
         raise MoveError(REASON_NEW_APP_IS_HOME)
     # The receipt comes first, from the old app answering as the panel's owner.
     record = await _async_take_receipt(hass, entry, target)
+    if ours and observed.successor_installed:
+        assert previous is not None
+        record.update(
+            successor_descriptor=previous.get("successor_descriptor"),
+            successor_root_mode=previous.get("successor_root_mode"),
+        )
     if observed.successor_installed and not ours:
         # Never launched, or provably only ever waiting for a handover: its
         # only data is a copy of what the receipt above has just taken.
@@ -619,10 +697,20 @@ async def _async_retire_legacy(
         if observed.successor_installed or not observed.legacy_installed:
             raise MoveError(REASON_MOVE_FAILED)
     if not observed.successor_installed:
-        await _async_install_successor(hass, target, signer)
+        artifact, root_mode = await _async_install_successor(
+            hass, entry, target, signer
+        )
+        assert artifact.descriptor is not None
+        record.update(
+            successor_descriptor=asdict(artifact.descriptor),
+            successor_root_mode=root_mode.value,
+        )
         observed = await _async_step(target, signer, MoveStep.OBSERVE)
         if not observed.successor_installed or not observed.legacy_installed:
             raise MoveError(REASON_MOVE_FAILED)
+    await _async_verify_successor(target, signer, record)
+    # Keep the installed identity before either HOME or the old app is changed.
+    await _async_save_record(hass, entry, record)
     if observed.home in (LEGACY_PACKAGE_ID, None):
         # Nothing single answering HOME is claimed too: removing the old app
         # could otherwise leave the chooser or nothing.
@@ -630,12 +718,39 @@ async def _async_retire_legacy(
         if observed.home != SUCCESSOR_PACKAGE_ID:
             raise MoveError(REASON_MOVE_FAILED)
 
-    # Durable before the old app goes: a crash from here on resumes from it.
-    await _async_save_record(hass, entry, record)
     observed = await _async_step(target, signer, MoveStep.RETIRE_LEGACY)
     if observed.legacy_installed or not observed.successor_installed:
         raise MoveError(REASON_MOVE_FAILED)
     return record
+
+
+async def _async_verify_successor(
+    target: AdbInstallTarget, signer: Any, record: dict[str, Any]
+) -> tuple[InstallDescriptor, AdbRootMode]:
+    """Prove the recorded installed bytes, independently of current offers."""
+    try:
+        stored = record["successor_descriptor"]
+        descriptor = InstallDescriptor(
+            **{**stored, "supported_abis": tuple(stored["supported_abis"])}
+        )
+        root_mode = AdbRootMode(record["successor_root_mode"])
+    except (KeyError, TypeError, ValueError) as err:
+        # Old unfinished records cannot identify an installed build. Keep
+        # their receipt and Repair; never guess from the current catalogue.
+        raise MoveError(REASON_MOVE_FAILED) from err
+    if descriptor.package_id != SUCCESSOR_PACKAGE_ID:
+        raise MoveError(REASON_MOVE_FAILED)
+    try:
+        size = await async_installed_artifact_size(
+            target, signer, descriptor, expected_root_mode=root_mode
+        )
+    except InstallAdbError as err:
+        if err.code is InstallAdbErrorCode.TARGET_CHANGED:
+            raise MoveError(REASON_PANEL_CHANGED) from err
+        raise MoveError(REASON_MOVE_FAILED) from err
+    if size != descriptor.apk_size:
+        raise MoveError(REASON_MOVE_FAILED)
+    return descriptor, root_mode
 
 
 def _restored(health: PanelHealth, record: dict[str, Any]) -> bool:
@@ -681,41 +796,26 @@ async def _async_restore(
     serving = health is not None and reports_package(
         health.package, SUCCESSOR_PACKAGE_ID
     )
+    descriptor, root_mode = await _async_verify_successor(target, signer, record)
     if not (resumed and serving):
-        await _async_start_clean(hass, entry, target, signer)
+        await _async_step(target, signer, MoveStep.RESET_SUCCESSOR)
+        try:
+            launched = await async_launch_installed_app(
+                target, signer, descriptor, expected_root_mode=root_mode
+            )
+        except InstallAdbError as err:
+            if err.code is InstallAdbErrorCode.TARGET_CHANGED:
+                raise MoveError(REASON_PANEL_CHANGED) from err
+            raise MoveError(REASON_MOVE_FAILED) from err
+        if launched is not LaunchOutcome.STARTED:
+            raise MoveError(REASON_MOVE_FAILED)
+        await _async_health(
+            entry,
+            lambda found: reports_package(found.package, SUCCESSOR_PACKAGE_ID),
+            _HEALTH_WAIT_SECONDS,
+        )
     await _async_restore_twice(entry, data, record)
     return await _async_settled(entry, record)
-
-
-async def _async_start_clean(
-    hass: HomeAssistant, entry: ConfigEntry, target: AdbInstallTarget, signer: Any
-) -> None:
-    """Start the new app with no state of its own and no old app beside it."""
-    await _async_step(target, signer, MoveStep.RESET_SUCCESSOR)
-    artifact = _successor_artifact(hass)
-    if artifact is None or artifact.descriptor is None:
-        raise MoveError(REASON_RELEASE_UNAVAILABLE)
-    try:
-        admitted = await async_preflight_install(
-            target, signer, artifact.descriptor, admit_installed_target=True
-        )
-        launched = await async_launch_installed_app(
-            target,
-            signer,
-            artifact.descriptor,
-            expected_root_mode=admitted.root_mode,
-        )
-    except InstallAdbError as err:
-        if err.code is InstallAdbErrorCode.TARGET_CHANGED:
-            raise MoveError(REASON_PANEL_CHANGED) from err
-        raise MoveError(REASON_MOVE_FAILED) from err
-    if launched is not LaunchOutcome.STARTED:
-        raise MoveError(REASON_MOVE_FAILED)
-    await _async_health(
-        entry,
-        lambda found: reports_package(found.package, SUCCESSOR_PACKAGE_ID),
-        _HEALTH_WAIT_SECONDS,
-    )
 
 
 async def _async_restore_twice(
@@ -816,6 +916,11 @@ async def _async_move(hass: HomeAssistant, entry: ConfigEntry) -> None:
         # entry now names a different panel.
         await _async_finish_adopted(hass, entry, record)
         return
+    if record is not None and (
+        not isinstance(record.get("successor_descriptor"), dict)
+        or not isinstance(record.get("successor_root_mode"), str)
+    ):
+        raise MoveError(REASON_MOVE_FAILED)
     target, signer = await _async_target(hass, entry)
     ours = record is not None and record["serial"] == target.serial
     if record is not None and not ours:
@@ -823,9 +928,14 @@ async def _async_move(hass: HomeAssistant, entry: ConfigEntry) -> None:
     # Decide from what the panel has now, never from what a record expected.
     observed = await _async_step(target, signer, MoveStep.OBSERVE)
     if observed.legacy_installed:
-        if _successor_artifact(hass) is None:
-            raise MoveError(REASON_RELEASE_UNAVAILABLE)
-        record = await _async_retire_legacy(hass, entry, target, signer, observed, ours)
+        if not (ours and observed.successor_installed):
+            artifact = _successor_artifact(hass, entry)
+            if artifact is None:
+                raise MoveError(REASON_RELEASE_UNAVAILABLE)
+            await _async_admit_successor(entry, artifact)
+        record = await _async_retire_legacy(
+            hass, entry, target, signer, observed, record
+        )
         resumed = False
     elif record is None:
         raise MoveError(

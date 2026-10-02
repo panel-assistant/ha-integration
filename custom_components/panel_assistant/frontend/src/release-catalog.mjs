@@ -5,6 +5,7 @@ import { SUCCESSOR_PACKAGE_ID } from './app-identity.mjs';
 const MAX_GITHUB_CHOICES = 30;
 const MAX_FEED_CHOICES = 500;
 const MAX_BYTES = 128 * 1024;
+const SEMANTIC_VERSION = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z][0-9A-Za-z.-]*))?$/;
 const keys = (value, expected) => value !== null && typeof value === 'object' &&
   !Array.isArray(value) && Object.keys(value).length === expected.length &&
   expected.every(key => Object.hasOwn(value, key));
@@ -14,8 +15,13 @@ function requireValid(value) { if (!value) throw new Error('Invalid release cata
 function feedName(release) {
   const code = buildTagVersionCode(release.tag);
   const versionName = typeof release.name === 'string' ? release.name.split(' ')[0] : null;
+  const version = typeof versionName === 'string' ? SEMANTIC_VERSION.exec(versionName) : null;
+  const prerelease = version?.[4];
   const suffix = buildTagPackageId(release.tag) === SUCCESSOR_PACKAGE_ID ? ' (Panel Assistant)' : '';
-  return code !== null && release.prerelease === true && isBuildVersionName(versionName) &&
+  return code !== null && version !== null && version[0] === versionName &&
+    typeof release.prerelease === 'boolean' && release.prerelease === Boolean(prerelease) &&
+    (!prerelease || prerelease.split('.').every(part => part && !/^0[0-9]+$/.test(part))) &&
+    isBuildVersionName(versionName) &&
     release.name === `${buildLabel(versionName, code)}${suffix}`;
 }
 
@@ -23,18 +29,17 @@ export function parseReleaseCatalog(value) {
   requireValid(keys(value, ['releases']) && Array.isArray(value.releases) &&
     value.releases.length <= MAX_GITHUB_CHOICES + MAX_FEED_CHOICES);
   const seen = new Set();
-  let stableCount = 0, githubCount = 0, feedCount = 0;
+  let githubCount = 0, feedCount = 0;
   return Object.freeze(value.releases.map(release => {
     if (keys(release, ['tag', 'prerelease', 'name'])) {
       requireValid(feedName(release) && !seen.has(release.tag) && ++feedCount <= MAX_FEED_CHOICES);
       seen.add(release.tag);
-      return Object.freeze({ tag: release.tag, prerelease: true, name: release.name });
+      return Object.freeze({ tag: release.tag, prerelease: release.prerelease, name: release.name });
     }
     requireValid(keys(release, ['tag', 'prerelease']) && typeof release.prerelease === 'boolean' &&
       (release.prerelease ? isRcTag(release.tag) : isStableTag(release.tag)) && !seen.has(release.tag) &&
       ++githubCount <= MAX_GITHUB_CHOICES);
     seen.add(release.tag);
-    if (!release.prerelease) requireValid(++stableCount <= 1);
     return Object.freeze({ tag: release.tag, prerelease: release.prerelease });
   }));
 }

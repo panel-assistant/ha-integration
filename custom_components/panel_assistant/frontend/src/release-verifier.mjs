@@ -1,5 +1,5 @@
 import { MAX_FEED_BYTES, buildTagPackageId, buildTagVersionCode, descriptorIdentityValid,
-  isBuildTag, isBuildVersionName, isGithubTag, isRcTag, isStableTag } from './release-identity.mjs';
+  isBuildTag, isBuildVersionName, isGithubTag, isStableTag } from './release-identity.mjs';
 
 /** Byte-only metadata authentication. This does not validate an APK signing block. */
 const KEY = `MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3LH+db6kzNld/ERP612x
@@ -172,7 +172,7 @@ async function verifyFeedBundle(bundle, expectedTag, verificationKey) {
 async function verifyGithubBundle(bundle, expectedRcTag, verificationKey) {
   const { tag } = bundle;
   requireValid(isGithubTag(tag) && (expectedRcTag === null ? isStableTag(tag) :
-    isRcTag(expectedRcTag) && tag === expectedRcTag));
+    isGithubTag(expectedRcTag) && tag === expectedRcTag));
   const checksum = bytes(bundle.checksum, 512);
   const checksumSignature = bytes(bundle.checksumSignature, 256, true);
   const descriptor = bytes(bundle.descriptor, 4096);

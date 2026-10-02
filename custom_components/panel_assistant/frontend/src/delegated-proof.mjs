@@ -1,5 +1,4 @@
 /** Fixed read-only delegated-root proof; never elevates an installation command. */
-import { LEGACY_PACKAGE_ID } from './app-identity.mjs';
 import { RESIDUE_PROBES } from './preflight.mjs';
 
 export const SU_PREFIXES = Object.freeze(['su 0', 'su 0 sh -c', 'su root', 'su root sh -c', 'su -c']);
@@ -51,12 +50,10 @@ function decode(body) {
 
 /**
  * False permits another fixed dialect, never mutation. True proves only this
- * response. `migrationCandidate` is the admission the unprivileged preflight already
- * reached. Root sees data directories the shell cannot, so this is the
- * authoritative residue reading, and it is judged by the same rule: the legacy
- * data a handover is about to migrate is expected, anything else is not.
+ * response. Root sees data directories the shell cannot, so this is the
+ * authoritative residue reading. Data for either panel application is refused.
  */
-export function parseDelegatedProof(body, nonce, migrationCandidate = false) {
+export function parseDelegatedProof(body, nonce) {
   checkNonce(nonce);
   const lines = decode(body);
   if (lines[0] !== `HAPANELD_DELEGATE_BEGIN:${nonce}`) fail();
@@ -89,12 +86,9 @@ export function parseDelegatedProof(body, nonce, migrationCandidate = false) {
   for (let i = 0; i < 3; i++) {
     if (!isOne(sections[`BASE${i}`], 'readable')) fail('root_state_ambiguous');
   }
-  RESIDUE_PROBES.forEach(({ packageId }, i) => {
+  RESIDUE_PROBES.forEach((_, i) => {
     const section = sections[`RESIDUE${i}`];
-    if (isOne(section, 'present')) {
-      if (!(migrationCandidate && packageId === LEGACY_PACKAGE_ID)) fail('target_not_clean');
-      return;
-    }
+    if (isOne(section, 'present')) fail('target_not_clean');
     if (!isOne(section, 'absent')) fail();
   });
   return true;

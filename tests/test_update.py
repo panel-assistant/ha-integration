@@ -11,6 +11,7 @@ from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.panel_assistant import update as panel_update
 from custom_components.panel_assistant.adb_credentials import AdbCredentialError
+from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
 from custom_components.panel_assistant.client import (
     CannotConnectError,
     PanelHealth,
@@ -24,6 +25,7 @@ from custom_components.panel_assistant.coordinator import (
     HaPaneldDataUpdateCoordinator,
     PanelSnapshot,
 )
+from custom_components.panel_assistant.feed_coordinator import StableReleaseCoordinator
 from custom_components.panel_assistant.release import ReleaseArtifact
 from custom_components.panel_assistant.status import PanelCachedUpdate, PanelStatus
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity
@@ -99,7 +101,22 @@ def _entity(
     )
     updates = PanelUpdateCoordinator(hass, client)  # type: ignore[arg-type]
     updates.data = PanelUpdateSnapshot(operation=operation, error=update_error)
-    entity = HaPaneldUpdateEntity("entry-id", health, updates)
+    artifact = ReleaseArtifact(
+        "v0.9.10",
+        "0.9.10",
+        "app.apk",
+        "https://github.com/app.apk",
+        "a" * 64,
+        descriptor=SimpleNamespace(package_id=LEGACY_PACKAGE_ID, version_code=1100),
+        protocol_min=3,
+        protocol_max=3,
+    )
+    host = StableReleaseCoordinator(hass)
+    host._candidates[artifact.tag, LEGACY_PACKAGE_ID] = artifact
+    entity = HaPaneldUpdateEntity("entry-id", health, updates, release=host)
+    # These tests exercise the admitted panel-download route and its observer;
+    # signed LAN staging and backup execution are exercised in the LAN suite.
+    entity._async_deliver_build = AsyncMock(return_value=False)
     entity.hass = hass
     entity.async_write_ha_state = MagicMock()
     return entity, client
@@ -118,15 +135,11 @@ def test_update_entity_uses_existing_config_entry_and_offers_only_newer_stable(
     assert entity.device_info["identifiers"] == {("panel_assistant", "entry-id")}
 
 
-def test_update_entity_hides_downgrades_and_unsupported_updater(
+def test_update_entity_hides_a_release_older_than_running_health(
     hass: HomeAssistant,
 ) -> None:
-    """A stale, lower, or unreadable panel offer never becomes an update action."""
-    lower, _ = _entity(hass, offer=PanelCachedUpdate("0.9.9", "0.9.8", "v0.9.8"))
-    stale, _ = _entity(hass, offer=PanelCachedUpdate("0.9.8", "0.9.10", "v0.9.10"))
-
-    assert lower.latest_version == lower.installed_version
-    assert stale.latest_version == stale.installed_version
+    entity, _ = _entity(hass, version="0.9.11")
+    assert entity.latest_version == entity.installed_version
 
 
 async def test_panel_without_an_install_route_offers_nothing(
@@ -143,7 +156,7 @@ async def test_panel_without_an_install_route_offers_nothing(
     assert entity.latest_version == entity.installed_version
     await entity._async_refresh_route()
     assert (
-        "no verified signed build"
+        "no usable authorized ADB route"
         in entity.extra_state_attributes["update_unavailable_reason"]
     )
     with pytest.raises(HomeAssistantError, match="unavailable"):
@@ -316,6 +329,50 @@ async def test_update_entity_maps_a_panel_refusal_without_retrying(
 
     _assert_translated(error.value, "update_rejected")
     client.async_start_panel_update.assert_awaited_once_with("v0.9.10")
+
+
+async def test_unstarted_panel_download_retry_rechecks_current_consent(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A refused connection never spends consent on a later fresh request."""
+    from dataclasses import replace
+
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.panel_assistant import update_policy
+    from custom_components.panel_assistant.const import CONF_PRERELEASE_PANEL_BUILDS
+
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "0.7.0")
+    monkeypatch.setattr(panel_update.asyncio, "sleep", AsyncMock())
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        entry_id="entry-id",
+        data={},
+        options={CONF_PRERELEASE_PANEL_BUILDS: True},
+    )
+    entry.add_to_hass(hass)
+    entity, client = _entity(hass)
+    artifact = replace(
+        entity._release.artifact_for(LEGACY_PACKAGE_ID),
+        tag="v0.9.10-rc1",
+        version="0.9.10-rc1",
+    )
+    sent = []
+
+    async def start(tag):
+        sent.append(tag)
+        hass.config_entries.async_update_entry(
+            entry, options={CONF_PRERELEASE_PANEL_BUILDS: False}
+        )
+        raise _connection_refused()
+
+    client.async_start_panel_update.side_effect = start
+    with pytest.raises(HomeAssistantError) as caught:
+        await entity._async_start_panel_download(
+            PanelCachedUpdate("0.9.9", artifact.version, artifact.tag), artifact
+        )
+    _assert_translated(caught.value, "update_unavailable")
+    assert sent == [artifact.tag]
 
 
 async def test_update_entity_requests_physical_approval_without_retrying(

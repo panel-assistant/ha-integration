@@ -38,6 +38,8 @@ from custom_components.panel_assistant.build_feed import (
 
 FEED_URL = URL("https://feed.example/x/maintainer.json")
 SIGNATURE_URL = URL("https://feed.example/x/maintainer.json.sig")
+PROTOCOL_URL = URL("https://feed.example/x/maintainer.protocol.json")
+PROTOCOL_SIGNATURE_URL = URL("https://feed.example/x/maintainer.protocol.json.sig")
 SIGNER = release._RELEASE_SIGNER_CERTIFICATE_SHA256
 
 
@@ -493,19 +495,47 @@ class _FakeSession:
 async def test_fetch_reads_exactly_the_feed_and_its_signature(
     sign: Callable[[bytes], bytes],
 ) -> None:
-    """Only the configured URL and its .sig sibling are requested, without redirects."""
+    """The configured V1 feed and authenticated protocol siblings stay bounded."""
     body = _canonical(_feed())
+    protocol = _canonical(
+        {
+            "schema": "io.github.maxlyth.hapaneld.protocol.v1",
+            "artifacts": sorted(
+                [
+                    {"apkSha256": _sha(code), "protocolMin": 3, "protocolMax": 4}
+                    for code in (770, 771, 772)
+                ],
+                key=lambda record: record["apkSha256"],
+            ),
+        }
+    )
     session = _FakeSession(
         {
             str(FEED_URL): _FakeResponse(200, body, FEED_URL),
             str(SIGNATURE_URL): _FakeResponse(200, sign(body), SIGNATURE_URL),
+            str(PROTOCOL_URL): _FakeResponse(200, protocol, PROTOCOL_URL),
+            str(PROTOCOL_SIGNATURE_URL): _FakeResponse(
+                200, sign(protocol), PROTOCOL_SIGNATURE_URL
+            ),
         }
     )
 
     feed = await async_fetch_build_feed(session, FEED_URL)  # type: ignore[arg-type]
 
     assert [build.version_code for build in feed.builds] == [772, 771, 770]
-    assert [url for url, _ in session.requests] == [str(FEED_URL), str(SIGNATURE_URL)]
+    assert [url for url, _ in session.requests] == [
+        str(FEED_URL),
+        str(SIGNATURE_URL),
+        str(PROTOCOL_URL),
+        str(PROTOCOL_SIGNATURE_URL),
+    ]
+    assert all(
+        (build.protocol_min, build.protocol_max) == (3, 4) for build in feed.builds
+    )
+    assert feed.raw == body
+    assert feed.signature == sign(body)
+    artifact = feed_release_artifact(feed.newest())
+    assert (artifact.protocol_min, artifact.protocol_max) == (3, 4)
     assert all(kwargs["allow_redirects"] is False for _, kwargs in session.requests)
 
 
@@ -754,3 +784,88 @@ def test_a_non_string_channel_is_refused_not_a_crash(
     ).encode()
     with pytest.raises(BuildFeedError):
         parse_build_feed(body, b"s" * 256, URL("https://h/x.json"))
+
+
+async def test_feed_protocol_proof_matches_exact_hash_without_historical_guess(
+    sign: Callable[[bytes], bytes],
+) -> None:
+    """Only a retained metadata-proven hash gets a range; V1 bytes stay intact."""
+    body = _canonical(_feed())
+    protocol = _canonical(
+        {
+            "schema": "io.github.maxlyth.hapaneld.protocol.v1",
+            "artifacts": [{"apkSha256": _sha(771), "protocolMin": 2, "protocolMax": 3}],
+        }
+    )
+    session = _FakeSession(
+        {
+            str(FEED_URL): _FakeResponse(200, body, FEED_URL),
+            str(SIGNATURE_URL): _FakeResponse(200, sign(body), SIGNATURE_URL),
+            str(PROTOCOL_URL): _FakeResponse(200, protocol, PROTOCOL_URL),
+            str(PROTOCOL_SIGNATURE_URL): _FakeResponse(
+                200, sign(protocol), PROTOCOL_SIGNATURE_URL
+            ),
+        }
+    )
+    parsed = parse_build_feed(body, sign(body), FEED_URL)
+    assert all(
+        build.protocol_min is None and build.protocol_max is None
+        for build in parsed.builds
+    )
+    fetched = await async_fetch_build_feed(session, FEED_URL)  # type: ignore[arg-type]
+    assert (fetched.find(771).protocol_min, fetched.find(771).protocol_max) == (2, 3)
+    assert fetched.find(772).protocol_min is None
+    assert fetched.find(770).protocol_max is None
+    assert fetched.raw == body
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "missing",
+        "missing-signature",
+        "tampered",
+        "invalid-range",
+        "redirect",
+        "oversize",
+    ],
+)
+async def test_fetch_refuses_unproven_protocol_companion(
+    sign: Callable[[bytes], bytes], fault: str
+) -> None:
+    """Missing or unauthenticated companion metadata cannot authorize feed offers."""
+    body = _canonical(_feed())
+    protocol = _canonical(
+        {
+            "schema": "io.github.maxlyth.hapaneld.protocol.v1",
+            "artifacts": [{"apkSha256": _sha(772), "protocolMin": 3, "protocolMax": 3}],
+        }
+    )
+    signature = sign(protocol)
+    status, signature_status = 200, 200
+    match fault:
+        case "missing":
+            status = 404
+        case "missing-signature":
+            signature_status = 404
+        case "redirect":
+            status = 302
+        case "tampered":
+            protocol = protocol.replace(b'"protocolMax":3', b'"protocolMax":4')
+        case "invalid-range":
+            protocol = protocol.replace(b'"protocolMax":3', b'"protocolMax":2')
+            signature = sign(protocol)
+        case "oversize":
+            protocol += b" " * release._MAX_PROTOCOL_METADATA_BYTES
+    session = _FakeSession(
+        {
+            str(FEED_URL): _FakeResponse(200, body, FEED_URL),
+            str(SIGNATURE_URL): _FakeResponse(200, sign(body), SIGNATURE_URL),
+            str(PROTOCOL_URL): _FakeResponse(status, protocol, PROTOCOL_URL),
+            str(PROTOCOL_SIGNATURE_URL): _FakeResponse(
+                signature_status, signature, PROTOCOL_SIGNATURE_URL
+            ),
+        }
+    )
+    with pytest.raises(BuildFeedError):
+        await async_fetch_build_feed(session, FEED_URL)  # type: ignore[arg-type]

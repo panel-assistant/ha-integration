@@ -38,18 +38,22 @@ def services(monkeypatch):
         cleanup_error=None,
         reconcile_error=None,
         size=17,
+        default_tag="v1.2.3",
     )
 
     async def resolve(session, *, rc_tag=None):
         state.resolved.append(rc_tag)
+        selected = rc_tag or state.default_tag
         return InstallReleaseBundle(
             ReleaseArtifact(
-                rc_tag or "v1.2.3",
-                "1.2.3",
+                selected,
+                selected[1:],
                 "release.apk",
                 "https://example.com",
                 "a" * 64,
                 SimpleNamespace(apk_size=state.size),
+                protocol_min=3,
+                protocol_max=3,
             ),
             SignedReleaseMetadata(b"checksum", b"signature", b"json", b"sig"),
         )
@@ -281,3 +285,24 @@ async def test_eviction_prefers_served_then_oldest_and_spares_leases(services):
             with pytest.raises(BrowserReleaseCacheError, match="browser_release_busy"):
                 await services.cache.async_prepare("erin")
             assert services.files == {third.id, fourth.id}
+
+
+@pytest.mark.parametrize("change", ["channel", "protocol"])
+async def test_retained_browser_apk_cannot_outlive_running_pa_admission(
+    services, monkeypatch, change
+):
+    from custom_components.panel_assistant import update_policy
+
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "1.0.0-rc1")
+    services.default_tag = "v1.2.4-rc1"
+    record = await services.cache.async_prepare("alice")
+    async with services.cache.async_lease("alice", record.id) as admitted:
+        assert admitted is record
+    if change == "channel":
+        monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "1.0.0")
+    else:
+        monkeypatch.setattr(update_policy, "PROTOCOL_MIN", 4)
+        monkeypatch.setattr(update_policy, "PROTOCOL_MAX", 4)
+    with pytest.raises(BrowserReleaseCacheError, match="browser_release_not_found"):
+        async with services.cache.async_lease("alice", record.id):
+            pytest.fail("revoked APK must never be handed to browser")
