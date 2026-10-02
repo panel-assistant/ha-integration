@@ -1180,7 +1180,9 @@ async def test_the_live_hello_result_matches_its_conformance_vector(
     assert response["success"], response
     result = response["result"]
     expected = vector["result"]
-    assert set(result) == set(expected) | {"connection"}
+    # The Core lifecycle snapshot is additive, like the connection block.
+    assert set(result) == set(expected) | {"connection", "lifecycle"}
+    assert isinstance(result["lifecycle"], dict)
     for key in ("protocol", "authority", "mqtt_discovery", "capabilities", "channels"):
         assert result[key] == expected[key], key
     assert isinstance(result["session"], str) and result["session"]
