@@ -192,6 +192,9 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                 translation_domain=DOMAIN, translation_key="health_update_failed"
             )
         self.identity_mismatch = False
+        status_address = self.client.address
+        status_entry_address = entry.data[CONF_ADDRESS] if entry is not None else None
+        status_identity = entry.unique_id if entry is not None else None
         if self._entry_id is not None:
             from .failure_repair import (
                 async_clear_update_failure_if_installed,
@@ -231,9 +234,6 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                 else:
                     sessions.set_restart_notice(self._entry_id, *health.restart)
 
-        status_address = self.client.address
-        status_entry_address = entry.data[CONF_ADDRESS] if entry is not None else None
-        status_identity = entry.unique_id if entry is not None else None
         try:
             status = await self.client.async_get_status(
                 update_owner=self._shows_panel_update()
@@ -244,7 +244,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             return PanelSnapshot(
                 health=health, status=None, status_error="invalid_response"
             )
-        # An entry removal, move or identity change while status was in flight
+        # An entry removal, move or identity change after health was accepted
         # retires the observation before it can clear a commissioning warning.
         if (
             self._entry() is not entry

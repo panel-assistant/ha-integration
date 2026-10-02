@@ -26,6 +26,7 @@ from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.coordinator import HaPaneldDataUpdateCoordinator
 from custom_components.panel_assistant.failure_repair import (
     async_clear_update_failure_if_installed,
+    panel_failure_issue_id,
 )
 from custom_components.panel_assistant.status import parse_status_response
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity
@@ -274,6 +275,56 @@ async def test_status_from_a_retired_entry_cannot_resolve_or_recreate_a_warning(
         await coordinator.async_refresh()
         assert not coordinator.last_update_success
         assert (_issue(hass, entry) is None) is (change == "removed")
+
+
+@pytest.mark.parametrize("change", ["identity", "address"])
+async def test_entry_retired_during_version_read_retains_permission_warning(
+    hass: HomeAssistant,
+    change: str,
+) -> None:
+    entry, coordinator = _panel(hass)
+    status = AsyncMock(return_value=_status({**HELD, "camera": "missing"}))
+    with (
+        patch.object(
+            coordinator.client, "async_get_health", AsyncMock(return_value=HEALTH)
+        ),
+        patch.object(
+            coordinator.client,
+            "async_get_status",
+            status,
+        ),
+    ):
+        await coordinator.async_refresh()
+        assert _issue(hass, entry) is not None
+        ir.async_create_issue(
+            hass,
+            DOMAIN,
+            panel_failure_issue_id(f"update:{entry.entry_id}"),
+            is_fixable=True,
+            severity=ir.IssueSeverity.ERROR,
+            translation_key="installer_failure_update",
+            data={"entry_id": entry.entry_id},
+        )
+
+        async def retired_version() -> tuple[str, int]:
+            if change == "identity":
+                hass.config_entries.async_update_entry(entry, unique_id="b" * 64)
+            else:
+                hass.config_entries.async_update_entry(
+                    entry, data={CONF_ADDRESS: "new-panel.local"}
+                )
+                coordinator.client.address = normalize_address("new-panel.local")
+            return HEALTH.version, 100
+
+        status.return_value = _status(HELD)
+        with patch.object(
+            coordinator.client,
+            "async_get_version_code",
+            AsyncMock(side_effect=retired_version),
+        ):
+            await coordinator.async_refresh()
+        assert _issue(hass, entry) is not None
+        assert not coordinator.last_update_success
 
 
 async def test_successful_panel_update_keeps_its_dashboard_and_permission_warning(
