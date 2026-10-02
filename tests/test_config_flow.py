@@ -3354,7 +3354,7 @@ async def test_fresh_install_continues_into_panel_setup_after_entry_creation(
 
     assert not executor.is_finalizer_active(receipt.job_id)
     handover.assert_awaited_once()
-    assert returned["next_flow"][0] is FlowType.OPTIONS_FLOW
+    assert returned.get("next_flow", (None,))[0] is FlowType.OPTIONS_FLOW
     next_flow = hass.config_entries.options.async_get(returned["next_flow"][1])
     assert next_flow["handler"] == entry.entry_id
     assert next_flow["step_id"] == "onboarding"
@@ -3417,7 +3417,7 @@ async def test_fresh_install_confirms_only_the_panels_requested_account(
             opened["flow_id"], {"next_step_id": "onboarding_bind"}
         )
     assert confirmed["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.data[CONF_TRANSPORT_USER_ID] == other.id
+    assert entry.data.get(CONF_TRANSPORT_USER_ID) == other.id
     assert entry.options == {"authority": "native"}
 
 
