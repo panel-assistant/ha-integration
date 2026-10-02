@@ -91,6 +91,7 @@
       "installing": "ha-paneld wird unter {address} installiert und verifiziert. Lass diesen Dialog geöffnet, damit der Vorgang automatisch abgeschlossen wird. Du kannst ihn schließen; Home Assistant führt den Installationsauftrag weiter aus, kann das Gerät jedoch erst hinzufügen, wenn du Einstellungen → Geräte & Dienste → Integration hinzufügen erneut öffnest, Panel Assistant auswählst, „Panel im Netzwerk hinzufügen“ wählst und dieselbe Adresse eingibst. Nachdem Home Assistant das Gerät hinzugefügt hat, öffne den Link zur Browser-Einrichtung im Hinzufügen-Dialog auf einem Computer, der das Panel im lokalen Netzwerk erreichen kann. Bestätige die ADB-Freigabe bei Aufforderung am Panel."
     },
     "error": {
+      "old_app_installed": "Auf diesem Panel ist noch die alte ha-paneld-App installiert, sie antwortet aber nicht. Öffne sie auf dem Panel oder starte das Panel neu und füge es dann erneut hinzu. Panel Assistant bietet danach eine Reparatur an, die es in die neue App umzieht.",
       "cannot_connect": "Es konnte keine Verbindung zu einem gültigen Funktionsstatus-Endpunkt von ha-paneld hergestellt werden.",
       "invalid_address": "Gib einen Hostnamen oder eine IP-Adresse ohne URL-Schema oder Pfad ein.",
       "invalid_install_address": "Gib nur den Hostnamen oder die IP-Adresse des Panels ein. Das Installationsprogramm verwendet den ha-paneld-Port 8888 und den ADB-Port 5555 getrennt.",

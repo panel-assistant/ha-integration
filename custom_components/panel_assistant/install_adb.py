@@ -2317,6 +2317,11 @@ class MoveObservation:
     #: The new app is installed and has never run: Android still marks it not
     #: launched, which no start of any of its components leaves set.
     successor_unlaunched: bool = False
+    #: Read through the panel's root: the new app's own migration records,
+    #: or None when they could not be read. A new app that has run only while
+    #: waiting for the old app's handover holds no state of its own; one that
+    #: finished, or started on its own, records ``complete``.
+    successor_records: frozenset[str] | None = None
 
 
 _HOME_QUERY = (
@@ -2348,6 +2353,24 @@ _MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
 }
 
 
+_SUCCESSOR_RECORDS_DIRECTORY = (
+    f"/data/data/{SUCCESSOR_PACKAGE_ID}/no_backup/identity-migration"
+)
+# The app's data is private to it, so only root can read its records. The
+# script goes to su on standard input, which both su styles on the panels
+# accept, and each root route is tried without waiting on a prompt; none
+# answering leaves the records unknown rather than empty.
+_SUCCESSOR_RECORDS_COMMAND = (
+    "for p in 'su 0' 'su root'; do "
+    "r=$(printf '%s\\n' '"
+    f"[ -d /data/data/{SUCCESSOR_PACKAGE_ID} ] || exit 3; "
+    f"for f in {_SUCCESSOR_RECORDS_DIRECTORY}/*; do "
+    '[ -e "$f" ] && echo "record:${f##*/}"; done; echo records:read'
+    "' | timeout 3 $p sh 2>/dev/null) && "
+    'case "$r" in *records:read*) echo "$r"; break ;; esac; done'
+)
+
+
 def _move_command(nonce: str, step: MoveStep) -> str:
     quiet = ">/dev/null 2>&1"
     return "; ".join(
@@ -2363,6 +2386,7 @@ def _move_command(nonce: str, step: MoveStep) -> str:
             ),
             f'case "$(dumpsys package {SUCCESSOR_PACKAGE_ID} 2>/dev/null)" in '
             f"*notLaunched=true*) echo unlaunched:{SUCCESSOR_PACKAGE_ID} ;; esac",
+            _SUCCESSOR_RECORDS_COMMAND,
             f'echo "home:$({_HOME_QUERY})"',
             f"echo HAPANELD_MOVE_END:{nonce}:0",
         )
@@ -2380,12 +2404,17 @@ def _parse_move(body: bytes, nonce: str) -> MoveObservation:
     unlaunched = [
         line for line in lines if line == f"unlaunched:{SUCCESSOR_PACKAGE_ID}"
     ]
+    read = [line for line in lines if line == "records:read"]
+    records = [line for line in lines if line.startswith("record:")]
     if (
         status_code != 0
         or len(homes) != 1
         or not installed <= {LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID}
         or len(unlaunched) > 1
-        or len(homes) + len(installed) + len(unlaunched) != len(lines)
+        or len(read) > 1
+        or (records and not read)
+        or len(homes) + len(installed) + len(unlaunched) + len(read) + len(records)
+        != len(lines)
     ):
         raise _MalformedAdbResponse
     home = homes[0].removeprefix("home:").strip()
@@ -2396,6 +2425,11 @@ def _parse_move(body: bytes, nonce: str) -> MoveObservation:
         # The system chooser and an empty answer are not a HOME.
         home=package if slash and package and package != "android" else None,
         successor_unlaunched=bool(unlaunched) and SUCCESSOR_PACKAGE_ID in installed,
+        successor_records=(
+            frozenset(line.removeprefix("record:") for line in records)
+            if read and SUCCESSOR_PACKAGE_ID in installed
+            else None
+        ),
     )
 
 

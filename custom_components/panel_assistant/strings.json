@@ -91,6 +91,7 @@
       "installing": "Installing and verifying ha-paneld at {address}. Leave this dialog open to finish automatically. You may close it and Home Assistant will keep the installation job running, but it cannot add the device until you reopen Settings → Devices & services → Add integration, select Panel Assistant, choose Add a panel on your network and enter the same address. After Home Assistant adds the device, follow the browser setup link in the Add dialog on a computer that can reach the panel on its local network. If prompted, approve ADB on the panel."
     },
     "error": {
+      "old_app_installed": "This panel still has the old ha-paneld app installed, but it is not answering. Open it on the panel, or restart the panel, then add it again. Panel Assistant then offers a Repair that moves it to the new app.",
       "cannot_connect": "Unable to connect to a valid ha-paneld health endpoint.",
       "invalid_address": "Enter a hostname or IP address without a URL scheme or path.",
       "invalid_install_address": "Enter only the panel hostname or IP address. The installer uses ha-paneld port 8888 and ADB port 5555 separately.",

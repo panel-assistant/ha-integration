@@ -91,6 +91,7 @@
       "installing": "ha-paneld wordt geïnstalleerd en gecontroleerd op {address}. Laat dit venster open staan, zodat het proces automatisch wordt voltooid. Je kunt het venster sluiten; Home Assistant zet de installatie dan door, maar het apparaat kan pas worden toegevoegd als je opnieuw naar Instellingen → Apparaten en diensten → Integratie toevoegen gaat, Panel Assistant selecteert, ‘Voeg een paneel op je netwerk toe’ kiest en hetzelfde adres invoert. Nadat Home Assistant het apparaat heeft toegevoegd, volg je de browserlink voor de installatie in het dialoogvenster Toevoegen op een computer die het paneel via het lokale netwerk kan bereiken. Keur ADB op het paneel goed als daarom wordt gevraagd."
     },
     "error": {
+      "old_app_installed": "Op dit paneel is de oude ha-paneld-app nog geïnstalleerd, maar die reageert niet. Open hem op het paneel of herstart het paneel en voeg het daarna opnieuw toe. Panel Assistant biedt dan een reparatie aan die het naar de nieuwe app verhuist.",
       "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig ha-paneld-status-eindpunt.",
       "invalid_address": "Voer een hostnaam of een IP-adres in zonder het URL-schema of een pad.",
       "invalid_install_address": "Voer alleen de hostnaam van het paneel of het IP-adres in. Het installatieprogramma gebruikt ha-paneld op poort 8888 en ADB op poort 5555 afzonderlijk.",

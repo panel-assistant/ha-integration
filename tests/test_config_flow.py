@@ -2374,7 +2374,7 @@ async def test_failed_install_with_identical_bytes_is_adopted(
     hass: HomeAssistant, authorize_first: bool
 ) -> None:
     """A silent installed panel reaches the chosen RC and its exact bytes win."""
-    installed = replace(CANDIDATE, state=InstallTargetState.MIGRATION_CANDIDATE)
+    installed = replace(CANDIDATE, state=InstallTargetState.INSTALLED)
     probes = (
         [_probe("adb_unauthorized"), installed, installed]
         if authorize_first
@@ -2453,7 +2453,7 @@ async def test_same_version_at_different_bytes_is_not_overwritten(
     hass: HomeAssistant,
 ) -> None:
     """Version text never substitutes for byte identity on the adopt path."""
-    installed = replace(CANDIDATE, state=InstallTargetState.MIGRATION_CANDIDATE)
+    installed = replace(CANDIDATE, state=InstallTargetState.INSTALLED)
     manager = _manager_for(_receipt(InstallPhase.APPROVED))
     rc = _rc_release()
     with (
@@ -3535,7 +3535,7 @@ async def test_no_target_state_can_fall_through_to_a_generic_refusal(
 async def test_a_silent_old_app_is_not_given_a_different_package(
     hass: HomeAssistant,
 ) -> None:
-    """A chosen successor cannot adopt silent legacy bytes or install beside them."""
+    """A silent old app is never given the new app beside it."""
     installed = replace(CANDIDATE, state=InstallTargetState.MIGRATION_CANDIDATE)
     successor_apk = "panel-assistant-v0.9.7-manual-setup-required.apk"
     successor = replace(
@@ -3593,14 +3593,14 @@ async def test_a_silent_old_app_is_not_given_a_different_package(
         ),
     ):
         form = await _start_step(hass, "add_panel")
-        choose = await hass.config_entries.flow.async_configure(
+        result = await hass.config_entries.flow.async_configure(
             form["flow_id"], {CONF_ADDRESS: "panel.local"}
         )
-        preview = await _choose_version(hass, choose)
-        result = await hass.config_entries.flow.async_configure(preview["flow_id"], {})
 
-    assert preview["step_id"] == "confirm_install_candidate"
-    assert result["errors"] == {"base": "installed_without_health"}
+    # The new app is never installed beside the old one: that would start the
+    # panel's own move, which the move Repair replaces once the old app answers.
+    assert result["step_id"] == "add_panel"
+    assert result["errors"] == {"base": "old_app_installed"}
     bytes_mock.assert_not_awaited()
     manager.async_create_or_join.assert_not_awaited()
     assert not hass.config_entries.async_entries(DOMAIN)

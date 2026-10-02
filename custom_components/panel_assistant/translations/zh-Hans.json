@@ -91,6 +91,7 @@
       "installing": "正在 {address} 安装并验证 ha-paneld。请保持此对话框打开，安装将自动完成。您可以关闭对话框，Home Assistant 会继续运行安装任务，但必须重新打开“设置 → 设备与服务 → 添加集成”，选择 Panel Assistant，再选择“添加网络中的面板”并输入相同地址，才能添加设备。Home Assistant 添加设备后，请在能通过局域网访问面板的电脑上打开“添加”对话框中的浏览器设置链接。如有提示，请在面板上批准 ADB 调试。"
     },
     "error": {
+      "old_app_installed": "此面板仍安装着旧版 ha-paneld 应用，但它没有响应。请在面板上打开它或重启面板，然后重新添加。之后 Panel Assistant 会提供一个修复，将其迁移到新应用。",
       "cannot_connect": "无法连接到有效的 ha-paneld 健康检查端点。",
       "invalid_address": "请输入不含 URL 方案或路径的主机名或 IP 地址。",
       "invalid_install_address": "请只输入面板主机名或 IP 地址。安装程序会分别使用 ha-paneld 端口 8888 和 ADB 端口 5555。",

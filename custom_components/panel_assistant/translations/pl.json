@@ -91,6 +91,7 @@
       "installing": "Instalowanie i weryfikowanie ha-paneld pod adresem {address}. Pozostaw to okno otwarte, aby zakończyć automatycznie. Możesz je zamknąć, a Home Assistant będzie kontynuować zadanie instalacji, ale nie doda urządzenia, dopóki ponownie nie otworzysz Ustawienia → Urządzenia oraz usługi → Dodaj integrację, nie wybierzesz Panel Assistant, nie wybierzesz „Dodaj panel w swojej sieci” i nie wprowadzisz tego samego adresu. Gdy Home Assistant doda urządzenie, otwórz link do konfiguracji w przeglądarce w oknie Dodawanie na komputerze, który ma dostęp do panelu w sieci lokalnej. Jeśli pojawi się prośba, zatwierdź ADB na panelu."
     },
     "error": {
+      "old_app_installed": "Na tym panelu nadal jest zainstalowana stara aplikacja ha-paneld, ale nie odpowiada. Otwórz ją na panelu lub uruchom panel ponownie, a potem dodaj go jeszcze raz. Panel Assistant zaproponuje wtedy naprawę, która przeniesie go do nowej aplikacji.",
       "cannot_connect": "Nie udało się nawiązać połączenia z prawidłowym punktem końcowym stanu działania usługi ha-paneld.",
       "invalid_address": "Wprowadź nazwę hosta lub adres IP bez schematu URL i ścieżki.",
       "invalid_install_address": "Wprowadź tylko nazwę hosta lub adres IP panelu. Instalator osobno używa portu 8888 ha-paneld i portu 5555 ADB.",

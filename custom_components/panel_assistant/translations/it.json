@@ -91,6 +91,7 @@
       "installing": "Installazione e verifica di ha-paneld all'indirizzo {address}. Lascia aperta questa finestra di dialogo per completare automaticamente l'operazione. Puoi chiuderla e Home Assistant continuerà a eseguire il processo di installazione, ma non potrà aggiungere il dispositivo finché non riaprirai Impostazioni → Dispositivi e servizi → Aggiungi integrazione, selezionerai Panel Assistant, sceglierai Aggiungi un pannello della tua rete e inserirai lo stesso indirizzo. Dopo che Home Assistant avrà aggiunto il dispositivo, segui il link alla configurazione nel browser nella finestra Aggiungi da un computer che può raggiungere il pannello sulla rete locale. Se richiesto, autorizza ADB sul pannello."
     },
     "error": {
+      "old_app_installed": "Su questo pannello è ancora installata la vecchia app ha-paneld, ma non risponde. Aprila sul pannello o riavvia il pannello, poi aggiungilo di nuovo. Panel Assistant offrirà quindi una riparazione che lo sposta sulla nuova app.",
       "cannot_connect": "Impossibile connettersi a un endpoint valido sullo stato di funzionamento di ha-paneld.",
       "invalid_address": "Inserisci un nome host o un indirizzo IP senza schema URL né percorso.",
       "invalid_install_address": "Inserisci solo il nome host o l'indirizzo IP del pannello. Il programma di installazione usa separatamente la porta 8888 di ha-paneld e la porta 5555 di ADB.",

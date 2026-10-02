@@ -568,6 +568,25 @@ async def _async_take_receipt(
     }
 
 
+#: Records a new app writes only once it holds the panel's state: the
+#: migration finished, or it started on its own, or it restored its receipt.
+_OWNED_STATE_RECORDS: Final = frozenset({"complete.v1", "step-restore.v1"})
+
+
+def _disposable(observed: MoveObservation) -> bool:
+    """A new app beside the old one that provably holds no state of its own.
+
+    Android still marks it never launched, or its own migration records, read
+    through the panel's root, show it has only waited for the old app's
+    handover: it never finished, never started as an ordinary app and never
+    restored the panel's state into itself.
+    """
+    if observed.successor_unlaunched:
+        return True
+    records = observed.successor_records
+    return records is not None and not records & _OWNED_STATE_RECORDS
+
+
 async def _async_retire_legacy(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -584,7 +603,7 @@ async def _async_retire_legacy(
     if (
         observed.successor_installed
         and not ours
-        and (observed.home == SUCCESSOR_PACKAGE_ID or not observed.successor_unlaunched)
+        and (observed.home == SUCCESSOR_PACKAGE_ID or not _disposable(observed))
     ):
         # A new app this integration did not install has run beside the old
         # one, so it may hold state of its own: a part-finished self-handover,
@@ -594,7 +613,8 @@ async def _async_retire_legacy(
     # The receipt comes first, from the old app answering as the panel's owner.
     record = await _async_take_receipt(hass, entry, target)
     if observed.successor_installed and not ours:
-        # Android still marks it never launched, so it holds no state at all.
+        # Never launched, or provably only ever waiting for a handover: its
+        # only data is a copy of what the receipt above has just taken.
         observed = await _async_step(target, signer, MoveStep.REMOVE_SUCCESSOR)
         if observed.successor_installed or not observed.legacy_installed:
             raise MoveError(REASON_MOVE_FAILED)

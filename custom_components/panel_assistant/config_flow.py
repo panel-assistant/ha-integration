@@ -663,7 +663,13 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return self._show_add_panel_form(user_input, {"base": "unknown"})
 
         state = probe.state.value
-        if state in ("install_candidate", "installed", "migration_candidate") and (
+        if state == "migration_candidate":
+            # The old app is installed but not answering. Installing the new
+            # app beside it would start the panel's own move, which Panel
+            # Assistant's Repair replaces: the old app has to answer first.
+            errors["base"] = "old_app_installed"
+            return self._show_add_panel_form(user_input, errors)
+        if state in ("install_candidate", "installed") and (
             _install_candidate_placeholders(probe) is None
         ):
             state = "retained_or_ambiguous"
@@ -824,7 +830,9 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         state = probe.state.value
         if state == "adb_unauthorized":
             return self._show_authorize_adb({"base": "adb_still_unauthorized"})
-        if state in ("install_candidate", "installed", "migration_candidate"):
+        if state == "migration_candidate":
+            return self._show_authorize_adb({"base": "old_app_installed"})
+        if state in ("install_candidate", "installed"):
             placeholders = _install_candidate_placeholders(probe)
             if placeholders is None:
                 return self.async_abort(reason="unknown")

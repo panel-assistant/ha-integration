@@ -105,6 +105,7 @@ class FakePanel:
         self.running_restore = 0
         self.outcome: tuple[bool, int] = (True, 3)
         self.successor_launched = False
+        self.successor_records: frozenset[str] | None = None
         self.steps: list[str] = []
         self.backup = _archive()
         self.serial = SERIAL
@@ -116,6 +117,7 @@ class FakePanel:
             self.successor,
             self.home,
             self.successor and not self.successor_launched,
+            self.successor_records if self.successor else None,
         )
 
     async def step(self, _target: Any, _signer: Any, step: MoveStep) -> MoveObservation:
@@ -827,3 +829,53 @@ def _write_record_file(path: Path) -> None:
             }
         )
     )
+
+
+@pytest.mark.parametrize(
+    ("records", "removed"),
+    [
+        (frozenset({"step-pull.v1", "step-verify.v1"}), True),
+        (frozenset(), True),
+        (frozenset({"step-pull.v1", "complete.v1"}), False),
+        (frozenset({"step-restore.v1"}), False),
+        (None, False),
+    ],
+    ids=["waited-for-handover", "no-records", "finished", "restored", "unreadable"],
+)
+async def test_a_new_app_that_only_waited_beside_the_old_one_is_replaced(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    tmp_path: Path,
+    records: frozenset[str] | None,
+    removed: bool,
+) -> None:
+    """Its own records, read through root, prove it never held the panel's state."""
+    panel = FakePanel(home="com.android.launcher3")
+    panel.successor = panel.successor_launched = True
+    panel.successor_records = records
+    _attach(entry, panel)
+
+    if removed:
+        await _move(hass, entry, panel, tmp_path)
+        assert panel.steps[:3] == ["OBSERVE", "BACKUP", "REMOVE_SUCCESSOR"]
+        assert not panel.legacy
+    else:
+        with pytest.raises(MoveError, match="new_app_is_home"):
+            await _move(hass, entry, panel, tmp_path)
+        assert panel.steps == ["OBSERVE"] and panel.legacy and panel.successor
+
+
+def test_the_new_apps_records_are_read_only_when_root_answers() -> None:
+    nonce = "0" * 32
+    head = f"HAPANELD_MOVE_BEGIN:{nonce}\ninstalled:{LEGACY_PACKAGE_ID}\n"
+    tail = f"home:{LEGACY_PACKAGE_ID}/.DashboardActivity\nHAPANELD_MOVE_END:{nonce}:0\n"
+    both = head + f"installed:{SUCCESSOR_PACKAGE_ID}\n"
+    read = _parse_move(
+        (both + "record:step-pull.v1\nrecords:read\n" + tail).encode(), nonce
+    )
+    assert read.successor_records == frozenset({"step-pull.v1"})
+    empty = _parse_move((both + "records:read\n" + tail).encode(), nonce)
+    assert empty.successor_records == frozenset()
+    assert _parse_move((both + tail).encode(), nonce).successor_records is None
+    with pytest.raises(Exception):  # noqa: B017 - records without a completed read
+        _parse_move((both + "record:complete.v1\n" + tail).encode(), nonce)
