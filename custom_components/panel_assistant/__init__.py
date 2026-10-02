@@ -11,6 +11,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS, Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
 
@@ -49,6 +50,7 @@ from .install_executor import (
 )
 from .native import CONF_NATIVE_ENTITIES, NATIVE_ONLY_PLATFORMS
 from .native_move import async_delete_native_move_issues, async_evaluate_native_move
+from .permission_repair import permission_issue_id
 from .restart_repair import async_setup_restart_check
 from .transport import (
     DATA_NATIVE_ENTITIES,
@@ -344,6 +346,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
     now, and the panel is remembered so its next hello learns of the removal.
     """
     async_delete_binding_issue(hass, entry.entry_id)
+    ir.async_delete_issue(hass, DOMAIN, permission_issue_id(entry.entry_id))
     async_delete_cutover_issues(hass, entry.entry_id)
     async_delete_native_move_issues(hass, entry.entry_id)
     async_delete_merged_identity_issue(hass, entry)

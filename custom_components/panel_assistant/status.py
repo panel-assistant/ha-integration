@@ -60,6 +60,7 @@ class PanelStatus:
     power_safety: ComponentStatus | None = None
     panel_assistant_update: PanelCachedUpdate | None = None
     panel_assistant_device: PanelDevice | None = None
+    permissions: ComponentStatus | None = None
 
     def as_dict(self) -> dict[str, object]:
         """Return a serializable copy suitable for diagnostics."""
@@ -73,6 +74,7 @@ class PanelStatus:
             "home_ui": _copy_component(self.home_ui),
             "camera": _copy_component(self.camera),
             "power_safety": _copy_component(self.power_safety),
+            "permissions": _copy_component(self.permissions),
             "panel_assistant_update": (
                 self.panel_assistant_update.as_dict()
                 if self.panel_assistant_update is not None
@@ -407,6 +409,34 @@ _HOME_UI_FIELDS: dict[str, FieldValidator] = {
 }
 
 
+PERMISSION_NAMES = frozenset(
+    {
+        "notifications",
+        "write_settings",
+        "overlay",
+        "accessibility",
+        "microphone",
+        "camera",
+    }
+)
+
+
+def _permission_state(value: object) -> str:
+    if value not in ("held", "missing", "not_required", "unreadable"):
+        raise InvalidResponseError
+    return str(value)
+
+
+def permissions_held(status: PanelStatus) -> bool:
+    """Only a complete observation can prove that every supported grant is held."""
+    permissions = status.permissions
+    return (
+        permissions is not None
+        and set(permissions) == PERMISSION_NAMES
+        and all(state in ("held", "not_required") for state in permissions.values())
+    )
+
+
 def home_ui_allows(status: PanelStatus, *, setup: bool = False) -> bool:
     """Accept only a fresh, complete HOME proof for this completion path.
 
@@ -577,4 +607,10 @@ def parse_status_response(body: str) -> PanelStatus:
         ),
         panel_assistant_update=_panel_cached_update(parsed),
         panel_assistant_device=_panel_device(parsed),
+        permissions=_sanitize_component(
+            parsed,
+            "permissions",
+            dict.fromkeys(PERMISSION_NAMES, _permission_state),
+            frozenset(),
+        ),
     )

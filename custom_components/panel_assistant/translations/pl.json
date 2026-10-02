@@ -230,6 +230,24 @@
     }
   },
   "issues": {
+    "panel_permissions": {
+      "title": "Uprawnienia na {panel} wymagają uwagi.",
+      "fix_flow": {
+        "step": {
+          "commission_permissions": {
+            "title": "Sprawdź uprawnienia na {panel}",
+            "description": "Pulpit na {panel} pozostaje dostępny. Na fizycznym panelu otwórz Ustawienia Androida → Aplikacje → ha-paneld. Zezwól na dostęp do aparatu i mikrofonu, jeśli są wymienione, oraz na powiadomienia. W sekcji Specjalny dostęp aplikacji zezwól ha-paneld na Modyfikowanie ustawień systemu i Wyświetlanie nad innymi aplikacjami. W sekcji Ułatwienia dostępu włącz usługę ha-paneld. Wróć tutaj i wybierz Wyślij, aby ponownie sprawdzić uprawnienia."
+          }
+        },
+        "error": {
+          "permissions_missing": "Panel nadal zgłasza brak uprawnienia. Wykonaj kroki na panelu i wyślij ponownie.",
+          "permissions_unreadable": "Home Assistant nie mógł zweryfikować wszystkich wymaganych uprawnień na tym panelu. Sprawdź, czy panel jest połączony, i wyślij ponownie."
+        },
+        "abort": {
+          "entry_removed": "Ten panel został usunięty."
+        }
+      }
+    },
       "restart_required": {
         "title": "Uruchom ponownie Home Assistant, aby dokończyć aktualizację Panel Assistant",
         "fix_flow": {

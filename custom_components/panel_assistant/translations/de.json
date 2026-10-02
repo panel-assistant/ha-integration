@@ -190,6 +190,24 @@
     }
   },
   "issues": {
+    "panel_permissions": {
+      "title": "Berechtigungen auf {panel} erfordern Aufmerksamkeit.",
+      "fix_flow": {
+        "step": {
+          "commission_permissions": {
+            "title": "Berechtigungen auf {panel} prüfen",
+            "description": "Das Dashboard auf {panel} bleibt verfügbar. Öffne auf dem physischen Panel die Android-Einstellungen → Apps → ha-paneld. Erlaube den Zugriff auf Kamera und Mikrofon, sofern aufgeführt, sowie Benachrichtigungen. Erlaube unter Spezieller App-Zugriff für ha-paneld Systemeinstellungen ändern und Über anderen Apps einblenden. Aktiviere unter Bedienungshilfen den ha-paneld-Dienst. Kehre hierher zurück und wähle Senden, um die Berechtigungen erneut zu prüfen."
+          }
+        },
+        "error": {
+          "permissions_missing": "Das Panel meldet weiterhin eine fehlende Berechtigung. Führe die Schritte auf dem Panel aus und sende erneut.",
+          "permissions_unreadable": "Home Assistant konnte nicht alle erforderlichen Berechtigungen auf diesem Panel prüfen. Prüfe die Verbindung des Panels und sende erneut."
+        },
+        "abort": {
+          "entry_removed": "Dieses Panel wurde entfernt."
+        }
+      }
+    },
       "restart_required": {
         "title": "Home Assistant neu starten, um das Update von Panel Assistant abzuschließen",
         "fix_flow": {

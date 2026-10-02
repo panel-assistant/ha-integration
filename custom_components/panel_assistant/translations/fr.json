@@ -190,6 +190,24 @@
     }
   },
   "issues": {
+    "panel_permissions": {
+      "title": "Les autorisations de {panel} nécessitent votre attention.",
+      "fix_flow": {
+        "step": {
+          "commission_permissions": {
+            "title": "Vérifier les autorisations de {panel}",
+            "description": "Le tableau de bord de {panel} reste disponible. Sur le panneau physique, ouvrez Paramètres Android → Applications → ha-paneld. Autorisez l’accès à la caméra et au microphone s’ils sont proposés, ainsi que les notifications. Dans Accès spécial des applications, autorisez ha-paneld à Modifier les paramètres système et à Afficher par-dessus les autres applications. Dans Accessibilité, activez le service ha-paneld. Revenez ici et sélectionnez Envoyer pour vérifier à nouveau les autorisations."
+          }
+        },
+        "error": {
+          "permissions_missing": "Le panneau signale toujours une autorisation manquante. Effectuez les étapes sur le panneau, puis envoyez à nouveau.",
+          "permissions_unreadable": "Home Assistant n’a pas pu vérifier toutes les autorisations requises sur ce panneau. Vérifiez sa connexion, puis envoyez à nouveau."
+        },
+        "abort": {
+          "entry_removed": "Ce panneau a été supprimé."
+        }
+      }
+    },
       "restart_required": {
         "title": "Redémarrez Home Assistant pour terminer la mise à jour de Panel Assistant",
         "fix_flow": {

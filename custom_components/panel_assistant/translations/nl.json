@@ -230,6 +230,24 @@
     }
   },
   "issues": {
+    "panel_permissions": {
+      "title": "De machtigingen op {panel} vragen aandacht.",
+      "fix_flow": {
+        "step": {
+          "commission_permissions": {
+            "title": "Machtigingen op {panel} controleren",
+            "description": "Het dashboard op {panel} blijft beschikbaar. Open op het fysieke paneel Android-instellingen → Apps → ha-paneld. Sta toegang tot camera en microfoon toe waar deze worden vermeld, en sta meldingen toe. Sta onder Speciale app-toegang voor ha-paneld Systeeminstellingen wijzigen en Weergeven over andere apps toe. Schakel onder Toegankelijkheid de ha-paneld-service in. Keer hier terug en selecteer Verzenden om de machtigingen opnieuw te controleren."
+          }
+        },
+        "error": {
+          "permissions_missing": "Het paneel meldt nog steeds een ontbrekende machtiging. Voltooi de stappen op het paneel en verzend opnieuw.",
+          "permissions_unreadable": "Home Assistant kon niet alle vereiste machtigingen op dit paneel verifiëren. Controleer of het paneel verbonden is en verzend opnieuw."
+        },
+        "abort": {
+          "entry_removed": "Dit paneel is verwijderd."
+        }
+      }
+    },
       "restart_required": {
         "title": "Herstart Home Assistant om de update van Panel Assistant af te ronden",
         "fix_flow": {

@@ -37,6 +37,7 @@ from .client import (
 from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, update_unique_id
 from .feed_coordinator import async_get_feed_coordinator
 from .identity import accept_health, is_installation
+from .permission_repair import async_reconcile_permission_issue
 from .status import PanelStatus
 from .transport import (
     PanelSession,
@@ -230,6 +231,9 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                 else:
                     sessions.set_restart_notice(self._entry_id, *health.restart)
 
+        status_address = self.client.address
+        status_entry_address = entry.data[CONF_ADDRESS] if entry is not None else None
+        status_identity = entry.unique_id if entry is not None else None
         try:
             status = await self.client.async_get_status(
                 update_owner=self._shows_panel_update()
@@ -240,6 +244,24 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             return PanelSnapshot(
                 health=health, status=None, status_error="invalid_response"
             )
+        # An entry removal, move or identity change while status was in flight
+        # retires the observation before it can clear a commissioning warning.
+        if (
+            self._entry() is not entry
+            or self.client.address != status_address
+            or (
+                entry is not None
+                and (
+                    entry.data[CONF_ADDRESS] != status_entry_address
+                    or entry.unique_id != status_identity
+                )
+            )
+        ):
+            raise UpdateFailed(
+                translation_domain=DOMAIN, translation_key="health_update_failed"
+            )
+        if entry is not None:
+            async_reconcile_permission_issue(self.hass, entry, status)
         return PanelSnapshot(health=health, status=status, status_error=None)
 
     async def _async_recover_address(self) -> PanelHealth | None:
