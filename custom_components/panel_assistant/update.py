@@ -1519,8 +1519,14 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             else None
         )
         deadline = asyncio.get_running_loop().time() + _UPDATE_TIMEOUT_SECONDS
+        starting_version = (
+            _version_key(starting_health.version)
+            if starting_health is not None
+            else None
+        )
         terminal_status_deadline: float | None = None
-        running_seen = False
+        status = None
+        verified = False
         while asyncio.get_running_loop().time() < deadline:
             await self.coordinator.async_request_refresh()
             self._hold_through_restart()
@@ -1538,8 +1544,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 else snapshot is not None
                 and starting_health is not None
                 and (
-                    is_newer_stable_version(
-                        snapshot.health.version, starting_health.version
+                    (
+                        starting_version is not None
+                        and (current_version := _version_key(snapshot.health.version))
+                        is not None
+                        and current_version > starting_version
                     )
                     or (
                         snapshot.health.version == starting_health.version
@@ -1570,19 +1579,13 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             except CannotConnectError, InvalidResponseError:
                 status = None
             if (
-                status is not None
-                and status.component == "ha-paneld"
-                and status.running
-            ):
-                running_seen = True
-            if (
-                status is not None
+                expected_version is None
+                and status is not None
                 and not status.running
                 and status.component == "ha-paneld"
             ):
-                # Android finishes its progress slot just before its process
-                # replacement is observable. Keep polling health long enough
-                # to distinguish that successful hand-off from a real failure.
+                # Without a recovered target, a finished slot cannot prove
+                # failure. Allow its health hand-off before ending as unknown.
                 if terminal_status_deadline is None:
                     terminal_status_deadline = min(
                         deadline,
@@ -1590,20 +1593,19 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                         + _TERMINAL_STATUS_GRACE_SECONDS,
                     )
                 if asyncio.get_running_loop().time() >= terminal_status_deadline:
-                    if expected_version is None:
-                        # A stable or feed update may have finished before our
-                        # first health sample. Without its lost target, terminal
-                        # status alone is not proof that it failed.
-                        return False
-                    raise _update_error(
-                        "update_not_complete", "The panel update did not complete"
-                    )
+                    return False
             await asyncio.sleep(_UPDATE_RECHECK_SECONDS)
-        if expected_version is None and not running_seen:
+        if (
+            expected_version is None
+            and not verified
+            and not (
+                status is not None
+                and status.component == "ha-paneld"
+                and status.running
+            )
+        ):
             return False
-        raise _update_error(
-            "update_did_not_return", "The panel did not return after the update"
-        )
+        raise _update_error("update_not_complete", "The panel update did not complete")
 
     async def _async_select_feed_build(
         self, feed: BuildFeed, version: str | None, backup: bool
@@ -1942,7 +1944,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             + _ANDROID_PACKAGE_INSTALL_MAX_SECONDS
             + _RESTART_HEALTH_GRACE_SECONDS
         )
-        build_seen_without_home = False
         while loop.time() < deadline:
             await self.coordinator.async_request_refresh()
             self._hold_through_restart()
@@ -1975,7 +1976,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                             "update_not_complete", "The panel update did not complete"
                         )
                 if build is None or code is not None:
-                    build_seen_without_home = True
                     self._enter("back")
                     try:
                         status = await self.coordinator.client.async_get_status(
@@ -1989,13 +1989,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                             self._code_key = (health.version, health.build)
                         return
             await asyncio.sleep(_UPDATE_RECHECK_SECONDS)
-        if build_seen_without_home:
-            raise _update_error(
-                "update_not_complete", "The panel update did not complete"
-            )
-        raise _update_error(
-            "update_did_not_return", "The panel did not return after the update"
-        )
+        raise _update_error("update_not_complete", "The panel update did not complete")
 
 
 class NativeUpdate(NativeEntity, UpdateEntity):

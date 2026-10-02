@@ -182,7 +182,6 @@
     "staged_app_mismatch": { "message": "L'application préparée ne correspondait pas aux données de la version signée. Rien n'a été installé." },
     "update_not_accepted": { "message": "Le panneau n'a pas accepté la demande de mise à jour" },
     "update_not_complete": { "message": "La mise à jour du panneau ne s'est pas terminée" },
-    "update_did_not_return": { "message": "Le panneau n'est pas revenu après la mise à jour" },
     "panel_backup_failed": { "message": "Le panneau n'a pas pu être sauvegardé, rien n'a donc été installé" },
     "build_verification_failed": { "message": "Le build ne correspondait pas au flux de builds signé, rien n'a donc été installé" },
     "release_verification_failed": { "message": "La version ne correspondait pas à sa signature, donc rien n'a été installé" },

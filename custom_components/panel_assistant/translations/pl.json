@@ -212,9 +212,6 @@
     "update_not_complete": {
       "message": "Aktualizacja panelu nie została zakończona"
     },
-    "update_did_not_return": {
-      "message": "Panel nie wrócił do działania po aktualizacji"
-    },
     "panel_backup_failed": {
       "message": "Nie udało się wykonać kopii zapasowej panelu, więc nic nie zostało zainstalowane"
     },

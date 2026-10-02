@@ -182,7 +182,6 @@
     "staged_app_mismatch": { "message": "已暂存的应用与签名版本信息不符，因此未安装任何内容。" },
     "update_not_accepted": { "message": "面板未接受更新请求" },
     "update_not_complete": { "message": "面板更新未完成" },
-    "update_did_not_return": { "message": "更新后面板未恢复连接" },
     "panel_backup_failed": { "message": "无法备份面板，因此未安装任何内容" },
     "build_verification_failed": { "message": "该构建与已签名的构建源不一致，因此未安装任何内容" },
     "release_verification_failed": { "message": "该版本与其签名不符，因此未安装任何内容" },

@@ -473,9 +473,6 @@
     "update_not_complete": {
       "message": "The panel update did not complete"
     },
-    "update_did_not_return": {
-      "message": "The panel did not return after the update"
-    },
     "panel_backup_failed": {
       "message": "The panel could not be backed up, so nothing was installed"
     },

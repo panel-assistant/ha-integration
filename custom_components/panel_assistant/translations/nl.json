@@ -212,9 +212,6 @@
     "update_not_complete": {
       "message": "De update van het paneel is niet voltooid"
     },
-    "update_did_not_return": {
-      "message": "Het paneel kwam na de update niet meer terug"
-    },
     "panel_backup_failed": {
       "message": "Er kon geen back-up van het paneel worden gemaakt, dus er is niets geïnstalleerd"
     },
