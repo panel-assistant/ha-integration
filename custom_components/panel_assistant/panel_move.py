@@ -60,6 +60,7 @@ from .client import (
     HaPaneldError,
     PanelHealth,
     UpdateApprovalRequiredError,
+    UpdateBusyError,
 )
 from .const import DOMAIN
 from .device import panel_display_name
@@ -379,8 +380,14 @@ async def _async_restore(
     target: AdbInstallTarget,
     signer: Any,
     record: dict[str, Any],
+    *,
+    resumed: bool,
 ) -> PanelHealth:
-    """Steps 5 and 6: start the new app clean and restore the receipt twice."""
+    """Steps 5 and 6: start the new app clean and restore the receipt twice.
+
+    A resumed move keeps a new app that already serves: it was started clean
+    by the attempt that got this far.
+    """
     path = Path(record["receipt"])
     try:
         data = await hass.async_add_executor_job(path.read_bytes)
@@ -388,7 +395,6 @@ async def _async_restore(
         raise MoveError(REASON_MOVE_FAILED) from err
     if sha256(data).hexdigest() != record.get("sha256"):
         raise MoveError(REASON_MOVE_FAILED)
-    panel_id = record["panel_id"]
 
     client: HaPaneldClient = entry.runtime_data.client
     health: PanelHealth | None
@@ -396,16 +402,26 @@ async def _async_restore(
         health = await client.async_get_health()
     except HaPaneldError:
         health = None
-    restored = (
-        health is not None
-        and reports_package(health.package, SUCCESSOR_PACKAGE_ID)
-        and health.panel_id == panel_id
-        and health.config_hash == record.get("config_hash")
+    serving = health is not None and reports_package(
+        health.package, SUCCESSOR_PACKAGE_ID
     )
-    if restored:
+    if serving and record.get("restored") is True:
         assert health is not None
         return health
+    if not (resumed and serving):
+        await _async_start_clean(hass, entry, target, signer)
+    restored = await _async_restore_twice(entry, data, record)
+    hass.config_entries.async_update_entry(
+        entry,
+        data={**entry.data, CONF_SUCCESSOR_MOVE: {**record, "restored": True}},
+    )
+    return restored
 
+
+async def _async_start_clean(
+    hass: HomeAssistant, entry: ConfigEntry, target: AdbInstallTarget, signer: Any
+) -> None:
+    """Start the new app with no state of its own and no old app beside it."""
     await _async_step(target, signer, MoveStep.RESET_SUCCESSOR)
     artifact = _successor_artifact(hass)
     if artifact is None or artifact.descriptor is None:
@@ -429,6 +445,19 @@ async def _async_restore(
         lambda found: reports_package(found.package, SUCCESSOR_PACKAGE_ID),
         _HEALTH_WAIT_SECONDS,
     )
+
+
+async def _async_restore_twice(
+    entry: ConfigEntry, data: bytes, record: dict[str, Any]
+) -> PanelHealth:
+    """Restore the receipt, then again once the panel has adopted its id.
+
+    A restore returns the panel's own local state only onto a panel already
+    carrying the id the backup names, which the first restore gives it.
+    """
+    client: HaPaneldClient = entry.runtime_data.client
+    panel_id = record["panel_id"]
+    moved: PanelHealth | None = None
     for wanted in (
         lambda found: found.panel_id == panel_id,
         lambda found: (
@@ -436,14 +465,32 @@ async def _async_restore(
             and found.config_hash == record.get("config_hash")
         ),
     ):
+        await _async_send_restore(client, data)
+        moved = await _async_health(entry, wanted, _RESTORE_WAIT_SECONDS)
+    assert moved is not None
+    return moved
+
+
+async def _async_send_restore(client: HaPaneldClient, data: bytes) -> None:
+    """Start one restore, waiting out an operation the panel is still running.
+
+    The panel adopts the backup's id before the restore that gave it has
+    finished, so the next restore can find that one still holding the lane.
+    """
+    deadline = asyncio.get_running_loop().time() + _RESTORE_WAIT_SECONDS
+    while True:
         try:
             await client.async_restore_panel(data)
         except UpdateApprovalRequiredError as err:
             raise MoveError(REASON_RESTORE_APPROVAL) from err
+        except UpdateBusyError as err:
+            if asyncio.get_running_loop().time() >= deadline:
+                raise MoveError(REASON_MOVE_FAILED) from err
+            await asyncio.sleep(_POLL_SECONDS)
+            continue
         except HaPaneldError as err:
             raise MoveError(REASON_MOVE_FAILED) from err
-        moved = await _async_health(entry, wanted, _RESTORE_WAIT_SECONDS)
-    return moved
+        return
 
 
 async def async_move_to_new_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -460,9 +507,11 @@ async def async_move_to_new_app(hass: HomeAssistant, entry: ConfigEntry) -> None
         target, signer = await _async_target(hass, entry)
         await _async_retire_legacy(hass, entry, target, signer)
         record = entry.data[CONF_SUCCESSOR_MOVE]
+        resumed = False
     else:
         target, signer = await _async_target(hass, entry)
-    health = await _async_restore(hass, entry, target, signer, record)
+        resumed = True
+    health = await _async_restore(hass, entry, target, signer, record, resumed=resumed)
     did = health.discovery_id
     if (
         did is not None

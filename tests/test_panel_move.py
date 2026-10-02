@@ -21,6 +21,7 @@ from custom_components.panel_assistant.app_identity import (
 from custom_components.panel_assistant.client import (
     PanelHealth,
     UpdateApprovalRequiredError,
+    UpdateBusyError,
 )
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.install_adb import (
@@ -322,7 +323,8 @@ async def test_a_move_interrupted_after_the_old_app_went_resumes(
     _attach(hass, entry, panel)
     adopted = await _move(hass, entry, panel, tmp_path)
 
-    assert panel.steps == ["RESET_SUCCESSOR", "LAUNCH", "RESTORE", "RESTORE"]
+    # The new app was started clean before the stop and still serves.
+    assert panel.steps == ["RESTORE", "RESTORE"]
     assert adopted == [NEW_DID] and CONF_SUCCESSOR_MOVE not in entry.data
 
 
@@ -395,3 +397,26 @@ def test_move_observation_reads_packages_and_home() -> None:
     assert _parse_move(chooser, nonce).home is None
     with pytest.raises(Exception):  # noqa: B017 - any parse refusal
         _parse_move(body.replace(b"installed:", b"stray:"), nonce)
+
+
+async def test_a_restore_still_running_is_waited_out(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
+) -> None:
+    """The panel adopts its id before the first restore has finished."""
+    panel = FakePanel()
+    real_restore = panel.restore
+    busy = [True]
+
+    async def busy_once(data: bytes) -> None:
+        if panel.restores == 1 and busy[0]:
+            busy[0] = False
+            raise UpdateBusyError
+        await real_restore(data)
+
+    panel.restore = busy_once  # type: ignore[method-assign]
+    _attach(hass, entry, panel)
+
+    await _move(hass, entry, panel, tmp_path)
+
+    assert panel.restores == 2 and not busy[0]
+    assert CONF_SUCCESSOR_MOVE not in entry.data
