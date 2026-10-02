@@ -569,7 +569,12 @@ class SuccessorMoveFlow(RepairsFlow):
         try:
             await async_move_to_new_app(self.hass, entry)
         except MoveError as err:
-            _LOGGER.warning("Moving %s to the new app stopped: %s", entry.title, err)
+            _LOGGER.warning(
+                "Moving %s to the new app stopped: %s (%r)",
+                entry.title,
+                err,
+                err.__cause__,
+            )
             self._failure = err.reason
         except Exception:
             _LOGGER.exception("Moving %s to the new app failed", entry.title)

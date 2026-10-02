@@ -2242,9 +2242,11 @@ def _move_command(nonce: str, step: MoveStep) -> str:
         (
             f"echo HAPANELD_MOVE_BEGIN:{nonce}",
             *(f"{action} {quiet}" for action in _MOVE_ACTIONS[step]),
+            # No pipe into grep: toybox grep on some panels reports an error
+            # on an empty pipe, which would corrupt the frame.
             *(
-                f"pm path {package} 2>/dev/null | grep -q '^package:' "
-                f"&& echo installed:{package}"
+                f'case "$(pm path {package} 2>/dev/null)" in '
+                f"package:*) echo installed:{package} ;; esac"
                 for package in (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID)
             ),
             f'echo "home:$({_HOME_QUERY})"',
