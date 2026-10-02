@@ -49,7 +49,7 @@ from .install_executor import (
 )
 from .native import CONF_NATIVE_ENTITIES, NATIVE_ONLY_PLATFORMS
 from .native_move import async_delete_native_move_issues, async_evaluate_native_move
-from .panel_move import async_evaluate_successor_move
+from .panel_move import async_evaluate_successor_move, async_restore_move_offer
 from .restart_repair import async_setup_restart_check
 from .transport import (
     DATA_NATIVE_ENTITIES,
@@ -298,6 +298,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
         coordinator.async_add_listener(lambda: async_evaluate_native_move(hass, entry))
     )
     # A panel still on the old app id is offered the move to the new app.
+    await async_restore_move_offer(hass, entry)
     async_evaluate_successor_move(hass, entry)
     entry.async_on_unload(
         coordinator.async_add_listener(

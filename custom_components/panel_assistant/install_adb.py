@@ -2290,6 +2290,18 @@ async def async_move_step(
     try:
         async with asyncio.timeout(_INSTALL_TIMEOUT_SECONDS):
             device = await _async_connect(target, signer)
+            # Every connection proves the device at the address is the one the
+            # move started on before any command can change it.
+            nonce = token_hex(16)
+            _parse_identity_root(
+                await _async_shell(
+                    device,
+                    _identity_root_command(nonce),
+                    read_timeout=_READ_TIMEOUT_SECONDS,
+                ),
+                nonce,
+                target,
+            )
             nonce = token_hex(16)
             mutation_started = step is not MoveStep.OBSERVE
             return _parse_move(

@@ -866,6 +866,28 @@ class HaPaneldClient:
             raise UpdateRejectedError
         raise CannotConnectError
 
+    async def async_restore_lane_free(self, data: bytes) -> bool:
+        """Return whether the panel has no restore or install still running.
+
+        A preview of the same backup takes the panel's operation lane only when
+        it is free and writes nothing, so its answer is the lane's state.
+        """
+        status, body = await self._async_post_bounded(
+            self.address.base_url.with_path(RESTORE_PATH).with_query(dry_run="1"),
+            data,
+            _MAX_RESTORE_RESPONSE_BYTES,
+            _BACKUP_TIMEOUT_SECONDS,
+        )
+        if status == 200:
+            return True
+        if status == 409:
+            return False
+        if status == 202:
+            parse_update_approval_response(body)
+        if 400 <= status < 500:
+            raise UpdateRejectedError
+        raise CannotConnectError
+
     async def async_get_successor_capability(self) -> tuple[str, str, int | None, bool]:
         """Read the bridge's explicit LAN handover capability, never infer it."""
         body = await self._async_get_bounded(

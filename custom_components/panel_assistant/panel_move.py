@@ -16,9 +16,13 @@ panels cannot hold. The order is fixed by what keeps the panel usable:
    id, and only a restore onto that id returns the panel's own local state;
 7. adopt the new app's identity for this entry.
 
-The steps up to 4 are recorded on the entry as they complete, so a move that is
-interrupted after the old app is gone keeps its Repair and a retry resumes from
-the restore. Every step observes its result before the next one runs.
+Before the old app is removed, the receipt's location and the identities it is
+bound to are written durably beside the backups. Every run decides from what
+the panel reports now, never from what the record expected: an old app still
+installed is removed again, a new app alone is restored from the record, and a
+record is deleted only once the restore has finished and the new app reports
+the panel's configuration under a valid identity. Every destructive command
+first proves the device at the address is the one the move started on.
 """
 
 from __future__ import annotations
@@ -26,6 +30,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 from collections.abc import Callable
 from hashlib import sha256
 from io import BytesIO
@@ -61,6 +66,7 @@ from .client import (
     PanelHealth,
     UpdateApprovalRequiredError,
     UpdateBusyError,
+    is_valid_discovery_id,
 )
 from .const import DOMAIN
 from .device import panel_display_name
@@ -111,6 +117,10 @@ REASON_BACKUP_FAILED = "backup_failed"
 REASON_NEW_APP_IS_HOME = "new_app_is_home"
 REASON_MOVE_FAILED = "move_failed"
 REASON_RESTORE_APPROVAL = "restore_approval"
+REASON_PANEL_CHANGED = "panel_changed"
+REASON_BUSY = "busy"
+
+DATA_PANEL_OPERATIONS: Final = "panel_operations"
 
 
 class MoveError(Exception):
@@ -158,6 +168,31 @@ def async_evaluate_successor_move(hass: HomeAssistant, entry: ConfigEntry) -> No
     )
 
 
+async def async_restore_move_offer(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Offer an unfinished move again after a restart, from its durable record.
+
+    The entry's own copy of the offer is saved a moment after it is written,
+    so a Core that stopped in that moment knows of the move only from disk.
+    """
+    record = await hass.async_add_executor_job(
+        _read_record_quietly, _record_path(hass, entry.entry_id)
+    )
+    if record is not None and not isinstance(entry.data.get(CONF_SUCCESSOR_MOVE), dict):
+        hass.config_entries.async_update_entry(
+            entry,
+            data={**entry.data, CONF_SUCCESSOR_MOVE: {"panel_id": record["panel_id"]}},
+        )
+
+
+def _read_record_quietly(path: Path) -> dict[str, Any] | None:
+    try:
+        return _read_record(path)
+    except MoveError:
+        # Unreadable is still unfinished: keep offering the Repair, which
+        # reports the problem when it runs.
+        return {"panel_id": ""}
+
+
 def _successor_artifact(hass: HomeAssistant) -> ReleaseArtifact | None:
     """The new app's signed APK: the configured build feed first, else stable."""
     feed = async_get_feed_coordinator(hass)
@@ -175,8 +210,8 @@ def _successor_artifact(hass: HomeAssistant) -> ReleaseArtifact | None:
     return None
 
 
-def verify_move_receipt(data: bytes) -> str:
-    """Prove a backup is the old app's whole state; return its panel id.
+def verify_move_receipt(data: bytes) -> tuple[str, str]:
+    """Prove a backup is the old app's whole state; return its panel and device ids.
 
     The receipt is what the new app is restored from after the old app is
     removed, so beyond a readable archive it must name the old app, carry the
@@ -189,17 +224,100 @@ def verify_move_receipt(data: bytes) -> str:
         raise PanelBackupInvalidError from err
     state = manifest.get("state") if isinstance(manifest, dict) else None
     panel_id = manifest.get("panel_id") if isinstance(manifest, dict) else None
+    discovery_id = manifest.get("discovery_id") if isinstance(manifest, dict) else None
     if (
         not isinstance(state, dict)
         or not isinstance(state.get("rows"), int)
         or state["rows"] <= 0
         or manifest.get("package") != LEGACY_PACKAGE_ID
-        or not isinstance(manifest.get("discovery_id"), str)
+        or not isinstance(discovery_id, str)
+        or not is_valid_discovery_id(discovery_id)
         or not isinstance(panel_id, str)
         or not panel_id
     ):
         raise PanelBackupInvalidError
-    return panel_id
+    return panel_id, discovery_id
+
+
+def _record_path(hass: HomeAssistant, entry_id: str) -> Path:
+    return Path(hass.config.path(DOMAIN, "backups", f"{entry_id}-move.json"))
+
+
+def _write_record(path: Path, record: dict[str, Any]) -> None:
+    """Write the record and make it durable before anything is removed."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    partial = path.with_suffix(".json.partial")
+    with partial.open("w", encoding="utf-8") as file:
+        json.dump(record, file)
+        file.flush()
+        os.fsync(file.fileno())
+    os.chmod(partial, 0o600)
+    os.replace(partial, path)
+    directory = os.open(path.parent, os.O_RDONLY)
+    try:
+        os.fsync(directory)
+    finally:
+        os.close(directory)
+
+
+def _read_record(path: Path) -> dict[str, Any] | None:
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except OSError, ValueError:
+        # A record that cannot be read must not be mistaken for no move at all.
+        raise MoveError(REASON_MOVE_FAILED) from None
+    keys = ("receipt", "sha256", "panel_id", "config_hash", "legacy_did", "serial")
+    if not isinstance(record, dict) or not all(
+        isinstance(record.get(key), str) for key in keys
+    ):
+        raise MoveError(REASON_MOVE_FAILED)
+    return record
+
+
+async def _async_save_record(
+    hass: HomeAssistant, entry: ConfigEntry, record: dict[str, Any]
+) -> None:
+    """Keep the record on disk first; the entry only carries the offer."""
+    await hass.async_add_executor_job(
+        _write_record, _record_path(hass, entry.entry_id), record
+    )
+    hass.config_entries.async_update_entry(
+        entry,
+        data={**entry.data, CONF_SUCCESSOR_MOVE: {"panel_id": record["panel_id"]}},
+    )
+
+
+async def _async_forget_record(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    path = _record_path(hass, entry.entry_id)
+    await hass.async_add_executor_job(path.unlink, True)
+    data = dict(entry.data)
+    if data.pop(CONF_SUCCESSOR_MOVE, None) is not None:
+        hass.config_entries.async_update_entry(entry, data=data)
+
+
+def _operations(hass: HomeAssistant) -> set[str]:
+    operations: set[str] = hass.data.setdefault(DOMAIN, {}).setdefault(
+        DATA_PANEL_OPERATIONS, set()
+    )
+    return operations
+
+
+@callback
+def claim_panel_operation(hass: HomeAssistant, entry_id: str) -> bool:
+    """Reserve the panel for one app-changing operation: a move or an update."""
+    operations = _operations(hass)
+    if entry_id in operations:
+        return False
+    operations.add(entry_id)
+    return True
+
+
+@callback
+def release_panel_operation(hass: HomeAssistant, entry_id: str) -> None:
+    """End the reservation taken by claim_panel_operation."""
+    _operations(hass).discard(entry_id)
 
 
 async def _async_target(
@@ -242,6 +360,8 @@ async def _async_step(
     except InstallAdbError as err:
         if err.code is InstallAdbErrorCode.AUTHORIZATION_REQUIRED:
             raise MoveError(REASON_ADB_AUTHORIZATION) from err
+        if err.code is InstallAdbErrorCode.TARGET_CHANGED:
+            raise MoveError(REASON_PANEL_CHANGED) from err
         raise MoveError(REASON_MOVE_FAILED) from err
 
 
@@ -304,74 +424,118 @@ async def _async_install_successor(
     except InstallAdbError as err:
         if err.code is InstallAdbErrorCode.AUTHORIZATION_REQUIRED:
             raise MoveError(REASON_ADB_AUTHORIZATION) from err
+        if err.code is InstallAdbErrorCode.TARGET_CHANGED:
+            raise MoveError(REASON_PANEL_CHANGED) from err
         raise MoveError(REASON_MOVE_FAILED) from err
     if outcome is not InstallOutcome.INSTALLED:
         raise MoveError(REASON_MOVE_FAILED)
     return artifact
 
 
-async def _async_retire_legacy(
-    hass: HomeAssistant, entry: ConfigEntry, target: AdbInstallTarget, signer: Any
-) -> None:
-    """Steps 1 to 4: receipt, new app installed, HOME safe, old app removed."""
-    observed = await _async_step(target, signer, MoveStep.OBSERVE)
-    if observed.successor_installed:
-        if observed.home == SUCCESSOR_PACKAGE_ID:
-            # The new app already owns HOME beside the old one: a part-finished
-            # self-handover this release does not repair.
-            raise MoveError(REASON_NEW_APP_IS_HOME)
-        # Its state is a copy of the running old app's, taken by a handover
-        # that never finished; the old app still holds the original.
-        observed = await _async_step(target, signer, MoveStep.REMOVE_SUCCESSOR)
-        if observed.successor_installed:
-            raise MoveError(REASON_MOVE_FAILED)
-    if not observed.legacy_installed:
-        raise MoveError(REASON_MOVE_FAILED)
-
-    client = entry.runtime_data.client
+async def _async_take_receipt(
+    hass: HomeAssistant, entry: ConfigEntry, target: AdbInstallTarget
+) -> dict[str, Any]:
+    """Back the old app up, bound to this entry and this device."""
+    client: HaPaneldClient = entry.runtime_data.client
     try:
         legacy = await client.async_get_health()
-        data = await client.async_backup_panel()
-        panel_id = verify_move_receipt(data)
-        receipt = await async_store_panel_backup(
-            hass, entry.entry_id, legacy.version_code, data
-        )
-    except (HaPaneldError, PanelBackupInvalidError, OSError) as err:
+    except HaPaneldError as err:
         raise MoveError(REASON_BACKUP_FAILED) from err
     if not reports_package(legacy.package, LEGACY_PACKAGE_ID):
         raise MoveError(REASON_MOVE_FAILED)
+    # The device answering must be the one this entry knows, and the backup
+    # must come from that same device: a replaced panel or a stale entry
+    # never has another panel's app removed on its behalf.
+    bound = legacy.discovery_id or entry.unique_id
+    if entry.unique_id is not None and legacy.discovery_id not in (
+        None,
+        entry.unique_id,
+    ):
+        raise MoveError(REASON_PANEL_CHANGED)
+    try:
+        data = await client.async_backup_panel()
+        panel_id, discovery_id = verify_move_receipt(data)
+    except (HaPaneldError, PanelBackupInvalidError) as err:
+        raise MoveError(REASON_BACKUP_FAILED) from err
+    if bound is not None and discovery_id != bound:
+        raise MoveError(REASON_PANEL_CHANGED)
+    try:
+        receipt = await async_store_panel_backup(
+            hass, entry.entry_id, legacy.version_code, data
+        )
+    except (PanelBackupInvalidError, OSError) as err:
+        raise MoveError(REASON_BACKUP_FAILED) from err
+    return {
+        "receipt": str(receipt.path),
+        "sha256": receipt.sha256,
+        "panel_id": panel_id,
+        "config_hash": legacy.config_hash,
+        "legacy_did": entry.unique_id or discovery_id,
+        "discovery_id": discovery_id,
+        "serial": target.serial,
+    }
 
-    await _async_install_successor(hass, target, signer)
-    observed = await _async_step(target, signer, MoveStep.OBSERVE)
+
+async def _async_retire_legacy(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    target: AdbInstallTarget,
+    signer: Any,
+    observed: MoveObservation,
+    ours: bool,
+) -> dict[str, Any]:
+    """Steps 1 to 4: receipt, new app installed, HOME safe, old app removed.
+
+    ``ours`` is a move this integration recorded for this device: a new app
+    beside the old one is then the one it installed, even if it owns HOME.
+    """
+    if (
+        observed.successor_installed
+        and not ours
+        and observed.home == SUCCESSOR_PACKAGE_ID
+    ):
+        # The new app already owns HOME beside the old one: a part-finished
+        # self-handover this release does not repair.
+        raise MoveError(REASON_NEW_APP_IS_HOME)
+    # The receipt comes first, from the old app answering as the panel's owner.
+    record = await _async_take_receipt(hass, entry, target)
+    if observed.successor_installed and not ours:
+        # A new app beside an old app that still owns the panel's port and its
+        # HOME never left its waiting state: its only data is a copy of the
+        # state the receipt above has just taken, so removing it loses nothing.
+        observed = await _async_step(target, signer, MoveStep.REMOVE_SUCCESSOR)
+        if observed.successor_installed or not observed.legacy_installed:
+            raise MoveError(REASON_MOVE_FAILED)
     if not observed.successor_installed:
-        raise MoveError(REASON_MOVE_FAILED)
-    if observed.home == LEGACY_PACKAGE_ID:
-        observed = await _async_step(target, signer, MoveStep.CLAIM_HOME)
-        if observed.home != SUCCESSOR_PACKAGE_ID:
+        await _async_install_successor(hass, target, signer)
+        observed = await _async_step(target, signer, MoveStep.OBSERVE)
+        if not observed.successor_installed or not observed.legacy_installed:
             raise MoveError(REASON_MOVE_FAILED)
-    elif observed.home is None:
-        # Nothing single answers HOME. Removing the old app could leave the
-        # chooser or nothing; claim it rather than guess.
+    if observed.home in (LEGACY_PACKAGE_ID, None):
+        # Nothing single answering HOME is claimed too: removing the old app
+        # could otherwise leave the chooser or nothing.
         observed = await _async_step(target, signer, MoveStep.CLAIM_HOME)
         if observed.home != SUCCESSOR_PACKAGE_ID:
             raise MoveError(REASON_MOVE_FAILED)
 
-    # From here the old app is going; record what the rest needs first.
-    hass.config_entries.async_update_entry(
-        entry,
-        data={
-            **entry.data,
-            CONF_SUCCESSOR_MOVE: {
-                "receipt": str(receipt.path),
-                "sha256": receipt.sha256,
-                "panel_id": panel_id,
-                "config_hash": legacy.config_hash,
-            },
-        },
-    )
+    # Durable before the old app goes: a crash from here on resumes from it.
+    await _async_save_record(hass, entry, record)
     observed = await _async_step(target, signer, MoveStep.RETIRE_LEGACY)
     if observed.legacy_installed or not observed.successor_installed:
         raise MoveError(REASON_MOVE_FAILED)
+    return record
+
+
+def _restored(health: PanelHealth, record: dict[str, Any]) -> bool:
+    """The new app runs this panel's restored configuration under a real identity."""
+    return (
+        reports_package(health.package, SUCCESSOR_PACKAGE_ID)
+        and health.panel_id == record["panel_id"]
+        and health.config_hash == record["config_hash"]
+        and health.installation_identity
+        and health.discovery_id is not None
+        and is_valid_discovery_id(health.discovery_id)
+    )
 
 
 async def _async_restore(
@@ -393,7 +557,7 @@ async def _async_restore(
         data = await hass.async_add_executor_job(path.read_bytes)
     except OSError as err:
         raise MoveError(REASON_MOVE_FAILED) from err
-    if sha256(data).hexdigest() != record.get("sha256"):
+    if sha256(data).hexdigest() != record["sha256"]:
         raise MoveError(REASON_MOVE_FAILED)
 
     client: HaPaneldClient = entry.runtime_data.client
@@ -405,17 +569,10 @@ async def _async_restore(
     serving = health is not None and reports_package(
         health.package, SUCCESSOR_PACKAGE_ID
     )
-    if serving and record.get("restored") is True:
-        assert health is not None
-        return health
     if not (resumed and serving):
         await _async_start_clean(hass, entry, target, signer)
-    restored = await _async_restore_twice(entry, data, record)
-    hass.config_entries.async_update_entry(
-        entry,
-        data={**entry.data, CONF_SUCCESSOR_MOVE: {**record, "restored": True}},
-    )
-    return restored
+    await _async_restore_twice(entry, data, record)
+    return await _async_settled(entry, data, record)
 
 
 async def _async_start_clean(
@@ -437,6 +594,8 @@ async def _async_start_clean(
             expected_root_mode=admitted.root_mode,
         )
     except InstallAdbError as err:
+        if err.code is InstallAdbErrorCode.TARGET_CHANGED:
+            raise MoveError(REASON_PANEL_CHANGED) from err
         raise MoveError(REASON_MOVE_FAILED) from err
     if launched is not LaunchOutcome.STARTED:
         raise MoveError(REASON_MOVE_FAILED)
@@ -449,7 +608,7 @@ async def _async_start_clean(
 
 async def _async_restore_twice(
     entry: ConfigEntry, data: bytes, record: dict[str, Any]
-) -> PanelHealth:
+) -> None:
     """Restore the receipt, then again once the panel has adopted its id.
 
     A restore returns the panel's own local state only onto a panel already
@@ -457,18 +616,37 @@ async def _async_restore_twice(
     """
     client: HaPaneldClient = entry.runtime_data.client
     panel_id = record["panel_id"]
-    moved: PanelHealth | None = None
-    for wanted in (
-        lambda found: found.panel_id == panel_id,
-        lambda found: (
-            found.panel_id == panel_id
-            and found.config_hash == record.get("config_hash")
-        ),
-    ):
-        await _async_send_restore(client, data)
-        moved = await _async_health(entry, wanted, _RESTORE_WAIT_SECONDS)
-    assert moved is not None
-    return moved
+    await _async_send_restore(client, data)
+    await _async_health(
+        entry, lambda found: found.panel_id == panel_id, _RESTORE_WAIT_SECONDS
+    )
+    await _async_send_restore(client, data)
+
+
+async def _async_settled(
+    entry: ConfigEntry, data: bytes, record: dict[str, Any]
+) -> PanelHealth:
+    """Wait for the last restore to finish, then prove what the panel runs.
+
+    Health can show the restored id and configuration before the restore that
+    wrote them has finished, so the restore lane must be free again first.
+    """
+    client: HaPaneldClient = entry.runtime_data.client
+    deadline = asyncio.get_running_loop().time() + _RESTORE_WAIT_SECONDS
+    while True:
+        try:
+            if await client.async_restore_lane_free(data):
+                break
+        except UpdateApprovalRequiredError as err:
+            raise MoveError(REASON_RESTORE_APPROVAL) from err
+        except HaPaneldError:
+            pass
+        if asyncio.get_running_loop().time() >= deadline:
+            raise MoveError(REASON_MOVE_FAILED)
+        await asyncio.sleep(_POLL_SECONDS)
+    return await _async_health(
+        entry, lambda found: _restored(found, record), _RESTORE_WAIT_SECONDS
+    )
 
 
 async def _async_send_restore(client: HaPaneldClient, data: bytes) -> None:
@@ -495,42 +673,70 @@ async def _async_send_restore(client: HaPaneldClient, data: bytes) -> None:
 
 async def async_move_to_new_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Move one panel to the new app; safe to run again after any failure."""
-    record = entry.data.get(CONF_SUCCESSOR_MOVE)
-    if not isinstance(record, dict):
-        snapshot = entry.runtime_data.coordinator.data
-        if snapshot is None or not reports_package(
-            snapshot.health.package, LEGACY_PACKAGE_ID
-        ):
-            raise MoveError(REASON_ALREADY_MOVED)
+    if not claim_panel_operation(hass, entry.entry_id):
+        raise MoveError(REASON_BUSY)
+    try:
+        await _async_move(hass, entry)
+    finally:
+        release_panel_operation(hass, entry.entry_id)
+
+
+async def _async_move(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    record = await hass.async_add_executor_job(
+        _read_record, _record_path(hass, entry.entry_id)
+    )
+    if record is None and entry.runtime_data.coordinator.identity_mismatch:
+        raise MoveError(REASON_PANEL_CHANGED)
+    if record is not None and entry.unique_id not in (
+        record["legacy_did"],
+        None,
+    ):
+        # The entry already carries another identity: either this move adopted
+        # the new app's and stopped before forgetting the record, or the
+        # entry now names a different panel.
+        await _async_finish_adopted(hass, entry, record)
+        return
+    target, signer = await _async_target(hass, entry)
+    ours = record is not None and record["serial"] == target.serial
+    if record is not None and not ours:
+        raise MoveError(REASON_PANEL_CHANGED)
+    # Decide from what the panel has now, never from what a record expected.
+    observed = await _async_step(target, signer, MoveStep.OBSERVE)
+    if observed.legacy_installed:
         if _successor_artifact(hass) is None:
             raise MoveError(REASON_RELEASE_UNAVAILABLE)
-        target, signer = await _async_target(hass, entry)
-        await _async_retire_legacy(hass, entry, target, signer)
-        record = entry.data[CONF_SUCCESSOR_MOVE]
+        record = await _async_retire_legacy(hass, entry, target, signer, observed, ours)
         resumed = False
+    elif record is None:
+        raise MoveError(
+            REASON_ALREADY_MOVED if observed.successor_installed else REASON_MOVE_FAILED
+        )
+    elif not observed.successor_installed:
+        raise MoveError(REASON_MOVE_FAILED)
     else:
-        target, signer = await _async_target(hass, entry)
         resumed = True
     health = await _async_restore(hass, entry, target, signer, record, resumed=resumed)
     did = health.discovery_id
-    if (
-        did is not None
-        and did != entry.unique_id
-        and not adopt_moved_identity(hass, entry, did)
-    ):
+    assert did is not None
+    if did != entry.unique_id and not adopt_moved_identity(hass, entry, did):
         raise MoveError(REASON_MOVE_FAILED)
-    data = dict(entry.data)
-    data.pop(CONF_SUCCESSOR_MOVE, None)
-    hass.config_entries.async_update_entry(entry, data=data)
+    await _async_forget_record(hass, entry)
     ir.async_delete_issue(hass, DOMAIN, move_issue_id(entry.entry_id))
-    _LOGGER.info(
-        "Moved %s to %s; restored configuration %s the old app's",
-        entry.title,
-        SUCCESSOR_PACKAGE_ID,
-        "matches"
-        if health.config_hash == record.get("config_hash")
-        else "differs from",
-    )
+    _LOGGER.info("Moved %s to %s", entry.title, SUCCESSOR_PACKAGE_ID)
+
+
+async def _async_finish_adopted(
+    hass: HomeAssistant, entry: ConfigEntry, record: dict[str, Any]
+) -> None:
+    client: HaPaneldClient = entry.runtime_data.client
+    try:
+        health = await client.async_get_health()
+    except HaPaneldError as err:
+        raise MoveError(REASON_MOVE_FAILED) from err
+    if not _restored(health, record) or health.discovery_id != entry.unique_id:
+        raise MoveError(REASON_PANEL_CHANGED)
+    await _async_forget_record(hass, entry)
+    ir.async_delete_issue(hass, DOMAIN, move_issue_id(entry.entry_id))
 
 
 class SuccessorMoveFlow(RepairsFlow):

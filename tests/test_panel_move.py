@@ -1,6 +1,7 @@
 """Panel Assistant moves a panel from the old app id to the new one over ADB."""
 
 import json
+from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -14,12 +15,13 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.panel_assistant import panel_move
+from custom_components.panel_assistant import install_adb, panel_move
 from custom_components.panel_assistant.app_identity import (
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
 )
 from custom_components.panel_assistant.client import (
+    HaPaneldError,
     PanelHealth,
     UpdateApprovalRequiredError,
     UpdateBusyError,
@@ -27,6 +29,8 @@ from custom_components.panel_assistant.client import (
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.identity import adopt_moved_identity
 from custom_components.panel_assistant.install_adb import (
+    InstallAdbError,
+    InstallAdbErrorCode,
     LaunchOutcome,
     MoveObservation,
     MoveStep,
@@ -39,13 +43,18 @@ from custom_components.panel_assistant.panel_move import (
     MoveError,
     async_evaluate_successor_move,
     async_move_to_new_app,
+    async_restore_move_offer,
+    claim_panel_operation,
     move_issue_id,
+    release_panel_operation,
     verify_move_receipt,
 )
 
 OLD_DID = "a" * 64
 NEW_DID = "b" * 64
+OTHER_DID = "c" * 64
 LEGACY_CFG = "5c80b060"
+SERIAL = "PANEL1"
 
 
 def _archive(**manifest: Any) -> bytes:
@@ -79,10 +88,13 @@ class FakePanel:
         self.running: str | None = LEGACY_PACKAGE_ID
         self.panel_id = "office"
         self.cfg = LEGACY_CFG
-        self.did = OLD_DID
+        self.did: str | None = OLD_DID
         self.restores = 0
+        self.lane_busy = 0
         self.steps: list[str] = []
         self.backup = _archive()
+        self.serial = SERIAL
+        self.retire_fails: str | None = None
 
     def observe(self) -> MoveObservation:
         return MoveObservation(self.legacy, self.successor, self.home)
@@ -97,6 +109,12 @@ class FakePanel:
             self.home = SUCCESSOR_PACKAGE_ID
         elif step is MoveStep.RETIRE_LEGACY:
             assert self.home != LEGACY_PACKAGE_ID, "launcher stranded"
+            if self.retire_fails == "ambiguous":
+                self.retire_fails = None
+                raise InstallAdbError(InstallAdbErrorCode.INSTALL_AMBIGUOUS)
+            if self.retire_fails == "refused":
+                self.retire_fails = None
+                return self.observe()
             self.legacy = False
             self.running = None
         elif step is MoveStep.RESET_SUCCESSOR:
@@ -120,19 +138,20 @@ class FakePanel:
 
     async def health(self) -> PanelHealth:
         if self.running is None:
-            raise panel_move.HaPaneldError
+            raise HaPaneldError
         return PanelHealth(
             version="0.9.9-rc3",
             panel_id=self.panel_id,
             build="1000",
             config_hash=self.cfg,
             discovery_id=self.did,
-            installation_identity=True,
+            installation_identity=self.did is not None,
             package=self.running,
         )
 
     async def backup_panel(self) -> bytes:
         assert self.running == LEGACY_PACKAGE_ID
+        self.steps.append("BACKUP")
         return self.backup
 
     async def restore(self, data: bytes) -> None:
@@ -144,6 +163,15 @@ class FakePanel:
         if self.panel_id == "office":
             self.cfg = LEGACY_CFG
         self.panel_id = "office"
+        # The restore keeps the lane for a while after health shows its result.
+        self.lane_busy = 2
+
+    async def lane_free(self, _data: bytes) -> bool:
+        self.steps.append("LANE")
+        if self.lane_busy:
+            self.lane_busy -= 1
+            return False
+        return True
 
 
 @pytest.fixture
@@ -155,11 +183,12 @@ def entry(hass: HomeAssistant) -> MockConfigEntry:
     return entry
 
 
-def _attach(hass: HomeAssistant, entry: MockConfigEntry, panel: FakePanel) -> None:
+def _attach(entry: MockConfigEntry, panel: FakePanel) -> None:
     client = SimpleNamespace(
         async_get_health=panel.health,
         async_backup_panel=panel.backup_panel,
         async_restore_panel=panel.restore,
+        async_restore_lane_free=panel.lane_free,
         address=None,
     )
     snapshot = SimpleNamespace(
@@ -172,7 +201,8 @@ def _attach(hass: HomeAssistant, entry: MockConfigEntry, panel: FakePanel) -> No
         )
     )
     entry.runtime_data = SimpleNamespace(
-        client=client, coordinator=SimpleNamespace(data=snapshot)
+        client=client,
+        coordinator=SimpleNamespace(data=snapshot, identity_mismatch=False),
     )
 
 
@@ -180,21 +210,21 @@ def _patches(panel: FakePanel, tmp_path: Path, adopted: list[str]) -> Any:
     async def store(_hass: Any, _entry_id: str, _code: Any, data: bytes) -> Any:
         path = tmp_path / "receipt.zip"
         path.write_bytes(data)
-        from hashlib import sha256
-
         return SimpleNamespace(path=path, sha256=sha256(data).hexdigest())
 
-    def adopt(_hass: Any, _entry: Any, did: str) -> bool:
+    def adopt(_hass: Any, entry: Any, did: str) -> bool:
         adopted.append(did)
+        _hass.config_entries.async_update_entry(entry, unique_id=did)
         return True
+
+    async def target(*_args: Any) -> Any:
+        return SimpleNamespace(serial=panel.serial), "key"
 
     descriptor = SimpleNamespace(package_id=SUCCESSOR_PACKAGE_ID)
     artifact = SimpleNamespace(descriptor=descriptor)
     return [
         patch.object(panel_move, "_successor_artifact", return_value=artifact),
-        patch.object(
-            panel_move, "_async_target", AsyncMock(return_value=("target", "key"))
-        ),
+        patch.object(panel_move, "_async_target", target),
         patch.object(panel_move, "async_move_step", panel.step),
         patch.object(panel_move, "_async_install_successor", panel.install),
         patch.object(panel_move, "async_store_panel_backup", store),
@@ -224,16 +254,21 @@ async def _move(
     return adopted
 
 
+def _record_file(hass: HomeAssistant, entry: MockConfigEntry) -> Path:
+    return Path(hass.config.path(DOMAIN, "backups", f"{entry.entry_id}-move.json"))
+
+
 async def test_a_kiosk_panel_moves_with_home_safe_and_settings_restored(
     hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
 ) -> None:
     panel = FakePanel()
-    _attach(hass, entry, panel)
+    _attach(entry, panel)
 
     adopted = await _move(hass, entry, panel, tmp_path)
 
-    assert panel.steps == [
+    assert [s for s in panel.steps if s != "LANE"] == [
         "OBSERVE",
+        "BACKUP",
         "INSTALL",
         "OBSERVE",
         "CLAIM_HOME",
@@ -247,13 +282,51 @@ async def test_a_kiosk_panel_moves_with_home_safe_and_settings_restored(
     assert (panel.panel_id, panel.cfg) == ("office", LEGACY_CFG)
     assert adopted == [NEW_DID]
     assert CONF_SUCCESSOR_MOVE not in entry.data
+    assert not _record_file(hass, entry).exists()
+
+
+async def test_the_record_is_forgotten_only_after_the_restore_finished(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
+) -> None:
+    """Health shows the restored config while the last restore still runs."""
+    panel = FakePanel()
+    _attach(entry, panel)
+
+    await _move(hass, entry, panel, tmp_path)
+
+    last_restore = len(panel.steps) - panel.steps[::-1].index("RESTORE") - 1
+    assert panel.steps[last_restore + 1 :] == ["LANE", "LANE", "LANE"]
+    assert not _record_file(hass, entry).exists()
+
+
+async def test_a_new_app_without_a_valid_identity_keeps_the_record(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
+) -> None:
+    panel = FakePanel()
+    _attach(entry, panel)
+    real_launch = panel.launch
+
+    async def launch_anonymous(*args: Any, **kwargs: Any) -> LaunchOutcome:
+        outcome = await real_launch(*args, **kwargs)
+        panel.did = None
+        return outcome
+
+    panel.launch = launch_anonymous  # type: ignore[method-assign]
+    with (
+        patch.object(panel_move, "_RESTORE_WAIT_SECONDS", 0),
+        pytest.raises(MoveError, match="move_failed"),
+    ):
+        await _move(hass, entry, panel, tmp_path)
+
+    assert _record_file(hass, entry).exists()
+    assert entry.unique_id == OLD_DID
 
 
 async def test_a_panel_with_its_own_launcher_keeps_it(
     hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
 ) -> None:
     panel = FakePanel(home="com.android.launcher3")
-    _attach(hass, entry, panel)
+    _attach(entry, panel)
 
     await _move(hass, entry, panel, tmp_path)
 
@@ -261,17 +334,17 @@ async def test_a_panel_with_its_own_launcher_keeps_it(
     assert panel.home == "com.android.launcher3"
 
 
-async def test_a_refused_handover_leftover_is_removed_before_the_move(
+async def test_a_refused_handover_leftover_is_removed_after_the_receipt(
     hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
 ) -> None:
     """State (a)/(b): the new app sits passive beside the old one."""
     panel = FakePanel()
     panel.successor = panel.successor_state = True
-    _attach(hass, entry, panel)
+    _attach(entry, panel)
 
     await _move(hass, entry, panel, tmp_path)
 
-    assert panel.steps[:3] == ["OBSERVE", "REMOVE_SUCCESSOR", "INSTALL"]
+    assert panel.steps[:4] == ["OBSERVE", "BACKUP", "REMOVE_SUCCESSOR", "INSTALL"]
     assert not panel.legacy and panel.panel_id == "office"
 
 
@@ -280,13 +353,13 @@ async def test_a_new_app_already_home_is_left_untouched(
 ) -> None:
     panel = FakePanel(home=SUCCESSOR_PACKAGE_ID)
     panel.successor = True
-    _attach(hass, entry, panel)
+    _attach(entry, panel)
 
     with pytest.raises(MoveError, match="new_app_is_home"):
         await _move(hass, entry, panel, tmp_path)
 
     assert panel.steps == ["OBSERVE"]
-    assert panel.legacy and CONF_SUCCESSOR_MOVE not in entry.data
+    assert panel.legacy and not _record_file(hass, entry).exists()
 
 
 async def test_an_incomplete_backup_changes_nothing(
@@ -294,61 +367,206 @@ async def test_an_incomplete_backup_changes_nothing(
 ) -> None:
     panel = FakePanel()
     panel.backup = _archive(state={"rows": 0})
-    _attach(hass, entry, panel)
+    _attach(entry, panel)
 
     with pytest.raises(MoveError, match="backup_failed"):
         await _move(hass, entry, panel, tmp_path)
 
-    assert panel.steps == ["OBSERVE"]
+    assert panel.steps == ["OBSERVE", "BACKUP"]
     assert panel.legacy and not panel.successor
 
 
-async def test_a_move_interrupted_after_the_old_app_went_resumes(
+@pytest.mark.parametrize(
+    ("health_did", "backup_did"),
+    [(OTHER_DID, OTHER_DID), (OLD_DID, OTHER_DID)],
+    ids=["another-panel-answers", "backup-from-another-panel"],
+)
+async def test_another_panel_is_never_changed(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    tmp_path: Path,
+    health_did: str,
+    backup_did: str,
+) -> None:
+    panel = FakePanel()
+    panel.did = health_did
+    panel.backup = _archive(discovery_id=backup_did)
+    _attach(entry, panel)
+
+    with pytest.raises(MoveError, match="panel_changed"):
+        await _move(hass, entry, panel, tmp_path)
+
+    assert set(panel.steps) <= {"OBSERVE", "BACKUP"}
+    assert panel.legacy and not panel.successor
+
+
+async def test_a_stale_entry_is_never_moved(
     hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
 ) -> None:
     panel = FakePanel()
-    _attach(hass, entry, panel)
+    _attach(entry, panel)
+    entry.runtime_data.coordinator.identity_mismatch = True
+
+    with pytest.raises(MoveError, match="panel_changed"):
+        await _move(hass, entry, panel, tmp_path)
+
+    assert panel.steps == []
+
+
+@pytest.mark.parametrize("failure", ["ambiguous", "refused"])
+async def test_a_move_stopped_before_the_old_app_went_finishes_on_retry(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path, failure: str
+) -> None:
+    """The record exists, HOME is the new app, and the old app is still there."""
+    panel = FakePanel()
+    panel.retire_fails = failure
+    _attach(entry, panel)
+
+    with pytest.raises(MoveError, match="move_failed"):
+        await _move(hass, entry, panel, tmp_path)
+    assert panel.legacy and panel.home == SUCCESSOR_PACKAGE_ID
+    assert _record_file(hass, entry).exists()
+
+    panel.steps.clear()
+    adopted = await _move(hass, entry, panel, tmp_path)
+
+    # Its own new app beside the old one is kept, and a fresh receipt is taken
+    # from the old app that still owns the panel.
+    assert [s for s in panel.steps if s != "LANE"][:3] == [
+        "OBSERVE",
+        "BACKUP",
+        "RETIRE_LEGACY",
+    ]
+    assert "REMOVE_SUCCESSOR" not in panel.steps
+    assert not panel.legacy and adopted == [NEW_DID]
+    assert not _record_file(hass, entry).exists()
+
+
+async def test_a_move_interrupted_after_the_old_app_went_resumes_after_a_restart(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
+) -> None:
+    panel = FakePanel()
+    _attach(entry, panel)
     real_restore = panel.restore
 
     async def refuse(_data: bytes) -> None:
         raise UpdateApprovalRequiredError
 
     panel.restore = refuse  # type: ignore[method-assign]
-    _attach(hass, entry, panel)
+    _attach(entry, panel)
     with pytest.raises(MoveError, match="restore_approval"):
         await _move(hass, entry, panel, tmp_path)
     assert not panel.legacy
-    assert entry.data[CONF_SUCCESSOR_MOVE]["panel_id"] == "office"
+
+    # Core stopped before the entry's copy of the offer was saved: only the
+    # durable record knows of the move.
+    hass.config_entries.async_update_entry(entry, data={"address": "x"})
+    await async_restore_move_offer(hass, entry)
+    assert entry.data[CONF_SUCCESSOR_MOVE] == {"panel_id": "office"}
 
     panel.restore = real_restore  # type: ignore[method-assign]
     panel.steps.clear()
-    _attach(hass, entry, panel)
+    _attach(entry, panel)
     adopted = await _move(hass, entry, panel, tmp_path)
 
     # The new app was started clean before the stop and still serves.
-    assert panel.steps == ["RESTORE", "RESTORE"]
+    assert [s for s in panel.steps if s != "LANE"] == [
+        "OBSERVE",
+        "RESTORE",
+        "RESTORE",
+    ]
     assert adopted == [NEW_DID] and CONF_SUCCESSOR_MOVE not in entry.data
+
+
+async def test_a_replaced_panel_at_the_address_is_never_changed(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
+) -> None:
+    panel = FakePanel()
+    panel.retire_fails = "ambiguous"
+    _attach(entry, panel)
+    with pytest.raises(MoveError):
+        await _move(hass, entry, panel, tmp_path)
+
+    panel.serial = "ANOTHER"
+    panel.steps.clear()
+    with pytest.raises(MoveError, match="panel_changed"):
+        await _move(hass, entry, panel, tmp_path)
+    assert panel.steps == []
+
+
+async def test_a_move_waits_for_no_update_and_blocks_one(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
+) -> None:
+    panel = FakePanel()
+    _attach(entry, panel)
+    assert claim_panel_operation(hass, entry.entry_id)
+    try:
+        with pytest.raises(MoveError, match="busy"):
+            await _move(hass, entry, panel, tmp_path)
+        assert panel.steps == []
+    finally:
+        release_panel_operation(hass, entry.entry_id)
+
+    claimed: list[bool] = []
+
+    async def observe_claim(*args: Any) -> MoveObservation:
+        claimed.append(claim_panel_operation(hass, entry.entry_id))
+        return await panel.step(*args)
+
+    patches = _patches(panel, tmp_path, [])
+    for item in patches:
+        item.start()
+    try:
+        with patch.object(panel_move, "async_move_step", observe_claim):
+            await async_move_to_new_app(hass, entry)
+    finally:
+        for item in patches:
+            item.stop()
+    assert claimed and not any(claimed)
+    assert claim_panel_operation(hass, entry.entry_id)
 
 
 async def test_a_moved_panel_is_a_no_op(
     hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
 ) -> None:
     panel = FakePanel()
-    _attach(hass, entry, panel)
+    _attach(entry, panel)
     await _move(hass, entry, panel, tmp_path)
     panel.steps.clear()
-    entry.runtime_data.coordinator.data.health = await panel.health()
 
     with pytest.raises(MoveError, match="already_moved"):
         await _move(hass, entry, panel, tmp_path)
-    assert panel.steps == []
+    assert panel.steps == ["OBSERVE"]
+
+
+async def test_a_restore_still_running_is_waited_out(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
+) -> None:
+    """The panel adopts its id before the first restore has finished."""
+    panel = FakePanel()
+    real_restore = panel.restore
+    busy = [True]
+
+    async def busy_once(data: bytes) -> None:
+        if panel.restores == 1 and busy[0]:
+            busy[0] = False
+            raise UpdateBusyError
+        await real_restore(data)
+
+    panel.restore = busy_once  # type: ignore[method-assign]
+    _attach(entry, panel)
+
+    await _move(hass, entry, panel, tmp_path)
+
+    assert panel.restores == 2 and not busy[0]
+    assert CONF_SUCCESSOR_MOVE not in entry.data
 
 
 async def test_the_repair_follows_the_package_and_the_record(
     hass: HomeAssistant, entry: MockConfigEntry
 ) -> None:
     panel = FakePanel()
-    _attach(hass, entry, panel)
+    _attach(entry, panel)
     registry = ir.async_get(hass)
     issue = (DOMAIN, move_issue_id(entry.entry_id))
 
@@ -369,11 +587,12 @@ async def test_the_repair_follows_the_package_and_the_record(
 
 
 def test_a_receipt_must_be_the_old_apps_whole_state() -> None:
-    assert verify_move_receipt(_archive()) == "office"
+    assert verify_move_receipt(_archive()) == ("office", OLD_DID)
     for broken in (
         _archive(package=SUCCESSOR_PACKAGE_ID),
         _archive(state={"rows": 0}),
         _archive(discovery_id=None),
+        _archive(discovery_id="not-an-id"),
         b"not a zip",
     ):
         with pytest.raises(PanelBackupInvalidError):
@@ -401,27 +620,32 @@ def test_move_observation_reads_packages_and_home() -> None:
         _parse_move(body.replace(b"installed:", b"stray:"), nonce)
 
 
-async def test_a_restore_still_running_is_waited_out(
-    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
+async def test_a_move_step_on_another_device_sends_no_command(
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The panel adopts its id before the first restore has finished."""
-    panel = FakePanel()
-    real_restore = panel.restore
-    busy = [True]
+    """Each connection proves the device before any move command is sent."""
+    sent: list[str] = []
 
-    async def busy_once(data: bytes) -> None:
-        if panel.restores == 1 and busy[0]:
-            busy[0] = False
-            raise UpdateBusyError
-        await real_restore(data)
+    async def shell(_device: Any, command: str, **_kwargs: Any) -> bytes:
+        sent.append(command)
+        return b""
 
-    panel.restore = busy_once  # type: ignore[method-assign]
-    _attach(hass, entry, panel)
+    def changed(*_args: Any) -> Any:
+        raise InstallAdbError(InstallAdbErrorCode.TARGET_CHANGED)
 
-    await _move(hass, entry, panel, tmp_path)
+    monkeypatch.setattr(install_adb, "_async_connect", AsyncMock(return_value=object()))
+    monkeypatch.setattr(install_adb, "_async_close", AsyncMock())
+    monkeypatch.setattr(install_adb, "_async_shell", shell)
+    monkeypatch.setattr(install_adb, "_parse_identity_root", changed)
+    monkeypatch.setattr(install_adb, "_validate_target", lambda _target: None)
 
-    assert panel.restores == 2 and not busy[0]
-    assert CONF_SUCCESSOR_MOVE not in entry.data
+    with pytest.raises(InstallAdbError) as error:
+        await install_adb.async_move_step(
+            SimpleNamespace(), "key", MoveStep.RETIRE_LEGACY
+        )
+
+    assert error.value.code is InstallAdbErrorCode.TARGET_CHANGED
+    assert len(sent) == 1 and "pm uninstall" not in sent[0]
 
 
 async def test_a_moved_panel_keeps_its_entities_under_the_new_identity(

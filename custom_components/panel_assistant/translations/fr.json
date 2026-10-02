@@ -212,6 +212,8 @@
             "backup_failed": "Panel Assistant n’a pas pu faire une sauvegarde complète de {panel} ; rien n’a donc été modifié. Réessayez dans quelques minutes.",
             "new_app_is_home": "{panel} est resté à mi-chemin d’un passage précédent que cette version ne peut pas encore terminer. Rien n’a été modifié. Une version ultérieure de Panel Assistant le réparera.",
             "move_failed": "Le passage de {panel} n’est pas allé jusqu’au bout. Ses réglages sont sauvegardés dans Home Assistant et le panneau garde un écran qui fonctionne. Rouvrez cette réparation pour reprendre là où il s’est arrêté.",
+            "panel_changed": "L’appareil qui répond à l’adresse de {panel} n’est pas le panneau que connaît Panel Assistant ; rien n’a donc été modifié. Si le panneau a été remplacé ou réinitialisé, supprimez-le de Home Assistant puis ajoutez-le à nouveau.",
+            "busy": "{panel} est occupé par une mise à jour ou un autre passage. Réessayez une fois l’opération terminée.",
             "restore_approval": "{panel} demande une approbation sur son écran avant de pouvoir restaurer ses réglages. Approuvez-la sur le panneau, puis rouvrez cette réparation."
           }
         }

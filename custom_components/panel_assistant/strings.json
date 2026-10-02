@@ -552,6 +552,8 @@
             "backup_failed": "Panel Assistant could not take a complete backup of {panel}, so nothing was changed. Try again in a few minutes.",
             "new_app_is_home": "{panel} is part-way through an earlier move that this release cannot finish yet. Nothing was changed. A later release of Panel Assistant repairs it.",
             "move_failed": "The move of {panel} did not finish. Its settings are backed up in Home Assistant, and the panel keeps a working screen. Open this Repair again to carry on from where it stopped.",
+            "panel_changed": "The device answering at {panel}'s address is not the panel Panel Assistant knows, so nothing was changed. If the panel was replaced or reset, remove it from Home Assistant and add it again.",
+            "busy": "{panel} is busy with an update or another move. Try again when that has finished.",
             "restore_approval": "{panel} asks for approval on its screen before its settings can be restored. Approve it on the panel, then open this Repair again."
           }
         }

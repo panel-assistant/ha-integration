@@ -212,6 +212,8 @@
             "backup_failed": "Panel Assistant 无法为 {panel} 完成完整备份，因此未做任何更改。请几分钟后重试。",
             "new_app_is_home": "{panel} 停留在之前一次未完成的迁移中，此版本暂时无法完成。未做任何更改。Panel Assistant 的后续版本会修复此问题。",
             "move_failed": "{panel} 的迁移未完成。其设置已备份在 Home Assistant 中，面板仍保持可用的界面。重新打开此修复即可从中断处继续。",
+            "panel_changed": "在 {panel} 地址上响应的设备不是 Panel Assistant 所知的面板，因此未做任何更改。如果面板已被更换或重置，请将其从 Home Assistant 中移除后重新添加。",
+            "busy": "{panel} 正在进行更新或另一次迁移。请在其完成后重试。",
             "restore_approval": "{panel} 需要在其屏幕上确认后才能恢复设置。请在面板上确认，然后重新打开此修复。"
           }
         }

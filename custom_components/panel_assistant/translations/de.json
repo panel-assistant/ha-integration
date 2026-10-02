@@ -212,6 +212,8 @@
             "backup_failed": "Panel Assistant konnte keine vollständige Sicherung von {panel} anlegen, daher wurde nichts geändert. Versuche es in einigen Minuten erneut.",
             "new_app_is_home": "{panel} steckt mitten in einem früheren Umzug, den diese Version noch nicht abschließen kann. Es wurde nichts geändert. Eine spätere Version von Panel Assistant behebt das.",
             "move_failed": "Der Umzug von {panel} wurde nicht abgeschlossen. Seine Einstellungen sind in Home Assistant gesichert, und das Panel zeigt weiterhin einen funktionierenden Bildschirm. Öffne diese Reparatur erneut, um dort weiterzumachen, wo er angehalten hat.",
+            "panel_changed": "Das Gerät unter der Adresse von {panel} ist nicht das Panel, das Panel Assistant kennt, daher wurde nichts geändert. Wenn das Panel ersetzt oder zurückgesetzt wurde, entferne es aus Home Assistant und füge es erneut hinzu.",
+            "busy": "{panel} ist mit einem Update oder einem anderen Umzug beschäftigt. Versuche es erneut, wenn dieser abgeschlossen ist.",
             "restore_approval": "{panel} verlangt auf seinem Bildschirm eine Bestätigung, bevor seine Einstellungen wiederhergestellt werden können. Bestätige sie am Panel und öffne diese Reparatur dann erneut."
           }
         }

@@ -252,6 +252,8 @@
             "backup_failed": "Panel Assistant nie mógł wykonać pełnej kopii zapasowej {panel}, więc nic nie zostało zmienione. Spróbuj ponownie za kilka minut.",
             "new_app_is_home": "{panel} jest w trakcie wcześniejszego przenoszenia, którego ta wersja nie potrafi jeszcze dokończyć. Nic nie zostało zmienione. Naprawi to późniejsza wersja Panel Assistant.",
             "move_failed": "Przenoszenie {panel} nie zostało ukończone. Jego ustawienia są zapisane w Home Assistant, a panel nadal ma działający ekran. Otwórz ponownie tę naprawę, aby kontynuować od miejsca, w którym się zatrzymało.",
+            "panel_changed": "Urządzenie odpowiadające pod adresem {panel} nie jest panelem znanym Panel Assistant, więc nic nie zostało zmienione. Jeśli panel został wymieniony lub zresetowany, usuń go z Home Assistant i dodaj ponownie.",
+            "busy": "{panel} jest zajęty aktualizacją lub innym przenoszeniem. Spróbuj ponownie po jego zakończeniu.",
             "restore_approval": "{panel} prosi na swoim ekranie o zatwierdzenie, zanim będzie można przywrócić jego ustawienia. Zatwierdź to na panelu, a potem ponownie otwórz tę naprawę."
           }
         }

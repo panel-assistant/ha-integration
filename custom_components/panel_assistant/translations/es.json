@@ -212,6 +212,8 @@
             "backup_failed": "Panel Assistant no ha podido hacer una copia de seguridad completa de {panel}, así que no se ha cambiado nada. Inténtalo de nuevo en unos minutos.",
             "new_app_is_home": "{panel} está a medias de un traslado anterior que esta versión aún no puede terminar. No se ha cambiado nada. Una versión posterior de Panel Assistant lo repara.",
             "move_failed": "El traslado de {panel} no ha terminado. Sus ajustes están guardados en Home Assistant y el panel sigue mostrando una pantalla que funciona. Vuelve a abrir esta reparación para continuar desde donde se detuvo.",
+            "panel_changed": "El dispositivo que responde en la dirección de {panel} no es el panel que conoce Panel Assistant, así que no se ha cambiado nada. Si el panel se ha sustituido o restablecido, elimínalo de Home Assistant y vuelve a añadirlo.",
+            "busy": "{panel} está ocupado con una actualización u otro traslado. Inténtalo de nuevo cuando haya terminado.",
             "restore_approval": "{panel} pide una aprobación en su pantalla antes de poder restaurar sus ajustes. Apruébala en el panel y vuelve a abrir esta reparación."
           }
         }

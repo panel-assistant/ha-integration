@@ -98,7 +98,11 @@ from .install_network import (
 )
 from .native import NativeEntity, async_setup_native_platform
 from .panel_backup import PanelBackupInvalidError, async_store_panel_backup
-from .panel_move import async_evaluate_successor_move
+from .panel_move import (
+    async_evaluate_successor_move,
+    claim_panel_operation,
+    release_panel_operation,
+)
 from .provisioning import InstallTargetState, async_probe_install_target
 from .release import (
     _RELEASE_SIGNER_CERTIFICATE_SHA256,
@@ -1082,6 +1086,17 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
     async def async_install(
         self, version: str | None, backup: bool, **_kwargs: object
     ) -> None:
+        """Install while no move to the new app runs on the same panel."""
+        if not claim_panel_operation(self.hass, self._entry_id):
+            raise _update_error(
+                "update_busy", "The panel is busy with another operation"
+            )
+        try:
+            await self._async_install_claimed(version, backup)
+        finally:
+            release_panel_operation(self.hass, self._entry_id)
+
+    async def _async_install_claimed(self, version: str | None, backup: bool) -> None:
         """Start one exact stable offer, then follow the expected panel restart."""
         if self.coordinator.identity_mismatch:
             raise _update_error("update_unavailable", "The panel identity has changed")

@@ -252,6 +252,8 @@
             "backup_failed": "Panel Assistant kon geen volledige back-up van {panel} maken, dus er is niets gewijzigd. Probeer het over een paar minuten opnieuw.",
             "new_app_is_home": "{panel} zit halverwege een eerdere verhuizing die deze versie nog niet kan afmaken. Er is niets gewijzigd. Een latere versie van Panel Assistant herstelt dit.",
             "move_failed": "De verhuizing van {panel} is niet afgerond. De instellingen zijn in Home Assistant geback-upt en het paneel houdt een werkend scherm. Open deze reparatie opnieuw om verder te gaan waar het stopte.",
+            "panel_changed": "Het apparaat dat op het adres van {panel} antwoordt, is niet het paneel dat Panel Assistant kent, dus er is niets gewijzigd. Als het paneel is vervangen of gereset, verwijder het dan uit Home Assistant en voeg het opnieuw toe.",
+            "busy": "{panel} is bezig met een update of een andere verhuizing. Probeer het opnieuw zodra die klaar is.",
             "restore_approval": "{panel} vraagt op het scherm om goedkeuring voordat de instellingen kunnen worden hersteld. Keur het goed op het paneel en open deze reparatie daarna opnieuw."
           }
         }
