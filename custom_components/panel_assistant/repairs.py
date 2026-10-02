@@ -59,6 +59,12 @@ from .native_move import (
     NativeMoveFlow,
     move_to_native_issue_id,
 )
+from .panel_move import ISSUE_DATA_ENTRY_ID as SUCCESSOR_MOVE_ENTRY_ID
+from .panel_move import (
+    ISSUE_MOVE_TO_NEW_APP,
+    SuccessorMoveFlow,
+    move_issue_id,
+)
 from .release import ReleaseResolutionError
 from .release_catalog import async_resolve_install_choice
 from .restart_repair import ISSUE_RESTART_REQUIRED, RestartRequiredFlow
@@ -619,6 +625,11 @@ async def async_create_fix_flow(
         ):
             raise UnknownStep
         return NativeMoveFlow(entry_id)
+    if issue_id.startswith(f"{ISSUE_MOVE_TO_NEW_APP}_"):
+        entry_id = values.get(SUCCESSOR_MOVE_ENTRY_ID)
+        if not isinstance(entry_id, str) or issue_id != move_issue_id(entry_id):
+            raise UnknownStep
+        return SuccessorMoveFlow(entry_id)
     if issue_id.startswith(f"{ISSUE_PANEL_MIGRATION_INCOMPLETE}_"):
         address = values.get(ISSUE_DATA_ADDRESS)
         version = values.get(ISSUE_DATA_VERSION)

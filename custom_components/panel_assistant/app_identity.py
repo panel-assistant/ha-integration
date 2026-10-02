@@ -51,6 +51,18 @@ LAUNCH_COMPONENTS: Mapping[str, str] = MappingProxyType(
 )
 
 
+#: The dashboard activity that answers HOME, flattened per id: the activity a
+#: kiosk panel boots to. Like the launcher, it lives in the Gradle namespace.
+HOME_COMPONENTS: Mapping[str, str] = MappingProxyType(
+    {
+        LEGACY_PACKAGE_ID: "io.github.maxlyth.hapaneld/.DashboardActivity",
+        SUCCESSOR_PACKAGE_ID: (
+            "io.panelassistant.android/io.github.maxlyth.hapaneld.DashboardActivity"
+        ),
+    }
+)
+
+
 def is_accepted_package_id(package_id: object) -> bool:
     """Return whether this is one of the two installable panel application ids."""
     return isinstance(package_id, str) and package_id in ACCEPTED_PACKAGE_IDS

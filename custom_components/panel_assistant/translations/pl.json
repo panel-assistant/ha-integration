@@ -162,6 +162,7 @@
     }
   },
   "exceptions": {
+    "move_with_repair": {"message": "Przenieś ten panel do nowej aplikacji za pomocą jego naprawy w Ustawieniach."},
     "health_update_failed": {
       "message": "Nie można odczytać stanu panelu"
     },
@@ -230,6 +231,31 @@
     }
   },
   "issues": {
+      "move_to_new_app": {
+        "title": "Przenieś {panel} do nowej aplikacji",
+        "fix_flow": {
+          "step": {
+            "confirm_move": {
+              "title": "Przenieś {panel} do nowej aplikacji",
+              "description": "Na {panel} nadal działa stara aplikacja ha-paneld. Panel Assistant przenosi panel do nowej aplikacji przez Twoją sieć i zachowuje jego ustawienia: najpierw zapisuje tutaj kopię zapasową panelu, potem instaluje nową aplikację, a następnie usuwa starą. Podczas przenoszenia aplikacja panelu uruchomi się ponownie jeden raz. Jeśli panel wyświetli „Zezwolić na debugowanie USB?”, dotknij „Zezwól”, zaznaczając „Zawsze zezwalaj z tego komputera”, jeśli ta opcja się pojawi. Nie musisz rootować panelu ani wpisywać żadnych poleceń. Wybierz „Zatwierdź”, aby go przenieść."
+            }
+          },
+          "progress": {
+            "moving": "Przenoszenie {panel} do nowej aplikacji. Potrwa to kilka minut; nie wyłączaj panelu."
+          },
+          "abort": {
+            "entry_removed": "Ten panel został usunięty z Home Assistant.",
+            "already_moved": "Na {panel} działa już nowa aplikacja. Nie było nic do przeniesienia.",
+            "release_unavailable": "Panel Assistant nie mógł teraz pobrać wydania nowej aplikacji. Sprawdź, czy Home Assistant ma dostęp do internetu, i spróbuj ponownie.",
+            "adb_authorization": "{panel} nie zezwolił jeszcze Panel Assistant na połączenie. Spójrz na panel: jeśli wyświetla „Zezwolić na debugowanie USB?”, dotknij „Zezwól”, zaznaczając „Zawsze zezwalaj z tego komputera”, a potem ponownie otwórz tę naprawę.",
+            "adb_unreachable": "Panel Assistant nie mógł połączyć się z {panel}, aby go przenieść. Upewnij się, że panel jest włączony i w tej samej sieci co Home Assistant oraz że debugowanie sieciowe jest włączone w ustawieniach aplikacji panelu, a potem ponownie otwórz tę naprawę.",
+            "backup_failed": "Panel Assistant nie mógł wykonać pełnej kopii zapasowej {panel}, więc nic nie zostało zmienione. Spróbuj ponownie za kilka minut.",
+            "new_app_is_home": "{panel} jest w trakcie wcześniejszego przenoszenia, którego ta wersja nie potrafi jeszcze dokończyć. Nic nie zostało zmienione. Naprawi to późniejsza wersja Panel Assistant.",
+            "move_failed": "Przenoszenie {panel} nie zostało ukończone. Jego ustawienia są zapisane w Home Assistant, a panel nadal ma działający ekran. Otwórz ponownie tę naprawę, aby kontynuować od miejsca, w którym się zatrzymało.",
+            "restore_approval": "{panel} prosi na swoim ekranie o zatwierdzenie, zanim będzie można przywrócić jego ustawienia. Zatwierdź to na panelu, a potem ponownie otwórz tę naprawę."
+          }
+        }
+      },
       "restart_required": {
         "title": "Uruchom ponownie Home Assistant, aby dokończyć aktualizację Panel Assistant",
         "fix_flow": {

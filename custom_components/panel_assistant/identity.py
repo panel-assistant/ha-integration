@@ -165,7 +165,45 @@ def confirm_identity(
     if not can_confirm_identity(hass, entry, health):
         return False
     did = health.discovery_id
-    assert did is not None and entry.unique_id is not None
+    assert did is not None
+    _commit_identity(hass, entry, did)
+    return True
+
+
+@callback
+def adopt_moved_identity(hass: HomeAssistant, entry: ConfigEntry, did: str) -> bool:
+    """Rekey an entry to the identity of the app Panel Assistant moved it to.
+
+    The move is this integration's own action: it backed the old app up,
+    installed the new one and restored it, so the new identity is admitted on
+    that evidence rather than on a legacy hint from the panel.
+    """
+    if (
+        entry.unique_id is None
+        or not is_valid_discovery_id(did)
+        or did == entry.unique_id
+        or not identity_available(hass, entry, did)
+        or not _native_identities(hass, entry) <= {entry.unique_id, did}
+    ):
+        return False
+    registry = er.async_get(hass)
+    prefix = f"{entry.unique_id}_"
+    for item in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if item.platform != DOMAIN or not item.unique_id.startswith(prefix):
+            continue
+        holder = registry.async_get_entity_id(
+            item.domain, DOMAIN, did + item.unique_id[len(entry.unique_id) :]
+        )
+        if holder is not None and holder != item.entity_id:
+            return False
+    _commit_identity(hass, entry, did)
+    return True
+
+
+@callback
+def _commit_identity(hass: HomeAssistant, entry: ConfigEntry, did: str) -> None:
+    """Rekey owned entities in place, committing the entry identity last."""
+    assert entry.unique_id is not None
     registry = er.async_get(hass)
     changes = [
         (item.entity_id, did + item.unique_id[len(entry.unique_id) :])
@@ -197,7 +235,6 @@ def confirm_identity(
     ir.async_delete_issue(hass, DOMAIN, f"{ISSUE_IDENTITY}_{entry.entry_id}")
     ir.async_delete_issue(hass, DOMAIN, f"panel_identity_mismatch_{entry.entry_id}")
     hass.async_create_task(hass.config_entries.async_reload(entry.entry_id))
-    return True
 
 
 @callback

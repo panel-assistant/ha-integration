@@ -49,6 +49,7 @@ from .install_executor import (
 )
 from .native import CONF_NATIVE_ENTITIES, NATIVE_ONLY_PLATFORMS
 from .native_move import async_delete_native_move_issues, async_evaluate_native_move
+from .panel_move import async_evaluate_successor_move
 from .restart_repair import async_setup_restart_check
 from .transport import (
     DATA_NATIVE_ENTITIES,
@@ -295,6 +296,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     async_evaluate_native_move(hass, entry)
     entry.async_on_unload(
         coordinator.async_add_listener(lambda: async_evaluate_native_move(hass, entry))
+    )
+    # A panel still on the old app id is offered the move to the new app.
+    async_evaluate_successor_move(hass, entry)
+    entry.async_on_unload(
+        coordinator.async_add_listener(
+            lambda: async_evaluate_successor_move(hass, entry)
+        )
     )
     # Register last so this coordinator listener is removed first on unload,
     # even when a later teardown callback fails.

@@ -423,6 +423,7 @@
     }
   },
   "exceptions": {
+    "move_with_repair": {"message": "Move this panel to the new app with its Repair in Settings."},
     "health_update_failed": {
       "message": "Unable to read panel health"
     },
@@ -530,6 +531,31 @@
     }
   },
   "issues": {
+      "move_to_new_app": {
+        "title": "Move {panel} to the new app",
+        "fix_flow": {
+          "step": {
+            "confirm_move": {
+              "title": "Move {panel} to the new app",
+              "description": "{panel} still runs the old ha-paneld app. Panel Assistant moves it to the new app over your network and keeps its settings: it backs the panel up here first, installs the new app, then removes the old one. The panel restarts its app once during the move. If the panel shows \"Allow USB debugging?\", tap Allow, ticking \"Always allow from this computer\" if it is offered. You do not need to root the panel or type any commands. Select Submit to move it."
+            }
+          },
+          "progress": {
+            "moving": "Moving {panel} to the new app. This takes a few minutes; keep the panel switched on."
+          },
+          "abort": {
+            "entry_removed": "This panel has been removed from Home Assistant.",
+            "already_moved": "{panel} already runs the new app. Nothing needed moving.",
+            "release_unavailable": "Panel Assistant could not get the new app's release right now. Check that Home Assistant can reach the internet, then try again.",
+            "adb_authorization": "{panel} has not allowed Panel Assistant to connect yet. Look at the panel: if it shows \"Allow USB debugging?\", tap Allow, ticking \"Always allow from this computer\", then open this Repair again.",
+            "adb_unreachable": "Panel Assistant could not connect to {panel} to move it. Make sure the panel is switched on and on the same network as Home Assistant, and that network debugging is turned on in the panel app's settings, then open this Repair again.",
+            "backup_failed": "Panel Assistant could not take a complete backup of {panel}, so nothing was changed. Try again in a few minutes.",
+            "new_app_is_home": "{panel} is part-way through an earlier move that this release cannot finish yet. Nothing was changed. A later release of Panel Assistant repairs it.",
+            "move_failed": "The move of {panel} did not finish. Its settings are backed up in Home Assistant, and the panel keeps a working screen. Open this Repair again to carry on from where it stopped.",
+            "restore_approval": "{panel} asks for approval on its screen before its settings can be restored. Approve it on the panel, then open this Repair again."
+          }
+        }
+      },
       "restart_required": {
         "title": "Restart Home Assistant to finish updating Panel Assistant",
         "fix_flow": {

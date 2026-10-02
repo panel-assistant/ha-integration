@@ -43,6 +43,7 @@ from .app_identity import (
     ACCEPTED_PACKAGE_IDS,
     ACCESSIBILITY_COMPONENTS,
     EQUIVALENT_ACCESSIBILITY_COMPONENTS,
+    HOME_COMPONENTS,
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
     counterpart_of,
@@ -2178,6 +2179,136 @@ async def async_cleanup_staged_apk(
     ):
         code = (
             InstallAdbErrorCode.CLEANUP_AMBIGUOUS
+            if mutation_started
+            else InstallAdbErrorCode.TARGET_UNREACHABLE
+        )
+        raise InstallAdbError(code) from None
+    finally:
+        await _async_close(device)
+
+
+class MoveStep(StrEnum):
+    """One package-manager step of moving a panel from the legacy app id."""
+
+    OBSERVE = "OBSERVE"
+    REMOVE_SUCCESSOR = "REMOVE_SUCCESSOR"
+    CLAIM_HOME = "CLAIM_HOME"
+    RETIRE_LEGACY = "RETIRE_LEGACY"
+    RESET_SUCCESSOR = "RESET_SUCCESSOR"
+
+
+@dataclass(frozen=True, slots=True)
+class MoveObservation:
+    """What the panel reports after a move step, read in the same shell."""
+
+    legacy_installed: bool
+    successor_installed: bool
+    #: The package HOME resolves to now, or None when nothing single answers.
+    home: str | None
+
+
+_HOME_QUERY = (
+    "cmd package resolve-activity --brief "
+    "-a android.intent.action.MAIN -c android.intent.category.HOME 2>/dev/null"
+    " | tail -n 1"
+)
+_MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
+    MoveStep.OBSERVE: (),
+    # A successor beside a running legacy app holds only a copy of that app's
+    # state, so removing it loses nothing the legacy app does not still hold.
+    MoveStep.REMOVE_SUCCESSOR: (
+        f"am force-stop {SUCCESSOR_PACKAGE_ID}",
+        f"pm uninstall {SUCCESSOR_PACKAGE_ID}",
+    ),
+    MoveStep.CLAIM_HOME: (
+        f"cmd package set-home-activity {HOME_COMPONENTS[SUCCESSOR_PACKAGE_ID]}",
+    ),
+    MoveStep.RETIRE_LEGACY: (
+        f"am force-stop {LEGACY_PACKAGE_ID}",
+        f"pm uninstall {LEGACY_PACKAGE_ID}",
+    ),
+    # A successor that first starts with no legacy app and no migration record
+    # beside it runs as an ordinary app; clearing it makes that start certain.
+    MoveStep.RESET_SUCCESSOR: (
+        f"am force-stop {SUCCESSOR_PACKAGE_ID}",
+        f"pm clear {SUCCESSOR_PACKAGE_ID}",
+    ),
+}
+
+
+def _move_command(nonce: str, step: MoveStep) -> str:
+    quiet = ">/dev/null 2>&1"
+    return "; ".join(
+        (
+            f"echo HAPANELD_MOVE_BEGIN:{nonce}",
+            *(f"{action} {quiet}" for action in _MOVE_ACTIONS[step]),
+            *(
+                f"pm path {package} 2>/dev/null | grep -q '^package:' "
+                f"&& echo installed:{package}"
+                for package in (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID)
+            ),
+            f'echo "home:$({_HOME_QUERY})"',
+            f"echo HAPANELD_MOVE_END:{nonce}:0",
+        )
+    )
+
+
+def _parse_move(body: bytes, nonce: str) -> MoveObservation:
+    lines, status_code = _parse_single_section(body, prefix="MOVE", nonce=nonce)
+    homes = [line for line in lines if line.startswith("home:")]
+    installed = {
+        line.removeprefix("installed:")
+        for line in lines
+        if line.startswith("installed:")
+    }
+    if (
+        status_code != 0
+        or len(homes) != 1
+        or not installed <= {LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID}
+        or len(homes) + len(installed) != len(lines)
+    ):
+        raise _MalformedAdbResponse
+    home = homes[0].removeprefix("home:").strip()
+    package, slash, _activity = home.partition("/")
+    return MoveObservation(
+        legacy_installed=LEGACY_PACKAGE_ID in installed,
+        successor_installed=SUCCESSOR_PACKAGE_ID in installed,
+        # The system chooser and an empty answer are not a HOME.
+        home=package if slash and package and package != "android" else None,
+    )
+
+
+async def async_move_step(
+    target: AdbInstallTarget, signer: PythonRSASigner, step: MoveStep
+) -> MoveObservation:
+    """Run one move step on the pinned panel and observe its result."""
+    _validate_target(target)
+    device: AdbDeviceAsync | None = None
+    mutation_started = False
+    try:
+        async with asyncio.timeout(_INSTALL_TIMEOUT_SECONDS):
+            device = await _async_connect(target, signer)
+            nonce = token_hex(16)
+            mutation_started = step is not MoveStep.OBSERVE
+            return _parse_move(
+                await _async_shell(
+                    device,
+                    _move_command(nonce, step),
+                    read_timeout=_INSTALL_READ_TIMEOUT_SECONDS,
+                    transport_timeout=_INSTALL_TIMEOUT_SECONDS,
+                ),
+                nonce,
+            )
+    except InstallAdbError:
+        raise
+    except (
+        TimeoutError,
+        _MalformedAdbResponse,
+        _UnsafeAdbPacket,
+        *_ADB_EXCEPTIONS,
+    ):
+        code = (
+            InstallAdbErrorCode.INSTALL_AMBIGUOUS
             if mutation_started
             else InstallAdbErrorCode.TARGET_UNREACHABLE
         )

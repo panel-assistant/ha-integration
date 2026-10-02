@@ -98,6 +98,7 @@ from .install_network import (
 )
 from .native import NativeEntity, async_setup_native_platform
 from .panel_backup import PanelBackupInvalidError, async_store_panel_backup
+from .panel_move import async_evaluate_successor_move
 from .provisioning import InstallTargetState, async_probe_install_target
 from .release import (
     _RELEASE_SIGNER_CERTIFICATE_SHA256,
@@ -1213,15 +1214,20 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                                 successor, ("", LEGACY_PACKAGE_ID)
                             )
                         else:
-                            try:
-                                await self._async_deliver_build(
-                                    successor, migration=True
+                            # Panel Assistant moves the panel to the new app
+                            # itself, through its Repair; the panel's own
+                            # handover is never started, so it cannot race it.
+                            entry = self.hass.config_entries.async_get_entry(
+                                self._entry_id
+                            )
+                            if entry is not None:
+                                async_evaluate_successor_move(self.hass, entry)
+                            if not bridge_delivered:
+                                raise _update_error(
+                                    "move_with_repair",
+                                    "Move this panel to the new app with its "
+                                    "Repair in Settings",
                                 )
-                            except HomeAssistantError as err:
-                                # The bridge update itself installed. The move to
-                                # the new app is offered once the panel can make it.
-                                if not (bridge_delivered and _bridge_not_ready(err)):
-                                    raise
                     elif not await self._async_deliver_build(release, fallback=True):
                         await self._async_start_panel_download(offer)
                 else:

@@ -162,6 +162,7 @@
     }
   },
   "exceptions": {
+    "move_with_repair": {"message": "Ziehe dieses Panel mit seiner Reparatur in den Einstellungen in die neue App um."},
     "health_update_failed": {
       "message": "Der Funktionsstatus des Panels konnte nicht gelesen werden"
     },
@@ -190,6 +191,31 @@
     }
   },
   "issues": {
+      "move_to_new_app": {
+        "title": "{panel} in die neue App umziehen",
+        "fix_flow": {
+          "step": {
+            "confirm_move": {
+              "title": "{panel} in die neue App umziehen",
+              "description": "Auf {panel} läuft noch die alte ha-paneld-App. Panel Assistant zieht das Panel über dein Netzwerk in die neue App um und behält seine Einstellungen: Zuerst wird hier eine Sicherung des Panels angelegt, dann die neue App installiert und anschließend die alte entfernt. Die App des Panels startet während des Umzugs einmal neu. Wenn das Panel „USB-Debugging zulassen?“ anzeigt, tippe auf „Zulassen“ und setze, falls angeboten, das Häkchen bei „Von diesem Computer immer zulassen“. Du musst das Panel weder rooten noch Befehle eingeben. Wähle „Absenden“, um es umzuziehen."
+            }
+          },
+          "progress": {
+            "moving": "{panel} wird in die neue App umgezogen. Das dauert einige Minuten; lass das Panel eingeschaltet."
+          },
+          "abort": {
+            "entry_removed": "Dieses Panel wurde aus Home Assistant entfernt.",
+            "already_moved": "Auf {panel} läuft bereits die neue App. Es musste nichts umgezogen werden.",
+            "release_unavailable": "Panel Assistant konnte die Version der neuen App gerade nicht abrufen. Prüfe, ob Home Assistant das Internet erreicht, und versuche es dann erneut.",
+            "adb_authorization": "{panel} hat Panel Assistant die Verbindung noch nicht erlaubt. Sieh auf das Panel: Wenn es „USB-Debugging zulassen?“ anzeigt, tippe auf „Zulassen“, setze das Häkchen bei „Von diesem Computer immer zulassen“ und öffne diese Reparatur dann erneut.",
+            "adb_unreachable": "Panel Assistant konnte keine Verbindung zu {panel} herstellen, um es umzuziehen. Stelle sicher, dass das Panel eingeschaltet und im selben Netzwerk wie Home Assistant ist und dass Netzwerk-Debugging in den Einstellungen der Panel-App aktiviert ist, und öffne diese Reparatur dann erneut.",
+            "backup_failed": "Panel Assistant konnte keine vollständige Sicherung von {panel} anlegen, daher wurde nichts geändert. Versuche es in einigen Minuten erneut.",
+            "new_app_is_home": "{panel} steckt mitten in einem früheren Umzug, den diese Version noch nicht abschließen kann. Es wurde nichts geändert. Eine spätere Version von Panel Assistant behebt das.",
+            "move_failed": "Der Umzug von {panel} wurde nicht abgeschlossen. Seine Einstellungen sind in Home Assistant gesichert, und das Panel zeigt weiterhin einen funktionierenden Bildschirm. Öffne diese Reparatur erneut, um dort weiterzumachen, wo er angehalten hat.",
+            "restore_approval": "{panel} verlangt auf seinem Bildschirm eine Bestätigung, bevor seine Einstellungen wiederhergestellt werden können. Bestätige sie am Panel und öffne diese Reparatur dann erneut."
+          }
+        }
+      },
       "restart_required": {
         "title": "Home Assistant neu starten, um das Update von Panel Assistant abzuschließen",
         "fix_flow": {

@@ -162,6 +162,7 @@
     }
   },
   "exceptions": {
+    "move_with_repair": {"message": "Mueve este panel a la nueva app con su reparación en Ajustes."},
     "health_update_failed": {
       "message": "No se puede leer el estado del panel"
     },
@@ -190,6 +191,31 @@
     }
   },
   "issues": {
+      "move_to_new_app": {
+        "title": "Mover {panel} a la nueva app",
+        "fix_flow": {
+          "step": {
+            "confirm_move": {
+              "title": "Mover {panel} a la nueva app",
+              "description": "{panel} todavía ejecuta la antigua app ha-paneld. Panel Assistant lo mueve a la nueva app a través de tu red y conserva sus ajustes: primero guarda aquí una copia de seguridad del panel, después instala la nueva app y luego elimina la antigua. La app del panel se reinicia una vez durante el traslado. Si el panel muestra «¿Permitir depuración USB?», toca «Permitir» y marca «Permitir siempre desde este ordenador» si aparece. No necesitas rootear el panel ni escribir ningún comando. Selecciona «Enviar» para moverlo."
+            }
+          },
+          "progress": {
+            "moving": "Moviendo {panel} a la nueva app. Tarda unos minutos; mantén el panel encendido."
+          },
+          "abort": {
+            "entry_removed": "Este panel se ha eliminado de Home Assistant.",
+            "already_moved": "{panel} ya ejecuta la nueva app. No había nada que mover.",
+            "release_unavailable": "Panel Assistant no ha podido obtener ahora la versión de la nueva app. Comprueba que Home Assistant puede acceder a internet e inténtalo de nuevo.",
+            "adb_authorization": "{panel} aún no ha permitido que Panel Assistant se conecte. Mira el panel: si muestra «¿Permitir depuración USB?», toca «Permitir», marca «Permitir siempre desde este ordenador» y vuelve a abrir esta reparación.",
+            "adb_unreachable": "Panel Assistant no ha podido conectarse a {panel} para moverlo. Asegúrate de que el panel está encendido y en la misma red que Home Assistant, y de que la depuración por red está activada en los ajustes de la app del panel; después vuelve a abrir esta reparación.",
+            "backup_failed": "Panel Assistant no ha podido hacer una copia de seguridad completa de {panel}, así que no se ha cambiado nada. Inténtalo de nuevo en unos minutos.",
+            "new_app_is_home": "{panel} está a medias de un traslado anterior que esta versión aún no puede terminar. No se ha cambiado nada. Una versión posterior de Panel Assistant lo repara.",
+            "move_failed": "El traslado de {panel} no ha terminado. Sus ajustes están guardados en Home Assistant y el panel sigue mostrando una pantalla que funciona. Vuelve a abrir esta reparación para continuar desde donde se detuvo.",
+            "restore_approval": "{panel} pide una aprobación en su pantalla antes de poder restaurar sus ajustes. Apruébala en el panel y vuelve a abrir esta reparación."
+          }
+        }
+      },
       "restart_required": {
         "title": "Reinicia Home Assistant para terminar de actualizar Panel Assistant",
         "fix_flow": {

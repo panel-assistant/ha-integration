@@ -27,6 +27,7 @@ from .const import (
     MAX_HEALTH_RESPONSE_BYTES,
     MAX_INSTALL_RESPONSE_BYTES,
     MAX_STATUS_RESPONSE_BYTES,
+    RESTORE_PATH,
     SETUP_PATH,
     STATUS_PATH,
     UPDATE_OWNER_HEADER,
@@ -490,6 +491,7 @@ _MAX_SETUP_BYTES = 64 * 1024
 _HANDOVER_TIMEOUT_SECONDS = 20.0
 _MAX_BACKUP_BYTES = 64 * 1024 * 1024
 _BACKUP_TIMEOUT_SECONDS = 120.0
+_MAX_RESTORE_RESPONSE_BYTES = 64 * 1024
 # The panel allows 600 s to receive an upload; stop just after it gives up.
 _UPLOAD_TIMEOUT_SECONDS = 630.0
 _DIAG_FIRST_LINE = re.compile(
@@ -834,6 +836,28 @@ class HaPaneldClient:
         )
         if status == 200 and body:
             return body
+        if status == 202:
+            parse_update_approval_response(body)
+        if status == 409:
+            raise UpdateBusyError
+        if 400 <= status < 500:
+            raise UpdateRejectedError
+        raise CannotConnectError
+
+    async def async_restore_panel(self, data: bytes) -> None:
+        """Start restoring one of the panel's own plaintext backups onto it.
+
+        The panel answers once the restore has started; it applies it in the
+        background, so a caller observes completion from health.
+        """
+        status, body = await self._async_post_bounded(
+            self.address.base_url.with_path(RESTORE_PATH),
+            data,
+            _MAX_RESTORE_RESPONSE_BYTES,
+            _BACKUP_TIMEOUT_SECONDS,
+        )
+        if status == 200:
+            return
         if status == 202:
             parse_update_approval_response(body)
         if status == 409:

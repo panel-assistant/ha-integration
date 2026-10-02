@@ -162,6 +162,7 @@
     }
   },
   "exceptions": {
+    "move_with_repair": {"message": "Verhuis dit paneel naar de nieuwe app met de reparatie ervan in Instellingen."},
     "health_update_failed": {
       "message": "Kan de status van het paneel niet uitlezen"
     },
@@ -230,6 +231,31 @@
     }
   },
   "issues": {
+      "move_to_new_app": {
+        "title": "{panel} verhuizen naar de nieuwe app",
+        "fix_flow": {
+          "step": {
+            "confirm_move": {
+              "title": "{panel} verhuizen naar de nieuwe app",
+              "description": "Op {panel} draait nog de oude ha-paneld-app. Panel Assistant verhuist het via je netwerk naar de nieuwe app en behoudt de instellingen: eerst wordt hier een back-up van het paneel gemaakt, dan wordt de nieuwe app geïnstalleerd en daarna de oude verwijderd. De app van het paneel start tijdens de verhuizing één keer opnieuw. Als het paneel ‘USB-foutopsporing toestaan?’ toont, tik dan op ‘Toestaan’ en vink ‘Altijd toestaan vanaf deze computer’ aan als dat wordt aangeboden. Je hoeft het paneel niet te rooten en geen opdrachten te typen. Kies ‘Verzenden’ om het te verhuizen."
+            }
+          },
+          "progress": {
+            "moving": "{panel} wordt naar de nieuwe app verhuisd. Dit duurt een paar minuten; laat het paneel aan staan."
+          },
+          "abort": {
+            "entry_removed": "Dit paneel is uit Home Assistant verwijderd.",
+            "already_moved": "Op {panel} draait de nieuwe app al. Er hoefde niets te worden verhuisd.",
+            "release_unavailable": "Panel Assistant kon de release van de nieuwe app nu niet ophalen. Controleer of Home Assistant het internet kan bereiken en probeer het dan opnieuw.",
+            "adb_authorization": "{panel} heeft Panel Assistant nog geen toestemming gegeven om verbinding te maken. Kijk op het paneel: als het ‘USB-foutopsporing toestaan?’ toont, tik dan op ‘Toestaan’, vink ‘Altijd toestaan vanaf deze computer’ aan en open deze reparatie opnieuw.",
+            "adb_unreachable": "Panel Assistant kon geen verbinding maken met {panel} om het te verhuizen. Zorg dat het paneel aan staat en in hetzelfde netwerk zit als Home Assistant, en dat netwerkfoutopsporing aan staat in de instellingen van de paneel-app; open deze reparatie daarna opnieuw.",
+            "backup_failed": "Panel Assistant kon geen volledige back-up van {panel} maken, dus er is niets gewijzigd. Probeer het over een paar minuten opnieuw.",
+            "new_app_is_home": "{panel} zit halverwege een eerdere verhuizing die deze versie nog niet kan afmaken. Er is niets gewijzigd. Een latere versie van Panel Assistant herstelt dit.",
+            "move_failed": "De verhuizing van {panel} is niet afgerond. De instellingen zijn in Home Assistant geback-upt en het paneel houdt een werkend scherm. Open deze reparatie opnieuw om verder te gaan waar het stopte.",
+            "restore_approval": "{panel} vraagt op het scherm om goedkeuring voordat de instellingen kunnen worden hersteld. Keur het goed op het paneel en open deze reparatie daarna opnieuw."
+          }
+        }
+      },
       "restart_required": {
         "title": "Herstart Home Assistant om de update van Panel Assistant af te ronden",
         "fix_flow": {

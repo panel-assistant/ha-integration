@@ -162,6 +162,7 @@
     }
   },
   "exceptions": {
+    "move_with_repair": {"message": "Sposta questo pannello sulla nuova app con la sua riparazione nelle Impostazioni."},
     "health_update_failed": {
       "message": "Impossibile leggere lo stato di funzionamento del pannello"
     },
@@ -190,6 +191,31 @@
     }
   },
   "issues": {
+      "move_to_new_app": {
+        "title": "Sposta {panel} sulla nuova app",
+        "fix_flow": {
+          "step": {
+            "confirm_move": {
+              "title": "Sposta {panel} sulla nuova app",
+              "description": "{panel} usa ancora la vecchia app ha-paneld. Panel Assistant lo sposta sulla nuova app attraverso la tua rete mantenendone le impostazioni: prima esegue qui un backup del pannello, poi installa la nuova app e infine rimuove quella vecchia. Durante lo spostamento l’app del pannello si riavvia una volta. Se il pannello mostra «Consentire il debug USB?», tocca «Consenti» e, se proposto, seleziona «Consenti sempre da questo computer». Non devi eseguire il root del pannello né digitare comandi. Seleziona «Invia» per spostarlo."
+            }
+          },
+          "progress": {
+            "moving": "Spostamento di {panel} sulla nuova app in corso. Richiede alcuni minuti; tieni acceso il pannello."
+          },
+          "abort": {
+            "entry_removed": "Questo pannello è stato rimosso da Home Assistant.",
+            "already_moved": "{panel} usa già la nuova app. Non c’era nulla da spostare.",
+            "release_unavailable": "Panel Assistant non è riuscito a ottenere la versione della nuova app in questo momento. Verifica che Home Assistant possa raggiungere internet, poi riprova.",
+            "adb_authorization": "{panel} non ha ancora consentito a Panel Assistant di connettersi. Guarda il pannello: se mostra «Consentire il debug USB?», tocca «Consenti» selezionando «Consenti sempre da questo computer», poi riapri questa riparazione.",
+            "adb_unreachable": "Panel Assistant non è riuscito a connettersi a {panel} per spostarlo. Assicurati che il pannello sia acceso e sulla stessa rete di Home Assistant e che il debug di rete sia attivo nelle impostazioni dell’app del pannello, poi riapri questa riparazione.",
+            "backup_failed": "Panel Assistant non è riuscito a eseguire un backup completo di {panel}, quindi non è stato modificato nulla. Riprova tra qualche minuto.",
+            "new_app_is_home": "{panel} è a metà di uno spostamento precedente che questa versione non può ancora completare. Non è stato modificato nulla. Una versione successiva di Panel Assistant lo riparerà.",
+            "move_failed": "Lo spostamento di {panel} non è terminato. Le sue impostazioni sono salvate in Home Assistant e il pannello mantiene una schermata funzionante. Riapri questa riparazione per riprendere da dove si è fermato.",
+            "restore_approval": "{panel} chiede un’approvazione sul suo schermo prima di poter ripristinare le impostazioni. Approvala sul pannello, poi riapri questa riparazione."
+          }
+        }
+      },
       "restart_required": {
         "title": "Riavvia Home Assistant per completare l'aggiornamento di Panel Assistant",
         "fix_flow": {
