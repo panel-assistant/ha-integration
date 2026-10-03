@@ -7,22 +7,30 @@ panels cannot hold. The order is fixed by what keeps the panel usable:
 
 1. back the old app up and keep the backup here, verified, as the receipt;
 2. install the new app beside it without starting it;
-3. point HOME at the new app when HOME was the old one, confirmed by a fresh
-   query, so removing the old app can never leave the panel without a launcher;
-4. stop and remove the old app;
-5. clear the new app and start it: with no old app beside it and no state of its
+3. keep a copy of the old app's APK on the panel;
+4. point HOME at the new app when HOME was the old one, confirmed by a fresh
+   query, so setting the old app aside can never leave the panel without a
+   launcher;
+5. set the old app aside: uninstalled for the panel's user, so the new app
+   cannot see it, while Android keeps its data;
+6. clear the new app and start it: with no old app visible and no state of its
    own it starts as an ordinary app rather than waiting for a handover;
-6. restore the receipt onto it, twice: the first restore gives it the panel's
+7. restore the receipt onto it, twice: the first restore gives it the panel's
    id, and only a restore onto that id returns the panel's own local state;
-7. adopt the new app's identity for this entry.
+8. only once the restore succeeded and the new app reports the panel's
+   configuration, remove the old app, its data and the copy;
+9. adopt the new app's identity for this entry.
 
-Before the old app is removed, the receipt's location and the identities it is
-bound to are written durably beside the backups. Every run decides from what
-the panel reports now, never from what the record expected: an old app still
-installed is removed again, a new app alone is restored from the record, and a
-record is deleted only once the restore has finished and the new app reports
-the panel's configuration under a valid identity. Every destructive command
-first proves the device at the address is the one the move started on.
+If the restore fails, the old app is reinstalled from its copy onto its kept
+data, HOME returns to it, the new app is removed and the old app is started:
+the panel is left as it was. Before the old app is set aside, the receipt's
+location, the copy's digest and the identities it is bound to are written
+durably beside the backups. Every run decides from what the panel reports now,
+never from what the record expected: an old app still installed is set aside
+again, a new app alone is restored from the record, and a record is deleted
+only once the restore has finished and the new app reports the panel's
+configuration under a valid identity. Every destructive command first proves
+the device at the address is the one the move started on.
 """
 
 from __future__ import annotations
@@ -655,7 +663,7 @@ def _disposable(observed: MoveObservation) -> bool:
     return records is not None and not records & _OWNED_STATE_RECORDS
 
 
-async def _async_retire_legacy(
+async def _async_set_aside_legacy(
     hass: HomeAssistant,
     entry: ConfigEntry,
     target: AdbInstallTarget,
@@ -663,7 +671,8 @@ async def _async_retire_legacy(
     observed: MoveObservation,
     previous: dict[str, Any] | None,
 ) -> dict[str, Any]:
-    """Steps 1 to 4: receipt, new app installed, HOME safe, old app removed.
+    """Steps 1 to 5: receipt, new app installed, old app kept, HOME safe, old
+    app set aside.
 
     ``previous`` is a move this integration recorded for this device: a new app
     beside the old one is then the one it installed, even if it owns HOME.
@@ -706,19 +715,82 @@ async def _async_retire_legacy(
         if not observed.successor_installed or not observed.legacy_installed:
             raise MoveError(REASON_MOVE_FAILED)
     await _async_verify_successor(target, signer, record)
-    # Keep the installed identity before either HOME or the old app is changed.
+    kept = await _async_step(target, signer, MoveStep.KEEP_LEGACY)
+    if kept.legacy_copy is None or not kept.legacy_installed:
+        raise MoveError(REASON_MOVE_FAILED)
+    # Nothing single answering HOME is claimed too: setting the old app aside
+    # could otherwise leave the chooser or nothing.
+    claim_home = observed.home in (LEGACY_PACKAGE_ID, None)
+    record.update(
+        legacy_copy=kept.legacy_copy,
+        # A retry finds HOME already claimed; a rollback must still return it.
+        claimed_home=claim_home
+        or (previous is not None and previous.get("claimed_home") is True),
+    )
+    # Keep the installed identity and the copy before either HOME or the old
+    # app is changed.
     await _async_save_record(hass, entry, record)
-    if observed.home in (LEGACY_PACKAGE_ID, None):
-        # Nothing single answering HOME is claimed too: removing the old app
-        # could otherwise leave the chooser or nothing.
+    if claim_home:
         observed = await _async_step(target, signer, MoveStep.CLAIM_HOME)
         if observed.home != SUCCESSOR_PACKAGE_ID:
             raise MoveError(REASON_MOVE_FAILED)
 
-    observed = await _async_step(target, signer, MoveStep.RETIRE_LEGACY)
-    if observed.legacy_installed or not observed.successor_installed:
+    observed = await _async_step(target, signer, MoveStep.SET_ASIDE_LEGACY)
+    if not observed.legacy_set_aside or not observed.successor_installed:
         raise MoveError(REASON_MOVE_FAILED)
     return record
+
+
+async def _async_retire_legacy(target: AdbInstallTarget, signer: Any) -> None:
+    """Step 8: the new app is proven, so the old app, its data and copy go."""
+    observed = await _async_step(target, signer, MoveStep.RETIRE_LEGACY)
+    if (
+        observed.legacy_installed
+        or observed.legacy_set_aside
+        or observed.legacy_copy is not None
+        or not observed.successor_installed
+    ):
+        raise MoveError(REASON_MOVE_FAILED)
+
+
+async def _async_roll_back(
+    entry: ConfigEntry,
+    target: AdbInstallTarget,
+    signer: Any,
+    record: dict[str, Any],
+) -> None:
+    """Return the panel to the old app after the new one failed its restore.
+
+    The old app comes back from its own copy onto the data Android kept, HOME
+    returns to it before the new app goes, and it must answer as the panel
+    again. Without the copy this move recorded, the panel is left set aside
+    for the next attempt to resume.
+    """
+    observed = await _async_step(target, signer, MoveStep.OBSERVE)
+    if not observed.legacy_installed:
+        if (
+            not observed.legacy_set_aside
+            or observed.legacy_copy is None
+            or observed.legacy_copy != record.get("legacy_copy")
+        ):
+            raise MoveError(REASON_MOVE_FAILED)
+        observed = await _async_step(target, signer, MoveStep.RESTORE_LEGACY)
+        if not observed.legacy_installed:
+            raise MoveError(REASON_MOVE_FAILED)
+    if record.get("claimed_home") is True:
+        observed = await _async_step(target, signer, MoveStep.RETURN_HOME)
+        if observed.home != LEGACY_PACKAGE_ID:
+            raise MoveError(REASON_MOVE_FAILED)
+    if observed.successor_installed:
+        observed = await _async_step(target, signer, MoveStep.REMOVE_SUCCESSOR)
+        if observed.successor_installed or not observed.legacy_installed:
+            raise MoveError(REASON_MOVE_FAILED)
+    await _async_step(target, signer, MoveStep.START_LEGACY)
+    await _async_health(
+        entry,
+        lambda found: reports_package(found.package, LEGACY_PACKAGE_ID),
+        _HEALTH_WAIT_SECONDS,
+    )
 
 
 async def _async_verify_successor(
@@ -793,6 +865,15 @@ async def _async_restore(
     serving = health is not None and reports_package(
         health.package, SUCCESSOR_PACKAGE_ID
     )
+    if (
+        resumed
+        and record.get("restored") is True
+        and health is not None
+        and _restored(health, record)
+    ):
+        # This receipt was already restored whole: restoring it again would
+        # only risk the panel's state, so a retry only proves the result.
+        return health
     descriptor, root_mode = await _async_verify_successor(target, signer, record)
     if not (resumed and serving):
         await _async_step(target, signer, MoveStep.RESET_SUCCESSOR)
@@ -930,7 +1011,7 @@ async def _async_move(hass: HomeAssistant, entry: ConfigEntry) -> None:
             if artifact is None:
                 raise MoveError(REASON_RELEASE_UNAVAILABLE)
             await _async_admit_successor(entry, artifact)
-        record = await _async_retire_legacy(
+        record = await _async_set_aside_legacy(
             hass, entry, target, signer, observed, record
         )
         resumed = False
@@ -942,7 +1023,28 @@ async def _async_move(hass: HomeAssistant, entry: ConfigEntry) -> None:
         raise MoveError(REASON_MOVE_FAILED)
     else:
         resumed = True
-    health = await _async_restore(hass, entry, target, signer, record, resumed=resumed)
+    try:
+        health = await _async_restore(
+            hass, entry, target, signer, record, resumed=resumed
+        )
+    except MoveError as err:
+        if err.reason != REASON_PANEL_CHANGED:
+            try:
+                await _async_roll_back(entry, target, signer, record)
+            except MoveError as rollback:
+                _LOGGER.warning(
+                    "%s stays set aside for the next attempt: %s (%r)",
+                    entry.title,
+                    rollback,
+                    rollback.__cause__,
+                )
+        raise
+    if record.get("restored") is not True:
+        record = {**record, "restored": True}
+        await hass.async_add_executor_job(
+            _write_record, _record_path(hass, entry.entry_id), record
+        )
+    await _async_retire_legacy(target, signer)
     did = health.discovery_id
     assert did is not None
     if did != entry.unique_id:
