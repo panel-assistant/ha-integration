@@ -64,6 +64,7 @@ NATIVE_ONLY_PLATFORMS: Final = (
     Platform.EVENT,
     Platform.IMAGE,
     Platform.LIGHT,
+    Platform.MEDIA_PLAYER,
     Platform.NUMBER,
     Platform.SELECT,
     Platform.SWITCH,

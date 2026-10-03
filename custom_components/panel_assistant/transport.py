@@ -143,6 +143,10 @@ CAPABILITY_EMBED_PROOF: Final = "embed_proof"
 # A panel that offers this is an Assist satellite (see ``voice.py``). Voice has
 # no MQTT counterpart to defer to, so it is granted whenever offered.
 CAPABILITY_VOICE: Final = "voice"
+# A panel that offers this describes its media channel once granted: an older
+# integration would refuse a whole hello naming the media_player platform. It
+# is granted whenever offered; the channel's commands still need ``commands``.
+CAPABILITY_MEDIA: Final = "media"
 KNOWN_CAPABILITIES: Final = frozenset(
     {
         CAPABILITY_STATE,
@@ -152,6 +156,7 @@ KNOWN_CAPABILITIES: Final = frozenset(
         CAPABILITY_MQTT_WITHDRAW,
         CAPABILITY_EMBED_PROOF,
         CAPABILITY_VOICE,
+        CAPABILITY_MEDIA,
     }
 )
 # What each authority lets a session use, before intersecting with what the
@@ -245,6 +250,7 @@ PLATFORMS: Final = frozenset(
         "event",
         "image",
         "light",
+        "media_player",
         "number",
         "select",
         "sensor",
@@ -781,6 +787,17 @@ def _validate_update(value: Any, _descriptor: Mapping[str, Any]) -> dict[str, An
     }
 
 
+MEDIA_STATES: Final = ("idle", "playing", "paused", "buffering")
+
+
+def _validate_media(value: Any, _descriptor: Mapping[str, Any]) -> dict[str, Any]:
+    media = _mapping(value)
+    state, muted = media.get("state"), media.get("muted")
+    if type(state) is not str or state not in MEDIA_STATES or type(muted) is not bool:
+        raise _reject()
+    return {"state": state, "muted": muted}
+
+
 def _not_reported(_value: Any, _descriptor: Mapping[str, Any]) -> Any:
     raise _reject()
 
@@ -792,6 +809,7 @@ _VALUE_VALIDATORS: Final[dict[str, Callable[[Any, Mapping[str, Any]], Any]]] = {
     "event": _not_reported,
     "image": _validate_image,
     "light": _validate_light,
+    "media_player": _validate_media,
     "number": _validate_number,
     "select": _validate_option,
     "sensor": _validate_sensor,
@@ -2192,6 +2210,8 @@ def _accept_hello(
         capabilities |= {CAPABILITY_EMBED_PROOF}
     if CAPABILITY_VOICE in offered:
         capabilities |= {CAPABILITY_VOICE}
+    if CAPABILITY_MEDIA in offered:
+        capabilities |= {CAPABILITY_MEDIA}
     mqtt_discovery = mqtt_discovery_claim(hass, entry)
     if mqtt_discovery == MQTT_DISCOVERY_WITHDRAW:
         # Whatever held the withdrawal back, such as a customised entity a
