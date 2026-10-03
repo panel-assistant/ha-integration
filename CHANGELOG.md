@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.7.0-rc4 - 2026-10-03
+
+Pairs with ha-paneld v0.9.9-rc4.
+
+### New
+
+- **A Repair when a panel can no longer be updated.** A panel gets app updates either by installing them itself or through Home Assistant over network debugging. A panel that loses both still looks perfectly healthy, so until now nobody noticed it had stopped updating. Panel Assistant now raises a Repair that explains what happened and links to the fix. It does not raise one for a dropped connection or a panel that is just restarting.
+
+### Improved
+
+- **Panels follow Panel Assistant's update channel.** A panel is offered only builds that match the channel Panel Assistant itself is on and that it can talk to, and pre-releases only when that panel has its pre-release switch on. The newest eligible build wins across all release sources.
+- **Panel settings open in the Home Assistant sidebar.**
+
+### Fixed
+
+- **The move Repair finishes panels caught halfway.** That covers three cases:
+  - a panel whose new app only ever waited beside the old one;
+  - a move that was accepted but not completed;
+  - a move whose identity reached Home Assistant only partly.
+
+  If the new app's records can't be read, the Repair now treats them as unknown rather than empty.
+- **Adding a panel whose old app is not answering no longer installs the new app beside it.** Home Assistant asks you to open the old app or restart the panel first.
+- **A retried update finishes when the panel has already updated** instead of waiting forever.
+- **Network debugging asks before it offers a new key to the panel.** Passive checks no longer pop up an approval prompt on the panel.
+- **Updates and the move Repair recheck what you agreed to just before installing**, so a setting you changed in the meantime is respected.
+
 ## 0.7.0-rc3 - 2026-10-02
 
 **Sorry, Sonoff NSPanel Pro owners.** The move to the app's new name was first built the way ha-paneld did everything in its MQTT-only days: entirely on the panel. The panel had to hand itself over to the new app, and that needed the root helper, which since version 0.9.4 has to be registered in the panel's system partition. On some NSPanel Pros that partition is full, so the helper could not go in, even though the app on these panels can use root by itself and doesn't need the helper to run. If your panel got stuck partway through the move, refused to install, or Panel Assistant 0.6.3 told you "The release did not match its signature, so nothing was installed", that was down to this approach, not your panel. Please don't install Magisk or delete anything from the system partition to get round it; you should never need to.
