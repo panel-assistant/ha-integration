@@ -408,15 +408,22 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self._adb_ready_key = None
             self._legacy_api_ready_key = None
             self._route_checked_key = None
+            # A panel that can install for itself needs no route resolved, so this
+            # returns before the refresh runs. Withdraw the issue here too, or a
+            # panel that regains the privileged route keeps a repair saying it
+            # cannot be updated.
+            self._async_reconcile_route_issue(has_route=True)
             return
         if self._adb_artifact() is None and self._stable_target() is None:
             return
-        if (
-            self._route_checked_key == self._route_key()
-            and self._has_install_route()
-            and not self._bridge_handover_due()
-        ):
-            return
+        # There is deliberately no "already checked this key" skip here. An
+        # authorized ADB route is lost by something done on the panel -- a firmware
+        # update or a reset switching developer options off -- and none of that
+        # moves the key, which is identity, build, address and artifact. Trusting
+        # the previous answer made losing the route undetectable until the panel's
+        # build or address changed, which is the one case this check exists to
+        # catch. Re-resolving costs an admission probe against a panel the
+        # coordinator is already polling; the guard below still prevents overlap.
         if self._route_task is not None and not self._route_task.done():
             return
         self._route_task = self.hass.async_create_task(
@@ -424,6 +431,22 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             f"check ha-paneld update route {self._entry_id}",
         )
         self._route_task.add_done_callback(self._route_refresh_finished)
+
+    def _async_reconcile_route_issue(
+        self, *, has_route: bool, reason: str | None = None
+    ) -> None:
+        """Keep the repair in step with the route from every path that decides one."""
+        entry = self.hass.config_entries.async_get_entry(self._entry_id)
+        if entry is None:
+            return
+        snapshot: PanelSnapshot | None = self.coordinator.data
+        async_reconcile_update_route_issue(
+            self.hass,
+            entry,
+            has_route=has_route,
+            status=snapshot.status if snapshot else None,
+            reason=reason,
+        )
 
     def _route_refresh_finished(self, task: asyncio.Task[None]) -> None:
         if self._route_task is task:
@@ -455,8 +478,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             attributes = dict(self._attr_extra_state_attributes)
             # A bridge that cannot hand over yet has nothing newer to install and
             # loses nothing, so it reads as up to date rather than as a problem.
-            entry = self.hass.config_entries.async_get_entry(self._entry_id)
-            snapshot: PanelSnapshot | None = self.coordinator.data
             if not self._has_install_route() and not _bridge_not_ready(error):
                 reason = (
                     str(error)
@@ -471,23 +492,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 # Say it now, while the vendor change that caused it is still
                 # the owner's most recent memory, rather than at the next
                 # release when they would have to reconstruct what altered.
-                if entry is not None:
-                    async_reconcile_update_route_issue(
-                        self.hass,
-                        entry,
-                        has_route=False,
-                        status=snapshot.status if snapshot else None,
-                        reason=reason,
-                    )
+                self._async_reconcile_route_issue(has_route=False, reason=reason)
             else:
                 attributes.pop(ROUTE_UNAVAILABLE_ATTRIBUTE, None)
-                if entry is not None:
-                    async_reconcile_update_route_issue(
-                        self.hass,
-                        entry,
-                        has_route=True,
-                        status=snapshot.status if snapshot else None,
-                    )
+                self._async_reconcile_route_issue(has_route=True)
             self._attr_extra_state_attributes = attributes
         self.async_write_ha_state()
 
