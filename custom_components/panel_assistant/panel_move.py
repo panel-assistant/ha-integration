@@ -204,6 +204,12 @@ async def async_recover_moved_identity(hass: HomeAssistant, entry: ConfigEntry) 
     record = await hass.async_add_executor_job(
         _read_record_quietly, _record_path(hass, entry.entry_id)
     )
+    if record is None or not isinstance(record.get("new_did"), str):
+        # A panel adopted without a move of this integration's own leaves
+        # the same authority in its adoption marker.
+        record = await hass.async_add_executor_job(
+            _read_adoption, _adoption_path(hass, entry.entry_id)
+        )
     adopted = record.get("new_did") if record is not None else None
     if (
         record is not None
@@ -219,6 +225,13 @@ async def async_restore_move_offer(hass: HomeAssistant, entry: ConfigEntry) -> N
     The entry's own copy of the offer is saved a moment after it is written,
     so a Core that stopped in that moment knows of the move only from disk.
     """
+    marker = await hass.async_add_executor_job(
+        _read_adoption, _adoption_path(hass, entry.entry_id)
+    )
+    if marker is not None and entry.unique_id == marker["new_did"]:
+        await hass.async_add_executor_job(
+            _settle_record, hass, entry.entry_id, marker["new_did"], _adoption_path
+        )
     record = await hass.async_add_executor_job(
         _read_record_quietly, _record_path(hass, entry.entry_id)
     )
@@ -228,7 +241,7 @@ async def async_restore_move_offer(hass: HomeAssistant, entry: ConfigEntry) -> N
         # an entry that came back with the old identity adopts it again.
         if entry.unique_id == adopted:
             await hass.async_add_executor_job(
-                _settle_record, hass, entry.entry_id, adopted
+                _settle_record, hass, entry.entry_id, adopted, _record_path
             )
         return
     if record is not None and not isinstance(entry.data.get(CONF_SUCCESSOR_MOVE), dict):
@@ -358,6 +371,24 @@ def _record_path(hass: HomeAssistant, entry_id: str) -> Path:
     return Path(hass.config.path(DOMAIN, "backups", f"{entry_id}-move.json"))
 
 
+def _adoption_path(hass: HomeAssistant, entry_id: str) -> Path:
+    """Where an adoption without a move record keeps the identity it adopts."""
+    return Path(hass.config.path(DOMAIN, "backups", f"{entry_id}-adopted.json"))
+
+
+def _read_adoption(path: Path) -> dict[str, str] | None:
+    """An unreadable marker grants nothing: setup then refuses as before."""
+    try:
+        marker = json.loads(path.read_text(encoding="utf-8"))
+    except OSError, ValueError:
+        return None
+    if not isinstance(marker, dict) or not all(
+        isinstance(marker.get(key), str) for key in ("legacy_did", "new_did")
+    ):
+        return None
+    return {"legacy_did": marker["legacy_did"], "new_did": marker["new_did"]}
+
+
 def _write_record(path: Path, record: dict[str, Any]) -> None:
     """Write the record and make it durable before anything is removed."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -430,11 +461,16 @@ def _saved_unique_id(hass: HomeAssistant, entry_id: str) -> str | None:
     return None
 
 
-def _settle_record(hass: HomeAssistant, entry_id: str, adopted: str) -> bool:
-    """Delete a finished move's record once its identity is durably saved."""
+def _settle_record(
+    hass: HomeAssistant,
+    entry_id: str,
+    adopted: str,
+    path: Callable[[HomeAssistant, str], Path],
+) -> bool:
+    """Delete a finished adoption's record once its identity is durably saved."""
     if _saved_unique_id(hass, entry_id) != adopted:
         return False
-    _record_path(hass, entry_id).unlink(missing_ok=True)
+    path(hass, entry_id).unlink(missing_ok=True)
     return True
 
 
@@ -1051,6 +1087,8 @@ async def _async_adopt_self_moved(
     entry: ConfigEntry,
     health: PanelHealth,
     record: dict[str, Any] | None,
+    *,
+    authorize: bool,
 ) -> None:
     """Adopt the identity of a panel already running the new app on its own.
 
@@ -1058,7 +1096,8 @@ async def _async_adopt_self_moved(
     enough to rekey it. Over ADB, at the entry's own address, the panel must
     hold the new app alone, with nothing left of the old one, and run the very
     bytes of the signed release it reports. The caller holds the panel
-    operation.
+    operation. Only the owner's own Repair (``authorize``) may ask the panel to
+    trust Panel Assistant's key; the background attempt never prompts.
     """
     target, signer = await _async_target(hass, entry)
     if record is not None and record["serial"] != target.serial:
@@ -1078,12 +1117,20 @@ async def _async_adopt_self_moved(
     descriptor = artifact.descriptor
     try:
         admitted = await async_preflight_install(
-            target, signer, descriptor, admit_installed_target=True
+            target,
+            signer,
+            descriptor,
+            admit_installed_target=True,
+            authorize=authorize,
         )
         if not admitted.target_installed:
             raise MoveError(REASON_MOVE_FAILED)
         size = await async_installed_artifact_size(
-            target, signer, descriptor, expected_root_mode=admitted.root_mode
+            target,
+            signer,
+            descriptor,
+            expected_root_mode=admitted.root_mode,
+            authorize=authorize,
         )
     except InstallAdbError as err:
         if err.code is InstallAdbErrorCode.AUTHORIZATION_REQUIRED:
@@ -1097,6 +1144,8 @@ async def _async_adopt_self_moved(
         raise MoveError(REASON_MOVE_FAILED)
     did = health.discovery_id
     assert did is not None
+    # The registry and the entry save separately; this durable authority lets
+    # setup finish the rekey whichever save landed first.
     if record is not None:
         # A move of this integration's own stopped after the old app went: its
         # record now names the identity adopted, so it settles once saved.
@@ -1104,6 +1153,12 @@ async def _async_adopt_self_moved(
             _write_record,
             _record_path(hass, entry.entry_id),
             {**record, "new_did": did},
+        )
+    else:
+        await hass.async_add_executor_job(
+            _write_record,
+            _adoption_path(hass, entry.entry_id),
+            {"legacy_did": entry.unique_id, "new_did": did},
         )
     if not adopt_moved_identity(hass, entry, did):
         raise MoveError(REASON_MOVE_FAILED)
@@ -1152,7 +1207,7 @@ async def _async_adopt_in_background(hass: HomeAssistant, entry: ConfigEntry) ->
         )
         health = await entry.runtime_data.client.async_get_health()
         if self_moved(entry, health) and not _move_owns(record):
-            await _async_adopt_self_moved(hass, entry, health, record)
+            await _async_adopt_self_moved(hass, entry, health, record, authorize=False)
     except (MoveError, HaPaneldError) as err:
         _LOGGER.info(
             "%s runs the new app; its identity is not adopted yet: %s (%r)",
@@ -1187,7 +1242,7 @@ async def _async_move(hass: HomeAssistant, entry: ConfigEntry) -> None:
     if health is not None and self_moved(entry, health) and not _move_owns(record):
         # The panel already runs the new app as itself: finish by proving it
         # and adopting its identity, whatever an earlier attempt recorded.
-        await _async_adopt_self_moved(hass, entry, health, record)
+        await _async_adopt_self_moved(hass, entry, health, record, authorize=True)
         return
     if record is None and entry.runtime_data.coordinator.identity_mismatch:
         raise MoveError(REASON_PANEL_CHANGED)

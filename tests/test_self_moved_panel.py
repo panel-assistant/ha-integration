@@ -6,10 +6,11 @@ from collections.abc import AsyncGenerator, Callable
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, ClassVar
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
@@ -106,7 +107,7 @@ class Network:
             AdbInstallTarget(
                 normalize_address("192.168.1.23"), self.serial, "X2i", "arm64-v8a", 33
             ),
-            object(),
+            object.__new__(PythonRSASigner),
         )
 
     async def preflight(
@@ -647,6 +648,163 @@ async def test_a_panel_held_during_setup_is_adopted_on_the_next_poll(
 
     assert entry.unique_id == NEW_APP_DID
     assert _issues(hass, entry) == set()
+
+
+class _UntrustedDevice:
+    """An adbd that rejects Panel Assistant's signature, as after a revoke."""
+
+    offered: ClassVar[list[bool]] = []
+
+    def __init__(self, *_args: Any, **_kwargs: Any) -> None:
+        pass
+
+    async def connect(self, *, auth_callback: Any = None, **_kwargs: Any) -> bool:
+        if auth_callback is not None:
+            auth_callback(self)
+        # The library sends the public key here, and the panel shows a prompt.
+        _UntrustedDevice.offered.append(True)
+        return False
+
+    async def close(self) -> None:
+        return None
+
+
+@pytest.fixture
+def untrusted() -> Any:
+    from custom_components.panel_assistant import install_adb
+
+    _UntrustedDevice.offered = []
+    with (
+        patch.object(install_adb, "AdbDeviceAsync", _UntrustedDevice),
+        patch.object(
+            panel_move, "async_preflight_install", install_adb.async_preflight_install
+        ),
+    ):
+        yield _UntrustedDevice.offered
+
+
+async def test_the_background_attempt_never_asks_the_panel_to_trust_a_key(
+    hass: HomeAssistant, hass_read_only_user: Any, network: Network, untrusted: Any
+) -> None:
+    entry = await _load(hass, hass_read_only_user.id)
+    network.health = _health()
+
+    await _poll(hass, entry)
+
+    assert untrusted == []
+    assert entry.unique_id == OLD_APP_DID
+    assert _issues(hass, entry) == {"move"}
+
+
+async def test_the_owners_repair_may_ask_the_panel_to_trust_the_key(
+    hass: HomeAssistant, hass_read_only_user: Any, network: Network, untrusted: Any
+) -> None:
+    entry = await _load(hass, hass_read_only_user.id)
+    network.health = _health()
+    await _poll(hass, entry)
+
+    with pytest.raises(MoveError) as error:
+        await async_move_to_new_app(hass, entry)
+
+    assert error.value.reason == "adb_authorization"
+    assert untrusted == [True]
+
+
+def _write_marker(hass: HomeAssistant, entry_id: str) -> Path:
+    path = Path(hass.config.path(DOMAIN, "backups", f"{entry_id}-adopted.json"))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"legacy_did": OLD_APP_DID, "new_did": NEW_APP_DID}))
+    return path
+
+
+async def _setup_after_partial_rekey(
+    hass: HomeAssistant, user_id: str, *, marker: bool
+) -> MockConfigEntry:
+    """Core stopped after the registry saved the rekey, before the entry did."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="alpha",
+        unique_id=OLD_APP_DID,
+        data={
+            CONF_ADDRESS: STORED,
+            "transport_user_id": user_id,
+            "installation_identity": True,
+            "previous_installation_identity": ORIGINAL_DID,
+        },
+    )
+    entry.add_to_hass(hass)
+    registry = er.async_get(hass)
+    registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{NEW_APP_DID}_wifi",
+        config_entry=entry,
+        suggested_object_id="alpha_wifi",
+    )
+    registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{OLD_APP_DID}_light",
+        config_entry=entry,
+        suggested_object_id="alpha_light",
+    )
+    if marker:
+        await hass.async_add_executor_job(_write_marker, hass, entry.entry_id)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+    return entry
+
+
+async def test_setup_finishes_an_adoption_whose_registry_saved_first(
+    hass: HomeAssistant, hass_read_only_user: Any, network: Network
+) -> None:
+    network.health = _health()
+
+    entry = await _setup_after_partial_rekey(hass, hass_read_only_user.id, marker=True)
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.unique_id == NEW_APP_DID
+    found = er.async_get(hass).async_get("sensor.alpha_light")
+    assert found is not None and found.unique_id == f"{NEW_APP_DID}_light"
+    assert _entity_unique_id(hass) == f"{NEW_APP_DID}_wifi"
+
+
+async def test_without_its_marker_a_mixed_registry_is_still_refused(
+    hass: HomeAssistant, hass_read_only_user: Any, network: Network
+) -> None:
+    """New-identity entities alone never let an entry take that identity."""
+    network.health = _health()
+
+    entry = await _setup_after_partial_rekey(hass, hass_read_only_user.id, marker=False)
+
+    assert entry.state is not ConfigEntryState.LOADED
+    assert entry.unique_id == OLD_APP_DID
+
+
+async def test_an_adoption_marker_is_kept_until_the_identity_is_saved(
+    hass: HomeAssistant, hass_read_only_user: Any, network: Network
+) -> None:
+    from custom_components.panel_assistant.panel_move import async_restore_move_offer
+
+    from .test_panel_move import _save_entry
+
+    entry = await _load(hass, hass_read_only_user.id)
+    network.health = _health()
+    await _poll(hass, entry)
+    path = Path(hass.config.path(DOMAIN, "backups", f"{entry.entry_id}-adopted.json"))
+    assert await hass.async_add_executor_job(_read, path) == {
+        "legacy_did": OLD_APP_DID,
+        "new_did": NEW_APP_DID,
+    }
+    storage = Path(hass.config.path(".storage", "core.config_entries"))
+
+    await hass.async_add_executor_job(_save_entry, storage, entry.entry_id, OLD_APP_DID)
+    await async_restore_move_offer(hass, entry)
+    assert await hass.async_add_executor_job(path.exists)
+
+    await hass.async_add_executor_job(_save_entry, storage, entry.entry_id, NEW_APP_DID)
+    await async_restore_move_offer(hass, entry)
+    assert not await hass.async_add_executor_job(path.exists)
 
 
 async def test_a_move_that_kept_the_old_app_finishes_itself(

@@ -1349,8 +1349,9 @@ async def _async_shell(
 
 
 async def _async_connect(
-    target: AdbInstallTarget, signer: PythonRSASigner
+    target: AdbInstallTarget, signer: PythonRSASigner, *, authorize: bool = True
 ) -> AdbDeviceAsync:
+    """Connect with existing trust; offer the public key only when ``authorize``."""
     if not isinstance(signer, PythonRSASigner):
         raise InstallAdbError(InstallAdbErrorCode.INVALID_REQUEST)
     device = AdbDeviceAsync(
@@ -1363,6 +1364,9 @@ async def _async_connect(
     def _authorization_prompted(_device: AdbDeviceAsync) -> None:
         nonlocal authorization_prompted
         authorization_prompted = True
+        if not authorize:
+            # Raised before the library sends the key, so nothing is prompted.
+            raise DeviceAuthError("ADB authorization requires explicit consent")
 
     try:
         async with asyncio.timeout(_CONNECT_TIMEOUT_SECONDS):
@@ -1673,6 +1677,7 @@ async def async_preflight_install(
     descriptor: InstallDescriptor,
     *,
     admit_installed_target: bool = False,
+    authorize: bool = True,
 ) -> AdbPreflight:
     """Re-prove clean admission without mutating the panel.
 
@@ -1684,7 +1689,7 @@ async def async_preflight_install(
     device: AdbDeviceAsync | None = None
     try:
         async with asyncio.timeout(_PREFLIGHT_TIMEOUT_SECONDS):
-            device = await _async_connect(target, signer)
+            device = await _async_connect(target, signer, authorize=authorize)
             return await _async_preflight_on_device(
                 device,
                 target,
@@ -1763,6 +1768,7 @@ async def async_installed_artifact_size(
     descriptor: InstallDescriptor,
     *,
     expected_root_mode: AdbRootMode,
+    authorize: bool = True,
 ) -> int | None:
     """Return the installed APK's size when the panel runs exactly these bytes.
 
@@ -1778,7 +1784,7 @@ async def async_installed_artifact_size(
     device: AdbDeviceAsync | None = None
     try:
         async with asyncio.timeout(_PREFLIGHT_TIMEOUT_SECONDS):
-            device = await _async_connect(target, signer)
+            device = await _async_connect(target, signer, authorize=authorize)
             await _async_require_identity_root(device, target, expected_root_mode)
             nonce = token_hex(16)
             path = _parse_installed_apk_path(
