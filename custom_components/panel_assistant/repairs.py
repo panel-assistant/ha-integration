@@ -66,11 +66,15 @@ from .panel_move import (
     SuccessorMoveFlow,
     move_issue_id,
 )
-from .permission_repair import ISSUE_PANEL_PERMISSIONS, permission_issue_id
+from .permission_repair import (
+    ISSUE_PANEL_PERMISSIONS,
+    permission_issue_id,
+    permission_observations,
+    permissions_held,
+)
 from .release import ReleaseResolutionError
 from .release_catalog import async_resolve_install_choice
 from .restart_repair import ISSUE_RESTART_REQUIRED, RestartRequiredFlow
-from .status import permissions_held
 from .transport import (
     BINDING_ISSUES,
     ISSUE_DATA_ENTRY_ID,
@@ -617,13 +621,14 @@ class PanelPermissionFlow(RepairsFlow):
                 ):
                     snapshot = None
                 status = snapshot.status if snapshot is not None else None
-                if status is not None and permissions_held(status):
+                permissions = (
+                    permission_observations(self.hass, entry, status)
+                    if status is not None
+                    else None
+                )
+                if permissions_held(permissions):
                     return self.async_create_entry(data={})
-                if (
-                    status is not None
-                    and status.permissions is not None
-                    and "missing" in status.permissions.values()
-                ):
+                if permissions is not None and "missing" in permissions.values():
                     errors["base"] = "permissions_missing"
             if not errors:
                 errors["base"] = "permissions_unreadable"

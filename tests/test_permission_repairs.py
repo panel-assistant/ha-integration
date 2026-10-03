@@ -38,6 +38,11 @@ from custom_components.panel_assistant.update import HaPaneldUpdateEntity
 from custom_components.panel_assistant.update_coordinator import PanelUpdateCoordinator
 
 from .test_lan_staged_update import _backup
+from .test_transport import HEALTH as NATIVE_HEALTH
+from .test_transport import WsClientFactory
+from .test_voice import _connect
+
+pytest_plugins = ["tests.test_voice"]
 
 HELD = {
     "notifications": "held",
@@ -525,3 +530,196 @@ async def test_permission_repair_has_actionable_translated_guidance(
     assert "{panel}" in description
     assert strings[f"{prefix}.fix_flow.error.permissions_missing"]
     assert strings[f"{prefix}.fix_flow.error.permissions_unreadable"]
+
+
+@pytest.mark.parametrize(
+    ("camera_state", "voice_enabled", "missing"),
+    [
+        ("permission_needed", False, "camera"),
+        ("idle", False, "microphone"),
+        ("disabled", True, "microphone"),
+    ],
+)
+async def test_media_permission_repair_follows_feature_off_on_off(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+    camera_state: str,
+    voice_enabled: bool,
+    missing: str,
+) -> None:
+    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
+    coordinator = entry.runtime_data.coordinator
+    document = {
+        "warnings": [],
+        "capabilities": [],
+        "permissions": {**HELD, missing: "missing"},
+        "camera": {"state": "disabled"},
+    }
+    with (
+        patch.object(
+            coordinator.client,
+            "async_get_health",
+            AsyncMock(return_value=NATIVE_HEALTH),
+        ),
+        patch.object(
+            coordinator.client,
+            "async_get_status",
+            AsyncMock(
+                side_effect=lambda **kwargs: parse_status_response(json.dumps(document))
+            ),
+        ),
+    ):
+        assert (await panel.configure(enabled=False))["success"]
+        await coordinator.async_refresh()
+        assert coordinator.last_update_success
+        assert _issue(hass, entry) is None
+        document["camera"] = {"state": camera_state}
+        assert (await panel.configure(enabled=voice_enabled))["success"]
+        await coordinator.async_refresh()
+        assert _issue(hass, entry) is not None
+        document["camera"] = {"state": "disabled"}
+        assert (await panel.configure(enabled=False))["success"]
+        await coordinator.async_refresh()
+        assert _issue(hass, entry) is None
+        # Filtering for Repairs must not rewrite the raw Android observations.
+        assert coordinator.data.status.permissions[missing] == "missing"
+
+
+@pytest.mark.parametrize(
+    "grant", ["notifications", "write_settings", "overlay", "accessibility"]
+)
+async def test_media_off_keeps_other_missing_grant_repairs(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+    grant: str,
+) -> None:
+    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
+    assert (await panel.configure(enabled=False))["success"]
+    coordinator = entry.runtime_data.coordinator
+    document = {
+        "warnings": [],
+        "capabilities": [],
+        "camera": {"state": "disabled"},
+        "permissions": {
+            **HELD,
+            grant: "missing",
+            "camera": "missing",
+            "microphone": "missing",
+        },
+    }
+    with (
+        patch.object(
+            coordinator.client,
+            "async_get_health",
+            AsyncMock(return_value=NATIVE_HEALTH),
+        ),
+        patch.object(
+            coordinator.client,
+            "async_get_status",
+            AsyncMock(return_value=parse_status_response(json.dumps(document))),
+        ),
+    ):
+        await coordinator.async_refresh()
+    assert _issue(hass, entry) is not None
+
+
+async def test_unknown_voice_retains_microphone_repair_after_disconnection(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+) -> None:
+    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
+    coordinator = entry.runtime_data.coordinator
+    document = {
+        "warnings": [],
+        "capabilities": [],
+        "camera": {"state": "disabled"},
+        "permissions": {**HELD, "microphone": "missing"},
+    }
+    with (
+        patch.object(
+            coordinator.client,
+            "async_get_health",
+            AsyncMock(return_value=NATIVE_HEALTH),
+        ),
+        patch.object(
+            coordinator.client,
+            "async_get_status",
+            AsyncMock(return_value=parse_status_response(json.dumps(document))),
+        ),
+    ):
+        # A hello without a voice configuration proves no enabled setting.
+        await coordinator.async_refresh()
+        assert _issue(hass, entry) is not None
+        assert (await panel.configure(enabled=False))["success"]
+        await coordinator.async_refresh()
+        assert _issue(hass, entry) is None
+        await panel.client.close()
+        await hass.async_block_till_done()
+        await coordinator.async_refresh()
+        assert _issue(hass, entry) is not None
+
+
+async def test_manual_permission_repair_completes_when_media_is_turned_off(
+    hass: HomeAssistant,
+    hass_client: Any,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+) -> None:
+    assert await async_setup_component(hass, "repairs", {})
+    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
+    assert (await panel.configure(enabled=True))["success"]
+    coordinator = entry.runtime_data.coordinator
+    document = {
+        "warnings": [],
+        "capabilities": [],
+        "camera": {"state": "permission_needed"},
+        "permissions": {**HELD, "camera": "missing", "microphone": "missing"},
+    }
+    with (
+        patch.object(
+            coordinator.client,
+            "async_get_health",
+            AsyncMock(return_value=NATIVE_HEALTH),
+        ),
+        patch.object(
+            coordinator.client,
+            "async_get_status",
+            AsyncMock(
+                side_effect=lambda **kwargs: parse_status_response(json.dumps(document))
+            ),
+        ),
+    ):
+        await coordinator.async_refresh()
+        assert _issue(hass, entry) is not None
+        admin = await hass_client()
+        response = await admin.post(
+            "/api/repairs/issues/fix",
+            json={
+                "handler": DOMAIN,
+                "issue_id": f"panel_permissions_{entry.entry_id}",
+            },
+        )
+        assert response.status == 200
+        flow = await response.json()
+        response = await admin.post(
+            f"/api/repairs/issues/fix/{flow['flow_id']}", json={}
+        )
+        result = await response.json()
+        assert result["type"] == "form"
+        assert result["errors"] == {"base": "permissions_missing"}
+        document["camera"] = {"state": "disabled"}
+        assert (await panel.configure(enabled=False))["success"]
+        response = await admin.post(
+            f"/api/repairs/issues/fix/{flow['flow_id']}", json={}
+        )
+        assert response.status == 200
+        result = await response.json()
+        assert result["type"] == "create_entry"
+        assert _issue(hass, entry) is None

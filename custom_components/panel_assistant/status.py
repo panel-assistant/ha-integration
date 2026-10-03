@@ -427,16 +427,6 @@ def _permission_state(value: object) -> str:
     return str(value)
 
 
-def permissions_held(status: PanelStatus) -> bool:
-    """Only a complete observation can prove that every supported grant is held."""
-    permissions = status.permissions
-    return (
-        permissions is not None
-        and set(permissions) == PERMISSION_NAMES
-        and all(state in ("held", "not_required") for state in permissions.values())
-    )
-
-
 def home_ui_allows(status: PanelStatus, *, setup: bool = False) -> bool:
     """Accept only a fresh, complete HOME proof for this completion path.
 
