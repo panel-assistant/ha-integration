@@ -59,21 +59,34 @@ def version_allowed(
     installed_version: str,
     installed_code: int | None,
 ) -> bool:
-    """Apply the same post-1.0 ordering to updates and identity moves."""
+    """Never older than the installed build once it runs 1.0 or later."""
+    installed = _version_key(installed_version)
+    if installed is None or _version_key(version_name) is None:
+        return False
+    return installed[0] < (1, 0, 0) or version_not_older(
+        version_name, version_code, installed_version, installed_code
+    )
+
+
+def version_not_older(
+    version_name: str,
+    version_code: int | None,
+    installed_version: str,
+    installed_code: int | None,
+) -> bool:
+    """The build is the installed release or a later one, by name and code."""
     installed = _version_key(installed_version)
     candidate = _version_key(version_name)
-    if installed is None or candidate is None:
-        return False
-    if installed[0] >= (1, 0, 0):
-        if candidate < installed:
-            return False
-        if (
-            version_code is not None
-            and installed_code is not None
-            and version_code < installed_code
-        ):
-            return False
-    return True
+    return (
+        installed is not None
+        and candidate is not None
+        and candidate >= installed
+        and (
+            version_code is None
+            or installed_code is None
+            or version_code >= installed_code
+        )
+    )
 
 
 def policy_for(entry: ConfigEntry | None = None) -> dict[str, int | bool]:

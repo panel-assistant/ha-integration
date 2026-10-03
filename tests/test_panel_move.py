@@ -317,7 +317,10 @@ def _patches(
         panel.adb_reads.append(found)
         return found
 
-    artifact = feed_release_artifact(_build(package_id=SUCCESSOR_PACKAGE_ID))
+    # The new app of the release the old app runs.
+    artifact = feed_release_artifact(
+        replace(_build(package_id=SUCCESSOR_PACKAGE_ID), version_name="0.9.9-rc3")
+    )
     if panel.accepted_artifact is None:
         panel.accepted_artifact = artifact
     patches = [
@@ -1060,7 +1063,10 @@ async def _publish_move_candidate(
         ("1.0.0", False, "1.2.0", (3, 3), "1.2.0", 773, False),
         ("1.0.0", False, "1.2.0", (3, 3), "1.2.0", 772, True),
         ("1.0.0", False, "1.3.0", (3, 3), "1.2.0", None, True),
-        ("1.0.0", False, "0.9.8", (3, 3), "0.9.9", 773, True),
+        ("1.0.0", False, "0.9.8", (3, 3), "0.9.9", 773, False),
+        ("1.0.0-rc1", False, "0.9.8", (3, 3), "0.9.9-rc3", None, False),
+        ("1.0.0-rc1", False, "0.9.9-rc3", (3, 3), "0.9.9-rc3", 772, True),
+        ("1.0.0-rc1", False, "0.9.9-rc3", (3, 3), "0.9.9-rc3", 773, False),
         ("1.0.0", False, "1.2.0", (3, 3), None, None, False),
     ],
     ids=[
@@ -1074,7 +1080,10 @@ async def _publish_move_candidate(
         "code-downgrade",
         "same-build",
         "unknown-old-code",
-        "pre-1-recovery",
+        "pre-1-older-than-the-old-app",
+        "older-stable-for-an-rc-old-app",
+        "same-release-as-the-old-app",
+        "same-release-older-code",
         "offline",
     ],
 )
@@ -1267,7 +1276,7 @@ async def test_move_revocation_during_final_adb_verification_cleans_without_inst
         entry, options={CONF_PRERELEASE_PANEL_BUILDS: True}
     )
     artifact = await _publish_move_candidate(
-        hass, monkeypatch, "release", "0.9.8-rc1", (3, 3)
+        hass, monkeypatch, "release", "0.9.9-rc3", (3, 3)
     )
     staged = install_adb.StagedApk(
         JOB_ID, REMOTE_PATH, artifact.descriptor.apk_size, artifact.sha256

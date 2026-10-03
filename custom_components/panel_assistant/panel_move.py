@@ -99,7 +99,7 @@ from .install_network import InstallNetworkError, async_pin_install_target
 from .panel_backup import PanelBackupInvalidError, async_store_panel_backup
 from .provisioning import InstallTargetState, async_probe_install_target
 from .release import InstallDescriptor, ReleaseArtifact
-from .update_policy import build_allowed, prereleases_allowed, version_allowed
+from .update_policy import build_allowed, prereleases_allowed, version_not_older
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -235,7 +235,6 @@ def _successor_artifact(
     snapshot = entry.runtime_data.coordinator.data
     if snapshot is None:
         return None
-    allow_prerelease = prereleases_allowed(entry)
     feed = async_get_feed_coordinator(hass)
     candidates: list[ReleaseArtifact] = []
     if feed is not None and feed.last_update_success and feed.data:
@@ -253,18 +252,7 @@ def _successor_artifact(
             for artifact in candidates
             if artifact.descriptor is not None
             and artifact.descriptor.package_id == SUCCESSOR_PACKAGE_ID
-            and build_allowed(
-                artifact.version,
-                artifact.protocol_min,
-                artifact.protocol_max,
-                allow_prerelease=allow_prerelease,
-            )
-            and version_allowed(
-                artifact.version,
-                artifact.descriptor.version_code,
-                snapshot.health.version,
-                snapshot.health.version_code,
-            )
+            and _admissible(entry, artifact, snapshot.health)
         ),
         key=lambda artifact: (
             _version_key(artifact.version),
@@ -513,18 +501,27 @@ async def _async_admit_successor(entry: ConfigEntry, artifact: ReleaseArtifact) 
         health = await entry.runtime_data.client.async_get_health()
     except HaPaneldError as err:
         raise MoveError(REASON_RELEASE_UNAVAILABLE) from err
-    if not build_allowed(
+    if not _admissible(entry, artifact, health):
+        raise MoveError(REASON_RELEASE_UNAVAILABLE)
+
+
+def _admissible(
+    entry: ConfigEntry, artifact: ReleaseArtifact, health: PanelHealth
+) -> bool:
+    """The channel admits the new app, and it is no older than the old app it
+    replaces: an older app refuses the newer app's backup, and by then the
+    move would already have changed the panel."""
+    return build_allowed(
         artifact.version,
         artifact.protocol_min,
         artifact.protocol_max,
         allow_prerelease=prereleases_allowed(entry),
-    ) or not version_allowed(
+    ) and version_not_older(
         artifact.version,
         artifact.descriptor.version_code if artifact.descriptor is not None else None,
         health.version,
         health.version_code,
-    ):
-        raise MoveError(REASON_RELEASE_UNAVAILABLE)
+    )
 
 
 async def _async_install_successor(
