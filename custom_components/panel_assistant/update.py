@@ -625,6 +625,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             if credential is None
             else await async_probe_install_target(pinned.pinned, credential.signer)
         )
+        if probe.state is InstallTargetState.ADB_UNREACHABLE:
+            raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE)
         if probe.state is InstallTargetState.ADB_UNAUTHORIZED:
             raise InstallAdbError(InstallAdbErrorCode.AUTHORIZATION_REQUIRED)
         if probe.state not in {
@@ -671,7 +673,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 return None
             target = await self._async_probe_adb_target(pinned, credential)
             if target is None:
-                return False
+                return None
             await async_revalidate_install_target(self.hass, pinned)
             return True
         except InstallAdbError:

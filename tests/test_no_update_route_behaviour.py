@@ -268,3 +268,24 @@ async def test_package_changed_during_probe_cannot_clear_repair(route, hass):
     route.revalidate.side_effect = package_changed
     await route.entity._async_refresh_route()
     assert _issue(hass, entry) is not None
+
+
+@pytest.mark.parametrize("existing_issue", [False, True])
+@pytest.mark.parametrize(
+    "state", [InstallTargetState.RETAINED_OR_AMBIGUOUS, InstallTargetState.INSTALLED]
+)
+async def test_unreadable_adb_app_facts_preserve_issue(
+    route, hass, existing_issue, state
+):
+    entry = _entry(hass)
+    if existing_issue:
+        route.probe_target.return_value = InstallTargetProbe(
+            state=InstallTargetState.ADB_UNAUTHORIZED
+        )
+        await route.entity._async_refresh_route()
+        assert _issue(hass, entry) is not None
+    _up_to_date(route)
+    route.probe_target.return_value = InstallTargetProbe(state=state)
+    route.entity._schedule_route_refresh()
+    await hass.async_block_till_done()
+    assert (_issue(hass, entry) is not None) == existing_issue
