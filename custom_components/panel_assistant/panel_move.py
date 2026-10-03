@@ -36,6 +36,7 @@ the device at the address is the one the move started on.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
@@ -736,14 +737,23 @@ async def _async_set_aside_legacy(
     # Keep the installed identity and the copy before either HOME or the old
     # app is changed.
     await _async_save_record(hass, entry, record)
-    if claim_home:
-        observed = await _async_step(target, signer, MoveStep.CLAIM_HOME)
-        if observed.home != SUCCESSOR_PACKAGE_ID:
+    try:
+        if claim_home:
+            observed = await _async_step(target, signer, MoveStep.CLAIM_HOME)
+            if observed.home != SUCCESSOR_PACKAGE_ID:
+                raise MoveError(REASON_MOVE_FAILED)
+        observed = await _async_step(target, signer, MoveStep.SET_ASIDE_LEGACY)
+        if not observed.legacy_set_aside or not observed.successor_installed:
             raise MoveError(REASON_MOVE_FAILED)
-
-    observed = await _async_step(target, signer, MoveStep.SET_ASIDE_LEGACY)
-    if not observed.legacy_set_aside or not observed.successor_installed:
-        raise MoveError(REASON_MOVE_FAILED)
+    except MoveError as err:
+        if err.reason != REASON_PANEL_CHANGED:
+            # The old app is still installed: give it HOME back and start it,
+            # so the panel is usable while the move waits for another try.
+            with contextlib.suppress(MoveError):
+                observed = await _async_step(target, signer, MoveStep.OBSERVE)
+                if observed.legacy_installed:
+                    await _async_revive_legacy(entry, target, signer, record, observed)
+        raise
     return record
 
 
@@ -808,16 +818,16 @@ async def _async_revive_legacy(
     to set it aside, leaves the old app installed but not answering. HOME goes
     back to it and it is started, so the panel is as it was before the move.
     """
+    if record.get("claimed_home") is True and observed.home != LEGACY_PACKAGE_ID:
+        observed = await _async_step(target, signer, MoveStep.RETURN_HOME)
+        if observed.home != LEGACY_PACKAGE_ID:
+            raise MoveError(REASON_MOVE_FAILED)
     try:
         health = await entry.runtime_data.client.async_get_health()
     except HaPaneldError:
         health = None
     if health is not None and reports_package(health.package, LEGACY_PACKAGE_ID):
         return observed
-    if record.get("claimed_home") is True and observed.home != LEGACY_PACKAGE_ID:
-        observed = await _async_step(target, signer, MoveStep.RETURN_HOME)
-        if observed.home != LEGACY_PACKAGE_ID:
-            raise MoveError(REASON_MOVE_FAILED)
     await _async_step(target, signer, MoveStep.START_LEGACY)
     await _async_health(
         entry,
@@ -878,16 +888,20 @@ async def _async_verify_successor(
     return descriptor, root_mode
 
 
-def _restored(health: PanelHealth, record: dict[str, Any]) -> bool:
-    """The new app runs this panel's restored configuration under a real identity."""
-    return (
+def _moved(health: PanelHealth, record: dict[str, Any]) -> bool:
+    """The new app answers as this panel under a real identity."""
+    return bool(
         reports_package(health.package, SUCCESSOR_PACKAGE_ID)
         and health.panel_id == record["panel_id"]
-        and health.config_hash == record["config_hash"]
         and health.installation_identity
         and health.discovery_id is not None
         and is_valid_discovery_id(health.discovery_id)
     )
+
+
+def _restored(health: PanelHealth, record: dict[str, Any]) -> bool:
+    """The new app runs this panel's restored configuration under a real identity."""
+    return _moved(health, record) and health.config_hash == record["config_hash"]
 
 
 async def _async_restore(
@@ -921,15 +935,6 @@ async def _async_restore(
     serving = health is not None and reports_package(
         health.package, SUCCESSOR_PACKAGE_ID
     )
-    if (
-        resumed
-        and record.get("restored") is True
-        and health is not None
-        and _restored(health, record)
-    ):
-        # This receipt was already restored whole: restoring it again would
-        # only risk the panel's state, so a retry only proves the result.
-        return health
     descriptor, root_mode = await _async_verify_successor(target, signer, record)
     if not (resumed and serving):
         await _async_step(target, signer, MoveStep.RESET_SUCCESSOR)
@@ -1095,11 +1100,21 @@ async def _async_move(hass: HomeAssistant, entry: ConfigEntry) -> None:
     else:
         resumed = True
     try:
-        health = await _async_restore(
-            hass, entry, target, signer, record, resumed=resumed
-        )
+        if resumed and record.get("restored") is True:
+            # The receipt was already restored whole: from here the move only
+            # goes forward. The new app holds the panel, perhaps with settings
+            # changed since, so it is never cleared, restored again or rolled
+            # back; it only has to answer as this panel.
+            proven: dict[str, Any] = record
+            health = await _async_health(
+                entry, lambda found: _moved(found, proven), _HEALTH_WAIT_SECONDS
+            )
+        else:
+            health = await _async_restore(
+                hass, entry, target, signer, record, resumed=resumed
+            )
     except MoveError as err:
-        if err.reason != REASON_PANEL_CHANGED:
+        if err.reason != REASON_PANEL_CHANGED and record.get("restored") is not True:
             record = await _async_mark_roll_back(hass, entry, record, under_way=True)
             try:
                 await _async_roll_back(entry, target, signer, record)

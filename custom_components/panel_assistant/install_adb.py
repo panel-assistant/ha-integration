@@ -2125,14 +2125,14 @@ async def async_update_installed_apk(
 async def _async_repair_app_permissions(
     device: AdbDeviceAsync,
     target: AdbInstallTarget,
-    descriptor: InstallDescriptor,
+    package_id: str,
 ) -> None:
     """Share observed grant repair between startup and an already-running update."""
     nonce = token_hex(16)
     _parse_package_present(
         await _async_shell(
             device,
-            _package_command(nonce, descriptor.package_id),
+            _package_command(nonce, package_id),
             read_timeout=_READ_TIMEOUT_SECONDS,
         ),
         nonce,
@@ -2144,7 +2144,7 @@ async def _async_repair_app_permissions(
         if not _parse_notification_grant(
             await _async_shell(
                 device,
-                _notification_grant_command(nonce, descriptor.package_id),
+                _notification_grant_command(nonce, package_id),
                 read_timeout=_READ_TIMEOUT_SECONDS,
             ),
             nonce,
@@ -2153,18 +2153,18 @@ async def _async_repair_app_permissions(
                 "The panel did not grant %s the notification permission. "
                 "The app runs without it; allow it on the panel in Android "
                 "Settings, under the app's Notifications",
-                descriptor.package_id,
+                package_id,
             )
     # The same rule as notifications: a refusal is reported, never fatal.
     nonce = token_hex(16)
     if not _parse_permission_grant(
         await _async_shell(
             device,
-            _permission_grant_command(nonce, descriptor.package_id),
+            _permission_grant_command(nonce, package_id),
             read_timeout=_READ_TIMEOUT_SECONDS,
         ),
         nonce,
-        descriptor.package_id,
+        package_id,
     ):
         _LOGGER.warning(
             "The panel did not grant %s every permission it needs: "
@@ -2173,7 +2173,7 @@ async def _async_repair_app_permissions(
             "Controls that depend on them, such as "
             "touch sounds, stay unavailable; allow them on the panel in "
             "Android Settings, under the app",
-            descriptor.package_id,
+            package_id,
         )
 
 
@@ -2192,7 +2192,7 @@ async def async_repair_installed_app_permissions(
         async with asyncio.timeout(_LAUNCH_TIMEOUT_SECONDS):
             device = await _async_connect(target, signer)
             await _async_require_identity_root(device, target, expected_root_mode)
-            await _async_repair_app_permissions(device, target, descriptor)
+            await _async_repair_app_permissions(device, target, descriptor.package_id)
     except InstallAdbError:
         raise
     except (
@@ -2222,7 +2222,7 @@ async def async_launch_installed_app(
         async with asyncio.timeout(_LAUNCH_TIMEOUT_SECONDS):
             device = await _async_connect(target, signer)
             await _async_require_identity_root(device, target, expected_root_mode)
-            await _async_repair_app_permissions(device, target, descriptor)
+            await _async_repair_app_permissions(device, target, descriptor.package_id)
             nonce = token_hex(16)
             mutation_started = True
             return _parse_launch_outcome(
@@ -2383,8 +2383,9 @@ _MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
     ),
     # Reinstalling the kept APK returns the old app onto the data Android kept.
     MoveStep.RESTORE_LEGACY: (
-        f"{{ [ -f {_LEGACY_COPY} ] && pm install -r {_LEGACY_COPY} "
-        f"&& rm -f {_LEGACY_COPY}; }}",
+        f"{{ [ -f {_LEGACY_COPY} ] && pm install -r {_LEGACY_COPY}; "
+        f'case "$(pm path {LEGACY_PACKAGE_ID})" in '
+        f"package:*) rm -f {_LEGACY_COPY} ;; esac; }}",
     ),
     MoveStep.RETURN_HOME: (
         f"cmd package set-home-activity {HOME_COMPONENTS[LEGACY_PACKAGE_ID]}",
@@ -2435,12 +2436,14 @@ def _move_command(nonce: str, step: MoveStep) -> str:
             ),
             # Listed with uninstalled packages: installed, or set aside with
             # its data kept.
-            f'case "$(pm list packages -u {LEGACY_PACKAGE_ID} 2>/dev/null)" in '
-            f"*package:{LEGACY_PACKAGE_ID}*) echo listed:{LEGACY_PACKAGE_ID} ;; esac",
+            f"for l in $(pm list packages -u {LEGACY_PACKAGE_ID} 2>/dev/null); do "
+            f'[ "$l" = package:{LEGACY_PACKAGE_ID} ] '
+            f"&& echo listed:{LEGACY_PACKAGE_ID}; done",
             f"[ -f {_LEGACY_COPY} ] && set -- $(sha256sum {_LEGACY_COPY} 2>/dev/null)"
-            ' && echo "copy:$1"',
+            ' && [ -n "$1" ] && echo "copy:$1"',
             f"[ -f {_LEGACY_COPY} ] && p=$(pm path {LEGACY_PACKAGE_ID} 2>/dev/null) "
-            '&& set -- $(sha256sum "${p#package:}" 2>/dev/null) && echo "apk:$1"',
+            '&& set -- $(sha256sum "${p#package:}" 2>/dev/null) && [ -n "$1" ] '
+            '&& echo "apk:$1"',
             f'case "$(dumpsys package {SUCCESSOR_PACKAGE_ID} 2>/dev/null)" in '
             f"*notLaunched=true*) echo unlaunched:{SUCCESSOR_PACKAGE_ID} ;; esac",
             _SUCCESSOR_RECORDS_COMMAND,
@@ -2529,8 +2532,13 @@ async def async_move_step(
                 nonce,
                 target,
             )
-            nonce = token_hex(16)
             mutation_started = step is not MoveStep.OBSERVE
+            if step is MoveStep.START_LEGACY:
+                # Setting the old app aside drops its app-op and accessibility
+                # grants, so they are repaired, as for an install, before it
+                # starts again.
+                await _async_repair_app_permissions(device, target, LEGACY_PACKAGE_ID)
+            nonce = token_hex(16)
             return _parse_move(
                 await _async_shell(
                     device,

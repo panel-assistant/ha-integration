@@ -152,7 +152,7 @@ class FakePanel:
     def _restored(self) -> bool:
         return (
             self.running == SUCCESSOR_PACKAGE_ID
-            and (self.panel_id, self.cfg) == ("office", LEGACY_CFG)
+            and self.panel_id == "office"
             and not self.running_restore
         )
 
@@ -714,12 +714,17 @@ async def test_an_old_app_stopped_to_be_set_aside_is_started_before_its_receipt(
     panel = FakePanel()
     panel.retire_fails = failure
     _attach(entry, panel)
-    with pytest.raises(
-        asyncio.CancelledError if failure == "core-stops" else MoveError
-    ):
+    core_stops = failure == "core-stops"
+    with pytest.raises(asyncio.CancelledError if core_stops else MoveError):
         await _move(hass, entry, panel, tmp_path)
-    assert panel.legacy and panel.running is None
-    assert panel.home == SUCCESSOR_PACKAGE_ID
+    if core_stops:
+        # Nothing ran after the stop: installed, idle, HOME taken.
+        assert panel.legacy and panel.running is None
+        assert panel.home == SUCCESSOR_PACKAGE_ID
+    else:
+        # A failure gives HOME back and starts the old app at once.
+        assert panel.running == LEGACY_PACKAGE_ID
+        assert panel.home == LEGACY_PACKAGE_ID
 
     panel.steps.clear()
     if then == "receipt-fails":
@@ -736,12 +741,14 @@ async def test_an_old_app_stopped_to_be_set_aside_is_started_before_its_receipt(
         return
 
     assert await _move(hass, entry, panel, tmp_path) == [NEW_DID]
-    assert panel.steps.index("START_LEGACY") < panel.steps.index("BACKUP")
+    if core_stops:
+        assert panel.steps.index("START_LEGACY") < panel.steps.index("BACKUP")
     assert not panel.legacy and not panel.legacy_aside
 
 
+@pytest.mark.parametrize("since", ["unchanged", "health-blip", "settings-changed"])
 async def test_a_restored_panel_is_not_restored_again_on_retry(
-    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path, since: str
 ) -> None:
     """Core stops after the restore and before the old app goes."""
     panel = FakePanel()
@@ -760,11 +767,82 @@ async def test_a_restored_panel_is_not_restored_again_on_retry(
 
     panel.step = step  # type: ignore[method-assign]
     panel.steps.clear()
+    if since == "settings-changed":
+        panel.cfg = "0000beef"
+    elif since == "health-blip":
+        # The new app is still starting when the retry first asks.
+        health, blips = panel.health, [HaPaneldError()]
+
+        async def starting() -> PanelHealth:
+            if blips:
+                raise blips.pop()
+            return await health()
+
+        panel.health = starting  # type: ignore[method-assign]
+        _attach(entry, panel)
     adopted = await _move(hass, entry, panel, tmp_path)
 
     assert [s for s in panel.steps if s != "LANE"] == ["OBSERVE", "RETIRE_LEGACY"]
     assert panel.restores == 2 and not panel.legacy_aside
     assert adopted == [NEW_DID]
+
+
+async def test_a_restored_new_app_that_does_not_answer_is_never_rolled_back(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
+) -> None:
+    panel = FakePanel()
+    _attach(entry, panel)
+    step = panel.step
+
+    async def core_stops(*args: Any) -> MoveObservation:
+        if args[-1] is MoveStep.RETIRE_LEGACY:
+            raise asyncio.CancelledError
+        return await step(*args)
+
+    panel.step = core_stops  # type: ignore[method-assign]
+    with pytest.raises(asyncio.CancelledError):
+        await _move(hass, entry, panel, tmp_path)
+    panel.step = step  # type: ignore[method-assign]
+    panel.steps.clear()
+    panel.running = None
+    with (
+        patch.object(panel_move, "_HEALTH_WAIT_SECONDS", 0.05),
+        pytest.raises(MoveError, match="move_failed"),
+    ):
+        await _move(hass, entry, panel, tmp_path)
+
+    assert set(panel.steps) == {"OBSERVE"}
+    assert panel.successor and panel.legacy_aside and panel.restores == 2
+
+
+async def test_a_retry_gives_home_back_to_an_old_app_that_still_runs(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
+) -> None:
+    """Core stopped after HOME was taken; the retry then fails before setting aside."""
+    panel = FakePanel()
+    _attach(entry, panel)
+    step = panel.step
+
+    async def core_stops(*args: Any) -> MoveObservation:
+        observed = await step(*args)
+        if args[-1] is MoveStep.CLAIM_HOME:
+            raise asyncio.CancelledError
+        return observed
+
+    panel.step = core_stops  # type: ignore[method-assign]
+    with pytest.raises(asyncio.CancelledError):
+        await _move(hass, entry, panel, tmp_path)
+    assert panel.running == LEGACY_PACKAGE_ID and panel.home == SUCCESSOR_PACKAGE_ID
+
+    async def no_backup() -> bytes:
+        raise HaPaneldError
+
+    panel.step, panel.backup_panel = step, no_backup  # type: ignore[method-assign]
+    _attach(entry, panel)
+    with pytest.raises(MoveError, match="backup_failed"):
+        await _move(hass, entry, panel, tmp_path)
+
+    assert panel.running == LEGACY_PACKAGE_ID and panel.home == LEGACY_PACKAGE_ID
 
 
 @pytest.mark.parametrize("failure", ["partial", "stale"])
@@ -926,18 +1004,15 @@ async def test_a_move_stopped_before_the_old_app_went_finishes_on_retry(
 
     with pytest.raises(MoveError, match="move_failed"):
         await _move(hass, entry, panel, tmp_path)
-    assert panel.legacy and panel.home == SUCCESSOR_PACKAGE_ID
+    # The old app was stopped to be set aside: it has HOME back and runs.
+    assert panel.running == LEGACY_PACKAGE_ID and panel.home == LEGACY_PACKAGE_ID
     assert _record_file(hass, entry).exists()
 
     panel.steps.clear()
     adopted = await _move(hass, entry, panel, tmp_path)
 
-    # The old app was stopped to be set aside: HOME returns to it and it is
-    # started before it gives a fresh receipt; its installed APK is kept.
-    assert [s for s in panel.steps if s != "LANE"][:6] == [
-        "OBSERVE",
-        "RETURN_HOME",
-        "START_LEGACY",
+    # Its installed APK is kept, with a fresh receipt from the old app.
+    assert [s for s in panel.steps if s != "LANE"][:3] == [
         "OBSERVE",
         "BACKUP",
         "KEEP_LEGACY",
@@ -1178,6 +1253,42 @@ async def test_a_move_step_on_another_device_sends_no_command(
 
     assert error.value.code is InstallAdbErrorCode.TARGET_CHANGED
     assert len(sent) == 1 and "pm uninstall" not in sent[0]
+
+
+@pytest.mark.parametrize("step", [MoveStep.START_LEGACY, MoveStep.OBSERVE])
+async def test_starting_the_old_app_again_repairs_its_grants_first(
+    monkeypatch: pytest.MonkeyPatch, step: MoveStep
+) -> None:
+    """Setting the old app aside drops its grants; they return before it starts."""
+    nonce = "0" * 32
+    sent: list[str] = []
+
+    async def shell(_device: Any, command: str, **_kwargs: Any) -> bytes:
+        sent.append(command)
+        return (
+            f"HAPANELD_MOVE_BEGIN:{nonce}\ninstalled:{LEGACY_PACKAGE_ID}\n"
+            f"home:{LEGACY_PACKAGE_ID}/.DashboardActivity\n"
+            f"HAPANELD_MOVE_END:{nonce}:0\n"
+        ).encode()
+
+    async def repair(_device: Any, _target: Any, package_id: str) -> None:
+        sent.append(f"repair {package_id}")
+
+    monkeypatch.setattr(install_adb, "_async_connect", AsyncMock(return_value=object()))
+    monkeypatch.setattr(install_adb, "_async_close", AsyncMock())
+    monkeypatch.setattr(install_adb, "_async_shell", shell)
+    monkeypatch.setattr(install_adb, "_parse_identity_root", lambda *_args: None)
+    monkeypatch.setattr(install_adb, "_validate_target", lambda _target: None)
+    monkeypatch.setattr(install_adb, "token_hex", lambda _size: nonce)
+    monkeypatch.setattr(install_adb, "_async_repair_app_permissions", repair)
+
+    await install_adb.async_move_step(SimpleNamespace(), "key", step)
+
+    if step is MoveStep.START_LEGACY:
+        assert sent[1] == f"repair {LEGACY_PACKAGE_ID}"
+        assert "am start -n" in sent[2]
+    else:
+        assert not [command for command in sent if command.startswith("repair")]
 
 
 async def test_a_moved_panel_keeps_its_entities_under_the_new_identity(
