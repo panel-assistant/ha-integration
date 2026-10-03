@@ -85,7 +85,7 @@ from .feed_coordinator import (
     async_get_feed_coordinator,
     async_get_stable_release_coordinator,
 )
-from .identity import adopt_moved_identity
+from .identity import adopt_moved_identity, self_moved
 from .install_adb import (
     AdbInstallTarget,
     AdbRootMode,
@@ -118,6 +118,9 @@ ISSUE_DATA_ENTRY_ID: Final = "entry_id"
 CONF_SUCCESSOR_MOVE: Final = "successor_move"
 
 _HEALTH_WAIT_SECONDS = 120.0
+#: How long a panel already on the new app waits between adoption attempts, so an
+#: unreachable panel is not probed over ADB on every poll.
+_SELF_MOVE_RETRY_SECONDS = 600.0
 _RESTORE_WAIT_SECONDS = 120.0
 _POLL_SECONDS = 3.0
 
@@ -135,6 +138,7 @@ REASON_PANEL_CHANGED = "panel_changed"
 REASON_BUSY = "busy"
 
 DATA_PANEL_OPERATIONS: Final = "panel_operations"
+DATA_SELF_MOVE_ATTEMPTS: Final = "self_move_attempts"
 
 
 class MoveError(Exception):
@@ -169,6 +173,12 @@ def async_evaluate_successor_move(hass: HomeAssistant, entry: ConfigEntry) -> No
     if not _needs_move(entry, health):
         ir.async_delete_issue(hass, DOMAIN, move_issue_id(entry.entry_id))
         return
+    async_offer_move(hass, entry)
+
+
+@callback
+def async_offer_move(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Raise this entry's move Repair."""
     ir.async_create_issue(
         hass,
         DOMAIN,
@@ -237,13 +247,8 @@ def _read_record_quietly(path: Path) -> dict[str, Any] | None:
         return {"panel_id": ""}
 
 
-def _successor_artifact(
-    hass: HomeAssistant, entry: ConfigEntry
-) -> ReleaseArtifact | None:
-    """The compatible new app on this panel's current PA-managed channel."""
-    snapshot = entry.runtime_data.coordinator.data
-    if snapshot is None:
-        return None
+def _successor_candidates(hass: HomeAssistant) -> list[ReleaseArtifact]:
+    """Every signed new-app build Panel Assistant knows: feed and catalogue."""
     feed = async_get_feed_coordinator(hass)
     candidates: list[ReleaseArtifact] = []
     if feed is not None and feed.last_update_success and feed.data:
@@ -255,12 +260,26 @@ def _successor_artifact(
     candidates.extend(
         async_get_stable_release_coordinator(hass).candidates_for(SUCCESSOR_PACKAGE_ID)
     )
+    return [
+        artifact
+        for artifact in candidates
+        if artifact.descriptor is not None
+        and artifact.descriptor.package_id == SUCCESSOR_PACKAGE_ID
+    ]
+
+
+def _successor_artifact(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> ReleaseArtifact | None:
+    """The compatible new app on this panel's current PA-managed channel."""
+    snapshot = entry.runtime_data.coordinator.data
+    if snapshot is None:
+        return None
     return max(
         (
             artifact
-            for artifact in candidates
+            for artifact in _successor_candidates(hass)
             if artifact.descriptor is not None
-            and artifact.descriptor.package_id == SUCCESSOR_PACKAGE_ID
             and _admissible(entry, artifact, snapshot.health)
         ),
         key=lambda artifact: (
@@ -1027,6 +1046,126 @@ async def _async_send_restore(client: HaPaneldClient, data: bytes) -> None:
         return
 
 
+async def _async_adopt_self_moved(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    health: PanelHealth,
+    record: dict[str, Any] | None,
+) -> None:
+    """Adopt the identity of a panel already running the new app on its own.
+
+    The panel's word links its new identity to this entry; that is never
+    enough to rekey it. Over ADB, at the entry's own address, the panel must
+    hold the new app alone, with nothing left of the old one, and run the very
+    bytes of the signed release it reports. The caller holds the panel
+    operation.
+    """
+    target, signer = await _async_target(hass, entry)
+    if record is not None and record["serial"] != target.serial:
+        raise MoveError(REASON_PANEL_CHANGED)
+    artifact = next(
+        (
+            artifact
+            for artifact in _successor_candidates(hass)
+            if artifact.descriptor is not None
+            and artifact.version == health.version
+            and artifact.descriptor.version_code == health.version_code
+        ),
+        None,
+    )
+    if artifact is None or artifact.descriptor is None:
+        raise MoveError(REASON_RELEASE_UNAVAILABLE)
+    descriptor = artifact.descriptor
+    try:
+        admitted = await async_preflight_install(
+            target, signer, descriptor, admit_installed_target=True
+        )
+        if not admitted.target_installed:
+            raise MoveError(REASON_MOVE_FAILED)
+        size = await async_installed_artifact_size(
+            target, signer, descriptor, expected_root_mode=admitted.root_mode
+        )
+    except InstallAdbError as err:
+        if err.code is InstallAdbErrorCode.AUTHORIZATION_REQUIRED:
+            raise MoveError(REASON_ADB_AUTHORIZATION) from err
+        if err.code is InstallAdbErrorCode.TARGET_CHANGED:
+            raise MoveError(REASON_PANEL_CHANGED) from err
+        if err.code is InstallAdbErrorCode.TARGET_UNREACHABLE:
+            raise MoveError(REASON_ADB_UNREACHABLE) from err
+        raise MoveError(REASON_MOVE_FAILED) from err
+    if size != descriptor.apk_size:
+        raise MoveError(REASON_MOVE_FAILED)
+    did = health.discovery_id
+    assert did is not None
+    if record is not None:
+        # A move of this integration's own stopped after the old app went: its
+        # record now names the identity adopted, so it settles once saved.
+        await hass.async_add_executor_job(
+            _write_record,
+            _record_path(hass, entry.entry_id),
+            {**record, "new_did": did},
+        )
+    if not adopt_moved_identity(hass, entry, did):
+        raise MoveError(REASON_MOVE_FAILED)
+    await _async_withdraw_offer(hass, entry)
+    _LOGGER.info(
+        "%s moved to %s; adopted its identity", entry.title, SUCCESSOR_PACKAGE_ID
+    )
+
+
+def _move_owns(record: dict[str, Any] | None) -> bool:
+    """A move that kept a copy of the old app finishes itself: only it can
+    restore the old app from that copy or remove it."""
+    return record is not None and "legacy_copy" in record
+
+
+@callback
+def async_schedule_self_move_adoption(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Try, in the background and at most every few minutes, to adopt a panel
+    that is already on the new app."""
+    if getattr(entry, "runtime_data", None) is None:
+        # Setup's first poll comes before the entry can reach its panel; the
+        # next poll starts the attempt.
+        return
+    attempts: dict[str, float] = hass.data.setdefault(DOMAIN, {}).setdefault(
+        DATA_SELF_MOVE_ATTEMPTS, {}
+    )
+    now = hass.loop.time()
+    last = attempts.get(entry.entry_id)
+    if last is not None and now - last < _SELF_MOVE_RETRY_SECONDS:
+        return
+    if not claim_panel_operation(hass, entry.entry_id):
+        # A move or an update is running; the next poll tries again.
+        return
+    attempts[entry.entry_id] = now
+    entry.async_create_background_task(
+        hass,
+        _async_adopt_in_background(hass, entry),
+        f"adopt {entry.title} on the new app",
+    )
+
+
+async def _async_adopt_in_background(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    try:
+        record = await hass.async_add_executor_job(
+            _read_record, _record_path(hass, entry.entry_id)
+        )
+        health = await entry.runtime_data.client.async_get_health()
+        if self_moved(entry, health) and not _move_owns(record):
+            await _async_adopt_self_moved(hass, entry, health, record)
+    except (MoveError, HaPaneldError) as err:
+        _LOGGER.info(
+            "%s runs the new app; its identity is not adopted yet: %s (%r)",
+            entry.title,
+            err,
+            err.__cause__,
+        )
+    except Exception:
+        _LOGGER.exception("Adopting %s on the new app failed", entry.title)
+    finally:
+        release_panel_operation(hass, entry.entry_id)
+
+
 async def async_move_to_new_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Move one panel to the new app; safe to run again after any failure."""
     if not claim_panel_operation(hass, entry.entry_id):
@@ -1041,6 +1180,15 @@ async def _async_move(hass: HomeAssistant, entry: ConfigEntry) -> None:
     record = await hass.async_add_executor_job(
         _read_record, _record_path(hass, entry.entry_id)
     )
+    try:
+        health: PanelHealth | None = await entry.runtime_data.client.async_get_health()
+    except HaPaneldError:
+        health = None
+    if health is not None and self_moved(entry, health) and not _move_owns(record):
+        # The panel already runs the new app as itself: finish by proving it
+        # and adopting its identity, whatever an earlier attempt recorded.
+        await _async_adopt_self_moved(hass, entry, health, record)
+        return
     if record is None and entry.runtime_data.coordinator.identity_mismatch:
         raise MoveError(REASON_PANEL_CHANGED)
     if record is not None and entry.unique_id not in (

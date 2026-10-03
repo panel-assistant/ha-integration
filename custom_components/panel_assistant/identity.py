@@ -59,6 +59,36 @@ def migration_candidate(entry: ConfigEntry, health: PanelHealth) -> bool:
     )
 
 
+def self_moved(entry: ConfigEntry, health: PanelHealth) -> bool:
+    """The panel answers from the new app under a new identity linked to this entry.
+
+    A move can finish on the panel without this integration seeing it finish:
+    the move Repair's last ADB step can drop after the old app is already gone.
+    The entry then still names the old app's installation identity while the
+    panel answers with the new one. The panel links the two through its legacy
+    identity, which is stable across apps and which this entry holds either as
+    its own identity or as the one it replaced.
+    An entry still on its original identity is the first hop, which
+    ``migration_candidate`` already owns.
+
+    This identifies the case; it admits nothing. The new identity is adopted
+    only after the installed app is proved over ADB (``panel_move``).
+    """
+    from .app_identity import SUCCESSOR_PACKAGE_ID, reports_package
+
+    linked = {entry.unique_id, entry.data.get(CONF_PREVIOUS_IDENTITY)} - {None}
+    return (
+        is_installation(entry)
+        and entry.unique_id is not None
+        and health.installation_identity
+        and health.discovery_id is not None
+        and health.discovery_id != entry.unique_id
+        and health.legacy_discovery_id is not None
+        and health.legacy_discovery_id in linked
+        and reports_package(health.package, SUCCESSOR_PACKAGE_ID)
+    )
+
+
 def _prior_installation(hass: HomeAssistant, entry: ConfigEntry, did: str) -> bool:
     """Require exclusive MQTT evidence, including records retained after cleanup."""
     if any(
@@ -278,10 +308,6 @@ def reconcile_identity(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 @callback
 def _reject_health(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Withdraw both inbound and outbound authority for a changed endpoint."""
-    from homeassistant.helpers.update_coordinator import UpdateFailed
-
-    from .transport import async_get_sessions
-
     if (
         ir.async_get(hass).async_get_issue(DOMAIN, f"{ISSUE_IDENTITY}_{entry.entry_id}")
         is None
@@ -299,12 +325,43 @@ def _reject_health(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 "address": entry.data[CONF_ADDRESS],
             },
         )
+    _withdraw_authority(hass, entry)
+    return False
+
+
+@callback
+def _withdraw_authority(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Stop status, controls and the session until the identity is settled."""
+    from homeassistant.helpers.update_coordinator import UpdateFailed
+
+    from .transport import async_get_sessions
+
     coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
     if coordinator is not None:
         coordinator.identity_mismatch = True
         coordinator.client.health_peer = None
         coordinator.async_set_update_error(UpdateFailed("Panel identity changed"))
     async_get_sessions(hass).close_entry(entry.entry_id, "entry_unloaded")
+
+
+@callback
+def _hold_self_moved(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Hold a panel already on the new app, without blaming its address.
+
+    Authority is withdrawn exactly as for any changed identity, so nothing binds
+    to the new identity on the panel's word alone. What differs is what the
+    owner is told and what happens next: this is the panel they already have,
+    on the new app, so the address Repair would be both wrong and unfixable.
+    Panel Assistant proves the installed app over ADB and adopts the identity
+    itself; the move Repair is the owner's fallback when it cannot reach the
+    panel over ADB, and it now finishes an already-moved panel too.
+    """
+    from .panel_move import async_offer_move, async_schedule_self_move_adoption
+
+    ir.async_delete_issue(hass, DOMAIN, f"panel_identity_mismatch_{entry.entry_id}")
+    async_offer_move(hass, entry)
+    _withdraw_authority(hass, entry)
+    async_schedule_self_move_adoption(hass, entry)
     return False
 
 
@@ -334,6 +391,10 @@ def accept_health(hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth) 
             "address": entry.data[CONF_ADDRESS],
         } and confirm_identity(hass, entry, health):
             return True
+        if pending.get("did") == did and self_moved(entry, health):
+            # Core stopped part way through adopting this panel's move; the
+            # adoption is proved again and finishes the rekey.
+            return _hold_self_moved(hass, entry)
         return _reject_health(hass, entry)
     if entry.unique_id is None:
         if did is None:
@@ -377,6 +438,8 @@ def accept_health(hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth) 
                 "address": entry.data[CONF_ADDRESS],
             },
         )
+    if self_moved(entry, health):
+        return _hold_self_moved(hass, entry)
     return _reject_health(hass, entry)
 
 
