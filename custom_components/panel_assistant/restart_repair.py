@@ -28,7 +28,7 @@ _LOGGER = logging.getLogger(__name__)
 
 ISSUE_RESTART_REQUIRED = "restart_required"
 DATA_RESTART_CHECK = "restart_check"
-CHECK_INTERVAL = timedelta(minutes=15)
+CHECK_INTERVAL = timedelta(seconds=1)
 INTEGRATION_ROOT = Path(__file__).parent
 
 _BUILD = re.compile(r"^INTEGRATION_BUILD\s*=\s*(\d+)\s*$", re.MULTILINE)

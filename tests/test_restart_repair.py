@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import threading
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +25,6 @@ from custom_components.panel_assistant.const import (
     INTEGRATION_VERSION,
 )
 from custom_components.panel_assistant.restart_repair import (
-    CHECK_INTERVAL,
     ISSUE_RESTART_REQUIRED,
     async_check_restart_needed,
     read_installed_build,
@@ -164,32 +164,45 @@ async def test_files_are_read_only_in_the_executor(
     assert threading.main_thread() not in threads
 
 
-async def test_setup_checks_now_and_every_fifteen_minutes(
-    hass: HomeAssistant, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+async def test_installing_a_new_build_shows_the_repair_within_one_second(
+    hass: HomeAssistant,
+    hass_ws_client: Any,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     root = _install(tmp_path, INTEGRATION_VERSION, INTEGRATION_BUILD)
     monkeypatch.setattr(restart_repair, "INTEGRATION_ROOT", root)
-    reads: list[threading.Thread] = []
-    real = restart_repair.read_installed_build
-
-    def _counting(path: Path | None = None) -> tuple[str, int] | None:
-        reads.append(threading.current_thread())
-        return real(path)
-
-    monkeypatch.setattr(restart_repair, "read_installed_build", _counting)
+    assert await async_setup_component(hass, "repairs", {})
     assert await async_setup_component(hass, DOMAIN, {})
     await hass.async_block_till_done(wait_background_tasks=True)
-    assert reads
-    assert _issue(hass) is None
+    client = await hass_ws_client(hass)
 
+    async def visible_issues(request_id: int) -> list[dict[str, Any]]:
+        await client.send_json({"id": request_id, "type": "repairs/list_issues"})
+        response = await client.receive_json()
+        assert response["success"]
+        return [
+            issue
+            for issue in response["result"]["issues"]
+            if issue["domain"] == DOMAIN and issue["issue_id"] == ISSUE_RESTART_REQUIRED
+        ]
+
+    assert await visible_issues(1) == []
     _install(root, INTEGRATION_VERSION, INTEGRATION_BUILD + 1)
-    count = len(reads)
-    async_fire_time_changed(hass, dt_util.utcnow() + CHECK_INTERVAL)
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=1))
     await hass.async_block_till_done(wait_background_tasks=True)
-    assert len(reads) > count
-    assert threading.main_thread() not in reads
 
-    assert _issue(hass) is not None
+    issues = await visible_issues(2)
+    assert len(issues) == 1
+    assert issues[0]["translation_placeholders"] == {
+        "loaded": f"{INTEGRATION_VERSION} (build {INTEGRATION_BUILD})",
+        "installed": f"{INTEGRATION_VERSION} (build {INTEGRATION_BUILD + 1})",
+    }
+
+    _install(root, INTEGRATION_VERSION, INTEGRATION_BUILD)
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=2))
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert await visible_issues(3) == []
 
 
 async def test_the_fix_restarts_home_assistant(
