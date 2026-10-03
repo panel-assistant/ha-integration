@@ -148,7 +148,13 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
         "codeowners": ["@maxlyth"],
         "after_dependencies": ["assist_pipeline"],
         "config_flow": True,
-        "dependencies": ["http", "panel_custom", "stream", "websocket_api"],
+        "dependencies": [
+            "http",
+            "media_source",
+            "panel_custom",
+            "stream",
+            "websocket_api",
+        ],
         "documentation": "https://github.com/panel-assistant/ha-integration",
         "domain": "panel_assistant",
         "integration_type": "device",
@@ -376,7 +382,7 @@ def test_english_only_translations_are_exactly_the_dormant_native_surface() -> N
     paths = _english_only_paths(english)
     shared = _without(english, paths)
 
-    assert len(paths) == 62
+    assert len(paths) == 63
     assert all(path[:1] in {("entity",), ("exceptions",)} for path in paths)
     shared_leaves = _translation_leaves(shared)
     additions = {

@@ -280,6 +280,25 @@
       ]
     },
     {
+      "channel": "media",
+      "family": null,
+      "platform": "media_player",
+      "translation_key": "media",
+      "unique_suffix": "media",
+      "value": "media",
+      "entity_category": null,
+      "enabled_default": true,
+      "device_class": null,
+      "unit": null,
+      "state_class": null,
+      "force_update": false,
+      "options": null,
+      "min": null,
+      "max": null,
+      "step": null,
+      "attributes": []
+    },
+    {
       "channel": "volume",
       "family": null,
       "platform": "number",

@@ -245,6 +245,7 @@ PLATFORMS: Final = frozenset(
         "event",
         "image",
         "light",
+        "media_player",
         "number",
         "select",
         "sensor",
@@ -781,6 +782,17 @@ def _validate_update(value: Any, _descriptor: Mapping[str, Any]) -> dict[str, An
     }
 
 
+MEDIA_STATES: Final = ("idle", "playing", "paused", "buffering")
+
+
+def _validate_media(value: Any, _descriptor: Mapping[str, Any]) -> dict[str, Any]:
+    media = _mapping(value)
+    state, muted = media.get("state"), media.get("muted")
+    if type(state) is not str or state not in MEDIA_STATES or type(muted) is not bool:
+        raise _reject()
+    return {"state": state, "muted": muted}
+
+
 def _not_reported(_value: Any, _descriptor: Mapping[str, Any]) -> Any:
     raise _reject()
 
@@ -792,6 +804,7 @@ _VALUE_VALIDATORS: Final[dict[str, Callable[[Any, Mapping[str, Any]], Any]]] = {
     "event": _not_reported,
     "image": _validate_image,
     "light": _validate_light,
+    "media_player": _validate_media,
     "number": _validate_number,
     "select": _validate_option,
     "sensor": _validate_sensor,

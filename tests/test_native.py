@@ -107,6 +107,7 @@ EXTRA_OBSERVATIONS = [
         "value": {"url": "http://panel.local:8888/api/v1/camera/snapshot?t=1"},
     },
     {"channel": "diag_boot", "state": "known", "value": "2026-09-14T08:00:00+00:00"},
+    {"channel": "media", "state": "known", "value": {"state": "idle", "muted": False}},
     {"channel": "relay1", "state": "known", "value": True},
 ]
 
@@ -333,6 +334,7 @@ async def test_every_type_renders_under_the_native_unique_id(
         "event",
         "image",
         "light",
+        "media_player",
         "number",
         "select",
         "sensor",
@@ -778,12 +780,12 @@ async def test_reload_unloads_every_native_platform_and_adds_each_entity_once(
     hass_read_only_access_token: str,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A reload tears down all twelve platforms and the next session re-adds."""
+    """A reload tears down all thirteen platforms and the next session re-adds."""
     client = await hass_ws_client(hass, hass_read_only_access_token)
     token = await _session(client)
     await _sync(hass, client, token)
     before = _registry_digest(hass, native.entry_id)
-    assert len(native.runtime_data.platforms) == 12
+    assert len(native.runtime_data.platforms) == 13
 
     with (
         patch(

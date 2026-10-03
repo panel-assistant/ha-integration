@@ -199,6 +199,11 @@
         "name": "Screen"
       }
     },
+    "media_player": {
+      "media": {
+        "name": "Media player"
+      }
+    },
     "number": {
       "volume": {
         "name": "Volume"
