@@ -571,12 +571,22 @@ async def test_without_its_own_copy_the_old_app_stays_aside_for_a_retry(
 async def test_a_retry_returns_home_that_an_earlier_attempt_claimed(
     hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
 ) -> None:
+    """Core stopped just after HOME was taken; the old app kept running."""
     panel = FakePanel()
-    panel.retire_fails = "refused"
     _attach(entry, panel)
-    with pytest.raises(MoveError):
+    step = panel.step
+
+    async def core_stops(*args: Any) -> MoveObservation:
+        observed = await step(*args)
+        if args[-1] is MoveStep.CLAIM_HOME:
+            raise asyncio.CancelledError
+        return observed
+
+    panel.step = core_stops  # type: ignore[method-assign]
+    with pytest.raises(asyncio.CancelledError):
         await _move(hass, entry, panel, tmp_path)
-    assert panel.legacy and panel.home == SUCCESSOR_PACKAGE_ID
+    assert panel.running == LEGACY_PACKAGE_ID and panel.home == SUCCESSOR_PACKAGE_ID
+    panel.step = step  # type: ignore[method-assign]
 
     async def refuse(_data: bytes) -> None:
         raise UpdateRejectedError
