@@ -89,3 +89,39 @@ async def test_removing_the_panel_takes_its_repair_with_it(
     assert await hass.config_entries.async_remove(entry.entry_id)
 
     assert _issue(hass, entry) is None
+
+
+async def test_an_unreachable_panel_is_not_accused_of_losing_its_route(
+    route, hass: HomeAssistant
+) -> None:
+    """A failed poll answers "no route" without ever reaching the panel.
+
+    Ordinary network loss and a panel restart both land here, so reconciling on
+    that answer would raise a repair saying authorization is unusable every time
+    the link blipped. Silence is not evidence.
+    """
+    entry = _entry(hass)
+    await route.entity._async_refresh_route()
+    assert route.entity._has_install_route()
+
+    route.entity.coordinator.last_update_success = False
+    route.entity._handle_coordinator_update()
+    await hass.async_block_till_done()
+
+    assert _issue(hass, entry) is None
+
+
+async def test_an_established_repair_outlives_an_offline_spell(
+    route, hass: HomeAssistant
+) -> None:
+    """The panel really has no route; going quiet must not retract that."""
+    entry = _entry(hass)
+    route.entity._async_install_route = AsyncMock(return_value=(None, None, None))
+    await route.entity._async_refresh_route()
+    assert _issue(hass, entry) is not None
+
+    route.entity.coordinator.last_update_success = False
+    route.entity._handle_coordinator_update()
+    await hass.async_block_till_done()
+
+    assert _issue(hass, entry) is not None

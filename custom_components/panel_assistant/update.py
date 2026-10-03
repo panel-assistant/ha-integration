@@ -432,6 +432,12 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         )
         self._route_task.add_done_callback(self._route_refresh_finished)
 
+    def _route_observed(self) -> bool:
+        """Whether the last answer came from the panel rather than from its absence."""
+        return (
+            self.coordinator.last_update_success and self.coordinator.data is not None
+        )
+
     def _async_reconcile_route_issue(
         self, *, has_route: bool, reason: str | None = None
     ) -> None:
@@ -492,7 +498,14 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 # Say it now, while the vendor change that caused it is still
                 # the owner's most recent memory, rather than at the next
                 # release when they would have to reconstruct what altered.
-                self._async_reconcile_route_issue(has_route=False, reason=reason)
+                # Only from a fresh observation. A failed poll makes
+                # _async_install_route() answer "no route" without ever reaching
+                # the panel, so reconciling here would accuse a panel of losing
+                # its authorization every time the network blipped or it
+                # restarted. Silence is not evidence; leave the last real answer
+                # standing until another one arrives.
+                if self._route_observed():
+                    self._async_reconcile_route_issue(has_route=False, reason=reason)
             else:
                 attributes.pop(ROUTE_UNAVAILABLE_ATTRIBUTE, None)
                 self._async_reconcile_route_issue(has_route=True)
