@@ -249,7 +249,6 @@ def test_the_catalogue_preserves_old_panel_channels_absent_from_current_android(
         "auto_sleep_activity",
         "button",
         "camera_snapshot",
-        "media",
         "self_update",
         "update_channel",
         "companion_auto_update",
