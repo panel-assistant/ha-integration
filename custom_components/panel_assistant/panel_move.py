@@ -795,6 +795,38 @@ async def _async_roll_back(
     )
 
 
+async def _async_revive_legacy(
+    entry: ConfigEntry,
+    target: AdbInstallTarget,
+    signer: Any,
+    record: dict[str, Any],
+    observed: MoveObservation,
+) -> MoveObservation:
+    """Before a fresh receipt, undo what an earlier attempt left half done.
+
+    An attempt that stopped after taking HOME, or after stopping the old app
+    to set it aside, leaves the old app installed but not answering. HOME goes
+    back to it and it is started, so the panel is as it was before the move.
+    """
+    try:
+        health = await entry.runtime_data.client.async_get_health()
+    except HaPaneldError:
+        health = None
+    if health is not None and reports_package(health.package, LEGACY_PACKAGE_ID):
+        return observed
+    if record.get("claimed_home") is True and observed.home != LEGACY_PACKAGE_ID:
+        observed = await _async_step(target, signer, MoveStep.RETURN_HOME)
+        if observed.home != LEGACY_PACKAGE_ID:
+            raise MoveError(REASON_MOVE_FAILED)
+    await _async_step(target, signer, MoveStep.START_LEGACY)
+    await _async_health(
+        entry,
+        lambda found: reports_package(found.package, LEGACY_PACKAGE_ID),
+        _HEALTH_WAIT_SECONDS,
+    )
+    return await _async_step(target, signer, MoveStep.OBSERVE)
+
+
 def _copy_restores(observed: MoveObservation, record: dict[str, Any]) -> bool:
     """The old app is set aside beside the copy this move kept of it."""
     return (
@@ -1041,6 +1073,10 @@ async def _async_move(hass: HomeAssistant, entry: ConfigEntry) -> None:
         await _async_mark_roll_back(hass, entry, record, under_way=False)
         raise MoveError(REASON_MOVE_FAILED)
     if observed.legacy_installed:
+        if record is not None:
+            observed = await _async_revive_legacy(
+                entry, target, signer, record, observed
+            )
         if not (ours and observed.successor_installed):
             artifact = _successor_artifact(hass, entry)
             if artifact is None:
