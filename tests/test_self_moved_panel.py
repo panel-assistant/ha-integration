@@ -38,6 +38,7 @@ from custom_components.panel_assistant.install_adb import (
     AdbRootMode,
     InstallAdbError,
     InstallAdbErrorCode,
+    MoveObservation,
     _classify_target_packages,
 )
 from custom_components.panel_assistant.panel_move import (
@@ -135,6 +136,14 @@ class Network:
     async def measure(self, *_args: Any, **_kwargs: Any) -> int | None:
         return self.installed_size
 
+    async def observe(self, *_args: Any) -> MoveObservation:
+        # Once adopted, the panel is checked for an old app left beside it.
+        return MoveObservation(
+            LEGACY_PACKAGE_ID in self.installed,
+            SUCCESSOR_PACKAGE_ID in self.installed,
+            SUCCESSOR_PACKAGE_ID,
+        )
+
 
 @pytest.fixture
 async def network(hass: HomeAssistant) -> AsyncGenerator[Network]:
@@ -163,6 +172,7 @@ async def network(hass: HomeAssistant) -> AsyncGenerator[Network]:
         patch.object(panel_move, "_async_target", panel.target),
         patch.object(panel_move, "async_preflight_install", panel.preflight),
         patch.object(panel_move, "async_installed_artifact_size", panel.measure),
+        patch.object(panel_move, "async_move_step", panel.observe),
     ):
         yield panel
 

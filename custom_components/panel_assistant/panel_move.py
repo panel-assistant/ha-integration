@@ -172,6 +172,11 @@ def async_evaluate_successor_move(hass: HomeAssistant, entry: ConfigEntry) -> No
         return
     if not _needs_move(entry, health):
         ir.async_delete_issue(hass, DOMAIN, move_issue_id(entry.entry_id))
+        if health is not None:
+            # An old app left beside the new one goes, until v1.0.
+            from .old_app import async_evaluate_old_app
+
+            async_evaluate_old_app(hass, entry, health)
         return
     async_offer_move(hass, entry)
 

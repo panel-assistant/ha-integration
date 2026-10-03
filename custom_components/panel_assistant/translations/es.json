@@ -218,6 +218,18 @@
         }
       }
     },
+    "remove_old_app_adb": {
+      "title": "La aplicación antigua sigue en {panel}",
+      "description": "{panel} usa la nueva aplicación Panel Assistant, pero la antigua aplicación ha-paneld sigue instalada junto a ella. Panel Assistant la elimina automáticamente mediante ADB, pero ahora no puede conectarse al Android Debug Bridge del panel. Comprueba que la depuración por red esté activada y que el panel haya permitido conectarse a Home Assistant. Panel Assistant lo volverá a intentar por sí mismo."
+    },
+    "remove_old_app_unproven": {
+      "title": "La aplicación antigua sigue en {panel}",
+      "description": "{panel} tiene la antigua aplicación ha-paneld instalada junto a la nueva aplicación Panel Assistant. Panel Assistant solo elimina la aplicación antigua cuando se demuestra que la nueva gestiona el panel: debe responder como este panel y ser su pantalla de inicio. No se pudo demostrar, así que ambas aplicaciones se dejaron como estaban. Panel Assistant lo volverá a comprobar por sí mismo."
+    },
+    "remove_old_app_failed": {
+      "title": "La aplicación antigua sigue en {panel}",
+      "description": "{panel} usa la nueva aplicación Panel Assistant, pero la antigua aplicación ha-paneld sigue instalada junto a ella. Panel Assistant intentó hacer una copia de seguridad del panel y eliminar la aplicación antigua, y no terminó. No se cambió nada más en el panel. Panel Assistant lo volverá a intentar por sí mismo."
+    },
     "panel_permissions": {
       "title": "Los permisos de {panel} requieren atención.",
       "fix_flow": {

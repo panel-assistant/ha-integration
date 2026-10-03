@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 import voluptuous as vol
 
-from custom_components.panel_assistant import release, transport
+from custom_components.panel_assistant import old_app, release, transport
 from custom_components.panel_assistant.contract import CONTRACT, catalogue_entry
 from custom_components.panel_assistant.native import NOT_RENDERED
 
@@ -560,6 +560,8 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
     # account, so that call passes a variable and the scan above sees no literal.
     # The tuple it chooses from is the whole set, and each one still needs words.
     issues = keys["issues"] | set(transport.BINDING_ISSUES)
+    # Which old-app Repair is raised depends on why its removal stopped.
+    issues |= set(old_app.OLD_APP_ISSUES)
     assert "panel_user_mismatch" in issues
     assert "panel_awaiting_confirmation" in issues
     for key in keys["exceptions"]:

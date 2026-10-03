@@ -218,6 +218,18 @@
         }
       }
     },
+    "remove_old_app_adb": {
+      "title": "旧应用仍在 {panel} 上",
+      "description": "{panel} 正在运行新的 Panel Assistant 应用，但旧的 ha-paneld 应用仍安装在旁边。Panel Assistant 会通过 ADB 自动将其移除，但目前无法连接到面板的 Android Debug Bridge。请确认已开启网络调试，并且面板已允许 Home Assistant 连接。Panel Assistant 会自行重试。"
+    },
+    "remove_old_app_unproven": {
+      "title": "旧应用仍在 {panel} 上",
+      "description": "{panel} 上的新 Panel Assistant 应用旁边安装着旧的 ha-paneld 应用。只有在证明新应用正在运行面板后，Panel Assistant 才会移除旧应用：新应用必须以此面板的身份应答，并且是它的主屏幕。此项无法证明，因此两个应用均保持原样。Panel Assistant 会自行再次检查。"
+    },
+    "remove_old_app_failed": {
+      "title": "旧应用仍在 {panel} 上",
+      "description": "{panel} 正在运行新的 Panel Assistant 应用，但旧的 ha-paneld 应用仍安装在旁边。Panel Assistant 尝试备份面板并移除旧应用，但未能完成。面板上的其他内容均未更改。Panel Assistant 会自行重试。"
+    },
     "panel_permissions": {
       "title": "{panel} 的权限需要处理。",
       "fix_flow": {

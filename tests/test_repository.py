@@ -392,7 +392,7 @@ def test_english_only_translations_are_exactly_the_dormant_native_surface() -> N
         or path == ("options", "step", "init", "menu_options", "updates")
     }
     assert additions == PA_UPDATE_TRANSLATION_ADDITIONS
-    assert len(shared_leaves) == 566 + len(PA_UPDATE_TRANSLATION_ADDITIONS)
+    assert len(shared_leaves) == 572 + len(PA_UPDATE_TRANSLATION_ADDITIONS)
     for locale_path in sorted((INTEGRATION / "translations").glob("*.json")):
         if locale_path.name == "en.json":
             continue
@@ -423,7 +423,7 @@ def test_shipped_translation_catalogues_preserve_machine_contracts() -> None:
         "uk.json",
         "zh-Hans.json",
     ]
-    assert len(english) == 566 + len(PA_UPDATE_TRANSLATION_ADDITIONS)
+    assert len(english) == 572 + len(PA_UPDATE_TRANSLATION_ADDITIONS)
 
     for locale_path in locale_paths:
         target_catalogue = _without(

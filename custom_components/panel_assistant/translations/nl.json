@@ -256,6 +256,18 @@
         }
       }
     },
+    "remove_old_app_adb": {
+      "title": "De oude app staat nog op {panel}",
+      "description": "{panel} draait de nieuwe Panel Assistant-app, maar de oude ha-paneld-app is er nog naast geïnstalleerd. Panel Assistant verwijdert die automatisch via ADB, maar kan nu geen verbinding maken met de Android Debug Bridge van het paneel. Controleer of netwerkfoutopsporing aan staat en of het paneel Home Assistant toestemming heeft gegeven om te verbinden. Panel Assistant probeert het zelf opnieuw."
+    },
+    "remove_old_app_unproven": {
+      "title": "De oude app staat nog op {panel}",
+      "description": "Op {panel} staat de oude ha-paneld-app naast de nieuwe Panel Assistant-app. Panel Assistant verwijdert de oude app pas als bewezen is dat de nieuwe app het paneel draait: die moet antwoorden als dit paneel en het startscherm zijn. Dat kon niet worden bewezen, dus beide apps zijn gelaten zoals ze waren. Panel Assistant controleert het zelf opnieuw."
+    },
+    "remove_old_app_failed": {
+      "title": "De oude app staat nog op {panel}",
+      "description": "{panel} draait de nieuwe Panel Assistant-app, maar de oude ha-paneld-app is er nog naast geïnstalleerd. Panel Assistant probeerde een back-up van het paneel te maken en de oude app te verwijderen, maar dat is niet gelukt. Verder is er niets aan het paneel veranderd. Panel Assistant probeert het zelf opnieuw."
+    },
     "panel_permissions": {
       "title": "De machtigingen op {panel} vragen aandacht.",
       "fix_flow": {
