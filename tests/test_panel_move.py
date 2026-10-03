@@ -71,6 +71,7 @@ NEW_DID = "b" * 64
 OTHER_DID = "c" * 64
 LEGACY_CFG = "5c80b060"
 SERIAL = "PANEL1"
+LEGACY_APK = "d" * 64
 
 
 def _archive(**manifest: Any) -> bytes:
@@ -111,6 +112,8 @@ class FakePanel:
         #: Set aside: not installed, with its data kept.
         self.legacy_aside = False
         self.legacy_copy: str | None = None
+        #: How keeping a copy of the old app fails, if it does.
+        self.keep_fails: str | None = None
         self.successor = False
         self.successor_state = False
         self.home = home
@@ -143,6 +146,7 @@ class FakePanel:
             self.successor_records if self.successor else None,
             self.legacy_aside,
             self.legacy_copy,
+            LEGACY_APK if self.legacy and self.legacy_copy is not None else None,
         )
 
     def _restored(self) -> bool:
@@ -165,7 +169,11 @@ class FakePanel:
             self.home = SUCCESSOR_PACKAGE_ID
         elif step is MoveStep.KEEP_LEGACY:
             assert self.legacy
-            self.legacy_copy = "d" * 64
+            if self.keep_fails == "partial":
+                # Storage ran out part way: a truncated file.
+                self.legacy_copy = "e" * 64
+            elif self.keep_fails != "stale":
+                self.legacy_copy = LEGACY_APK
         elif step is MoveStep.SET_ASIDE_LEGACY:
             assert self.home != LEGACY_PACKAGE_ID, "launcher stranded"
             if self.retire_fails == "ambiguous":
@@ -644,6 +652,26 @@ async def test_a_restored_panel_is_not_restored_again_on_retry(
     assert adopted == [NEW_DID]
 
 
+@pytest.mark.parametrize("failure", ["partial", "stale"])
+async def test_a_copy_that_is_not_the_old_app_stops_before_it_goes(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path, failure: str
+) -> None:
+    """Without a whole copy to bring it back, the old app is never set aside."""
+    panel = FakePanel()
+    if failure == "stale":
+        # An earlier attempt's copy, and this attempt cannot write a new one.
+        panel.legacy_copy = "f" * 64
+    panel.keep_fails = failure
+    _attach(entry, panel)
+
+    with pytest.raises(MoveError, match="move_failed"):
+        await _move(hass, entry, panel, tmp_path)
+
+    assert panel.steps[-1] == "KEEP_LEGACY"
+    assert panel.legacy and not panel.legacy_aside
+    assert panel.home == LEGACY_PACKAGE_ID and panel.running == LEGACY_PACKAGE_ID
+
+
 async def test_the_record_is_forgotten_only_after_the_restore_finished(
     hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
 ) -> None:
@@ -987,6 +1015,7 @@ def test_move_observation_tells_a_set_aside_old_app_from_a_removed_one() -> None
     tail = f"home:{SUCCESSOR_PACKAGE_ID}/x.Home\nHAPANELD_MOVE_END:{nonce}:0\n"
     listed = f"listed:{LEGACY_PACKAGE_ID}\n"
     copy = f"copy:{'d' * 64}\n"
+    apk = f"apk:{'d' * 64}\n"
 
     aside = _parse_move((head + listed + copy + tail).encode(), nonce)
     assert not aside.legacy_installed and aside.legacy_set_aside
@@ -997,6 +1026,10 @@ def test_move_observation_tells_a_set_aside_old_app_from_a_removed_one() -> None
     installed = f"installed:{LEGACY_PACKAGE_ID}\n"
     both = _parse_move((head + installed + listed + tail).encode(), nonce)
     assert both.legacy_installed and not both.legacy_set_aside
+    # The installed APK's digest is read only while the old app is installed.
+    kept = _parse_move((head + installed + listed + copy + apk + tail).encode(), nonce)
+    assert kept.legacy_copy == kept.legacy_apk == "d" * 64
+    assert _parse_move((head + copy + apk + tail).encode(), nonce).legacy_apk is None
     with pytest.raises(Exception):  # noqa: B017 - any parse refusal
         _parse_move((head + "copy:not-a-digest\n" + tail).encode(), nonce)
 

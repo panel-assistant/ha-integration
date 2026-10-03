@@ -716,7 +716,13 @@ async def _async_set_aside_legacy(
             raise MoveError(REASON_MOVE_FAILED)
     await _async_verify_successor(target, signer, record)
     kept = await _async_step(target, signer, MoveStep.KEEP_LEGACY)
-    if kept.legacy_copy is None or not kept.legacy_installed:
+    if (
+        kept.legacy_copy is None
+        or kept.legacy_copy != kept.legacy_apk
+        or not kept.legacy_installed
+    ):
+        # A copy that is not byte for byte the installed app cannot bring it
+        # back, so the old app is not touched.
         raise MoveError(REASON_MOVE_FAILED)
     # Nothing single answering HOME is claimed too: setting the old app aside
     # could otherwise leave the chooser or nothing.

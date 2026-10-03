@@ -2339,6 +2339,9 @@ class MoveObservation:
     #: SHA-256 of the copy of the old app's APK kept on the panel, which
     #: reinstalls it onto its kept data, or None when there is no copy.
     legacy_copy: str | None = None
+    #: SHA-256 of the old app's installed APK, read beside a kept copy: only
+    #: a copy with this digest is a whole copy of the app it will reinstall.
+    legacy_apk: str | None = None
 
 
 _HOME_QUERY = (
@@ -2360,9 +2363,14 @@ _MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
     ),
     # The old app's APK is kept beside its data until the new app is proven,
     # because setting the old app aside deletes the APK Android installed.
+    # An earlier copy is never reused, and a copy that did not finish never
+    # takes the copy's name; the observation then compares it with the APK.
     MoveStep.KEEP_LEGACY: (
-        f"{{ p=$(pm path {LEGACY_PACKAGE_ID}); p=${{p#package:}}; "
-        f'[ -n "$p" ] && cp "$p" {_LEGACY_COPY} && chmod 644 {_LEGACY_COPY}; }}',
+        f"{{ rm -f {_LEGACY_COPY} {_LEGACY_COPY}.part; "
+        f"p=$(pm path {LEGACY_PACKAGE_ID}); p=${{p#package:}}; "
+        f'[ -n "$p" ] && cp "$p" {_LEGACY_COPY}.part '
+        f"&& chmod 644 {_LEGACY_COPY}.part "
+        f"&& mv {_LEGACY_COPY}.part {_LEGACY_COPY}; rm -f {_LEGACY_COPY}.part; }}",
     ),
     MoveStep.SET_ASIDE_LEGACY: (
         f"am force-stop {LEGACY_PACKAGE_ID}",
@@ -2431,6 +2439,8 @@ def _move_command(nonce: str, step: MoveStep) -> str:
             f"*package:{LEGACY_PACKAGE_ID}*) echo listed:{LEGACY_PACKAGE_ID} ;; esac",
             f"[ -f {_LEGACY_COPY} ] && set -- $(sha256sum {_LEGACY_COPY} 2>/dev/null)"
             ' && echo "copy:$1"',
+            f"[ -f {_LEGACY_COPY} ] && p=$(pm path {LEGACY_PACKAGE_ID} 2>/dev/null) "
+            '&& set -- $(sha256sum "${p#package:}" 2>/dev/null) && echo "apk:$1"',
             f'case "$(dumpsys package {SUCCESSOR_PACKAGE_ID} 2>/dev/null)" in '
             f"*notLaunched=true*) echo unlaunched:{SUCCESSOR_PACKAGE_ID} ;; esac",
             _SUCCESSOR_RECORDS_COMMAND,
@@ -2455,6 +2465,7 @@ def _parse_move(body: bytes, nonce: str) -> MoveObservation:
     records = [line for line in lines if line.startswith("record:")]
     listed = [line for line in lines if line == f"listed:{LEGACY_PACKAGE_ID}"]
     copies = [line.removeprefix("copy:") for line in lines if line.startswith("copy:")]
+    apks = [line.removeprefix("apk:") for line in lines if line.startswith("apk:")]
     if (
         status_code != 0
         or len(homes) != 1
@@ -2464,7 +2475,8 @@ def _parse_move(body: bytes, nonce: str) -> MoveObservation:
         or (records and not read)
         or len(listed) > 1
         or len(copies) > 1
-        or any(not _SHA256_PATTERN.match(copy) for copy in copies)
+        or len(apks) > 1
+        or any(not _SHA256_PATTERN.match(digest) for digest in (*copies, *apks))
         or len(homes)
         + len(installed)
         + len(unlaunched)
@@ -2472,6 +2484,7 @@ def _parse_move(body: bytes, nonce: str) -> MoveObservation:
         + len(records)
         + len(listed)
         + len(copies)
+        + len(apks)
         != len(lines)
     ):
         raise _MalformedAdbResponse
@@ -2490,6 +2503,7 @@ def _parse_move(body: bytes, nonce: str) -> MoveObservation:
         ),
         legacy_set_aside=bool(listed) and LEGACY_PACKAGE_ID not in installed,
         legacy_copy=copies[0] if copies else None,
+        legacy_apk=apks[0] if apks and LEGACY_PACKAGE_ID in installed else None,
     )
 
 
