@@ -1,6 +1,5 @@
 """A panel that cannot be updated says so, and the link it offers leaks nothing."""
 
-import json
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -125,19 +124,28 @@ async def test_issue_is_withdrawn_once_a_route_returns(hass: HomeAssistant) -> N
     )
 
 
-def test_the_issue_has_translated_strings() -> None:
-    with open(
-        "custom_components/panel_assistant/strings.json", encoding="utf-8"
-    ) as handle:
-        strings = json.load(handle)
-    with open(
-        "custom_components/panel_assistant/translations/en.json", encoding="utf-8"
-    ) as handle:
-        english = json.load(handle)
-    assert ISSUE_NO_UPDATE_ROUTE in strings["issues"]
-    assert (
-        strings["issues"][ISSUE_NO_UPDATE_ROUTE]
-        == english["issues"][ISSUE_NO_UPDATE_ROUTE]
+@pytest.mark.parametrize(
+    "language", ["en", "de", "es", "fr", "it", "nl", "pl", "uk", "zh-Hans"]
+)
+async def test_the_issue_renders_panel_and_reason(hass, language):
+    from homeassistant.helpers.translation import async_get_translations
+    from homeassistant.setup import async_setup_component
+
+    assert await async_setup_component(hass, DOMAIN, {})
+    entry = MockConfigEntry(domain=DOMAIN, data={}, title="Study display")
+    entry.add_to_hass(hass)
+    async_reconcile_update_route_issue(
+        hass, entry, has_route=False, status=_status(), reason="no usable route"
     )
-    for placeholder in ("{panel}", "{reason}"):
-        assert placeholder in strings["issues"][ISSUE_NO_UPDATE_ROUTE]["description"]
+    issue = ir.async_get(hass).async_get_issue(
+        DOMAIN, no_update_route_issue_id(entry.entry_id)
+    )
+    strings = await async_get_translations(hass, language, "issues", {DOMAIN})
+    prefix = f"component.{DOMAIN}.issues.{issue.translation_key}"
+    title = strings[f"{prefix}.title"].format(**issue.translation_placeholders)
+    description = strings[f"{prefix}.description"].format(
+        **issue.translation_placeholders
+    )
+    assert "Study display" in title
+    assert "Study display" in description
+    assert "no usable route" in description
