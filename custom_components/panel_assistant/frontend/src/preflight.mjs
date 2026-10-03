@@ -1,11 +1,9 @@
 /** Fixed read-only inventory. A clean result is not permission to install. */
 export const MAX_PREFLIGHT_BYTES = 32 * 1024;
-import { ACCEPTED_PACKAGE_IDS, LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID,
-  counterpartOf } from './app-identity.mjs';
+import { ACCEPTED_PACKAGE_IDS } from './app-identity.mjs';
 
 const BASES = ['/data/user/0', '/data/data', '/data/user_de/0'];
-// Residue is probed per accepted application id: only the data of the package
-// being installed makes a target unclean.
+// Either accepted application's data makes a target unclean.
 export const RESIDUE_PROBES = Object.freeze(ACCEPTED_PACKAGE_IDS.flatMap(
   packageId => BASES.map(base => Object.freeze({ packageId, path: `${base}/${packageId}` }))));
 const PROPERTIES = [
@@ -31,26 +29,11 @@ function checkNonce(nonce) {
   if (!fullMatch(/^[0-9a-f]{32}$/, nonce)) fail('invalid_request');
 }
 
-/**
- * Decide whether this panel may receive this package, and how.
- *
- * A panel already holding the package being installed is refused exactly as
- * before. The one admitted exception is the identity migration: a panel running
- * the legacy package and not the successor may receive the successor beside it,
- * because the panel performs the handover itself. Its legacy data is what that
- * handover migrates, so it is not residue; legacy residue with no legacy
- * package to migrate from still is.
- */
+/** Existing panels and identity migrations must be orchestrated by PA. */
 export function classifyTarget(targetPackageId, installed, residue) {
-  if (installed.includes(targetPackageId) || residue.has(targetPackageId)) fail('target_not_clean');
-  const counterpart = counterpartOf(targetPackageId);
-  const migrationCandidate = targetPackageId === SUCCESSOR_PACKAGE_ID &&
-    installed.includes(counterpart);
-  // Anything else present is refused. Once a migration is admitted, the only
-  // package left that can be installed or have left data behind is that
-  // counterpart, so this one check covers both.
-  if (!migrationCandidate && (installed.length || residue.size)) fail('target_not_clean');
-  return migrationCandidate;
+  if (!ACCEPTED_PACKAGE_IDS.includes(targetPackageId)) fail('invalid_request');
+  if (installed.length || residue.size) fail('target_not_clean');
+  return false;
 }
 
 /** No peer-controlled values, paths or commands enter this shell program. */
@@ -147,8 +130,7 @@ export function parsePreflight(body, nonce, descriptor) {
 
   // Existing or retained package wins before root evaluation or any later su proof.
   if (s.LIVE.status !== 0 || !s.LIVE.values.length || !s.LIVE.values.every(isPackagePath)) fail();
-  // Each accepted id is read on its own: that is what tells a clean panel from
-  // one still running the legacy package, which the successor migrates.
+  // Either accepted id means this is an existing panel, managed through PA.
   const installed = [];
   ACCEPTED_PACKAGE_IDS.forEach((packageId, i) => {
     const path = s[`PACKAGE${i}`], retained = s[`RETAINED${i}`];
@@ -162,7 +144,7 @@ export function parsePreflight(body, nonce, descriptor) {
   const readable = BASES.map((_, i) => one(s[`BASE${i}`], ['readable', 'unreadable']));
   const residue = new Set(RESIDUE_PROBES.flatMap(({ packageId }, i) =>
     one(s[`RESIDUE${i}`], ['absent', 'present']) === 'present' ? [packageId] : []));
-  const migrationCandidate = classifyTarget(descriptor.packageId, installed, residue);
+  classifyTarget(descriptor.packageId, installed, residue);
   const uid = one(s.UID), secure = one(s.SECURE, ['0', '1']);
   const debuggable = one(s.DEBUGGABLE, ['0', '1']), su = one(s.SU, ['absent', 'present']);
   let rootMode;
@@ -172,6 +154,6 @@ export function parsePreflight(body, nonce, descriptor) {
   else fail('root_state_ambiguous');
   if (rootMode === 'root_adbd' && readable.includes('unreadable')) fail('root_state_ambiguous');
   if (androidSdk < descriptor.minSdk || !descriptor.supportedAbis.includes(primaryAbi)) fail('target_incompatible');
-  return Object.freeze({ model, serial, primaryAbi, androidSdk, rootMode, migrationCandidate,
+  return Object.freeze({ model, serial, primaryAbi, androidSdk, rootMode,
     installationAdmission: rootMode === 'root_su' ? 'delegated_root_proof_required' : 'clean_preflight' });
 }

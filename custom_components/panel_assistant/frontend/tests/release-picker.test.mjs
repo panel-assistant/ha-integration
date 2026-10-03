@@ -34,14 +34,15 @@ function fixture(fetchWithAuth) {
   panel.connectedCallback();
   return { panel, hass, element: id => panel.shadowRoot.querySelector(`#${id}`) };
 }
-test('stable defaults, labels use text, RC requires selection and handoff receives exact RC', async () => {
+test('PA channel default stays implicit while explicit first RC and stable selections keep exact tags', async () => {
   const f = fixture(async () => response([rc, stable]));
   assert.equal(f.element('start').disabled, true);
   assert.equal(f.element('catalog-status').textContent, HA_INSTALL_MESSAGES.loading);
   await tick();
-  assert.equal(f.element('release').value, stable.tag);
+  assert.equal(f.element('release').value, '');
   assert.equal(f.element('start').disabled, false);
-  assert.deepEqual(f.element('release').children.map(option => option.textContent), ['Choose a version', '1.2.4-rc1 (test version)', '1.2.3 (recommended)']);
+  assert.equal(f.element('release').children[0].disabled, false);
+  assert.deepEqual(f.element('release').children.map(option => option.textContent), [HA_INSTALL_MESSAGES.choose, '1.2.4-rc1 (test version)', '1.2.3']);
   let opened;
   globalThis.window = { crypto: webcrypto, location: { origin: 'http://ha.example' }, addEventListener() {}, removeEventListener() {}, open(url) { opened = new URL(url); return { closed: false }; } };
   f.element('start').listeners.click();
@@ -52,15 +53,21 @@ test('stable defaults, labels use text, RC requires selection and handoff receiv
   f.element('release').listeners.change();
   f.element('start').listeners.click();
   assert.equal(new URLSearchParams(opened.hash.slice(1)).get('rc'), rc.tag);
+  f.element('cancel').listeners.click();
+  await tick();
+  f.element('release').value = stable.tag;
+  f.element('release').listeners.change();
+  f.element('start').listeners.click();
+  assert.equal(new URLSearchParams(opened.hash.slice(1)).get('rc'), stable.tag);
   assert.equal(f.element('release').disabled, true);
   f.panel.disconnectedCallback();
   await tick();
 });
-test('RC-only catalogue never auto-selects and forged choices cannot start', async () => {
+test('RC-only catalogue keeps the PA channel default and permits an explicit first RC only', async () => {
   const f = fixture(async () => response([rc]));
   await tick();
   assert.equal(f.element('release').value, '');
-  assert.equal(f.element('start').disabled, true);
+  assert.equal(f.element('start').disabled, false);
   f.element('release').value = 'v9.9.9-rc1';
   f.element('release').listeners.change();
   assert.equal(f.element('start').disabled, true);
@@ -111,14 +118,14 @@ test('installer destination changes invalidate selection and non-admin users nev
   assert.equal(calls, 2);
   assert.equal(f.element('start').disabled, true);
 });
-test('dev builds are labelled by name, stable stays the default, and a chosen build is passed like an RC', async () => {
+test('dev builds are labelled by name, PA channel defaults, and an explicit build keeps its exact tag', async () => {
   const feed = { tag: 'build-772', prerelease: true, name: '0.9.7-rc4 build 772' };
   const f = fixture(async () => response([stable, rc, feed]));
   await tick();
   assert.deepEqual(f.element('release').children.map(option => option.textContent),
-    ['Choose a version', '1.2.3 (recommended)', '1.2.4-rc1 (test version)', '0.9.7-rc4 build 772 (dev build)']);
+    [HA_INSTALL_MESSAGES.choose, '1.2.3', '1.2.4-rc1 (test version)', '0.9.7-rc4 build 772 (dev build)']);
   assert.deepEqual(f.element('release').children.map(option => option.value), ['', stable.tag, rc.tag, feed.tag]);
-  assert.equal(f.element('release').value, stable.tag);
+  assert.equal(f.element('release').value, '');
   let opened;
   globalThis.window = { crypto: webcrypto, location: { origin: 'http://ha.example' }, addEventListener() {}, removeEventListener() {}, open(url) { opened = new URL(url); return { closed: false }; } };
   f.element('release').value = feed.tag;
@@ -128,11 +135,67 @@ test('dev builds are labelled by name, stable stays the default, and a chosen bu
   f.panel.disconnectedCallback();
   await tick();
 });
-test('a catalogue of only dev builds never auto-selects', async () => {
+test('compatible feed-only catalogue retains PA channel default and exact build choice', async () => {
   const f = fixture(async () => response([{ tag: 'build-772', prerelease: true, name: '0.9.7-rc4 build 772' }]));
   await tick();
   assert.deepEqual(f.element('release').children.map(option => option.textContent),
-    ['Choose a version', '0.9.7-rc4 build 772 (dev build)']);
+    [HA_INSTALL_MESSAGES.choose, '0.9.7-rc4 build 772 (dev build)']);
   assert.equal(f.element('release').value, '');
-  assert.equal(f.element('start').disabled, true);
+  assert.equal(f.element('start').disabled, false);
+});
+
+test('picker default never invents prerelease consent when running PA policy changes', async () => {
+  const requests = [];
+  const posts = [];
+  const listeners = new Set();
+  let testing = true;
+  let opened;
+  const child = { closed: false, postMessage: (message) => posts.push(message) };
+  globalThis.window = {
+    crypto: webcrypto, location: { origin: 'http://ha.example' },
+    addEventListener: (_, listener) => listeners.add(listener),
+    removeEventListener: (_, listener) => listeners.delete(listener),
+    open(url) { opened = new URL(url); return child; },
+  };
+  const f = fixture(async (url, options) => {
+    if (url.endsWith('/releases')) return response([rc, stable]);
+    if (url.endsWith('/apk')) return new Response('apk');
+    const selection = JSON.parse(options.body);
+    requests.push(selection);
+    // PA allows an explicit test-panel choice, but its implicit default follows
+    // the version actually running when this admission request arrives.
+    const tag = selection.release_candidate ?? (testing ? rc.tag : stable.tag);
+    return new Response(JSON.stringify({
+      id: 'a'.repeat(32), tag, checksum: btoa('checksum'),
+      checksum_signature: btoa('s'.repeat(256)), descriptor: btoa('{}'),
+      descriptor_signature: btoa('d'.repeat(256)), apk_size: 3,
+      apk_sha256: 'b'.repeat(64),
+    }), { headers: { 'Content-Type': 'application/json' } });
+  });
+  await tick();
+  f.element('start').listeners.click();
+  const nonce = new URLSearchParams(opened.hash.slice(1)).get('nonce');
+  const send = (type, extra = {}) => {
+    for (const listener of listeners) listener({
+      source: child, origin: 'https://installer.example',
+      data: { type: `ha-paneld/usb-${type}`, nonce, ...extra },
+    });
+  };
+  try {
+    send('ready');
+    await tick(); await tick();
+    assert.equal(posts[0].type, 'ha-paneld/usb-bundle');
+    assert.equal(posts[0].bundle.tag, rc.tag);
+    send('verified');
+    await tick();
+    testing = false;
+    send('admission', { requestId: 'c'.repeat(32), tag: rc.tag, apkSha256: 'b'.repeat(64) });
+    await tick(); await tick();
+    assert.deepEqual(requests, [{}, {}]);
+    assert.equal(posts.at(-1).type, 'ha-paneld/usb-admission-result');
+    assert.equal(posts.at(-1).admitted, false);
+  } finally {
+    f.panel.disconnectedCallback();
+    await tick();
+  }
 });

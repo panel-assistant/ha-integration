@@ -480,18 +480,18 @@ async def test_session_address_is_adopted_after_identity_verification(
     assert entry.state is ConfigEntryState.LOADED
 
 
-async def test_the_device_card_links_to_the_adopted_address(
+async def test_the_device_card_links_to_its_sidebar_before_and_after_an_address_move(
     hass: HomeAssistant,
     entry: MockConfigEntry,
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
 ) -> None:
-    """The card's configuration link follows a moved panel without a reload."""
+    """The registry link selects the same panel regardless of its LAN address."""
     card = dr.async_get(hass).async_get_device_by_identifier(
         (DOMAIN, entry.entry_id), entry.entry_id
     )
     assert card is not None
-    assert card.configuration_url == str(normalize_address(STORED).base_url)
+    assert card.configuration_url == f"homeassistant://panel-assistant/{entry.entry_id}"
 
     await _connect(hass, hass_ws_client, hass_read_only_access_token, entry)
     await _poll(hass, entry, {STORED: CannotConnectError(), MOVED: HEALTH})
@@ -500,7 +500,7 @@ async def test_the_device_card_links_to_the_adopted_address(
         (DOMAIN, entry.entry_id), entry.entry_id
     )
     assert card is not None
-    assert card.configuration_url == str(normalize_address(MOVED).base_url)
+    assert card.configuration_url == f"homeassistant://panel-assistant/{entry.entry_id}"
     assert entry.state is ConfigEntryState.LOADED
 
 

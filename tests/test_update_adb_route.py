@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from zipfile import ZipFile
 
 import pytest
+from adb_shell.exceptions import DeviceAuthError
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -19,7 +20,7 @@ from homeassistant.helpers import storage
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from yarl import URL
 
-from custom_components.panel_assistant import adb_credentials
+from custom_components.panel_assistant import adb_credentials, provisioning
 from custom_components.panel_assistant import update as panel_update
 from custom_components.panel_assistant.adb_credentials import (
     AdbCredentialError,
@@ -116,11 +117,13 @@ def route(
         min_sdk=26,
         package_id=LEGACY_PACKAGE_ID,
         published="2026-09-11T10:00:00Z",
+        protocol_min=3,
+        protocol_max=3,
     )
     feed = BuildFeedCoordinator(hass, URL("https://feed.example/maintainer.json"))
     feed.data = BuildFeed(channel="maintainer", builds=(build,))
     feed.last_update_success = True
-    feed._verified_newest[LEGACY_PACKAGE_ID] = (build, apk)
+    feed._verified_apks[build.apk_sha256] = apk
     entity = HaPaneldUpdateEntity("entry-id", coordinator, updates, feed)
     entity.hass = hass
     entity.async_write_ha_state = MagicMock()
@@ -297,9 +300,14 @@ async def test_existing_keyless_shelly_offers_and_installs_from_ha(
     route.client.async_stage_apk.assert_not_awaited()
 
 
-async def test_existing_protected_panel_without_key_offers_nothing(
-    route: SimpleNamespace, monkeypatch: pytest.MonkeyPatch, hass: HomeAssistant
+@pytest.mark.parametrize("stored_key", [False, True])
+async def test_existing_protected_panel_requires_explicit_authorization(
+    route: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
+    hass: HomeAssistant,
+    stored_key: bool,
 ) -> None:
+    """Background refresh and install admission never prompt a protected panel."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         entry_id="entry-id",
@@ -307,9 +315,26 @@ async def test_existing_protected_panel_without_key_offers_nothing(
         data={CONF_ADDRESS: "192.168.1.10"},
     )
     entry.add_to_hass(hass)
-    route.get_credential.side_effect = AdbCredentialMissingError()
-    route.probe_target.return_value = InstallTargetProbe(
-        state=InstallTargetState.ADB_UNAUTHORIZED
+    if not stored_key:
+        route.get_credential.side_effect = AdbCredentialMissingError()
+    prompts: list[object] = []
+
+    async def reject_untrusted_key(**kwargs: object) -> bool:
+        if not kwargs["rsa_keys"]:
+            raise DeviceAuthError("No key available")
+        # A protected peer rejected the signature, including a global HA key
+        # trusted by another panel. adb-shell calls this before offering a key.
+        if callback := kwargs.get("auth_callback"):
+            callback(device)
+        prompts.append(kwargs["rsa_keys"])
+        raise DeviceAuthError("Waiting for physical approval")
+
+    device = SimpleNamespace(connect=reject_untrusted_key, close=AsyncMock())
+    monkeypatch.setattr(provisioning, "AdbDeviceAsync", lambda *_a, **_kw: device)
+    monkeypatch.setattr(
+        panel_update,
+        "async_probe_install_target",
+        provisioning.async_probe_install_target,
     )
     create_credential = AsyncMock()
     monkeypatch.setattr(
@@ -360,6 +385,7 @@ async def test_existing_protected_panel_without_key_offers_nothing(
         )
         is None
     )
+    assert prompts == []
     create_credential.assert_not_awaited()
     route.client.async_backup_panel.assert_not_awaited()
     route.adb_install.assert_not_awaited()
@@ -481,3 +507,113 @@ async def test_post_install_launch_refusal_does_not_report_success(
     route.adb_install.assert_awaited_once()
     route.launch.assert_awaited_once()
     assert route.entity.extra_state_attributes == {}
+
+
+@pytest.mark.parametrize("revoke_at", ["flush", "push", "verification", "submitted"])
+async def test_adb_transaction_uses_current_consent_until_command_submission(
+    route, hass, monkeypatch, revoke_at
+):
+    """Preparation is reversible; a submitted PM request must finish and verify."""
+    from adb_shell.auth.sign_pythonrsa import PythonRSASigner
+
+    from custom_components.panel_assistant import install_adb, update_policy
+    from custom_components.panel_assistant.const import CONF_PRERELEASE_PANEL_BUILDS
+
+    from .test_install_adb import (
+        JOB_ID,
+        NONCES,
+        REMOTE_PATH,
+        FakeDevice,
+        _cleanup_output,
+        _identity_root_output,
+        _install_update_fake,
+        _installed_package_output,
+        _preflight_output,
+        _remote_output,
+        _single_output,
+    )
+
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "0.7.0")
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        entry_id="entry-id",
+        data={},
+        options={CONF_PRERELEASE_PANEL_BUILDS: True},
+    )
+    entry.add_to_hass(hass)
+
+    def revoke():
+        hass.config_entries.async_update_entry(
+            entry, options={CONF_PRERELEASE_PANEL_BUILDS: False}
+        )
+
+    original_executor = hass.async_add_executor_job
+
+    async def executor(target, *args):
+        result = await original_executor(target, *args)
+        if revoke_at == "flush" and getattr(target, "__name__", "") == "flush":
+            revoke()
+        return result
+
+    monkeypatch.setattr(hass, "async_add_executor_job", executor)
+    build = route.entity._feed.data.builds[0]
+    identity = {"model": "model-a", "serial": "serial-a", "sdk": 30}
+    installed = {"retained_lines": [f"package:{LEGACY_PACKAGE_ID}"]}
+    remote = {"size": build.apk_size, "sha256": build.apk_sha256}
+    outputs = [
+        _preflight_output(NONCES[0], **identity, **installed),
+        _installed_package_output(NONCES[1]),
+        _single_output("PATH", NONCES[2], ["absent"], 0),
+        _remote_output(NONCES[3], **remote),
+        _preflight_output(NONCES[4], **identity, **installed),
+        _installed_package_output(NONCES[5]),
+        _remote_output(NONCES[6], **remote),
+        _single_output("INSTALL", NONCES[7], ["Success"], 0)
+        if revoke_at == "submitted"
+        else _identity_root_output(NONCES[7], **identity),
+        _cleanup_output(NONCES[8]),
+    ]
+
+    class PolicyChangingDevice(FakeDevice):
+        async def push(self, *args, **kwargs):
+            await super().push(*args, **kwargs)
+            if revoke_at == "push":
+                revoke()
+
+        async def streaming_shell(self, command, **kwargs):
+            async for body in super().streaming_shell(command, **kwargs):
+                if (
+                    revoke_at == "verification"
+                    and f"HAPANELD_ARTIFACT_BEGIN:{NONCES[6]}" in command
+                ) or (revoke_at == "submitted" and "pm install -r " in command):
+                    revoke()
+                yield body
+
+    device = PolicyChangingDevice(outputs)
+    _install_update_fake(monkeypatch, device)
+    route.credential.signer = object.__new__(PythonRSASigner)
+    monkeypatch.setattr(
+        panel_update,
+        "async_update_installed_apk",
+        install_adb.async_update_installed_apk,
+    )
+    verified = AsyncMock()
+    monkeypatch.setattr(route.entity, "_async_wait_for_build", verified)
+    if revoke_at == "submitted":
+        await route.entity.async_install(None, False)
+        assert any(f"pm install -r {REMOTE_PATH}" in cmd for cmd in device.commands)
+        route.launch.assert_awaited_once()
+        verified.assert_awaited_once()
+    else:
+        with pytest.raises(HomeAssistantError) as caught:
+            await route.entity.async_install(None, False)
+        assert not any("pm install " in cmd for cmd in device.commands)
+        assert caught.value.translation_key == "update_unavailable"
+        assert device.pushes[0][0][1] == REMOTE_PATH
+        route.launch.assert_not_awaited()
+        verified.assert_not_awaited()
+    assert entry.options[CONF_PRERELEASE_PANEL_BUILDS] is False
+    assert (
+        f"rm -f /data/local/tmp/ha-paneld-install-{JOB_ID}.apk" in device.commands[-1]
+    )
+    assert device.closed

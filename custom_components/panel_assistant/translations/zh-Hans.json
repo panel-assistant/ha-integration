@@ -91,6 +91,7 @@
       "installing": "正在 {address} 安装并验证 ha-paneld。请保持此对话框打开，安装将自动完成。您可以关闭对话框，Home Assistant 会继续运行安装任务，但必须重新打开“设置 → 设备与服务 → 添加集成”，选择 Panel Assistant，再选择“添加网络中的面板”并输入相同地址，才能添加设备。Home Assistant 添加设备后，请在能通过局域网访问面板的电脑上打开“添加”对话框中的浏览器设置链接。如有提示，请在面板上批准 ADB 调试。"
     },
     "error": {
+      "old_app_installed": "此面板仍安装着旧版 ha-paneld 应用，但它没有响应。请在面板上打开它或重启面板，然后重新添加。之后 Panel Assistant 会提供一个修复，将其迁移到新应用。",
       "cannot_connect": "无法连接到有效的 ha-paneld 健康检查端点。",
       "invalid_address": "请输入不含 URL 方案或路径的主机名或 IP 地址。",
       "invalid_install_address": "请只输入面板主机名或 IP 地址。安装程序会分别使用 ha-paneld 端口 8888 和 ADB 端口 5555。",
@@ -181,7 +182,6 @@
     "staged_app_mismatch": { "message": "已暂存的应用与签名版本信息不符，因此未安装任何内容。" },
     "update_not_accepted": { "message": "面板未接受更新请求" },
     "update_not_complete": { "message": "面板更新未完成" },
-    "update_did_not_return": { "message": "更新后面板未恢复连接" },
     "panel_backup_failed": { "message": "无法备份面板，因此未安装任何内容" },
     "build_verification_failed": { "message": "该构建与已签名的构建源不一致，因此未安装任何内容" },
     "release_verification_failed": { "message": "该版本与其签名不符，因此未安装任何内容" },
@@ -296,6 +296,10 @@
     "native_controls_unavailable": {
       "title": "{panel} 上的原生控制不可用",
       "description": "Panel Assistant 已停用这些 MQTT 控制，因为 {panel} 未提供对应的原生操作：{entities}。其配置和实体 ID 均已保留。请更新面板应用，检查操作所需条件，然后重新连接面板。通过 MQTT 重启同样需要 root 权限。如果某项控制以前可通过 MQTT 使用，暂时将此面板切回 MQTT 即可恢复该控制。"
+    },
+    "no_update_route": {
+      "title": "{panel} 无法接收应用更新",
+      "description": "Panel Assistant 无法在 {panel} 上安装应用更新，因此它将保持当前版本。面板的其他功能一切照常，所以很容易被忽略。这通常发生在面板本身被更改之后，例如固件更新或重置。选择“了解更多”查看此面板的操作步骤。报告内容：{reason}"
     },
     "merged_panel_identity": {
       "title": "分离已合并的面板：{panels}",
@@ -998,7 +1002,8 @@
         "menu_options": {
           "onboarding": "继续设置",
           "transport": "连接设置",
-          "authorize_adb": "授权 ADB 更新"
+          "authorize_adb": "授权 ADB 更新",
+          "updates": "面板更新"
         }
       },
       "onboarding": {
@@ -1026,6 +1031,16 @@
         "description": "选择由什么控制此面板的实体和命令。保存 Panel Assistant 后，Panel Assistant 会把面板的 MQTT 实体迁移到自身，并保留其实体 ID、历史记录和你的自定义设置，随后面板会撤回其 MQTT 实体。保存 MQTT（无论是否带原生报告）会把它们迁回 MQTT。无论哪种情况，面板都会以新的选择重新连接。",
         "data": {
           "authority": "控制方式"
+        }
+      },
+      "updates": {
+        "title": "面板更新",
+        "description": "选择此面板可以接收的面板应用构建版本。每个构建版本都必须与正在运行的 Panel Assistant 兼容。",
+        "data": {
+          "prerelease_panel_builds": "允许面板应用预发布版本"
+        },
+        "data_description": {
+          "prerelease_panel_builds": "预发布版 Panel Assistant 已允许面板应用预发布版本。"
         }
       }
     },

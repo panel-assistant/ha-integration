@@ -189,7 +189,7 @@ test('a feed bundle needs its build tag named, and a build tag accepts only a fe
   await refuses(verify({ ...signed, extra: new Uint8Array(1) }));
   await refuses(verify({ ...signed, feedSignature: signed.feedSignature.slice(1) }));
   await refuses(verify(signed, 'build-2147483648'));
-  // The manual file route stays GitHub-only: its files never satisfy a build tag.
+  // GitHub signed files never satisfy a build tag.
   await refuses(verify({ tag: 'build-772', checksum: new Uint8Array(1), checksumSignature: new Uint8Array(256),
     descriptor: new Uint8Array(1), descriptorSignature: new Uint8Array(256) }, 'build-772'));
   // Only a genuine public verification key replaces the embedded one.
@@ -211,7 +211,8 @@ test('the descriptor rule binds a build tag to its versionCode and content-addre
 test('the installer window accepts a build tag and exactly the feed bundle shape', async () => {
   const hash = rc => `#${new URLSearchParams({ ha_origin: 'https://ha.example', nonce: 'a'.repeat(32), rc })}`;
   assert.equal(handoffOptions(hash('build-772')).expectedRcTag, 'build-772');
-  for (const rc of ['build-0', 'build-0772', 'build-2147483648', 'build-772 ', 'v1.2.3', 'v1.2.3-rc01']) {
+  assert.equal(handoffOptions(hash('v1.2.3')).expectedRcTag, 'v1.2.3');
+  for (const rc of ['build-0', 'build-0772', 'build-2147483648', 'build-772 ', 'v1.2.3-rc01']) {
     assert.throws(() => handoffOptions(hash(rc)), { message: 'handoff_invalid' });
   }
   const signed = await bundle(await document());
@@ -233,6 +234,7 @@ test('the installer window accepts a build tag and exactly the feed bundle shape
   assert.equal(verified.kind, 'authenticated-apk-bytes');
   assert.equal(verified.descriptor.releaseTag, 'build-772');
   assert.deepEqual(accepted.replies, ['ha-paneld/usb-ready', 'ha-paneld/usb-verified']);
+  accepted.handoff.cancel();
   const github = { tag: 'build-772', checksum: new Uint8Array(1), checksumSignature: new Uint8Array(256),
     descriptor: new Uint8Array(1), descriptorSignature: new Uint8Array(256) };
   for (const message of [{ bundle: github, apk: new Blob([apkOf(772)]) },

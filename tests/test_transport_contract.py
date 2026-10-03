@@ -543,6 +543,7 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
         "cutover_incomplete",
         "cutover_blocked_by_customised_entities",
         "native_controls_unavailable",
+        "no_update_route",
         "merged_panel_identity",
         "merged_mqtt_device",
         "move_to_native_connection",

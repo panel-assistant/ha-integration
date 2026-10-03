@@ -91,6 +91,7 @@
       "installing": "ha-paneld wird unter {address} installiert und verifiziert. Lass diesen Dialog geöffnet, damit der Vorgang automatisch abgeschlossen wird. Du kannst ihn schließen; Home Assistant führt den Installationsauftrag weiter aus, kann das Gerät jedoch erst hinzufügen, wenn du Einstellungen → Geräte & Dienste → Integration hinzufügen erneut öffnest, Panel Assistant auswählst, „Panel im Netzwerk hinzufügen“ wählst und dieselbe Adresse eingibst. Nachdem Home Assistant das Gerät hinzugefügt hat, öffne den Link zur Browser-Einrichtung im Hinzufügen-Dialog auf einem Computer, der das Panel im lokalen Netzwerk erreichen kann. Bestätige die ADB-Freigabe bei Aufforderung am Panel."
     },
     "error": {
+      "old_app_installed": "Auf diesem Panel ist noch die alte ha-paneld-App installiert, sie antwortet aber nicht. Öffne sie auf dem Panel oder starte das Panel neu und füge es dann erneut hinzu. Panel Assistant bietet danach eine Reparatur an, die es in die neue App umzieht.",
       "cannot_connect": "Es konnte keine Verbindung zu einem gültigen Funktionsstatus-Endpunkt von ha-paneld hergestellt werden.",
       "invalid_address": "Gib einen Hostnamen oder eine IP-Adresse ohne URL-Schema oder Pfad ein.",
       "invalid_install_address": "Gib nur den Hostnamen oder die IP-Adresse des Panels ein. Das Installationsprogramm verwendet den ha-paneld-Port 8888 und den ADB-Port 5555 getrennt.",
@@ -181,7 +182,6 @@
     "staged_app_mismatch": { "message": "Die bereitgestellte App stimmte nicht mit den signierten Versionsangaben überein. Es wurde nichts installiert." },
     "update_not_accepted": { "message": "Das Panel hat die Update-Anfrage nicht angenommen" },
     "update_not_complete": { "message": "Das Panel-Update wurde nicht abgeschlossen" },
-    "update_did_not_return": { "message": "Das Panel ist nach dem Update nicht zurückgekehrt" },
     "panel_backup_failed": { "message": "Das Panel konnte nicht gesichert werden, daher wurde nichts installiert" },
     "build_verification_failed": { "message": "Der Build stimmte nicht mit dem signierten Build-Feed überein, daher wurde nichts installiert" },
     "release_verification_failed": { "message": "Das Release stimmte nicht mit seiner Signatur überein, daher wurde nichts installiert" },
@@ -296,6 +296,10 @@
     "native_controls_unavailable": {
       "title": "Native Bedienelemente auf {panel} nicht verfügbar",
       "description": "Panel Assistant hat diese MQTT-Bedienelemente deaktiviert, weil {panel} ihre nativen Aktionen nicht anbietet: {entities}. Konfiguration und Entitäts-IDs bleiben erhalten. Aktualisiere die Panel-App, prüfe, ob die Voraussetzungen der Aktionen verfügbar sind, und verbinde das Panel erneut. Ein Neustart erfordert auch über MQTT Root-Zugriff. Falls ein Bedienelement zuvor über MQTT funktionierte, wird es durch das vorübergehende Zurückstellen dieses Panels auf MQTT wiederhergestellt."
+    },
+    "no_update_route": {
+      "title": "{panel} kann keine App-Updates empfangen",
+      "description": "Panel Assistant kann auf {panel} keine App-Updates installieren, daher bleibt es auf der aktuellen Version. Alles andere am Panel funktioniert weiter, weshalb dies leicht zu übersehen ist. Meist folgt es auf eine Änderung am Panel selbst, etwa ein Firmware-Update oder ein Zurücksetzen. Wähle Mehr erfahren für die Schritte zu diesem Panel. Gemeldet: {reason}"
     },
     "merged_panel_identity": {
       "title": "Zusammengeführte Panels trennen: {panels}",
@@ -998,7 +1002,8 @@
         "menu_options": {
           "onboarding": "Einrichtung fortsetzen",
           "transport": "Verbindungseinstellungen",
-          "authorize_adb": "ADB für Updates autorisieren"
+          "authorize_adb": "ADB für Updates autorisieren",
+          "updates": "Panel-Updates"
         }
       },
       "onboarding": {
@@ -1026,6 +1031,16 @@
         "description": "Lege fest, was die Entitäten und Befehle dieses Panels steuert. Speicherst du Panel Assistant, zieht Panel Assistant die MQTT-Entitäten des Panels zu sich um und behält dabei ihre Entitäts-IDs, ihren Verlauf und deine Anpassungen; danach zieht das Panel seine MQTT-Entitäten zurück. Speicherst du MQTT, mit oder ohne native Berichte, gehen sie zurück an MQTT. In beiden Fällen verbindet sich das Panel mit der neuen Auswahl neu.",
         "data": {
           "authority": "Steuerung"
+        }
+      },
+      "updates": {
+        "title": "Panel-Updates",
+        "description": "Wähle, welche Builds der Panel-App dieses Panel erhalten darf. Jeder Build muss mit dem laufenden Panel Assistant kompatibel sein.",
+        "data": {
+          "prerelease_panel_builds": "Vorabversionen der Panel-App zulassen"
+        },
+        "data_description": {
+          "prerelease_panel_builds": "Eine Vorabversion von Panel Assistant erlaubt bereits Vorabversionen der Panel-App."
         }
       }
     },

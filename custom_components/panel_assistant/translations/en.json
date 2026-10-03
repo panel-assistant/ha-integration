@@ -91,6 +91,7 @@
       "installing": "Installing and verifying ha-paneld at {address}. Leave this dialog open to finish automatically. You may close it and Home Assistant will keep the installation job running, but it cannot add the device until you reopen Settings → Devices & services → Add integration, select Panel Assistant, choose Add a panel on your network and enter the same address. After Home Assistant adds the device, follow the browser setup link in the Add dialog on a computer that can reach the panel on its local network. If prompted, approve ADB on the panel."
     },
     "error": {
+      "old_app_installed": "This panel still has the old ha-paneld app installed, but it is not answering. Open it on the panel, or restart the panel, then add it again. Panel Assistant then offers a Repair that moves it to the new app.",
       "cannot_connect": "Unable to connect to a valid ha-paneld health endpoint.",
       "invalid_address": "Enter a hostname or IP address without a URL scheme or path.",
       "invalid_install_address": "Enter only the panel hostname or IP address. The installer uses ha-paneld port 8888 and ADB port 5555 separately.",
@@ -472,9 +473,6 @@
     "update_not_complete": {
       "message": "The panel update did not complete"
     },
-    "update_did_not_return": {
-      "message": "The panel did not return after the update"
-    },
     "panel_backup_failed": {
       "message": "The panel could not be backed up, so nothing was installed"
     },
@@ -636,6 +634,10 @@
     "native_controls_unavailable": {
       "title": "Native controls unavailable on {panel}",
       "description": "Panel Assistant disabled these MQTT controls because {panel} has not offered their native actions: {entities}. Their configuration and entity IDs are preserved. Update the panel app and check that its action prerequisites are available, then reconnect it. Reboot also requires root access under MQTT. If a control worked over MQTT before, switching this panel back to MQTT temporarily restores it."
+    },
+    "no_update_route": {
+      "title": "{panel} cannot receive app updates",
+      "description": "Panel Assistant cannot install app updates on {panel}, so it stays on its current version. Everything else about the panel keeps working, which is why this is easy to miss. It usually follows a change made on the panel itself, such as a firmware update or a reset. Select Learn more for the steps for this panel. Reported: {reason}"
     },
     "merged_panel_identity": {
       "title": "Separate the merged panels: {panels}",
@@ -1338,7 +1340,8 @@
         "menu_options": {
           "onboarding": "Continue setup",
           "transport": "Transport settings",
-          "authorize_adb": "Authorize ADB for updates"
+          "authorize_adb": "Authorize ADB for updates",
+          "updates": "Panel updates"
         }
       },
       "onboarding": {
@@ -1366,6 +1369,16 @@
         "description": "Choose what controls this panel's entities and commands. Saving Panel Assistant moves the panel's MQTT entities to Panel Assistant, keeping their entity IDs, history and customisations, and the panel then withdraws its MQTT entities. Saving MQTT, with or without native reports, moves them back to MQTT. Either way the panel reconnects with the new choice.",
         "data": {
           "authority": "Control"
+        }
+      },
+      "updates": {
+        "title": "Panel updates",
+        "description": "Choose which panel app builds this panel may receive. Every build must be compatible with the running Panel Assistant.",
+        "data": {
+          "prerelease_panel_builds": "Allow prerelease panel builds"
+        },
+        "data_description": {
+          "prerelease_panel_builds": "A prerelease Panel Assistant already allows prerelease panel builds."
         }
       }
     },

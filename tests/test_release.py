@@ -1650,7 +1650,34 @@ async def test_coordinator_routes_by_package_and_clears_old_bridge(
 ) -> None:
     """A refresh replaces the signed pair together; a failed refresh keeps it."""
     _install_test_key(monkeypatch, signing_key)
-    session = _dual_release_session(signing_key)
+
+    def coordinator_session() -> _FakeSession:
+        session = _dual_release_session(signing_key)
+        records = sorted(
+            [
+                {"apkSha256": _SHA256, "protocolMin": 3, "protocolMax": 3},
+                {
+                    "apkSha256": hashlib.sha256(b"successor APK").hexdigest(),
+                    "protocolMin": 3,
+                    "protocolMax": 3,
+                },
+            ],
+            key=lambda record: record["apkSha256"],
+        )
+        _serve_protocol_metadata(
+            session, signing_key, _canonical_descriptor(_protocol_document(*records))
+        )
+        recent_url = f"{release.ANDROID_RELEASES_API}?per_page=30"
+        session._responses[recent_url] = _FakeResponse(200, b"[]", URL(recent_url))
+        tag_url = f"{release.ANDROID_RELEASES_API}/tags/{_TAG}"
+        session._responses[tag_url] = _FakeResponse(
+            200,
+            session._responses[str(release._LATEST_RELEASE_URL)].body,
+            URL(tag_url),
+        )
+        return session
+
+    session = coordinator_session()
     monkeypatch.setattr(
         feed_coordinator, "async_get_clientsession", lambda _hass: session
     )
@@ -1672,7 +1699,7 @@ async def test_coordinator_routes_by_package_and_clears_old_bridge(
     assert coordinator.data == successor
     assert coordinator.artifact_for(LEGACY_PACKAGE_ID) is None
 
-    session = _dual_release_session(signing_key)
+    session = coordinator_session()
     await coordinator.async_refresh()
     successor = coordinator.data
     bridge = coordinator.artifact_for(LEGACY_PACKAGE_ID)
@@ -1683,6 +1710,22 @@ async def test_coordinator_routes_by_package_and_clears_old_bridge(
     )
     await coordinator.async_refresh()
 
+    # One unauthenticated candidate is withdrawn rather than remaining offered.
+    assert coordinator.data is None
+    assert coordinator.artifact_for(LEGACY_PACKAGE_ID) is None
+
+    session = coordinator_session()
+    await coordinator.async_refresh()
+    successor = coordinator.data
+    bridge = coordinator.artifact_for(LEGACY_PACKAGE_ID)
+    session._responses[str(release._LATEST_RELEASE_URL)] = _FakeResponse(
+        503,
+        b"unavailable",
+        release._LATEST_RELEASE_URL,
+    )
+    await coordinator.async_refresh()
+    # A catalogue transport failure keeps the prior authenticated pair together.
+    assert coordinator.last_update_success is False
     assert coordinator.data is successor
     assert coordinator.artifact_for(LEGACY_PACKAGE_ID) is bridge
 
@@ -1769,3 +1812,257 @@ def test_the_shared_corpus_bounds_a_feed_builds_own_version_name(
     # The health and native-transport readers accept exactly this union, so a
     # panel running a feed build is readable rather than malformed.
     assert is_valid_panel_version(case["value"]) is case["accepted"]
+
+
+_PROTOCOL_URL = (
+    f"{release._REPOSITORY_RELEASE_ROOT}/{_TAG}/ha-paneld-{_TAG}-protocol.json"
+)
+
+
+def _protocol_document(*records: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "schema": "io.github.maxlyth.hapaneld.protocol.v1",
+        "artifacts": list(records)
+        or [{"apkSha256": _SHA256, "protocolMin": 3, "protocolMax": 3}],
+    }
+
+
+def _serve_protocol_metadata(
+    session: _FakeSession,
+    signing_key: rsa.RSAPrivateKey,
+    body: bytes,
+    *,
+    signature: bytes | None = None,
+) -> None:
+    response = session._responses[str(release._LATEST_RELEASE_URL)]
+    document = json.loads(response.body)
+    for suffix in ("", ".sig"):
+        document["assets"].append(
+            {
+                "name": f"ha-paneld-{_TAG}-protocol.json{suffix}",
+                "browser_download_url": _PROTOCOL_URL + suffix,
+            }
+        )
+    session._responses[str(release._LATEST_RELEASE_URL)] = _metadata_response(document)
+    session._responses[_PROTOCOL_URL] = _FakeResponse(200, body, URL(_PROTOCOL_URL))
+    session._responses[_PROTOCOL_URL + ".sig"] = _FakeResponse(
+        200,
+        _signature(signing_key, body) if signature is None else signature,
+        URL(_PROTOCOL_URL + ".sig"),
+    )
+
+
+async def test_signed_protocol_metadata_binds_exact_release_and_bridge_hashes(
+    monkeypatch: pytest.MonkeyPatch, signing_key: rsa.RSAPrivateKey
+) -> None:
+    """The two independently signed APK hashes receive their own proven ranges."""
+    _install_test_key(monkeypatch, signing_key)
+    session = _dual_release_session(signing_key)
+    successor_sha = hashlib.sha256(b"successor APK").hexdigest()
+    records = sorted(
+        [
+            {"apkSha256": _SHA256, "protocolMin": 1, "protocolMax": 3},
+            {"apkSha256": successor_sha, "protocolMin": 3, "protocolMax": 4},
+        ],
+        key=lambda record: record["apkSha256"],
+    )
+    body = _canonical_descriptor(_protocol_document(*records))
+    descriptor_body = session._responses[_DESCRIPTOR_URL].body
+    _serve_protocol_metadata(session, signing_key, body)
+
+    bundle, bridge = await release.async_resolve_stable_bundle_and_bridge(session)  # type: ignore[arg-type]
+
+    assert (bundle.artifact.protocol_min, bundle.artifact.protocol_max) == (3, 4)
+    assert bridge is not None
+    assert (bridge.protocol_min, bridge.protocol_max) == (1, 3)
+    assert bundle.artifact.sha256 == successor_sha
+    assert bridge.sha256 == _SHA256
+    assert bundle.metadata.descriptor_bytes == descriptor_body
+    assert bundle.artifact.descriptor is not None
+    assert bridge.descriptor is None
+    assert all(not url.endswith(".apk") for url, _ in session.requests)
+
+
+@pytest.mark.parametrize("omit", ["selected", "bridge"])
+async def test_protocol_companion_requires_exact_hash_for_each_resolved_identity(
+    monkeypatch: pytest.MonkeyPatch, signing_key: rsa.RSAPrivateKey, omit: str
+) -> None:
+    """A signed range for the other APK cannot authorize this exact identity."""
+    _install_test_key(monkeypatch, signing_key)
+    session = _dual_release_session(signing_key)
+    sha = (
+        _SHA256 if omit == "selected" else hashlib.sha256(b"successor APK").hexdigest()
+    )
+    body = _canonical_descriptor(
+        _protocol_document({"apkSha256": sha, "protocolMin": 3, "protocolMax": 3})
+    )
+    _serve_protocol_metadata(session, signing_key, body)
+    with pytest.raises(ReleaseResolutionError):
+        await release.async_resolve_stable_bundle_and_bridge(session)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("protocolMin", True),
+        ("protocolMax", False),
+        ("protocolMin", 0),
+        ("protocolMin", -1),
+        ("protocolMax", 2147483648),
+        ("protocolMin", 2147483648),
+        ("protocolMin", "3"),
+        ("protocolMax", 3.0),
+        ("protocolMin", 4),
+        ("apkSha256", "A" * 64),
+        ("apkSha256", []),
+        ("apkSha256", "a" * 63),
+        ("apkSha256", "a" * 64),
+        ("extra", 3),
+    ],
+)
+async def test_signed_protocol_companion_refuses_invalid_or_unbound_record(
+    monkeypatch: pytest.MonkeyPatch,
+    signing_key: rsa.RSAPrivateKey,
+    field: str,
+    value: Any,
+) -> None:
+    """An authentic signature cannot rescue invalid ranges or another APK hash."""
+    _install_test_key(monkeypatch, signing_key)
+    session = _successful_session(signing_key)
+    document = _protocol_document()
+    document["artifacts"][0][field] = value
+    body = _canonical_descriptor(document)
+    _serve_protocol_metadata(session, signing_key, body)
+    with pytest.raises(ReleaseResolutionError):
+        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "wrong-schema",
+        "extra-field",
+        "missing-field",
+        "record-missing-field",
+        "record-not-object",
+        "artifacts-not-list",
+        "document-not-object",
+        "duplicate-hash",
+        "unsorted-hashes",
+        "duplicate-key",
+        "noncanonical",
+        "missing-newline",
+        "nonascii",
+        "oversize",
+        "too-many-records",
+        "signature-tamper",
+        "payload-tamper",
+        "signature-missing",
+        "asset-missing",
+        "wrong-asset-url",
+        "redirect-untrusted",
+    ],
+)
+async def test_protocol_companion_refuses_ambiguous_or_unauthenticated_metadata(
+    monkeypatch: pytest.MonkeyPatch, signing_key: rsa.RSAPrivateKey, fault: str
+) -> None:
+    """Signed protocol proof has the same bounded, exact release trust boundary."""
+    _install_test_key(monkeypatch, signing_key)
+    session = _successful_session(signing_key)
+    document: Any = _protocol_document()
+    match fault:
+        case "wrong-schema":
+            document["schema"] += ".future"
+        case "extra-field":
+            document["extra"] = True
+        case "missing-field":
+            del document["schema"]
+        case "record-missing-field":
+            del document["artifacts"][0]["protocolMax"]
+        case "record-not-object":
+            document["artifacts"] = [3]
+        case "artifacts-not-list":
+            document["artifacts"] = {}
+        case "document-not-object":
+            document = []
+        case "duplicate-hash":
+            document["artifacts"] *= 2
+        case "unsorted-hashes":
+            document["artifacts"].insert(
+                0, {"apkSha256": "f" * 64, "protocolMin": 3, "protocolMax": 3}
+            )
+        case "too-many-records":
+            document["artifacts"] = [
+                {"apkSha256": f"{number:064x}", "protocolMin": 3, "protocolMax": 3}
+                for number in range(501)
+            ]
+    body = _canonical_descriptor(document)
+    match fault:
+        case "duplicate-key":
+            body = body.replace(b'"protocolMin":3', b'"protocolMin":3,"protocolMin":3')
+        case "noncanonical":
+            body = json.dumps(document, sort_keys=True).encode() + b"\n"
+        case "missing-newline":
+            body = body.rstrip(b"\n")
+        case "nonascii":
+            body = b"\xff" + body
+        case "oversize":
+            body += b" " * release._MAX_PROTOCOL_METADATA_BYTES
+    _serve_protocol_metadata(session, signing_key, body)
+    match fault:
+        case "signature-tamper":
+            session._responses[_PROTOCOL_URL + ".sig"] = _FakeResponse(
+                200, b"x" * 256, URL(_PROTOCOL_URL + ".sig")
+            )
+        case "payload-tamper":
+            session._responses[_PROTOCOL_URL] = _FakeResponse(
+                200,
+                body.replace(b'"protocolMax":3', b'"protocolMax":4'),
+                URL(_PROTOCOL_URL),
+            )
+        case "signature-missing" | "asset-missing" | "wrong-asset-url":
+            response = session._responses[str(release._LATEST_RELEASE_URL)]
+            metadata = json.loads(response.body)
+            if fault == "wrong-asset-url":
+                metadata["assets"][-2]["browser_download_url"] += "?spoof=1"
+            else:
+                metadata["assets"].pop(-1 if fault == "signature-missing" else -2)
+            session._responses[str(release._LATEST_RELEASE_URL)] = _metadata_response(
+                metadata
+            )
+        case "redirect-untrusted":
+            session._responses[_PROTOCOL_URL] = _FakeResponse(
+                302,
+                b"",
+                URL(_PROTOCOL_URL),
+                headers=CIMultiDict(
+                    {"Location": "https://untrusted.example/protocol.json"}
+                ),
+            )
+    with pytest.raises(ReleaseResolutionError):
+        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+
+
+async def test_legacy_release_without_protocol_companion_remains_unknown(
+    monkeypatch: pytest.MonkeyPatch, signing_key: rsa.RSAPrivateKey
+) -> None:
+    """Low-level old release parsing supplies no guessed compatibility proof."""
+    _install_test_key(monkeypatch, signing_key)
+    artifact = await async_resolve_stable_release(_successful_session(signing_key))  # type: ignore[arg-type]
+    assert artifact.protocol_min is None
+    assert artifact.protocol_max is None
+
+
+async def test_signed_protocol_range_accepts_closed_integer_endpoints(
+    monkeypatch: pytest.MonkeyPatch, signing_key: rsa.RSAPrivateKey
+) -> None:
+    _install_test_key(monkeypatch, signing_key)
+    session = _successful_session(signing_key)
+    body = _canonical_descriptor(
+        _protocol_document(
+            {"apkSha256": _SHA256, "protocolMin": 1, "protocolMax": 2147483647}
+        )
+    )
+    _serve_protocol_metadata(session, signing_key, body)
+    artifact = await async_resolve_stable_release(session)  # type: ignore[arg-type]
+    assert (artifact.protocol_min, artifact.protocol_max) == (1, 2147483647)

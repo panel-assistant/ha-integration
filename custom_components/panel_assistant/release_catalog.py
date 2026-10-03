@@ -13,6 +13,7 @@ from yarl import URL
 
 from .app_identity import SUCCESSOR_PACKAGE_ID
 from .build_feed import BuildFeed, FeedBuild, FeedInstallBundle, feed_release_artifact
+from .client import _version_key
 from .const import ANDROID_RELEASES_API
 from .feed_coordinator import async_get_feed_coordinator
 from .release import (
@@ -23,18 +24,17 @@ from .release import (
     ReleaseArtifact,
     ReleaseResolutionError,
     _async_fetch_bounded,
+    _async_resolve_release,
     _object_without_duplicates,
     _parse_release_metadata,
     _reject_json_constant,
-    async_resolve_install_bundle,
-    async_resolve_rc_release,
-    async_resolve_stable_release,
     feed_build_code,
     feed_build_package,
     feed_build_tag,
     is_rc_release_tag,
     release_descriptor_name,
 )
+from .update_policy import build_allowed, prereleases_allowed
 
 _RECENT_RELEASES_URL = URL(f"{ANDROID_RELEASES_API}?per_page=30")
 _MAX_RECENT_RELEASES = 30
@@ -112,15 +112,77 @@ async def async_list_install_releases(
     stable = _choice(latest, prerelease=False)
     if stable is not None:
         choices.append(stable)
-    seen = set()
+    seen = {choice["tag"] for choice in choices}
     for document in recent:
-        choice = _choice(document, prerelease=True)
+        choice = _choice(
+            document,
+            prerelease=isinstance(document, dict)
+            and document.get("prerelease") is True,
+        )
         if choice is not None and choice["tag"] not in seen:
             choices.append(choice)
             seen.add(choice["tag"])
             if len(choices) == _MAX_RECENT_RELEASES:
                 break
     return choices
+
+
+async def _async_release_choice(
+    session: ClientSession, tag: str, *, include_bridge: bool = False
+) -> tuple[InstallReleaseBundle, ReleaseArtifact | None]:
+    """Authenticate an exact published tag and its hash-bound protocol range."""
+    # Validate before constructing a URL; unknown strings are never URL paths.
+    from .release import is_install_release_tag
+
+    if not is_install_release_tag(tag):
+        raise ReleaseResolutionError
+    artifact, metadata, bridge = await _async_resolve_release(
+        session,
+        URL(f"{ANDROID_RELEASES_API}/tags/{tag}"),
+        expected_rc_tag=tag if is_rc_release_tag(tag) else None,
+        include_bridge=include_bridge,
+    )
+    if artifact.tag != tag or metadata is None:
+        raise ReleaseResolutionError
+    return InstallReleaseBundle(artifact=artifact, metadata=metadata), bridge
+
+
+async def async_resolve_update_candidates(
+    session: ClientSession,
+) -> list[tuple[InstallReleaseBundle, ReleaseArtifact | None]]:
+    """Authenticate the bounded recent catalogue, including stable promotions.
+
+    A missing or incompatible head must not conceal a compatible older build.
+    No APK is downloaded here. Failed individual releases are simply ineligible.
+    """
+    choices = await async_list_install_releases(session)
+
+    async def resolve(
+        tag: str,
+    ) -> tuple[InstallReleaseBundle, ReleaseArtifact | None] | None:
+        try:
+            return await _async_release_choice(session, tag, include_bridge=True)
+        except ReleaseResolutionError:
+            return None
+
+    async with asyncio.timeout(60):
+        resolved = await asyncio.gather(*(resolve(str(c["tag"])) for c in choices))
+    return sorted(
+        (pair for pair in resolved if pair is not None),
+        key=lambda pair: (
+            _version_key(pair[0].artifact.version) or ((0, 0, 0), False, ())
+        ),
+        reverse=True,
+    )
+
+
+def _allowed(artifact: ReleaseArtifact, *, allow_prerelease: bool) -> bool:
+    return build_allowed(
+        artifact.version,
+        artifact.protocol_min,
+        artifact.protocol_max,
+        allow_prerelease=allow_prerelease,
+    )
 
 
 async def _async_current_feed(hass: HomeAssistant) -> BuildFeed | None:
@@ -139,15 +201,15 @@ async def async_list_install_choices(
 ) -> list[dict[str, str | bool]]:
     """The one version list every install path offers.
 
-    GitHub releases come first; builds from a configured signed build feed
-    follow, newest first, each named by its version code. A GitHub outage still
-    leaves the feed's builds on offer, and the reverse.
+    Newest compatible versions come first on the running PA channel. Explicit
+    prerelease choices follow on stable PA. Feed builds retain exact version-code
+    identities; either source can remain available when the other is unavailable.
     """
     feed = await _async_current_feed(hass)
     builds: list[dict[str, str | bool]] = [
         {
             "tag": feed_build_tag(build.version_code, build.package_id),
-            "prerelease": True,
+            "prerelease": "-" in build.version_name,
             "name": (
                 f"{build.label} (Panel Assistant)"
                 if build.package_id == SUCCESSOR_PACKAGE_ID
@@ -155,14 +217,66 @@ async def async_list_install_choices(
             ),
         }
         for build in (feed.builds if feed is not None else ())
+        if _allowed(feed_release_artifact(build), allow_prerelease=True)
     ]
     try:
-        releases = await async_list_install_releases(async_get_clientsession(hass))
-    except ReleaseResolutionError:
-        if builds:
-            return builds
-        raise
-    return [*releases, *builds]
+        candidates = await async_resolve_update_candidates(
+            async_get_clientsession(hass)
+        )
+        releases: list[dict[str, str | bool]] = [
+            {
+                "tag": bundle.artifact.tag,
+                "prerelease": is_rc_release_tag(bundle.artifact.tag),
+            }
+            for bundle, _bridge in candidates
+            if _allowed(bundle.artifact, allow_prerelease=True)
+        ]
+    except ReleaseResolutionError, TimeoutError:
+        if not builds:
+            raise ReleaseResolutionError from None
+        releases = []
+    versions = (
+        {bundle.artifact.tag: bundle.artifact.version for bundle, _bridge in candidates}
+        if releases
+        else {}
+    )
+    version_codes = (
+        {
+            bundle.artifact.tag: bundle.artifact.descriptor.version_code
+            for bundle, _bridge in candidates
+            if bundle.artifact.descriptor is not None
+        }
+        if releases
+        else {}
+    )
+    if feed is not None:
+        versions.update(
+            {
+                feed_build_tag(b.version_code, b.package_id): b.version_name
+                for b in feed.builds
+            }
+        )
+        version_codes.update(
+            {
+                feed_build_tag(b.version_code, b.package_id): b.version_code
+                for b in feed.builds
+            }
+        )
+    choices = sorted(
+        [*releases, *builds],
+        key=lambda choice: (
+            _version_key(versions[str(choice["tag"])]) or ((0, 0, 0), False, ()),
+            version_codes.get(str(choice["tag"]), 0),
+        ),
+        reverse=True,
+    )
+    # Explicit prerelease choices are PA-managed per-panel opt-ins. The default
+    # remains the newest compatible release on the running PA's own channel.
+    allowed_pre = prereleases_allowed()
+    return sorted(
+        choices,
+        key=lambda choice: bool(choice["prerelease"]) and not allowed_pre,
+    )
 
 
 async def async_resolve_feed_choice(
@@ -175,7 +289,11 @@ async def async_resolve_feed_choice(
     build = (
         feed.find(code, package_id) if feed is not None and code is not None else None
     )
-    if feed is None or build is None:
+    if (
+        feed is None
+        or build is None
+        or not _allowed(feed_release_artifact(build), allow_prerelease=True)
+    ):
         raise ReleaseResolutionError
     return feed, build
 
@@ -183,21 +301,14 @@ async def async_resolve_feed_choice(
 async def async_resolve_install_choice(
     hass: HomeAssistant, tag: str | None
 ) -> ReleaseArtifact:
-    """The one resolver behind every install path: stable, an RC, or a feed build."""
-    if tag is None:
-        return await async_resolve_stable_release(async_get_clientsession(hass))
-    if feed_build_code(tag) is not None:
-        _feed, build = await async_resolve_feed_choice(hass, tag)
-        return feed_release_artifact(build)
-    if not is_rc_release_tag(tag):
-        raise ReleaseResolutionError
-    return await async_resolve_rc_release(async_get_clientsession(hass), tag)
+    """Resolve the PA-channel default or one explicit compatible panel choice."""
+    return (await async_resolve_install_bundle_choice(hass, tag)).artifact
 
 
 async def async_resolve_install_bundle_choice(
     hass: HomeAssistant, tag: str | None
 ) -> InstallReleaseBundle | FeedInstallBundle:
-    """Resolve a choice with the signed bytes a browser verifies for itself."""
+    """Authenticate every selection before any browser or ADB installation."""
     if tag is not None and feed_build_code(tag) is not None:
         feed, build = await async_resolve_feed_choice(hass, tag)
         return FeedInstallBundle(
@@ -205,6 +316,48 @@ async def async_resolve_install_bundle_choice(
             feed=feed.raw,
             feed_signature=feed.signature,
         )
-    if tag is not None and not is_rc_release_tag(tag):
+    session = async_get_clientsession(hass)
+    if tag is not None:
+        bundle, _bridge = await _async_release_choice(session, tag)
+        if not _allowed(bundle.artifact, allow_prerelease=True):
+            raise ReleaseResolutionError
+        return bundle
+    current_feed = await _async_current_feed(hass)
+    eligible_feed = [
+        build
+        for build in (current_feed.builds if current_feed is not None else ())
+        if _allowed(
+            feed_release_artifact(build), allow_prerelease=prereleases_allowed()
+        )
+    ]
+    try:
+        candidates = await async_resolve_update_candidates(session)
+    except ReleaseResolutionError, TimeoutError:
+        if not eligible_feed:
+            raise ReleaseResolutionError from None
+        candidates = []
+    eligible: list[InstallReleaseBundle | FeedInstallBundle] = [
+        bundle
+        for bundle, _bridge in candidates
+        if _allowed(bundle.artifact, allow_prerelease=prereleases_allowed())
+    ]
+    if current_feed is not None:
+        eligible.extend(
+            FeedInstallBundle(
+                artifact=feed_release_artifact(build),
+                feed=current_feed.raw,
+                feed_signature=current_feed.signature,
+            )
+            for build in eligible_feed
+        )
+    if not eligible:
         raise ReleaseResolutionError
-    return await async_resolve_install_bundle(async_get_clientsession(hass), rc_tag=tag)
+    return max(
+        eligible,
+        key=lambda bundle: (
+            _version_key(bundle.artifact.version) or ((0, 0, 0), False, ()),
+            bundle.artifact.descriptor.version_code
+            if bundle.artifact.descriptor
+            else 0,
+        ),
+    )

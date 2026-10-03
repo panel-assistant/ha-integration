@@ -43,6 +43,15 @@ FROZEN_TRANSLATION_TOKENS = (
     "8888",
     "5555",
 )
+# Current main has 564 shared leaves; the five PA-owned update options add
+# this finite translated surface. Pin it and the total to catch omissions.
+PA_UPDATE_TRANSLATION_ADDITIONS = {
+    "options.step.init.menu_options.updates",
+    "options.step.updates.title",
+    "options.step.updates.description",
+    "options.step.updates.data.prerelease_panel_builds",
+    "options.step.updates.data_description.prerelease_panel_builds",
+}
 
 
 def _translation_leaves(
@@ -147,7 +156,7 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
         "issue_tracker": "https://github.com/panel-assistant/ha-integration/issues",
         "name": "Panel Assistant",
         "requirements": ["adb-shell[async]>=0.4.4"],
-        "version": "0.7.0-rc3",
+        "version": "0.7.0-rc2",
         "zeroconf": ["_ha-paneld._tcp.local."],
     }
     assert hacs == {"homeassistant": "2026.8.3", "name": "Panel Assistant"}
@@ -159,7 +168,7 @@ def test_release_version_guard_accepts_current_and_prerelease_versions(
     """Tag admission uses exact raw equality for stable and prerelease versions."""
     verifier = _load_release_version_module()
 
-    verifier.verify_release_version("0.7.0-rc3", INTEGRATION / "manifest.json")
+    verifier.verify_release_version("0.7.0-rc2", INTEGRATION / "manifest.json")
     manifest = tmp_path / "manifest.json"
     manifest.write_text('{"version":"0.3.0b2"}', encoding="utf-8")
     verifier.verify_release_version("0.3.0b2", manifest)
@@ -246,7 +255,7 @@ def test_release_version_guard_cli_does_not_parse_tag_as_option(tag: str) -> Non
     )
 
     assert result.returncode != 0
-    assert "does not match manifest version '0.7.0-rc3'" in result.stderr
+    assert "does not match manifest version '0.7.0-rc2'" in result.stderr
 
 
 def test_hacs_workflow_runs_release_version_guard_for_tags() -> None:
@@ -369,7 +378,15 @@ def test_english_only_translations_are_exactly_the_dormant_native_surface() -> N
 
     assert len(paths) == 62
     assert all(path[:1] in {("entity",), ("exceptions",)} for path in paths)
-    assert len(_translation_leaves(shared)) == 564
+    shared_leaves = _translation_leaves(shared)
+    additions = {
+        ".".join(path)
+        for path in shared_leaves
+        if path[:3] == ("options", "step", "updates")
+        or path == ("options", "step", "init", "menu_options", "updates")
+    }
+    assert additions == PA_UPDATE_TRANSLATION_ADDITIONS
+    assert len(shared_leaves) == 566 + len(PA_UPDATE_TRANSLATION_ADDITIONS)
     for locale_path in sorted((INTEGRATION / "translations").glob("*.json")):
         if locale_path.name == "en.json":
             continue
@@ -400,7 +417,7 @@ def test_shipped_translation_catalogues_preserve_machine_contracts() -> None:
         "uk.json",
         "zh-Hans.json",
     ]
-    assert len(english) == 564
+    assert len(english) == 566 + len(PA_UPDATE_TRANSLATION_ADDITIONS)
 
     for locale_path in locale_paths:
         target_catalogue = _without(

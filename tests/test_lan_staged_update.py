@@ -213,6 +213,38 @@ class _GitHub:
             bodies[f"{release.ANDROID_RELEASES_API}/tags/{TAG}"] = json.dumps(
                 document
             ).encode()
+        protocol_name = f"ha-paneld-{TAG}-protocol.json"
+        records = [{"apkSha256": sha, "protocolMin": 3, "protocolMax": 3}]
+        if bridge is not None:
+            records.append(
+                {"apkSha256": bridge_sha, "protocolMin": 3, "protocolMax": 3}
+            )
+        protocol = (
+            json.dumps(
+                {
+                    "schema": "io.github.maxlyth.hapaneld.protocol.v1",
+                    "artifacts": sorted(
+                        records, key=lambda record: record["apkSha256"]
+                    ),
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            + "\n"
+        ).encode()
+        for name, body in {
+            protocol_name: protocol,
+            f"{protocol_name}.sig": _sign(key, protocol),
+        }.items():
+            document["assets"].append(
+                {"name": name, "browser_download_url": f"{ROOT}/{name}"}
+            )
+            bodies[f"{ROOT}/{name}"] = body
+        bodies[str(release._LATEST_RELEASE_URL)] = json.dumps(document).encode()
+        bodies[f"{release.ANDROID_RELEASES_API}/tags/{TAG}"] = json.dumps(
+            document
+        ).encode()
+        bodies[f"{release.ANDROID_RELEASES_API}?per_page=30"] = b"[]"
         self._responses = {
             url: _Response(
                 asset_status if url == ASSET_HOST_URL else 200, body, URL(url)
@@ -306,7 +338,6 @@ async def _entity(
     monkeypatch.setattr(panel_update, "async_get_clientsession", lambda _h: github)
     monkeypatch.setattr(panel_update.asyncio, "sleep", AsyncMock())
     client = SimpleNamespace(
-        configuration_url="http://panel.local:8888",
         async_backup_panel=AsyncMock(return_value=_backup()),
         async_stage_apk=AsyncMock(return_value=_preview()),
         async_commit_apk=AsyncMock(),
@@ -716,22 +747,20 @@ async def test_a_panel_already_past_the_release_is_offered_nothing(
     client.async_stage_apk.assert_not_awaited()
 
 
-async def test_a_newer_offer_from_the_panel_is_left_to_the_panel(
+async def test_panel_cached_newer_offer_cannot_displace_compatible_host_release(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, trust: None, key: Any
 ) -> None:
-    """When the panel already knows a newer release, that one is installed."""
+    """A panel's cached target cannot establish the target's native range."""
     newer = PanelCachedUpdate("0.9.9", "0.9.11", "v0.9.11")
     github = _GitHub(key)
     entity, client = await _entity(hass, monkeypatch, github, offer=newer)
 
-    client.async_start_panel_update.side_effect = UpdateBusyError
+    assert entity.latest_version == VERSION
+    await entity.async_install(None, backup=False)
 
-    assert entity.latest_version == "0.9.11"
-    with pytest.raises(HomeAssistantError):
-        await entity.async_install(None, backup=False)
-
-    client.async_start_panel_update.assert_awaited_once_with("v0.9.11")
-    assert not github.apk_downloaded
+    client.async_start_panel_update.assert_not_awaited()
+    client.async_commit_apk.assert_awaited_once()
+    assert github.apk_downloaded
 
 
 async def test_refreshing_the_update_reads_the_latest_release_again(
@@ -770,7 +799,7 @@ async def test_a_panel_older_than_lan_updates_is_never_offered_what_it_cannot_ta
     key: Any,
     offer: PanelCachedUpdate | None,
 ) -> None:
-    """Before 0.8.6 a panel has no backup or upload; only its own offer stands."""
+    """Before 0.8.6 a panel lacks LAN updates and cached offers lack range proof."""
     github = _GitHub(key)
     entity, client = await _entity(hass, monkeypatch, github, offer=offer)
     entity.coordinator.data = PanelSnapshot(
@@ -780,17 +809,11 @@ async def test_a_panel_older_than_lan_updates_is_never_offered_what_it_cannot_ta
     )
     client.async_start_panel_update.side_effect = UpdateBusyError
 
-    if offer is None:
-        assert entity.latest_version == entity.installed_version == "0.8.5"
-        with pytest.raises(HomeAssistantError) as error:
-            await entity.async_install(None, backup=False)
-        _assert_translated(error.value, "update_unavailable")
-        client.async_start_panel_update.assert_not_awaited()
-    else:
-        assert entity.latest_version == VERSION
-        with pytest.raises(HomeAssistantError):
-            await entity.async_install(None, backup=False)
-        client.async_start_panel_update.assert_awaited_once_with(TAG)
+    assert entity.latest_version == entity.installed_version == "0.8.5"
+    with pytest.raises(HomeAssistantError) as error:
+        await entity.async_install(None, backup=False)
+    _assert_translated(error.value, "update_unavailable")
+    client.async_start_panel_update.assert_not_awaited()
     client.async_backup_panel.assert_not_awaited()
     client.async_stage_apk.assert_not_awaited()
     assert not github.apk_downloaded
@@ -1095,7 +1118,7 @@ async def test_a_bridge_update_that_cannot_hand_over_yet_is_still_a_success(
     assert entity.coordinator.data.health.version == VERSION
 
 
-async def test_bridge_label_does_not_hide_a_newer_panel_offer(
+async def test_unproven_panel_offer_cannot_bypass_bridge_handover_admission(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     trust: None,
@@ -1114,17 +1137,12 @@ async def test_bridge_label_does_not_hide_a_newer_panel_offer(
         status_error=None,
     )
     client.async_get_successor_capability = AsyncMock(side_effect=CannotConnectError)
+    await entity._async_refresh_route()
     assert entity.installed_version == f"{VERSION} (bridge)"
-    assert entity.latest_version == "0.9.11"
-    assert entity.state == "on"
-
-    async def panel_updated(_tag: str) -> None:
-        entity.coordinator.data = _snapshot("0.9.11", "3000", LEGACY_PACKAGE_ID)
-
-    client.async_start_panel_update.side_effect = panel_updated
-    await entity.async_install("0.9.11", backup=False)
-    client.async_start_panel_update.assert_awaited_once_with("v0.9.11")
-    client.async_get_successor_capability.assert_not_awaited()
+    assert entity.latest_version == entity.installed_version
+    with pytest.raises(HomeAssistantError):
+        await entity.async_install("0.9.11", backup=False)
+    client.async_start_panel_update.assert_not_awaited()
     client.async_stage_apk.assert_not_awaited()
 
 
@@ -1271,18 +1289,16 @@ async def test_a_stage_that_fails_for_any_other_reason_never_falls_back(
     client.async_start_panel_update.assert_not_awaited()
 
 
-async def test_a_release_for_another_app_id_is_left_to_the_panel(
+async def test_a_release_for_another_app_id_cannot_authorize_panel_cached_offer(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, trust: None, key: Any
 ) -> None:
-    """A legacy panel never has the successor staged beside it as a second app."""
     github = _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID)
     entity, client = await _entity(hass, monkeypatch, github, offer=OFFER)
-
-    await entity.async_install(None, backup=False)
-
-    assert not github.apk_downloaded
+    assert entity.latest_version == entity.installed_version
+    with pytest.raises(HomeAssistantError, match="unavailable"):
+        await entity.async_install(None, backup=False)
+    client.async_start_panel_update.assert_not_awaited()
     client.async_stage_apk.assert_not_awaited()
-    client.async_start_panel_update.assert_awaited_once_with(TAG)
 
 
 async def test_the_shared_release_outlives_the_panel_that_first_asked_for_it(
@@ -1298,14 +1314,14 @@ async def test_the_shared_release_outlives_the_panel_that_first_asked_for_it(
         coordinator = feed_coordinator.async_get_stable_release_coordinator(hass)
     finally:
         config_entries.current_entry.reset(token)
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     await entry._async_process_on_unload(hass)
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     remove_listener = coordinator.async_add_listener(lambda: None)
     github.requests.clear()
 
     async_fire_time_changed(hass, dt_util.utcnow() + feed_coordinator.STABLE_REFRESH)
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
 
     remove_listener()
     assert str(release._LATEST_RELEASE_URL) in github.requests
@@ -1533,3 +1549,77 @@ async def test_an_unavailable_adb_repair_keeps_a_successful_lan_dashboard_runnin
     assert not any(
         "am start" in command for device in panel.devices for command in device.commands
     )
+
+
+async def test_shared_release_selects_compatible_stable_and_prerelease_candidates(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, trust: None, key: Any
+) -> None:
+    """Each policy ignores an unknown or incompatible head before choosing."""
+    from custom_components.panel_assistant import release_catalog
+
+    entity, _ = await _entity(hass, monkeypatch, _GitHub(key))
+    coordinator = entity._release
+    assert coordinator is not None
+    artifact = coordinator.artifact_for(LEGACY_PACKAGE_ID)
+    assert artifact is not None
+    candidates = [
+        replace(
+            artifact,
+            version="0.9.15",
+            tag="v0.9.15",
+            protocol_min=None,
+            protocol_max=None,
+        ),
+        replace(
+            artifact, version="0.9.14", tag="v0.9.14", protocol_min=4, protocol_max=4
+        ),
+        replace(artifact, version="0.9.13-rc1", tag="v0.9.13-rc1"),
+        replace(artifact, version="0.9.12", tag="v0.9.12"),
+    ]
+    monkeypatch.setattr(
+        release_catalog,
+        "async_resolve_update_candidates",
+        AsyncMock(
+            return_value=[
+                (SimpleNamespace(artifact=candidate), None) for candidate in candidates
+            ]
+        ),
+    )
+    await coordinator.async_refresh()
+    stable = coordinator.artifact_for(LEGACY_PACKAGE_ID, allow_prerelease=False)
+    testing = coordinator.artifact_for(LEGACY_PACKAGE_ID, allow_prerelease=True)
+    assert stable is not None and stable.version == "0.9.12"
+    assert testing is not None and testing.version == "0.9.13-rc1"
+    assert entity.latest_version == "0.9.13-rc1"
+
+
+async def test_bridge_handover_pins_successor_from_the_bridge_selected_tag(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, trust: None, key: Any
+) -> None:
+    """A newer successor choice does not change the signed pair being handed over."""
+    from custom_components.panel_assistant import release_catalog
+
+    entity, _ = await _entity(
+        hass,
+        monkeypatch,
+        _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=b"bridge"),
+    )
+    coordinator = entity._release
+    assert coordinator is not None
+    bridge = coordinator.artifact_for(LEGACY_PACKAGE_ID)
+    successor = coordinator.artifact_for(SUCCESSOR_PACKAGE_ID)
+    assert bridge is not None and successor is not None
+    newer = replace(successor, version="0.9.11", tag="v0.9.11")
+    monkeypatch.setattr(
+        release_catalog,
+        "async_resolve_update_candidates",
+        AsyncMock(
+            return_value=[
+                (SimpleNamespace(artifact=newer), None),
+                (SimpleNamespace(artifact=successor), bridge),
+            ]
+        ),
+    )
+    await coordinator.async_refresh()
+    assert coordinator.artifact_for(SUCCESSOR_PACKAGE_ID) == newer
+    assert coordinator.artifact_for(SUCCESSOR_PACKAGE_ID, tag=bridge.tag) == successor

@@ -43,6 +43,7 @@ from custom_components.panel_assistant.failure_repair import (
 from custom_components.panel_assistant.feed_coordinator import (
     DATA_BUILD_FEED,
     BuildFeedCoordinator,
+    StableReleaseCoordinator,
 )
 from custom_components.panel_assistant.release import _RELEASE_SIGNER_CERTIFICATE_SHA256
 from custom_components.panel_assistant.status import PanelCachedUpdate, PanelStatus
@@ -77,7 +78,6 @@ def _entity(
     feed: bool = False,
 ) -> tuple[HaPaneldUpdateEntity, SimpleNamespace]:
     client = SimpleNamespace(
-        configuration_url="http://panel.local:8888",
         async_start_panel_update=AsyncMock(),
         async_get_panel_install_status=AsyncMock(),
         async_backup_panel=AsyncMock(return_value=b"backup"),
@@ -125,26 +125,40 @@ def _entity(
     )
     updates.async_request_refresh = AsyncMock()
     coordinator = None
+    build = FeedBuild(
+        version_code=102,
+        version_name="0.9.10",
+        apk_url=URL("https://feed.example/apk"),
+        apk_sha256="a" * 64,
+        apk_size=3,
+        commit="0" * 40,
+        database_compatibility="hapaneld-db:v1:ha-paneld.db:11:14",
+        min_sdk=26,
+        published="2026-09-28T00:00:00Z",
+        package_id=LEGACY_PACKAGE_ID,
+        protocol_min=3,
+        protocol_max=3,
+    )
     if feed:
-        build = FeedBuild(
-            version_code=102,
-            version_name="0.9.10",
-            apk_url=URL("https://feed.example/apk"),
-            apk_sha256="a" * 64,
-            apk_size=3,
-            commit="0" * 40,
-            database_compatibility="hapaneld-db:v1:ha-paneld.db:11:14",
-            min_sdk=26,
-            published="2026-09-28T00:00:00Z",
-            package_id=LEGACY_PACKAGE_ID,
-        )
         coordinator = BuildFeedCoordinator(hass, URL("https://feed.example/feed"))
         coordinator.data = BuildFeed(channel="maintainer", builds=(build,))
         coordinator.last_update_success = True
-        coordinator._verified_newest[LEGACY_PACKAGE_ID] = (build, b"apk")
+        coordinator._verified_apks[build.apk_sha256] = b"apk"
+    host_artifact = replace(feed_release_artifact(build), tag="v0.9.10")
+    host = StableReleaseCoordinator(hass)
+    host._candidates[host_artifact.tag, LEGACY_PACKAGE_ID] = host_artifact
     entity = HaPaneldUpdateEntity(
-        "entry-id", health, updates, coordinator, title="Test panel"
+        "entry-id",
+        health,
+        updates,
+        coordinator,
+        title="Test panel",
+        release=host,
     )
+    if not feed:
+        # The repair tests observe the admitted panel-download route; the LAN
+        # suite independently exercises authenticated bytes, backup and staging.
+        entity._async_deliver_build = AsyncMock(return_value=False)
     entity.hass = hass
     entity.entity_id = "update.kitchen_panel"
     entity.async_write_ha_state = MagicMock()
@@ -164,7 +178,8 @@ async def test_accepted_panel_update_failure_creates_repair(
         operation=PanelInstallStatus(running=False, component="ha-paneld"),
         error=None,
     )
-    monkeypatch.setattr(panel_update, "_TERMINAL_STATUS_GRACE_SECONDS", 0)
+    monkeypatch.setattr(panel_update, "_UPDATE_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(panel_update, "_UPDATE_RECHECK_SECONDS", 0.01)
 
     with pytest.raises(HomeAssistantError, match="did not complete"):
         await entity.async_install(None, backup=False)
@@ -238,7 +253,7 @@ async def test_recovered_stalled_update_creates_repair_without_requeue(
     observer = entity._observer_task
     assert observer is not None
 
-    with pytest.raises(HomeAssistantError, match="did not return"):
+    with pytest.raises(HomeAssistantError, match="did not complete"):
         await observer
 
     async_get_sessions(hass).clear_restart_notice("entry-id")
@@ -682,12 +697,14 @@ async def test_older_targetless_repair_clears_only_at_verified_current_feed_buil
         min_sdk=26,
         published="2026-09-28T00:00:00Z",
         package_id=LEGACY_PACKAGE_ID,
+        protocol_min=3,
+        protocol_max=3,
     )
     feed = BuildFeedCoordinator(hass, URL("https://feed.example/feed"))
     feed.data = BuildFeed(channel="maintainer", builds=(build,))
     feed.last_update_success = feed_ok
     if verified:
-        feed._verified_newest[LEGACY_PACKAGE_ID] = (build, b"apk")
+        feed._verified_apks[build.apk_sha256] = b"apk"
     hass.data.setdefault("panel_assistant", {})[DATA_BUILD_FEED] = feed
 
     client = SimpleNamespace(
@@ -841,7 +858,8 @@ async def test_invalid_request_does_not_create_repair(
         operation=PanelInstallStatus(running=False, component="ha-paneld"),
         error=None,
     )
-    monkeypatch.setattr(panel_update, "_TERMINAL_STATUS_GRACE_SECONDS", 0)
+    monkeypatch.setattr(panel_update, "_UPDATE_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(panel_update, "_UPDATE_RECHECK_SECONDS", 0.01)
 
     with pytest.raises(HomeAssistantError, match="did not complete"):
         await entity.async_install(None, backup=False)
@@ -962,7 +980,7 @@ async def test_accepted_staged_update_failure_creates_repair(
     monkeypatch.setattr(panel_update, "_ANDROID_PACKAGE_INSTALL_MAX_SECONDS", 0)
     monkeypatch.setattr(panel_update, "_RESTART_HEALTH_GRACE_SECONDS", 0)
 
-    with pytest.raises(HomeAssistantError, match="did not return"):
+    with pytest.raises(HomeAssistantError, match="did not complete"):
         await entity.async_install(None, backup=False)
 
     client.async_commit_apk.assert_awaited_once_with("token-1")
@@ -975,3 +993,147 @@ async def test_accepted_staged_update_failure_creates_repair(
     )
     assert isinstance(repairs.record.await_args.args[4], HomeAssistantError)
     repairs.clear.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "versions", [("0.9.9-rc1", "0.9.9-rc2"), ("0.9.9-rc9", "0.9.9-rc10")]
+)
+async def test_recovered_prerelease_advance_completes_without_repair(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    repairs: SimpleNamespace,
+    versions: tuple[str, str],
+) -> None:
+    """A running update found by PA can return on a later release candidate."""
+    entity, client = _entity(hass, recovered=True)
+    before, after = versions
+    snapshot = entity.coordinator.data
+    entity.coordinator.data = replace(
+        snapshot, health=replace(snapshot.health, version=before, version_code=1050)
+    )
+    monkeypatch.setattr(panel_update, "_UPDATE_TIMEOUT_SECONDS", 0.02)
+    monkeypatch.setattr(panel_update, "_UPDATE_RECHECK_SECONDS", 0.01)
+
+    async def refresh_health() -> None:
+        entity.coordinator.data = replace(
+            snapshot, health=replace(snapshot.health, version=after, version_code=1068)
+        )
+
+    entity.coordinator.async_request_refresh = AsyncMock(side_effect=refresh_health)
+
+    async def refresh_status() -> None:
+        entity._update_coordinator.data = PanelUpdateSnapshot(
+            operation=None, error=None
+        )
+
+    entity._update_coordinator.async_request_refresh = AsyncMock(
+        side_effect=refresh_status
+    )
+    entity._resume_running_operation()
+    await entity._observer_task
+
+    assert entity.installed_version == after
+    assert not entity.in_progress
+    repairs.record.assert_not_awaited()
+    repairs.clear.assert_awaited_once_with(
+        hass, "entry-id", after, 1068, verified_success=True
+    )
+    client.async_start_panel_update.assert_not_awaited()
+
+
+async def test_slow_panel_return_after_terminal_slot_still_completes(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    repairs: SimpleNamespace,
+) -> None:
+    """A stopped progress slot cannot shorten the accepted update's total wait."""
+    entity, _ = _entity(hass)
+    snapshot = entity.coordinator.data
+    monkeypatch.setattr(panel_update, "_TERMINAL_STATUS_GRACE_SECONDS", 0.001)
+    monkeypatch.setattr(panel_update, "_UPDATE_TIMEOUT_SECONDS", 0.5)
+    monkeypatch.setattr(panel_update, "_UPDATE_RECHECK_SECONDS", 0.01)
+    entity._update_coordinator.data = PanelUpdateSnapshot(
+        operation=PanelInstallStatus(running=False, component="ha-paneld"), error=None
+    )
+    refreshes = 0
+
+    async def refresh_health() -> None:
+        nonlocal refreshes
+        refreshes += 1
+        entity.coordinator.last_update_success = refreshes >= 4
+        if refreshes >= 4:
+            entity.coordinator.data = replace(
+                snapshot, health=replace(snapshot.health, version="0.9.10")
+            )
+
+    entity.coordinator.async_request_refresh = AsyncMock(side_effect=refresh_health)
+    await entity.async_install(None, backup=False)
+
+    async_get_sessions(hass).clear_restart_notice("entry-id")
+    assert entity.installed_version == "0.9.10"
+    assert not entity.in_progress
+    repairs.record.assert_not_awaited()
+
+
+@pytest.mark.parametrize("outcome", ["not_started", "dashboard_missing"])
+async def test_reachable_panel_unproved_update_reports_incomplete(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    repairs: SimpleNamespace,
+    outcome: str,
+) -> None:
+    """A panel answering health never becomes a claim that it did not return."""
+    entity, _ = _entity(hass)
+    entity._update_coordinator.data = PanelUpdateSnapshot(operation=None, error=None)
+    if outcome == "dashboard_missing":
+        snapshot = entity.coordinator.data
+
+        async def refresh_health() -> None:
+            entity.coordinator.data = replace(
+                snapshot, health=replace(snapshot.health, version="0.9.10")
+            )
+
+        entity.coordinator.async_request_refresh = AsyncMock(side_effect=refresh_health)
+        entity.coordinator.client.async_get_status = AsyncMock(
+            return_value=PanelStatus(warning_count=0, capability_count=0)
+        )
+    monkeypatch.setattr(panel_update, "_UPDATE_TIMEOUT_SECONDS", 0.02)
+    monkeypatch.setattr(panel_update, "_UPDATE_RECHECK_SECONDS", 0.01)
+
+    with pytest.raises(HomeAssistantError, match="update did not complete") as error:
+        await entity.async_install(None, backup=False)
+
+    assert error.value.translation_key == "update_not_complete"
+    assert not entity.in_progress
+    repairs.record.assert_awaited_once()
+
+
+async def test_recovered_disappeared_operation_ends_unknown_without_repair(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    repairs: SimpleNamespace,
+) -> None:
+    """A past running sample with no durable target is not a failed install."""
+    entity, client = _entity(hass, recovered=True)
+    monkeypatch.setattr(panel_update, "_UPDATE_TIMEOUT_SECONDS", 0.02)
+    monkeypatch.setattr(panel_update, "_UPDATE_RECHECK_SECONDS", 0.01)
+    refreshes = 0
+
+    async def refresh_status() -> None:
+        nonlocal refreshes
+        refreshes += 1
+        if refreshes > 1:
+            entity._update_coordinator.data = PanelUpdateSnapshot(
+                operation=None, error=None
+            )
+
+    entity._update_coordinator.async_request_refresh = AsyncMock(
+        side_effect=refresh_status
+    )
+    entity._resume_running_operation()
+    await entity._observer_task
+
+    assert not entity.in_progress
+    repairs.record.assert_not_awaited()
+    repairs.clear.assert_not_awaited()
+    client.async_start_panel_update.assert_not_awaited()

@@ -559,11 +559,6 @@ class HaPaneldClient:
         self._health_response_peer: tuple[str, str] | None = None
 
     @property
-    def configuration_url(self) -> str:
-        """Return the panel's browser configuration URL."""
-        return str(self.address.base_url)
-
-    @property
     def health_url(self) -> URL:
         """Return the canonical health endpoint."""
         return self.address.base_url.with_path(HEALTH_PATH)

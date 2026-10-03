@@ -74,15 +74,19 @@ from .const import (
     INTEGRATION_VERSION,
     MAX_ANDROID_INTEGER,
 )
+from .const import (
+    PROTOCOL_MAX as PROTOCOL_MAX,
+)
+from .const import (
+    PROTOCOL_MIN as PROTOCOL_MIN,
+)
 from .contract import CONTRACT, catalogue_entry, catalogue_entry_for_channel
 from .embed_proof import encode_key, new_key
 from .ha_url import DATA_INSTANCE_ID, async_connection_urls
 from .lifecycle import DATA_LIFECYCLE
+from .update_policy import policy_for, prereleases_allowed
 
 _LOGGER = logging.getLogger(__name__)
-
-PROTOCOL_MIN: Final = 1
-PROTOCOL_MAX: Final = 3
 
 COMMAND_HELLO: Final = f"{DOMAIN}/hello"
 COMMAND_REPORT_STATE: Final = f"{DOMAIN}/report_state"
@@ -167,6 +171,7 @@ REASON_ENTRY_UNLOADED: Final = "entry_unloaded"
 REASON_USER_REMOVED: Final = "user_removed"
 REASON_BINDING_CHANGED: Final = "binding_changed"
 REASON_AUTHORITY_CHANGED: Final = "authority_changed"
+REASON_UPDATE_POLICY_CHANGED: Final = "update_policy_changed"
 
 # Command outcomes a panel reports. Interim ``pending_approval`` is followed by
 # exactly one final outcome.
@@ -879,6 +884,8 @@ class PanelSession:
     # The authority the hello reply granted. An options change that makes the
     # entry's authority differ ends the session.
     authority: str = DEFAULT_AUTHORITY
+    # The channel granted for this live session. A changed option revokes it.
+    prerelease_panel_builds: bool | None = None
     # What the hello reply told the panel to do with its MQTT discovery.
     mqtt_discovery: str = MQTT_DISCOVERY_ANNOUNCE
     # Whether the panel offered to follow that answer. One that did not
@@ -1166,7 +1173,7 @@ def authority_options(entry: ConfigEntry, authority: str) -> dict[str, Any]:
 
 @callback
 def async_apply_authority(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """End a live session whose granted authority is no longer the entry's.
+    """End a live session whose authority or update grant is no longer current.
 
     Every change to an entry calls this, binding writes included, so it acts
     only on a real change. The panel sends hello again and is granted anew.
@@ -1175,6 +1182,12 @@ def async_apply_authority(hass: HomeAssistant, entry: ConfigEntry) -> None:
     session = sessions.get(entry.entry_id)
     if session is not None and session.authority != effective_authority(hass, entry):
         sessions.close(session, REASON_AUTHORITY_CHANGED)
+    elif (
+        session is not None
+        and session.prerelease_panel_builds is not None
+        and session.prerelease_panel_builds != prereleases_allowed(entry)
+    ):
+        sessions.close(session, REASON_UPDATE_POLICY_CHANGED)
 
 
 def async_get_sessions(hass: HomeAssistant) -> TransportSessions:
@@ -2238,6 +2251,7 @@ def _accept_hello(
         addresses=tuple(msg.get("addresses", ())),
         unknown_channels=unknown,
         authority=authority,
+        prerelease_panel_builds=prereleases_allowed(entry),
         mqtt_discovery=mqtt_discovery,
         mqtt_withdraw_offered=mqtt_withdraw_offered,
     )
@@ -2249,6 +2263,7 @@ def _accept_hello(
         "capabilities": sorted(capabilities),
         "integration": {"version": INTEGRATION_VERSION},
         "lifecycle": hass.data[DOMAIN][DATA_LIFECYCLE].snapshot(),
+        "update_policy": policy_for(entry),
         "connection": {
             "instance_id": hass.data[DOMAIN][DATA_INSTANCE_ID],
             "user_id": user_id,

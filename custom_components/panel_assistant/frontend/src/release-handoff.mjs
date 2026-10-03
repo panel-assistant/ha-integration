@@ -1,5 +1,5 @@
 import { verifyApkBundle } from './apk-verifier.mjs';
-import { MAX_FEED_BYTES, MAX_TAG_LENGTH, isBuildTag, isRcTag } from './release-identity.mjs';
+import { MAX_FEED_BYTES, MAX_TAG_LENGTH, isBuildTag, isGithubTag } from './release-identity.mjs';
 
 const fail = () => { throw new Error('handoff_invalid'); };
 const keys = (value, expected) => value && typeof value === 'object' && !Array.isArray(value) &&
@@ -13,17 +13,17 @@ export function handoffOptions(hash) {
   const url = new URL(origin);
   if (!['http:', 'https:'].includes(url.protocol) || url.origin !== origin ||
       !/^[0-9a-f]{32}$/.test(nonce) || nonce.length !== 32 ||
-      (rc !== '' && !isRcTag(rc) && !isBuildTag(rc))) fail();
+      (rc !== '' && !isGithubTag(rc) && !isBuildTag(rc))) fail();
   return Object.freeze({ origin, nonce, expectedRcTag: rc || null });
 }
 
 // A feed build arrives as the signed feed; a GitHub release as its four signed
-// files. The tag Home Assistant named decides which shape is acceptable.
+// files. The authenticated selected tag decides which shape is acceptable.
 const GITHUB_BYTES = { checksum: 512, checksumSignature: 256, descriptor: 4096, descriptorSignature: 256 };
 const FEED_BYTES = { feed: MAX_FEED_BYTES, feedSignature: 256 };
 
-function snapshot(message, expectedRcTag) {
-  const limits = isBuildTag(expectedRcTag) ? FEED_BYTES : GITHUB_BYTES;
+function snapshot(message) {
+  const limits = isBuildTag(message.bundle?.tag) ? FEED_BYTES : GITHUB_BYTES;
   if (!keys(message, ['type', 'nonce', 'bundle', 'apk']) ||
       !keys(message.bundle, ['tag', ...Object.keys(limits)])) fail();
   const bundle = { tag: message.bundle.tag };
@@ -41,8 +41,8 @@ function snapshot(message, expectedRcTag) {
   return { bundle, apk };
 }
 
-// The opener is a delivery source, not a release authority. Authenticate again
-// locally before enabling connection, then again at transaction boundaries.
+// Signed bytes prove the artifact; fresh admission from the live PA opener
+// proves current channel and protocol eligibility at transaction boundaries.
 // `verificationKey` replaces the embedded release key in tests only.
 export function receiveReleaseHandoff({ windowObject = window,
   options = handoffOptions(windowObject.location.hash), timeoutMs = 300000,
@@ -50,12 +50,14 @@ export function receiveReleaseHandoff({ windowObject = window,
   if (!options || !windowObject.opener || !windowObject.isSecureContext ||
       !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 300000) fail();
   const source = windowObject.opener;
-  let stopped = false, received = false, timer, rejectCompletion;
+  let stopped = false, received = false, timer, rejectCompletion, pending;
   const cleanup = () => { clearTimeout(timer); windowObject.removeEventListener('message', receive); };
   const reply = type => source.postMessage({ type, nonce: options.nonce }, options.origin);
   const cancel = () => {
     stopped = true;
     cleanup();
+    pending?.reject(new Error('handoff_cancelled'));
+    pending = undefined;
     rejectCompletion(new Error('handoff_cancelled'));
   };
   let resolveCompletion;
@@ -64,21 +66,58 @@ export function receiveReleaseHandoff({ windowObject = window,
   });
   void completion.catch(() => {});
   async function receive(event) {
-    if (stopped || received || event.source !== source || event.origin !== options.origin ||
-        event.data?.type !== 'ha-paneld/usb-bundle' || event.data?.nonce !== options.nonce) return;
+    if (stopped || event.source !== source || event.origin !== options.origin ||
+        event.data?.nonce !== options.nonce) return;
+    if (event.data?.type === 'ha-paneld/usb-admission-result') {
+      if (!pending || event.data.requestId !== pending.requestId) return;
+      const current = pending;
+      pending = undefined;
+      clearTimeout(timer);
+      if (!keys(event.data, ['type', 'nonce', 'requestId', 'tag', 'apkSha256', 'admitted']) ||
+          event.data.tag !== current.tag || event.data.apkSha256 !== current.apkSha256 ||
+          event.data.admitted !== true || source.closed) {
+        current.reject(new Error('handoff_invalid'));
+      } else current.resolve();
+      return;
+    }
+    if (received || event.data?.type !== 'ha-paneld/usb-bundle') return;
     received = true;
     try {
-      const selected = snapshot(event.data, options.expectedRcTag);
-      const authenticate = async () => {
+      const selected = snapshot(event.data);
+      const verify = async () => {
         if (stopped) fail();
         const release = await verifyApkBundle(selected.bundle, selected.apk,
-          { expectedRcTag: options.expectedRcTag }, verificationKey);
+          { expectedRcTag: options.expectedRcTag ?? selected.bundle.tag }, verificationKey);
         if (stopped) fail();
         return release;
       };
-      const release = await authenticate();
+      const release = await verify();
+      const authenticate = async () => {
+        const verified = await verify();
+        if (source.closed || pending) fail();
+        const requestId = [...windowObject.crypto.getRandomValues(new Uint8Array(16))]
+          .map(value => value.toString(16).padStart(2, '0')).join('');
+        const { releaseTag: tag, apkSha256 } = verified.descriptor;
+        await new Promise((resolve, reject) => {
+          pending = { requestId, tag, apkSha256, resolve, reject };
+          timer = setTimeout(() => {
+            pending = undefined;
+            reject(new Error('handoff_invalid'));
+          }, Math.min(timeoutMs, 10000));
+          try {
+            source.postMessage({ type: 'ha-paneld/usb-admission', nonce: options.nonce,
+              requestId, tag, apkSha256 }, options.origin);
+          } catch {
+            clearTimeout(timer);
+            pending = undefined;
+            reject(new Error('handoff_invalid'));
+          }
+        });
+        if (stopped || source.closed) fail();
+        return verified;
+      };
       if (stopped) return;
-      cleanup();
+      clearTimeout(timer);
       reply('ha-paneld/usb-verified');
       resolveCompletion(Object.freeze({ release, authenticate }));
     } catch {

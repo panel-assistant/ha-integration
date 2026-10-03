@@ -91,6 +91,7 @@
       "installing": "Instalowanie i weryfikowanie ha-paneld pod adresem {address}. Pozostaw to okno otwarte, aby zakończyć automatycznie. Możesz je zamknąć, a Home Assistant będzie kontynuować zadanie instalacji, ale nie doda urządzenia, dopóki ponownie nie otworzysz Ustawienia → Urządzenia oraz usługi → Dodaj integrację, nie wybierzesz Panel Assistant, nie wybierzesz „Dodaj panel w swojej sieci” i nie wprowadzisz tego samego adresu. Gdy Home Assistant doda urządzenie, otwórz link do konfiguracji w przeglądarce w oknie Dodawanie na komputerze, który ma dostęp do panelu w sieci lokalnej. Jeśli pojawi się prośba, zatwierdź ADB na panelu."
     },
     "error": {
+      "old_app_installed": "Na tym panelu nadal jest zainstalowana stara aplikacja ha-paneld, ale nie odpowiada. Otwórz ją na panelu lub uruchom panel ponownie, a potem dodaj go jeszcze raz. Panel Assistant zaproponuje wtedy naprawę, która przeniesie go do nowej aplikacji.",
       "cannot_connect": "Nie udało się nawiązać połączenia z prawidłowym punktem końcowym stanu działania usługi ha-paneld.",
       "invalid_address": "Wprowadź nazwę hosta lub adres IP bez schematu URL i ścieżki.",
       "invalid_install_address": "Wprowadź tylko nazwę hosta lub adres IP panelu. Instalator osobno używa portu 8888 ha-paneld i portu 5555 ADB.",
@@ -210,9 +211,6 @@
     },
     "update_not_complete": {
       "message": "Aktualizacja panelu nie została zakończona"
-    },
-    "update_did_not_return": {
-      "message": "Panel nie wrócił do działania po aktualizacji"
     },
     "panel_backup_failed": {
       "message": "Nie udało się wykonać kopii zapasowej panelu, więc nic nie zostało zainstalowane"
@@ -336,6 +334,10 @@
     "native_controls_unavailable": {
       "title": "Natywne elementy sterujące niedostępne na {panel}",
       "description": "Panel Assistant wyłączył te elementy sterujące MQTT, ponieważ {panel} nie udostępnia ich natywnych działań: {entities}. Konfiguracja i identyfikatory encji pozostają zachowane. Zaktualizuj aplikację panelu i sprawdź, czy wymagania dotyczące jej działań są spełnione, a następnie połącz panel ponownie. Ponowne uruchomienie wymaga uprawnień root także przez MQTT. Jeśli element sterujący wcześniej działał przez MQTT, przełączenie tego panelu z powrotem na MQTT tymczasowo przywróci jego działanie."
+    },
+    "no_update_route": {
+      "title": "{panel} nie może otrzymywać aktualizacji aplikacji",
+      "description": "Panel Assistant nie może zainstalować aktualizacji aplikacji na {panel}, więc pozostaje on w bieżącej wersji. Wszystko inne w panelu działa dalej, dlatego łatwo to przeoczyć. Zwykle dzieje się tak po zmianie wprowadzonej na samym panelu, takiej jak aktualizacja oprogramowania układowego lub przywrócenie ustawień. Wybierz Dowiedz się więcej, aby poznać kroki dla tego panelu. Zgłoszono: {reason}"
     },
     "merged_panel_identity": {
       "title": "Rozdziel scalone panele: {panels}",
@@ -1038,7 +1040,8 @@
         "menu_options": {
           "onboarding": "Kontynuuj konfigurację",
           "transport": "Ustawienia połączenia",
-          "authorize_adb": "Autoryzuj ADB do aktualizacji"
+          "authorize_adb": "Autoryzuj ADB do aktualizacji",
+          "updates": "Aktualizacje panelu"
         }
       },
       "onboarding": {
@@ -1066,6 +1069,16 @@
         "description": "Wybierz, co steruje encjami i poleceniami tego panelu. Zapisanie opcji Panel Assistant przenosi encje MQTT panelu do Panel Assistant z zachowaniem ich identyfikatorów encji, historii i dostosowań, a następnie panel wycofuje swoje encje MQTT. Zapisanie opcji MQTT, z raportami natywnymi lub bez nich, przenosi je z powrotem do MQTT. W obu przypadkach panel łączy się ponownie z nowym wyborem.",
         "data": {
           "authority": "Sterowanie"
+        }
+      },
+      "updates": {
+        "title": "Aktualizacje panelu",
+        "description": "Wybierz, jakie kompilacje aplikacji panelu może otrzymywać ten panel. Każda kompilacja musi być zgodna z działającym Panel Assistant.",
+        "data": {
+          "prerelease_panel_builds": "Zezwalaj na wersje wstępne aplikacji panelu"
+        },
+        "data_description": {
+          "prerelease_panel_builds": "Wstępna wersja Panel Assistant już zezwala na wersje wstępne aplikacji panelu."
         }
       }
     },

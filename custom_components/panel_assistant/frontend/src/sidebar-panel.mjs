@@ -24,6 +24,11 @@ export const SIDEBAR_MESSAGES = Object.freeze({
   notLoadedBody: 'This panel is not loaded in Home Assistant.',
   closed: 'This panel was closed.',
   frameTitle: 'Panel interface',
+  picklesStory: 'Pickles the panda has escaped and is causing havoc. He’s slow and stubborn, so getting him back may take a moment.',
+  unreachableNext: 'Check that the panel is powered on and connected to your network.',
+  notLoadedNext: 'Open Integration settings to check this panel’s connection.',
+  failedNext: 'Wait a moment while we try again, or choose another panel.',
+  closedNext: 'Choose another panel, or wait for this panel to reconnect.',
 });
 
 // Small enough to inline; avoids registering a second static path just for one icon.
@@ -88,7 +93,7 @@ function writeSelection(entryId) {
 }
 
 export class PanelAssistantSidebar extends HTMLElement {
-  #hass; #panel; #narrow = false; #connection; #panels = null; #listState = 'loading'; #listGeneration = 0;
+  #hass; #panel; #route; #narrow = false; #connection; #panels = null; #listState = 'loading'; #listGeneration = 0;
   #signature = ''; #selected = null; #session = null; #timer = null; #alerts = null;
   #onReady = () => this.#reconnected();
   constructor() {
@@ -126,6 +131,11 @@ export class PanelAssistantSidebar extends HTMLElement {
       #slot,#more{display:contents}
       .menu-icon,.item-label,#backdrop{display:none}
       #add-label{display:inline}
+      #failure{flex:1;min-height:0;overflow:auto;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:12px;padding:20px;text-align:center}
+      #pickles{width:180px;max-width:100%;height:180px;object-fit:contain;flex-shrink:0}
+      #pickles-story,#next-step{margin:0;max-width:440px;line-height:1.5}
+      #next-step{color:var(--secondary-text-color,#727272)}
+      #failure-status{margin:0;max-width:440px;line-height:1.5;color:var(--primary-text-color,#212121)}
       #status{margin:0;padding:16px;color:var(--secondary-text-color,#727272)}
       #loading{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:16px;text-align:center;color:var(--secondary-text-color,#727272)}
       .spinner{animation:pa-spin .9s linear infinite}
@@ -168,7 +178,8 @@ export class PanelAssistantSidebar extends HTMLElement {
       <a id="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg><span class="item-label" data-message="integrationSettings"></span></a>
       </div>
       <div id="slot"></div>
-    </header><p id="status" role="status" aria-live="polite"></p><div id="loading" hidden><svg class="spinner" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="19" stroke="var(--divider-color,#e0e0e0)" stroke-width="4" fill="none"></circle><circle cx="24" cy="24" r="19" stroke="var(--app-header-background-color,var(--primary-color,#03a9f4))" stroke-width="4" stroke-linecap="round" stroke-dasharray="119.4" stroke-dashoffset="89.5" fill="none"></circle></svg><p id="loading-text" role="status" aria-live="polite"></p><p id="loading-hint" data-message="loadingHint"></p></div><iframe id="frame"></iframe></div>`;
+    </header><div id="failure" hidden><img id="pickles" src="/panel_assistant/usb/pickles.svg" alt=""><p id="pickles-story" data-message="picklesStory"></p><p id="failure-status" role="status" aria-live="polite"></p><p id="next-step"></p></div><p id="status" role="status" aria-live="polite"></p><div id="loading" hidden><svg class="spinner" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="19" stroke="var(--divider-color,#e0e0e0)" stroke-width="4" fill="none"></circle><circle cx="24" cy="24" r="19" stroke="var(--app-header-background-color,var(--primary-color,#03a9f4))" stroke-width="4" stroke-linecap="round" stroke-dasharray="119.4" stroke-dashoffset="89.5" fill="none"></circle></svg><p id="loading-text" role="status" aria-live="polite"></p><p id="loading-hint" data-message="loadingHint"></p></div><iframe id="frame"></iframe></div>`;
+    // Pickles art: https://github.com/maxlyth/pickles. Recopy static/pickles.svg for upstream fixes.
     const root = this.shadowRoot;
     for (const element of root.querySelectorAll('[data-message]')) element.textContent = SIDEBAR_MESSAGES[element.dataset.message];
     const menu = root.querySelector('#menu');
@@ -238,6 +249,12 @@ export class PanelAssistantSidebar extends HTMLElement {
   set panel(value) {
     this.#panel = value;
     this.shadowRoot.querySelector('#version').textContent = versionText(value?.config);
+  }
+  get route() { return this.#route; }
+  set route(value) {
+    const previous = this.#route?.path;
+    this.#route = value;
+    if (previous !== value?.path) this.#choose(value?.path?.slice(1));
   }
   get narrow() { return this.#narrow; }
   set narrow(value) {
@@ -358,7 +375,8 @@ export class PanelAssistantSidebar extends HTMLElement {
     this.#panels = panels;
     this.#listState = panels.length ? 'ready' : 'empty';
     if (!panels.some(panel => panel.entry_id === this.#selected)) {
-      const stored = readSelection();
+      const requested = this.#route?.path?.slice(1);
+      const stored = panels.some(panel => panel.entry_id === requested) ? requested : readSelection();
       this.#selected = panels.some(panel => panel.entry_id === stored) ? stored : panels[0]?.entry_id ?? null;
     }
     this.#reconcile();
@@ -488,7 +506,11 @@ export class PanelAssistantSidebar extends HTMLElement {
     else if (session?.state !== 'open' && !frame.getAttribute('src')) opening = true;
     const status = root.querySelector('#status');
     status.textContent = key === 'restarting' ? SIDEBAR_MESSAGES.restarting.replace('{reason}', panel.reason) : key ? SIDEBAR_MESSAGES[key] : '';
-    status.hidden = !key;
+    const failure = ['unreachableBody', 'notLoadedBody', 'failed', 'closed'].includes(key);
+    root.querySelector('#failure').hidden = !failure;
+    root.querySelector('#failure-status').textContent = failure ? status.textContent : '';
+    root.querySelector('#next-step').textContent = failure ? SIDEBAR_MESSAGES[{ unreachableBody: 'unreachableNext', notLoadedBody: 'notLoadedNext', failed: 'failedNext', closed: 'closedNext' }[key]] : '';
+    status.hidden = !key || failure;
     const loading = root.querySelector('#loading');
     loading.hidden = !opening;
     if (opening) root.querySelector('#loading-text').textContent = openingText(panel?.title);

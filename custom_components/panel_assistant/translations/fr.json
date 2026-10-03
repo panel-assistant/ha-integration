@@ -91,6 +91,7 @@
       "installing": "Installation et vérification de ha-paneld à l'adresse {address}. Laissez cette boîte de dialogue ouverte pour terminer automatiquement. Vous pouvez la fermer : Home Assistant poursuivra la tâche d'installation, mais ne pourra pas ajouter l'appareil avant que vous ne rouvriez Paramètres → Appareils et services → Ajouter une intégration, sélectionniez Panel Assistant, choisissiez Ajouter un panneau de votre réseau et saisissiez la même adresse. Une fois l'appareil ajouté par Home Assistant, suivez le lien de configuration dans le navigateur de la boîte de dialogue Ajouter depuis un ordinateur qui peut accéder au panneau sur le réseau local. Si demandé, autorisez ADB sur le panneau."
     },
     "error": {
+      "old_app_installed": "Ce panneau a encore l’ancienne app ha-paneld installée, mais elle ne répond pas. Ouvrez-la sur le panneau ou redémarrez le panneau, puis ajoutez-le à nouveau. Panel Assistant propose ensuite une réparation qui le passe à la nouvelle app.",
       "cannot_connect": "Impossible de se connecter à un point de terminaison d'état ha-paneld valide.",
       "invalid_address": "Saisissez un nom d'hôte ou une adresse IP sans schéma d'URL ni chemin.",
       "invalid_install_address": "Saisissez uniquement le nom d'hôte ou l'adresse IP du panneau. Le programme d'installation utilise séparément le port 8888 de ha-paneld et le port 5555 d'ADB.",
@@ -181,7 +182,6 @@
     "staged_app_mismatch": { "message": "L'application préparée ne correspondait pas aux données de la version signée. Rien n'a été installé." },
     "update_not_accepted": { "message": "Le panneau n'a pas accepté la demande de mise à jour" },
     "update_not_complete": { "message": "La mise à jour du panneau ne s'est pas terminée" },
-    "update_did_not_return": { "message": "Le panneau n'est pas revenu après la mise à jour" },
     "panel_backup_failed": { "message": "Le panneau n'a pas pu être sauvegardé, rien n'a donc été installé" },
     "build_verification_failed": { "message": "Le build ne correspondait pas au flux de builds signé, rien n'a donc été installé" },
     "release_verification_failed": { "message": "La version ne correspondait pas à sa signature, donc rien n'a été installé" },
@@ -296,6 +296,10 @@
     "native_controls_unavailable": {
       "title": "Commandes natives indisponibles sur {panel}",
       "description": "Panel Assistant a désactivé ces commandes MQTT car {panel} ne propose pas leurs actions natives : {entities}. Leur configuration et leurs identifiants d’entité sont conservés. Mettez à jour l’application du panneau, vérifiez que les conditions nécessaires aux actions sont réunies, puis reconnectez-le. Le redémarrage nécessite aussi un accès root avec MQTT. Si une commande fonctionnait auparavant avec MQTT, repasser ce panneau à MQTT la rétablit temporairement."
+    },
+    "no_update_route": {
+      "title": "{panel} ne peut pas recevoir de mises à jour de l'application",
+      "description": "Panel Assistant ne peut pas installer de mises à jour de l'application sur {panel}, qui reste donc sur sa version actuelle. Tout le reste du panneau continue de fonctionner, ce qui rend le problème facile à manquer. Cela fait généralement suite à une modification effectuée sur le panneau lui-même, comme une mise à jour du micrologiciel ou une réinitialisation. Sélectionnez En savoir plus pour les étapes propres à ce panneau. Signalé : {reason}"
     },
     "merged_panel_identity": {
       "title": "Séparer les panneaux fusionnés : {panels}",
@@ -998,7 +1002,8 @@
         "menu_options": {
           "onboarding": "Poursuivre la configuration",
           "transport": "Paramètres de connexion",
-          "authorize_adb": "Autoriser ADB pour les mises à jour"
+          "authorize_adb": "Autoriser ADB pour les mises à jour",
+          "updates": "Mises à jour du panneau"
         }
       },
       "onboarding": {
@@ -1026,6 +1031,16 @@
         "description": "Choisissez ce qui contrôle les entités et les commandes de ce panneau. En enregistrant Panel Assistant, Panel Assistant déplace vers lui les entités MQTT du panneau, en conservant leurs identifiants d'entité, leur historique et vos personnalisations, puis le panneau retire ses entités MQTT. En enregistrant MQTT, avec ou sans rapports natifs, elles reviennent à MQTT. Dans les deux cas, le panneau se reconnecte avec le nouveau choix.",
         "data": {
           "authority": "Contrôle"
+        }
+      },
+      "updates": {
+        "title": "Mises à jour du panneau",
+        "description": "Choisissez les versions de l’application du panneau que ce panneau peut recevoir. Chaque version doit être compatible avec le Panel Assistant en cours d’exécution.",
+        "data": {
+          "prerelease_panel_builds": "Autoriser les préversions de l’application du panneau"
+        },
+        "data_description": {
+          "prerelease_panel_builds": "Une préversion de Panel Assistant autorise déjà les préversions de l’application du panneau."
         }
       }
     },

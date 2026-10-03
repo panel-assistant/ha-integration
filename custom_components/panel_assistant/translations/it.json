@@ -91,6 +91,7 @@
       "installing": "Installazione e verifica di ha-paneld all'indirizzo {address}. Lascia aperta questa finestra di dialogo per completare automaticamente l'operazione. Puoi chiuderla e Home Assistant continuerà a eseguire il processo di installazione, ma non potrà aggiungere il dispositivo finché non riaprirai Impostazioni → Dispositivi e servizi → Aggiungi integrazione, selezionerai Panel Assistant, sceglierai Aggiungi un pannello della tua rete e inserirai lo stesso indirizzo. Dopo che Home Assistant avrà aggiunto il dispositivo, segui il link alla configurazione nel browser nella finestra Aggiungi da un computer che può raggiungere il pannello sulla rete locale. Se richiesto, autorizza ADB sul pannello."
     },
     "error": {
+      "old_app_installed": "Su questo pannello è ancora installata la vecchia app ha-paneld, ma non risponde. Aprila sul pannello o riavvia il pannello, poi aggiungilo di nuovo. Panel Assistant offrirà quindi una riparazione che lo sposta sulla nuova app.",
       "cannot_connect": "Impossibile connettersi a un endpoint valido sullo stato di funzionamento di ha-paneld.",
       "invalid_address": "Inserisci un nome host o un indirizzo IP senza schema URL né percorso.",
       "invalid_install_address": "Inserisci solo il nome host o l'indirizzo IP del pannello. Il programma di installazione usa separatamente la porta 8888 di ha-paneld e la porta 5555 di ADB.",
@@ -181,7 +182,6 @@
     "staged_app_mismatch": { "message": "L’app preparata non corrispondeva ai dati della versione firmata. Non è stato installato nulla." },
     "update_not_accepted": { "message": "Il pannello non ha accettato la richiesta di aggiornamento" },
     "update_not_complete": { "message": "L'aggiornamento del pannello non è stato completato" },
-    "update_did_not_return": { "message": "Il pannello non è tornato disponibile dopo l'aggiornamento" },
     "panel_backup_failed": { "message": "Non è stato possibile eseguire il backup del pannello, quindi non è stato installato nulla" },
     "build_verification_failed": { "message": "La build non corrispondeva al feed delle build firmato, quindi non è stato installato nulla" },
     "release_verification_failed": { "message": "La release non corrispondeva alla sua firma, quindi non è stato installato nulla" },
@@ -296,6 +296,10 @@
     "native_controls_unavailable": {
       "title": "Controlli nativi non disponibili su {panel}",
       "description": "Panel Assistant ha disabilitato questi controlli MQTT perché {panel} non ha offerto le relative azioni native: {entities}. La configurazione e gli ID delle entità sono conservati. Aggiorna l’app del pannello, verifica che i requisiti delle azioni siano disponibili, quindi riconnettilo. Anche con MQTT, il riavvio richiede l’accesso root. Se un controllo funzionava prima con MQTT, riportare temporaneamente questo pannello a MQTT lo ripristina."
+    },
+    "no_update_route": {
+      "title": "{panel} non può ricevere aggiornamenti dell'app",
+      "description": "Panel Assistant non può installare aggiornamenti dell'app su {panel}, che quindi resta alla versione attuale. Tutto il resto del pannello continua a funzionare, perciò è facile non accorgersene. Di solito accade dopo una modifica eseguita sul pannello stesso, come un aggiornamento del firmware o un ripristino. Seleziona Ulteriori informazioni per i passaggi relativi a questo pannello. Segnalato: {reason}"
     },
     "merged_panel_identity": {
       "title": "Separa i pannelli uniti: {panels}",
@@ -998,7 +1002,8 @@
         "menu_options": {
           "onboarding": "Continua la configurazione",
           "transport": "Impostazioni di connessione",
-          "authorize_adb": "Autorizza ADB per gli aggiornamenti"
+          "authorize_adb": "Autorizza ADB per gli aggiornamenti",
+          "updates": "Aggiornamenti del pannello"
         }
       },
       "onboarding": {
@@ -1026,6 +1031,16 @@
         "description": "Scegli cosa controlla le entità e i comandi di questo pannello. Salvando Panel Assistant, Panel Assistant sposta a sé le entità MQTT del pannello, conservando i loro ID entità, la cronologia e le tue personalizzazioni, e poi il pannello ritira le sue entità MQTT. Salvando MQTT, con o senza report nativi, tornano a MQTT. In entrambi i casi il pannello si riconnette con la nuova scelta.",
         "data": {
           "authority": "Controllo"
+        }
+      },
+      "updates": {
+        "title": "Aggiornamenti del pannello",
+        "description": "Scegli quali build dell’app del pannello può ricevere questo pannello. Ogni build deve essere compatibile con il Panel Assistant in esecuzione.",
+        "data": {
+          "prerelease_panel_builds": "Consenti versioni preliminari dell’app del pannello"
+        },
+        "data_description": {
+          "prerelease_panel_builds": "Una versione preliminare di Panel Assistant consente già versioni preliminari dell’app del pannello."
         }
       }
     },

@@ -1,4 +1,4 @@
-import { MAX_FEED_BYTES, MAX_TAG_LENGTH, isBuildTag, isRcTag, isStableTag } from './release-identity.mjs';
+import { MAX_FEED_BYTES, MAX_TAG_LENGTH, isBuildTag, isGithubTag } from './release-identity.mjs';
 
 const API = '/api/panel_assistant/usb/release';
 // The installer page reads the panel's address over USB but holds no Home
@@ -89,6 +89,7 @@ export function startReleaseHandoff(hass, installerUrl, {
   let acceptedReady = false;
   let sent = false;
   let delivered;
+  let deliveredSha256;
   let sweep;
   let serveTimer;
   let handingOver = false;
@@ -121,13 +122,16 @@ export function startReleaseHandoff(hass, installerUrl, {
       });
       requireValid(!finished, 'cancelled');
       requireValid(response.headers.get('content-type')?.split(';')[0].trim() === 'application/json');
-      const feed = isBuildTag(rcTag);
-      const metadata = JSON.parse(await (await readBounded(response,
-        feed ? MAX_FEED_METADATA : MAX_METADATA, controller.signal)).text());
+      const metadataBytes = await readBounded(response, MAX_FEED_METADATA, controller.signal);
+      let metadata;
+      try { metadata = JSON.parse(await metadataBytes.text()); }
+      catch { throw new HandoffError('invalid_response'); }
+      const feed = isBuildTag(metadata?.tag);
+      requireValid(feed || metadataBytes.size <= MAX_METADATA);
       requireValid(!finished, 'cancelled');
       requireValid(keys(metadata, feed ? FEED_FIELDS : FIELDS) && matches(/[0-9a-f]{32}/, metadata.id) &&
         typeof metadata.tag === 'string' && metadata.tag.length <= MAX_TAG_LENGTH &&
-        (rcTag === null ? isStableTag(metadata.tag) : metadata.tag === rcTag) &&
+        (rcTag === null ? (isGithubTag(metadata.tag) || isBuildTag(metadata.tag)) : metadata.tag === rcTag) &&
         matches(/[0-9a-f]{64}/, metadata.apk_sha256) &&
         Number.isSafeInteger(metadata.apk_size) && metadata.apk_size > 0 && metadata.apk_size <= MAX_APK);
       const bundle = feed ? {
@@ -148,12 +152,42 @@ export function startReleaseHandoff(hass, installerUrl, {
       const apk = await readBounded(apkResponse, MAX_APK, controller.signal, metadata.apk_size);
       requireValid(!finished && !child.closed, 'window_closed');
       sent = true;
+      deliveredSha256 = metadata.apk_sha256;
       delivered = { type: 'ha-paneld/usb-bundle', nonce, bundle, apk };
       child.postMessage(delivered, targetOrigin);
       state('verifying');
     } catch (error) {
       finish(error instanceof HandoffError ? error.code : 'delivery_failed');
     }
+  }
+  // Historical signed bytes cannot prove that PA still admits this artifact.
+  // Keep the original selection: a default RC must not become explicit consent.
+  async function admit(data) {
+    if (!finished || !delivered || child.closed ||
+        !keys(data, ['type', 'nonce', 'requestId', 'tag', 'apkSha256']) ||
+        !matches(/[0-9a-f]{32}/, data.requestId)) return;
+    let admitted = false;
+    try {
+      requireValid(data.tag === delivered.bundle.tag && data.apkSha256 === deliveredSha256);
+      const signal = AbortSignal.timeout(Math.min(timeoutMs, 10000));
+      const response = await hass.fetchWithAuth(API, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rcTag === null ? {} : { release_candidate: rcTag }),
+        redirect: 'error', signal,
+      });
+      requireValid(response.headers.get('content-type')?.split(';')[0].trim() === 'application/json');
+      const metadata = JSON.parse(await (await readBounded(response,
+        isBuildTag(data.tag) ? MAX_FEED_METADATA : MAX_METADATA, signal)).text());
+      requireValid(keys(metadata, isBuildTag(data.tag) ? FEED_FIELDS : FIELDS) &&
+        matches(/[0-9a-f]{32}/, metadata.id) && metadata.tag === data.tag &&
+        metadata.apk_sha256 === data.apkSha256 && metadata.apk_size === delivered.apk.size);
+      admitted = true;
+    } catch { /* Offline PA or changed admission closes the mutation path. */ }
+    if (!delivered || child.closed) return;
+    try {
+      child.postMessage({ type: 'ha-paneld/usb-admission-result', nonce,
+        requestId: data.requestId, tag: data.tag, apkSha256: data.apkSha256, admitted }, targetOrigin);
+    } catch { /* The installer has gone; no admission is delivered. */ }
   }
   // Only for the window that verified the bundle this one is still serving.
   async function handOver(data) {
@@ -185,6 +219,10 @@ export function startReleaseHandoff(hass, installerUrl, {
   }
   function receive(event) {
     if (event.source !== child || event.origin !== targetOrigin) return;
+    if (event.data?.type === 'ha-paneld/usb-admission' && event.data.nonce === nonce) {
+      void admit(event.data);
+      return;
+    }
     if (event.data?.type === 'ha-paneld/usb-handover' && event.data.nonce === nonce) {
       void handOver(event.data);
       return;
@@ -202,7 +240,7 @@ export function startReleaseHandoff(hass, installerUrl, {
   }
   try {
     requireValid(hass && typeof hass.fetchWithAuth === 'function' &&
-      (rcTag === null || isRcTag(rcTag) || isBuildTag(rcTag)) &&
+      (rcTag === null || isGithubTag(rcTag) || isBuildTag(rcTag)) &&
       Number.isSafeInteger(timeoutMs) && timeoutMs > 0 && timeoutMs <= 300000, 'invalid_request');
     const url = new URL(installerUrl);
     requireValid(!url.username && !url.password && !url.hash &&

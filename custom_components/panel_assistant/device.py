@@ -37,7 +37,6 @@ def panel_display_name(hass: HomeAssistant, entry: ConfigEntry) -> str:
 def panel_device_info(
     entry_id: str,
     snapshot: PanelSnapshot | None,
-    configuration_url: str,
     fallback_name: str | None = None,
     app_build: tuple[str, int] | None = None,
 ) -> DeviceInfo:
@@ -63,7 +62,8 @@ def panel_device_info(
     info = DeviceInfo(
         identifiers={(DOMAIN, entry_id)},
         name=name,
-        configuration_url=configuration_url,
+        # Home Assistant turns this scheme into a same-window, same-origin link.
+        configuration_url=f"homeassistant://panel-assistant/{entry_id}",
         # The panel's Android release and build string told a user nothing they
         # could act on. Cleared explicitly, so a card registered by an earlier
         # version loses it and an older panel that still sends it is not shown it.
@@ -141,6 +141,6 @@ def async_refresh_panel_device(
         model=info.get("model", UNDEFINED),
         sw_version=info.get("sw_version", UNDEFINED),
         hw_version=info.get("hw_version", UNDEFINED),
-        # The address can move while the entry stays loaded.
+        # Replace links registered by earlier versions as well.
         configuration_url=info.get("configuration_url", UNDEFINED),
     )

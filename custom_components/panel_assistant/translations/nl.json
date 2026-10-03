@@ -91,6 +91,7 @@
       "installing": "ha-paneld wordt geïnstalleerd en gecontroleerd op {address}. Laat dit venster open staan, zodat het proces automatisch wordt voltooid. Je kunt het venster sluiten; Home Assistant zet de installatie dan door, maar het apparaat kan pas worden toegevoegd als je opnieuw naar Instellingen → Apparaten en diensten → Integratie toevoegen gaat, Panel Assistant selecteert, ‘Voeg een paneel op je netwerk toe’ kiest en hetzelfde adres invoert. Nadat Home Assistant het apparaat heeft toegevoegd, volg je de browserlink voor de installatie in het dialoogvenster Toevoegen op een computer die het paneel via het lokale netwerk kan bereiken. Keur ADB op het paneel goed als daarom wordt gevraagd."
     },
     "error": {
+      "old_app_installed": "Op dit paneel is de oude ha-paneld-app nog geïnstalleerd, maar die reageert niet. Open hem op het paneel of herstart het paneel en voeg het daarna opnieuw toe. Panel Assistant biedt dan een reparatie aan die het naar de nieuwe app verhuist.",
       "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig ha-paneld-status-eindpunt.",
       "invalid_address": "Voer een hostnaam of een IP-adres in zonder het URL-schema of een pad.",
       "invalid_install_address": "Voer alleen de hostnaam van het paneel of het IP-adres in. Het installatieprogramma gebruikt ha-paneld op poort 8888 en ADB op poort 5555 afzonderlijk.",
@@ -210,9 +211,6 @@
     },
     "update_not_complete": {
       "message": "De update van het paneel is niet voltooid"
-    },
-    "update_did_not_return": {
-      "message": "Het paneel kwam na de update niet meer terug"
     },
     "panel_backup_failed": {
       "message": "Er kon geen back-up van het paneel worden gemaakt, dus er is niets geïnstalleerd"
@@ -336,6 +334,10 @@
     "native_controls_unavailable": {
       "title": "Native bediening niet beschikbaar op {panel}",
       "description": "Panel Assistant heeft deze MQTT-bediening uitgeschakeld omdat {panel} de bijbehorende native acties niet aanbiedt: {entities}. De configuratie en entiteits-ID’s blijven behouden. Werk de paneelapp bij, controleer of aan de vereisten voor de acties is voldaan en verbind het paneel opnieuw. Opnieuw opstarten vereist ook via MQTT roottoegang. Als een bediening eerder via MQTT werkte, herstelt het tijdelijk terugzetten van dit paneel op MQTT die bediening."
+    },
+    "no_update_route": {
+      "title": "{panel} kan geen app-updates ontvangen",
+      "description": "Panel Assistant kan geen app-updates installeren op {panel}, dus het blijft op de huidige versie. Al het andere op het paneel blijft werken, waardoor dit gemakkelijk over het hoofd wordt gezien. Meestal volgt het op een wijziging op het paneel zelf, zoals een firmware-update of een reset. Kies Meer informatie voor de stappen voor dit paneel. Gemeld: {reason}"
     },
     "merged_panel_identity": {
       "title": "Maak de samengevoegde panelen weer apart: {panels}",
@@ -1038,7 +1040,8 @@
         "menu_options": {
           "onboarding": "Installatie voortzetten",
           "transport": "Verbindingsinstellingen",
-          "authorize_adb": "ADB voor updates autoriseren"
+          "authorize_adb": "ADB voor updates autoriseren",
+          "updates": "Paneelupdates"
         }
       },
       "onboarding": {
@@ -1066,6 +1069,16 @@
         "description": "Kies wat de entiteiten en opdrachten van dit paneel aanstuurt. Als je Panel Assistant opslaat, worden de MQTT-entiteiten van het paneel naar Panel Assistant verplaatst, waarbij hun entiteits-ID’s, geschiedenis en aanpassingen behouden blijven, en het paneel trekt vervolgens zijn MQTT-entiteiten in. Als je MQTT opslaat, met of zonder native rapporten, worden ze teruggezet naar MQTT. Hoe dan ook maakt het paneel opnieuw verbinding met de nieuwe keuze.",
         "data": {
           "authority": "Besturing"
+        }
+      },
+      "updates": {
+        "title": "Paneelupdates",
+        "description": "Kies welke builds van de paneelapp dit paneel mag ontvangen. Elke build moet compatibel zijn met de draaiende Panel Assistant.",
+        "data": {
+          "prerelease_panel_builds": "Voorlopige versies van de paneelapp toestaan"
+        },
+        "data_description": {
+          "prerelease_panel_builds": "Een voorlopige versie van Panel Assistant staat voorlopige versies van de paneelapp al toe."
         }
       }
     },

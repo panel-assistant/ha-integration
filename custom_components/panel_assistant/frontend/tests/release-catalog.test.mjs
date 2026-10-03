@@ -6,7 +6,7 @@ const stable = { tag: 'v1.2.3', prerelease: false };
 const rc = { tag: 'v1.2.4-rc1', prerelease: true };
 const json = value => new Response(JSON.stringify(value), { headers: { 'Content-Type': 'application/json' } });
 test('accepts stable, RC-only, empty and bounded catalogues', () => {
-  for (const releases of [[], [stable], [rc], [stable, rc], Array.from({ length: 30 }, (_, index) => ({ tag: `v1.2.4-rc${index + 1}`, prerelease: true }))]) {
+  for (const releases of [[], [stable], [rc], [stable, rc], [rc, stable, { tag: 'v1.2.2', prerelease: false }], Array.from({ length: 30 }, (_, index) => ({ tag: `v1.2.${index}`, prerelease: false }))]) {
     const result = parseReleaseCatalog({ releases });
     assert.deepEqual(result, releases);
     assert.ok(Object.isFrozen(result));
@@ -18,7 +18,6 @@ for (const [name, value] of [
   ['non-array', { releases: {} }], ['null entry', { releases: [null] }],
   ['extra entry field', { releases: [{ ...stable, url: 'https://example.com' }] }],
   ['duplicate', { releases: [rc, rc] }],
-  ['multiple stable', { releases: [stable, { tag: 'v1.2.2', prerelease: false }] }],
   ['nonboolean', { releases: [{ ...rc, prerelease: 'true' }] }],
   ['channel mismatch', { releases: [{ ...rc, prerelease: false }] }],
   ['stable marked RC', { releases: [{ ...stable, prerelease: true }] }],
@@ -31,26 +30,33 @@ for (const [name, value] of [
 
 const feed = { tag: 'build-772', prerelease: true, name: '0.9.7-rc4 build 772' };
 const successor = { tag: 'build-772-successor', prerelease: true, name: '0.9.7-rc4 build 772 (Panel Assistant)' };
-const older = { tag: 'build-771', prerelease: true, name: '0.9.7-rc3+dev.1 build 771' };
+const older = { tag: 'build-771', prerelease: true, name: '0.9.7-rc3.dev.1 build 771' };
+const stableFeed = { tag: 'build-770', prerelease: false, name: '0.9.7 build 770' };
 test('a mixed-app feed leaves the whole authenticated catalogue available', async () => {
   const releases = [stable, feed, successor];
   const result = await fetchReleaseCatalog({ fetchWithAuth: async () => json({ releases }) });
   assert.deepEqual(result, releases);
 });
 test('accepts dev builds from the signed feed after GitHub releases', () => {
-  const releases = [stable, rc, feed, older];
+  const releases = [stable, rc, feed, older, stableFeed];
   const result = parseReleaseCatalog({ releases });
   assert.deepEqual(result, releases);
   assert.ok(result.every(Object.isFrozen));
   // Thirty GitHub releases and a full feed of 500 builds, within the byte bound.
   const full = [...Array.from({ length: 30 }, (_, index) => ({ tag: `v1.2.4-rc${index + 1}`, prerelease: true })),
-    ...Array.from({ length: 500 }, (_, index) => ({ tag: `build-${2147483647 - index}`, prerelease: true,
-      name: `${'9'.repeat(64)} build ${2147483647 - index}` }))];
+    ...Array.from({ length: 500 }, (_, index) => ({ tag: `build-${2147483647 - index}`, prerelease: false,
+      name: `${'9'.repeat(60)}.0.0 build ${2147483647 - index}` }))];
   assert.equal(parseReleaseCatalog({ releases: full }).length, 530);
   assert.ok(JSON.stringify({ releases: full }, null, 2).length <= 128 * 1024);
 });
 for (const [name, value] of [
   ['feed build marked stable', { ...feed, prerelease: false }],
+  ['stable feed marked prerelease', { ...stableFeed, prerelease: true }],
+  ['feed nonboolean prerelease', { ...feed, prerelease: 'true' }],
+  ['unknown feed version marked prerelease', { ...feed, name: 'dev-772 build 772' }],
+  ['unknown feed version marked stable', { ...feed, prerelease: false, name: 'dev-772 build 772' }],
+  ['feed empty prerelease component', { ...feed, name: '0.9.7-rc..1 build 772' }],
+  ['feed numeric leading-zero prerelease', { ...feed, name: '0.9.7-01 build 772' }],
   ['feed build extra key', { ...feed, url: 'https://example.com' }],
   ['feed build without a name', { tag: feed.tag, prerelease: true }],
   ['name for another build', { ...feed, name: '0.9.7-rc4 build 771' }],
@@ -66,7 +72,11 @@ for (const [name, value] of [
 test('refuses a duplicate or 501st feed build', () => {
   assert.throws(() => parseReleaseCatalog({ releases: [feed, feed] }));
   assert.throws(() => parseReleaseCatalog({ releases: Array.from({ length: 501 }, (_, index) => ({
-    tag: `build-${index + 1}`, prerelease: true, name: `0.9.7 build ${index + 1}` })) }));
+    tag: `build-${index + 1}`, prerelease: false, name: `0.9.7 build ${index + 1}` })) }));
+});
+test('a semantic feed prerelease keeps its channel independently of GitHub RC grammar', () => {
+  const release = { tag: 'build-773', prerelease: true, name: '1.0.0-beta.2 build 773' };
+  assert.deepEqual(parseReleaseCatalog({ releases: [release] }), [release]);
 });
 
 test('fetches authenticated fixed route and parses catalogue', async () => {

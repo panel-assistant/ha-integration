@@ -25,7 +25,6 @@ HEALTH = PanelHealth(
     build="1788979164237",
     config_hash="7ac44093",
 )
-URL = "http://192.168.1.23:8888/"
 
 
 def _snapshot(
@@ -55,7 +54,6 @@ def test_reported_facts_fill_every_card_field() -> None:
                 area="Study",
             )
         ),
-        URL,
     )
 
     assert info["name"] == "Alpha panel"
@@ -63,7 +61,7 @@ def test_reported_facts_fill_every_card_field() -> None:
     assert info["model"] == "AP-1"
     assert info["suggested_area"] == "Study"
     assert info["sw_version"] == "0.9.7-rc4"
-    assert info["configuration_url"] == URL
+    assert info["configuration_url"] == "homeassistant://panel-assistant/entry-1"
 
 
 def test_the_card_never_adopts_an_identity_the_mqtt_bridge_owns() -> None:
@@ -71,7 +69,6 @@ def test_the_card_never_adopts_an_identity_the_mqtt_bridge_owns() -> None:
     info = panel_device_info(
         "entry-1",
         _snapshot(PanelDevice(name="Alpha panel", manufacturer="Acme")),
-        URL,
     )
 
     assert info["identifiers"] == {(DOMAIN, "entry-1")}
@@ -82,7 +79,7 @@ def test_the_card_never_adopts_an_identity_the_mqtt_bridge_owns() -> None:
 def test_a_silent_panel_still_produces_a_usable_card() -> None:
     """Panels below the release that added the projection must not blank the page."""
     for snapshot in (_snapshot(None), _snapshot(None, with_status=False)):
-        info = panel_device_info("entry-1", snapshot, URL)
+        info = panel_device_info("entry-1", snapshot)
 
         assert info["name"] == "alpha_panel"
         assert info["sw_version"] == "0.9.7-rc4"
@@ -96,7 +93,7 @@ def test_a_silent_panel_still_produces_a_usable_card() -> None:
 def test_a_partial_report_fills_only_what_the_panel_stated() -> None:
     """A field the panel dropped stays absent instead of arriving empty."""
     info = panel_device_info(
-        "entry-1", _snapshot(PanelDevice(manufacturer="Acme", area="Study")), URL
+        "entry-1", _snapshot(PanelDevice(manufacturer="Acme", area="Study"))
     )
 
     assert info["manufacturer"] == "Acme"
@@ -118,7 +115,7 @@ def test_the_card_never_shows_the_android_release_as_its_hardware() -> None:
         _snapshot(None),
         None,
     ):
-        info = panel_device_info("entry-1", snapshot, URL, "alpha")
+        info = panel_device_info("entry-1", snapshot, "alpha")
 
         assert "hw_version" in info
         assert info["hw_version"] is None
@@ -129,7 +126,6 @@ def test_the_profile_model_the_panel_reports_is_the_card_model() -> None:
     info = panel_device_info(
         "entry-1",
         _snapshot(PanelDevice(manufacturer="Shelly", model="Wall Display X2i")),
-        URL,
     )
 
     assert info["manufacturer"] == "Shelly"
@@ -139,7 +135,7 @@ def test_the_profile_model_the_panel_reports_is_the_card_model() -> None:
 def test_the_firmware_line_names_the_build_as_the_mqtt_card_did() -> None:
     """A release candidate is rebuilt many times, so the version alone is ambiguous."""
     info = panel_device_info(
-        "entry-1", _snapshot(None, health=replace(HEALTH, version_code=812)), URL
+        "entry-1", _snapshot(None, health=replace(HEALTH, version_code=812))
     )
 
     assert info["sw_version"] == "0.9.7-rc4 (build 812)"
@@ -149,7 +145,7 @@ def test_the_session_names_the_build_even_when_the_address_is_silent() -> None:
     """A connected panel declared its version and build; the card uses them."""
     for snapshot in (None, _snapshot(None, health=replace(HEALTH, version_code=812))):
         info = panel_device_info(
-            "entry-1", snapshot, URL, "alpha", app_build=("0.9.8-rc2", 904)
+            "entry-1", snapshot, "alpha", app_build=("0.9.8-rc2", 904)
         )
 
         assert info["sw_version"] == "0.9.8-rc2 (build 904)"
@@ -157,7 +153,7 @@ def test_the_session_names_the_build_even_when_the_address_is_silent() -> None:
 
 def test_an_unknown_version_leaves_the_registered_one_alone() -> None:
     """Nobody has answered yet, so there is nothing to replace the last version with."""
-    info = panel_device_info("entry-1", None, URL, "alpha")
+    info = panel_device_info("entry-1", None, "alpha")
 
     assert "sw_version" not in info
     assert info["name"] == "alpha"
@@ -176,18 +172,22 @@ async def test_a_registered_card_is_brought_up_to_date(hass: HomeAssistant) -> N
         model="Wall Display X2i",
         sw_version="0.9.8-rc1",
         hw_version="Android 11 · RD2A.211001.002 release-keys",
+        configuration_url="http://192.168.1.23:8888/",
     )
 
     async_refresh_panel_device(
         hass,
         entry.entry_id,
-        panel_device_info(entry.entry_id, None, URL, "alpha", ("0.9.8-rc2", 904)),
+        panel_device_info(entry.entry_id, None, "alpha", ("0.9.8-rc2", 904)),
     )
 
     device = registry.async_get_device_by_identifier(
         (DOMAIN, entry.entry_id), entry.entry_id
     )
     assert device is not None
+    assert (
+        device.configuration_url == f"homeassistant://panel-assistant/{entry.entry_id}"
+    )
     assert device.sw_version == "0.9.8-rc2 (build 904)"
     assert device.hw_version is None
     assert device.manufacturer == "Shelly"
@@ -197,7 +197,7 @@ async def test_a_registered_card_is_brought_up_to_date(hass: HomeAssistant) -> N
 async def test_refreshing_never_creates_a_card(hass: HomeAssistant) -> None:
     """Only the entities register the device; a refresh before them is a no-op."""
     async_refresh_panel_device(
-        hass, "entry-1", panel_device_info("entry-1", None, URL, "alpha", ("0.9.8", 1))
+        hass, "entry-1", panel_device_info("entry-1", None, "alpha", ("0.9.8", 1))
     )
 
     assert (
@@ -215,9 +215,7 @@ async def test_literal_null_report_does_not_create_an_area(
     """A stored panel value of `null` cannot seed a new HA area."""
     entry = MockConfigEntry(domain=DOMAIN, title="alpha")
     entry.add_to_hass(hass)
-    info = panel_device_info(
-        entry.entry_id, _snapshot(PanelDevice(area=reported_area)), URL
-    )
+    info = panel_device_info(entry.entry_id, _snapshot(PanelDevice(area=reported_area)))
 
     assert "suggested_area" not in info
     device = dr.async_get(hass).async_get_or_create(
@@ -243,7 +241,7 @@ async def test_existing_literal_null_assignment_is_cleared_once(
         identifiers={(DOMAIN, entry.entry_id)},
     )
     registry.async_update_device(device.id, area_id=accidental.id)
-    info = panel_device_info(entry.entry_id, _snapshot(PanelDevice(area="null")), URL)
+    info = panel_device_info(entry.entry_id, _snapshot(PanelDevice(area="null")))
 
     async_refresh_panel_device(hass, entry.entry_id, info)
     assert registry.async_get(device.id).area_id is None

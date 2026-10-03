@@ -91,6 +91,7 @@
       "installing": "Instalando y verificando ha-paneld en {address}. Deja abierto este cuadro de diálogo para que finalice automáticamente. Puedes cerrarlo y Home Assistant mantendrá el trabajo de instalación en ejecución, pero no podrá añadir el dispositivo hasta que vuelvas a abrir Ajustes → Dispositivos y servicios → Añadir integración, selecciones Panel Assistant, elijas Añadir un panel de tu red e introduzcas la misma dirección. Cuando Home Assistant haya añadido el dispositivo, sigue el enlace de configuración en el navegador del cuadro de diálogo Añadir desde un ordenador que pueda acceder al panel por la red local. Si se solicita, autoriza ADB en el panel."
     },
     "error": {
+      "old_app_installed": "Este panel todavía tiene instalada la antigua app ha-paneld, pero no responde. Ábrela en el panel o reinicia el panel y vuelve a añadirlo. Después, Panel Assistant ofrece una reparación que lo mueve a la nueva app.",
       "cannot_connect": "No se puede conectar a un punto de conexión de estado válido de ha-paneld.",
       "invalid_address": "Introduce un nombre de host o una dirección IP sin esquema de URL ni ruta.",
       "invalid_install_address": "Introduce únicamente el nombre de host o la dirección IP del panel. El instalador utiliza por separado el puerto 8888 de ha-paneld y el puerto 5555 de ADB.",
@@ -181,7 +182,6 @@
     "staged_app_mismatch": { "message": "La aplicación preparada no coincidía con los datos de la versión firmada, por lo que no se instaló nada." },
     "update_not_accepted": { "message": "El panel no aceptó la solicitud de actualización" },
     "update_not_complete": { "message": "La actualización del panel no se completó" },
-    "update_did_not_return": { "message": "El panel no volvió después de la actualización" },
     "panel_backup_failed": { "message": "No se pudo hacer una copia de seguridad del panel, así que no se instaló nada" },
     "build_verification_failed": { "message": "La compilación no coincidía con el feed de compilaciones firmado, así que no se instaló nada" },
     "release_verification_failed": { "message": "La versión no coincidía con su firma, así que no se instaló nada" },
@@ -296,6 +296,10 @@
     "native_controls_unavailable": {
       "title": "Controles nativos no disponibles en {panel}",
       "description": "Panel Assistant desactivó estos controles MQTT porque {panel} no ofrece sus acciones nativas: {entities}. Se conservan su configuración y sus ID de entidad. Actualiza la aplicación del panel, comprueba que los requisitos de las acciones estén disponibles y vuelve a conectarlo. Reiniciar también requiere acceso root con MQTT. Si un control funcionaba antes con MQTT, volver temporalmente a MQTT en este panel lo restaura."
+    },
+    "no_update_route": {
+      "title": "{panel} no puede recibir actualizaciones de la aplicación",
+      "description": "Panel Assistant no puede instalar actualizaciones de la aplicación en {panel}, por lo que se queda en su versión actual. Todo lo demás del panel sigue funcionando, por lo que es fácil pasarlo por alto. Suele ocurrir tras un cambio realizado en el propio panel, como una actualización del firmware o un restablecimiento. Selecciona Más información para ver los pasos de este panel. Notificado: {reason}"
     },
     "merged_panel_identity": {
       "title": "Separa los paneles combinados: {panels}",
@@ -998,7 +1002,8 @@
         "menu_options": {
           "onboarding": "Continuar la configuración",
           "transport": "Ajustes de conexión",
-          "authorize_adb": "Autorizar ADB para actualizaciones"
+          "authorize_adb": "Autorizar ADB para actualizaciones",
+          "updates": "Actualizaciones del panel"
         }
       },
       "onboarding": {
@@ -1026,6 +1031,16 @@
         "description": "Elige qué controla las entidades y los comandos de este panel. Si guardas Panel Assistant, Panel Assistant traslada a sí mismo las entidades MQTT del panel, conservando sus ID de entidad, su historial y tus personalizaciones, y después el panel retira sus entidades MQTT. Si guardas MQTT, con o sin informes nativos, vuelven a MQTT. En ambos casos el panel se reconecta con la nueva opción.",
         "data": {
           "authority": "Control"
+        }
+      },
+      "updates": {
+        "title": "Actualizaciones del panel",
+        "description": "Elige qué compilaciones de la app del panel puede recibir este panel. Cada compilación debe ser compatible con el Panel Assistant en ejecución.",
+        "data": {
+          "prerelease_panel_builds": "Permitir versiones preliminares de la app del panel"
+        },
+        "data_description": {
+          "prerelease_panel_builds": "Una versión preliminar de Panel Assistant ya permite versiones preliminares de la app del panel."
         }
       }
     },
