@@ -363,3 +363,19 @@ async def test_no_player_without_the_described_channel(
         registry.async_get_entity_id("media_player", "panel_assistant", unique_id)
         is None
     )
+
+
+@pytest.mark.parametrize("offered", [True, False])
+async def test_the_media_capability_is_granted_whenever_offered(
+    hass: HomeAssistant,
+    native: MockConfigEntry,  # noqa: F811
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    offered: bool,
+) -> None:
+    """A panel describes media only once a session grants it."""
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    capabilities = [*ALL_CAPABILITIES, "media"] if offered else list(ALL_CAPABILITIES)
+    response = await _send(client, _hello(DESCRIPTORS) | {"capabilities": capabilities})
+    assert response["success"], response
+    assert ("media" in response["result"]["capabilities"]) is offered
