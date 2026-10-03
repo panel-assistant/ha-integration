@@ -623,15 +623,18 @@ async def test_an_old_app_that_did_not_go_keeps_the_move_open(
     assert not panel.legacy_aside and panel.restores == 2
 
 
+@pytest.mark.parametrize(
+    "changed_at", [MoveStep.SET_ASIDE_LEGACY, MoveStep.RESET_SUCCESSOR]
+)
 async def test_a_panel_that_changed_mid_move_is_not_rolled_back(
-    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path, changed_at: MoveStep
 ) -> None:
     panel = FakePanel()
     _attach(entry, panel)
     step = panel.step
 
     async def changed(*args: Any) -> MoveObservation:
-        if args[-1] is MoveStep.RESET_SUCCESSOR:
+        if args[-1] is changed_at:
             raise InstallAdbError(InstallAdbErrorCode.TARGET_CHANGED)
         return await step(*args)
 
@@ -640,8 +643,11 @@ async def test_a_panel_that_changed_mid_move_is_not_rolled_back(
         await _move(hass, entry, panel, tmp_path)
 
     # Nothing is sent to a device that is no longer the one the move began on.
-    assert panel.steps[-1] == "SET_ASIDE_LEGACY"
-    assert panel.legacy_aside
+    before = {
+        MoveStep.SET_ASIDE_LEGACY: "CLAIM_HOME",
+        MoveStep.RESET_SUCCESSOR: "SET_ASIDE_LEGACY",
+    }
+    assert panel.steps[-1] == before[changed_at]
 
 
 @pytest.mark.parametrize("how", ["error", "core-stops"])

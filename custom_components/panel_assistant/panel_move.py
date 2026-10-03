@@ -728,12 +728,9 @@ async def _async_set_aside_legacy(
     # Nothing single answering HOME is claimed too: setting the old app aside
     # could otherwise leave the chooser or nothing.
     claim_home = observed.home in (LEGACY_PACKAGE_ID, None)
-    record.update(
-        legacy_copy=kept.legacy_copy,
-        # A retry finds HOME already claimed; a rollback must still return it.
-        claimed_home=claim_home
-        or (previous is not None and previous.get("claimed_home") is True),
-    )
+    # A retry gave HOME back before this point (_async_revive_legacy), so
+    # what HOME is now says whether this attempt takes it.
+    record.update(legacy_copy=kept.legacy_copy, claimed_home=claim_home)
     # Keep the installed identity and the copy before either HOME or the old
     # app is changed.
     await _async_save_record(hass, entry, record)
