@@ -73,6 +73,7 @@ from .transport import (
     native_enabled_for,
 )
 from .update_coordinator import PanelUpdateCoordinator
+from .update_route_repair import no_update_route_issue_id
 from .voice import (
     async_follow_voice,
     async_load_voice,
@@ -363,6 +364,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
     """
     async_delete_binding_issue(hass, entry.entry_id)
     ir.async_delete_issue(hass, DOMAIN, permission_issue_id(entry.entry_id))
+    ir.async_delete_issue(hass, DOMAIN, no_update_route_issue_id(entry.entry_id))
     async_delete_cutover_issues(hass, entry.entry_id)
     async_delete_native_move_issues(hass, entry.entry_id)
     async_delete_merged_identity_issue(hass, entry)

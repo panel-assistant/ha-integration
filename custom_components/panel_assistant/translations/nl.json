@@ -335,6 +335,10 @@
       "title": "Native bediening niet beschikbaar op {panel}",
       "description": "Panel Assistant heeft deze MQTT-bediening uitgeschakeld omdat {panel} de bijbehorende native acties niet aanbiedt: {entities}. De configuratie en entiteits-ID’s blijven behouden. Werk de paneelapp bij, controleer of aan de vereisten voor de acties is voldaan en verbind het paneel opnieuw. Opnieuw opstarten vereist ook via MQTT roottoegang. Als een bediening eerder via MQTT werkte, herstelt het tijdelijk terugzetten van dit paneel op MQTT die bediening."
     },
+    "no_update_route": {
+      "title": "{panel} kan geen app-updates ontvangen",
+      "description": "Panel Assistant kan geen app-updates installeren op {panel}, dus het blijft op de huidige versie. Al het andere op het paneel blijft werken, waardoor dit gemakkelijk over het hoofd wordt gezien. Meestal volgt het op een wijziging op het paneel zelf, zoals een firmware-update of een reset. Kies Meer informatie voor de stappen voor dit paneel. Gemeld: {reason}"
+    },
     "merged_panel_identity": {
       "title": "Maak de samengevoegde panelen weer apart: {panels}",
       "description": "De panelen {panels} geven dezelfde apparaat-ID weer, dus Home Assistant kan niet met zekerheid vaststellen welk item een native verbinding of entiteit beheert. Hun native verbinding wordt geweigerd en er worden geen entiteiten verplaatst. Werk ha-paneld bij op elk betrokken paneel, zodat elk paneel een unieke identiteit krijgt. Verwijder vervolgens het samengevoegde apparaat en laat de panelen zich opnieuw registreren."

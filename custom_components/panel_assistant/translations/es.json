@@ -297,6 +297,10 @@
       "title": "Controles nativos no disponibles en {panel}",
       "description": "Panel Assistant desactivó estos controles MQTT porque {panel} no ofrece sus acciones nativas: {entities}. Se conservan su configuración y sus ID de entidad. Actualiza la aplicación del panel, comprueba que los requisitos de las acciones estén disponibles y vuelve a conectarlo. Reiniciar también requiere acceso root con MQTT. Si un control funcionaba antes con MQTT, volver temporalmente a MQTT en este panel lo restaura."
     },
+    "no_update_route": {
+      "title": "{panel} no puede recibir actualizaciones de la aplicación",
+      "description": "Panel Assistant no puede instalar actualizaciones de la aplicación en {panel}, por lo que se queda en su versión actual. Todo lo demás del panel sigue funcionando, por lo que es fácil pasarlo por alto. Suele ocurrir tras un cambio realizado en el propio panel, como una actualización del firmware o un restablecimiento. Selecciona Más información para ver los pasos de este panel. Notificado: {reason}"
+    },
     "merged_panel_identity": {
       "title": "Separa los paneles combinados: {panels}",
       "description": "Los paneles {panels} comunican la misma identidad de dispositivo, por lo que Home Assistant no puede decidir de forma segura a qué entrada pertenece una conexión o entidad nativa. Se rechaza la conexión nativa y no se traslada ninguna entidad. Actualiza ha-paneld en cada panel afectado para que tenga una identidad distinta; después, elimina el dispositivo combinado y deja que los paneles vuelvan a registrarse."

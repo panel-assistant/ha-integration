@@ -297,6 +297,10 @@
       "title": "Commandes natives indisponibles sur {panel}",
       "description": "Panel Assistant a désactivé ces commandes MQTT car {panel} ne propose pas leurs actions natives : {entities}. Leur configuration et leurs identifiants d’entité sont conservés. Mettez à jour l’application du panneau, vérifiez que les conditions nécessaires aux actions sont réunies, puis reconnectez-le. Le redémarrage nécessite aussi un accès root avec MQTT. Si une commande fonctionnait auparavant avec MQTT, repasser ce panneau à MQTT la rétablit temporairement."
     },
+    "no_update_route": {
+      "title": "{panel} ne peut pas recevoir de mises à jour de l'application",
+      "description": "Panel Assistant ne peut pas installer de mises à jour de l'application sur {panel}, qui reste donc sur sa version actuelle. Tout le reste du panneau continue de fonctionner, ce qui rend le problème facile à manquer. Cela fait généralement suite à une modification effectuée sur le panneau lui-même, comme une mise à jour du micrologiciel ou une réinitialisation. Sélectionnez En savoir plus pour les étapes propres à ce panneau. Signalé : {reason}"
+    },
     "merged_panel_identity": {
       "title": "Séparer les panneaux fusionnés : {panels}",
       "description": "Les panneaux {panels} signalent la même identité d'appareil. Home Assistant ne peut donc pas déterminer de manière sûre à quelle entrée appartient une connexion ou une entité native. La connexion native est refusée et aucune entité n'est déplacée. Mettez à jour ha-paneld sur chaque panneau concerné afin que chacun possède une identité distincte, puis supprimez l'appareil fusionné et laissez les panneaux s'enregistrer à nouveau."
