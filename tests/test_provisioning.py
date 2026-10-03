@@ -627,6 +627,7 @@ async def test_explicit_authorization_offers_public_key_after_signature_rejectio
             normalize_address("panel.local"), adb_signer, authorize=True
         )
 
+    assert probe.state is InstallTargetState.INSTALLED
     packets = _sent_adb_packets(writer)
     assert packets[1][:2] == (adb_constants.AUTH, adb_constants.AUTH_SIGNATURE)
     public_key = adb_signer.GetPublicKey()
@@ -636,7 +637,6 @@ async def test_explicit_authorization_offers_public_key_after_signature_rejectio
         adb_constants.AUTH_RSAPUBLICKEY,
         public_key.encode("ascii") + b"\0",
     )
-    assert probe.state is InstallTargetState.INSTALLED
     assert probe.serial == "WF1589T-0123"
     assert writer.closed is True
 
@@ -815,6 +815,94 @@ async def test_shell_transport_failure_is_unreachable(
     probe = await async_probe_install_target(normalize_address("panel.local"))
 
     assert probe.state is InstallTargetState.ADB_UNREACHABLE
+    assert fake.closed is True
+
+
+@pytest.mark.parametrize("retained", [False, True])
+async def test_slow_package_manager_proofs_preserve_target_classification(
+    monkeypatch: pytest.MonkeyPatch, retained: bool
+) -> None:
+    """Slow complete observations still distinguish clean and retained targets."""
+    fake = _FakeAdbDevice(
+        [
+            _presence_output(target_status=1),
+            _retained_output(retained=retained),
+            _target_facts_output(),
+        ]
+    )
+    _install_fake(monkeypatch, fake)
+    original_timeout = asyncio.timeout
+    original_shell = fake.streaming_shell
+    # Scale both elapsed time and deadlines so real cancellation stays exercised.
+    time_scale = 0.01
+    monkeypatch.setattr(
+        asyncio,
+        "timeout",
+        lambda seconds: original_timeout(
+            None if seconds is None else seconds * time_scale
+        ),
+    )
+
+    async def slow_shell(command: str, **kwargs: Any) -> AsyncIterator[bytes]:
+        async with original_timeout(
+            min(kwargs["transport_timeout_s"], kwargs["read_timeout_s"]) * time_scale
+        ):
+            await asyncio.sleep(15 * time_scale)
+            async for chunk in original_shell(command, **kwargs):
+                yield chunk
+
+    monkeypatch.setattr(fake, "streaming_shell", slow_shell)
+
+    probe = await async_probe_install_target(normalize_address("panel.local"))
+
+    assert probe.state is (
+        InstallTargetState.RETAINED_OR_AMBIGUOUS
+        if retained
+        else InstallTargetState.INSTALL_CANDIDATE
+    )
+    assert fake.closed is True
+
+
+@pytest.mark.parametrize("trickling", [False, True])
+async def test_shell_observation_beyond_deadline_refuses_target(
+    monkeypatch: pytest.MonkeyPatch, trickling: bool
+) -> None:
+    """Neither a stalled shell nor ongoing partial output can extend admission."""
+    fake = _FakeAdbDevice([])
+    _install_fake(monkeypatch, fake)
+    original_timeout = asyncio.timeout
+    time_scale = 0.01
+    monkeypatch.setattr(
+        asyncio,
+        "timeout",
+        lambda seconds: original_timeout(
+            None if seconds is None else seconds * time_scale
+        ),
+    )
+    cancelled = False
+
+    async def slow_shell(_command: str, **kwargs: Any) -> AsyncIterator[bytes]:
+        nonlocal cancelled
+        try:
+            # Every trickle arrives within the per-read limit, but the complete
+            # observation exceeds the overall shell deadline.
+            for _ in range(6 if trickling else 1):
+                async with original_timeout(
+                    min(kwargs["transport_timeout_s"], kwargs["read_timeout_s"])
+                    * time_scale
+                ):
+                    await asyncio.sleep((6 if trickling else 36) * time_scale)
+                yield b"partial\n"
+        except asyncio.CancelledError:
+            cancelled = True
+            raise
+
+    monkeypatch.setattr(fake, "streaming_shell", slow_shell)
+
+    probe = await async_probe_install_target(normalize_address("panel.local"))
+
+    assert probe.state is InstallTargetState.ADB_UNREACHABLE
+    assert cancelled is True
     assert fake.closed is True
 
 

@@ -28,7 +28,8 @@ from .client import PanelAddress
 ADB_PORT = 5555
 _ADB_BANNER = "ha-paneld-home-assistant"
 _CONNECT_TIMEOUT_SECONDS = 5.0
-_SHELL_TIMEOUT_SECONDS = 5.0
+# Composite package-manager observations can take over 13 seconds on panels.
+_SHELL_TIMEOUT_SECONDS = 30.0
 _CLOSE_TIMEOUT_SECONDS = 2.0
 _MAX_SHELL_RESPONSE_BYTES = 16 * 1024
 _MAX_ADB_PACKET_BODY_BYTES = _MAX_SHELL_RESPONSE_BYTES
