@@ -774,11 +774,7 @@ async def _async_roll_back(
     """
     observed = await _async_step(target, signer, MoveStep.OBSERVE)
     if not observed.legacy_installed:
-        if (
-            not observed.legacy_set_aside
-            or observed.legacy_copy is None
-            or observed.legacy_copy != record.get("legacy_copy")
-        ):
+        if not _copy_restores(observed, record):
             raise MoveError(REASON_MOVE_FAILED)
         observed = await _async_step(target, signer, MoveStep.RESTORE_LEGACY)
         if not observed.legacy_installed:
@@ -797,6 +793,28 @@ async def _async_roll_back(
         lambda found: reports_package(found.package, LEGACY_PACKAGE_ID),
         _HEALTH_WAIT_SECONDS,
     )
+
+
+def _copy_restores(observed: MoveObservation, record: dict[str, Any]) -> bool:
+    """The old app is set aside beside the copy this move kept of it."""
+    return (
+        observed.legacy_set_aside
+        and observed.legacy_copy is not None
+        and observed.legacy_copy == record.get("legacy_copy")
+    )
+
+
+async def _async_mark_roll_back(
+    hass: HomeAssistant, entry: ConfigEntry, record: dict[str, Any], *, under_way: bool
+) -> dict[str, Any]:
+    """Keep on disk whether a rollback has started, so a stop can be finished."""
+    record = {key: value for key, value in record.items() if key != "rolling_back"}
+    if under_way:
+        record["rolling_back"] = True
+    await hass.async_add_executor_job(
+        _write_record, _record_path(hass, entry.entry_id), record
+    )
+    return record
 
 
 async def _async_verify_successor(
@@ -1011,6 +1029,17 @@ async def _async_move(hass: HomeAssistant, entry: ConfigEntry) -> None:
         raise MoveError(REASON_PANEL_CHANGED)
     # Decide from what the panel has now, never from what a record expected.
     observed = await _async_step(target, signer, MoveStep.OBSERVE)
+    if (
+        record is not None
+        and record.get("rolling_back") is True
+        and (observed.legacy_installed or _copy_restores(observed, record))
+    ):
+        # A rollback that stopped part way is finished first: the old app may
+        # be back but not started, or HOME and the new app not yet returned,
+        # and it cannot give a fresh receipt until it runs again.
+        await _async_roll_back(entry, target, signer, record)
+        await _async_mark_roll_back(hass, entry, record, under_way=False)
+        raise MoveError(REASON_MOVE_FAILED)
     if observed.legacy_installed:
         if not (ours and observed.successor_installed):
             artifact = _successor_artifact(hass, entry)
@@ -1035,11 +1064,14 @@ async def _async_move(hass: HomeAssistant, entry: ConfigEntry) -> None:
         )
     except MoveError as err:
         if err.reason != REASON_PANEL_CHANGED:
+            record = await _async_mark_roll_back(hass, entry, record, under_way=True)
             try:
                 await _async_roll_back(entry, target, signer, record)
+                await _async_mark_roll_back(hass, entry, record, under_way=False)
             except MoveError as rollback:
                 _LOGGER.warning(
-                    "%s stays set aside for the next attempt: %s (%r)",
+                    "Returning %s to the old app stopped; the next attempt "
+                    "finishes it: %s (%r)",
                     entry.title,
                     rollback,
                     rollback.__cause__,

@@ -516,6 +516,7 @@ async def test_a_failed_restore_leaves_the_old_app_working(
     assert (health.panel_id, health.config_hash) == ("office", LEGACY_CFG)
     assert "RETIRE_LEGACY" not in panel.steps
     assert entry.unique_id == OLD_DID
+    assert "rolling_back" not in json.loads(_record_file(hass, entry).read_text())
     async_evaluate_successor_move(hass, entry)
     assert (DOMAIN, move_issue_id(entry.entry_id)) in ir.async_get(hass).issues
 
@@ -623,6 +624,63 @@ async def test_a_panel_that_changed_mid_move_is_not_rolled_back(
     # Nothing is sent to a device that is no longer the one the move began on.
     assert panel.steps[-1] == "SET_ASIDE_LEGACY"
     assert panel.legacy_aside
+
+
+@pytest.mark.parametrize("how", ["error", "core-stops"])
+@pytest.mark.parametrize(
+    "stop_at",
+    ["after-reinstall", "RETURN_HOME", "REMOVE_SUCCESSOR", "START_LEGACY"],
+)
+async def test_a_rollback_that_stopped_part_way_is_finished_next_time(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    tmp_path: Path,
+    stop_at: str,
+    how: str,
+) -> None:
+    """The old app is back but not running: it is started, never asked for a backup."""
+    panel = FakePanel()
+    _attach(entry, panel)
+    step, restore = panel.step, panel.restore
+    stopped = asyncio.CancelledError if how == "core-stops" else MoveError
+
+    async def stop(*args: Any) -> MoveObservation:
+        name = args[-1].value
+        if name == stop_at:
+            if how == "core-stops":
+                raise asyncio.CancelledError
+            raise InstallAdbError(InstallAdbErrorCode.INSTALL_AMBIGUOUS)
+        observed = await step(*args)
+        if stop_at == "after-reinstall" and name == "RESTORE_LEGACY":
+            if how == "core-stops":
+                raise asyncio.CancelledError
+            raise InstallAdbError(InstallAdbErrorCode.INSTALL_AMBIGUOUS)
+        return observed
+
+    async def refuse(_data: bytes) -> None:
+        raise UpdateRejectedError
+
+    panel.step, panel.restore = stop, refuse  # type: ignore[method-assign]
+    _attach(entry, panel)
+    with pytest.raises(stopped):
+        await _move(hass, entry, panel, tmp_path)
+    assert panel.legacy and panel.running != LEGACY_PACKAGE_ID
+
+    panel.step = step  # type: ignore[method-assign]
+    panel.steps.clear()
+    with pytest.raises(MoveError, match="move_failed"):
+        await _move(hass, entry, panel, tmp_path)
+
+    assert not {"BACKUP", "RESTORE", "INSTALL"} & set(panel.steps)
+    assert panel.running == LEGACY_PACKAGE_ID and not panel.successor
+    assert panel.home == LEGACY_PACKAGE_ID
+    assert "rolling_back" not in json.loads(_record_file(hass, entry).read_text())
+
+    # Back where it started, the next press moves the panel.
+    panel.restore = restore  # type: ignore[method-assign]
+    _attach(entry, panel)
+    assert await _move(hass, entry, panel, tmp_path) == [NEW_DID]
+    assert not panel.legacy and not panel.legacy_aside
 
 
 async def test_a_restored_panel_is_not_restored_again_on_retry(
