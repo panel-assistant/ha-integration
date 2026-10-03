@@ -1614,12 +1614,12 @@ async def _empty_move_catalogue(hass, monkeypatch):
     "source,version,change_at",
     [
         ("feed", "1.2.0-rc1", "install"),
-        ("release", "1.2.0-rc1", "retire"),
-        ("release", "1.2.0", "retire"),
+        ("release", "1.2.0-rc1", "set-aside"),
+        ("release", "1.2.0", "set-aside"),
     ],
     ids=[
         "feed-consent-after-install",
-        "release-consent-after-retire",
+        "release-consent-after-set-aside",
         "stable-feed-gone",
     ],
 )
@@ -1655,7 +1655,7 @@ async def test_an_accepted_move_finishes_after_current_admission_changes(
 
     async def moved(*args):
         result = await step(*args)
-        if args[-1] is MoveStep.RETIRE_LEGACY and change_at == "retire":
+        if args[-1] is MoveStep.SET_ASIDE_LEGACY and change_at == "set-aside":
             await change_admission()
         return result
 
