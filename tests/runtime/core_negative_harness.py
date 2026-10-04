@@ -205,6 +205,12 @@ class _PanelServer(AbstractContextManager["_PanelServer"]):
                         b'"handover":{"supported":true,"source":false,'
                         b'"url":"","reason":""}}'
                     )
+                elif self.path == "/api/v1/info":
+                    # This old panel's status carries no typed install capability,
+                    # so the update-route check falls back to the live `shot` bit a
+                    # real panel of that age serves here. No privileged route.
+                    mode = "info"
+                    body = b'{"shot":false}'
                 else:
                     body = b"not found"
                     self.send_response(404)
@@ -599,7 +605,9 @@ def main() -> int:
             all(size > MAX_STATUS_RESPONSE_BYTES for size in oversized_sizes),
             "oversized fixture did not cross the 64 KiB boundary",
         )
-        unexpected = sorted({path for path, mode, _size in events if mode == "unexpected"})
+        unexpected = sorted(
+            {path for path, mode, _size in events if mode == "unexpected"}
+        )
         _require(
             not unexpected,
             f"Home Assistant requested an unexpected fake-panel route: {unexpected}",
