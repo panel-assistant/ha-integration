@@ -10,6 +10,7 @@ import json
 import os
 import shutil
 import socket
+import struct
 import subprocess
 import sys
 import tempfile
@@ -245,6 +246,31 @@ class _PanelServer(AbstractContextManager["_PanelServer"]):
         _require(not self._thread.is_alive(), "fake panel thread did not stop")
 
 
+_ADB_HEADER = struct.Struct("<6I")
+_ADB_CNXN = 0x4E584E43
+_ADB_AUTH = 0x48545541
+_ADB_AUTH_TOKEN = 1
+_ADB_AUTH_SIGNATURE = 2
+_ADB_AUTH_RSAPUBLICKEY = 3
+
+
+def _adb_packet(command: int, arg0: int, arg1: int, data: bytes) -> bytes:
+    header = _ADB_HEADER.pack(
+        command, arg0, arg1, len(data), sum(data) & 0xFFFFFFFF, command ^ 0xFFFFFFFF
+    )
+    return header + data
+
+
+def _receive_exact(connection: socket.socket, size: int) -> bytes | None:
+    data = b""
+    while len(data) < size:
+        chunk = connection.recv(size - len(data))
+        if not chunk:
+            return None
+        data += chunk
+    return data
+
+
 class _AdbSentinel(AbstractContextManager["_AdbSentinel"]):
     def __init__(self, host: str) -> None:
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -259,6 +285,7 @@ class _AdbSentinel(AbstractContextManager["_AdbSentinel"]):
         self._stopping = threading.Event()
         self._lock = threading.Lock()
         self._accepts = 0
+        self._violations: list[str] = []
         self._thread = threading.Thread(
             target=self._listen,
             name="ha-paneld-runtime-adb",
@@ -275,12 +302,51 @@ class _AdbSentinel(AbstractContextManager["_AdbSentinel"]):
                 return
             with self._lock:
                 self._accepts += 1
-            connection.close()
+            with connection:
+                self._converse(connection)
+
+    def _converse(self, connection: socket.socket) -> None:
+        """Answer as an adbd that trusts no key, and record anything beyond a probe.
+
+        A restart may look at a panel passively (the update-route check does), so a
+        connection alone is allowed. Offering Home Assistant's public key, which puts
+        an "Allow debugging?" prompt on the panel, or sending any command is not.
+        """
+        connection.settimeout(2.0)
+        try:
+            while True:
+                header = _receive_exact(connection, _ADB_HEADER.size)
+                if header is None:
+                    return
+                command, arg0, _arg1, length, _crc, _magic = _ADB_HEADER.unpack(header)
+                if length and _receive_exact(connection, length) is None:
+                    return
+                if command == _ADB_CNXN or (
+                    command == _ADB_AUTH and arg0 == _ADB_AUTH_SIGNATURE
+                ):
+                    token = os.urandom(20)
+                    challenge = _adb_packet(_ADB_AUTH, _ADB_AUTH_TOKEN, 0, token)
+                    connection.sendall(challenge)
+                    continue
+                with self._lock:
+                    self._violations.append(
+                        "public key offered"
+                        if command == _ADB_AUTH and arg0 == _ADB_AUTH_RSAPUBLICKEY
+                        else f"ADB command {command:#010x}"
+                    )
+                return
+        except OSError:
+            return
 
     @property
     def accepts(self) -> int:
         with self._lock:
             return self._accepts
+
+    @property
+    def violations(self) -> list[str]:
+        with self._lock:
+            return list(self._violations)
 
     def __enter__(self) -> _AdbSentinel:
         self._thread.start()
@@ -509,7 +575,11 @@ def main() -> int:
                     ambiguous_address,
                     runtime_root / "verify.log",
                 )
-                _require(adb.accepts == 0, f"unexpected ADB connections: {adb.accepts}")
+                _require(
+                    not adb.violations,
+                    f"a restart went past an ADB probe: {adb.violations}",
+                )
+                adb_connections = adb.accepts
             events = panel.recorder.snapshot()
 
         modes = Counter(mode for path, mode, _size in events if path.endswith("status"))
@@ -545,7 +615,8 @@ def main() -> int:
             "component_digest": component_digest,
             "health_requests": sum(path.endswith("health") for path, _, _ in events),
             "status_modes": dict(sorted(modes.items())),
-            "adb_connections": 0,
+            "adb_connections": adb_connections,
+            "adb_violations": 0,
             "safe_phase": verify["safe_phase"],
             "ambiguous_phase": verify["ambiguous_phase"],
             "registry_identity_preserved": True,
