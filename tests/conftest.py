@@ -7,7 +7,11 @@ from unittest.mock import AsyncMock
 import pytest
 from pytest_homeassistant_custom_component.common import get_test_config_dir
 
-from custom_components.panel_assistant import config_flow, feed_coordinator
+from custom_components.panel_assistant import (
+    config_flow,
+    feed_coordinator,
+    update_policy,
+)
 from custom_components.panel_assistant.client import (
     HaPaneldClient,
     PanelInstallStatus,
@@ -40,6 +44,18 @@ def _enable_custom_integrations(
 ) -> Generator[None]:
     """Allow Home Assistant to load the integration under test."""
     yield
+
+
+@pytest.fixture(autouse=True)
+def _prerelease_panel_assistant(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run as a pre-release Panel Assistant unless a test says otherwise.
+
+    The update fixtures offer pre-release panel builds, which a stable Panel
+    Assistant admits only on a panel's opt-in. Pinning the channel here keeps the
+    suite independent of the release being numbered; the stable channel has its
+    own tests that set the version explicitly.
+    """
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "0.0.0-test")
 
 
 @pytest.fixture(autouse=True)
