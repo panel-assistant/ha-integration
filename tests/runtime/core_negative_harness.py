@@ -599,9 +599,10 @@ def main() -> int:
             all(size > MAX_STATUS_RESPONSE_BYTES for size in oversized_sizes),
             "oversized fixture did not cross the 64 KiB boundary",
         )
+        unexpected = sorted({path for path, mode, _size in events if mode == "unexpected"})
         _require(
-            not any(mode == "unexpected" for _path, mode, _size in events),
-            "Home Assistant requested an unexpected fake-panel route",
+            not unexpected,
+            f"Home Assistant requested an unexpected fake-panel route: {unexpected}",
         )
         _require(
             any(path == PANEL_SETUP_PATH for path, _mode, _size in events),
