@@ -25,6 +25,7 @@ from custom_components.panel_assistant.app_identity import (
     reports_package,
 )
 from custom_components.panel_assistant.client import (
+    CannotConnectError,
     HaPaneldError,
     PanelHealth,
     UpdateApprovalRequiredError,
@@ -122,6 +123,7 @@ class FakePanel:
         self.cfg = LEGACY_CFG
         self.did: str | None = OLD_DID
         self.restores = 0
+        self.own_state = False
         self.running_restore = 0
         self.outcome: tuple[bool, int] = (True, 3)
         self.successor_launched = False
@@ -255,13 +257,20 @@ class FakePanel:
         self.steps.append("BACKUP")
         return self.backup
 
+    async def set_panel_id(self, panel_id: str) -> None:
+        assert self.running == SUCCESSOR_PACKAGE_ID
+        self.steps.append("SET_PANEL_ID")
+        self.panel_id = panel_id
+
     async def restore(self, data: bytes) -> None:
         assert self.running == SUCCESSOR_PACKAGE_ID and data == self.backup
         self.restores += 1
         self.steps.append("RESTORE")
-        # The first restore adopts the panel id; only a restore onto that id
-        # brings the device's own state back, which completes the config.
-        if self.panel_id == "office":
+        # A restore adopts the backup's panel id, but brings the device's own
+        # state back, which completes the config, only onto a panel already
+        # carrying that id.
+        self.own_state = self.panel_id == "office"
+        if self.own_state:
             self.cfg = LEGACY_CFG
         self.panel_id = "office"
         # The restore keeps running for a while after health shows its result.
@@ -272,7 +281,8 @@ class FakePanel:
         if self.running_restore:
             self.running_restore -= 1
             return None
-        return self.outcome
+        succeeded, rows = self.outcome
+        return succeeded, rows if self.own_state else 0
 
 
 @pytest.fixture
@@ -289,6 +299,7 @@ def _attach(entry: MockConfigEntry, panel: FakePanel) -> None:
         async_get_health=panel.health,
         async_backup_panel=panel.backup_panel,
         async_restore_panel=panel.restore,
+        async_set_panel_id=panel.set_panel_id,
         async_get_restore_outcome=panel.restore_outcome,
         address=None,
     )
@@ -477,7 +488,7 @@ async def test_a_kiosk_panel_moves_with_home_safe_and_settings_restored(
         "SET_ASIDE_LEGACY",
         "RESET_SUCCESSOR",
         "LAUNCH",
-        "RESTORE",
+        "SET_PANEL_ID",
         "RESTORE",
         "RETIRE_LEGACY",
     ]
@@ -487,7 +498,36 @@ async def test_a_kiosk_panel_moves_with_home_safe_and_settings_restored(
     assert CONF_SUCCESSOR_MOVE not in entry.data
 
 
-@pytest.mark.parametrize("failure", ["rejected", "approval", "outcome-failed"], ids=str)
+async def test_a_move_finishes_in_one_run_with_a_single_restore(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
+) -> None:
+    """The new app is given the panel's id first, so one restore brings its own
+    state back. Owners' panels failed a second restore of the same receipt,
+    which left the move for a second run (ha-integration #2)."""
+    panel = FakePanel()
+    real_restore = panel.restore
+
+    async def refuses_a_second_restore(data: bytes) -> None:
+        await real_restore(data)
+        if panel.restores > 1:
+            panel.outcome = (False, 0)
+
+    panel.restore = refuses_a_second_restore  # type: ignore[method-assign]
+    _attach(entry, panel)
+
+    adopted = await _move(hass, entry, panel, tmp_path)
+
+    assert panel.restores == 1
+    assert panel.steps.index("SET_PANEL_ID") < panel.steps.index("RESTORE")
+    assert (panel.panel_id, panel.cfg) == ("office", LEGACY_CFG)
+    assert not panel.legacy and not panel.legacy_aside
+    assert adopted == [NEW_DID] and entry.unique_id == NEW_DID
+    assert CONF_SUCCESSOR_MOVE not in entry.data
+
+
+@pytest.mark.parametrize(
+    "failure", ["rejected", "approval", "outcome-failed", "id-refused"], ids=str
+)
 @pytest.mark.parametrize("home", [LEGACY_PACKAGE_ID, "com.android.launcher3"])
 async def test_a_failed_restore_leaves_the_old_app_working(
     hass: HomeAssistant,
@@ -501,6 +541,13 @@ async def test_a_failed_restore_leaves_the_old_app_working(
     _attach(entry, panel)
     if failure == "outcome-failed":
         panel.outcome = (False, 0)
+    elif failure == "id-refused":
+
+        async def refuse_id(_panel_id: str) -> None:
+            raise CannotConnectError
+
+        panel.set_panel_id = refuse_id  # type: ignore[method-assign]
+        _attach(entry, panel)
     else:
         error = (
             UpdateRejectedError()
@@ -620,7 +667,7 @@ async def test_an_old_app_that_did_not_go_keeps_the_move_open(
 
     panel.step = step  # type: ignore[method-assign]
     assert await _move(hass, entry, panel, tmp_path) == [NEW_DID]
-    assert not panel.legacy_aside and panel.restores == 2
+    assert not panel.legacy_aside and panel.restores == 1
 
 
 @pytest.mark.parametrize(
@@ -769,7 +816,7 @@ async def test_a_restored_panel_is_not_restored_again_on_retry(
     panel.step = core_stops  # type: ignore[method-assign]
     with pytest.raises(asyncio.CancelledError):
         await _move(hass, entry, panel, tmp_path)
-    assert panel.legacy_aside and panel.restores == 2
+    assert panel.legacy_aside and panel.restores == 1
 
     panel.step = step  # type: ignore[method-assign]
     panel.steps.clear()
@@ -789,7 +836,7 @@ async def test_a_restored_panel_is_not_restored_again_on_retry(
     adopted = await _move(hass, entry, panel, tmp_path)
 
     assert [s for s in panel.steps if s != "LANE"] == ["OBSERVE", "RETIRE_LEGACY"]
-    assert panel.restores == 2 and not panel.legacy_aside
+    assert panel.restores == 1 and not panel.legacy_aside
     assert adopted == [NEW_DID]
 
 
@@ -818,7 +865,7 @@ async def test_a_restored_new_app_that_does_not_answer_is_never_rolled_back(
         await _move(hass, entry, panel, tmp_path)
 
     assert set(panel.steps) == {"OBSERVE"}
-    assert panel.successor and panel.legacy_aside and panel.restores == 2
+    assert panel.successor and panel.legacy_aside and panel.restores == 1
 
 
 async def test_a_retry_gives_home_back_to_an_old_app_that_still_runs(
@@ -1058,7 +1105,7 @@ async def test_a_move_interrupted_after_the_old_app_went_resumes_after_a_restart
     # The new app was started clean before the stop and still serves.
     assert [s for s in panel.steps if s != "LANE"] == [
         "OBSERVE",
-        "RESTORE",
+        "SET_PANEL_ID",
         "RESTORE",
         "RETIRE_LEGACY",
     ]
@@ -1130,13 +1177,13 @@ async def test_a_moved_panel_is_a_no_op(
 async def test_a_restore_still_running_is_waited_out(
     hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
 ) -> None:
-    """The panel adopts its id before the first restore has finished."""
+    """The panel can still be finishing an operation when the restore starts."""
     panel = FakePanel()
     real_restore = panel.restore
     busy = [True]
 
     async def busy_once(data: bytes) -> None:
-        if panel.restores == 1 and busy[0]:
+        if busy[0]:
             busy[0] = False
             raise UpdateBusyError
         await real_restore(data)
@@ -1146,7 +1193,7 @@ async def test_a_restore_still_running_is_waited_out(
 
     await _move(hass, entry, panel, tmp_path)
 
-    assert panel.restores == 2 and not busy[0]
+    assert panel.restores == 1 and not busy[0]
     assert CONF_SUCCESSOR_MOVE not in entry.data
 
 
@@ -1931,7 +1978,7 @@ async def test_an_accepted_move_finishes_after_current_admission_changes(
     await _policy_move(hass, entry, panel, tmp_path)
 
     assert panel.steps.count("INSTALL") == panel.steps.count("LAUNCH") == 1
-    assert panel.restores == 2 and not panel.legacy
+    assert panel.restores == 1 and not panel.legacy
     assert panel.home == SUCCESSOR_PACKAGE_ID
     assert (panel.panel_id, panel.cfg) == ("office", LEGACY_CFG)
     assert entry.unique_id == NEW_DID and CONF_SUCCESSOR_MOVE not in entry.data
@@ -1982,7 +2029,7 @@ async def test_a_restart_before_launch_recovers_the_recorded_build(
     await _policy_move(hass, entry, panel, tmp_path)
 
     assert "INSTALL" not in panel.steps
-    assert panel.steps.count("LAUNCH") == 1 and panel.restores == 2
+    assert panel.steps.count("LAUNCH") == 1 and panel.restores == 1
     assert (panel.panel_id, panel.cfg) == ("office", LEGACY_CFG)
     assert entry.unique_id == NEW_DID and CONF_SUCCESSOR_MOVE not in entry.data
 
@@ -2029,7 +2076,7 @@ async def test_a_legacy_present_retry_keeps_the_accepted_install(
     await _policy_move(hass, entry, panel, tmp_path)
 
     assert not {"REMOVE_SUCCESSOR", "INSTALL"}.intersection(panel.steps)
-    assert "RETIRE_LEGACY" in panel.steps and panel.restores == 2
+    assert "RETIRE_LEGACY" in panel.steps and panel.restores == 1
     assert (
         await hass.async_add_executor_job(Path(receipt).read_bytes) == original_receipt
     )

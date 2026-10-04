@@ -816,6 +816,20 @@ class HaPaneldClient:
         if status != 200:
             raise CannotConnectError
 
+    async def async_set_panel_id(self, panel_id: str) -> None:
+        """Give a panel its id through its own settings store.
+
+        Only the move uses it, to give the new app the old app's id before
+        the restore that brings the panel's own state back onto that id.
+        """
+        status, _ = await self._async_post_bounded(
+            self.address.base_url.with_path(CONFIG_PATH),
+            {"panel_id": panel_id},
+            _MAX_SETUP_BYTES,
+        )
+        if status != 200:
+            raise CannotConnectError
+
     @property
     def setup_url(self) -> str:
         """The panel's own setup wizard."""
