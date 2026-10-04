@@ -503,7 +503,10 @@ def _real_move_steps(panel: Panel, revoke_at: int) -> Iterator[list[int]]:
             (state / package).unlink(missing_ok=True)
             if present:
                 (state / package).touch()
-        (state / "home").write_text(f"{panel.home}/.DashboardActivity\n")
+        home = panel.home or ""
+        if home and "/" not in home and "." in home:
+            home = f"{home}/.DashboardActivity"
+        (state / "home").write_text(f"{home}\n")
         process = await asyncio.create_subprocess_exec(
             "sh",
             "-c",
@@ -581,11 +584,24 @@ async def test_trust_revoked_before_the_removal_offers_no_key(
     assert _issue(hass, entry) == "remove_old_app_adb"
 
 
-async def test_home_that_returns_to_the_old_app_during_the_backup_keeps_it(
-    hass: HomeAssistant, hass_read_only_user: Any, panel: Panel
+@pytest.mark.parametrize(
+    "home",
+    [
+        pytest.param(f"{LEGACY_PACKAGE_ID}/.DashboardActivity", id="old app"),
+        pytest.param("", id="unreadable"),
+        pytest.param("android/com.android.internal.app.ResolverActivity", id="chooser"),
+        pytest.param("garbage", id="malformed"),
+    ],
+)
+async def test_home_that_leaves_the_new_app_during_the_backup_keeps_the_old_app(
+    hass: HomeAssistant, hass_read_only_user: Any, panel: Panel, home: str
 ) -> None:
-    """The removal reads HOME again in the shell that would uninstall."""
-    panel.home_after_backup = LEGACY_PACKAGE_ID
+    """The removal reads HOME again in the shell that would uninstall.
+
+    Only a readable HOME that is one launcher other than the old app lets the
+    old app go; anything else keeps it.
+    """
+    panel.home_after_backup = home
     with _real_move_steps(panel, revoke_at=0) as offered:
         entry = await _load(hass, hass_read_only_user.id)
 
@@ -593,3 +609,16 @@ async def test_home_that_returns_to_the_old_app_during_the_backup_keeps_it(
     assert panel.legacy, "the launcher was uninstalled"
     assert offered == []
     assert _issue(hass, entry) == "remove_old_app_unproven"
+
+
+async def test_a_vendor_launcher_taking_home_during_the_backup_lets_it_go(
+    hass: HomeAssistant, hass_read_only_user: Any, panel: Panel
+) -> None:
+    """Removing the old app cannot strand a panel whose HOME is another launcher."""
+    panel.home_after_backup = "com.vendor.launcher/.Launcher"
+    with _real_move_steps(panel, revoke_at=0):
+        entry = await _load(hass, hass_read_only_user.id)
+
+    assert panel.events == ["OBSERVE", "backup", "RETIRE_LEGACY"]
+    assert not panel.legacy
+    assert _issue(hass, entry) is None

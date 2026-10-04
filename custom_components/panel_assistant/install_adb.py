@@ -2382,11 +2382,12 @@ _MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
         f"am force-stop {LEGACY_PACKAGE_ID}",
         f"pm uninstall -k --user 0 {LEGACY_PACKAGE_ID}",
     ),
-    # Never the app HOME resolves to: that would leave the panel without a
-    # launcher. Read in the same shell as the uninstall, so a HOME that changed
-    # since the last observation is still seen.
+    # Only while HOME resolves to one launcher that is not the old app: never
+    # the old app itself, which would leave the panel without one, nor a HOME
+    # that cannot be read, nor the system chooser. Read in the same shell as
+    # the uninstall, so a HOME that changed since the last observation counts.
     MoveStep.RETIRE_LEGACY: (
-        f'case "$({_HOME_QUERY})" in {LEGACY_PACKAGE_ID}/*) ;; *) '
+        f'case "$({_HOME_QUERY})" in {LEGACY_PACKAGE_ID}/*|android/*) ;; ?*/?*) '
         f"am force-stop {LEGACY_PACKAGE_ID}; pm uninstall {LEGACY_PACKAGE_ID}; "
         f"rm -f {_LEGACY_COPY} ;; esac",
     ),
