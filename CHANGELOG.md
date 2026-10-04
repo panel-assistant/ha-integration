@@ -2,6 +2,51 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.7.0 - 2026-10-04
+
+Panel Assistant 0.7.0 takes over the jobs panels used to do for themselves. It is the last Panel Assistant release that supports MQTT panels and the last that moves them over to its own connection, so if your panels still use MQTT, please move them now. It also moves panels to the new app from Home Assistant with one click. Sorry, Sonoff NSPanel Pro owners: before this, each panel had to hand itself over, which needed a root helper that some NSPanel Pros have no room for. If yours got stuck, or 0.6.3 told you "The release did not match its signature, so nothing was installed", that was my approach, not your panel, and you should never need Magisk or to delete anything from the system partition.
+
+Pairs with ha-paneld v0.9.9.
+
+### Moving off MQTT
+
+**Move your panels now.** Each panel that has used MQTT gets a Repair that moves it to Panel Assistant's own connection; panels that never used MQTT never see it. You can also choose **Configure** on the panel and set **Control** to **Panel Assistant**. No YAML is needed. MQTT still works in this release, but future feature releases build on Panel Assistant's connection, so MQTT set-ups will not get new features after this.
+
+### Moving from the old app
+
+**The panel app has a new Android app id, `io.panelassistant.android`.** A panel still running the old ha-paneld app, including one whose earlier move was refused or stopped partway, gets a "Move to the new app" Repair under **Settings, Repairs**. One click backs the panel up into Home Assistant, installs the new app over your network and carries its settings, device and entities across. You don't need to root the panel or type any commands. If the panel asks whether to allow USB debugging, tap Allow. Once the new app is clearly running the panel, Panel Assistant removes the old app automatically, and if it can't, a Repair says why. Updating a panel that still runs the old app points you to this Repair instead of starting a move of its own.
+
+**Move before v1.0.** Moving panels to the new app is supported through the 0.x releases only. v1.0 will not move panels, so please move yours before then.
+
+### New
+
+- **Voice assistant preview.** A panel that offers voice appears as an Assist satellite on its own device, with a listening colour for each pipeline. It is an early preview and may change.
+- **Panel cameras and speakers as native entities.** A panel with a camera appears as a camera, and its speaker as a media player with its volume, ready for announcements. No MQTT involved.
+- **Panels hear about Home Assistant restarts.** Panel Assistant tells each panel when Home Assistant is shutting down and when it is ready again, and, once it has timed a restart, how long one usually takes on your system. While a panel itself restarts, its status and the sidebar say so.
+- **Repairs that tell you what needs doing.** You get one when Home Assistant needs a restart to load a newer Panel Assistant, when a panel is missing an Android permission it needs, and when a panel can no longer be updated at all, which used to go unnoticed because the panel still looked healthy. Installer failures show up in Repairs too, with support reports laid out for people to read.
+- **Pick a known panel when adding one.** The add-panel flow offers panels it already knows about.
+- **Builds on the device card.** You can see which build each panel and the integration are running.
+
+### Improved
+
+- **Panel updates are easier to follow.** The update dialog shows one steady step line, and an update is only marked done once the restarted panel is back on its dashboard. A retried update finishes when the panel has already updated.
+- **Panels follow Panel Assistant's update channel.** A panel is offered only builds that match the channel Panel Assistant is on, and pre-releases only when that panel's pre-release switch is on.
+- **Network installs match USB installs.** A panel installed over the network gets the same Android permissions as one installed over USB, so touch sounds and similar controls work straight away. Panel Assistant also puts back any permission Android shows as missing, and if a panel refuses one, the log says so and the install still finishes.
+- **The sidebar works on a phone**, with Home Assistant's menu button and an overflow menu, and panel settings open there too.
+- **Panels that move address are followed**, verified at the new address and kept with their device and entities.
+- **Network debugging asks first.** Approving an update over ADB is easier to find and names the panel, a new key is only offered to the panel when you ask, background checks never pop up an approval prompt, and Panel Assistant rechecks what you agreed to just before it installs.
+
+### Fixed
+
+- **No more false or stuck update Repairs.** A failed update Repair retries the current release and clears once the panel is on the right build, and a panel is never asked to update to the version it already runs.
+- **Installs only complete once the panel is confirmed as the home screen**, and your existing setup is kept.
+- **A panel that already moved itself to the new app is adopted** instead of getting a misleading Repair about its address, and an adoption interrupted by a restart finishes at start-up.
+- **Adding a panel whose old app is not answering no longer installs the new app beside it.** Home Assistant asks you to open the old app or restart the panel first.
+- **No alarming messages while a panel is getting ready**, and USB-installed panels skip asking where Home Assistant is.
+- **Panels no longer show a "null" area.**
+- **Media permission Repairs only appear when you use a feature that needs them.**
+- **Translation corrections** from a review of every language.
+
 ## 0.7.0-rc5 - 2026-10-04
 
 Pairs with ha-paneld v0.9.9-rc5.
