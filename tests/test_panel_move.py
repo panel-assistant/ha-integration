@@ -156,7 +156,9 @@ class FakePanel:
             and not self.running_restore
         )
 
-    async def step(self, _target: Any, _signer: Any, step: MoveStep) -> MoveObservation:
+    async def step(
+        self, _target: Any, _signer: Any, step: MoveStep, **_kwargs: Any
+    ) -> MoveObservation:
         self.steps.append(step.value)
         if step is MoveStep.REMOVE_SUCCESSOR:
             assert self.home != SUCCESSOR_PACKAGE_ID
@@ -538,7 +540,7 @@ async def test_without_its_own_copy_the_old_app_stays_aside_for_a_retry(
     _attach(entry, panel)
     step, restore = panel.step, panel.restore
 
-    async def copy_changes(*args: Any) -> MoveObservation:
+    async def copy_changes(*args: Any, **_kwargs: Any) -> MoveObservation:
         observed = await step(*args)
         if args[-1] is MoveStep.SET_ASIDE_LEGACY:
             panel.legacy_copy = "e" * 64 if copy == "replaced" else None
@@ -576,7 +578,7 @@ async def test_a_retry_returns_home_that_an_earlier_attempt_claimed(
     _attach(entry, panel)
     step = panel.step
 
-    async def core_stops(*args: Any) -> MoveObservation:
+    async def core_stops(*args: Any, **_kwargs: Any) -> MoveObservation:
         observed = await step(*args)
         if args[-1] is MoveStep.CLAIM_HOME:
             raise asyncio.CancelledError
@@ -607,7 +609,7 @@ async def test_an_old_app_that_did_not_go_keeps_the_move_open(
     _attach(entry, panel)
     step = panel.step
 
-    async def refuse_once(*args: Any) -> MoveObservation:
+    async def refuse_once(*args: Any, **_kwargs: Any) -> MoveObservation:
         if args[-1] is MoveStep.RETIRE_LEGACY:
             panel.retire_fails = "final"
         return await step(*args)
@@ -633,7 +635,7 @@ async def test_a_panel_that_changed_mid_move_is_not_rolled_back(
     _attach(entry, panel)
     step = panel.step
 
-    async def changed(*args: Any) -> MoveObservation:
+    async def changed(*args: Any, **_kwargs: Any) -> MoveObservation:
         if args[-1] is changed_at:
             raise InstallAdbError(InstallAdbErrorCode.TARGET_CHANGED)
         return await step(*args)
@@ -668,7 +670,7 @@ async def test_a_rollback_that_stopped_part_way_is_finished_next_time(
     step, restore = panel.step, panel.restore
     stopped = asyncio.CancelledError if how == "core-stops" else MoveError
 
-    async def stop(*args: Any) -> MoveObservation:
+    async def stop(*args: Any, **_kwargs: Any) -> MoveObservation:
         name = args[-1].value
         if name == stop_at:
             if how == "core-stops":
@@ -761,7 +763,7 @@ async def test_a_restored_panel_is_not_restored_again_on_retry(
     _attach(entry, panel)
     step = panel.step
 
-    async def core_stops(*args: Any) -> MoveObservation:
+    async def core_stops(*args: Any, **_kwargs: Any) -> MoveObservation:
         if args[-1] is MoveStep.RETIRE_LEGACY:
             raise asyncio.CancelledError
         return await step(*args)
@@ -800,7 +802,7 @@ async def test_a_restored_new_app_that_does_not_answer_is_never_rolled_back(
     _attach(entry, panel)
     step = panel.step
 
-    async def core_stops(*args: Any) -> MoveObservation:
+    async def core_stops(*args: Any, **_kwargs: Any) -> MoveObservation:
         if args[-1] is MoveStep.RETIRE_LEGACY:
             raise asyncio.CancelledError
         return await step(*args)
@@ -829,7 +831,7 @@ async def test_a_retry_gives_home_back_to_an_old_app_that_still_runs(
     _attach(entry, panel)
     step = panel.step
 
-    async def core_stops(*args: Any) -> MoveObservation:
+    async def core_stops(*args: Any, **_kwargs: Any) -> MoveObservation:
         observed = await step(*args)
         if args[-1] is MoveStep.CLAIM_HOME:
             raise asyncio.CancelledError
@@ -1097,7 +1099,7 @@ async def test_a_move_waits_for_no_update_and_blocks_one(
 
     claimed: list[bool] = []
 
-    async def observe_claim(*args: Any) -> MoveObservation:
+    async def observe_claim(*args: Any, **_kwargs: Any) -> MoveObservation:
         claimed.append(claim_panel_operation(hass, entry.entry_id))
         return await panel.step(*args)
 
@@ -1915,13 +1917,13 @@ async def test_an_accepted_move_finishes_after_current_admission_changes(
         if version == "1.2.0":
             await _empty_move_catalogue(hass, monkeypatch)
 
-    async def installed(*args):
+    async def installed(*args, **_kwargs):
         result = await install(*args)
         if change_at == "install":
             await change_admission()
         return result
 
-    async def moved(*args):
+    async def moved(*args, **_kwargs):
         result = await step(*args)
         if args[-1] is MoveStep.SET_ASIDE_LEGACY and change_at == "set-aside":
             await change_admission()
@@ -2007,7 +2009,7 @@ async def test_a_legacy_present_retry_keeps_the_accepted_install(
     )
     step = panel.step
 
-    async def interrupted(*args):
+    async def interrupted(*args, **_kwargs):
         if args[-1] is interrupt_at:
             raise InstallAdbError(InstallAdbErrorCode.INSTALL_AMBIGUOUS)
         return await step(*args)
@@ -2053,7 +2055,7 @@ async def test_recovery_refuses_an_installed_build_that_no_longer_matches(
     _attach(entry, panel)
     step, launch = panel.step, panel.launch
 
-    async def interrupted_step(*args):
+    async def interrupted_step(*args, **_kwargs):
         if args[-1] is MoveStep.CLAIM_HOME and legacy_present:
             raise InstallAdbError(InstallAdbErrorCode.INSTALL_AMBIGUOUS)
         return await step(*args)
@@ -2114,7 +2116,7 @@ async def test_an_unfinished_receipt_without_exact_build_identity_stays_untouche
     )
     step = panel.step
 
-    async def interrupted(*args):
+    async def interrupted(*args, **_kwargs):
         if args[-1] is MoveStep.CLAIM_HOME:
             raise InstallAdbError(InstallAdbErrorCode.INSTALL_AMBIGUOUS)
         return await step(*args)
@@ -2166,7 +2168,7 @@ async def test_a_receipt_does_not_admit_a_fresh_successor_install(
     )
     step = panel.step
 
-    async def interrupted(*args):
+    async def interrupted(*args, **_kwargs):
         if args[-1] is MoveStep.CLAIM_HOME:
             raise InstallAdbError(InstallAdbErrorCode.INSTALL_AMBIGUOUS)
         return await step(*args)

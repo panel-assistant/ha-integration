@@ -139,7 +139,11 @@ async def _async_remove_old_app(hass: HomeAssistant, entry: ConfigEntry) -> bool
     seen = ir.async_get(hass).async_get_issue(DOMAIN, issue) is not None
     try:
         target, signer = await panel_move._async_target(hass, entry)
-        observed = await panel_move._async_step(target, signer, MoveStep.OBSERVE)
+        # Nothing here was started by the owner, so no connection may offer
+        # Panel Assistant's key: a panel that stopped trusting it is reported.
+        observed = await panel_move._async_step(
+            target, signer, MoveStep.OBSERVE, authorize=False
+        )
         if not observed.legacy_installed and not observed.legacy_set_aside:
             ir.async_delete_issue(hass, DOMAIN, issue)
             return True
@@ -166,7 +170,7 @@ async def _async_remove_old_app(hass: HomeAssistant, entry: ConfigEntry) -> bool
             )
         except (HaPaneldError, PanelBackupInvalidError, OSError) as err:
             raise panel_move.MoveError(panel_move.REASON_BACKUP_FAILED) from err
-        await panel_move._async_retire_legacy(target, signer)
+        await panel_move._async_retire_legacy(target, signer, authorize=False)
     except panel_move.MoveError as err:
         if seen:
             key = _OLD_APP_ISSUE_BY_REASON.get(err.reason, OLD_APP_ISSUES[2])

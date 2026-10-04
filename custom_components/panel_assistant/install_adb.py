@@ -2517,15 +2517,22 @@ def _parse_move(body: bytes, nonce: str) -> MoveObservation:
 
 
 async def async_move_step(
-    target: AdbInstallTarget, signer: PythonRSASigner, step: MoveStep
+    target: AdbInstallTarget,
+    signer: PythonRSASigner,
+    step: MoveStep,
+    *,
+    authorize: bool = True,
 ) -> MoveObservation:
-    """Run one move step on the pinned panel and observe its result."""
+    """Run one move step on the pinned panel and observe its result.
+
+    Only a step the owner started may offer Panel Assistant's key to the panel.
+    """
     _validate_target(target)
     device: AdbDeviceAsync | None = None
     mutation_started = False
     try:
         async with asyncio.timeout(_INSTALL_TIMEOUT_SECONDS):
-            device = await _async_connect(target, signer)
+            device = await _async_connect(target, signer, authorize=authorize)
             # Every connection proves the device at the address is the one the
             # move started on before any command can change it.
             nonce = token_hex(16)

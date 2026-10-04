@@ -136,7 +136,7 @@ class Network:
     async def measure(self, *_args: Any, **_kwargs: Any) -> int | None:
         return self.installed_size
 
-    async def observe(self, *_args: Any) -> MoveObservation:
+    async def observe(self, *_args: Any, **_kwargs: Any) -> MoveObservation:
         # Once adopted, the panel is checked for an old app left beside it.
         return MoveObservation(
             LEGACY_PACKAGE_ID in self.installed,
@@ -157,6 +157,12 @@ async def network(hass: HomeAssistant) -> AsyncGenerator[Network]:
         patch.object(HaPaneldClient, "async_get_health", health),
         patch.object(
             HaPaneldClient, "async_get_status", AsyncMock(return_value=STATUS)
+        ),
+        # The update entity's route check: the panel installs its own updates.
+        patch.object(
+            HaPaneldClient,
+            "async_get_legacy_install_capability",
+            AsyncMock(return_value=True),
         ),
         patch(
             "custom_components.panel_assistant.async_resume_loaded_install_jobs",

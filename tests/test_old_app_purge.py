@@ -1,11 +1,12 @@
 """An old app left beside the new one is removed once the new app holds the panel."""
 
 import json
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Iterator
+from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, ClassVar
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -16,7 +17,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.panel_assistant import old_app, panel_move
+from custom_components.panel_assistant import install_adb, old_app, panel_move
 from custom_components.panel_assistant.app_identity import (
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
@@ -95,7 +96,9 @@ class Panel:
             self.legacy, self.successor, self.home, legacy_set_aside=self.aside
         )
 
-    async def step(self, _target: Any, _signer: Any, step: MoveStep) -> MoveObservation:
+    async def step(
+        self, _target: Any, _signer: Any, step: MoveStep, **_kwargs: Any
+    ) -> MoveObservation:
         self.events.append(step.value)
         if step is MoveStep.RETIRE_LEGACY:
             assert self.home != LEGACY_PACKAGE_ID, "launcher stranded"
@@ -136,6 +139,12 @@ async def panel(hass: HomeAssistant) -> AsyncGenerator[Panel]:
             HaPaneldClient, "async_get_status", AsyncMock(return_value=STATUS)
         ),
         patch.object(HaPaneldClient, "async_backup_panel", backup),
+        # The update entity's route check: the panel installs its own updates.
+        patch.object(
+            HaPaneldClient,
+            "async_get_legacy_install_capability",
+            AsyncMock(return_value=True),
+        ),
         patch(
             "custom_components.panel_assistant.async_resume_loaded_install_jobs",
             AsyncMock(return_value=()),
@@ -399,3 +408,120 @@ async def test_an_update_or_move_in_progress_is_never_raced(
 
     await _poll(hass, entry)
     assert not panel.legacy
+
+
+# --- the panel's own ADB, under the move step ------------------------------------
+
+
+class _Adbd:
+    """A panel's adbd that stops trusting Panel Assistant's key on one connection.
+
+    The connections before it are trusted; on it, adbd asks for the public key,
+    which the library sends straight after the callback, putting "Allow USB
+    debugging?" on the panel.
+    """
+
+    revoke_at = 0
+    connections = 0
+    offered: ClassVar[list[int]] = []
+
+    def __init__(self, *_args: Any, **_kwargs: Any) -> None:
+        pass
+
+    async def connect(self, *, auth_callback: Any = None, **_kwargs: Any) -> bool:
+        _Adbd.connections += 1
+        if _Adbd.connections == _Adbd.revoke_at:
+            if auth_callback is not None:
+                auth_callback(self)
+            _Adbd.offered.append(_Adbd.connections)
+            return False
+        return True
+
+    async def close(self) -> None:
+        return None
+
+
+@contextmanager
+def _real_move_steps(panel: Panel, revoke_at: int) -> Iterator[list[int]]:
+    """Run the real move step against ``panel``; revoke trust on one connection."""
+    nonce = "0" * 32
+    _Adbd.revoke_at, _Adbd.connections, _Adbd.offered = revoke_at, 0, []
+
+    async def shell(_device: Any, command: str, **_kwargs: Any) -> bytes:
+        if "HAPANELD_MOVE_BEGIN" not in command:
+            return b""  # the device proof, which _parse_identity_root accepts
+        if f"pm uninstall {LEGACY_PACKAGE_ID}" in command:
+            assert "backup" in panel.events, "removed before the backup"
+            panel.events.append("RETIRE_LEGACY")
+            panel.legacy = False
+        else:
+            panel.events.append("OBSERVE")
+        installed = "".join(
+            f"installed:{package}\n"
+            for package, present in (
+                (LEGACY_PACKAGE_ID, panel.legacy),
+                (SUCCESSOR_PACKAGE_ID, panel.successor),
+            )
+            if present
+        )
+        return (
+            f"HAPANELD_MOVE_BEGIN:{nonce}\n{installed}"
+            f"home:{panel.home}/.DashboardActivity\n"
+            f"HAPANELD_MOVE_END:{nonce}:0\n"
+        ).encode()
+
+    with (
+        patch.object(panel_move, "async_move_step", install_adb.async_move_step),
+        patch.object(install_adb, "AdbDeviceAsync", _Adbd),
+        patch.object(install_adb, "_async_shell", shell),
+        patch.object(install_adb, "_parse_identity_root", lambda *_args: None),
+        patch.object(install_adb, "_validate_target", lambda _target: None),
+        patch.object(install_adb, "token_hex", lambda _size: nonce),
+    ):
+        yield _Adbd.offered
+
+
+async def test_the_real_move_step_removes_the_old_app(
+    hass: HomeAssistant, hass_read_only_user: Any, panel: Panel
+) -> None:
+    """The seam the other tests replace, run for real once."""
+    with _real_move_steps(panel, revoke_at=0) as offered:
+        entry = await _load(hass, hass_read_only_user.id)
+
+    assert panel.events == ["OBSERVE", "backup", "RETIRE_LEGACY"]
+    assert not panel.legacy
+    assert offered == []
+    assert _issue(hass, entry) is None
+
+
+async def test_trust_revoked_before_the_look_offers_no_key(
+    hass: HomeAssistant, hass_read_only_user: Any, panel: Panel
+) -> None:
+    # An earlier check saw the old app and could not back the panel up.
+    panel.backup_fails = True
+    entry = await _load(hass, hass_read_only_user.id)
+    assert _issue(hass, entry) == "remove_old_app_failed"
+    panel.backup_fails = False
+    panel.events.clear()
+
+    # The probe still trusts the key; adbd refuses it when OBSERVE connects.
+    with _real_move_steps(panel, revoke_at=1) as offered, _retry_now():
+        await _poll(hass, entry)
+
+    assert offered == []
+    assert panel.legacy
+    assert panel.events == []
+    assert _issue(hass, entry) == "remove_old_app_adb"
+
+
+async def test_trust_revoked_before_the_removal_offers_no_key(
+    hass: HomeAssistant, hass_read_only_user: Any, panel: Panel
+) -> None:
+    # OBSERVE connects trusted; adbd refuses the key when RETIRE connects.
+    with _real_move_steps(panel, revoke_at=2) as offered:
+        entry = await _load(hass, hass_read_only_user.id)
+
+    assert offered == []
+    assert panel.legacy
+    assert panel.events == ["OBSERVE", "backup"]
+    assert _issue(hass, entry) == "remove_old_app_adb"

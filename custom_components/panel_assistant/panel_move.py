@@ -535,10 +535,10 @@ async def _async_target(
 
 
 async def _async_step(
-    target: AdbInstallTarget, signer: Any, step: MoveStep
+    target: AdbInstallTarget, signer: Any, step: MoveStep, *, authorize: bool = True
 ) -> MoveObservation:
     try:
-        return await async_move_step(target, signer, step)
+        return await async_move_step(target, signer, step, authorize=authorize)
     except InstallAdbError as err:
         if err.code is InstallAdbErrorCode.AUTHORIZATION_REQUIRED:
             raise MoveError(REASON_ADB_AUTHORIZATION) from err
@@ -814,9 +814,13 @@ async def _async_set_aside_legacy(
     return record
 
 
-async def _async_retire_legacy(target: AdbInstallTarget, signer: Any) -> None:
+async def _async_retire_legacy(
+    target: AdbInstallTarget, signer: Any, *, authorize: bool = True
+) -> None:
     """Step 8: the new app is proven, so the old app, its data and copy go."""
-    observed = await _async_step(target, signer, MoveStep.RETIRE_LEGACY)
+    observed = await _async_step(
+        target, signer, MoveStep.RETIRE_LEGACY, authorize=authorize
+    )
     if (
         observed.legacy_installed
         or observed.legacy_set_aside
