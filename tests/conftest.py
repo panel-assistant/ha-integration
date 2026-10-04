@@ -93,3 +93,39 @@ def _stub_panel_update_operation_in_lifecycle_tests(
             config_flow, "_async_host_answers", AsyncMock(return_value=True)
         )
     yield
+
+
+#: Tests of the update route itself, which serve or mock the panel's answer.
+_UPDATE_ROUTE_TESTS = frozenset(
+    {
+        "test_client.py",
+        "test_feed_update.py",
+        "test_install_executor.py",
+        "test_lan_staged_update.py",
+        "test_no_update_route_behaviour.py",
+        "test_no_update_route_repair.py",
+        "test_update.py",
+        "test_update_adb_route.py",
+        "test_update_candidate_selection.py",
+        "test_update_failure_repairs.py",
+    }
+)
+
+
+@pytest.fixture(autouse=True)
+def _panel_installs_its_own_updates(
+    monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
+) -> Generator[None]:
+    """Answer the update entity's route check locally.
+
+    Every poll of a loaded panel asks whether it can install its own updates;
+    unanswered, that opens a real socket, and then an ADB probe, to a panel
+    that is not there.
+    """
+    if request.path.name not in _UPDATE_ROUTE_TESTS:
+        monkeypatch.setattr(
+            HaPaneldClient,
+            "async_get_legacy_install_capability",
+            AsyncMock(return_value=True),
+        )
+    yield

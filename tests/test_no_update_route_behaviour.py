@@ -6,6 +6,7 @@ and a repair that is merely present: the first is the whole feature, and the
 other two leave a panel accused of something that is no longer true.
 """
 
+import asyncio
 from dataclasses import replace
 from unittest.mock import AsyncMock
 
@@ -289,3 +290,15 @@ async def test_unreadable_adb_app_facts_preserve_issue(
     route.entity._schedule_route_refresh()
     await hass.async_block_till_done()
     assert (_issue(hass, entry) is not None) == existing_issue
+
+
+async def test_a_route_check_that_raises_waits_for_the_next_poll(route, hass):
+    """A failed check is not repeated at once: that spun the event loop."""
+    _up_to_date(route)
+    route.probe_target.side_effect = RuntimeError("unexpected")
+
+    route.entity._schedule_route_refresh()
+    async with asyncio.timeout(5):
+        await hass.async_block_till_done()
+
+    assert route.probe_target.await_count == 1

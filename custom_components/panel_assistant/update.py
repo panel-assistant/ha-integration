@@ -464,6 +464,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
     def _route_refresh_finished(self, task: asyncio.Task[None]) -> None:
         if self._route_task is task:
             self._route_task = None
+            if task.cancelled() or task.exception() is not None:
+                # The key stays unchecked, so checking again at once would fail
+                # the same way without end; the next poll checks again.
+                return
             if self._route_checked_key != self._route_key():
                 self._schedule_route_refresh()
 
