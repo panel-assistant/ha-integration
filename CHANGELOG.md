@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.7.0-rc5 - 2026-10-04
+
+Pairs with ha-paneld v0.9.9-rc5.
+
+### New
+
+- **Each panel's speaker shows up as a media player**, with its volume, ready for announcements.
+- **Panel Assistant removes the old app when it is left beside the new one.** Once the new app is clearly running the panel, Panel Assistant backs the panel up and uninstalls the old app with nothing for you to click. If it can't, a Repair says why: network debugging is off or refused, or it couldn't confirm the new app is the one in charge.
+
+### Fixed
+
+- **Moving a panel to the new app takes one run.** Before, the move restored the panel's settings twice and the second restore could fail, so the Repair said the move had not finished and had to be run again.
+- **A panel that already moved itself to the new app is adopted** instead of getting a misleading Repair about its address.
+- **Background checks never ask the panel to trust Home Assistant's debugging key.** An adoption interrupted by a restart now finishes at start-up.
+- **The restart Repair appears promptly after an update is installed.**
+- **Media permission Repairs only appear when you use a feature that needs them.**
+- **A failed update-route check waits before trying again** instead of retrying in a tight loop.
+
 ## 0.7.0-rc4 - 2026-10-03
 
 Pairs with ha-paneld v0.9.9-rc4.
