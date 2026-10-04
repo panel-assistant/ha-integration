@@ -15,8 +15,8 @@ panels cannot hold. The order is fixed by what keeps the panel usable:
    cannot see it, while Android keeps its data;
 6. clear the new app and start it: with no old app visible and no state of its
    own it starts as an ordinary app rather than waiting for a handover;
-7. restore the receipt onto it, twice: the first restore gives it the panel's
-   id, and only a restore onto that id returns the panel's own local state;
+7. give it the panel's id, then restore the receipt onto it once: only a
+   restore onto a panel already carrying that id returns its own local state;
 8. only once the restore succeeded and the new app reports the panel's
    configuration, remove the old app, its data and the copy;
 9. adopt the new app's identity for this entry.
@@ -974,7 +974,7 @@ async def _async_restore(
     *,
     resumed: bool,
 ) -> PanelHealth:
-    """Steps 5 and 6: start the new app clean and restore the receipt twice.
+    """Steps 6 and 7: start the new app clean and restore the receipt onto it.
 
     A resumed move keeps a new app that already serves: it was started clean
     by the attempt that got this far.
@@ -1014,25 +1014,18 @@ async def _async_restore(
             lambda found: reports_package(found.package, SUCCESSOR_PACKAGE_ID),
             _HEALTH_WAIT_SECONDS,
         )
-    await _async_restore_twice(entry, data, record)
-    return await _async_settled(entry, record)
-
-
-async def _async_restore_twice(
-    entry: ConfigEntry, data: bytes, record: dict[str, Any]
-) -> None:
-    """Restore the receipt, then again once the panel has adopted its id.
-
-    A restore returns the panel's own local state only onto a panel already
-    carrying the id the backup names, which the first restore gives it.
-    """
-    client: HaPaneldClient = entry.runtime_data.client
+    # A restore returns the panel's own local state only onto a panel already
+    # carrying the id the receipt names, so the id goes first, on its own.
     panel_id = record["panel_id"]
-    await _async_send_restore(client, data)
+    try:
+        await client.async_set_panel_id(panel_id)
+    except HaPaneldError as err:
+        raise MoveError(REASON_MOVE_FAILED) from err
     await _async_health(
-        entry, lambda found: found.panel_id == panel_id, _RESTORE_WAIT_SECONDS
+        entry, lambda found: found.panel_id == panel_id, _HEALTH_WAIT_SECONDS
     )
     await _async_send_restore(client, data)
+    return await _async_settled(entry, record)
 
 
 async def _async_settled(entry: ConfigEntry, record: dict[str, Any]) -> PanelHealth:
@@ -1070,11 +1063,7 @@ async def _async_settled(entry: ConfigEntry, record: dict[str, Any]) -> PanelHea
 
 
 async def _async_send_restore(client: HaPaneldClient, data: bytes) -> None:
-    """Start one restore, waiting out an operation the panel is still running.
-
-    The panel adopts the backup's id before the restore that gave it has
-    finished, so the next restore can find that one still holding the lane.
-    """
+    """Start the restore, waiting out an operation the panel is still running."""
     deadline = asyncio.get_running_loop().time() + _RESTORE_WAIT_SECONDS
     while True:
         try:
