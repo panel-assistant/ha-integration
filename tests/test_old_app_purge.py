@@ -1,6 +1,10 @@
 """An old app left beside the new one is removed once the new app holds the panel."""
 
+import asyncio
 import json
+import os
+import shutil
+import tempfile
 from collections.abc import AsyncGenerator, Iterator
 from contextlib import contextmanager
 from dataclasses import replace
@@ -72,6 +76,8 @@ class Panel:
         self.adb: Exception | None = None
         self.retire_fails: Exception | None = None
         self.backup_fails = False
+        #: Where HOME points once the backup has been taken, if it moves.
+        self.home_after_backup: str | None = None
         self.events: list[str] = []
         self.targets = 0
 
@@ -120,6 +126,8 @@ class Panel:
     async def store(self, _hass: Any, _entry_id: str, _code: Any, data: bytes) -> Any:
         assert data == b"archive"
         self.events.append("backup")
+        if self.home_after_backup is not None:
+            self.home = self.home_after_backup
         return SimpleNamespace(path=Path("backup.zip"), sha256="0" * 64)
 
 
@@ -441,44 +449,90 @@ class _Adbd:
         return None
 
 
+#: The panel's package manager, HOME and activity manager, as shell commands
+#: reading and writing ``$STATE``, so the move step's real shell runs on them.
+_PANEL_TOOLS = {
+    "pm": """#!/bin/sh
+case "$1" in
+  path) [ -f "$STATE/$2" ] && echo "package:/data/app/$2/base.apk" ;;
+  uninstall) for a; do p=$a; done; rm -f "$STATE/$p" "$STATE/$p.aside" ;;
+  list) for a; do p=$a; done
+        { [ -f "$STATE/$p" ] || [ -f "$STATE/$p.aside" ]; } && echo "package:$p" ;;
+esac
+exit 0
+""",
+    "cmd": """#!/bin/sh
+[ "$2" = resolve-activity ] && cat "$STATE/home"
+exit 0
+""",
+    "am": "#!/bin/sh\nexit 0\n",
+    "dumpsys": "#!/bin/sh\nexit 0\n",
+}
+
+
 @contextmanager
 def _real_move_steps(panel: Panel, revoke_at: int) -> Iterator[list[int]]:
-    """Run the real move step against ``panel``; revoke trust on one connection."""
+    """Run the real move step and its real shell against ``panel``.
+
+    Only the transport is replaced: adbd trusts the key except on connection
+    ``revoke_at``, and each shell command runs in ``sh`` over stand-ins for the
+    panel's package manager and HOME.
+    """
     nonce = "0" * 32
     _Adbd.revoke_at, _Adbd.connections, _Adbd.offered = revoke_at, 0, []
+    root = Path(tempfile.mkdtemp(prefix="panel-shell-"))
+    tools, state = root / "bin", root / "state"
+    tools.mkdir()
+    state.mkdir()
+    for name, script in _PANEL_TOOLS.items():
+        (tools / name).write_text(script)
+        (tools / name).chmod(0o755)
 
     async def shell(_device: Any, command: str, **_kwargs: Any) -> bytes:
         if "HAPANELD_MOVE_BEGIN" not in command:
             return b""  # the device proof, which _parse_identity_root accepts
-        if f"pm uninstall {LEGACY_PACKAGE_ID}" in command:
+        retire = f"pm uninstall {LEGACY_PACKAGE_ID}" in command
+        if retire:
             assert "backup" in panel.events, "removed before the backup"
-            panel.events.append("RETIRE_LEGACY")
-            panel.legacy = False
-        else:
-            panel.events.append("OBSERVE")
-        installed = "".join(
-            f"installed:{package}\n"
-            for package, present in (
-                (LEGACY_PACKAGE_ID, panel.legacy),
-                (SUCCESSOR_PACKAGE_ID, panel.successor),
-            )
-            if present
+        panel.events.append("RETIRE_LEGACY" if retire else "OBSERVE")
+        for package, present in (
+            (LEGACY_PACKAGE_ID, panel.legacy),
+            (f"{LEGACY_PACKAGE_ID}.aside", panel.aside),
+            (SUCCESSOR_PACKAGE_ID, panel.successor),
+        ):
+            (state / package).unlink(missing_ok=True)
+            if present:
+                (state / package).touch()
+        (state / "home").write_text(f"{panel.home}/.DashboardActivity\n")
+        process = await asyncio.create_subprocess_exec(
+            "sh",
+            "-c",
+            command,
+            stdout=asyncio.subprocess.PIPE,
+            env={
+                **os.environ,
+                "STATE": str(state),
+                "PATH": f"{tools}:{os.environ['PATH']}",
+            },
         )
-        return (
-            f"HAPANELD_MOVE_BEGIN:{nonce}\n{installed}"
-            f"home:{panel.home}/.DashboardActivity\n"
-            f"HAPANELD_MOVE_END:{nonce}:0\n"
-        ).encode()
+        stdout, _ = await process.communicate()
+        panel.legacy = (state / LEGACY_PACKAGE_ID).exists()
+        panel.aside = (state / f"{LEGACY_PACKAGE_ID}.aside").exists()
+        panel.successor = (state / SUCCESSOR_PACKAGE_ID).exists()
+        return stdout
 
-    with (
-        patch.object(panel_move, "async_move_step", install_adb.async_move_step),
-        patch.object(install_adb, "AdbDeviceAsync", _Adbd),
-        patch.object(install_adb, "_async_shell", shell),
-        patch.object(install_adb, "_parse_identity_root", lambda *_args: None),
-        patch.object(install_adb, "_validate_target", lambda _target: None),
-        patch.object(install_adb, "token_hex", lambda _size: nonce),
-    ):
-        yield _Adbd.offered
+    try:
+        with (
+            patch.object(panel_move, "async_move_step", install_adb.async_move_step),
+            patch.object(install_adb, "AdbDeviceAsync", _Adbd),
+            patch.object(install_adb, "_async_shell", shell),
+            patch.object(install_adb, "_parse_identity_root", lambda *_args: None),
+            patch.object(install_adb, "_validate_target", lambda _target: None),
+            patch.object(install_adb, "token_hex", lambda _size: nonce),
+        ):
+            yield _Adbd.offered
+    finally:
+        shutil.rmtree(root)
 
 
 async def test_the_real_move_step_removes_the_old_app(
@@ -525,3 +579,17 @@ async def test_trust_revoked_before_the_removal_offers_no_key(
     assert panel.legacy
     assert panel.events == ["OBSERVE", "backup"]
     assert _issue(hass, entry) == "remove_old_app_adb"
+
+
+async def test_home_that_returns_to_the_old_app_during_the_backup_keeps_it(
+    hass: HomeAssistant, hass_read_only_user: Any, panel: Panel
+) -> None:
+    """The removal reads HOME again in the shell that would uninstall."""
+    panel.home_after_backup = LEGACY_PACKAGE_ID
+    with _real_move_steps(panel, revoke_at=0) as offered:
+        entry = await _load(hass, hass_read_only_user.id)
+
+    assert panel.events == ["OBSERVE", "backup", "RETIRE_LEGACY"]
+    assert panel.legacy, "the launcher was uninstalled"
+    assert offered == []
+    assert _issue(hass, entry) == "remove_old_app_unproven"

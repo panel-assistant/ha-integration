@@ -2382,10 +2382,13 @@ _MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
         f"am force-stop {LEGACY_PACKAGE_ID}",
         f"pm uninstall -k --user 0 {LEGACY_PACKAGE_ID}",
     ),
+    # Never the app HOME resolves to: that would leave the panel without a
+    # launcher. Read in the same shell as the uninstall, so a HOME that changed
+    # since the last observation is still seen.
     MoveStep.RETIRE_LEGACY: (
-        f"am force-stop {LEGACY_PACKAGE_ID}",
-        f"pm uninstall {LEGACY_PACKAGE_ID}",
-        f"rm -f {_LEGACY_COPY}",
+        f'case "$({_HOME_QUERY})" in {LEGACY_PACKAGE_ID}/*) ;; *) '
+        f"am force-stop {LEGACY_PACKAGE_ID}; pm uninstall {LEGACY_PACKAGE_ID}; "
+        f"rm -f {_LEGACY_COPY} ;; esac",
     ),
     # Reinstalling the kept APK returns the old app onto the data Android kept.
     MoveStep.RESTORE_LEGACY: (

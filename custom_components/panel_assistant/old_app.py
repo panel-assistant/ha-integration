@@ -170,7 +170,14 @@ async def _async_remove_old_app(hass: HomeAssistant, entry: ConfigEntry) -> bool
             )
         except (HaPaneldError, PanelBackupInvalidError, OSError) as err:
             raise panel_move.MoveError(panel_move.REASON_BACKUP_FAILED) from err
-        await panel_move._async_retire_legacy(target, signer, authorize=False)
+        retired = await panel_move._async_step(
+            target, signer, MoveStep.RETIRE_LEGACY, authorize=False
+        )
+        if retired.legacy_installed and retired.home != SUCCESSOR_PACKAGE_ID:
+            # HOME left the new app while the backup ran, and the step keeps
+            # an old app HOME resolves to: the proof no longer holds.
+            raise panel_move.MoveError(REASON_NEW_APP_UNPROVEN)
+        panel_move._require_retired(retired)
     except panel_move.MoveError as err:
         if seen:
             key = _OLD_APP_ISSUE_BY_REASON.get(err.reason, OLD_APP_ISSUES[2])

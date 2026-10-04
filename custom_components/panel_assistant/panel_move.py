@@ -814,13 +814,13 @@ async def _async_set_aside_legacy(
     return record
 
 
-async def _async_retire_legacy(
-    target: AdbInstallTarget, signer: Any, *, authorize: bool = True
-) -> None:
+async def _async_retire_legacy(target: AdbInstallTarget, signer: Any) -> None:
     """Step 8: the new app is proven, so the old app, its data and copy go."""
-    observed = await _async_step(
-        target, signer, MoveStep.RETIRE_LEGACY, authorize=authorize
-    )
+    _require_retired(await _async_step(target, signer, MoveStep.RETIRE_LEGACY))
+
+
+def _require_retired(observed: MoveObservation) -> None:
+    """Nothing is left of the old app, and the new app is still installed."""
     if (
         observed.legacy_installed
         or observed.legacy_set_aside
