@@ -1539,6 +1539,46 @@ async def test_the_grant_repair_waits_for_adb_to_answer_after_the_restart(
     assert panel.entity.in_progress is False
 
 
+async def test_a_panel_that_changes_while_adb_is_quiet_gets_no_grant_repair(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    signer: PythonRSASigner,  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    """Each retry checks the panel again before it can write anything."""
+    panel = await _lan_grant_repair_panel(
+        hass, monkeypatch, key, signer, tmp_path, handover=True
+    )
+    monkeypatch.setattr(panel_update, "_PERMISSION_REPAIR_RETRY_SECONDS", 0)
+    answering = panel.probe.return_value
+    silent = replace(
+        answering,
+        state=InstallTargetState.ADB_UNREACHABLE,
+        serial=None,
+        model=None,
+        primary_abi=None,
+        android_sdk=None,
+    )
+
+    async def probe(*_args: Any) -> InstallTargetProbe:
+        if panel.probe.await_count == 1:
+            # While ADB is quiet, the panel at this address stops being this one.
+            panel.entity.coordinator.identity_mismatch = True
+            return silent
+        return answering
+
+    panel.probe.return_value = None
+    panel.probe.side_effect = probe
+
+    await panel.entity.async_install(None, False)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert panel.probe.await_count == 1
+    assert _panel_value(tmp_path, "accessibility_enabled") is None
+
+
 async def test_removing_the_panel_ends_its_waiting_grant_repair(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,

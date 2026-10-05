@@ -738,34 +738,36 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
 
     async def _async_repair_update_permissions(self, artifact: ReleaseArtifact) -> None:
         """Reuse already-authorized ADB after a healthy LAN update, without relaunch."""
-        snapshot = self.coordinator.data
-        descriptor = artifact.descriptor
-        skipped = (
-            "no install descriptor"
-            if descriptor is None
-            else "no panel reading"
-            if snapshot is None
-            else "panel identity changed"
-            if self.coordinator.identity_mismatch
-            else "last panel reading failed"
-            if not self.coordinator.last_update_success
-            else f"panel reports {snapshot.health.version}, not {artifact.version}"
-            if snapshot.health.version != artifact.version
-            else f"panel reports package {snapshot.health.package}"
-            if not reports_package(snapshot.health.package, descriptor.package_id)
-            else None
-        )
-        if skipped is not None:
-            _LOGGER.debug(
-                "No permission repair after updating %s: %s",
-                self._panel_name(),
-                skipped,
-            )
-            return
-        assert descriptor is not None
         for attempt in range(_PERMISSION_REPAIR_ATTEMPTS):
             if attempt:
                 await asyncio.sleep(_PERMISSION_REPAIR_RETRY_SECONDS)
+            snapshot = self.coordinator.data
+            # Read again on every try: the panel may have changed while ADB
+            # was quiet.
+            descriptor = artifact.descriptor
+            skipped = (
+                "no install descriptor"
+                if descriptor is None
+                else "no panel reading"
+                if snapshot is None
+                else "panel identity changed"
+                if self.coordinator.identity_mismatch
+                else "last panel reading failed"
+                if not self.coordinator.last_update_success
+                else f"panel reports {snapshot.health.version}, not {artifact.version}"
+                if snapshot.health.version != artifact.version
+                else f"panel reports package {snapshot.health.package}"
+                if not reports_package(snapshot.health.package, descriptor.package_id)
+                else None
+            )
+            if skipped is not None:
+                _LOGGER.debug(
+                    "No permission repair after updating %s: %s",
+                    self._panel_name(),
+                    skipped,
+                )
+                return
+            assert descriptor is not None
             try:
                 # A successful update never requests new ADB trust or creates a key.
                 credential = await async_get_durable_adb_credential(self.hass)
