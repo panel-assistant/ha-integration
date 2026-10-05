@@ -698,16 +698,16 @@ def _permission_grant_command(
             rf"[[:space:]]*android\.permission\.{permission}: granted=true"
             r"(, flags=\[[ A-Z0-9_|]*\])?[[:space:]]*"
         )
+        listed = rf"feature:android\.hardware\.{re.escape(feature)}(=[0-9]+)?"
         runtime_grants.append(
-            f"feature=$(pm has-feature android.hardware.{feature}); feature_status=$?; "
-            'if [ "$feature" = true ] && [ "$feature_status" -eq 0 ]; then '
+            'if [ "$features_status" -ne 0 ] || [ -z "$features" ]; then echo unknown; '
+            f"elif printf '%s\\n' \"$features\" | grep -Eqx '{listed}'; then "
             + _runtime_permission_repair_command(
                 package_id, f"android.permission.{permission}"
             )
             + '; if [ -n "$runtime" ] && ! printf \'%s\\n\' "$runtime" | '
             f"grep -Evq '^{granted}$'; then echo granted; else echo unknown; fi; "
-            'elif [ "$feature" = false ] && [ "$feature_status" -le 1 ]; '
-            "then echo unsupported; else echo unknown; fi"
+            "else echo unsupported; fi"
         )
     return "; ".join(
         (
@@ -754,6 +754,9 @@ def _permission_grant_command(
             "settings get secure accessibility_enabled",
             f"appops get {package_id} WRITE_SETTINGS",
             f"appops get {package_id} SYSTEM_ALERT_WINDOW",
+            # `pm list features`, not `pm has-feature`: Android 8.1 has no
+            # has-feature and answers it with its usage text.
+            "features=$(pm list features 2>/dev/null); features_status=$?",
             *runtime_grants,
             f"echo HAPANELD_PERMISSIONS_END:{nonce}:$?",
         )

@@ -131,6 +131,10 @@ _UPDATE_TIMEOUT_SECONDS = (
     + _RESTART_HEALTH_GRACE_SECONDS
 )
 _UPDATE_RECHECK_SECONDS = 2
+# How long the permission repair after an update waits for the panel's ADB to
+# answer again: twelve tries, fifteen seconds apart.
+_PERMISSION_REPAIR_ATTEMPTS = 12
+_PERMISSION_REPAIR_RETRY_SECONDS = 15
 _TERMINAL_STATUS_GRACE_SECONDS = 60
 # The first ha-paneld release that can be backed up and sent an app over the LAN.
 # Older panels cannot use this route to receive an authenticated replacement.
@@ -703,6 +707,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             return None
         pinned = await self._async_pin_adb_target()
         if pinned is None:
+            _LOGGER.debug(
+                "ADB for %s refused: the panel at its address is not this entry's",
+                self._panel_name(),
+            )
             return None
         if credential is None:
             # Only an already-open peer permits install admission to create a key.
@@ -712,6 +720,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             credential = await async_get_durable_adb_credential(self.hass)
         target = await self._async_probe_adb_target(pinned, credential)
         if target is None:
+            _LOGGER.debug(
+                "ADB for %s refused: no installed app found", self._panel_name()
+            )
             return None
         admitted = await async_preflight_install(
             target,
@@ -728,37 +739,83 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         """Reuse already-authorized ADB after a healthy LAN update, without relaunch."""
         snapshot = self.coordinator.data
         descriptor = artifact.descriptor
-        if (
-            descriptor is None
-            or snapshot is None
-            or self.coordinator.identity_mismatch
-            or not self.coordinator.last_update_success
-            or snapshot.health.version != artifact.version
-            or not reports_package(snapshot.health.package, descriptor.package_id)
-        ):
-            return
-        try:
-            # A successful update never requests new ADB trust or creates a key.
-            credential = await async_get_durable_adb_credential(self.hass)
-            admitted = await self._async_admit_adb_target(artifact, credential)
-            if admitted is None:
-                return
-            target, credential, root_mode = admitted
-            await async_repair_installed_app_permissions(
-                target,
-                credential.signer,
-                descriptor,
-                expected_root_mode=root_mode,
+        skipped = (
+            "no install descriptor"
+            if descriptor is None
+            else "no panel reading"
+            if snapshot is None
+            else "panel identity changed"
+            if self.coordinator.identity_mismatch
+            else "last panel reading failed"
+            if not self.coordinator.last_update_success
+            else f"panel reports {snapshot.health.version}, not {artifact.version}"
+            if snapshot.health.version != artifact.version
+            else f"panel reports package {snapshot.health.package}"
+            if not reports_package(snapshot.health.package, descriptor.package_id)
+            else None
+        )
+        if skipped is not None:
+            _LOGGER.debug(
+                "No permission repair after updating %s: %s",
+                self._panel_name(),
+                skipped,
             )
-        except (
-            AdbCredentialError,
-            InstallAdbError,
-            InstallNetworkError,
-            HaPaneldError,
-            OSError,
-        ):
-            # The dashboard already runs. An unavailable optional repair route
-            # does not change the successful update's result.
+            return
+        assert descriptor is not None
+        for attempt in range(_PERMISSION_REPAIR_ATTEMPTS):
+            if attempt:
+                await asyncio.sleep(_PERMISSION_REPAIR_RETRY_SECONDS)
+            try:
+                # A successful update never requests new ADB trust or creates a key.
+                credential = await async_get_durable_adb_credential(self.hass)
+                admitted = await self._async_admit_adb_target(artifact, credential)
+                if admitted is None:
+                    _LOGGER.debug(
+                        "No permission repair after updating %s: "
+                        "ADB target not admitted",
+                        self._panel_name(),
+                    )
+                    return
+                target, credential, root_mode = admitted
+                await async_repair_installed_app_permissions(
+                    target,
+                    credential.signer,
+                    descriptor,
+                    expected_root_mode=root_mode,
+                )
+            except InstallAdbError as err:
+                # A restarting app re-asserts network ADB, so the panel's ADB
+                # can stop answering for a while after the dashboard is back.
+                if (
+                    err.code is InstallAdbErrorCode.TARGET_UNREACHABLE
+                    and attempt + 1 < _PERMISSION_REPAIR_ATTEMPTS
+                ):
+                    _LOGGER.debug(
+                        "ADB on %s not answering yet after the update; retrying",
+                        self._panel_name(),
+                    )
+                    continue
+                _LOGGER.debug(
+                    "No permission repair after updating %s: %r",
+                    self._panel_name(),
+                    err,
+                )
+                return
+            except (
+                AdbCredentialError,
+                InstallNetworkError,
+                HaPaneldError,
+                OSError,
+            ) as err:
+                # The dashboard already runs. An unavailable optional repair
+                # route does not change the successful update's result.
+                _LOGGER.debug(
+                    "No permission repair after updating %s: %r",
+                    self._panel_name(),
+                    err,
+                )
+                return
+            _LOGGER.debug("Repaired permissions after updating %s", self._panel_name())
             return
 
     def _adb_authorization_error(self) -> HomeAssistantError:
@@ -1548,7 +1605,12 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             raise
         else:
             if route != ROUTE_ADB and repair_artifact is not None:
-                await self._async_repair_update_permissions(repair_artifact)
+                # Not awaited: the panel already runs the update, and its ADB
+                # may take minutes to answer again.
+                self.hass.async_create_background_task(
+                    self._async_repair_update_permissions(repair_artifact),
+                    f"{DOMAIN} permission repair after updating {self._entry_id}",
+                )
             await async_clear_update_failure_if_installed(
                 self.hass,
                 self._entry_id,

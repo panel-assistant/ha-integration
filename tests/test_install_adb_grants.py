@@ -70,9 +70,21 @@ appops() {
   if [ "$1" = get ]; then [ ! -f "$STATE/read_fail.$3" ]; fi
 }
 pm() {
-  if [ "$1" = has-feature ]; then
-    if [ -f "$STATE/feature.$2" ]; then cat "$STATE/feature.$2"; else echo false; fi
-    if [ -f "$STATE/read_fail.$2" ]; then return 2; fi
+  if [ "$1" = list ] && [ "$2" = features ]; then
+    for f in "$STATE"/read_fail.android.hardware.*; do [ -e "$f" ] && return 2; done
+    echo reqGlEsVersion=0x30002
+    for f in "$STATE"/feature.android.hardware.*; do
+      [ -f "$f" ] || continue
+      case "$(cat "$f")" in
+        true) echo "feature:${f##*/feature.}" ;;
+        false) ;;
+        *) return 2 ;;
+      esac
+    done
+  elif [ "$1" = has-feature ]; then
+    # Android 8.1, like the Sonoff PX30 panels: no has-feature, only its usage.
+    echo "Error: unknown command 'has-feature'"
+    return 1
   elif [ "$1" = grant ]; then
     echo "pm $*" >> "$STATE/calls"
     [ -f "$STATE/refuse.$3" ] || echo true > "$STATE/permission.$2.$3"

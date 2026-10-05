@@ -1461,6 +1461,8 @@ async def test_a_lan_update_repairs_missing_grants_and_preserves_held_grants(
         _seed_granted_panel(tmp_path, package_id)
 
     await entity.async_install(None, False)
+    # The repair runs after the update returns, once the panel answers ADB.
+    await hass.async_block_till_done(wait_background_tasks=True)
 
     for permission in ("CAMERA", "RECORD_AUDIO", "POST_NOTIFICATIONS"):
         assert (
@@ -1480,6 +1482,47 @@ async def test_a_lan_update_repairs_missing_grants_and_preserves_held_grants(
         assert not (tmp_path / "calls").exists()
     assert entity.installed_version == VERSION
     assert entity.in_progress is False
+
+
+@pytest.mark.parametrize("silent_probes", [2, 99], ids=["comes-back", "never"])
+async def test_the_grant_repair_waits_for_adb_to_answer_after_the_restart(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    signer: PythonRSASigner,  # noqa: F811
+    tmp_path: Path,
+    silent_probes: int,
+) -> None:
+    """A restarting app re-asserts network ADB, so ADB can go quiet for a while."""
+    panel = await _lan_grant_repair_panel(
+        hass, monkeypatch, key, signer, tmp_path, handover=True
+    )
+    monkeypatch.setattr(panel_update, "_PERMISSION_REPAIR_RETRY_SECONDS", 0)
+    answering = panel.probe.return_value
+    silent = InstallTargetProbe(
+        state=InstallTargetState.ADB_UNREACHABLE,
+        serial=None,
+        model=None,
+        primary_abi=None,
+        android_sdk=None,
+    )
+    panel.probe.return_value = None
+    panel.probe.side_effect = [silent] * silent_probes + [answering] * 4
+
+    await panel.entity.async_install(None, False)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    if silent_probes == 2:
+        # Quiet twice, then the panel answers and takes its grants.
+        assert _panel_value(tmp_path, "accessibility_enabled") == "1"
+        assert panel.probe.await_count == 3
+    else:
+        # A panel that never answers is left alone after a bounded wait.
+        assert _panel_value(tmp_path, "accessibility_enabled") is None
+        assert panel.probe.await_count == panel_update._PERMISSION_REPAIR_ATTEMPTS
+    assert panel.entity.installed_version == VERSION
+    assert panel.entity.in_progress is False
 
 
 @pytest.mark.parametrize(
