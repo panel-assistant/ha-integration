@@ -540,8 +540,9 @@ async def test_an_update_claim_refuses_a_second_update_service_call(
     checking, checked = asyncio.Event(), asyncio.Event()
 
     async def capability(_client: HaPaneldClient) -> bool:
-        checking.set()
-        await checked.wait()
+        if not checking.is_set():
+            checking.set()
+            await checked.wait()
         return True
 
     with _offered_update(hass, panel):
@@ -677,8 +678,9 @@ async def test_update_is_refused_during_old_app_backup_and_the_claim_is_released
     backing_up, backed_up = asyncio.Event(), asyncio.Event()
 
     async def backup() -> bytes:
-        backing_up.set()
-        await backed_up.wait()
+        if not backing_up.is_set():
+            backing_up.set()
+            await backed_up.wait()
         return b"archive"
 
     with _offered_update(hass, panel), patch.object(panel, "backup", backup):
