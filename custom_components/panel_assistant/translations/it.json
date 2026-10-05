@@ -54,6 +54,10 @@
           "release_candidate": "Versione"
         }
       },
+      "confirm_migration": {
+        "title": "Pannello trovato tramite {source}",
+        "description": "Home Assistant conosce **{name}** tramite {source} all'indirizzo {address}. Invia per controllare il pannello e installarvi l'app di Panel Assistant. {source} e il suo dispositivo restano come sono."
+      },
       "confirm_discovery": {
         "title": "Conferma il pannello rilevato",
         "description": "Home Assistant ha trovato un’installazione di ha-paneld in {address}. Invia il modulo per verificare che sia ancora lo stesso pannello e aggiungerlo come {panel_name}. Nessuna impostazione del pannello verrà modificata."
@@ -124,6 +128,7 @@
     },
     "abort": {
       "already_configured": "Questo pannello è già configurato.",
+      "not_panel": "Non è un pannello su cui Panel Assistant può installare.",
       "invalid_discovery": "Il pannello rilevato non ha dimostrato di essere la stessa installazione sana di ha-paneld. Non sono stati modificati né una voce di Home Assistant né impostazioni del pannello.",
       "install_cancelled": "L'installazione è stata annullata prima che venisse installato un APK. Non è stata creata alcuna voce in Home Assistant. Per riprovare, aggiungi l'integrazione Panel Assistant e inserisci lo stesso indirizzo del pannello.",
       "install_cancelled_after_staging_cleanup": "L'installazione è stata annullata e l'APK preparato è stato rimosso prima dell'installazione. Non è stata creata alcuna voce in Home Assistant. Per riprovare, aggiungi l'integrazione Panel Assistant e inserisci lo stesso indirizzo del pannello.",

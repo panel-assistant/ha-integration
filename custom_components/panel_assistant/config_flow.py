@@ -31,6 +31,7 @@ from homeassistant.helpers.selector import (
     TextSelector,
     TextSelectorConfig,
 )
+from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from .adb_credentials import (
@@ -93,7 +94,9 @@ from .install_plan import InstallPlanError, build_install_plan
 from .migration_targets import (
     MigrationTarget,
     address_schema,
+    async_check_migration_target,
     async_find_migration_targets,
+    async_offer_migration_targets,
 )
 from .provisioning import (
     InstallTargetProbe,
@@ -184,6 +187,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     _release_catalog_error: str | None = None
     _pending_bind_user_id: str | None = None
     _migration_targets: list[MigrationTarget] | None = None
+    _migration_target: MigrationTarget | None = None
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -298,6 +302,49 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         # panel id only when there is no usable name or the name is already taken.
         self._apply_discovery_title()
         return self._show_discovery_confirmation()
+
+    async def async_step_dhcp(
+        self, discovery_info: DhcpServiceInfo
+    ) -> ConfigFlowResult:
+        """Any device on the network is the cue to offer panels other apps know.
+
+        Without an entry nothing else runs this integration's code, and Core
+        matches dhcp hostnames by their first character, hence the manifest's
+        one matcher per character.
+        """
+        async_offer_migration_targets(self.hass)
+        return self.async_abort(reason="not_panel")
+
+    async def async_step_integration_discovery(
+        self, discovery_info: dict[str, Any]
+    ) -> ConfigFlowResult:
+        """Offer a panel another integration knows, unless ignored or added."""
+        await self.async_set_unique_id(discovery_info["key"])
+        self._abort_if_unique_id_configured()
+        target = await async_check_migration_target(discovery_info)
+        if target is None:
+            return self.async_abort(reason="not_panel")
+        self._migration_target = target
+        self.context["title_placeholders"] = {"name": target.name}
+        return await self.async_step_confirm_migration()
+
+    async def async_step_confirm_migration(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Take the discovered address into the ordinary add-panel path."""
+        target = self._migration_target
+        assert target is not None
+        if user_input is not None:
+            return await self.async_step_add_panel({CONF_ADDRESS: target.address})
+        return self.async_show_form(
+            step_id="confirm_migration",
+            data_schema=vol.Schema({}),
+            description_placeholders={
+                "name": _markdown_literal(target.name),
+                "source": target.source,
+                "address": target.address,
+            },
+        )
 
     async def async_step_confirm_discovery(
         self, user_input: dict[str, Any] | None = None

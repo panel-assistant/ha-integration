@@ -4,6 +4,7 @@ import ast
 import importlib.util
 import json
 import re
+import string
 import subprocess
 import sys
 from collections import Counter
@@ -155,6 +156,8 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
             "stream",
             "websocket_api",
         ],
+        # Core buckets dhcp hostname matchers by first character.
+        "dhcp": [{"hostname": f"{c}*"} for c in string.ascii_lowercase + string.digits],
         "documentation": "https://github.com/panel-assistant/ha-integration",
         "domain": "panel_assistant",
         "integration_type": "device",
@@ -392,7 +395,7 @@ def test_english_only_translations_are_exactly_the_dormant_native_surface() -> N
         or path == ("options", "step", "init", "menu_options", "updates")
     }
     assert additions == PA_UPDATE_TRANSLATION_ADDITIONS
-    assert len(shared_leaves) == 572 + len(PA_UPDATE_TRANSLATION_ADDITIONS)
+    assert len(shared_leaves) == 575 + len(PA_UPDATE_TRANSLATION_ADDITIONS)
     for locale_path in sorted((INTEGRATION / "translations").glob("*.json")):
         if locale_path.name == "en.json":
             continue
@@ -423,7 +426,7 @@ def test_shipped_translation_catalogues_preserve_machine_contracts() -> None:
         "uk.json",
         "zh-Hans.json",
     ]
-    assert len(english) == 572 + len(PA_UPDATE_TRANSLATION_ADDITIONS)
+    assert len(english) == 575 + len(PA_UPDATE_TRANSLATION_ADDITIONS)
 
     for locale_path in locale_paths:
         target_catalogue = _without(

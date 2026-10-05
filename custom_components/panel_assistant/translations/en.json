@@ -54,6 +54,10 @@
           "release_candidate": "Version"
         }
       },
+      "confirm_migration": {
+        "title": "Panel found through {source}",
+        "description": "Home Assistant knows **{name}** through {source} at {address}. Submit to check the panel and install Panel Assistant's app on it. {source} and its device stay as they are."
+      },
       "confirm_discovery": {
         "title": "Confirm discovered panel",
         "description": "Home Assistant found a ha-paneld installation at {address}. Submit to verify it is still the same panel and add it as {panel_name}. No panel settings will change."
@@ -124,6 +128,7 @@
     },
     "abort": {
       "already_configured": "This panel is already configured.",
+      "not_panel": "Not a panel Panel Assistant can install on.",
       "invalid_discovery": "The discovered panel did not prove to be the same healthy ha-paneld installation. No Home Assistant entry or panel setting was changed.",
       "install_cancelled": "The installation was cancelled before an APK was installed. No Home Assistant entry was created. To try again, add the Panel Assistant integration and enter the same panel address.",
       "install_cancelled_after_staging_cleanup": "The installation was cancelled and the staged APK was removed before installation. No Home Assistant entry was created. To try again, add the Panel Assistant integration and enter the same panel address.",

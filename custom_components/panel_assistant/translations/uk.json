@@ -54,6 +54,10 @@
           "release_candidate": "Версія"
         }
       },
+      "confirm_migration": {
+        "title": "Панель знайдено через {source}",
+        "description": "Home Assistant знає **{name}** через {source} за адресою {address}. Надішліть, щоб перевірити панель і встановити на неї застосунок Panel Assistant. {source} і його пристрій залишаться без змін."
+      },
       "confirm_discovery": {
         "title": "Підтвердити виявлену панель",
         "description": "Home Assistant знайшов інсталяцію ha-paneld за адресою {address}. Натисніть «Надіслати», щоб перевірити, що це все ще та сама панель, і додати її як {panel_name}. Налаштування панелі не зміняться."
@@ -124,6 +128,7 @@
     },
     "abort": {
       "already_configured": "Ця панель вже налаштована.",
+      "not_panel": "Це не панель, на яку Panel Assistant може встановлювати.",
       "invalid_discovery": "Виявлена панель не підтвердила, що вона та сама справна інсталяція ha-paneld. Жоден запис Home Assistant і жодне налаштування панелі не змінено.",
       "install_cancelled": "Встановлення скасовано до того, як APK було встановлено. Запис Home Assistant не створено. Щоб спробувати ще раз, додайте інтеграцію Panel Assistant і введіть ту саму адресу панелі.",
       "install_cancelled_after_staging_cleanup": "Встановлення скасовано, а підготовлений APK видалено ще до встановлення. Запис Home Assistant не створено. Щоб спробувати ще раз, додайте інтеграцію Panel Assistant і введіть ту саму адресу панелі.",

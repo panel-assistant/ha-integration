@@ -54,6 +54,10 @@
           "release_candidate": "版本"
         }
       },
+      "confirm_migration": {
+        "title": "通过 {source} 找到的面板",
+        "description": "Home Assistant 通过 {source} 知道位于 {address} 的 **{name}**。提交后将检查该面板并在其上安装 Panel Assistant 的应用。{source} 及其设备保持不变。"
+      },
       "confirm_discovery": {
         "title": "确认发现的面板",
         "description": "Home Assistant 在 {address} 找到了 ha-paneld 安装。提交以验证它仍是同一面板，并将其添加为 {panel_name}。不会更改任何面板设置。"
@@ -124,6 +128,7 @@
     },
     "abort": {
       "already_configured": "此面板已配置。",
+      "not_panel": "这不是 Panel Assistant 可以安装的面板。",
       "invalid_discovery": "发现的面板无法证明它是同一健康的 ha-paneld 安装。未更改 Home Assistant 条目或面板设置。",
       "install_cancelled": "安装流程已在 APK 安装前取消。未创建 Home Assistant 条目。要重试，请添加 Panel Assistant 集成并输入相同的面板地址。",
       "install_cancelled_after_staging_cleanup": "安装已取消，并在安装前移除了暂存的 APK。未创建 Home Assistant 条目。要重试，请添加 Panel Assistant 集成并输入相同的面板地址。",

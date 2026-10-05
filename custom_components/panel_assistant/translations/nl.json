@@ -54,6 +54,10 @@
           "release_candidate": "Versie"
         }
       },
+      "confirm_migration": {
+        "title": "Paneel gevonden via {source}",
+        "description": "Home Assistant kent **{name}** via {source} op {address}. Verstuur om het paneel te controleren en de app van Panel Assistant erop te installeren. {source} en het bijbehorende apparaat blijven zoals ze zijn."
+      },
       "confirm_discovery": {
         "title": "Bevestig het gevonden paneel",
         "description": "Home Assistant heeft een ha-paneld-installatie gevonden op {address}. Klik op ‘Verzenden’ om te controleren of het nog steeds hetzelfde paneel is en het toe te voegen als {panel_name}. De instellingen van het paneel blijven ongewijzigd."
@@ -124,6 +128,7 @@
     },
     "abort": {
       "already_configured": "Dit paneel is al ingesteld.",
+      "not_panel": "Geen paneel waarop Panel Assistant kan installeren.",
       "invalid_discovery": "Er kon niet worden aangetoond dat het gevonden paneel dezelfde werkende ha-paneld-installatie was. Er is geen Home Assistant-item of paneelinstelling gewijzigd.",
       "install_cancelled": "De installatie is geannuleerd voordat er een APK was geïnstalleerd. Er is geen Home Assistant-item aangemaakt. Voeg de Panel Assistant-integratie toe en voer hetzelfde paneeladres in om het nog eens te proberen.",
       "install_cancelled_after_staging_cleanup": "De installatie is geannuleerd en de klaargezette APK is vóór de installatie verwijderd. Er is geen Home Assistant-item aangemaakt. Voeg de Panel Assistant-integratie toe en voer hetzelfde paneeladres in om het nog eens te proberen.",
