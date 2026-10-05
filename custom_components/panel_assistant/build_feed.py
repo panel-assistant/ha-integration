@@ -257,7 +257,7 @@ def _database_range_valid(value: object) -> bool:
     return 1 <= low <= high <= _MAX_ANDROID_VERSION_CODE
 
 
-def _parse_build(entry: Any, feed_url: URL) -> FeedBuild:
+def _parse_build(entry: Any, feed_url: URL) -> FeedBuild | None:
     if not isinstance(entry, dict) or entry.keys() != _BUILD_FIELDS:
         raise BuildFeedError
     sha256 = entry["apkSha256"]
@@ -284,12 +284,17 @@ def _parse_build(entry: Any, feed_url: URL) -> FeedBuild:
         or not isinstance(published, str)
         or _PUBLISHED_PATTERN.fullmatch(published) is None
         or not _database_range_valid(compatibility)
-        or not is_accepted_package_id(entry["packageId"])
+        or not isinstance(entry["packageId"], str)
+        or not isinstance(entry["launchComponent"], str)
         or entry["signerCertificateSha256"] != _RELEASE_SIGNER_CERTIFICATE_SHA256
-        or not is_launch_component(entry["packageId"], entry["launchComponent"])
         or entry["supportedAbis"] != list(_SUPPORTED_ABIS)
     ):
         raise BuildFeedError
+    # Authentic metadata can name an app this reader cannot drive.
+    if not is_accepted_package_id(entry["packageId"]) or not is_launch_component(
+        entry["packageId"], entry["launchComponent"]
+    ):
+        return None
     return FeedBuild(
         version_code=version_code,
         version_name=version_name,
@@ -342,7 +347,11 @@ def parse_build_feed(body: bytes, signature: bytes, feed_url: URL) -> BuildFeed:
         raise BuildFeedError from err
     if body != canonical:
         raise BuildFeedError
-    builds = [_parse_build(entry, feed_url) for entry in document["builds"]]
+    builds = [
+        build
+        for entry in document["builds"]
+        if (build := _parse_build(entry, feed_url)) is not None
+    ]
     if len({(build.version_code, build.package_id) for build in builds}) != len(builds):
         raise BuildFeedError
     return BuildFeed(

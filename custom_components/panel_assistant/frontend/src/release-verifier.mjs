@@ -129,9 +129,12 @@ function feedBuild(entry) {
     isBuildVersionName(entry.versionName) && fullMatch(COMMIT, entry.commit) &&
     fullMatch(PUBLISHED, entry.published) &&
     fullMatch(FEED_DATABASE, entry.databaseCompatibility) &&
-    isAcceptedPackageId(entry.packageId) && entry.signerCertificateSha256 === SIGNER &&
-    isLaunchComponent(entry.packageId, entry.launchComponent) &&
+    typeof entry.packageId === 'string' && typeof entry.launchComponent === 'string' &&
+    entry.signerCertificateSha256 === SIGNER &&
     supportedAbis(entry.supportedAbis));
+  // Authentic metadata can describe a build this reader cannot install.
+  if (!isAcceptedPackageId(entry.packageId) ||
+      !isLaunchComponent(entry.packageId, entry.launchComponent)) return null;
   return entry;
 }
 
@@ -152,7 +155,7 @@ async function verifyFeedBundle(bundle, expectedTag, verificationKey) {
     FEED_CHANNELS.includes(document.channel) && Array.isArray(document.builds) &&
     document.builds.length <= MAX_FEED_BUILDS);
   requireValid(text === `${canonicalJson(document)}\n`);
-  const builds = document.builds.map(feedBuild);
+  const builds = document.builds.map(feedBuild).filter((build) => build !== null);
   requireValid(new Set(builds.map((build) => `${build.versionCode}:${build.packageId}`)).size === builds.length);
   const packageId = buildTagPackageId(expectedTag);
   const build = builds.find((candidate) => candidate.versionCode === code && candidate.packageId === packageId);
