@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from homeassistant.const import CONF_ADDRESS
+from homeassistant.const import __version__ as ha_version
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
@@ -19,7 +20,12 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant import repairs as panel_repairs
 from custom_components.panel_assistant.build_feed import feed_release_artifact
-from custom_components.panel_assistant.const import DOMAIN, update_unique_id
+from custom_components.panel_assistant.const import (
+    DOMAIN,
+    INTEGRATION_BUILD,
+    INTEGRATION_VERSION,
+    update_unique_id,
+)
 from custom_components.panel_assistant.failure_repair import (
     RetrySafetyHold,
     async_clear_update_failure_if_installed,
@@ -150,16 +156,21 @@ async def test_support_report_keeps_unredacted_receipt_details_in_admin_flow(
     form = await response.json()
     assert form["step_id"] == "support_report"
     report = form["description_placeholders"]["report"]
-    assert report.startswith("## Panel Assistant support report\n")
-    assert "### Failure 1 — install" in report
-    assert "**Panel:** kitchen.local" in report
-    assert "**Reason:** authorization_failed" in report
-    assert "```text\n" in report
+    assert report.startswith("```text\n")
+    assert report.endswith("\n```")
+    assert f"panel_assistant.version: {INTEGRATION_VERSION}" in report
+    assert f"panel_assistant.build: {INTEGRATION_BUILD}" in report
+    assert f"home_assistant.version: {ha_version}" in report
+    assert f"repair.issue_id: {issue.issue_id}" in report
+    assert "events[0].kind: install" in report
+    assert "events[0].panel: kitchen.local" in report
+    assert "events[0].reason: authorization_failed" in report
     assert "KITCHEN-123" in report
     assert "192.168.250.23" in report
     assert "receipt.failure_stage: authorizing" in report
     assert "receipt.result_subcode: adb:authorization_failed" in report
-    assert "Panel Assistant" in report
+    assert form["description_placeholders"]["guide_url"]
+    assert form["description_placeholders"]["issue_url"]
     hass.data.pop(f"{DOMAIN}.failure_repair_store")
     assert "KITCHEN-123" in await panel_repairs.async_support_report(
         hass, issue.issue_id
@@ -233,7 +244,7 @@ async def test_support_report_keeps_multiline_update_details_inside_a_code_fence
         issue_id for (domain, issue_id) in ir.async_get(hass).issues if domain == DOMAIN
     )
     report = await panel_repairs.async_support_report(hass, issue_id)
-    assert "**Reason:** download failed ### misleading heading" in report
+    assert "events[0].reason:\n  download failed\n  ### misleading heading" in report
     assert "\n### misleading heading\n" not in report
     assert "````text\n" in report
     assert "artifact.note:\n  three ticks ``` and a newline\n  remain" in report

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { frontendMessages } from '../src/frontend-localization.mjs';
 
 // A minimal shadow DOM: fixed markup is parsed for tags, ids and data-message, and every
 // innerHTML assignment is recorded so a test can prove panel text never reaches markup.
@@ -132,12 +133,12 @@ test('panel titles render as text and the first panel opens a session', async ()
   const { $, subs } = await mount(hass);
   const options = $('#panels').children;
   assert.equal(options[0].textContent, evil, 'a reachable panel gets no state suffix');
-  assert.equal(options[1].textContent, `two (${SIDEBAR_MESSAGES.unreachable})`);
+  assert.equal(options[1].textContent, `two (${frontendMessages('sidebar', 'de').unreachable})`);
   assert.ok(!markup.some(html => html.includes(evil)), 'a title never reaches innerHTML');
   assert.deepEqual(subs.map(s => [s.message, s.options]), [[
     { type: 'panel_assistant/embed_session', entry_id: 'one', language: 'de', theme: 'dark' }, { resubscribe: false }]]);
   assert.equal($('#loading').hidden, false, 'the spinner shows while the session is opening');
-  assert.equal($('#loading-text').textContent, openingText(evil));
+  assert.equal($('#loading-text').textContent, openingText(evil, 'de'));
   assert.ok(!markup.some(html => html.includes(evil)), 'the opening panel title never reaches innerHTML either');
   subs[0].callback({ kind: 'opened', url: url(TOKEN) });
   assert.equal($('#frame').getAttribute('src'), url(TOKEN));
@@ -508,8 +509,7 @@ test('the loading spinner names the opening panel, as text, with a safe fallback
   for (const title of [undefined, null, 7, {}]) assert.equal(openingText(title), 'Opening …', String(title));
 });
 
-// English is the only shipped locale (other top-tier languages follow in a later minor
-// release); this proves the wiring translation will hang off, not the wording itself.
+// The authoritative English catalogue proves every presentation key is wired.
 // Every key drives real component output, and every rendered string traces back to a
 // key, so a renamed, deleted or unwired key fails here instead of shipping silently.
 test('every SIDEBAR_MESSAGES key renders through the real component; nothing is unkeyed or unresolved', async () => {
@@ -642,4 +642,55 @@ test('page failures show Pickles, a real diagnostic and a next step; recovery cl
     assert.equal($('#failure').hidden, true);
     panel.disconnectedCallback();
   }
+});
+
+test('sidebar language switching redraws navigation, accessibility, restart reasons and failure recovery while preserving selection', async () => {
+  const { frontendMessages, formatFrontendMessage } = await import('../src/frontend-localization.mjs');
+  for (const state of ['unreachable', 'not_loaded', 'restarting']) {
+    const panels = [row('other'), { ...row('chosen', state, 'Panel <b>$&</b>'), ...(state === 'restarting' ? { reason: 'settings' } : {}) }];
+    const hass = fakeHass({ panels });
+    const { panel, $ } = await mount(hass, true, '/chosen');
+    const initialCalls = hass.calls;
+    for (const language of ['de', 'es', 'fr', 'it', 'zh-Hans', 'en']) {
+      panel.hass = { ...hass, language };
+      await tick();
+      const messages = frontendMessages('sidebar', language);
+      assert.equal($('#panels').value, 'chosen');
+      assert.equal(hass.calls, initialCalls, 'language changes do not refetch or change the selected panel');
+      assert.equal($('#menu').getAttribute('aria-label'), messages.menu);
+      assert.equal($('#frame').getAttribute('title'), messages.frameTitle);
+      assert.equal($('#settings').getAttribute('title'), messages.integrationSettings);
+      assert.equal($('#device').getAttribute('aria-label'), messages.device);
+      const status = state === 'restarting' ? formatFrontendMessage(messages.restarting, { reason: frontendMessages('sidebarReason', language).settings }) : messages[state];
+      assert.equal($('#panels').children[1].textContent, `Panel <b>$&</b> (${status})`);
+      if (state === 'restarting') assert.equal($('#status').textContent, status);
+      else {
+        assert.equal($('#failure-status').textContent, messages[state === 'unreachable' ? 'unreachableBody' : 'notLoadedBody']);
+        assert.equal($('#next-step').textContent, messages[state === 'unreachable' ? 'unreachableNext' : 'notLoadedNext']);
+      }
+    }
+    panel.disconnectedCallback();
+  }
+});
+
+test('an administrator waiting for the first panel list sees localized loading rather than a refusal', async () => {
+  const { frontendMessages } = await import('../src/frontend-localization.mjs');
+  let resolveList;
+  const hass = fakeHass({ language: 'de' });
+  hass.callWS = () => new Promise(resolve => { resolveList = resolve; });
+  const { panel, $ } = await mount(hass);
+  assert.equal($('#status').hidden, true);
+  assert.equal($('#loading').hidden, false);
+  assert.equal($('#loading-text').textContent, '');
+  assert.equal($('#loading-text').hidden, true);
+  assert.equal($('#loading-hint').textContent, frontendMessages('sidebar', 'de').loadingHint);
+  panel.hass = { ...hass, language: 'fr' };
+  assert.equal($('#loading-text').textContent, '');
+  assert.equal($('#loading-hint').textContent, frontendMessages('sidebar', 'fr').loadingHint);
+  assert.equal($('#menu').getAttribute('aria-label'), frontendMessages('sidebar', 'fr').menu);
+  resolveList({ panels: [row('one', 'unreachable')] });
+  await tick();
+  assert.equal($('#loading').hidden, true);
+  assert.equal($('#failure-status').textContent, frontendMessages('sidebar', 'fr').unreachableBody);
+  panel.disconnectedCallback();
 });

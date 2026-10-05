@@ -642,15 +642,9 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
 
     working = [state for state in shown if state["in_progress"]]
     assert any(not state["available"] for state in shown) is False
-    # One line names the step for the whole update, so the layout holds.
-    assert all(state["release_summary"] for state in working)
-    # The line names the delivery's restart once.
-    steps = [state["release_summary"] for state in working]
-    restarts = sum(
-        "restarting" in step and "restarting" not in before
-        for before, step in pairwise(["", *steps])
-    )
-    assert restarts == 1
+    # Core supplies localized progress UI; supplementary English stage prose
+    # must not leak into the native dialog.
+    assert all(state["release_summary"] is None for state in working)
     progress = [state["update_percentage"] for state in working]
     assert None not in progress
     # The bar follows time: it only rises, never leaps, and keeps the last

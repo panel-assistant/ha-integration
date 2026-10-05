@@ -3,10 +3,13 @@ import assert from 'node:assert/strict';
 import { webcrypto } from 'node:crypto';
 
 class Element {
+  attributes = new Map();
+  setAttribute(name, value) { this.attributes.set(name, String(value)); }
+  getAttribute(name) { return this.attributes.get(name); }
   listeners = {}; children = []; value = ''; disabled = false; hidden = false; textContent = '';
   addEventListener(name, callback) { this.listeners[name] = callback; }
   append(child) { this.children.push(child); }
-  replaceChildren() { this.children = []; this.value = ''; }
+  replaceChildren(...children) { this.children = children; this.value = ''; }
 }
 globalThis.HTMLElement = class {
   isConnected = false;
@@ -198,4 +201,33 @@ test('picker default never invents prerelease consent when running PA policy cha
     f.panel.disconnectedCallback();
     await tick();
   }
+});
+
+test('language switching preserves explicit selection and active transfer without another fetch or popup', async () => {
+  const { frontendMessages } = await import('../src/frontend-localization.mjs');
+  let requests = 0, opens = 0;
+  const f = fixture(async () => { requests++; return response([rc, stable]); });
+  await tick();
+  try {
+  f.element('release').value = rc.tag;
+  f.element('release').listeners.change();
+  let opened;
+  globalThis.window = { crypto: webcrypto, location: { origin: 'http://ha.example' }, addEventListener() {}, removeEventListener() {},
+    open(url) { opens++; opened = new URL(url); return { closed: false }; } };
+  f.panel.hass = { ...f.hass, language: 'de-DE' };
+  assert.equal(f.element('release').value, rc.tag);
+  assert.equal(requests, 1);
+  assert.equal(f.element('release').children[0].textContent, frontendMessages('haInstall', 'de').choose);
+  f.element('start').listeners.click();
+  assert.equal(opened.searchParams.get('lang'), 'de');
+  assert.equal(new URLSearchParams(opened.hash.slice(1)).get('rc'), rc.tag);
+  const childOptions = f.element('release').children;
+  f.panel.hass = { ...f.hass, language: 'fr' };
+  assert.equal(f.element('release').children, childOptions);
+  assert.equal(f.element('release').value, rc.tag);
+  assert.equal(f.element('release').disabled, true);
+  assert.equal(f.element('cancel').disabled, false);
+  assert.equal(f.element('status').textContent, frontendMessages('haInstall', 'fr').waiting);
+  assert.deepEqual([requests, opens], [1, 1]);
+  } finally { f.panel.disconnectedCallback(); await tick(); }
 });

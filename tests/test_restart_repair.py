@@ -80,8 +80,8 @@ async def test_a_newer_build_on_disk_asks_for_a_restart(
     assert not issue.is_persistent
     assert issue.translation_key == ISSUE_RESTART_REQUIRED
     assert issue.translation_placeholders == {
-        "loaded": "0.7.0-rc1 (build 267)",
-        "installed": "0.7.0 (build 270)",
+        "loaded": "0.7.0-rc1 (267)",
+        "installed": "0.7.0 (270)",
     }
     assert restart_pending(hass) == {
         "loaded_version": "0.7.0-rc1",
@@ -145,7 +145,7 @@ async def test_repeated_checks_raise_the_issue_once(
     issue = _issue(hass)
     assert issue is not None
     assert issue.translation_placeholders is not None
-    assert issue.translation_placeholders["installed"] == "0.7.0 (build 271)"
+    assert issue.translation_placeholders["installed"] == "0.7.0 (271)"
 
 
 async def test_files_are_read_only_in_the_executor(
@@ -195,8 +195,8 @@ async def test_installing_a_new_build_shows_the_repair_within_one_second(
     issues = await visible_issues(2)
     assert len(issues) == 1
     assert issues[0]["translation_placeholders"] == {
-        "loaded": f"{INTEGRATION_VERSION} (build {INTEGRATION_BUILD})",
-        "installed": f"{INTEGRATION_VERSION} (build {INTEGRATION_BUILD + 1})",
+        "loaded": f"{INTEGRATION_VERSION} ({INTEGRATION_BUILD})",
+        "installed": f"{INTEGRATION_VERSION} ({INTEGRATION_BUILD + 1})",
     }
 
     _install(root, INTEGRATION_VERSION, INTEGRATION_BUILD)
@@ -223,8 +223,8 @@ async def test_the_fix_restarts_home_assistant(
     form = await response.json()
     assert form["step_id"] == "confirm_restart"
     assert form["description_placeholders"] == {
-        "loaded": "0.7.0-rc1 (build 267)",
-        "installed": "0.7.0 (build 270)",
+        "loaded": "0.7.0-rc1 (267)",
+        "installed": "0.7.0 (270)",
     }
     assert restarts == []
 

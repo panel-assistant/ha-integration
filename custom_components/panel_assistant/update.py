@@ -450,9 +450,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self.coordinator.last_update_success and self.coordinator.data is not None
         )
 
-    def _async_reconcile_route_issue(
-        self, *, has_route: bool, reason: str | None = None
-    ) -> None:
+    def _async_reconcile_route_issue(self, *, has_route: bool) -> None:
         """Keep the repair in step with the route from every path that decides one."""
         entry = self.hass.config_entries.async_get_entry(self._entry_id)
         if entry is None:
@@ -463,7 +461,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             entry,
             has_route=has_route,
             status=snapshot.status if snapshot else None,
-            reason=reason,
         )
 
     def _route_refresh_finished(self, task: asyncio.Task[None]) -> None:
@@ -523,11 +520,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             else:
                 attributes.pop(ROUTE_UNAVAILABLE_ATTRIBUTE, None)
             if self._route_observed() and has_route is not None:
-                self._async_reconcile_route_issue(
-                    has_route=has_route,
-                    reason="The panel cannot install this update itself, and Panel "
-                    "Assistant has no usable authorized ADB route.",
-                )
+                self._async_reconcile_route_issue(has_route=has_route)
             self._attr_extra_state_attributes = attributes
         self.async_write_ha_state()
 
@@ -1037,7 +1030,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self._attempt.restart_projected = False
 
     def _enter(self, stage: str, *, write: bool = True) -> None:
-        """Move the step line on; steps never go back within a delivery."""
+        """Advance the update stage; stages never go back within a delivery."""
         attempt = self._attempt
         if attempt is None or (
             attempt.stage is not None
@@ -1063,7 +1056,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         ):
             return
         attempt.restart_projected = True
-        # The write about to follow names the restart.
+        # The write about to follow must retain availability for this restart.
         self._enter("away", write=False)
         sessions = async_get_sessions(self.hass)
         if sessions.restart_notice(self._entry_id) is None:
@@ -1103,25 +1096,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             return None
         waited = max(0.0, _now() - self._attempt.started)
         return int(95 * (1 - math.exp(-waited / _PROGRESS_PACE_SECONDS)))
-
-    @property
-    def release_summary(self) -> str | None:
-        """Name the update's current step on one line that stays put.
-
-        The line is there for the whole update so the dialog's layout does
-        not jump as steps change; only its words do.
-        """
-        attempt = self._attempt
-        if attempt is None:
-            return None
-        panel = self._panel_name()
-        if attempt.stage == "away":
-            return f"{panel} is restarting into the new version."
-        if attempt.stage == "back":
-            return f"{panel} is opening its dashboard."
-        if attempt.stage == "installing":
-            return f"{panel} is installing the new version."
-        return f"Preparing the update for {panel}."
 
     @property
     def in_progress(self) -> bool:

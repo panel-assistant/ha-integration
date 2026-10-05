@@ -236,7 +236,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     # on the first answer from either side.
     await coordinator.async_refresh()
     if not reconcile_identity(hass, entry):
-        raise ConfigEntryNotReady("Panel identity conflicts with its saved entities")
+        raise ConfigEntryNotReady(
+            translation_domain=DOMAIN, translation_key="panel_identity_conflict"
+        )
     update_coordinator = PanelUpdateCoordinator(hass, client)
     await update_coordinator.async_config_entry_first_refresh()
 

@@ -23,8 +23,13 @@ from homeassistant.const import CONF_ADDRESS, EVENT_STATE_CHANGED, STATE_UNAVAIL
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
+from homeassistant.helpers.translation import (
+    async_get_translations,
+    async_translate_state,
+)
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.address import (
@@ -135,11 +140,13 @@ async def _connect(
     return client
 
 
+@pytest.mark.parametrize("reason", ["update", "settings", "recovery", "reboot"])
 async def test_restart_notice_tracks_session_return_and_keeps_entities_available(
     hass: HomeAssistant,
     entry: MockConfigEntry,
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
+    reason: str,
 ) -> None:
     client = await _connect(
         hass,
@@ -155,7 +162,7 @@ async def test_restart_notice_tracks_session_return_and_keeps_entities_available
             "type": "panel_assistant/restart_notice",
             "session": session.token,
             "scope": "app",
-            "reason": "settings",
+            "reason": reason,
             "expected_back_ms": 45000,
         }
     )
@@ -163,8 +170,9 @@ async def test_restart_notice_tracks_session_return_and_keeps_entities_available
     assert reply["success"], reply
     await hass.async_block_till_done()
     state = hass.states.get(STATUS_ENTITY)
-    assert state is not None and state.state == "Restarting (settings)"
-    assert state.attributes["reason"] == "settings"
+    assert state is not None and state.state == f"restarting_{reason}"
+    assert state.attributes["scope"] == "app"
+    assert state.attributes["reason"] == reason
     assert state.attributes["expected_back_ms"] == 45000
     assert _state(hass, UPDATE_ENTITY) != STATE_UNAVAILABLE
     admin = await hass_ws_client(hass)
@@ -172,15 +180,51 @@ async def test_restart_notice_tracks_session_return_and_keeps_entities_available
     listed = await admin.receive_json()
     assert listed["success"], listed
     assert listed["result"]["panels"][0]["state"] == "restarting"
-    assert listed["result"]["panels"][0]["reason"] == "settings"
+    assert listed["result"]["panels"][0]["reason"] == reason
 
     # The old socket goes away before the replacement appears.
     await client.close()
     await hass.async_block_till_done()
-    assert _state(hass, STATUS_ENTITY) == "Restarting (settings)"
+    assert _state(hass, STATUS_ENTITY) == f"restarting_{reason}"
     await _connect(hass, hass_ws_client, hass_read_only_access_token, entry)
     await hass.async_block_till_done()
     assert _state(hass, STATUS_ENTITY) == "online"
+
+
+@pytest.mark.parametrize("reason", ["update", "settings", "recovery", "reboot"])
+async def test_restart_status_uses_home_assistants_registered_state_translation(
+    hass: HomeAssistant, entry: MockConfigEntry, reason: str
+) -> None:
+    """HA resolves the displayed label from the unchanged raw reason."""
+    async_get_sessions(hass).set_restart_notice(entry.entry_id, "app", reason, 45000)
+    await hass.async_block_till_done()
+    state = hass.states.get(STATUS_ENTITY)
+    assert state is not None
+    registered = er.async_get(hass).async_get(STATUS_ENTITY)
+    assert registered is not None
+    assert registered.translation_key == "status"
+    original_language = hass.config.language
+    try:
+        for language in ("en", "de", "es", "fr", "it", "zh-Hans"):
+            await async_get_translations(hass, language, "entity", {DOMAIN})
+            hass.config.language = language
+            translated = async_translate_state(
+                hass,
+                state.state,
+                "sensor",
+                registered.platform,
+                registered.translation_key,
+                state.attributes.get("device_class"),
+            )
+            if language == "en":
+                assert translated == f"Restarting ({reason})"
+            else:
+                assert translated not in {state.state, f"Restarting ({reason})"}
+            assert state.attributes["reason"] == reason
+            assert state.attributes["expected_back_ms"] == 45000
+    finally:
+        hass.config.language = original_language
+        async_get_sessions(hass).clear_restart_notice(entry.entry_id)
 
 
 async def test_http_restart_fallback_clears_when_health_returns(
@@ -198,7 +242,7 @@ async def test_http_restart_fallback_clears_when_health_returns(
         await entry.runtime_data.coordinator.async_refresh()
         await hass.async_block_till_done()
     state = hass.states.get(STATUS_ENTITY)
-    assert state is not None and state.state == "Restarting (reboot)"
+    assert state is not None and state.state == "restarting_reboot"
     assert state.attributes["scope"] == "panel"
     assert state.attributes["reason"] == "reboot"
     await _poll(hass, entry, {STORED: HEALTH})
@@ -297,7 +341,7 @@ async def test_restart_notice_expires_to_unavailable_without_a_return(
     assert (await client.receive_json())["success"]
     await client.close()
     await hass.async_block_till_done()
-    assert _state(hass, STATUS_ENTITY) == "Restarting (reboot)"
+    assert _state(hass, STATUS_ENTITY) == "restarting_reboot"
     assert hass.states.get(STATUS_ENTITY).attributes["reason"] == "reboot"
     assert _state(hass, UPDATE_ENTITY) == STATE_UNAVAILABLE
 

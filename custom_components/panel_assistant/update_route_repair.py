@@ -83,7 +83,6 @@ def async_reconcile_update_route_issue(
     *,
     has_route: bool,
     status: PanelStatus | None,
-    reason: str | None = None,
 ) -> None:
     """Raise the issue while no route exists, and withdraw it once one does."""
     issue_id = no_update_route_issue_id(entry.entry_id)
@@ -101,9 +100,6 @@ def async_reconcile_update_route_issue(
         is_persistent=True,
         severity=ir.IssueSeverity.WARNING,
         translation_key=ISSUE_NO_UPDATE_ROUTE,
-        translation_placeholders={
-            "panel": panel_display_name(hass, entry),
-            "reason": reason or "",
-        },
+        translation_placeholders={"panel": panel_display_name(hass, entry)},
         learn_more_url=help_url("panel-cannot-update", **help_parameters(status)),
     )

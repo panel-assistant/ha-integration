@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.translation import async_get_translations
 
 from custom_components.panel_assistant import app_identity
 from custom_components.panel_assistant.client import parse_health_response
@@ -25,6 +27,14 @@ MARKDOWN_LINK = re.compile(
 )
 FROZEN_TRANSLATION_TOKENS = (
     "ha-paneld",
+    "Panel Assistant",
+    "CPU",
+    "LED",
+    "SoC",
+    "Wi-Fi",
+    "WebView",
+    "Zigbee",
+    "MQTT",
     "Home Assistant",
     "Android Debug Bridge (ADB)",
     "Android",
@@ -44,14 +54,129 @@ FROZEN_TRANSLATION_TOKENS = (
     "8888",
     "5555",
 )
-# Current main has 564 shared leaves; the five PA-owned update options add
-# this finite translated surface. Pin it and the total to catch omissions.
-PA_UPDATE_TRANSLATION_ADDITIONS = {
-    "options.step.init.menu_options.updates",
-    "options.step.updates.title",
-    "options.step.updates.description",
-    "options.step.updates.data.prerelease_panel_builds",
-    "options.step.updates.data_description.prerelease_panel_builds",
+TIER_A_LANGUAGES = ("de", "es", "fr", "it", "zh-Hans")
+TIER_B_LANGUAGES = ("nl", "pl", "uk")
+# These product names are protected only where they name the product/mode.
+NATIVE_PRODUCT_LITERALS = {
+    ("entity", "select", "companion_update_channel", "name"): "Companion",
+    ("entity", "switch", "companion_auto_update", "name"): "Companion",
+    ("entity", "update", "update_companion", "name"): "Companion",
+    ("exceptions", "refused_hardened", "message"): "Hardened",
+}
+# These visible strings still use English fallback in Tier B. Keep the exact
+# debt explicit so a newly untranslated key cannot silently join the exemption.
+TIER_B_ENGLISH_FALLBACK = {
+    "entity.binary_sensor.auto_sleep_activity.name",
+    "entity.binary_sensor.proximity.name",
+    "entity.button.reboot.name",
+    "entity.button.reload.name",
+    "entity.camera.camera.name",
+    "entity.event.button.name",
+    "entity.image.camera_snapshot.name",
+    "entity.light.button_led.name",
+    "entity.light.buttons.name",
+    "entity.light.led.name",
+    "entity.light.led.state_attributes.effect.state.blink",
+    "entity.light.led.state_attributes.effect.state.none",
+    "entity.light.led.state_attributes.effect.state.pulse",
+    "entity.light.led.state_attributes.effect.state.strobe",
+    "entity.light.screen.name",
+    "entity.media_player.media.name",
+    "entity.number.volume.name",
+    "entity.select.companion_update_channel.name",
+    "entity.select.companion_update_channel.state.prerelease",
+    "entity.select.companion_update_channel.state.stable",
+    "entity.select.cpu_governor.name",
+    "entity.select.cpu_governor.state.auto",
+    "entity.select.cpu_governor.state.efficiency",
+    "entity.select.cpu_governor.state.performance",
+    "entity.select.navbar.name",
+    "entity.select.navbar.state.always_on",
+    "entity.select.navbar.state.native",
+    "entity.select.navbar.state.off",
+    "entity.select.navbar.state.swipe_reveal",
+    "entity.select.update_channel.name",
+    "entity.select.update_channel.state.prerelease",
+    "entity.select.update_channel.state.stable",
+    "entity.sensor.diag_boot.name",
+    "entity.sensor.diag_cpu.name",
+    "entity.sensor.diag_ip.name",
+    "entity.sensor.diag_memory.name",
+    "entity.sensor.diag_soc_temp.name",
+    "entity.sensor.diag_wifi_outages_24h.name",
+    "entity.sensor.diag_wifi_outages_24h.state_attributes.is_lower_bound.name",
+    "entity.sensor.diag_wifi_rssi.name",
+    "entity.sensor.diag_wifi_ssid.name",
+    "entity.sensor.humidity.name",
+    "entity.sensor.illuminance.name",
+    "entity.sensor.proximity_level.name",
+    "entity.sensor.room_humidity.name",
+    "entity.sensor.room_temp.name",
+    "entity.sensor.status.state.restarting_reboot",
+    "entity.sensor.status.state.restarting_recovery",
+    "entity.sensor.status.state.restarting_settings",
+    "entity.sensor.status.state.restarting_update",
+    "entity.sensor.storage_health.name",
+    "entity.sensor.storage_health.state.critical",
+    "entity.sensor.storage_health.state.database_failure",
+    "entity.sensor.storage_health.state.healthy",
+    "entity.sensor.storage_health.state.unchecked",
+    "entity.sensor.storage_health.state.warning",
+    "entity.sensor.storage_health.state_attributes.auto_vacuum.name",
+    "entity.sensor.storage_health.state_attributes.checked_at_epoch_seconds.name",
+    "entity.sensor.storage_health.state_attributes.database_files_bytes.name",
+    "entity.sensor.storage_health.state_attributes.database_sidecar_bytes.name",
+    "entity.sensor.storage_health.state_attributes.failure_category.name",
+    "entity.sensor.storage_health.state_attributes.failure_operation.name",
+    "entity.sensor.storage_health.state_attributes.freelist_count.name",
+    "entity.sensor.storage_health.state_attributes.main_database_bytes.name",
+    "entity.sensor.storage_health.state_attributes.page_count.name",
+    "entity.sensor.storage_health.state_attributes.page_size_bytes.name",
+    "entity.sensor.storage_health.state_attributes.quick_check.name",
+    "entity.sensor.storage_health.state_attributes.schema_version.name",
+    "entity.sensor.storage_health.state_attributes.storage_pressure.name",
+    "entity.sensor.storage_health.state_attributes.total_bytes.name",
+    "entity.sensor.storage_health.state_attributes.usable_bytes.name",
+    "entity.sensor.storage_health.state_attributes.used_percent.name",
+    "entity.sensor.storage_health.state_attributes.wal_bytes.name",
+    "entity.sensor.temperature.name",
+    "entity.switch.auto_brightness.name",
+    "entity.switch.auto_sleep.name",
+    "entity.switch.camera_enabled.name",
+    "entity.switch.companion_auto_update.name",
+    "entity.switch.kiosk_lock.name",
+    "entity.switch.network_adb.name",
+    "entity.switch.prevent_idle_dim.name",
+    "entity.switch.relay.name",
+    "entity.switch.self_update.name",
+    "entity.switch.silence_boot_chime.name",
+    "entity.switch.touch_sound.name",
+    "entity.switch.wake_on_wave.name",
+    "entity.switch.watchdog.name",
+    "entity.switch.webview_auto_update.name",
+    "entity.switch.zigbee_router.name",
+    "entity.text.home_dashboard.name",
+    "entity.text.navigate.name",
+    "entity.update.update_companion.name",
+    "exceptions.approval_denied.message",
+    "exceptions.approval_pending.message",
+    "exceptions.approval_timeout.message",
+    "exceptions.authority_mismatch.message",
+    "exceptions.expired.message",
+    "exceptions.failed.message",
+    "exceptions.hardware_unavailable.message",
+    "exceptions.invalid_value.message",
+    "exceptions.not_commandable.message",
+    "exceptions.panel_identity_conflict.message",
+    "exceptions.panel_unavailable.message",
+    "exceptions.refused_hardened.message",
+    "exceptions.unknown_channel.message",
+    "exceptions.unknown_command.message",
+    "exceptions.voice_announcement_disconnected.message",
+    "exceptions.voice_announcement_timeout.message",
+    "exceptions.voice_assistant_off.message",
+    "exceptions.voice_panel_not_connected.message",
+    "exceptions.voice_wake_words_rejected.message",
 }
 
 
@@ -123,9 +248,9 @@ def _markdown_links(value: str) -> list[tuple[bool, str]]:
 
 
 def _literal_count(value: str, literal: str) -> int:
-    """Count an exact technical literal, excluding word or numeric supersets."""
+    """Protect literals from ASCII supersets while allowing adjacent CJK text."""
     return len(
-        re.findall(rf"(?<!\w){re.escape(literal)}(?!\w)", value, flags=re.UNICODE)
+        re.findall(rf"(?<![a-zA-Z0-9_]){re.escape(literal)}(?![a-zA-Z0-9_])", value)
     )
 
 
@@ -331,34 +456,6 @@ def test_runtime_translations_are_complete() -> None:
     assert "[%key:" not in json.dumps(english)
 
 
-def _english_only_paths(catalogue: dict[str, Any]) -> set[tuple[str, ...]]:
-    """Return the subtrees shipped in English only until they are translated.
-
-    Native entities and the errors their commands raise are dormant, so other
-    locales do not carry them yet. Everything else, including the options that
-    choose a panel's authority, must stay complete in every locale.
-    """
-    contract = json.loads(
-        (INTEGRATION / "panel_assistant_transport_v1.json").read_text(encoding="utf-8")
-    )
-    paths = {
-        ("entity", channel["platform"], channel["translation_key"])
-        for channel in contract["channels"]
-    }
-    # The camera replaces this native-only switch, but old apps remain supported.
-    paths.add(("entity", "switch", "camera_enabled"))
-    paths.update(
-        ("exceptions", code)
-        for code in (
-            *contract["outcome_codes"],
-            "authority_mismatch",
-            "panel_unavailable",
-            "approval_pending",
-        )
-    )
-    return {path for path in paths if path[-1] in _subtree(catalogue, path[:-1])}
-
-
 def _subtree(catalogue: dict[str, Any], path: tuple[str, ...]) -> dict[str, Any]:
     node: Any = catalogue
     for key in path:
@@ -379,75 +476,77 @@ def _without(catalogue: dict[str, Any], paths: set[tuple[str, ...]]) -> dict[str
     return pruned
 
 
-def test_english_only_translations_are_exactly_the_dormant_native_surface() -> None:
-    """The carve-out cannot hide a missing translation of anything already shipped."""
-    english = _load_translation_catalogue(INTEGRATION / "translations" / "en.json")
-    paths = _english_only_paths(english)
-    shared = _without(english, paths)
-
-    assert len(paths) == 63
-    assert all(path[:1] in {("entity",), ("exceptions",)} for path in paths)
-    shared_leaves = _translation_leaves(shared)
-    additions = {
-        ".".join(path)
-        for path in shared_leaves
-        if path[:3] == ("options", "step", "updates")
-        or path == ("options", "step", "init", "menu_options", "updates")
-    }
-    assert additions == PA_UPDATE_TRANSLATION_ADDITIONS
-    assert len(shared_leaves) == 581 + len(PA_UPDATE_TRANSLATION_ADDITIONS)
-    for locale_path in sorted((INTEGRATION / "translations").glob("*.json")):
-        if locale_path.name == "en.json":
-            continue
-        locale = _load_translation_catalogue(locale_path)
-        assert not any(path[-1] in _subtree(locale, path[:-1]) for path in paths), (
-            locale_path.name
-        )
-
-
-def test_shipped_translation_catalogues_preserve_machine_contracts() -> None:
-    """Every locale has exact keys, placeholders, links, and technical literals."""
+@pytest.mark.parametrize("language", ("en", *TIER_A_LANGUAGES, *TIER_B_LANGUAGES))
+def test_shipped_translation_catalogues_preserve_machine_contracts(
+    language: str,
+) -> None:
+    """Tier A is complete; Tier B's fixed fallback debt cannot grow unnoticed."""
     english_catalogue = _load_translation_catalogue(
         INTEGRATION / "translations" / "en.json"
     )
-    english_only = _english_only_paths(english_catalogue)
-    english_catalogue = _without(english_catalogue, english_only)
     english = _translation_leaves(english_catalogue)
-    translations = INTEGRATION / "translations"
-    locale_paths = sorted(translations.glob("*.json"))
-    assert [path.name for path in locale_paths] == [
-        "de.json",
-        "en.json",
-        "es.json",
-        "fr.json",
-        "it.json",
-        "nl.json",
-        "pl.json",
-        "uk.json",
-        "zh-Hans.json",
-    ]
-    assert len(english) == 581 + len(PA_UPDATE_TRANSLATION_ADDITIONS)
+    assert len(english) == 697
+    assert {path.stem for path in (INTEGRATION / "translations").glob("*.json")} == {
+        "en",
+        *TIER_A_LANGUAGES,
+        *TIER_B_LANGUAGES,
+    }
+    debt = (
+        {tuple(key.split(".")) for key in TIER_B_ENGLISH_FALLBACK}
+        if language in TIER_B_LANGUAGES
+        else set()
+    )
+    assert debt <= english.keys()
+    target_catalogue = _load_translation_catalogue(
+        INTEGRATION / "translations" / f"{language}.json"
+    )
+    target = _translation_leaves(target_catalogue)
+    assert english.keys() - target.keys() == debt, language
+    assert _translation_shape(target_catalogue) == _translation_shape(
+        _without(english_catalogue, debt)
+    ), language
+    assert all(value.strip() for value in target.values()), language
+    assert all("[%key:" not in value for value in target.values()), language
+    for key, target_text in target.items():
+        source_text = english[key]
+        assert _placeholders(target_text) == _placeholders(source_text), (language, key)
+        assert _markdown_links(target_text) == _markdown_links(source_text), (
+            language,
+            key,
+        )
+        assert target_text.count("`") == source_text.count("`"), (language, key)
+        for token in FROZEN_TRANSLATION_TOKENS:
+            required_count = _literal_count(source_text, token)
+            if required_count:
+                assert _literal_count(target_text, token) >= required_count, (
+                    language,
+                    key,
+                    token,
+                )
+        if token := NATIVE_PRODUCT_LITERALS.get(key):
+            assert _literal_count(target_text, token) >= _literal_count(
+                source_text, token
+            ), (language, key, token)
 
-    for locale_path in locale_paths:
-        target_catalogue = _without(
-            _load_translation_catalogue(locale_path), english_only
-        )
-        target = _translation_leaves(target_catalogue)
-        assert _translation_shape(target_catalogue) == _translation_shape(
-            english_catalogue
-        )
-        assert target.keys() == english.keys()
-        assert all(value.strip() for value in target.values())
-        assert all("[%key:" not in value for value in target.values())
-        for key, source_text in english.items():
-            target_text = target[key]
-            assert _placeholders(target_text) == _placeholders(source_text)
-            assert _markdown_links(target_text) == _markdown_links(source_text)
-            assert target_text.count("`") == source_text.count("`")
-            for token in FROZEN_TRANSLATION_TOKENS:
-                required_count = _literal_count(source_text, token)
-                if required_count:
-                    assert _literal_count(target_text, token) >= required_count
+
+@pytest.mark.parametrize("language", TIER_A_LANGUAGES)
+@pytest.mark.parametrize("category", ("entity", "exceptions"))
+async def test_home_assistant_serves_native_tier_a_translations(
+    hass: HomeAssistant, language: str, category: str
+) -> None:
+    """Native names, states, attributes and errors reach HA without fallback."""
+    source = _load_translation_catalogue(INTEGRATION / "translations" / "en.json")
+    target = _load_translation_catalogue(
+        INTEGRATION / "translations" / f"{language}.json"
+    )
+    prefix = f"component.panel_assistant.{category}."
+    expected = {
+        prefix + ".".join(path): text
+        for path, text in _translation_leaves(target[category]).items()
+    }
+    assert _translation_shape(target[category]) == _translation_shape(source[category])
+    actual = await async_get_translations(hass, language, category, {"panel_assistant"})
+    assert actual == expected
 
 
 # Recovery text tells a person what NOT to do to a panel that may be half

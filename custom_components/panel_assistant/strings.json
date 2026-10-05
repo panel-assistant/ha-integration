@@ -299,7 +299,11 @@
         "name": "Status",
         "state": {
           "online": "Online",
-          "connected": "Connected, address unreachable"
+          "connected": "Connected, address unreachable",
+          "restarting_update": "Restarting (update)",
+          "restarting_settings": "Restarting (settings)",
+          "restarting_recovery": "Restarting (recovery)",
+          "restarting_reboot": "Restarting (reboot)"
         }
       },
       "storage_health": {
@@ -536,6 +540,24 @@
     },
     "adb_authorization_required": {
       "message": "ADB authorization is missing for {panel}. Open Home Assistant Repairs to authorize updates, then approve Allow debugging on the physical panel when asked."
+    },
+    "voice_wake_words_rejected": {
+      "message": "The panel did not accept the wake words"
+    },
+    "voice_panel_not_connected": {
+      "message": "The panel is not connected"
+    },
+    "voice_assistant_off": {
+      "message": "The panel's voice assistant is off"
+    },
+    "voice_announcement_timeout": {
+      "message": "The panel did not finish the announcement"
+    },
+    "voice_announcement_disconnected": {
+      "message": "The panel disconnected during the announcement"
+    },
+    "panel_identity_conflict": {
+      "message": "Panel identity conflicts with its saved entities"
     }
   },
   "issues": {
@@ -671,7 +693,7 @@
     },
     "no_update_route": {
       "title": "{panel} cannot receive app updates",
-      "description": "Panel Assistant cannot install app updates on {panel}, so it stays on its current version. Everything else about the panel keeps working, which is why this is easy to miss. It usually follows a change made on the panel itself, such as a firmware update or a reset. Select Learn more for the steps for this panel. Reported: {reason}"
+      "description": "Panel Assistant cannot install app updates on {panel}, so the app stays on its current version. Everything else about the panel keeps working, which is why this is easy to miss. It usually follows a change made on the panel itself, such as a firmware update or a reset. Select Learn more for the steps for this panel."
     },
     "merged_panel_identity": {
       "title": "Separate the merged panels: {panels}",

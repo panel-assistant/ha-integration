@@ -157,13 +157,283 @@
         "name": "状态",
         "state": {
           "online": "在线",
-          "connected": "已连接，地址不可达"
+          "connected": "已连接，地址不可达",
+          "restarting_update": "正在重启（更新）",
+          "restarting_settings": "正在重启（设置）",
+          "restarting_recovery": "正在重启（恢复）",
+          "restarting_reboot": "正在重启（系统重启）"
         }
+      },
+      "diag_boot": {
+        "name": "上次启动时间"
+      },
+      "diag_cpu": {
+        "name": "CPU 使用率"
+      },
+      "diag_ip": {
+        "name": "IP 地址"
+      },
+      "diag_memory": {
+        "name": "内存使用量"
+      },
+      "diag_soc_temp": {
+        "name": "SoC 温度"
+      },
+      "diag_wifi_outages_24h": {
+        "name": "Wi-Fi 中断次数（24 小时）",
+        "state_attributes": {
+          "is_lower_bound": {
+            "name": "下限"
+          }
+        }
+      },
+      "diag_wifi_rssi": {
+        "name": "Wi-Fi 信号强度"
+      },
+      "diag_wifi_ssid": {
+        "name": "Wi-Fi 网络"
+      },
+      "humidity": {
+        "name": "湿度"
+      },
+      "illuminance": {
+        "name": "照度"
+      },
+      "proximity_level": {
+        "name": "接近程度"
+      },
+      "room_humidity": {
+        "name": "室内湿度"
+      },
+      "room_temp": {
+        "name": "室内温度"
+      },
+      "storage_health": {
+        "name": "存储健康状况",
+        "state": {
+          "unchecked": "未检查",
+          "healthy": "健康",
+          "warning": "警告",
+          "critical": "严重",
+          "database_failure": "数据库故障"
+        },
+        "state_attributes": {
+          "auto_vacuum": {
+            "name": "自动清理"
+          },
+          "checked_at_epoch_seconds": {
+            "name": "检查时间"
+          },
+          "database_files_bytes": {
+            "name": "数据库文件大小"
+          },
+          "database_sidecar_bytes": {
+            "name": "数据库附属文件大小"
+          },
+          "failure_category": {
+            "name": "故障类别"
+          },
+          "failure_operation": {
+            "name": "失败的操作"
+          },
+          "freelist_count": {
+            "name": "空闲页数"
+          },
+          "main_database_bytes": {
+            "name": "主数据库大小"
+          },
+          "page_count": {
+            "name": "页数"
+          },
+          "page_size_bytes": {
+            "name": "页大小"
+          },
+          "quick_check": {
+            "name": "快速检查"
+          },
+          "schema_version": {
+            "name": "模式版本"
+          },
+          "storage_pressure": {
+            "name": "存储压力"
+          },
+          "total_bytes": {
+            "name": "总存储空间"
+          },
+          "usable_bytes": {
+            "name": "可用存储空间"
+          },
+          "used_percent": {
+            "name": "存储使用率"
+          },
+          "wal_bytes": {
+            "name": "预写日志大小"
+          }
+        }
+      },
+      "temperature": {
+        "name": "温度"
       }
     },
     "update": {
       "paneld_update": {
         "name": "ha-paneld 更新"
+      },
+      "update_companion": {
+        "name": "Companion 应用"
+      }
+    },
+    "camera": {
+      "camera": {
+        "name": "摄像头"
+      }
+    },
+    "binary_sensor": {
+      "auto_sleep_activity": {
+        "name": "自动休眠相关活动"
+      },
+      "proximity": {
+        "name": "接近"
+      }
+    },
+    "button": {
+      "reboot": {
+        "name": "重启"
+      },
+      "reload": {
+        "name": "重新加载仪表盘"
+      }
+    },
+    "event": {
+      "button": {
+        "name": "按键"
+      }
+    },
+    "image": {
+      "camera_snapshot": {
+        "name": "摄像头快照"
+      }
+    },
+    "light": {
+      "button_led": {
+        "name": "按键 LED {index}"
+      },
+      "buttons": {
+        "name": "按键背光"
+      },
+      "led": {
+        "name": "LED",
+        "state_attributes": {
+          "effect": {
+            "state": {
+              "none": "无",
+              "strobe": "频闪",
+              "blink": "闪烁",
+              "pulse": "脉冲"
+            }
+          }
+        }
+      },
+      "screen": {
+        "name": "屏幕"
+      }
+    },
+    "media_player": {
+      "media": {
+        "name": "媒体播放器"
+      }
+    },
+    "number": {
+      "volume": {
+        "name": "音量"
+      }
+    },
+    "select": {
+      "companion_update_channel": {
+        "name": "Companion 自动更新渠道",
+        "state": {
+          "stable": "稳定版",
+          "prerelease": "预发布版"
+        }
+      },
+      "cpu_governor": {
+        "name": "CPU 配置",
+        "state": {
+          "performance": "性能",
+          "efficiency": "能效",
+          "auto": "自动"
+        }
+      },
+      "navbar": {
+        "name": "导航栏",
+        "state": {
+          "off": "关闭",
+          "always_on": "常开",
+          "swipe_reveal": "滑动显示",
+          "native": "原生"
+        }
+      },
+      "update_channel": {
+        "name": "ha-paneld 自动更新渠道",
+        "state": {
+          "stable": "稳定版",
+          "prerelease": "预发布版"
+        }
+      }
+    },
+    "switch": {
+      "camera_enabled": {
+        "name": "摄像头"
+      },
+      "auto_brightness": {
+        "name": "自动亮度"
+      },
+      "auto_sleep": {
+        "name": "自动休眠"
+      },
+      "companion_auto_update": {
+        "name": "Companion 自动更新"
+      },
+      "kiosk_lock": {
+        "name": "Android 仪表盘锁定"
+      },
+      "network_adb": {
+        "name": "网络 ADB"
+      },
+      "prevent_idle_dim": {
+        "name": "防止空闲时变暗"
+      },
+      "relay": {
+        "name": "继电器 {index}"
+      },
+      "self_update": {
+        "name": "ha-paneld 自动更新"
+      },
+      "silence_boot_chime": {
+        "name": "关闭启动提示音"
+      },
+      "touch_sound": {
+        "name": "触摸提示音"
+      },
+      "wake_on_wave": {
+        "name": "挥手唤醒"
+      },
+      "watchdog": {
+        "name": "看门狗"
+      },
+      "webview_auto_update": {
+        "name": "WebView 自动更新"
+      },
+      "zigbee_router": {
+        "name": "Zigbee 路由器"
+      }
+    },
+    "text": {
+      "home_dashboard": {
+        "name": "主页仪表盘"
+      },
+      "navigate": {
+        "name": "导航"
       }
     }
   },
@@ -193,6 +463,63 @@
     "upload_disabled": { "message": "面板不接受应用上传；请在其设置中开启 APK 上传" },
     "adb_authorization_required": {
       "message": "{panel} 缺少 ADB 授权。请打开 Home Assistant 的“修复”以授权更新，并在出现提示时到实体面板上批准“允许调试”。"
+    },
+    "authority_mismatch": {
+      "message": "此面板通过 MQTT 控制，因此 Panel Assistant 无法向其发送命令"
+    },
+    "panel_unavailable": {
+      "message": "面板未连接到 Panel Assistant，因此未发送命令"
+    },
+    "not_commandable": {
+      "message": "面板未声明可接受 Panel Assistant 的命令"
+    },
+    "approval_pending": {
+      "message": "命令正在等待在面板屏幕上获得批准"
+    },
+    "unknown_command": {
+      "message": "面板无法识别此命令"
+    },
+    "unknown_channel": {
+      "message": "面板目前没有此实体"
+    },
+    "invalid_value": {
+      "message": "面板拒绝了此值"
+    },
+    "expired": {
+      "message": "面板过于繁忙，未能及时执行命令"
+    },
+    "approval_denied": {
+      "message": "命令已在面板屏幕上被拒绝"
+    },
+    "approval_timeout": {
+      "message": "命令未能及时在面板屏幕上获得批准"
+    },
+    "refused_hardened": {
+      "message": "面板的 Hardened 模式不允许此命令"
+    },
+    "hardware_unavailable": {
+      "message": "面板用于执行此命令的硬件目前不可用"
+    },
+    "failed": {
+      "message": "面板无法执行命令"
+    },
+    "voice_wake_words_rejected": {
+      "message": "面板未接受唤醒词"
+    },
+    "voice_panel_not_connected": {
+      "message": "面板未连接"
+    },
+    "voice_assistant_off": {
+      "message": "面板的语音助手已关闭"
+    },
+    "voice_announcement_timeout": {
+      "message": "面板未完成播报"
+    },
+    "voice_announcement_disconnected": {
+      "message": "面板在播报过程中断开了连接"
+    },
+    "panel_identity_conflict": {
+      "message": "面板身份与其已保存的实体冲突"
     }
   },
   "issues": {
@@ -328,7 +655,7 @@
     },
     "no_update_route": {
       "title": "{panel} 无法接收应用更新",
-      "description": "Panel Assistant 无法在 {panel} 上安装应用更新，因此它将保持当前版本。面板的其他功能一切照常，所以很容易被忽略。这通常发生在面板本身被更改之后，例如固件更新或重置。选择“了解更多”查看此面板的操作步骤。报告内容：{reason}"
+      "description": "Panel Assistant 无法在 {panel} 上安装应用更新，因此应用将保持当前版本。面板的其他功能一切照常，所以很容易被忽略。这通常发生在面板本身被更改之后，例如固件更新或重置。选择“了解更多”查看此面板的操作步骤。"
     },
     "merged_panel_identity": {
       "title": "分离已合并的面板：{panels}",

@@ -71,9 +71,7 @@ def test_help_parameters_survive_a_panel_that_reports_nothing() -> None:
 async def test_issue_is_raised_while_no_route_exists(hass: HomeAssistant) -> None:
     entry = MockConfigEntry(domain=DOMAIN, data={}, title="Study display")
     entry.add_to_hass(hass)
-    async_reconcile_update_route_issue(
-        hass, entry, has_route=False, status=_status(), reason="no usable route"
-    )
+    async_reconcile_update_route_issue(hass, entry, has_route=False, status=_status())
     registry = ir.async_get(hass)
     issue = registry.async_get_issue(DOMAIN, no_update_route_issue_id(entry.entry_id))
     assert issue is not None
@@ -93,9 +91,7 @@ async def test_learn_more_url_routes_on_what_the_panel_reported(
 ) -> None:
     entry = MockConfigEntry(domain=DOMAIN, data={}, title="Study display")
     entry.add_to_hass(hass)
-    async_reconcile_update_route_issue(
-        hass, entry, has_route=False, status=_status(), reason="no usable route"
-    )
+    async_reconcile_update_route_issue(hass, entry, has_route=False, status=_status())
     registry = ir.async_get(hass)
     issue = registry.async_get_issue(DOMAIN, no_update_route_issue_id(entry.entry_id))
     query = parse_qs(urlparse(issue.learn_more_url).query)
@@ -111,9 +107,7 @@ async def test_issue_is_withdrawn_once_a_route_returns(hass: HomeAssistant) -> N
     entry = MockConfigEntry(domain=DOMAIN, data={}, title="Study display")
     entry.add_to_hass(hass)
     registry = ir.async_get(hass)
-    async_reconcile_update_route_issue(
-        hass, entry, has_route=False, status=_status(), reason="no usable route"
-    )
+    async_reconcile_update_route_issue(hass, entry, has_route=False, status=_status())
     assert registry.async_get_issue(DOMAIN, no_update_route_issue_id(entry.entry_id))
     async_reconcile_update_route_issue(
         hass, entry, has_route=True, status=_status(install_capability="api")
@@ -127,16 +121,14 @@ async def test_issue_is_withdrawn_once_a_route_returns(hass: HomeAssistant) -> N
 @pytest.mark.parametrize(
     "language", ["en", "de", "es", "fr", "it", "nl", "pl", "uk", "zh-Hans"]
 )
-async def test_the_issue_renders_panel_and_reason(hass, language):
+async def test_the_issue_renders_localized_guidance_for_the_named_panel(hass, language):
     from homeassistant.helpers.translation import async_get_translations
     from homeassistant.setup import async_setup_component
 
     assert await async_setup_component(hass, DOMAIN, {})
     entry = MockConfigEntry(domain=DOMAIN, data={}, title="Study display")
     entry.add_to_hass(hass)
-    async_reconcile_update_route_issue(
-        hass, entry, has_route=False, status=_status(), reason="no usable route"
-    )
+    async_reconcile_update_route_issue(hass, entry, has_route=False, status=_status())
     issue = ir.async_get(hass).async_get_issue(
         DOMAIN, no_update_route_issue_id(entry.entry_id)
     )
@@ -148,4 +140,4 @@ async def test_the_issue_renders_panel_and_reason(hass, language):
     )
     assert "Study display" in title
     assert "Study display" in description
-    assert "no usable route" in description
+    assert issue.translation_placeholders == {"panel": "Study display"}

@@ -132,13 +132,13 @@ def test_the_profile_model_the_panel_reports_is_the_card_model() -> None:
     assert info["model"] == "Wall Display X2i"
 
 
-def test_the_firmware_line_names_the_build_as_the_mqtt_card_did() -> None:
+def test_the_firmware_line_preserves_the_exact_version_and_build() -> None:
     """A release candidate is rebuilt many times, so the version alone is ambiguous."""
     info = panel_device_info(
         "entry-1", _snapshot(None, health=replace(HEALTH, version_code=812))
     )
 
-    assert info["sw_version"] == "0.9.7-rc4 (build 812)"
+    assert info["sw_version"] == "0.9.7-rc4 (812)"
 
 
 def test_the_session_names_the_build_even_when_the_address_is_silent() -> None:
@@ -148,7 +148,7 @@ def test_the_session_names_the_build_even_when_the_address_is_silent() -> None:
             "entry-1", snapshot, "alpha", app_build=("0.9.8-rc2", 904)
         )
 
-        assert info["sw_version"] == "0.9.8-rc2 (build 904)"
+        assert info["sw_version"] == "0.9.8-rc2 (904)"
 
 
 def test_an_unknown_version_leaves_the_registered_one_alone() -> None:
@@ -188,7 +188,7 @@ async def test_a_registered_card_is_brought_up_to_date(hass: HomeAssistant) -> N
     assert (
         device.configuration_url == f"homeassistant://panel-assistant/{entry.entry_id}"
     )
-    assert device.sw_version == "0.9.8-rc2 (build 904)"
+    assert device.sw_version == "0.9.8-rc2 (904)"
     assert device.hw_version is None
     assert device.manufacturer == "Shelly"
     assert device.model == "Wall Display X2i"

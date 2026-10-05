@@ -228,9 +228,7 @@ async def test_setup_entry_diagnostics_unload_reload(hass: HomeAssistant) -> Non
         assert version.device_id == devices[0].id
         version_state = hass.states.get(version.entity_id)
         assert version_state is not None
-        assert version_state.state == (
-            f"{INTEGRATION_VERSION} (build {INTEGRATION_BUILD})"
-        )
+        assert version_state.state == f"{INTEGRATION_VERSION} ({INTEGRATION_BUILD})"
         update_state = hass.states.get(update.entity_id)
         assert update_state is not None
         assert devices[0].identifiers == {(DOMAIN, entry.entry_id)}
@@ -912,6 +910,33 @@ async def test_setup_loads_unavailable_when_panel_is_offline(
     assert "shadow" not in diagnostics["transport"]
 
 
+async def test_saved_identity_conflict_exposes_a_translatable_setup_retry_reason(
+    hass: HomeAssistant,
+) -> None:
+    """A conflicting saved entity stays refused and tells HA which text to render."""
+    entry = _entry(hass)
+    hass.config_entries.async_update_entry(entry, unique_id="a" * 64)
+    registry = er.async_get(hass)
+    saved = registry.async_get_or_create(
+        "sensor", DOMAIN, f"{'b' * 64}_status", config_entry=entry
+    )
+    with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=HEALTH),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=STATUS),
+        ),
+    ):
+        assert not await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+    assert entry.error_reason_translation_key == "panel_identity_conflict"
+    assert registry.async_get(saved.entity_id).unique_id == f"{'b' * 64}_status"
+
+
 @pytest.mark.parametrize("error_type", [CannotConnectError, InvalidResponseError])
 async def test_coordinator_translates_client_failure(
     hass: HomeAssistant, error_type: type[CannotConnectError | InvalidResponseError]
@@ -1182,4 +1207,4 @@ async def test_a_later_poll_brings_the_card_up_to_date(hass: HomeAssistant) -> N
         (DOMAIN, entry.entry_id), entry.entry_id
     )
     assert device is not None
-    assert device.sw_version == "0.9.1 (build 904)"
+    assert device.sw_version == "0.9.1 (904)"

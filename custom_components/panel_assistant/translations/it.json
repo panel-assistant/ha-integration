@@ -157,13 +157,283 @@
         "name": "Stato",
         "state": {
           "online": "Online",
-          "connected": "Connesso, indirizzo non raggiungibile"
+          "connected": "Connesso, indirizzo non raggiungibile",
+          "restarting_update": "Riavvio in corso (aggiornamento)",
+          "restarting_settings": "Riavvio in corso (impostazioni)",
+          "restarting_recovery": "Riavvio in corso (ripristino)",
+          "restarting_reboot": "Riavvio in corso (riavvio di sistema)"
         }
+      },
+      "diag_boot": {
+        "name": "Ora dell’ultimo avvio"
+      },
+      "diag_cpu": {
+        "name": "Utilizzo della CPU"
+      },
+      "diag_ip": {
+        "name": "Indirizzo IP"
+      },
+      "diag_memory": {
+        "name": "Utilizzo della memoria"
+      },
+      "diag_soc_temp": {
+        "name": "Temperatura del SoC"
+      },
+      "diag_wifi_outages_24h": {
+        "name": "Interruzioni del Wi-Fi (24 h)",
+        "state_attributes": {
+          "is_lower_bound": {
+            "name": "Limite inferiore"
+          }
+        }
+      },
+      "diag_wifi_rssi": {
+        "name": "Potenza del segnale Wi-Fi"
+      },
+      "diag_wifi_ssid": {
+        "name": "Rete Wi-Fi"
+      },
+      "humidity": {
+        "name": "Umidità"
+      },
+      "illuminance": {
+        "name": "Illuminamento"
+      },
+      "proximity_level": {
+        "name": "Livello di prossimità"
+      },
+      "room_humidity": {
+        "name": "Umidità ambiente"
+      },
+      "room_temp": {
+        "name": "Temperatura ambiente"
+      },
+      "storage_health": {
+        "name": "Stato dell’archiviazione",
+        "state": {
+          "unchecked": "Non verificato",
+          "healthy": "Regolare",
+          "warning": "Avviso",
+          "critical": "Critico",
+          "database_failure": "Errore del database"
+        },
+        "state_attributes": {
+          "auto_vacuum": {
+            "name": "Compattazione automatica"
+          },
+          "checked_at_epoch_seconds": {
+            "name": "Data della verifica"
+          },
+          "database_files_bytes": {
+            "name": "Dimensione dei file del database"
+          },
+          "database_sidecar_bytes": {
+            "name": "Dimensione dei file ausiliari del database"
+          },
+          "failure_category": {
+            "name": "Categoria dell’errore"
+          },
+          "failure_operation": {
+            "name": "Operazione non riuscita"
+          },
+          "freelist_count": {
+            "name": "Pagine libere"
+          },
+          "main_database_bytes": {
+            "name": "Dimensione del database principale"
+          },
+          "page_count": {
+            "name": "Pagine"
+          },
+          "page_size_bytes": {
+            "name": "Dimensione delle pagine"
+          },
+          "quick_check": {
+            "name": "Verifica rapida"
+          },
+          "schema_version": {
+            "name": "Versione dello schema"
+          },
+          "storage_pressure": {
+            "name": "Pressione sull’archiviazione"
+          },
+          "total_bytes": {
+            "name": "Spazio di archiviazione totale"
+          },
+          "usable_bytes": {
+            "name": "Spazio di archiviazione utilizzabile"
+          },
+          "used_percent": {
+            "name": "Spazio di archiviazione utilizzato"
+          },
+          "wal_bytes": {
+            "name": "Dimensione del registro delle scritture anticipate"
+          }
+        }
+      },
+      "temperature": {
+        "name": "Temperatura"
       }
     },
     "update": {
       "paneld_update": {
         "name": "Aggiornamento ha-paneld"
+      },
+      "update_companion": {
+        "name": "App Companion"
+      }
+    },
+    "camera": {
+      "camera": {
+        "name": "Videocamera"
+      }
+    },
+    "binary_sensor": {
+      "auto_sleep_activity": {
+        "name": "Attività per la sospensione automatica"
+      },
+      "proximity": {
+        "name": "Prossimità"
+      }
+    },
+    "button": {
+      "reboot": {
+        "name": "Riavvia"
+      },
+      "reload": {
+        "name": "Ricarica la plancia"
+      }
+    },
+    "event": {
+      "button": {
+        "name": "Pulsante"
+      }
+    },
+    "image": {
+      "camera_snapshot": {
+        "name": "Istantanea della videocamera"
+      }
+    },
+    "light": {
+      "button_led": {
+        "name": "LED del pulsante {index}"
+      },
+      "buttons": {
+        "name": "Retroilluminazione dei pulsanti"
+      },
+      "led": {
+        "name": "LED",
+        "state_attributes": {
+          "effect": {
+            "state": {
+              "none": "Nessuno",
+              "strobe": "Stroboscopio",
+              "blink": "Lampeggio",
+              "pulse": "Pulsazione"
+            }
+          }
+        }
+      },
+      "screen": {
+        "name": "Schermo"
+      }
+    },
+    "media_player": {
+      "media": {
+        "name": "Lettore multimediale"
+      }
+    },
+    "number": {
+      "volume": {
+        "name": "Volume"
+      }
+    },
+    "select": {
+      "companion_update_channel": {
+        "name": "Canale di aggiornamento automatico di Companion",
+        "state": {
+          "stable": "Stabile",
+          "prerelease": "Versione preliminare"
+        }
+      },
+      "cpu_governor": {
+        "name": "Profilo CPU",
+        "state": {
+          "performance": "Prestazioni",
+          "efficiency": "Efficienza",
+          "auto": "Automatico"
+        }
+      },
+      "navbar": {
+        "name": "Barra di navigazione",
+        "state": {
+          "off": "Disattivata",
+          "always_on": "Sempre visibile",
+          "swipe_reveal": "Mostra con scorrimento",
+          "native": "Nativa"
+        }
+      },
+      "update_channel": {
+        "name": "Canale di aggiornamento automatico di ha-paneld",
+        "state": {
+          "stable": "Stabile",
+          "prerelease": "Versione preliminare"
+        }
+      }
+    },
+    "switch": {
+      "camera_enabled": {
+        "name": "Videocamera"
+      },
+      "auto_brightness": {
+        "name": "Luminosità automatica"
+      },
+      "auto_sleep": {
+        "name": "Sospensione automatica"
+      },
+      "companion_auto_update": {
+        "name": "Aggiornamento automatico di Companion"
+      },
+      "kiosk_lock": {
+        "name": "Blocco della plancia Android"
+      },
+      "network_adb": {
+        "name": "ADB di rete"
+      },
+      "prevent_idle_dim": {
+        "name": "Impedisci l’attenuazione durante l’inattività"
+      },
+      "relay": {
+        "name": "Relè {index}"
+      },
+      "self_update": {
+        "name": "Aggiornamento automatico di ha-paneld"
+      },
+      "silence_boot_chime": {
+        "name": "Disattiva il suono di avvio"
+      },
+      "touch_sound": {
+        "name": "Suono al tocco"
+      },
+      "wake_on_wave": {
+        "name": "Riattivazione con un gesto della mano"
+      },
+      "watchdog": {
+        "name": "Supervisore di funzionamento"
+      },
+      "webview_auto_update": {
+        "name": "Aggiornamento automatico di WebView"
+      },
+      "zigbee_router": {
+        "name": "Router Zigbee"
+      }
+    },
+    "text": {
+      "home_dashboard": {
+        "name": "Plancia iniziale"
+      },
+      "navigate": {
+        "name": "Naviga"
       }
     }
   },
@@ -193,6 +463,63 @@
     "upload_disabled": { "message": "Il pannello non accetta caricamenti di app; attiva il caricamento APK nelle sue impostazioni" },
     "adb_authorization_required": {
       "message": "Manca l’autorizzazione ADB per {panel}. Apri Riparazioni in Home Assistant per autorizzare gli aggiornamenti, poi approva «Consenti debug» sul pannello fisico quando richiesto."
+    },
+    "authority_mismatch": {
+      "message": "Questo pannello è controllato tramite MQTT, quindi Panel Assistant non può inviargli comandi"
+    },
+    "panel_unavailable": {
+      "message": "Il pannello non è connesso a Panel Assistant, quindi il comando non è stato inviato"
+    },
+    "not_commandable": {
+      "message": "Il pannello non ha offerto di ricevere comandi da Panel Assistant"
+    },
+    "approval_pending": {
+      "message": "Il comando è in attesa di approvazione sullo schermo del pannello"
+    },
+    "unknown_command": {
+      "message": "Il pannello non conosce questo comando"
+    },
+    "unknown_channel": {
+      "message": "Il pannello non dispone di questa entità al momento"
+    },
+    "invalid_value": {
+      "message": "Il pannello ha rifiutato questo valore"
+    },
+    "expired": {
+      "message": "Il pannello era troppo occupato per eseguire il comando in tempo"
+    },
+    "approval_denied": {
+      "message": "Il comando è stato rifiutato sullo schermo del pannello"
+    },
+    "approval_timeout": {
+      "message": "Il comando non è stato approvato in tempo sullo schermo del pannello"
+    },
+    "refused_hardened": {
+      "message": "La modalità Hardened del pannello non consente questo comando"
+    },
+    "hardware_unavailable": {
+      "message": "L’hardware del pannello necessario per questo comando non è disponibile"
+    },
+    "failed": {
+      "message": "Il pannello non è riuscito a eseguire il comando"
+    },
+    "voice_wake_words_rejected": {
+      "message": "Il pannello non ha accettato le parole di attivazione"
+    },
+    "voice_panel_not_connected": {
+      "message": "Il pannello non è connesso"
+    },
+    "voice_assistant_off": {
+      "message": "L’assistente vocale del pannello è disattivato"
+    },
+    "voice_announcement_timeout": {
+      "message": "Il pannello non ha completato l’annuncio"
+    },
+    "voice_announcement_disconnected": {
+      "message": "Il pannello si è disconnesso durante l’annuncio"
+    },
+    "panel_identity_conflict": {
+      "message": "L’identità del pannello è in conflitto con le sue entità salvate"
     }
   },
   "issues": {
@@ -328,7 +655,7 @@
     },
     "no_update_route": {
       "title": "{panel} non può ricevere aggiornamenti dell'app",
-      "description": "Panel Assistant non può installare aggiornamenti dell'app su {panel}, che quindi resta alla versione attuale. Tutto il resto del pannello continua a funzionare, perciò è facile non accorgersene. Di solito accade dopo una modifica eseguita sul pannello stesso, come un aggiornamento del firmware o un ripristino. Seleziona Ulteriori informazioni per i passaggi relativi a questo pannello. Segnalato: {reason}"
+      "description": "Panel Assistant non può installare aggiornamenti dell'app su {panel}, quindi l'app resta alla versione attuale. Tutto il resto del pannello continua a funzionare, perciò è facile non accorgersene. Di solito accade dopo una modifica eseguita sul pannello stesso, come un aggiornamento del firmware o un ripristino. Seleziona Ulteriori informazioni per i passaggi relativi a questo pannello."
     },
     "merged_panel_identity": {
       "title": "Separa i pannelli uniti: {panels}",
