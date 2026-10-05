@@ -128,7 +128,7 @@
     },
     "abort": {
       "already_configured": "Ce panneau est déjà configuré.",
-      "not_panel": "Ce n'est pas un panneau sur lequel Panel Assistant peut s'installer.",
+      "not_panel": "Ce n'est pas un panneau sur lequel Panel Assistant peut effectuer une installation.",
       "invalid_discovery": "Le panneau détecté n’a pas confirmé qu’il s’agissait de la même installation ha-paneld saine. Aucune entrée Home Assistant ni aucun réglage du panneau n’a été modifié.",
       "install_cancelled": "L'installation a été annulée avant l'installation d'un APK. Aucune entrée Home Assistant n'a été créée. Pour réessayer, ajoutez l'intégration Panel Assistant et saisissez la même adresse de panneau.",
       "install_cancelled_after_staging_cleanup": "L'installation a été annulée et l'APK préparé a été supprimé avant son installation. Aucune entrée Home Assistant n'a été créée. Pour réessayer, ajoutez l'intégration Panel Assistant et saisissez la même adresse de panneau.",
