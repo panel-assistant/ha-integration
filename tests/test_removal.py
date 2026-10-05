@@ -390,7 +390,9 @@ async def test_the_risks_link_names_the_panel_make_model_and_firmware(
     assert fake.installed == [SUCCESSOR_PACKAGE_ID]
 
 
-@pytest.mark.parametrize("firmware", ["", "x" * 200, "1.0\u0007"])
+@pytest.mark.parametrize(
+    "firmware", ["", "x" * 200, "1.0\u0007"], ids=["empty", "too-long", "control"]
+)
 async def test_the_risks_link_reads_without_a_firmware_it_cannot_match(
     hass: HomeAssistant, panel: tuple[FakePanel, TestServer], firmware: str
 ) -> None:
