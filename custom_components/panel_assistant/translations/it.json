@@ -225,7 +225,7 @@
     },
     "remove_old_app_adb": {
       "title": "La vecchia app è ancora su {panel}",
-      "description": "{panel} usa la nuova app Panel Assistant, ma la vecchia app ha-paneld è ancora installata accanto. Panel Assistant la rimuove automaticamente tramite ADB, ma al momento non riesce a connettersi all'Android Debug Bridge del pannello. Verifica che il debug di rete sia attivo e che il pannello abbia consentito la connessione a Home Assistant. Panel Assistant riproverà da solo."
+      "description": "{panel} usa la nuova app Panel Assistant, ma la vecchia app ha-paneld è ancora installata accanto. Panel Assistant la rimuove automaticamente tramite ADB, ma al momento non riesce a connettersi all'Android Debug Bridge del pannello. Verifica che il debug di rete sia attivo e che il pannello abbia consentito a Home Assistant di connettersi. Panel Assistant riproverà da solo."
     },
     "remove_old_app_unproven": {
       "title": "La vecchia app è ancora su {panel}",
