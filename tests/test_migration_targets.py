@@ -270,7 +270,7 @@ async def test_discovered_panel_carries_its_address_into_the_install(
 
 
 async def test_ignored_panel_stays_ignored(
-    hass: HomeAssistant, adb_open: SimpleNamespace
+    hass: HomeAssistant, adb_open: SimpleNamespace, freezer
 ) -> None:
     """Ignore holds across later searches, and the ignored panel is not probed."""
     _companion(hass, "Wall screen", "192.168.1.30", "a")
@@ -285,6 +285,7 @@ async def test_ignored_panel_stays_ignored(
     )
     adb_open.asked.clear()
 
+    freezer.tick(3601)
     await _network_device_seen(hass)
 
     assert _discovered(hass) == {}
@@ -308,7 +309,7 @@ async def test_added_panel_is_not_offered_again(
 
 
 async def test_waiting_panel_is_probed_once_however_often_the_network_wakes(
-    hass: HomeAssistant, adb_open: SimpleNamespace
+    hass: HomeAssistant, adb_open: SimpleNamespace, freezer
 ) -> None:
     """Every device seen at start searches again; the waiting card is kept."""
     _companion(hass, "Wall screen", "192.168.1.30", "a")
@@ -320,7 +321,55 @@ async def test_waiting_panel_is_probed_once_however_often_the_network_wakes(
     device = dr.async_get(hass).async_get_device(identifiers={("mobile_app", "a")})
     assert device is not None
     dr.async_get(hass).async_update_device(device.id, name_by_user="Hall screen")
+    freezer.tick(3601)
     await _network_device_seen(hass)
 
     assert adb_open.asked == ["192.168.1.30"]
     assert set(_discovered(hass)) == {"Wall screen"}
+
+
+async def test_a_device_that_is_not_a_panel_is_probed_once_an_hour(
+    hass: HomeAssistant, adb_open: SimpleNamespace, freezer
+) -> None:
+    """Rejected candidates are not reprobed on every wake, and can qualify later."""
+    _host_entry(hass, "shelly", "Porch plug", "192.168.1.22")
+    _companion(hass, "Wall tablet", "192.168.1.30", "a")
+
+    for _ in range(3):
+        await _network_device_seen(hass)
+
+    assert sorted(adb_open.asked) == ["192.168.1.22", "192.168.1.30"]
+    assert _discovered(hass) == {}
+
+    # Network ADB turned on later: the next search after an hour offers it.
+    adb_open.open.add("192.168.1.30")
+    freezer.tick(3601)
+    await _network_device_seen(hass)
+
+    assert sorted(adb_open.asked) == [
+        "192.168.1.22",
+        "192.168.1.22",
+        "192.168.1.30",
+        "192.168.1.30",
+    ]
+    assert set(_discovered(hass)) == {"Wall tablet"}
+
+
+async def test_a_rejected_candidate_at_a_new_address_is_probed_at_once(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """A new address is a new chance; the hourly wait applies per address."""
+    _companion(hass, "Wall tablet", "192.168.1.30", "a")
+    await _network_device_seen(hass)
+    [entity] = [
+        e
+        for e in er.async_get(hass).entities.values()
+        if e.unique_id.endswith("_wifi_ip_address")
+    ]
+    hass.states.async_set(entity.entity_id, "192.168.1.35")
+    adb_open.open.add("192.168.1.35")
+
+    await _network_device_seen(hass)
+
+    assert adb_open.asked == ["192.168.1.30", "192.168.1.35"]
+    assert set(_discovered(hass)) == {"Wall tablet"}

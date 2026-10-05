@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import ipaddress
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -47,6 +48,10 @@ _COMPANION_IP_SUFFIX = "_wifi_ip_address"
 # telephony (`FEATURE_TELEPHONY`): a phone, never a wall panel.
 _COMPANION_TELEPHONY_SUFFIXES = ("_phone_state", "_mobile_data", "_sim_1")
 _ADB_PROBE_SECONDS = 2
+# A candidate at the same address is raised at most this often, so a device that
+# is not a panel (ADB closed) is probed once an hour, not on every dhcp event.
+_REOFFER_SECONDS = 3600
+_DATA_OFFERED = "migration_offered"
 
 
 @dataclass(frozen=True, slots=True)
@@ -186,10 +191,23 @@ def async_offer_migration_targets(hass: HomeAssistant) -> None:
     """Raise each known, unconfigured candidate as a discovery.
 
     Only registries are read here. Each discovery flow probes its candidate
-    after its unique id has turned away one that is ignored or already offered,
-    so repeated searches probe nothing twice.
+    after its unique id has turned away one that is ignored or already offered.
+    One that was rejected is raised again after an hour, or at once from a new
+    address, so turning ADB on later still brings it under Discovered.
     """
+    offered: dict[str, tuple[str, float]] = hass.data.setdefault(DOMAIN, {}).setdefault(
+        _DATA_OFFERED, {}
+    )
+    now = time.monotonic()
     for candidate in _candidates(hass).values():
+        last = offered.get(candidate["key"])
+        if (
+            last is not None
+            and last[0] == candidate["address"]
+            and now - last[1] < _REOFFER_SECONDS
+        ):
+            continue
+        offered[candidate["key"]] = (candidate["address"], now)
         discovery_flow.async_create_flow(
             hass,
             DOMAIN,
