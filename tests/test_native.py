@@ -998,4 +998,4 @@ async def test_the_session_names_the_build_on_the_device_card(
         (DOMAIN, dormant.entry_id), dormant.entry_id
     )
     assert device is not None
-    assert device.sw_version == "0.9.8-rc1 (build 790)"
+    assert device.sw_version == "0.9.8-rc1 (790)"

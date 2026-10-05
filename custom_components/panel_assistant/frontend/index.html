@@ -18,7 +18,7 @@
 </head>
 <body><main class="wiz">
   <div class="wiz-brand"><img src="__BRAND_ICON__" alt=""><span>ha-paneld</span></div>
-  <ol id="journey" class="wiz-dots" aria-label="Progress"><!-- journey --></ol>
+  <ol id="journey" class="wiz-dots" data-screen-aria="progress"><!-- journey --></ol>
   <div class="card">
 
     <section id="step-preparing" class="step">
@@ -47,7 +47,7 @@
 
     <section id="step-progress" class="step" hidden>
       <h2 data-screen-message="progressHeading"></h2>
-      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><div id="progress-fill"></div></div>
+      <div class="bar" role="progressbar" data-screen-aria="installProgress" aria-valuemin="0" aria-valuemax="100"><div id="progress-fill"></div></div>
       <p id="activity" class="activity" role="status" aria-live="polite"></p>
       <p data-screen-message="keepConnected"></p>
     </section>
@@ -71,6 +71,6 @@
       <pre id="support-log"></pre>
     </details>
   </div>
-  <footer><a href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener">Third-party licenses</a></footer>
+  <footer><a href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener" data-screen-message="licenses">Third-party licenses</a></footer>
 </main><script type="module" src="/src/install-main.mjs"></script></body>
 </html>

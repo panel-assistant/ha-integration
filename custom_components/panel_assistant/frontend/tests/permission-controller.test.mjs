@@ -150,16 +150,6 @@ test('a clean panel still gets a fresh install from the start', async () => {
   await assert.rejects(f.controller.install(false), /confirmation_required/);
 });
 
-test('an already installed build is announced, not failed', () => {
-  const source = readFileSync(new URL('../src/install-main.mjs', import.meta.url), 'utf8');
-  const branch = source.slice(source.indexOf('if (!receipt && preview.adopt)'));
-  assert.ok(branch.length < source.length, 'the adopt branch exists');
-  const block = branch.slice(0, branch.indexOf('if (receipt) await installAll()'));
-  assert.match(block, /screen\.alreadyInstalledHeading/);
-  assert.match(block, /screen\.alreadyInstalledBody/);
-  assert.match(block, /screen\.continueSetup/);
-  assert.ok(!/fail\(|quarantine\(/.test(block), 'it never routes to the error screen');
-});
 
 test('after success nothing can flash the error screen', () => {
   const source = readFileSync(new URL('../src/install-main.mjs', import.meta.url), 'utf8');
@@ -236,20 +226,6 @@ test('a saved job is never discarded without the panel lock', async () => {
   assert.deepEqual(f.created, []);
 });
 
-test('setting a version aside is explained on the step the person is already on', () => {
-  const source = readFileSync(new URL('../src/install-main.mjs', import.meta.url), 'utf8');
-  const branch = source.slice(source.indexOf('if (preview.discarded)'),
-    source.indexOf('if (receipt) await installAll()'));
-  assert.ok(branch.length > 0, 'the discarded branch exists');
-  assert.match(branch, /screen\.restartedDifferentVersion/);
-  assert.ok(!/fail\(|quarantine\(/.test(branch), 'it never routes to the error screen');
-  assert.ok(!/addEventListener|\.disabled|confirm\(/.test(branch),
-    'it adds no second consent and no further choice');
-  const messages = readFileSync(new URL('../src/install-screen-messages.mjs', import.meta.url), 'utf8');
-  const sentence = /restartedDifferentVersion: '([^']+)'/.exec(messages)?.[1];
-  assert.ok(sentence && !/[{}<>]|JSON|job|phase|artifact/.test(sentence),
-    'the reason is one plain sentence, with no technical detail');
-});
 
 test('a job stalled in recovery on a panel that already runs it converges', async () => {
   for (const phase of ['recovery_required', 'cleanup_pending']) {

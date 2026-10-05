@@ -629,7 +629,7 @@ async def test_shadow_mode_never_writes_a_registry(
         (DOMAIN, entry.entry_id), entry.entry_id
     )
     assert own is not None
-    assert own.sw_version == "0.9.8-rc1 (build 790)"
+    assert own.sw_version == "0.9.8-rc1 (790)"
     assert after[3] == sorted(
         (
             item_id,

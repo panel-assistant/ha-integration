@@ -6,8 +6,8 @@ import { inspectSessionTarget } from './session-target.mjs';
 import { openJobStore } from './job-store.mjs';
 import { createUsbTransactionPorts } from './usb-transaction-ports.mjs';
 import { createInstallController } from './install-controller.mjs';
-import { INSTALL_MESSAGES, installProgress, errorView } from './install-view.mjs';
-import { INSTALL_SCREEN_MESSAGES as screen } from './install-screen-messages.mjs';
+import { installProgress, errorView } from './install-view.mjs';
+import { frontendMessages, formatFrontendMessage, installerLocale } from './frontend-localization.mjs';
 import { handOverThenOpen, handoffOptions, receiveReleaseHandoff, requestSetupHandover } from './release-handoff.mjs';
 import { readSetupUrl } from './panel-address.mjs';
 import { renderJourney } from './wizard-look.mjs';
@@ -20,12 +20,27 @@ import { renderJourney } from './wizard-look.mjs';
 const element = id => document.getElementById(id);
 const connect = element('connect');
 const install = element('install');
-for (const node of document.querySelectorAll('[data-screen-message]')) {
-  node.textContent = screen[node.dataset.screenMessage];
+let language = installerLocale();
+let journeyStop = 1;
+const bindings = new Map();
+function bind(node, keys, group = 'installer', property = 'textContent') {
+  const render = () => { const messages = frontendMessages(group, language); node[property] = keys.map(key => messages[key]).join(' '); };
+  bindings.set(node, render);
+  render();
 }
-for (const node of document.querySelectorAll('[data-screen-placeholder]')) {
-  node.placeholder = screen[node.dataset.screenPlaceholder];
+function message(id, key, group = 'installer') { bind(element(id), [key], group); }
+for (const node of document.querySelectorAll('[data-screen-message]')) bind(node, [node.dataset.screenMessage]);
+for (const node of document.querySelectorAll('[data-screen-placeholder]')) bind(node, [node.dataset.screenPlaceholder], 'installer', 'placeholder');
+function translatePage() {
+  language = installerLocale();
+  document.documentElement.lang = language;
+  for (const render of bindings.values()) render();
+  for (const node of document.querySelectorAll('[data-screen-aria]')) node.setAttribute('aria-label', frontendMessages('installer', language)[node.dataset.screenAria]);
+  renderJourney(element('journey'), journeyStop, document, language);
+  renderSupport();
 }
+window.addEventListener('languagechange', translatePage);
+window.addEventListener('popstate', translatePage);
 
 const STEPS = ['preparing', 'connect', 'allow', 'confirm', 'progress', 'done', 'error'];
 const manager = window.isSecureContext && navigator.usb
@@ -47,20 +62,28 @@ const newNonce = () => Array.from(crypto.getRandomValues(new Uint8Array(16)),
 const JOURNEY_STOP = Object.freeze({ preparing: 1, connect: 1, allow: 1, confirm: 2, progress: 2, done: 3 });
 function show(step) {
   for (const name of STEPS) element(`step-${name}`).hidden = name !== step;
-  if (Object.hasOwn(JOURNEY_STOP, step)) renderJourney(element('journey'), JOURNEY_STOP[step]);
+  if (Object.hasOwn(JOURNEY_STOP, step)) { journeyStop = JOURNEY_STOP[step]; renderJourney(element('journey'), journeyStop, document, language); }
 }
 
 // Support detail is collected, never shown unless the person opens it.
 const supportLines = [];
 const started = performance.now();
-function support(label, value) {
+function support(label, value, template = null) {
   const at = ((performance.now() - started) / 1000).toFixed(1);
-  supportLines.push(`${label} (+${at}s)\n${typeof value === 'string' ? value : JSON.stringify(value, null, 2)}`);
-  element('support-log').textContent = supportLines.join('\n\n');
+  supportLines.push({ label: label === 'Setup handover' ? 'setupHandover' : label, at, value, template });
+  renderSupport();
+}
+function renderSupport() {
+  const labels = frontendMessages('support', language);
+  element('support-log').textContent = supportLines.map(({ label, at, value, template }) => {
+    const text = template ? formatFrontendMessage(frontendMessages(template.group ?? 'installer', language)[template.messageKey], template.values ?? {})
+      : typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+    return `${labels[label]} (+${at}s)\n${text}`;
+  }).join('\n\n');
 }
 
 function progress(stepKey, percent) {
-  element('activity').textContent = screen[stepKey];
+  message('activity', stepKey);
   element('progress-fill').style.width = `${percent}%`;
   element('step-progress').querySelector('.bar').setAttribute('aria-valuenow', String(percent));
 }
@@ -82,17 +105,17 @@ function closeResources() {
 
 // Any safety fault ends this connection. The saved job survives in this
 // browser, so pressing Try again reconnects and carries on from where it stopped.
-function quarantine(message = INSTALL_MESSAGES.installErrorConnection) {
+function quarantine(key = 'installErrorConnection', group = 'errors') {
   // After success, closing our own USB connection (or the person unplugging)
   // is not a failure: release quietly and never flash the error screen.
   if (finished) { quarantined = true; closeResources(); return; }
   if (!quarantined) {
-    support('Stopped', message);
+    support('stopped', null, { messageKey: key, group });
     quarantined = true;
     clearTimeout(deadline);
     handoff?.cancel();
     rejectStop(new Error('session_closed'));
-    element('error-text').textContent = message;
+    message('error-text', key, group);
     show('error');
   }
   closeResources();
@@ -101,7 +124,7 @@ function quarantine(message = INSTALL_MESSAGES.installErrorConnection) {
 function ensureCurrent() {
   if (quarantined) throw new Error('session_closed');
   if (!incomingAuthenticate || !window.opener || window.opener.closed) {
-    quarantine(screen.handoffFailure);
+    quarantine('handoffFailure', 'installer');
     throw new Error('handoff_invalid');
   }
 }
@@ -128,21 +151,21 @@ function noteFailure(error) {
   const code = error?.code ?? error?.message;
   if (!firstFailure && code && code !== 'session_closed') {
     firstFailure = code;
-    support('Cause', String(code));
-    element('error-text').textContent = INSTALL_MESSAGES[errorView(code)];
+    support('cause', String(code));
+    message('error-text', errorView(code), 'errors');
   }
   throw error;
 }
 function fail(error) {
-  support('Error', String(error?.code ?? error?.message ?? error));
-  quarantine(INSTALL_MESSAGES[errorView(firstFailure ?? error?.code)]);
+  support('error', String(error?.code ?? error?.message ?? error));
+  quarantine(errorView(firstFailure ?? error?.code));
 }
 
 function releaseReady(verified) {
   release = verified;
-  support('Release', release.descriptor);
+  support('release', release.descriptor);
   show(supported ? 'connect' : 'error');
-  if (!supported) element('error-text').textContent = screen.unsupported;
+  if (!supported) message('error-text', 'unsupported');
 }
 
 // Starting again stays in this window: the Home Assistant tab hands a reloaded
@@ -150,12 +173,12 @@ function releaseReady(verified) {
 element('retry').addEventListener('click', () => { window.location.reload(); });
 let leaving = false;
 let finished = false;
-window.addEventListener('pagehide', () => { if (!leaving) quarantine(screen.pageClosed); });
+window.addEventListener('pagehide', () => { if (!leaving) quarantine('pageClosed', 'installer'); });
 
 connect.addEventListener('click', async () => {
   if (busy || !release || quarantined) return;
   busy = true;
-  deadline = setTimeout(() => quarantine(screen.connectionTimeout), 45000);
+  deadline = setTimeout(() => quarantine('connectionTimeout', 'installer'), 45000);
   try {
     // requestDevice is invoked directly within this user gesture, never on load.
     const chosen = manager.requestDevice();
@@ -163,7 +186,7 @@ connect.addEventListener('click', async () => {
       const device = await chosen;
       if (device) raw = device.raw;
       if (quarantined) { closeResources(); return; }
-      if (!device) { quarantine(screen.noSelection); return; }
+      if (!device) { quarantine('noSelection', 'installer'); return; }
       ensureCurrent();
       show('allow');
       const connection = await device.connect();
@@ -177,15 +200,15 @@ connect.addEventListener('click', async () => {
       adb = new Adb(transport);
       if (quarantined) { closeResources(); return; }
       ensureCurrent();
-      void adb.disconnected.then(() => quarantine(screen.disconnected), fail);
+      void adb.disconnected.then(() => quarantine('disconnected', 'installer'), fail);
       sessionAdb = guardedAdb(adb);
-      element('allow-text').textContent = screen.checkingPanel;
+      message('allow-text', 'checkingPanel');
       store = await openJobStore();
       if (quarantined) { closeResources(); return; }
       ensureCurrent();
       const target = await inspectSessionTarget(sessionAdb, release.descriptor, raw, ensureCurrent);
       ensureCurrent();
-      support('Panel', target);
+      support('panel', target);
       const ports = createUsbTransactionPorts({
         adb: sessionAdb, usbDevice: raw, ensureCurrent,
         authenticate: async () => {
@@ -195,11 +218,11 @@ connect.addEventListener('click', async () => {
           return verified;
         },
         // The step reports its own cause next; until then say nothing more specific.
-        quarantine: () => quarantine(INSTALL_MESSAGES.installErrorGeneric),
+        quarantine: () => quarantine('installErrorGeneric'),
         onUploadProgress(sent, total) {
           if (sent >= total) {
             progress('stepFinishingCopy', 50);
-            support('Copied', `${total} bytes sent; waiting for the panel to confirm`);
+            support('copied', null, { messageKey: 'copiedDetail', group: 'support', values: { bytes: total } });
           } else {
             progress('stepCopying', 10 + Math.floor((40 * sent) / total));
           }
@@ -208,18 +231,18 @@ connect.addEventListener('click', async () => {
       controller = createInstallController({ store, ports, ensureCurrent,
         onReceipt(value) {
           receipt = value;
-          support('Saved progress', receipt);
+          support('savedProgress', receipt);
           const { stepKey, percent } = installProgress(receipt);
           progress(stepKey, percent);
         },
         // Support detail only: a leftover copy is never the person's problem.
-        onSetAside(value) { support('Earlier copy', value); },
-        onStagedCopy(value) { support('Staged copy', value); },
+        onSetAside(value) { support('earlierCopy', value); },
+        onStagedCopy(value) { support('stagedCopy', value); },
       });
       const preview = await controller.preview(target).catch(noteFailure);
       ensureCurrent();
       receipt = preview.receipt;
-      support('Saved progress', receipt ?? 'none');
+      support('savedProgress', receipt, receipt ? null : { messageKey: 'none', group: 'support' });
       // A job already under way resumes without asking again: the person
       // agreed to install when they started it.
       const confirmBody = [];
@@ -227,20 +250,20 @@ connect.addEventListener('click', async () => {
       // refused. That is the person's own change of mind, so it is one
       // sentence on the step they were already on, not an error.
       if (preview.discarded) {
-        support('Set aside', preview.discarded);
-        confirmBody.push(screen.restartedDifferentVersion);
+        support('setAside', preview.discarded);
+        confirmBody.push('restartedDifferentVersion');
       }
       // The same build already on the panel is not an error: say so plainly,
       // and let the one press finish its setup.
       if (!receipt && preview.adopt) {
-        support('Already installed', `${release.descriptor.versionName} (${release.descriptor.versionCode})`);
-        element('step-confirm').querySelector('h2').textContent = screen.alreadyInstalledHeading;
-        confirmBody.push(screen.alreadyInstalledBody);
-        install.textContent = screen.continueSetup;
+        support('alreadyInstalled', `${release.descriptor.versionName} (${release.descriptor.versionCode})`);
+        bind(element('step-confirm').querySelector('h2'), ['alreadyInstalledHeading']);
+        confirmBody.push('alreadyInstalledBody');
+        bind(install, ['continueSetup']);
       } else {
-        confirmBody.push(screen.confirmBody);
+        confirmBody.push('confirmBody');
       }
-      element('confirm-body').textContent = confirmBody.join(' ');
+      bind(element('confirm-body'), confirmBody);
       if (receipt) await installAll(); else show('confirm');
     })().catch(error => { fail(error); throw error; })]);
   } catch (error) { fail(error); }
@@ -263,11 +286,11 @@ async function installAll() {
   progress(stepKey, percent);
   const installed = await Promise.race([stopPromise, controller.install(true).catch(noteFailure)]);
   ensureCurrent();
-  support('Permissions', installed.permissions);
+  support('permissions', installed.permissions);
 
   progress('stepOpening', 100);
   const url = await readSetupUrl(sessionAdb, newNonce);
-  support('Setup address', url ?? 'not found; setup continues on the panel');
+  support('setupAddress', url, url ? null : { messageKey: 'setupMissing', group: 'support' });
   // The install is done: losing USB from here on is not a failure.
   finished = true;
   await handOverThenOpen(url, {
@@ -282,10 +305,10 @@ function finish(url) {
   show('done');
   const link = element('open-setup');
   if (!url) {
-    element('done-text').textContent = screen.doneManual;
+    message('done-text', 'doneManual');
     return;
   }
-  element('done-text').textContent = screen.doneOpening;
+  message('done-text', 'doneOpening');
   link.href = url;
   link.hidden = false;
   // Same tab, so the panel's own wizard simply takes over. The visible button
@@ -299,7 +322,7 @@ function finish(url) {
 }
 
 if (!supported) {
-  element('error-text').textContent = screen.unsupported;
+  message('error-text', 'unsupported');
   show('error');
   element('retry').hidden = true;
 } else if (window.location.hash) {
@@ -307,18 +330,20 @@ if (!supported) {
     const options = handoffOptions(window.location.hash);
     handoffSettings = options;
     busy = true;
-    const slow = setTimeout(() => { element('preparing-text').textContent = screen.preparingSlow; }, 15000);
+    const slow = setTimeout(() => { message('preparing-text', 'preparingSlow'); }, 15000);
     handoff = receiveReleaseHandoff({ options });
     void handoff.completion.then(({ release: verified, authenticate }) => {
       if (quarantined) return;
       incomingAuthenticate = authenticate;
       releaseReady(verified);
     }, () => {
-      if (!quarantined) quarantine(screen.handoffFailure);
+      if (!quarantined) quarantine('handoffFailure', 'installer');
     }).finally(() => { clearTimeout(slow); busy = false; });
-  } catch { quarantine(screen.handoffFailure); busy = false; }
-  element('retry').textContent = screen.backToHa;
+  } catch { quarantine('handoffFailure', 'installer'); busy = false; }
+  message('retry', 'backToHa');
 } else {
-  quarantine(screen.handoffFailure);
-  element('retry').textContent = screen.backToHa;
+  quarantine('handoffFailure', 'installer');
+  message('retry', 'backToHa');
 }
+
+translatePage();

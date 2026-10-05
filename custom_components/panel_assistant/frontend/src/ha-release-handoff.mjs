@@ -1,3 +1,4 @@
+import { frontendLocale } from './frontend-localization.mjs';
 import { MAX_FEED_BYTES, MAX_TAG_LENGTH, isBuildTag, isGithubTag } from './release-identity.mjs';
 
 const API = '/api/panel_assistant/usb/release';
@@ -73,7 +74,7 @@ async function readBounded(response, limit, signal, exactSize = null) {
 
 /** Call directly from a user click with an application-approved installer URL. */
 export function startReleaseHandoff(hass, installerUrl, {
-  rcTag = null, onState = () => {}, windowObject = window, timeoutMs = 300000,
+  rcTag = null, language = hass?.language, onState = () => {}, windowObject = window, timeoutMs = 300000,
 } = {}) {
   let resolveCompletion;
   let rejectCompletion;
@@ -246,6 +247,7 @@ export function startReleaseHandoff(hass, installerUrl, {
     requireValid(!url.username && !url.password && !url.hash &&
       (url.protocol === 'https:' || (url.protocol === 'http:' &&
         ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname))), 'invalid_destination');
+    url.searchParams.set('lang', frontendLocale(language));
     targetOrigin = url.origin;
     const random = new Uint8Array(16);
     windowObject.crypto.getRandomValues(random);

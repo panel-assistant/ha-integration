@@ -75,8 +75,10 @@ async def test_a_lost_route_is_noticed_although_nothing_else_changed(
     issue = _issue(hass, entry)
     assert issue is not None
     assert issue.translation_key == "no_update_route"
-    assert issue.translation_placeholders["panel"] == "Study display"
-    assert issue.translation_placeholders["reason"]
+    assert issue.translation_placeholders == {"panel": "Study display"}
+    # Raw details remain available to support without being interpolated into
+    # the user's translated Repair.
+    assert route.entity.extra_state_attributes["update_unavailable_reason"]
 
 
 async def test_a_panel_that_can_install_for_itself_again_is_let_off(

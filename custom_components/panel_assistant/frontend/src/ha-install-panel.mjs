@@ -1,39 +1,16 @@
+import { ENGLISH_MESSAGES, frontendMessages, frontendLocale, formatFrontendMessage } from './frontend-localization.mjs';
 import { startReleaseHandoff } from './ha-release-handoff.mjs';
 import { fetchReleaseCatalog } from './release-catalog.mjs';
-import { BRAND_ICON, WIZARD_CSS, journeyHtml } from './wizard-look.mjs';
+import { BRAND_ICON, WIZARD_CSS, journeyHtml, renderJourney } from './wizard-look.mjs';
 
 // Stable keys keep presentation separate from the release-transfer protocol.
 // This is the first stop of the same wizard the installer window and the
 // panel's own setup continue, so it speaks the same plain one-line language.
-export const HA_INSTALL_MESSAGES = Object.freeze({
-  title: 'Install ha-paneld on a panel',
-  introduction: 'Plug the panel into this computer with a USB cable. A new window will find it and install the app.',
-  release: 'Version',
-  loading: 'Loading versions…',
-  catalogError: 'The list of versions couldn’t be loaded.',
-  empty: 'No versions are available yet. Try again later.',
-  choose: 'Follow Panel Assistant’s channel (recommended)',
-  testing: 'test version',
-  devBuild: 'dev build',
-  retry: 'Try again',
-  start: 'Continue',
-  cancel: 'Cancel',
-  ready: '',
-  unavailable: 'The installer isn’t available. Update Panel Assistant, then try again.',
-  admin: 'Ask a Home Assistant administrator to install panels.',
-  waiting: 'Continue in the new window.',
-  preparing: 'Getting the app ready…',
-  downloading: 'Getting the app ready…',
-  verifying: 'Getting the app ready…',
-  verified: 'Continue in the new window.',
-  cancelled: 'Cancelled.',
-  popup_blocked: 'Your browser blocked the new window. Allow pop-ups for this page, then press Continue.',
-  invalid_request: 'Choose a version first.',
-  failed: 'That didn’t work. Press Continue to try again.',
-});
+export const HA_INSTALL_MESSAGES = Object.freeze(ENGLISH_MESSAGES.haInstall);
 
 export class HaPaneldUsbInstallPanel extends HTMLElement {
   #hass;
+  get #messages() { return frontendMessages('haInstall', this.#hass?.language); }
   #panel;
   #transfer;
   // A finished transfer keeps answering a reloaded installer window until this
@@ -52,7 +29,7 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
       .card p.status{color:var(--text);margin:14px 0 0}
     </style><main class="wiz">
       <div class="wiz-brand"><img src="${BRAND_ICON}" alt=""><span>ha-paneld</span></div>
-      <ol class="wiz-dots" aria-label="Progress">${journeyHtml(0)}</ol>
+      <ol id="journey" class="wiz-dots">${journeyHtml(0)}</ol>
       <section class="card">
         <h2 data-message="title"></h2>
         <p class="lead" data-message="introduction"></p>
@@ -66,7 +43,7 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
       </section>
     </main>`;
     for (const element of this.shadowRoot.querySelectorAll('[data-message]')) {
-      element.textContent = HA_INSTALL_MESSAGES[element.dataset.message];
+      element.textContent = this.#messages[element.dataset.message];
     }
     this.shadowRoot.querySelector('#start').addEventListener('click', () => this.#start());
     this.shadowRoot.querySelector('#cancel').addEventListener('click', () => this.#transfer?.cancel());
@@ -112,15 +89,15 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
       const select = this.shadowRoot.querySelector('#release');
       const placeholder = document.createElement('option');
       placeholder.value = '';
-      placeholder.textContent = HA_INSTALL_MESSAGES.choose;
+      placeholder.textContent = this.#messages.choose;
       placeholder.disabled = false;
       select.append(placeholder);
       for (const release of releases) {
         const option = document.createElement('option');
         option.value = release.tag;
         // A dev build from the signed feed is named by version and build number.
-        const note = release.name ? HA_INSTALL_MESSAGES.devBuild
-          : release.prerelease ? HA_INSTALL_MESSAGES.testing : '';
+        const note = release.name ? this.#messages.devBuild
+          : release.prerelease ? this.#messages.testing : '';
         option.textContent = `${release.name ?? release.tag.replace(/^v/, '')}${note ? ` (${note})` : ''}`;
         select.append(option);
       }
@@ -133,6 +110,21 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
     }
   }
   #render() {
+    const root = this.shadowRoot;
+    const language = this.#hass?.language;
+    if (this.isConnected) this.setAttribute?.('lang', frontendLocale(language));
+    for (const node of root.querySelectorAll('[data-message]')) node.textContent = this.#messages[node.dataset.message];
+    const journey = root.querySelector('#journey');
+    journey.setAttribute('aria-label', frontendMessages('installer', language).progress);
+    renderJourney(journey, 0, document, language);
+    const options = root.querySelector('#release').children;
+    if (options.length) {
+      options[0].textContent = this.#messages.choose;
+      for (const [index, release] of this.#releases.entries()) {
+        const note = release.name ? this.#messages.devBuild : release.prerelease ? this.#messages.testing : '';
+        options[index + 1].textContent = `${release.name ?? release.tag.replace(/^v/, '')}${note ? ` (${note})` : ''}`;
+      }
+    }
     const allowed = this.#hass?.user?.is_admin === true;
     const configured = typeof this.#panel?.config?.installer_url === 'string' &&
       this.#panel.config.installer_url.length > 0;
@@ -142,13 +134,13 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
     this.shadowRoot.querySelector('#cancel').disabled = !this.#transfer;
     this.shadowRoot.querySelector('#release').disabled = Boolean(this.#transfer) || this.#catalogState !== 'ready';
     const catalog = this.shadowRoot.querySelector('#catalog-status');
-    catalog.textContent = allowed && configured && this.#catalogState !== 'ready' ? HA_INSTALL_MESSAGES[this.#catalogState] : '';
+    catalog.textContent = allowed && configured && this.#catalogState !== 'ready' ? this.#messages[this.#catalogState] : '';
     catalog.hidden = !catalog.textContent;
     this.shadowRoot.querySelector('#retry').hidden = !allowed || !configured || !['catalogError', 'empty'].includes(this.#catalogState);
     this.shadowRoot.querySelector('#cancel').hidden = !this.#transfer;
     const key = !allowed ? 'admin' : !configured ? 'unavailable' : this.#status;
     const status = this.shadowRoot.querySelector('#status');
-    status.textContent = Object.hasOwn(HA_INSTALL_MESSAGES, key) ? HA_INSTALL_MESSAGES[key] : HA_INSTALL_MESSAGES.failed;
+    status.textContent = Object.hasOwn(this.#messages, key) ? this.#messages[key] : this.#messages.failed;
     status.hidden = !status.textContent;
   }
   #start() {
@@ -160,6 +152,7 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
     this.#served = undefined;
     const transfer = startReleaseHandoff(this.#hass, this.#panel?.config?.installer_url, {
       rcTag: selection || null,
+      language: frontendLocale(this.#hass?.language),
       onState: state => { this.#status = state; this.#render(); },
     });
     this.#transfer = transfer;

@@ -366,7 +366,7 @@
     },
     "no_update_route": {
       "title": "{panel} nie może otrzymywać aktualizacji aplikacji",
-      "description": "Panel Assistant nie może zainstalować aktualizacji aplikacji na {panel}, więc pozostaje on w bieżącej wersji. Wszystko inne w panelu działa dalej, dlatego łatwo to przeoczyć. Zwykle dzieje się tak po zmianie wprowadzonej na samym panelu, takiej jak aktualizacja oprogramowania układowego lub przywrócenie ustawień. Wybierz Dowiedz się więcej, aby poznać kroki dla tego panelu. Zgłoszono: {reason}"
+      "description": "Panel Assistant nie może zainstalować aktualizacji aplikacji na {panel}, więc aplikacja pozostaje w bieżącej wersji. Wszystko inne w panelu działa dalej, dlatego łatwo to przeoczyć. Zwykle dzieje się tak po zmianie wprowadzonej na samym panelu, takiej jak aktualizacja oprogramowania układowego lub przywrócenie ustawień. Wybierz Dowiedz się więcej, aby poznać kroki dla tego panelu."
     },
     "merged_panel_identity": {
       "title": "Rozdziel scalone panele: {panels}",

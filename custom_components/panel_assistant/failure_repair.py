@@ -473,34 +473,23 @@ async def async_support_report(hass: HomeAssistant, issue_id: str) -> str:
             return [f"{path}:", *(f"  {line}" for line in escaped.split("\n"))]
         return [f"{path}: {escaped}"]
 
-    def summary(value: Any) -> str:
-        single_line = str(value).replace("\r", " ").replace("\n", " ")
-        return re.sub(r"([\\`*\[\]<>])", r"\\\1", single_line)
-
-    lines = [
-        "## Panel Assistant support report",
-        f"**Panel Assistant:** {INTEGRATION_VERSION} build {INTEGRATION_BUILD}  ",
-        f"**Home Assistant:** {ha_version}  ",
-        f"**Repair:** {issue_id}",
-    ]
-    for index, event in enumerate(events, start=1):
-        details = "\n".join(detail_lines("", event))
-        longest_ticks = max((len(run) for run in re.findall(r"`+", details)), default=0)
-        fence = "`" * max(3, longest_ticks + 1)
-        lines.extend(
-            (
-                "",
-                f"### Failure {index} — {summary(event.get('kind', 'unknown'))}",
-                f"**Panel:** {summary(event.get('panel', 'unknown'))}  ",
-                f"**Reason:** {summary(event.get('reason', 'unknown'))}",
-                "",
-                "Full details:",
-                f"{fence}text",
-                details,
-                fence,
-            )
+    details = "\n".join(
+        detail_lines(
+            "",
+            {
+                "panel_assistant": {
+                    "version": INTEGRATION_VERSION,
+                    "build": INTEGRATION_BUILD,
+                },
+                "home_assistant": {"version": ha_version},
+                "repair": {"issue_id": issue_id},
+                "events": events,
+            },
         )
-    return "\n".join(lines)
+    )
+    longest_ticks = max((len(run) for run in re.findall(r"`+", details)), default=0)
+    fence = "`" * max(3, longest_ticks + 1)
+    return f"{fence}text\n{details}\n{fence}"
 
 
 async def async_retry_install_job(

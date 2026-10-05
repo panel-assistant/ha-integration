@@ -8,6 +8,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.components.assist_pipeline import PipelineEvent, PipelineEventType
+from homeassistant.components.assist_satellite.const import DATA_COMPONENT
+from homeassistant.components.assist_satellite.entity import AssistSatelliteAnnouncement
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
@@ -19,6 +21,7 @@ from pytest_homeassistant_custom_component.common import (
     flush_store,
 )
 
+from custom_components.panel_assistant.client import HaPaneldError
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.device import panel_display_name
 from custom_components.panel_assistant.identity import CONF_INSTALL_IDENTITY
@@ -284,6 +287,31 @@ async def test_the_selector_reads_the_panels_wake_words_and_writes_them_back(
     written.assert_awaited_once_with(["hey_jarvis"])
 
 
+async def test_rejected_wake_words_return_a_translatable_error_to_the_selector(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+) -> None:
+    await _ready(hass, hass_ws_client, hass_read_only_access_token, entry)
+    admin = await hass_ws_client(hass)
+    with patch(
+        "custom_components.panel_assistant.client.HaPaneldClient.async_set_voice_wake_words",
+        AsyncMock(side_effect=HaPaneldError("rejected")),
+    ):
+        response = await _send(
+            admin,
+            {
+                "type": "assist_satellite/set_wake_words",
+                "entity_id": _satellite(hass, entry),
+                "wake_word_ids": ["hey_jarvis"],
+            },
+        )
+    assert response["success"] is False
+    assert response["error"]["translation_domain"] == DOMAIN
+    assert response["error"]["translation_key"] == "voice_wake_words_rejected"
+
+
 async def _run(
     panel: Panel, wake_word_id: str | None, **fields: Any
 ) -> tuple[int, int]:
@@ -461,9 +489,66 @@ async def test_an_announcement_fails_when_its_session_ends(
     # The panel reconnects: the first session is superseded, and nothing it was
     # asked to play can finish on the new one.
     await _connect(hass, hass_ws_client, hass_read_only_access_token)
-    with pytest.raises(HomeAssistantError):
+    with pytest.raises(HomeAssistantError) as raised:
         async with asyncio.timeout(5):
             await call
+    assert raised.value.translation_domain == DOMAIN
+    assert raised.value.translation_key == "voice_announcement_disconnected"
+
+
+async def test_an_announcement_timeout_returns_a_translatable_service_error(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    panel, entity_id = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    monkeypatch.setattr(
+        "custom_components.panel_assistant.assist_satellite.ANNOUNCE_TIMEOUT", 0.01
+    )
+    with pytest.raises(HomeAssistantError) as raised:
+        await hass.services.async_call(
+            "assist_satellite",
+            "announce",
+            {"entity_id": entity_id, "media_id": "/local/a.mp3", "preannounce": False},
+            blocking=True,
+        )
+    assert (await panel.receive())["event"]["kind"] == "voice_announce"
+    assert raised.value.translation_domain == DOMAIN
+    assert raised.value.translation_key == "voice_announcement_timeout"
+
+
+@pytest.mark.parametrize("connected", [True, False])
+async def test_unavailable_announcement_returns_the_specific_translatable_error(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+    connected: bool,
+) -> None:
+    panel, entity_id = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    satellite = hass.data[DATA_COMPONENT].get_entity(entity_id)
+    assert satellite is not None
+    if connected:
+        assert (await panel.configure(enabled=False))["success"]
+    else:
+        await panel.client.close()
+    await hass.async_block_till_done()
+    # Core can call this hook after waiting for a previous turn; availability
+    # may have changed since the service was admitted.
+    with pytest.raises(HomeAssistantError) as raised:
+        await satellite.async_announce(
+            AssistSatelliteAnnouncement("", "/local/a.mp3", "/local/a.mp3", None, "url")
+        )
+    assert raised.value.translation_domain == DOMAIN
+    assert raised.value.translation_key == (
+        "voice_assistant_off" if connected else "voice_panel_not_connected"
+    )
 
 
 async def _colors(panel: Panel) -> dict[str, str]:

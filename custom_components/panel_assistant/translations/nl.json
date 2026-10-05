@@ -366,7 +366,7 @@
     },
     "no_update_route": {
       "title": "{panel} kan geen app-updates ontvangen",
-      "description": "Panel Assistant kan geen app-updates installeren op {panel}, dus het blijft op de huidige versie. Al het andere op het paneel blijft werken, waardoor dit gemakkelijk over het hoofd wordt gezien. Meestal volgt het op een wijziging op het paneel zelf, zoals een firmware-update of een reset. Kies Meer informatie voor de stappen voor dit paneel. Gemeld: {reason}"
+      "description": "Panel Assistant kan geen app-updates installeren op {panel}, dus de app blijft op de huidige versie. Al het andere op het paneel blijft werken, waardoor dit gemakkelijk over het hoofd wordt gezien. Meestal volgt het op een wijziging op het paneel zelf, zoals een firmware-update of een reset. Kies Meer informatie voor de stappen voor dit paneel."
     },
     "merged_panel_identity": {
       "title": "Maak de samengevoegde panelen weer apart: {panels}",

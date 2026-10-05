@@ -75,7 +75,7 @@ class HaPaneldStatusSensor(PanelCoordinatorEntity, SensorEntity):
     def native_value(self) -> str:
         """Return whether the panel answers polls, or only holds its session."""
         if (notice := self.coordinator.restart_notice) is not None:
-            return f"Restarting ({notice.reason})"
+            return f"restarting_{notice.reason}"
         return "online" if self.coordinator.last_update_success else "connected"
 
     @property

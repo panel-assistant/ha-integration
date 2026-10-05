@@ -259,7 +259,9 @@ class PanelAssistSatellite(AssistSatelliteEntity):
                 list(config.active_wake_words)
             )
         except HaPaneldError as err:
-            raise HomeAssistantError("The panel did not accept the wake words") from err
+            raise HomeAssistantError(
+                translation_domain=DOMAIN, translation_key="voice_wake_words_rejected"
+            ) from err
 
     @callback
     def _resolve_pipeline(self) -> str | None:
@@ -367,10 +369,14 @@ class PanelAssistSatellite(AssistSatelliteEntity):
     ) -> None:
         session = self._session
         if session is None:
-            raise HomeAssistantError("The panel is not connected")
+            raise HomeAssistantError(
+                translation_domain=DOMAIN, translation_key="voice_panel_not_connected"
+            )
         if not self.available:
             # Also reached late: Core first waits for a turn in progress to end.
-            raise HomeAssistantError("The panel's voice assistant is off")
+            raise HomeAssistantError(
+                translation_domain=DOMAIN, translation_key="voice_assistant_off"
+            )
         announce_id = secrets.token_urlsafe(12)
         future: asyncio.Future[bool] = self.hass.loop.create_future()
         self._announcements[announce_id] = (session.token, future)
@@ -395,9 +401,12 @@ class PanelAssistSatellite(AssistSatelliteEntity):
                 played = await future
         except TimeoutError as err:
             raise HomeAssistantError(
-                "The panel did not finish the announcement"
+                translation_domain=DOMAIN, translation_key="voice_announcement_timeout"
             ) from err
         finally:
             self._announcements.pop(announce_id, None)
         if not played:
-            raise HomeAssistantError("The panel disconnected during the announcement")
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="voice_announcement_disconnected",
+            )

@@ -56,7 +56,7 @@ def read_installed_build(root: Path | None = None) -> Build | None:
 
 
 def _label(build: Build) -> str:
-    return f"{build[0]} (build {build[1]})"
+    return f"{build[0]} ({build[1]})"
 
 
 async def async_check_restart_needed(

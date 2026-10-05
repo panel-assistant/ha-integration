@@ -87,13 +87,8 @@ def panel_device_info(
 
 
 def version_with_build(version: str, build: int) -> str:
-    """Write a version and its build number the way the panel's MQTT card did.
-
-    Not the Update entity's `0.9.8 build 904`, which is a version it parses
-    back; this is text on a device card, where panels moving off MQTT keep
-    reading what they read before.
-    """
-    return f"{version} (build {build})"
+    """Display the exact version and build number without language-specific prose."""
+    return f"{version} ({build})"
 
 
 def _software_version(

@@ -1,47 +1,5 @@
+import { ENGLISH_MESSAGES } from './frontend-localization.mjs';
 // Everything the installer says to the person using it. They may never have
 // used a terminal, so every string is one plain sentence about what to do or
 // what is happening. Technical detail belongs behind "Details for support".
-export const INSTALL_SCREEN_MESSAGES = Object.freeze({
-  title: 'Set up your panel',
-  preparing: 'Getting the app ready…',
-  preparingSlow: 'Still getting the app ready. Keep the Home Assistant tab open.',
-  connectHeading: 'Connect your panel',
-  connectBody: 'Plug the panel into this computer with a USB cable, then press Find my panel.',
-  connect: 'Find my panel',
-  allowHeading: 'Allow this computer',
-  allowBody: 'Look at the panel’s screen and tap Allow.',
-  checkingPanel: 'Checking your panel…',
-  confirmHeading: 'Ready to install',
-  confirmBody: 'This installs the app and makes it your panel’s home screen. Your other apps are not touched.',
-  install: 'Install',
-  // A version was chosen in Home Assistant after an earlier attempt at another
-  // one stopped part-way. Say what happened to it in one sentence; the person
-  // still presses Install once, and chooses nothing further.
-  restartedDifferentVersion: 'Your panel had started on a different version. That attempt has been set aside.',
-  alreadyInstalledHeading: 'Already installed',
-  alreadyInstalledBody: 'This version is already on your panel. Continue to finish setting it up; nothing is copied or reinstalled.',
-  continueSetup: 'Continue',
-  progressHeading: 'Installing',
-  stepCopying: 'Copying the app to your panel…',
-  stepFinishingCopy: 'Finishing the copy…',
-  stepInstalling: 'Installing…',
-  stepStarting: 'Starting the app…',
-  stepPermissions: 'Giving the app what it needs to run…',
-  stepOpening: 'Opening your panel’s setup…',
-  keepConnected: 'Keep the cable plugged in until this finishes.',
-  doneHeading: 'Installed',
-  doneOpening: 'Taking you to your panel’s setup…',
-  doneManual: 'Finish setting up on the panel’s screen.',
-  openSetup: 'Open panel setup',
-  errorHeading: 'That didn’t work',
-  tryAgain: 'Try again',
-  backToHa: 'Back to Home Assistant',
-  details: 'Details for support',
-  unsupported: 'This browser can’t talk to USB devices. Open this page in Chrome or Edge on a computer.',
-  handoffFailure: 'The app couldn’t be fetched from Home Assistant. Go back to Home Assistant and start again.',
-  noSelection: 'No panel was chosen. Press Find my panel and pick it from the list, or try another cable: some cables power the panel but carry no data.',
-  connectionTimeout: 'The panel didn’t answer. Check the cable is firmly in, or swap it: a cable can power the panel and still carry no data.',
-  disconnected: 'The panel was disconnected. Plug it back in, wait for it to start, then press Try again.',
-  cancelled: 'Cancelled.',
-  pageClosed: 'The page was closed.',
-});
+export const INSTALL_SCREEN_MESSAGES = Object.freeze(ENGLISH_MESSAGES.installer);
