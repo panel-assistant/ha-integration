@@ -319,8 +319,7 @@ async def test_waiting_panel_is_probed_once_however_often_the_network_wakes(
     for _ in range(3):
         await _network_device_seen(hass)
     # A renamed device is still the card already waiting, not a second one.
-    device = dr.async_get(hass).async_get_device(identifiers={("mobile_app", "a")})
-    assert device is not None
+    (device,) = dr.async_get(hass).async_get_devices(identifiers={("mobile_app", "a")})
     dr.async_get(hass).async_update_device(device.id, name_by_user="Hall screen")
     freezer.tick(3601)
     await _network_device_seen(hass)

@@ -231,12 +231,14 @@ async def test_browser_bundle_carries_the_exact_signed_feed(
 # --- the network path accepts it end to end ----------------------------------------
 
 
-def test_install_plan_accepts_a_feed_build_only_when_it_was_chosen() -> None:
+def test_install_plan_refuses_a_feed_build_when_another_was_chosen() -> None:
     release = feed_release_artifact(_build())
     artifact = _build_artifact(release, "build-772")
     assert artifact.release_tag == "build-772"
     assert artifact.version_code == 772
-    for expected in (None, "build-771", "v0.9.7-rc3"):
+    # With no choice the recommended signed build is admitted (first install).
+    assert _build_artifact(release, None).release_tag == "build-772"
+    for expected in ("build-771", "v0.9.7-rc3"):
         with pytest.raises(InstallPlanError):
             _build_artifact(release, expected)
 
