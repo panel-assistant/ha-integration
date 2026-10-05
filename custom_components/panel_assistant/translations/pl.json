@@ -154,16 +154,286 @@
         "name": "Status",
         "state": {
           "online": "Online",
-          "connected": "Połączenie nawiązane, adres niedostępny"
+          "connected": "Połączenie nawiązane, adres niedostępny",
+          "restarting_reboot": "Ponowne uruchamianie (restart systemu)",
+          "restarting_recovery": "Ponowne uruchamianie (odzyskiwanie)",
+          "restarting_settings": "Ponowne uruchamianie (ustawienia)",
+          "restarting_update": "Ponowne uruchamianie (aktualizacja)"
         }
       },
       "panel_assistant_version": {
         "name": "Wersja Panel Assistant"
+      },
+      "diag_boot": {
+        "name": "Czas ostatniego uruchomienia"
+      },
+      "diag_cpu": {
+        "name": "Użycie CPU"
+      },
+      "diag_ip": {
+        "name": "Adres IP"
+      },
+      "diag_memory": {
+        "name": "Użycie pamięci"
+      },
+      "diag_soc_temp": {
+        "name": "Temperatura SoC"
+      },
+      "diag_wifi_outages_24h": {
+        "name": "Przerwy w połączeniu Wi-Fi (24 h)",
+        "state_attributes": {
+          "is_lower_bound": {
+            "name": "Dolna granica"
+          }
+        }
+      },
+      "diag_wifi_rssi": {
+        "name": "Siła sygnału Wi-Fi"
+      },
+      "diag_wifi_ssid": {
+        "name": "Sieć Wi-Fi"
+      },
+      "humidity": {
+        "name": "Wilgotność"
+      },
+      "illuminance": {
+        "name": "Natężenie oświetlenia"
+      },
+      "proximity_level": {
+        "name": "Poziom zbliżenia"
+      },
+      "room_humidity": {
+        "name": "Wilgotność w pomieszczeniu"
+      },
+      "room_temp": {
+        "name": "Temperatura w pomieszczeniu"
+      },
+      "storage_health": {
+        "name": "Stan pamięci masowej",
+        "state": {
+          "critical": "Krytyczny",
+          "database_failure": "Awaria bazy danych",
+          "healthy": "Prawidłowy",
+          "unchecked": "Nie sprawdzono",
+          "warning": "Ostrzeżenie"
+        },
+        "state_attributes": {
+          "auto_vacuum": {
+            "name": "Automatyczne odzyskiwanie miejsca"
+          },
+          "checked_at_epoch_seconds": {
+            "name": "Czas sprawdzenia"
+          },
+          "database_files_bytes": {
+            "name": "Rozmiar plików bazy danych"
+          },
+          "database_sidecar_bytes": {
+            "name": "Rozmiar plików pomocniczych bazy danych"
+          },
+          "failure_category": {
+            "name": "Kategoria awarii"
+          },
+          "failure_operation": {
+            "name": "Nieudana operacja"
+          },
+          "freelist_count": {
+            "name": "Wolne strony"
+          },
+          "main_database_bytes": {
+            "name": "Rozmiar głównej bazy danych"
+          },
+          "page_count": {
+            "name": "Strony"
+          },
+          "page_size_bytes": {
+            "name": "Rozmiar strony"
+          },
+          "quick_check": {
+            "name": "Szybkie sprawdzenie"
+          },
+          "schema_version": {
+            "name": "Wersja schematu"
+          },
+          "storage_pressure": {
+            "name": "Niedobór miejsca w pamięci masowej"
+          },
+          "total_bytes": {
+            "name": "Całkowita pojemność pamięci masowej"
+          },
+          "usable_bytes": {
+            "name": "Dostępne miejsce w pamięci masowej"
+          },
+          "used_percent": {
+            "name": "Wykorzystanie pamięci masowej"
+          },
+          "wal_bytes": {
+            "name": "Rozmiar dziennika zapisu z wyprzedzeniem"
+          }
+        }
+      },
+      "temperature": {
+        "name": "Temperatura"
       }
     },
     "update": {
       "paneld_update": {
         "name": "Aktualizacja ha-paneld"
+      },
+      "update_companion": {
+        "name": "Aplikacja Companion"
+      }
+    },
+    "binary_sensor": {
+      "auto_sleep_activity": {
+        "name": "Aktywność dla automatycznego usypiania"
+      },
+      "proximity": {
+        "name": "Zbliżenie"
+      }
+    },
+    "button": {
+      "reboot": {
+        "name": "Uruchom ponownie"
+      },
+      "reload": {
+        "name": "Wczytaj panel ponownie"
+      }
+    },
+    "camera": {
+      "camera": {
+        "name": "Kamera"
+      }
+    },
+    "event": {
+      "button": {
+        "name": "Przycisk"
+      }
+    },
+    "image": {
+      "camera_snapshot": {
+        "name": "Zdjęcie z kamery"
+      }
+    },
+    "light": {
+      "button_led": {
+        "name": "LED przycisku {index}"
+      },
+      "buttons": {
+        "name": "Podświetlenie przycisków"
+      },
+      "led": {
+        "name": "LED",
+        "state_attributes": {
+          "effect": {
+            "state": {
+              "blink": "Miganie",
+              "none": "Brak",
+              "pulse": "Pulsowanie",
+              "strobe": "Stroboskop"
+            }
+          }
+        }
+      },
+      "screen": {
+        "name": "Ekran"
+      }
+    },
+    "media_player": {
+      "media": {
+        "name": "Odtwarzacz multimediów"
+      }
+    },
+    "number": {
+      "volume": {
+        "name": "Głośność"
+      }
+    },
+    "select": {
+      "companion_update_channel": {
+        "name": "Kanał automatycznych aktualizacji Companion",
+        "state": {
+          "prerelease": "Przedpremierowy",
+          "stable": "Stabilny"
+        }
+      },
+      "cpu_governor": {
+        "name": "Profil CPU",
+        "state": {
+          "auto": "Automatyczny",
+          "efficiency": "Oszczędność energii",
+          "performance": "Wydajność"
+        }
+      },
+      "navbar": {
+        "name": "Pasek nawigacji",
+        "state": {
+          "always_on": "Zawsze włączony",
+          "native": "Systemowy",
+          "off": "Wyłączony",
+          "swipe_reveal": "Pokaż po przesunięciu"
+        }
+      },
+      "update_channel": {
+        "name": "Kanał automatycznych aktualizacji ha-paneld",
+        "state": {
+          "prerelease": "Przedpremierowy",
+          "stable": "Stabilny"
+        }
+      }
+    },
+    "switch": {
+      "auto_brightness": {
+        "name": "Automatyczna jasność"
+      },
+      "auto_sleep": {
+        "name": "Automatyczne usypianie"
+      },
+      "camera_enabled": {
+        "name": "Kamera"
+      },
+      "companion_auto_update": {
+        "name": "Automatyczne aktualizacje Companion"
+      },
+      "kiosk_lock": {
+        "name": "Blokada panelu Android"
+      },
+      "network_adb": {
+        "name": "ADB przez sieć"
+      },
+      "prevent_idle_dim": {
+        "name": "Zapobiegaj przyciemnianiu podczas bezczynności"
+      },
+      "relay": {
+        "name": "Przekaźnik {index}"
+      },
+      "self_update": {
+        "name": "Automatyczne aktualizacje ha-paneld"
+      },
+      "silence_boot_chime": {
+        "name": "Wycisz dźwięk uruchamiania"
+      },
+      "touch_sound": {
+        "name": "Dźwięk dotyku"
+      },
+      "wake_on_wave": {
+        "name": "Wybudzanie ruchem dłoni"
+      },
+      "watchdog": {
+        "name": "Mechanizm nadzorczy"
+      },
+      "webview_auto_update": {
+        "name": "Automatyczne aktualizacje WebView"
+      },
+      "zigbee_router": {
+        "name": "Router Zigbee"
+      }
+    },
+    "text": {
+      "home_dashboard": {
+        "name": "Panel główny"
+      },
+      "navigate": {
+        "name": "Przejdź"
       }
     }
   },
@@ -231,6 +501,63 @@
     },
     "adb_authorization_required": {
       "message": "Brakuje autoryzacji ADB dla panelu {panel}. Otwórz Naprawy w Home Assistant, aby autoryzować aktualizacje, a następnie zatwierdź „Zezwól na debugowanie” na fizycznym panelu, gdy pojawi się monit."
+    },
+    "approval_denied": {
+      "message": "Odmówiono wykonania polecenia na ekranie samego panelu"
+    },
+    "approval_pending": {
+      "message": "Polecenie czeka na zatwierdzenie na ekranie samego panelu"
+    },
+    "approval_timeout": {
+      "message": "Nie zatwierdzono polecenia na ekranie panelu w wymaganym czasie"
+    },
+    "authority_mismatch": {
+      "message": "Ten panel jest sterowany przez MQTT, więc Panel Assistant nie może wysyłać do niego poleceń"
+    },
+    "expired": {
+      "message": "Panel był zbyt zajęty, aby wykonać polecenie w wymaganym czasie"
+    },
+    "failed": {
+      "message": "Panel nie mógł wykonać polecenia"
+    },
+    "hardware_unavailable": {
+      "message": "Sprzęt panelu potrzebny do tego polecenia jest niedostępny"
+    },
+    "invalid_value": {
+      "message": "Panel odrzucił tę wartość"
+    },
+    "not_commandable": {
+      "message": "Panel nie zgłosił gotowości do przyjmowania poleceń od Panel Assistant"
+    },
+    "panel_identity_conflict": {
+      "message": "Tożsamość panelu jest sprzeczna z tożsamościami jego zapisanych encji"
+    },
+    "panel_unavailable": {
+      "message": "Panel nie jest połączony z Panel Assistant, więc polecenie nie zostało wysłane"
+    },
+    "refused_hardened": {
+      "message": "Tryb Hardened panelu nie pozwala na wykonanie tego polecenia"
+    },
+    "unknown_channel": {
+      "message": "Panel nie ma obecnie tej encji"
+    },
+    "unknown_command": {
+      "message": "Panel nie zna tego polecenia"
+    },
+    "voice_announcement_disconnected": {
+      "message": "Panel rozłączył się podczas komunikatu głosowego"
+    },
+    "voice_announcement_timeout": {
+      "message": "Panel nie dokończył komunikatu głosowego"
+    },
+    "voice_assistant_off": {
+      "message": "Asystent głosowy panelu jest wyłączony"
+    },
+    "voice_panel_not_connected": {
+      "message": "Panel nie jest połączony"
+    },
+    "voice_wake_words_rejected": {
+      "message": "Panel nie zaakceptował słów wybudzających"
     }
   },
   "issues": {

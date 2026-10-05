@@ -154,16 +154,286 @@
         "name": "Status",
         "state": {
           "online": "Online",
-          "connected": "Verbonden, adres niet bereikbaar"
+          "connected": "Verbonden, adres niet bereikbaar",
+          "restarting_reboot": "Opnieuw starten (herstart)",
+          "restarting_recovery": "Opnieuw starten (herstel)",
+          "restarting_settings": "Opnieuw starten (instellingen)",
+          "restarting_update": "Opnieuw starten (update)"
         }
       },
       "panel_assistant_version": {
         "name": "Panel Assistant-versie"
+      },
+      "diag_boot": {
+        "name": "Laatste opstarttijd"
+      },
+      "diag_cpu": {
+        "name": "CPU-gebruik"
+      },
+      "diag_ip": {
+        "name": "IP-adres"
+      },
+      "diag_memory": {
+        "name": "Geheugengebruik"
+      },
+      "diag_soc_temp": {
+        "name": "SoC-temperatuur"
+      },
+      "diag_wifi_outages_24h": {
+        "name": "Wi-Fi-uitval (24 u)",
+        "state_attributes": {
+          "is_lower_bound": {
+            "name": "Ondergrens"
+          }
+        }
+      },
+      "diag_wifi_rssi": {
+        "name": "Wi-Fi-signaalsterkte"
+      },
+      "diag_wifi_ssid": {
+        "name": "Wi-Fi-netwerk"
+      },
+      "humidity": {
+        "name": "Luchtvochtigheid"
+      },
+      "illuminance": {
+        "name": "Verlichtingssterkte"
+      },
+      "proximity_level": {
+        "name": "Nabijheidsniveau"
+      },
+      "room_humidity": {
+        "name": "Luchtvochtigheid in de ruimte"
+      },
+      "room_temp": {
+        "name": "Temperatuur in de ruimte"
+      },
+      "storage_health": {
+        "name": "Opslagconditie",
+        "state": {
+          "critical": "Kritiek",
+          "database_failure": "Databasefout",
+          "healthy": "Gezond",
+          "unchecked": "Niet gecontroleerd",
+          "warning": "Waarschuwing"
+        },
+        "state_attributes": {
+          "auto_vacuum": {
+            "name": "Automatisch opschonen"
+          },
+          "checked_at_epoch_seconds": {
+            "name": "Gecontroleerd op"
+          },
+          "database_files_bytes": {
+            "name": "Grootte van databasebestanden"
+          },
+          "database_sidecar_bytes": {
+            "name": "Grootte van databasebijbestanden"
+          },
+          "failure_category": {
+            "name": "Foutcategorie"
+          },
+          "failure_operation": {
+            "name": "Mislukte bewerking"
+          },
+          "freelist_count": {
+            "name": "Vrije pagina's"
+          },
+          "main_database_bytes": {
+            "name": "Grootte van de hoofddatabase"
+          },
+          "page_count": {
+            "name": "Pagina's"
+          },
+          "page_size_bytes": {
+            "name": "Paginagrootte"
+          },
+          "quick_check": {
+            "name": "Snelle controle"
+          },
+          "schema_version": {
+            "name": "Schemaversie"
+          },
+          "storage_pressure": {
+            "name": "Opslagdruk"
+          },
+          "total_bytes": {
+            "name": "Totale opslag"
+          },
+          "usable_bytes": {
+            "name": "Bruikbare opslag"
+          },
+          "used_percent": {
+            "name": "Gebruikte opslag"
+          },
+          "wal_bytes": {
+            "name": "Grootte van het voorafschrijflogboek"
+          }
+        }
+      },
+      "temperature": {
+        "name": "Temperatuur"
       }
     },
     "update": {
       "paneld_update": {
         "name": "ha-paneld-update"
+      },
+      "update_companion": {
+        "name": "Companion-app"
+      }
+    },
+    "binary_sensor": {
+      "auto_sleep_activity": {
+        "name": "Activiteit voor automatische slaapstand"
+      },
+      "proximity": {
+        "name": "Nabijheid"
+      }
+    },
+    "button": {
+      "reboot": {
+        "name": "Opnieuw opstarten"
+      },
+      "reload": {
+        "name": "Dashboard herladen"
+      }
+    },
+    "camera": {
+      "camera": {
+        "name": "Camera"
+      }
+    },
+    "event": {
+      "button": {
+        "name": "Knop"
+      }
+    },
+    "image": {
+      "camera_snapshot": {
+        "name": "Cameramomentopname"
+      }
+    },
+    "light": {
+      "button_led": {
+        "name": "LED voor knop {index}"
+      },
+      "buttons": {
+        "name": "Achtergrondverlichting van knoppen"
+      },
+      "led": {
+        "name": "LED",
+        "state_attributes": {
+          "effect": {
+            "state": {
+              "blink": "Knipperen",
+              "none": "Geen",
+              "pulse": "Pulseren",
+              "strobe": "Stroboscoop"
+            }
+          }
+        }
+      },
+      "screen": {
+        "name": "Scherm"
+      }
+    },
+    "media_player": {
+      "media": {
+        "name": "Mediaspeler"
+      }
+    },
+    "number": {
+      "volume": {
+        "name": "Volume"
+      }
+    },
+    "select": {
+      "companion_update_channel": {
+        "name": "Kanaal voor automatische Companion-updates",
+        "state": {
+          "prerelease": "Pre-release",
+          "stable": "Stabiel"
+        }
+      },
+      "cpu_governor": {
+        "name": "CPU-profiel",
+        "state": {
+          "auto": "Automatisch",
+          "efficiency": "Efficiëntie",
+          "performance": "Prestaties"
+        }
+      },
+      "navbar": {
+        "name": "Navigatiebalk",
+        "state": {
+          "always_on": "Altijd aan",
+          "native": "Systeembalk",
+          "off": "Uit",
+          "swipe_reveal": "Tonen met veegbeweging"
+        }
+      },
+      "update_channel": {
+        "name": "Kanaal voor automatische ha-paneld-updates",
+        "state": {
+          "prerelease": "Pre-release",
+          "stable": "Stabiel"
+        }
+      }
+    },
+    "switch": {
+      "auto_brightness": {
+        "name": "Automatische helderheid"
+      },
+      "auto_sleep": {
+        "name": "Automatische slaapstand"
+      },
+      "camera_enabled": {
+        "name": "Camera"
+      },
+      "companion_auto_update": {
+        "name": "Companion automatisch bijwerken"
+      },
+      "kiosk_lock": {
+        "name": "Android-dashboardvergrendeling"
+      },
+      "network_adb": {
+        "name": "ADB via het netwerk"
+      },
+      "prevent_idle_dim": {
+        "name": "Dimmen bij inactiviteit voorkomen"
+      },
+      "relay": {
+        "name": "Relais {index}"
+      },
+      "self_update": {
+        "name": "ha-paneld automatisch bijwerken"
+      },
+      "silence_boot_chime": {
+        "name": "Opstartgeluid uitschakelen"
+      },
+      "touch_sound": {
+        "name": "Aanraakgeluid"
+      },
+      "wake_on_wave": {
+        "name": "Activeren met een zwaaibeweging"
+      },
+      "watchdog": {
+        "name": "Bewakingsfunctie"
+      },
+      "webview_auto_update": {
+        "name": "WebView automatisch bijwerken"
+      },
+      "zigbee_router": {
+        "name": "Zigbee-router"
+      }
+    },
+    "text": {
+      "home_dashboard": {
+        "name": "Startdashboard"
+      },
+      "navigate": {
+        "name": "Navigeren"
       }
     }
   },
@@ -231,6 +501,63 @@
     },
     "adb_authorization_required": {
       "message": "ADB-autorisatie ontbreekt voor {panel}. Open Reparaties in Home Assistant om updates te autoriseren en keur op het fysieke paneel ‘Debuggen toestaan’ goed wanneer daarom wordt gevraagd."
+    },
+    "approval_denied": {
+      "message": "De opdracht is geweigerd op het eigen scherm van het paneel"
+    },
+    "approval_pending": {
+      "message": "De opdracht wacht op goedkeuring op het eigen scherm van het paneel"
+    },
+    "approval_timeout": {
+      "message": "De opdracht is niet op tijd goedgekeurd op het scherm van het paneel"
+    },
+    "authority_mismatch": {
+      "message": "Dit paneel wordt via MQTT bestuurd, dus Panel Assistant kan er geen opdrachten naartoe sturen"
+    },
+    "expired": {
+      "message": "Het paneel was te druk om de opdracht op tijd uit te voeren"
+    },
+    "failed": {
+      "message": "Het paneel kon de opdracht niet uitvoeren"
+    },
+    "hardware_unavailable": {
+      "message": "De hardware van het paneel voor deze opdracht is niet beschikbaar"
+    },
+    "invalid_value": {
+      "message": "Het paneel heeft deze waarde geweigerd"
+    },
+    "not_commandable": {
+      "message": "Het paneel heeft niet aangeboden om opdrachten van Panel Assistant te ontvangen"
+    },
+    "panel_identity_conflict": {
+      "message": "De identiteit van het paneel conflicteert met zijn opgeslagen entiteiten"
+    },
+    "panel_unavailable": {
+      "message": "Het paneel is niet verbonden met Panel Assistant, dus de opdracht is niet verstuurd"
+    },
+    "refused_hardened": {
+      "message": "De Hardened-modus van het paneel staat deze opdracht niet toe"
+    },
+    "unknown_channel": {
+      "message": "Het paneel heeft deze entiteit momenteel niet"
+    },
+    "unknown_command": {
+      "message": "Het paneel kent deze opdracht niet"
+    },
+    "voice_announcement_disconnected": {
+      "message": "De verbinding met het paneel werd verbroken tijdens de aankondiging"
+    },
+    "voice_announcement_timeout": {
+      "message": "Het paneel heeft de aankondiging niet afgemaakt"
+    },
+    "voice_assistant_off": {
+      "message": "De spraakassistent van het paneel is uitgeschakeld"
+    },
+    "voice_panel_not_connected": {
+      "message": "Het paneel is niet verbonden"
+    },
+    "voice_wake_words_rejected": {
+      "message": "Het paneel heeft de activeringswoorden niet geaccepteerd"
     }
   },
   "issues": {

@@ -154,16 +154,286 @@
         "name": "Статус",
         "state": {
           "online": "Онлайн",
-          "connected": "Підключено, адреса недоступна"
+          "connected": "Підключено, адреса недоступна",
+          "restarting_reboot": "Перезапускається (перезавантаження)",
+          "restarting_recovery": "Перезапускається (відновлення)",
+          "restarting_settings": "Перезапускається (налаштування)",
+          "restarting_update": "Перезапускається (оновлення)"
         }
       },
       "panel_assistant_version": {
         "name": "Версія Panel Assistant"
+      },
+      "diag_boot": {
+        "name": "Час останнього завантаження"
+      },
+      "diag_cpu": {
+        "name": "Використання CPU"
+      },
+      "diag_ip": {
+        "name": "IP-адреса"
+      },
+      "diag_memory": {
+        "name": "Використання пам’яті"
+      },
+      "diag_soc_temp": {
+        "name": "Температура SoC"
+      },
+      "diag_wifi_outages_24h": {
+        "name": "Перебої Wi-Fi (24 год)",
+        "state_attributes": {
+          "is_lower_bound": {
+            "name": "Нижня межа"
+          }
+        }
+      },
+      "diag_wifi_rssi": {
+        "name": "Потужність сигналу Wi-Fi"
+      },
+      "diag_wifi_ssid": {
+        "name": "Мережа Wi-Fi"
+      },
+      "humidity": {
+        "name": "Вологість"
+      },
+      "illuminance": {
+        "name": "Освітленість"
+      },
+      "proximity_level": {
+        "name": "Рівень наближення"
+      },
+      "room_humidity": {
+        "name": "Вологість у кімнаті"
+      },
+      "room_temp": {
+        "name": "Температура в кімнаті"
+      },
+      "storage_health": {
+        "name": "Стан сховища",
+        "state": {
+          "critical": "Критичний",
+          "database_failure": "Збій бази даних",
+          "healthy": "Справний",
+          "unchecked": "Не перевірено",
+          "warning": "Попередження"
+        },
+        "state_attributes": {
+          "auto_vacuum": {
+            "name": "Автоматичне ущільнення"
+          },
+          "checked_at_epoch_seconds": {
+            "name": "Час перевірки"
+          },
+          "database_files_bytes": {
+            "name": "Розмір файлів бази даних"
+          },
+          "database_sidecar_bytes": {
+            "name": "Розмір допоміжних файлів бази даних"
+          },
+          "failure_category": {
+            "name": "Категорія збою"
+          },
+          "failure_operation": {
+            "name": "Операція, що завершилася збоєм"
+          },
+          "freelist_count": {
+            "name": "Вільні сторінки"
+          },
+          "main_database_bytes": {
+            "name": "Розмір основної бази даних"
+          },
+          "page_count": {
+            "name": "Сторінки"
+          },
+          "page_size_bytes": {
+            "name": "Розмір сторінки"
+          },
+          "quick_check": {
+            "name": "Швидка перевірка"
+          },
+          "schema_version": {
+            "name": "Версія схеми"
+          },
+          "storage_pressure": {
+            "name": "Навантаження на сховище"
+          },
+          "total_bytes": {
+            "name": "Загальний обсяг сховища"
+          },
+          "usable_bytes": {
+            "name": "Доступний обсяг сховища"
+          },
+          "used_percent": {
+            "name": "Використаний обсяг сховища"
+          },
+          "wal_bytes": {
+            "name": "Розмір журналу випереджального запису"
+          }
+        }
+      },
+      "temperature": {
+        "name": "Температура"
       }
     },
     "update": {
       "paneld_update": {
         "name": "Оновлення ha-paneld"
+      },
+      "update_companion": {
+        "name": "Програма Companion"
+      }
+    },
+    "binary_sensor": {
+      "auto_sleep_activity": {
+        "name": "Активність для автосну"
+      },
+      "proximity": {
+        "name": "Наближення"
+      }
+    },
+    "button": {
+      "reboot": {
+        "name": "Перезавантажити панель"
+      },
+      "reload": {
+        "name": "Перезавантажити панель приладів"
+      }
+    },
+    "camera": {
+      "camera": {
+        "name": "Камера"
+      }
+    },
+    "event": {
+      "button": {
+        "name": "Кнопка"
+      }
+    },
+    "image": {
+      "camera_snapshot": {
+        "name": "Знімок камери"
+      }
+    },
+    "light": {
+      "button_led": {
+        "name": "LED кнопки {index}"
+      },
+      "buttons": {
+        "name": "Підсвічування кнопок"
+      },
+      "led": {
+        "name": "LED",
+        "state_attributes": {
+          "effect": {
+            "state": {
+              "blink": "Блимання",
+              "none": "Немає",
+              "pulse": "Пульсація",
+              "strobe": "Стробоскоп"
+            }
+          }
+        }
+      },
+      "screen": {
+        "name": "Екран"
+      }
+    },
+    "media_player": {
+      "media": {
+        "name": "Медіаплеєр"
+      }
+    },
+    "number": {
+      "volume": {
+        "name": "Гучність"
+      }
+    },
+    "select": {
+      "companion_update_channel": {
+        "name": "Канал автооновлення Companion",
+        "state": {
+          "prerelease": "Передрелізний",
+          "stable": "Стабільний"
+        }
+      },
+      "cpu_governor": {
+        "name": "Профіль CPU",
+        "state": {
+          "auto": "Автоматично",
+          "efficiency": "Ефективність",
+          "performance": "Продуктивність"
+        }
+      },
+      "navbar": {
+        "name": "Панель навігації",
+        "state": {
+          "always_on": "Завжди ввімкнена",
+          "native": "Системна",
+          "off": "Вимкнена",
+          "swipe_reveal": "Показувати проведенням"
+        }
+      },
+      "update_channel": {
+        "name": "Канал автооновлення ha-paneld",
+        "state": {
+          "prerelease": "Передрелізний",
+          "stable": "Стабільний"
+        }
+      }
+    },
+    "switch": {
+      "auto_brightness": {
+        "name": "Автояскравість"
+      },
+      "auto_sleep": {
+        "name": "Автосон"
+      },
+      "camera_enabled": {
+        "name": "Камера"
+      },
+      "companion_auto_update": {
+        "name": "Автооновлення Companion"
+      },
+      "kiosk_lock": {
+        "name": "Блокування панелі приладів Android"
+      },
+      "network_adb": {
+        "name": "Мережевий ADB"
+      },
+      "prevent_idle_dim": {
+        "name": "Запобігати затемненню під час простою"
+      },
+      "relay": {
+        "name": "Реле {index}"
+      },
+      "self_update": {
+        "name": "Автооновлення ha-paneld"
+      },
+      "silence_boot_chime": {
+        "name": "Вимкнути звук завантаження"
+      },
+      "touch_sound": {
+        "name": "Звук дотику"
+      },
+      "wake_on_wave": {
+        "name": "Пробудження помахом"
+      },
+      "watchdog": {
+        "name": "Сторожовий таймер"
+      },
+      "webview_auto_update": {
+        "name": "Автооновлення WebView"
+      },
+      "zigbee_router": {
+        "name": "Маршрутизатор Zigbee"
+      }
+    },
+    "text": {
+      "home_dashboard": {
+        "name": "Головна панель приладів"
+      },
+      "navigate": {
+        "name": "Перейти"
       }
     }
   },
@@ -231,6 +501,63 @@
     },
     "adb_authorization_required": {
       "message": "Для {panel} немає авторизації ADB. Відкрийте «Виправлення» в Home Assistant, щоб авторизувати оновлення, а потім підтвердьте «Дозволити налагодження» на фізичній панелі, коли з’явиться запит."
+    },
+    "approval_denied": {
+      "message": "Команду відхилено на екрані самої панелі"
+    },
+    "approval_pending": {
+      "message": "Команда очікує схвалення на екрані самої панелі"
+    },
+    "approval_timeout": {
+      "message": "Команду не схвалено вчасно на екрані панелі"
+    },
+    "authority_mismatch": {
+      "message": "Ця панель керується через MQTT, тому Panel Assistant не може надсилати їй команди"
+    },
+    "expired": {
+      "message": "Панель була надто зайнята, щоб виконати команду вчасно"
+    },
+    "failed": {
+      "message": "Панель не змогла виконати команду"
+    },
+    "hardware_unavailable": {
+      "message": "Апаратне забезпечення панелі для цієї команди недоступне"
+    },
+    "invalid_value": {
+      "message": "Панель відхилила це значення"
+    },
+    "not_commandable": {
+      "message": "Панель не заявила про можливість приймати команди від Panel Assistant"
+    },
+    "panel_identity_conflict": {
+      "message": "Ідентичність панелі конфліктує зі збереженими для неї сутностями"
+    },
+    "panel_unavailable": {
+      "message": "Панель не під’єднана до Panel Assistant, тому команду не надіслано"
+    },
+    "refused_hardened": {
+      "message": "Режим Hardened панелі не дозволяє цю команду"
+    },
+    "unknown_channel": {
+      "message": "Зараз панель не має цієї сутності"
+    },
+    "unknown_command": {
+      "message": "Панель не знає цієї команди"
+    },
+    "voice_announcement_disconnected": {
+      "message": "Панель від’єдналася під час оголошення"
+    },
+    "voice_announcement_timeout": {
+      "message": "Панель не завершила оголошення"
+    },
+    "voice_assistant_off": {
+      "message": "Голосовий помічник панелі вимкнений"
+    },
+    "voice_panel_not_connected": {
+      "message": "Панель не під’єднана"
+    },
+    "voice_wake_words_rejected": {
+      "message": "Панель не прийняла слова активації"
     }
   },
   "issues": {
