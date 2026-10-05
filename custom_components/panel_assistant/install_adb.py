@@ -689,6 +689,15 @@ def _permission_grant_command(
         f"*:{name}:*" for name in EQUIVALENT_ACCESSIBILITY_COMPONENTS[launch_component]
     )
     quiet = ">/dev/null 2>&1"
+    # Android 14 reports an unset operation as two lines, including its default.
+    default_modes = "|".join(
+        f"'No operations.\nDefault mode: {mode}'"
+        for mode in ("allow", "default", "deny", "ignore", "foreground", "errored")
+    )
+    read_operation = (
+        f'mode=$(appops get {package_id} "$operation"); mode_status=$?; '
+        f'case "$mode" in {default_modes}) mode="$operation: ${{mode##*: }}" ;; esac; '
+    )
     runtime_grants = []
     for feature, permission in (
         ("camera.any", "CAMERA"),
@@ -736,8 +745,8 @@ def _permission_grant_command(
             f'settings put secure enabled_accessibility_services "$after" {quiet} ;; '
             "esac; fi",
             "for operation in WRITE_SETTINGS SYSTEM_ALERT_WINDOW; do "
-            f'mode=$(appops get {package_id} "$operation"); mode_status=$?; '
-            'if [ "$mode_status" -eq 0 ] && [ -n "$mode" ] && '
+            + read_operation
+            + 'if [ "$mode_status" -eq 0 ] && [ -n "$mode" ] && '
             '! printf \'%s\\n\' "$mode" | grep -Evq "^($operation: '
             "(default|deny|ignore|foreground|errored)(; [ -~]+)?|"
             'No operations\\.)$"; then '
@@ -752,8 +761,10 @@ def _permission_grant_command(
             "esac; fi",
             _SERVICES_SETTING,
             "settings get secure accessibility_enabled",
-            f"appops get {package_id} WRITE_SETTINGS",
-            f"appops get {package_id} SYSTEM_ALERT_WINDOW",
+            "for operation in WRITE_SETTINGS SYSTEM_ALERT_WINDOW; do "
+            + read_operation
+            + 'if [ "$mode_status" -eq 0 ]; then printf \'%s\\n\' "$mode"; '
+            "else echo unknown; fi; done",
             # `pm list features`, not `pm has-feature`: Android 8.1 has no
             # has-feature and answers it with its usage text.
             "features=$(pm list features 2>/dev/null); features_status=$?",

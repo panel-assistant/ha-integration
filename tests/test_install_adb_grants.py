@@ -64,6 +64,8 @@ appops() {
     cat "$STATE/unreadable.$3"
   elif [ -f "$STATE/appop.$2.$3" ]; then
     echo "$3: $(cat "$STATE/appop.$2.$3"); time=+2s12ms ago"
+  elif [ -f "$STATE/default.$3" ]; then
+    printf 'No operations.\nDefault mode: %s\n' "$(cat "$STATE/default.$3")"
   else
     echo "$3: default"
   fi
@@ -388,6 +390,64 @@ def _seed_granted_panel(state: Path, package_id: str) -> None:
         (state / f"permission.{package_id}.android.permission.{permission}").write_text(
             "true\n"
         )
+
+
+@pytest.mark.parametrize(
+    "mode", ["default", "deny", "ignore", "foreground", "errored", "allow"]
+)
+async def test_android14_default_appops_repair_only_missing_grants(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    mode: str,
+) -> None:
+    _seed_granted_panel(tmp_path, descriptor.package_id)
+    (tmp_path / f"appop.{descriptor.package_id}.WRITE_SETTINGS").unlink()
+    (tmp_path / "default.WRITE_SETTINGS").write_text(mode + "\n")
+
+    await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
+
+    calls = (
+        (tmp_path / "calls").read_text().splitlines()
+        if (tmp_path / "calls").exists()
+        else []
+    )
+    assert calls == (
+        []
+        if mode == "allow"
+        else [f"appops set {descriptor.package_id} WRITE_SETTINGS allow"]
+    )
+    assert _GRANT_WARNING not in caplog.text
+    assert (
+        _panel_value(tmp_path, "enabled_accessibility_services")
+        == "com.example.reader/.ReaderService:"
+        + _ACCESSIBILITY_SERVICES[descriptor.package_id]
+    )
+
+
+@pytest.mark.parametrize(
+    "mode", ["unknown", "default\nDefault mode: allow", "allow; unexpected"]
+)
+async def test_android14_unknown_default_appops_preserve_state(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    mode: str,
+) -> None:
+    _seed_granted_panel(tmp_path, descriptor.package_id)
+    (tmp_path / f"appop.{descriptor.package_id}.WRITE_SETTINGS").unlink()
+    (tmp_path / "default.WRITE_SETTINGS").write_text(mode + "\n")
+
+    await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert not (tmp_path / "calls").exists()
+    assert _GRANT_WARNING in caplog.text
 
 
 async def test_an_update_preserves_every_existing_grant_without_writing(
