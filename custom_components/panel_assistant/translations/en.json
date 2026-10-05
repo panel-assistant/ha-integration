@@ -596,6 +596,18 @@
         }
       }
     },
+    "voice_microphone_silent": {
+      "title": "The voice assistant on {panel} is not listening.",
+      "description": "The voice assistant on {panel} is not listening because its microphone recorded only silence when the panel checked it. To check again, turn the voice assistant off and on in the panel's Configure page, or choose another audio source there."
+    },
+    "voice_microphone_no_audio": {
+      "title": "The voice assistant on {panel} is not listening.",
+      "description": "The voice assistant on {panel} is not listening because its microphone delivered no audio when the panel checked it. To check again, turn the voice assistant off and on in the panel's Configure page, or choose another audio source there."
+    },
+    "voice_microphone_no_audio_detail": {
+      "title": "The voice assistant on {panel} is not listening.",
+      "description": "The voice assistant on {panel} is not listening because its microphone delivered no audio when the panel checked it. To check again, turn the voice assistant off and on in the panel's Configure page, or choose another audio source there. The panel reported: {detail}"
+    },
       "restart_required": {
         "title": "Restart Home Assistant to finish updating Panel Assistant",
         "fix_flow": {

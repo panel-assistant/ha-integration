@@ -49,6 +49,7 @@ from .install_executor import (
     async_resume_loaded_install_jobs,
 )
 from .lifecycle import async_setup_lifecycle
+from .microphone_repair import async_delete_microphone_issue
 from .native import CONF_NATIVE_ENTITIES, NATIVE_ONLY_PLATFORMS
 from .native_move import async_delete_native_move_issues, async_evaluate_native_move
 from .panel_move import (
@@ -350,6 +351,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
     """Unload a ha-paneld config entry."""
     if entry.runtime_data.voice_setup is not None:
         await entry.runtime_data.voice_setup()
+    async_delete_microphone_issue(hass, entry.entry_id)
     return await hass.config_entries.async_unload_platforms(
         entry, entry.runtime_data.platforms
     )
@@ -365,6 +367,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
     async_delete_binding_issue(hass, entry.entry_id)
     ir.async_delete_issue(hass, DOMAIN, permission_issue_id(entry.entry_id))
     ir.async_delete_issue(hass, DOMAIN, no_update_route_issue_id(entry.entry_id))
+    async_delete_microphone_issue(hass, entry.entry_id)
     async_delete_cutover_issues(hass, entry.entry_id)
     async_delete_native_move_issues(hass, entry.entry_id)
     async_delete_merged_identity_issue(hass, entry)

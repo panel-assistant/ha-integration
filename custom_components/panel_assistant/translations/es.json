@@ -253,6 +253,18 @@
         }
       }
     },
+    "voice_microphone_silent": {
+      "title": "El asistente de voz de {panel} no está escuchando.",
+      "description": "El asistente de voz de {panel} no está escuchando porque su micrófono solo grabó silencio cuando el panel lo comprobó. Para comprobarlo de nuevo, desactiva y vuelve a activar el asistente de voz en la página Configure del panel, o elige allí otra fuente de audio."
+    },
+    "voice_microphone_no_audio": {
+      "title": "El asistente de voz de {panel} no está escuchando.",
+      "description": "El asistente de voz de {panel} no está escuchando porque su micrófono no entregó audio cuando el panel lo comprobó. Para comprobarlo de nuevo, desactiva y vuelve a activar el asistente de voz en la página Configure del panel, o elige allí otra fuente de audio."
+    },
+    "voice_microphone_no_audio_detail": {
+      "title": "El asistente de voz de {panel} no está escuchando.",
+      "description": "El asistente de voz de {panel} no está escuchando porque su micrófono no entregó audio cuando el panel lo comprobó. Para comprobarlo de nuevo, desactiva y vuelve a activar el asistente de voz en la página Configure del panel, o elige allí otra fuente de audio. El panel informó: {detail}"
+    },
       "restart_required": {
         "title": "Reinicia Home Assistant para terminar de actualizar Panel Assistant",
         "fix_flow": {

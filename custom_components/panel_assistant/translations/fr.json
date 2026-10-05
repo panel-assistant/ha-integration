@@ -253,6 +253,18 @@
         }
       }
     },
+    "voice_microphone_silent": {
+      "title": "L'assistant vocal de {panel} n'écoute pas.",
+      "description": "L'assistant vocal de {panel} n'écoute pas, car son microphone n'a enregistré que du silence lorsque le panneau l'a vérifié. Pour vérifier à nouveau, désactivez puis réactivez l'assistant vocal sur la page Configure du panneau, ou choisissez-y une autre source audio."
+    },
+    "voice_microphone_no_audio": {
+      "title": "L'assistant vocal de {panel} n'écoute pas.",
+      "description": "L'assistant vocal de {panel} n'écoute pas, car son microphone n'a fourni aucun son lorsque le panneau l'a vérifié. Pour vérifier à nouveau, désactivez puis réactivez l'assistant vocal sur la page Configure du panneau, ou choisissez-y une autre source audio."
+    },
+    "voice_microphone_no_audio_detail": {
+      "title": "L'assistant vocal de {panel} n'écoute pas.",
+      "description": "L'assistant vocal de {panel} n'écoute pas, car son microphone n'a fourni aucun son lorsque le panneau l'a vérifié. Pour vérifier à nouveau, désactivez puis réactivez l'assistant vocal sur la page Configure du panneau, ou choisissez-y une autre source audio. Le panneau a signalé : {detail}"
+    },
       "restart_required": {
         "title": "Redémarrez Home Assistant pour terminer la mise à jour de Panel Assistant",
         "fix_flow": {

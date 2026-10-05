@@ -291,6 +291,18 @@
         }
       }
     },
+    "voice_microphone_silent": {
+      "title": "Asystent głosowy na {panel} nie nasłuchuje.",
+      "description": "Asystent głosowy na {panel} nie nasłuchuje, ponieważ podczas sprawdzania przez panel jego mikrofon nagrał tylko ciszę. Aby sprawdzić ponownie, wyłącz i włącz asystenta głosowego na stronie Configure panelu albo wybierz tam inne źródło dźwięku."
+    },
+    "voice_microphone_no_audio": {
+      "title": "Asystent głosowy na {panel} nie nasłuchuje.",
+      "description": "Asystent głosowy na {panel} nie nasłuchuje, ponieważ podczas sprawdzania przez panel jego mikrofon nie dostarczył dźwięku. Aby sprawdzić ponownie, wyłącz i włącz asystenta głosowego na stronie Configure panelu albo wybierz tam inne źródło dźwięku."
+    },
+    "voice_microphone_no_audio_detail": {
+      "title": "Asystent głosowy na {panel} nie nasłuchuje.",
+      "description": "Asystent głosowy na {panel} nie nasłuchuje, ponieważ podczas sprawdzania przez panel jego mikrofon nie dostarczył dźwięku. Aby sprawdzić ponownie, wyłącz i włącz asystenta głosowego na stronie Configure panelu albo wybierz tam inne źródło dźwięku. Panel zgłosił: {detail}"
+    },
       "restart_required": {
         "title": "Uruchom ponownie Home Assistant, aby dokończyć aktualizację Panel Assistant",
         "fix_flow": {

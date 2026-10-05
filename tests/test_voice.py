@@ -11,13 +11,16 @@ from homeassistant.components.assist_pipeline import PipelineEvent, PipelineEven
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
+    async_capture_events,
     flush_store,
 )
 
 from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.device import panel_display_name
 from custom_components.panel_assistant.identity import CONF_INSTALL_IDENTITY
 from custom_components.panel_assistant.voice import PIPELINE_COLORS, PipelineColors
 
@@ -621,3 +624,104 @@ async def test_the_end_of_the_audio_survives_a_full_queue(
             events = await _turn_events(panel, run_id)
     assert events[-1] == {"kind": "end"}
     assert pipeline.audio == [b"\x02" * 320]
+
+
+def _microphone_issue(hass: HomeAssistant, entry: MockConfigEntry) -> Any:
+    return ir.async_get(hass).async_get_issue(
+        DOMAIN, f"voice_microphone_{entry.entry_id}"
+    )
+
+
+async def test_a_silent_microphone_check_raises_a_repair_until_a_check_passes(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+) -> None:
+    panel, _ = await _ready(hass, hass_ws_client, hass_read_only_access_token, entry)
+    updates = async_capture_events(hass, ir.EVENT_REPAIRS_ISSUE_REGISTRY_UPDATED)
+    silent = {"presence": "unproven", "check": "silent"}
+
+    assert (await panel.configure(microphone=silent))["success"]
+    issue = _microphone_issue(hass, entry)
+    assert issue is not None
+    assert issue.translation_key == "voice_microphone_silent"
+    assert issue.translation_placeholders == {"panel": panel_display_name(hass, entry)}
+    assert issue.severity is ir.IssueSeverity.WARNING
+    assert not issue.is_fixable
+    raised = len(updates)
+
+    assert (await panel.configure(microphone=silent))["success"]
+    await hass.async_block_till_done()
+    assert len(updates) == raised
+    assert _microphone_issue(hass, entry) == issue
+
+    passed = {"presence": "unproven", "check": "passed"}
+    assert (await panel.configure(microphone=passed))["success"]
+    assert _microphone_issue(hass, entry) is None
+
+
+async def test_a_microphone_that_delivered_no_audio_names_what_the_panel_reported(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+) -> None:
+    panel, _ = await _ready(hass, hass_ws_client, hass_read_only_access_token, entry)
+    no_audio = {"presence": "unproven", "check": "no_audio"}
+
+    detail = "AudioRecord failed to start"
+    assert (await panel.configure(microphone=no_audio | {"detail": detail}))["success"]
+    issue = _microphone_issue(hass, entry)
+    assert issue.translation_key == "voice_microphone_no_audio_detail"
+    assert issue.translation_placeholders == {
+        "panel": panel_display_name(hass, entry),
+        "detail": detail,
+    }
+
+    assert (await panel.configure(microphone=no_audio))["success"]
+    issue = _microphone_issue(hass, entry)
+    assert issue.translation_key == "voice_microphone_no_audio"
+    assert issue.translation_placeholders == {"panel": panel_display_name(hass, entry)}
+
+    # The owner turning the voice assistant off is not a fault to report.
+    assert (await panel.configure(enabled=False, microphone=no_audio))["success"]
+    assert _microphone_issue(hass, entry) is None
+    assert (await panel.configure(microphone=no_audio))["success"]
+    assert _microphone_issue(hass, entry) is not None
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    assert _microphone_issue(hass, entry) is None
+
+
+@pytest.mark.parametrize(
+    "microphone",
+    [
+        None,
+        {"presence": "unproven", "check": "recalibrating"},
+        {"presence": "borrowed", "check": "silent", "detail": 7},
+        "silent",
+    ],
+    ids=["old_panel", "future_check", "future_presence", "not_an_object"],
+)
+async def test_a_microphone_report_never_refuses_the_configuration(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+    microphone: Any,
+) -> None:
+    panel, entity_id = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    message = _configuration(panel.token)
+    if microphone is not None:
+        message["microphone"] = microphone
+    assert (await panel.send(message))["success"]
+    await hass.async_block_till_done()
+    assert hass.states.get(entity_id).state == "idle"
+    if isinstance(microphone, dict) and microphone["check"] == "silent":
+        # A presence this integration does not know still reports the check.
+        assert _microphone_issue(hass, entry) is not None
+    else:
+        assert _microphone_issue(hass, entry) is None

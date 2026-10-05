@@ -253,6 +253,18 @@
         }
       }
     },
+    "voice_microphone_silent": {
+      "title": "L'assistente vocale su {panel} non è in ascolto.",
+      "description": "L'assistente vocale su {panel} non è in ascolto perché il suo microfono ha registrato solo silenzio durante il controllo del pannello. Per controllare di nuovo, disattiva e riattiva l'assistente vocale nella pagina Configure del pannello, oppure scegli lì un'altra sorgente audio."
+    },
+    "voice_microphone_no_audio": {
+      "title": "L'assistente vocale su {panel} non è in ascolto.",
+      "description": "L'assistente vocale su {panel} non è in ascolto perché il suo microfono non ha fornito audio durante il controllo del pannello. Per controllare di nuovo, disattiva e riattiva l'assistente vocale nella pagina Configure del pannello, oppure scegli lì un'altra sorgente audio."
+    },
+    "voice_microphone_no_audio_detail": {
+      "title": "L'assistente vocale su {panel} non è in ascolto.",
+      "description": "L'assistente vocale su {panel} non è in ascolto perché il suo microfono non ha fornito audio durante il controllo del pannello. Per controllare di nuovo, disattiva e riattiva l'assistente vocale nella pagina Configure del pannello, oppure scegli lì un'altra sorgente audio. Il pannello ha segnalato: {detail}"
+    },
       "restart_required": {
         "title": "Riavvia Home Assistant per completare l'aggiornamento di Panel Assistant",
         "fix_flow": {

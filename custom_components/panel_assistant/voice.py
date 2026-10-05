@@ -51,7 +51,9 @@ from homeassistant.helpers.network import is_hass_url
 from homeassistant.helpers.storage import Store
 
 from .const import DOMAIN
+from .microphone_repair import async_reconcile_microphone_issue
 from .transport import (
+    _CONTROL_CHARACTERS,
     CAPABILITY_VOICE,
     ERR_SESSION_UNKNOWN,
     _bounded_list,
@@ -101,6 +103,26 @@ PIPELINE_COLORS: Final = (
 )
 _ANNOUNCE_ID_PATTERN: Final = r"^[A-Za-z0-9_-]{1,64}$"
 
+MICROPHONE_PRESENCES: Final = frozenset({"proven", "unproven", "absent"})
+MICROPHONE_CHECKS: Final = frozenset(
+    {"not_run", "running", "passed", "silent", "no_audio"}
+)
+MAX_MICROPHONE_DETAIL: Final = 200
+
+
+@dataclass(frozen=True, slots=True)
+class MicrophoneCheck:
+    """What the panel knows of its microphone, and what checking it found.
+
+    A value this integration does not know, from a newer panel, is None:
+    nothing to report.
+    """
+
+    presence: str | None
+    check: str | None
+    # The capture's own error, only when it delivered no audio.
+    detail: str | None = None
+
 
 @dataclass(frozen=True, slots=True)
 class WakeWord:
@@ -120,6 +142,8 @@ class VoiceConfiguration:
     active: tuple[str, ...]
     # Wake word ID to pipeline ID. Absent or blank means the preferred one.
     pipelines: Mapping[str, str]
+    # Absent from panels that predate the microphone check.
+    microphone: MicrophoneCheck | None = None
 
     def phrase(self, wake_word_id: str | None) -> str | None:
         """Return the phrase of one wake word."""
@@ -144,6 +168,22 @@ def _pipelines(value: Any) -> dict[str, str]:
     return {_code(key): _plain_string(64)(item) for key, item in value.items()}
 
 
+def _microphone(value: Any) -> MicrophoneCheck | None:
+    """Read the microphone report leniently: it never refuses a configuration."""
+    if type(value) is not dict:
+        return None
+    presence = value.get("presence")
+    check = value.get("check")
+    detail = value.get("detail")
+    if type(detail) is str:
+        detail = _CONTROL_CHARACTERS.sub(" ", detail).strip()[:MAX_MICROPHONE_DETAIL]
+    return MicrophoneCheck(
+        presence=presence if presence in MICROPHONE_PRESENCES else None,
+        check=check if check in MICROPHONE_CHECKS else None,
+        detail=detail if type(detail) is str and detail else None,
+    )
+
+
 def _configuration_consistent(msg: dict[str, Any]) -> dict[str, Any]:
     ids = [item["id"] for item in msg["wake_words"]]
     if len(set(ids)) != len(ids) or not set(msg["active"]) <= set(ids):
@@ -162,6 +202,7 @@ VOICE_CONFIGURATION_SCHEMA: Final = vol.All(
             ),
             vol.Required("active"): _bounded_list(MAX_WAKE_WORDS, _code),
             vol.Optional("pipelines", default=dict): _pipelines,
+            vol.Optional("microphone", default=None): _microphone,
         },
         extra=vol.REMOVE_EXTRA,
     ),
@@ -330,8 +371,11 @@ def ws_voice_configuration(
         ),
         active=tuple(msg["active"]),
         pipelines=msg["pipelines"],
+        microphone=msg["microphone"],
     )
     async_get_sessions(hass).mark_changed(session)
+    if (entry := hass.config_entries.async_get_entry(session.entry_id)) is not None:
+        async_reconcile_microphone_issue(hass, entry, session.voice)
     connection.send_result(msg["id"], {})
 
 

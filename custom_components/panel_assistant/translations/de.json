@@ -253,6 +253,18 @@
         }
       }
     },
+    "voice_microphone_silent": {
+      "title": "Der Sprachassistent auf {panel} hört nicht zu.",
+      "description": "Der Sprachassistent auf {panel} hört nicht zu, weil sein Mikrofon bei der Prüfung durch das Panel nur Stille aufgenommen hat. Um erneut zu prüfen, schalte den Sprachassistenten auf der Configure-Seite des Panels aus und wieder ein oder wähle dort eine andere Audioquelle."
+    },
+    "voice_microphone_no_audio": {
+      "title": "Der Sprachassistent auf {panel} hört nicht zu.",
+      "description": "Der Sprachassistent auf {panel} hört nicht zu, weil sein Mikrofon bei der Prüfung durch das Panel keinen Ton geliefert hat. Um erneut zu prüfen, schalte den Sprachassistenten auf der Configure-Seite des Panels aus und wieder ein oder wähle dort eine andere Audioquelle."
+    },
+    "voice_microphone_no_audio_detail": {
+      "title": "Der Sprachassistent auf {panel} hört nicht zu.",
+      "description": "Der Sprachassistent auf {panel} hört nicht zu, weil sein Mikrofon bei der Prüfung durch das Panel keinen Ton geliefert hat. Um erneut zu prüfen, schalte den Sprachassistenten auf der Configure-Seite des Panels aus und wieder ein oder wähle dort eine andere Audioquelle. Das Panel meldete: {detail}"
+    },
       "restart_required": {
         "title": "Home Assistant neu starten, um das Update von Panel Assistant abzuschließen",
         "fix_flow": {

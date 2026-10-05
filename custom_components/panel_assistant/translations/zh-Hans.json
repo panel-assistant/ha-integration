@@ -253,6 +253,18 @@
         }
       }
     },
+    "voice_microphone_silent": {
+      "title": "{panel} 上的语音助手未在聆听。",
+      "description": "{panel} 上的语音助手未在聆听，因为面板检查时其麦克风只录到了静音。要重新检查，请在面板的 Configure 页面中关闭再打开语音助手，或在那里选择其他音频源。"
+    },
+    "voice_microphone_no_audio": {
+      "title": "{panel} 上的语音助手未在聆听。",
+      "description": "{panel} 上的语音助手未在聆听，因为面板检查时其麦克风没有提供任何音频。要重新检查，请在面板的 Configure 页面中关闭再打开语音助手，或在那里选择其他音频源。"
+    },
+    "voice_microphone_no_audio_detail": {
+      "title": "{panel} 上的语音助手未在聆听。",
+      "description": "{panel} 上的语音助手未在聆听，因为面板检查时其麦克风没有提供任何音频。要重新检查，请在面板的 Configure 页面中关闭再打开语音助手，或在那里选择其他音频源。面板报告：{detail}"
+    },
       "restart_required": {
         "title": "重启 Home Assistant 以完成 Panel Assistant 的更新",
         "fix_flow": {
