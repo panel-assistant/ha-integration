@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from unittest.mock import AsyncMock, patch
 
 import pytest
+from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
@@ -17,7 +19,14 @@ from custom_components.panel_assistant.device import (
     async_refresh_panel_device,
     panel_device_info,
 )
-from custom_components.panel_assistant.status import PanelDevice, PanelStatus
+from custom_components.panel_assistant.diagnostics import (
+    async_get_config_entry_diagnostics,
+)
+from custom_components.panel_assistant.status import (
+    PanelDevice,
+    PanelStatus,
+    parse_status_response,
+)
 
 HEALTH = PanelHealth(
     version="0.9.7-rc4",
@@ -102,11 +111,11 @@ def test_a_partial_report_fills_only_what_the_panel_stated() -> None:
     assert "model" not in info
 
 
-def test_the_card_never_shows_the_android_release_as_its_hardware() -> None:
-    """The Android release and build told a user nothing, so the line is cleared.
+def test_the_card_never_shows_an_older_apps_android_first_hardware_line() -> None:
+    """Older apps sent `Android <release> · <build>` inside the device projection.
 
-    Cleared rather than left out, so a card an earlier version registered loses
-    it, and an older panel that still sends it is not shown it.
+    The card's hardware line comes only from the panel's hardware facts, so that
+    line is never shown and a card without facts keeps what it had.
     """
     for snapshot in (
         _snapshot(
@@ -117,8 +126,31 @@ def test_the_card_never_shows_the_android_release_as_its_hardware() -> None:
     ):
         info = panel_device_info("entry-1", snapshot, "alpha")
 
-        assert "hw_version" in info
-        assert info["hw_version"] is None
+        assert "hw_version" not in info
+        assert "serial_number" not in info
+
+
+@pytest.mark.parametrize(
+    ("hardware", "line"),
+    [
+        ({"firmware": "1.5.6", "android_release": "8.1.0"}, "1.5.6 · Android 8.1.0"),
+        ({"firmware": "1.5.6"}, "1.5.6"),
+        ({"android_release": "14"}, "Android 14"),
+    ],
+)
+def test_the_hardware_line_leads_with_the_vendor_firmware(
+    hardware: dict[str, str], line: str
+) -> None:
+    """Firmware first, because most panels never change their Android release."""
+    status = PanelStatus(
+        warning_count=0, capability_count=0, panel_assistant_hardware=hardware
+    )
+    info = panel_device_info(
+        "entry-1", PanelSnapshot(health=HEALTH, status=status, status_error=None)
+    )
+
+    assert info["hw_version"] == line
+    assert "serial_number" not in info
 
 
 def test_the_profile_model_the_panel_reports_is_the_card_model() -> None:
@@ -160,8 +192,8 @@ def test_an_unknown_version_leaves_the_registered_one_alone() -> None:
 
 
 async def test_a_registered_card_is_brought_up_to_date(hass: HomeAssistant) -> None:
-    """The card a panel registered earlier learns the session's build and loses
-    the Android line, while the product it named is kept."""
+    """The card a panel registered earlier learns the session's build and the
+    panel's hardware facts, while the product it named is kept."""
     entry = MockConfigEntry(domain=DOMAIN, title="alpha")
     entry.add_to_hass(hass)
     registry = dr.async_get(hass)
@@ -178,7 +210,20 @@ async def test_a_registered_card_is_brought_up_to_date(hass: HomeAssistant) -> N
     async_refresh_panel_device(
         hass,
         entry.entry_id,
-        panel_device_info(entry.entry_id, None, "alpha", ("0.9.8-rc2", 904)),
+        panel_device_info(
+            entry.entry_id,
+            PanelSnapshot(
+                health=HEALTH,
+                status=parse_status_response(
+                    '{"warnings":[],"capabilities":[],"panel_assistant_hardware":'
+                    '{"firmware":"2.6.8","android_release":"11",'
+                    '"serial_number":"90000000000000002"}}'
+                ),
+                status_error=None,
+            ),
+            "alpha",
+            ("0.9.8-rc2", 904),
+        ),
     )
 
     device = registry.async_get_device_by_identifier(
@@ -189,7 +234,8 @@ async def test_a_registered_card_is_brought_up_to_date(hass: HomeAssistant) -> N
         device.configuration_url == f"homeassistant://panel-assistant/{entry.entry_id}"
     )
     assert device.sw_version == "0.9.8-rc2 (904)"
-    assert device.hw_version is None
+    assert device.hw_version == "2.6.8 · Android 11"
+    assert device.serial_number == "90000000000000002"
     assert device.manufacturer == "Shelly"
     assert device.model == "Wall Display X2i"
 
@@ -256,3 +302,91 @@ async def test_existing_literal_null_assignment_is_cleared_once(
     registry.async_update_device(device.id, area_id="unavailable_area")
     async_refresh_panel_device(hass, entry.entry_id, info)
     assert registry.async_get(device.id).area_id == "unavailable_area"
+
+
+def _loaded_entry(hass: HomeAssistant) -> MockConfigEntry:
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="alpha", data={CONF_ADDRESS: "panel.local"}
+    )
+    entry.add_to_hass(hass)
+    return entry
+
+
+def _status_body(hardware: str | None) -> PanelStatus:
+    """Parse a status body as the client does, with or without hardware facts."""
+    extra = "" if hardware is None else f',"panel_assistant_hardware":{hardware}'
+    return parse_status_response(
+        '{"warnings":[],"capabilities":[],"panel_assistant_device":'
+        '{"name":"Alpha panel","manufacturer":"Sonoff","model":"NSPanel Pro"}'
+        f"{extra}}}"
+    )
+
+
+async def _card_after_setup(
+    hass: HomeAssistant, entry: MockConfigEntry, status: PanelStatus
+) -> dr.DeviceEntry:
+    with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=replace(HEALTH, version="0.9.0", version_code=1144)),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=status),
+        ),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+    device = dr.async_get(hass).async_get_device_by_identifier(
+        (DOMAIN, entry.entry_id), entry.entry_id
+    )
+    assert device is not None
+    return device
+
+
+async def test_the_card_shows_the_panels_firmware_android_release_and_serial(
+    hass: HomeAssistant,
+) -> None:
+    """Product and app build lead; firmware, Android release and serial follow.
+
+    A fact the integration does not know yet is discarded, never a reason to
+    refuse the panel's whole status.
+    """
+    entry = _loaded_entry(hass)
+    device = await _card_after_setup(
+        hass,
+        entry,
+        _status_body(
+            '{"firmware":"1.11.0","android_release":"8.1.0",'
+            '"serial_number":"G000000000000000001","bootloader":"a later fact"}'
+        ),
+    )
+
+    assert device.model == "NSPanel Pro"
+    assert device.manufacturer == "Sonoff"
+    assert device.sw_version == "0.9.0 (1144)"
+    assert device.hw_version == "1.11.0 · Android 8.1.0"
+    assert device.serial_number == "G000000000000000001"
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+    hardware = diagnostics["status"]["panel_assistant_hardware"]
+    assert hardware["firmware"] == "1.11.0"
+    assert hardware["serial_number"] != "G000000000000000001"
+
+
+async def test_a_panel_without_hardware_facts_keeps_the_card_it_had(
+    hass: HomeAssistant,
+) -> None:
+    """An app that predates the hardware facts neither blanks nor invents them."""
+    entry = _loaded_entry(hass)
+    dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, entry.entry_id)},
+        hw_version="1.11.0 · Android 8.1.0",
+        serial_number="G000000000000000001",
+    )
+
+    device = await _card_after_setup(hass, entry, _status_body(None))
+
+    assert device.model == "NSPanel Pro"
+    assert device.hw_version == "1.11.0 · Android 8.1.0"
+    assert device.serial_number == "G000000000000000001"

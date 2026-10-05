@@ -60,6 +60,7 @@ class PanelStatus:
     power_safety: ComponentStatus | None = None
     panel_assistant_update: PanelCachedUpdate | None = None
     panel_assistant_device: PanelDevice | None = None
+    panel_assistant_hardware: ComponentStatus | None = None
     permissions: ComponentStatus | None = None
 
     def as_dict(self) -> dict[str, object]:
@@ -85,6 +86,7 @@ class PanelStatus:
                 if self.panel_assistant_device is not None
                 else None
             ),
+            "panel_assistant_hardware": _copy_component(self.panel_assistant_hardware),
         }
 
 
@@ -343,6 +345,18 @@ def _panel_device(root: Mapping[str, object]) -> PanelDevice | None:
     return PanelDevice(**fields)
 
 
+# A sibling of `panel_assistant_device` rather than new keys inside it, because that
+# object refuses unknown keys and every released integration would fail the whole
+# status. Unknown top-level objects and unknown keys here are discarded, so a panel
+# may send this, or add to it, whatever integration it talks to.
+_HARDWARE_FIELDS: dict[str, FieldValidator] = {
+    # The vendor's own firmware number (Android `Build.DISPLAY`).
+    "firmware": _short_text,
+    "android_release": _short_text,
+    # The hardware serial when the panel can read it, else its Android ID.
+    "serial_number": _short_text,
+}
+
 _ZIGBEE_FIELDS: dict[str, FieldValidator] = {
     "state": _token,
     "firmware": _nullable_short_text,
@@ -597,6 +611,9 @@ def parse_status_response(body: str) -> PanelStatus:
         ),
         panel_assistant_update=_panel_cached_update(parsed),
         panel_assistant_device=_panel_device(parsed),
+        panel_assistant_hardware=_sanitize_component(
+            parsed, "panel_assistant_hardware", _HARDWARE_FIELDS, frozenset()
+        ),
         permissions=_sanitize_component(
             parsed,
             "permissions",

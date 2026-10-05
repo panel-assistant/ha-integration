@@ -64,14 +64,23 @@ def panel_device_info(
         name=name,
         # Home Assistant turns this scheme into a same-window, same-origin link.
         configuration_url=f"homeassistant://panel-assistant/{entry_id}",
-        # The panel's Android release and build string told a user nothing they
-        # could act on. Cleared explicitly, so a card registered by an earlier
-        # version loses it and an older panel that still sends it is not shown it.
-        hw_version=None,
     )
     software = _software_version(health, app_build)
     if software is not None:
         info["sw_version"] = software
+    hardware = status.panel_assistant_hardware if status is not None else None
+    if hardware:
+        # The vendor firmware leads: most panels never change their Android release.
+        parts = [
+            hardware.get("firmware"),
+            f"Android {hardware['android_release']}"
+            if hardware.get("android_release")
+            else None,
+        ]
+        if any(parts):
+            info["hw_version"] = " · ".join(str(part) for part in parts if part)
+        if hardware.get("serial_number"):
+            info["serial_number"] = str(hardware["serial_number"])
     if device is None:
         return info
 
@@ -136,6 +145,7 @@ def async_refresh_panel_device(
         model=info.get("model", UNDEFINED),
         sw_version=info.get("sw_version", UNDEFINED),
         hw_version=info.get("hw_version", UNDEFINED),
+        serial_number=info.get("serial_number", UNDEFINED),
         # Replace links registered by earlier versions as well.
         configuration_url=info.get("configuration_url", UNDEFINED),
     )

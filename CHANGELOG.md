@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 
 **Voice that says why it is not listening.** A panel whose microphone has not yet been proven to work checks it before listening. If the check hears only silence or gets no audio, Home Assistant shows a Repair naming the panel and what the check found, instead of the voice assistant quietly not answering. Turning the voice assistant off and on again in the panel's settings checks it again.
 
+**A fuller device card.** A panel's device card in Home Assistant shows its vendor firmware and Android release on the Hardware line, for example `1.11.0 · Android 8.1.0`, and its serial number: the panel's own hardware serial where the app can read it, otherwise its Android ID. The product name and app build still lead the card. Panels need an app build that reports these; on older builds the card stays as it was.
+
 **Voice timers.** Say "set a timer for one minute" to a panel whose voice assistant is on, and the panel rings when the time is up, then says the timer's name if you gave it one. Cancelling, pausing, adding time and asking how long is left work too. Home Assistant keeps the timers, as it does for a Voice Preview Edition; the panel only rings.
 
 ## 0.7.0 - 2026-10-04

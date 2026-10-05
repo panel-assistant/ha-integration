@@ -1146,8 +1146,8 @@ async def test_an_offline_setup_keeps_the_product_the_panel_named(
 ) -> None:
     """A restart while the stored address is silent must not rename the product.
 
-    Setup registers the card before anything has answered. The model and
-    manufacturer the panel last reported stay; the Android release line goes.
+    Setup registers the card before anything has answered. Everything the panel
+    last reported stays, its hardware line and serial included.
     """
     entry = _entry(hass)
     registry = dr.async_get(hass)
@@ -1157,7 +1157,8 @@ async def test_an_offline_setup_keeps_the_product_the_panel_named(
         manufacturer="Shelly",
         model="Wall Display X2i",
         sw_version="0.9.8-rc1",
-        hw_version="Android 11 · RD2A.211001.002 release-keys",
+        hw_version="2.6.8 · Android 11",
+        serial_number="90000000000000002",
     )
     with patch(
         "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
@@ -1173,7 +1174,8 @@ async def test_an_offline_setup_keeps_the_product_the_panel_named(
     assert device.manufacturer == "Shelly"
     assert device.model == "Wall Display X2i"
     assert device.sw_version == "0.9.8-rc1"
-    assert device.hw_version is None
+    assert device.hw_version == "2.6.8 · Android 11"
+    assert device.serial_number == "90000000000000002"
 
 
 async def test_a_later_poll_brings_the_card_up_to_date(hass: HomeAssistant) -> None:

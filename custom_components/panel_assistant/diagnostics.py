@@ -39,6 +39,7 @@ _ENTRY_KEYS_TO_REDACT = {
 }
 _HEALTH_KEYS_TO_REDACT = {"panel_id", "discovery_id", "legacy_discovery_id"}
 # The record's identities, and the MQTT unique IDs that embed one of them.
+_STATUS_KEYS_TO_REDACT = {"serial_number"}
 _CUTOVER_KEYS_TO_REDACT = {"did", "panel_id", "mqtt_unique_id"}
 
 
@@ -95,7 +96,7 @@ def _diagnostics(entry: HaPaneldConfigEntry) -> dict[str, Any]:
             else async_redact_data(snapshot.health.as_dict(), _HEALTH_KEYS_TO_REDACT)
         ),
         "status": (
-            snapshot.status.as_dict()
+            async_redact_data(snapshot.status.as_dict(), _STATUS_KEYS_TO_REDACT)
             if snapshot is not None and snapshot.status is not None
             else None
         ),
