@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 
 **Voice that says why it is not listening.** A panel whose microphone has not yet been proven to work checks it before listening. If the check hears only silence or gets no audio, Home Assistant shows a Repair naming the panel and what the check found, instead of the voice assistant quietly not answering. Turning the voice assistant off and on again in the panel's settings checks it again.
 
+**Voice timers.** Say "set a timer for one minute" to a panel whose voice assistant is on, and the panel rings when the time is up, then says the timer's name if you gave it one. Cancelling, pausing, adding time and asking how long is left work too. Home Assistant keeps the timers, as it does for a Voice Preview Edition; the panel only rings.
+
 ## 0.7.0 - 2026-10-04
 
 Panel Assistant 0.7.0 takes over the jobs panels used to do for themselves. It is the last Panel Assistant release that supports MQTT panels and the last that moves them over to its own connection, so if your panels still use MQTT, please move them now. It also moves panels to the new app from Home Assistant with one click. Sorry, Sonoff NSPanel Pro owners: before this, each panel had to hand itself over, which needed a root helper that some NSPanel Pros have no room for. If yours got stuck, or 0.6.3 told you "The release did not match its signature, so nothing was installed", that was my approach, not your panel, and you should never need Magisk or to delete anything from the system partition.

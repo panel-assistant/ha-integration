@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import secrets
+from collections.abc import Callable
 from typing import Final
 
 from homeassistant.components.assist_pipeline import (
@@ -20,6 +21,11 @@ from homeassistant.components.assist_satellite import (
     AssistSatelliteEntityFeature,
     AssistSatelliteWakeWord,
 )
+from homeassistant.components.intent import (
+    TimerEventType,
+    TimerInfo,
+    async_register_timer_handler,
+)
 from homeassistant.components.websocket_api.messages import event_message
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
@@ -28,6 +34,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import HaPaneldConfigEntry
+from .browser_panel import STATIC_URL
 from .client import HaPaneldError
 from .const import DOMAIN
 from .transport import (
@@ -51,6 +58,9 @@ _LOGGER = logging.getLogger(__name__)
 
 # How long an announcement may take to play before Home Assistant gives up.
 ANNOUNCE_TIMEOUT: Final = 5 * 60.0
+
+# The Voice Preview Edition's timer sound (see static/THIRD_PARTY.md).
+TIMER_FINISHED_URL: Final = f"{STATIC_URL}/timer_finished.flac"
 
 
 async def async_setup_entry(
@@ -89,6 +99,7 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         self._continue_conversation = False
         # The colours last sent, and the session they were sent on.
         self._colors_sent: tuple[str, dict[str, str]] | None = None
+        self._unregister_timers: Callable[[], None] | None = None
 
     @property
     def _session(self) -> PanelSession | None:
@@ -117,6 +128,8 @@ class PanelAssistSatellite(AssistSatelliteEntity):
                 self.hass, signal_session_changed(self._entry_id), self._session_changed
             )
         )
+        self.async_on_remove(self._stop_timers)
+        self._sync_timers()
         self._schedule_colors()
 
     async def async_will_remove_from_hass(self) -> None:
@@ -131,7 +144,46 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         session = self._session
         self._fail_announcements(None if session is None else session.token)
         self.async_write_ha_state()
+        self._sync_timers()
         self._schedule_colors()
+
+    @callback
+    def _sync_timers(self) -> None:
+        """Take Home Assistant's voice timers only while the panel can ring."""
+        if not self.available:
+            self._stop_timers()
+        elif self.registry_entry is not None and self.registry_entry.device_id:
+            # Registering again replaces the same handler.
+            self._unregister_timers = async_register_timer_handler(
+                self.hass, self.registry_entry.device_id, self._timer_event
+            )
+
+    @callback
+    def _stop_timers(self) -> None:
+        if self._unregister_timers is not None:
+            self._unregister_timers()
+            self._unregister_timers = None
+
+    @callback
+    def _timer_event(self, event_type: TimerEventType, timer: TimerInfo) -> None:
+        """Ring when a timer finishes; Home Assistant keeps the countdown."""
+        if event_type is TimerEventType.FINISHED:
+            self.hass.async_create_task(
+                self._async_ring(timer), f"{self.entity_id}_timer_finished"
+            )
+
+    async def _async_ring(self, timer: TimerInfo) -> None:
+        try:
+            if timer.name:
+                await self.async_internal_announce(
+                    message=timer.name, preannounce_media_id=TIMER_FINISHED_URL
+                )
+            else:
+                await self.async_internal_announce(
+                    media_id=TIMER_FINISHED_URL, preannounce=False
+                )
+        except HomeAssistantError as err:  # busy, or the panel went away
+            _LOGGER.warning("The panel could not ring for timer %s: %s", timer.id, err)
 
     @callback
     def _schedule_colors(self) -> None:
@@ -316,6 +368,9 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         session = self._session
         if session is None:
             raise HomeAssistantError("The panel is not connected")
+        if not self.available:
+            # Also reached late: Core first waits for a turn in progress to end.
+            raise HomeAssistantError("The panel's voice assistant is off")
         announce_id = secrets.token_urlsafe(12)
         future: asyncio.Future[bool] = self.hass.loop.create_future()
         self._announcements[announce_id] = (session.token, future)
