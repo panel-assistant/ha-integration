@@ -197,6 +197,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         # need not run until an entry exists. USB delivery must be ready now.
         async_register_browser_delivery(self.hass)
         await async_register_browser_panel(self.hass)
+        # Someone adding a panel by hand is the moment to show every known one.
+        async_offer_migration_targets(self.hass, recheck=True)
         return self.async_show_menu(
             step_id="user",
             menu_options=["add_panel", "install_usb"],
