@@ -91,9 +91,6 @@ def _async_schedule_old_app_check(
         and (last[1] or now - last[2] < _OLD_APP_RETRY_SECONDS)
     ):
         return
-    if not panel_move.claim_panel_operation(hass, entry.entry_id):
-        # A move or an update is running; the next poll tries again.
-        return
     checks[entry.entry_id] = (health.version_code, False, now)
     entry.async_create_background_task(
         hass,
@@ -107,10 +104,16 @@ async def _async_check_old_app(
     entry: ConfigEntry,
     checks: dict[str, tuple[int | None, bool, float]],
 ) -> None:
+    check = checks[entry.entry_id]
     try:
-        if await _async_remove_old_app(hass, entry):
-            version_code, _clean, at = checks[entry.entry_id]
-            checks[entry.entry_id] = (version_code, True, at)
+        clean = await _async_remove_old_app(hass, entry)
+        if checks.get(entry.entry_id) == check:
+            if clean:
+                version_code, _clean, at = check
+                checks[entry.entry_id] = (version_code, True, at)
+            else:
+                # A move or update won the claim; the next poll tries again.
+                checks.pop(entry.entry_id)
     except (panel_move.MoveError, HaPaneldError) as err:
         _LOGGER.info(
             "The old app on %s is not removed yet: %s (%r)",
@@ -120,8 +123,6 @@ async def _async_check_old_app(
         )
     except Exception:
         _LOGGER.exception("Removing the old app from %s failed", entry.title)
-    finally:
-        panel_move.release_panel_operation(hass, entry.entry_id)
 
 
 async def _async_remove_old_app(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -147,37 +148,47 @@ async def _async_remove_old_app(hass: HomeAssistant, entry: ConfigEntry) -> bool
         if not observed.legacy_installed and not observed.legacy_set_aside:
             ir.async_delete_issue(hass, DOMAIN, issue)
             return True
-        seen = True
-        client: HaPaneldClient = entry.runtime_data.client
+        # The look is read-only: a panel with no old app must stay free for
+        # an update immediately after setup. Only removal needs the claim.
+        if not panel_move.claim_panel_operation(hass, entry.entry_id):
+            return False
         try:
-            health: PanelHealth | None = await client.async_get_health()
-        except HaPaneldError:
-            health = None
-        if (
-            health is None
-            or not _holds_panel(entry, health)
-            or entry.runtime_data.coordinator.identity_mismatch
-            or not observed.successor_installed
-            or observed.home != SUCCESSOR_PACKAGE_ID
-        ):
-            raise panel_move.MoveError(REASON_NEW_APP_UNPROVEN)
-        try:
-            await async_store_panel_backup(
-                hass,
-                entry.entry_id,
-                health.version_code,
-                await client.async_backup_panel(),
+            # A move may have started while the observation was in flight.
+            if isinstance(entry.data.get(panel_move.CONF_SUCCESSOR_MOVE), dict):
+                return False
+            seen = True
+            client: HaPaneldClient = entry.runtime_data.client
+            try:
+                health: PanelHealth | None = await client.async_get_health()
+            except HaPaneldError:
+                health = None
+            if (
+                health is None
+                or not _holds_panel(entry, health)
+                or entry.runtime_data.coordinator.identity_mismatch
+                or not observed.successor_installed
+                or observed.home != SUCCESSOR_PACKAGE_ID
+            ):
+                raise panel_move.MoveError(REASON_NEW_APP_UNPROVEN)
+            try:
+                await async_store_panel_backup(
+                    hass,
+                    entry.entry_id,
+                    health.version_code,
+                    await client.async_backup_panel(),
+                )
+            except (HaPaneldError, PanelBackupInvalidError, OSError) as err:
+                raise panel_move.MoveError(panel_move.REASON_BACKUP_FAILED) from err
+            retired = await panel_move._async_step(
+                target, signer, MoveStep.RETIRE_LEGACY, authorize=False
             )
-        except (HaPaneldError, PanelBackupInvalidError, OSError) as err:
-            raise panel_move.MoveError(panel_move.REASON_BACKUP_FAILED) from err
-        retired = await panel_move._async_step(
-            target, signer, MoveStep.RETIRE_LEGACY, authorize=False
-        )
-        if retired.legacy_installed and retired.home != SUCCESSOR_PACKAGE_ID:
-            # HOME left the new app while the backup ran, and the step keeps
-            # an old app HOME resolves to: the proof no longer holds.
-            raise panel_move.MoveError(REASON_NEW_APP_UNPROVEN)
-        panel_move._require_retired(retired)
+            if retired.legacy_installed and retired.home != SUCCESSOR_PACKAGE_ID:
+                # HOME left the new app while the backup ran, and the step keeps
+                # an old app HOME resolves to: the proof no longer holds.
+                raise panel_move.MoveError(REASON_NEW_APP_UNPROVEN)
+            panel_move._require_retired(retired)
+        finally:
+            panel_move.release_panel_operation(hass, entry.entry_id)
     except panel_move.MoveError as err:
         if seen:
             key = _OLD_APP_ISSUE_BY_REASON.get(err.reason, OLD_APP_ISSUES[2])

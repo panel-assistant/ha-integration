@@ -18,14 +18,18 @@ from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant import install_adb, old_app, panel_move
+from custom_components.panel_assistant import update as panel_update
 from custom_components.panel_assistant.app_identity import (
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
 )
+from custom_components.panel_assistant.build_feed import BuildDownloadError
 from custom_components.panel_assistant.client import (
     CannotConnectError,
     HaPaneldClient,
@@ -33,7 +37,10 @@ from custom_components.panel_assistant.client import (
     normalize_address,
 )
 from custom_components.panel_assistant.const import DOMAIN
-from custom_components.panel_assistant.feed_coordinator import StableReleaseCoordinator
+from custom_components.panel_assistant.feed_coordinator import (
+    StableReleaseCoordinator,
+    async_get_stable_release_coordinator,
+)
 from custom_components.panel_assistant.install_adb import (
     AdbInstallTarget,
     InstallAdbError,
@@ -43,6 +50,7 @@ from custom_components.panel_assistant.install_adb import (
 )
 from custom_components.panel_assistant.old_app import old_app_issue_id
 from custom_components.panel_assistant.panel_move import MoveError, move_issue_id
+from custom_components.panel_assistant.release import ReleaseArtifact
 
 from .test_transport import STATUS
 
@@ -171,7 +179,9 @@ async def panel(hass: HomeAssistant) -> AsyncGenerator[Panel]:
         yield fake
 
 
-async def _load(hass: HomeAssistant, user_id: str) -> MockConfigEntry:
+async def _load(
+    hass: HomeAssistant, user_id: str, *, wait_background_tasks: bool = True
+) -> MockConfigEntry:
     """A panel entry already on the new app's identity."""
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -185,7 +195,7 @@ async def _load(hass: HomeAssistant, user_id: str) -> MockConfigEntry:
     )
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
-    await hass.async_block_till_done(wait_background_tasks=True)
+    await hass.async_block_till_done(wait_background_tasks=wait_background_tasks)
     assert entry.state is ConfigEntryState.LOADED
     return entry
 
@@ -202,6 +212,104 @@ def _issue(hass: HomeAssistant, entry: MockConfigEntry) -> str | None:
 
 def _retry_now() -> Any:
     return patch.object(old_app, "_OLD_APP_RETRY_SECONDS", 0)
+
+
+@contextmanager
+def _offered_update(hass: HomeAssistant, panel: Panel) -> Iterator[None]:
+    """An authenticated offer the panel downloads when HA cannot fetch it."""
+    release = ReleaseArtifact(
+        "v0.9.10",
+        "0.9.10",
+        "app.apk",
+        "https://github.com/panel-assistant/android/releases/download/v0.9.10/app.apk",
+        "a" * 64,
+        descriptor=SimpleNamespace(package_id=SUCCESSOR_PACKAGE_ID, version_code=1103),
+        protocol_min=3,
+        protocol_max=3,
+    )
+    catalogue = async_get_stable_release_coordinator(hass)
+    catalogue._candidates[release.tag, SUCCESSOR_PACKAGE_ID] = release
+
+    async def start(_client: HaPaneldClient, tag: str) -> None:
+        assert tag == release.tag
+        panel.events.append("update")
+        panel.health = replace(
+            HEALTH, version=release.version, build="1001", version_code=1103
+        )
+
+    with (
+        patch.object(HaPaneldClient, "async_start_panel_update", start),
+        patch.object(
+            HaPaneldClient,
+            "async_get_status",
+            AsyncMock(
+                return_value=replace(
+                    STATUS,
+                    home_ui={
+                        "state": "ready",
+                        "reason": "dashboard",
+                        "evidence": "foreground",
+                    },
+                )
+            ),
+        ),
+        patch.object(panel_update, "async_store_panel_backup", panel.store),
+        patch.object(
+            panel_update,
+            "async_download_build",
+            AsyncMock(side_effect=BuildDownloadError),
+        ),
+    ):
+        yield
+
+
+async def _install_update(hass: HomeAssistant, entry: MockConfigEntry) -> None:
+    entity_id = er.async_get(hass).async_get_entity_id(
+        "update", DOMAIN, f"{entry.entry_id}_update"
+    )
+    assert entity_id is not None
+    await hass.services.async_call(
+        "update", "install", {"entity_id": entity_id}, blocking=True
+    )
+
+
+@contextmanager
+def _blocked_observation(panel: Panel) -> Iterator[tuple[asyncio.Event, asyncio.Event]]:
+    observing, observed = asyncio.Event(), asyncio.Event()
+
+    async def step(*args: Any, **kwargs: Any) -> MoveObservation:
+        if args[2] is MoveStep.OBSERVE:
+            observing.set()
+            await observed.wait()
+        return await panel.step(*args, **kwargs)
+
+    with patch.object(panel_move, "async_move_step", step):
+        yield observing, observed
+
+
+async def test_update_immediately_after_adding_succeeds_while_old_app_is_observed(
+    hass: HomeAssistant, hass_read_only_user: Any, panel: Panel
+) -> None:
+    panel.legacy = False
+    with (
+        _offered_update(hass, panel),
+        _blocked_observation(panel) as (
+            observing,
+            observed,
+        ),
+    ):
+        try:
+            entry = await _load(
+                hass, hass_read_only_user.id, wait_background_tasks=False
+            )
+            async with asyncio.timeout(5):
+                await observing.wait()
+                await _install_update(hass, entry)
+            assert panel.health.version == "0.9.10"
+            assert panel.events == ["backup", "update"]
+        finally:
+            observed.set()
+            await hass.async_block_till_done(wait_background_tasks=True)
 
 
 async def test_the_old_app_is_backed_up_around_and_removed_with_no_owner_action(
@@ -406,16 +514,200 @@ async def test_a_move_of_its_own_keeps_the_old_app_to_itself(
     assert _issue(hass, entry) is None
 
 
-async def test_an_update_or_move_in_progress_is_never_raced(
+async def test_a_claimed_move_refuses_the_update_service(
     hass: HomeAssistant, hass_read_only_user: Any, panel: Panel
 ) -> None:
-    with patch.object(panel_move, "claim_panel_operation", lambda *_args: False):
+    panel.legacy = False
+    with _offered_update(hass, panel):
         entry = await _load(hass, hass_read_only_user.id)
-    assert panel.targets == 0
-    assert panel.legacy
+        assert panel_move.claim_panel_operation(hass, entry.entry_id)
+        try:
+            with pytest.raises(HomeAssistantError) as error:
+                await _install_update(hass, entry)
+            assert error.value.translation_key == "update_busy"
+            assert "update" not in panel.events
+        finally:
+            panel_move.release_panel_operation(hass, entry.entry_id)
 
-    await _poll(hass, entry)
-    assert not panel.legacy
+        await _install_update(hass, entry)
+        assert panel.events.count("update") == 1
+
+
+async def test_an_update_claim_refuses_a_second_update_service_call(
+    hass: HomeAssistant, hass_read_only_user: Any, panel: Panel
+) -> None:
+    panel.legacy = False
+    checking, checked = asyncio.Event(), asyncio.Event()
+
+    async def capability(_client: HaPaneldClient) -> bool:
+        checking.set()
+        await checked.wait()
+        return True
+
+    with _offered_update(hass, panel):
+        entry = await _load(hass, hass_read_only_user.id)
+        with patch.object(
+            HaPaneldClient, "async_get_legacy_install_capability", capability
+        ):
+            updating = asyncio.create_task(_install_update(hass, entry))
+            try:
+                async with asyncio.timeout(5):
+                    await checking.wait()
+                    with pytest.raises(HomeAssistantError) as error:
+                        await _install_update(hass, entry)
+                    assert error.value.translation_key == "update_busy"
+                    assert "update" not in panel.events
+                    checked.set()
+                    await updating
+                assert panel.events.count("update") == 1
+            finally:
+                checked.set()
+                await asyncio.gather(updating, return_exceptions=True)
+                await hass.async_block_till_done(wait_background_tasks=True)
+
+
+async def test_a_claim_won_during_observation_keeps_the_old_app_and_retries_next_poll(
+    hass: HomeAssistant, hass_read_only_user: Any, panel: Panel
+) -> None:
+    with (
+        _offered_update(hass, panel),
+        _blocked_observation(panel) as (
+            observing,
+            observed,
+        ),
+    ):
+        try:
+            entry = await _load(
+                hass, hass_read_only_user.id, wait_background_tasks=False
+            )
+            async with asyncio.timeout(5):
+                await observing.wait()
+            assert panel_move.claim_panel_operation(hass, entry.entry_id)
+            try:
+                observed.set()
+                await hass.async_block_till_done(wait_background_tasks=True)
+                assert panel.events == ["OBSERVE"]
+                assert panel.legacy
+                with pytest.raises(HomeAssistantError) as error:
+                    await _install_update(hass, entry)
+                assert error.value.translation_key == "update_busy"
+            finally:
+                panel_move.release_panel_operation(hass, entry.entry_id)
+
+            await _poll(hass, entry)
+            assert panel.events == ["OBSERVE", "OBSERVE", "backup", "RETIRE_LEGACY"]
+            assert not panel.legacy
+        finally:
+            observed.set()
+            await hass.async_block_till_done(wait_background_tasks=True)
+
+
+async def test_a_move_started_during_observation_keeps_its_old_app(
+    hass: HomeAssistant, hass_read_only_user: Any, panel: Panel
+) -> None:
+    with _blocked_observation(panel) as (observing, observed):
+        try:
+            entry = await _load(
+                hass, hass_read_only_user.id, wait_background_tasks=False
+            )
+            async with asyncio.timeout(5):
+                await observing.wait()
+            assert panel_move.claim_panel_operation(hass, entry.entry_id)
+            try:
+                hass.config_entries.async_update_entry(
+                    entry,
+                    data={
+                        **entry.data,
+                        panel_move.CONF_SUCCESSOR_MOVE: {"panel_id": HEALTH.panel_id},
+                    },
+                )
+            finally:
+                panel_move.release_panel_operation(hass, entry.entry_id)
+            observed.set()
+            await hass.async_block_till_done(wait_background_tasks=True)
+            assert panel.events == ["OBSERVE"]
+            assert panel.legacy
+        finally:
+            observed.set()
+            await hass.async_block_till_done(wait_background_tasks=True)
+
+
+async def test_an_older_observation_does_not_restart_the_pending_new_build_check(
+    hass: HomeAssistant, hass_read_only_user: Any, panel: Panel
+) -> None:
+    panel.legacy = False
+    first_started, first_finished = asyncio.Event(), asyncio.Event()
+    newer_started = asyncio.Event()
+    first_release, newer_release = asyncio.Event(), asyncio.Event()
+
+    async def step(*args: Any, **kwargs: Any) -> MoveObservation:
+        first = panel.targets == 1
+        (first_started if first else newer_started).set()
+        await (first_release if first else newer_release).wait()
+        result = await panel.step(*args, **kwargs)
+        if first:
+            first_finished.set()
+        return result
+
+    with patch.object(panel_move, "async_move_step", step):
+        try:
+            entry = await _load(
+                hass, hass_read_only_user.id, wait_background_tasks=False
+            )
+            async with asyncio.timeout(5):
+                await first_started.wait()
+                panel.health = replace(HEALTH, version_code=1103)
+                await entry.runtime_data.coordinator.async_refresh()
+                await newer_started.wait()
+                first_release.set()
+                await first_finished.wait()
+                await entry.runtime_data.coordinator.async_refresh()
+                await hass.async_block_till_done(wait_background_tasks=False)
+            assert panel.targets == 2
+        finally:
+            first_release.set()
+            newer_release.set()
+            await hass.async_block_till_done(wait_background_tasks=True)
+
+
+@pytest.mark.parametrize("cancel", [False, True])
+async def test_update_is_refused_during_old_app_backup_and_the_claim_is_released(
+    hass: HomeAssistant, hass_read_only_user: Any, panel: Panel, cancel: bool
+) -> None:
+    backing_up, backed_up = asyncio.Event(), asyncio.Event()
+
+    async def backup() -> bytes:
+        backing_up.set()
+        await backed_up.wait()
+        return b"archive"
+
+    with _offered_update(hass, panel), patch.object(panel, "backup", backup):
+        try:
+            entry = await _load(
+                hass, hass_read_only_user.id, wait_background_tasks=False
+            )
+            async with asyncio.timeout(5):
+                await backing_up.wait()
+                with pytest.raises(HomeAssistantError) as error:
+                    await _install_update(hass, entry)
+                assert error.value.translation_key == "update_busy"
+                assert panel.events == ["OBSERVE"]
+                assert panel.legacy
+                if cancel:
+                    assert await hass.config_entries.async_unload(entry.entry_id)
+                    assert panel.legacy
+                    assert panel.events == ["OBSERVE"]
+                else:
+                    backed_up.set()
+                    await hass.async_block_till_done(wait_background_tasks=True)
+                    assert not panel.legacy
+                    await _install_update(hass, entry)
+                    assert panel.events.count("update") == 1
+            assert panel_move.claim_panel_operation(hass, entry.entry_id)
+            panel_move.release_panel_operation(hass, entry.entry_id)
+        finally:
+            backed_up.set()
+            await hass.async_block_till_done(wait_background_tasks=True)
 
 
 # --- the panel's own ADB, under the move step ------------------------------------
