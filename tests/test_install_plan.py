@@ -185,6 +185,55 @@ def test_default_install_follows_running_pa_without_persisting_implicit_opt_in(
     assert explicitly_selected.artifact.prerelease_opt_in
 
 
+@pytest.mark.parametrize("successor", [False, True])
+def test_default_feed_install_follows_running_pa_without_implicit_opt_in(
+    monkeypatch: pytest.MonkeyPatch, successor: bool
+) -> None:
+    tag = "build-100-successor" if successor else "build-100"
+    package = "io.panelassistant.android" if successor else "io.github.maxlyth.hapaneld"
+    apk_name = f"{APK_SHA256}.apk"
+    artifact = release(
+        tag=tag,
+        version="1.0.0-rc1",
+        apk_name=apk_name,
+        descriptor=descriptor(
+            release_tag=tag,
+            version_name="1.0.0-rc1",
+            apk_name=apk_name,
+            package_id=package,
+            launch_component=(
+                f"{package}/{package}.MainActivity"
+                if successor
+                else f"{package}/.MainActivity"
+            ),
+        ),
+    )
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "0.7.0-rc2")
+    plan = build_install_plan(pinned_target(), probe(), artifact, CREDENTIAL_ID)
+    assert plan.artifact.release_tag == tag
+    assert plan.artifact.apk_sha256 == APK_SHA256
+    assert plan.artifact.package_id == package
+    assert not plan.artifact.prerelease_opt_in
+
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "0.7.0")
+    with pytest.raises(InstallPlanError) as caught:
+        build_install_plan(pinned_target(), probe(), artifact, CREDENTIAL_ID)
+    assert caught.value.code is InstallPlanErrorCode.INCOMPATIBLE_RELEASE
+    selected = build_install_plan(
+        pinned_target(), probe(), artifact, CREDENTIAL_ID, expected_rc_tag=tag
+    )
+    assert selected.artifact.prerelease_opt_in
+    with pytest.raises(InstallPlanError) as caught:
+        build_install_plan(
+            pinned_target(),
+            probe(),
+            artifact,
+            CREDENTIAL_ID,
+            expected_rc_tag=tag.replace("100", "101"),
+        )
+    assert caught.value.code is InstallPlanErrorCode.INVALID_RELEASE
+
+
 def test_exact_stable_selection_never_grants_prerelease_consent() -> None:
     plan = build_install_plan(
         pinned_target(),

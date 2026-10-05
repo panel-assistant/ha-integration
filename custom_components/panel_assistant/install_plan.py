@@ -192,7 +192,7 @@ def _build_target(
 def _selection_matches(release_tag: str, expected_tag: str | None) -> bool:
     """Bind an explicit selection exactly; the default follows running PA."""
     if expected_tag is None:
-        return is_install_release_tag(release_tag)
+        return is_install_release_tag(release_tag) or is_feed_build_tag(release_tag)
     return release_tag == expected_tag and (
         is_install_release_tag(expected_tag) or is_feed_build_tag(expected_tag)
     )
