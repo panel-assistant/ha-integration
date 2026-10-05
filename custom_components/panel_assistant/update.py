@@ -20,6 +20,7 @@ from homeassistant.components.update import (
     UpdateEntity,
     UpdateEntityFeature,
 )
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
@@ -1609,9 +1610,13 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 route != ROUTE_ADB
                 and repair_artifact is not None
                 and owner is not None
-                # Unloaded while this update ran (unloading drops the entry's
-                # runtime data) or reloaded with another coordinator: the
-                # entry's cancellation has passed, so nothing may be scheduled.
+                # Only a loaded entry that still runs this entity's coordinator
+                # may own the task. An unload marks the entry unloading before
+                # it awaits anything and drops its runtime data at the end; a
+                # reload brings another coordinator. This check and the
+                # scheduling below share one event-loop step, so a task created
+                # here is always among those the next unload cancels.
+                and owner.state is ConfigEntryState.LOADED
                 and getattr(getattr(owner, "runtime_data", None), "coordinator", None)
                 is self.coordinator
             ):

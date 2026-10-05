@@ -1729,7 +1729,7 @@ async def test_bridge_handover_pins_successor_from_the_bridge_selected_tag(
     assert coordinator.artifact_for(SUCCESSOR_PACKAGE_ID, tag=bridge.tag) == successor
 
 
-@pytest.mark.parametrize("withdrawn", ["unloaded", "reloaded"])
+@pytest.mark.parametrize("withdrawn", ["unloading", "unloaded", "reloaded"])
 async def test_a_panel_withdrawn_during_the_update_gets_no_grant_repair(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
@@ -1754,16 +1754,41 @@ async def test_a_panel_withdrawn_during_the_update_gets_no_grant_repair(
         return await status(*args, **kwargs)
 
     panel.client.async_get_status = AsyncMock(side_effect=home_proof)
+    cleaning_up = asyncio.Event()
+    cleaned_up = asyncio.Event()
+
+    async def slow_cleanup() -> None:
+        # Another task of the entry that takes a while to stop, so the unload
+        # is still in progress, its runtime data still in place, while the
+        # update's HOME proof returns.
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cleaning_up.set()
+            await cleaned_up.wait()
+            raise
+
+    panel.entry.async_create_background_task(hass, slow_cleanup(), "slow cleanup")
     install = asyncio.create_task(panel.entity.async_install(None, False))
     await proving.wait()
-    assert await hass.config_entries.async_unload(panel.entry.entry_id)
-    if withdrawn == "reloaded":
-        # Loaded again, with a new coordinator this update entity does not own.
-        panel.entry.runtime_data = SimpleNamespace(coordinator=object())
-        panel.entry.mock_state(hass, ConfigEntryState.LOADED)
     probes = panel.probe.await_count
-    proved.set()
-    await install
+    unload = asyncio.create_task(hass.config_entries.async_unload(panel.entry.entry_id))
+    await cleaning_up.wait()
+    if withdrawn == "unloading":
+        assert panel.entry.state is ConfigEntryState.UNLOAD_IN_PROGRESS
+        proved.set()
+        await install
+        cleaned_up.set()
+        assert await unload
+    else:
+        cleaned_up.set()
+        assert await unload
+        if withdrawn == "reloaded":
+            # Loaded again, with a coordinator this update entity does not own.
+            panel.entry.runtime_data = SimpleNamespace(coordinator=object())
+            panel.entry.mock_state(hass, ConfigEntryState.LOADED)
+        proved.set()
+        await install
     await hass.async_block_till_done(wait_background_tasks=True)
 
     assert panel.probe.await_count == probes
