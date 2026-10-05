@@ -15,6 +15,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import SelectSelector
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
+from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.client import PanelHealth
@@ -372,4 +373,34 @@ async def test_a_rejected_candidate_at_a_new_address_is_probed_at_once(
     await _network_device_seen(hass)
 
     assert adb_open.asked == ["192.168.1.30", "192.168.1.35"]
+    assert set(_discovered(hass)) == {"Wall tablet"}
+
+
+async def test_known_panels_are_audited_as_panel_assistant_starts(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """An install or update restarts Core; the audit runs then, with no dhcp event."""
+    _companion(hass, "Wall screen", "192.168.1.30", "a")
+    adb_open.open.add("192.168.1.30")
+
+    assert await async_setup_component(hass, DOMAIN, {})
+    await hass.async_block_till_done()
+
+    assert set(_discovered(hass)) == {"Wall screen"}
+
+
+async def test_opening_add_integration_rechecks_known_panels_at_once(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """Someone at work in Home Assistant does not wait out the hourly recheck."""
+    _companion(hass, "Wall tablet", "192.168.1.30", "a")
+    await _network_device_seen(hass)
+    assert _discovered(hass) == {}
+    adb_open.open.add("192.168.1.30")
+
+    await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    await hass.async_block_till_done()
+
     assert set(_discovered(hass)) == {"Wall tablet"}

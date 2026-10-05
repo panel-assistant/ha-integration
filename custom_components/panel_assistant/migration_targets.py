@@ -187,13 +187,16 @@ async def async_find_migration_targets(hass: HomeAssistant) -> list[MigrationTar
 
 
 @callback
-def async_offer_migration_targets(hass: HomeAssistant) -> None:
+def async_offer_migration_targets(
+    hass: HomeAssistant, *, recheck: bool = False
+) -> None:
     """Raise each known, unconfigured candidate as a discovery.
 
     Only registries are read here. Each discovery flow probes its candidate
     after its unique id has turned away one that is ignored or already offered.
     One that was rejected is raised again after an hour, or at once from a new
     address, so turning ADB on later still brings it under Discovered.
+    `recheck` skips that wait while someone is working in Home Assistant.
     """
     offered: dict[str, tuple[str, float]] = hass.data.setdefault(DOMAIN, {}).setdefault(
         _DATA_OFFERED, {}
@@ -202,7 +205,8 @@ def async_offer_migration_targets(hass: HomeAssistant) -> None:
     for candidate in _candidates(hass).values():
         last = offered.get(candidate["key"])
         if (
-            last is not None
+            not recheck
+            and last is not None
             and last[0] == candidate["address"]
             and now - last[1] < _REOFFER_SECONDS
         ):

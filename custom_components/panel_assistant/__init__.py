@@ -13,6 +13,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.typing import ConfigType
 
 from .browser_delivery import async_register_browser_delivery
@@ -49,6 +50,7 @@ from .install_executor import (
     async_resume_loaded_install_jobs,
 )
 from .lifecycle import async_setup_lifecycle
+from .migration_targets import async_offer_migration_targets
 from .native import CONF_NATIVE_ENTITIES, NATIVE_ONLY_PLATFORMS
 from .native_move import async_delete_native_move_issues, async_evaluate_native_move
 from .panel_move import (
@@ -116,6 +118,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async_register_browser_delivery(hass)
     await async_register_browser_panel(hass)
     await async_setup_restart_check(hass)
+    # Installing or updating Panel Assistant means a restart, and someone at
+    # work in Home Assistant: audit known panels at once, not at the first dhcp
+    # event, which can be hours away on a network that names few devices.
+    async_at_started(hass, async_offer_migration_targets)
     feed = config.get(DOMAIN, {}).get(CONF_BUILD_FEED)
     if feed is not None:
         try:
