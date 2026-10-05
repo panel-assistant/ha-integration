@@ -279,7 +279,7 @@
         "step": {
           "commission_permissions": {
             "title": "Sprawdź uprawnienia na {panel}",
-            "description": "Pulpit na {panel} pozostaje dostępny. Na fizycznym panelu otwórz Ustawienia systemu Android → Aplikacje → ha-paneld. Zezwól na dostęp do aparatu i mikrofonu, jeśli są wymienione, oraz na powiadomienia. W sekcji Specjalny dostęp aplikacji zezwól ha-paneld na Modyfikowanie ustawień systemu i Wyświetlanie nad innymi aplikacjami. W sekcji Ułatwienia dostępu włącz usługę ha-paneld. Wróć tutaj i wybierz Wyślij, aby ponownie sprawdzić uprawnienia."
+            "description": "Pulpit na {panel} pozostaje dostępny. Na fizycznym panelu otwórz Ustawienia systemu Android → Aplikacje → ha-paneld. Zezwól na dostęp do aparatu i mikrofonu, jeśli są wymienione, oraz na powiadomienia. W sekcji Specjalny dostęp aplikacji zezwól ha-paneld na Modyfikowanie ustawień systemu i Wyświetlanie nad innymi aplikacjami. W sekcji Ułatwienia dostępu włącz usługę ha-paneld. Wróć tutaj i wybierz Zatwierdź, aby ponownie sprawdzić uprawnienia."
           }
         },
         "error": {

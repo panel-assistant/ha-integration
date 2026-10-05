@@ -128,7 +128,7 @@
     },
     "abort": {
       "already_configured": "此面板已配置。",
-      "not_panel": "这不是 Panel Assistant 可以安装的面板。",
+      "not_panel": "这不是 Panel Assistant 可以在其上进行安装的面板。",
       "invalid_discovery": "发现的面板无法证明它是同一健康的 ha-paneld 安装。未更改 Home Assistant 条目或面板设置。",
       "install_cancelled": "安装流程已在 APK 安装前取消。未创建 Home Assistant 条目。要重试，请添加 Panel Assistant 集成并输入相同的面板地址。",
       "install_cancelled_after_staging_cleanup": "安装已取消，并在安装前移除了暂存的 APK。未创建 Home Assistant 条目。要重试，请添加 Panel Assistant 集成并输入相同的面板地址。",
