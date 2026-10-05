@@ -28,6 +28,7 @@ from aiohttp import ClientConnectorError
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from homeassistant import config_entries
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
@@ -35,7 +36,9 @@ from homeassistant.util import dt as dt_util
 from multidict import CIMultiDict
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
+    MockModule,
     async_fire_time_changed,
+    mock_integration,
 )
 from yarl import URL
 
@@ -1373,6 +1376,7 @@ async def _lan_grant_repair_panel(
         else _GitHub(key)
     )
     entity, client = await _entity(hass, monkeypatch, github)
+    entry = _move_entry(hass, entity)
     if handover:
 
         async def refresh() -> None:
@@ -1437,6 +1441,7 @@ async def _lan_grant_repair_panel(
         pinned_client=pinned_client,
         create_key=create_key,
         request_authorization=request_authorization,
+        entry=entry,
     )
 
 
@@ -1523,6 +1528,61 @@ async def test_the_grant_repair_waits_for_adb_to_answer_after_the_restart(
         assert panel.probe.await_count == panel_update._PERMISSION_REPAIR_ATTEMPTS
     assert panel.entity.installed_version == VERSION
     assert panel.entity.in_progress is False
+
+
+async def test_removing_the_panel_ends_its_waiting_grant_repair(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    signer: PythonRSASigner,  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    """Once the entry is gone, a repair waiting for ADB writes nothing."""
+    panel = await _lan_grant_repair_panel(
+        hass, monkeypatch, key, signer, tmp_path, handover=True
+    )
+    mock_integration(
+        hass,
+        MockModule(
+            DOMAIN,
+            async_setup_entry=AsyncMock(return_value=True),
+            async_unload_entry=AsyncMock(return_value=True),
+        ),
+    )
+    panel.entry.mock_state(hass, ConfigEntryState.LOADED)
+    monkeypatch.setattr(panel_update, "_PERMISSION_REPAIR_RETRY_SECONDS", 0)
+    answering = panel.probe.return_value
+    silent = replace(
+        answering,
+        state=InstallTargetState.ADB_UNREACHABLE,
+        serial=None,
+        model=None,
+        primary_abi=None,
+        android_sdk=None,
+    )
+    waiting = asyncio.Event()
+    adb_back = asyncio.Event()
+
+    async def probe(*_args: Any) -> InstallTargetProbe:
+        if panel.probe.await_count == 1:
+            return silent
+        # The repair's next try: ADB answers only after the panel is removed.
+        waiting.set()
+        await adb_back.wait()
+        return answering
+
+    panel.probe.return_value = None
+    panel.probe.side_effect = probe
+
+    await panel.entity.async_install(None, False)
+    await waiting.wait()
+    assert await hass.config_entries.async_unload(panel.entry.entry_id)
+    adb_back.set()
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert panel.probe.await_count == 2
+    assert _panel_value(tmp_path, "accessibility_enabled") is None
 
 
 @pytest.mark.parametrize(

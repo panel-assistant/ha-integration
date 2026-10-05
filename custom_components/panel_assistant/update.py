@@ -1604,12 +1604,15 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 )
             raise
         else:
-            if route != ROUTE_ADB and repair_artifact is not None:
+            owner = self.hass.config_entries.async_get_entry(self._entry_id)
+            if route != ROUTE_ADB and repair_artifact is not None and owner:
                 # Not awaited: the panel already runs the update, and its ADB
-                # may take minutes to answer again.
-                self.hass.async_create_background_task(
+                # may take minutes to answer again. The entry owns the task,
+                # so unloading or removing the panel ends the repair.
+                owner.async_create_background_task(
+                    self.hass,
                     self._async_repair_update_permissions(repair_artifact),
-                    f"{DOMAIN} permission repair after updating {self._entry_id}",
+                    f"permission repair after updating {owner.title}",
                 )
             await async_clear_update_failure_if_installed(
                 self.hass,
