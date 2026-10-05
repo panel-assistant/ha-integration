@@ -97,8 +97,6 @@ async def _async_remove_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
     if found is None:
         return
     observed = await _async_step(found, MoveStep.OBSERVE)
-    if not _app_left(observed):
-        return
     try:
         await _client(hass, entry).async_hand_back_home()
     except UpdateApprovalRequiredError as err:
@@ -116,8 +114,6 @@ async def _async_remove_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
     try:
         removed = await _async_step(found, MoveStep.REMOVE_APP)
     except RemovalError as err:
-        if err.reason != REASON_ADB_UNREACHABLE:
-            raise
         # The uninstall may have run before the connection dropped; a retry
         # observes what is left.
         raise RemovalError(REASON_REMOVE_FAILED) from err
