@@ -19,6 +19,7 @@ from custom_components.panel_assistant.client import (
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.transport import (
     async_raise_cutover_incomplete_issue,
+    mqtt_discovery_claim,
 )
 
 from .test_cutover import NATIVE, PANEL_ID, _issue, _mqtt, _record, _reload
@@ -226,7 +227,17 @@ async def test_the_fix_moves_the_panel_as_the_control_option_does(
 ) -> None:
     """Its entities move to Panel Assistant and the issue goes."""
     assert await async_setup_component(hass, "repairs", {})
-    mqtt = _mqtt(hass, [("switch", "relay1", {})])
+    mqtt = _mqtt(
+        hass,
+        [
+            ("switch", "relay1", {}),
+            ("button", "update_companion", {}),
+            ("button", "update_paneld", {}),
+        ],
+    )
+    er.async_get(hass).async_update_entity(
+        mqtt["entity_ids"]["update_paneld"], name="Old app update"
+    )
     entry = await _setup(
         hass, hass_read_only_user.id, native=None, options={"authority": "mqtt"}
     )
@@ -253,6 +264,8 @@ async def test_the_fix_moves_the_panel_as_the_control_option_does(
     assert moved.platform == DOMAIN
     assert moved.unique_id != f"{PANEL_ID}_relay1"
     assert _domain_issues(hass, entry.entry_id) == []
+    assert _issue(hass, "native_controls_unavailable", entry.entry_id) is None
+    assert mqtt_discovery_claim(hass, entry) == "withdraw"
 
 
 async def test_the_fix_refuses_a_panel_that_went_back_to_an_older_release(

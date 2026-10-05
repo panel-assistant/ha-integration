@@ -1550,6 +1550,94 @@ async def test_old_complete_cutover_recovers_a_quarantined_unknown_button(
     assert restored_user.disabled_by is er.RegistryEntryDisabler.USER
 
 
+async def test_retired_update_buttons_clear_an_existing_repair_on_reload(
+    hass: HomeAssistant,
+    hass_read_only_user: Any,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """An already completed move stops waiting, while reversal stays intact."""
+    mqtt = _mqtt(
+        hass,
+        [
+            ("switch", "relay1", {}),
+            ("button", "update_companion", {}),
+            ("button", "update_paneld", {"disabled_by": er.RegistryEntryDisabler.USER}),
+        ],
+    )
+    er.async_get(hass).async_update_entity(
+        mqtt["entity_ids"]["update_companion"], name="Companion update"
+    )
+    before = _snapshot(hass, mqtt["entry"].entry_id)
+    entry = await _setup(
+        hass, hass_read_only_user.id, native=True, options=NATIVE, described={"relay1"}
+    )
+    # The saved complete record still contains both disabled MQTT buttons,
+    # just as the release that raised this Repair recorded them.
+    assert _record(entry)["state"] == "complete"
+    assert {
+        row["unique_suffix"]: row["disabled_by_before"]
+        for row in _record(entry)["unmigrated"]
+    } == {"update_companion": None, "update_paneld": "user"}
+    transport.async_raise_native_controls_unavailable_issue(
+        hass,
+        entry,
+        sorted(mqtt["entity_ids"][s] for s in ("update_companion", "update_paneld")),
+    )
+    assert _issue(hass, "native_controls_unavailable", entry.entry_id) is not None
+
+    for _ in range(2):
+        await _reload(hass, entry)
+        assert _issue(hass, "native_controls_unavailable", entry.entry_id) is None
+        assert (
+            _issue(hass, "cutover_blocked_by_customised_entities", entry.entry_id)
+            is None
+        )
+        result = await _hello_result(hass, hass_ws_client, hass_read_only_access_token)
+        assert result["mqtt_discovery"] == "withdraw"
+
+    hass.config_entries.async_update_entry(entry, options={"authority": "mqtt"})
+    await _reload(hass, entry)
+    assert _snapshot(hass, mqtt["entry"].entry_id) == before
+    assert _issue(hass, "native_controls_unavailable", entry.entry_id) is None
+
+
+@pytest.mark.parametrize(
+    ("domain", "suffix"),
+    [
+        ("button", "update_paneld_extra"),
+        ("button", "reboot"),
+        ("switch", "update_companion"),
+    ],
+)
+async def test_retired_update_exemption_keeps_other_mqtt_entities_blocking(
+    hass: HomeAssistant, hass_read_only_user: Any, domain: str, suffix: str
+) -> None:
+    """Retirement is limited to the two exact button suffixes."""
+    mqtt = _mqtt(
+        hass,
+        [
+            ("button", "update_companion", {}),
+            ("button", "update_paneld", {}),
+            (domain, suffix, {}),
+        ],
+    )
+    other = mqtt["entity_ids"][suffix]
+    er.async_get(hass).async_update_entity(other, name="Keep this control")
+    entry = await _setup(
+        hass, hass_read_only_user.id, native=True, options=NATIVE, described=set()
+    )
+    issue_key = (
+        "native_controls_unavailable"
+        if domain == "button"
+        else "cutover_blocked_by_customised_entities"
+    )
+    issue = _issue(hass, issue_key, entry.entry_id)
+    assert issue is not None
+    assert issue.translation_placeholders == {"panel": "alpha", "entities": other}
+    assert transport.mqtt_discovery_claim(hass, entry) == "announce"
+
+
 async def test_turning_the_flag_off_reverses_the_next_setup(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:

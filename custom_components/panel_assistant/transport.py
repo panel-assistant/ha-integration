@@ -1625,6 +1625,11 @@ def suspended_control_entity_ids(hass: HomeAssistant, entry: ConfigEntry) -> lis
         if "disabled_by_before" in row
         and (item := registry.entities.get_entry(row[CUTOVER_REGISTRY_ID])) is not None
         and item.platform == MQTT_DOMAIN
+        # Retired MQTT update buttons have no native action to wait for.
+        and not (
+            item.domain == "button"
+            and row.get("unique_suffix") in {"update_companion", "update_paneld"}
+        )
     )
 
 
