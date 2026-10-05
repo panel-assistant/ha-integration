@@ -348,7 +348,7 @@ async def test_nothing_is_removed_until_the_owner_confirms(
         form["flow_id"], {"confirmed": False}
     )
 
-    assert result["errors"] == {"base": "removal_unconfirmed"}
+    assert result.get("errors") == {"base": "removal_unconfirmed"}
     assert fake.installed == [SUCCESSOR_PACKAGE_ID]
     assert fake.hand_back_requests == 0
 
@@ -426,7 +426,7 @@ async def test_hardened_approval_stops_with_nothing_removed_and_a_retry_finishes
         form["flow_id"], {"confirmed": True}
     )
 
-    assert result["errors"] == {"base": "removal_approval_required"}
+    assert result.get("errors") == {"base": "removal_approval_required"}
     assert fake.installed == [SUCCESSOR_PACKAGE_ID]
     assert fake.read()["home"] == APP_HOME
 
@@ -463,7 +463,7 @@ async def test_a_refused_hand_back_removes_nothing(
 
     result = await _remove(hass, entry)
 
-    assert result["errors"] == {"base": error}
+    assert result.get("errors") == {"base": error}
     assert fake.installed == [SUCCESSOR_PACKAGE_ID]
     assert fake.read()["events"] == []
 
@@ -480,7 +480,7 @@ async def test_the_uninstall_waits_for_another_launcher_on_the_panel_itself(
 
     result = await _remove(hass, entry)
 
-    assert result["errors"] == {"base": "removal_home_not_handed"}
+    assert result.get("errors") == {"base": "removal_home_not_handed"}
     assert fake.installed == [SUCCESSOR_PACKAGE_ID]
 
 
@@ -499,7 +499,7 @@ async def test_a_run_cut_short_after_one_uninstall_is_finished_by_a_retry(
         form["flow_id"], {"confirmed": True}
     )
 
-    assert first["errors"] == {"base": "removal_remove_failed"}
+    assert first.get("errors") == {"base": "removal_remove_failed"}
     assert fake.installed == [LEGACY_PACKAGE_ID]
     assert fake.read()["home"] == VENDOR_HOME
 
@@ -523,7 +523,7 @@ async def test_a_dropped_connection_during_the_uninstall_is_finished_by_a_retry(
     first = await hass.config_entries.options.async_configure(
         form["flow_id"], {"confirmed": True}
     )
-    assert first["errors"] == {"base": "removal_remove_failed"}
+    assert first.get("errors") == {"base": "removal_remove_failed"}
 
     retry = await hass.config_entries.options.async_configure(
         form["flow_id"], {"confirmed": True}
@@ -542,7 +542,7 @@ async def test_a_silent_app_that_still_holds_home_is_not_removed(
 
     result = await _remove(hass, entry)
 
-    assert result["errors"] == {"base": "removal_app_unreachable"}
+    assert result.get("errors") == {"base": "removal_app_unreachable"}
     assert fake.installed == [SUCCESSOR_PACKAGE_ID]
 
 
@@ -555,7 +555,7 @@ async def test_a_panel_busy_with_an_update_is_left_alone(
 
     result = await _remove(hass, entry)
 
-    assert result["errors"] == {"base": "removal_busy"}
+    assert result.get("errors") == {"base": "removal_busy"}
     assert fake.installed == [SUCCESSOR_PACKAGE_ID]
     assert fake.hand_back_requests == 0
 
@@ -569,6 +569,6 @@ async def test_an_unauthorized_panel_is_sent_to_authorize_adb_first(
 
     result = await _remove(hass, entry)
 
-    assert result["errors"] == {"base": "removal_adb_authorization"}
+    assert result.get("errors") == {"base": "removal_adb_authorization"}
     assert fake.installed == [SUCCESSOR_PACKAGE_ID]
     assert fake.hand_back_requests == 0
