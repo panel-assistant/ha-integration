@@ -48,6 +48,8 @@ _COMPANION_IP_SUFFIX = "_wifi_ip_address"
 # telephony (`FEATURE_TELEPHONY`): a phone, never a wall panel.
 _COMPANION_TELEPHONY_SUFFIXES = ("_phone_state", "_mobile_data", "_sim_1")
 _ADB_PROBE_SECONDS = 2
+# Android's adbd advertises this while network ADB listens (manifest zeroconf).
+ADB_SERVICE_TYPE = "_adb._tcp.local."
 # A candidate at the same address is raised at most this often, so a device that
 # is not a panel (ADB closed) is probed once an hour, not on every dhcp event.
 _REOFFER_SECONDS = 3600
@@ -131,6 +133,21 @@ async def _async_adb_answers(host: str) -> bool:
     return True
 
 
+def _lan_address(host: str) -> tuple[str, str] | None:
+    """(stored value, host) for an address the installer may use, else None."""
+    try:
+        address = normalize_address(host)
+    except InvalidAddressError:
+        return None
+    try:
+        literal = ipaddress.ip_address(address.host)
+    except ValueError:
+        literal = None
+    if literal is not None and not is_allowed_install_address(literal):
+        return None
+    return address.stored_value, address.host
+
+
 def _candidates(hass: HomeAssistant) -> dict[str, dict[str, Any]]:
     """Known, unconfigured LAN addresses, keyed by stored address; nothing probed."""
     configured = {
@@ -139,17 +156,10 @@ def _candidates(hass: HomeAssistant) -> dict[str, dict[str, Any]]:
     }
     candidates: dict[str, dict[str, Any]] = {}
     for key, host, name, source, panel_only in _known(hass):
-        try:
-            address = normalize_address(host)
-        except InvalidAddressError:
+        lan = _lan_address(host)
+        if lan is None:
             continue
-        try:
-            literal = ipaddress.ip_address(address.host)
-        except ValueError:
-            literal = None
-        if literal is not None and not is_allowed_install_address(literal):
-            continue
-        value = address.stored_value
+        value, bare = lan
         if value in configured:
             continue
         # One device can be known twice; the panel-only sources come first.
@@ -157,12 +167,40 @@ def _candidates(hass: HomeAssistant) -> dict[str, dict[str, Any]]:
             candidates[value] = {
                 "key": f"migration:{key}",
                 "address": value,
-                "host": address.host,
+                "host": bare,
                 "name": name,
                 "source": source,
                 "panel_only": panel_only,
             }
     return candidates
+
+
+def adb_candidate(hass: HomeAssistant, host: str, serial: str) -> dict[str, Any] | None:
+    """The device advertising network ADB, unless added already or off the LAN.
+
+    Network ADB is what the installer needs, so any such device is a candidate.
+    One another integration already knows keeps that integration's name and
+    card, so it is never offered twice.
+    """
+    lan = _lan_address(host)
+    if lan is None:
+        return None
+    value, bare = lan
+    if any(
+        entry.data.get(CONF_ADDRESS) == value
+        for entry in hass.config_entries.async_entries(DOMAIN)
+    ):
+        return None
+    if (known := _candidates(hass).get(value)) is not None:
+        return known
+    return {
+        "key": f"adb:{serial}",
+        "address": value,
+        "host": bare,
+        "name": f"Android {serial}",
+        "source": "network ADB",
+        "panel_only": False,
+    }
 
 
 async def async_check_migration_target(

@@ -65,6 +65,7 @@ from .failure_repair import async_clear_adb_authorization
 from .ha_url import async_offer_ha_url
 from .identity import CONF_INSTALL_IDENTITY, accept_health, is_installation
 from .install_adb import (
+    ADB_PORT,
     AdbInstallTarget,
     InstallAdbError,
     async_installed_artifact_size,
@@ -92,7 +93,9 @@ from .install_network import (
 )
 from .install_plan import InstallPlanError, build_install_plan
 from .migration_targets import (
+    ADB_SERVICE_TYPE,
     MigrationTarget,
+    adb_candidate,
     address_schema,
     async_check_migration_target,
     async_find_migration_targets,
@@ -230,6 +233,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         self, discovery_info: ZeroconfServiceInfo
     ) -> ConfigFlowResult:
         """Offer a verified local mDNS discovery for explicit confirmation."""
+        if discovery_info.type == ADB_SERVICE_TYPE:
+            return await self._async_discovered_adb(discovery_info)
         discovery_id = discovery_info.properties.get("did")
         if (
             discovery_info.port != DEFAULT_PORT
@@ -315,6 +320,29 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         one matcher per character.
         """
         async_offer_migration_targets(self.hass)
+        return self.async_abort(reason="not_panel")
+
+    async def _async_discovered_adb(
+        self, discovery_info: ZeroconfServiceInfo
+    ) -> ConfigFlowResult:
+        """Offer an Android device whose network ADB Android itself advertises."""
+        advertised = discovery_info.ip_address
+        host = f"[{advertised}]" if advertised.version == 6 else str(advertised)
+        serial = discovery_info.name.removesuffix(f".{ADB_SERVICE_TYPE}")
+        candidate = (
+            adb_candidate(self.hass, host, serial.removeprefix("adb-"))
+            if discovery_info.port == ADB_PORT
+            else None
+        )
+        if candidate is None:
+            return self.async_abort(reason="not_panel")
+        try:
+            await HaPaneldClient(
+                async_get_clientsession(self.hass), normalize_address(host)
+            ).async_get_health()
+        except CannotConnectError, InvalidResponseError:
+            return await self.async_step_integration_discovery(candidate)
+        # The app already answers here; its own advertisement offers it.
         return self.async_abort(reason="not_panel")
 
     async def async_step_integration_discovery(

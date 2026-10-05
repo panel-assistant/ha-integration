@@ -3,6 +3,7 @@ raised under Discovered with no Panel Assistant entry."""
 
 import asyncio
 from collections.abc import Iterator
+from ipaddress import ip_address
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -15,10 +16,11 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import SelectSelector
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
+from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.panel_assistant.client import PanelHealth
+from custom_components.panel_assistant.client import CannotConnectError, PanelHealth
 from custom_components.panel_assistant.const import DOMAIN
 
 HEALTH = PanelHealth(
@@ -404,3 +406,123 @@ async def test_opening_add_integration_rechecks_known_panels_at_once(
     await hass.async_block_till_done()
 
     assert set(_discovered(hass)) == {"Wall tablet"}
+
+
+HEALTH_CHECK = (
+    "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health"
+)
+
+
+async def _adb_advertised(
+    hass: HomeAssistant, host: str, serial: str = "1234567890123", port: int = 5555
+) -> dict:
+    """Android's adbd announcing network ADB, with no ha-paneld answering there."""
+    address = ip_address(host)
+    with patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=ZeroconfServiceInfo(
+                ip_address=address,
+                ip_addresses=[address],
+                port=port,
+                hostname="Android.local.",
+                type="_adb._tcp.local.",
+                name=f"adb-{serial}._adb._tcp.local.",
+                properties={},
+            ),
+        )
+        await hass.async_block_till_done()
+    return result
+
+
+def _cards(hass: HomeAssistant) -> dict[str, dict]:
+    """Every Panel Assistant discovery waiting for a decision, by card name."""
+    return {
+        flow["context"]["title_placeholders"]["name"]: flow
+        for flow in hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+        if flow["step_id"] == "confirm_migration"
+    }
+
+
+async def test_network_adb_device_is_discovered_and_installs_at_its_address(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """No entry and no other integration: network ADB alone raises the card."""
+    adb_open.open.add("192.168.1.50")
+
+    await _adb_advertised(hass, "192.168.1.50")
+
+    card = _cards(hass)["Android 1234567890123"]
+    with (
+        patch(HEALTH_CHECK, AsyncMock(return_value=HEALTH)),
+        patch("custom_components.panel_assistant.async_setup_entry", return_value=True),
+    ):
+        found = await hass.config_entries.flow.async_configure(card["flow_id"], {})
+        assert found["step_id"] == "found_panel"
+        result = await hass.config_entries.flow.async_configure(
+            found["flow_id"], {"next_step_id": "connect_found"}
+        )
+    assert result["data"] == {CONF_ADDRESS: "192.168.1.50"}
+
+
+async def test_network_adb_device_another_app_knows_is_one_card(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """The registry card and the ADB advertisement are the same panel."""
+    _host_entry(hass, "fully_kiosk", "Stairs tablet", "192.168.1.11")
+    adb_open.open.add("192.168.1.11")
+    await _network_device_seen(hass)
+
+    await _adb_advertised(hass, "192.168.1.11")
+
+    assert set(_cards(hass)) == {"Stairs tablet"}
+
+
+async def test_network_adb_device_already_added_or_running_the_app_is_not_offered(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """An added panel, a panel whose app answers, or a non-standard port: no card."""
+    adb_open.open.update({"192.168.1.50", "192.168.1.51", "192.168.1.52"})
+    MockConfigEntry(domain=DOMAIN, data={CONF_ADDRESS: "192.168.1.50"}).add_to_hass(
+        hass
+    )
+
+    await _adb_advertised(hass, "192.168.1.50", serial="added")
+    with patch(HEALTH_CHECK, AsyncMock(return_value=HEALTH)):
+        await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=ZeroconfServiceInfo(
+                ip_address=ip_address("192.168.1.51"),
+                ip_addresses=[ip_address("192.168.1.51")],
+                port=5555,
+                hostname="Android.local.",
+                type="_adb._tcp.local.",
+                name="adb-running._adb._tcp.local.",
+                properties={},
+            ),
+        )
+    await _adb_advertised(hass, "192.168.1.52", serial="odd", port=5556)
+
+    assert _cards(hass) == {}
+    assert adb_open.asked == []
+
+
+async def test_ignored_network_adb_device_stays_ignored_at_a_new_address(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """Ignore follows the device's ADB serial, not its address."""
+    adb_open.open.update({"192.168.1.50", "192.168.1.60"})
+    await _adb_advertised(hass, "192.168.1.50")
+    card = _cards(hass)["Android 1234567890123"]
+    hass.config_entries.flow.async_abort(card["flow_id"])
+    await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_IGNORE},
+        data={"unique_id": card["context"]["unique_id"], "title": "Android"},
+    )
+
+    await _adb_advertised(hass, "192.168.1.60")
+
+    assert _cards(hass) == {}
