@@ -1359,7 +1359,8 @@
           "onboarding": "Einrichtung fortsetzen",
           "transport": "Verbindungseinstellungen",
           "authorize_adb": "ADB für Updates autorisieren",
-          "updates": "Panel-Updates"
+          "updates": "Panel-Updates",
+          "remove_app": "ha-paneld von diesem Panel entfernen"
         }
       },
       "onboarding": {
@@ -1398,6 +1399,21 @@
         "data_description": {
           "prerelease_panel_builds": "Eine Vorabversion von Panel Assistant erlaubt bereits Vorabversionen der Panel-App."
         }
+      },
+      "remove_app": {
+        "title": "ha-paneld von {panel} entfernen",
+        "description": "Damit wird ha-paneld von {panel} entfernt. Zuerst gibt ha-paneld den Startbildschirm an den eigenen Launcher des Panels zurück und schaltet die Hersteller-Apps, die es deaktiviert hat, wieder ein; erst danach wird es über die Android-Debug-Bridge-Verbindung deinstalliert, die Home Assistant bereits hat. Seine Einstellungen auf dem Panel werden gelöscht.\n\nAuf manchen Panels und Firmware-Versionen gibt es nach dem Entfernen keinen Weg mehr zurück zu den Android-Einstellungen oder zum Debugging über das Netzwerk, sodass die App nicht erneut installiert werden kann, ohne das Panel zu öffnen. Lies vor dem Fortfahren, [was das Entfernen bei diesem Panel bewirken kann]({risks_url}).",
+        "data": {
+          "confirmed": "Ich habe die Risiken des Entfernens für dieses Panel gelesen und möchte ha-paneld entfernen"
+        }
+      },
+      "remove_app_done": {
+        "title": "ha-paneld ist von {panel} entfernt",
+        "description": "Das Panel behält seinen eigenen Startbildschirm. Soll Home Assistant {panel} auch vergessen?",
+        "menu_options": {
+          "remove_app_delete_entry": "Dieses Panel aus Home Assistant löschen",
+          "remove_app_keep_entry": "Vorerst in Home Assistant behalten"
+        }
       }
     },
     "error": {
@@ -1413,10 +1429,25 @@
       "adb_credential_error": "Home Assistant konnte seine ADB-Anmeldedaten nicht sicher laden oder dauerhaft speichern. Es wurde keine Änderung am Panel versucht. Prüfe vor einem erneuten Versuch den Speicher und die Protokolle von Home Assistant.",
       "retained_or_ambiguous": "Das Panel enthält möglicherweise einen zurückbehaltenen Paketeintrag von ha-paneld, oder es konnte nicht nachgewiesen werden, dass das Paket nicht vorhanden ist. Am Panel wurde nichts geändert. Versuche es einmal erneut, falls die Verbindung instabil war; folge andernfalls der in der Integrationsdokumentation verlinkten Anleitung zur sicheren Bereitstellung und Wiederherstellung. Deinstalliere die App nicht und setze sie nicht zurück, wenn keine verifizierte Sicherung vorhanden ist.",
       "unknown": "Unerwarteter Fehler",
-      "panel_identity_changed": "Die Adresse antwortet nicht mehr als dieses konfigurierte Panel. Prüfen Sie Panel und Adresse und versuchen Sie es erneut."
+      "panel_identity_changed": "Die Adresse antwortet nicht mehr als dieses konfigurierte Panel. Prüfen Sie Panel und Adresse und versuchen Sie es erneut.",
+      "removal_unconfirmed": "Setze das Häkchen, um zu bestätigen, dass du die Risiken des Entfernens gelesen hast. Es wurde nichts entfernt.",
+      "removal_busy": "Ein Update oder Umzug verändert dieses Panel bereits. Es wurde nichts entfernt; versuche es erneut, wenn er abgeschlossen ist.",
+      "removal_adb_unreachable": "Home Assistant konnte das Panel nicht über die Android Debug Bridge (Port 5555) erreichen. Es wurde nichts entfernt. Prüfe, ob das Panel eingeschaltet und das Debugging über das Netzwerk noch aktiviert ist, und versuche es erneut.",
+      "removal_adb_authorization": "Das Panel hat diese Instanz von Home Assistant für die Android Debug Bridge noch nicht akzeptiert. Es wurde nichts entfernt. Wähle zuerst „ADB für Updates autorisieren“ und versuche es dann erneut.",
+      "removal_panel_changed": "Unter der Adresse dieses Panels antwortet jetzt ein anderes Gerät. Es wurde nichts entfernt.",
+      "removal_approval_required": "Die gehärtete Sicherheit ist aktiv, daher muss die Rückgabe des Startbildschirms direkt am Panel bestätigt werden. Es wurde nichts geändert und ha-paneld ist weiterhin installiert. Bestätige die Anfrage am Panel und sende innerhalb von zehn Minuten erneut.",
+      "removal_no_replacement_home": "Das Panel konnte seinen Startbildschirm keinem anderen Launcher geben: Es ist keine andere Startbildschirm-App installiert, daher kann es nur ha-paneld anzeigen. Es wurde nichts entfernt und das Panel funktioniert weiterhin. Installiere einen Launcher oder schalte den des Herstellers wieder ein und versuche es erneut.",
+      "removal_ownership_unreadable": "Das Panel konnte seine eigene Aufzeichnung der deaktivierten Hersteller-Apps nicht lesen. Es wurde nichts entfernt. Starte das Panel neu und versuche es erneut.",
+      "removal_package_state_unknown": "Das Panel konnte nicht lesen, welche Apps installiert sind oder welche sein Startbildschirm ist. Es wurde nichts entfernt. Versuche es gleich noch einmal.",
+      "removal_home_not_handed": "Das Panel hat nicht bestätigt, dass ein anderer Launcher den Startbildschirm übernommen hat, daher wurde ha-paneld nicht entfernt. Installiere einen Launcher oder schalte den des Herstellers wieder ein und versuche es erneut.",
+      "removal_hand_back_unsupported": "Das ha-paneld auf diesem Panel ist zu alt, um den Startbildschirm zurückzugeben. Es wurde nichts entfernt. Aktualisiere es zuerst und versuche es dann erneut.",
+      "removal_app_unreachable": "ha-paneld hat nicht geantwortet und ist noch der Startbildschirm des Panels; es jetzt zu entfernen, würde das Panel ohne Startbildschirm lassen. Es wurde nichts entfernt. Starte ha-paneld auf dem Panel und versuche es erneut.",
+      "removal_remove_failed": "Das Panel hat seinen Startbildschirm bereits zurück, aber ha-paneld konnte nicht vollständig entfernt werden. Versuche es erneut: Ein neuer Versuch erledigt den Rest."
     },
     "abort": {
-      "native_entities_disabled": "Native Entitäten sind in diesem Home Assistant nicht aktiviert, daher steuert MQTT dieses Panel."
+      "native_entities_disabled": "Native Entitäten sind in diesem Home Assistant nicht aktiviert, daher steuert MQTT dieses Panel.",
+      "removed_entry_deleted": "ha-paneld wurde entfernt und das Panel aus Home Assistant gelöscht.",
+      "removed_entry_kept": "ha-paneld wurde entfernt. Das Panel bleibt in Home Assistant, bis du es löschst."
     }
   },
   "selector": {

@@ -1359,7 +1359,8 @@
           "onboarding": "继续设置",
           "transport": "连接设置",
           "authorize_adb": "授权 ADB 更新",
-          "updates": "面板更新"
+          "updates": "面板更新",
+          "remove_app": "从此面板移除 ha-paneld"
         }
       },
       "onboarding": {
@@ -1398,6 +1399,21 @@
         "data_description": {
           "prerelease_panel_builds": "预发布版 Panel Assistant 已允许面板应用预发布版本。"
         }
+      },
+      "remove_app": {
+        "title": "从 {panel} 移除 ha-paneld",
+        "description": "这会从 {panel} 移除 ha-paneld。ha-paneld 会先把主屏幕交还给面板自带的启动器，并重新启用它停用的厂商应用；之后才会通过 Home Assistant 已有的 Android Debug Bridge 连接将其卸载。它在面板上的设置会被删除。\n\n在某些面板和固件版本上，移除后将无法再回到 Android 设置或网络调试，因此不打开面板就无法再次安装该应用。继续之前，请阅读[移除可能对此面板造成的影响]({risks_url})。",
+        "data": {
+          "confirmed": "我已阅读此面板的移除风险，并要移除 ha-paneld"
+        }
+      },
+      "remove_app_done": {
+        "title": "已从 {panel} 移除 ha-paneld",
+        "description": "面板保留其自带的主屏幕。是否也让 Home Assistant 忘记 {panel}？",
+        "menu_options": {
+          "remove_app_delete_entry": "从 Home Assistant 删除此面板",
+          "remove_app_keep_entry": "暂时保留在 Home Assistant 中"
+        }
       }
     },
     "error": {
@@ -1413,10 +1429,25 @@
       "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
       "retained_or_ambiguous": "面板可能保留了 ha-paneld 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照集成文档中链接的配置安全与恢复指南操作。在备份经过验证之前，请勿卸载或重置应用。",
       "unknown": "出现意外错误",
-      "panel_identity_changed": "该地址不再回应为已配置的面板。请检查面板及其地址后重试。"
+      "panel_identity_changed": "该地址不再回应为已配置的面板。请检查面板及其地址后重试。",
+      "removal_unconfirmed": "请勾选复选框，确认你已阅读移除风险。未移除任何内容。",
+      "removal_busy": "更新或迁移正在更改此面板。未移除任何内容；请在完成后重试。",
+      "removal_adb_unreachable": "Home Assistant 无法通过 Android Debug Bridge（端口 5555）连接到面板。未移除任何内容。请确认面板已开启且网络调试仍处于启用状态，然后重试。",
+      "removal_adb_authorization": "面板尚未接受此 Home Assistant 实例使用 Android Debug Bridge。未移除任何内容。请先选择“为更新授权 ADB”，然后重试。",
+      "removal_panel_changed": "此面板的地址现在由另一台设备响应。未移除任何内容。",
+      "removal_approval_required": "已开启强化安全，因此交还主屏幕必须在面板上亲自批准。未做任何更改，ha-paneld 仍已安装。请在面板上批准该请求，然后在十分钟内再次提交。",
+      "removal_no_replacement_home": "面板无法把主屏幕交给其他启动器：面板上没有其他主屏幕应用，因此只能显示 ha-paneld。未移除任何内容，面板仍可正常使用。请安装一个启动器或重新启用厂商启动器，然后重试。",
+      "removal_ownership_unreadable": "面板无法读取它自己关于已停用厂商应用的记录。未移除任何内容。请重启面板，然后重试。",
+      "removal_package_state_unknown": "面板无法读取已安装哪些应用或哪个是其主屏幕。未移除任何内容。请稍后重试。",
+      "removal_home_not_handed": "面板没有确认其他启动器已接管主屏幕，因此未移除 ha-paneld。请安装一个启动器或重新启用厂商启动器，然后重试。",
+      "removal_hand_back_unsupported": "此面板上的 ha-paneld 版本太旧，无法交还主屏幕。未移除任何内容。请先更新它，然后重试。",
+      "removal_app_unreachable": "ha-paneld 没有响应，而它仍是面板的主屏幕，现在移除会让面板没有主屏幕。未移除任何内容。请在面板上启动 ha-paneld，然后重试。",
+      "removal_remove_failed": "面板已经拿回主屏幕，但 ha-paneld 未能完全移除。请重试：重试会完成剩余部分。"
     },
     "abort": {
-      "native_entities_disabled": "此 Home Assistant 未启用原生实体，因此由 MQTT 控制此面板。"
+      "native_entities_disabled": "此 Home Assistant 未启用原生实体，因此由 MQTT 控制此面板。",
+      "removed_entry_deleted": "已移除 ha-paneld，并已从 Home Assistant 删除该面板。",
+      "removed_entry_kept": "已移除 ha-paneld。在你删除之前，面板会保留在 Home Assistant 中。"
     }
   },
   "selector": {

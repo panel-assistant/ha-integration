@@ -95,6 +95,9 @@ _UPDATE_TIMEOUT_SECONDS = (
 _REMOTE_MODE = stat.S_IFREG | 0o644
 _JOB_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$", flags=re.ASCII)
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$", flags=re.ASCII)
+# A vendor build number travels to a public help page, so only a short,
+# printable token is kept: Sonoff reports "4.0.12", others a longer build string.
+_FIRMWARE_PATTERN = re.compile(r"[0-9A-Za-z][0-9A-Za-z ._+-]{0,79}", flags=re.ASCII)
 _SERIAL_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$", flags=re.ASCII)
 _ABI_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{1,64}$", flags=re.ASCII)
 _APK_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.apk(?:\.bin)?$", re.ASCII)
@@ -2344,6 +2347,7 @@ class MoveStep(StrEnum):
     RESTORE_LEGACY = "RESTORE_LEGACY"
     RETURN_HOME = "RETURN_HOME"
     START_LEGACY = "START_LEGACY"
+    REMOVE_APP = "REMOVE_APP"
 
 
 @dataclass(frozen=True, slots=True)
@@ -2371,6 +2375,9 @@ class MoveObservation:
     #: SHA-256 of the old app's installed APK, read beside a kept copy: only
     #: a copy with this digest is a whole copy of the app it will reinstall.
     legacy_apk: str | None = None
+    #: The vendor's own firmware number (``ro.build.display.id``), or None
+    #: when the panel reports none a help page could match.
+    firmware: str | None = None
 
 
 _HOME_QUERY = (
@@ -2421,6 +2428,17 @@ _MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
         f"cmd package set-home-activity {HOME_COMPONENTS[LEGACY_LAUNCH_COMPONENT]}",
     ),
     MoveStep.START_LEGACY: (f"am start -n {HOME_COMPONENTS[LEGACY_LAUNCH_COMPONENT]}",),
+    # Removes the app under both ids, only while HOME resolves to one launcher
+    # that is neither of them: never the system chooser, an empty answer, or
+    # Settings' FallbackHome, each of which would leave the panel without a
+    # home screen. Read in the same shell as the uninstall, as for retiring.
+    MoveStep.REMOVE_APP: (
+        f'case "$({_HOME_QUERY})" in {LEGACY_PACKAGE_ID}/*|{SUCCESSOR_PACKAGE_ID}/*'
+        "|android/*|com.android.settings/*) ;; ?*/?*) "
+        f"am force-stop {SUCCESSOR_PACKAGE_ID}; pm uninstall {SUCCESSOR_PACKAGE_ID}; "
+        f"am force-stop {LEGACY_PACKAGE_ID}; pm uninstall {LEGACY_PACKAGE_ID}; "
+        f"rm -f {_LEGACY_COPY} ;; esac",
+    ),
     # A successor that first starts with no legacy app and no migration record
     # beside it runs as an ordinary app; clearing it makes that start certain.
     MoveStep.RESET_SUCCESSOR: (
@@ -2490,6 +2508,7 @@ def _move_command(
             f"*notLaunched=true*) echo unlaunched:{SUCCESSOR_PACKAGE_ID} ;; esac",
             _SUCCESSOR_RECORDS_COMMAND,
             f'echo "home:$({_HOME_QUERY})"',
+            'echo "firmware:$(getprop ro.build.display.id 2>/dev/null)"',
             f"echo HAPANELD_MOVE_END:{nonce}:0",
         )
     )
@@ -2511,6 +2530,9 @@ def _parse_move(body: bytes, nonce: str) -> MoveObservation:
     listed = [line for line in lines if line == f"listed:{LEGACY_PACKAGE_ID}"]
     copies = [line.removeprefix("copy:") for line in lines if line.startswith("copy:")]
     apks = [line.removeprefix("apk:") for line in lines if line.startswith("apk:")]
+    firmwares = [
+        line.removeprefix("firmware:") for line in lines if line.startswith("firmware:")
+    ]
     if (
         status_code != 0
         or len(homes) != 1
@@ -2521,6 +2543,7 @@ def _parse_move(body: bytes, nonce: str) -> MoveObservation:
         or len(listed) > 1
         or len(copies) > 1
         or len(apks) > 1
+        or len(firmwares) > 1
         or any(not _SHA256_PATTERN.match(digest) for digest in (*copies, *apks))
         or len(homes)
         + len(installed)
@@ -2530,6 +2553,7 @@ def _parse_move(body: bytes, nonce: str) -> MoveObservation:
         + len(listed)
         + len(copies)
         + len(apks)
+        + len(firmwares)
         != len(lines)
     ):
         raise _MalformedAdbResponse
@@ -2549,7 +2573,14 @@ def _parse_move(body: bytes, nonce: str) -> MoveObservation:
         legacy_set_aside=bool(listed) and LEGACY_PACKAGE_ID not in installed,
         legacy_copy=copies[0] if copies else None,
         legacy_apk=apks[0] if apks and LEGACY_PACKAGE_ID in installed else None,
+        firmware=_firmware(firmwares[0]) if firmwares else None,
     )
+
+
+def _firmware(value: str) -> str | None:
+    """Keep a firmware number a help page could match, and nothing else."""
+    value = value.strip()
+    return value if _FIRMWARE_PATTERN.fullmatch(value) else None
 
 
 async def async_move_step(

@@ -1359,7 +1359,8 @@
           "onboarding": "Continua la configurazione",
           "transport": "Impostazioni di connessione",
           "authorize_adb": "Autorizza ADB per gli aggiornamenti",
-          "updates": "Aggiornamenti del pannello"
+          "updates": "Aggiornamenti del pannello",
+          "remove_app": "Rimuovi ha-paneld da questo pannello"
         }
       },
       "onboarding": {
@@ -1398,6 +1399,21 @@
         "data_description": {
           "prerelease_panel_builds": "Una versione preliminare di Panel Assistant consente già versioni preliminari dell’app del pannello."
         }
+      },
+      "remove_app": {
+        "title": "Rimuovi ha-paneld da {panel}",
+        "description": "Questa operazione rimuove ha-paneld da {panel}. Prima ha-paneld restituisce la schermata iniziale al launcher del pannello e riattiva le app del produttore che aveva disattivato; solo dopo viene disinstallato, tramite la connessione Android Debug Bridge che Home Assistant ha già. Le sue impostazioni sul pannello vengono eliminate.\n\nSu alcuni pannelli e versioni firmware, la rimozione non lascia alcun modo di tornare alle Impostazioni di Android o al debug di rete, quindi l'app non potrebbe essere reinstallata senza aprire il pannello. Prima di continuare, leggi [cosa può comportare la rimozione per questo pannello]({risks_url}).",
+        "data": {
+          "confirmed": "Ho letto i rischi della rimozione per questo pannello e voglio rimuovere ha-paneld"
+        }
+      },
+      "remove_app_done": {
+        "title": "ha-paneld è stato rimosso da {panel}",
+        "description": "Il pannello mantiene la propria schermata iniziale. Home Assistant deve dimenticare anche {panel}?",
+        "menu_options": {
+          "remove_app_delete_entry": "Elimina questo pannello da Home Assistant",
+          "remove_app_keep_entry": "Mantienilo in Home Assistant per ora"
+        }
       }
     },
     "error": {
@@ -1413,10 +1429,25 @@
       "adb_credential_error": "Home Assistant non è riuscito a caricare o conservare in modo sicuro le proprie credenziali ADB. Non è stata tentata alcuna modifica del pannello. Controlla lo spazio di archiviazione e i registri di Home Assistant prima di riprovare.",
       "retained_or_ambiguous": "Il pannello potrebbe contenere un record conservato del pacchetto ha-paneld oppure non è stato possibile dimostrare che il pacchetto sia assente. Il pannello non è stato modificato. Riprova una volta se la connessione era instabile; in caso contrario, segui la guida alla sicurezza e al ripristino del provisioning indicata nella documentazione dell'integrazione. Non disinstallare o reimpostare l'app senza un backup verificato.",
       "unknown": "Errore imprevisto",
-      "panel_identity_changed": "L’indirizzo non risponde più come questo pannello configurato. Controlla il pannello e il suo indirizzo prima di riprovare."
+      "panel_identity_changed": "L’indirizzo non risponde più come questo pannello configurato. Controlla il pannello e il suo indirizzo prima di riprovare.",
+      "removal_unconfirmed": "Seleziona la casella per confermare di aver letto i rischi della rimozione. Non è stato rimosso nulla.",
+      "removal_busy": "Un aggiornamento o uno spostamento sta già modificando questo pannello. Non è stato rimosso nulla; riprova quando sarà terminato.",
+      "removal_adb_unreachable": "Home Assistant non è riuscito a raggiungere il pannello tramite Android Debug Bridge (porta 5555). Non è stato rimosso nulla. Verifica che il pannello sia acceso e che il debug di rete sia ancora attivo, quindi riprova.",
+      "removal_adb_authorization": "Il pannello non ha ancora accettato questa istanza di Home Assistant per Android Debug Bridge. Non è stato rimosso nulla. Scegli prima «Autorizza ADB per gli aggiornamenti», quindi riprova.",
+      "removal_panel_changed": "All'indirizzo di questo pannello ora risponde un altro dispositivo. Non è stato rimosso nulla.",
+      "removal_approval_required": "La sicurezza rafforzata è attiva, quindi la restituzione della schermata iniziale deve essere approvata sul pannello stesso. Non è stato modificato nulla e ha-paneld è ancora installato. Approva la richiesta sul pannello, quindi invia di nuovo entro dieci minuti.",
+      "removal_no_replacement_home": "Il pannello non è riuscito a cedere la schermata iniziale a un altro launcher: non c'è nessun'altra app di schermata iniziale, quindi ha-paneld è l'unica cosa che può mostrare. Non è stato rimosso nulla e il pannello funziona ancora. Installa un launcher o riattiva quello del produttore, quindi riprova.",
+      "removal_ownership_unreadable": "Il pannello non è riuscito a leggere il proprio registro delle app del produttore che ha disattivato. Non è stato rimosso nulla. Riavvia il pannello, quindi riprova.",
+      "removal_package_state_unknown": "Il pannello non è riuscito a leggere quali app sono installate o quale è la sua schermata iniziale. Non è stato rimosso nulla. Riprova tra poco.",
+      "removal_home_not_handed": "Il pannello non ha confermato che un altro launcher abbia preso la schermata iniziale, quindi ha-paneld non è stato rimosso. Installa un launcher o riattiva quello del produttore, quindi riprova.",
+      "removal_hand_back_unsupported": "L'ha-paneld di questo pannello è troppo vecchio per restituire la schermata iniziale. Non è stato rimosso nulla. Aggiornalo prima, quindi riprova.",
+      "removal_app_unreachable": "ha-paneld non ha risposto ed è ancora la schermata iniziale del pannello, quindi rimuoverlo ora lascerebbe il pannello senza schermata iniziale. Non è stato rimosso nulla. Avvia ha-paneld sul pannello, quindi riprova.",
+      "removal_remove_failed": "Il pannello ha già riavuto la sua schermata iniziale, ma ha-paneld non è stato rimosso completamente. Riprova: un nuovo tentativo completa ciò che resta."
     },
     "abort": {
-      "native_entities_disabled": "Le entità native non sono attivate in questo Home Assistant, quindi MQTT controlla questo pannello."
+      "native_entities_disabled": "Le entità native non sono attivate in questo Home Assistant, quindi MQTT controlla questo pannello.",
+      "removed_entry_deleted": "ha-paneld è stato rimosso e il pannello è stato eliminato da Home Assistant.",
+      "removed_entry_kept": "ha-paneld è stato rimosso. Il pannello resta in Home Assistant finché non lo elimini."
     }
   },
   "selector": {

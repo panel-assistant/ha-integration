@@ -1070,7 +1070,8 @@
           "onboarding": "Kontynuuj konfigurację",
           "transport": "Ustawienia połączenia",
           "authorize_adb": "Autoryzuj ADB do aktualizacji",
-          "updates": "Aktualizacje panelu"
+          "updates": "Aktualizacje panelu",
+          "remove_app": "Usuń ha-paneld z tego panelu"
         }
       },
       "onboarding": {
@@ -1109,6 +1110,21 @@
         "data_description": {
           "prerelease_panel_builds": "Wstępna wersja Panel Assistant już zezwala na wersje wstępne aplikacji panelu."
         }
+      },
+      "remove_app": {
+        "title": "Usuń ha-paneld z {panel}",
+        "description": "Ta operacja usuwa ha-paneld z {panel}. Najpierw ha-paneld oddaje ekran główny własnemu launcherowi panelu i ponownie włącza wyłączone przez siebie aplikacje producenta; dopiero potem jest odinstalowywany przez połączenie Android Debug Bridge, które Home Assistant już ma. Jego ustawienia na panelu zostaną skasowane.\n\nNa niektórych panelach i wersjach firmware po usunięciu nie ma już drogi powrotu do Ustawień systemu Android ani do debugowania przez sieć, więc aplikacji nie da się zainstalować ponownie bez otwierania panelu. Zanim przejdziesz dalej, przeczytaj, [co usunięcie może zrobić z tym panelem]({risks_url}).",
+        "data": {
+          "confirmed": "Przeczytałem(-am) ryzyko usunięcia dla tego panelu i chcę usunąć ha-paneld"
+        }
+      },
+      "remove_app_done": {
+        "title": "ha-paneld usunięto z {panel}",
+        "description": "Panel zachowuje własny ekran główny. Czy Home Assistant ma też zapomnieć {panel}?",
+        "menu_options": {
+          "remove_app_delete_entry": "Usuń ten panel z Home Assistant",
+          "remove_app_keep_entry": "Na razie zachowaj go w Home Assistant"
+        }
       }
     },
     "error": {
@@ -1124,10 +1140,25 @@
       "adb_credential_error": "Home Assistant nie mógł bezpiecznie wczytać ani zapisać swoich danych uwierzytelniających ADB. Nie podjęto próby zmiany panelu. Przed ponowną próbą sprawdź pamięć i logi Home Assistant.",
       "retained_or_ambiguous": "Panel może zawierać zachowany rekord pakietu ha-paneld albo nie udało się dowieść, że pakietu nie ma. Nie wprowadzono żadnych zmian w panelu. Spróbuj ponownie tylko raz, jeśli połączenie było niestabilne; w przeciwnym razie postępuj zgodnie z przewodnikiem bezpiecznej instalacji i odzyskiwania, do którego link znajduje się w dokumentacji integracji. Nie odinstalowuj ani nie resetuj aplikacji bez zweryfikowanej kopii zapasowej.",
       "unknown": "Nieoczekiwany błąd",
-      "panel_identity_changed": "Ten adres nie odpowiada już jako skonfigurowany panel. Sprawdź panel i adres przed ponowną próbą."
+      "panel_identity_changed": "Ten adres nie odpowiada już jako skonfigurowany panel. Sprawdź panel i adres przed ponowną próbą.",
+      "removal_unconfirmed": "Zaznacz pole, aby potwierdzić, że znasz ryzyko usunięcia. Nic nie zostało usunięte.",
+      "removal_busy": "Aktualizacja lub przeniesienie już zmienia ten panel. Nic nie zostało usunięte; spróbuj ponownie, gdy się zakończy.",
+      "removal_adb_unreachable": "Home Assistant nie mógł połączyć się z panelem przez Android Debug Bridge (port 5555). Nic nie zostało usunięte. Sprawdź, czy panel jest włączony, a debugowanie przez sieć nadal aktywne, i spróbuj ponownie.",
+      "removal_adb_authorization": "Panel nie zaakceptował jeszcze tej instancji Home Assistant dla Android Debug Bridge. Nic nie zostało usunięte. Najpierw wybierz „Autoryzuj ADB dla aktualizacji”, a potem spróbuj ponownie.",
+      "removal_panel_changed": "Pod adresem tego panelu odpowiada teraz inne urządzenie. Nic nie zostało usunięte.",
+      "removal_approval_required": "Wzmocnione zabezpieczenia są włączone, więc oddanie ekranu głównego trzeba zatwierdzić na samym panelu. Nic nie zostało zmienione, a ha-paneld jest nadal zainstalowany. Zatwierdź żądanie na panelu, a potem wyślij je ponownie w ciągu dziesięciu minut.",
+      "removal_no_replacement_home": "Panel nie mógł oddać ekranu głównego innemu launcherowi: nie ma na nim innej aplikacji ekranu głównego, więc ha-paneld to jedyne, co może wyświetlać. Nic nie zostało usunięte, a panel nadal działa. Zainstaluj launcher lub ponownie włącz launcher producenta i spróbuj ponownie.",
+      "removal_ownership_unreadable": "Panel nie mógł odczytać własnego zapisu wyłączonych aplikacji producenta. Nic nie zostało usunięte. Uruchom panel ponownie, a potem spróbuj jeszcze raz.",
+      "removal_package_state_unknown": "Panel nie mógł odczytać, które aplikacje są zainstalowane ani która jest jego ekranem głównym. Nic nie zostało usunięte. Spróbuj ponownie za chwilę.",
+      "removal_home_not_handed": "Panel nie potwierdził, że inny launcher przejął ekran główny, więc ha-paneld nie został usunięty. Zainstaluj launcher lub ponownie włącz launcher producenta i spróbuj ponownie.",
+      "removal_hand_back_unsupported": "ha-paneld na tym panelu jest za stary, by oddać ekran główny. Nic nie zostało usunięte. Najpierw go zaktualizuj, a potem spróbuj ponownie.",
+      "removal_app_unreachable": "ha-paneld nie odpowiedział i nadal jest ekranem głównym panelu, więc usunięcie go teraz zostawiłoby panel bez ekranu głównego. Nic nie zostało usunięte. Uruchom ha-paneld na panelu i spróbuj ponownie.",
+      "removal_remove_failed": "Panel odzyskał już ekran główny, ale ha-paneld nie dał się usunąć całkowicie. Spróbuj ponownie: kolejna próba dokończy resztę."
     },
     "abort": {
-      "native_entities_disabled": "Natywne encje nie są włączone dla tego Home Assistant, więc tym panelem steruje MQTT."
+      "native_entities_disabled": "Natywne encje nie są włączone dla tego Home Assistant, więc tym panelem steruje MQTT.",
+      "removed_entry_deleted": "ha-paneld został usunięty, a panel skasowany z Home Assistant.",
+      "removed_entry_kept": "ha-paneld został usunięty. Panel pozostaje w Home Assistant, dopóki go nie skasujesz."
     }
   },
   "selector": {

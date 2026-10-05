@@ -127,6 +127,20 @@ class UpdateApprovalRequiredError(UpdateRejectedError):
     """Raised when Hardened mode requires physical panel approval before retry."""
 
 
+class HandBackRefusedError(UpdateRejectedError):
+    """Raised when the panel did not give its home screen to another launcher.
+
+    ``code`` is the panel's own refusal (``no-replacement-home``,
+    ``ownership-unreadable``, ``package-state-unknown``), ``not-handed`` for a
+    success that did not confirm another launcher took HOME, or ``unsupported``
+    for an app too old to hand it back.
+    """
+
+    def __init__(self, code: str) -> None:
+        super().__init__(code)
+        self.code = code
+
+
 def is_valid_discovery_id(value: str) -> bool:
     """Return whether an mDNS/health discovery token has the Android contract shape."""
     return _DISCOVERY_ID_PATTERN.fullmatch(value) is not None
@@ -912,6 +926,35 @@ class HaPaneldClient:
             if isinstance(count, str) and count.isdigit():
                 rows = int(count)
         return succeeded, rows
+
+    async def async_hand_back_home(self) -> str:
+        """Give HOME back to another launcher; return the launcher's package.
+
+        Only a readback the panel confirmed counts: a success that does not
+        name the launcher now holding HOME is a refusal, because removing the
+        app after it would leave the panel with no home screen.
+        """
+        status, body = await self._async_post_bounded(
+            self.address.base_url.with_path("/api/v1/hand-back-home"),
+            {},
+            MAX_INSTALL_RESPONSE_BYTES,
+        )
+        if status == 202:
+            parse_update_approval_response(body)
+        if status in (404, 405):
+            raise HandBackRefusedError("unsupported")
+        if status == 409:
+            code = _load_json_object(body).get("error")
+            raise HandBackRefusedError(code if isinstance(code, str) else "refused")
+        if status != 200:
+            raise UpdateRejectedError if 400 <= status < 500 else CannotConnectError
+        handed_to = _load_json_object(body).get("home_handed_to")
+        if (
+            not isinstance(handed_to, str)
+            or _PACKAGE_NAME_PATTERN.fullmatch(handed_to) is None
+        ):
+            raise HandBackRefusedError("not-handed")
+        return handed_to
 
     async def async_get_successor_capability(self) -> tuple[str, str, int | None, bool]:
         """Read the bridge's explicit LAN handover capability, never infer it."""

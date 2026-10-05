@@ -1359,7 +1359,8 @@
           "onboarding": "Poursuivre la configuration",
           "transport": "Paramètres de connexion",
           "authorize_adb": "Autoriser ADB pour les mises à jour",
-          "updates": "Mises à jour du panneau"
+          "updates": "Mises à jour du panneau",
+          "remove_app": "Retirer ha-paneld de ce panneau"
         }
       },
       "onboarding": {
@@ -1398,6 +1399,21 @@
         "data_description": {
           "prerelease_panel_builds": "Une préversion de Panel Assistant autorise déjà les préversions de l’application du panneau."
         }
+      },
+      "remove_app": {
+        "title": "Retirer ha-paneld de {panel}",
+        "description": "Cette action retire ha-paneld de {panel}. D'abord, ha-paneld rend l'écran d'accueil au lanceur propre du panneau et réactive les applications du fabricant qu'il avait désactivées ; ensuite seulement, il est désinstallé via la connexion Android Debug Bridge dont Home Assistant dispose déjà. Ses réglages sur le panneau sont supprimés.\n\nSur certains panneaux et versions de firmware, le retirer ne laisse plus aucun moyen de revenir aux Paramètres Android ni au débogage réseau ; l'application ne pourrait alors être réinstallée qu'en ouvrant le panneau. Avant de continuer, lisez [ce que le retrait peut faire à ce panneau]({risks_url}).",
+        "data": {
+          "confirmed": "J'ai lu les risques du retrait pour ce panneau et je veux retirer ha-paneld"
+        }
+      },
+      "remove_app_done": {
+        "title": "ha-paneld est retiré de {panel}",
+        "description": "Le panneau garde son propre écran d'accueil. Home Assistant doit-il aussi oublier {panel} ?",
+        "menu_options": {
+          "remove_app_delete_entry": "Supprimer ce panneau de Home Assistant",
+          "remove_app_keep_entry": "Le garder dans Home Assistant pour l'instant"
+        }
       }
     },
     "error": {
@@ -1413,10 +1429,25 @@
       "adb_credential_error": "Home Assistant n'a pas pu charger ou conserver son identifiant ADB de façon sûre. Aucune modification du panneau n'a été tentée. Vérifiez le stockage et les journaux de Home Assistant avant de réessayer.",
       "retained_or_ambiguous": "Le panneau peut contenir un enregistrement conservé du paquet ha-paneld, ou il n'a pas été possible de confirmer qu'aucune trace de ce paquet n'y subsiste. Le panneau n'a pas été modifié. Réessayez une fois si la connexion était instable ; sinon, suivez le guide de sécurité et de récupération du provisionnement indiqué dans la documentation de l'intégration. Ne désinstallez pas et ne réinitialisez pas l'application sans disposer d'une sauvegarde vérifiée.",
       "unknown": "Erreur inattendue",
-      "panel_identity_changed": "Cette adresse ne répond plus comme le panneau configuré. Vérifiez le panneau et son adresse avant de réessayer."
+      "panel_identity_changed": "Cette adresse ne répond plus comme le panneau configuré. Vérifiez le panneau et son adresse avant de réessayer.",
+      "removal_unconfirmed": "Cochez la case pour confirmer que vous avez lu les risques du retrait. Rien n'a été retiré.",
+      "removal_busy": "Une mise à jour ou un déplacement modifie déjà ce panneau. Rien n'a été retiré ; réessayez une fois l'opération terminée.",
+      "removal_adb_unreachable": "Home Assistant n'a pas pu joindre le panneau via Android Debug Bridge (port 5555). Rien n'a été retiré. Vérifiez que le panneau est allumé et que le débogage réseau est toujours activé, puis réessayez.",
+      "removal_adb_authorization": "Le panneau n'a pas encore accepté cette instance de Home Assistant pour Android Debug Bridge. Rien n'a été retiré. Choisissez d'abord « Autoriser ADB pour les mises à jour », puis réessayez.",
+      "removal_panel_changed": "Un autre appareil répond maintenant à l'adresse de ce panneau. Rien n'a été retiré.",
+      "removal_approval_required": "La sécurité renforcée est activée : rendre l'écran d'accueil doit être approuvé sur le panneau lui-même. Rien n'a été modifié et ha-paneld est toujours installé. Approuvez la demande sur le panneau, puis renvoyez dans les dix minutes.",
+      "removal_no_replacement_home": "Le panneau n'a pas pu confier son écran d'accueil à un autre lanceur : aucune autre application d'écran d'accueil n'y est installée, ha-paneld est donc la seule chose qu'il peut afficher. Rien n'a été retiré et le panneau fonctionne toujours. Installez un lanceur ou réactivez celui du fabricant, puis réessayez.",
+      "removal_ownership_unreadable": "Le panneau n'a pas pu lire son propre relevé des applications du fabricant qu'il a désactivées. Rien n'a été retiré. Redémarrez le panneau, puis réessayez.",
+      "removal_package_state_unknown": "Le panneau n'a pas pu lire quelles applications sont installées ni laquelle est son écran d'accueil. Rien n'a été retiré. Réessayez dans un instant.",
+      "removal_home_not_handed": "Le panneau n'a pas confirmé qu'un autre lanceur a pris son écran d'accueil ; ha-paneld n'a donc pas été retiré. Installez un lanceur ou réactivez celui du fabricant, puis réessayez.",
+      "removal_hand_back_unsupported": "Le ha-paneld de ce panneau est trop ancien pour rendre l'écran d'accueil. Rien n'a été retiré. Mettez-le d'abord à jour, puis réessayez.",
+      "removal_app_unreachable": "ha-paneld n'a pas répondu et c'est toujours l'écran d'accueil du panneau ; le retirer maintenant laisserait le panneau sans écran d'accueil. Rien n'a été retiré. Lancez ha-paneld sur le panneau, puis réessayez.",
+      "removal_remove_failed": "Le panneau a déjà récupéré son écran d'accueil, mais ha-paneld n'a pas pu être retiré entièrement. Réessayez : une nouvelle tentative termine ce qui reste."
     },
     "abort": {
-      "native_entities_disabled": "Les entités natives ne sont pas activées dans ce Home Assistant : MQTT contrôle donc ce panneau."
+      "native_entities_disabled": "Les entités natives ne sont pas activées dans ce Home Assistant : MQTT contrôle donc ce panneau.",
+      "removed_entry_deleted": "ha-paneld a été retiré et le panneau supprimé de Home Assistant.",
+      "removed_entry_kept": "ha-paneld a été retiré. Le panneau reste dans Home Assistant jusqu'à ce que vous le supprimiez."
     }
   },
   "selector": {

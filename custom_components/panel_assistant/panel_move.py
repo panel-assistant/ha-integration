@@ -53,6 +53,7 @@ from zipfile import BadZipFile, ZipFile
 import voluptuous as vol
 from homeassistant.components.repairs import RepairsFlow
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import issue_registry as ir
@@ -78,6 +79,7 @@ from .client import (
     UpdateBusyError,
     _version_key,
     is_valid_discovery_id,
+    normalize_address,
 )
 from .const import DOMAIN
 from .device import panel_display_name
@@ -506,15 +508,35 @@ async def _async_target(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> tuple[AdbInstallTarget, Any]:
     """Pin the panel's address and reach it with Panel Assistant's ADB key."""
+    found = await async_app_target(hass, entry)
+    if found is None:
+        raise MoveError(REASON_ADB_UNREACHABLE)
+    return found
+
+
+async def async_app_target(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> tuple[AdbInstallTarget, Any] | None:
+    """Reach the panel over ADB; None when Android holds neither app id."""
     try:
         await async_get_adb_credential(hass)
         credential = await async_get_durable_adb_credential(hass)
-        pinned = await async_pin_install_target(hass, entry.runtime_data.client.address)
+        # An entry whose app is already gone may not have loaded, so the stored
+        # address stands in for the running client's.
+        client = getattr(getattr(entry, "runtime_data", None), "client", None)
+        address = (
+            client.address
+            if client is not None
+            else normalize_address(entry.data[CONF_ADDRESS])
+        )
+        pinned = await async_pin_install_target(hass, address)
     except (AdbCredentialError, InstallNetworkError, HaPaneldError) as err:
         raise MoveError(REASON_ADB_UNREACHABLE) from err
     probe = await async_probe_install_target(pinned.pinned, credential.signer)
     if probe.state is InstallTargetState.ADB_UNAUTHORIZED:
         raise MoveError(REASON_ADB_AUTHORIZATION)
+    if probe.state is InstallTargetState.INSTALL_CANDIDATE:
+        return None
     if probe.state not in {
         InstallTargetState.INSTALLED,
         InstallTargetState.MIGRATION_CANDIDATE,
