@@ -95,6 +95,28 @@ test('the signed feed selects the successor APK at a shared build number', async
     { tag: 'build-772-successor', apkSha256: successor.apkSha256 }));
 });
 
+for (const [name, overrides] of [
+  ['unsupported package', { packageId: 'io.github.other' }],
+  ['unsupported launch component', { launchComponent: 'io.github.maxlyth.hapaneld/.Other' }],
+]) {
+  test(`an authentic ${name} does not hide a supported build`, async () => {
+    const feed = await document({ builds: [await entry(773, overrides), await entry(772)] });
+    const signed = await bundle(feed);
+    const verified = await verifyApkBundle(signed, new Blob([apkOf(772)]),
+      { expectedRcTag: 'build-772' }, release.publicKey);
+    assert.equal(verified.descriptor.versionCode, 772);
+    await refuses(verify(await bundle(feed, { tag: 'build-773' })));
+    signed.feedSignature = new Uint8Array(256);
+    await refuses(verify(signed));
+    delete signed.feedSignature;
+    await refuses(verify(signed));
+  });
+  test(`malformed metadata on an ${name} still refuses the whole feed`, async () => {
+    const feed = await document({ builds: [await entry(773, { ...overrides, commit: 'bad' }), await entry(772)] });
+    await refuses(verify(await bundle(feed)));
+  });
+}
+
 test('the APK bytes must be exactly the signed size and SHA-256', async () => {
   const signed = await bundle(await document());
   const verified = await verifyApkBundle(signed, new Blob([apkOf(772)]), { expectedRcTag: 'build-772' }, release.publicKey);
@@ -143,8 +165,8 @@ for (const [name, change] of [
   ['unknown channel', async feed => { feed.channel = 'nightly'; }],
   ['wrong schema', async feed => { feed.schema = 'io.github.maxlyth.hapaneld.buildfeed.v2'; }],
   ['wrong signer', async feed => { feed.builds[0].signerCertificateSha256 = 'f'.repeat(64); }],
-  ['wrong package', async feed => { feed.builds[0].packageId = 'io.github.other'; }],
-  ['wrong launch component', async feed => { feed.builds[0].launchComponent = 'io.github.maxlyth.hapaneld/.Other'; }],
+  ['non-string package', async feed => { feed.builds[0].packageId = null; }],
+  ['non-string launch component', async feed => { feed.builds[0].launchComponent = null; }],
   ['wrong ABIs', async feed => { feed.builds[0].supportedAbis = ['armeabi-v7a', 'arm64-v8a']; }],
   ['a single ABI', async feed => { feed.builds[0].supportedAbis = ['arm64-v8a']; }],
   ['apkPath not content-addressed', async feed => { feed.builds[0].apkPath = feed.builds[1].apkPath; }],

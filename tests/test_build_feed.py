@@ -160,6 +160,64 @@ def test_signed_feed_accepts_one_build_per_package_at_the_same_code(
     assert feed.find(772, SUCCESSOR_PACKAGE_ID).apk_sha256 == _sha(773)
 
 
+@pytest.mark.parametrize(
+    "identity",
+    [
+        {"packageId": "io.github.other"},
+        {
+            "launchComponent": (
+                "io.github.maxlyth.hapaneld/io.panelassistant.android.MainActivity"
+            )
+        },
+    ],
+)
+def test_undrivable_entry_leaves_every_other_build_available(
+    sign: Callable[[bytes], bytes], identity: dict[str, str]
+) -> None:
+    """An authentic unsupported identity cannot hide supported feed builds."""
+    body = _canonical(_feed([_build_entry(773, **identity), *_feed()["builds"]]))
+    signature = sign(body)
+
+    feed = parse_build_feed(body, signature, FEED_URL)
+
+    assert [build.version_code for build in feed.builds] == [772, 771, 770]
+    assert feed.find(773) is None
+    assert all(feed.find(code) is not None for code in (770, 771, 772))
+    assert feed.raw == body
+    assert feed.signature == signature
+
+
+@pytest.mark.parametrize("fault", ["unsigned", "tampered-refused-entry"])
+def test_undrivable_entry_does_not_exempt_any_bytes_from_authentication(
+    sign: Callable[[bytes], bytes], fault: str
+) -> None:
+    """Even bytes belonging to a skipped entry remain covered by the signature."""
+    body = _canonical(
+        _feed([_build_entry(773, packageId="io.github.other"), _build_entry(772)])
+    )
+    signature = sign(body)
+    if fault == "unsigned":
+        signature = b""
+    else:
+        body = body.replace(b"io.github.other", b"io.github.tampered")
+
+    with pytest.raises(BuildFeedError):
+        parse_build_feed(body, signature, FEED_URL)
+
+
+@pytest.mark.parametrize(
+    "invalid", [{"apkSize": 0}, {"packageId": None}, {"launchComponent": []}]
+)
+def test_undrivable_entry_with_malformed_metadata_still_refuses_feed(
+    sign: Callable[[bytes], bytes], invalid: dict[str, Any]
+) -> None:
+    entry = _build_entry(773, packageId="io.github.other")
+    entry.update(invalid)
+    body = _canonical(_feed([entry, _build_entry(772)]))
+    with pytest.raises(BuildFeedError):
+        parse_build_feed(body, sign(body), FEED_URL)
+
+
 def test_empty_feed_parses_with_no_newest(sign: Callable[[bytes], bytes]) -> None:
     """An empty feed is valid and offers nothing."""
     body = _canonical(_feed(builds=[], channel="beta"))
@@ -235,14 +293,6 @@ def _without(key: str) -> dict[str, Any]:
         pytest.param(
             _feed([_build_entry(772, signerCertificateSha256="0" * 64)]),
             id="wrong-signer",
-        ),
-        pytest.param(
-            _feed([_build_entry(772, packageId="io.github.other")]),
-            id="wrong-package",
-        ),
-        pytest.param(
-            _feed([_build_entry(772, launchComponent="io.github.maxlyth.hapaneld/.X")]),
-            id="wrong-launch-component",
         ),
         pytest.param(
             _feed([_build_entry(772, supportedAbis=["arm64-v8a"])]),
