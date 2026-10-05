@@ -462,6 +462,9 @@ async def test_a_refused_hand_back_removes_nothing(
 ) -> None:
     fake, server = panel
     fake.hand_back = answer
+    # HOME already on another launcher, so only the app's own answer stops
+    # the removal: the vendor apps it switched off may still be off.
+    fake.set(home=VENDOR_HOME)
     entry = _entry(hass, server)
 
     result = await _remove(hass, entry)
