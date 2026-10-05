@@ -11,11 +11,9 @@ stand-in for it.
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 import stat
 import subprocess
-import sys
 from collections.abc import AsyncIterator
 from pathlib import Path
 from types import SimpleNamespace
@@ -50,53 +48,42 @@ FALLBACK_HOME = "com.android.settings/.FallbackHome"
 CHOOSER = "android/com.android.internal.app.ResolverActivity"
 APP_HOME = f"{SUCCESSOR_PACKAGE_ID}/.DashboardActivity"
 
-# One program stands in for each panel command; it reads and writes the
-# package-manager state in $PANEL_STATE and logs every change it makes.
-_FAKE_PANEL = r"""
-import json, os, sys
-path = os.environ["PANEL_STATE"]
-state = json.load(open(path))
-name, args = os.path.basename(sys.argv[0]), sys.argv[1:]
-def save():
-    json.dump(state, open(path, "w"))
-if name == "cmd" and args[:2] == ["package", "resolve-activity"]:
-    print("priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true")
-    print(state["home"])
-elif name == "cmd":
-    sys.exit(1)
-elif name == "pm" and args[0] == "path":
-    if args[1] in state["installed"]:
-        print(f"package:/data/app/{args[1]}/base.apk")
-    else:
-        sys.exit(1)
-elif name == "pm" and args[0] == "list":
-    if args[-1] in state["installed"] + state["aside"]:
-        print(f"package:{args[-1]}")
-elif name == "pm" and args[0] == "uninstall":
-    package = args[-1]
-    if package in state["fail_uninstall"]:
-        state["fail_uninstall"].remove(package)
-        save()
-        print("Failure [DELETE_FAILED_INTERNAL_ERROR]")
-        sys.exit(1)
-    if package in state["installed"] or package in state["aside"]:
-        state["installed"] = [p for p in state["installed"] if p != package]
-        state["aside"] = [p for p in state["aside"] if p != package]
-        state["events"].append(f"uninstall {package}")
-        if state["home"].startswith(package + "/"):
-            state["home"] = "com.android.settings/.FallbackHome"
-        save()
-        print("Success")
-    else:
-        print("Failure [DELETE_FAILED_INTERNAL_ERROR]")
-        sys.exit(1)
-elif name == "getprop":
-    print(state["firmware"])
-elif name in ("am", "dumpsys"):
-    pass
-else:
-    sys.exit(1)
+# One shell program stands in for each panel command. Package-manager state is
+# a directory: one empty file per package under installed/, aside/ and
+# fail_uninstall/, and one file each for HOME, firmware and the change log.
+_FAKE_PANEL = r"""#!/bin/sh
+s=$PANEL_STATE
+case "${0##*/} $1 $2" in
+"cmd package resolve-activity")
+    echo "priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true"
+    cat "$s/home" ;;
+"pm path "*)
+    [ -e "$s/installed/$2" ] || exit 1
+    echo "package:/data/app/$2/base.apk" ;;
+"pm list "*)
+    for p; do :; done
+    if [ -e "$s/installed/$p" ] || [ -e "$s/aside/$p" ]; then echo "package:$p"; fi ;;
+"pm uninstall "*)
+    for p; do :; done
+    if [ -e "$s/fail_uninstall/$p" ]; then
+        rm "$s/fail_uninstall/$p"; echo "Failure [DELETE_FAILED_INTERNAL_ERROR]"; exit 1
+    fi
+    if [ -e "$s/installed/$p" ] || [ -e "$s/aside/$p" ]; then
+        rm -f "$s/installed/$p" "$s/aside/$p"
+        echo "uninstall $p" >> "$s/events"
+        case "$(cat "$s/home")" in
+        "$p"/*) echo com.android.settings/.FallbackHome > "$s/home" ;;
+        esac
+        echo Success
+    else
+        echo "Failure [DELETE_FAILED_INTERNAL_ERROR]"; exit 1
+    fi ;;
+"getprop "*) cat "$s/firmware" ;;
+"am "*|"dumpsys "*) ;;
+*) exit 1 ;;
+esac
 """
+_LISTS = ("installed", "aside", "fail_uninstall")
 
 
 class FakePanel:
@@ -106,23 +93,17 @@ class FakePanel:
         self.directory = directory
         self.bin = directory / "bin"
         self.bin.mkdir()
-        program = directory / "fake_panel.py"
-        program.write_text(f"#!{sys.executable}\n" + _FAKE_PANEL)
+        program = directory / "fake_panel"
+        program.write_text(_FAKE_PANEL)
         program.chmod(program.stat().st_mode | stat.S_IEXEC)
         # The program reads the name it was started under to know its command.
         for command in ("cmd", "pm", "am", "getprop", "dumpsys", "timeout"):
             (self.bin / command).symlink_to(program)
-        self.state_path = directory / "state.json"
-        self.write(
-            {
-                "installed": [SUCCESSOR_PACKAGE_ID],
-                "aside": [],
-                "home": APP_HOME,
-                "firmware": "1.11.0",
-                "fail_uninstall": [],
-                "events": [],
-            }
-        )
+        self.state_path = directory / "state"
+        for name in _LISTS:
+            (self.state_path / name).mkdir(parents=True)
+        (self.state_path / "events").touch()
+        self.set(installed=[SUCCESSOR_PACKAGE_ID], home=APP_HOME, firmware="1.11.0")
         #: How the app answers hand-back-home: "hand", "approval", a 409
         #: code, "unconfirmed" (200 without a launcher) or an HTTP status.
         self.hand_back: str | int = "hand"
@@ -132,13 +113,24 @@ class FakePanel:
         self.adb_authorized = True
 
     def read(self) -> dict[str, Any]:
-        return json.loads(self.state_path.read_text())
-
-    def write(self, state: dict[str, Any]) -> None:
-        self.state_path.write_text(json.dumps(state))
+        state: dict[str, Any] = {
+            name: sorted(path.name for path in (self.state_path / name).iterdir())
+            for name in _LISTS
+        }
+        state["events"] = (self.state_path / "events").read_text().splitlines()
+        for name in ("home", "firmware"):
+            state[name] = (self.state_path / name).read_text().strip()
+        return state
 
     def set(self, **changes: Any) -> None:
-        self.write({**self.read(), **changes})
+        for name, value in changes.items():
+            if name in _LISTS:
+                for path in (self.state_path / name).iterdir():
+                    path.unlink()
+                for package in value:
+                    (self.state_path / name / package).touch()
+            else:
+                (self.state_path / name).write_text(f"{value}\n")
 
     @property
     def installed(self) -> list[str]:
