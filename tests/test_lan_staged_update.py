@@ -1377,6 +1377,15 @@ async def _lan_grant_repair_panel(
     )
     entity, client = await _entity(hass, monkeypatch, github)
     entry = _move_entry(hass, entity)
+    mock_integration(
+        hass,
+        MockModule(
+            DOMAIN,
+            async_setup_entry=AsyncMock(return_value=True),
+            async_unload_entry=AsyncMock(return_value=True),
+        ),
+    )
+    entry.mock_state(hass, ConfigEntryState.LOADED)
     if handover:
 
         async def refresh() -> None:
@@ -1542,15 +1551,6 @@ async def test_removing_the_panel_ends_its_waiting_grant_repair(
     panel = await _lan_grant_repair_panel(
         hass, monkeypatch, key, signer, tmp_path, handover=True
     )
-    mock_integration(
-        hass,
-        MockModule(
-            DOMAIN,
-            async_setup_entry=AsyncMock(return_value=True),
-            async_unload_entry=AsyncMock(return_value=True),
-        ),
-    )
-    panel.entry.mock_state(hass, ConfigEntryState.LOADED)
     monkeypatch.setattr(panel_update, "_PERMISSION_REPAIR_RETRY_SECONDS", 0)
     answering = panel.probe.return_value
     silent = replace(
@@ -1727,3 +1727,44 @@ async def test_bridge_handover_pins_successor_from_the_bridge_selected_tag(
     await coordinator.async_refresh()
     assert coordinator.artifact_for(SUCCESSOR_PACKAGE_ID) == newer
     assert coordinator.artifact_for(SUCCESSOR_PACKAGE_ID, tag=bridge.tag) == successor
+
+
+@pytest.mark.parametrize("withdrawn", ["unloaded", "reloaded"])
+async def test_a_panel_withdrawn_during_the_update_gets_no_grant_repair(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    signer: PythonRSASigner,  # noqa: F811
+    tmp_path: Path,
+    withdrawn: str,
+) -> None:
+    """Unloaded before the update finished, the entry can no longer cancel a repair."""
+    panel = await _lan_grant_repair_panel(
+        hass, monkeypatch, key, signer, tmp_path, handover=True
+    )
+    status = panel.client.async_get_status
+    proving = asyncio.Event()
+    proved = asyncio.Event()
+
+    async def home_proof(*args: Any, **kwargs: Any) -> Any:
+        if kwargs.get("home_proof"):
+            proving.set()
+            await proved.wait()
+        return await status(*args, **kwargs)
+
+    panel.client.async_get_status = AsyncMock(side_effect=home_proof)
+    install = asyncio.create_task(panel.entity.async_install(None, False))
+    await proving.wait()
+    assert await hass.config_entries.async_unload(panel.entry.entry_id)
+    if withdrawn == "reloaded":
+        # Loaded again, with a new coordinator this update entity does not own.
+        panel.entry.runtime_data = SimpleNamespace(coordinator=object())
+        panel.entry.mock_state(hass, ConfigEntryState.LOADED)
+    probes = panel.probe.await_count
+    proved.set()
+    await install
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert panel.probe.await_count == probes
+    assert _panel_value(tmp_path, "accessibility_enabled") is None

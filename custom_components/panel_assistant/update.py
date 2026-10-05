@@ -1605,7 +1605,16 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             raise
         else:
             owner = self.hass.config_entries.async_get_entry(self._entry_id)
-            if route != ROUTE_ADB and repair_artifact is not None and owner:
+            if (
+                route != ROUTE_ADB
+                and repair_artifact is not None
+                and owner is not None
+                # Unloaded while this update ran (unloading drops the entry's
+                # runtime data) or reloaded with another coordinator: the
+                # entry's cancellation has passed, so nothing may be scheduled.
+                and getattr(getattr(owner, "runtime_data", None), "coordinator", None)
+                is self.coordinator
+            ):
                 # Not awaited: the panel already runs the update, and its ADB
                 # may take minutes to answer again. The entry owns the task,
                 # so unloading or removing the panel ends the repair.
