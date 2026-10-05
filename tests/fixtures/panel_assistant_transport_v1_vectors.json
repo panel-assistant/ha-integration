@@ -803,8 +803,8 @@
       "request": {
         "type": "panel_assistant/hello",
         "protocol": {
-          "min": 3,
-          "max": 3
+          "min": 4,
+          "max": 4
         },
         "did": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
         "app": {
@@ -821,7 +821,7 @@
         "channels": []
       },
       "result": {
-        "protocol": 3,
+        "protocol": 4,
         "session": "q0vEYzJ4bGx0V2Q3cGF4NnRqS1BmZlRk",
         "authority": "native",
         "mqtt_discovery": "withdraw",
@@ -861,7 +861,7 @@
         "mqtt_withdraw"
       ],
       "result": {
-        "protocol": 3,
+        "protocol": 4,
         "session": "q0vEYzJ4bGx0V2Q3cGF4NnRqS1BmZlRk",
         "authority": "native",
         "capabilities": [
@@ -888,7 +888,7 @@
         "mqtt_withdraw"
       ],
       "result": {
-        "protocol": 3,
+        "protocol": 4,
         "session": "q0vEYzJ4bGx0V2Q3cGF4NnRqS1BmZlRk",
         "authority": "native",
         "capabilities": [
@@ -916,7 +916,7 @@
         "mqtt_withdraw"
       ],
       "result": {
-        "protocol": 3,
+        "protocol": 4,
         "session": "q0vEYzJ4bGx0V2Q3cGF4NnRqS1BmZlRk",
         "authority": "native",
         "mqtt_discovery": "keep",
@@ -948,8 +948,8 @@
       "request": {
         "type": "panel_assistant/hello",
         "protocol": {
-          "min": 3,
-          "max": 3
+          "min": 4,
+          "max": 4
         },
         "did": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
         "app": {
@@ -967,7 +967,7 @@
         "channels": []
       },
       "result": {
-        "protocol": 3,
+        "protocol": 4,
         "session": "q0vEYzJ4bGx0V2Q3cGF4NnRqS1BmZlRk",
         "authority": "native",
         "mqtt_discovery": "announce",
@@ -1003,7 +1003,7 @@
         "embed_proof"
       ],
       "result": {
-        "protocol": 3,
+        "protocol": 4,
         "session": "q0vEYzJ4bGx0V2Q3cGF4NnRqS1BmZlRk",
         "authority": "shadow",
         "mqtt_discovery": "announce",
@@ -1027,7 +1027,7 @@
         "state"
       ],
       "result": {
-        "protocol": 3,
+        "protocol": 4,
         "session": "q0vEYzJ4bGx0V2Q3cGF4NnRqS1BmZlRk",
         "authority": "shadow",
         "mqtt_discovery": "announce",
@@ -1054,7 +1054,7 @@
         "state"
       ],
       "result": {
-        "protocol": 3,
+        "protocol": 4,
         "session": "q0vEYzJ4bGx0V2Q3cGF4NnRqS1BmZlRk",
         "authority": "shadow",
         "mqtt_discovery": "announce",
