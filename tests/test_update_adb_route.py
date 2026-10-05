@@ -26,7 +26,10 @@ from custom_components.panel_assistant.adb_credentials import (
     AdbCredentialError,
     AdbCredentialMissingError,
 )
-from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
+from custom_components.panel_assistant.app_identity import (
+    LAUNCH_COMPONENTS,
+    LEGACY_PACKAGE_ID,
+)
 from custom_components.panel_assistant.build_feed import BuildFeed, FeedBuild
 from custom_components.panel_assistant.client import PanelHealth, normalize_address
 from custom_components.panel_assistant.const import DOMAIN
@@ -116,6 +119,7 @@ def route(
         database_compatibility="hapaneld-db:v1:ha-paneld.db:11:14",
         min_sdk=26,
         package_id=LEGACY_PACKAGE_ID,
+        launch_component=LAUNCH_COMPONENTS[LEGACY_PACKAGE_ID][0],
         published="2026-09-11T10:00:00Z",
         protocol_min=3,
         protocol_max=3,

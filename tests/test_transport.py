@@ -161,7 +161,7 @@ async def test_panel_update_options_regrant_live_authenticated_policy(
         assert response["success"]
         assert response["result"]["update_policy"] == {
             "protocolMin": 1,
-            "protocolMax": 3,
+            "protocolMax": 4,
             "prerelease": expected_initial,
         }
         old_token = response["result"]["session"]
@@ -204,7 +204,7 @@ async def test_panel_update_options_regrant_live_authenticated_policy(
         assert renewed["success"]
         assert renewed["result"]["update_policy"] == {
             "protocolMin": 1,
-            "protocolMax": 3,
+            "protocolMax": 4,
             "prerelease": "-" in pa_version or not initial_opt_in,
         }
 
@@ -609,7 +609,7 @@ async def test_malformed_envelope_is_invalid_format(
         ({"did": OTHER_DID}, "unknown_panel"),
         ({"did": None}, "panel_identity_unavailable"),
         ({"did": "absent"}, "panel_identity_unavailable"),
-        ({"protocol": {"min": 4, "max": 4}}, "protocol_unsupported"),
+        ({"protocol": {"min": 5, "max": 5}}, "protocol_unsupported"),
     ],
 )
 async def test_hello_refusals(
@@ -633,10 +633,10 @@ async def test_hello_refusals(
     assert async_get_sessions(hass).get(entry.entry_id) is None
     if code == "protocol_unsupported":
         assert response["error"]["translation_placeholders"] == {
-            "panel_min": "4",
-            "panel_max": "4",
+            "panel_min": "5",
+            "panel_max": "5",
             "integration_min": "1",
-            "integration_max": "3",
+            "integration_max": "4",
         }
 
 

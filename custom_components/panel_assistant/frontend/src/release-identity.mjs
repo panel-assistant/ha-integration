@@ -41,8 +41,14 @@ const apkStem = packageId => (packageId === LEGACY_PACKAGE_ID ? 'ha-paneld' : 'p
 /** The exact asset name a GitHub release publishes one identity's APK under. */
 export const githubApkName = (tag, packageId = LEGACY_PACKAGE_ID) =>
   `${apkStem(packageId)}-${tag}${APK_SUFFIX}`;
+// From app 0.9.10 the new app's APK carries a `.bin` suffix, so a release has
+// no `.apk` asset for an updater or installer that cannot drive a build whose
+// classes moved package. The old app has no such build.
+const UNLISTED_SUFFIX = '.bin';
 /** Every APK asset name a release of this tag may carry, legacy first. */
-export const githubApkNames = tag => ACCEPTED_PACKAGE_IDS.map(id => githubApkName(tag, id));
+export const githubApkNames = tag => ACCEPTED_PACKAGE_IDS.flatMap(id =>
+  id === SUCCESSOR_PACKAGE_ID ? [githubApkName(tag, id), githubApkName(tag, id) + UNLISTED_SUFFIX]
+    : [githubApkName(tag, id)]);
 /** The tag a GitHub release APK asset name carries, or null. */
 export function githubApkNameTag(name) {
   if (typeof name !== 'string' || !name.endsWith(APK_SUFFIX)) return null;

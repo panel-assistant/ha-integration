@@ -136,7 +136,7 @@ def test_rc_plan_refuses_stable_substitution() -> None:
     assert caught.value.code is InstallPlanErrorCode.INVALID_RELEASE
 
 
-@pytest.mark.parametrize("minimum,maximum", [(4, 5), (0, 3), (3, 2), (True, 3)])
+@pytest.mark.parametrize("minimum,maximum", [(5, 6), (0, 3), (3, 2), (True, 3)])
 def test_new_install_refuses_incompatible_native_range(
     minimum: object, maximum: object
 ) -> None:

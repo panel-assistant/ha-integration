@@ -180,7 +180,8 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
       if (!await inspectInstalledApk(adb, release.descriptor, guard)) fail('installed_artifact_mismatch');
       binding(receipt, release);
       const n = nonce();
-      if (parseLaunch(await readShell(adb, buildLaunch(n, release.descriptor.packageId, receipt.target.androidSdk),
+      if (parseLaunch(await readShell(adb, buildLaunch(n, release.descriptor.packageId,
+        release.descriptor.launchComponent, receipt.target.androidSdk),
         { timeoutMs: 30000 }), n) !== 'started') fail('launch_refused');
       binding(receipt, release);
     }),
@@ -193,17 +194,18 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
       const existing = parsePermissionRead(await readShell(adb, buildPermissionRead(n), {maximum: 8192}), n);
       binding(receipt, release);
       n = nonce();
-      // Grants go to the package whose installed bytes were verified above.
-      const packageId = release.descriptor.packageId;
+      // Grants go to the package whose installed bytes were verified above,
+      // and name the service among the classes that exact build carries.
+      const { packageId, launchComponent } = release.descriptor;
       parsePermissionGrant(await readShell(adb,
-        buildPermissionGrant(n, receipt.target.androidSdk, existing, packageId),
+        buildPermissionGrant(n, receipt.target.androidSdk, existing, packageId, launchComponent),
         {timeoutMs: 30000, maximum: 16384}), n);
       binding(receipt, release);
       n = nonce();
       const result = parsePermissionVerification(await readShell(adb,
-        buildPermissionVerification(n, receipt.target.androidSdk, packageId),
+        buildPermissionVerification(n, receipt.target.androidSdk, packageId, launchComponent),
         {timeoutMs: 30000, maximum: 16384}),
-      n, receipt.target.androidSdk, existing, packageId);
+      n, receipt.target.androidSdk, existing, packageId, launchComponent);
       binding(receipt, release);
       return result;
     }),

@@ -5,7 +5,7 @@ import { ReleaseVerificationError, parseUnauthenticatedDescriptor,
   verifyReleaseBundle } from '../src/release-verifier.mjs';
 import { ApkVerificationError, verifyApkBundle } from '../src/apk-verifier.mjs';
 import { handoffOptions, receiveReleaseHandoff } from '../src/release-handoff.mjs';
-import { SUCCESSOR_PACKAGE_ID, launchComponentFor } from '../src/app-identity.mjs';
+import { SUCCESSOR_PACKAGE_ID, LAUNCH_COMPONENTS } from '../src/app-identity.mjs';
 
 const ALGORITHM = { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048,
   publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' };
@@ -76,7 +76,7 @@ test('the signed feed selects the successor APK at a shared build number', async
   const successorApk = encoder.encode('successor APK');
   const successor = await entry(772, {
     packageId: SUCCESSOR_PACKAGE_ID,
-    launchComponent: launchComponentFor(SUCCESSOR_PACKAGE_ID),
+    launchComponent: LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID][0],
     apkSha256: await sha256(successorApk), apkSize: successorApk.length,
   });
   successor.apkPath = `apks/${successor.apkSha256}.apk`;

@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 from yarl import URL
 
 from custom_components.panel_assistant import update_policy
+from custom_components.panel_assistant.app_identity import LAUNCH_COMPONENTS
 from custom_components.panel_assistant.build_feed import (
     FeedBuild,
     feed_release_artifact,
@@ -204,6 +205,7 @@ async def test_retry_keeps_the_exact_signed_feed_build(hass: HomeAssistant) -> N
         min_sdk=26,
         published="2026-09-28T00:00:00Z",
         package_id="io.github.maxlyth.hapaneld",
+        launch_component=LAUNCH_COMPONENTS["io.github.maxlyth.hapaneld"][0],
         protocol_min=3,
         protocol_max=3,
     )

@@ -703,9 +703,9 @@ def test_the_two_identity_modules_state_exactly_the_same_values() -> None:
     """Python and JavaScript each hold their own copy of the identity contract.
 
     They cannot import from one another, and every value in them is a literal
-    on purpose: a component here is what a panel is actually sent, and Android
-    resolves `<id>/.Class` against the application id while the classes stay in
-    the namespace, so neither side may derive one. Literals in two files drift
+    on purpose: a component here is what a panel is actually sent, and one
+    application id names classes in either Kotlin package depending on the
+    build, so neither side may derive one. Literals in two files drift
     silently, and a drifted successor component names a class that does not
     exist on the panel.
 
@@ -721,12 +721,12 @@ def test_the_two_identity_modules_state_exactly_the_same_values() -> None:
         "accepted: m.ACCEPTED_PACKAGE_IDS,"
         "legacy: m.LEGACY_PACKAGE_ID,"
         "successor: m.SUCCESSOR_PACKAGE_ID,"
-        "launch: Object.fromEntries("
-        "m.ACCEPTED_PACKAGE_IDS.map(id => [id, m.launchComponentFor(id)])),"
-        "accessibility: Object.fromEntries("
-        "m.ACCEPTED_PACKAGE_IDS.map(id => [id, m.accessibilityComponentFor(id)])),"
-        "equivalent: Object.fromEntries("
-        "m.ACCEPTED_PACKAGE_IDS.map(id => [id, m.accessibilityComponentsFor(id)]))"
+        "launch: m.LAUNCH_COMPONENTS,"
+        "legacyLaunch: m.LEGACY_LAUNCH_COMPONENT,"
+        "accessibility: Object.fromEntries(Object.values(m.LAUNCH_COMPONENTS).flat()"
+        ".map(c => [c, m.accessibilityComponentFor(c)])),"
+        "equivalent: Object.fromEntries(Object.values(m.LAUNCH_COMPONENTS).flat()"
+        ".map(c => [c, m.accessibilityComponentsFor(c)]))"
         "}));"
     )
     javascript = json.loads(
@@ -743,7 +743,11 @@ def test_the_two_identity_modules_state_exactly_the_same_values() -> None:
     assert javascript["accepted"] == list(app_identity.ACCEPTED_PACKAGE_IDS)
     assert javascript["legacy"] == app_identity.LEGACY_PACKAGE_ID
     assert javascript["successor"] == app_identity.SUCCESSOR_PACKAGE_ID
-    assert javascript["launch"] == dict(app_identity.LAUNCH_COMPONENTS)
+    assert javascript["launch"] == {
+        package_id: list(components)
+        for package_id, components in app_identity.LAUNCH_COMPONENTS.items()
+    }
+    assert javascript["legacyLaunch"] == app_identity.LEGACY_LAUNCH_COMPONENT
     # Both installers write the accessibility service into one device-wide list.
     assert javascript["accessibility"] == dict(app_identity.ACCESSIBILITY_COMPONENTS)
     assert javascript["equivalent"] == {
@@ -753,9 +757,11 @@ def test_the_two_identity_modules_state_exactly_the_same_values() -> None:
         )
     }
 
-    # And the successor never carries the shorthand, in either copy.
-    for package_id, component in javascript["launch"].items():
-        assert component.startswith(f"{package_id}/")
-        assert component.startswith(f"{package_id}/.") == (
-            package_id == app_identity.LEGACY_PACKAGE_ID
-        )
+    # Every launcher names its own id, and the shorthand appears only where the
+    # class lives in that id's package: the old app's, never a successor's.
+    for package_id, components in javascript["launch"].items():
+        for component in components:
+            assert component.startswith(f"{package_id}/")
+            assert component.startswith(f"{package_id}/.") == (
+                package_id == app_identity.LEGACY_PACKAGE_ID
+            )

@@ -846,7 +846,7 @@
         },
         "update_policy": {
           "protocolMin": 1,
-          "protocolMax": 3,
+          "protocolMax": 4,
           "prerelease": true
         }
       },

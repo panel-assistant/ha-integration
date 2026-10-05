@@ -19,6 +19,7 @@ from yarl import URL
 
 from custom_components.panel_assistant import feed_coordinator, release, update_policy
 from custom_components.panel_assistant.app_identity import (
+    LAUNCH_COMPONENTS,
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
 )
@@ -131,7 +132,7 @@ def _add_feed(
             code,
             versionName=version,
             packageId=package_id,
-            launchComponent=release.launch_component_for(package_id),
+            launchComponent=LAUNCH_COMPONENTS[package_id][0],
             apkSha256=sha,
             apkPath=f"apks/{sha}.apk",
             apkSize=len(apk),
@@ -230,7 +231,7 @@ async def _panel(
         ),
         (
             ("1.0.0", 800),
-            [("1.2.0", 950, (4, 4)), ("1.1.0", 900, (3, 3))],
+            [("1.2.0", 950, (5, 5)), ("1.1.0", 900, (3, 3))],
             ("1.1.0", 900),
         ),
     ],
@@ -391,7 +392,7 @@ async def test_incompatible_semantic_head_cannot_hide_other_source(
     key: Any,
     incompatible_source: str,
 ) -> None:
-    bad, good = ("1.3.0", 950, (4, 4)), ("1.2.0", 900, (3, 3))
+    bad, good = ("1.3.0", 950, (5, 5)), ("1.2.0", 900, (3, 3))
     public = bad if incompatible_source == "public" else good
     feed = bad if incompatible_source == "feed" else good
     github, _ = _public_pool(key, monkeypatch, [public])

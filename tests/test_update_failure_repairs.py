@@ -15,7 +15,10 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from yarl import URL
 
 from custom_components.panel_assistant import update as panel_update
-from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
+from custom_components.panel_assistant.app_identity import (
+    LAUNCH_COMPONENTS,
+    LEGACY_PACKAGE_ID,
+)
 from custom_components.panel_assistant.build_feed import (
     BuildDownloadError,
     BuildFeed,
@@ -136,6 +139,7 @@ def _entity(
         min_sdk=26,
         published="2026-09-28T00:00:00Z",
         package_id=LEGACY_PACKAGE_ID,
+        launch_component=LAUNCH_COMPONENTS[LEGACY_PACKAGE_ID][0],
         protocol_min=3,
         protocol_max=3,
     )
@@ -697,6 +701,7 @@ async def test_older_targetless_repair_clears_only_at_verified_current_feed_buil
         min_sdk=26,
         published="2026-09-28T00:00:00Z",
         package_id=LEGACY_PACKAGE_ID,
+        launch_component=LAUNCH_COMPONENTS[LEGACY_PACKAGE_ID][0],
         protocol_min=3,
         protocol_max=3,
     )

@@ -183,7 +183,7 @@ async def test_default_choice_cannot_opt_into_prerelease(
     from custom_components.panel_assistant import update_policy
 
     client = authenticated_session(
-        release_key, [("v1.2.3", (4, 4)), ("v1.3.0-rc2", (3, 3))]
+        release_key, [("v1.2.3", (5, 5)), ("v1.3.0-rc2", (3, 3))]
     )
     monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "1.0.0")
     flow = HaPaneldConfigFlow()
@@ -244,7 +244,7 @@ async def test_network_setup_offers_and_installs_a_feed_build(
 
     _install_feed(hass, _build())
     client = authenticated_session(
-        release_key, [("v0.9.6", (4, 4)), ("v0.9.7-rc3", (3, 3))]
+        release_key, [("v0.9.6", (5, 5)), ("v0.9.7-rc3", (3, 3))]
     )
     monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "1.0.0")
     flow = HaPaneldConfigFlow()

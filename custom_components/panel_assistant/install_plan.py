@@ -8,7 +8,7 @@ import socket
 from dataclasses import dataclass
 from enum import StrEnum
 
-from .app_identity import is_accepted_package_id, launch_component_for
+from .app_identity import is_accepted_package_id, is_launch_component
 from .client import InvalidAddressError, PanelAddress, normalize_address
 from .install_jobs import (
     InstallArtifact,
@@ -252,7 +252,7 @@ def _build_artifact(
         or descriptor.supported_abis != _SUPPORTED_ABIS
         or database_bounds is None
         or not 1 <= database_bounds[0] <= database_bounds[1] <= 2**31 - 1
-        or descriptor.launch_component != launch_component_for(descriptor.package_id)
+        or not is_launch_component(descriptor.package_id, descriptor.launch_component)
         or version_code is None
         or apk_size is None
         or min_sdk is None

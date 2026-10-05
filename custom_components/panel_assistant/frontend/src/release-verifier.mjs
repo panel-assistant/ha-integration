@@ -9,7 +9,7 @@ NwQ44hg5o9iVKtxpnnjHEc/m6o9TBySQvxDWF3RxCDyPLNBqhrsgKsDlAyh+dtA8
 aJpQsDUJoX42xsRvA1hkRCpnWdEs1Bwfyv0ztlOxj7MxeFrFxWc3mnUyGhsn6rCT
 O+ygQ2m7FHp3D5t1+wFIendluEzUC+y9MpUHmoyq/lFrVuA8EOiy1U+z7Lr1vBWf
 LQIDAQAB`;
-import { isAcceptedPackageId, launchComponentFor } from './app-identity.mjs';
+import { isAcceptedPackageId, isLaunchComponent } from './app-identity.mjs';
 
 // Frozen on the legacy spelling: released integrations compare it byte for byte.
 const PACKAGE = 'io.github.maxlyth.hapaneld';
@@ -100,7 +100,7 @@ export function parseUnauthenticatedDescriptor(body, { tag, apkSha256 }) {
     requireValid(d.schema === `${PACKAGE}.install.v1` && descriptorIdentityValid(d, tag, apkSha256) &&
       d.apkSha256 === apkSha256 && isAcceptedPackageId(d.packageId) &&
       d.signerCertificateSha256 === SIGNER &&
-      d.launchComponent === launchComponentFor(d.packageId));
+      isLaunchComponent(d.packageId, d.launchComponent));
     requireValid(integer(d.apkSize, 64 * 1024 * 1024) &&
       integer(d.versionCode, 2147483647) && integer(d.minSdk, 100));
     requireValid(supportedAbis(d.supportedAbis));
@@ -130,7 +130,7 @@ function feedBuild(entry) {
     fullMatch(PUBLISHED, entry.published) &&
     fullMatch(FEED_DATABASE, entry.databaseCompatibility) &&
     isAcceptedPackageId(entry.packageId) && entry.signerCertificateSha256 === SIGNER &&
-    entry.launchComponent === launchComponentFor(entry.packageId) &&
+    isLaunchComponent(entry.packageId, entry.launchComponent) &&
     supportedAbis(entry.supportedAbis));
   return entry;
 }

@@ -18,6 +18,7 @@ from custom_components.panel_assistant import (
     release_catalog,
 )
 from custom_components.panel_assistant.app_identity import (
+    LAUNCH_COMPONENTS,
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
 )
@@ -60,6 +61,7 @@ def _build(
         min_sdk=26,
         published="2026-09-11T10:00:00Z",
         package_id=package_id,
+        launch_component=LAUNCH_COMPONENTS[package_id][0],
         protocol_min=3,
         protocol_max=3,
     )

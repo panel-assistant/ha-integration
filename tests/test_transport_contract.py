@@ -133,7 +133,7 @@ def test_contract_code_lists_are_the_integrations_own() -> None:
     # The panel-owned v1 catalogue remains the fixture for v1 producers;
     # restart notices are an additive command gated by the negotiated v2 range.
     assert CONTRACT["protocol"] == {"min": 1, "max": 1}
-    assert (transport.PROTOCOL_MIN, transport.PROTOCOL_MAX) == (1, 3)
+    assert (transport.PROTOCOL_MIN, transport.PROTOCOL_MAX) == (1, 4)
     assert set(CONTRACT["commands"]) == set(SCHEMAS) - {
         transport.COMMAND_RESTART_NOTICE
     }

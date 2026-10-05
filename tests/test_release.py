@@ -1780,13 +1780,24 @@ def test_the_shared_corpus_classifies_every_release_identity(
 def test_the_shared_corpus_names_both_identities_apk_assets(
     case: dict[str, Any],
 ) -> None:
-    """Each application id publishes its APK under its own stem."""
+    """Each application id publishes its APK under its own stem.
+
+    From app 0.9.10 the new app's APK has no `.apk` suffix, so no released
+    updater or installer finds a build it cannot drive; this integration does.
+    """
     assert release.release_apk_name(case["tag"], LEGACY_PACKAGE_ID) == case["legacy"]
     assert (
         release.release_apk_name(case["tag"], SUCCESSOR_PACKAGE_ID) == case["successor"]
     )
+    assert release.release_apk_names(case["tag"], SUCCESSOR_PACKAGE_ID) == (
+        case["successorUnlisted"],
+        case["successor"],
+    )
+    assert release.release_apk_names(case["tag"], LEGACY_PACKAGE_ID) == (
+        case["legacy"],
+    )
     version = case["tag"].removeprefix("v")
-    for name in (case["legacy"], case["successor"]):
+    for name in (case["legacy"], case["successor"], case["successorUnlisted"]):
         assert release.artifact_identity_matches(case["tag"], version, 1, name, _SHA256)
     assert not release.artifact_identity_matches(
         case["tag"], version, 1, "ha-paneld.apk", _SHA256

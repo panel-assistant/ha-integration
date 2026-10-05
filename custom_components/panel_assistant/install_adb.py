@@ -45,11 +45,12 @@ from .app_identity import (
     ACCESSIBILITY_COMPONENTS,
     EQUIVALENT_ACCESSIBILITY_COMPONENTS,
     HOME_COMPONENTS,
+    LEGACY_LAUNCH_COMPONENT,
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
     counterpart_of,
     is_accepted_package_id,
-    launch_component_for,
+    is_launch_component,
 )
 from .client import PanelAddress
 from .install_network import is_allowed_install_address
@@ -96,7 +97,7 @@ _JOB_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$", flags=re.ASCII)
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$", flags=re.ASCII)
 _SERIAL_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$", flags=re.ASCII)
 _ABI_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{1,64}$", flags=re.ASCII)
-_APK_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.apk$", re.ASCII)
+_APK_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.apk(?:\.bin)?$", re.ASCII)
 _ROOT_DATA_BASES = ("/data/user/0", "/data/data", "/data/user_de/0")
 # Residue is probed per accepted application id: during the identity migration
 # a panel may hold the data directory of either package, and only the data of
@@ -344,7 +345,7 @@ def _validate_descriptor(descriptor: InstallDescriptor) -> None:
         or not isinstance(descriptor.apk_sha256, str)
         or descriptor.schema != _DESCRIPTOR_SCHEMA
         or not is_accepted_package_id(descriptor.package_id)
-        or descriptor.launch_component != launch_component_for(descriptor.package_id)
+        or not is_launch_component(descriptor.package_id, descriptor.launch_component)
         or descriptor.signer_certificate_sha256 != _RELEASE_SIGNER_SHA256
         or _APK_NAME_PATTERN.fullmatch(descriptor.apk_name) is None
         or _SHA256_PATTERN.fullmatch(descriptor.apk_sha256) is None
@@ -670,7 +671,9 @@ _SERVICE_COMPONENT = re.compile(
 _APPOP_ALLOWED = r"{}: allow(?:; [\x20-\x7e]{{1,1024}})?"
 
 
-def _permission_grant_command(nonce: str, package_id: str) -> str:
+def _permission_grant_command(
+    nonce: str, package_id: str, launch_component: str
+) -> str:
     """Repair only grants Android proves missing before an install or update start.
 
     Settings writes, the overlay and the accessibility service are what the
@@ -681,9 +684,9 @@ def _permission_grant_command(nonce: str, package_id: str) -> str:
     the write is printed so the readback can prove nothing was dropped. Grant
     output is discarded; only the readback decides.
     """
-    component = ACCESSIBILITY_COMPONENTS[package_id]
+    component = ACCESSIBILITY_COMPONENTS[launch_component]
     known = "|".join(
-        f"*:{name}:*" for name in EQUIVALENT_ACCESSIBILITY_COMPONENTS[package_id]
+        f"*:{name}:*" for name in EQUIVALENT_ACCESSIBILITY_COMPONENTS[launch_component]
     )
     quiet = ">/dev/null 2>&1"
     runtime_grants = []
@@ -757,7 +760,7 @@ def _permission_grant_command(nonce: str, package_id: str) -> str:
     )
 
 
-def _expected_services(before: str, package_id: str) -> str | None:
+def _expected_services(before: str, launch_component: str) -> str | None:
     """The list after a grant, as the browser contract's ``expectedServices``."""
     services = [] if before in ("", "null") else before.split(":")
     if (
@@ -767,13 +770,13 @@ def _expected_services(before: str, package_id: str) -> str | None:
         or not all(_SERVICE_COMPONENT.fullmatch(name) for name in services)
     ):
         return None
-    known = EQUIVALENT_ACCESSIBILITY_COMPONENTS[package_id]
+    known = EQUIVALENT_ACCESSIBILITY_COMPONENTS[launch_component]
     if any(name in known for name in services):
         return before
-    return ":".join((*services, ACCESSIBILITY_COMPONENTS[package_id]))
+    return ":".join((*services, ACCESSIBILITY_COMPONENTS[launch_component]))
 
 
-def _parse_permission_grant(body: bytes, nonce: str, package_id: str) -> bool:
+def _parse_permission_grant(body: bytes, nonce: str, launch_component: str) -> bool:
     """Granted only when every readback line shows the grant and no service lost."""
     try:
         lines, status = _parse_single_section(body, prefix="PERMISSIONS", nonce=nonce)
@@ -782,7 +785,7 @@ def _parse_permission_grant(body: bytes, nonce: str, package_id: str) -> bool:
     if status != 0 or len(lines) != 7:
         return False
     before, after, enabled, write_settings, overlay, camera, microphone = lines
-    expected = _expected_services(before, package_id)
+    expected = _expected_services(before, launch_component)
     return (
         expected is not None
         and after == expected
@@ -796,17 +799,16 @@ def _parse_permission_grant(body: bytes, nonce: str, package_id: str) -> bool:
     )
 
 
-def _launch_command(nonce: str, package_id: str) -> str:
-    """Start the successor, or the legacy app, by its own exact component.
+def _launch_command(nonce: str, package_id: str, launch_component: str) -> str:
+    """Start the installed build by the exact component its descriptor names.
 
-    The ``<id>/.Class`` shorthand resolves against the application id while the
-    classes stay in the legacy namespace, so the component is looked up rather
-    than built from the package id.
+    One application id can carry its classes in either Kotlin package, so the
+    component is the descriptor's, never built from the package id.
     """
     return "; ".join(
         (
             f"echo HAPANELD_LAUNCH_BEGIN:{nonce}",
-            f"am start -W -n {launch_component_for(package_id)} -p {package_id}",
+            f"am start -W -n {launch_component} -p {package_id}",
             f"echo HAPANELD_LAUNCH_END:{nonce}:$?",
         )
     )
@@ -2132,6 +2134,7 @@ async def _async_repair_app_permissions(
     device: AdbDeviceAsync,
     target: AdbInstallTarget,
     package_id: str,
+    launch_component: str,
 ) -> None:
     """Share observed grant repair between startup and an already-running update."""
     nonce = token_hex(16)
@@ -2166,11 +2169,11 @@ async def _async_repair_app_permissions(
     if not _parse_permission_grant(
         await _async_shell(
             device,
-            _permission_grant_command(nonce, package_id),
+            _permission_grant_command(nonce, package_id, launch_component),
             read_timeout=_READ_TIMEOUT_SECONDS,
         ),
         nonce,
-        package_id,
+        launch_component,
     ):
         _LOGGER.warning(
             "The panel did not grant %s every permission it needs: "
@@ -2198,7 +2201,9 @@ async def async_repair_installed_app_permissions(
         async with asyncio.timeout(_LAUNCH_TIMEOUT_SECONDS):
             device = await _async_connect(target, signer)
             await _async_require_identity_root(device, target, expected_root_mode)
-            await _async_repair_app_permissions(device, target, descriptor.package_id)
+            await _async_repair_app_permissions(
+                device, target, descriptor.package_id, descriptor.launch_component
+            )
     except InstallAdbError:
         raise
     except (
@@ -2228,13 +2233,17 @@ async def async_launch_installed_app(
         async with asyncio.timeout(_LAUNCH_TIMEOUT_SECONDS):
             device = await _async_connect(target, signer)
             await _async_require_identity_root(device, target, expected_root_mode)
-            await _async_repair_app_permissions(device, target, descriptor.package_id)
+            await _async_repair_app_permissions(
+                device, target, descriptor.package_id, descriptor.launch_component
+            )
             nonce = token_hex(16)
             mutation_started = True
             return _parse_launch_outcome(
                 await _async_shell(
                     device,
-                    _launch_command(nonce, descriptor.package_id),
+                    _launch_command(
+                        nonce, descriptor.package_id, descriptor.launch_component
+                    ),
                     read_timeout=_INSTALL_READ_TIMEOUT_SECONDS,
                     transport_timeout=_INSTALL_READ_TIMEOUT_SECONDS,
                 ),
@@ -2364,9 +2373,6 @@ _MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
         f"am force-stop {SUCCESSOR_PACKAGE_ID}",
         f"pm uninstall {SUCCESSOR_PACKAGE_ID}",
     ),
-    MoveStep.CLAIM_HOME: (
-        f"cmd package set-home-activity {HOME_COMPONENTS[SUCCESSOR_PACKAGE_ID]}",
-    ),
     # The old app's APK is kept beside its data until the new app is proven,
     # because setting the old app aside deletes the APK Android installed.
     # An earlier copy is never reused, and a copy that did not finish never
@@ -2398,9 +2404,9 @@ _MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
         f"package:*) rm -f {_LEGACY_COPY} ;; esac; }}",
     ),
     MoveStep.RETURN_HOME: (
-        f"cmd package set-home-activity {HOME_COMPONENTS[LEGACY_PACKAGE_ID]}",
+        f"cmd package set-home-activity {HOME_COMPONENTS[LEGACY_LAUNCH_COMPONENT]}",
     ),
-    MoveStep.START_LEGACY: (f"am start -n {HOME_COMPONENTS[LEGACY_PACKAGE_ID]}",),
+    MoveStep.START_LEGACY: (f"am start -n {HOME_COMPONENTS[LEGACY_LAUNCH_COMPONENT]}",),
     # A successor that first starts with no legacy app and no migration record
     # beside it runs as an ordinary app; clearing it makes that start certain.
     MoveStep.RESET_SUCCESSOR: (
@@ -2431,12 +2437,24 @@ _SUCCESSOR_RECORDS_COMMAND = (
 )
 
 
-def _move_command(nonce: str, step: MoveStep) -> str:
+def _move_command(
+    nonce: str, step: MoveStep, successor_launch: str | None = None
+) -> str:
     quiet = ">/dev/null 2>&1"
+    actions: tuple[str, ...]
+    if step is MoveStep.CLAIM_HOME:
+        # HOME goes to the dashboard of the exact build the move installed,
+        # whichever package its classes live in.
+        assert successor_launch is not None
+        actions = (
+            f"cmd package set-home-activity {HOME_COMPONENTS[successor_launch]}",
+        )
+    else:
+        actions = _MOVE_ACTIONS[step]
     return "; ".join(
         (
             f"echo HAPANELD_MOVE_BEGIN:{nonce}",
-            *(f"{action} {quiet}" for action in _MOVE_ACTIONS[step]),
+            *(f"{action} {quiet}" for action in actions),
             # No pipe into grep: toybox grep on some panels reports an error
             # on an empty pipe, which would corrupt the frame.
             *(
@@ -2526,12 +2544,18 @@ async def async_move_step(
     step: MoveStep,
     *,
     authorize: bool = True,
+    successor_launch: str | None = None,
 ) -> MoveObservation:
     """Run one move step on the pinned panel and observe its result.
 
     Only a step the owner started may offer Panel Assistant's key to the panel.
+    Claiming HOME names the launcher of the new-app build the move installed.
     """
     _validate_target(target)
+    if (step is MoveStep.CLAIM_HOME) != is_launch_component(
+        SUCCESSOR_PACKAGE_ID, successor_launch
+    ):
+        raise InstallAdbError(InstallAdbErrorCode.INVALID_REQUEST)
     device: AdbDeviceAsync | None = None
     mutation_started = False
     try:
@@ -2554,12 +2578,14 @@ async def async_move_step(
                 # Setting the old app aside drops its app-op and accessibility
                 # grants, so they are repaired, as for an install, before it
                 # starts again.
-                await _async_repair_app_permissions(device, target, LEGACY_PACKAGE_ID)
+                await _async_repair_app_permissions(
+                    device, target, LEGACY_PACKAGE_ID, LEGACY_LAUNCH_COMPONENT
+                )
             nonce = token_hex(16)
             return _parse_move(
                 await _async_shell(
                     device,
-                    _move_command(nonce, step),
+                    _move_command(nonce, step, successor_launch),
                     read_timeout=_INSTALL_READ_TIMEOUT_SECONDS,
                     transport_timeout=_INSTALL_TIMEOUT_SECONDS,
                 ),
