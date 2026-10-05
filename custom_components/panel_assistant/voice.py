@@ -168,6 +168,11 @@ def _pipelines(value: Any) -> dict[str, str]:
     return {_code(key): _plain_string(64)(item) for key, item in value.items()}
 
 
+def _known(value: Any, allowed: frozenset[str]) -> str | None:
+    # A string first: a list or object from the wire is unhashable in a set lookup.
+    return value if type(value) is str and value in allowed else None
+
+
 def _microphone(value: Any) -> MicrophoneCheck | None:
     """Read the microphone report leniently: it never refuses a configuration."""
     if type(value) is not dict:
@@ -178,8 +183,8 @@ def _microphone(value: Any) -> MicrophoneCheck | None:
     if type(detail) is str:
         detail = _CONTROL_CHARACTERS.sub(" ", detail).strip()[:MAX_MICROPHONE_DETAIL]
     return MicrophoneCheck(
-        presence=presence if presence in MICROPHONE_PRESENCES else None,
-        check=check if check in MICROPHONE_CHECKS else None,
+        presence=_known(presence, MICROPHONE_PRESENCES),
+        check=_known(check, MICROPHONE_CHECKS),
         detail=detail if type(detail) is str and detail else None,
     )
 

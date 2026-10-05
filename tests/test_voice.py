@@ -701,8 +701,17 @@ async def test_a_microphone_that_delivered_no_audio_names_what_the_panel_reporte
         {"presence": "unproven", "check": "recalibrating"},
         {"presence": "borrowed", "check": "silent", "detail": 7},
         "silent",
+        {"presence": [], "check": {}},
+        {"presence": {"proven": 1}, "check": ["silent"]},
     ],
-    ids=["old_panel", "future_check", "future_presence", "not_an_object"],
+    ids=[
+        "old_panel",
+        "future_check",
+        "future_presence",
+        "not_an_object",
+        "unhashable_members",
+        "unhashable_members_with_known_values_inside",
+    ],
 )
 async def test_a_microphone_report_never_refuses_the_configuration(
     hass: HomeAssistant,
@@ -720,7 +729,7 @@ async def test_a_microphone_report_never_refuses_the_configuration(
     assert (await panel.send(message))["success"]
     await hass.async_block_till_done()
     assert hass.states.get(entity_id).state == "idle"
-    if isinstance(microphone, dict) and microphone["check"] == "silent":
+    if isinstance(microphone, dict) and microphone.get("check") == "silent":
         # A presence this integration does not know still reports the check.
         assert _microphone_issue(hass, entry) is not None
     else:
