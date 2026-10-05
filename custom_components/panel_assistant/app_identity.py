@@ -9,13 +9,17 @@ accepts the pair rather than one constant.
 Two things do not move with the application id, and getting either wrong names
 something that does not exist on the panel:
 
-* The manifest classes live in the Gradle namespace, which stays
-  ``io.github.maxlyth.hapaneld`` for both builds. Android resolves the
-  ``<id>/.Class`` shorthand against the *application id*, so the shorthand is
-  correct only for the legacy id; the successor needs the fully qualified class.
-  The accessibility component has the same problem. Both installers write it,
-  so it is defined here and in the browser installer's ``app-identity.mjs``, and
-  a test compares the two copies by value.
+* The manifest classes live in the Kotlin package, which is not the
+  application id. Builds up to app 0.9.9 keep every class in
+  ``io.github.maxlyth.hapaneld``; from 0.9.10 the new app's classes live in
+  ``io.panelassistant.android``. So one application id can name two different
+  sets of classes, and a signed descriptor's ``launchComponent`` says which set
+  that exact build carries. Every other component is looked up from it, never
+  from the application id. Android resolves the ``<id>/.Class`` shorthand
+  against the *application id*, so the shorthand appears only where the class
+  lives in the id's own package. Both installers write these components, so
+  they are defined here and in the browser installer's ``app-identity.mjs``,
+  and a test compares the two copies by value.
 * The schema identifier strings, the database compatibility pattern and the
   MQTT identifiers are frozen on the legacy spelling on purpose, because
   released integrations compare them byte for byte. They are not derived from
@@ -39,28 +43,37 @@ SUCCESSOR_PACKAGE_ID = "io.panelassistant.android"
 #: failure sees the package a migrating panel actually has.
 ACCEPTED_PACKAGE_IDS: tuple[str, ...] = (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID)
 
-#: The launcher activity, flattened per id. Never derive this from the package
-#: id: ``.MainActivity`` resolves against the Gradle namespace.
-LAUNCH_COMPONENTS: Mapping[str, str] = MappingProxyType(
+_OLD_CLASSES_SUCCESSOR_LAUNCH = (
+    "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity"
+)
+_NEW_CLASSES_SUCCESSOR_LAUNCH = (
+    "io.panelassistant.android/io.panelassistant.android.MainActivity"
+)
+
+#: Every launcher activity a signed build of each id may name, flattened, in
+#: the order they shipped. Never derive one from the package id, and never
+#: replace the one a descriptor names: a stage that recomputed it would start a
+#: class the installed build does not have.
+LAUNCH_COMPONENTS: Mapping[str, tuple[str, ...]] = MappingProxyType(
     {
-        LEGACY_PACKAGE_ID: "io.github.maxlyth.hapaneld/.MainActivity",
+        LEGACY_PACKAGE_ID: ("io.github.maxlyth.hapaneld/.MainActivity",),
         SUCCESSOR_PACKAGE_ID: (
-            "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity"
+            _OLD_CLASSES_SUCCESSOR_LAUNCH,
+            _NEW_CLASSES_SUCCESSOR_LAUNCH,
         ),
     }
 )
 
+#: The one launcher component of the old app. No build of the old id moved its
+#: classes that this integration installs or observes.
+LEGACY_LAUNCH_COMPONENT = LAUNCH_COMPONENTS[LEGACY_PACKAGE_ID][0]
 
-#: The dashboard activity that answers HOME, flattened per id: the activity a
-#: kiosk panel boots to. Like the launcher, it lives in the Gradle namespace.
-HOME_COMPONENTS: Mapping[str, str] = MappingProxyType(
-    {
-        LEGACY_PACKAGE_ID: "io.github.maxlyth.hapaneld/.DashboardActivity",
-        SUCCESSOR_PACKAGE_ID: (
-            "io.panelassistant.android/io.github.maxlyth.hapaneld.DashboardActivity"
-        ),
-    }
-)
+
+def is_launch_component(package_id: object, component: object) -> bool:
+    """Return whether a build of this accepted id may name this launcher."""
+    return isinstance(package_id, str) and component in LAUNCH_COMPONENTS.get(
+        package_id, ()
+    )
 
 
 def is_accepted_package_id(package_id: object) -> bool:
@@ -68,40 +81,58 @@ def is_accepted_package_id(package_id: object) -> bool:
     return isinstance(package_id, str) and package_id in ACCEPTED_PACKAGE_IDS
 
 
-#: The accessibility service written into the device-wide list, per id. The
-#: successor's class keeps the legacy namespace, as with the launcher.
-ACCESSIBILITY_COMPONENTS: Mapping[str, str] = MappingProxyType(
+#: The dashboard activity that answers HOME, by the build's launcher: the
+#: activity a kiosk panel boots to lives in the same package as the launcher.
+HOME_COMPONENTS: Mapping[str, str] = MappingProxyType(
     {
-        LEGACY_PACKAGE_ID: (
-            "io.github.maxlyth.hapaneld/.input.PanelAccessibilityService"
+        LEGACY_LAUNCH_COMPONENT: "io.github.maxlyth.hapaneld/.DashboardActivity",
+        _OLD_CLASSES_SUCCESSOR_LAUNCH: (
+            "io.panelassistant.android/io.github.maxlyth.hapaneld.DashboardActivity"
         ),
-        SUCCESSOR_PACKAGE_ID: (
-            "io.panelassistant.android/"
-            "io.github.maxlyth.hapaneld.input.PanelAccessibilityService"
+        _NEW_CLASSES_SUCCESSOR_LAUNCH: (
+            "io.panelassistant.android/io.panelassistant.android.DashboardActivity"
         ),
     }
 )
 
-#: Every spelling Android reads back for an enabled service of this id: for the
-#: legacy id the class lives in the id's own package, so both forms name it.
+#: The accessibility service written into the device-wide list, by the build's
+#: launcher.
+ACCESSIBILITY_COMPONENTS: Mapping[str, str] = MappingProxyType(
+    {
+        LEGACY_LAUNCH_COMPONENT: (
+            "io.github.maxlyth.hapaneld/.input.PanelAccessibilityService"
+        ),
+        _OLD_CLASSES_SUCCESSOR_LAUNCH: (
+            "io.panelassistant.android/"
+            "io.github.maxlyth.hapaneld.input.PanelAccessibilityService"
+        ),
+        _NEW_CLASSES_SUCCESSOR_LAUNCH: (
+            "io.panelassistant.android/"
+            "io.panelassistant.android.input.PanelAccessibilityService"
+        ),
+    }
+)
+
+#: Every spelling Android reads back for that enabled service: where the class
+#: lives in the id's own package, both the shorthand and the full form name it.
 EQUIVALENT_ACCESSIBILITY_COMPONENTS: Mapping[str, tuple[str, ...]] = MappingProxyType(
     {
-        LEGACY_PACKAGE_ID: (
+        LEGACY_LAUNCH_COMPONENT: (
             "io.github.maxlyth.hapaneld/.input.PanelAccessibilityService",
             "io.github.maxlyth.hapaneld/"
             "io.github.maxlyth.hapaneld.input.PanelAccessibilityService",
         ),
-        SUCCESSOR_PACKAGE_ID: (
+        _OLD_CLASSES_SUCCESSOR_LAUNCH: (
             "io.panelassistant.android/"
             "io.github.maxlyth.hapaneld.input.PanelAccessibilityService",
         ),
+        _NEW_CLASSES_SUCCESSOR_LAUNCH: (
+            "io.panelassistant.android/.input.PanelAccessibilityService",
+            "io.panelassistant.android/"
+            "io.panelassistant.android.input.PanelAccessibilityService",
+        ),
     }
 )
-
-
-def launch_component_for(package_id: str) -> str:
-    """Return the exact flattened launcher component for one accepted id."""
-    return LAUNCH_COMPONENTS[package_id]
 
 
 def counterpart_of(package_id: str) -> str:

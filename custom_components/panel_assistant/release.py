@@ -19,7 +19,7 @@ from .app_identity import (
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
     is_accepted_package_id,
-    launch_component_for,
+    is_launch_component,
 )
 from .const import ANDROID_RELEASE_DOWNLOAD_ROOT, ANDROID_RELEASES_API
 
@@ -241,6 +241,19 @@ def release_apk_name(tag: str, package_id: str) -> str:
     return f"{stem}-{tag}-manual-setup-required.apk"
 
 
+def release_apk_names(tag: str, package_id: str) -> tuple[str, ...]:
+    """Every name a release may publish one identity's APK under, newest first.
+
+    From app 0.9.10 the new app's APK carries a ``.bin`` suffix, so a release
+    has no asset ending ``.apk``. Every panel updater, installer and Panel
+    Assistant released before then takes a release's ``.apk`` asset, and none
+    of them can drive a build whose classes moved package; finding nothing,
+    each keeps the panel on the build it has. The old app has no such build.
+    """
+    name = release_apk_name(tag, package_id)
+    return (f"{name}.bin", name) if package_id == SUCCESSOR_PACKAGE_ID else (name,)
+
+
 def release_descriptor_name(tag: str) -> str:
     """Name the release asset carrying the signed install descriptor.
 
@@ -271,8 +284,9 @@ def artifact_identity_matches(
     if is_install_release_tag(release_tag):
         assert isinstance(release_tag, str)
         return version_name == release_tag.removeprefix("v") and apk_name in {
-            release_apk_name(release_tag, package_id)
+            name
             for package_id in ACCEPTED_PACKAGE_IDS
+            for name in release_apk_names(release_tag, package_id)
         }
     code = feed_build_code(release_tag)
     return (
@@ -447,8 +461,9 @@ def _parse_release_metadata(
     # migrating, and in both cases the successor is the app that ends up
     # running. A release with only the one APK resolves exactly as before.
     candidates = tuple(
-        release_apk_name(tag, package_id)
+        name
         for package_id in reversed(ACCEPTED_PACKAGE_IDS)
+        for name in release_apk_names(tag, package_id)
     )
     descriptor_name = release_descriptor_name(tag)
     descriptor_names = frozenset({descriptor_name, f"{descriptor_name}.sig"})
@@ -706,7 +721,7 @@ def _parse_install_descriptor(
         or apk_sha256_value != apk_sha256
         or _SHA256_PATTERN.fullmatch(apk_sha256_value) is None
         or not is_accepted_package_id(document["packageId"])
-        or apk_name != release_apk_name(tag, document["packageId"])
+        or apk_name not in release_apk_names(tag, document["packageId"])
         or document["signerCertificateSha256"] != _RELEASE_SIGNER_CERTIFICATE_SHA256
         or not isinstance(supported_abis, list)
         or tuple(supported_abis) != _SUPPORTED_ABIS
@@ -715,13 +730,13 @@ def _parse_install_descriptor(
         <= database_bounds[0]
         <= database_bounds[1]
         <= _MAX_ANDROID_VERSION_CODE
-        or document["launchComponent"] != launch_component_for(document["packageId"])
+        or not is_launch_component(document["packageId"], document["launchComponent"])
     ):
         raise ReleaseResolutionError
 
-    # The descriptor's own id is carried forward rather than replaced by a
-    # constant, so every later stage installs, launches and health-checks the
-    # package this signed release actually ships.
+    # The descriptor's own id and launcher are carried forward rather than
+    # replaced by a constant, so every later stage installs, launches and
+    # health-checks the package and classes this signed release actually ships.
     package_id: str = document["packageId"]
     return InstallDescriptor(
         schema=_INSTALL_DESCRIPTOR_SCHEMA,
@@ -736,7 +751,7 @@ def _parse_install_descriptor(
         min_sdk=min_sdk,
         supported_abis=_SUPPORTED_ABIS,
         database_compatibility=database_compatibility,
-        launch_component=launch_component_for(package_id),
+        launch_component=document["launchComponent"],
     )
 
 

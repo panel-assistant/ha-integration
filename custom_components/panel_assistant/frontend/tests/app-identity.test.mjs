@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ACCEPTED_PACKAGE_IDS, LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID,
-  accessibilityComponentFor, counterpartOf, launchComponentFor } from '../src/app-identity.mjs';
+import { ACCEPTED_PACKAGE_IDS, LAUNCH_COMPONENTS, LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID,
+  accessibilityComponentFor, counterpartOf, isLaunchComponent } from '../src/app-identity.mjs';
 import { PreflightError, RESIDUE_PROBES, buildPreflight, classifyTarget,
   parsePreflight } from '../src/preflight.mjs';
 import { DelegatedProofError, parseDelegatedProof } from '../src/delegated-proof.mjs';
@@ -10,33 +10,43 @@ import { InstallContractError, buildLaunch } from '../src/install-contract.mjs';
 const nonce = 'a'.repeat(32);
 const notClean = error => error instanceof PreflightError && error.code === 'target_not_clean';
 
+const MOVED = 'io.panelassistant.android/io.panelassistant.android.MainActivity';
+
 test('each identity names its own components, never the other spelling', () => {
-  // The classes stay in the legacy namespace whichever id the build carries,
-  // so only the legacy id may use the `<id>/.Class` shorthand.
-  assert.equal(launchComponentFor(LEGACY_PACKAGE_ID), 'io.github.maxlyth.hapaneld/.MainActivity');
-  assert.equal(launchComponentFor(SUCCESSOR_PACKAGE_ID),
-    'io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity');
-  assert.equal(accessibilityComponentFor(SUCCESSOR_PACKAGE_ID),
+  // Up to app 0.9.9 the classes stay in the old package whichever id the build
+  // carries; from 0.9.10 the new app's classes live in its own package.
+  assert.deepEqual(LAUNCH_COMPONENTS[LEGACY_PACKAGE_ID], ['io.github.maxlyth.hapaneld/.MainActivity']);
+  assert.deepEqual(LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID],
+    ['io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity', MOVED]);
+  assert.equal(accessibilityComponentFor(LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID][0]),
     'io.panelassistant.android/io.github.maxlyth.hapaneld.input.PanelAccessibilityService');
+  assert.equal(accessibilityComponentFor(MOVED),
+    'io.panelassistant.android/io.panelassistant.android.input.PanelAccessibilityService');
   for (const packageId of ACCEPTED_PACKAGE_IDS) {
-    const [id, className] = launchComponentFor(packageId).split('/');
-    assert.equal(id, packageId);
-    assert.equal(className.startsWith('.'), packageId === LEGACY_PACKAGE_ID);
+    for (const component of LAUNCH_COMPONENTS[packageId]) {
+      assert.equal(component.split('/')[0], packageId);
+      assert.ok(isLaunchComponent(packageId, component));
+      assert.ok(!isLaunchComponent(counterpartOf(packageId), component));
+    }
     assert.equal(counterpartOf(counterpartOf(packageId)), packageId);
   }
   for (const unknown of ['io.example.other', 'io.panelassistant', '']) {
-    assert.throws(() => launchComponentFor(unknown), RangeError);
+    assert.ok(!isLaunchComponent(unknown, MOVED));
     assert.throws(() => counterpartOf(unknown), RangeError);
   }
+  assert.throws(() => accessibilityComponentFor('io.panelassistant.android/.MainActivity'), RangeError);
 });
 
 test("launch starts the descriptor's own package by its own component", () => {
-  assert.ok(buildLaunch(nonce, SUCCESSOR_PACKAGE_ID, 33).includes(
-    'am start -W -n io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity'
-    + ' -p io.panelassistant.android'));
-  assert.ok(buildLaunch(nonce, LEGACY_PACKAGE_ID, 33).includes(
+  for (const component of LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID]) {
+    assert.ok(buildLaunch(nonce, SUCCESSOR_PACKAGE_ID, component, 33).includes(
+      `am start -W -n ${component} -p io.panelassistant.android`));
+  }
+  assert.ok(buildLaunch(nonce, LEGACY_PACKAGE_ID, LAUNCH_COMPONENTS[LEGACY_PACKAGE_ID][0], 33).includes(
     'am start -W -n io.github.maxlyth.hapaneld/.MainActivity -p io.github.maxlyth.hapaneld'));
-  assert.throws(() => buildLaunch(nonce, 'io.example.other', 33), InstallContractError);
+  assert.throws(() => buildLaunch(nonce, 'io.example.other', MOVED, 33), InstallContractError);
+  // A launcher is held to its own id: the old app never names a moved class.
+  assert.throws(() => buildLaunch(nonce, LEGACY_PACKAGE_ID, MOVED, 33), InstallContractError);
 });
 
 test('the preflight reads each accepted package and its data on its own', () => {

@@ -31,6 +31,7 @@ from custom_components.panel_assistant import CONFIG_SCHEMA, async_setup
 from custom_components.panel_assistant import update as panel_update
 from custom_components.panel_assistant.adb_credentials import AdbCredentialError
 from custom_components.panel_assistant.app_identity import (
+    LAUNCH_COMPONENTS,
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
 )
@@ -119,6 +120,7 @@ def _build(code: int, package_id: str = LEGACY_PACKAGE_ID) -> FeedBuild:
         database_compatibility="hapaneld-db:v1:ha-paneld.db:11:14",
         min_sdk=26,
         package_id=package_id,
+        launch_component=LAUNCH_COMPONENTS[package_id][0],
         published="2026-09-11T10:00:00Z",
         protocol_min=3,
         protocol_max=3,
@@ -1541,7 +1543,7 @@ async def test_feed_skips_unknown_and_incompatible_heads_before_download(
         "maintainer",
         (
             replace(_build(775), protocol_min=None, protocol_max=None),
-            replace(_build(774), protocol_min=4, protocol_max=4),
+            replace(_build(774), protocol_min=5, protocol_max=5),
             _build(772),
         ),
     )
@@ -1647,7 +1649,7 @@ async def test_shared_feed_keeps_both_channels_for_both_app_identities(
     ("candidate_version", "candidate_code", "minimum", "maximum", "pa_version"),
     [
         ("1.1.0", 773, None, None, "0.7.0-rc3"),
-        ("1.1.0", 773, 4, 4, "0.7.0-rc3"),
+        ("1.1.0", 773, 5, 5, "0.7.0-rc3"),
         ("1.1.0-rc1", 773, 3, 3, "0.7.0"),
         ("1.0.0", 770, 3, 3, "0.7.0-rc3"),
         ("0.9.9", 773, 3, 3, "0.7.0-rc3"),

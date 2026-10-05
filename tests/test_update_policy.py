@@ -32,7 +32,7 @@ def test_channel_defaults_to_running_pa_with_per_panel_opt_in(
         assert prereleases_allowed(entry) is (override or "-" in pa_version)
         assert policy_for(entry) == {
             "protocolMin": 1,
-            "protocolMax": 3,
+            "protocolMax": 4,
             "prerelease": override or "-" in pa_version,
         }
 
@@ -68,7 +68,8 @@ def test_build_channel_admission(version: str, allow: bool, expected: bool) -> N
         (1, 1, True),
         (3, 3, True),
         (2, 4, True),
-        (4, 5, False),
+        (4, 4, True),
+        (5, 6, False),
         (None, None, False),
         (1, None, False),
         (None, 3, False),

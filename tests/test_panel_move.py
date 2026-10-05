@@ -1310,6 +1310,69 @@ async def test_a_move_step_on_another_device_sends_no_command(
     assert len(sent) == 1 and "pm uninstall" not in sent[0]
 
 
+async def test_a_move_onto_a_build_with_moved_classes_gives_home_to_its_dashboard(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
+) -> None:
+    """App 0.9.10 keeps its dashboard in its own package, not the old one."""
+    from custom_components.panel_assistant.build_feed import feed_release_artifact
+
+    from .test_feed_install_paths import _build
+
+    moved = "io.panelassistant.android/io.panelassistant.android.MainActivity"
+    panel = FakePanel()
+    panel.accepted_artifact = feed_release_artifact(
+        replace(
+            _build(package_id=SUCCESSOR_PACKAGE_ID),
+            version_name="0.9.10",
+            launch_component=moved,
+        )
+    )
+    _attach(entry, panel)
+    claims: list[Any] = []
+    step = panel.step
+
+    async def recording_step(*args: Any, **kwargs: Any) -> MoveObservation:
+        if args[2] is MoveStep.CLAIM_HOME:
+            claims.append(kwargs.get("successor_launch"))
+        return await step(*args, **kwargs)
+
+    panel.step = recording_step  # type: ignore[method-assign]
+
+    await _move(hass, entry, panel, tmp_path)
+
+    assert claims == [moved]
+    assert panel.home == SUCCESSOR_PACKAGE_ID
+    command = _move_command("0" * 32, MoveStep.CLAIM_HOME, moved)
+    assert (
+        "cmd package set-home-activity "
+        "io.panelassistant.android/io.panelassistant.android.DashboardActivity "
+    ) in command
+    assert "io.github.maxlyth.hapaneld.DashboardActivity" not in command
+
+
+async def test_home_is_claimed_only_for_an_installed_new_app_build(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Claiming HOME without the installed build's launcher sends nothing."""
+    connect = AsyncMock(side_effect=AssertionError("the panel was contacted"))
+    monkeypatch.setattr(install_adb, "_async_connect", connect)
+    monkeypatch.setattr(install_adb, "_validate_target", lambda _target: None)
+    for step, launcher in (
+        (MoveStep.CLAIM_HOME, None),
+        (MoveStep.CLAIM_HOME, "io.github.maxlyth.hapaneld/.MainActivity"),
+        (
+            MoveStep.OBSERVE,
+            "io.panelassistant.android/io.panelassistant.android.MainActivity",
+        ),
+    ):
+        with pytest.raises(InstallAdbError) as caught:
+            await install_adb.async_move_step(
+                SimpleNamespace(), "key", step, successor_launch=launcher
+            )
+        assert caught.value.code is InstallAdbErrorCode.INVALID_REQUEST
+    connect.assert_not_awaited()
+
+
 @pytest.mark.parametrize("step", [MoveStep.START_LEGACY, MoveStep.OBSERVE])
 async def test_starting_the_old_app_again_repairs_its_grants_first(
     monkeypatch: pytest.MonkeyPatch, step: MoveStep
@@ -1326,8 +1389,10 @@ async def test_starting_the_old_app_again_repairs_its_grants_first(
             f"HAPANELD_MOVE_END:{nonce}:0\n"
         ).encode()
 
-    async def repair(_device: Any, _target: Any, package_id: str) -> None:
-        sent.append(f"repair {package_id}")
+    async def repair(
+        _device: Any, _target: Any, package_id: str, launch_component: str
+    ) -> None:
+        sent.append(f"repair {package_id} {launch_component}")
 
     monkeypatch.setattr(install_adb, "_async_connect", AsyncMock(return_value=object()))
     monkeypatch.setattr(install_adb, "_async_close", AsyncMock())
@@ -1340,7 +1405,9 @@ async def test_starting_the_old_app_again_repairs_its_grants_first(
     await install_adb.async_move_step(SimpleNamespace(), "key", step)
 
     if step is MoveStep.START_LEGACY:
-        assert sent[1] == f"repair {LEGACY_PACKAGE_ID}"
+        assert (
+            sent[1] == f"repair {LEGACY_PACKAGE_ID} {LEGACY_PACKAGE_ID}/.MainActivity"
+        )
         assert "am start -n" in sent[2]
     else:
         assert not [command for command in sent if command.startswith("repair")]
@@ -1615,7 +1682,7 @@ async def _publish_move_candidate(
         ("1.0.0", True, "1.2.0-rc1", (3, 3), "0.9.9", None, True),
         ("1.0.0-rc1", False, "1.2.0-rc1", (3, 3), "0.9.9", None, True),
         ("1.0.0", True, "1.2.0", (None, None), "0.9.9", None, False),
-        ("1.0.0", True, "1.2.0", (4, 4), "0.9.9", None, False),
+        ("1.0.0", True, "1.2.0", (5, 5), "0.9.9", None, False),
         ("1.0.0", False, "1.1.0", (3, 3), "1.2.0", 772, False),
         ("1.0.0", False, "1.2.0", (3, 3), "1.2.0", 773, False),
         ("1.0.0", False, "1.2.0", (3, 3), "1.2.0", 772, True),

@@ -1,0 +1,58 @@
+{
+  "details": null,
+  "jobs": {
+    "data": {
+      "format": "ha-paneld-install-jobs-v1",
+      "jobs": [
+        {
+          "actual_apk_bytes": 12345,
+          "adb_credential_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "artifact": {
+            "apk_name": "panel-assistant-v0.9.9-manual-setup-required.apk",
+            "apk_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "apk_size": 12345,
+            "database_compatibility": "hapaneld-db:v1:ha-paneld.db:1:14",
+            "descriptor_schema": "io.github.maxlyth.hapaneld.install.v1",
+            "launch_component": "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity",
+            "min_sdk": 26,
+            "package_id": "io.panelassistant.android",
+            "protocol_max": 3,
+            "protocol_min": 3,
+            "release_tag": "v0.9.9",
+            "signer_certificate_sha256": "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339",
+            "supported_abis": [
+              "arm64-v8a",
+              "armeabi-v7a"
+            ],
+            "version_code": 1115,
+            "version_name": "0.9.9"
+          },
+          "attempt": 1,
+          "cancel_requested": false,
+          "consumed_entry_id": null,
+          "created_at": "2026-10-05T11:44:21+00:00",
+          "executor_generation": 1,
+          "health_checked_at": null,
+          "job_id": "24b7904070ca5cd48d3c57caa7d08a07",
+          "phase": "installed",
+          "plan_sha256": "5db663b2c3518e81ce08d15ce6eb3b544e851cb58005958afc8c4a19d157591d",
+          "preflight_root_mode": "rootless",
+          "result_code": null,
+          "revision": 9,
+          "target": {
+            "adb_serial": "SERIAL-1",
+            "address": "panel-one.local",
+            "android_sdk": 34,
+            "model": "Test Panel",
+            "pinned_address": "192.168.250.23",
+            "primary_abi": "arm64-v8a"
+          },
+          "updated_at": "2026-10-05T11:44:21+00:00"
+        }
+      ]
+    },
+    "key": "panel_assistant.install_jobs",
+    "minor_version": 1,
+    "version": 1
+  }
+}

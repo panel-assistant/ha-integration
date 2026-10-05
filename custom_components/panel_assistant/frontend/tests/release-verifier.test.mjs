@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ReleaseVerificationError, verifyReleaseBundle } from '../src/release-verifier.mjs';
-import { LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, launchComponentFor } from '../src/app-identity.mjs';
+import { LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, LAUNCH_COMPONENTS } from '../src/app-identity.mjs';
 import { githubApkName } from '../src/release-identity.mjs';
 
 // A signed GitHub release bundle, end to end: checksum line, install descriptor
@@ -24,7 +24,7 @@ function descriptor(tag, packageId, overrides = {}) {
   return {
     apkName: githubApkName(tag, packageId), apkSha256: HASH, apkSize: 4096,
     databaseCompatibility: 'hapaneld-db:v1:ha-paneld.db:11:14',
-    launchComponent: launchComponentFor(packageId), minSdk: 26, packageId,
+    launchComponent: LAUNCH_COMPONENTS[packageId][0], minSdk: 26, packageId,
     releaseTag: tag, schema: 'io.github.maxlyth.hapaneld.install.v1',
     signerCertificateSha256: SIGNER, supportedAbis: ['arm64-v8a', 'armeabi-v7a'],
     versionCode: 880, versionName: tag.slice(1), ...overrides,

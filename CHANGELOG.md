@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+**Update Panel Assistant before your panels take ha-paneld v0.9.10.** v0.9.10 moves the app's code to its new name, and only this Panel Assistant release knows how to install it, start it and grant its permissions. Panels connected to an older Panel Assistant are not offered v0.9.10: they stay on the build they have and keep working, and they get the update once you install this release.
+
 ## 0.7.0 - 2026-10-04
 
 Panel Assistant 0.7.0 takes over the jobs panels used to do for themselves. It is the last Panel Assistant release that supports MQTT panels and the last that moves them over to its own connection, so if your panels still use MQTT, please move them now. It also moves panels to the new app from Home Assistant with one click. Sorry, Sonoff NSPanel Pro owners: before this, each panel had to hand itself over, which needed a root helper that some NSPanel Pros have no room for. If yours got stuck, or 0.6.3 told you "The release did not match its signature, so nothing was installed", that was my approach, not your panel, and you should never need Magisk or to delete anything from the system partition.

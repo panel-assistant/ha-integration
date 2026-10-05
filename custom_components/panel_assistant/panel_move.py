@@ -535,10 +535,21 @@ async def _async_target(
 
 
 async def _async_step(
-    target: AdbInstallTarget, signer: Any, step: MoveStep, *, authorize: bool = True
+    target: AdbInstallTarget,
+    signer: Any,
+    step: MoveStep,
+    *,
+    authorize: bool = True,
+    successor_launch: str | None = None,
 ) -> MoveObservation:
     try:
-        return await async_move_step(target, signer, step, authorize=authorize)
+        return await async_move_step(
+            target,
+            signer,
+            step,
+            authorize=authorize,
+            successor_launch=successor_launch,
+        )
     except InstallAdbError as err:
         if err.code is InstallAdbErrorCode.AUTHORIZATION_REQUIRED:
             raise MoveError(REASON_ADB_AUTHORIZATION) from err
@@ -775,7 +786,7 @@ async def _async_set_aside_legacy(
         observed = await _async_step(target, signer, MoveStep.OBSERVE)
         if not observed.successor_installed or not observed.legacy_installed:
             raise MoveError(REASON_MOVE_FAILED)
-    await _async_verify_successor(target, signer, record)
+    successor, _root_mode = await _async_verify_successor(target, signer, record)
     kept = await _async_step(target, signer, MoveStep.KEEP_LEGACY)
     if (
         kept.legacy_copy is None
@@ -796,7 +807,12 @@ async def _async_set_aside_legacy(
     await _async_save_record(hass, entry, record)
     try:
         if claim_home:
-            observed = await _async_step(target, signer, MoveStep.CLAIM_HOME)
+            observed = await _async_step(
+                target,
+                signer,
+                MoveStep.CLAIM_HOME,
+                successor_launch=successor.launch_component,
+            )
             if observed.home != SUCCESSOR_PACKAGE_ID:
                 raise MoveError(REASON_MOVE_FAILED)
         observed = await _async_step(target, signer, MoveStep.SET_ASIDE_LEGACY)

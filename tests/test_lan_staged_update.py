@@ -47,6 +47,7 @@ from custom_components.panel_assistant.adb_credentials import (
     AdbCredentialMissingError,
 )
 from custom_components.panel_assistant.app_identity import (
+    LAUNCH_COMPONENTS,
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
 )
@@ -164,7 +165,7 @@ class _GitHub:
                     "minSdk": 26,
                     "supportedAbis": ["arm64-v8a", "armeabi-v7a"],
                     "databaseCompatibility": "hapaneld-db:v1:ha-paneld.db:11:14",
-                    "launchComponent": release.launch_component_for(package_id),
+                    "launchComponent": LAUNCH_COMPONENTS[package_id][0],
                 },
                 separators=(",", ":"),
                 sort_keys=True,
@@ -1571,7 +1572,7 @@ async def test_shared_release_selects_compatible_stable_and_prerelease_candidate
             protocol_max=None,
         ),
         replace(
-            artifact, version="0.9.14", tag="v0.9.14", protocol_min=4, protocol_max=4
+            artifact, version="0.9.14", tag="v0.9.14", protocol_min=5, protocol_max=5
         ),
         replace(artifact, version="0.9.13-rc1", tag="v0.9.13-rc1"),
         replace(artifact, version="0.9.12", tag="v0.9.12"),

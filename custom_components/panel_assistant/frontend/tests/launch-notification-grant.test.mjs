@@ -5,7 +5,7 @@ import {mkdtempSync, readFileSync, rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {buildLaunch, parseLaunch} from '../src/install-contract.mjs';
-import {LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID} from '../src/app-identity.mjs';
+import {LAUNCH_COMPONENTS, LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID} from '../src/app-identity.mjs';
 
 const nonce = 'a'.repeat(32);
 
@@ -20,7 +20,7 @@ function executeLaunch(sdk, packageId, {refuseGrant = false, refuseStart = false
 am() { echo "am $*" >> '${log}'; echo 'Status: ok'; ${refuseStart ? 'return 1' : ':'}; }
 dumpsys() { echo '    android.permission.POST_NOTIFICATIONS'; echo '      android.permission.POST_NOTIFICATIONS: granted=false, flags=[ ${flags}]'; }
 : > '${log}'
-${buildLaunch(nonce, packageId, sdk)}`;
+${buildLaunch(nonce, packageId, LAUNCH_COMPONENTS[packageId][0], sdk)}`;
     const result = spawnSync('/bin/sh', ['-c', program], {encoding: 'utf8'});
     return {...result, calls: readFileSync(log, 'utf8').trim().split('\n').filter(Boolean)};
   } finally { rmSync(dir, {recursive: true, force: true}); }
@@ -58,7 +58,7 @@ test('a refused grant never stops or changes the start; the later readback repor
 
 test('the platform level is required and bounded', () => {
   for (const sdk of [undefined, 0, 101, 33.5, '33']) {
-    assert.throws(() => buildLaunch(nonce, LEGACY_PACKAGE_ID, sdk), /invalid_request/);
+    assert.throws(() => buildLaunch(nonce, LEGACY_PACKAGE_ID, LAUNCH_COMPONENTS[LEGACY_PACKAGE_ID][0], sdk), /invalid_request/);
   }
 });
 

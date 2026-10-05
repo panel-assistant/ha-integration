@@ -14,11 +14,13 @@ INTEGRATION_VERSION: str = json.loads(
 # The public version (manifest.json) only changes when something ships. This
 # build number tells builds apart in between: it counts the commits that have
 # changed this integration.
-INTEGRATION_BUILD = 381
+INTEGRATION_BUILD = 382
 
-# The native transport range this running integration can serve.
+# The native transport range this running integration can serve. Protocol 4 is
+# protocol 3 under a new number: app 0.9.10, whose classes moved package, asks
+# for 4 alone, so no Panel Assistant that cannot drive it accepts it.
 PROTOCOL_MIN = 1
-PROTOCOL_MAX = 3
+PROTOCOL_MAX = 4
 
 # Every outward link goes through the site's own redirect rather than a page
 # path, so pages can move. The version and build travel with it, so a later

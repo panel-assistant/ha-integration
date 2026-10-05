@@ -20,7 +20,7 @@ from yarl import URL
 from .app_identity import (
     LEGACY_PACKAGE_ID,
     is_accepted_package_id,
-    launch_component_for,
+    is_launch_component,
 )
 from .release import (
     _DATABASE_COMPATIBILITY_PATTERN,
@@ -105,6 +105,7 @@ class FeedBuild:
     min_sdk: int
     published: str
     package_id: str
+    launch_component: str
     protocol_min: int | None = None
     protocol_max: int | None = None
 
@@ -182,7 +183,7 @@ def feed_release_artifact(build: FeedBuild) -> ReleaseArtifact:
             min_sdk=build.min_sdk,
             supported_abis=_SUPPORTED_ABIS,
             database_compatibility=build.database_compatibility,
-            launch_component=launch_component_for(build.package_id),
+            launch_component=build.launch_component,
         ),
     )
 
@@ -285,7 +286,7 @@ def _parse_build(entry: Any, feed_url: URL) -> FeedBuild:
         or not _database_range_valid(compatibility)
         or not is_accepted_package_id(entry["packageId"])
         or entry["signerCertificateSha256"] != _RELEASE_SIGNER_CERTIFICATE_SHA256
-        or entry["launchComponent"] != launch_component_for(entry["packageId"])
+        or not is_launch_component(entry["packageId"], entry["launchComponent"])
         or entry["supportedAbis"] != list(_SUPPORTED_ABIS)
     ):
         raise BuildFeedError
@@ -300,6 +301,7 @@ def _parse_build(entry: Any, feed_url: URL) -> FeedBuild:
         min_sdk=min_sdk,
         published=published,
         package_id=entry["packageId"],
+        launch_component=entry["launchComponent"],
     )
 
 

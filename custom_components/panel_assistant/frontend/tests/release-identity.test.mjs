@@ -32,16 +32,18 @@ test('the shared corpus classifies every release identity', () => {
 });
 
 test('the shared corpus names both identities APK assets, and reads either back', () => {
-  for (const { tag, legacy, successor } of corpus.apkNames) {
+  for (const { tag, legacy, successor, successorUnlisted } of corpus.apkNames) {
     assert.equal(githubApkName(tag, LEGACY_PACKAGE_ID), legacy);
     assert.equal(githubApkName(tag, SUCCESSOR_PACKAGE_ID), successor);
-    assert.deepEqual(githubApkNames(tag), [legacy, successor]);
+    // From app 0.9.10 the new app's APK has no `.apk` suffix; only this
+    // installer and the integration know its name.
+    assert.deepEqual(githubApkNames(tag), [legacy, successor, successorUnlisted]);
     // The successor's own asset name used to be unreadable here while the
     // integration already resolved it.
     assert.equal(githubApkNameTag(legacy), tag);
     assert.equal(githubApkNameTag(successor), tag);
     const version = tag.slice(1);
-    for (const apkName of [legacy, successor]) {
+    for (const apkName of [legacy, successor, successorUnlisted]) {
       assert.equal(descriptorIdentityValid({ releaseTag: tag, versionName: version, apkName }, tag), true);
     }
     assert.equal(descriptorIdentityValid(

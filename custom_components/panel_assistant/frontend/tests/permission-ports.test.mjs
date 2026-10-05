@@ -1,14 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createUsbTransactionPorts} from '../src/usb-transaction-ports.mjs';
-import {ACCESSIBILITY_SERVICE} from '../src/permission-contract.mjs';
-import {LEGACY_PACKAGE_ID} from '../src/app-identity.mjs';
+import {LEGACY_LAUNCH_COMPONENT, LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID,
+  accessibilityComponentFor} from '../src/app-identity.mjs';
+
+// App 0.9.10: the new app with its classes moved into its own package.
+const MOVED = 'io.panelassistant.android/io.panelassistant.android.MainActivity';
 
 function fixture({badTarget = false, badApk = false, badRead = false, failGrant = false,
-  badVerify = false, rootMode = 'rootless', sdk = 33} = {}) {
+  badVerify = false, rootMode = 'rootless', sdk = 33, launchComponent = LEGACY_LAUNCH_COMPONENT} = {}) {
   const target = {model: 'Test panel', serial: 'serial', primaryAbi: 'arm64-v8a', androidSdk: sdk,
     rootMode, usbVendorId: 1, usbProductId: 2, usbSerial: 'usb'};
-  const artifact = {apkSize: 1234, apkSha256: 'a'.repeat(64), packageId: LEGACY_PACKAGE_ID};
+  const artifact = {apkSize: 1234, apkSha256: 'a'.repeat(64),
+    packageId: launchComponent.split('/')[0], launchComponent};
   const release = {kind: 'authenticated-apk-bytes', descriptor: artifact};
   const receipt = {phase: 'healthy', target, artifact};
   let quarantine = 0;
@@ -39,7 +43,7 @@ function fixture({badTarget = false, badApk = false, badRead = false, failGrant 
       body = `HAPANELD_PERMISSIONS_GRANT_BEGIN:${n}\nHAPANELD_PERMISSIONS_GRANT_END:${n}:${failGrant ? 1 : 0}\n`;
     } else {
       assert.ok(command.includes('HAPANELD_PERMISSIONS_VERIFY_BEGIN:'));
-      body = [`HAPANELD_PERMISSIONS_VERIFY_BEGIN:${n}`, `com.other/.Reader:${ACCESSIBILITY_SERVICE}`, '1',
+      body = [`HAPANELD_PERMISSIONS_VERIFY_BEGIN:${n}`, `com.other/.Reader:${accessibilityComponentFor(launchComponent)}`, '1',
         `WRITE_SETTINGS: ${badVerify ? 'deny' : 'allow'}`, 'SYSTEM_ALERT_WINDOW: allow',
         sdk >= 33 ? 'android.permission.POST_NOTIFICATIONS: granted=true, flags=[]' : 'not_required',
         `HAPANELD_PERMISSIONS_VERIFY_END:${n}:0`, ''].join('\n');
@@ -105,4 +109,18 @@ test('the launch step grants notifications before the first start from Android 1
     else assert.equal(grant, -1, `sdk ${sdk}: no grant where the permission is not a runtime one`);
     assert.equal(f.quarantined, 0);
   }
+});
+
+test('a build whose classes moved package is started and granted by its own classes', async () => {
+  const f = fixture({launchComponent: MOVED}); await f.ports.authenticate();
+  await f.ports.launch({...f.receipt, phase: 'launching'}, f.release);
+  assert.deepEqual(await f.ports.commissionPermissions(f.receipt, f.release),
+    {permissionsVerified: true, notificationsRequired: true});
+  const launch = f.commands.find(command => command.includes('HAPANELD_LAUNCH_BEGIN:'));
+  assert.ok(launch.includes(`am start -W -n ${MOVED} -p ${SUCCESSOR_PACKAGE_ID};`));
+  const grant = f.commands.find(command => command.includes('HAPANELD_PERMISSIONS_GRANT_BEGIN:'));
+  assert.ok(grant.includes("settings put secure enabled_accessibility_services 'com.other/.Reader:"
+    + "io.panelassistant.android/io.panelassistant.android.input.PanelAccessibilityService'"));
+  assert.ok(!f.commands.some(command => command.includes('io.github.maxlyth.hapaneld.')));
+  assert.equal(f.quarantined, 0);
 });

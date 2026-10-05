@@ -234,7 +234,7 @@ async def test_default_install_follows_running_pa_and_skips_incompatible_head(
     client = authenticated_session(
         release_key,
         [
-            ("v1.4.0", (4, 4)),
+            ("v1.4.0", (5, 5)),
             ("v1.3.0-rc2", (3, 3)),
             ("v1.2.0", (3, 3)),
         ],
@@ -246,7 +246,7 @@ async def test_default_install_follows_running_pa_and_skips_incompatible_head(
     assert not any(url.endswith(".apk") for url, _ in client.requests)
 
 
-@pytest.mark.parametrize("protocol_range", [None, (4, 4)])
+@pytest.mark.parametrize("protocol_range", [None, (5, 5)])
 async def test_explicit_install_cannot_bypass_candidate_compatibility(
     hass, monkeypatch, release_key, protocol_range
 ):

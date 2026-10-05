@@ -1,6 +1,6 @@
 /** Fixed package-manager/activity-manager commands and bounded response contracts. */
 export const MAX_INSTALL_RESPONSE_BYTES = 32 * 1024;
-import { isAcceptedPackageId, launchComponentFor } from './app-identity.mjs';
+import { isLaunchComponent } from './app-identity.mjs';
 
 export class InstallContractError extends Error {
   constructor(code) { super(code); this.code = code; }
@@ -31,13 +31,13 @@ export function buildInstall(nonce, jobId, sdk) {
  * and its status is not the launch's, because the permission step after
  * `healthy` reads the result back and fails the install if the panel refused it.
  */
-export function buildLaunch(nonce, packageId, sdk) {
+export function buildLaunch(nonce, packageId, launchComponent, sdk) {
   checkId(nonce);
-  if (!isAcceptedPackageId(packageId)) fail('invalid_request');
+  if (!isLaunchComponent(packageId, launchComponent)) fail('invalid_request');
   if (!Number.isInteger(sdk) || sdk < 1 || sdk > 100) fail('invalid_request');
   const permission = 'android.permission.POST_NOTIFICATIONS';
   const grant = sdk >= 33 ? `pm grant ${packageId} ${permission} >/dev/null 2>&1; ` : '';
-  return `echo HAPANELD_LAUNCH_BEGIN:${nonce}; ${grant}am start -W -n ${launchComponentFor(packageId)} -p ${packageId}; echo HAPANELD_LAUNCH_END:${nonce}:$?`;
+  return `echo HAPANELD_LAUNCH_BEGIN:${nonce}; ${grant}am start -W -n ${launchComponent} -p ${packageId}; echo HAPANELD_LAUNCH_END:${nonce}:$?`;
 }
 
 function decode(body) {

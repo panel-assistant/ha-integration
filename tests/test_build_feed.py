@@ -19,9 +19,9 @@ from yarl import URL
 
 from custom_components.panel_assistant import build_feed, release
 from custom_components.panel_assistant.app_identity import (
+    LAUNCH_COMPONENTS,
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
-    launch_component_for,
 )
 from custom_components.panel_assistant.build_feed import (
     FEED_SCHEMA,
@@ -150,7 +150,7 @@ def test_signed_feed_accepts_one_build_per_package_at_the_same_code(
     successor = _build_entry(
         772,
         packageId=SUCCESSOR_PACKAGE_ID,
-        launchComponent=launch_component_for(SUCCESSOR_PACKAGE_ID),
+        launchComponent=LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID][0],
         apkSha256=_sha(773),
         apkPath=f"apks/{_sha(773)}.apk",
     )
@@ -575,6 +575,7 @@ def _download_build(**replacements: Any) -> FeedBuild:
         "min_sdk": 26,
         "published": "2026-09-11T10:00:00Z",
         "package_id": LEGACY_PACKAGE_ID,
+        "launch_component": LAUNCH_COMPONENTS[LEGACY_PACKAGE_ID][0],
     }
     values.update(replacements)
     return FeedBuild(**values)

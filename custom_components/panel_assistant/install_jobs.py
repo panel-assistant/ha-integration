@@ -27,7 +27,7 @@ from homeassistant.core import CoreState, HomeAssistant
 from homeassistant.helpers.storage import Store
 from homeassistant.util.ulid import bytes_to_ulid, ulid_to_bytes_or_none
 
-from .app_identity import is_accepted_package_id, launch_component_for
+from .app_identity import is_accepted_package_id, is_launch_component
 from .client import InvalidAddressError, normalize_address
 from .const import DOMAIN
 from .failure_repair import clear_install_failure, record_install_failure
@@ -65,7 +65,7 @@ _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _ADB_SERIAL = re.compile(r"^[A-Za-z0-9._:-]{1,128}$", flags=re.ASCII)
 _ABI = re.compile(r"^[A-Za-z0-9_.-]{1,64}$", flags=re.ASCII)
 _SUBCODE = re.compile(r"^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$", flags=re.ASCII)
-_APK_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.apk$")
+_APK_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.apk(?:\.bin)?$")
 _DATABASE_COMPATIBILITY = re.compile(
     r"^hapaneld-db:v1:ha-paneld\.db:([1-9][0-9]*):([1-9][0-9]*)$"
 )
@@ -562,7 +562,7 @@ def _parse_artifact(value: object) -> InstallArtifact:
     if (
         value["descriptor_schema"] != _DESCRIPTOR_SCHEMA
         or not is_accepted_package_id(package_id)
-        or value["launch_component"] != launch_component_for(package_id)
+        or not is_launch_component(package_id, value["launch_component"])
         or signer != _RELEASE_SIGNER_SHA256
         or not isinstance(abis, (list, tuple))
         or tuple(abis) != _SUPPORTED_ABIS
@@ -595,7 +595,7 @@ def _parse_artifact(value: object) -> InstallArtifact:
         min_sdk=_integer(value["min_sdk"], 1, _MAX_SDK),
         supported_abis=_SUPPORTED_ABIS,
         database_compatibility=database,
-        launch_component=launch_component_for(package_id),
+        launch_component=value["launch_component"],
         protocol_min=protocol_min,
         protocol_max=protocol_max,
         prerelease_opt_in=prerelease_opt_in,

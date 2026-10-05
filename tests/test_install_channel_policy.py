@@ -47,7 +47,7 @@ async def test_only_the_first_preflight_may_report_a_satisfied_target(
     assert "installed_size" not in harness.events
 
 
-@pytest.mark.parametrize("minimum,maximum", [(None, None), (4, 5)])
+@pytest.mark.parametrize("minimum,maximum", [(None, None), (5, 6)])
 async def test_durable_install_refuses_unknown_or_incompatible_range_before_download(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
