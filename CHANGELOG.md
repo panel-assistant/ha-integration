@@ -2,17 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 0.8.0 - 2026-10-07
 
-**Update Panel Assistant before your panels take ha-paneld v0.9.10.** v0.9.10 moves the app's code to its new name, and only this Panel Assistant release knows how to install it, start it and grant its permissions. Panels connected to an older Panel Assistant are not offered v0.9.10: they stay on the build they have and keep working, and they get the update once you install this release.
+Panel Assistant 0.8.0 goes looking for your panels instead of waiting for you to add them. Panels that Home Assistant already knows through the Companion app, Fully Kiosk, ESPHome or a Shelly Wall Display now show up under Discovered, and Panel Assistant looks for them as soon as Home Assistant starts. Voice grows up a bit too: timers work, and when a panel's microphone can't hear anything, a Repair tells you so instead of the voice assistant quietly not answering. The sidebar and both USB installers now speak German, Spanish, French, Italian and Simplified Chinese. This release is also the one that installs ha-paneld v0.9.10, so please update Panel Assistant before your panels.
 
-**Panels you can install on now show up under Discovered.** Any Android device with network ADB turned on, which is what Panel Assistant needs to install, appears under **Settings, Devices & services, Discovered** as soon as Home Assistant starts, even before you have added a panel. Panels Home Assistant already knows through the Home Assistant Companion app, Fully Kiosk, ESPHome or a Shelly Wall Display are offered too, under their own names. Choose **Add** to install Panel Assistant's app; the old app and its device stay as they are. **Ignore** keeps a device out of the list for good, however Home Assistant found it. A phone running the Companion app is offered only if network ADB is turned on for it. Not every Android device announces its network ADB; one that does not can still be added from **Add integration**, which lists every panel Home Assistant knows.
+Pairs with ha-paneld v0.9.10.
 
-**Voice that says why it is not listening.** A panel whose microphone has not yet been proven to work checks it before listening. If the check hears only silence or gets no audio, Home Assistant shows a Repair naming the panel and what the check found, instead of the voice assistant quietly not answering. Turning the voice assistant off and on again in the panel's settings checks it again.
+### Update Panel Assistant first
 
-**A fuller device card.** A panel's device card in Home Assistant shows its vendor firmware and Android release on the Hardware line, for example `1.11.0 · Android 8.1.0`, and its serial number: the panel's own hardware serial where the app can read it, otherwise its Android ID. The product name and app build still lead the card. Panels need an app build that reports these; on older builds the card stays as it was.
+**Update Panel Assistant before your panels take ha-paneld v0.9.10.** v0.9.10 moves the app's code to its new name, and only this Panel Assistant release knows how to install it, start it and grant its permissions. Panels connected to an older Panel Assistant aren't offered v0.9.10: they stay on the build they have and keep working, and they get the update once you install this release.
 
-**Voice timers.** Say "set a timer for one minute" to a panel whose voice assistant is on, and the panel rings when the time is up, then says the timer's name if you gave it one. Cancelling, pausing, adding time and asking how long is left work too. Home Assistant keeps the timers, as it does for a Voice Preview Edition; the panel only rings.
+### New
+
+- **Panels Home Assistant already knows show up under Discovered.** If a panel runs the Home Assistant Companion app or Fully Kiosk, or reaches Home Assistant through ESPHome or a Shelly Wall Display, Panel Assistant finds it on its own and lists it under **Settings, Devices & services, Discovered**, even before you've added a panel. Choose **Add** to install Panel Assistant's app on it; the old app and its device stay as they are. **Ignore** keeps it out of the list for good. A phone running the Companion app is not offered unless it has network debugging turned on. A Companion panel is found only while its Wi-Fi IP address sensor is enabled, and discovery relies on Home Assistant's standard DHCP discovery. A device that turns out not to be a panel is checked again at most once an hour.
+- **Looks for known panels at start-up.** Installing or updating Panel Assistant restarts Home Assistant, so the search for panels other integrations know now runs as soon as Home Assistant has started, and again whenever you open **Add integration** for Panel Assistant, while you're there to see the result.
+- **Voice timers.** Say "set a timer for one minute" to a panel whose voice assistant is on, and the panel rings when the time is up, then says the timer's name if you gave it one. Cancelling, pausing, adding time and asking how long is left work too. Home Assistant keeps the timers, as it does for a Voice Preview Edition; the panel only rings.
+- **A Repair that says why voice isn't listening.** A panel whose microphone hasn't been proven to work checks it before listening. If the check hears only silence or gets no audio, Home Assistant shows a Repair naming the panel and what the check found, instead of the voice assistant quietly not answering. Turning the voice assistant off and on again in the panel's settings checks it again, and the Repair clears once the panel reports anything else.
+- **The sidebar and installers in five languages.** The Panel Assistant sidebar and both USB installation routes, including consent, progress, refusals and recovery, are translated into German, Spanish, French, Italian and Simplified Chinese, along with the remaining entity names and error messages. Changing language keeps where you were.
+- **Dutch, Polish and Ukrainian are complete.** The sidebar, installers, Repairs and entity names are now fully translated in these three languages.
+- **Remove ha-paneld from a panel.** A new option in the panel's settings in Home Assistant hands the home screen back to the panel's own launcher and removes the app, after showing what removal means for your panel model and firmware. If it can't hand the home screen back safely, it stops with nothing removed and says why.
+- **Panels with network debugging on show up under Discovered too.** A device on your network that announces Android network debugging is offered under **Settings, Devices & services, Discovered**, so you can add it without typing its address. A panel another integration already knows still shows as one card, and **Ignore** keeps it hidden even if its address changes.
+- **A fuller device card.** A panel's device card in Home Assistant shows its vendor firmware and Android release on the Hardware line, for example `1.11.0 · Android 8.1.0`, and its serial number: the panel's own hardware serial where the app can read it, otherwise its Android ID. The product name and app build still lead the card. Panels need ha-paneld v0.9.10 for this; on older builds the card stays as it was.
+
+### Changed
+
+- **Installs and updates ha-paneld v0.9.10.** The app's code moved to its new name, `io.panelassistant.android`, and Panel Assistant now takes the names it uses to start the app and grant its permissions from the signed release itself. An install started by 0.7.0 still resumes unchanged.
+
+### Fixed
+
+- **Permissions are put back after an update, even when the panel is slow to answer.** After an update over the network, the restarting panel can stop answering for a while. Panel Assistant used to try once and give up without a word; it now keeps trying for up to three minutes in the background, and leaves the panel alone if it changed or was removed meanwhile.
+- **Camera and microphone permissions are granted on Android 8.1 panels.** Panel Assistant asked Android 8.1 for its hardware features in a way that version doesn't understand, so these two permissions were never granted there.
+- **Updating a panel straight after adding it works.** The check for an old app left on the panel no longer blocks an update while it looks, and a real update or move in progress still refuses a second one.
+- **One build Panel Assistant can't use no longer hides the rest.** If the update list contained a signed build this release can't install, every other build disappeared with it. Panel Assistant now skips just that one.
+- **A first install of the recommended build is no longer refused.** Panel Assistant offered its recommended build and then refused to install it unless you picked it by hand.
+- **Permission checks work on Android 14 panels.** Panel Assistant now reads Android 14's answers when it checks a panel's permissions, instead of treating them as a failure.
+- **Slow panels finish installing.** Panel Assistant now gives a panel up to 30 seconds to answer each check during an install, instead of 5.
+- **Panels that still have the old MQTT update buttons finish moving to Panel Assistant's connection.** Those retired buttons no longer hold up the move or keep its Repair open.
+- **Translation corrections** in Repair instructions, discovery text and pre-release wording.
+- **The old accessibility entry is cleaned up after the move.** When Panel Assistant switches a panel's accessibility service to the app's new name, it now removes the old name instead of leaving it listed beside the new one.
 
 ## 0.7.0 - 2026-10-04
 
