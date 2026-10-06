@@ -3442,7 +3442,7 @@ async def test_abandoned_fresh_install_can_resume_from_its_entry_options(
 
     assert menu["type"] is FlowResultType.MENU
     assert menu["step_id"] == "init"
-    assert menu["menu_options"] == ["onboarding", "transport", "updates"]
+    assert menu["menu_options"] == ["onboarding", "transport", "updates", "remove_app"]
     with patch(
         "custom_components.panel_assistant.config_flow.async_offer_ha_url",
         new_callable=AsyncMock,

@@ -1397,7 +1397,8 @@
           "onboarding": "Continue setup",
           "transport": "Transport settings",
           "authorize_adb": "Authorize ADB for updates",
-          "updates": "Panel updates"
+          "updates": "Panel updates",
+          "remove_app": "Remove ha-paneld from this panel"
         }
       },
       "onboarding": {
@@ -1436,6 +1437,21 @@
         "data_description": {
           "prerelease_panel_builds": "A prerelease Panel Assistant already allows prerelease panel builds."
         }
+      },
+      "remove_app": {
+        "title": "Remove ha-paneld from {panel}",
+        "description": "This removes ha-paneld from {panel}. First ha-paneld gives the panel's home screen back to the panel's own launcher and turns the vendor apps it switched off back on; only then is it uninstalled, over the Android Debug Bridge connection Home Assistant already holds. Its settings on the panel are deleted.\n\nOn some panels and firmware versions, removing it leaves no way back to Android Settings or network debugging, so the app could not be installed again without opening the panel. Before you continue, read [what removal can do to this panel]({risks_url}).",
+        "data": {
+          "confirmed": "I have read the removal risks for this panel and want to remove ha-paneld"
+        }
+      },
+      "remove_app_done": {
+        "title": "ha-paneld is removed from {panel}",
+        "description": "The panel keeps its own home screen. Should Home Assistant also forget {panel}?",
+        "menu_options": {
+          "remove_app_delete_entry": "Delete this panel from Home Assistant",
+          "remove_app_keep_entry": "Keep it in Home Assistant for now"
+        }
       }
     },
     "error": {
@@ -1451,10 +1467,25 @@
       "adb_credential_error": "Home Assistant could not safely load or persist its ADB credential. No panel change was attempted. Check the Home Assistant storage and logs before retrying.",
       "retained_or_ambiguous": "The panel may contain a retained ha-paneld package record or its package state could not be proven absent. No panel change was made. Retry once if the connection was unstable; otherwise follow the provisioning safety and recovery guide linked from the integration documentation. Do not uninstall or reset the app without a verified backup.",
       "unknown": "Unexpected error",
-      "panel_identity_changed": "The address no longer answers as this configured panel. Check the panel and its address before retrying."
+      "panel_identity_changed": "The address no longer answers as this configured panel. Check the panel and its address before retrying.",
+      "removal_unconfirmed": "Tick the box to confirm you have read the removal risks. Nothing was removed.",
+      "removal_busy": "An update or move is already changing this panel. Nothing was removed; try again when it has finished.",
+      "removal_adb_unreachable": "Home Assistant could not reach the panel over the Android Debug Bridge (port 5555). Nothing was removed. Check that the panel is on and network debugging is still enabled, then try again.",
+      "removal_adb_authorization": "The panel has not accepted this Home Assistant instance for the Android Debug Bridge. Nothing was removed. Choose Authorize ADB for updates first, then try again.",
+      "removal_panel_changed": "A different device now answers at this panel's address. Nothing was removed.",
+      "removal_approval_required": "Hardened security is on, so handing the home screen back has to be approved on the panel itself. Nothing was changed and ha-paneld is still installed. Approve the request on the panel, then submit again within ten minutes.",
+      "removal_no_replacement_home": "The panel could not give its home screen to another launcher: there is no other home-screen app on it, so ha-paneld is the only thing it can show. Nothing was removed and the panel still works. Install a launcher, or turn the vendor one back on, then try again.",
+      "removal_ownership_unreadable": "The panel could not read its own record of the vendor apps it switched off. Nothing was removed. Start ha-paneld again on the panel, then try again.",
+      "removal_package_state_unknown": "The panel could not read which apps are installed or which one is its home screen. Nothing was removed. Try again in a moment.",
+      "removal_home_not_handed": "The panel did not confirm that another launcher took its home screen, so ha-paneld was not removed. Install a launcher, or turn the vendor one back on, then try again.",
+      "removal_hand_back_unsupported": "The ha-paneld on this panel is too old to hand its home screen back. Nothing was removed. Update it first, then try again.",
+      "removal_app_unreachable": "ha-paneld did not answer, and it is still the panel's home screen, so removing it now would leave the panel with no home screen. Nothing was removed. Start ha-paneld on the panel, then try again.",
+      "removal_remove_failed": "The panel already has its home screen back, but ha-paneld could not be removed completely. Try again: a retry finishes what is left."
     },
     "abort": {
-      "native_entities_disabled": "Native entities are not turned on for this Home Assistant, so MQTT controls this panel."
+      "native_entities_disabled": "Native entities are not turned on for this Home Assistant, so MQTT controls this panel.",
+      "removed_entry_deleted": "ha-paneld was removed and the panel was deleted from Home Assistant.",
+      "removed_entry_kept": "ha-paneld was removed. The panel stays in Home Assistant until you delete it."
     }
   },
   "selector": {

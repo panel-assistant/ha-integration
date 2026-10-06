@@ -1359,7 +1359,8 @@
           "onboarding": "Continuar la configuración",
           "transport": "Ajustes de conexión",
           "authorize_adb": "Autorizar ADB para actualizaciones",
-          "updates": "Actualizaciones del panel"
+          "updates": "Actualizaciones del panel",
+          "remove_app": "Quitar ha-paneld de este panel"
         }
       },
       "onboarding": {
@@ -1398,6 +1399,21 @@
         "data_description": {
           "prerelease_panel_builds": "Una versión preliminar de Panel Assistant ya permite versiones preliminares de la app del panel."
         }
+      },
+      "remove_app": {
+        "title": "Quitar ha-paneld de {panel}",
+        "description": "Esto quita ha-paneld de {panel}. Primero ha-paneld devuelve la pantalla de inicio al lanzador propio del panel y vuelve a activar las apps del fabricante que había desactivado; solo entonces se desinstala, a través de la conexión de Android Debug Bridge que Home Assistant ya tiene. Se eliminan sus ajustes en el panel.\n\nEn algunos paneles y versiones de firmware, quitarlo no deja forma de volver a los Ajustes de Android ni a la depuración por red, así que la app no podría volver a instalarse sin abrir el panel. Antes de continuar, lee [lo que puede provocar quitarlo en este panel]({risks_url}).",
+        "data": {
+          "confirmed": "He leído los riesgos de quitarlo de este panel y quiero quitar ha-paneld"
+        }
+      },
+      "remove_app_done": {
+        "title": "ha-paneld se ha quitado de {panel}",
+        "description": "El panel conserva su propia pantalla de inicio. ¿Quieres que Home Assistant también olvide {panel}?",
+        "menu_options": {
+          "remove_app_delete_entry": "Eliminar este panel de Home Assistant",
+          "remove_app_keep_entry": "Mantenerlo en Home Assistant por ahora"
+        }
       }
     },
     "error": {
@@ -1413,10 +1429,25 @@
       "adb_credential_error": "Home Assistant no ha podido cargar ni conservar de forma segura su credencial ADB. No se ha intentado modificar el panel. Comprueba el almacenamiento y los registros de Home Assistant antes de volver a intentarlo.",
       "retained_or_ambiguous": "El panel podría contener un registro conservado del paquete ha-paneld o no se ha podido demostrar la ausencia del paquete. No se ha modificado el panel. Inténtalo una vez más si la conexión era inestable; de lo contrario, sigue la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración. No desinstales ni restablezcas la aplicación sin una copia de seguridad verificada.",
       "unknown": "Error inesperado",
-      "panel_identity_changed": "La dirección ya no responde como este panel configurado. Compruebe el panel y su dirección antes de reintentar."
+      "panel_identity_changed": "La dirección ya no responde como este panel configurado. Compruebe el panel y su dirección antes de reintentar.",
+      "removal_unconfirmed": "Marca la casilla para confirmar que has leído los riesgos. No se ha quitado nada.",
+      "removal_busy": "Una actualización o un traslado ya está modificando este panel. No se ha quitado nada; inténtalo de nuevo cuando termine.",
+      "removal_adb_unreachable": "Home Assistant no pudo conectar con el panel mediante Android Debug Bridge (puerto 5555). No se ha quitado nada. Comprueba que el panel está encendido y que la depuración por red sigue activada, y vuelve a intentarlo.",
+      "removal_adb_authorization": "El panel aún no ha aceptado esta instancia de Home Assistant para Android Debug Bridge. No se ha quitado nada. Elige primero «Autorizar ADB para actualizaciones» y vuelve a intentarlo.",
+      "removal_panel_changed": "Ahora responde otro dispositivo en la dirección de este panel. No se ha quitado nada.",
+      "removal_approval_required": "La seguridad reforzada está activada, así que devolver la pantalla de inicio debe aprobarse en el propio panel. No se ha cambiado nada y ha-paneld sigue instalado. Aprueba la solicitud en el panel y vuelve a enviar en un plazo de diez minutos.",
+      "removal_no_replacement_home": "El panel no pudo dar su pantalla de inicio a otro lanzador: no tiene ninguna otra app de pantalla de inicio, así que ha-paneld es lo único que puede mostrar. No se ha quitado nada y el panel sigue funcionando. Instala un lanzador o vuelve a activar el del fabricante y vuelve a intentarlo.",
+      "removal_ownership_unreadable": "El panel no pudo leer su propio registro de las apps del fabricante que desactivó. No se ha quitado nada. Vuelve a iniciar ha-paneld en el panel y vuelve a intentarlo.",
+      "removal_package_state_unknown": "El panel no pudo leer qué apps están instaladas ni cuál es su pantalla de inicio. No se ha quitado nada. Vuelve a intentarlo en un momento.",
+      "removal_home_not_handed": "El panel no confirmó que otro lanzador tomara su pantalla de inicio, así que ha-paneld no se ha quitado. Instala un lanzador o vuelve a activar el del fabricante y vuelve a intentarlo.",
+      "removal_hand_back_unsupported": "El ha-paneld de este panel es demasiado antiguo para devolver la pantalla de inicio. No se ha quitado nada. Actualízalo primero y vuelve a intentarlo.",
+      "removal_app_unreachable": "ha-paneld no respondió y sigue siendo la pantalla de inicio del panel, así que quitarlo ahora dejaría el panel sin pantalla de inicio. No se ha quitado nada. Inicia ha-paneld en el panel y vuelve a intentarlo.",
+      "removal_remove_failed": "El panel ya ha recuperado su pantalla de inicio, pero ha-paneld no se pudo quitar por completo. Vuelve a intentarlo: un nuevo intento termina lo que falta."
     },
     "abort": {
-      "native_entities_disabled": "Las entidades nativas no están activadas en este Home Assistant, así que MQTT controla este panel."
+      "native_entities_disabled": "Las entidades nativas no están activadas en este Home Assistant, así que MQTT controla este panel.",
+      "removed_entry_deleted": "Se ha quitado ha-paneld y se ha eliminado el panel de Home Assistant.",
+      "removed_entry_kept": "Se ha quitado ha-paneld. El panel se queda en Home Assistant hasta que lo elimines."
     }
   },
   "selector": {

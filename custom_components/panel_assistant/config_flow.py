@@ -113,6 +113,8 @@ from .release import (
     ReleaseResolutionError,
 )
 from .release_catalog import async_list_install_choices, async_resolve_install_choice
+from .removal import RemovalError, async_read_firmware, async_remove_app
+from .status import PanelStatus
 from .transport import (
     AUTHORITIES,
     AUTHORITY_NATIVE,
@@ -125,6 +127,7 @@ from .transport import (
     native_entities_turned_off,
 )
 from .update_policy import prereleases_allowed
+from .update_route_repair import help_parameters
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -1706,6 +1709,10 @@ async def async_authorize_existing_panel_adb(
     }.get(probe.state, "panel_identity_changed")
 
 
+#: The removal form's one field: the owner has read the risks and confirms.
+CONF_REMOVAL_CONFIRMED = "confirmed"
+
+
 class HaPaneldOptionsFlow(OptionsFlow):
     """Complete setup, choose transport authority, or configure panel updates.
 
@@ -1718,6 +1725,7 @@ class HaPaneldOptionsFlow(OptionsFlow):
 
     _setup_watch: asyncio.Task[None] | None = None
     _pending_bind_user_id: str | None = None
+    _removal_risks_url: str | None = None
 
     def _current_panel_health(self) -> PanelHealth | None:
         """Use the loaded entry's panel identity for ADB consent."""
@@ -1739,18 +1747,15 @@ class HaPaneldOptionsFlow(OptionsFlow):
         """Offer this panel's setup, transport, updates and available ADB consent."""
         if self.context.get("source") == "onboarding":
             return await self.async_step_onboarding()
+        options = ["transport", "updates"]
         if self._current_panel_health() is not None:
-            options = ["transport", "updates", "authorize_adb"]
-            if CONF_TRANSPORT_USER_ID not in self.config_entry.data:
-                options.insert(0, "onboarding")
-            return self.async_show_menu(step_id="init", menu_options=options)
+            options.append("authorize_adb")
         if CONF_TRANSPORT_USER_ID not in self.config_entry.data:
-            return self.async_show_menu(
-                step_id="init", menu_options=["onboarding", "transport", "updates"]
-            )
-        return self.async_show_menu(
-            step_id="init", menu_options=["transport", "updates"]
-        )
+            options.insert(0, "onboarding")
+        # Offered whether or not the app answers: a run cut short may already
+        # have removed it, and the retry finishes over ADB.
+        options.append("remove_app")
+        return self.async_show_menu(step_id="init", menu_options=options)
 
     async def async_step_updates(
         self, user_input: dict[str, Any] | None = None
@@ -1904,6 +1909,69 @@ class HaPaneldOptionsFlow(OptionsFlow):
         if self._setup_watch is not None and not self._setup_watch.done():
             self._setup_watch.cancel()
         super().async_remove()
+
+    async def async_step_remove_app(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Remove the app once the owner has seen the risks and confirmed."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            if not user_input.get(CONF_REMOVAL_CONFIRMED):
+                errors["base"] = "removal_unconfirmed"
+            else:
+                try:
+                    await async_remove_app(self.hass, self.config_entry)
+                except RemovalError as err:
+                    errors["base"] = f"removal_{err.reason}"
+                else:
+                    return await self.async_step_remove_app_done()
+        if self._removal_risks_url is None:
+            coordinator = getattr(
+                getattr(self.config_entry, "runtime_data", None), "coordinator", None
+            )
+            status = getattr(getattr(coordinator, "data", None), "status", None)
+            parameters = help_parameters(
+                status if isinstance(status, PanelStatus) else None
+            )
+            firmware = await async_read_firmware(self.hass, self.config_entry)
+            if firmware is not None:
+                parameters["fw"] = firmware
+            self._removal_risks_url = help_url("removal-risks", **parameters)
+        return self.async_show_form(
+            step_id="remove_app",
+            data_schema=vol.Schema(
+                {vol.Required(CONF_REMOVAL_CONFIRMED, default=False): BooleanSelector()}
+            ),
+            description_placeholders={
+                "panel": self.config_entry.title,
+                "risks_url": self._removal_risks_url,
+            },
+            errors=errors,
+        )
+
+    async def async_step_remove_app_done(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Offer to forget the panel now that its app is gone."""
+        return self.async_show_menu(
+            step_id="remove_app_done",
+            menu_options=["remove_app_delete_entry", "remove_app_keep_entry"],
+            description_placeholders={"panel": self.config_entry.title},
+        )
+
+    async def async_step_remove_app_delete_entry(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Forget the panel, whose app is gone, once this flow has closed."""
+        self.hass.async_create_task(
+            self.hass.config_entries.async_remove(self.config_entry.entry_id)
+        )
+        return self.async_abort(reason="removed_entry_deleted")
+
+    async def async_step_remove_app_keep_entry(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        return self.async_abort(reason="removed_entry_kept")
 
     async def async_step_transport(
         self, user_input: dict[str, Any] | None = None

@@ -1070,7 +1070,8 @@
           "onboarding": "Installatie voortzetten",
           "transport": "Verbindingsinstellingen",
           "authorize_adb": "ADB voor updates autoriseren",
-          "updates": "Paneelupdates"
+          "updates": "Paneelupdates",
+          "remove_app": "ha-paneld van dit paneel halen"
         }
       },
       "onboarding": {
@@ -1109,6 +1110,21 @@
         "data_description": {
           "prerelease_panel_builds": "Een voorlopige versie van Panel Assistant staat voorlopige versies van de paneelapp al toe."
         }
+      },
+      "remove_app": {
+        "title": "ha-paneld van {panel} halen",
+        "description": "Hiermee wordt ha-paneld van {panel} gehaald. Eerst geeft ha-paneld het startscherm terug aan de eigen launcher van het paneel en zet het de fabrikantapps die het had uitgeschakeld weer aan; pas daarna wordt het gedeïnstalleerd via de Android Debug Bridge-verbinding die Home Assistant al heeft. De instellingen op het paneel worden gewist.\n\nOp sommige panelen en firmwareversies is er daarna geen weg meer terug naar de Android-instellingen of naar debuggen via het netwerk, zodat de app niet opnieuw kan worden geïnstalleerd zonder het paneel open te maken. Lees voordat je verdergaat [wat het weghalen met dit paneel kan doen]({risks_url}).",
+        "data": {
+          "confirmed": "Ik heb de risico's voor dit paneel gelezen en wil ha-paneld weghalen"
+        }
+      },
+      "remove_app_done": {
+        "title": "ha-paneld is van {panel} gehaald",
+        "description": "Het paneel houdt zijn eigen startscherm. Moet Home Assistant {panel} ook vergeten?",
+        "menu_options": {
+          "remove_app_delete_entry": "Dit paneel uit Home Assistant wissen",
+          "remove_app_keep_entry": "Voorlopig in Home Assistant houden"
+        }
       }
     },
     "error": {
@@ -1124,10 +1140,25 @@
       "adb_credential_error": "Home Assistant kon de inloggegevens van ADB niet veilig laden of opslaan. Er is geen poging gedaan om het paneel te wijzigen. Controleer de opslag en logbestanden van Home Assistant voordat je het opnieuw probeert.",
       "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket ha-paneld, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de handleiding voor veilig inrichten en herstel, waarnaar in de integratiedocumentatie wordt verwezen. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
       "unknown": "Onverwachte fout",
-      "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert."
+      "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert.",
+      "removal_unconfirmed": "Vink het vakje aan om te bevestigen dat je de risico's hebt gelezen. Er is niets weggehaald.",
+      "removal_busy": "Een update of verhuizing wijzigt dit paneel al. Er is niets weggehaald; probeer het opnieuw als die klaar is.",
+      "removal_adb_unreachable": "Home Assistant kon het paneel niet bereiken via de Android Debug Bridge (poort 5555). Er is niets weggehaald. Controleer of het paneel aan staat en debuggen via het netwerk nog is ingeschakeld, en probeer het opnieuw.",
+      "removal_adb_authorization": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd voor de Android Debug Bridge. Er is niets weggehaald. Kies eerst ‘ADB autoriseren voor updates’ en probeer het daarna opnieuw.",
+      "removal_panel_changed": "Op het adres van dit paneel antwoordt nu een ander apparaat. Er is niets weggehaald.",
+      "removal_approval_required": "Verscherpte beveiliging staat aan, dus het teruggeven van het startscherm moet op het paneel zelf worden goedgekeurd. Er is niets gewijzigd en ha-paneld is nog geïnstalleerd. Keur het verzoek op het paneel goed en verstuur het binnen tien minuten opnieuw.",
+      "removal_no_replacement_home": "Het paneel kon zijn startscherm niet aan een andere launcher geven: er staat geen andere startscherm-app op, dus ha-paneld is het enige wat het kan tonen. Er is niets weggehaald en het paneel werkt nog. Installeer een launcher of zet die van de fabrikant weer aan, en probeer het opnieuw.",
+      "removal_ownership_unreadable": "Het paneel kon zijn eigen overzicht van de uitgeschakelde fabrikantapps niet lezen. Er is niets weggehaald. Start ha-paneld opnieuw op het paneel en probeer het daarna nog eens.",
+      "removal_package_state_unknown": "Het paneel kon niet lezen welke apps zijn geïnstalleerd of welke zijn startscherm is. Er is niets weggehaald. Probeer het zo meteen opnieuw.",
+      "removal_home_not_handed": "Het paneel bevestigde niet dat een andere launcher het startscherm heeft overgenomen, dus ha-paneld is niet weggehaald. Installeer een launcher of zet die van de fabrikant weer aan, en probeer het opnieuw.",
+      "removal_hand_back_unsupported": "De ha-paneld op dit paneel is te oud om het startscherm terug te geven. Er is niets weggehaald. Werk hem eerst bij en probeer het daarna opnieuw.",
+      "removal_app_unreachable": "ha-paneld antwoordde niet en is nog het startscherm van het paneel; nu weghalen zou het paneel zonder startscherm laten. Er is niets weggehaald. Start ha-paneld op het paneel en probeer het opnieuw.",
+      "removal_remove_failed": "Het paneel heeft zijn startscherm al terug, maar ha-paneld kon niet volledig worden weggehaald. Probeer het opnieuw: een nieuwe poging maakt de rest af."
     },
     "abort": {
-      "native_entities_disabled": "Native-entiteiten zijn voor deze Home Assistant niet ingeschakeld, dus MQTT regelt dit paneel."
+      "native_entities_disabled": "Native-entiteiten zijn voor deze Home Assistant niet ingeschakeld, dus MQTT regelt dit paneel.",
+      "removed_entry_deleted": "ha-paneld is weggehaald en het paneel is uit Home Assistant gewist.",
+      "removed_entry_kept": "ha-paneld is weggehaald. Het paneel blijft in Home Assistant tot je het wist."
     }
   },
   "selector": {
