@@ -45,6 +45,7 @@ from .app_identity import (
     ACCESSIBILITY_COMPONENTS,
     EQUIVALENT_ACCESSIBILITY_COMPONENTS,
     HOME_COMPONENTS,
+    LAUNCH_COMPONENTS,
     LEGACY_LAUNCH_COMPONENT,
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
@@ -668,6 +669,13 @@ def _parse_notification_grant(body: bytes, nonce: str) -> bool:
 
 
 _SERVICES_SETTING = "settings get secure enabled_accessibility_services"
+# The class removed by the successor's 0.9.10 in-place update; the old app's
+# separate package may still be installed during handover and is left alone.
+_OBSOLETE_ACCESSIBILITY_COMPONENTS = {
+    LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID][-1]: (
+        ACCESSIBILITY_COMPONENTS[LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID][0]],
+    ),
+}
 _SERVICE_COMPONENT = re.compile(
     r"[A-Za-z][A-Za-z0-9_.]*/[A-Za-z.][A-Za-z0-9_.$]*", flags=re.ASCII
 )
@@ -681,8 +689,8 @@ def _permission_grant_command(
 
     Settings writes, the overlay and the accessibility service are what the
     panel's controls need, and the browser installer's permission contract grants
-    them the same way. The service is appended to the device-wide list, never
-    replacing it, and only after validating it and finding no valid spelling.
+    them the same way. Keep unrelated services and remove only the obsolete
+    class of the same app, appending the current service when no valid spelling exists.
     A rerun writes nothing and other apps' services stay enabled. The list read before
     the write is printed so the readback can prove nothing was dropped. Grant
     output is discarded; only the readback decides.
@@ -691,6 +699,7 @@ def _permission_grant_command(
     known = "|".join(
         f"*:{name}:*" for name in EQUIVALENT_ACCESSIBILITY_COMPONENTS[launch_component]
     )
+    obsolete = "|".join(_OBSOLETE_ACCESSIBILITY_COMPONENTS.get(launch_component, ()))
     quiet = ">/dev/null 2>&1"
     # Android 14 reports an unset operation as two lines, including its default.
     default_modes = "|".join(
@@ -727,7 +736,7 @@ def _permission_grant_command(
             f"before=$({_SERVICES_SETTING})",
             "before_status=$?",
             'echo "$before"',
-            'after="$before"',
+            'after=""',
             'valid=1; [ "${#before}" -le 4096 ] || valid=0; '
             "case \"$before\" in *'\n'*) valid=0 ;; esac; "
             'case "$before" in ""|null) ;; *) rest="$before"; seen=:; count=0; '
@@ -736,17 +745,19 @@ def _permission_grant_command(
             "grep -Eq '^[A-Za-z][A-Za-z0-9_.]*/[A-Za-z.][A-Za-z0-9_.$]*$'; "
             "then valid=0; break; fi; "
             'case "$seen" in *:"$service":*) valid=0; break ;; esac; '
+            f'case "$service" in {obsolete or "never-a-component"}) ;; '
+            '*) after="${after:+$after:}$service" ;; esac; '
             'seen="$seen$service:"; case "$rest" in *:*) rest=${rest#*:} ;; '
             "*) break ;; esac; done ;; esac; "
             'if [ "$before_status" -eq 0 ] && [ "$valid" -eq 1 ]; then '
-            'case ":$before:" in '
+            'case ":$after:" in '
             f"{known}) ;; "
-            f'*) case "$before" in ""|null) after=\'{component}\' ;; '
-            f'*) after="$before:{component}" ;; esac; '
+            f'*) after="${{after:+$after:}}{component}" ;; esac; '
+            'if [ "$after" != "$before" ]; then '
             f"current=$({_SERVICES_SETTING}); current_status=$?; "
             '[ "$current_status" -eq 0 ] && [ "$current" = "$before" ] && '
-            f'settings put secure enabled_accessibility_services "$after" {quiet} ;; '
-            "esac; fi",
+            f'settings put secure enabled_accessibility_services "$after" {quiet}; '
+            "fi; fi",
             "for operation in WRITE_SETTINGS SYSTEM_ALERT_WINDOW; do "
             + read_operation
             + 'if [ "$mode_status" -eq 0 ] && [ -n "$mode" ] && '
@@ -788,8 +799,10 @@ def _expected_services(before: str, launch_component: str) -> str | None:
     ):
         return None
     known = EQUIVALENT_ACCESSIBILITY_COMPONENTS[launch_component]
+    obsolete = _OBSOLETE_ACCESSIBILITY_COMPONENTS.get(launch_component, ())
+    services = [name for name in services if name not in obsolete]
     if any(name in known for name in services):
-        return before
+        return ":".join(services)
     return ":".join((*services, ACCESSIBILITY_COMPONENTS[launch_component]))
 
 

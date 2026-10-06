@@ -16,7 +16,10 @@ import pytest
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 
 from custom_components.panel_assistant import install_adb
-from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
+from custom_components.panel_assistant.app_identity import (
+    LAUNCH_COMPONENTS,
+    LEGACY_PACKAGE_ID,
+)
 from custom_components.panel_assistant.install_adb import (
     AdbInstallTarget,
     AdbRootMode,
@@ -329,6 +332,85 @@ def test_the_grant_program_grants_over_a_persons_denial(tmp_path: Path) -> None:
 
 
 _GRANT_WARNING = "every permission it needs"
+
+
+@pytest.mark.parametrize("current", [None, "full", "short"])
+async def test_post_update_repair_removes_only_the_obsolete_service(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    successor_descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+    current: str | None,
+) -> None:
+    installed = replace(
+        successor_descriptor,
+        launch_component=LAUNCH_COMPONENTS[successor_descriptor.package_id][-1],
+    )
+    old = install_adb.ACCESSIBILITY_COMPONENTS[successor_descriptor.launch_component]
+    new = install_adb.ACCESSIBILITY_COMPONENTS[installed.launch_component]
+    if current == "short":
+        new = installed.package_id + "/.input.PanelAccessibilityService"
+    others = [
+        "com.example.reader/.ReaderService",
+        "org.other/org.other.a11y.Helper",
+        install_adb.ACCESSIBILITY_COMPONENTS[install_adb.LEGACY_LAUNCH_COMPONENT],
+    ]
+    _seed_granted_panel(tmp_path, installed.package_id)
+    before = [others[0], old, *others[1:]] + ([new] if current else [])
+    (tmp_path / "enabled_accessibility_services").write_text(":".join(before) + "\n")
+
+    for _ in range(2):
+        fake = _RoutingFakeDevice(tmp_path)
+        _install_fakes(monkeypatch, [fake])
+        await install_adb.async_repair_installed_app_permissions(
+            target, signer, installed, expected_root_mode=AdbRootMode.ROOTLESS
+        )
+        assert _panel_value(tmp_path, "enabled_accessibility_services") == ":".join(
+            [*others, new]
+        )
+        assert _panel_value(tmp_path, "accessibility_enabled") == "1"
+        assert not any("am start" in command for command in fake.commands)
+        assert _GRANT_WARNING not in caplog.text
+    assert (tmp_path / "calls").read_text().splitlines() == [
+        "settings put secure enabled_accessibility_services " + ":".join([*others, new])
+    ]
+
+
+async def test_refused_obsolete_service_cleanup_is_reported(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    successor_descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+) -> None:
+    _seed_granted_panel(tmp_path, successor_descriptor.package_id)
+    installed = replace(
+        successor_descriptor,
+        launch_component=LAUNCH_COMPONENTS[successor_descriptor.package_id][-1],
+    )
+    new = install_adb.ACCESSIBILITY_COMPONENTS[installed.launch_component]
+    before = _panel_value(tmp_path, "enabled_accessibility_services") + ":" + new
+    (tmp_path / "enabled_accessibility_services").write_text(before + "\n")
+    _install_fakes(
+        monkeypatch, [_RoutingFakeDevice(tmp_path), _RoutingFakeDevice(tmp_path)]
+    )
+
+    # An older descriptor still needs the old class and must preserve the list.
+    await install_adb.async_repair_installed_app_permissions(
+        target, signer, successor_descriptor, expected_root_mode=AdbRootMode.ROOTLESS
+    )
+    assert not (tmp_path / "calls").exists()
+    (tmp_path / "refuse.enabled_accessibility_services").touch()
+    await install_adb.async_repair_installed_app_permissions(
+        target, signer, installed, expected_root_mode=AdbRootMode.ROOTLESS
+    )
+
+    assert _panel_value(tmp_path, "enabled_accessibility_services") == before
+    assert _panel_value(tmp_path, "accessibility_enabled") == "1"
+    assert _GRANT_WARNING in caplog.text
 
 
 async def _launch_on(
