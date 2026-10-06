@@ -54,129 +54,13 @@ FROZEN_TRANSLATION_TOKENS = (
     "8888",
     "5555",
 )
-TIER_A_LANGUAGES = ("de", "es", "fr", "it", "zh-Hans")
-TIER_B_LANGUAGES = ("nl", "pl", "uk")
+TRANSLATED_LANGUAGES = ("de", "es", "fr", "it", "nl", "pl", "uk", "zh-Hans")
 # These product names are protected only where they name the product/mode.
 NATIVE_PRODUCT_LITERALS = {
     ("entity", "select", "companion_update_channel", "name"): "Companion",
     ("entity", "switch", "companion_auto_update", "name"): "Companion",
     ("entity", "update", "update_companion", "name"): "Companion",
     ("exceptions", "refused_hardened", "message"): "Hardened",
-}
-# These visible strings still use English fallback in Tier B. Keep the exact
-# debt explicit so a newly untranslated key cannot silently join the exemption.
-TIER_B_ENGLISH_FALLBACK = {
-    "entity.binary_sensor.auto_sleep_activity.name",
-    "entity.binary_sensor.proximity.name",
-    "entity.button.reboot.name",
-    "entity.button.reload.name",
-    "entity.camera.camera.name",
-    "entity.event.button.name",
-    "entity.image.camera_snapshot.name",
-    "entity.light.button_led.name",
-    "entity.light.buttons.name",
-    "entity.light.led.name",
-    "entity.light.led.state_attributes.effect.state.blink",
-    "entity.light.led.state_attributes.effect.state.none",
-    "entity.light.led.state_attributes.effect.state.pulse",
-    "entity.light.led.state_attributes.effect.state.strobe",
-    "entity.light.screen.name",
-    "entity.media_player.media.name",
-    "entity.number.volume.name",
-    "entity.select.companion_update_channel.name",
-    "entity.select.companion_update_channel.state.prerelease",
-    "entity.select.companion_update_channel.state.stable",
-    "entity.select.cpu_governor.name",
-    "entity.select.cpu_governor.state.auto",
-    "entity.select.cpu_governor.state.efficiency",
-    "entity.select.cpu_governor.state.performance",
-    "entity.select.navbar.name",
-    "entity.select.navbar.state.always_on",
-    "entity.select.navbar.state.native",
-    "entity.select.navbar.state.off",
-    "entity.select.navbar.state.swipe_reveal",
-    "entity.select.update_channel.name",
-    "entity.select.update_channel.state.prerelease",
-    "entity.select.update_channel.state.stable",
-    "entity.sensor.diag_boot.name",
-    "entity.sensor.diag_cpu.name",
-    "entity.sensor.diag_ip.name",
-    "entity.sensor.diag_memory.name",
-    "entity.sensor.diag_soc_temp.name",
-    "entity.sensor.diag_wifi_outages_24h.name",
-    "entity.sensor.diag_wifi_outages_24h.state_attributes.is_lower_bound.name",
-    "entity.sensor.diag_wifi_rssi.name",
-    "entity.sensor.diag_wifi_ssid.name",
-    "entity.sensor.humidity.name",
-    "entity.sensor.illuminance.name",
-    "entity.sensor.proximity_level.name",
-    "entity.sensor.room_humidity.name",
-    "entity.sensor.room_temp.name",
-    "entity.sensor.status.state.restarting_reboot",
-    "entity.sensor.status.state.restarting_recovery",
-    "entity.sensor.status.state.restarting_settings",
-    "entity.sensor.status.state.restarting_update",
-    "entity.sensor.storage_health.name",
-    "entity.sensor.storage_health.state.critical",
-    "entity.sensor.storage_health.state.database_failure",
-    "entity.sensor.storage_health.state.healthy",
-    "entity.sensor.storage_health.state.unchecked",
-    "entity.sensor.storage_health.state.warning",
-    "entity.sensor.storage_health.state_attributes.auto_vacuum.name",
-    "entity.sensor.storage_health.state_attributes.checked_at_epoch_seconds.name",
-    "entity.sensor.storage_health.state_attributes.database_files_bytes.name",
-    "entity.sensor.storage_health.state_attributes.database_sidecar_bytes.name",
-    "entity.sensor.storage_health.state_attributes.failure_category.name",
-    "entity.sensor.storage_health.state_attributes.failure_operation.name",
-    "entity.sensor.storage_health.state_attributes.freelist_count.name",
-    "entity.sensor.storage_health.state_attributes.main_database_bytes.name",
-    "entity.sensor.storage_health.state_attributes.page_count.name",
-    "entity.sensor.storage_health.state_attributes.page_size_bytes.name",
-    "entity.sensor.storage_health.state_attributes.quick_check.name",
-    "entity.sensor.storage_health.state_attributes.schema_version.name",
-    "entity.sensor.storage_health.state_attributes.storage_pressure.name",
-    "entity.sensor.storage_health.state_attributes.total_bytes.name",
-    "entity.sensor.storage_health.state_attributes.usable_bytes.name",
-    "entity.sensor.storage_health.state_attributes.used_percent.name",
-    "entity.sensor.storage_health.state_attributes.wal_bytes.name",
-    "entity.sensor.temperature.name",
-    "entity.switch.auto_brightness.name",
-    "entity.switch.auto_sleep.name",
-    "entity.switch.camera_enabled.name",
-    "entity.switch.companion_auto_update.name",
-    "entity.switch.kiosk_lock.name",
-    "entity.switch.network_adb.name",
-    "entity.switch.prevent_idle_dim.name",
-    "entity.switch.relay.name",
-    "entity.switch.self_update.name",
-    "entity.switch.silence_boot_chime.name",
-    "entity.switch.touch_sound.name",
-    "entity.switch.wake_on_wave.name",
-    "entity.switch.watchdog.name",
-    "entity.switch.webview_auto_update.name",
-    "entity.switch.zigbee_router.name",
-    "entity.text.home_dashboard.name",
-    "entity.text.navigate.name",
-    "entity.update.update_companion.name",
-    "exceptions.approval_denied.message",
-    "exceptions.approval_pending.message",
-    "exceptions.approval_timeout.message",
-    "exceptions.authority_mismatch.message",
-    "exceptions.expired.message",
-    "exceptions.failed.message",
-    "exceptions.hardware_unavailable.message",
-    "exceptions.invalid_value.message",
-    "exceptions.not_commandable.message",
-    "exceptions.panel_identity_conflict.message",
-    "exceptions.panel_unavailable.message",
-    "exceptions.refused_hardened.message",
-    "exceptions.unknown_channel.message",
-    "exceptions.unknown_command.message",
-    "exceptions.voice_announcement_disconnected.message",
-    "exceptions.voice_announcement_timeout.message",
-    "exceptions.voice_assistant_off.message",
-    "exceptions.voice_panel_not_connected.message",
-    "exceptions.voice_wake_words_rejected.message",
 }
 
 
@@ -456,31 +340,11 @@ def test_runtime_translations_are_complete() -> None:
     assert "[%key:" not in json.dumps(english)
 
 
-def _subtree(catalogue: dict[str, Any], path: tuple[str, ...]) -> dict[str, Any]:
-    node: Any = catalogue
-    for key in path:
-        node = node.get(key, {})
-    assert isinstance(node, dict)
-    return node
-
-
-def _without(catalogue: dict[str, Any], paths: set[tuple[str, ...]]) -> dict[str, Any]:
-    """Return a copy of a catalogue with these subtrees and any emptied parents."""
-    pruned: dict[str, Any] = json.loads(json.dumps(catalogue))
-    for path in paths:
-        if _subtree(pruned, path[:-1]).pop(path[-1], None) is None:
-            continue
-        for depth in range(len(path) - 1, 0, -1):
-            if not _subtree(pruned, path[:depth]):
-                _subtree(pruned, path[: depth - 1]).pop(path[depth - 1])
-    return pruned
-
-
-@pytest.mark.parametrize("language", ("en", *TIER_A_LANGUAGES, *TIER_B_LANGUAGES))
+@pytest.mark.parametrize("language", ("en", *TRANSLATED_LANGUAGES))
 def test_shipped_translation_catalogues_preserve_machine_contracts(
     language: str,
 ) -> None:
-    """Tier A is complete; Tier B's fixed fallback debt cannot grow unnoticed."""
+    """Every shipped locale preserves the complete native English contract."""
     english_catalogue = _load_translation_catalogue(
         INTEGRATION / "translations" / "en.json"
     )
@@ -488,22 +352,15 @@ def test_shipped_translation_catalogues_preserve_machine_contracts(
     assert len(english) == 720
     assert {path.stem for path in (INTEGRATION / "translations").glob("*.json")} == {
         "en",
-        *TIER_A_LANGUAGES,
-        *TIER_B_LANGUAGES,
+        *TRANSLATED_LANGUAGES,
     }
-    debt = (
-        {tuple(key.split(".")) for key in TIER_B_ENGLISH_FALLBACK}
-        if language in TIER_B_LANGUAGES
-        else set()
-    )
-    assert debt <= english.keys()
     target_catalogue = _load_translation_catalogue(
         INTEGRATION / "translations" / f"{language}.json"
     )
     target = _translation_leaves(target_catalogue)
-    assert english.keys() - target.keys() == debt, language
+    assert target.keys() == english.keys(), language
     assert _translation_shape(target_catalogue) == _translation_shape(
-        _without(english_catalogue, debt)
+        english_catalogue
     ), language
     assert all(value.strip() for value in target.values()), language
     assert all("[%key:" not in value for value in target.values()), language
@@ -529,9 +386,9 @@ def test_shipped_translation_catalogues_preserve_machine_contracts(
             ), (language, key, token)
 
 
-@pytest.mark.parametrize("language", TIER_A_LANGUAGES)
+@pytest.mark.parametrize("language", TRANSLATED_LANGUAGES)
 @pytest.mark.parametrize("category", ("entity", "exceptions"))
-async def test_home_assistant_serves_native_tier_a_translations(
+async def test_home_assistant_serves_native_translations(
     hass: HomeAssistant, language: str, category: str
 ) -> None:
     """Native names, states, attributes and errors reach HA without fallback."""

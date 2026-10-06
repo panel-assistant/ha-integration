@@ -45,9 +45,15 @@ async function session({ rcTag = null, admission = () => json(metadata()), initi
   } });
   const windowObject = { crypto, opener, isSecureContext: true, location: { hash },
     addEventListener: (_, fn) => usbListeners.add(fn), removeEventListener: (_, fn) => usbListeners.delete(fn) };
-  const receiver = receiveReleaseHandoff({ windowObject, verificationKey, timeoutMs: 100 });
-  const accepted = await receiver.completion;
-  await sender.completion;
+  const receiver = receiveReleaseHandoff({ windowObject, verificationKey, timeoutMs: 1000 });
+  let accepted;
+  try {
+    [accepted] = await Promise.all([receiver.completion, sender.completion]);
+  } catch (error) {
+    receiver.cancel();
+    sender.cancel();
+    throw error;
+  }
   return { ...accepted, sender, receiver, opener, calls, requests, replies, usbListeners,
     close() { receiver.cancel(); sender.cancel(); } };
 }

@@ -150,6 +150,6 @@ test('live copy progress, support framing and completion switch language without
 
 test('a live connection refusal keeps its recovery instruction and raw diagnostic when language changes', () => renderedJourney('error'));
 
-test('all five admitted catalogues redraw live progress and refusal guidance without replaying actions', () => {
-  for (const locale of ['de', 'es', 'fr', 'it', 'zh-Hans']) renderedJourney('error', locale, true);
+test('every admitted catalogue redraw live progress and refusal guidance without replaying actions', () => {
+  for (const locale of Object.keys(FRONTEND_TRANSLATIONS).filter(locale => locale !== 'en')) renderedJourney('error', locale, true);
 });

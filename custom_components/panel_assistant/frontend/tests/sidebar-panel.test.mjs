@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { FRONTEND_TRANSLATIONS } from '../src/translations/index.mjs';
 import { frontendMessages } from '../src/frontend-localization.mjs';
 
 // A minimal shadow DOM: fixed markup is parsed for tags, ids and data-message, and every
@@ -651,7 +652,7 @@ test('sidebar language switching redraws navigation, accessibility, restart reas
     const hass = fakeHass({ panels });
     const { panel, $ } = await mount(hass, true, '/chosen');
     const initialCalls = hass.calls;
-    for (const language of ['de', 'es', 'fr', 'it', 'zh-Hans', 'en']) {
+    for (const language of Object.keys(FRONTEND_TRANSLATIONS)) {
       panel.hass = { ...hass, language };
       await tick();
       const messages = frontendMessages('sidebar', language);
