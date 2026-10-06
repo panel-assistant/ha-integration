@@ -100,6 +100,8 @@ from .migration_targets import (
     async_check_migration_target,
     async_find_migration_targets,
     async_offer_migration_targets,
+    ignored_card_data,
+    offer_blocked,
 )
 from .provisioning import (
     InstallTargetProbe,
@@ -351,12 +353,24 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         """Offer a panel another integration knows, unless ignored or added."""
         await self.async_set_unique_id(discovery_info["key"])
         self._abort_if_unique_id_configured()
+        # The registries and the ADB announcement can name one device twice.
+        if offer_blocked(self.hass, discovery_info["address"], self.flow_id):
+            return self.async_abort(reason="already_configured")
         target = await async_check_migration_target(discovery_info)
         if target is None:
             return self.async_abort(reason="not_panel")
         self._migration_target = target
-        self.context["title_placeholders"] = {"name": target.name}
+        self.context["title_placeholders"] = {
+            "name": target.name,
+            "address": target.address,
+        }
         return await self.async_step_confirm_migration()
+
+    async def async_step_ignore(self, user_input: dict[str, Any]) -> ConfigFlowResult:
+        """Ignore as Core does, keeping the card's address for the other route."""
+        data = ignored_card_data(self.hass, user_input["unique_id"])
+        await self.async_set_unique_id(user_input["unique_id"], raise_on_progress=False)
+        return self.async_create_entry(title=user_input["title"], data=data)
 
     async def async_step_confirm_migration(
         self, user_input: dict[str, Any] | None = None

@@ -526,3 +526,72 @@ async def test_ignored_network_adb_device_stays_ignored_at_a_new_address(
     await _adb_advertised(hass, "192.168.1.60")
 
     assert _cards(hass) == {}
+
+
+async def _ignore_card(hass: HomeAssistant, card: dict) -> None:
+    """Ignore as the frontend does: the card is still open when Ignore runs."""
+    await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_IGNORE},
+        data={"unique_id": card["context"]["unique_id"], "title": "Ignored"},
+    )
+    await hass.async_block_till_done()
+
+
+async def test_network_adb_first_then_another_app_learns_the_device_is_one_card(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """The reverse arrival order also leaves a single card."""
+    adb_open.open.add("192.168.1.11")
+    await _adb_advertised(hass, "192.168.1.11")
+    _host_entry(hass, "fully_kiosk", "Stairs tablet", "192.168.1.11")
+
+    await _network_device_seen(hass)
+
+    assert set(_cards(hass)) == {"Android 1234567890123"}
+
+
+async def test_device_ignored_by_its_adb_card_is_not_offered_when_an_app_learns_it(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """Ignore before Fully Kiosk knows the device still holds afterwards."""
+    adb_open.open.add("192.168.1.11")
+    await _adb_advertised(hass, "192.168.1.11")
+    await _ignore_card(hass, _cards(hass)["Android 1234567890123"])
+    adb_open.asked.clear()
+    _host_entry(hass, "fully_kiosk", "Stairs tablet", "192.168.1.11")
+
+    await _network_device_seen(hass)
+
+    assert _cards(hass) == {}
+    assert adb_open.asked == []
+
+
+async def test_device_ignored_by_its_app_card_is_not_offered_when_adb_announces(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """Ignore of the registry card holds against the ADB announcement too."""
+    adb_open.open.add("192.168.1.11")
+    _host_entry(hass, "fully_kiosk", "Stairs tablet", "192.168.1.11")
+    await _network_device_seen(hass)
+    await _ignore_card(hass, _cards(hass)["Stairs tablet"])
+    # Fully Kiosk now names the tablet by hostname, so only the announcement
+    # carries its address, under an identity of its own.
+    [entry] = hass.config_entries.async_entries("fully_kiosk")
+    hass.config_entries.async_update_entry(entry, data={CONF_HOST: "stairs.lan"})
+
+    await _adb_advertised(hass, "192.168.1.11")
+
+    assert _cards(hass) == {}
+
+
+async def test_network_adb_card_uses_the_name_another_app_gives_the_device(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """An announcement arriving before any search still shows the panel's name."""
+    _host_entry(hass, "fully_kiosk", "Stairs tablet", "192.168.1.11")
+    adb_open.open.add("192.168.1.11")
+
+    await _adb_advertised(hass, "192.168.1.11")
+
+    assert set(_cards(hass)) == {"Stairs tablet"}
