@@ -272,7 +272,7 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
 
     assert manifest == {
         "codeowners": ["@maxlyth"],
-        "after_dependencies": ["assist_pipeline"],
+        "after_dependencies": ["assist_pipeline", "intent"],
         "config_flow": True,
         "dependencies": [
             "http",
