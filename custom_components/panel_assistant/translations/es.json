@@ -1437,7 +1437,7 @@
       "removal_panel_changed": "Ahora responde otro dispositivo en la dirección de este panel. No se ha quitado nada.",
       "removal_approval_required": "La seguridad reforzada está activada, así que devolver la pantalla de inicio debe aprobarse en el propio panel. No se ha cambiado nada y ha-paneld sigue instalado. Aprueba la solicitud en el panel y vuelve a enviar en un plazo de diez minutos.",
       "removal_no_replacement_home": "El panel no pudo dar su pantalla de inicio a otro lanzador: no tiene ninguna otra app de pantalla de inicio, así que ha-paneld es lo único que puede mostrar. No se ha quitado nada y el panel sigue funcionando. Instala un lanzador o vuelve a activar el del fabricante y vuelve a intentarlo.",
-      "removal_ownership_unreadable": "El panel no pudo leer su propio registro de las apps del fabricante que desactivó. No se ha quitado nada. Reinicia el panel y vuelve a intentarlo.",
+      "removal_ownership_unreadable": "El panel no pudo leer su propio registro de las apps del fabricante que desactivó. No se ha quitado nada. Vuelve a iniciar ha-paneld en el panel y vuelve a intentarlo.",
       "removal_package_state_unknown": "El panel no pudo leer qué apps están instaladas ni cuál es su pantalla de inicio. No se ha quitado nada. Vuelve a intentarlo en un momento.",
       "removal_home_not_handed": "El panel no confirmó que otro lanzador tomara su pantalla de inicio, así que ha-paneld no se ha quitado. Instala un lanzador o vuelve a activar el del fabricante y vuelve a intentarlo.",
       "removal_hand_back_unsupported": "El ha-paneld de este panel es demasiado antiguo para devolver la pantalla de inicio. No se ha quitado nada. Actualízalo primero y vuelve a intentarlo.",

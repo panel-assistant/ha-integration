@@ -1148,7 +1148,7 @@
       "removal_panel_changed": "Pod adresem tego panelu odpowiada teraz inne urządzenie. Nic nie zostało usunięte.",
       "removal_approval_required": "Wzmocnione zabezpieczenia są włączone, więc oddanie ekranu głównego trzeba zatwierdzić na samym panelu. Nic nie zostało zmienione, a ha-paneld jest nadal zainstalowany. Zatwierdź żądanie na panelu, a potem wyślij je ponownie w ciągu dziesięciu minut.",
       "removal_no_replacement_home": "Panel nie mógł oddać ekranu głównego innemu launcherowi: nie ma na nim innej aplikacji ekranu głównego, więc ha-paneld to jedyne, co może wyświetlać. Nic nie zostało usunięte, a panel nadal działa. Zainstaluj launcher lub ponownie włącz launcher producenta i spróbuj ponownie.",
-      "removal_ownership_unreadable": "Panel nie mógł odczytać własnego zapisu wyłączonych aplikacji producenta. Nic nie zostało usunięte. Uruchom panel ponownie, a potem spróbuj jeszcze raz.",
+      "removal_ownership_unreadable": "Panel nie mógł odczytać własnego zapisu wyłączonych aplikacji producenta. Nic nie zostało usunięte. Uruchom ponownie ha-paneld na panelu, a potem spróbuj jeszcze raz.",
       "removal_package_state_unknown": "Panel nie mógł odczytać, które aplikacje są zainstalowane ani która jest jego ekranem głównym. Nic nie zostało usunięte. Spróbuj ponownie za chwilę.",
       "removal_home_not_handed": "Panel nie potwierdził, że inny launcher przejął ekran główny, więc ha-paneld nie został usunięty. Zainstaluj launcher lub ponownie włącz launcher producenta i spróbuj ponownie.",
       "removal_hand_back_unsupported": "ha-paneld na tym panelu jest za stary, by oddać ekran główny. Nic nie zostało usunięte. Najpierw go zaktualizuj, a potem spróbuj ponownie.",

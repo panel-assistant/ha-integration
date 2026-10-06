@@ -1475,7 +1475,7 @@
       "removal_panel_changed": "A different device now answers at this panel's address. Nothing was removed.",
       "removal_approval_required": "Hardened security is on, so handing the home screen back has to be approved on the panel itself. Nothing was changed and ha-paneld is still installed. Approve the request on the panel, then submit again within ten minutes.",
       "removal_no_replacement_home": "The panel could not give its home screen to another launcher: there is no other home-screen app on it, so ha-paneld is the only thing it can show. Nothing was removed and the panel still works. Install a launcher, or turn the vendor one back on, then try again.",
-      "removal_ownership_unreadable": "The panel could not read its own record of the vendor apps it switched off. Nothing was removed. Restart the panel, then try again.",
+      "removal_ownership_unreadable": "The panel could not read its own record of the vendor apps it switched off. Nothing was removed. Start ha-paneld again on the panel, then try again.",
       "removal_package_state_unknown": "The panel could not read which apps are installed or which one is its home screen. Nothing was removed. Try again in a moment.",
       "removal_home_not_handed": "The panel did not confirm that another launcher took its home screen, so ha-paneld was not removed. Install a launcher, or turn the vendor one back on, then try again.",
       "removal_hand_back_unsupported": "The ha-paneld on this panel is too old to hand its home screen back. Nothing was removed. Update it first, then try again.",
