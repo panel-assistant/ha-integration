@@ -1393,9 +1393,13 @@ async def test_reconcile_file_close_error_does_not_reclose_reused_descriptor(
         nonlocal reused_fd
         file_status = os.fstat(file_fd)
         if stat.S_ISREG(file_status.st_mode) and reused_fd is None:
-            os.close(file_fd)
-            reused_fd = os.open(sentinel, os.O_RDONLY)
-            assert reused_fd == file_fd
+            # Put the sentinel at exactly this number in one step: closing and
+            # reopening would hand back the lowest free number, which another
+            # thread may have freed meanwhile.
+            sentinel_fd = os.open(sentinel, os.O_RDONLY)
+            os.dup2(sentinel_fd, file_fd)
+            os.close(sentinel_fd)
+            reused_fd = file_fd
             raise ArtifactCustodyError(ArtifactErrorCode.IO_FAILED)
         original_close(file_fd)
 

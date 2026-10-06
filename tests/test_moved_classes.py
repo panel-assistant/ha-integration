@@ -221,8 +221,17 @@ async def test_a_0_9_10_release_installs_and_starts_by_its_moved_classes(
     assert outcome is LaunchOutcome.STARTED
     assert f"am start -W -n {MOVED} -p io.panelassistant.android" in fake.commands[-1]
     assert "settings put secure enabled_accessibility_services" in fake.commands[-2]
-    assert f"after='{MOVED_SERVICE}'" in fake.commands[-2]
-    assert "io.github.maxlyth.hapaneld." not in "".join(fake.commands)
+    assert f'after="${{after:+$after:}}{MOVED_SERVICE}"' in fake.commands[-2]
+    # The permission repair names the pre-move class only to remove it; no other
+    # command may name the old package.
+    obsolete = (
+        "io.panelassistant.android/"
+        "io.github.maxlyth.hapaneld.input.PanelAccessibilityService"
+    )
+    assert obsolete in fake.commands[-2]
+    assert "io.github.maxlyth.hapaneld." not in "".join(fake.commands).replace(
+        obsolete, ""
+    )
 
 
 async def test_a_job_written_by_0_7_0_resumes_with_the_classes_it_stored(
