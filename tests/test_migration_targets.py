@@ -34,11 +34,15 @@ def adb_open() -> Iterator[SimpleNamespace]:
     hosts: set[str] = set()
     asked: list[str] = []
     real = asyncio.open_connection
+    lan = SimpleNamespace(open=hosts, asked=asked, gate=None)
 
     async def connect(host: str, port: int, *args, **kwargs):
         if port != 5555:
             return await real(host, port, *args, **kwargs)
         asked.append(host)
+        if lan.gate is not None:
+            # Hold every probe so discoveries overlap, as on a slow network.
+            await lan.gate.wait()
         if host not in hosts:
             raise ConnectionRefusedError
         writer = MagicMock()
@@ -46,7 +50,7 @@ def adb_open() -> Iterator[SimpleNamespace]:
         return MagicMock(), writer
 
     with patch("asyncio.open_connection", side_effect=connect):
-        yield SimpleNamespace(open=hosts, asked=asked)
+        yield lan
 
 
 def _host_entry(hass: HomeAssistant, domain: str, title: str, host: str) -> None:
@@ -593,5 +597,49 @@ async def test_network_adb_card_uses_the_name_another_app_gives_the_device(
     adb_open.open.add("192.168.1.11")
 
     await _adb_advertised(hass, "192.168.1.11")
+
+    assert set(_cards(hass)) == {"Stairs tablet"}
+
+
+async def _probes_reach(adb_open: SimpleNamespace, count: int) -> None:
+    for _ in range(500):
+        if adb_open.asked.count("192.168.1.11") == count:
+            return
+        await asyncio.sleep(0.01)
+    raise AssertionError(f"probes: {adb_open.asked}")
+
+
+async def _overlapping(
+    hass: HomeAssistant, adb_open: SimpleNamespace, fully_kiosk_host: str
+) -> None:
+    """The announcement and a registry search both probing the device at once."""
+    adb_open.gate = asyncio.Event()
+    announced = asyncio.create_task(_adb_advertised(hass, "192.168.1.11"))
+    await _probes_reach(adb_open, 1)
+    _host_entry(hass, "fully_kiosk", "Stairs tablet", fully_kiosk_host)
+    woke = asyncio.create_task(_network_device_seen(hass))
+    await _probes_reach(adb_open, 2)
+    adb_open.gate.set()
+    await announced
+    await woke
+    await hass.async_block_till_done()
+
+
+async def test_overlapping_discoveries_of_one_device_leave_one_card(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """Whichever probe answers first shows the card; the other stands down."""
+    adb_open.open.add("192.168.1.11")
+
+    await _overlapping(hass, adb_open, "192.168.1.11")
+
+    assert len(_cards(hass)) == 1
+
+
+async def test_overlapping_discovery_whose_probe_fails_leaves_the_other_card(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """A stale announcement that fails its probe does not hide the panel."""
+    await _overlapping(hass, adb_open, "192.168.1.11")
 
     assert set(_cards(hass)) == {"Stairs tablet"}

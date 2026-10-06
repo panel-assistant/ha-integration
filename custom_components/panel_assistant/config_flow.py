@@ -359,6 +359,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         target = await async_check_migration_target(discovery_info)
         if target is None:
             return self.async_abort(reason="not_panel")
+        # Again after the probe: the other route may have shown its card while
+        # this one waited. Nothing awaits between here and publishing ours.
+        if offer_blocked(self.hass, discovery_info["address"], self.flow_id):
+            return self.async_abort(reason="already_configured")
         self._migration_target = target
         self.context["title_placeholders"] = {
             "name": target.name,
