@@ -76,10 +76,11 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         entry_id: str | None = None,
     ) -> None:
         """Initialize the coordinator."""
+        entry = hass.config_entries.async_get_entry(entry_id) if entry_id else None
         super().__init__(
             hass,
             logger=_LOGGER,
-            name=DOMAIN,
+            name=f"{DOMAIN} {entry.title}" if entry is not None else DOMAIN,
             update_interval=DEFAULT_SCAN_INTERVAL,
         )
         self.client = client
@@ -203,13 +204,18 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
 
             issue_id = panel_failure_issue_id(f"update:{self._entry_id}")
             if ir.async_get(self.hass).async_get_issue(DOMAIN, issue_id) is not None:
-                try:
-                    name, installed_code = await self.client.async_get_version_code()
-                except HaPaneldError:
-                    installed_code = None
-                else:
-                    if name != health.version:
+                installed_code = health.version_code
+                if installed_code is None:
+                    try:
+                        (
+                            name,
+                            installed_code,
+                        ) = await self.client.async_get_version_code()
+                    except HaPaneldError:
                         installed_code = None
+                    else:
+                        if name != health.version:
+                            installed_code = None
                 feed = async_get_feed_coordinator(self.hass)
                 current = (
                     feed.verified_newest(health.package or LEGACY_PACKAGE_ID)

@@ -2107,23 +2107,28 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     or (build is None and health.package == SUCCESSOR_PACKAGE_ID)
                 )
             ):
-                code = None
-                if build is not None:
+                code = health.version_code
+                if build is not None and code is None:
                     try:
                         (
-                            _name,
+                            name,
                             code,
                         ) = await self.coordinator.client.async_get_version_code()
                     except HaPaneldError:
                         code = None
-                    if code is not None and not (
+                    else:
+                        if name != health.version:
+                            code = None
+                if (
+                    build is not None
+                    and code is not None
+                    and not (
                         code >= build.version_code
                         if minimum_code
                         else code == build.version_code
-                    ):
-                        raise _update_error(
-                            "update_not_complete", "The panel update did not complete"
-                        )
+                    )
+                ):
+                    code = None
                 if build is None or code is not None:
                     self._enter("back")
                     try:

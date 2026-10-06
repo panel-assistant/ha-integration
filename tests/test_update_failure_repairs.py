@@ -33,6 +33,7 @@ from custom_components.panel_assistant.client import (
     UpdateBusyError,
     UpdateRejectedError,
 )
+from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.coordinator import (
     HaPaneldDataUpdateCoordinator,
     PanelSnapshot,
@@ -596,27 +597,34 @@ async def test_accepted_health_poll_clears_repair_when_failed_build_is_reached(
             101, ("0.9.10", 101), True, True, LEGACY_PACKAGE_ID, None, False, id="below"
         ),
         pytest.param(
-            102,
+            None,
             ("0.9.10", 101),
             True,
             True,
             LEGACY_PACKAGE_ID,
             None,
             False,
-            id="diag-below",
+            id="fallback-diag-below",
         ),
         pytest.param(
-            102,
+            None,
             ("0.9.9", 102),
             True,
             True,
             LEGACY_PACKAGE_ID,
             None,
             False,
-            id="diag-name-mismatch",
+            id="fallback-diag-name-mismatch",
         ),
         pytest.param(
-            102, None, True, True, LEGACY_PACKAGE_ID, None, False, id="diag-unavailable"
+            None,
+            None,
+            True,
+            True,
+            LEGACY_PACKAGE_ID,
+            None,
+            False,
+            id="diag-unavailable",
         ),
         pytest.param(
             102,
@@ -765,7 +773,7 @@ async def test_feed_failure_repair_uses_diagnostic_code_instead_of_health_label(
         async_get_health=AsyncMock(
             return_value=PanelHealth(
                 version="0.9.10",
-                version_code=102,
+                version_code=None,
                 panel_id="alpha",
                 build="installed",
                 config_hash="abcd",
@@ -781,6 +789,93 @@ async def test_feed_failure_repair_uses_diagnostic_code_instead_of_health_label(
     client.async_get_version_code.return_value = ("0.9.10", 102)
     await coordinator.async_refresh()
     assert ir.async_get(hass).async_get_issue("panel_assistant", issue_id) is None
+    assert await async_failure_events(hass, issue_id) == []
+
+
+@pytest.mark.parametrize("reported_code", [101, 102, 103, None])
+async def test_update_entity_health_reconciles_failed_build_without_diagnostics(
+    hass: HomeAssistant, reported_code: int | None
+) -> None:
+    """Accepted health clears an equal/newer target; lower/unknown stays repairable."""
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="Test panel", data={CONF_ADDRESS: "panel.local"}
+    )
+    entry.add_to_hass(hass)
+    entity, client = _entity(hass, feed=True)
+    entity._entry_id = entry.entry_id
+    entity.coordinator._entry_id = entry.entry_id
+    client.address = "panel.local"
+    client.async_get_version_code.side_effect = CannotConnectError
+    entity._feed.async_refresh = AsyncMock()
+    entity._release.async_refresh = AsyncMock()
+    entity._async_refresh_route = AsyncMock()
+    client.async_get_health = AsyncMock(
+        return_value=replace(
+            entity.coordinator.data.health,
+            version="0.9.10",
+            version_code=reported_code,
+            build="returned",
+        )
+    )
+    # Use the coordinator refresh the entity requests in normal production.
+    del entity.coordinator.async_request_refresh
+    issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
+    await async_record_update_failure(
+        hass,
+        entry.entry_id,
+        entry.title,
+        "0.9.10 build 102",
+        HomeAssistantError("The panel update did not complete"),
+    )
+    hass.data.pop("panel_assistant.failure_repair_store", None)
+
+    try:
+        await entity.async_update()
+    finally:
+        await entity.coordinator.async_shutdown()
+
+    assert (ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None) is (
+        reported_code is not None and reported_code >= 102
+    )
+    if reported_code is not None and reported_code >= 102:
+        assert await async_failure_events(hass, issue_id) == []
+
+
+async def test_staged_update_finishes_on_reported_build_without_diagnostics(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A complete signed-feed update must finish before its wait can create a Repair."""
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="Test panel", data={CONF_ADDRESS: "panel.local"}
+    )
+    entry.add_to_hass(hass)
+    entity, client = _entity(hass, feed=True)
+    entity._entry_id = entry.entry_id
+    client.async_get_version_code.side_effect = CannotConnectError
+    monkeypatch.setattr(panel_update, "_ANDROID_PACKAGE_INSTALL_MAX_SECONDS", 0)
+    monkeypatch.setattr(panel_update, "_RESTART_HEALTH_GRACE_SECONDS", 0.05)
+    monkeypatch.setattr(panel_update, "_UPDATE_RECHECK_SECONDS", 0.001)
+    monkeypatch.setattr(panel_update, "async_store_panel_backup", AsyncMock())
+    snapshot = entity.coordinator.data
+
+    async def returned_health() -> None:
+        entity.coordinator.data = replace(
+            snapshot,
+            health=replace(
+                snapshot.health, version="0.9.10", version_code=102, build="returned"
+            ),
+        )
+
+    entity.coordinator.async_request_refresh = AsyncMock(side_effect=returned_health)
+
+    await entity.async_install(None, backup=False)
+
+    client.async_commit_apk.assert_awaited_once_with("token-1")
+    client.async_get_status.assert_awaited_with(home_proof=True)
+    assert entity.installed_version == "0.9.10 build 102"
+    assert not entity.in_progress
+    issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
     assert await async_failure_events(hass, issue_id) == []
 
 
