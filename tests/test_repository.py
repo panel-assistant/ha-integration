@@ -291,7 +291,7 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
         "name": "Panel Assistant",
         "requirements": ["adb-shell[async]>=0.4.4"],
         "version": "0.7.1-rc1",
-        "zeroconf": ["_ha-paneld._tcp.local."],
+        "zeroconf": ["_adb._tcp.local.", "_ha-paneld._tcp.local."],
     }
     assert hacs == {"homeassistant": "2026.8.3", "name": "Panel Assistant"}
 

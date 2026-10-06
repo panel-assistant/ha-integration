@@ -49,5 +49,5 @@
   "issue_tracker": "https://github.com/panel-assistant/ha-integration/issues",
   "requirements": ["adb-shell[async]>=0.4.4"],
   "version": "0.7.1-rc1",
-  "zeroconf": ["_ha-paneld._tcp.local."]
+  "zeroconf": ["_adb._tcp.local.", "_ha-paneld._tcp.local."]
 }

@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.config_entries import SOURCE_INTEGRATION_DISCOVERY
+from homeassistant.config_entries import SOURCE_IGNORE, SOURCE_INTEGRATION_DISCOVERY
 from homeassistant.const import CONF_ADDRESS, CONF_HOST
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
@@ -48,6 +48,11 @@ _COMPANION_IP_SUFFIX = "_wifi_ip_address"
 # telephony (`FEATURE_TELEPHONY`): a phone, never a wall panel.
 _COMPANION_TELEPHONY_SUFFIXES = ("_phone_state", "_mobile_data", "_sim_1")
 _ADB_PROBE_SECONDS = 2
+# Android's adbd advertises this while network ADB listens (manifest zeroconf).
+ADB_SERVICE_TYPE = "_adb._tcp.local."
+# An ignored card keeps its address, because the same device can be raised by
+# the registries under one identity and by its ADB announcement under another.
+_IGNORED_ADDRESS = "ignored_address"
 # A candidate at the same address is raised at most this often, so a device that
 # is not a panel (ADB closed) is probed once an hour, not on every dhcp event.
 _REOFFER_SECONDS = 3600
@@ -131,6 +136,21 @@ async def _async_adb_answers(host: str) -> bool:
     return True
 
 
+def _lan_address(host: str) -> tuple[str, str] | None:
+    """(stored value, host) for an address the installer may use, else None."""
+    try:
+        address = normalize_address(host)
+    except InvalidAddressError:
+        return None
+    try:
+        literal = ipaddress.ip_address(address.host)
+    except ValueError:
+        literal = None
+    if literal is not None and not is_allowed_install_address(literal):
+        return None
+    return address.stored_value, address.host
+
+
 def _candidates(hass: HomeAssistant) -> dict[str, dict[str, Any]]:
     """Known, unconfigured LAN addresses, keyed by stored address; nothing probed."""
     configured = {
@@ -139,17 +159,10 @@ def _candidates(hass: HomeAssistant) -> dict[str, dict[str, Any]]:
     }
     candidates: dict[str, dict[str, Any]] = {}
     for key, host, name, source, panel_only in _known(hass):
-        try:
-            address = normalize_address(host)
-        except InvalidAddressError:
+        lan = _lan_address(host)
+        if lan is None:
             continue
-        try:
-            literal = ipaddress.ip_address(address.host)
-        except ValueError:
-            literal = None
-        if literal is not None and not is_allowed_install_address(literal):
-            continue
-        value = address.stored_value
+        value, bare = lan
         if value in configured:
             continue
         # One device can be known twice; the panel-only sources come first.
@@ -157,12 +170,65 @@ def _candidates(hass: HomeAssistant) -> dict[str, dict[str, Any]]:
             candidates[value] = {
                 "key": f"migration:{key}",
                 "address": value,
-                "host": address.host,
+                "host": bare,
                 "name": name,
                 "source": source,
                 "panel_only": panel_only,
             }
     return candidates
+
+
+def adb_candidate(hass: HomeAssistant, host: str, serial: str) -> dict[str, Any] | None:
+    """The device advertising network ADB, unless added already or off the LAN.
+
+    Network ADB is what the installer needs, so any such device is a candidate.
+    One another integration already knows keeps that integration's name and
+    card, so it is never offered twice.
+    """
+    lan = _lan_address(host)
+    if lan is None:
+        return None
+    value, bare = lan
+    if any(
+        entry.data.get(CONF_ADDRESS) == value
+        for entry in hass.config_entries.async_entries(DOMAIN)
+    ):
+        return None
+    if (known := _candidates(hass).get(value)) is not None:
+        return known
+    return {
+        "key": f"adb:{serial}",
+        "address": value,
+        "host": bare,
+        "name": f"Android {serial}",
+        "source": "network ADB",
+        "panel_only": False,
+    }
+
+
+def offer_blocked(hass: HomeAssistant, address: str, flow_id: str) -> bool:
+    """Whether another card already offers this address, or one here was ignored."""
+    if any(
+        entry.source == SOURCE_IGNORE and entry.data.get(_IGNORED_ADDRESS) == address
+        for entry in hass.config_entries.async_entries(DOMAIN)
+    ):
+        return True
+    return any(
+        flow["flow_id"] != flow_id
+        and flow["context"].get("title_placeholders", {}).get("address") == address
+        for flow in hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    )
+
+
+def ignored_card_data(hass: HomeAssistant, unique_id: str) -> dict[str, str]:
+    """Entry data for an Ignore: the address of the card being ignored, if any."""
+    for flow in hass.config_entries.flow.async_progress_by_handler(DOMAIN):
+        if flow["context"].get("unique_id") != unique_id:
+            continue
+        address = flow["context"].get("title_placeholders", {}).get("address")
+        if isinstance(address, str):
+            return {_IGNORED_ADDRESS: address}
+    return {}
 
 
 async def async_check_migration_target(

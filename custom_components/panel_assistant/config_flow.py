@@ -65,6 +65,7 @@ from .failure_repair import async_clear_adb_authorization
 from .ha_url import async_offer_ha_url
 from .identity import CONF_INSTALL_IDENTITY, accept_health, is_installation
 from .install_adb import (
+    ADB_PORT,
     AdbInstallTarget,
     InstallAdbError,
     async_installed_artifact_size,
@@ -92,11 +93,15 @@ from .install_network import (
 )
 from .install_plan import InstallPlanError, build_install_plan
 from .migration_targets import (
+    ADB_SERVICE_TYPE,
     MigrationTarget,
+    adb_candidate,
     address_schema,
     async_check_migration_target,
     async_find_migration_targets,
     async_offer_migration_targets,
+    ignored_card_data,
+    offer_blocked,
 )
 from .provisioning import (
     InstallTargetProbe,
@@ -230,6 +235,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         self, discovery_info: ZeroconfServiceInfo
     ) -> ConfigFlowResult:
         """Offer a verified local mDNS discovery for explicit confirmation."""
+        if discovery_info.type == ADB_SERVICE_TYPE:
+            return await self._async_discovered_adb(discovery_info)
         discovery_id = discovery_info.properties.get("did")
         if (
             discovery_info.port != DEFAULT_PORT
@@ -317,18 +324,57 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         async_offer_migration_targets(self.hass)
         return self.async_abort(reason="not_panel")
 
+    async def _async_discovered_adb(
+        self, discovery_info: ZeroconfServiceInfo
+    ) -> ConfigFlowResult:
+        """Offer an Android device whose network ADB Android itself advertises."""
+        advertised = discovery_info.ip_address
+        host = f"[{advertised}]" if advertised.version == 6 else str(advertised)
+        serial = discovery_info.name.removesuffix(f".{ADB_SERVICE_TYPE}")
+        candidate = (
+            adb_candidate(self.hass, host, serial.removeprefix("adb-"))
+            if discovery_info.port == ADB_PORT
+            else None
+        )
+        if candidate is None:
+            return self.async_abort(reason="not_panel")
+        try:
+            await HaPaneldClient(
+                async_get_clientsession(self.hass), normalize_address(host)
+            ).async_get_health()
+        except CannotConnectError, InvalidResponseError:
+            return await self.async_step_integration_discovery(candidate)
+        # The app already answers here; its own advertisement offers it.
+        return self.async_abort(reason="not_panel")
+
     async def async_step_integration_discovery(
         self, discovery_info: dict[str, Any]
     ) -> ConfigFlowResult:
         """Offer a panel another integration knows, unless ignored or added."""
         await self.async_set_unique_id(discovery_info["key"])
         self._abort_if_unique_id_configured()
+        # The registries and the ADB announcement can name one device twice.
+        if offer_blocked(self.hass, discovery_info["address"], self.flow_id):
+            return self.async_abort(reason="already_configured")
         target = await async_check_migration_target(discovery_info)
         if target is None:
             return self.async_abort(reason="not_panel")
+        # Again after the probe: the other route may have shown its card while
+        # this one waited. Nothing awaits between here and publishing ours.
+        if offer_blocked(self.hass, discovery_info["address"], self.flow_id):
+            return self.async_abort(reason="already_configured")
         self._migration_target = target
-        self.context["title_placeholders"] = {"name": target.name}
+        self.context["title_placeholders"] = {
+            "name": target.name,
+            "address": target.address,
+        }
         return await self.async_step_confirm_migration()
+
+    async def async_step_ignore(self, user_input: dict[str, Any]) -> ConfigFlowResult:
+        """Ignore as Core does, keeping the card's address for the other route."""
+        data = ignored_card_data(self.hass, user_input["unique_id"])
+        await self.async_set_unique_id(user_input["unique_id"], raise_on_progress=False)
+        return self.async_create_entry(title=user_input["title"], data=data)
 
     async def async_step_confirm_migration(
         self, user_input: dict[str, Any] | None = None
