@@ -373,9 +373,9 @@ async def test_the_risks_link_names_the_panel_make_model_and_firmware(
 
     link = URL(form["description_placeholders"]["risks_url"])
     assert str(link).startswith(help_url("removal-risks").split("?")[0])
-    assert link.query["make"] == "Sonoff"
-    assert link.query["model"] == "NSPanel Pro"
-    assert link.query["fw"] == "1.11.0"
+    assert link.query.get("make") == "Sonoff"
+    assert link.query.get("model") == "NSPanel Pro"
+    assert link.query.get("fw") == "1.11.0"
     # Nothing that names this panel travels to the public site.
     assert "Lounge" not in str(link)
     assert "Test" not in str(link)
