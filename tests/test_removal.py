@@ -500,16 +500,42 @@ async def test_a_run_cut_short_after_one_uninstall_is_finished_by_a_retry(
     )
 
     assert first.get("errors") == {"base": "removal_remove_failed"}
-    assert fake.installed == [LEGACY_PACKAGE_ID]
+    # The new app stays while the old one is left, so the retry can reach it.
+    assert fake.installed == [LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID]
     assert fake.read()["home"] == VENDOR_HOME
 
-    # The app that answered HTTP is gone; the retry goes on over ADB alone.
     retry = await hass.config_entries.options.async_configure(
         form["flow_id"], {"confirmed": True}
     )
     assert retry["step_id"] == "remove_app_done"
     assert fake.installed == []
     assert fake.read()["home"] == VENDOR_HOME
+
+
+async def test_an_old_app_set_aside_mid_move_is_finished_by_a_retry(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
+) -> None:
+    """Only the old app's kept data is left beside the new app."""
+    fake, server = panel
+    fake.set(
+        installed=[SUCCESSOR_PACKAGE_ID],
+        aside=[LEGACY_PACKAGE_ID],
+        fail_uninstall=[LEGACY_PACKAGE_ID],
+    )
+    entry = _entry(hass, server)
+    form = await _open_form(hass, entry)
+
+    first = await hass.config_entries.options.async_configure(
+        form["flow_id"], {"confirmed": True}
+    )
+    assert first.get("errors") == {"base": "removal_remove_failed"}
+    assert fake.installed == [LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID]
+
+    retry = await hass.config_entries.options.async_configure(
+        form["flow_id"], {"confirmed": True}
+    )
+    assert retry["step_id"] == "remove_app_done"
+    assert fake.installed == []
 
 
 async def test_a_dropped_connection_during_the_uninstall_is_finished_by_a_retry(

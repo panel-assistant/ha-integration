@@ -2432,12 +2432,17 @@ _MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
     # that is neither of them: never the system chooser, an empty answer, or
     # Settings' FallbackHome, each of which would leave the panel without a
     # home screen. Read in the same shell as the uninstall, as for retiring.
+    # The old id goes first, and the new app only once nothing of the old one
+    # is listed: the new app is what a retry reaches the panel through.
     MoveStep.REMOVE_APP: (
         f'case "$({_HOME_QUERY})" in {LEGACY_PACKAGE_ID}/*|{SUCCESSOR_PACKAGE_ID}/*'
         "|android/*|com.android.settings/*) ;; ?*/?*) "
-        f"am force-stop {SUCCESSOR_PACKAGE_ID}; pm uninstall {SUCCESSOR_PACKAGE_ID}; "
         f"am force-stop {LEGACY_PACKAGE_ID}; pm uninstall {LEGACY_PACKAGE_ID}; "
-        f"rm -f {_LEGACY_COPY} ;; esac",
+        f"rm -f {_LEGACY_COPY}; "
+        f'case "$(pm list packages -u {LEGACY_PACKAGE_ID} 2>/dev/null)" in '
+        f"*package:{LEGACY_PACKAGE_ID}*) ;; *) "
+        f"am force-stop {SUCCESSOR_PACKAGE_ID}; pm uninstall {SUCCESSOR_PACKAGE_ID} ;; "
+        "esac ;; esac",
     ),
     # A successor that first starts with no legacy app and no migration record
     # beside it runs as an ordinary app; clearing it makes that start certain.
