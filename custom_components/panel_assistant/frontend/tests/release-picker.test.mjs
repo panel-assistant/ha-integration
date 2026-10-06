@@ -203,7 +203,7 @@ test('picker default never invents prerelease consent when running PA policy cha
   }
 });
 
-test('language switching preserves explicit selection and active transfer without another fetch or popup', async () => {
+for (const [signal, language] of [['de-DE', 'de'], ['cs-CZ', 'cs'], ['pt_br-u-nu-latn', 'pt-BR'], ['pt', 'en'], ['pt-PT', 'en']]) test(`${signal}: language switching preserves explicit selection and active transfer without another fetch or popup`, async () => {
   const { frontendMessages } = await import('../src/frontend-localization.mjs');
   let requests = 0, opens = 0;
   const f = fixture(async () => { requests++; return response([rc, stable]); });
@@ -214,12 +214,12 @@ test('language switching preserves explicit selection and active transfer withou
   let opened;
   globalThis.window = { crypto: webcrypto, location: { origin: 'http://ha.example' }, addEventListener() {}, removeEventListener() {},
     open(url) { opens++; opened = new URL(url); return { closed: false }; } };
-  f.panel.hass = { ...f.hass, language: 'de-DE' };
+  f.panel.hass = { ...f.hass, language: signal };
   assert.equal(f.element('release').value, rc.tag);
   assert.equal(requests, 1);
-  assert.equal(f.element('release').children[0].textContent, frontendMessages('haInstall', 'de').choose);
+  assert.equal(f.element('release').children[0].textContent, frontendMessages('haInstall', language).choose);
   f.element('start').listeners.click();
-  assert.equal(opened.searchParams.get('lang'), 'de');
+  assert.equal(opened.searchParams.get('lang'), language);
   assert.equal(new URLSearchParams(opened.hash.slice(1)).get('rc'), rc.tag);
   const childOptions = f.element('release').children;
   f.panel.hass = { ...f.hass, language: 'fr' };

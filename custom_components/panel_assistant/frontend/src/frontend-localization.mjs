@@ -1,11 +1,12 @@
 import { FRONTEND_TRANSLATIONS } from './translations/index.mjs';
 
 export const ENGLISH_MESSAGES = FRONTEND_TRANSLATIONS.en;
-const SUPPORTED = ['en', 'de', 'es', 'fr', 'it', 'nl', 'pl', 'uk', 'zh-Hans'];
+const SUPPORTED = ['en', 'cs', 'de', 'es', 'fr', 'it', 'nl', 'pl', 'uk', 'zh-Hans'];
 
 export function frontendLocale(signal) {
   if (typeof signal !== 'string') return 'en';
   const tag = signal.trim().replaceAll('_', '-').toLowerCase();
+  if (tag === 'pt-br' || tag.startsWith('pt-br-')) return 'pt-BR';
   if (tag === 'zh' || tag === 'zh-cn' || tag.startsWith('zh-cn-') || tag === 'zh-sg' || tag.startsWith('zh-sg-') || tag === 'zh-hans' || tag.startsWith('zh-hans-')) return 'zh-Hans';
   const base = tag.split('-')[0];
   return SUPPORTED.includes(base) ? base : 'en';

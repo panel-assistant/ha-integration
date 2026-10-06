@@ -4,7 +4,7 @@ import { frontendLocale, frontendMessages, installerLocale, formatFrontendMessag
 import { FRONTEND_TRANSLATIONS } from '../src/translations/index.mjs';
 
 test('every admitted frontend catalogue preserves English coverage and placeholders', () => {
-  assert.deepEqual(Object.keys(FRONTEND_TRANSLATIONS).sort(), ['en', 'de', 'es', 'fr', 'it', 'nl', 'pl', 'uk', 'zh-Hans'].sort());
+  assert.deepEqual(Object.keys(FRONTEND_TRANSLATIONS).sort(), ['en', 'cs', 'de', 'es', 'fr', 'it', 'nl', 'pl', 'pt-BR', 'uk', 'zh-Hans'].sort());
   const frozen = ['Home Assistant', 'Panel Assistant', 'ha-paneld', 'USB', 'Chrome', 'Edge', 'GitHub', 'Pickles'];
   const count = (text, literal) => text.split(literal).length - 1;
   for (const [language, catalogue] of Object.entries(FRONTEND_TRANSLATIONS)) {
@@ -20,20 +20,21 @@ test('every admitted frontend catalogue preserves English coverage and placehold
     }
   }
 });
-test('current locale lookup accepts regional shipped signals without activating new locales', () => {
-  for (const [signal, expected] of [['pt-BR', 'en'], ['cs-CZ', 'en'], ['nl-NL', 'nl'], ['pl-PL', 'pl'], ['uk-UA', 'uk'], ['de-DE', 'de'], ['es_MX', 'es'], ['zh-CN', 'zh-Hans'], ['zh-CN-u-nu-hanidec', 'zh-Hans'], ['zh-SG-u-ca-chinese', 'zh-Hans'], ['zh-Hans-CN', 'zh-Hans'], ['zh-TW', 'en'], ['zh-TW-u-nu-hanidec', 'en'], ['zh-Hant-CN', 'en'], ['ja', 'en'], [null, 'en']]) assert.equal(frontendLocale(signal), expected);
+test('locale lookup accepts Czech regions and Brazilian Portuguese while other Portuguese signals fall back', () => {
+  for (const [signal, expected] of [['cs', 'cs'], ['cs-CZ', 'cs'], ['cs_CZ-u-ca-gregory', 'cs'], [' PT_br ', 'pt-BR'], ['pt-BR-u-nu-latn', 'pt-BR'], ['pt', 'en'], ['pt-PT', 'en'], ['pt-PT-u-nu-latn', 'en'], ['pt-BRavo', 'en'], ['nl-NL', 'nl'], ['pl-PL', 'pl'], ['uk-UA', 'uk'], ['de-DE', 'de'], ['es_MX', 'es'], ['zh-CN', 'zh-Hans'], ['zh-CN-u-nu-hanidec', 'zh-Hans'], ['zh-SG-u-ca-chinese', 'zh-Hans'], ['zh-Hans-CN', 'zh-Hans'], ['zh-TW', 'en'], ['zh-TW-u-nu-hanidec', 'en'], ['zh-Hant-CN', 'en'], ['ja', 'en'], [null, 'en']]) assert.equal(frontendLocale(signal), expected);
 });
 test('standalone installer uses explicit inherited language, then browser language, then English', () => {
   assert.equal(installerLocale({ search: '?lang=it-IT' }, { language: 'de' }), 'it');
-  for (const [signal, language] of [['nl-NL', 'nl'], ['pl-PL', 'pl'], ['uk-UA', 'uk']]) {
+  for (const [signal, language] of [['cs-CZ', 'cs'], ['pt-BR-u-nu-latn', 'pt-BR'], ['nl-NL', 'nl'], ['pl-PL', 'pl'], ['uk-UA', 'uk']]) {
     assert.equal(installerLocale({ search: '?lang=' + signal }, { language: 'de' }), language);
     assert.equal(installerLocale({ search: '' }, { language }), language);
   }
   assert.equal(installerLocale({ search: '?lang=ja' }, { language: 'de' }), 'en');
+  assert.equal(installerLocale({ search: '?lang=pt-PT' }, { language: 'pt-BR' }), 'en');
   assert.equal(installerLocale({ search: '' }, { languages: ['fr-CA'], language: 'de' }), 'fr');
   assert.equal(installerLocale({ search: '' }, { language: 'ja' }), 'en');
 });
-for (const language of ['de', 'nl', 'pl', 'uk']) test(`${language}: missing, empty or malformed translated placeholders safely show authoritative English`, () => {
+for (const language of ['cs', 'pt-BR', 'de', 'nl', 'pl', 'uk']) test(`${language}: missing, empty or malformed translated placeholders safely show authoritative English`, () => {
   const fixture = { [language]: { sidebar: { more: '★ More', opening: '★ {wrong}', restarting: '', versionLabel: '★ {build}' } } };
   const messages = frontendMessages('sidebar', language, fixture);
   assert.equal(messages.more, '★ More');

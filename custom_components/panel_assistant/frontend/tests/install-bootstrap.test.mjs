@@ -79,7 +79,7 @@ function renderedJourney(scenario, locale = 'de', realCatalogue = false) {
         if (url.startsWith('stub:')) return { format: 'module', source: stubs[url.slice(5)], shortCircuit: true };
         const name = url.split('/').at(-1);
         if (Object.hasOwn(stubs, name)) return { format: 'module', source: stubs[name], shortCircuit: true };
-        if (${!realCatalogue} && url.endsWith('/translations/index.mjs')) return { format: 'module', shortCircuit: true, source: 'import en from '+JSON.stringify(${JSON.stringify(english)})+' with { type: "json" }; const de = Object.fromEntries(Object.entries(en).map(([group, keys]) => [group, Object.fromEntries(Object.entries(keys).map(([key, text]) => [key, text ? "★ " + text : text]))])); export const FRONTEND_TRANSLATIONS = { en, de };' };
+        if (${!realCatalogue} && url.endsWith('/translations/index.mjs')) return { format: 'module', shortCircuit: true, source: 'import en from '+JSON.stringify(${JSON.stringify(english)})+' with { type: "json" }; const de = Object.fromEntries(Object.entries(en).map(([group, keys]) => [group, Object.fromEntries(Object.entries(keys).map(([key, text]) => [key, text ? "★ " + text : text]))])); export const FRONTEND_TRANSLATIONS = { en, [${JSON.stringify(locale)}]: de };' };
         return next(url, context);
       },
     });
@@ -145,11 +145,14 @@ function renderedJourney(scenario, locale = 'de', realCatalogue = false) {
   execFileSync(process.execPath, ['--input-type=module', '-e', script], { stdio: 'pipe' });
 }
 
-test('already-installed and set-aside guidance translates in the real bootstrap without another consent or install', () => renderedJourney('adopt'));
-test('live copy progress, support framing and completion switch language without replaying any action', () => renderedJourney('clean'));
+for (const locale of ['de', 'cs', 'pt-BR']) {
+  test(`${locale}: already-installed and set-aside guidance translates in the real bootstrap without another consent or install`, () => renderedJourney('adopt', locale));
+  test(`${locale}: live copy progress, support framing and completion switch language without replaying any action`, () => renderedJourney('clean', locale));
+  test(`${locale}: a live connection refusal keeps its recovery instruction and raw diagnostic when language changes`, () => renderedJourney('error', locale));
+}
 
-test('a live connection refusal keeps its recovery instruction and raw diagnostic when language changes', () => renderedJourney('error'));
-
-test('every admitted catalogue redraw live progress and refusal guidance without replaying actions', () => {
-  for (const locale of Object.keys(FRONTEND_TRANSLATIONS).filter(locale => locale !== 'en')) renderedJourney('error', locale, true);
+test('every admitted catalogue redraws consent, progress, completion and refusal without replaying actions', () => {
+  for (const locale of Object.keys(FRONTEND_TRANSLATIONS).filter(locale => locale !== 'en')) {
+    for (const scenario of ['adopt', 'clean', 'error']) renderedJourney(scenario, locale, true);
+  }
 });

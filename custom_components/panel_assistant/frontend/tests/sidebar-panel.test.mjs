@@ -652,7 +652,7 @@ test('sidebar language switching redraws navigation, accessibility, restart reas
     const hass = fakeHass({ panels });
     const { panel, $ } = await mount(hass, true, '/chosen');
     const initialCalls = hass.calls;
-    for (const language of Object.keys(FRONTEND_TRANSLATIONS)) {
+    for (const language of [...Object.keys(FRONTEND_TRANSLATIONS), 'cs-CZ', 'pt_br-u-nu-latn', 'pt', 'pt-PT']) {
       panel.hass = { ...hass, language };
       await tick();
       const messages = frontendMessages('sidebar', language);

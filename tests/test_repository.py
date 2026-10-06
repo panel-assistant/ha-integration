@@ -54,7 +54,18 @@ FROZEN_TRANSLATION_TOKENS = (
     "8888",
     "5555",
 )
-TRANSLATED_LANGUAGES = ("de", "es", "fr", "it", "nl", "pl", "uk", "zh-Hans")
+TRANSLATED_LANGUAGES = (
+    "cs",
+    "de",
+    "es",
+    "fr",
+    "it",
+    "nl",
+    "pl",
+    "pt-BR",
+    "uk",
+    "zh-Hans",
+)
 # These product names are protected only where they name the product/mode.
 NATIVE_PRODUCT_LITERALS = {
     ("entity", "select", "companion_update_channel", "name"): "Companion",
@@ -386,12 +397,14 @@ def test_shipped_translation_catalogues_preserve_machine_contracts(
             ), (language, key, token)
 
 
-@pytest.mark.parametrize("language", TRANSLATED_LANGUAGES)
-@pytest.mark.parametrize("category", ("entity", "exceptions"))
+@pytest.mark.parametrize("language", ("en", *TRANSLATED_LANGUAGES))
+@pytest.mark.parametrize(
+    "category", ("config", "entity", "exceptions", "issues", "options", "selector")
+)
 async def test_home_assistant_serves_native_translations(
     hass: HomeAssistant, language: str, category: str
 ) -> None:
-    """Native names, states, attributes and errors reach HA without fallback."""
+    """Native flow, Repair, entity and error categories reach HA without fallback."""
     source = _load_translation_catalogue(INTEGRATION / "translations" / "en.json")
     target = _load_translation_catalogue(
         INTEGRATION / "translations" / f"{language}.json"
@@ -485,10 +498,10 @@ def test_installer_refusal_text_keeps_its_meaning_in_drafted_locales() -> None:
             )
 
 
-def test_installed_artifact_mismatch_is_explained_in_all_nine_locales() -> None:
+def test_installed_artifact_mismatch_is_explained_in_every_shipped_locale() -> None:
     """The byte refusal must never fall back to an untranslated key."""
     locale_paths = sorted((INTEGRATION / "translations").glob("*.json"))
-    assert len(locale_paths) == 9
+    assert len(locale_paths) == 1 + len(TRANSLATED_LANGUAGES)
     for locale_path in locale_paths:
         message = _load_translation_catalogue(locale_path)["config"]["error"][
             "installed_artifact_mismatch"

@@ -19,6 +19,20 @@ TRANSLATIONS = (
     Path(__file__).parents[1] / "custom_components" / "panel_assistant" / "translations"
 )
 TRANSLATION_SAMPLES = {
+    "pt-BR": (
+        "Configurar um painel",
+        "Status",
+        "Online",
+        "Atualização do ha-paneld",
+        "Não foi possível ler o estado de funcionamento do painel",
+    ),
+    "cs": (
+        "Nastavit panel",
+        "Stav",
+        "Online",
+        "Aktualizace ha-paneld",
+        "Nelze přečíst stav panelu",
+    ),
     "en": (
         "Set up a panel",
         "Status",
@@ -140,6 +154,8 @@ async def test_native_status_and_exception_translations(
         )
         == {
             "en": "Connect to Home Assistant",
+            "cs": "Připojit k Home Assistant",
+            "pt-BR": "Conectar ao Home Assistant",
             "de": "Mit Home Assistant verbinden",
             "es": "Conectar a Home Assistant",
             "fr": "Connecter à Home Assistant",
@@ -184,6 +200,27 @@ async def test_native_status_and_exception_translations(
         )
         == online_state
     )
+    for raw_state in (
+        "connected",
+        "restarting_update",
+        "restarting_settings",
+        "restarting_recovery",
+        "restarting_reboot",
+    ):
+        assert (
+            async_translate_state(
+                hass,
+                raw_state,
+                "sensor",
+                DOMAIN,
+                sensor.translation_key,
+                sensor.device_class,
+            )
+            == entity_strings[
+                f"component.{DOMAIN}.entity.sensor.status.state.{raw_state}"
+            ]
+        )
+    assert sensor.native_value == "online"
     assert (
         error_strings.get(f"component.{DOMAIN}.exceptions.health_update_failed.message")
         == health_error
