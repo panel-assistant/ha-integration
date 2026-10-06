@@ -1,5 +1,6 @@
 """Coordinator errors identify the affected panel and authentication cause."""
 
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -46,6 +47,7 @@ async def test_release_authentication_failure_log_includes_cause(
     hass: HomeAssistant, caplog: pytest.LogCaptureFixture
 ) -> None:
     """A failed signed release lookup preserves its actionable cause in logs."""
+    caplog.set_level(logging.WARNING)
     coordinator = StableReleaseCoordinator(hass)
     detail = "Release signature does not match"
 
