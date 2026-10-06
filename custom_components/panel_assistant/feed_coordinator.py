@@ -252,7 +252,9 @@ class StableReleaseCoordinator(DataUpdateCoordinator[ReleaseArtifact | None]):
                 async_get_clientsession(self.hass)
             )
         except ReleaseResolutionError as err:
-            _LOGGER.warning("The recent releases could not be authenticated: %s", err)
+            _LOGGER.warning(
+                "The recent releases could not be authenticated", exc_info=True
+            )
             raise UpdateFailed(
                 "The recent releases could not be authenticated"
             ) from err

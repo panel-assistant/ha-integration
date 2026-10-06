@@ -47,16 +47,23 @@ async def test_release_authentication_failure_log_includes_cause(
 ) -> None:
     """A failed signed release lookup preserves its actionable cause in logs."""
     coordinator = StableReleaseCoordinator(hass)
-    cause = ReleaseResolutionError("Release signature does not match")
+    detail = "Release signature does not match"
+
+    async def cannot_authenticate(_session: object) -> None:
+        try:
+            raise ValueError(detail)
+        except ValueError as err:
+            raise ReleaseResolutionError from err
+
     with (
         patch.object(StableReleaseCoordinator, "_async_update_data", _release_update),
         patch(
             "custom_components.panel_assistant.release_catalog."
             "async_resolve_update_candidates",
-            side_effect=cause,
+            side_effect=cannot_authenticate,
         ),
     ):
         await coordinator.async_refresh()
 
     assert coordinator.last_update_success is False
-    assert any(str(cause) in record.getMessage() for record in caplog.records)
+    assert detail in caplog.text
