@@ -499,7 +499,6 @@ async def async_retry_install_job(
     from .adb_credentials import async_get_durable_adb_credential
     from .client import normalize_address
     from .install_adb import (
-        AdbInstallTarget,
         async_installed_artifact_size,
         async_preflight_install,
     )
@@ -557,17 +556,8 @@ async def async_retry_install_job(
             InstallTargetState.MIGRATION_CANDIDATE,
         }:
             assert release.descriptor is not None
-            assert probe.serial is not None
-            assert probe.model is not None
-            assert probe.primary_abi is not None
-            assert probe.android_sdk is not None
-            adb_target = AdbInstallTarget(
-                address=target.pinned,
-                serial=probe.serial,
-                model=probe.model,
-                primary_abi=probe.primary_abi,
-                android_sdk=probe.android_sdk,
-            )
+            adb_target = probe.adb_target(target.pinned)
+            assert adb_target is not None
             observed = await async_preflight_install(
                 adb_target,
                 credential.signer,

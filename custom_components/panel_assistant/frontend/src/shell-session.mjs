@@ -43,3 +43,61 @@ export async function readShell(adb, command, { maximum = 32768, timeoutMs = 300
     }
   }
 }
+
+/** Fixed program: one outer frame of named sections, each reporting its exit status. */
+export function frameProgram(prefix, nonce, sections) {
+  return [`echo HAPANELD_${prefix}_BEGIN:${nonce}`, ...sections.flatMap(([name, command]) => [
+    `echo HAPANELD_${prefix}_${name}_BEGIN:${nonce}`, command,
+    `echo HAPANELD_${prefix}_${name}_END:${nonce}:$?`,
+  ]), `echo HAPANELD_${prefix}_END:${nonce}`].join('; ');
+}
+
+// unicode rejects controls, lone surrogates and non-printing Unicode; ascii admits
+// printable ASCII and tab; splitlines mirrors Python str.splitlines() except lone CR.
+const UNSAFE = { unicode: /[\p{C}\p{Zl}\p{Zp}]/u, ascii: /[^\x20-\x7e\t]/ };
+export function decodeLines(body, maximum, fail, accept = 'unicode') {
+  let text;
+  if (typeof body === 'string') {
+    if (!body.length || body.length > maximum || new TextEncoder().encode(body).length > maximum ||
+        /[\uD800-\uDFFF]/u.test(body)) fail();
+    text = body;
+  } else if (body instanceof Uint8Array) {
+    if (!body.byteLength || body.byteLength > maximum) fail();
+    try { text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(body); }
+    catch { fail(); }
+  } else fail();
+  text = text.replaceAll('\r\n', '\n');
+  if (!text.endsWith('\n')) fail();
+  text = text.slice(0, -1);
+  if (accept === 'splitlines') {
+    if (text.includes('\r')) fail();
+    return text.split(/[\n\v\f\x1c-\x1e\x85\u2028\u2029]/u);
+  }
+  if (UNSAFE[accept].test(text.replaceAll('\n', ''))) fail();
+  return text.split('\n');
+}
+
+/** Walks frameProgram output; a section ends only at its own nonce-bound END line. */
+export function readSections(lines, nonce, prefix, names, fail) {
+  const tag = `HAPANELD_${prefix}`;
+  if (lines[0] !== `${tag}_BEGIN:${nonce}` || lines.at(-1) !== `${tag}_END:${nonce}`) fail();
+  let offset = 1;
+  const sections = {};
+  for (const name of names) {
+    if (lines[offset++] !== `${tag}_${name}_BEGIN:${nonce}`) fail();
+    const pattern = new RegExp(`^${tag}_${name}_END:${nonce}:([0-9]{1,3})$`);
+    const values = [];
+    let status;
+    while (offset < lines.length - 1) {
+      const line = lines[offset++];
+      const match = pattern.exec(line);
+      if (match) { status = Number(match[1]); break; }
+      if (line.startsWith('HAPANELD_')) fail();
+      values.push(line);
+    }
+    if (status === undefined) fail();
+    sections[name] = { values, status };
+  }
+  if (offset !== lines.length - 1) fail();
+  return sections;
+}

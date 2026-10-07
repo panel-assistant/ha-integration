@@ -66,7 +66,6 @@ from .ha_url import async_offer_ha_url
 from .identity import CONF_INSTALL_IDENTITY, accept_health, is_installation
 from .install_adb import (
     ADB_PORT,
-    AdbInstallTarget,
     InstallAdbError,
     async_installed_artifact_size,
     async_preflight_install,
@@ -1009,17 +1008,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             InstallTargetState.INSTALLED,
             InstallTargetState.MIGRATION_CANDIDATE,
         }:
-            assert probe.serial is not None
-            assert probe.model is not None
-            assert probe.primary_abi is not None
-            assert probe.android_sdk is not None
-            adb_target = AdbInstallTarget(
-                address=target.pinned,
-                serial=probe.serial,
-                model=probe.model,
-                primary_abi=probe.primary_abi,
-                android_sdk=probe.android_sdk,
-            )
+            adb_target = probe.adb_target(target.pinned)
+            assert adb_target is not None
             try:
                 observed = await async_preflight_install(
                     adb_target,

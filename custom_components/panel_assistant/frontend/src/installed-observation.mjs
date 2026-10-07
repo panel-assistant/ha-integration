@@ -1,5 +1,5 @@
 import { isAcceptedPackageId } from './app-identity.mjs';
-import { readShell } from './shell-session.mjs';
+import { decodeLines, readShell } from './shell-session.mjs';
 import { newNonce } from './shared.mjs';
 
 export class InstalledObservationError extends Error {
@@ -41,16 +41,7 @@ export function parseInstalledObservation(body, nonce, descriptor) {
   if (!Number.isSafeInteger(descriptor?.apkSize) || descriptor.apkSize < 1 || descriptor.apkSize > 67108864 ||
       typeof descriptor.apkSha256 !== 'string' || descriptor.apkSha256.length !== 64 ||
       !/^[0-9a-f]{64}$/.test(descriptor.apkSha256)) throw new InstalledObservationError('invalid_request');
-  let text = body;
-  if (body instanceof Uint8Array) {
-    if (body.byteLength > 32768) fail();
-    try { text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(body); } catch { fail(); }
-  }
-  if (typeof text !== 'string' || !text.length || text.length > 32768 ||
-      new TextEncoder().encode(text).length > 32768) fail();
-  text = text.replaceAll('\r\n', '\n');
-  if (!text.endsWith('\n') || /[^\x20-\x7e\t\n]/.test(text)) fail();
-  const lines = text.slice(0, -1).split('\n');
+  const lines = decodeLines(body, 32768, fail, 'ascii');
   if (lines[0] !== `HAPANELD_INSTALLED_BEGIN:${nonce}` || lines.at(-1) !== `HAPANELD_INSTALLED_END:${nonce}`) fail();
   if (lines.length === 3 && lines[1] === 'absent') return false;
   if (lines.length !== 13 || lines[1] !== 'present' || lines[2].length > 1024 ||

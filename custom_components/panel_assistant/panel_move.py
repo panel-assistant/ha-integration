@@ -537,23 +537,13 @@ async def async_app_target(
         raise MoveError(REASON_ADB_AUTHORIZATION)
     if probe.state is InstallTargetState.INSTALL_CANDIDATE:
         return None
-    if probe.state not in {
+    adb_target = probe.adb_target(pinned.pinned)
+    if adb_target is None or probe.state not in {
         InstallTargetState.INSTALLED,
         InstallTargetState.MIGRATION_CANDIDATE,
-    } or None in (probe.serial, probe.model, probe.primary_abi, probe.android_sdk):
+    }:
         raise MoveError(REASON_ADB_UNREACHABLE)
-    assert probe.serial is not None and probe.model is not None
-    assert probe.primary_abi is not None and probe.android_sdk is not None
-    return (
-        AdbInstallTarget(
-            address=pinned.pinned,
-            serial=probe.serial,
-            model=probe.model,
-            primary_abi=probe.primary_abi,
-            android_sdk=probe.android_sdk,
-        ),
-        credential.signer,
-    )
+    return adb_target, credential.signer
 
 
 async def _async_step(

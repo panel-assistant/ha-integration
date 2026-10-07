@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-from contextlib import suppress
 from dataclasses import dataclass
 from enum import StrEnum
-from re import ASCII, fullmatch
+from re import fullmatch
 from secrets import token_hex
 
 from adb_shell.adb_device_async import AdbDeviceAsync
@@ -20,20 +19,27 @@ from adb_shell.exceptions import (
     InvalidResponseError,
     TcpTimeoutException,
 )
-from adb_shell.transport.tcp_transport_async import TcpTransportAsync
 
 from .app_identity import ACCEPTED_PACKAGE_IDS, LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID
 from .client import PanelAddress
+from .install_adb import (
+    _ADB_BANNER,
+    ADB_PORT,
+    AdbInstallTarget,
+    _async_close,
+    _BoundedTcpTransportAsync,
+    _framed_value_commands,
+    _is_package_path,
+    _MalformedAdbResponse,
+    _ObservedTarget,
+    _parse_identity,
+    _UnsafeAdbPacket,
+)
 
-ADB_PORT = 5555
-_ADB_BANNER = "ha-paneld-home-assistant"
 _CONNECT_TIMEOUT_SECONDS = 5.0
 # Composite package-manager observations can take over 13 seconds on panels.
 _SHELL_TIMEOUT_SECONDS = 30.0
-_CLOSE_TIMEOUT_SECONDS = 2.0
 _MAX_SHELL_RESPONSE_BYTES = 16 * 1024
-_MAX_ADB_PACKET_BODY_BYTES = _MAX_SHELL_RESPONSE_BYTES
-_MAX_ADB_CONNECTION_READ_BYTES = 64 * 1024
 _PACKAGE_MANAGER_LIVENESS_PACKAGE = "android"
 _MIN_ANDROID_SDK = 26
 _SUPPORTED_PRIMARY_ABIS = frozenset({"arm64-v8a", "armeabi-v7a"})
@@ -68,6 +74,24 @@ class InstallTargetProbe:
     serial: str | None = None
     primary_abi: str | None = None
     android_sdk: int | None = None
+
+    def adb_target(self, address: PanelAddress) -> AdbInstallTarget | None:
+        """The ADB target at ``address`` this probe identified, or None."""
+        if (
+            self.serial is None
+            or self.model is None
+            or self.primary_abi is None
+            or self.android_sdk is None
+        ):
+            return None
+        return AdbInstallTarget(
+            address=address,
+            serial=self.serial,
+            model=self.model,
+            primary_abi=self.primary_abi,
+            android_sdk=self.android_sdk,
+        )
+
     # Set only after the selected descriptor has proved the installed APK's
     # size and digest. The byte count carries that proof into plan creation.
     installed_artifact_size: int | None = None
@@ -75,39 +99,6 @@ class InstallTargetProbe:
 
 class _MalformedProbeResponse(Exception):
     """Raised when ADB answered but did not prove a safe classification."""
-
-
-class _OversizedAdbPacket(Exception):
-    """Raised before adb-shell reads an excessive peer-declared packet body."""
-
-
-class _BoundedTcpTransportAsync(TcpTransportAsync):
-    """TCP transport that bounds every adb-shell packet read at its source."""
-
-    def __init__(self, host: str, port: int) -> None:
-        super().__init__(host, port)
-        self._received_bytes = 0
-
-    async def bulk_read(
-        self, numbytes: int, transport_timeout_s: float | None
-    ) -> bytes:
-        """Refuse an excessive requested read before touching the socket reader."""
-        if (
-            not isinstance(numbytes, int)
-            or numbytes < 1
-            or numbytes > _MAX_ADB_PACKET_BODY_BYTES
-        ):
-            raise _OversizedAdbPacket
-        remaining = _MAX_ADB_CONNECTION_READ_BYTES - self._received_bytes
-        data = await super().bulk_read(
-            min(numbytes, remaining + 1), transport_timeout_s
-        )
-        if not data:
-            raise AdbConnectionError("ADB peer closed during a bounded read")
-        if len(data) > remaining:
-            raise _OversizedAdbPacket
-        self._received_bytes += len(data)
-        return data
 
 
 class _PackagePresence(StrEnum):
@@ -122,25 +113,12 @@ class _RetainedPackageData(StrEnum):
     UNKNOWN = "unknown"
 
 
-@dataclass(frozen=True, slots=True)
-class _TargetFacts:
-    model: str
-    serial: str
-    primary_abi: str
-    android_sdk: int
-
-
 def _parse_status_marker(line: str, prefix: str, nonce: str) -> int | None:
     """Parse one nonce-bound child exit-status marker."""
     match = fullmatch(rf"{prefix}:{nonce}:([0-9]{{1,3}})", line)
     if match is None:
         return None
     return int(match.group(1))
-
-
-def _is_package_path(line: str) -> bool:
-    """Return whether a package-manager path is absolute and unambiguous."""
-    return fullmatch(r"package:/[^ \t]+", line) is not None
 
 
 def _parse_package_presence(
@@ -303,57 +281,6 @@ def _parse_retained_package_data(
     }
 
 
-def _parse_target_facts(output: str, nonce: str) -> _TargetFacts:
-    """Parse four bounded properties from an exact nonce-bound response."""
-    property_names = ("MODEL", "SERIAL", "ABI", "SDK")
-    lines = output.replace("\r", "").splitlines()
-    expected_lines = 2 + 3 * len(property_names)
-    if (
-        len(lines) != expected_lines
-        or lines[0] != f"HAPANELD_ID_BEGIN:{nonce}"
-        or lines[-1] != f"HAPANELD_ID_END:{nonce}"
-    ):
-        raise _MalformedProbeResponse
-
-    values: dict[str, str] = {}
-    offset = 1
-    for name in property_names:
-        if lines[offset] != f"HAPANELD_ID_{name}_BEGIN:{nonce}":
-            raise _MalformedProbeResponse
-        value = lines[offset + 1]
-        status = _parse_status_marker(
-            lines[offset + 2], f"HAPANELD_ID_{name}_END", nonce
-        )
-        if status != 0:
-            raise _MalformedProbeResponse
-        values[name] = value
-        offset += 3
-
-    model = values["MODEL"]
-    serial = values["SERIAL"]
-    primary_abi = values["ABI"]
-    sdk_text = values["SDK"]
-    if (
-        model != model.strip()
-        or not 1 <= len(model) <= 128
-        or not model.isprintable()
-        or fullmatch(r"[A-Za-z0-9._:-]{1,128}", serial, flags=ASCII) is None
-        or fullmatch(r"[A-Za-z0-9_.-]{1,64}", primary_abi, flags=ASCII) is None
-        or fullmatch(r"[0-9]{1,3}", sdk_text, flags=ASCII) is None
-    ):
-        raise _MalformedProbeResponse
-
-    android_sdk = int(sdk_text)
-    if not 1 <= android_sdk <= 100:
-        raise _MalformedProbeResponse
-    return _TargetFacts(
-        model=model,
-        serial=serial,
-        primary_abi=primary_abi,
-        android_sdk=android_sdk,
-    )
-
-
 def _package_presence_command(nonce: str) -> str:
     """Build the static read-only installed-package observation."""
     targets = "".join(
@@ -385,25 +312,13 @@ def _retained_package_data_command(nonce: str) -> str:
     )
 
 
-def _target_facts_command(nonce: str) -> str:
-    """Build the static read-only physical-target identification observation."""
-    properties = (
-        ("MODEL", "ro.product.model"),
-        ("SERIAL", "ro.serialno"),
-        ("ABI", "ro.product.cpu.abi"),
-        ("SDK", "ro.build.version.sdk"),
+async def _async_target_facts(device: AdbDeviceAsync) -> _ObservedTarget:
+    """Read the panel's model, serial, ABI and SDK as the installer frames them."""
+    nonce = token_hex(16)
+    output = await _async_bounded_shell(
+        device, "; ".join(_framed_value_commands("ID", nonce))
     )
-    commands = [f"echo HAPANELD_ID_BEGIN:{nonce}"]
-    for name, android_property in properties:
-        commands.extend(
-            (
-                f"echo HAPANELD_ID_{name}_BEGIN:{nonce}",
-                f"getprop {android_property}",
-                f"echo HAPANELD_ID_{name}_END:{nonce}:$?",
-            )
-        )
-    commands.append(f"echo HAPANELD_ID_END:{nonce}")
-    return "; ".join(commands)
+    return _parse_identity(output.encode(), nonce, "ID")
 
 
 async def _async_bounded_shell(device: AdbDeviceAsync, command: str) -> str:
@@ -426,13 +341,6 @@ async def _async_bounded_shell(device: AdbDeviceAsync, command: str) -> str:
         return body.decode("utf-8")
     except UnicodeDecodeError as err:
         raise _MalformedProbeResponse from err
-
-
-async def _async_close(device: AdbDeviceAsync) -> None:
-    """Bound cleanup without allowing it to hide the probe result."""
-    with suppress(Exception):
-        async with asyncio.timeout(_CLOSE_TIMEOUT_SECONDS):
-            await device.close()
 
 
 def _refuse_authorization(_device: object) -> None:
@@ -461,7 +369,7 @@ async def async_probe_install_target(
         banner=_ADB_BANNER,
     )
     state = InstallTargetState.ADB_UNREACHABLE
-    facts: _TargetFacts | None = None
+    facts: _ObservedTarget | None = None
 
     try:
         async with asyncio.timeout(_CONNECT_TIMEOUT_SECONDS):
@@ -485,19 +393,11 @@ async def async_probe_install_target(
             state = InstallTargetState.RETAINED_OR_AMBIGUOUS
         elif presence[SUCCESSOR_PACKAGE_ID] is _PackagePresence.PRESENT:
             state = InstallTargetState.INSTALLED
-            nonce = token_hex(16)
-            facts = _parse_target_facts(
-                await _async_bounded_shell(device, _target_facts_command(nonce)),
-                nonce,
-            )
+            facts = await _async_target_facts(device)
         elif presence[LEGACY_PACKAGE_ID] is _PackagePresence.PRESENT:
             # A legacy panel with no successor can take the successor beside it.
             # Its own data is what the handover migrates, so it is not residue.
-            nonce = token_hex(16)
-            facts = _parse_target_facts(
-                await _async_bounded_shell(device, _target_facts_command(nonce)),
-                nonce,
-            )
+            facts = await _async_target_facts(device)
             if (
                 facts.android_sdk < _MIN_ANDROID_SDK
                 or facts.primary_abi not in _SUPPORTED_PRIMARY_ABIS
@@ -516,11 +416,7 @@ async def async_probe_install_target(
             if retained_data is not None and all(
                 value is _RetainedPackageData.ABSENT for value in retained_data.values()
             ):
-                nonce = token_hex(16)
-                facts = _parse_target_facts(
-                    await _async_bounded_shell(device, _target_facts_command(nonce)),
-                    nonce,
-                )
+                facts = await _async_target_facts(device)
                 if (
                     facts.android_sdk < _MIN_ANDROID_SDK
                     or facts.primary_abi not in _SUPPORTED_PRIMARY_ABIS
@@ -532,7 +428,7 @@ async def async_probe_install_target(
                 state = InstallTargetState.RETAINED_OR_AMBIGUOUS
     except DeviceAuthError:
         state = InstallTargetState.ADB_UNAUTHORIZED
-    except _MalformedProbeResponse, _OversizedAdbPacket:
+    except _MalformedProbeResponse, _MalformedAdbResponse, _UnsafeAdbPacket:
         state = InstallTargetState.RETAINED_OR_AMBIGUOUS
     except (
         AdbConnectionError,

@@ -1,6 +1,7 @@
 /** Fixed package-manager/activity-manager commands and bounded response contracts. */
 export const MAX_INSTALL_RESPONSE_BYTES = 32 * 1024;
 import { isLaunchComponent } from './app-identity.mjs';
+import { decodeLines } from './shell-session.mjs';
 
 export class InstallContractError extends Error {
   constructor(code) { super(code); this.code = code; }
@@ -40,27 +41,10 @@ export function buildLaunch(nonce, packageId, launchComponent, sdk) {
   return `echo HAPANELD_LAUNCH_BEGIN:${nonce}; ${grant}am start -W -n ${launchComponent} -p ${packageId}; echo HAPANELD_LAUNCH_END:${nonce}:$?`;
 }
 
-function decode(body) {
-  let text;
-  if (typeof body === 'string') {
-    if (!body.length || body.length > MAX_INSTALL_RESPONSE_BYTES ||
-        new TextEncoder().encode(body).length > MAX_INSTALL_RESPONSE_BYTES ||
-        /[\uD800-\uDFFF]/u.test(body)) fail();
-    text = body;
-  } else if (body instanceof Uint8Array) {
-    if (!body.byteLength || body.byteLength > MAX_INSTALL_RESPONSE_BYTES) fail();
-    try { text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(body); }
-    catch { fail(); }
-  } else fail();
-  text = text.replaceAll('\r\n', '\n');
-  if (text.includes('\r') || !text.endsWith('\n')) fail();
-  // Match Python str.splitlines(), preserving empty interior lines only.
-  return text.slice(0, -1).split(/[\n\v\f\x1c-\x1e\x85\u2028\u2029]/u);
-}
-
 function parseSection(body, nonce, prefix) {
   checkId(nonce);
-  const lines = decode(body);
+  // Match Python str.splitlines(), preserving empty interior lines only.
+  const lines = decodeLines(body, MAX_INSTALL_RESPONSE_BYTES, fail, 'splitlines');
   if (lines[0] !== `HAPANELD_${prefix}_BEGIN:${nonce}`) fail();
   const match = new RegExp(`^HAPANELD_${prefix}_END:${nonce}:([0-9]{1,3})$`).exec(lines.at(-1));
   if (!match || lines.slice(1, -1).some(line => line.startsWith('HAPANELD_'))) fail();

@@ -635,24 +635,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         if probe.state not in {
             InstallTargetState.INSTALLED,
             InstallTargetState.MIGRATION_CANDIDATE,
-        } or None in (
-            probe.serial,
-            probe.model,
-            probe.primary_abi,
-            probe.android_sdk,
-        ):
+        }:
             return None
-        assert probe.serial is not None
-        assert probe.model is not None
-        assert probe.primary_abi is not None
-        assert probe.android_sdk is not None
-        return AdbInstallTarget(
-            address=pinned.pinned,
-            serial=probe.serial,
-            model=probe.model,
-            primary_abi=probe.primary_abi,
-            android_sdk=probe.android_sdk,
-        )
+        return probe.adb_target(pinned.pinned)
 
     async def _async_observe_update_route(self) -> bool | None:
         """Check route recovery independently of a pending signed update."""

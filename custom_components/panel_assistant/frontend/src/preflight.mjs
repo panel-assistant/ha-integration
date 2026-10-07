@@ -2,22 +2,33 @@
 export const MAX_PREFLIGHT_BYTES = 32 * 1024;
 import { ACCEPTED_PACKAGE_IDS } from './app-identity.mjs';
 import { fullMatch } from './shared.mjs';
+import { decodeLines, frameProgram, readSections } from './shell-session.mjs';
 
 const BASES = ['/data/user/0', '/data/data', '/data/user_de/0'];
 // Either accepted application's data makes a target unclean.
 export const RESIDUE_PROBES = Object.freeze(ACCEPTED_PACKAGE_IDS.flatMap(
   packageId => BASES.map(base => Object.freeze({ packageId, path: `${base}/${packageId}` }))));
-const PROPERTIES = [
-  ['MODEL', 'ro.product.model'], ['SERIAL', 'ro.serialno'],
-  ['ABI', 'ro.product.cpu.abi'], ['SDK', 'ro.build.version.sdk'],
+// Identity and root observation, shared verbatim by the USB posture program.
+export const IDENTITY_SECTIONS = Object.freeze([
+  ['MODEL', 'getprop ro.product.model'], ['SERIAL', 'getprop ro.serialno'],
+  ['ABI', 'getprop ro.product.cpu.abi'], ['SDK', 'getprop ro.build.version.sdk'],
+  ['UID', 'id -u'], ['SECURE', 'getprop ro.secure'],
+  ['DEBUGGABLE', 'getprop ro.debuggable'],
+  ['SU', 'if command -v su >/dev/null 2>&1; then echo present; ' +
+    'else hapaneld_su_status=$?; if [ "$hapaneld_su_status" -eq 1 ]; then echo absent; ' +
+    'else echo abnormal; fi; fi'],
+]);
+const SECTIONS = [...IDENTITY_SECTIONS, ['LIVE', 'pm path android'],
+  ...ACCEPTED_PACKAGE_IDS.flatMap((packageId, i) => [
+    [`PACKAGE${i}`, `pm path ${packageId}`],
+    [`RETAINED${i}`, `pm list packages -u ${packageId}`]]),
+  ...BASES.map((path, i) => [`BASE${i}`,
+    `if [ -L ${path} ] || [ -d ${path} ]; then if ls -1A ${path} >/dev/null 2>&1; ` +
+    'then echo readable; else echo unreadable; fi; else echo unreadable; fi']),
+  ...RESIDUE_PROBES.map(({ path }, i) => [`RESIDUE${i}`,
+    `if [ -e ${path} ] || [ -L ${path} ]; then echo present; else echo absent; fi`]),
 ];
-const NAMES = [...PROPERTIES.map(([name]) => name),
-  'UID', 'SECURE', 'DEBUGGABLE', 'SU', 'LIVE',
-  ...ACCEPTED_PACKAGE_IDS.flatMap((_, i) => [`PACKAGE${i}`, `RETAINED${i}`]),
-  ...BASES.map((_, i) => `BASE${i}`), ...RESIDUE_PROBES.map((_, i) => `RESIDUE${i}`)];
-const SU_OBSERVATION = 'if command -v su >/dev/null 2>&1; then echo present; ' +
-  'else hapaneld_su_status=$?; if [ "$hapaneld_su_status" -eq 1 ]; then echo absent; ' +
-  'else echo abnormal; fi; fi';
+const NAMES = SECTIONS.map(([name]) => name);
 
 export class PreflightError extends Error {
   constructor(code) { super(code); this.code = code; }
@@ -37,72 +48,38 @@ export function classifyTarget(targetPackageId, installed, residue) {
 /** No peer-controlled values, paths or commands enter this shell program. */
 export function buildPreflight(nonce) {
   checkNonce(nonce);
-  const sections = [...PROPERTIES.map(([name, property]) => [name, `getprop ${property}`]),
-    ['UID', 'id -u'], ['SECURE', 'getprop ro.secure'],
-    ['DEBUGGABLE', 'getprop ro.debuggable'], ['SU', SU_OBSERVATION],
-    ['LIVE', 'pm path android'],
-    ...ACCEPTED_PACKAGE_IDS.flatMap((packageId, i) => [
-      [`PACKAGE${i}`, `pm path ${packageId}`],
-      [`RETAINED${i}`, `pm list packages -u ${packageId}`]]),
-    ...BASES.map((path, i) => [`BASE${i}`,
-      `if [ -L ${path} ] || [ -d ${path} ]; then if ls -1A ${path} >/dev/null 2>&1; ` +
-      'then echo readable; else echo unreadable; fi; else echo unreadable; fi']),
-    ...RESIDUE_PROBES.map(({ path }, i) => [`RESIDUE${i}`,
-      `if [ -e ${path} ] || [ -L ${path} ]; then echo present; else echo absent; fi`]),
-  ];
-  return [`echo HAPANELD_PREFLIGHT_BEGIN:${nonce}`,
-    ...sections.flatMap(([name, command]) => [
-      `echo HAPANELD_PREFLIGHT_${name}_BEGIN:${nonce}`, command,
-      `echo HAPANELD_PREFLIGHT_${name}_END:${nonce}:$?`,
-    ]), `echo HAPANELD_PREFLIGHT_END:${nonce}`].join('; ');
+  return frameProgram('PREFLIGHT', nonce, SECTIONS);
 }
 
-function decode(body) {
-  let text;
-  if (typeof body === 'string') {
-    if (!body.length || body.length > MAX_PREFLIGHT_BYTES ||
-        new TextEncoder().encode(body).length > MAX_PREFLIGHT_BYTES) fail();
-    text = body;
-  } else if (body instanceof Uint8Array) {
-    if (!body.byteLength || body.byteLength > MAX_PREFLIGHT_BYTES) fail();
-    try { text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(body); }
-    catch { fail(); }
-  } else fail();
-  text = text.replaceAll('\r\n', '\n');
-  // Reject controls, lone surrogates and non-printing Unicode, not merely ANSI.
-  if (!text.endsWith('\n') || /[\p{C}\p{Zl}\p{Zp}]/u.test(text.replaceAll('\n', ''))) fail();
-  return text.slice(0, -1).split('\n');
-}
-
-function parseSections(body, nonce) {
-  const lines = decode(body);
-  if (lines[0] !== `HAPANELD_PREFLIGHT_BEGIN:${nonce}` ||
-      lines.at(-1) !== `HAPANELD_PREFLIGHT_END:${nonce}`) fail();
-  let offset = 1;
-  const parsed = {};
-  for (const name of NAMES) {
-    if (lines[offset++] !== `HAPANELD_PREFLIGHT_${name}_BEGIN:${nonce}`) fail();
-    const pattern = new RegExp(`^HAPANELD_PREFLIGHT_${name}_END:${nonce}:([0-9]{1,3})$`);
-    const values = [];
-    let status;
-    while (offset < lines.length - 1) {
-      const line = lines[offset++];
-      const match = pattern.exec(line);
-      if (match) { status = Number(match[1]); break; }
-      if (line.startsWith('HAPANELD_')) fail();
-      values.push(line);
-    }
-    if (status === undefined) fail();
-    parsed[name] = { values, status };
-  }
-  if (offset !== lines.length - 1) fail();
-  return parsed;
-}
-
-function one(section, allowed) {
+function one(section, allowed, f = fail) {
   if (section.status !== 0 || section.values.length !== 1 ||
-      (allowed && !allowed.includes(section.values[0]))) fail();
+      (allowed && !allowed.includes(section.values[0]))) f();
   return section.values[0];
+}
+export function validIdentity({ model, serial, primaryAbi, androidSdk }) {
+  return typeof model === 'string' && model === model.trim() &&
+    Array.from(model).length >= 1 && Array.from(model).length <= 128 &&
+    !/[\p{C}\p{Zl}\p{Zp}]|[^\S ]/u.test(model) &&
+    fullMatch(/^[A-Za-z0-9._:-]{1,128}$/, serial) &&
+    fullMatch(/^[A-Za-z0-9_.-]{1,64}$/, primaryAbi) &&
+    Number.isSafeInteger(androidSdk) && androidSdk >= 1 && androidSdk <= 100;
+}
+/** Reads IDENTITY_SECTIONS output; f raises the caller's own error type. */
+export function readIdentity(s, f = fail) {
+  const sdk = one(s.SDK, null, f);
+  const identity = { model: one(s.MODEL, null, f), serial: one(s.SERIAL, null, f),
+    primaryAbi: one(s.ABI, null, f), androidSdk: Number(sdk) };
+  if (!fullMatch(/^[0-9]{1,3}$/, sdk) || !validIdentity(identity)) f();
+  return identity;
+}
+/** Root SU means presence only: this never executes su or proves UID0. */
+export function readRootMode(s, f = fail) {
+  const uid = one(s.UID, null, f), secure = one(s.SECURE, ['0', '1'], f);
+  const debuggable = one(s.DEBUGGABLE, ['0', '1'], f), su = one(s.SU, ['absent', 'present'], f);
+  if (uid === '0') return 'root_adbd';
+  if (uid === '2000' && su === 'present') return 'root_su';
+  if (uid === '2000' && secure === '1' && debuggable === '0' && su === 'absent') return 'rootless';
+  f('root_state_ambiguous');
 }
 function isPackagePath(line) { return fullMatch(/^package:\/[^ \t]+$/, line); }
 
@@ -118,13 +95,8 @@ export function parsePreflight(body, nonce, descriptor) {
       descriptor.supportedAbis[0] !== 'arm64-v8a' || descriptor.supportedAbis[1] !== 'armeabi-v7a') {
     fail('invalid_request');
   }
-  const s = parseSections(body, nonce);
-  const model = one(s.MODEL), serial = one(s.SERIAL), primaryAbi = one(s.ABI), sdk = one(s.SDK);
-  if (model !== model.trim() || Array.from(model).length < 1 || Array.from(model).length > 128 ||
-      /[^\S ]/u.test(model) || !fullMatch(/^[A-Za-z0-9._:-]{1,128}$/, serial) ||
-      !fullMatch(/^[A-Za-z0-9_.-]{1,64}$/, primaryAbi) || !fullMatch(/^[0-9]{1,3}$/, sdk)) fail();
-  const androidSdk = Number(sdk);
-  if (androidSdk < 1 || androidSdk > 100) fail();
+  const s = readSections(decodeLines(body, MAX_PREFLIGHT_BYTES, fail), nonce, 'PREFLIGHT', NAMES, fail);
+  const { model, serial, primaryAbi, androidSdk } = readIdentity(s);
 
   // Existing or retained package wins before root evaluation or any later su proof.
   if (s.LIVE.status !== 0 || !s.LIVE.values.length || !s.LIVE.values.every(isPackagePath)) fail();
@@ -143,13 +115,7 @@ export function parsePreflight(body, nonce, descriptor) {
   const residue = new Set(RESIDUE_PROBES.flatMap(({ packageId }, i) =>
     one(s[`RESIDUE${i}`], ['absent', 'present']) === 'present' ? [packageId] : []));
   classifyTarget(descriptor.packageId, installed, residue);
-  const uid = one(s.UID), secure = one(s.SECURE, ['0', '1']);
-  const debuggable = one(s.DEBUGGABLE, ['0', '1']), su = one(s.SU, ['absent', 'present']);
-  let rootMode;
-  if (uid === '0') rootMode = 'root_adbd';
-  else if (uid === '2000' && su === 'present') rootMode = 'root_su';
-  else if (uid === '2000' && secure === '1' && debuggable === '0' && su === 'absent') rootMode = 'rootless';
-  else fail('root_state_ambiguous');
+  const rootMode = readRootMode(s);
   if (rootMode === 'root_adbd' && readable.includes('unreadable')) fail('root_state_ambiguous');
   if (androidSdk < descriptor.minSdk || !descriptor.supportedAbis.includes(primaryAbi)) fail('target_incompatible');
   return Object.freeze({ model, serial, primaryAbi, androidSdk, rootMode,

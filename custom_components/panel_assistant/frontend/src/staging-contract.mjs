@@ -1,3 +1,4 @@
+import { decodeLines } from './shell-session.mjs';
 export class StagingError extends Error {
   constructor(code) { super(code); this.code = code; }
 }
@@ -39,19 +40,7 @@ export function buildStagedObservation(nonce, jobId) {
         `echo HAPANELD_STAGED_${name}_END:${nonce}:$?`]),
     `echo HAPANELD_STAGED_END:${nonce}`].join('; ');
 }
-function lines(body) {
-  let text;
-  if (typeof body === 'string') {
-    if (!body.length || body.length > 32768 || new TextEncoder().encode(body).length > 32768) fail();
-    text = body;
-  } else if (body instanceof Uint8Array && body.byteLength > 0 && body.byteLength <= 32768) {
-    try { text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(body); }
-    catch { fail(); }
-  } else fail();
-  text = text.replaceAll('\r\n', '\n');
-  if (!text.endsWith('\n') || /[^\x20-\x7e\t\n]/.test(text)) fail();
-  return text.slice(0, -1).split('\n');
-}
+const lines = body => decodeLines(body, 32768, fail, 'ascii');
 export function parsePathState(body, nonce) {
   validNonce(nonce);
   const output = lines(body);
