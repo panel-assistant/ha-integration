@@ -5,8 +5,9 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
-from collections.abc import AsyncIterator, Callable
-from dataclasses import dataclass, field, replace
+from collections.abc import Callable
+from dataclasses import replace
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +37,11 @@ from custom_components.panel_assistant.build_feed import (
     parse_build_feed,
     parse_build_request,
 )
+
+from .http_fakes import FakeResponse, FakeSession
+
+_FakeSession = partial(FakeSession, allow_post=False)
+
 
 FEED_URL = URL("https://feed.example/x/maintainer.json")
 SIGNATURE_URL = URL("https://feed.example/x/maintainer.json.sig")
@@ -519,57 +525,6 @@ def test_build_label_round_trips_through_parse_build_request() -> None:
 # --- network doubles -------------------------------------------------------
 
 
-class _FakeContent:
-    def __init__(self, chunks: list[bytes]) -> None:
-        self._chunks = chunks
-
-    async def iter_chunked(self, _limit: int) -> AsyncIterator[bytes]:
-        for chunk in self._chunks:
-            yield chunk
-
-
-@dataclass
-class _FakeResponse:
-    status: int
-    body: bytes | list[bytes]
-    url: URL
-    declared_length: int | None = None
-    history: tuple[Any, ...] = ()
-    headers: CIMultiDict[str] = field(default_factory=CIMultiDict)
-
-    def __post_init__(self) -> None:
-        chunks = [self.body] if isinstance(self.body, bytes) else self.body
-        self.content = _FakeContent(chunks)
-
-    @property
-    def content_length(self) -> int | None:
-        return self.declared_length
-
-    async def __aenter__(self) -> _FakeResponse:
-        return self
-
-    async def __aexit__(self, *args: Any) -> None:
-        return None
-
-
-class _FakeSession:
-    def __init__(
-        self, responses: dict[str, _FakeResponse], error: Exception | None = None
-    ) -> None:
-        self._responses = responses
-        self._error = error
-        self.requests: list[tuple[str, dict[str, Any]]] = []
-
-    def get(self, url: URL, **kwargs: Any) -> _FakeResponse:
-        self.requests.append((str(url), kwargs))
-        if self._error is not None:
-            raise self._error
-        return self._responses[str(url)]
-
-    def post(self, url: URL, **kwargs: Any) -> _FakeResponse:
-        raise AssertionError("the build feed never posts")
-
-
 async def test_fetch_reads_exactly_the_feed_and_its_signature(
     sign: Callable[[bytes], bytes],
 ) -> None:
@@ -589,10 +544,10 @@ async def test_fetch_reads_exactly_the_feed_and_its_signature(
     )
     session = _FakeSession(
         {
-            str(FEED_URL): _FakeResponse(200, body, FEED_URL),
-            str(SIGNATURE_URL): _FakeResponse(200, sign(body), SIGNATURE_URL),
-            str(PROTOCOL_URL): _FakeResponse(200, protocol, PROTOCOL_URL),
-            str(PROTOCOL_SIGNATURE_URL): _FakeResponse(
+            str(FEED_URL): FakeResponse(200, body, FEED_URL),
+            str(SIGNATURE_URL): FakeResponse(200, sign(body), SIGNATURE_URL),
+            str(PROTOCOL_URL): FakeResponse(200, protocol, PROTOCOL_URL),
+            str(PROTOCOL_SIGNATURE_URL): FakeResponse(
                 200, sign(protocol), PROTOCOL_SIGNATURE_URL
             ),
         }
@@ -620,7 +575,7 @@ async def test_fetch_reads_exactly_the_feed_and_its_signature(
 async def test_fetch_refuses_a_redirected_feed(sign: Callable[[bytes], bytes]) -> None:
     """A redirect is never followed for the feed, wherever it points."""
     session = _FakeSession(
-        {str(FEED_URL): _FakeResponse(302, b"", FEED_URL)},
+        {str(FEED_URL): FakeResponse(302, b"", FEED_URL)},
     )
 
     with pytest.raises(BuildFeedError):
@@ -662,7 +617,11 @@ def _download_build(**replacements: Any) -> FeedBuild:
 async def test_download_returns_exact_signed_bytes() -> None:
     """Bytes that match the signed size and hash are returned intact."""
     session = _FakeSession(
-        {str(APK_URL): _FakeResponse(200, [APK[:500], APK[500:]], APK_URL, len(APK))}
+        {
+            str(APK_URL): FakeResponse(
+                200, [APK[:500], APK[500:]], APK_URL, declared_length=len(APK)
+            )
+        }
     )
 
     assert (
@@ -677,37 +636,37 @@ async def test_download_returns_exact_signed_bytes() -> None:
     ("response", "build"),
     [
         pytest.param(
-            _FakeResponse(200, APK[:-1] + b"X", APK_URL),
+            FakeResponse(200, APK[:-1] + b"X", APK_URL),
             _download_build(),
             id="wrong-hash-same-size",
         ),
         pytest.param(
-            _FakeResponse(200, APK + b"X", APK_URL),
+            FakeResponse(200, APK + b"X", APK_URL),
             _download_build(),
             id="too-many-bytes",
         ),
         pytest.param(
-            _FakeResponse(200, APK[:-1], APK_URL),
+            FakeResponse(200, APK[:-1], APK_URL),
             _download_build(),
             id="too-few-bytes",
         ),
         pytest.param(
-            _FakeResponse(302, b"", APK_URL), _download_build(), id="redirect-status"
+            FakeResponse(302, b"", APK_URL), _download_build(), id="redirect-status"
         ),
         pytest.param(
-            _FakeResponse(200, APK, URL("https://other.example/apk")),
+            FakeResponse(200, APK, URL("https://other.example/apk")),
             _download_build(),
             id="different-final-url",
         ),
         pytest.param(
-            _FakeResponse(200, APK, APK_URL, len(APK) + 1),
+            FakeResponse(200, APK, APK_URL, declared_length=len(APK) + 1),
             _download_build(),
             id="content-length-mismatch",
         ),
     ],
 )
 async def test_download_refuses_anything_but_the_signed_bytes(
-    response: _FakeResponse, build: FeedBuild
+    response: FakeResponse, build: FeedBuild
 ) -> None:
     """Hash, size, status, final URL and declared length must all match."""
     session = _FakeSession({str(build.apk_url): response})
@@ -738,10 +697,10 @@ async def test_a_github_asset_redirect_is_followed_only_to_github(
     )
     session = _FakeSession(
         {
-            str(GITHUB_APK_URL): _FakeResponse(
+            str(GITHUB_APK_URL): FakeResponse(
                 302, b"", GITHUB_APK_URL, headers=CIMultiDict({"Location": location})
             ),
-            location: _FakeResponse(200, APK, URL(location), len(APK)),
+            location: FakeResponse(200, APK, URL(location), declared_length=len(APK)),
         }
     )
 
@@ -777,17 +736,27 @@ async def test_descriptorless_bridge_download_checks_hash_and_bound() -> None:
     """The bridge has a signed checksum, but no signed size or descriptor."""
     bridge = _bridge_artifact()
     url = URL(bridge.apk_url)
-    session = _FakeSession({bridge.apk_url: _FakeResponse(200, APK, url, len(APK))})
+    session = _FakeSession(
+        {bridge.apk_url: FakeResponse(200, APK, url, declared_length=len(APK))}
+    )
     assert await async_download_build(session, bridge) == APK  # type: ignore[arg-type]
 
     session = _FakeSession(
-        {bridge.apk_url: _FakeResponse(200, APK[:-1] + b"X", url, len(APK))}
+        {
+            bridge.apk_url: FakeResponse(
+                200, APK[:-1] + b"X", url, declared_length=len(APK)
+            )
+        }
     )
     with pytest.raises(BuildFeedError):
         await async_download_build(session, bridge)  # type: ignore[arg-type]
 
     session = _FakeSession(
-        {bridge.apk_url: _FakeResponse(200, APK, url, release._MAX_APK_BYTES + 1)}
+        {
+            bridge.apk_url: FakeResponse(
+                200, APK, url, declared_length=release._MAX_APK_BYTES + 1
+            )
+        }
     )
     with pytest.raises(BuildFeedError):
         await async_download_build(session, bridge)  # type: ignore[arg-type]
@@ -878,10 +847,10 @@ async def test_feed_protocol_proof_matches_exact_hash_without_historical_guess(
     )
     session = _FakeSession(
         {
-            str(FEED_URL): _FakeResponse(200, body, FEED_URL),
-            str(SIGNATURE_URL): _FakeResponse(200, sign(body), SIGNATURE_URL),
-            str(PROTOCOL_URL): _FakeResponse(200, protocol, PROTOCOL_URL),
-            str(PROTOCOL_SIGNATURE_URL): _FakeResponse(
+            str(FEED_URL): FakeResponse(200, body, FEED_URL),
+            str(SIGNATURE_URL): FakeResponse(200, sign(body), SIGNATURE_URL),
+            str(PROTOCOL_URL): FakeResponse(200, protocol, PROTOCOL_URL),
+            str(PROTOCOL_SIGNATURE_URL): FakeResponse(
                 200, sign(protocol), PROTOCOL_SIGNATURE_URL
             ),
         }
@@ -938,10 +907,10 @@ async def test_fetch_refuses_unproven_protocol_companion(
             protocol += b" " * release._MAX_PROTOCOL_METADATA_BYTES
     session = _FakeSession(
         {
-            str(FEED_URL): _FakeResponse(200, body, FEED_URL),
-            str(SIGNATURE_URL): _FakeResponse(200, sign(body), SIGNATURE_URL),
-            str(PROTOCOL_URL): _FakeResponse(status, protocol, PROTOCOL_URL),
-            str(PROTOCOL_SIGNATURE_URL): _FakeResponse(
+            str(FEED_URL): FakeResponse(200, body, FEED_URL),
+            str(SIGNATURE_URL): FakeResponse(200, sign(body), SIGNATURE_URL),
+            str(PROTOCOL_URL): FakeResponse(status, protocol, PROTOCOL_URL),
+            str(PROTOCOL_SIGNATURE_URL): FakeResponse(
                 signature_status, signature, PROTOCOL_SIGNATURE_URL
             ),
         }

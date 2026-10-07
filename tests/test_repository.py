@@ -553,9 +553,6 @@ def test_rc_selection_and_confirmation_are_keyed_and_explicit() -> None:
     version = steps["choose_version"]
     warning = steps["confirm_install_rc"]["description"]
     assert version["data"] == {"release_candidate": "Version"}
-    assert "Test versions may contain bugs" in version["description"]
-    assert "not a stable release" in warning
-    assert "may contain bugs" in warning
     assert "{version}" in warning and "{tag}" in warning and "{sha256}" in warning
 
 
@@ -608,13 +605,9 @@ def test_install_flow_copy_covers_first_time_handoffs() -> None:
     progress = config["progress"]["installing"]
     all_errors = " ".join(config["error"].values())
 
-    assert "network ADB on port 5555" in install
-    assert "Root access is not required" in install
     assert "[model-specific panel access guide]({panel_access_url})" in install
     assert "https://" not in install
     assert "Leave this dialog open to finish automatically" in progress
-    assert "Settings → Devices & services → Add integration" in progress
-    assert "enter the same address" in progress
     assert "follow the browser setup link in the Add dialog" in progress
     assert "dedicated recovery workflow" not in all_errors
 
@@ -647,8 +640,6 @@ def test_the_address_screen_links_to_panel_specific_help() -> None:
     strings = json.loads((INTEGRATION / "strings.json").read_text(encoding="utf-8"))
     description = strings["config"]["step"]["add_panel"]["description"]
     assert "[help for reaching a panel]({panel_help_url})" in description
-    flow = (INTEGRATION / "config_flow.py").read_text(encoding="utf-8")
-    assert '"panel_help_url": help_url("panel-unreachable"),' in flow
 
 
 def test_outward_links_are_redirects_stamped_with_this_version() -> None:

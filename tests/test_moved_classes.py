@@ -30,6 +30,7 @@ from custom_components.panel_assistant.install_jobs import (
 )
 from custom_components.panel_assistant.install_plan import build_install_plan
 
+from .http_fakes import FakeResponse, FakeSession
 from .test_install_adb import (  # noqa: F401
     NONCES,
     FakeDevice,
@@ -49,8 +50,6 @@ from .test_install_plan import CREDENTIAL_ID, pinned_target, probe
 from .test_release import (  # noqa: F401
     _canonical_descriptor,
     _descriptor_document,
-    _FakeResponse,
-    _FakeSession,
     _install_test_key,
     _metadata_response,
     _signature,
@@ -70,7 +69,7 @@ MOVED_SERVICE = (
 )
 
 
-def _release_0_9_10(signing_key: rsa.RSAPrivateKey) -> _FakeSession:  # noqa: F811
+def _release_0_9_10(signing_key: rsa.RSAPrivateKey) -> FakeSession:  # noqa: F811
     """The release as app 0.9.10 publishes it: no asset ends `.apk`."""
     descriptor = _canonical_descriptor(
         _descriptor_document(
@@ -118,10 +117,10 @@ def _release_0_9_10(signing_key: rsa.RSAPrivateKey) -> _FakeSession:  # noqa: F8
     }
     responses = {str(release._LATEST_RELEASE_URL): _metadata_response(document)}
     responses |= {
-        f"{ROOT}/{name}": _FakeResponse(200, body, URL(f"{ROOT}/{name}"))
+        f"{ROOT}/{name}": FakeResponse(200, body, URL(f"{ROOT}/{name}"))
         for name, body in bodies.items()
     }
-    return _FakeSession(responses)
+    return FakeSession(responses)
 
 
 async def _seed_installed(manager: InstallJobManager, artifact: Any) -> str:

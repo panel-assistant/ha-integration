@@ -9,13 +9,13 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 from custom_components.panel_assistant import release
 
+from .http_fakes import FakeContent, FakeSession
 from .test_release import (
     _CHECKSUM_URL,
     _DESCRIPTOR_SIGNATURE_URL,
     _DESCRIPTOR_URL,
     _SIGNATURE_URL,
     _canonical_descriptor,
-    _FakeSession,
     _install_test_key,
     _rc_session,
     _signature,
@@ -63,7 +63,7 @@ async def test_bundle_preserves_original_signed_bytes_and_legacy_artifact(
         session = _rc_session(signing_key)
         expected_urls = _RC_REQUESTS
 
-    expected_bodies = [session._responses[url].body for url in expected_urls[1:]]
+    expected_bodies = [session.responses[url].body for url in expected_urls[1:]]
     bundle = await release.async_resolve_install_bundle(session, rc_tag=rc_tag)  # type: ignore[arg-type]
 
     assert isinstance(bundle, release.InstallReleaseBundle)
@@ -134,7 +134,7 @@ async def test_bundle_requires_descriptor_while_legacy_stable_still_resolves(
 
 @pytest.mark.parametrize("rc_tag", ["", "v1.2.3", "v0.9.7-rc0", "../latest", 7])
 async def test_bundle_invalid_rc_selection_refuses_before_http(rc_tag: object) -> None:
-    session = _FakeSession({})
+    session = FakeSession({})
     with pytest.raises(release.ReleaseResolutionError):
         await release.async_resolve_install_bundle(session, rc_tag=rc_tag)  # type: ignore[arg-type]
     assert session.requests == []
@@ -146,8 +146,8 @@ async def test_bundle_rc_failure_never_falls_back(
 ) -> None:
     _install_test_key(monkeypatch, signing_key)
     session = _rc_session(signing_key)
-    session._responses[_RC_API].status = status
-    session._responses[_RC_API].headers["Location"] = str(release._LATEST_RELEASE_URL)
+    session.responses[_RC_API].status = status
+    session.responses[_RC_API].headers["Location"] = str(release._LATEST_RELEASE_URL)
     with pytest.raises(release.ReleaseResolutionError):
         await release.async_resolve_install_bundle(session, rc_tag=_RC_TAG)  # type: ignore[arg-type]
     assert [url for url, _kwargs in session.requests] == [_RC_API]
@@ -168,9 +168,8 @@ async def test_bundle_refuses_invalid_signature_before_returning_metadata(
         else _rc_session(signing_key)
     )
     expected_urls = _STABLE_REQUESTS if rc_tag is None else _RC_REQUESTS
-    response = session._responses[expected_urls[signature_index]]
-    response.body = _signature(signing_key, b"different signed bytes")
-    response.__post_init__()
+    response = session.responses[expected_urls[signature_index]]
+    response.content = FakeContent(_signature(signing_key, b"different signed bytes"))
     with pytest.raises(release.ReleaseResolutionError):
         await release.async_resolve_install_bundle(session, rc_tag=rc_tag)  # type: ignore[arg-type]
     assert [url for url, _kwargs in session.requests] == expected_urls[

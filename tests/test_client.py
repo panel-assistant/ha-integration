@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
@@ -37,57 +36,17 @@ from custom_components.panel_assistant.const import (
 )
 from custom_components.panel_assistant.status import parse_status_response
 
+from .http_fakes import FakeResponse, FakeSession
+
 FIXTURE_DIRECTORY = Path(__file__).parent / "fixtures"
 HEALTH_FIXTURE = FIXTURE_DIRECTORY / "health.txt"
 STATUS_FIXTURE = FIXTURE_DIRECTORY / "status.json"
 
 
-class _FakeContent:
-    def __init__(self, body: bytes) -> None:
-        self._body = body
-
-    async def iter_chunked(self, limit: int) -> AsyncIterator[bytes]:
-        """Yield bounded chunks like aiohttp's stream reader."""
-        for offset in range(0, len(self._body), limit):
-            yield self._body[offset : offset + limit]
-
-
-class _FakeResponse:
-    def __init__(self, status: int, body: bytes) -> None:
-        self.connection = None
-        self.status = status
-        self.content = _FakeContent(body)
-
-    async def __aenter__(self) -> _FakeResponse:
-        return self
-
-    async def __aexit__(self, *args: Any) -> None:
-        return None
-
-
-class _FakeSession:
-    def __init__(
-        self,
-        *,
-        status: int = 200,
-        body: bytes = b"",
-        error: Exception | None = None,
-    ) -> None:
-        self._response = _FakeResponse(status, body)
-        self._error = error
-        self.request: tuple[Any, dict[str, Any]] | None = None
-
-    def get(self, url: Any, **kwargs: Any) -> _FakeResponse:
-        self.request = (url, kwargs)
-        if self._error is not None:
-            raise self._error
-        return self._response
-
-    def post(self, url: Any, **kwargs: Any) -> _FakeResponse:
-        self.request = (url, kwargs)
-        if self._error is not None:
-            raise self._error
-        return self._response
+def _session(
+    *, status: int = 200, body: bytes = b"", error: Exception | None = None
+) -> FakeSession:
+    return FakeSession(FakeResponse(status, body, split=True), error=error)
 
 
 def test_normalize_address() -> None:
@@ -325,14 +284,14 @@ def test_reject_invalid_health(body: str) -> None:
 
 async def test_client_fetches_canonical_endpoint() -> None:
     """The client uses the versioned health route without redirects."""
-    session = _FakeSession(body=HEALTH_FIXTURE.read_bytes())
+    session = _session(body=HEALTH_FIXTURE.read_bytes())
     client = HaPaneldClient(session, normalize_address("panel.local"))  # type: ignore[arg-type]
 
     health = await client.async_get_health()
 
     assert health.panel_id == "alpha"
-    assert session.request is not None
-    url, kwargs = session.request
+    assert session.requests
+    url, kwargs = session.requests[-1]
     assert str(url) == "http://panel.local:8888/api/v1/health"
     assert kwargs["allow_redirects"] is False
     assert kwargs["headers"] == {"Cache-Control": "no-cache"}
@@ -342,7 +301,7 @@ async def test_client_fetches_canonical_endpoint() -> None:
 async def test_client_rejects_non_success(status: int) -> None:
     """Only an HTTP 200 response validates a panel."""
     client = HaPaneldClient(  # type: ignore[arg-type]
-        _FakeSession(status=status), normalize_address("panel.local")
+        _session(status=status), normalize_address("panel.local")
     )
     with pytest.raises(CannotConnectError):
         await client.async_get_health()
@@ -351,7 +310,7 @@ async def test_client_rejects_non_success(status: int) -> None:
 async def test_client_maps_network_failure() -> None:
     """Network failures use the expected config-flow exception."""
     client = HaPaneldClient(  # type: ignore[arg-type]
-        _FakeSession(error=ClientConnectionError()),
+        _session(error=ClientConnectionError()),
         normalize_address("panel.local"),
     )
     with pytest.raises(CannotConnectError):
@@ -361,7 +320,7 @@ async def test_client_maps_network_failure() -> None:
 async def test_client_rejects_oversized_response() -> None:
     """The client refuses responses beyond the Android readiness bound."""
     client = HaPaneldClient(  # type: ignore[arg-type]
-        _FakeSession(body=b"x" * 513), normalize_address("panel.local")
+        _session(body=b"x" * 513), normalize_address("panel.local")
     )
     with pytest.raises(InvalidResponseError):
         await client.async_get_health()
@@ -388,13 +347,13 @@ def test_stable_update_comparison_never_offers_a_downgrade(
 
 async def test_client_uses_the_cached_exact_tag_in_the_panel_update_request() -> None:
     """The integration sends only a cached Android-owned tag to the updater."""
-    session = _FakeSession(body=b'{"status":"started"}')
+    session = _session(body=b'{"status":"started"}')
     client = HaPaneldClient(session, normalize_address("panel.local"))  # type: ignore[arg-type]
 
     await client.async_start_panel_update("v0.9.10")
 
-    assert session.request is not None
-    url, kwargs = session.request
+    assert session.requests
+    url, kwargs = session.requests[-1]
     assert str(url) == "http://panel.local:8888/api/v1/install/component"
     assert kwargs["data"] == {
         "name": "paneld",
@@ -422,7 +381,7 @@ async def test_client_rejects_nonstarted_panel_update(
 ) -> None:
     """Hardened-mode and busy outcomes never become a successful update start."""
     client = HaPaneldClient(  # type: ignore[arg-type]
-        _FakeSession(status=status, body=body), normalize_address("panel.local")
+        _session(status=status, body=body), normalize_address("panel.local")
     )
 
     with pytest.raises(error):
@@ -433,7 +392,7 @@ async def test_client_rejects_nonstarted_panel_update(
 async def test_client_refuses_noncanonical_update_tags(tag: str) -> None:
     """Only an Android-validated release tag can reach the destructive endpoint."""
     client = HaPaneldClient(  # type: ignore[arg-type]
-        _FakeSession(), normalize_address("panel.local")
+        _session(), normalize_address("panel.local")
     )
 
     with pytest.raises(InvalidResponseError):
@@ -903,14 +862,14 @@ def test_status_parser_ignores_large_or_deep_unknown_fields() -> None:
 
 async def test_client_fetches_canonical_status_endpoint() -> None:
     """Status polling is a plain read with no refresh or nonce query."""
-    session = _FakeSession(body=STATUS_FIXTURE.read_bytes())
+    session = _session(body=STATUS_FIXTURE.read_bytes())
     client = HaPaneldClient(session, normalize_address("panel.local"))  # type: ignore[arg-type]
 
     status = await client.async_get_status()
 
     assert status.warning_count == 1
-    assert session.request is not None
-    url, kwargs = session.request
+    assert session.requests
+    url, kwargs = session.requests[-1]
     assert str(url) == "http://panel.local:8888/api/v1/status"
     assert url.query_string == ""
     assert kwargs["allow_redirects"] is False
@@ -923,7 +882,7 @@ async def test_client_requests_fresh_home_proof_only_when_asked() -> None:
         b'{"warnings":[],"capabilities":[],"home_ui":'
         b'{"state":"blocked","reason":"chooser","evidence":"resolver"}}'
     )
-    session = _FakeSession(body=body)
+    session = _session(body=body)
     client = HaPaneldClient(session, normalize_address("panel.local"))  # type: ignore[arg-type]
 
     status = await client.async_get_status(home_proof=True)
@@ -933,8 +892,8 @@ async def test_client_requests_fresh_home_proof_only_when_asked() -> None:
         "reason": "chooser",
         "evidence": "resolver",
     }
-    assert session.request is not None
-    url, _ = session.request
+    assert session.requests
+    url, _ = session.requests[-1]
     assert str(url) == "http://panel.local:8888/api/v1/status?home_proof=1"
 
 
@@ -956,13 +915,13 @@ def test_status_rejects_incomplete_or_invalid_home_proof(home_ui: object) -> Non
 
 async def test_client_claims_the_panel_update_only_when_asked() -> None:
     """The owner header rides only on a status poll that claims the update."""
-    session = _FakeSession(body=STATUS_FIXTURE.read_bytes())
+    session = _session(body=STATUS_FIXTURE.read_bytes())
     client = HaPaneldClient(session, normalize_address("panel.local"))  # type: ignore[arg-type]
 
     await client.async_get_status(update_owner=True)
 
-    assert session.request is not None
-    url, kwargs = session.request
+    assert session.requests
+    url, kwargs = session.requests[-1]
     assert str(url) == "http://panel.local:8888/api/v1/status"
     assert kwargs["headers"] == {
         "Cache-Control": "no-cache",
@@ -973,7 +932,7 @@ async def test_client_claims_the_panel_update_only_when_asked() -> None:
 async def test_client_rejects_invalid_status_utf8() -> None:
     """Invalid UTF-8 is rejected before status parsing."""
     client = HaPaneldClient(  # type: ignore[arg-type]
-        _FakeSession(body=b"\xff"), normalize_address("panel.local")
+        _session(body=b"\xff"), normalize_address("panel.local")
     )
 
     with pytest.raises(InvalidResponseError):
@@ -992,7 +951,7 @@ async def test_client_rejects_oversized_valid_status_document() -> None:
     ).encode()
     assert len(body) > MAX_STATUS_RESPONSE_BYTES
     client = HaPaneldClient(  # type: ignore[arg-type]
-        _FakeSession(body=body), normalize_address("panel.local")
+        _session(body=body), normalize_address("panel.local")
     )
 
     with pytest.raises(InvalidResponseError):
@@ -1013,7 +972,7 @@ _PREVIEW = {
 }
 
 
-def _client(session: _FakeSession) -> HaPaneldClient:
+def _client(session: FakeSession) -> HaPaneldClient:
     return HaPaneldClient(session, normalize_address("panel.local"))  # type: ignore[arg-type]
 
 
@@ -1048,11 +1007,11 @@ def test_parse_diag_version_refuses_other_first_lines(body: bytes) -> None:
 
 async def test_client_reads_the_version_code_from_diag() -> None:
     """The build number comes from the versioned diagnostics route."""
-    session = _FakeSession(body=_DIAG.encode())
+    session = _session(body=_DIAG.encode())
 
     assert await _client(session).async_get_version_code() == ("0.9.7-rc3", 707)
-    assert session.request is not None
-    url, kwargs = session.request
+    assert session.requests
+    url, kwargs = session.requests[-1]
     assert str(url) == "http://panel.local:8888/api/v1/diag"
     assert kwargs["allow_redirects"] is False
 
@@ -1060,11 +1019,11 @@ async def test_client_reads_the_version_code_from_diag() -> None:
 @pytest.mark.parametrize("ready", [True, False])
 async def test_client_reads_legacy_panel_install_privilege(ready: bool) -> None:
     """Older panels report the same privileged-route observation as `shot`."""
-    session = _FakeSession(body=json.dumps({"shot": ready}).encode())
+    session = _session(body=json.dumps({"shot": ready}).encode())
 
     assert await _client(session).async_get_legacy_install_capability() is ready
-    assert session.request is not None
-    assert str(session.request[0]) == "http://panel.local:8888/api/v1/info"
+    assert session.requests
+    assert str(session.requests[-1][0]) == "http://panel.local:8888/api/v1/info"
 
 
 def test_parse_staged_apk_accepts_the_fixed_preview() -> None:
@@ -1112,14 +1071,14 @@ def test_parse_staged_apk_refuses_a_non_object() -> None:
 
 async def test_stage_uploads_raw_bytes_and_returns_the_preview() -> None:
     """The APK is posted as the raw request body to the staging route."""
-    session = _FakeSession(body=json.dumps(_PREVIEW).encode())
+    session = _session(body=json.dumps(_PREVIEW).encode())
     apk = b"PK\x03\x04apk"
 
     staged = await _client(session).async_stage_apk(apk)
 
     assert staged.token == "tok-1"
-    assert session.request is not None
-    url, kwargs = session.request
+    assert session.requests
+    url, kwargs = session.requests[-1]
     assert str(url) == "http://panel.local:8888/api/v1/install/apk"
     assert kwargs["data"] == apk
     assert isinstance(kwargs["data"], bytes)
@@ -1127,11 +1086,11 @@ async def test_stage_uploads_raw_bytes_and_returns_the_preview() -> None:
 
 
 async def test_migration_upload_binds_signed_digest_to_existing_staging_route() -> None:
-    session = _FakeSession(body=json.dumps(_PREVIEW).encode())
+    session = _session(body=json.dumps(_PREVIEW).encode())
     staged = await _client(session).async_stage_apk(b"apk", migration_sha256="a" * 64)
     assert staged.token == "tok-1"
-    assert session.request is not None
-    url, kwargs = session.request
+    assert session.requests
+    url, kwargs = session.requests[-1]
     assert str(url.with_query(None)) == "http://panel.local:8888/api/v1/install/apk"
     assert dict(url.query) == {"migration": "successor", "sha256": "a" * 64}
     assert kwargs["data"] == b"apk"
@@ -1139,7 +1098,7 @@ async def test_migration_upload_binds_signed_digest_to_existing_staging_route() 
 
 
 async def test_bridge_capability_is_read_from_the_panel() -> None:
-    session = _FakeSession(
+    session = _session(
         body=b'{"package":"io.panelassistant.android","version":"0.9.10"}'
     )
     assert await _client(session).async_get_successor_capability() == (
@@ -1148,14 +1107,14 @@ async def test_bridge_capability_is_read_from_the_panel() -> None:
         None,
         False,
     )
-    assert session.request is not None
-    url, kwargs = session.request
+    assert session.requests
+    url, kwargs = session.requests[-1]
     assert str(url) == "http://panel.local:8888/api/v1/successor"
     assert kwargs["allow_redirects"] is False
 
 
 async def test_bridge_reports_trusted_installed_successor_for_retry() -> None:
-    session = _FakeSession(
+    session = _session(
         body=b'{"package":"io.panelassistant.android","version":"0.9.10","installed_version_code":2000}'
     )
     assert await _client(session).async_get_successor_capability() == (
@@ -1167,17 +1126,17 @@ async def test_bridge_reports_trusted_installed_successor_for_retry() -> None:
 
 
 async def test_bridge_reports_untrusted_installed_successor_for_refusal() -> None:
-    session = _FakeSession(
+    session = _session(
         body=b'{"package":"io.panelassistant.android","version":"0.9.10","installed_untrusted":true}'
     )
     assert (await _client(session).async_get_successor_capability())[-1] is True
 
 
 async def test_installed_only_retry_never_requests_a_download() -> None:
-    session = _FakeSession(body=b'{"ok":true,"outcome":"Launched"}')
+    session = _session(body=b'{"ok":true,"outcome":"Launched"}')
     await _client(session).async_offer_installed_successor()
-    assert session.request is not None
-    url, kwargs = session.request
+    assert session.requests
+    url, kwargs = session.requests[-1]
     assert str(url.with_query(None)) == "http://panel.local:8888/api/v1/successor/offer"
     assert dict(url.query) == {"installed_only": "1"}
     assert kwargs["data"] == {}
@@ -1188,7 +1147,7 @@ async def test_installed_only_retry_never_requests_a_download() -> None:
 )
 async def test_malformed_bridge_capability_is_refused(body: bytes) -> None:
     with pytest.raises(InvalidResponseError):
-        await _client(_FakeSession(body=body)).async_get_successor_capability()
+        await _client(_session(body=body)).async_get_successor_capability()
 
 
 @pytest.mark.parametrize(
@@ -1205,19 +1164,19 @@ async def test_malformed_bridge_capability_is_refused(body: bytes) -> None:
 async def test_stage_maps_panel_refusals(status: int, error: type[Exception]) -> None:
     """Each staging refusal keeps its own meaning."""
     with pytest.raises(Exception) as raised:
-        await _client(_FakeSession(status=status, body=b"{}")).async_stage_apk(b"apk")
+        await _client(_session(status=status, body=b"{}")).async_stage_apk(b"apk")
 
     assert type(raised.value) is error
 
 
 async def test_commit_accepts_a_started_install() -> None:
     """Committing names only the staged token."""
-    session = _FakeSession(body=b'{"status":"started"}')
+    session = _session(body=b'{"status":"started"}')
 
     await _client(session).async_commit_apk("tok-1")
 
-    assert session.request is not None
-    url, kwargs = session.request
+    assert session.requests
+    url, kwargs = session.requests[-1]
     assert str(url) == "http://panel.local:8888/api/v1/install/apk/commit"
     assert kwargs["data"] == {"token": "tok-1"}
 
@@ -1241,30 +1200,30 @@ async def test_commit_maps_panel_refusals(
 ) -> None:
     """Only a started install is success."""
     with pytest.raises(Exception) as raised:
-        await _client(_FakeSession(status=status, body=body)).async_commit_apk("tok-1")
+        await _client(_session(status=status, body=body)).async_commit_apk("tok-1")
 
     assert type(raised.value) is error
 
 
 async def test_discard_posts_the_token() -> None:
     """A discard names the staged token on the discard route."""
-    session = _FakeSession(status=404, body=b"{}")
+    session = _session(status=404, body=b"{}")
 
     await _client(session).async_discard_apk("tok-1")
 
-    assert session.request is not None
-    url, kwargs = session.request
+    assert session.requests
+    url, kwargs = session.requests[-1]
     assert str(url) == "http://panel.local:8888/api/v1/install/apk/discard"
     assert kwargs["data"] == {"token": "tok-1"}
 
 
 async def test_backup_returns_bytes_and_allows_plaintext() -> None:
     """The backup is requested as a plaintext archive and returned verbatim."""
-    session = _FakeSession(body=b"PK\x03\x04zip")
+    session = _session(body=b"PK\x03\x04zip")
 
     assert await _client(session).async_backup_panel() == b"PK\x03\x04zip"
-    assert session.request is not None
-    url, kwargs = session.request
+    assert session.requests
+    url, kwargs = session.requests[-1]
     assert str(url) == "http://panel.local:8888/api/v1/backup"
     assert kwargs["data"]["allow_plaintext"] == "1"
     assert kwargs["data"] == {"allow_plaintext": "1", "include_companion": "false"}
@@ -1289,7 +1248,7 @@ async def test_backup_maps_panel_refusals(
 ) -> None:
     """Only a non-empty 200 is a backup."""
     with pytest.raises(Exception) as raised:
-        await _client(_FakeSession(status=status, body=body)).async_backup_panel()
+        await _client(_session(status=status, body=body)).async_backup_panel()
 
     assert type(raised.value) is error
 
@@ -1360,13 +1319,13 @@ async def test_camera_snapshot_is_fresh_bounded_and_refuses_redirects(
     error: type[Exception] | None,
 ) -> None:
     """Camera media uses the same bounded current-panel HTTP authority as health."""
-    session = _FakeSession(status=status, body=body)
+    session = _session(status=status, body=body)
     client = _client(session)
     if error is not None:
         with pytest.raises(error):
             await client.async_get_camera_snapshot()
     else:
         assert await client.async_get_camera_snapshot() == body
-    assert session.request is not None
-    assert session.request[1]["allow_redirects"] is False
-    assert session.request[0].path == "/api/v1/camera/snapshot.jpg"
+    assert session.requests
+    assert session.requests[-1][1]["allow_redirects"] is False
+    assert session.requests[-1][0].path == "/api/v1/camera/snapshot.jpg"

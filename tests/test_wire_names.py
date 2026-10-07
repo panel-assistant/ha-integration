@@ -23,6 +23,7 @@ from custom_components.panel_assistant.install_jobs import (
 )
 from custom_components.panel_assistant.install_plan import build_install_plan
 
+from .http_fakes import FakeResponse, FakeSession
 from .test_install_executor import (  # noqa: F401
     Harness,
     emulate_home_assistant_store_file,
@@ -32,8 +33,6 @@ from .test_moved_classes import _seed_installed
 from .test_release import (  # noqa: F401
     _canonical_descriptor,
     _descriptor_document,
-    _FakeResponse,
-    _FakeSession,
     _install_test_key,
     _metadata_response,
     _signature,
@@ -56,7 +55,7 @@ def _release(
     signing_key: rsa.RSAPrivateKey,  # noqa: F811
     descriptor_schema: str,
     protocol_schema: str,
-) -> _FakeSession:
+) -> FakeSession:
     """One signed release whose two documents carry the given schema names."""
     descriptor = _canonical_descriptor(
         _descriptor_document(
@@ -103,10 +102,10 @@ def _release(
     }
     responses = {str(release._LATEST_RELEASE_URL): _metadata_response(document)}
     responses |= {
-        f"{ROOT}/{name}": _FakeResponse(200, body, URL(f"{ROOT}/{name}"))
+        f"{ROOT}/{name}": FakeResponse(200, body, URL(f"{ROOT}/{name}"))
         for name, body in bodies.items()
     }
-    return _FakeSession(responses)
+    return FakeSession(responses)
 
 
 @pytest.mark.parametrize(

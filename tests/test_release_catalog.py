@@ -8,7 +8,7 @@ import pytest
 from custom_components.panel_assistant import release_catalog as catalog
 from custom_components.panel_assistant.release import ReleaseResolutionError
 
-from .test_release import _FakeResponse, _FakeSession
+from .http_fakes import FakeResponse, FakeSession
 
 
 def document(tag="v1.2.3", *, prerelease=False):
@@ -38,9 +38,9 @@ def document(tag="v1.2.3", *, prerelease=False):
 
 
 def session(latest, recent):
-    return _FakeSession(
+    return FakeSession(
         {
-            str(url): _FakeResponse(200, json.dumps(value).encode(), url)
+            str(url): FakeResponse(200, json.dumps(value).encode(), url)
             for url, value in [
                 (catalog._LATEST_RELEASE_URL, latest),
                 (catalog._RECENT_RELEASES_URL, recent),
@@ -130,7 +130,7 @@ async def test_invalid_catalog_shape_or_count_fails(recent):
 )
 async def test_bounded_and_unambiguous_response(body, status):
     client = session(document(), [])
-    client._responses[str(catalog._RECENT_RELEASES_URL)] = _FakeResponse(
+    client.responses[str(catalog._RECENT_RELEASES_URL)] = FakeResponse(
         status, body, catalog._RECENT_RELEASES_URL
     )
     with pytest.raises(ReleaseResolutionError):
@@ -185,7 +185,7 @@ def authenticated_session(signing_key, rows):
                     {"name": name, "browser_download_url": f"{root}/{name}"}
                 )
                 url = URL(f"{root}/{name}")
-                responses[str(url)] = _FakeResponse(200, data, url)
+                responses[str(url)] = FakeResponse(200, data, url)
         for name, data in [
             (apk + ".sha256", checksum),
             (apk + ".sha256.sig", _signature(signing_key, checksum)),
@@ -193,19 +193,19 @@ def authenticated_session(signing_key, rows):
             (f"ha-paneld-{tag}-install.json.sig", _signature(signing_key, descriptor)),
         ]:
             url = URL(f"{root}/{name}")
-            responses[str(url)] = _FakeResponse(200, data, url)
+            responses[str(url)] = FakeResponse(200, data, url)
         url = URL(f"{catalog.ANDROID_RELEASES_API}/tags/{tag}")
-        responses[str(url)] = _FakeResponse(200, json.dumps(doc).encode(), url)
+        responses[str(url)] = FakeResponse(200, json.dumps(doc).encode(), url)
         docs.append(doc)
-    responses[str(catalog._LATEST_RELEASE_URL)] = _FakeResponse(
+    responses[str(catalog._LATEST_RELEASE_URL)] = FakeResponse(
         200,
         json.dumps(next(d for d in docs if not d["prerelease"])).encode(),
         catalog._LATEST_RELEASE_URL,
     )
-    responses[str(catalog._RECENT_RELEASES_URL)] = _FakeResponse(
+    responses[str(catalog._RECENT_RELEASES_URL)] = FakeResponse(
         200, json.dumps(docs).encode(), catalog._RECENT_RELEASES_URL
     )
-    return _FakeSession(responses)
+    return FakeSession(responses)
 
 
 @pytest.fixture

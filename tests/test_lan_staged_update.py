@@ -12,7 +12,7 @@ import json
 import re
 import threading
 from collections.abc import AsyncIterator
-from dataclasses import dataclass, field, replace
+from dataclasses import replace
 from datetime import timedelta
 from io import BytesIO
 from itertools import pairwise
@@ -86,6 +86,7 @@ from custom_components.panel_assistant.update_coordinator import (
     PanelUpdateSnapshot,
 )
 
+from .http_fakes import FakeResponse
 from .test_install_adb import _install_fakes, _preflight_output, signer  # noqa: F401
 from .test_install_adb_grants import (
     _panel_value,
@@ -106,34 +107,13 @@ OFFER = PanelCachedUpdate("0.9.9", VERSION, TAG)
 SIGNER = release._RELEASE_SIGNER_CERTIFICATE_SHA256
 
 
-class _Content:
-    def __init__(self, body: bytes) -> None:
-        self._body = body
-
-    async def iter_chunked(self, _limit: int) -> AsyncIterator[bytes]:
-        yield self._body
-
-
-@dataclass
-class _Response:
-    status: int
-    body: bytes
-    url: URL
-    headers: CIMultiDict[str] = field(default_factory=CIMultiDict)
-    history: tuple[Any, ...] = ()
-
-    def __post_init__(self) -> None:
-        self.content = _Content(self.body)
-
-    @property
-    def content_length(self) -> int:
-        return len(self.body)
-
-    async def __aenter__(self) -> _Response:
-        return self
-
-    async def __aexit__(self, *args: Any) -> None:
-        return None
+def _Response(
+    status: int, body: bytes, url: URL, headers: CIMultiDict[str] | None = None
+) -> FakeResponse:
+    """Declare the body's own length, as GitHub does."""
+    return FakeResponse(
+        status, body, url, headers=headers or CIMultiDict(), declared_length=len(body)
+    )
 
 
 class _GitHub:
@@ -263,7 +243,7 @@ class _GitHub:
         )
         self.requests: list[str] = []
 
-    def get(self, url: URL, **_kwargs: Any) -> _Response:
+    def get(self, url: URL, **_kwargs: Any) -> FakeResponse:
         self.requests.append(str(url))
         return self._responses[str(url)]
 

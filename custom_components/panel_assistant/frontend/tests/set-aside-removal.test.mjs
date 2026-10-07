@@ -232,12 +232,3 @@ test('nothing is removed without the panel lock, and an unchanged job is never s
   assert.equal(preview.setAside, null, 'a resumable job keeps its file');
   assert.equal(preview.receipt.phase, 'staged');
 });
-
-test('the support log records the set-aside job and what became of its file', () => {
-  const source = readFileSync(new URL('../src/install-main.mjs', import.meta.url), 'utf8');
-  for (const name of ['onSetAside(', 'onStagedCopy(']) {
-    const hook = source.slice(source.indexOf(name));
-    assert.ok(hook.length < source.length, `install-main listens for ${name}`);
-    assert.match(hook.slice(0, hook.indexOf('}')), /support\(/);
-  }
-});

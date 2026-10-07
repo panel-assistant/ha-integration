@@ -118,6 +118,9 @@ function renderedJourney(scenario, locale = 'de', realCatalogue = false) {
     assert.ok(node('support-log').textContent.includes(target.support.copiedDetail.replace('{bytes}', '42')));
     assert.match(node('support-log').textContent, /RAW_RECEIPT/);
     assert.match(node('support-log').textContent, /RAW_KEY/);
+    controllerOptions.onSetAside({ job: 'RAW_SET_ASIDE' });
+    controllerOptions.onStagedCopy({ removed: 'RAW_STAGED_COPY' });
+    assert.match(node('support-log').textContent, /RAW_SET_ASIDE[^]*RAW_STAGED_COPY/, 'the set-aside job and its file are logged');
     assert.deepEqual(calls, progressBefore);
     if (scenario === 'error') {
       const error = new Error('RAW_DIAGNOSTIC'); error.code = 'shell_timeout'; installReject(error); await pending;

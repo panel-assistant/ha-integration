@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { createUsbTransactionPorts } from '../src/usb-transaction-ports.mjs';
+import { ACCEPTED_PACKAGE_IDS, SUCCESSOR_PACKAGE_ID } from '../src/app-identity.mjs';
+import { RESIDUE_PROBES } from '../src/preflight.mjs';
 import { buildStagedPreparation, parseStagedPreparation, stagingPath } from '../src/staging-contract.mjs';
 import { ENGLISH_MESSAGES } from '../src/frontend-localization.mjs';
 
@@ -28,17 +30,52 @@ test('preparation succeeds only on a clean, correctly framed zero exit', () => {
   }
 });
 
-test('both staged-file checks prepare the file before reading its mode', () => {
-  const source = readFileSync(new URL('../src/usb-transaction-ports.mjs', import.meta.url), 'utf8');
-  for (const name of ['staged', 'prefix']) {
-    const start = source.indexOf(`const ${name} = async`);
-    const body = source.slice(start, source.indexOf('};', start));
-    assert.ok(start >= 0, `${name} exists`);
-    assert.ok(body.indexOf('await prepare(receipt)') >= 0, `${name} prepares first`);
-    assert.ok(body.indexOf('await prepare(receipt)') < body.indexOf('buildStagedObservation'),
-      `${name} prepares before it observes`);
+test('both staged-file checks prepare the file before reading its mode', async () => {
+  const target = {model: 'Test panel', serial: 'serial', primaryAbi: 'arm64-v8a', androidSdk: 34,
+    rootMode: 'rootless', usbVendorId: 1, usbProductId: 2, usbSerial: 'usb'};
+  const release = {kind: 'authenticated-apk-bytes',
+    descriptor: {apkSize: 1234, apkSha256: 'a'.repeat(64), packageId: SUCCESSOR_PACKAGE_ID, minSdk: 21,
+      supportedAbis: ['arm64-v8a', 'armeabi-v7a']}};
+  const identity = {MODEL: target.model, SERIAL: target.serial, ABI: target.primaryAbi, SDK: '34',
+    UID: '2000', SECURE: '1', DEBUGGABLE: '0', SU: 'absent'};
+  // 'staged' reaches the plain check, 'staging' after a lost upload reaches the prefix check.
+  for (const phase of ['staged', 'staging']) {
+    const seen = [];
+    const adb = {async createSocket(command) {
+      const n = command.match(/BEGIN:([a-f0-9]{32})/)[1];
+      const step = command.match(/HAPANELD_([A-Z]+)_BEGIN/)[1];
+      seen.push(step);
+      const section = (name, values) => [`HAPANELD_${step}_${name}_BEGIN:${n}`, ...values,
+        `HAPANELD_${step}_${name}_END:${n}:${values.length ? 0 : 1}`];
+      let lines;
+      if (step === 'POSTURE') {
+        lines = Object.entries(identity).flatMap(([name, value]) => section(name, [value]));
+      } else if (step === 'PREFLIGHT') {
+        lines = [...Object.entries(identity).flatMap(([name, value]) => section(name, [value])),
+          ...section('LIVE', ['package:/system/framework/framework-res.apk']),
+          ...ACCEPTED_PACKAGE_IDS.flatMap((_, i) => [...section(`PACKAGE${i}`, []),
+            `HAPANELD_PREFLIGHT_RETAINED${i}_BEGIN:${n}`, `HAPANELD_PREFLIGHT_RETAINED${i}_END:${n}:0`]),
+          ...[0, 1, 2].flatMap(i => section(`BASE${i}`, ['readable'])),
+          ...RESIDUE_PROBES.flatMap((_, i) => section(`RESIDUE${i}`, ['absent']))];
+      } else if (step === 'PATH') {
+        return shell(`HAPANELD_PATH_BEGIN:${n}\npresent\nHAPANELD_PATH_END:${n}:0\n`);
+      } else if (step === 'PREPARE') {
+        return shell(`HAPANELD_PREPARE_BEGIN:${n}\nHAPANELD_PREPARE_END:${n}:1\n`);
+      } else throw new Error('the mode was read');
+      return shell([`HAPANELD_${step}_BEGIN:${n}`, ...lines, `HAPANELD_${step}_END:${n}`, ''].join('\n'));
+    }};
+    const ports = createUsbTransactionPorts({adb, usbDevice: {vendorId: 1, productId: 2, serialNumber: 'usb'},
+      authenticate: async () => release, quarantine() {}});
+    await ports.authenticate();
+    await assert.rejects(ports.inspect({id: job, phase, target}, release), /staged_preparation_failed/);
+    assert.equal(seen.at(-1), 'PREPARE', `${phase}: a failed preparation stops before any observation`);
+    assert.ok(!seen.includes('STAGED'), `${phase} prepares before it observes`);
   }
 });
+
+const shell = body => ({readable: new ReadableStream({start(controller) {
+  controller.enqueue(new TextEncoder().encode(body)); controller.close();
+}}), close: async () => {}});
 
 test('no message ever tells a person to unplug a panel that may be powered by that cable', () => {
   const shown = [...Object.values(ENGLISH_MESSAGES.errors), ...Object.values(ENGLISH_MESSAGES.installer)].join('\n');

@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import AsyncIterator
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -30,6 +28,8 @@ from custom_components.panel_assistant.release import (
     ReleaseResolutionError,
     async_resolve_stable_release,
 )
+
+from .http_fakes import FakeContent, FakeResponse, FakeSession
 
 _TAG = "v1.2.3"
 _VERSION = "1.2.3"
@@ -79,59 +79,6 @@ def _canonical_descriptor(document: dict[str, Any] | None = None) -> bytes:
         )
         + "\n"
     ).encode("ascii")
-
-
-class _FakeContent:
-    def __init__(self, body: bytes | list[bytes | str]) -> None:
-        self._chunks = [body] if isinstance(body, bytes) else body
-        self.yielded_chunks = 0
-
-    async def iter_chunked(self, _limit: int) -> AsyncIterator[bytes | str]:
-        for chunk in self._chunks:
-            self.yielded_chunks += 1
-            yield chunk
-
-
-@dataclass
-class _FakeResponse:
-    status: int
-    body: bytes | list[bytes | str]
-    url: URL
-    history: tuple[Any, ...] = ()
-    headers: CIMultiDict[str] = field(default_factory=CIMultiDict)
-    declared_length: int | None = None
-
-    def __post_init__(self) -> None:
-        self.content = _FakeContent(self.body)
-
-    @property
-    def content_length(self) -> int | None:
-        return self.declared_length
-
-    async def __aenter__(self) -> _FakeResponse:
-        return self
-
-    async def __aexit__(self, *args: Any) -> None:
-        return None
-
-
-class _FakeSession:
-    def __init__(
-        self,
-        responses: dict[str, _FakeResponse],
-        *,
-        error: Exception | None = None,
-    ) -> None:
-        self._responses = responses
-        self._error = error
-        self.requests: list[tuple[str, dict[str, Any]]] = []
-
-    def get(self, url: URL, **kwargs: Any) -> _FakeResponse:
-        raw_url = str(url)
-        self.requests.append((raw_url, kwargs))
-        if self._error is not None:
-            raise self._error
-        return self._responses[raw_url]
 
 
 @pytest.fixture(scope="module")
@@ -207,7 +154,7 @@ def _required_assets_for_tag(tag: str) -> list[dict[str, str]]:
     ]
 
 
-def _rc_session(signing_key: rsa.RSAPrivateKey) -> _FakeSession:
+def _rc_session(signing_key: rsa.RSAPrivateKey) -> FakeSession:
     """Build real signed RC metadata without weakening any production verifier."""
     tag = "v0.9.7-rc3"
     root = f"https://github.com/panel-assistant/android/releases/download/{tag}"
@@ -234,8 +181,8 @@ def _rc_session(signing_key: rsa.RSAPrivateKey) -> _FakeSession:
     # A wrong latest-endpoint implementation must reach the exact URL assertion,
     # not fail because this fake happens to lack a response for that endpoint.
     payloads[str(release._LATEST_RELEASE_URL)] = payloads[api]
-    return _FakeSession(
-        {url: _FakeResponse(200, body, URL(url)) for url, body in payloads.items()}
+    return FakeSession(
+        {url: FakeResponse(200, body, URL(url)) for url, body in payloads.items()}
     )
 
 
@@ -290,7 +237,7 @@ async def test_rc_resolves_only_exact_requested_tag_and_signed_descriptor(
     ],
 )
 async def test_rc_invalid_selection_makes_no_request(tag: Any) -> None:
-    session = _FakeSession({})
+    session = FakeSession({})
     with pytest.raises(ReleaseResolutionError):
         await release.async_resolve_rc_release(session, tag)  # type: ignore[arg-type]
     assert session.requests == []
@@ -339,14 +286,14 @@ async def test_rc_refuses_tag_or_release_flag_substitution(
     api = (
         "https://api.github.com/repos/panel-assistant/android/releases/tags/v0.9.7-rc3"
     )
-    metadata = json.loads(session._responses[api].body)
+    metadata = json.loads(session.responses[api].body)
     metadata[field] = value
     if field == "tag_name":
         metadata["assets"] = _required_assets_for_tag(value)
     body = json.dumps(metadata).encode()
     with pytest.raises(ReleaseResolutionError):
         release._parse_release_metadata(body, expected_rc_tag="v0.9.7-rc3")
-    session._responses[api] = _FakeResponse(200, body, URL(api))
+    session.responses[api] = FakeResponse(200, body, URL(api))
     with pytest.raises(ReleaseResolutionError):
         await release.async_resolve_rc_release(session, "v0.9.7-rc3")  # type: ignore[arg-type]
     assert [url for url, _kwargs in session.requests] == [api]
@@ -377,34 +324,30 @@ async def test_rc_failures_do_not_fall_back_or_bypass_proof(
     checksum_sig = root + "/ha-paneld-v0.9.7-rc3-manual-setup-required.apk.sha256.sig"
     descriptor_url = root + "/ha-paneld-v0.9.7-rc3-install.json"
     if fault == "missing":
-        session._responses[api].status = 404
+        session.responses[api].status = 404
     elif fault == "redirect":
-        session._responses[api].status = 302
-        session._responses[api].headers["Location"] = str(release._LATEST_RELEASE_URL)
+        session.responses[api].status = 302
+        session.responses[api].headers["Location"] = str(release._LATEST_RELEASE_URL)
     elif fault == "oversized":
-        session._responses[api].declared_length = (
-            release._MAX_RELEASE_RESPONSE_BYTES + 1
-        )
+        session.responses[api].declared_length = release._MAX_RELEASE_RESPONSE_BYTES + 1
     elif fault == "asset_url":
-        metadata = json.loads(session._responses[api].body)
+        metadata = json.loads(session.responses[api].body)
         metadata["assets"][0]["browser_download_url"] = _APK_URL
-        session._responses[api] = _FakeResponse(
+        session.responses[api] = FakeResponse(
             200, json.dumps(metadata).encode(), URL(api)
         )
     elif fault in {"checksum_sig", "descriptor_sig"}:
         url = checksum_sig if fault == "checksum_sig" else descriptor_url + ".sig"
-        session._responses[url] = _FakeResponse(200, b"x" * 256, URL(url))
+        session.responses[url] = FakeResponse(200, b"x" * 256, URL(url))
     else:
-        descriptor = json.loads(session._responses[descriptor_url].body)
+        descriptor = json.loads(session.responses[descriptor_url].body)
         if fault == "descriptor_tag":
             descriptor["releaseTag"] = "v0.9.7-rc4"
         else:
             descriptor["apkSha256"] = "a" * 64
         body = _canonical_descriptor(descriptor)
-        session._responses[descriptor_url] = _FakeResponse(
-            200, body, URL(descriptor_url)
-        )
-        session._responses[descriptor_url + ".sig"] = _FakeResponse(
+        session.responses[descriptor_url] = FakeResponse(200, body, URL(descriptor_url))
+        session.responses[descriptor_url + ".sig"] = FakeResponse(
             200, _signature(signing_key, body), URL(descriptor_url + ".sig")
         )
     with pytest.raises(ReleaseResolutionError):
@@ -415,8 +358,8 @@ async def test_rc_failures_do_not_fall_back_or_bypass_proof(
     assert not any(url.endswith(".apk") for url in urls)
 
 
-def _metadata_response(document: Any) -> _FakeResponse:
-    return _FakeResponse(
+def _metadata_response(document: Any) -> FakeResponse:
+    return FakeResponse(
         status=200,
         body=json.dumps(document).encode(),
         url=release._LATEST_RELEASE_URL,
@@ -444,26 +387,24 @@ def _successful_session(
     signature: bytes | None = None,
     descriptor: bytes | None = None,
     descriptor_signature: bytes | None = None,
-) -> _FakeSession:
+) -> FakeSession:
     if signature is None:
         signature = _signature(signing_key, checksum)
     responses = {
         str(release._LATEST_RELEASE_URL): _metadata_response(
             _release_document(include_descriptor=descriptor is not None)
         ),
-        _CHECKSUM_URL: _FakeResponse(200, checksum, URL(_CHECKSUM_URL)),
-        _SIGNATURE_URL: _FakeResponse(200, signature, URL(_SIGNATURE_URL)),
+        _CHECKSUM_URL: FakeResponse(200, checksum, URL(_CHECKSUM_URL)),
+        _SIGNATURE_URL: FakeResponse(200, signature, URL(_SIGNATURE_URL)),
     }
     if descriptor is not None:
         if descriptor_signature is None:
             descriptor_signature = _signature(signing_key, descriptor)
-        responses[_DESCRIPTOR_URL] = _FakeResponse(
-            200, descriptor, URL(_DESCRIPTOR_URL)
-        )
-        responses[_DESCRIPTOR_SIGNATURE_URL] = _FakeResponse(
+        responses[_DESCRIPTOR_URL] = FakeResponse(200, descriptor, URL(_DESCRIPTOR_URL))
+        responses[_DESCRIPTOR_SIGNATURE_URL] = FakeResponse(
             200, descriptor_signature, URL(_DESCRIPTOR_SIGNATURE_URL)
         )
-    return _FakeSession(responses)
+    return FakeSession(responses)
 
 
 async def test_resolves_signed_stable_release_without_downloading_apk(
@@ -569,7 +510,7 @@ def test_embedded_public_key_matches_installer_key_fingerprint() -> None:
 )
 async def test_rejects_noncanonical_or_nonstable_tags(tag: str) -> None:
     """Only a bounded v-prefixed stable SemVer tag can select an artifact."""
-    session = _FakeSession(
+    session = FakeSession(
         {
             str(release._LATEST_RELEASE_URL): _metadata_response(
                 _release_document(tag=tag)
@@ -633,9 +574,9 @@ def test_tag_length_is_rejected_with_self_consistent_assets() -> None:
 )
 async def test_rejects_malformed_release_documents(body: bytes) -> None:
     """Malformed known GitHub fields cannot influence release selection."""
-    session = _FakeSession(
+    session = FakeSession(
         {
-            str(release._LATEST_RELEASE_URL): _FakeResponse(
+            str(release._LATEST_RELEASE_URL): FakeResponse(
                 200, body, release._LATEST_RELEASE_URL
             )
         }
@@ -650,7 +591,7 @@ async def test_rejects_release_flags_that_are_not_stable(
     draft: bool, prerelease: bool
 ) -> None:
     """GitHub draft and prerelease flags fail closed even with a stable tag shape."""
-    session = _FakeSession(
+    session = FakeSession(
         {
             str(release._LATEST_RELEASE_URL): _metadata_response(
                 _release_document(draft=draft, prerelease=prerelease)
@@ -675,7 +616,7 @@ async def test_rejects_release_with_any_required_asset_missing(
         for asset in _release_document()["assets"]
         if asset["name"] != missing_name
     ]
-    session = _FakeSession(
+    session = FakeSession(
         {
             str(release._LATEST_RELEASE_URL): _metadata_response(
                 _release_document(assets=assets)
@@ -700,7 +641,7 @@ async def test_rejects_incomplete_install_descriptor_pair(present_name: str) -> 
             ),
         }
     )
-    session = _FakeSession(
+    session = FakeSession(
         {
             str(release._LATEST_RELEASE_URL): _metadata_response(
                 _release_document(assets=assets)
@@ -722,7 +663,7 @@ async def test_rejects_noncanonical_install_descriptor_asset_url(
     for asset in assets:
         if asset["name"] == asset_name:
             asset["browser_download_url"] = "https://example.invalid/proof"
-    session = _FakeSession(
+    session = FakeSession(
         {
             str(release._LATEST_RELEASE_URL): _metadata_response(
                 _release_document(assets=assets)
@@ -738,7 +679,7 @@ async def test_rejects_duplicate_install_descriptor_asset() -> None:
     """Duplicate optional proof names are ambiguous just like the base triplet."""
     assets = _release_document(include_descriptor=True)["assets"]
     assets.append(dict(assets[-2]))
-    session = _FakeSession(
+    session = FakeSession(
         {
             str(release._LATEST_RELEASE_URL): _metadata_response(
                 _release_document(assets=assets)
@@ -792,7 +733,7 @@ async def test_rejects_wrongly_named_asset_triplet() -> None:
         }
         for suffix in ("", ".sha256", ".sha256.sig")
     ]
-    session = _FakeSession(
+    session = FakeSession(
         {
             str(release._LATEST_RELEASE_URL): _metadata_response(
                 _release_document(assets=assets)
@@ -820,7 +761,7 @@ async def test_rejects_required_asset_with_noncanonical_url(
     """GitHub metadata cannot redirect initial artifact selection elsewhere."""
     assets = _release_document()["assets"]
     assets[0] = {**assets[0], "browser_download_url": replacement_url}
-    session = _FakeSession(
+    session = FakeSession(
         {
             str(release._LATEST_RELEASE_URL): _metadata_response(
                 _release_document(assets=assets)
@@ -836,7 +777,7 @@ async def test_rejects_duplicate_required_asset() -> None:
     """Two assets with the canonical name are ambiguous and fail closed."""
     assets = _release_document()["assets"]
     assets.append(dict(assets[0]))
-    session = _FakeSession(
+    session = FakeSession(
         {
             str(release._LATEST_RELEASE_URL): _metadata_response(
                 _release_document(assets=assets)
@@ -1033,8 +974,8 @@ async def test_rejects_oversized_responses(
         "checksum": _CHECKSUM_URL,
         "signature": _SIGNATURE_URL,
     }[target]
-    session._responses[request_url].body = body
-    session._responses[request_url].content = _FakeContent(body)
+    session.responses[request_url].body = body
+    session.responses[request_url].content = FakeContent(body)
 
     with pytest.raises(ReleaseResolutionError):
         await async_resolve_stable_release(session)  # type: ignore[arg-type]
@@ -1066,8 +1007,8 @@ async def test_rejects_oversized_install_descriptor_responses(
         "descriptor": _DESCRIPTOR_URL,
         "descriptor-signature": _DESCRIPTOR_SIGNATURE_URL,
     }[target]
-    session._responses[request_url].body = body
-    session._responses[request_url].content = _FakeContent(body)
+    session.responses[request_url].body = body
+    session.responses[request_url].content = FakeContent(body)
 
     with pytest.raises(ReleaseResolutionError):
         await async_resolve_stable_release(session)  # type: ignore[arg-type]
@@ -1092,8 +1033,8 @@ async def test_rejects_excessive_declared_content_length() -> None:
     """An excessive Content-Length fails before the response body is consumed."""
     response = _metadata_response(_release_document())
     response.declared_length = release._MAX_RELEASE_RESPONSE_BYTES + 1
-    response.content = _FakeContent(["must not be consumed"])
-    session = _FakeSession({str(release._LATEST_RELEASE_URL): response})
+    response.content = FakeContent(["must not be consumed"])
+    session = FakeSession({str(release._LATEST_RELEASE_URL): response})
 
     with pytest.raises(ReleaseResolutionError):
         await async_resolve_stable_release(session)  # type: ignore[arg-type]
@@ -1103,10 +1044,10 @@ async def test_rejects_excessive_declared_content_length() -> None:
 async def test_stream_limit_stops_before_a_second_excessive_chunk() -> None:
     """The body limit stops consumption before later parsing can reject it."""
     response = _metadata_response(_release_document())
-    response.content = _FakeContent(
+    response.content = FakeContent(
         [b"x" * (release._MAX_RELEASE_RESPONSE_BYTES + 1), b"not consumed"]
     )
-    session = _FakeSession({str(release._LATEST_RELEASE_URL): response})
+    session = FakeSession({str(release._LATEST_RELEASE_URL): response})
 
     with pytest.raises(ReleaseResolutionError):
         await async_resolve_stable_release(session)  # type: ignore[arg-type]
@@ -1116,8 +1057,8 @@ async def test_stream_limit_stops_before_a_second_excessive_chunk() -> None:
 async def test_rejects_nonbyte_response_chunks() -> None:
     """The resolver never coerces an unexpected stream payload type."""
     response = _metadata_response(_release_document())
-    response.content = _FakeContent(["not bytes"])
-    session = _FakeSession({str(release._LATEST_RELEASE_URL): response})
+    response.content = FakeContent(["not bytes"])
+    session = FakeSession({str(release._LATEST_RELEASE_URL): response})
 
     with pytest.raises(ReleaseResolutionError):
         await async_resolve_stable_release(session)  # type: ignore[arg-type]
@@ -1176,7 +1117,7 @@ async def test_rejects_untrusted_release_asset_redirect(
     _install_test_key(monkeypatch, signing_key)
     monkeypatch.setattr(install_artifacts, "_FEED_DOWNLOAD_HOSTS", {"builds.example"})
     session = _successful_session(signing_key)
-    checksum_response = session._responses[_CHECKSUM_URL]
+    checksum_response = session.responses[_CHECKSUM_URL]
     checksum_response.status = 302
     checksum_response.headers = CIMultiDict({"Location": location})
 
@@ -1191,7 +1132,7 @@ async def test_rejects_untrusted_release_asset_redirect(
 
 async def test_rejects_untrusted_initial_release_url_without_request() -> None:
     """The bounded asset reader validates even its first URL before a GET."""
-    session = _FakeSession({})
+    session = FakeSession({})
 
     with pytest.raises(ReleaseResolutionError):
         await release._async_fetch_bounded(
@@ -1214,10 +1155,10 @@ async def test_accepts_bounded_github_release_asset_redirect(
         "https://release-assets.githubusercontent.com/"
         "github-production-release-asset/proof?token=bounded"
     )
-    checksum_response = session._responses[_CHECKSUM_URL]
+    checksum_response = session.responses[_CHECKSUM_URL]
     checksum_response.status = 302
     checksum_response.headers = CIMultiDict({"Location": redirected_url})
-    session._responses[redirected_url] = _FakeResponse(
+    session.responses[redirected_url] = FakeResponse(
         200,
         _CHECKSUM,
         URL(redirected_url),
@@ -1243,10 +1184,10 @@ async def test_accepts_trusted_relative_release_redirect(
     session = _successful_session(signing_key)
     relative_location = f"/{_TAG}/{_APK_NAME}.sha256?download=1"
     redirected_url = f"https://github.com{relative_location}"
-    checksum_response = session._responses[_CHECKSUM_URL]
+    checksum_response = session.responses[_CHECKSUM_URL]
     checksum_response.status = 307
     checksum_response.headers = CIMultiDict({"Location": relative_location})
-    session._responses[redirected_url] = _FakeResponse(
+    session.responses[redirected_url] = FakeResponse(
         200,
         _CHECKSUM,
         URL(redirected_url),
@@ -1270,10 +1211,10 @@ async def test_rejects_more_than_three_redirects(
     ]
     current_url = _CHECKSUM_URL
     for redirect_url in redirect_urls:
-        response = session._responses.get(current_url)
+        response = session.responses.get(current_url)
         if response is None:
-            response = _FakeResponse(302, b"", URL(current_url))
-            session._responses[current_url] = response
+            response = FakeResponse(302, b"", URL(current_url))
+            session.responses[current_url] = response
         response.status = 302
         response.headers = CIMultiDict({"Location": redirect_url})
         current_url = redirect_url
@@ -1298,7 +1239,7 @@ async def test_rejects_missing_or_malformed_redirect_location(
     """A redirect requires one parseable nonempty Location before another GET."""
     _install_test_key(monkeypatch, signing_key)
     session = _successful_session(signing_key)
-    response = session._responses[_CHECKSUM_URL]
+    response = session.responses[_CHECKSUM_URL]
     response.status = 302
     response.headers = (
         CIMultiDict() if location is None else CIMultiDict({"Location": location})
@@ -1318,7 +1259,7 @@ async def test_rejects_multiple_redirect_locations(
     """Ambiguous duplicate Location headers cannot select the next request."""
     _install_test_key(monkeypatch, signing_key)
     session = _successful_session(signing_key)
-    response = session._responses[_CHECKSUM_URL]
+    response = session.responses[_CHECKSUM_URL]
     response.status = 302
     response.headers = CIMultiDict(
         [
@@ -1340,7 +1281,7 @@ async def test_rejects_metadata_redirect() -> None:
     response = _metadata_response(_release_document())
     response.status = 302
     response.headers = CIMultiDict({"Location": _CHECKSUM_URL})
-    session = _FakeSession({str(release._LATEST_RELEASE_URL): response})
+    session = FakeSession({str(release._LATEST_RELEASE_URL): response})
 
     with pytest.raises(ReleaseResolutionError):
         await async_resolve_stable_release(session)  # type: ignore[arg-type]
@@ -1353,7 +1294,7 @@ async def test_rejects_unexpected_response_history() -> None:
     """A session must not claim it auto-followed when explicitly disabled."""
     response = _metadata_response(_release_document())
     response.history = (object(),)
-    session = _FakeSession({str(release._LATEST_RELEASE_URL): response})
+    session = FakeSession({str(release._LATEST_RELEASE_URL): response})
 
     with pytest.raises(ReleaseResolutionError):
         await async_resolve_stable_release(session)  # type: ignore[arg-type]
@@ -1378,9 +1319,9 @@ async def test_rejects_unexpected_response_history() -> None:
 )
 async def test_rejects_duplicate_keys_and_nonstandard_numbers(body: bytes) -> None:
     """Duplicate keys are not resolved by last-wins JSON behavior."""
-    session = _FakeSession(
+    session = FakeSession(
         {
-            str(release._LATEST_RELEASE_URL): _FakeResponse(
+            str(release._LATEST_RELEASE_URL): FakeResponse(
                 200, body, release._LATEST_RELEASE_URL
             )
         }
@@ -1409,9 +1350,9 @@ def test_duplicate_key_is_rejected_in_otherwise_valid_document() -> None:
 @pytest.mark.parametrize("status", [201, 301, 403, 404, 500])
 async def test_rejects_non_success_status(status: int) -> None:
     """Only one complete HTTP 200 metadata response is accepted."""
-    session = _FakeSession(
+    session = FakeSession(
         {
-            str(release._LATEST_RELEASE_URL): _FakeResponse(
+            str(release._LATEST_RELEASE_URL): FakeResponse(
                 status, b"", release._LATEST_RELEASE_URL
             )
         }
@@ -1424,7 +1365,7 @@ async def test_rejects_non_success_status(status: int) -> None:
 @pytest.mark.parametrize("error", [TimeoutError(), ClientConnectionError()])
 async def test_maps_bounded_transport_failures(error: Exception) -> None:
     """Timeout and aiohttp transport failures fail closed as resolution errors."""
-    session = _FakeSession({}, error=error)
+    session = FakeSession({}, error=error)
 
     with pytest.raises(ReleaseResolutionError):
         await async_resolve_stable_release(session)  # type: ignore[arg-type]
@@ -1474,13 +1415,13 @@ async def test_a_release_carrying_both_apks_resolves_the_successor(
     _install_test_key(monkeypatch, signing_key)
     document = _release_document()
     document["assets"] = [*document["assets"], *_asset_triplet(_SUCCESSOR_APK_NAME)]
-    session = _FakeSession(
+    session = FakeSession(
         {
             str(release._LATEST_RELEASE_URL): _metadata_response(document),
-            f"{_SUCCESSOR_APK_URL}.sha256": _FakeResponse(
+            f"{_SUCCESSOR_APK_URL}.sha256": FakeResponse(
                 200, _SUCCESSOR_CHECKSUM, URL(f"{_SUCCESSOR_APK_URL}.sha256")
             ),
-            f"{_SUCCESSOR_APK_URL}.sha256.sig": _FakeResponse(
+            f"{_SUCCESSOR_APK_URL}.sha256.sig": FakeResponse(
                 200,
                 _signature(signing_key, _SUCCESSOR_CHECKSUM),
                 URL(f"{_SUCCESSOR_APK_URL}.sha256.sig"),
@@ -1521,7 +1462,7 @@ async def test_a_successor_apk_without_its_own_proof_is_not_resolved(
         {"name": _SUCCESSOR_APK_NAME, "browser_download_url": _SUCCESSOR_APK_URL},
     ]
     session = _successful_session(signing_key)
-    session._responses[str(release._LATEST_RELEASE_URL)] = _metadata_response(document)
+    session.responses[str(release._LATEST_RELEASE_URL)] = _metadata_response(document)
 
     # The successor triplet is incomplete, so the complete legacy one resolves.
     artifact = await async_resolve_stable_release(session)  # type: ignore[arg-type]
@@ -1529,7 +1470,7 @@ async def test_a_successor_apk_without_its_own_proof_is_not_resolved(
     assert artifact.apk_name == _APK_NAME
 
 
-def _dual_release_session(signing_key: rsa.RSAPrivateKey) -> _FakeSession:
+def _dual_release_session(signing_key: rsa.RSAPrivateKey) -> FakeSession:
     """Serve two APK proofs and the successor's descriptor from one release."""
     successor_sha = hashlib.sha256(b"successor APK").hexdigest()
     successor_checksum = f"{successor_sha}  {_SUCCESSOR_APK_NAME}\n".encode()
@@ -1545,23 +1486,23 @@ def _dual_release_session(signing_key: rsa.RSAPrivateKey) -> _FakeSession:
     )
     document = _release_document(include_descriptor=True)
     document["assets"] = [*document["assets"], *_asset_triplet(_SUCCESSOR_APK_NAME)]
-    return _FakeSession(
+    return FakeSession(
         {
             str(release._LATEST_RELEASE_URL): _metadata_response(document),
-            _CHECKSUM_URL: _FakeResponse(200, _CHECKSUM, URL(_CHECKSUM_URL)),
-            _SIGNATURE_URL: _FakeResponse(
+            _CHECKSUM_URL: FakeResponse(200, _CHECKSUM, URL(_CHECKSUM_URL)),
+            _SIGNATURE_URL: FakeResponse(
                 200, _signature(signing_key, _CHECKSUM), URL(_SIGNATURE_URL)
             ),
-            f"{_SUCCESSOR_APK_URL}.sha256": _FakeResponse(
+            f"{_SUCCESSOR_APK_URL}.sha256": FakeResponse(
                 200, successor_checksum, URL(f"{_SUCCESSOR_APK_URL}.sha256")
             ),
-            f"{_SUCCESSOR_APK_URL}.sha256.sig": _FakeResponse(
+            f"{_SUCCESSOR_APK_URL}.sha256.sig": FakeResponse(
                 200,
                 _signature(signing_key, successor_checksum),
                 URL(f"{_SUCCESSOR_APK_URL}.sha256.sig"),
             ),
-            _DESCRIPTOR_URL: _FakeResponse(200, descriptor, URL(_DESCRIPTOR_URL)),
-            _DESCRIPTOR_SIGNATURE_URL: _FakeResponse(
+            _DESCRIPTOR_URL: FakeResponse(200, descriptor, URL(_DESCRIPTOR_URL)),
+            _DESCRIPTOR_SIGNATURE_URL: FakeResponse(
                 200, _signature(signing_key, descriptor), URL(_DESCRIPTOR_SIGNATURE_URL)
             ),
         }
@@ -1594,12 +1535,12 @@ async def test_signed_successor_descriptor_cannot_claim_legacy_package(
     """A signed descriptor must bind the selected APK name to its package ID."""
     _install_test_key(monkeypatch, signing_key)
     session = _dual_release_session(signing_key)
-    descriptor = json.loads(session._responses[_DESCRIPTOR_URL].body)
+    descriptor = json.loads(session.responses[_DESCRIPTOR_URL].body)
     descriptor["packageId"] = LEGACY_PACKAGE_ID
     descriptor["launchComponent"] = "io.github.maxlyth.hapaneld/.MainActivity"
     body = _canonical_descriptor(descriptor)
-    session._responses[_DESCRIPTOR_URL] = _FakeResponse(200, body, URL(_DESCRIPTOR_URL))
-    session._responses[_DESCRIPTOR_SIGNATURE_URL] = _FakeResponse(
+    session.responses[_DESCRIPTOR_URL] = FakeResponse(200, body, URL(_DESCRIPTOR_URL))
+    session.responses[_DESCRIPTOR_SIGNATURE_URL] = FakeResponse(
         200, _signature(signing_key, body), URL(_DESCRIPTOR_SIGNATURE_URL)
     )
 
@@ -1625,25 +1566,22 @@ async def test_bad_optional_bridge_does_not_discard_successor(
             for asset in document["assets"]
             if asset["name"] in {_DESCRIPTOR_NAME, f"{_DESCRIPTOR_NAME}.sig"}
         ]
-        session._responses[str(release._LATEST_RELEASE_URL)] = _metadata_response(
+        session.responses[str(release._LATEST_RELEASE_URL)] = _metadata_response(
             document
         )
     elif fault == "bad-asset-url":
         document = _release_document(include_descriptor=True)
         document["assets"] = [*document["assets"], *_asset_triplet(_SUCCESSOR_APK_NAME)]
         document["assets"][0]["browser_download_url"] = "https://elsewhere/bridge.apk"
-        session._responses[str(release._LATEST_RELEASE_URL)] = _metadata_response(
+        session.responses[str(release._LATEST_RELEASE_URL)] = _metadata_response(
             document
         )
     elif fault == "bad-signature":
-        session._responses[_SIGNATURE_URL].body = b"x" * 256
-        session._responses[_SIGNATURE_URL].__post_init__()
+        session.responses[_SIGNATURE_URL].content = FakeContent(b"x" * 256)
     else:
         wrong = f"{_SHA256}  other.apk\n".encode()
-        session._responses[_CHECKSUM_URL] = _FakeResponse(
-            200, wrong, URL(_CHECKSUM_URL)
-        )
-        session._responses[_SIGNATURE_URL] = _FakeResponse(
+        session.responses[_CHECKSUM_URL] = FakeResponse(200, wrong, URL(_CHECKSUM_URL))
+        session.responses[_SIGNATURE_URL] = FakeResponse(
             200, _signature(signing_key, wrong), URL(_SIGNATURE_URL)
         )
 
@@ -1660,7 +1598,7 @@ async def test_coordinator_routes_by_package_and_clears_old_bridge(
     """A refresh replaces the signed pair together; a failed refresh keeps it."""
     _install_test_key(monkeypatch, signing_key)
 
-    def coordinator_session() -> _FakeSession:
+    def coordinator_session() -> FakeSession:
         session = _dual_release_session(signing_key)
         records = sorted(
             [
@@ -1677,11 +1615,11 @@ async def test_coordinator_routes_by_package_and_clears_old_bridge(
             session, signing_key, _canonical_descriptor(_protocol_document(*records))
         )
         recent_url = f"{release.ANDROID_RELEASES_API}?per_page=30"
-        session._responses[recent_url] = _FakeResponse(200, b"[]", URL(recent_url))
+        session.responses[recent_url] = FakeResponse(200, b"[]", URL(recent_url))
         tag_url = f"{release.ANDROID_RELEASES_API}/tags/{_TAG}"
-        session._responses[tag_url] = _FakeResponse(
+        session.responses[tag_url] = FakeResponse(
             200,
-            session._responses[str(release._LATEST_RELEASE_URL)].body,
+            session.responses[str(release._LATEST_RELEASE_URL)].body,
             URL(tag_url),
         )
         return session
@@ -1700,7 +1638,7 @@ async def test_coordinator_routes_by_package_and_clears_old_bridge(
     assert bridge is not None and bridge.descriptor is None
     assert coordinator.artifact_for("other.app") is None
 
-    session._responses[_SIGNATURE_URL] = _FakeResponse(
+    session.responses[_SIGNATURE_URL] = FakeResponse(
         200, b"x" * 256, URL(_SIGNATURE_URL)
     )
     await coordinator.async_refresh()
@@ -1714,7 +1652,7 @@ async def test_coordinator_routes_by_package_and_clears_old_bridge(
     bridge = coordinator.artifact_for(LEGACY_PACKAGE_ID)
     assert bridge is not None
     successor_signature_url = f"{_SUCCESSOR_APK_URL}.sha256.sig"
-    session._responses[successor_signature_url] = _FakeResponse(
+    session.responses[successor_signature_url] = FakeResponse(
         200, b"x" * 256, URL(successor_signature_url)
     )
     await coordinator.async_refresh()
@@ -1727,7 +1665,7 @@ async def test_coordinator_routes_by_package_and_clears_old_bridge(
     await coordinator.async_refresh()
     successor = coordinator.data
     bridge = coordinator.artifact_for(LEGACY_PACKAGE_ID)
-    session._responses[str(release._LATEST_RELEASE_URL)] = _FakeResponse(
+    session.responses[str(release._LATEST_RELEASE_URL)] = FakeResponse(
         503,
         b"unavailable",
         release._LATEST_RELEASE_URL,
@@ -1848,13 +1786,13 @@ def _protocol_document(*records: dict[str, Any]) -> dict[str, Any]:
 
 
 def _serve_protocol_metadata(
-    session: _FakeSession,
+    session: FakeSession,
     signing_key: rsa.RSAPrivateKey,
     body: bytes,
     *,
     signature: bytes | None = None,
 ) -> None:
-    response = session._responses[str(release._LATEST_RELEASE_URL)]
+    response = session.responses[str(release._LATEST_RELEASE_URL)]
     document = json.loads(response.body)
     for suffix in ("", ".sig"):
         document["assets"].append(
@@ -1863,9 +1801,9 @@ def _serve_protocol_metadata(
                 "browser_download_url": _PROTOCOL_URL + suffix,
             }
         )
-    session._responses[str(release._LATEST_RELEASE_URL)] = _metadata_response(document)
-    session._responses[_PROTOCOL_URL] = _FakeResponse(200, body, URL(_PROTOCOL_URL))
-    session._responses[_PROTOCOL_URL + ".sig"] = _FakeResponse(
+    session.responses[str(release._LATEST_RELEASE_URL)] = _metadata_response(document)
+    session.responses[_PROTOCOL_URL] = FakeResponse(200, body, URL(_PROTOCOL_URL))
+    session.responses[_PROTOCOL_URL + ".sig"] = FakeResponse(
         200,
         _signature(signing_key, body) if signature is None else signature,
         URL(_PROTOCOL_URL + ".sig"),
@@ -1887,7 +1825,7 @@ async def test_signed_protocol_metadata_binds_exact_release_and_bridge_hashes(
         key=lambda record: record["apkSha256"],
     )
     body = _canonical_descriptor(_protocol_document(*records))
-    descriptor_body = session._responses[_DESCRIPTOR_URL].body
+    descriptor_body = session.responses[_DESCRIPTOR_URL].body
     _serve_protocol_metadata(session, signing_key, body)
 
     bundle, bridge = await release.async_resolve_stable_bundle_and_bridge(session)  # type: ignore[arg-type]
@@ -2031,27 +1969,27 @@ async def test_protocol_companion_refuses_ambiguous_or_unauthenticated_metadata(
     _serve_protocol_metadata(session, signing_key, body)
     match fault:
         case "signature-tamper":
-            session._responses[_PROTOCOL_URL + ".sig"] = _FakeResponse(
+            session.responses[_PROTOCOL_URL + ".sig"] = FakeResponse(
                 200, b"x" * 256, URL(_PROTOCOL_URL + ".sig")
             )
         case "payload-tamper":
-            session._responses[_PROTOCOL_URL] = _FakeResponse(
+            session.responses[_PROTOCOL_URL] = FakeResponse(
                 200,
                 body.replace(b'"protocolMax":3', b'"protocolMax":4'),
                 URL(_PROTOCOL_URL),
             )
         case "signature-missing" | "asset-missing" | "wrong-asset-url":
-            response = session._responses[str(release._LATEST_RELEASE_URL)]
+            response = session.responses[str(release._LATEST_RELEASE_URL)]
             metadata = json.loads(response.body)
             if fault == "wrong-asset-url":
                 metadata["assets"][-2]["browser_download_url"] += "?spoof=1"
             else:
                 metadata["assets"].pop(-1 if fault == "signature-missing" else -2)
-            session._responses[str(release._LATEST_RELEASE_URL)] = _metadata_response(
+            session.responses[str(release._LATEST_RELEASE_URL)] = _metadata_response(
                 metadata
             )
         case "redirect-untrusted":
-            session._responses[_PROTOCOL_URL] = _FakeResponse(
+            session.responses[_PROTOCOL_URL] = FakeResponse(
                 302,
                 b"",
                 URL(_PROTOCOL_URL),

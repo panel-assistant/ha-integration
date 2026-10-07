@@ -9,12 +9,12 @@ import pytest
 from custom_components.panel_assistant import browser_artifacts as browser
 from custom_components.panel_assistant import install_artifacts as native
 
+from .http_fakes import FakeSession
 from .test_install_artifacts import (
     _BODY,
     _JOB_ID,
     _FakeHass,
     _FakeResponse,
-    _FakeSession,
     _release,
 )
 from .test_install_artifacts import (
@@ -29,13 +29,13 @@ async def test_native_cleanup_cannot_delete_browser_artifact(
     original = _release()
     installed = await native.async_download_install_artifact(
         fake_hass,
-        _FakeSession([_FakeResponse()]),
+        FakeSession([_FakeResponse()]),
         original,
         _JOB_ID,  # type: ignore[arg-type]
     )
     downloaded = await browser.async_download_browser_artifact(
         fake_hass,
-        _FakeSession([_FakeResponse()]),
+        FakeSession([_FakeResponse()]),
         original,
         _JOB_ID,  # type: ignore[arg-type]
     )
@@ -58,13 +58,13 @@ async def test_browser_reconciliation_cannot_delete_native_job(
     original = _release()
     installed = await native.async_download_install_artifact(
         fake_hass,
-        _FakeSession([_FakeResponse()]),
+        FakeSession([_FakeResponse()]),
         original,
         _JOB_ID,  # type: ignore[arg-type]
     )
     downloaded = await browser.async_download_browser_artifact(
         fake_hass,
-        _FakeSession([_FakeResponse()]),
+        FakeSession([_FakeResponse()]),
         original,
         _JOB_ID,  # type: ignore[arg-type]
     )
@@ -76,7 +76,7 @@ async def test_browser_reconciliation_cannot_delete_native_job(
 async def test_browser_custody_verifies_bytes_and_cleans_failed_download(
     fake_hass: _FakeHass,
 ) -> None:
-    session = _FakeSession([_FakeResponse(chunks=[b"x" * len(_BODY)])])
+    session = FakeSession([_FakeResponse(body=[b"x" * len(_BODY)])])
     with pytest.raises(native.ArtifactCustodyError) as caught:
         await browser.async_download_browser_artifact(
             fake_hass,
@@ -96,7 +96,7 @@ async def test_browser_custody_verifies_bytes_and_cleans_failed_download(
 async def test_browser_identifiers_cannot_select_paths(
     fake_hass: _FakeHass, identifier: str
 ) -> None:
-    session = _FakeSession([])
+    session = FakeSession([])
     with pytest.raises(native.ArtifactCustodyError):
         await browser.async_download_browser_artifact(
             fake_hass,
@@ -114,7 +114,7 @@ async def test_browser_identifiers_cannot_select_paths(
 async def test_browser_read_returns_verified_bytes_without_reopening_download(
     fake_hass: _FakeHass,
 ) -> None:
-    session = _FakeSession([_FakeResponse()])
+    session = FakeSession([_FakeResponse()])
     artifact = await browser.async_download_browser_artifact(
         fake_hass,
         session,
@@ -142,7 +142,7 @@ async def test_browser_read_refuses_changed_or_linked_custody(
 ) -> None:
     artifact = await browser.async_download_browser_artifact(
         fake_hass,
-        _FakeSession([_FakeResponse()]),
+        FakeSession([_FakeResponse()]),
         _release(),
         _JOB_ID,  # type: ignore[arg-type]
     )

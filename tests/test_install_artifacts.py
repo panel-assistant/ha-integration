@@ -10,7 +10,8 @@ import threading
 from collections.abc import AsyncIterator, Callable
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
-from dataclasses import dataclass, field, replace
+from dataclasses import replace
+from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -29,6 +30,8 @@ from custom_components.panel_assistant.install_artifacts import (
     async_reconcile_install_artifacts,
 )
 from custom_components.panel_assistant.release import InstallDescriptor, ReleaseArtifact
+
+from .http_fakes import FakeContent, FakeResponse, FakeSession
 
 _JOB_ID = "0123456789abcdef0123456789abcdef"
 _OTHER_JOB_ID = "fedcba9876543210fedcba9876543210"
@@ -74,23 +77,6 @@ class _FakeHass:
         return future
 
 
-class _FakeContent:
-    def __init__(
-        self,
-        chunks: list[bytes | str] | None = None,
-        *,
-        error: BaseException | None = None,
-    ) -> None:
-        self._chunks = chunks or []
-        self._error = error
-
-    async def iter_chunked(self, _size: int) -> AsyncIterator[bytes | str]:
-        for chunk in self._chunks:
-            yield chunk
-        if self._error is not None:
-            raise self._error
-
-
 class _BlockingContent:
     def __init__(self) -> None:
         self.started = asyncio.Event()
@@ -101,49 +87,7 @@ class _BlockingContent:
         yield b"unreachable"
 
 
-@dataclass
-class _FakeResponse:
-    status: int = 200
-    url: URL = field(default_factory=lambda: URL(_APK_URL))
-    chunks: list[bytes | str] = field(default_factory=lambda: [_BODY])
-    headers: CIMultiDict[str] = field(default_factory=CIMultiDict)
-    history: tuple[Any, ...] = ()
-    declared_length: int | None = None
-    content: Any = None
-
-    def __post_init__(self) -> None:
-        if self.content is None:
-            self.content = _FakeContent(self.chunks)
-
-    @property
-    def content_length(self) -> int | None:
-        return self.declared_length
-
-    async def __aenter__(self) -> _FakeResponse:
-        return self
-
-    async def __aexit__(self, *args: Any) -> None:
-        return None
-
-
-class _FakeSession:
-    def __init__(
-        self,
-        responses: list[_FakeResponse] | None = None,
-        *,
-        error: BaseException | None = None,
-    ) -> None:
-        self.responses = list(responses or [])
-        self.error = error
-        self.requests: list[tuple[URL, dict[str, Any]]] = []
-
-    def get(self, url: URL, **kwargs: Any) -> _FakeResponse:
-        self.requests.append((url, kwargs))
-        if self.error is not None:
-            raise self.error
-        if not self.responses:
-            raise AssertionError("unexpected request")
-        return self.responses.pop(0)
+_FakeResponse = partial(FakeResponse, body=[_BODY], url=URL(_APK_URL))
 
 
 @pytest.fixture
@@ -218,7 +162,7 @@ async def _wait_for_executor_count(fake_hass: _FakeHass, count: int) -> None:
 async def _assert_error(
     code: ArtifactErrorCode,
     fake_hass: _FakeHass,
-    session: _FakeSession,
+    session: FakeSession,
     artifact: ReleaseArtifact | None = None,
     job_id: str = _JOB_ID,
     partial_removed: bool = True,
@@ -238,11 +182,11 @@ async def test_download_verifies_and_atomically_publishes_private_file(
 ) -> None:
     """A matching body becomes one private ready artifact."""
     response = _FakeResponse(
-        chunks=[_BODY[:5], _BODY[5:]],
+        body=[_BODY[:5], _BODY[5:]],
         headers=CIMultiDict({"Content-Length": str(len(_BODY))}),
         declared_length=len(_BODY),
     )
-    session = _FakeSession([response])
+    session = FakeSession([response])
 
     result = await async_download_install_artifact(
         fake_hass, session, _release(), _JOB_ID
@@ -281,11 +225,11 @@ async def test_download_verifies_and_atomically_publishes_private_file(
 async def test_valid_ready_artifact_is_rehashed_and_reused_without_network(
     fake_hass: _FakeHass,
 ) -> None:
-    first_session = _FakeSession([_FakeResponse()])
+    first_session = FakeSession([_FakeResponse()])
     first = await async_download_install_artifact(
         fake_hass, first_session, _release(), _JOB_ID
     )
-    second_session = _FakeSession()
+    second_session = FakeSession()
 
     second = await async_download_install_artifact(
         fake_hass, second_session, _release(), _JOB_ID
@@ -306,7 +250,7 @@ async def test_invalid_ready_artifact_fails_closed_without_network(
     ready = directory.joinpath(f"{_JOB_ID}.apk")
     ready.write_bytes(tamper[: len(_BODY)])
     ready.chmod(0o600)
-    session = _FakeSession()
+    session = FakeSession()
 
     await _assert_error(ArtifactErrorCode.READY_INVALID, fake_hass, session)
 
@@ -317,7 +261,7 @@ async def test_invalid_ready_artifact_fails_closed_without_network(
 async def test_descriptor_is_required_before_filesystem_or_network(
     fake_hass: _FakeHass,
 ) -> None:
-    session = _FakeSession()
+    session = FakeSession()
 
     await _assert_error(
         ArtifactErrorCode.DESCRIPTOR_REQUIRED,
@@ -344,7 +288,7 @@ async def test_job_id_is_closed_before_filesystem_or_network(
     job_id: str,
     code: ArtifactErrorCode,
 ) -> None:
-    session = _FakeSession()
+    session = FakeSession()
 
     await _assert_error(code, fake_hass, session, job_id=job_id)
 
@@ -370,7 +314,7 @@ async def test_release_contract_is_cross_bound_before_download(
     fake_hass: _FakeHass,
     replacements: dict[str, Any],
 ) -> None:
-    session = _FakeSession()
+    session = FakeSession()
 
     await _assert_error(
         ArtifactErrorCode.CONTRACT_INVALID,
@@ -402,7 +346,7 @@ async def test_descriptor_custody_fields_are_bounded(
     await _assert_error(
         ArtifactErrorCode.CONTRACT_INVALID,
         fake_hass,
-        _FakeSession(),
+        FakeSession(),
         replace(release, descriptor=descriptor),
     )
 
@@ -425,7 +369,7 @@ async def test_three_trusted_manual_redirects_are_allowed(
         for index in range(3)
     ]
     responses.append(_FakeResponse(url=urls[-1]))
-    session = _FakeSession(responses)
+    session = FakeSession(responses)
 
     await async_download_install_artifact(fake_hass, session, _release(), _JOB_ID)
 
@@ -439,7 +383,7 @@ async def test_redirect_to_a_registered_feed_apk_is_followed(
 ) -> None:
     monkeypatch.setattr(install_artifacts, "_FEED_DOWNLOAD_HOSTS", {"builds.example"})
     feed_apk = URL(f"https://builds.example/apks/{'0' * 64}.apk")
-    session = _FakeSession(
+    session = FakeSession(
         [
             _FakeResponse(status=302, headers=CIMultiDict({"Location": str(feed_apk)})),
             _FakeResponse(url=feed_apk),
@@ -466,7 +410,7 @@ async def test_fourth_redirect_is_rejected_and_partial_is_removed(
         )
         for index in range(4)
     ]
-    session = _FakeSession(responses)
+    session = FakeSession(responses)
 
     await _assert_error(ArtifactErrorCode.REDIRECT_INVALID, fake_hass, session)
 
@@ -492,7 +436,7 @@ async def test_untrusted_or_malformed_redirect_is_rejected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(install_artifacts, "_FEED_DOWNLOAD_HOSTS", {"builds.example"})
-    session = _FakeSession(
+    session = FakeSession(
         [
             _FakeResponse(
                 status=302,
@@ -510,7 +454,7 @@ async def test_redirect_requires_one_location_header(
     await _assert_error(
         ArtifactErrorCode.REDIRECT_INVALID,
         fake_hass,
-        _FakeSession([_FakeResponse(status=302)]),
+        FakeSession([_FakeResponse(status=302)]),
     )
 
 
@@ -524,7 +468,7 @@ async def test_duplicate_location_headers_are_rejected(
     await _assert_error(
         ArtifactErrorCode.REDIRECT_INVALID,
         fake_hass,
-        _FakeSession([_FakeResponse(status=302, headers=headers)]),
+        FakeSession([_FakeResponse(status=302, headers=headers)]),
     )
 
 
@@ -546,7 +490,7 @@ async def test_status_or_implicit_redirect_is_rejected(
         if response.history or response.url != URL(_APK_URL)
         else ArtifactErrorCode.HTTP_STATUS
     )
-    await _assert_error(expected, fake_hass, _FakeSession([response]))
+    await _assert_error(expected, fake_hass, FakeSession([response]))
 
 
 @pytest.mark.parametrize(
@@ -565,7 +509,7 @@ async def test_ambiguous_or_encoded_response_is_rejected(
     await _assert_error(
         ArtifactErrorCode.RESPONSE_INVALID,
         fake_hass,
-        _FakeSession([_FakeResponse(headers=headers)]),
+        FakeSession([_FakeResponse(headers=headers)]),
     )
 
 
@@ -579,7 +523,7 @@ async def test_duplicate_content_headers_are_rejected(
     await _assert_error(
         ArtifactErrorCode.RESPONSE_INVALID,
         fake_hass,
-        _FakeSession([_FakeResponse(headers=headers, declared_length=len(_BODY))]),
+        FakeSession([_FakeResponse(headers=headers, declared_length=len(_BODY))]),
     )
 
 
@@ -593,7 +537,7 @@ async def test_duplicate_identity_content_encoding_is_rejected(
     await _assert_error(
         ArtifactErrorCode.RESPONSE_INVALID,
         fake_hass,
-        _FakeSession([_FakeResponse(headers=headers)]),
+        FakeSession([_FakeResponse(headers=headers)]),
     )
 
 
@@ -605,7 +549,7 @@ async def test_non_integer_response_length_is_rejected(
     await _assert_error(
         ArtifactErrorCode.RESPONSE_INVALID,
         fake_hass,
-        _FakeSession([_FakeResponse(declared_length=declared_length)]),
+        FakeSession([_FakeResponse(declared_length=declared_length)]),
     )
 
 
@@ -615,7 +559,7 @@ async def test_declared_length_must_equal_signed_size(
     await _assert_error(
         ArtifactErrorCode.SIZE_MISMATCH,
         fake_hass,
-        _FakeSession(
+        FakeSession(
             [
                 _FakeResponse(
                     headers=CIMultiDict({"Content-Length": "1"}),
@@ -632,7 +576,7 @@ async def test_header_and_parsed_content_length_must_agree(
     await _assert_error(
         ArtifactErrorCode.RESPONSE_INVALID,
         fake_hass,
-        _FakeSession(
+        FakeSession(
             [
                 _FakeResponse(
                     headers=CIMultiDict({"Content-Length": str(len(_BODY))}),
@@ -648,7 +592,7 @@ async def test_parsed_content_length_without_raw_header_is_accepted(
 ) -> None:
     await async_download_install_artifact(
         fake_hass,
-        _FakeSession([_FakeResponse(declared_length=len(_BODY))]),
+        FakeSession([_FakeResponse(declared_length=len(_BODY))]),
         _release(),
         _JOB_ID,
     )
@@ -667,7 +611,7 @@ async def test_actual_stream_shape_is_exact(
     chunks: list[bytes | str],
     code: ArtifactErrorCode,
 ) -> None:
-    await _assert_error(code, fake_hass, _FakeSession([_FakeResponse(chunks=chunks)]))
+    await _assert_error(code, fake_hass, FakeSession([_FakeResponse(body=chunks)]))
 
 
 async def test_hard_maximum_is_enforced_independently(
@@ -679,7 +623,7 @@ async def test_hard_maximum_is_enforced_independently(
     await _assert_error(
         ArtifactErrorCode.TOO_LARGE,
         fake_hass,
-        _FakeSession([_FakeResponse(chunks=[_BODY + b"x"])]),
+        FakeSession([_FakeResponse(body=[_BODY + b"x"])]),
     )
 
 
@@ -691,7 +635,7 @@ async def test_digest_mismatch_never_creates_ready_file(
     await _assert_error(
         ArtifactErrorCode.DIGEST_MISMATCH,
         fake_hass,
-        _FakeSession([_FakeResponse(chunks=[different])]),
+        FakeSession([_FakeResponse(body=[different])]),
     )
 
     assert not _custody_directory(fake_hass).joinpath(f"{_JOB_ID}.apk").exists()
@@ -703,7 +647,7 @@ async def test_network_and_timeout_errors_are_stable_and_clean_partial(
     await _assert_error(
         ArtifactErrorCode.DOWNLOAD_FAILED,
         fake_hass,
-        _FakeSession(error=ClientConnectionError("private detail")),
+        FakeSession(error=ClientConnectionError("private detail")),
     )
 
 
@@ -718,7 +662,7 @@ async def test_overall_timeout_cleans_partial(
         _assert_error(
             ArtifactErrorCode.TIMEOUT,
             fake_hass,
-            _FakeSession([_FakeResponse(content=content)]),
+            FakeSession([_FakeResponse(content=content)]),
         ),
         timeout=1,
     )
@@ -732,10 +676,10 @@ async def test_unexpected_stream_failure_propagates_after_cleanup(
     with pytest.raises(RuntimeError, match="programming failure"):
         await async_download_install_artifact(
             fake_hass,
-            _FakeSession(
+            FakeSession(
                 [
                     _FakeResponse(
-                        content=_FakeContent(error=RuntimeError("programming failure"))
+                        content=FakeContent(error=RuntimeError("programming failure"))
                     )
                 ]
             ),
@@ -746,8 +690,8 @@ async def test_unexpected_stream_failure_propagates_after_cleanup(
     await _assert_error(
         ArtifactErrorCode.TIMEOUT,
         fake_hass,
-        _FakeSession(
-            [_FakeResponse(content=_FakeContent(error=TimeoutError("private detail")))]
+        FakeSession(
+            [_FakeResponse(content=FakeContent(error=TimeoutError("private detail")))]
         ),
         job_id=_OTHER_JOB_ID,
     )
@@ -765,7 +709,7 @@ async def test_existing_partial_is_busy_and_not_removed(
     await _assert_error(
         ArtifactErrorCode.BUSY,
         fake_hass,
-        _FakeSession(),
+        FakeSession(),
         partial_removed=False,
     )
 
@@ -785,7 +729,7 @@ async def test_ready_and_partial_together_fail_closed(
     await _assert_error(
         ArtifactErrorCode.PATH_INVALID,
         fake_hass,
-        _FakeSession(),
+        FakeSession(),
         partial_removed=False,
     )
 
@@ -809,7 +753,7 @@ async def test_unexpected_path_types_fail_closed(
         target.write_bytes(_BODY)
         ready.symlink_to(target)
 
-    await _assert_error(ArtifactErrorCode.PATH_INVALID, fake_hass, _FakeSession())
+    await _assert_error(ArtifactErrorCode.PATH_INVALID, fake_hass, FakeSession())
 
 
 async def test_symlink_directory_is_rejected_without_touching_target(
@@ -821,7 +765,7 @@ async def test_symlink_directory_is_rejected_without_touching_target(
     directory = _custody_directory(fake_hass)
     directory.symlink_to(outside, target_is_directory=True)
 
-    await _assert_error(ArtifactErrorCode.PATH_INVALID, fake_hass, _FakeSession())
+    await _assert_error(ArtifactErrorCode.PATH_INVALID, fake_hass, FakeSession())
 
     assert list(outside.iterdir()) == []
 
@@ -833,7 +777,7 @@ async def test_cancellation_removes_partial_and_propagates(
     task = asyncio.create_task(
         async_download_install_artifact(
             fake_hass,
-            _FakeSession([_FakeResponse(content=content)]),
+            FakeSession([_FakeResponse(content=content)]),
             _release(),
             _JOB_ID,
         )
@@ -865,7 +809,7 @@ async def test_cancellation_after_promotion_keeps_verified_ready_file(
     monkeypatch.setattr(install_artifacts, "_promote_partial", _slow_promote)
     task = asyncio.create_task(
         async_download_install_artifact(
-            fake_hass, _FakeSession([_FakeResponse()]), _release(), _JOB_ID
+            fake_hass, FakeSession([_FakeResponse()]), _release(), _JOB_ID
         )
     )
     assert await asyncio.to_thread(promoted.wait, 5)
@@ -895,7 +839,7 @@ async def test_cancelled_executor_future_and_repeated_task_cancel_clean_partial(
         return result
 
     monkeypatch.setattr(install_artifacts, "_prepare_destination", _slow_prepare)
-    session = _FakeSession()
+    session = FakeSession()
     task = asyncio.create_task(
         async_download_install_artifact(fake_hass, session, _release(), _JOB_ID)
     )
@@ -939,7 +883,7 @@ async def test_queued_executor_future_cancel_before_worker_start_does_not_hang(
     blocker_future = fake_hass.async_add_executor_job(_block_executor)
     assert await asyncio.to_thread(blocker_started.wait, 5)
     task = asyncio.create_task(
-        async_download_install_artifact(fake_hass, _FakeSession(), _release(), _JOB_ID)
+        async_download_install_artifact(fake_hass, FakeSession(), _release(), _JOB_ID)
     )
     try:
         await _wait_for_executor_count(fake_hass, 2)
@@ -967,7 +911,7 @@ async def test_cancelled_queued_abandonment_is_resubmitted_and_cleans_partial(
     task = asyncio.create_task(
         async_download_install_artifact(
             fake_hass,
-            _FakeSession([_FakeResponse(content=content)]),
+            FakeSession([_FakeResponse(content=content)]),
             _release(),
             _JOB_ID,
         )
@@ -1016,7 +960,7 @@ async def test_second_cancellation_during_close_cannot_skip_partial_unlink(
     task = asyncio.create_task(
         async_download_install_artifact(
             fake_hass,
-            _FakeSession([_FakeResponse(content=content)]),
+            FakeSession([_FakeResponse(content=content)]),
             _release(),
             _JOB_ID,
         )
@@ -1072,7 +1016,7 @@ async def test_prepare_directory_close_failure_cleans_fd_and_path_before_error(
         original_close(file_fd)
 
     monkeypatch.setattr(install_artifacts, "_close_file", _fail_first_directory_close)
-    session = _FakeSession()
+    session = FakeSession()
 
     await _assert_error(
         ArtifactErrorCode.IO_FAILED,
@@ -1092,7 +1036,7 @@ async def test_prepare_directory_close_failure_cleans_fd_and_path_before_error(
 
     monkeypatch.undo()
     result = await async_download_install_artifact(
-        fake_hass, _FakeSession([_FakeResponse()]), _release(), _JOB_ID
+        fake_hass, FakeSession([_FakeResponse()]), _release(), _JOB_ID
     )
     assert await asyncio.to_thread(Path(result.path).read_bytes) == _BODY
 
@@ -1503,11 +1447,11 @@ async def test_io_failure_code_does_not_disclose_private_path(
 
     monkeypatch.setattr(os, "mkdir", _fail_prepare)
 
-    await _assert_error(ArtifactErrorCode.IO_FAILED, fake_hass, _FakeSession())
+    await _assert_error(ArtifactErrorCode.IO_FAILED, fake_hass, FakeSession())
 
     try:
         await async_download_install_artifact(
-            fake_hass, _FakeSession(), _release(), _OTHER_JOB_ID
+            fake_hass, FakeSession(), _release(), _OTHER_JOB_ID
         )
     except ArtifactCustodyError as err:
         assert private_detail not in str(err)
@@ -1851,7 +1795,7 @@ async def test_directory_fsync_failure_removes_promoted_ready_and_allows_retry(
     await _assert_error(
         ArtifactErrorCode.IO_FAILED,
         fake_hass,
-        _FakeSession([_FakeResponse()]),
+        FakeSession([_FakeResponse()]),
     )
     directory = _custody_directory(fake_hass)
     assert not directory.joinpath(f"{_JOB_ID}.apk").exists()
@@ -1859,7 +1803,7 @@ async def test_directory_fsync_failure_removes_promoted_ready_and_allows_retry(
 
     monkeypatch.undo()
     result = await async_download_install_artifact(
-        fake_hass, _FakeSession([_FakeResponse()]), _release(), _JOB_ID
+        fake_hass, FakeSession([_FakeResponse()]), _release(), _JOB_ID
     )
     assert await asyncio.to_thread(Path(result.path).read_bytes) == _BODY
 
@@ -1894,7 +1838,7 @@ async def test_final_rehash_failure_removes_corrupt_ready_and_allows_retry(
     await _assert_error(
         ArtifactErrorCode.READY_INVALID,
         fake_hass,
-        _FakeSession([_FakeResponse()]),
+        FakeSession([_FakeResponse()]),
     )
     directory = _custody_directory(fake_hass)
     assert not directory.joinpath(f"{_JOB_ID}.apk").exists()
@@ -1902,7 +1846,7 @@ async def test_final_rehash_failure_removes_corrupt_ready_and_allows_retry(
 
     monkeypatch.undo()
     result = await async_download_install_artifact(
-        fake_hass, _FakeSession([_FakeResponse()]), _release(), _JOB_ID
+        fake_hass, FakeSession([_FakeResponse()]), _release(), _JOB_ID
     )
     assert await asyncio.to_thread(Path(result.path).read_bytes) == _BODY
 
