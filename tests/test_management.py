@@ -8,10 +8,12 @@ for a panel that does not offer it.
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
+from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -147,6 +149,84 @@ async def test_a_session_read_that_fails_never_falls_back_to_http_data(
     # The address answered, so HTTP-carried operations still may run.
     assert coordinator.reachable
     assert coordinator.available
+
+
+async def _probe_answering_after(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    panel: Panel,
+    change: Any,
+    *,
+    answered: bool = True,
+) -> None:
+    """Refresh once while the address probe's health read is still in flight
+    when ``change`` happens; the stale health then answers as this panel."""
+
+    async def health_after_change(_client: HaPaneldClient) -> Any:
+        change()
+        await asyncio.sleep(0)
+        return HEALTH
+
+    with patch.multiple(
+        HaPaneldClient,
+        async_get_health=health_after_change,
+        async_get_status=AsyncMock(return_value=STATUS),
+    ):
+        refresh = asyncio.ensure_future(entry.runtime_data.coordinator.async_refresh())
+        if answered:
+            request = await panel.manage()
+            await panel.answer(
+                request,
+                "applied",
+                result={"health": HEALTH_LINE, "status": STATUS_BODY},
+            )
+        await refresh
+        await hass.async_block_till_done()
+
+
+async def test_an_address_edited_during_the_probe_is_not_called_reachable(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+) -> None:
+    entry = await _load(hass, hass_read_only_user.id)
+    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token, MANAGED)
+
+    await _probe_answering_after(
+        hass,
+        entry,
+        panel,
+        lambda: hass.config_entries.async_update_entry(
+            entry, data={**entry.data, CONF_ADDRESS: "192.168.1.77"}
+        ),
+    )
+
+    coordinator = entry.runtime_data.coordinator
+    # The snapshot still arrived over the session; only the probe is void.
+    assert coordinator.last_update_success
+    assert not coordinator.reachable
+
+
+async def test_a_session_replaced_during_the_probe_is_not_called_reachable(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+) -> None:
+    entry = await _load(hass, hass_read_only_user.id)
+    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token, MANAGED)
+    sessions = async_get_sessions(hass)
+    live = sessions.get(entry.entry_id)
+    assert live is not None
+
+    def replace_session() -> None:
+        sessions.open(dataclasses.replace(live, token="newer-session"))
+
+    # The old session is closed before its read is sent, so nothing is asked.
+    await _probe_answering_after(hass, entry, panel, replace_session, answered=False)
+
+    assert not entry.runtime_data.coordinator.reachable
 
 
 async def test_a_status_body_over_the_http_bound_is_refused(

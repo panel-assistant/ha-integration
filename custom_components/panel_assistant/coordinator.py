@@ -237,17 +237,32 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         Only the operations still carried over HTTP need it, and the address
         repair follows from it. Delete it with them.
         """
+        entry = self._entry()
         address = self.client.address
+        stored_value = entry.data[CONF_ADDRESS] if entry is not None else None
+
+        def retired() -> bool:
+            # An address edit, a moved-panel adoption, a removed entry or a newer
+            # session during the read leaves this answer no authority.
+            return (
+                self._entry() is not entry
+                or self.client.address != address
+                or (entry is not None and entry.data[CONF_ADDRESS] != stored_value)
+                or self._session() is not session
+            )
+
         try:
             health: PanelHealth | None = await self.client.async_get_health()
         except HaPaneldError:
             health = None
-        if health is None or health.discovery_id != session.did:
-            if self.client.address != address:
-                return False
-            health = await self._async_recover_address()
-        if health is None:
+        if retired():
             return False
+        if health is None or health.discovery_id != session.did:
+            # Recovery fences its own answer (entry, address and session) after
+            # its I/O, and moves the address when it adopts one.
+            health = await self._async_recover_address()
+            if health is None:
+                return False
         if self._entry_id is not None:
             async_delete_address_issue(self.hass, self._entry_id)
         return True
