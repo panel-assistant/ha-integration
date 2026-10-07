@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncGenerator, Callable
 from dataclasses import replace
+from datetime import timedelta
 from ipaddress import ip_address
 from types import SimpleNamespace
 from typing import Any
@@ -30,7 +31,11 @@ from homeassistant.helpers.translation import (
     async_get_translations,
     async_translate_state,
 )
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
 
 from custom_components.panel_assistant.address import (
     ISSUE_PANEL_ADDRESS_UNREACHABLE,
@@ -335,7 +340,8 @@ async def test_restart_notice_expires_to_unavailable_without_a_return(
             "session": session.token,
             "scope": "panel",
             "reason": "reboot",
-            "expected_back_ms": 1000,
+            # Long enough that no loaded host reaches it before the fake clock does.
+            "expected_back_ms": 60_000,
         }
     )
     assert (await client.receive_json())["success"]
@@ -352,7 +358,7 @@ async def test_restart_notice_expires_to_unavailable_without_a_return(
     assert listed["result"]["panels"][0]["state"] == "restarting"
     assert listed["result"]["panels"][0]["reason"] == "reboot"
 
-    await asyncio.sleep(1.05)
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=61))
     await hass.async_block_till_done()
     assert _state(hass, STATUS_ENTITY) == STATE_UNAVAILABLE
     await admin.send_json_auto_id({"type": "panel_assistant/embed_panels"})
