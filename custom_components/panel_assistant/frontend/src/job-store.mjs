@@ -1,4 +1,5 @@
 import { parseUnauthenticatedDescriptor } from './release-verifier.mjs';
+import { hex, newNonce } from './shared.mjs';
 
 // Receipts are local progress records, never authenticated release or target proof.
 const STORE = 'jobs';
@@ -90,8 +91,7 @@ function decode(raw, deviceKey) {
 async function keyFor(target) {
   const canonical = JSON.stringify([target.usbVendorId, target.usbProductId,
     target.usbSerial, target.serial]);
-  return [...new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(canonical)))]
-    .map(byte => byte.toString(16).padStart(2, '0')).join('');
+  return hex(await crypto.subtle.digest('SHA-256', encoder.encode(canonical)));
 }
 // Lookup a receipt before deciding between clean preflight and installed-job
 // reconciliation. Only USB metadata plus Android serial form this stable key.
@@ -176,8 +176,7 @@ export async function openJobStore(name = 'ha-paneld-usb-jobs-v1') {
       if (!['prepared', 'installed'].includes(phase)) fail('job_transition_invalid');
       const snapshot = targetSnapshot(target);
       const descriptor = artifactSnapshot(artifact, snapshot);
-      const id = [...crypto.getRandomValues(new Uint8Array(16))]
-        .map(byte => byte.toString(16).padStart(2, '0')).join('');
+      const id = newNonce();
       const receipt = validate({ schema: 1, id, deviceKey: await keyFor(snapshot),
         revision: 0, phase, target: snapshot, artifact: descriptor });
       return transaction('readwrite', (store, done, abort) => {

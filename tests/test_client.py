@@ -448,6 +448,22 @@ def test_parse_panel_install_status_keeps_only_progress_ownership() -> None:
     assert status.component == "ha-paneld"
 
 
+@pytest.mark.parametrize(
+    "body",
+    [
+        b'{"running":true,"running":false,"component":"ha-paneld"}',
+        b'{"running":true,"component":"ha-paneld","progress":NaN}',
+        b'{"running":true,"component":"ha-paneld","progress":-Infinity}',
+    ],
+)
+def test_panel_json_with_a_duplicate_key_or_non_finite_number_is_refused(
+    body: bytes,
+) -> None:
+    """Order-dependent or non-standard panel JSON is refused, never resolved."""
+    with pytest.raises(InvalidResponseError):
+        parse_panel_install_status(body)
+
+
 def test_status_parser_projects_every_device_card_fact() -> None:
     """The device projection fills the card and stays presentation-only."""
     status = parse_status_response(

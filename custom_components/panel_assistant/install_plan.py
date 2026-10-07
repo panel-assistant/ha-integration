@@ -8,11 +8,6 @@ import socket
 from dataclasses import dataclass
 from enum import StrEnum
 
-from .app_identity import (
-    INSTALL_DESCRIPTOR_SCHEMAS,
-    is_accepted_package_id,
-    is_launch_component,
-)
 from .client import InvalidAddressError, PanelAddress, normalize_address
 from .install_jobs import (
     InstallArtifact,
@@ -23,30 +18,22 @@ from .install_jobs import (
 from .install_network import PinnedPanelTarget, is_allowed_install_address
 from .provisioning import InstallTargetProbe, InstallTargetState
 from .release import (
+    _SHA256_PATTERN,
     InstallDescriptor,
     ReleaseArtifact,
-    artifact_identity_matches,
+    install_descriptor_valid,
     is_feed_build_tag,
     is_install_release_tag,
 )
 from .update_policy import build_allowed, prereleases_allowed
 
-_RELEASE_SIGNER_SHA256 = (
-    "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
-)
-_SUPPORTED_ABIS = ("arm64-v8a", "armeabi-v7a")
-_MAX_APK_BYTES = 64 * 1024 * 1024
 _MAX_SDK = 100
 _MAX_ADDRESS_LENGTH = 255
 _MAX_MODEL_LENGTH = 128
 _MAX_APK_NAME_LENGTH = 255
 _MAX_RELEASE_TEXT_LENGTH = 128
-_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _ADB_SERIAL = re.compile(r"^[A-Za-z0-9._:-]{1,128}$", flags=re.ASCII)
 _ABI = re.compile(r"^[A-Za-z0-9_.-]{1,64}$", flags=re.ASCII)
-_DATABASE_COMPATIBILITY = re.compile(
-    r"^hapaneld-db:v1:ha-paneld\.db:([1-9][0-9]*):([1-9][0-9]*)$"
-)
 _DNS_LABEL = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
 
 
@@ -215,53 +202,16 @@ def _build_artifact(
         raise InstallPlanError(InstallPlanErrorCode.INVALID_RELEASE)
 
     release_tag = _safe_text(descriptor.release_tag, _MAX_RELEASE_TEXT_LENGTH)
-    version_name = _safe_text(descriptor.version_name, _MAX_RELEASE_TEXT_LENGTH)
-    apk_name = _safe_text(descriptor.apk_name, _MAX_APK_NAME_LENGTH)
-    apk_sha256 = _safe_text(descriptor.apk_sha256, 64)
-    signer = _safe_text(descriptor.signer_certificate_sha256, 64)
-    database = _safe_text(descriptor.database_compatibility, 128)
-    version_code = _bounded_integer(descriptor.version_code, 1, 2**31 - 1)
-    apk_size = _bounded_integer(descriptor.apk_size, 1, _MAX_APK_BYTES)
-    min_sdk = _bounded_integer(descriptor.min_sdk, 1, _MAX_SDK)
-    database_match = (
-        _DATABASE_COMPATIBILITY.fullmatch(database) if database is not None else None
-    )
-    database_bounds: tuple[int, int] | None = None
-    if database_match is not None and all(
-        len(group) <= 10 for group in database_match.groups()
-    ):
-        database_bounds = (
-            int(database_match.group(1)),
-            int(database_match.group(2)),
-        )
-
     if (
-        descriptor.schema not in INSTALL_DESCRIPTOR_SCHEMAS
+        not install_descriptor_valid(descriptor)
         or release_tag is None
-        or not artifact_identity_matches(
-            release_tag,
-            version_name,
-            version_code,
-            apk_name,
-            apk_sha256,
-            descriptor.package_id,
-        )
+        or _safe_text(descriptor.version_name, _MAX_RELEASE_TEXT_LENGTH) is None
+        or _safe_text(descriptor.apk_name, _MAX_APK_NAME_LENGTH) is None
         or not _selection_matches(release_tag, expected_rc_tag)
-        or apk_sha256 is None
-        or _SHA256.fullmatch(apk_sha256) is None
-        or signer != _RELEASE_SIGNER_SHA256
-        or not is_accepted_package_id(descriptor.package_id)
-        or descriptor.supported_abis != _SUPPORTED_ABIS
-        or database_bounds is None
-        or not 1 <= database_bounds[0] <= database_bounds[1] <= 2**31 - 1
-        or not is_launch_component(descriptor.package_id, descriptor.launch_component)
-        or version_code is None
-        or apk_size is None
-        or min_sdk is None
         or release.tag != release_tag
-        or release.version != version_name
-        or release.apk_name != apk_name
-        or release.sha256 != apk_sha256
+        or release.version != descriptor.version_name
+        or release.apk_name != descriptor.apk_name
+        or release.sha256 != descriptor.apk_sha256
     ):
         raise InstallPlanError(InstallPlanErrorCode.INVALID_RELEASE)
 
@@ -324,7 +274,7 @@ def build_install_plan(
         raise InstallPlanError(InstallPlanErrorCode.PROBE_NOT_INSTALL_CANDIDATE)
     if (
         not isinstance(adb_credential_id, str)
-        or _SHA256.fullmatch(adb_credential_id) is None
+        or _SHA256_PATTERN.fullmatch(adb_credential_id) is None
     ):
         raise InstallPlanError(InstallPlanErrorCode.INVALID_CREDENTIAL)
     if (

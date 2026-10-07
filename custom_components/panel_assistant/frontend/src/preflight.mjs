@@ -1,6 +1,7 @@
 /** Fixed read-only inventory. A clean result is not permission to install. */
 export const MAX_PREFLIGHT_BYTES = 32 * 1024;
 import { ACCEPTED_PACKAGE_IDS } from './app-identity.mjs';
+import { fullMatch } from './shared.mjs';
 
 const BASES = ['/data/user/0', '/data/data', '/data/user_de/0'];
 // Either accepted application's data makes a target unclean.
@@ -22,9 +23,6 @@ export class PreflightError extends Error {
   constructor(code) { super(code); this.code = code; }
 }
 function fail(code = 'target_response_invalid') { throw new PreflightError(code); }
-function fullMatch(pattern, value) {
-  return typeof value === 'string' && pattern.exec(value)?.[0] === value;
-}
 function checkNonce(nonce) {
   if (!fullMatch(/^[0-9a-f]{32}$/, nonce)) fail('invalid_request');
 }

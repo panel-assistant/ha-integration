@@ -5,7 +5,7 @@ export class TransactionError extends Error {
   constructor(code) { super(code); this.code = code; }
 }
 
-function same(left, right) {
+export function same(left, right) {
   if (left === right) return true;
   if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
   const keys = Object.keys(left);

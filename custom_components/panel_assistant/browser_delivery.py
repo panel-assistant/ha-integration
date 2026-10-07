@@ -29,7 +29,7 @@ from .build_feed import FeedInstallBundle
 from .client import HaPaneldClient, InvalidAddressError, PanelAddress, normalize_address
 from .const import DEFAULT_PORT, DOMAIN
 from .ha_url import async_offer_ha_url
-from .release import is_feed_build_tag, is_install_release_tag
+from .release import is_feed_build_tag, is_install_release_tag, unique_json_object
 from .release_catalog import async_list_install_choices
 
 DATA_BROWSER_DELIVERY = "browser_delivery"
@@ -51,15 +51,6 @@ def _cache_error(error: BrowserReleaseCacheError) -> web.Response:
     return _error(error.code.value, status)
 
 
-def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    result: dict[str, Any] = {}
-    for key, value in pairs:
-        if key in result:
-            raise ValueError
-        result[key] = value
-    return result
-
-
 async def _json_object(request: web.Request) -> dict[str, Any]:
     if (
         request.query
@@ -73,7 +64,7 @@ async def _json_object(request: web.Request) -> dict[str, Any]:
             body.extend(chunk)
             if len(body) > _BODY_LIMIT:
                 raise ValueError
-    value = json.loads(body, object_pairs_hook=_unique_object)
+    value = json.loads(body, object_pairs_hook=unique_json_object(ValueError))
     if not isinstance(value, dict):
         raise ValueError
     return value

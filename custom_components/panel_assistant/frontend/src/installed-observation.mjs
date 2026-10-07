@@ -1,5 +1,6 @@
 import { isAcceptedPackageId } from './app-identity.mjs';
 import { readShell } from './shell-session.mjs';
+import { newNonce } from './shared.mjs';
 
 export class InstalledObservationError extends Error {
   constructor(code) { super(code); this.code = code; }
@@ -68,7 +69,7 @@ export function parseInstalledObservation(body, nonce, descriptor) {
 
 export async function inspectInstalledApk(adb, descriptor, ensureCurrent = () => {}) {
   ensureCurrent();
-  const nonce = [...crypto.getRandomValues(new Uint8Array(16))].map(value => value.toString(16).padStart(2, '0')).join('');
+  const nonce = newNonce();
   const body = await readShell(adb, buildInstalledObservation(nonce, descriptor?.packageId),
     { timeoutMs: 30000 });
   ensureCurrent();

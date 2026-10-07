@@ -11,6 +11,7 @@ import { frontendMessages, formatFrontendMessage, installerLocale } from './fron
 import { handOverThenOpen, handoffOptions, receiveReleaseHandoff, requestSetupHandover } from './release-handoff.mjs';
 import { readSetupUrl } from './panel-address.mjs';
 import { renderJourney } from './wizard-look.mjs';
+import { newNonce } from './shared.mjs';
 
 // A guided wizard for people who have never used a terminal. One step is on
 // screen at a time; the single Install press is the consent for everything
@@ -54,8 +55,6 @@ let deadline;
 let rejectStop;
 const stopPromise = new Promise((_, reject) => { rejectStop = reject; });
 void stopPromise.catch(() => {});
-const newNonce = () => Array.from(crypto.getRandomValues(new Uint8Array(16)),
-  byte => byte.toString(16).padStart(2, '0')).join('');
 
 // Where each screen sits in the whole journey. Version was chosen in Home
 // Assistant; Set up continues on the panel's own wizard. An error stays put.

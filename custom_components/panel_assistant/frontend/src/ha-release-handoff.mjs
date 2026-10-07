@@ -1,5 +1,6 @@
 import { frontendLocale } from './frontend-localization.mjs';
 import { MAX_FEED_BYTES, MAX_TAG_LENGTH, isBuildTag, isGithubTag } from './release-identity.mjs';
+import { exactKeys, fullMatch, newNonce } from './shared.mjs';
 
 const API = '/api/panel_assistant/usb/release';
 // The installer page reads the panel's address over USB but holds no Home
@@ -20,10 +21,6 @@ const FIELDS = ['id', 'tag', 'checksum', 'checksum_signature', 'descriptor',
 const FEED_FIELDS = ['id', 'tag', 'feed', 'feed_signature', 'apk_size', 'apk_sha256'];
 const MAX_METADATA = 8192;
 const MAX_FEED_METADATA = Math.ceil(MAX_FEED_BYTES / 3) * 4 + MAX_METADATA;
-const matches = (pattern, value) => typeof value === 'string' && pattern.exec(value)?.[0] === value;
-const keys = (value, expected) => value !== null && typeof value === 'object' &&
-  !Array.isArray(value) && Object.keys(value).length === expected.length &&
-  expected.every((key) => Object.hasOwn(value, key));
 export class HandoffError extends Error {
   constructor(code) { super(code); this.name = 'HandoffError'; this.code = code; }
 }
@@ -32,17 +29,18 @@ function requireValid(value, code = 'invalid_response') {
 }
 function decode(value, maximum, exact = false) {
   requireValid(typeof value === 'string' && value.length <= Math.ceil(maximum / 3) * 4 &&
-    matches(/(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?/, value));
+    fullMatch(/(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?/, value));
   const raw = atob(value);
   requireValid(btoa(raw) === value && raw.length > 0 &&
     (exact ? raw.length === maximum : raw.length <= maximum));
   return Uint8Array.from(raw, (character) => character.charCodeAt(0));
 }
-async function readBounded(response, limit, signal, exactSize = null) {
+/** Read one whole 200 response body within a byte limit, or throw HandoffError. */
+export async function readBoundedResponse(response, limit, signal, exactSize = null) {
   requireValid(response.status === 200 && !response.redirected && response.body);
   const length = response.headers.get('content-length');
   if (length !== null) {
-    requireValid(matches(/0|[1-9][0-9]*/, length));
+    requireValid(fullMatch(/0|[1-9][0-9]*/, length));
     const size = Number(length);
     requireValid(Number.isSafeInteger(size) && size <= limit &&
       (exactSize === null || size === exactSize));
@@ -123,17 +121,17 @@ export function startReleaseHandoff(hass, installerUrl, {
       });
       requireValid(!finished, 'cancelled');
       requireValid(response.headers.get('content-type')?.split(';')[0].trim() === 'application/json');
-      const metadataBytes = await readBounded(response, MAX_FEED_METADATA, controller.signal);
+      const metadataBytes = await readBoundedResponse(response, MAX_FEED_METADATA, controller.signal);
       let metadata;
       try { metadata = JSON.parse(await metadataBytes.text()); }
       catch { throw new HandoffError('invalid_response'); }
       const feed = isBuildTag(metadata?.tag);
       requireValid(feed || metadataBytes.size <= MAX_METADATA);
       requireValid(!finished, 'cancelled');
-      requireValid(keys(metadata, feed ? FEED_FIELDS : FIELDS) && matches(/[0-9a-f]{32}/, metadata.id) &&
+      requireValid(exactKeys(metadata, feed ? FEED_FIELDS : FIELDS) && fullMatch(/[0-9a-f]{32}/, metadata.id) &&
         typeof metadata.tag === 'string' && metadata.tag.length <= MAX_TAG_LENGTH &&
         (rcTag === null ? (isGithubTag(metadata.tag) || isBuildTag(metadata.tag)) : metadata.tag === rcTag) &&
-        matches(/[0-9a-f]{64}/, metadata.apk_sha256) &&
+        fullMatch(/[0-9a-f]{64}/, metadata.apk_sha256) &&
         Number.isSafeInteger(metadata.apk_size) && metadata.apk_size > 0 && metadata.apk_size <= MAX_APK);
       const bundle = feed ? {
         tag: metadata.tag, feed: decode(metadata.feed, MAX_FEED_BYTES),
@@ -150,7 +148,7 @@ export function startReleaseHandoff(hass, installerUrl, {
         method: 'GET', redirect: 'error', signal: controller.signal,
       });
       requireValid(!finished, 'cancelled');
-      const apk = await readBounded(apkResponse, MAX_APK, controller.signal, metadata.apk_size);
+      const apk = await readBoundedResponse(apkResponse, MAX_APK, controller.signal, metadata.apk_size);
       requireValid(!finished && !child.closed, 'window_closed');
       sent = true;
       deliveredSha256 = metadata.apk_sha256;
@@ -165,8 +163,8 @@ export function startReleaseHandoff(hass, installerUrl, {
   // Keep the original selection: a default RC must not become explicit consent.
   async function admit(data) {
     if (!finished || !delivered || child.closed ||
-        !keys(data, ['type', 'nonce', 'requestId', 'tag', 'apkSha256']) ||
-        !matches(/[0-9a-f]{32}/, data.requestId)) return;
+        !exactKeys(data, ['type', 'nonce', 'requestId', 'tag', 'apkSha256']) ||
+        !fullMatch(/[0-9a-f]{32}/, data.requestId)) return;
     let admitted = false;
     try {
       requireValid(data.tag === delivered.bundle.tag && data.apkSha256 === deliveredSha256);
@@ -177,10 +175,10 @@ export function startReleaseHandoff(hass, installerUrl, {
         redirect: 'error', signal,
       });
       requireValid(response.headers.get('content-type')?.split(';')[0].trim() === 'application/json');
-      const metadata = JSON.parse(await (await readBounded(response,
+      const metadata = JSON.parse(await (await readBoundedResponse(response,
         isBuildTag(data.tag) ? MAX_FEED_METADATA : MAX_METADATA, signal)).text());
-      requireValid(keys(metadata, isBuildTag(data.tag) ? FEED_FIELDS : FIELDS) &&
-        matches(/[0-9a-f]{32}/, metadata.id) && metadata.tag === data.tag &&
+      requireValid(exactKeys(metadata, isBuildTag(data.tag) ? FEED_FIELDS : FIELDS) &&
+        fullMatch(/[0-9a-f]{32}/, metadata.id) && metadata.tag === data.tag &&
         metadata.apk_sha256 === data.apkSha256 && metadata.apk_size === delivered.apk.size);
       admitted = true;
     } catch { /* Offline PA or changed admission closes the mutation path. */ }
@@ -193,7 +191,7 @@ export function startReleaseHandoff(hass, installerUrl, {
   // Only for the window that verified the bundle this one is still serving.
   async function handOver(data) {
     if (handingOver || !finished || !delivered || child.closed ||
-      !keys(data, ['type', 'nonce', 'address']) || !matches(IPV4, data.address)) return;
+      !exactKeys(data, ['type', 'nonce', 'address']) || !fullMatch(IPV4, data.address)) return;
     handingOver = true;
     const reply = (type, extra = {}) => {
       try { if (!child.closed) child.postMessage({ type, nonce, ...extra }, targetOrigin); } catch { /* window gone */ }
@@ -210,7 +208,7 @@ export function startReleaseHandoff(hass, installerUrl, {
       });
       const body = await response.json().catch(() => null);
       const answer = response.status === 200 ? body?.outcome : body?.error;
-      outcome = matches(OUTCOME, answer) ? answer : `http_${response.status}`;
+      outcome = fullMatch(OUTCOME, answer) ? answer : `http_${response.status}`;
     } catch {
       outcome = 'request_failed';
     } finally {
@@ -228,7 +226,7 @@ export function startReleaseHandoff(hass, installerUrl, {
       void handOver(event.data);
       return;
     }
-    if (!keys(event.data, ['type', 'nonce']) || event.data.nonce !== nonce) return;
+    if (!exactKeys(event.data, ['type', 'nonce']) || event.data.nonce !== nonce) return;
     if (event.data.type === 'ha-paneld/usb-ready') {
       if (!acceptedReady && !finished) { acceptedReady = true; void deliver(); }
       // The same window reloaded: hand it the same verified bytes again.
@@ -249,9 +247,7 @@ export function startReleaseHandoff(hass, installerUrl, {
         ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname))), 'invalid_destination');
     url.searchParams.set('lang', frontendLocale(language));
     targetOrigin = url.origin;
-    const random = new Uint8Array(16);
-    windowObject.crypto.getRandomValues(random);
-    nonce = Array.from(random, (value) => value.toString(16).padStart(2, '0')).join('');
+    nonce = newNonce(windowObject.crypto);
     url.hash = new URLSearchParams({ ha_origin: windowObject.location.origin, nonce, rc: rcTag ?? '' }).toString();
     windowObject.addEventListener('message', receive);
     child = windowObject.open(url.href, '_blank');

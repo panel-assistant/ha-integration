@@ -1,9 +1,8 @@
 import { verifyApkBundle } from './apk-verifier.mjs';
 import { MAX_FEED_BYTES, MAX_TAG_LENGTH, isBuildTag, isGithubTag } from './release-identity.mjs';
+import { exactKeys, newNonce } from './shared.mjs';
 
 const fail = () => { throw new Error('handoff_invalid'); };
-const keys = (value, expected) => value && typeof value === 'object' && !Array.isArray(value) &&
-  Object.keys(value).sort().join(',') === [...expected].sort().join(',');
 
 export function handoffOptions(hash) {
   if (!hash) return null;
@@ -24,8 +23,8 @@ const FEED_BYTES = { feed: MAX_FEED_BYTES, feedSignature: 256 };
 
 function snapshot(message) {
   const limits = isBuildTag(message.bundle?.tag) ? FEED_BYTES : GITHUB_BYTES;
-  if (!keys(message, ['type', 'nonce', 'bundle', 'apk']) ||
-      !keys(message.bundle, ['tag', ...Object.keys(limits)])) fail();
+  if (!exactKeys(message, ['type', 'nonce', 'bundle', 'apk']) ||
+      !exactKeys(message.bundle, ['tag', ...Object.keys(limits)])) fail();
   const bundle = { tag: message.bundle.tag };
   if (typeof bundle.tag !== 'string' || bundle.tag.length > MAX_TAG_LENGTH) fail();
   for (const [key, maximum] of Object.entries(limits)) {
@@ -73,7 +72,7 @@ export function receiveReleaseHandoff({ windowObject = window,
       const current = pending;
       pending = undefined;
       clearTimeout(timer);
-      if (!keys(event.data, ['type', 'nonce', 'requestId', 'tag', 'apkSha256', 'admitted']) ||
+      if (!exactKeys(event.data, ['type', 'nonce', 'requestId', 'tag', 'apkSha256', 'admitted']) ||
           event.data.tag !== current.tag || event.data.apkSha256 !== current.apkSha256 ||
           event.data.admitted !== true || source.closed) {
         current.reject(new Error('handoff_invalid'));
@@ -95,8 +94,7 @@ export function receiveReleaseHandoff({ windowObject = window,
       const authenticate = async () => {
         const verified = await verify();
         if (source.closed || pending) fail();
-        const requestId = [...windowObject.crypto.getRandomValues(new Uint8Array(16))]
-          .map(value => value.toString(16).padStart(2, '0')).join('');
+        const requestId = newNonce(windowObject.crypto);
         const { releaseTag: tag, apkSha256 } = verified.descriptor;
         await new Promise((resolve, reject) => {
           pending = { requestId, tag, apkSha256, resolve, reject };

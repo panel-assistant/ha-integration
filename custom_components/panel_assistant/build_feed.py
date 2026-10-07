@@ -25,7 +25,6 @@ from .app_identity import (
     is_launch_component,
 )
 from .release import (
-    _DATABASE_COMPATIBILITY_PATTERN,
     _MAX_ANDROID_SDK,
     _MAX_ANDROID_VERSION_CODE,
     _MAX_APK_BYTES,
@@ -40,14 +39,14 @@ from .release import (
     ReleaseResolutionError,
     _async_fetch_bounded,
     _bounded_integer,
-    _is_trusted_download_url,
-    _object_without_duplicates,
-    _reject_json_constant,
     _verify_detached_signature,
+    database_range_valid,
     feed_build_tag,
     is_install_release_tag,
+    is_trusted_download_url,
     parse_protocol_metadata,
     release_apk_name,
+    strict_json_hooks,
 )
 
 FEED_CHANNELS = frozenset({"maintainer", "beta"})
@@ -244,19 +243,6 @@ def _canonical(document: Any) -> bytes:
     ).encode("ascii")
 
 
-def _database_range_valid(value: object) -> bool:
-    """The same database range rule a release descriptor must meet."""
-    match = (
-        _DATABASE_COMPATIBILITY_PATTERN.fullmatch(value)
-        if isinstance(value, str)
-        else None
-    )
-    if match is None or any(len(group) > 10 for group in match.groups()):
-        return False
-    low, high = int(match.group(1)), int(match.group(2))
-    return 1 <= low <= high <= _MAX_ANDROID_VERSION_CODE
-
-
 def _parse_build(entry: Any, feed_url: URL) -> FeedBuild | None:
     if not isinstance(entry, dict) or entry.keys() != _BUILD_FIELDS:
         raise BuildFeedError
@@ -283,7 +269,7 @@ def _parse_build(entry: Any, feed_url: URL) -> FeedBuild | None:
         or _COMMIT_PATTERN.fullmatch(commit) is None
         or not isinstance(published, str)
         or _PUBLISHED_PATTERN.fullmatch(published) is None
-        or not _database_range_valid(compatibility)
+        or not database_range_valid(compatibility)
         or not isinstance(entry["packageId"], str)
         or not isinstance(entry["launchComponent"], str)
         or entry["signerCertificateSha256"] != _RELEASE_SIGNER_CERTIFICATE_SHA256
@@ -321,8 +307,7 @@ def parse_build_feed(body: bytes, signature: bytes, feed_url: URL) -> BuildFeed:
     try:
         document: Any = json.loads(
             body.decode("ascii"),
-            object_pairs_hook=_object_without_duplicates,
-            parse_constant=_reject_json_constant,
+            **strict_json_hooks(ReleaseResolutionError),
         )
     except (
         ReleaseResolutionError,
@@ -465,7 +450,7 @@ async def async_download_build(
             session,
             url,
             maximum_bytes,
-            allow_release_redirects=_is_trusted_download_url(url),
+            allow_release_redirects=is_trusted_download_url(url),
             headers=_APK_HEADERS,
             total_seconds=_APK_DOWNLOAD_SECONDS,
             read_seconds=_APK_READ_SECONDS,

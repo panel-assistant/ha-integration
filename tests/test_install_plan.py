@@ -8,9 +8,16 @@ from dataclasses import FrozenInstanceError, asdict, replace
 from unittest.mock import patch
 
 import pytest
+from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 
 from custom_components.panel_assistant import install_plan, update_policy
 from custom_components.panel_assistant.client import PanelAddress
+from custom_components.panel_assistant.install_adb import (
+    AdbInstallTarget,
+    InstallAdbError,
+    InstallAdbErrorCode,
+    async_preflight_install,
+)
 from custom_components.panel_assistant.install_jobs import InstallJobStoreError
 from custom_components.panel_assistant.install_network import PinnedPanelTarget
 from custom_components.panel_assistant.install_plan import (
@@ -23,6 +30,7 @@ from custom_components.panel_assistant.provisioning import (
     InstallTargetState,
 )
 from custom_components.panel_assistant.release import InstallDescriptor, ReleaseArtifact
+from tests.test_install_adb import _install_fakes
 
 APK_SHA256 = "a" * 64
 CREDENTIAL_ID = "b" * 64
@@ -464,7 +472,7 @@ def test_rejects_malformed_descriptor_object() -> None:
     )
 
 
-@pytest.mark.parametrize(
+MALFORMED_DESCRIPTOR_FIELDS = pytest.mark.parametrize(
     ("field", "value"),
     [
         ("schema", "future-schema"),
@@ -486,11 +494,36 @@ def test_rejects_malformed_descriptor_object() -> None:
         ("launch_component", "other/.MainActivity"),
     ],
 )
+
+
+@MALFORMED_DESCRIPTOR_FIELDS
 def test_rejects_malformed_descriptor(field: str, value: object) -> None:
     assert_error(
         InstallPlanErrorCode.INVALID_RELEASE,
         artifact=release(descriptor=descriptor(**{field: value})),
     )
+
+
+@MALFORMED_DESCRIPTOR_FIELDS
+async def test_the_adb_installer_refuses_what_the_plan_refuses(
+    monkeypatch: pytest.MonkeyPatch, field: str, value: object
+) -> None:
+    """One install contract: no descriptor the plan refuses reaches a panel."""
+    _install_fakes(monkeypatch, [])
+    target = AdbInstallTarget(
+        address=PanelAddress(host="192.168.1.23", port=8888),
+        serial="SERIAL-1",
+        model="Test Panel",
+        primary_abi="arm64-v8a",
+        android_sdk=34,
+    )
+    with pytest.raises(InstallAdbError) as caught:
+        await async_preflight_install(
+            target,
+            object.__new__(PythonRSASigner),
+            descriptor(**{field: value}),
+        )
+    assert caught.value.code is InstallAdbErrorCode.INVALID_REQUEST
 
 
 @pytest.mark.parametrize(

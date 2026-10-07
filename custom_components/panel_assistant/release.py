@@ -5,10 +5,11 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+from collections.abc import Callable, Collection
 from dataclasses import dataclass, replace
 from typing import Any, NoReturn
 
-from aiohttp import ClientError, ClientSession, ClientTimeout
+from aiohttp import ClientError, ClientResponse, ClientSession, ClientTimeout
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
@@ -85,6 +86,9 @@ _TRUSTED_DOWNLOAD_HOSTS = frozenset(
         "release-assets.githubusercontent.com",
     }
 )
+# A signed build feed serves only content-addressed APKs, still held to the
+# signed hash, so only that path is trusted on a feed's host.
+_FEED_APK_PATH = re.compile(r"^/(?:[^/?#]+/)*apks/[0-9a-f]{64}\.apk$")
 _API_HEADERS = {
     "Accept": "application/vnd.github+json",
     "Cache-Control": "no-cache",
@@ -266,6 +270,52 @@ def release_protocol_name(tag: str) -> str:
     return f"ha-paneld-{tag}-protocol.json"
 
 
+def database_range_valid(value: object) -> bool:
+    """The one database compatibility range rule a descriptor must meet."""
+    match = (
+        _DATABASE_COMPATIBILITY_PATTERN.fullmatch(value)
+        if isinstance(value, str)
+        else None
+    )
+    if match is None or any(len(group) > 10 for group in match.groups()):
+        return False
+    low, high = int(match.group(1)), int(match.group(2))
+    return 1 <= low <= high <= _MAX_ANDROID_VERSION_CODE
+
+
+def _integer_within(value: object, maximum: int) -> bool:
+    return (
+        not isinstance(value, bool) and isinstance(value, int) and 1 <= value <= maximum
+    )
+
+
+def install_descriptor_valid(descriptor: object) -> bool:
+    """The one install contract every typed descriptor meets before it is used."""
+    return (
+        isinstance(descriptor, InstallDescriptor)
+        and isinstance(descriptor.schema, str)
+        and descriptor.schema in INSTALL_DESCRIPTOR_SCHEMAS
+        and is_accepted_package_id(descriptor.package_id)
+        and is_launch_component(descriptor.package_id, descriptor.launch_component)
+        and descriptor.signer_certificate_sha256 == _RELEASE_SIGNER_CERTIFICATE_SHA256
+        and descriptor.supported_abis == _SUPPORTED_ABIS
+        and isinstance(descriptor.apk_sha256, str)
+        and _SHA256_PATTERN.fullmatch(descriptor.apk_sha256) is not None
+        and _integer_within(descriptor.apk_size, _MAX_APK_BYTES)
+        and _integer_within(descriptor.min_sdk, _MAX_ANDROID_SDK)
+        and _integer_within(descriptor.version_code, _MAX_ANDROID_VERSION_CODE)
+        and database_range_valid(descriptor.database_compatibility)
+        and artifact_identity_matches(
+            descriptor.release_tag,
+            descriptor.version_name,
+            descriptor.version_code,
+            descriptor.apk_name,
+            descriptor.apk_sha256,
+            descriptor.package_id,
+        )
+    )
+
+
 def artifact_identity_matches(
     release_tag: object,
     version_name: object,
@@ -310,31 +360,70 @@ def _request_timeout(
     )
 
 
-def _reject_json_constant(_value: str) -> NoReturn:
-    """Reject non-standard NaN and infinity values."""
-    raise ReleaseResolutionError
+def unique_json_object(
+    error: type[Exception],
+) -> Callable[[list[tuple[str, Any]]], dict[str, Any]]:
+    """Return a ``json.loads`` object hook raising ``error`` on a duplicate key."""
+
+    def build(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise error
+            result[key] = value
+        return result
+
+    return build
 
 
-def _object_without_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    """Build one JSON object while rejecting ambiguous duplicate keys."""
-    result: dict[str, Any] = {}
-    for key, value in pairs:
-        if key in result:
-            raise ReleaseResolutionError
-        result[key] = value
-    return result
+def strict_json_hooks(error: type[Exception]) -> dict[str, Any]:
+    """Return ``json.loads`` hooks raising ``error`` on duplicate keys or NaN/inf."""
+
+    def reject_constant(_value: str) -> NoReturn:
+        raise error
+
+    return {
+        "object_pairs_hook": unique_json_object(error),
+        "parse_constant": reject_constant,
+    }
 
 
-def _is_trusted_download_url(url: URL) -> bool:
-    """Return whether a release redirect remains on GitHub's HTTPS asset hosts."""
+def is_trusted_download_url(url: URL, feed_hosts: Collection[str] = ()) -> bool:
+    """Return whether an APK download stays on GitHub or a feed's APK path."""
     return (
         url.scheme == "https"
         and url.user is None
         and url.password is None
-        and url.host in _TRUSTED_DOWNLOAD_HOSTS
+        and (
+            url.host in _TRUSTED_DOWNLOAD_HOSTS
+            or (
+                url.host in feed_hosts
+                and _FEED_APK_PATH.fullmatch(url.path) is not None
+            )
+        )
         and url.port == 443
         and not url.fragment
     )
+
+
+def redirect_target(current_url: URL, response: ClientResponse) -> URL | None:
+    """Return a redirect's one clean ``Location``, resolved, or None."""
+    locations = response.headers.getall("Location", ())
+    if len(locations) != 1:
+        return None
+    location = locations[0]
+    if (
+        not isinstance(location, str)
+        or not location
+        or location != location.strip()
+        or any(ord(character) < 32 for character in location)
+        or "\x7f" in location
+    ):
+        return None
+    try:
+        return current_url.join(URL(location))
+    except TypeError, ValueError:
+        return None
 
 
 async def _async_fetch_bounded(
@@ -353,9 +442,7 @@ async def _async_fetch_bounded(
     try:
         async with asyncio.timeout(total_seconds):
             while True:
-                if allow_release_redirects and not _is_trusted_download_url(
-                    current_url
-                ):
+                if allow_release_redirects and not is_trusted_download_url(current_url):
                     raise ReleaseResolutionError
 
                 async with session.get(
@@ -370,20 +457,8 @@ async def _async_fetch_bounded(
                     if response.status in _REDIRECT_STATUSES:
                         if not allow_release_redirects or redirects >= _MAX_REDIRECTS:
                             raise ReleaseResolutionError
-                        locations = response.headers.getall("Location", ())
-                        if len(locations) != 1:
-                            raise ReleaseResolutionError
-                        location = locations[0]
-                        if (
-                            not isinstance(location, str)
-                            or not location
-                            or location != location.strip()
-                            or any(ord(character) < 32 for character in location)
-                            or "\x7f" in location
-                        ):
-                            raise ReleaseResolutionError
-                        next_url = current_url.join(URL(location))
-                        if not _is_trusted_download_url(next_url):
+                        next_url = redirect_target(current_url, response)
+                        if next_url is None or not is_trusted_download_url(next_url):
                             raise ReleaseResolutionError
                         current_url = next_url
                         redirects += 1
@@ -420,8 +495,7 @@ def _parse_release_metadata(
     try:
         document: Any = json.loads(
             body.decode("utf-8"),
-            object_pairs_hook=_object_without_duplicates,
-            parse_constant=_reject_json_constant,
+            **strict_json_hooks(ReleaseResolutionError),
         )
     except ReleaseResolutionError:
         raise
@@ -586,8 +660,7 @@ def parse_protocol_metadata(
     try:
         document: Any = json.loads(
             body.decode("ascii"),
-            object_pairs_hook=_object_without_duplicates,
-            parse_constant=_reject_json_constant,
+            **strict_json_hooks(ReleaseResolutionError),
         )
     except (UnicodeDecodeError, ValueError, RecursionError) as err:
         raise ReleaseResolutionError from err
@@ -656,8 +729,7 @@ def _parse_install_descriptor(
     try:
         document: Any = json.loads(
             body.decode("utf-8"),
-            object_pairs_hook=_object_without_duplicates,
-            parse_constant=_reject_json_constant,
+            **strict_json_hooks(ReleaseResolutionError),
         )
     except ReleaseResolutionError:
         raise
@@ -695,19 +767,6 @@ def _parse_install_descriptor(
     )
     min_sdk = _bounded_integer(document["minSdk"], 1, _MAX_ANDROID_SDK)
     database_compatibility = document["databaseCompatibility"]
-    database_match = (
-        _DATABASE_COMPATIBILITY_PATTERN.fullmatch(database_compatibility)
-        if isinstance(database_compatibility, str)
-        else None
-    )
-    database_bounds: tuple[int, int] | None = None
-    if database_match is not None and all(
-        len(group) <= 10 for group in database_match.groups()
-    ):
-        database_bounds = (
-            int(database_match.group(1)),
-            int(database_match.group(2)),
-        )
     supported_abis = document["supportedAbis"]
     apk_sha256_value = document["apkSha256"]
     if (
@@ -723,11 +782,7 @@ def _parse_install_descriptor(
         or document["signerCertificateSha256"] != _RELEASE_SIGNER_CERTIFICATE_SHA256
         or not isinstance(supported_abis, list)
         or tuple(supported_abis) != _SUPPORTED_ABIS
-        or database_bounds is None
-        or not 1
-        <= database_bounds[0]
-        <= database_bounds[1]
-        <= _MAX_ANDROID_VERSION_CODE
+        or not database_range_valid(database_compatibility)
         or not is_launch_component(document["packageId"], document["launchComponent"])
     ):
         raise ReleaseResolutionError

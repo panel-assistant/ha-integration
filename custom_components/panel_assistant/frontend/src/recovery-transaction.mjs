@@ -1,12 +1,4 @@
-import { TransactionError } from './transaction.mjs';
-
-function same(left, right) {
-  if (left === right) return true;
-  if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
-  const keys = Object.keys(left);
-  return keys.length === Object.keys(right).length &&
-    keys.every(key => Object.hasOwn(right, key) && same(left[key], right[key]));
-}
+import { TransactionError, same } from './transaction.mjs';
 
 // Recovery permits one exact staged-file cleanup, never installation. Ports own
 // mutation-time reinspection and bounded I/O shutdown before releasing this lock.

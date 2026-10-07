@@ -32,7 +32,12 @@ from .const import (
     STATUS_PATH,
     UPDATE_OWNER_HEADER,
 )
-from .release import VERSION_CODE_BODY, VERSION_NAME_BODY, is_build_version_name
+from .release import (
+    VERSION_CODE_BODY,
+    VERSION_NAME_BODY,
+    is_build_version_name,
+    strict_json_hooks,
+)
 
 if TYPE_CHECKING:
     from .status import PanelStatus
@@ -352,25 +357,11 @@ def parse_health_response(body: str) -> PanelHealth:
     )
 
 
-def _reject_json_constant(_value: str) -> NoReturn:
-    raise InvalidResponseError
-
-
-def _json_object_without_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    result: dict[str, Any] = {}
-    for key, value in pairs:
-        if key in result:
-            raise InvalidResponseError
-        result[key] = value
-    return result
-
-
 def _load_json_object(body: bytes) -> dict[str, Any]:
     try:
         document = json.loads(
             body.decode("utf-8"),
-            object_pairs_hook=_json_object_without_duplicates,
-            parse_constant=_reject_json_constant,
+            **strict_json_hooks(InvalidResponseError),
         )
     except (
         UnicodeDecodeError,

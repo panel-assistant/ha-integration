@@ -1,12 +1,10 @@
+import { fullMatch } from './shared.mjs';
 /** Read-only identity/root observation; USB session binding belongs to the caller. */
 export const MAX_POSTURE_BYTES = 32 * 1024;
 export class PostureError extends Error {
   constructor(code) { super(code); this.code = code; }
 }
 function fail(code = 'target_response_invalid') { throw new PostureError(code); }
-function fullMatch(pattern, value) {
-  return typeof value === 'string' && pattern.exec(value)?.[0] === value;
-}
 function checkNonce(nonce) {
   if (!fullMatch(/^[0-9a-f]{32}$/, nonce)) fail('invalid_request');
 }

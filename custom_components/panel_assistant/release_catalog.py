@@ -25,14 +25,13 @@ from .release import (
     ReleaseResolutionError,
     _async_fetch_bounded,
     _async_resolve_release,
-    _object_without_duplicates,
     _parse_release_metadata,
-    _reject_json_constant,
     feed_build_code,
     feed_build_package,
     feed_build_tag,
     is_rc_release_tag,
     release_descriptor_name,
+    strict_json_hooks,
 )
 from .update_policy import build_allowed, prereleases_allowed
 
@@ -45,8 +44,7 @@ def _decode(body: bytes) -> Any:
     try:
         return json.loads(
             body.decode("utf-8"),
-            object_pairs_hook=_object_without_duplicates,
-            parse_constant=_reject_json_constant,
+            **strict_json_hooks(ReleaseResolutionError),
         )
     except (UnicodeError, ValueError, RecursionError) as err:
         raise ReleaseResolutionError from err

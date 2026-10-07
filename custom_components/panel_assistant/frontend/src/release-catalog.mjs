@@ -1,14 +1,13 @@
 import { buildLabel, buildTagPackageId, buildTagVersionCode, isBuildVersionName, isRcTag, isStableTag } from './release-identity.mjs';
 import { SUCCESSOR_PACKAGE_ID } from './app-identity.mjs';
+import { readBoundedResponse } from './ha-release-handoff.mjs';
+import { exactKeys } from './shared.mjs';
 
 // GitHub lists at most 30 releases; a signed build feed holds at most 500 builds.
 const MAX_GITHUB_CHOICES = 30;
 const MAX_FEED_CHOICES = 500;
 const MAX_BYTES = 128 * 1024;
 const SEMANTIC_VERSION = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z][0-9A-Za-z.-]*))?$/;
-const keys = (value, expected) => value !== null && typeof value === 'object' &&
-  !Array.isArray(value) && Object.keys(value).length === expected.length &&
-  expected.every(key => Object.hasOwn(value, key));
 function requireValid(value) { if (!value) throw new Error('Invalid release catalogue'); }
 
 // A feed build is named by version and build number, with the successor clearly distinguished.
@@ -26,17 +25,17 @@ function feedName(release) {
 }
 
 export function parseReleaseCatalog(value) {
-  requireValid(keys(value, ['releases']) && Array.isArray(value.releases) &&
+  requireValid(exactKeys(value, ['releases']) && Array.isArray(value.releases) &&
     value.releases.length <= MAX_GITHUB_CHOICES + MAX_FEED_CHOICES);
   const seen = new Set();
   let githubCount = 0, feedCount = 0;
   return Object.freeze(value.releases.map(release => {
-    if (keys(release, ['tag', 'prerelease', 'name'])) {
+    if (exactKeys(release, ['tag', 'prerelease', 'name'])) {
       requireValid(feedName(release) && !seen.has(release.tag) && ++feedCount <= MAX_FEED_CHOICES);
       seen.add(release.tag);
       return Object.freeze({ tag: release.tag, prerelease: release.prerelease, name: release.name });
     }
-    requireValid(keys(release, ['tag', 'prerelease']) && typeof release.prerelease === 'boolean' &&
+    requireValid(exactKeys(release, ['tag', 'prerelease']) && typeof release.prerelease === 'boolean' &&
       (release.prerelease ? isRcTag(release.tag) : isStableTag(release.tag)) && !seen.has(release.tag) &&
       ++githubCount <= MAX_GITHUB_CHOICES);
     seen.add(release.tag);
@@ -50,7 +49,6 @@ export async function fetchReleaseCatalog(hass, { signal, timeoutMs = 15000 } = 
   signal?.addEventListener('abort', abort, { once: true });
   if (signal?.aborted) abort();
   const timer = setTimeout(abort, timeoutMs);
-  let reader;
   let rejectAborted;
   const aborted = new Promise((_, reject) => { rejectAborted = () => reject(new Error('Release catalogue cancelled')); });
   controller.signal.addEventListener('abort', rejectAborted, { once: true });
@@ -60,29 +58,14 @@ export async function fetchReleaseCatalog(hass, { signal, timeoutMs = 15000 } = 
       const response = await hass.fetchWithAuth('/api/panel_assistant/usb/releases', {
         method: 'GET', redirect: 'error', signal: controller.signal,
       });
-      requireValid(!controller.signal.aborted && response.status === 200 && !response.redirected && response.body &&
-        response.headers.get('content-type')?.split(';')[0].trim() === 'application/json');
-      const length = response.headers.get('content-length');
-      requireValid(length === null || (/^(0|[1-9][0-9]*)$/.exec(length)?.[0] === length && Number(length) <= MAX_BYTES));
-      reader = response.body.getReader();
-      const chunks = [];
-      let size = 0;
-      while (true) {
-        const next = await reader.read();
-        requireValid(!controller.signal.aborted);
-        if (next.done) break;
-        size += next.value.byteLength;
-        requireValid(size <= MAX_BYTES);
-        chunks.push(next.value);
-      }
-      requireValid(size > 0 && (length === null || size === Number(length)));
-      return parseReleaseCatalog(JSON.parse(await new Blob(chunks).text()));
+      requireValid(response.headers.get('content-type')?.split(';')[0].trim() === 'application/json');
+      const body = await readBoundedResponse(response, MAX_BYTES, controller.signal);
+      return parseReleaseCatalog(JSON.parse(await body.text()));
     })()]);
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener('abort', abort);
     controller.signal.removeEventListener('abort', rejectAborted);
     controller.abort();
-    if (reader) void reader.cancel().catch(() => {});
   }
 }

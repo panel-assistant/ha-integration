@@ -41,7 +41,16 @@ from .install_network import (
     _resolver_hostname,
     is_allowed_install_address,
 )
-from .release import artifact_identity_matches
+from .release import (
+    _MAX_ANDROID_SDK,
+    _MAX_APK_BYTES,
+    _RELEASE_SIGNER_CERTIFICATE_SHA256,
+    _SHA256_PATTERN,
+    _SUPPORTED_ABIS,
+    artifact_identity_matches,
+    database_range_valid,
+    unique_json_object,
+)
 
 _LOGGER = logging.getLogger(__name__)
 _STORE_VERSION = 1
@@ -58,25 +67,15 @@ _MAX_DETAIL_JOBS = 2 * _MAX_TERMINAL_JOBS
 _TERMINAL_RETENTION = timedelta(days=7)
 _MAX_ATTEMPTS = 32
 _MAX_EXECUTOR_GENERATION = 2**31 - 1
-_MAX_APK_BYTES = 64 * 1024 * 1024
-_MAX_SDK = 100
 _MAX_ADDRESS_LENGTH = 255
 _MAX_MODEL_LENGTH = 128
 _MAX_RELEASE_TEXT_LENGTH = 128
 _MAX_APK_NAME_LENGTH = 255
 _HEX_32 = re.compile(r"^[0-9a-f]{32}$")
-_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _ADB_SERIAL = re.compile(r"^[A-Za-z0-9._:-]{1,128}$", flags=re.ASCII)
 _ABI = re.compile(r"^[A-Za-z0-9_.-]{1,64}$", flags=re.ASCII)
 _SUBCODE = re.compile(r"^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$", flags=re.ASCII)
 _APK_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.apk(?:\.bin)?$")
-_DATABASE_COMPATIBILITY = re.compile(
-    r"^hapaneld-db:v1:ha-paneld\.db:([1-9][0-9]*):([1-9][0-9]*)$"
-)
-_RELEASE_SIGNER_SHA256 = (
-    "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
-)
-_SUPPORTED_ABIS = ("arm64-v8a", "armeabi-v7a")
 _PREFLIGHT_ROOT_MODES = frozenset({"root_adbd", "rootless", "root_su"})
 _DetailKey = tuple[str, int, str]
 
@@ -515,7 +514,7 @@ def _parse_target(value: object) -> InstallTarget:
         adb_serial=adb_serial,
         model=model,
         primary_abi=primary_abi,
-        android_sdk=_integer(value["android_sdk"], 1, _MAX_SDK),
+        android_sdk=_integer(value["android_sdk"], 1, _MAX_ANDROID_SDK),
     )
 
 
@@ -557,7 +556,6 @@ def _parse_artifact(value: object) -> InstallArtifact:
     signer = _safe_text(value["signer_certificate_sha256"], 64)
     abis = value["supported_abis"]
     database = _safe_text(value["database_compatibility"], 128)
-    database_match = _DATABASE_COMPATIBILITY.fullmatch(database)
     # A receipt stored by an earlier release names the legacy package, so the
     # stored id is read back and re-checked rather than replaced by a constant.
     package_id = value["package_id"]
@@ -565,7 +563,7 @@ def _parse_artifact(value: object) -> InstallArtifact:
         value["descriptor_schema"] not in INSTALL_DESCRIPTOR_SCHEMAS
         or not is_accepted_package_id(package_id)
         or not is_launch_component(package_id, value["launch_component"])
-        or signer != _RELEASE_SIGNER_SHA256
+        or signer != _RELEASE_SIGNER_CERTIFICATE_SHA256
         or not isinstance(abis, (list, tuple))
         or tuple(abis) != _SUPPORTED_ABIS
         or not artifact_identity_matches(
@@ -577,11 +575,8 @@ def _parse_artifact(value: object) -> InstallArtifact:
             package_id,
         )
         or _APK_NAME.fullmatch(apk_name) is None
-        or _SHA256.fullmatch(apk_sha256) is None
-        or database_match is None
-        or any(len(group) > 10 for group in database_match.groups())
-        or int(database_match.group(1)) > int(database_match.group(2))
-        or int(database_match.group(2)) > 2**31 - 1
+        or _SHA256_PATTERN.fullmatch(apk_sha256) is None
+        or not database_range_valid(database)
     ):
         raise InstallJobStoreError
     return InstallArtifact(
@@ -594,7 +589,7 @@ def _parse_artifact(value: object) -> InstallArtifact:
         apk_size=_integer(value["apk_size"], 1, _MAX_APK_BYTES),
         package_id=package_id,
         signer_certificate_sha256=signer,
-        min_sdk=_integer(value["min_sdk"], 1, _MAX_SDK),
+        min_sdk=_integer(value["min_sdk"], 1, _MAX_ANDROID_SDK),
         supported_abis=_SUPPORTED_ABIS,
         database_compatibility=database,
         launch_component=value["launch_component"],
@@ -629,7 +624,7 @@ def install_plan_sha256(
     parsed_target = _parse_target(asdict(target))
     parsed_artifact = _parse_artifact(asdict(artifact))
     credential_id = _safe_text(adb_credential_id, 64)
-    if _SHA256.fullmatch(credential_id) is None:
+    if _SHA256_PATTERN.fullmatch(credential_id) is None:
         raise InstallJobStoreError
     document = {
         "schema": schema,
@@ -687,8 +682,8 @@ def _parse_receipt(value: object) -> InstallJobReceipt:
     credential_id = _safe_text(value["adb_credential_id"], 64)
     if (
         _HEX_32.fullmatch(job_id) is None
-        or _SHA256.fullmatch(plan_sha256) is None
-        or _SHA256.fullmatch(credential_id) is None
+        or _SHA256_PATTERN.fullmatch(plan_sha256) is None
+        or _SHA256_PATTERN.fullmatch(credential_id) is None
     ):
         raise InstallJobStoreError
     try:
@@ -1031,7 +1026,7 @@ def _parse_detail_document(value: object) -> dict[_DetailKey, _ReceiptDetail]:
         subcode = raw["result_subcode"]
         if (
             _HEX_32.fullmatch(job_id) is None
-            or _SHA256.fullmatch(digest) is None
+            or _SHA256_PATTERN.fullmatch(digest) is None
             or (
                 subcode is not None
                 and (
@@ -1129,15 +1124,6 @@ def _store_presence(path_text: str) -> tuple[bool, bool]:
     return exists, corrupt
 
 
-def _object_without_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    document: dict[str, Any] = {}
-    for key, value in pairs:
-        if key in document:
-            raise InstallJobStoreError
-        document[key] = value
-    return document
-
-
 def _metadata_identity(metadata: os.stat_result) -> tuple[int, ...]:
     return (
         metadata.st_dev,
@@ -1154,7 +1140,8 @@ def _metadata_identity(metadata: os.stat_result) -> tuple[int, ...]:
 def _parse_store_body(body: bytes, key: str) -> object:
     try:
         document = json.loads(
-            body.decode("utf-8"), object_pairs_hook=_object_without_duplicates
+            body.decode("utf-8"),
+            object_pairs_hook=unique_json_object(InstallJobStoreError),
         )
     except InstallJobStoreError:
         raise
@@ -1624,7 +1611,7 @@ class InstallJobManager:
         expected_plan_sha256 = install_plan_sha256(target, artifact, adb_credential_id)
         if (
             plan_sha256 != expected_plan_sha256
-            or _SHA256.fullmatch(adb_credential_id) is None
+            or _SHA256_PATTERN.fullmatch(adb_credential_id) is None
             or target.primary_abi not in artifact.supported_abis
             or target.android_sdk < artifact.min_sdk
         ):

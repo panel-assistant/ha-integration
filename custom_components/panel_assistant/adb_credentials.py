@@ -23,6 +23,7 @@ from homeassistant.core import CoreState, HomeAssistant
 from homeassistant.helpers.storage import Store
 
 from .const import DOMAIN
+from .release import unique_json_object
 
 _STORE_VERSION = 1
 _STORE_KEY = f"{DOMAIN}.adb_key"
@@ -201,15 +202,6 @@ def _store_is_private(path_text: str) -> bool:
         raise AdbCredentialError from err
 
 
-def _object_without_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    document: dict[str, Any] = {}
-    for key, value in pairs:
-        if key in document:
-            raise AdbCredentialError
-        document[key] = value
-    return document
-
-
 def _metadata_identity(metadata: os.stat_result) -> tuple[int, ...]:
     return (
         metadata.st_dev,
@@ -226,7 +218,8 @@ def _metadata_identity(metadata: os.stat_result) -> tuple[int, ...]:
 def _parse_store_document(body: bytes) -> _StoredCredential:
     try:
         document = json.loads(
-            body.decode("utf-8"), object_pairs_hook=_object_without_duplicates
+            body.decode("utf-8"),
+            object_pairs_hook=unique_json_object(AdbCredentialError),
         )
     except AdbCredentialError:
         raise

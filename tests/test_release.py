@@ -16,7 +16,11 @@ from cryptography.hazmat.primitives.asymmetric import ec, padding, rsa
 from multidict import CIMultiDict
 from yarl import URL
 
-from custom_components.panel_assistant import feed_coordinator, release
+from custom_components.panel_assistant import (
+    feed_coordinator,
+    install_artifacts,
+    release,
+)
 from custom_components.panel_assistant.app_identity import (
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
@@ -1157,6 +1161,7 @@ async def test_rejects_non_rsa_embedded_key(monkeypatch: pytest.MonkeyPatch) -> 
         "https://github.com:444/proof",
         "https://user@github.com/proof",
         "https://release-assets.githubusercontent.com/proof#fragment",
+        f"https://builds.example/apks/{'0' * 64}.apk",
     ],
 )
 async def test_rejects_untrusted_release_asset_redirect(
@@ -1164,8 +1169,12 @@ async def test_rejects_untrusted_release_asset_redirect(
     signing_key: rsa.RSAPrivateKey,
     location: str,
 ) -> None:
-    """An untrusted Location is refused before a request can reach it."""
+    """An untrusted Location is refused before a request can reach it.
+
+    A registered build feed is trusted only by the install download, never here.
+    """
     _install_test_key(monkeypatch, signing_key)
+    monkeypatch.setattr(install_artifacts, "_FEED_DOWNLOAD_HOSTS", {"builds.example"})
     session = _successful_session(signing_key)
     checksum_response = session._responses[_CHECKSUM_URL]
     checksum_response.status = 302

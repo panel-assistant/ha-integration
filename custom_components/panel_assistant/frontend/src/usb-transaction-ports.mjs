@@ -14,8 +14,8 @@ import { verifyStagedPrefix } from './staged-prefix.mjs';
 import { buildPrefixCleanup, parsePrefixCleanup, buildSetAsideRemoval,
   parseSetAsideRemoval } from './cleanup-contract.mjs';
 import { TransactionError } from './transaction.mjs';
+import { newNonce } from './shared.mjs';
 
-const nonce = () => [...crypto.getRandomValues(new Uint8Array(16))].map(v => v.toString(16).padStart(2, '0')).join('');
 const fail = code => { throw new TransactionError(code); };
 
 // Internal composition for a single live connection. Caller owns verified file
@@ -45,7 +45,7 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
   };
   const posture = async (receipt, release) => {
     binding(receipt, release);
-    const n = nonce();
+    const n = newNonce();
     const observed = parsePosture(await readShell(adb, buildPosture(n)), n, receipt.target);
     binding(receipt, release);
     return { ...observed, usbVendorId: usbDevice.vendorId, usbProductId: usbDevice.productId,
@@ -60,26 +60,26 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
   };
   // Establish exactly 0644 on this job's file before either check reads it.
   const prepare = async receipt => {
-    const n = nonce();
+    const n = newNonce();
     parseStagedPreparation(await readShell(adb, buildStagedPreparation(n, receipt.id),
       { timeoutMs: 30000 }), n);
   };
   const staged = async (receipt, release) => {
     await prepare(receipt);
-    const n = nonce();
+    const n = newNonce();
     return parseStagedObservation(await readShell(adb, buildStagedObservation(n, receipt.id),
       { timeoutMs: 30000 }), n, receipt.id, release.descriptor);
   };
   const prefix = async (receipt, release) => {
     await prepare(receipt);
-    const n = nonce();
+    const n = newNonce();
     return verifyStagedPrefix(await readShell(adb, buildStagedObservation(n, receipt.id),
       {timeoutMs: 30000}), n, receipt.id, release);
   };
   const recovery = async (receipt, release) => {
     const target = await posture(receipt, release);
     await clean(receipt, release);
-    const n = nonce();
+    const n = newNonce();
     const present = parsePathState(await readShell(adb, buildPathState(n, receipt.id)), n);
     if (present) await prefix(receipt, release);
     binding(receipt, release);
@@ -103,7 +103,7 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
         // A lost completion receipt does not necessarily mean a partial upload.
         // Missing files need recovery; present files must pass all fresh clean,
         // regular-file, size and signed-hash checks below. Never upload again.
-        const n = nonce();
+        const n = newNonce();
         if (!parsePathState(await readShell(adb, buildPathState(n, receipt.id)), n)) {
           binding(receipt, release);
           return { target, clean: false, staged: false, installed: false, healthy: false };
@@ -118,7 +118,7 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
         installed = await inspectInstalledApk(adb, release.descriptor, guard);
         if (installed && receipt.phase === 'launching') {
           // Whether or not it reports listening in time, the strict read below decides.
-          const n = nonce();
+          const n = newNonce();
           parseAppReady(await readShell(adb, buildAppReady(n), { timeoutMs: 75000, maximum: 4096 }), n);
           guard();
           healthy = await readUsbHealth(adb, release.descriptor, { ensureCurrent: guard, quarantine: stop });
@@ -134,7 +134,7 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
       await clean(receipt, release);
       const observation = await prefix(receipt, release);
       binding(receipt, release);
-      const n = nonce();
+      const n = newNonce();
       parsePrefixCleanup(await readShell(adb, buildPrefixCleanup(n, receipt.id, observation),
         {timeoutMs: 30000}), n);
       binding(receipt, release);
@@ -143,7 +143,7 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
     // caller holds the device lock and has already let that job's record go.
     removeSetAside: protect(async (jobId, target, release) => {
       await posture({ target }, release);
-      const n = nonce();
+      const n = newNonce();
       const result = parseSetAsideRemoval(await readShell(adb, buildSetAsideRemoval(n, jobId),
         { timeoutMs: 30000 }), n);
       binding({ target }, release);
@@ -153,7 +153,7 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
       if (receipt.phase !== 'staging') fail('transaction_invalid');
       await posture(receipt, release);
       await clean(receipt, release);
-      const n = nonce();
+      const n = newNonce();
       if (parsePathState(await readShell(adb, buildPathState(n, receipt.id)), n)) fail('staging_path_exists');
       binding(receipt, release);
       await admission(receipt, release);
@@ -167,7 +167,7 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
       await clean(receipt, release);
       await staged(receipt, release);
       binding(receipt, release);
-      const n = nonce();
+      const n = newNonce();
       await admission(receipt, release);
       const result = parseInstall(await readShell(adb, buildInstall(n, receipt.id, receipt.target.androidSdk),
         { timeoutMs: 180000 }), n);
@@ -179,7 +179,7 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
       await posture(receipt, release);
       if (!await inspectInstalledApk(adb, release.descriptor, guard)) fail('installed_artifact_mismatch');
       binding(receipt, release);
-      const n = nonce();
+      const n = newNonce();
       if (parseLaunch(await readShell(adb, buildLaunch(n, release.descriptor.packageId,
         release.descriptor.launchComponent, receipt.target.androidSdk),
         { timeoutMs: 30000 }), n) !== 'started') fail('launch_refused');
@@ -190,10 +190,10 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
       await posture(receipt, release);
       if (!await inspectInstalledApk(adb, release.descriptor, guard)) fail('installed_artifact_mismatch');
       binding(receipt, release);
-      let n = nonce();
+      let n = newNonce();
       const existing = parsePermissionRead(await readShell(adb, buildPermissionRead(n), {maximum: 8192}), n);
       binding(receipt, release);
-      n = nonce();
+      n = newNonce();
       // Grants go to the package whose installed bytes were verified above,
       // and name the service among the classes that exact build carries.
       const { packageId, launchComponent } = release.descriptor;
@@ -201,7 +201,7 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
         buildPermissionGrant(n, receipt.target.androidSdk, existing, packageId, launchComponent),
         {timeoutMs: 30000, maximum: 16384}), n);
       binding(receipt, release);
-      n = nonce();
+      n = newNonce();
       const result = parsePermissionVerification(await readShell(adb,
         buildPermissionVerification(n, receipt.target.androidSdk, packageId, launchComponent),
         {timeoutMs: 30000, maximum: 16384}),

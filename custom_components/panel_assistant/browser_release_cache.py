@@ -21,13 +21,12 @@ from .browser_artifacts import (
 )
 from .build_feed import FeedInstallBundle
 from .install_artifacts import InstallArtifact
-from .release import InstallReleaseBundle
+from .release import _MAX_APK_BYTES, InstallReleaseBundle
 from .release_catalog import async_resolve_install_bundle_choice
 from .update_policy import build_allowed, prereleases_allowed
 
 _CAPACITY = 2
 _TTL_SECONDS = 900.0
-_MAX_APK_BYTES = 64 * 1024 * 1024
 
 
 class BrowserReleaseCacheErrorCode(StrEnum):

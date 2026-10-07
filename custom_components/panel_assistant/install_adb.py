@@ -45,7 +45,6 @@ from .app_identity import (
     ACCESSIBILITY_COMPONENTS,
     EQUIVALENT_ACCESSIBILITY_COMPONENTS,
     HOME_COMPONENTS,
-    INSTALL_DESCRIPTOR_SCHEMAS,
     LAUNCH_COMPONENTS,
     LEGACY_LAUNCH_COMPONENT,
     LEGACY_PACKAGE_ID,
@@ -56,19 +55,19 @@ from .app_identity import (
 )
 from .client import PanelAddress
 from .install_network import is_allowed_install_address
-from .release import InstallDescriptor
+from .release import (
+    _MAX_APK_BYTES,
+    _SHA256_PATTERN,
+    InstallDescriptor,
+    install_descriptor_valid,
+)
 
 ADB_PORT = 5555
 _LOGGER = logging.getLogger(__name__)
 
 _ADB_BANNER = "ha-paneld-home-assistant"
 _PACKAGE_MANAGER_LIVENESS_PACKAGE = "android"
-_RELEASE_SIGNER_SHA256 = (
-    "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
-)
-_SUPPORTED_ABIS = ("arm64-v8a", "armeabi-v7a")
 _REMOTE_PREFIX = "/data/local/tmp/ha-paneld-install-"
-_MAX_APK_BYTES = 64 * 1024 * 1024
 _MIN_ADB_MAXDATA = 4 * 1024
 _MAX_ADB_MAXDATA = 1024 * 1024
 _MAX_ADB_PACKET_BYTES = _MAX_ADB_MAXDATA
@@ -94,7 +93,6 @@ _UPDATE_TIMEOUT_SECONDS = (
 )
 _REMOTE_MODE = stat.S_IFREG | 0o644
 _JOB_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$", flags=re.ASCII)
-_SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$", flags=re.ASCII)
 # A vendor build number travels to a public help page, so only a short,
 # printable token is kept: Sonoff reports "4.0.12", others a longer build string.
 _FIRMWARE_PATTERN = re.compile(r"[0-9A-Za-z][0-9A-Za-z ._+-]{0,79}", flags=re.ASCII)
@@ -340,30 +338,8 @@ def _validate_target(target: AdbInstallTarget) -> None:
 
 def _validate_descriptor(descriptor: InstallDescriptor) -> None:
     if (
-        not isinstance(descriptor.schema, str)
-        or not isinstance(descriptor.package_id, str)
-        or not isinstance(descriptor.launch_component, str)
-        or not isinstance(descriptor.signer_certificate_sha256, str)
-        or not isinstance(descriptor.apk_name, str)
-        or not isinstance(descriptor.apk_sha256, str)
-        or descriptor.schema not in INSTALL_DESCRIPTOR_SCHEMAS
-        or not is_accepted_package_id(descriptor.package_id)
-        or not is_launch_component(descriptor.package_id, descriptor.launch_component)
-        or descriptor.signer_certificate_sha256 != _RELEASE_SIGNER_SHA256
+        not install_descriptor_valid(descriptor)
         or _APK_NAME_PATTERN.fullmatch(descriptor.apk_name) is None
-        or _SHA256_PATTERN.fullmatch(descriptor.apk_sha256) is None
-        or isinstance(descriptor.apk_size, bool)
-        or not isinstance(descriptor.apk_size, int)
-        or not 1 <= descriptor.apk_size <= _MAX_APK_BYTES
-        or isinstance(descriptor.min_sdk, bool)
-        or not isinstance(descriptor.min_sdk, int)
-        or not 1 <= descriptor.min_sdk <= 100
-        or not isinstance(descriptor.supported_abis, tuple)
-        or descriptor.supported_abis != _SUPPORTED_ABIS
-        or any(
-            not isinstance(abi, str) or _ABI_PATTERN.fullmatch(abi) is None
-            for abi in descriptor.supported_abis
-        )
     ):
         raise InstallAdbError(InstallAdbErrorCode.INVALID_REQUEST)
 

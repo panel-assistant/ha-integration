@@ -8,7 +8,6 @@ import re
 import unicodedata
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any, NoReturn
 
 from .client import InvalidResponseError
 from .const import (
@@ -23,6 +22,7 @@ from .const import (
     MAX_ZIGBEE_CPU_PERCENT,
     MIN_ANDROID_INTEGER,
 )
+from .release import strict_json_hooks
 
 type StatusValue = str | bool | int | float | list[str] | None
 type ComponentStatus = Mapping[str, StatusValue]
@@ -139,19 +139,6 @@ def _copy_component(component: ComponentStatus | None) -> dict[str, StatusValue]
         key: list(value) if isinstance(value, list) else value
         for key, value in component.items()
     }
-
-
-def _reject_json_constant(_value: str) -> NoReturn:
-    raise InvalidResponseError
-
-
-def _object_without_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    result: dict[str, Any] = {}
-    for key, value in pairs:
-        if key in result:
-            raise InvalidResponseError
-        result[key] = value
-    return result
 
 
 def _token(value: object) -> str:
@@ -565,8 +552,7 @@ def parse_status_response(body: str) -> PanelStatus:
     try:
         parsed = json.loads(
             body,
-            object_pairs_hook=_object_without_duplicates,
-            parse_constant=_reject_json_constant,
+            **strict_json_hooks(InvalidResponseError),
         )
     except InvalidResponseError:
         raise

@@ -1,4 +1,5 @@
 import { verifyReleaseBundle } from './release-verifier.mjs';
+import { hex } from './shared.mjs';
 
 const MAX_APK_SIZE = 64 * 1024 * 1024;
 const blobSize = Object.getOwnPropertyDescriptor(Blob.prototype, 'size').get;
@@ -41,8 +42,7 @@ export async function verifyApkBundle(bundle, apk, options = {}, verificationKey
     const snapshot = apk instanceof Blob ? blobSlice.call(apk, 0, size) : new Blob([apk]);
     const bytes = await blobArrayBuffer.call(snapshot);
     const digest = await crypto.subtle.digest('SHA-256', bytes);
-    const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
-    if (hash !== descriptor.apkSha256) throw new ApkVerificationError();
+    if (hex(digest) !== descriptor.apkSha256) throw new ApkVerificationError();
     return Object.freeze({ kind: 'authenticated-apk-bytes', descriptor, apk: Object.freeze(snapshot) });
   } catch {
     throw new ApkVerificationError();

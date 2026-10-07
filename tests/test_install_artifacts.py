@@ -433,6 +433,24 @@ async def test_three_trusted_manual_redirects_are_allowed(
     assert all(request[1]["allow_redirects"] is False for request in session.requests)
 
 
+async def test_redirect_to_a_registered_feed_apk_is_followed(
+    fake_hass: _FakeHass,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(install_artifacts, "_FEED_DOWNLOAD_HOSTS", {"builds.example"})
+    feed_apk = URL(f"https://builds.example/apks/{'0' * 64}.apk")
+    session = _FakeSession(
+        [
+            _FakeResponse(status=302, headers=CIMultiDict({"Location": str(feed_apk)})),
+            _FakeResponse(url=feed_apk),
+        ]
+    )
+
+    await async_download_install_artifact(fake_hass, session, _release(), _JOB_ID)
+
+    assert [request[0] for request in session.requests] == [URL(_APK_URL), feed_apk]
+
+
 async def test_fourth_redirect_is_rejected_and_partial_is_removed(
     fake_hass: _FakeHass,
 ) -> None:
@@ -462,12 +480,18 @@ async def test_fourth_redirect_is_rejected_and_partial_is_removed(
         "https://example.com/file.apk",
         " https://github.com/file.apk",
         "https://github.com/file.apk\x00",
+        "https://github.com:444/file.apk",
+        "https://user@github.com/file.apk",
+        "https://github.com/file.apk#fragment",
+        "https://builds.example/maintainer.json",
     ],
 )
 async def test_untrusted_or_malformed_redirect_is_rejected(
     fake_hass: _FakeHass,
     location: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(install_artifacts, "_FEED_DOWNLOAD_HOSTS", {"builds.example"})
     session = _FakeSession(
         [
             _FakeResponse(

@@ -20,22 +20,18 @@ from homeassistant.core import HomeAssistant
 from yarl import URL
 
 from .const import DOMAIN
-from .release import ReleaseArtifact
+from .release import (
+    _MAX_APK_BYTES,
+    _SHA256_PATTERN,
+    ReleaseArtifact,
+    is_trusted_download_url,
+    redirect_target,
+)
 
-_MAX_APK_BYTES = 64 * 1024 * 1024
 _JOB_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$")
 _ARTIFACT_ENTRY_PATTERN = re.compile(r"([0-9a-f]{32})\.apk(?:\.part)?")
-_SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
-_TRUSTED_DOWNLOAD_HOSTS = frozenset(
-    {
-        "github.com",
-        "release-assets.githubusercontent.com",
-    }
-)
-# Hosts of a configured signed build feed. Only a content-addressed APK path is
-# ever fetched from them, and the bytes are still held to the signed hash.
+# Hosts of a configured signed build feed (see release.is_trusted_download_url).
 _FEED_DOWNLOAD_HOSTS: set[str] = set()
-_FEED_APK_PATH = re.compile(r"^/(?:[^/?#]+/)*apks/[0-9a-f]{64}\.apk$")
 _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 
 
@@ -164,20 +160,7 @@ def _trusted_download_url(raw_url: object) -> URL:
         url = URL(raw_url)
     except TypeError, ValueError:
         raise ArtifactCustodyError(ArtifactErrorCode.CONTRACT_INVALID) from None
-    if (
-        url.scheme != "https"
-        or url.user is not None
-        or url.password is not None
-        or not (
-            url.host in _TRUSTED_DOWNLOAD_HOSTS
-            or (
-                url.host in _FEED_DOWNLOAD_HOSTS
-                and _FEED_APK_PATH.fullmatch(url.path) is not None
-            )
-        )
-        or url.port != 443
-        or bool(url.fragment)
-    ):
+    if not is_trusted_download_url(url, _FEED_DOWNLOAD_HOSTS):
         raise ArtifactCustodyError(ArtifactErrorCode.CONTRACT_INVALID)
     return url
 
@@ -931,26 +914,10 @@ def _validate_response_headers(response: ClientResponse, expected_size: int) -> 
 
 
 def _validated_redirect(current_url: URL, response: ClientResponse) -> URL:
-    locations = response.headers.getall("Location", ())
-    if len(locations) != 1:
+    next_url = redirect_target(current_url, response)
+    if next_url is None or not is_trusted_download_url(next_url, _FEED_DOWNLOAD_HOSTS):
         raise ArtifactCustodyError(ArtifactErrorCode.REDIRECT_INVALID)
-    location = locations[0]
-    if (
-        not isinstance(location, str)
-        or not location
-        or location != location.strip()
-        or any(ord(character) < 32 for character in location)
-        or "\x7f" in location
-    ):
-        raise ArtifactCustodyError(ArtifactErrorCode.REDIRECT_INVALID)
-    try:
-        next_url = current_url.join(URL(location))
-    except TypeError, ValueError:
-        raise ArtifactCustodyError(ArtifactErrorCode.REDIRECT_INVALID) from None
-    try:
-        return _trusted_download_url(str(next_url))
-    except ArtifactCustodyError:
-        raise ArtifactCustodyError(ArtifactErrorCode.REDIRECT_INVALID) from None
+    return next_url
 
 
 async def _async_abandon_partial(
