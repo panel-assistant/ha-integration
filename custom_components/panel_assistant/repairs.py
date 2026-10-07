@@ -53,12 +53,6 @@ from .migration_repair import (
     ISSUE_DATA_VERSION,
     ISSUE_PANEL_MIGRATION_INCOMPLETE,
 )
-from .native_move import ISSUE_DATA_ENTRY_ID as NATIVE_MOVE_ENTRY_ID
-from .native_move import (
-    ISSUE_MOVE_TO_NATIVE,
-    NativeMoveFlow,
-    move_to_native_issue_id,
-)
 from .panel_move import ISSUE_DATA_ENTRY_ID as SUCCESSOR_MOVE_ENTRY_ID
 from .panel_move import (
     ISSUE_MOVE_TO_NEW_APP,
@@ -675,13 +669,6 @@ async def async_create_fix_flow(
         return PanelIdentityFlow(values)
     if issue_id.startswith(f"{ISSUE_INSTALLER_FAILURE}_"):
         return InstallerFailureFlow()
-    if issue_id.startswith(f"{ISSUE_MOVE_TO_NATIVE}_"):
-        entry_id = values.get(NATIVE_MOVE_ENTRY_ID)
-        if not isinstance(entry_id, str) or issue_id != move_to_native_issue_id(
-            entry_id
-        ):
-            raise UnknownStep
-        return NativeMoveFlow(entry_id)
     if issue_id.startswith(f"{ISSUE_MOVE_TO_NEW_APP}_"):
         entry_id = values.get(SUCCESSOR_MOVE_ENTRY_ID)
         if not isinstance(entry_id, str) or issue_id != move_issue_id(entry_id):

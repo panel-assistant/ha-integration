@@ -305,8 +305,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     if satellite_known(hass, entry):
         await async_load_voice(hass, entry, platforms)
     runtime_data.voice_setup = async_follow_voice(hass, entry, platforms)
-    # Every poll and every session opening or closing can tell the panel's
-    # version, which decides whether its move to native is offered.
+    # A panel still on MQTT moves to native now, or as soon as a poll or a
+    # session tells its version; the move reloads the entry, whose next setup
+    # runs the cutover.
     async_evaluate_native_move(hass, entry)
     entry.async_on_unload(
         coordinator.async_add_listener(lambda: async_evaluate_native_move(hass, entry))

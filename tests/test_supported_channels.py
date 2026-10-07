@@ -336,6 +336,7 @@ async def test_a_new_panel_identity_starts_its_own_supported_channels(
     assert entry.runtime_data.cutover_reconciliation_pending
 
 
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_a_migrated_reboot_survives_a_later_unsupported_hello(
     hass: HomeAssistant,
     hass_read_only_user: Any,

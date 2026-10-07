@@ -82,7 +82,8 @@ def _hello(channels: list[dict[str, Any]]) -> dict[str, Any]:
         "type": "panel_assistant/hello",
         "protocol": {"min": 3, "max": 3},
         "did": DID,
-        "app": {"version": "0.9.8-rc1", "version_code": 790},
+        # The version health reports, which a test may change.
+        "app": {"version": HEALTH.version, "version_code": 790},
         "contract_digest": "c" * 64,
         "capabilities": ["state", "events"],
         "channels": channels,

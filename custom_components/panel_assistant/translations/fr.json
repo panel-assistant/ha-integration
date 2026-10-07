@@ -669,24 +669,9 @@
       "title": "Mettre à jour ha-paneld sur {panel}",
       "description": "Panel Assistant possède désormais les entités de {panel}, mais la version de ha-paneld de ce panneau les annonce encore via MQTT, si bien que MQTT les crée une seconde fois. Panel Assistant désactive ces doublons. Mettez à jour ha-paneld sur {panel} vers la version {required_version} ou ultérieure ; Panel Assistant lui-même n'a pas besoin de mise à jour. Dès que le panneau mis à jour se connecte, les doublons désactivés sont supprimés et ce problème disparaît."
     },
-    "move_to_native_connection": {
-      "title": "Passer {panel} sur la connexion propre de Panel Assistant",
-      "fix_flow": {
-        "step": {
-          "confirm_move": {
-            "title": "Sortir {panel} de MQTT",
-            "description": "La prise en charge de MQTT prend fin après cette série de versions : les versions suivantes de ha-paneld et de Panel Assistant ne contrôlent les panneaux que par la connexion propre de Panel Assistant. Basculer {panel} maintenant fait exactement ce que fait le choix de Panel Assistant sous Contrôle dans ses options. Ses entités conservent leurs ID d'entité, leur historique et leurs personnalisations, puis le panneau cesse de les annoncer via MQTT. Sélectionnez Valider pour le basculer ; le panneau se reconnecte avec le nouveau choix."
-          }
-        },
-        "abort": {
-          "entry_removed": "Ce panneau a été supprimé de Home Assistant.",
-          "update_first": "Mettez d'abord à jour ha-paneld sur {panel} vers la version {required_version} ou ultérieure, puis basculez-le."
-        }
-      }
-    },
     "update_before_native_move": {
       "title": "Mettre à jour ha-paneld sur {panel} avant de le sortir de MQTT",
-      "description": "La prise en charge de MQTT prend fin après cette série de versions, donc {panel} doit passer sur la connexion propre de Panel Assistant. La version de ha-paneld qu'il exécute, {version}, ne peut pas encore transférer ses entités. Mettez à jour ha-paneld sur {panel} vers la version {required_version} ou ultérieure ; ce problème proposera alors la bascule."
+      "description": "La prise en charge de MQTT prend fin après cette série de versions, donc {panel} doit passer sur la connexion propre de Panel Assistant. La version de ha-paneld qu'il exécute, {version}, ne peut pas encore transférer ses entités. Mettez à jour ha-paneld sur {panel} vers la version {required_version} ou ultérieure ; Panel Assistant le basculera alors automatiquement."
     },
     "panel_migration_incomplete": {
       "title": "Le panneau à {address} n'a pas terminé son passage à sa nouvelle application",

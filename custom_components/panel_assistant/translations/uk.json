@@ -707,24 +707,9 @@
       "title": "Оновіть ha-paneld на панелі {panel}",
       "description": "Panel Assistant тепер керує сутностями панелі {panel}, але версія ha-paneld на цій панелі все ще оголошує їх через MQTT, тому MQTT створює їх удруге. Panel Assistant вимикає ці дублікати. Оновіть ha-paneld на панелі {panel} до версії {required_version} або новішої; сам Panel Assistant оновлення не потребує. Щойно оновлена панель підключиться, вимкнені дублікати буде видалено, і ця проблема зникне."
     },
-    "move_to_native_connection": {
-      "title": "Перевести {panel} на власне з'єднання Panel Assistant",
-      "fix_flow": {
-        "step": {
-          "confirm_move": {
-            "title": "Перевести {panel} з MQTT",
-            "description": "Підтримка MQTT завершується після цієї серії випусків: наступні версії ha-paneld і Panel Assistant керують панелями лише через власне з'єднання Panel Assistant. Перевести {panel} зараз означає зробити те саме, що й вибір Panel Assistant у пункті Керування в його параметрах. Його сутності зберігають свої ідентифікатори, історію та налаштування, а панель після цього перестає оголошувати їх через MQTT. Виберіть Надіслати, щоб перевести її; панель знову під'єднається з новим вибором."
-          }
-        },
-        "abort": {
-          "entry_removed": "Цю панель видалено з Home Assistant.",
-          "update_first": "Спершу оновіть ha-paneld на {panel} до версії {required_version} або новішої, а потім переведіть її."
-        }
-      }
-    },
     "update_before_native_move": {
       "title": "Оновіть ha-paneld на {panel}, перш ніж переводити її з MQTT",
-      "description": "Підтримка MQTT завершується після цієї серії випусків, тому {panel} має перейти на власне з'єднання Panel Assistant. Версія ha-paneld на ній, {version}, ще не вміє передати свої сутності. Оновіть ha-paneld на {panel} до версії {required_version} або новішої; тоді ця проблема запропонує перехід."
+      "description": "Підтримка MQTT завершується після цієї серії випусків, тому {panel} має перейти на власне з'єднання Panel Assistant. Версія ha-paneld на ній, {version}, ще не вміє передати свої сутності. Оновіть ha-paneld на {panel} до версії {required_version} або новішої; тоді Panel Assistant перенесе її автоматично."
     },
     "panel_migration_incomplete": {
       "title": "Панель за адресою {address} ще не завершила перехід на новий додаток",

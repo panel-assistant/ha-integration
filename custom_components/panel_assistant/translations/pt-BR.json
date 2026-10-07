@@ -709,24 +709,9 @@
       "title": "Atualizar o ha-paneld em {panel}",
       "description": "O Panel Assistant agora é responsável pelas entidades de {panel}, mas a versão do ha-paneld nesse painel ainda as anuncia via MQTT, por isso o MQTT as cria uma segunda vez. O Panel Assistant desabilita essas duplicatas. Atualize o ha-paneld em {panel} para a versão {required_version} ou posterior; o próprio Panel Assistant não precisa de atualização. Quando o painel atualizado se conectar, as duplicatas desabilitadas serão excluídas e este problema desaparecerá."
     },
-    "move_to_native_connection": {
-      "title": "Migrar {panel} para a conexão própria do Panel Assistant",
-      "fix_flow": {
-        "step": {
-          "confirm_move": {
-            "title": "Retirar {panel} do MQTT",
-            "description": "O suporte ao MQTT termina após esta linha de versões: as versões posteriores do ha-paneld e do Panel Assistant controlam os painéis somente pela conexão própria do Panel Assistant. Migrar {panel} agora faz exatamente o mesmo que selecionar Panel Assistant em Controle nas opções do painel. Suas entidades mantêm os IDs de entidade, o histórico e as personalizações, e o painel deixa de anunciá-las via MQTT. Selecione Enviar para fazer a migração; o painel se reconectará com a nova opção."
-          }
-        },
-        "abort": {
-          "entry_removed": "Este painel foi removido do Home Assistant.",
-          "update_first": "Primeiro, atualize o ha-paneld em {panel} para a versão {required_version} ou posterior. Depois, faça a migração."
-        }
-      }
-    },
     "update_before_native_move": {
       "title": "Atualizar o ha-paneld em {panel} antes de retirá-lo do MQTT",
-      "description": "O suporte ao MQTT termina após esta linha de versões, por isso {panel} precisa migrar para a conexão própria do Panel Assistant. A versão do ha-paneld que ele executa, {version}, ainda não consegue transferir suas entidades. Atualize o ha-paneld em {panel} para a versão {required_version} ou posterior; este problema passará a oferecer a migração."
+      "description": "O suporte ao MQTT termina após esta linha de versões, por isso {panel} precisa migrar para a conexão própria do Panel Assistant. A versão do ha-paneld que ele executa, {version}, ainda não consegue transferir suas entidades. Atualize o ha-paneld em {panel} para a versão {required_version} ou posterior; o Panel Assistant fará então a migração automaticamente."
     },
     "panel_migration_incomplete": {
       "title": "O painel em {address} ainda não concluiu a migração para o novo aplicativo",

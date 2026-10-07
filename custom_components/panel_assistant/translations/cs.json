@@ -709,24 +709,9 @@
       "title": "Aktualizovat ha-paneld na panelu {panel}",
       "description": "Panel Assistant nyní spravuje entity panelu {panel}, ale verze ha-paneld na tomto panelu je stále oznamuje přes MQTT, takže je MQTT vytváří podruhé. Panel Assistant tyto duplicity zakazuje. Aktualizujte ha-paneld na panelu {panel} na verzi {required_version} nebo novější; samotný Panel Assistant aktualizaci nepotřebuje. Jakmile se aktualizovaný panel připojí, zakázané duplicity se smažou a tento problém zmizí."
     },
-    "move_to_native_connection": {
-      "title": "Převést panel {panel} na vlastní připojení aplikace Panel Assistant",
-      "fix_flow": {
-        "step": {
-          "confirm_move": {
-            "title": "Převést panel {panel} z MQTT",
-            "description": "Podpora MQTT končí po této řadě vydání: pozdější vydání ha-paneld a Panel Assistant ovládají panely pouze přes vlastní připojení aplikace Panel Assistant. Převod panelu {panel} nyní provede přesně totéž jako volba Panel Assistant v části Ovládání v jeho možnostech. Jeho entity si zachovají ID entit, historii a úpravy a panel je poté přestane oznamovat přes MQTT. Převod zahájíte výběrem Odeslat; panel se znovu připojí s novou volbou."
-          }
-        },
-        "abort": {
-          "entry_removed": "Tento panel byl ze systému Home Assistant odstraněn.",
-          "update_first": "Nejprve aktualizujte ha-paneld na panelu {panel} na verzi {required_version} nebo novější a poté jej převeďte."
-        }
-      }
-    },
     "update_before_native_move": {
       "title": "Aktualizovat ha-paneld na panelu {panel} před převodem z MQTT",
-      "description": "Podpora MQTT končí po této řadě vydání, proto panel {panel} musí přejít na vlastní připojení aplikace Panel Assistant. Verze ha-paneld {version}, která na něm běží, ještě nedokáže předat jeho entity. Aktualizujte ha-paneld na panelu {panel} na verzi {required_version} nebo novější; tento problém poté nabídne převod."
+      "description": "Podpora MQTT končí po této řadě vydání, proto panel {panel} musí přejít na vlastní připojení aplikace Panel Assistant. Verze ha-paneld {version}, která na něm běží, ještě nedokáže předat jeho entity. Aktualizujte ha-paneld na panelu {panel} na verzi {required_version} nebo novější; Panel Assistant jej poté převede automaticky."
     },
     "panel_migration_incomplete": {
       "title": "Panel na adrese {address} nedokončil převod na novou aplikaci",

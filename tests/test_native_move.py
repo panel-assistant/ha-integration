@@ -1,4 +1,4 @@
-"""The Repairs issue moving a panel still on MQTT to Panel Assistant."""
+"""Panel Assistant moves every panel still on MQTT to its own connection."""
 
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -10,7 +10,6 @@ import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
-from homeassistant.setup import async_setup_component
 
 from custom_components.panel_assistant.client import (
     CannotConnectError,
@@ -22,9 +21,9 @@ from custom_components.panel_assistant.transport import (
     mqtt_discovery_claim,
 )
 
-from .test_cutover import NATIVE, PANEL_ID, _issue, _mqtt, _record, _reload
+from .test_cutover import PANEL_ID, _issue, _mqtt, _record, _reload
 from .test_native import _setup, panel_patches
-from .test_transport import HEALTH, WsClientFactory
+from .test_transport import HEALTH
 
 MOVE = "move_to_native_connection"
 UPDATE_FIRST = "update_before_native_move"
@@ -48,14 +47,19 @@ def _domain_issues(hass: HomeAssistant, entry_id: str) -> list[str]:
     )
 
 
-async def _start_fix(client: Any, entry_id: str) -> dict[str, Any]:
-    response = await client.post(
-        "/api/repairs/issues/fix",
-        json={"handler": DOMAIN, "issue_id": f"{MOVE}_{entry_id}"},
-    )
-    assert response.status == 200
-    result: dict[str, Any] = await response.json()
-    return result
+async def _poll(hass: HomeAssistant, entry: Any) -> None:
+    """Poll the panel once and let any reload the poll caused finish."""
+    with panel_patches():
+        await entry.runtime_data.coordinator.async_refresh()
+        await hass.async_block_till_done()
+
+
+def _assert_moved(hass: HomeAssistant, entry: Any) -> None:
+    """Native authority, a completed cutover, and nothing left to ask."""
+    assert entry.options["authority"] == "native"
+    assert entry.runtime_data.authority == "native"
+    assert _record(entry)["state"] == "complete"
+    assert _domain_issues(hass, entry.entry_id) == []
 
 
 @pytest.mark.parametrize(
@@ -78,64 +82,68 @@ def test_version_order_puts_a_release_after_its_candidates(
 
 
 @pytest.mark.parametrize("version", ["0.9.8-rc1", "0.9.7"])
-async def test_a_panel_that_never_used_mqtt_is_offered_nothing(
+async def test_a_panel_that_never_used_mqtt_is_left_alone(
     hass: HomeAssistant, hass_read_only_user: Any, version: str
 ) -> None:
     """A shadow entry without an MQTT device, as a new user's panel is.
 
-    Neither the move nor the update before it; once MQTT knows the panel, the
-    next poll offers the move.
+    Nothing to move and nothing to ask; once MQTT knows the panel, the next
+    poll moves it, or asks for the update a move needs.
     """
     with _panel_version(version):
         entry = await _setup(hass, hass_read_only_user.id, native=None)
         assert entry.options == {}
         assert _domain_issues(hass, entry.entry_id) == []
         await _reload(hass, entry)
+        assert entry.options == {}
         assert _domain_issues(hass, entry.entry_id) == []
 
         _mqtt(hass, [("switch", "relay1", {})])
-        with panel_patches():
-            await entry.runtime_data.coordinator.async_refresh()
-    assert _domain_issues(hass, entry.entry_id) == [
-        MOVE if version == "0.9.8-rc1" else UPDATE_FIRST
-    ]
+        await _poll(hass, entry)
+    if version == "0.9.8-rc1":
+        _assert_moved(hass, entry)
+    else:
+        assert entry.options == {}
+        assert _domain_issues(hass, entry.entry_id) == [UPDATE_FIRST]
 
 
-async def test_a_panel_set_to_mqtt_is_offered_the_move_without_a_device(
+async def test_a_panel_set_to_mqtt_moves_without_a_device(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
     """Choosing MQTT outright is MQTT history, even before MQTT announces it."""
     entry = await _setup(
         hass, hass_read_only_user.id, native=None, options={"authority": "mqtt"}
     )
-    assert _domain_issues(hass, entry.entry_id) == [MOVE]
+    _assert_moved(hass, entry)
 
 
 @pytest.mark.parametrize("options", [{"authority": "mqtt"}, {}], ids=["mqtt", "shadow"])
-async def test_a_panel_on_mqtt_is_offered_the_move_once(
+async def test_a_panel_on_mqtt_moves_at_setup_keeping_its_entities(
     hass: HomeAssistant, hass_read_only_user: Any, options: dict[str, str]
 ) -> None:
-    """Fixable, named, and never a second issue however often it is evaluated."""
-    _mqtt(hass, [("switch", "relay1", {})])
+    """No click: the entity keeps its ID, the panel is told to withdraw its
+    MQTT discovery, and a later poll or reload changes nothing.
+    """
+    mqtt = _mqtt(hass, [("switch", "relay1", {})])
     entry = await _setup(hass, hass_read_only_user.id, native=None, options=options)
 
-    issue = _issue(hass, MOVE, entry.entry_id)
-    assert issue is not None
-    assert issue.is_fixable is True
-    assert issue.is_persistent is False
-    assert issue.translation_placeholders == {"panel": "alpha"}
-    assert issue.data == {"entry_id": entry.entry_id}
+    _assert_moved(hass, entry)
+    moved = er.async_get(hass).async_get(mqtt["entity_ids"]["relay1"])
+    assert moved is not None
+    assert moved.platform == DOMAIN
+    assert moved.unique_id != f"{PANEL_ID}_relay1"
+    assert mqtt_discovery_claim(hass, entry) == "withdraw"
 
-    with panel_patches():
-        await entry.runtime_data.coordinator.async_refresh()
-        await _reload(hass, entry)
-    assert _domain_issues(hass, entry.entry_id) == [MOVE]
+    await _poll(hass, entry)
+    await _reload(hass, entry)
+    _assert_moved(hass, entry)
+    assert er.async_get(hass).async_get(mqtt["entity_ids"]["relay1"]) == moved
 
 
 async def test_a_panel_too_old_for_the_move_is_asked_to_update_first(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
-    """Then, once it reports a new enough release, the move replaces it."""
+    """It stays on MQTT; once it reports a new enough release, it moves."""
     with _panel_version("0.9.7"):
         _mqtt(hass, [("switch", "relay1", {})])
         entry = await _setup(hass, hass_read_only_user.id, native=None)
@@ -149,13 +157,13 @@ async def test_a_panel_too_old_for_the_move_is_asked_to_update_first(
         "required_version": "0.9.8-rc1",
     }
     assert _domain_issues(hass, entry.entry_id) == [UPDATE_FIRST]
+    assert entry.options == {}
 
-    with panel_patches():
-        await entry.runtime_data.coordinator.async_refresh()
-    assert _domain_issues(hass, entry.entry_id) == [MOVE]
+    await _poll(hass, entry)
+    _assert_moved(hass, entry)
 
 
-async def test_a_panel_whose_version_is_unknown_is_asked_nothing_yet(
+async def test_a_panel_whose_version_is_unknown_is_left_until_it_reports_one(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
     @contextmanager
@@ -174,44 +182,43 @@ async def test_a_panel_whose_version_is_unknown_is_asked_nothing_yet(
         entry = await _setup(hass, hass_read_only_user.id, native=None)
 
     assert entry.runtime_data.coordinator.data is None
+    assert entry.options == {}
     assert _domain_issues(hass, entry.entry_id) == []
 
-
-async def test_a_native_panel_is_offered_no_move(
-    hass: HomeAssistant, hass_read_only_user: Any
-) -> None:
-    _mqtt(hass, [("switch", "relay1", {})])
-    native = await _setup(hass, hass_read_only_user.id, native=None, options=NATIVE)
-    assert _domain_issues(hass, native.entry_id) == []
+    await _poll(hass, entry)
+    _assert_moved(hass, entry)
 
 
-async def test_native_entities_turned_off_offer_no_move(
+async def test_native_entities_turned_off_move_nothing(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
     _mqtt(hass, [("switch", "relay1", {})])
     entry = await _setup(hass, hass_read_only_user.id, native=False)
+    assert entry.options == {}
     assert _domain_issues(hass, entry.entry_id) == []
 
 
-async def test_a_failed_cutover_holds_the_offer_back(
+async def test_a_failed_cutover_holds_the_move_back(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
-    _mqtt(hass, [("switch", "relay1", {})])
-    entry = await _setup(hass, hass_read_only_user.id, native=None)
-    assert _domain_issues(hass, entry.entry_id) == [MOVE]
+    with _panel_version("0.9.7"):
+        _mqtt(hass, [("switch", "relay1", {})])
+        entry = await _setup(hass, hass_read_only_user.id, native=None)
+    assert _domain_issues(hass, entry.entry_id) == [UPDATE_FIRST]
 
     async_raise_cutover_incomplete_issue(hass, entry, "move_back", "boom")
-    with panel_patches():
-        await entry.runtime_data.coordinator.async_refresh()
+    await _poll(hass, entry)
+    assert entry.options == {}
     assert _domain_issues(hass, entry.entry_id) == []
 
 
 async def test_removing_the_entry_clears_its_issue(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
-    _mqtt(hass, [("switch", "relay1", {})])
-    entry = await _setup(hass, hass_read_only_user.id, native=None)
-    assert _domain_issues(hass, entry.entry_id) == [MOVE]
+    with _panel_version("0.9.7"):
+        _mqtt(hass, [("switch", "relay1", {})])
+        entry = await _setup(hass, hass_read_only_user.id, native=None)
+    assert _domain_issues(hass, entry.entry_id) == [UPDATE_FIRST]
 
     assert await hass.config_entries.async_remove(entry.entry_id)
     await hass.async_block_till_done()
@@ -219,93 +226,24 @@ async def test_removing_the_entry_clears_its_issue(
     assert _domain_issues(hass, entry.entry_id) == []
 
 
-async def test_the_fix_moves_the_panel_as_the_control_option_does(
-    hass: HomeAssistant,
-    hass_read_only_user: Any,
-    hass_client: Any,
-    hass_ws_client: WsClientFactory,
+async def test_the_move_withdraws_the_offer_an_earlier_release_raised(
+    hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
-    """Its entities move to Panel Assistant and the issue goes."""
-    assert await async_setup_component(hass, "repairs", {})
-    mqtt = _mqtt(
+    """Panel Assistant 0.8 asked for a click; once moved, nothing is asking."""
+    with _panel_version("0.9.7"):
+        _mqtt(hass, [("switch", "relay1", {})])
+        entry = await _setup(hass, hass_read_only_user.id, native=None)
+    ir.async_create_issue(
         hass,
-        [
-            ("switch", "relay1", {}),
-            ("button", "update_companion", {}),
-            ("button", "update_paneld", {}),
-        ],
+        DOMAIN,
+        f"{MOVE}_{entry.entry_id}",
+        is_fixable=True,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key=MOVE,
     )
-    er.async_get(hass).async_update_entity(
-        mqtt["entity_ids"]["update_paneld"], name="Old app update"
+
+    await _poll(hass, entry)
+    _assert_moved(hass, entry)
+    assert (
+        ir.async_get(hass).async_get_issue(DOMAIN, f"{MOVE}_{entry.entry_id}") is None
     )
-    entry = await _setup(
-        hass, hass_read_only_user.id, native=None, options={"authority": "mqtt"}
-    )
-    client = await hass_client()
-
-    form = await _start_fix(client, entry.entry_id)
-    assert form["type"] == "form"
-    assert form["step_id"] == "confirm_move"
-    assert form["description_placeholders"] == {"panel": "alpha"}
-    assert entry.options == {"authority": "mqtt"}
-
-    with panel_patches():
-        response = await client.post(
-            f"/api/repairs/issues/fix/{form['flow_id']}", json={}
-        )
-        assert response.status == 200
-        assert (await response.json())["type"] == "create_entry"
-        await hass.async_block_till_done()
-
-    assert entry.options == {"authority": "native"}
-    assert _record(entry)["state"] == "complete"
-    moved = er.async_get(hass).async_get(mqtt["entity_ids"]["relay1"])
-    assert moved is not None
-    assert moved.platform == DOMAIN
-    assert moved.unique_id != f"{PANEL_ID}_relay1"
-    assert _domain_issues(hass, entry.entry_id) == []
-    assert _issue(hass, "native_controls_unavailable", entry.entry_id) is None
-    assert mqtt_discovery_claim(hass, entry) == "withdraw"
-
-
-async def test_the_fix_refuses_a_panel_that_went_back_to_an_older_release(
-    hass: HomeAssistant, hass_read_only_user: Any, hass_client: Any
-) -> None:
-    assert await async_setup_component(hass, "repairs", {})
-    _mqtt(hass, [("switch", "relay1", {})])
-    entry = await _setup(hass, hass_read_only_user.id, native=None)
-    client = await hass_client()
-    form = await _start_fix(client, entry.entry_id)
-
-    with _panel_version("0.9.7"), panel_patches():
-        await entry.runtime_data.coordinator.async_refresh()
-        # The issue has already been swapped; a flow left open still refuses.
-        response = await client.post(
-            f"/api/repairs/issues/fix/{form['flow_id']}", json={}
-        )
-    result = await response.json()
-    assert result["type"] == "abort"
-    assert result["reason"] == "update_first"
-    assert result["description_placeholders"] == {
-        "panel": "alpha",
-        "required_version": "0.9.8-rc1",
-    }
-    assert entry.options == {}
-
-
-async def test_the_fix_of_a_removed_panel_changes_nothing(
-    hass: HomeAssistant, hass_read_only_user: Any, hass_client: Any
-) -> None:
-    assert await async_setup_component(hass, "repairs", {})
-    _mqtt(hass, [("switch", "relay1", {})])
-    entry = await _setup(hass, hass_read_only_user.id, native=None)
-    client = await hass_client()
-    form = await _start_fix(client, entry.entry_id)
-
-    assert await hass.config_entries.async_remove(entry.entry_id)
-    await hass.async_block_till_done()
-    response = await client.post(f"/api/repairs/issues/fix/{form['flow_id']}", json={})
-
-    result = await response.json()
-    assert result["type"] == "abort"
-    assert result["reason"] == "entry_removed"

@@ -248,6 +248,7 @@ async def test_requested_native_cutover_converges_after_first_health(
         assert _snapshot(hass, entry.entry_id) == settled
 
 
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_delayed_native_cutover_can_be_cancelled_before_health_recovers(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
@@ -268,7 +269,11 @@ async def test_delayed_native_cutover_can_be_cancelled_before_health_recovers(
     )
     entry.add_to_hass(hass)
     health = AsyncMock(
-        side_effect=[CannotConnectError(), CannotConnectError(), HEALTH, HEALTH]
+        side_effect=[
+            CannotConnectError(),
+            CannotConnectError(),
+            *[replace(HEALTH, version="0.9.7")] * 2,
+        ]
     )
 
     with (
@@ -487,6 +492,7 @@ async def test_a_person_disabled_mqtt_entity_stays_disabled_and_moves(
     assert record["state"] == "complete"
 
 
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_a_native_entry_on_the_target_id_is_removed_first(
     hass: HomeAssistant,
     hass_read_only_user: Any,
@@ -740,6 +746,7 @@ async def test_the_blocked_issue_is_raised_again_after_a_restart(
         (True, {"authority": "native"}, "withdraw"),
     ],
 )
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_hello_claims_mqtt_discovery_only_under_a_completed_native_cutover(
     hass: HomeAssistant,
     hass_read_only_user: Any,
@@ -1124,6 +1131,7 @@ async def test_a_second_setup_with_a_complete_record_changes_nothing(
     assert _snapshot(hass, entry.entry_id, mqtt["entry"].entry_id) == snapshot
 
 
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_two_loaded_entries_with_one_identity_refuse_to_move_anything(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
@@ -1223,6 +1231,7 @@ async def test_a_foreign_native_target_is_refused_instead_of_removed(
 # Reversal.
 
 
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_reversal_hands_every_entity_back_to_mqtt(
     hass: HomeAssistant,
     hass_read_only_user: Any,
@@ -1374,6 +1383,7 @@ async def test_a_retry_after_a_panel_id_rename_keeps_every_recorded_entity(
     assert result["mqtt_discovery"] == "withdraw"
 
 
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_reversal_re_enables_an_entity_the_failed_move_had_disabled(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
@@ -1399,6 +1409,7 @@ async def test_reversal_re_enables_an_entity_the_failed_move_had_disabled(
     assert _issue(hass, "cutover_incomplete", entry.entry_id) is None
 
 
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_unmigrated_buttons_keep_registry_identity_and_restore_disable(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
@@ -1486,6 +1497,7 @@ async def test_unmigrated_buttons_keep_registry_identity_and_restore_disable(
     assert _issue(hass, "native_controls_unavailable", entry.entry_id) is None
 
 
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_old_complete_cutover_recovers_a_quarantined_unknown_button(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
@@ -1550,6 +1562,7 @@ async def test_old_complete_cutover_recovers_a_quarantined_unknown_button(
     assert restored_user.disabled_by is er.RegistryEntryDisabler.USER
 
 
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_retired_update_buttons_clear_an_existing_repair_on_reload(
     hass: HomeAssistant,
     hass_read_only_user: Any,
@@ -1654,6 +1667,7 @@ async def test_turning_the_flag_off_reverses_the_next_setup(
     assert CONF_CUTOVER not in entry.data
 
 
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_reversal_without_the_mqtt_device_links_no_device(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
@@ -1674,6 +1688,7 @@ async def test_reversal_without_the_mqtt_device_links_no_device(
     assert CONF_CUTOVER not in entry.data
 
 
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_reversal_skips_an_entity_a_person_deleted(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
@@ -1756,6 +1771,7 @@ async def test_reversal_without_any_mqtt_entry_waits_with_an_issue(
     assert issue.translation_placeholders["step"] == "mqtt_entry"
 
 
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_reversal_waits_for_an_mqtt_entry_discovered_again(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
@@ -1809,6 +1825,7 @@ async def test_the_claim_needs_the_native_authority_as_well_as_the_record(
     assert transport.entity_owner(hass, entry) == "mqtt"
 
 
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_a_shadow_setup_without_a_record_writes_nothing(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
@@ -1837,6 +1854,7 @@ async def test_a_shadow_setup_without_a_record_writes_nothing(
 # Reloads.
 
 
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_saving_the_option_reloads_exactly_once_and_data_writes_never(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:

@@ -21,6 +21,7 @@ from custom_components.panel_assistant.diagnostics import (
     async_get_config_entry_diagnostics,
 )
 
+from . import test_native
 from .test_native import (
     DESCRIPTORS,
     _native_entries,
@@ -40,7 +41,8 @@ def _hello(capabilities: list[str] | None = None) -> dict[str, Any]:
         "type": "panel_assistant/hello",
         "protocol": {"min": 3, "max": 3},
         "did": DID,
-        "app": {"version": "0.9.8-rc1", "version_code": 790},
+        # The version health reports, which a test may change.
+        "app": {"version": test_native.HEALTH.version, "version_code": 790},
         "contract_digest": "c" * 64,
         "capabilities": ALL_CAPABILITIES if capabilities is None else capabilities,
         "channels": DESCRIPTORS,
@@ -196,6 +198,7 @@ async def native(hass: HomeAssistant, hass_read_only_user: Any) -> MockConfigEnt
         (True, {"authority": "shadow"}, ["commands", "approval"], "shadow", []),
     ],
 )
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_hello_grants_follow_the_effective_authority(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,

@@ -145,3 +145,26 @@ def _panel_installs_its_own_updates(
             AsyncMock(return_value=True),
         )
     yield
+
+
+@pytest.fixture
+def mqtt_era_panel() -> Generator[None]:
+    """The panel runs an ha-paneld from before the MQTT withdrawal.
+
+    Only such a panel stays on MQTT: Panel Assistant moves a newer one to its
+    own connection as soon as it learns its version.
+    """
+    from dataclasses import replace
+    from unittest.mock import patch
+
+    from . import test_cutover, test_native, test_transport
+
+    HEALTH = test_transport.HEALTH
+    app = {"version": "0.9.7", "version_code": 790}
+    with (
+        patch.object(test_native, "HEALTH", replace(HEALTH, version="0.9.7")),
+        patch.object(test_transport, "HEALTH", replace(HEALTH, version="0.9.7")),
+        patch.dict(test_cutover._HELLO_TAIL, {"app": app}),
+        patch.dict(test_transport.HELLO, {"app": app}),
+    ):
+        yield

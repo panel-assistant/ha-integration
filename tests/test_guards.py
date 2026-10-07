@@ -240,6 +240,7 @@ async def test_mqtt_device_cleanup_never_removes_the_entry_device_or_moved_entit
     ids=["mqtt", "shadow", "native"],
 )
 @pytest.mark.parametrize("offered", [True, False])
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_mqtt_withdraw_is_granted_whenever_it_is_offered(
     hass: HomeAssistant,
     hass_read_only_user: Any,
@@ -277,6 +278,7 @@ async def test_mqtt_withdraw_is_granted_whenever_it_is_offered(
     [({"authority": "mqtt"}, False), ({}, False), (NATIVE, True)],
     ids=["mqtt", "shadow", "native"],
 )
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_a_session_without_mqtt_withdraw_asks_for_the_panel_update(
     hass: HomeAssistant,
     hass_read_only_user: Any,
@@ -978,6 +980,7 @@ async def _reloaded_store(hass: HomeAssistant) -> guards.RemovedPanels:
     return removed
 
 
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_removing_a_cut_over_entry_hands_its_entities_back_and_tells_the_panel(
     hass: HomeAssistant,
     hass_read_only_user: Any,

@@ -387,6 +387,7 @@ EXPECTED_COMPARISONS = {
 }
 
 
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_diagnostics_compare_each_channel_with_its_mqtt_entity(
     hass: HomeAssistant,
     entry: MockConfigEntry,  # noqa: F811
@@ -522,6 +523,7 @@ async def test_diagnostics_without_any_session_have_no_comparison(
     }
 
 
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_comparison_failure_does_not_break_the_download(
     hass: HomeAssistant,
     entry: MockConfigEntry,  # noqa: F811
@@ -554,6 +556,7 @@ def _entity_snapshot(items: list[er.RegistryEntry]) -> list[Any]:
     return sorted((item.id, item) for item in items)
 
 
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_shadow_mode_never_writes_a_registry(
     hass: HomeAssistant,
     entry: MockConfigEntry,  # noqa: F811
@@ -629,7 +632,7 @@ async def test_shadow_mode_never_writes_a_registry(
         (DOMAIN, entry.entry_id), entry.entry_id
     )
     assert own is not None
-    assert own.sw_version == "0.9.8-rc1 (790)"
+    assert own.sw_version == "0.9.7 (790)"
     assert after[3] == sorted(
         (
             item_id,

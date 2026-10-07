@@ -195,6 +195,7 @@ async def test_repair_rechecks_conflicts_and_the_shown_panel(
         "previous_legacy",
     ],
 )
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_automatic_upgrade_requires_surviving_exclusive_installation_proof(
     hass, hass_ws_client, hass_read_only_user, hass_read_only_access_token, proof
 ):
@@ -259,8 +260,12 @@ async def test_automatic_upgrade_requires_surviving_exclusive_installation_proof
 
         if proof == "shared_legacy":
             assert not accept_health(hass, other, _health(OTHER_DID))
+    from dataclasses import replace
+
+    # A panel from before the MQTT withdrawal, so the poll moves it nowhere.
+    health = replace(_health(new_did), version="0.9.7")
     with patch.object(hass.config_entries, "async_reload", AsyncMock()):
-        await _poll(hass, entry, {STORED: _health(new_did)})
+        await _poll(hass, entry, {STORED: health})
         await hass.async_block_till_done()
     if proof in ("exclusive", "deleted"):
         assert entry.unique_id == new_did

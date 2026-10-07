@@ -1142,6 +1142,7 @@ def _proof_for(
     ids=["mqtt", "shadow", "native"],
 )
 @pytest.mark.parametrize("offered", [True, False])
+@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_hello_grants_a_key_whenever_it_is_offered(
     hass: HomeAssistant,
     hass_read_only_user: Any,

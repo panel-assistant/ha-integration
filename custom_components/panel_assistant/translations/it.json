@@ -669,24 +669,9 @@
       "title": "Aggiorna ha-paneld su {panel}",
       "description": "Panel Assistant possiede ora le entità di {panel}, ma la versione di ha-paneld su quel pannello le annuncia ancora tramite MQTT, quindi MQTT le crea una seconda volta. Panel Assistant disattiva questi duplicati. Aggiorna ha-paneld su {panel} alla versione {required_version} o successiva; Panel Assistant non ha bisogno di aggiornamenti. Quando il pannello aggiornato si connette, i duplicati disattivati vengono eliminati e questo problema scompare."
     },
-    "move_to_native_connection": {
-      "title": "Sposta {panel} sulla connessione propria di Panel Assistant",
-      "fix_flow": {
-        "step": {
-          "confirm_move": {
-            "title": "Togli {panel} da MQTT",
-            "description": "Il supporto MQTT termina dopo questa serie di versioni: le versioni successive di ha-paneld e Panel Assistant controllano i pannelli solo tramite la connessione propria di Panel Assistant. Spostare {panel} ora fa esattamente ciò che fa la scelta di Panel Assistant in Controllo nelle sue opzioni. Le sue entità mantengono gli ID entità, la cronologia e le personalizzazioni, e poi il pannello smette di annunciarle tramite MQTT. Seleziona Invia per spostarlo; il pannello si riconnette con la nuova scelta."
-          }
-        },
-        "abort": {
-          "entry_removed": "Questo pannello è stato rimosso da Home Assistant.",
-          "update_first": "Aggiorna prima ha-paneld su {panel} alla versione {required_version} o successiva, poi spostalo."
-        }
-      }
-    },
     "update_before_native_move": {
       "title": "Aggiorna ha-paneld su {panel} prima di toglierlo da MQTT",
-      "description": "Il supporto MQTT termina dopo questa serie di versioni, quindi {panel} deve passare alla connessione propria di Panel Assistant. La versione di ha-paneld che esegue, {version}, non può ancora cedere le sue entità. Aggiorna ha-paneld su {panel} alla versione {required_version} o successiva; questo problema offrirà poi lo spostamento."
+      "description": "Il supporto MQTT termina dopo questa serie di versioni, quindi {panel} deve passare alla connessione propria di Panel Assistant. La versione di ha-paneld che esegue, {version}, non può ancora cedere le sue entità. Aggiorna ha-paneld su {panel} alla versione {required_version} o successiva; Panel Assistant lo sposterà poi automaticamente."
     },
     "panel_migration_incomplete": {
       "title": "Il pannello a {address} non ha terminato il passaggio alla nuova app",
