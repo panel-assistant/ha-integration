@@ -20,8 +20,11 @@ from homeassistant.helpers import storage
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from yarl import URL
 
-from custom_components.panel_assistant import adb_credentials, provisioning
-from custom_components.panel_assistant import install_network
+from custom_components.panel_assistant import (
+    adb_credentials,
+    install_network,
+    provisioning,
+)
 from custom_components.panel_assistant import update as panel_update
 from custom_components.panel_assistant.adb_credentials import (
     AdbCredentialError,
