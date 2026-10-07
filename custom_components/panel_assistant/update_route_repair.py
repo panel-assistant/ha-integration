@@ -58,9 +58,6 @@ def help_parameters(status: PanelStatus | None) -> dict[str, str]:
         ):
             if value:
                 parameters[key] = value
-    cached = status.panel_assistant_update
-    if cached is not None and cached.current_version:
-        parameters["app"] = cached.current_version
     # Separates a panel whose route was withdrawn from one that never had a
     # route, so the page can word them differently without a second issue.
     if status.install_capability:

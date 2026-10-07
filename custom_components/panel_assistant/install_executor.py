@@ -57,6 +57,7 @@ from .install_adb import (
     async_preflight_install,
     async_stage_apk,
     async_verify_installed_target,
+    same_physical_target,
 )
 from .install_artifacts import (
     ArtifactCustodyError,
@@ -1597,10 +1598,7 @@ async def _require_pin(hass: HomeAssistant, pinned: PinnedPanelTarget) -> None:
 def _require_preflight(observed: AdbPreflight, target: AdbInstallTarget) -> None:
     if (
         not isinstance(observed, AdbPreflight)
-        or observed.serial != target.serial
-        or observed.model != target.model
-        or observed.primary_abi != target.primary_abi
-        or observed.android_sdk != target.android_sdk
+        or not same_physical_target(observed, target)
         or observed.root_mode
         not in {AdbRootMode.ROOT_ADBD, AdbRootMode.ROOTLESS, AdbRootMode.ROOT_SU}
     ):

@@ -51,7 +51,7 @@ async def test_existing_panel_options_authorize_adb_after_physical_approval(
     )
     with (
         patch(
-            "custom_components.panel_assistant.config_flow.async_pin_install_target",
+            "custom_components.panel_assistant.install_network.async_pin_install_target",
             AsyncMock(return_value=pin),
         ),
         patch(
@@ -220,7 +220,7 @@ async def test_adb_authorization_repair_retries_after_physical_approval(
 
     with (
         patch(
-            "custom_components.panel_assistant.config_flow.async_pin_install_target",
+            "custom_components.panel_assistant.install_network.async_pin_install_target",
             AsyncMock(return_value=pin),
         ),
         patch(
@@ -323,7 +323,7 @@ async def test_adb_authorization_repair_refuses_changed_panel(
     )
     with (
         patch(
-            "custom_components.panel_assistant.config_flow.async_pin_install_target",
+            "custom_components.panel_assistant.install_network.async_pin_install_target",
             AsyncMock(return_value=pin),
         ),
         patch(

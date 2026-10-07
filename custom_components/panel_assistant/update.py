@@ -50,7 +50,6 @@ from .build_feed import (
 )
 from .client import (
     CannotConnectError,
-    HaPaneldClient,
     HaPaneldError,
     InvalidResponseError,
     NotABridgeError,
@@ -98,7 +97,7 @@ from .install_adb import (
 from .install_network import (
     InstallNetworkError,
     PinnedPanelTarget,
-    async_pin_install_target,
+    async_pin_entry_target,
     async_revalidate_install_target,
 )
 from .native import NativeEntity, async_setup_native_platform
@@ -594,28 +593,12 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         snapshot = self.coordinator.data
         if snapshot is None or not self.coordinator.reachable:
             return None
-        pinned = await async_pin_install_target(
-            self.hass, self.coordinator.client.address
+        return await async_pin_entry_target(
+            self.hass,
+            self.coordinator.client.address,
+            snapshot.health,
+            self._entry_discovery_id(),
         )
-        # Bind the ADB peer to the same pinned HTTP panel, even when the
-        # stored address is a DNS name that can resolve more than once.
-        pinned_health = await HaPaneldClient(
-            async_get_clientsession(self.hass), pinned.pinned
-        ).async_get_health()
-        if (
-            pinned_health.panel_id != snapshot.health.panel_id
-            or pinned_health.package != snapshot.health.package
-            or (
-                snapshot.health.discovery_id is not None
-                and pinned_health.discovery_id != snapshot.health.discovery_id
-            )
-            or (
-                (entry_did := self._entry_discovery_id()) is not None
-                and pinned_health.discovery_id != entry_did
-            )
-        ):
-            return None
-        return pinned
 
     async def _async_probe_adb_target(
         self, pinned: PinnedPanelTarget, credential: AdbCredential | None

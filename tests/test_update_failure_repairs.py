@@ -50,7 +50,7 @@ from custom_components.panel_assistant.feed_coordinator import (
     StableReleaseCoordinator,
 )
 from custom_components.panel_assistant.release import _RELEASE_SIGNER_CERTIFICATE_SHA256
-from custom_components.panel_assistant.status import PanelCachedUpdate, PanelStatus
+from custom_components.panel_assistant.status import PanelStatus
 from custom_components.panel_assistant.transport import async_get_sessions
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity
 from custom_components.panel_assistant.update_coordinator import (
@@ -113,7 +113,6 @@ def _entity(
             warning_count=0,
             capability_count=0,
             install_capability="api",
-            panel_assistant_update=PanelCachedUpdate("0.9.9", "0.9.10", "v0.9.10"),
         ),
         status_error=None,
     )
@@ -281,7 +280,6 @@ async def test_recovered_update_accepts_newer_health_when_offer_advanced(
         status=PanelStatus(
             warning_count=0,
             capability_count=0,
-            panel_assistant_update=PanelCachedUpdate("0.9.9", "0.9.11", "v0.9.11"),
         ),
         status_error=None,
     )

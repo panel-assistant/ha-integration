@@ -23,6 +23,7 @@ from enum import StrEnum
 from pathlib import Path
 from secrets import token_hex
 from time import time
+from typing import Any
 
 from adb_shell.adb_device_async import AdbDeviceAsync
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
@@ -196,6 +197,16 @@ class AdbInstallTarget:
     model: str
     primary_abi: str
     android_sdk: int
+
+
+def same_physical_target(observed: Any, expected: Any) -> bool:
+    """Whether two observations name one Android device: serial, model, ABI, SDK."""
+    return (
+        observed.serial,
+        observed.model,
+        observed.primary_abi,
+        observed.android_sdk,
+    ) == (expected.serial, expected.model, expected.primary_abi, expected.android_sdk)
 
 
 @dataclass(frozen=True, slots=True)
@@ -925,12 +936,7 @@ def _is_package_path(line: str) -> bool:
 
 
 def _require_same_target(observed: _ObservedTarget, expected: AdbInstallTarget) -> None:
-    if (
-        observed.model != expected.model
-        or observed.serial != expected.serial
-        or observed.primary_abi != expected.primary_abi
-        or observed.android_sdk != expected.android_sdk
-    ):
+    if not same_physical_target(observed, expected):
         raise InstallAdbError(InstallAdbErrorCode.TARGET_CHANGED)
 
 

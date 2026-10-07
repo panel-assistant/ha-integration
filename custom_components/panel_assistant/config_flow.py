@@ -69,6 +69,7 @@ from .install_adb import (
     InstallAdbError,
     async_installed_artifact_size,
     async_preflight_install,
+    same_physical_target,
 )
 from .install_executor import (
     FinalizationOutcome,
@@ -87,6 +88,7 @@ from .install_network import (
     InstallNetworkError,
     InstallNetworkErrorCode,
     PinnedPanelTarget,
+    async_pin_entry_target,
     async_pin_install_target,
     async_revalidate_install_target,
 )
@@ -1576,10 +1578,7 @@ def _same_install_target(
             and observed.state is InstallTargetState.INSTALL_CANDIDATE
         )
         and _install_candidate_placeholders(observed) is not None
-        and observed.serial == expected.serial
-        and observed.model == expected.model
-        and observed.primary_abi == expected.primary_abi
-        and observed.android_sdk == expected.android_sdk
+        and same_physical_target(observed, expected)
     )
 
 
@@ -1678,19 +1677,8 @@ async def async_authorize_existing_panel_adb(
     )
     try:
         address = normalize_address(entry.data[CONF_ADDRESS])
-        target = await async_pin_install_target(hass, address)
-        actual = await HaPaneldClient(
-            async_get_clientsession(hass), target.pinned
-        ).async_get_health()
-        if (
-            actual.panel_id != expected.panel_id
-            or actual.package != expected.package
-            or (
-                expected.discovery_id is not None
-                and actual.discovery_id != expected.discovery_id
-            )
-            or (expected_did is not None and actual.discovery_id != expected_did)
-        ):
+        target = await async_pin_entry_target(hass, address, expected, expected_did)
+        if target is None:
             return "panel_identity_changed"
         await async_revalidate_install_target(hass, target)
         signer = await async_get_adb_signer(hass)

@@ -10,7 +10,9 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
-from .client import PanelAddress
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
+from .client import HaPaneldClient, PanelAddress, PanelHealth
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -192,6 +194,34 @@ async def async_pin_install_target(
         original=address,
         pinned=PanelAddress(host=str(selected), port=address.port),
     )
+
+
+async def async_pin_entry_target(
+    hass: HomeAssistant,
+    address: PanelAddress,
+    expected: PanelHealth,
+    entry_did: str | None,
+) -> PinnedPanelTarget | None:
+    """Pin ``address``, or None when the panel there is not this entry's panel.
+
+    The check reads health over the pinned address itself, so a DNS name that
+    resolves more than once cannot bind ADB to a different panel.
+    """
+    target = await async_pin_install_target(hass, address)
+    actual = await HaPaneldClient(
+        async_get_clientsession(hass), target.pinned
+    ).async_get_health()
+    if (
+        actual.panel_id != expected.panel_id
+        or actual.package != expected.package
+        or (
+            expected.discovery_id is not None
+            and actual.discovery_id != expected.discovery_id
+        )
+        or (entry_did is not None and actual.discovery_id != entry_did)
+    ):
+        return None
+    return target
 
 
 async def async_revalidate_install_target(

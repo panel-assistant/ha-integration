@@ -20,7 +20,11 @@ from homeassistant.helpers import storage
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from yarl import URL
 
-from custom_components.panel_assistant import adb_credentials, provisioning
+from custom_components.panel_assistant import (
+    adb_credentials,
+    install_network,
+    provisioning,
+)
 from custom_components.panel_assistant import update as panel_update
 from custom_components.panel_assistant.adb_credentials import (
     AdbCredentialError,
@@ -155,14 +159,14 @@ def route(
     launch = AsyncMock(return_value=LaunchOutcome.STARTED)
     monkeypatch.setattr(panel_update, "async_get_clientsession", lambda _hass: object())
     monkeypatch.setattr(
-        panel_update,
+        install_network,
         "HaPaneldClient",
         lambda *_args: SimpleNamespace(async_get_health=pinned_health),
     )
     monkeypatch.setattr(
         panel_update, "async_get_durable_adb_credential", get_credential
     )
-    monkeypatch.setattr(panel_update, "async_pin_install_target", pin)
+    monkeypatch.setattr(install_network, "async_pin_install_target", pin)
     monkeypatch.setattr(panel_update, "async_revalidate_install_target", revalidate)
     monkeypatch.setattr(panel_update, "async_probe_install_target", probe_target)
     monkeypatch.setattr(panel_update, "async_preflight_install", preflight)
