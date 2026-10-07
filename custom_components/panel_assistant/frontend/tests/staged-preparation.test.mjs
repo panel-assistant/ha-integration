@@ -2,8 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { buildStagedPreparation, parseStagedPreparation, stagingPath } from '../src/staging-contract.mjs';
-import { INSTALL_MESSAGES } from '../src/install-view.mjs';
-import { INSTALL_SCREEN_MESSAGES } from '../src/install-screen-messages.mjs';
+import { ENGLISH_MESSAGES } from '../src/frontend-localization.mjs';
 
 const nonce = 'c'.repeat(32);
 const job = 'd'.repeat(32);
@@ -42,6 +41,6 @@ test('both staged-file checks prepare the file before reading its mode', () => {
 });
 
 test('no message ever tells a person to unplug a panel that may be powered by that cable', () => {
-  const shown = [...Object.values(INSTALL_MESSAGES), ...Object.values(INSTALL_SCREEN_MESSAGES)].join('\n');
+  const shown = [...Object.values(ENGLISH_MESSAGES.errors), ...Object.values(ENGLISH_MESSAGES.installer)].join('\n');
   assert.ok(!/unplug/i.test(shown), 'unplugging a USB-powered panel cuts its power mid-install');
 });

@@ -140,6 +140,10 @@ function renderedJourney(scenario, locale = 'de', realCatalogue = false) {
     assert.equal(node('done-text').textContent, 'Finish setting up on the panel’s screen.');
     assert.deepEqual(calls, doneBefore);
     assert.deepEqual(calls, { chooser: 1, authenticate: 1, preview: 1, install: 1, handover: 1 });
+    // Closing USB after success is not a failure: the done screen stays.
+    portOptions.quarantine();
+    assert.equal(node('step-done').hidden, false);
+    assert.equal(node('step-error').hidden, true);
     }
   `;
   execFileSync(process.execPath, ['--input-type=module', '-e', script], { stdio: 'pipe' });

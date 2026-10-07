@@ -4,8 +4,8 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { readBounded } from '../src/bounded-stream.mjs';
-import { INSTALL_MESSAGES, installProgress } from '../src/install-view.mjs';
-import { INSTALL_SCREEN_MESSAGES } from '../src/install-screen-messages.mjs';
+import { installProgress } from '../src/install-view.mjs';
+import { ENGLISH_MESSAGES } from '../src/frontend-localization.mjs';
 import { WIZARD_CSS, BRAND_ICON } from '../src/wizard-look.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -70,15 +70,15 @@ test('progress only ever moves forward and never names an internal phase', () =>
 test('nothing the person reads mentions internals, JSON or terminal vocabulary', async () => {
   globalThis.HTMLElement ??= class {};
   globalThis.customElements ??= { get: () => true };
-  const { HA_INSTALL_MESSAGES } = await import('../src/ha-install-panel.mjs');
-  const shown = [...Object.values(INSTALL_MESSAGES), ...Object.values(INSTALL_SCREEN_MESSAGES),
-    ...Object.values(HA_INSTALL_MESSAGES)].join('\n');
+  await import('../src/ha-install-panel.mjs');
+  const shown = [...Object.values(ENGLISH_MESSAGES.errors), ...Object.values(ENGLISH_MESSAGES.installer),
+    ...Object.values(ENGLISH_MESSAGES.haInstall)].join('\n');
   for (const word of ['JSON', 'receipt', 'descriptor', 'sha256', 'SHA-256', 'phase', 'adb', 'ADB',
     'shell', 'reconcile', 'quarantine', 'MQTT', 'signature', 'checksum']) {
     assert.ok(!shown.includes(word), `user-facing text mentions ${word}`);
   }
   // One plain sentence each: nothing reads like a paragraph of caveats.
-  for (const [key, text] of Object.entries({ ...INSTALL_MESSAGES, ...INSTALL_SCREEN_MESSAGES, ...HA_INSTALL_MESSAGES })) {
+  for (const [key, text] of Object.entries({ ...ENGLISH_MESSAGES.errors, ...ENGLISH_MESSAGES.installer, ...ENGLISH_MESSAGES.haInstall })) {
     assert.ok(text.length <= 140, `${key} is ${text.length} characters`);
   }
 });

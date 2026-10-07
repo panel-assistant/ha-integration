@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import {createInstallController} from '../src/install-controller.mjs';
 
 const target = {model: 'Test panel', serial: 'serial', primaryAbi: 'arm64-v8a', androidSdk: 33,
@@ -150,17 +149,6 @@ test('a clean panel still gets a fresh install from the start', async () => {
   await assert.rejects(f.controller.install(false), /confirmation_required/);
 });
 
-
-test('after success nothing can flash the error screen', () => {
-  const source = readFileSync(new URL('../src/install-main.mjs', import.meta.url), 'utf8');
-  const quarantine = source.slice(source.indexOf('function quarantine('), source.indexOf('function ensureCurrent('));
-  const guard = quarantine.indexOf('if (finished)');
-  assert.ok(guard >= 0, 'quarantine checks for a finished install');
-  assert.ok(guard < quarantine.indexOf("show('error')"), 'before it can show the error screen');
-  const finish = source.slice(source.indexOf('function finish('));
-  assert.ok(finish.indexOf('finished = true') < finish.indexOf("show('done')"),
-    'success is recorded before anything that can close the connection');
-});
 
 // A job left part-way through for one release, with the person now offered
 // another: the store answers with the saved receipt, the ports with the new

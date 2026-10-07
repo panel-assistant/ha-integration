@@ -1,4 +1,4 @@
-import { ENGLISH_MESSAGES, frontendMessages, frontendLocale, formatFrontendMessage } from './frontend-localization.mjs';
+import { frontendMessages, frontendLocale, formatFrontendMessage } from './frontend-localization.mjs';
 import { startReleaseHandoff } from './ha-release-handoff.mjs';
 import { fetchReleaseCatalog } from './release-catalog.mjs';
 import { BRAND_ICON, WIZARD_CSS, journeyHtml, renderJourney } from './wizard-look.mjs';
@@ -6,7 +6,6 @@ import { BRAND_ICON, WIZARD_CSS, journeyHtml, renderJourney } from './wizard-loo
 // Stable keys keep presentation separate from the release-transfer protocol.
 // This is the first stop of the same wizard the installer window and the
 // panel's own setup continue, so it speaks the same plain one-line language.
-export const HA_INSTALL_MESSAGES = Object.freeze(ENGLISH_MESSAGES.haInstall);
 
 export class HaPaneldUsbInstallPanel extends HTMLElement {
   #hass;

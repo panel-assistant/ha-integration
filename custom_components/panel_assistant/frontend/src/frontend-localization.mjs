@@ -1,7 +1,7 @@
 import { FRONTEND_TRANSLATIONS } from './translations/index.mjs';
 
 export const ENGLISH_MESSAGES = FRONTEND_TRANSLATIONS.en;
-const SUPPORTED = ['en', 'cs', 'de', 'es', 'fr', 'it', 'nl', 'pl', 'uk', 'zh-Hans'];
+const SUPPORTED = Object.keys(FRONTEND_TRANSLATIONS);
 
 export function frontendLocale(signal) {
   if (typeof signal !== 'string') return 'en';

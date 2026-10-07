@@ -49,7 +49,8 @@ let intervals = [];
 globalThis.setInterval = (fn, ms) => { const handle = { fn, ms, cleared: false }; intervals.push(handle); return handle; };
 globalThis.clearInterval = handle => { if (handle) handle.cleared = true; };
 
-const { SIDEBAR_MESSAGES, SELECTION_KEY, parsePanels, embedToken, versionText, openingText, PanelAssistantSidebar } = await import('../src/sidebar-panel.mjs');
+const { ENGLISH_MESSAGES: { sidebar: SIDEBAR_MESSAGES } } = await import('../src/frontend-localization.mjs');
+const { SELECTION_KEY, parsePanels, embedToken, versionText, openingText, PanelAssistantSidebar } = await import('../src/sidebar-panel.mjs');
 
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const TOKEN = 'a'.repeat(43);
@@ -102,7 +103,6 @@ test('only the proxy root URL yields a token', () => {
 test('copy is keyed, markup carries no text and the frame is a titled, unsandboxed iframe', async () => {
   markup.length = 0;
   const { $ } = await mount(fakeHass());
-  assert.ok(Object.isFrozen(SIDEBAR_MESSAGES));
   assert.doesNotMatch(markup[0].replace(/<style>[^]*?<\/style>/, ''), />\s*[^<\s]/, 'fixed markup contains no copy');
   assert.equal($('#add-label').textContent, SIDEBAR_MESSAGES.addPanel);
   assert.equal($('#settings').getAttribute('aria-label'), SIDEBAR_MESSAGES.integrationSettings);

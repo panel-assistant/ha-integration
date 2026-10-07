@@ -23,7 +23,8 @@ globalThis.HTMLElement = class {
 };
 globalThis.document = { createElement: () => new Element() };
 globalThis.customElements = { get: () => true };
-const { HaPaneldUsbInstallPanel, HA_INSTALL_MESSAGES } = await import('../src/ha-install-panel.mjs');
+const { HaPaneldUsbInstallPanel } = await import('../src/ha-install-panel.mjs');
+const { ENGLISH_MESSAGES: { haInstall: HA_INSTALL_MESSAGES } } = await import('../src/frontend-localization.mjs');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const stable = { tag: 'v1.2.3', prerelease: false };
 const rc = { tag: 'v1.2.4-rc1', prerelease: true };

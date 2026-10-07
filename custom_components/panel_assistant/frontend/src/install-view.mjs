@@ -1,10 +1,8 @@
-import { ENGLISH_MESSAGES } from './frontend-localization.mjs';
 // Presentation only. Receipt phases describe saved progress, never permission
 // to mutate a panel; the transaction ports repeat their own admission checks.
 // The person installing never sees a phase name: they see one activity line
 // and a progress bar, and an error tells them the single thing to do next.
 
-export const INSTALL_MESSAGES = Object.freeze(ENGLISH_MESSAGES.errors);
 
 // Each phase maps to what the person sees: the activity line and how far along
 // the bar is. Phases that mean "checking where we left off" show the same
