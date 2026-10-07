@@ -6,7 +6,7 @@ import asyncio
 import logging
 import secrets
 from collections.abc import Callable
-from typing import Final
+from typing import Any, Final
 
 from homeassistant.components.assist_pipeline import (
     PipelineEvent,
@@ -25,6 +25,9 @@ from homeassistant.components.intent import (
     TimerEventType,
     TimerInfo,
     async_register_timer_handler,
+)
+from homeassistant.components.media_player.browse_media import (
+    async_process_play_media_url,
 )
 from homeassistant.components.websocket_api.messages import event_message
 from homeassistant.core import HomeAssistant, callback
@@ -53,6 +56,7 @@ from .voice import (
     satellite_unique_id,
     satellites,
 )
+from .voice_stream import async_get_voice_stream
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -93,6 +97,8 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         self._attr_unique_id = satellite_unique_id(entry_id)
         self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry_id)})
         self._run: VoiceRun | None = None
+        # A reply being prepared for streaming; the turn ends after it is sent.
+        self._reply: asyncio.Task[None] | None = None
         # Announcements the panel has not finished, with the session each was
         # sent on: one that ends first cannot finish it.
         self._announcements: dict[str, tuple[str, asyncio.Future[bool]]] = {}
@@ -317,6 +323,9 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         finally:
             if self._run is run:
                 self._run = None
+            if (reply := self._reply) is not None:
+                self._reply = None
+                await reply
             run.send({"kind": "end"})
 
     @callback
@@ -334,15 +343,45 @@ class PanelAssistSatellite(AssistSatelliteEntity):
             )
         elif event.type is PipelineEventType.TTS_END:
             if tts_output := data.get("tts_output"):
-                run.send(
-                    {
-                        "kind": "play",
-                        "url": panel_url(self.hass, tts_output["url"]),
-                        "continue_conversation": self._continue_conversation,
-                    }
-                )
+                play = {
+                    "kind": "play",
+                    "url": panel_url(self.hass, tts_output["url"]),
+                    "continue_conversation": self._continue_conversation,
+                }
+                session = self._session
+                voice_stream = async_get_voice_stream(self.hass)
+                if (
+                    session is not None
+                    and voice_stream is not None
+                    and voice_stream.ready(session.voice_stream_client_id)
+                ):
+                    self._reply = self.hass.async_create_task(
+                        self._async_stream_reply(
+                            run, play, tts_output["url"], session.voice_stream_client_id
+                        ),
+                        f"{self.entity_id}_voice_reply",
+                    )
+                else:
+                    run.send(play)
         elif event.type is PipelineEventType.ERROR:
             run.send({"kind": "error", "code": str(data.get("code", "error"))})
+
+    async def _async_stream_reply(
+        self, run: VoiceRun, play: dict[str, Any], url: str, client_id: str | None
+    ) -> None:
+        """Stream the reply to this panel alone, or send it by URL as before."""
+        voice_stream = async_get_voice_stream(self.hass)
+        try:
+            source = async_process_play_media_url(self.hass, url)
+        except HomeAssistantError:
+            source = None
+        if (
+            voice_stream is not None
+            and source is not None
+            and await voice_stream.async_play_reply(client_id, source)
+        ):
+            play["stream"] = True
+        run.send(play)
 
     @callback
     def async_played(self, announce_id: str | None) -> None:
@@ -381,21 +420,31 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         future: asyncio.Future[bool] = self.hass.loop.create_future()
         self._announcements[announce_id] = (session.token, future)
         preannounce = announcement.preannounce_media_id
-        session.connection.send_message(
-            event_message(
-                session.subscription_id,
-                {
-                    "kind": EVENT_VOICE_ANNOUNCE,
-                    "announce_id": announce_id,
-                    "url": panel_url(self.hass, announcement.media_id),
-                    "preannounce_url": (
-                        panel_url(self.hass, preannounce) if preannounce else None
-                    ),
-                    "message": announcement.message,
-                    "listen_after": listen_after,
-                },
-            )
-        )
+        event: dict[str, Any] = {
+            "kind": EVENT_VOICE_ANNOUNCE,
+            "announce_id": announce_id,
+            "url": panel_url(self.hass, announcement.media_id),
+            "preannounce_url": (
+                panel_url(self.hass, preannounce) if preannounce else None
+            ),
+            "message": announcement.message,
+            "listen_after": listen_after,
+        }
+        # Every panel this one call announces to plays one stream, in step.
+        voice_stream = async_get_voice_stream(self.hass)
+        if voice_stream is not None and await voice_stream.async_announce(
+            (
+                None if self._context is None else self._context.id,
+                announcement.original_media_id,
+                preannounce,
+            ),
+            session.voice_stream_client_id,
+            (preannounce, announcement.media_id)
+            if preannounce
+            else (announcement.media_id,),
+        ):
+            event["stream"] = True
+        session.connection.send_message(event_message(session.subscription_id, event))
         try:
             async with asyncio.timeout(ANNOUNCE_TIMEOUT):
                 played = await future

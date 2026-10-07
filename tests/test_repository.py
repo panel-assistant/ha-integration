@@ -184,7 +184,7 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
         "iot_class": "local_polling",
         "issue_tracker": "https://github.com/panel-assistant/ha-integration/issues",
         "name": "Panel Assistant",
-        "requirements": ["adb-shell[async]>=0.4.4"],
+        "requirements": ["adb-shell[async]>=0.4.4", "aiosendspin[server]==10.0.0"],
         "version": "0.9.0-rc1",
         "zeroconf": ["_adb._tcp.local.", "_ha-paneld._tcp.local."],
     }

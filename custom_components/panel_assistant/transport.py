@@ -85,6 +85,7 @@ from .embed_proof import encode_key, new_key
 from .ha_url import DATA_INSTANCE_ID, async_connection_urls
 from .lifecycle import DATA_LIFECYCLE
 from .update_policy import policy_for, prereleases_allowed
+from .voice_stream import async_get_voice_stream
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -147,6 +148,9 @@ CAPABILITY_VOICE: Final = "voice"
 # integration would refuse a whole hello naming the media_player platform. It
 # is granted whenever offered; the channel's commands still need ``commands``.
 CAPABILITY_MEDIA: Final = "media"
+# A panel that offers this, with its Sendspin key, receives speech in step with
+# other panels (see ``voice_stream.py``). Granted whenever offered with a key.
+CAPABILITY_VOICE_STREAM: Final = "voice_stream"
 KNOWN_CAPABILITIES: Final = frozenset(
     {
         CAPABILITY_STATE,
@@ -157,6 +161,7 @@ KNOWN_CAPABILITIES: Final = frozenset(
         CAPABILITY_EMBED_PROOF,
         CAPABILITY_VOICE,
         CAPABILITY_MEDIA,
+        CAPABILITY_VOICE_STREAM,
     }
 )
 # What each authority lets a session use, before intersecting with what the
@@ -270,6 +275,8 @@ _CODE_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 _UNIQUE_SUFFIX_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_]{0,47}$")
 _DIGEST_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _SESSION_TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+# An X25519 public key, base64url without padding.
+_SENDSPIN_KEY = re.compile(r"^[A-Za-z0-9_-]{43}$")
 _CONTROL_CHARACTERS = re.compile(r"[\x00-\x1f\x7f]")
 
 DATA_TRANSPORT: Final = "transport"
@@ -543,6 +550,11 @@ HELLO_SCHEMA: Final = vol.Schema(
         # panel, which states nothing.
         vol.Optional("unsupported", default=list): _bounded_list(
             MAX_UNSUPPORTED, _channel
+        ),
+        # The panel's Sendspin public key, offered with ``voice_stream``.
+        vol.Optional("voice_stream"): vol.Schema(
+            {vol.Required("client_id"): _pattern(_SENDSPIN_KEY)},
+            extra=vol.REMOVE_EXTRA,
         ),
     },
     extra=vol.REMOVE_EXTRA,
@@ -914,6 +926,8 @@ class PanelSession:
     embed_key_id: str | None = field(default=None, repr=False)
     embed_key: bytes | None = field(default=None, repr=False)
     embed_counter: int = 0
+    # The panel's Sendspin client id, when ``voice_stream`` was granted.
+    voice_stream_client_id: str | None = None
     # Commands sent and still waited for, by command ID.
     pending: dict[str, PendingCommand] = field(default_factory=dict)
     # Commands whose wait ended without a final outcome, oldest first.
@@ -2217,6 +2231,14 @@ def _accept_hello(
         capabilities |= {CAPABILITY_VOICE}
     if CAPABILITY_MEDIA in offered:
         capabilities |= {CAPABILITY_MEDIA}
+    voice_stream = async_get_voice_stream(hass)
+    stream_client_id = (msg.get("voice_stream") or {}).get("client_id")
+    if (
+        CAPABILITY_VOICE_STREAM in offered
+        and stream_client_id is not None
+        and voice_stream is not None
+    ):
+        capabilities |= {CAPABILITY_VOICE_STREAM}
     mqtt_discovery = mqtt_discovery_claim(hass, entry)
     if mqtt_discovery == MQTT_DISCOVERY_WITHDRAW:
         # Whatever held the withdrawal back, such as a customised entity a
@@ -2303,6 +2325,10 @@ def _accept_hello(
             "key_id": session.embed_key_id,
             "key": encode_key(session.embed_key),
         }
+    if CAPABILITY_VOICE_STREAM in capabilities:
+        assert voice_stream is not None and stream_client_id is not None
+        session.voice_stream_client_id = stream_client_id
+        result["voice_stream"] = voice_stream.grant(stream_client_id, entry.entry_id)
     async_get_sessions(hass).open(session)
     connection.send_result(msg["id"], result)
 

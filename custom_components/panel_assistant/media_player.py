@@ -17,12 +17,14 @@ from homeassistant.components.media_player.const import (
 )
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import HaPaneldConfigEntry
 from .native import NativeEntity, async_setup_native_platform
 from .transport import STATE_KNOWN, async_send_command
 from .voice import panel_url
+from .voice_stream import async_get_voice_stream
 
 # The volume has one path, the volume channel, whose number stays beside this.
 VOLUME_CHANNEL: Final = "volume"
@@ -116,19 +118,32 @@ class NativeMediaPlayer(NativeEntity, MediaPlayerEntity):
         self, media_type: str, media_id: str, **kwargs: Any
     ) -> None:
         """Play a URL or a media source, as media or as an announcement."""
+        announce = bool(kwargs.get(ATTR_MEDIA_ANNOUNCE))
+        # One announcement to several panels in one call: one stream, in step.
+        key = (None if self._context is None else self._context.id, media_id)
         if media_source.is_media_source_id(media_id):
             item = await media_source.async_resolve_media(
                 self.hass, media_id, self.entity_id
             )
             media_id = item.url
         url = async_process_play_media_url(self.hass, media_id, allow_relative_url=True)
-        await self.async_command(
-            {
-                "action": "play",
-                "url": panel_url(self.hass, url),
-                "announce": bool(kwargs.get(ATTR_MEDIA_ANNOUNCE)),
-            }
-        )
+        command = {
+            "action": "play",
+            "url": panel_url(self.hass, url),
+            "announce": announce,
+        }
+        voice_stream = async_get_voice_stream(self.hass)
+        session = self.session
+        if announce and voice_stream is not None and session is not None:
+            try:
+                source = async_process_play_media_url(self.hass, media_id)
+            except HomeAssistantError:
+                source = None
+            if source is not None and await voice_stream.async_announce(
+                key, session.voice_stream_client_id, (source,)
+            ):
+                command["stream"] = True
+        await self.async_command(command)
 
     async def async_browse_media(
         self, media_content_type: str | None = None, media_content_id: str | None = None

@@ -83,6 +83,7 @@ from .voice import (
     async_setup_voice,
     satellite_known,
 )
+from .voice_stream import async_get_voice_stream, async_setup_voice_stream
 
 PLATFORMS = [Platform.SENSOR, Platform.UPDATE]
 # Panels are config entries. YAML holds only development options: an optional
@@ -113,6 +114,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     await async_load_removed_panels(hass)
     await async_setup_connection_info(hass)
     await async_setup_lifecycle(hass)
+    await async_setup_voice_stream(hass)
     async_setup_transport(hass)
     async_setup_voice(hass)
     async_setup_embed(hass)
@@ -380,6 +382,9 @@ async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
     async_delete_native_move_issues(hass, entry.entry_id)
     async_delete_merged_identity_issue(hass, entry)
     async_get_sessions(hass).forget_entry(entry.entry_id)
+    # The panel's Sendspin key goes with its entry; a re-added panel gets a new one.
+    if (voice_stream := async_get_voice_stream(hass)) is not None:
+        await voice_stream.async_revoke(entry.entry_id)
     record = cutover_record(entry)
     recorded_did = None if record is None else record.get("did")
     await async_release_removed_entry(hass, entry)
