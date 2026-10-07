@@ -2324,6 +2324,9 @@ def _accept_hello(
     result: dict[str, Any] = {
         "protocol": high,
         "session": session.token,
+        # Optional on the wire: the panel finds its own device, (DOMAIN, entry_id),
+        # from this and probes the entity registry only when it is absent.
+        "entry_id": entry.entry_id,
         "authority": authority,
         "mqtt_discovery": mqtt_discovery,
         "capabilities": sorted(capabilities),

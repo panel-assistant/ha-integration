@@ -1004,6 +1004,7 @@
       "result": {
         "protocol": 4,
         "session": "q0vEYzJ4bGx0V2Q3cGF4NnRqS1BmZlRk",
+        "entry_id": "01J00000000000000000000CCC",
         "authority": "native",
         "mqtt_discovery": "withdraw",
         "capabilities": [
