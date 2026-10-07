@@ -511,7 +511,7 @@ async def test_accepted_update_projects_restart_when_panel_disappears(
     )
     if route == "panel":
         client.async_stage_apk.side_effect = StagingUnavailableError
-    entity.coordinator.last_update_success = True
+    entity.coordinator.reachable = True
     waiting_for_return = asyncio.Event()
     allow_return = asyncio.Event()
     refreshes = 0
@@ -520,12 +520,12 @@ async def test_accepted_update_projects_restart_when_panel_disappears(
         nonlocal refreshes
         refreshes += 1
         if refreshes == 1:
-            entity.coordinator.last_update_success = False
+            entity.coordinator.reachable = False
         else:
             waiting_for_return.set()
             await allow_return.wait()
             entity.coordinator.data = _snapshot(VERSION, "2000", LEGACY_PACKAGE_ID)
-            entity.coordinator.last_update_success = True
+            entity.coordinator.reachable = True
 
     entity.coordinator.async_request_refresh = AsyncMock(side_effect=refresh)  # type: ignore[method-assign]
     install = asyncio.create_task(entity.async_install(None, backup=False))
@@ -565,7 +565,7 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
 
     entity.async_write_ha_state = write  # type: ignore[method-assign]
     coordinator = entity.coordinator
-    coordinator.last_update_success = True
+    coordinator.reachable = True
     restarted: PanelSnapshot | None = None
     answering = absent = 0
     clock = 0.0
@@ -586,14 +586,14 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
             answering -= 1
         elif absent:
             absent -= 1
-            coordinator.last_update_success = False
+            coordinator.reachable = False
         else:
             # A panel that answers again ends its restart notice inside the
             # poll, and the session-change listener writes before the poll
             # is marked successful, as seen on a real panel.
             async_get_sessions(hass).clear_restart_notice("entry-id")
             entity._handle_coordinator_update()
-            coordinator.last_update_success = True
+            coordinator.reachable = True
             if restarted is not None:
                 coordinator.data, restarted = restarted, None
         entity._handle_coordinator_update()

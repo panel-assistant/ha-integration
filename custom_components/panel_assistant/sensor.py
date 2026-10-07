@@ -73,7 +73,7 @@ class HaPaneldStatusSensor(PanelCoordinatorEntity, SensorEntity):
         """Return whether the panel answers polls, or only holds its session."""
         if (notice := self.coordinator.restart_notice) is not None:
             return f"restarting_{notice.reason}"
-        return "online" if self.coordinator.last_update_success else "connected"
+        return "online" if self.coordinator.reachable else "connected"
 
     @property
     def available(self) -> bool:
@@ -84,7 +84,7 @@ class HaPaneldStatusSensor(PanelCoordinatorEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, str | bool | int | None]:
         """Return the cached health diagnostics and both halves of availability."""
         availability: dict[str, str | bool | int | None] = {
-            "reachable": self.coordinator.last_update_success,
+            "reachable": self.coordinator.reachable,
             "connected": self.coordinator.connected,
         }
         if (notice := self.coordinator.restart_notice) is not None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import secrets
 from collections.abc import Callable
@@ -43,8 +44,11 @@ from .client import HaPaneldError
 from .const import DOMAIN
 from .transport import (
     CAPABILITY_VOICE,
+    MANAGE_SETTINGS,
     PanelSession,
     async_get_sessions,
+    async_manage,
+    session_manages,
     signal_session_changed,
 )
 from .voice import (
@@ -261,11 +265,23 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         """Write the active wake words to the panel's own settings."""
         entry = self.platform.config_entry
         assert entry is not None
+        wake_words = list(config.active_wake_words)
+        session = async_get_sessions(self.hass).get(entry.entry_id)
         try:
-            await entry.runtime_data.coordinator.client.async_set_voice_wake_words(
-                list(config.active_wake_words)
-            )
-        except HaPaneldError as err:
+            if session_manages(session):
+                assert session is not None
+                await async_manage(
+                    self.hass,
+                    session,
+                    MANAGE_SETTINGS,
+                    settings={"voice_wake_words": json.dumps(wake_words)},
+                )
+            else:
+                # A panel without management on its session takes it over HTTP.
+                await entry.runtime_data.coordinator.client.async_set_voice_wake_words(
+                    wake_words
+                )
+        except (HaPaneldError, HomeAssistantError) as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN, translation_key="voice_wake_words_rejected"
             ) from err

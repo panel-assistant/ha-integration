@@ -383,7 +383,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         )
 
     def _has_install_route(self) -> bool:
-        if not self.coordinator.last_update_success:
+        if not self.coordinator.reachable:
             return False
         if self._api_capability() == "api":
             return (
@@ -447,9 +447,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
 
     def _route_observed(self) -> bool:
         """Whether the last answer came from the panel rather than from its absence."""
-        return (
-            self.coordinator.last_update_success and self.coordinator.data is not None
-        )
+        return self.coordinator.reachable and self.coordinator.data is not None
 
     def _async_reconcile_route_issue(self, *, has_route: bool) -> None:
         """Keep the repair in step with the route from every path that decides one."""
@@ -530,7 +528,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
     ) -> tuple[str | None, AdbInstallTarget | None, AdbCredential | None]:
         """Choose from the panel's live install route, then authorized ADB."""
         snapshot: PanelSnapshot | None = self.coordinator.data
-        if snapshot is None or not self.coordinator.last_update_success:
+        if snapshot is None or not self.coordinator.reachable:
             return None, None, None
         if self._bridge_handover_due():
             bridge = self._host_release()
@@ -594,7 +592,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
     async def _async_pin_adb_target(self) -> PinnedPanelTarget | None:
         """Bind passive ADB evidence to the configured panel's pinned HTTP identity."""
         snapshot = self.coordinator.data
-        if snapshot is None or not self.coordinator.last_update_success:
+        if snapshot is None or not self.coordinator.reachable:
             return None
         pinned = await async_pin_install_target(
             self.hass, self.coordinator.client.address
@@ -681,7 +679,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         snapshot = self.coordinator.data
         if (
             snapshot is None
-            or not self.coordinator.last_update_success
+            or not self.coordinator.reachable
             or artifact.descriptor is None
         ):
             return None
@@ -732,7 +730,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 else "panel identity changed"
                 if self.coordinator.identity_mismatch
                 else "last panel reading failed"
-                if not self.coordinator.last_update_success
+                if not self.coordinator.reachable
                 else f"panel reports {snapshot.health.version}, not {artifact.version}"
                 if snapshot.health.version != artifact.version
                 else f"panel reports package {snapshot.health.package}"
@@ -814,7 +812,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
 
     def _refresh_installed_code(self) -> None:
         """Read the running build number once per install, never per poll."""
-        if not self.coordinator.last_update_success:
+        if not self.coordinator.reachable:
             return
         health = self.coordinator.data.health
         if health.version_code is not None:
@@ -1683,7 +1681,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     )
                 )
             )
-            if self.coordinator.last_update_success and verified:
+            if self.coordinator.reachable and verified:
                 # The new build answers; the update ends once its dashboard
                 # shows, as on the staged route.
                 self._enter("back")
@@ -2074,7 +2072,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self._hold_through_restart()
             health = self.coordinator.data.health if self.coordinator.data else None
             if (
-                self.coordinator.last_update_success
+                self.coordinator.reachable
                 and health is not None
                 and (health.build, health.package) != before
                 and (minimum_code or health.version == artifact.version)

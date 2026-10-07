@@ -152,6 +152,11 @@ CAPABILITY_MEDIA: Final = "media"
 # A panel that offers this, with its Sendspin key, receives speech in step with
 # other panels (see ``voice_stream.py``). Granted whenever offered with a key.
 CAPABILITY_VOICE_STREAM: Final = "voice_stream"
+# A panel that offers this answers ``manage`` requests on its session: its
+# health and status snapshot, and the settings Panel Assistant writes. It is
+# not entity authority, so it is granted whenever offered, under every
+# authority. A panel without it is read and written over HTTP.
+CAPABILITY_MANAGEMENT: Final = "management"
 KNOWN_CAPABILITIES: Final = frozenset(
     {
         CAPABILITY_STATE,
@@ -163,6 +168,7 @@ KNOWN_CAPABILITIES: Final = frozenset(
         CAPABILITY_VOICE,
         CAPABILITY_MEDIA,
         CAPABILITY_VOICE_STREAM,
+        CAPABILITY_MANAGEMENT,
     }
 )
 # What each authority lets a session use, before intersecting with what the
@@ -214,6 +220,11 @@ COMMAND_ERRORS: Final = OUTCOME_CODES | {ERR_PANEL_UNAVAILABLE, ERR_APPROVAL_PEN
 COMMAND_TIMEOUT: Final = 30.0
 # How long the panel may hold a command before it answers that it expired.
 COMMAND_DEADLINE_MS: Final = 10_000
+# How long a management read waits for its answer. Shorter than a command's
+# wait, so a coordinator poll every 30 s never stacks on a slow panel.
+MANAGE_TIMEOUT: Final = 10.0
+MANAGE_SNAPSHOT: Final = "snapshot"
+MANAGE_SETTINGS: Final = "settings"
 # Commands whose wait ended without a final outcome, remembered so a late one
 # is still recorded; and outcomes kept for diagnostics.
 MAX_LATE_COMMANDS: Final = 16
@@ -628,6 +639,8 @@ COMMAND_RESULT_SCHEMA: Final = vol.All(
             vol.Required("outcome"): vol.In(OUTCOMES),
             vol.Optional("code"): vol.In(OUTCOME_CODES),
             vol.Optional("placeholders"): _placeholders,
+            # What an applied ``manage`` request answered with.
+            vol.Optional("result"): dict,
         },
         extra=vol.REMOVE_EXTRA,
     ),
@@ -938,6 +951,7 @@ class CommandOutcome:
 
     outcome: str
     code: str | None
+    result: dict[str, Any] | None = None
 
 
 @dataclass(slots=True)
@@ -2227,6 +2241,8 @@ def _accept_hello(
         capabilities |= {CAPABILITY_VOICE}
     if CAPABILITY_MEDIA in offered:
         capabilities |= {CAPABILITY_MEDIA}
+    if CAPABILITY_MANAGEMENT in offered:
+        capabilities |= {CAPABILITY_MANAGEMENT}
     voice_stream = async_get_voice_stream(hass)
     stream_client_id = (msg.get("voice_stream") or {}).get("client_id")
     if (
@@ -2637,7 +2653,9 @@ def ws_command_result(
     else:
         del session.pending[command_id]
         if not command.future.done():
-            command.future.set_result(CommandOutcome(msg["outcome"], msg.get("code")))
+            command.future.set_result(
+                CommandOutcome(msg["outcome"], msg.get("code"), msg.get("result"))
+            )
     connection.send_result(msg["id"])
 
 
@@ -2685,27 +2703,75 @@ async def async_send_command(
         raise HomeAssistantError(
             translation_domain=DOMAIN, translation_key=ERR_NOT_COMMANDABLE
         )
+    result = await _async_deliver(
+        hass, session, channel, {"channel": channel, "value": value}, COMMAND_TIMEOUT
+    )
+    if result.outcome in OUTCOMES_WITH_CODE:
+        raise _command_error(result.code)
 
+
+def session_manages(session: PanelSession | None) -> bool:
+    """Return whether a session carries management, so HTTP is not needed for it."""
+    return session is not None and CAPABILITY_MANAGEMENT in session.capabilities
+
+
+async def async_manage(
+    hass: HomeAssistant, session: PanelSession, op: str, **fields: Any
+) -> dict[str, Any]:
+    """Ask a panel one management request on its session and return its result.
+
+    The same delivery as a command, with the same session token, deadline
+    and command ID, so a repeat is answered from the panel's record rather
+    than run twice. It needs only a live session that granted management:
+    management is not entity state, so neither a full sync nor native
+    authority is required. Any outcome but applied raises its translated
+    error.
+    """
+    if async_get_sessions(hass).get(session.entry_id) is not session or not (
+        session_manages(session)
+    ):
+        raise HomeAssistantError(
+            translation_domain=DOMAIN, translation_key=ERR_PANEL_UNAVAILABLE
+        )
+    timeout = MANAGE_TIMEOUT if op == MANAGE_SNAPSHOT else COMMAND_TIMEOUT
+    outcome = await _async_deliver(
+        hass, session, f"manage:{op}", {"op": op, **fields}, timeout, kind="manage"
+    )
+    if outcome.outcome in OUTCOMES_WITH_CODE:
+        raise _command_error(outcome.code)
+    if outcome.outcome != OUTCOME_APPLIED:
+        raise _command_error(ERR_PANEL_UNAVAILABLE)
+    return outcome.result or {}
+
+
+async def _async_deliver(
+    hass: HomeAssistant,
+    session: PanelSession,
+    label: str,
+    fields: dict[str, Any],
+    wait_seconds: float,
+    kind: str = "command",
+) -> CommandOutcome:
+    """Send one event on a session once and wait for its final outcome."""
     command_id = secrets.token_urlsafe(24)
-    command = PendingCommand(channel=channel, future=hass.loop.create_future())
+    command = PendingCommand(channel=label, future=hass.loop.create_future())
     session.pending[command_id] = command
     session.count("sent")
     session.connection.send_message(
         event_message(
             session.subscription_id,
             {
-                "kind": "command",
+                "kind": kind,
                 "command_id": command_id,
                 "session": session.token,
-                "channel": channel,
-                "value": value,
+                **fields,
                 "deadline_ms": COMMAND_DEADLINE_MS,
             },
         )
     )
     future = command.future
     try:
-        async with asyncio.timeout(COMMAND_TIMEOUT):
+        async with asyncio.timeout(wait_seconds):
             # Shielded, so a cancelled caller leaves the command to be recorded.
             result = await asyncio.shield(future)
     except TimeoutError:
@@ -2724,8 +2790,7 @@ async def async_send_command(
     if result is None:
         session.count("session_ended")
         raise _command_error(ERR_PANEL_UNAVAILABLE)
-    if result.outcome in OUTCOMES_WITH_CODE:
-        raise _command_error(result.code)
+    return result
 
 
 @callback

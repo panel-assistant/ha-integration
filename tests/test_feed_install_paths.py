@@ -72,7 +72,7 @@ def _install_feed(hass: HomeAssistant, *builds: FeedBuild) -> BuildFeedCoordinat
     feed = BuildFeed("maintainer", tuple(builds), raw=b"feed\n", signature=b"s" * 256)
     coordinator.async_refresh = AsyncMock()  # type: ignore[method-assign]
     coordinator.data = feed
-    coordinator.last_update_success = True
+    coordinator.reachable = True
     hass.data.setdefault(DOMAIN, {})[DATA_BUILD_FEED] = coordinator
     return coordinator
 

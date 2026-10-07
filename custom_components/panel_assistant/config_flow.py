@@ -1371,7 +1371,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         )
         coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
         return coordinator is not None and (
-            bool(coordinator.last_update_success) or coordinator.connected
+            bool(coordinator.reachable) or coordinator.connected
         )
 
     def _address_is_configured(self, address: str) -> bool:

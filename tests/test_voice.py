@@ -287,6 +287,52 @@ async def test_the_selector_reads_the_panels_wake_words_and_writes_them_back(
     written.assert_awaited_once_with(["hey_jarvis"])
 
 
+async def test_wake_words_are_written_over_a_managing_session_without_http(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+) -> None:
+    panel = await _connect(
+        hass,
+        hass_ws_client,
+        hass_read_only_access_token,
+        ["state", "events", "voice", "management"],
+    )
+    assert (await panel.configure())["success"]
+    await hass.async_block_till_done()
+    entity_id = _satellite(hass, entry)
+    admin = await hass_ws_client(hass)
+    with patch(
+        "custom_components.panel_assistant.client.HaPaneldClient.async_set_voice_wake_words",
+        AsyncMock(side_effect=HaPaneldError("unreachable")),
+    ) as over_http:
+        await admin.send_json_auto_id(
+            {
+                "type": "assist_satellite/set_wake_words",
+                "entity_id": entity_id,
+                "wake_word_ids": ["hey_jarvis"],
+            }
+        )
+        message = await panel.receive()
+        event = message["event"]
+        assert event["kind"] == "manage", event
+        assert event["op"] == "settings"
+        assert event["settings"] == {"voice_wake_words": '["hey_jarvis"]'}
+        answered = await panel.send(
+            {
+                "type": "panel_assistant/command_result",
+                "session": panel.token,
+                "command_id": event["command_id"],
+                "outcome": "applied",
+            }
+        )
+        assert answered["success"], answered
+        response = await _receive(admin)
+    assert response["success"], response
+    over_http.assert_not_awaited()
+
+
 async def test_rejected_wake_words_return_a_translatable_error_to_the_selector(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
