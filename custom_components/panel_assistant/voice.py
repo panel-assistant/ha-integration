@@ -21,6 +21,9 @@ Three requests and one event kind carry it, all on the panel's session:
   wake word's pipeline, which the panel's listening overlay takes. Home
   Assistant hands every pipeline one colour, kept for all panels, so a
   pipeline looks the same wherever it answers.
+- ``voice_stream_frame`` carries one Sendspin message from a panel granted
+  ``voice_stream_session``, and ``voice_stream_stop`` takes it off the stream
+  it names (see ``voice_stream.py``).
 
 A binary handler lives for one turn, never a session, because a connection has
 only 255 of them.
@@ -29,6 +32,8 @@ only 255 of them.
 from __future__ import annotations
 
 import asyncio
+import base64
+import binascii
 import logging
 from collections import Counter
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Mapping
@@ -39,7 +44,10 @@ import voluptuous as vol
 import yarl
 from homeassistant.components import websocket_api
 from homeassistant.components.websocket_api.connection import ActiveConnection
-from homeassistant.components.websocket_api.decorators import websocket_command
+from homeassistant.components.websocket_api.decorators import (
+    async_response,
+    websocket_command,
+)
 from homeassistant.components.websocket_api.messages import event_message
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import Platform
@@ -55,6 +63,7 @@ from .microphone_repair import async_reconcile_microphone_issue
 from .transport import (
     _CONTROL_CHARACTERS,
     CAPABILITY_VOICE,
+    CAPABILITY_VOICE_STREAM_SESSION,
     ERR_SESSION_UNKNOWN,
     _bounded_list,
     _code,
@@ -63,6 +72,7 @@ from .transport import (
     async_get_sessions,
     signal_session_changed,
 )
+from .voice_stream import VoiceStream, async_get_voice_stream
 
 if TYPE_CHECKING:
     from .assist_satellite import PanelAssistSatellite
@@ -72,10 +82,13 @@ _LOGGER = logging.getLogger(__name__)
 COMMAND_VOICE_CONFIGURATION: Final = f"{DOMAIN}/voice_configuration"
 COMMAND_VOICE_RUN: Final = f"{DOMAIN}/voice_run"
 COMMAND_VOICE_PLAYED: Final = f"{DOMAIN}/voice_played"
+COMMAND_VOICE_STREAM_FRAME: Final = f"{DOMAIN}/voice_stream_frame"
+COMMAND_VOICE_STREAM_STOP: Final = f"{DOMAIN}/voice_stream_stop"
 EVENT_VOICE_ANNOUNCE: Final = "voice_announce"
 EVENT_VOICE_COLORS: Final = "voice_colors"
 
 ERR_VOICE_UNAVAILABLE: Final = "voice_unavailable"
+ERR_VOICE_STREAM_UNAVAILABLE: Final = "voice_stream_unavailable"
 
 MAX_WAKE_WORDS: Final = 32
 # A turn whose audio stops arriving without its end frame ends here, so a
@@ -102,6 +115,9 @@ PIPELINE_COLORS: Final = (
     "#B6F03C",
 )
 _ANNOUNCE_ID_PATTERN: Final = r"^[A-Za-z0-9_-]{1,64}$"
+STREAM_ID_PATTERN: Final = _ANNOUNCE_ID_PATTERN
+# One Sendspin WebSocket message is at most one 64 KiB Noise frame.
+MAX_SENDSPIN_FRAME: Final = 65_535
 
 MICROPHONE_PRESENCES: Final = frozenset({"proven", "unproven", "absent"})
 MICROPHONE_CHECKS: Final = frozenset(
@@ -224,6 +240,37 @@ VOICE_RUN_SCHEMA: Final = vol.Schema(
         # A later turn of the same conversation: the wake word still names the
         # pipeline, but nobody said it again.
         vol.Optional("continued", default=False): bool,
+    },
+    extra=vol.REMOVE_EXTRA,
+)
+
+
+def _sendspin_frame(value: Any) -> bytes:
+    """Return one base64 Sendspin message as bytes."""
+    if not isinstance(value, str) or len(value) > (MAX_SENDSPIN_FRAME + 2) // 3 * 4:
+        raise vol.Invalid("invalid frame")
+    try:
+        return base64.b64decode(value, validate=True)
+    except (binascii.Error, ValueError) as err:
+        raise vol.Invalid("invalid frame") from err
+
+
+VOICE_STREAM_FRAME_SCHEMA: Final = vol.Schema(
+    {
+        vol.Required("type"): COMMAND_VOICE_STREAM_FRAME,
+        vol.Required("session"): _session_token,
+        vol.Required("frame"): _sendspin_frame,
+        # Whether the Sendspin message was a text message.
+        vol.Required("text"): bool,
+    },
+    extra=vol.REMOVE_EXTRA,
+)
+
+VOICE_STREAM_STOP_SCHEMA: Final = vol.Schema(
+    {
+        vol.Required("type"): COMMAND_VOICE_STREAM_STOP,
+        vol.Required("session"): _session_token,
+        vol.Required("stream_id"): vol.Match(STREAM_ID_PATTERN),
     },
     extra=vol.REMOVE_EXTRA,
 )
@@ -460,12 +507,61 @@ def ws_voice_played(
     connection.send_result(msg["id"], {})
 
 
+def _stream_session(
+    hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
+) -> tuple[VoiceStream, str] | None:
+    session = async_get_sessions(hass).for_request(msg["session"], connection)
+    if session is None:
+        connection.send_error(msg["id"], ERR_SESSION_UNKNOWN, "No such session.")
+        return None
+    voice_stream = async_get_voice_stream(hass)
+    if (
+        CAPABILITY_VOICE_STREAM_SESSION not in session.capabilities
+        or voice_stream is None
+    ):
+        connection.send_error(
+            msg["id"],
+            ERR_VOICE_STREAM_UNAVAILABLE,
+            "The voice stream was not granted to this session.",
+        )
+        return None
+    return voice_stream, session.token
+
+
+@callback
+@websocket_command(vol.All(VOICE_STREAM_FRAME_SCHEMA))
+def ws_voice_stream_frame(
+    hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Hand the voice server one Sendspin message from the panel, in order."""
+    if (found := _stream_session(hass, connection, msg)) is None:
+        return
+    voice_stream, token = found
+    voice_stream.feed(token, msg["frame"], text=msg["text"])
+    connection.send_result(msg["id"], {})
+
+
+@websocket_command(vol.All(VOICE_STREAM_STOP_SCHEMA))
+@async_response
+async def ws_voice_stream_stop(
+    hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Take the panel off the stream it names: it has to stop speech itself."""
+    if (found := _stream_session(hass, connection, msg)) is None:
+        return
+    voice_stream, token = found
+    await voice_stream.async_stop_stream(token, msg["stream_id"])
+    connection.send_result(msg["id"], {})
+
+
 @callback
 def async_setup_voice(hass: HomeAssistant) -> None:
     """Register the voice requests once for the domain, never per entry."""
     websocket_api.async_register_command(hass, ws_voice_configuration)
     websocket_api.async_register_command(hass, ws_voice_run)
     websocket_api.async_register_command(hass, ws_voice_played)
+    websocket_api.async_register_command(hass, ws_voice_stream_frame)
+    websocket_api.async_register_command(hass, ws_voice_stream_stop)
 
 
 def satellite_unique_id(entry_id: str) -> str:

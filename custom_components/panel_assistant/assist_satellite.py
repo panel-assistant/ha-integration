@@ -57,7 +57,7 @@ from .voice import (
     satellite_unique_id,
     satellites,
 )
-from .voice_stream import async_get_voice_stream
+from .voice_stream import OUTCOME_FAILED, Listener, async_get_voice_stream
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -370,21 +370,33 @@ class PanelAssistSatellite(AssistSatelliteEntity):
     async def _async_stream_reply(
         self, run: VoiceRun, play: dict[str, Any], url: str, client_id: str | None
     ) -> None:
-        """Stream the reply to this panel alone, or send it by URL as before."""
+        """Stream the reply to this panel alone, or send it by URL as before.
+
+        A streamed reply is finished when its stream drains: the panel does
+        not report it played.
+        """
         voice_stream = async_get_voice_stream(self.hass)
         try:
             source = async_process_play_media_url(self.hass, url)
         except HomeAssistantError:
             source = None
+
+        def _play(stream_id: str) -> bool:
+            run.send(play | {"stream": True, "stream_id": stream_id})
+            return True
+
+        listener = Listener(
+            client_id,
+            _play,
+            listen_after=play["continue_conversation"],
+            ended=lambda _outcome: self.tts_response_finished(),
+        )
         if (
-            voice_stream is not None
-            and source is not None
-            and (start := await voice_stream.async_play_reply(client_id, source))
-            is not None
+            voice_stream is None
+            or source is None
+            or not await voice_stream.async_play_reply(listener, source)
         ):
-            play["stream"] = True
-            play["stream_start_us"] = start
-        run.send(play)
+            run.send(play)
 
     @callback
     def async_played(self, announce_id: str | None) -> None:
@@ -434,29 +446,41 @@ class PanelAssistSatellite(AssistSatelliteEntity):
             "listen_after": listen_after,
         }
         # Every panel this one call announces to plays one stream, in step.
-        voice_stream = async_get_voice_stream(self.hass)
-        start = (
-            None
-            if voice_stream is None
-            else await voice_stream.async_announce(
-                (
-                    None if self._context is None else self._context.id,
-                    announcement.original_media_id,
-                    # Signed once per entity, so the signature can differ.
-                    None
-                    if preannounce is None
-                    else str(URL(preannounce).with_query(None)),
-                ),
-                session.voice_stream_client_id,
-                (preannounce, announcement.media_id)
-                if preannounce
-                else (announcement.media_id,),
+        # A streamed panel is told to play before the stream's first frame,
+        # and the announcement is finished when the stream ends for it.
+
+        def _play(stream_id: str) -> bool:
+            if self._session is not session:
+                return False
+            session.connection.send_message(
+                event_message(
+                    session.subscription_id,
+                    event | {"stream": True, "stream_id": stream_id},
+                )
             )
+            return True
+
+        def _ended(outcome: str) -> None:
+            if not future.done():
+                future.set_result(outcome != OUTCOME_FAILED)
+
+        voice_stream = async_get_voice_stream(self.hass)
+        streamed = voice_stream is not None and await voice_stream.async_announce(
+            (
+                None if self._context is None else self._context.id,
+                announcement.original_media_id,
+                # Signed once per entity, so the signature can differ.
+                None if preannounce is None else str(URL(preannounce).with_query(None)),
+            ),
+            Listener(session.voice_stream_client_id, _play, listen_after, _ended),
+            (preannounce, announcement.media_id)
+            if preannounce
+            else (announcement.media_id,),
         )
-        if start is not None:
-            event["stream"] = True
-            event["stream_start_us"] = start
-        session.connection.send_message(event_message(session.subscription_id, event))
+        if not streamed:
+            session.connection.send_message(
+                event_message(session.subscription_id, event)
+            )
         try:
             async with asyncio.timeout(ANNOUNCE_TIMEOUT):
                 played = await future
