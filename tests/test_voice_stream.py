@@ -98,7 +98,7 @@ CLIPS = {
     "chime": _clip(0.2),
     "speech": _clip(0.5),
     "mp3": _clip(0.5, "mp3"),
-    "long": _clip(5.0),
+    "long": _clip(8.0),
 }
 
 
@@ -434,7 +434,7 @@ async def test_calls_of_one_context_arriving_apart_still_play_in_step(
     await _ready(hass, b)
     shared_context = Context()
 
-    def announce(entity_id: str | None) -> asyncio.Future[Any]:
+    def announce(entity_id: str | None, signature: str) -> asyncio.Future[Any]:
         return asyncio.ensure_future(
             hass.services.async_call(
                 "assist_satellite",
@@ -442,16 +442,19 @@ async def test_calls_of_one_context_arriving_apart_still_play_in_step(
                 {
                     "entity_id": entity_id,
                     "media_id": f"{base}/test_voice_stream/speech",
-                    "preannounce": False,
+                    # Each entity signs the chime's path itself, in its own second.
+                    "preannounce_media_id": (
+                        f"{base}/test_voice_stream/chime?authSig={signature}"
+                    ),
                 },
                 blocking=True,
                 context=shared_context if shared else Context(),
             )
         )
 
-    first = announce(_satellite(hass, entry))
+    first = announce(_satellite(hass, entry), "first")
     await asyncio.sleep(0.05)
-    second = announce(_satellite(hass, other))
+    second = announce(_satellite(hass, other), "second")
     event_a, event_b = await _event(panel_a), await _event(panel_b)
     assert event_a["stream"] is event_b["stream"] is True
     await a.ended(1)
@@ -703,5 +706,5 @@ async def test_a_newer_media_announcement_cuts_the_older_stream_off(
     await speaker.ended(2)
 
     assert len(speaker.streams) == 2
-    assert speaker.seconds(0) < 4.0  # of 5 s
+    assert speaker.seconds(0) < 6.0  # of 8 s
     assert speaker.seconds(1) == len(decode_clip(CLIPS["speech"])) / BYTES_PER_SECOND

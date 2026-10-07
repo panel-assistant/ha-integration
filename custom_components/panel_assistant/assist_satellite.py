@@ -35,6 +35,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from yarl import URL
 
 from . import HaPaneldConfigEntry
 from .browser_panel import STATIC_URL
@@ -436,7 +437,8 @@ class PanelAssistSatellite(AssistSatelliteEntity):
             (
                 None if self._context is None else self._context.id,
                 announcement.original_media_id,
-                preannounce,
+                # Signed once per entity, so the signature can differ.
+                None if preannounce is None else str(URL(preannounce).with_query(None)),
             ),
             session.voice_stream_client_id,
             (preannounce, announcement.media_id)
