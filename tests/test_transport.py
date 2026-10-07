@@ -314,6 +314,10 @@ async def test_non_admin_panel_account_opens_a_session(
     assert result["connection"]["instance_id"] == await instance_id.async_get(hass)
     assert result["connection"]["user_id"] == hass_read_only_user.id
     assert isinstance(result["connection"]["urls"], list)
+    # The panel finds its own device from this, without probing the entity registry.
+    assert dr.async_get(hass).async_get_device(
+        identifiers={(DOMAIN, result["entry_id"])}
+    )
     assert result["protocol"] == 3
     assert result["authority"] == "shadow"
     assert result["capabilities"] == ["events", "state"]
