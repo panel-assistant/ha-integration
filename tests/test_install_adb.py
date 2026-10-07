@@ -3648,34 +3648,3 @@ async def test_data_with_no_application_to_own_it_is_never_an_installed_target(
         )
 
     assert caught.value.code is InstallAdbErrorCode.TARGET_NOT_CLEAN
-
-
-@pytest.mark.parametrize(
-    "changed",
-    [
-        {"serial": "SERIAL-2"},
-        {"model": "Other Panel"},
-        {"primary_abi": "armeabi-v7a"},
-        {"android_sdk": 30},
-    ],
-)
-def test_one_changed_fact_is_another_physical_target(changed: dict[str, Any]) -> None:
-    """Every entry point compares a fresh probe with an approved target this way."""
-    from custom_components.panel_assistant.provisioning import (
-        InstallTargetProbe,
-        InstallTargetState,
-    )
-
-    facts = {
-        "serial": "SERIAL-1",
-        "model": "Test Panel",
-        "primary_abi": "arm64-v8a",
-        "android_sdk": 34,
-    }
-    approved = install_adb.AdbInstallTarget(
-        address=PanelAddress(host="192.168.1.20", port=5555), **facts
-    )
-    probe = InstallTargetProbe(state=InstallTargetState.INSTALLED, **facts)
-
-    assert install_adb.same_physical_target(probe, approved)
-    assert not install_adb.same_physical_target(replace(probe, **changed), approved)

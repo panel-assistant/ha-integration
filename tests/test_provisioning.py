@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import struct
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -944,3 +945,31 @@ def test_a_probe_missing_any_identity_fact_names_no_adb_target(missing: str) -> 
         state=InstallTargetState.INSTALLED, **(facts | {missing: None})
     )
     assert partial.adb_target(address) is None
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [
+        {"serial": "SERIAL-2"},
+        {"model": "Other Panel"},
+        {"primary_abi": "armeabi-v7a"},
+        {"android_sdk": 30},
+    ],
+)
+def test_one_changed_fact_is_another_physical_target(changed: dict[str, Any]) -> None:
+    """Every entry point compares a fresh probe with an approved target this way."""
+    facts = {
+        "serial": "SERIAL-1",
+        "model": "Test Panel",
+        "primary_abi": "arm64-v8a",
+        "android_sdk": 34,
+    }
+    approved = install_adb.AdbInstallTarget(
+        address=normalize_address("192.168.1.20:5555"), **facts
+    )
+    probe = InstallTargetProbe(state=InstallTargetState.INSTALLED, **facts)
+
+    assert install_adb.same_physical_target(probe, approved)
+    assert not install_adb.same_physical_target(
+        dataclasses.replace(probe, **changed), approved
+    )
