@@ -3,8 +3,10 @@
 ``panel_assistant_transport_v1.json`` is the one definition of the command
 outcome codes and of every channel this integration can render. The message
 vocabulary (commands, sync, states, errors) lives in ``transport.py``. The
-catalogue decides which descriptors are known: a descriptor the catalogue does
-not know is accepted but creates nothing.
+catalogue holds each channel's identity and the presentation only Home
+Assistant decides (attributes, colour modes); every other entity fact comes
+from the panel's own descriptor. It decides which descriptors are known: a
+descriptor the catalogue does not know is accepted but creates nothing.
 """
 
 from __future__ import annotations
@@ -65,8 +67,6 @@ def catalogue_entry(descriptor: Mapping[str, Any]) -> dict[str, Any] | None:
                 "platform": "switch",
                 "translation_key": "camera_enabled",
                 "unique_suffix": "camera_enabled",
-                "entity_category": "config",
-                "enabled_default": False,
             }
         suffix = None if entry is None else entry["unique_suffix"]
     else:

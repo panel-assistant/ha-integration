@@ -101,13 +101,50 @@ def test_real_android_transport_messages_pass_ha_schemas(
         assert validated["unsupported"] == message.get("unsupported", [])
 
 
+def _old_panel(channel: str, platform: str, **facts: Any) -> dict[str, Any]:
+    return {
+        "channel": channel,
+        "platform": platform,
+        "translation_key": channel,
+        "unique_suffix": channel,
+        **facts,
+    }
+
+
+# Catalogue channels the current app no longer describes; older panels still do.
+OLD_PANEL_DESCRIPTORS = [
+    _old_panel("auto_sleep_activity", "binary_sensor", enabled_default=False),
+    _old_panel("button", "event", options=["keycode_home", "keycode_back"]),
+    _old_panel("camera_snapshot", "image"),
+    *(
+        _old_panel(
+            channel,
+            "select",
+            entity_category="config",
+            enabled_default=False,
+            options=["stable", "prerelease"],
+        )
+        for channel in ("update_channel", "companion_update_channel")
+    ),
+    *(
+        _old_panel(channel, "switch", entity_category="config", enabled_default=False)
+        for channel in ("self_update", "companion_auto_update", "webview_auto_update")
+    ),
+]
+# Every channel descriptor a panel sends, validated as the hello handler does.
+CHANNEL_DESCRIPTORS: list[dict[str, Any]] = [
+    transport.DESCRIPTOR_SCHEMA(descriptor)
+    for descriptor in (*ANDROID_PRODUCER["channelDescriptors"], *OLD_PANEL_DESCRIPTORS)
+]
+_BY_CHANNEL = {descriptor["channel"]: descriptor for descriptor in CHANNEL_DESCRIPTORS}
+
+
 def _descriptor(entry: dict[str, Any], index: int = 1) -> dict[str, Any]:
-    """Return the validated descriptor a panel sends for a catalogue entry."""
+    """Return the validated identity a panel sends for a catalogue entry."""
     family = entry["family"]
     fields = {
-        key: value
-        for key, value in entry.items()
-        if key not in ("value", "attributes", "color_modes")
+        key: entry[key]
+        for key in ("channel", "family", "platform", "translation_key", "unique_suffix")
     }
     if family is not None:
         fields |= {
@@ -115,17 +152,10 @@ def _descriptor(entry: dict[str, Any], index: int = 1) -> dict[str, Any]:
             "index": index,
             "unique_suffix": entry["unique_suffix"].format(index=index),
         }
-    if entry["platform"] == "event":
+    if entry["platform"] in ("event", "select"):
         fields["options"] = ["keycode_home"]
     descriptor: dict[str, Any] = transport.DESCRIPTOR_SCHEMA(fields)
     return descriptor
-
-
-def _entry(channel: str) -> dict[str, Any]:
-    for entry in CONTRACT["channels"]:
-        if channel in (entry["channel"], f"{entry['family']}1"):
-            return entry  # type: ignore[no-any-return]
-    raise AssertionError(channel)
 
 
 def test_authority_grants_name_only_known_capabilities() -> None:
@@ -152,23 +182,6 @@ def test_every_catalogue_entry_is_a_known_descriptor(entry: dict[str, Any]) -> N
             _descriptor(entry, CONTRACT["max_family_index"] + 1)
 
 
-_DESCRIPTOR_FIELDS = (
-    "platform",
-    "translation_key",
-    "family",
-    "entity_category",
-    "enabled_default",
-    "device_class",
-    "unit",
-    "state_class",
-    "force_update",
-    "options",
-    "min",
-    "max",
-    "step",
-)
-
-
 @pytest.mark.parametrize(
     "descriptor",
     ANDROID_PRODUCER["channelDescriptors"],
@@ -177,15 +190,14 @@ _DESCRIPTOR_FIELDS = (
 def test_every_android_channel_descriptor_is_its_catalogue_entry(
     descriptor: dict[str, Any],
 ) -> None:
-    """Each channel Android describes is the catalogue's entry, field for field."""
+    """Each channel Android describes is a catalogue entry, identity for identity."""
     entry = catalogue_entry(descriptor)
     if descriptor["channel"] in {"voice_enabled", "voice_state"}:
         # HA replaced these old entities with the Assist satellite.
         assert entry is None
         return
     assert entry is not None
-    for field in _DESCRIPTOR_FIELDS:
-        assert descriptor[field] == entry[field], field
+    assert entry["family"] == descriptor["family"]
 
 
 def test_the_catalogue_preserves_old_panel_channels_absent_from_current_android() -> (
@@ -225,9 +237,9 @@ def test_the_catalogue_preserves_old_panel_channels_absent_from_current_android(
 )
 def test_a_known_channel_in_another_shape_is_unknown(change: dict[str, str]) -> None:
     """The channel, platform, key and suffix must all match the catalogue."""
-    descriptor = _descriptor(_entry("relay1")) | change
+    descriptor = _BY_CHANNEL["relay1"] | change
     assert catalogue_entry(descriptor) is None
-    family = _descriptor(_entry("relay1")) | {"channel": "relay2"}
+    family = _BY_CHANNEL["relay1"] | {"channel": "relay2"}
     assert catalogue_entry(family) is None
 
 
@@ -239,19 +251,43 @@ _SAMPLES: dict[str, list[Any]] = {
 }
 
 
+# The value type each sensor the app describes carries.
+_SENSOR_KINDS = {
+    "diag_boot": "timestamp",
+    "diag_ip": "text",
+    "diag_wifi_ssid": "text",
+    "storage_health": "option",
+    **dict.fromkeys(
+        (
+            "diag_cpu",
+            "diag_memory",
+            "diag_soc_temp",
+            "diag_wifi_outages_24h",
+            "diag_wifi_rssi",
+            "humidity",
+            "illuminance",
+            "proximity_level",
+            "room_humidity",
+            "room_temp",
+            "temperature",
+        ),
+        "number",
+    ),
+}
+
+
 @pytest.mark.parametrize(
-    "entry",
-    [entry for entry in CONTRACT["channels"] if entry["platform"] == "sensor"],
-    ids=lambda entry: entry["translation_key"],
+    "descriptor",
+    [item for item in CHANNEL_DESCRIPTORS if item["platform"] == "sensor"],
+    ids=lambda descriptor: descriptor["channel"],
 )
-def test_sensor_values_are_typed_as_the_catalogue_declares(
-    entry: dict[str, Any],
+def test_sensor_values_are_typed_as_the_descriptor_declares(
+    descriptor: dict[str, Any],
 ) -> None:
-    """The validator reads the descriptor exactly as the catalogue's value type."""
-    descriptor = _descriptor(entry)
+    """The validator types each producer sensor's values from its descriptor."""
     validate = transport._VALUE_VALIDATORS["sensor"]
-    kind = entry["value"]
-    samples = {**_SAMPLES, "option": list(entry["options"] or ())}
+    kind = _SENSOR_KINDS[descriptor["channel"]]
+    samples = {**_SAMPLES, "option": list(descriptor["options"] or ())}
     for accepted in samples[kind]:
         assert validate(accepted, descriptor) == accepted
     for other_kind, values in samples.items():
@@ -428,7 +464,7 @@ def test_the_hello_result_vectors_cover_the_negotiated_withdrawal() -> None:
 )
 def test_observation_conformance_vectors(vector: dict[str, Any]) -> None:
     """Each vector value is accepted, or rejected, for its catalogue channel."""
-    descriptor = _descriptor(_entry(vector["channel"]))
+    descriptor = _BY_CHANNEL[vector["channel"]]
     validate = transport._VALUE_VALIDATORS[descriptor["platform"]]
     if vector["accepted"]:
         validate(vector["value"], descriptor)
@@ -442,18 +478,29 @@ def test_observation_conformance_vectors(vector: dict[str, Any]) -> None:
 
 
 @pytest.mark.parametrize(
-    "entry",
-    [entry for entry in CONTRACT["channels"] if entry["channel"] not in NOT_RENDERED],
-    ids=lambda entry: entry["translation_key"],
+    "descriptor",
+    [
+        descriptor
+        for descriptor in CHANNEL_DESCRIPTORS
+        if descriptor["channel"] not in NOT_RENDERED
+        and catalogue_entry(descriptor) is not None
+    ],
+    ids=lambda descriptor: descriptor["channel"],
 )
-def test_every_rendered_channel_has_english_text(entry: dict[str, Any]) -> None:
+def test_every_rendered_channel_has_english_text(descriptor: dict[str, Any]) -> None:
     """Name, option states and attribute names resolve under the entity tree."""
+    entry = catalogue_entry(descriptor)
+    assert entry is not None
     node = ENGLISH["entity"].get(entry["platform"], {}).get(entry["translation_key"])
     assert isinstance(node, dict)
     name = node.get("name")
     assert isinstance(name, str) and name.strip()
     assert ("{index}" in name) == (entry["family"] is not None)
-    for code in entry["options"] or ():
+    codes = {*(descriptor["options"] or ()), *entry.get("options", ())}
+    if entry["platform"] == "event":
+        # Event types name the panel's keys; they have no state text.
+        codes = set()
+    for code in codes:
         if entry["platform"] == "light":
             states = node.get("state_attributes", {}).get("effect", {}).get("state", {})
         else:

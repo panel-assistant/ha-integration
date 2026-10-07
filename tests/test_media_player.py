@@ -19,7 +19,6 @@ from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant import transport
-from custom_components.panel_assistant.contract import CONTRACT
 
 from .test_native import DESCRIPTORS, _hello, _observations, _report
 from .test_transport import DID, WsClientFactory, _send
@@ -30,9 +29,7 @@ from .test_transport_commands import (
     _connect,
     native,  # noqa: F401  # the fixture
 )
-
-# Looked up at use, so a catalogue without the channel fails each test.
-MEDIA = {entry["channel"]: entry for entry in CONTRACT["channels"]}.get("media", {})
+from .test_transport_contract import _BY_CHANNEL
 
 
 def _player(hass: HomeAssistant) -> str:
@@ -105,9 +102,7 @@ async def panel(
 )
 def test_media_observation_values(value: Any, accepted: bool) -> None:
     """Only the four states with a strict mute flag are a media observation."""
-    descriptor = transport.DESCRIPTOR_SCHEMA(
-        {key: v for key, v in MEDIA.items() if key not in ("value", "attributes")}
-    )
+    descriptor = _BY_CHANNEL["media"]
     validate = transport._VALUE_VALIDATORS[descriptor["platform"]]
     if accepted:
         assert validate(value | {"extra": 1}, descriptor) == value

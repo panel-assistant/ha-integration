@@ -26,7 +26,7 @@ from custom_components.panel_assistant.const import (
     CONF_TRANSPORT_USER_ID,
     DOMAIN,
 )
-from custom_components.panel_assistant.contract import CONTRACT
+from custom_components.panel_assistant.contract import catalogue_entry
 from custom_components.panel_assistant.diagnostics import (
     async_get_config_entry_diagnostics,
 )
@@ -40,52 +40,17 @@ from .test_transport import (
     _registry_digest,
     _send,
 )
+from .test_transport_contract import CHANNEL_DESCRIPTORS
 
 FIXTURES = Path(__file__).parent / "fixtures"
-EVENT_TYPES = ["keycode_home", "keycode_back"]
 
 
-def _descriptor_for(entry: dict[str, Any]) -> dict[str, Any]:
-    """Return the descriptor a panel sends for one catalogue entry."""
-    family = entry["family"]
-    descriptor = {
-        key: entry[key]
-        for key in (
-            "platform",
-            "translation_key",
-            "entity_category",
-            "enabled_default",
-            "device_class",
-            "unit",
-            "state_class",
-            "force_update",
-            "options",
-            "min",
-            "max",
-            "step",
-        )
-    }
-    if family is None:
-        descriptor |= {
-            "channel": entry["channel"],
-            "unique_suffix": entry["unique_suffix"],
-        }
-    else:
-        descriptor |= {
-            "channel": f"{family}1",
-            "family": family,
-            "index": 1,
-            "unique_suffix": entry["unique_suffix"].format(index=1),
-        }
-    if entry["platform"] == "event":
-        # Event types come from the panel's profile, not the catalogue.
-        descriptor["options"] = EVENT_TYPES
-    return descriptor
-
-
-# Every catalogue channel, everything enabled so each renders a state.
+# Every channel the catalogue knows, as a panel describes it, everything
+# enabled so each renders a state.
 DESCRIPTORS = [
-    _descriptor_for(entry) | {"enabled_default": True} for entry in CONTRACT["channels"]
+    descriptor | {"enabled_default": True}
+    for descriptor in CHANNEL_DESCRIPTORS
+    if descriptor["index"] in (None, 1) and catalogue_entry(descriptor) is not None
 ]
 PANEL_HELLO: dict[str, Any] = json.loads(
     (FIXTURES / "panel_hello.json").read_text(encoding="utf-8")
