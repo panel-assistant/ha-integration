@@ -90,7 +90,7 @@ def panel_device_info(
         info["model"] = device.model
     # Home Assistant applies suggested_area only when it first registers the device and
     # never overrides a later manual move, matching the panel's own request semantics.
-    if device.area and not _is_null_area_name(device.area):
+    if device.area:
         info["suggested_area"] = device.area
     return info
 

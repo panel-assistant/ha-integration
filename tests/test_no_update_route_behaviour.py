@@ -76,6 +76,8 @@ async def test_a_lost_route_is_noticed_although_nothing_else_changed(
     assert issue is not None
     assert issue.translation_key == "no_update_route"
     assert issue.translation_placeholders == {"panel": "Study display"}
+    assert issue.severity is ir.IssueSeverity.WARNING
+    assert "panel-cannot-update" in issue.learn_more_url
     # Raw details remain available to support without being interpolated into
     # the user's translated Repair.
     assert route.entity.extra_state_attributes["update_unavailable_reason"]

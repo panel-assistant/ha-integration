@@ -25,7 +25,7 @@ from .client import (
     is_valid_discovery_id,
     normalize_address,
 )
-from .config_flow import async_authorize_existing_panel_adb
+from .config_flow import async_authorize_adb_form
 from .const import CONF_TRANSPORT_USER_ID, DOMAIN, update_unique_id
 from .coordinator import HaPaneldDataUpdateCoordinator, PanelSnapshot
 from .device import panel_display_name
@@ -34,7 +34,6 @@ from .failure_repair import (
     ISSUE_INSTALLER_FAILURE,
     RetrySafetyHold,
     adb_authorization_issue_id,
-    async_clear_adb_authorization,
     async_clear_failure,
     async_failure_events,
     async_record_retry_hold,
@@ -80,6 +79,7 @@ from .transport import (
     ISSUE_DATA_ENTRY_ID,
     ISSUE_DATA_USER_ID,
     async_bind_user,
+    async_confirmable_user,
     async_delete_binding_issue,
 )
 
@@ -267,8 +267,8 @@ class PanelUserBindingFlow(RepairsFlow):
         if entry is None:
             async_delete_binding_issue(self.hass, self._entry_id)
             return self.async_abort(reason=ABORT_ENTRY_REMOVED)
-        user = await self.hass.auth.async_get_user(self._user_id)
-        if user is None or not user.is_active or user.system_generated:
+        user = await async_confirmable_user(self.hass, self._user_id)
+        if user is None:
             # Core keeps an issue whose flow aborts, but a request that can
             # never be confirmed is only noise. A newer request stays.
             async_delete_binding_issue(self.hass, self._entry_id, self._user_id)
@@ -390,25 +390,11 @@ class InstallerFailureFlow(RepairsFlow):
         entry = self._adb_entry()
         if entry is None:
             return self.async_abort(reason=ABORT_ENTRY_REMOVED)
-        if user_input is not None:
-            error = await async_authorize_existing_panel_adb(self.hass, entry)
-            if error is None:
-                async_clear_adb_authorization(self.hass, entry.entry_id)
-                return await self.async_step_init()
-            return self._show_adb_authorization(
-                panel_display_name(self.hass, entry), {"base": error}
-            )
-        return self._show_adb_authorization(panel_display_name(self.hass, entry))
-
-    def _show_adb_authorization(
-        self, panel: str, errors: dict[str, str] | None = None
-    ) -> RepairsFlowResult:
-        return self.async_show_form(
-            step_id="authorize_adb",
-            data_schema=vol.Schema({}),
-            description_placeholders={"panel": panel},
-            errors=errors,
-        )
+        panel = panel_display_name(self.hass, entry)
+        form = await async_authorize_adb_form(self, entry, panel, user_input)
+        if form is not None:
+            return form
+        return await self.async_step_init()
 
     async def async_step_support_report(
         self, user_input: dict[str, Any] | None = None
@@ -657,25 +643,11 @@ class AdbAuthorizationFlow(RepairsFlow):
         entry = self.hass.config_entries.async_get_entry(self._entry_id)
         if entry is None or entry.domain != DOMAIN:
             return self.async_abort(reason=ABORT_ENTRY_REMOVED)
-        if user_input is not None:
-            error = await async_authorize_existing_panel_adb(self.hass, entry)
-            if error is None:
-                async_clear_adb_authorization(self.hass, self._entry_id)
-                return self.async_create_entry(data={})
-            return self._show_authorization(
-                panel_display_name(self.hass, entry), {"base": error}
-            )
-        return self._show_authorization(panel_display_name(self.hass, entry))
-
-    def _show_authorization(
-        self, panel: str, errors: dict[str, str] | None = None
-    ) -> RepairsFlowResult:
-        return self.async_show_form(
-            step_id="authorize_adb",
-            data_schema=vol.Schema({}),
-            description_placeholders={"panel": panel},
-            errors=errors,
-        )
+        panel = panel_display_name(self.hass, entry)
+        form = await async_authorize_adb_form(self, entry, panel, user_input)
+        if form is not None:
+            return form
+        return self.async_create_entry(data={})
 
 
 async def async_create_fix_flow(

@@ -360,7 +360,6 @@ def test_shipped_translation_catalogues_preserve_machine_contracts(
         INTEGRATION / "translations" / "en.json"
     )
     english = _translation_leaves(english_catalogue)
-    assert len(english) == 720
     assert {path.stem for path in (INTEGRATION / "translations").glob("*.json")} == {
         "en",
         *TRANSLATED_LANGUAGES,

@@ -29,6 +29,7 @@ from .build_feed import FeedInstallBundle
 from .client import HaPaneldClient, InvalidAddressError, PanelAddress, normalize_address
 from .const import DEFAULT_PORT, DOMAIN
 from .ha_url import async_offer_ha_url
+from .install_network import is_allowed_install_address
 from .release import is_feed_build_tag, is_install_release_tag, unique_json_object
 from .release_catalog import async_list_install_choices
 
@@ -268,16 +269,12 @@ def _usb_panel_address(value: object) -> PanelAddress:
         host = ip_address(address.host)
     except (InvalidAddressError, ValueError) as error:
         raise ValueError from error
-    if address.port != DEFAULT_PORT or not isinstance(host, IPv4Address):
-        raise ValueError
-    # The same three RFC 1918 ranges the installer page accepts when it reads
-    # the panel's address over USB (`isPrivate` in panel-address.mjs): a panel
-    # on the home network, never a host this server could be steered to reach.
-    first, second = host.packed[:2]
-    if not (
-        first == 10
-        or (first == 172 and 16 <= second <= 31)
-        or (first == 192 and second == 168)
+    # A panel on the home network (the installer page's `isPrivate`), never a
+    # host this server could be steered to reach.
+    if (
+        address.port != DEFAULT_PORT
+        or not isinstance(host, IPv4Address)
+        or not is_allowed_install_address(host)
     ):
         raise ValueError
     return address

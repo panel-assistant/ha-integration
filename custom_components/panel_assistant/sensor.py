@@ -23,7 +23,7 @@ from .coordinator import (
     PanelCoordinatorEntity,
     PanelSnapshot,
 )
-from .device import panel_device_info, version_with_build
+from .device import version_with_build
 from .native import NativeEntity, async_setup_native_platform, enum_or_none
 
 
@@ -35,9 +35,7 @@ async def async_setup_entry(
     """Set up the ha-paneld diagnostic sensors, and any native sensors."""
     async_add_entities(
         [
-            HaPaneldStatusSensor(
-                entry.entry_id, entry.runtime_data.coordinator, entry.title
-            ),
+            HaPaneldStatusSensor(entry.entry_id, entry.runtime_data.coordinator),
             PanelAssistantVersionSensor(entry.entry_id),
         ]
     )
@@ -63,13 +61,12 @@ class HaPaneldStatusSensor(PanelCoordinatorEntity, SensorEntity):
         self,
         entry_id: str,
         coordinator: HaPaneldDataUpdateCoordinator,
-        title: str | None = None,
     ) -> None:
         """Initialize the sensor from cached coordinator data."""
         super().__init__(coordinator)
         self._entry_id = entry_id
-        self._title = title
         self._attr_unique_id = f"{entry_id}_status"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry_id)})
 
     @property
     def native_value(self) -> str:
@@ -108,16 +105,6 @@ class HaPaneldStatusSensor(PanelCoordinatorEntity, SensorEntity):
             "home_assistant_source": health.ha_source,
             "home_assistant_subscription_refused": health.ha_subscription_refused,
         }
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return API-backed device information."""
-        return panel_device_info(
-            self._entry_id,
-            self.coordinator.data,
-            self._title,
-            self.coordinator.app_build,
-        )
 
 
 class PanelAssistantVersionSensor(SensorEntity):

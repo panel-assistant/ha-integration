@@ -20,7 +20,7 @@ from homeassistant.config_entries import (
 )
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.data_entry_flow import UnknownFlow
+from homeassistant.data_entry_flow import FlowHandler, FlowResult, UnknownFlow
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
     BooleanSelector,
@@ -121,6 +121,7 @@ from .transport import (
     _panel_did,
     async_bind_user,
     async_binding_request,
+    async_confirmable_user,
     async_discard_binding_request,
     authority_options,
     effective_authority,
@@ -1436,13 +1437,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         """
         if self._pending_health is None:
             return None
-        user_id = async_binding_request(self.hass, self._pending_health.discovery_id)
-        if user_id is None:
-            return None
-        user = await self.hass.auth.async_get_user(user_id)
-        if user is None or not user.is_active or user.system_generated:
-            return None
-        return user
+        return await async_confirmable_user(
+            self.hass,
+            async_binding_request(self.hass, self._pending_health.discovery_id),
+        )
 
     async def async_step_confirm_user(
         self, user_input: dict[str, Any] | None = None
@@ -1648,6 +1646,30 @@ def _install_terminal_abort_reason(receipt: InstallJobReceipt) -> str:
 ABORT_NATIVE_ENTITIES_DISABLED = "native_entities_disabled"
 
 
+async def async_authorize_adb_form[ResultT: FlowResult[Any, Any]](
+    flow: FlowHandler[Any, ResultT, Any],
+    entry: ConfigEntry,
+    panel: str,
+    user_input: dict[str, Any] | None,
+) -> ResultT | None:
+    """Show the authorize_adb step, or authorize the panel and return None.
+
+    The Options flow and both Repairs share this step; each finishes its own way.
+    """
+    error = None
+    if user_input is not None:
+        error = await async_authorize_existing_panel_adb(flow.hass, entry)
+        if error is None:
+            async_clear_adb_authorization(flow.hass, entry.entry_id)
+            return None
+    return flow.async_show_form(
+        step_id="authorize_adb",
+        data_schema=vol.Schema({}),
+        description_placeholders={"panel": panel},
+        errors={"base": error} if error else None,
+    )
+
+
 async def async_authorize_existing_panel_adb(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> str | None:
@@ -1788,24 +1810,11 @@ class HaPaneldOptionsFlow(OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Offer HA's durable ADB key only after explicit existing-panel consent."""
-        if user_input is None:
-            return self._show_adb_authorization()
-
-        error = await async_authorize_existing_panel_adb(self.hass, self.config_entry)
-        if error is not None:
-            return self._show_adb_authorization({"base": error})
-        async_clear_adb_authorization(self.hass, self.config_entry.entry_id)
-        return self.async_create_entry(data=dict(self.config_entry.options))
-
-    def _show_adb_authorization(
-        self, errors: dict[str, str] | None = None
-    ) -> ConfigFlowResult:
-        return self.async_show_form(
-            step_id="authorize_adb",
-            data_schema=vol.Schema({}),
-            description_placeholders={"panel": self.config_entry.title},
-            errors=errors,
-        )
+        entry = self.config_entry
+        form = await async_authorize_adb_form(self, entry, entry.title, user_input)
+        if form is not None:
+            return form
+        return self.async_create_entry(data=dict(entry.options))
 
     async def async_step_onboarding(
         self, user_input: dict[str, Any] | None = None
@@ -1856,13 +1865,9 @@ class HaPaneldOptionsFlow(OptionsFlow):
         did = health.discovery_id
         if did is None or did != _panel_did(self.config_entry):
             return None
-        user_id = async_binding_request(self.hass, did)
-        if user_id is None:
-            return None
-        user = await self.hass.auth.async_get_user(user_id)
-        if user is None or not user.is_active or user.system_generated:
-            return None
-        return user
+        return await async_confirmable_user(
+            self.hass, async_binding_request(self.hass, did)
+        )
 
     async def async_step_onboarding_confirm(
         self, user_input: dict[str, Any] | None = None

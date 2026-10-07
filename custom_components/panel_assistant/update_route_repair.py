@@ -28,15 +28,6 @@ from .status import PanelStatus
 
 ISSUE_NO_UPDATE_ROUTE = "no_update_route"
 
-# The topic names the situation, never a remedy. Restoring ADB is the answer on
-# one panel family and the wrong answer on the next, and only the site knows
-# which page a given device should land on.
-#
-# Repeated as a literal at the call site below, because the repository gate
-# discovers topics by reading `help_url()` statically and rejects a name it
-# cannot see. The test holds the two spellings together.
-HELP_TOPIC = "panel-cannot-update"
-
 
 def no_update_route_issue_id(entry_id: str) -> str:
     """Keep the issue attached to the configured panel across address changes."""
@@ -101,5 +92,7 @@ def async_reconcile_update_route_issue(
         severity=ir.IssueSeverity.WARNING,
         translation_key=ISSUE_NO_UPDATE_ROUTE,
         translation_placeholders={"panel": panel_display_name(hass, entry)},
+        # The topic names the situation, never a remedy: restoring ADB is the
+        # answer on one panel family and the wrong one on the next.
         learn_more_url=help_url("panel-cannot-update", **help_parameters(status)),
     )

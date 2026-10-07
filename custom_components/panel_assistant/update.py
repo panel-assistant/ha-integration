@@ -69,7 +69,7 @@ from .coordinator import (
     PanelCoordinatorEntity,
     PanelSnapshot,
 )
-from .device import panel_device_info, panel_display_name
+from .device import panel_display_name
 from .failure_repair import (
     async_clear_adb_authorization,
     async_clear_update_failure_if_installed,
@@ -287,6 +287,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         super().__init__(coordinator)
         self._entry_id = entry_id
         self._title = title
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry_id)})
         self._update_coordinator = update_coordinator
         # A signed build feed, when configured. Internal builds
         # share one version name, so they are told apart by build number.
@@ -1361,16 +1362,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             latest_code is not None
             and installed_code is not None
             and latest_code > installed_code
-        )
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Attach to the existing config-entry device without a second identity."""
-        return panel_device_info(
-            self._entry_id,
-            self.coordinator.data,
-            self._title,
-            self.coordinator.app_build,
         )
 
     async def async_install(

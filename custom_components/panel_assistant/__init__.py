@@ -11,8 +11,10 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS, Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.typing import ConfigType
 
@@ -282,36 +284,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
         )
     )
     entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
+
+    def card() -> DeviceInfo:
+        return panel_device_info(
+            entry.entry_id, coordinator.data, entry.title, coordinator.app_build
+        )
+
+    # The one writer of the panel's device card: created here, before any
+    # entity links to it by identifier, then kept current. The coordinator's
+    # listeners run on every poll and whenever the session opens or closes,
+    # which is when the card can learn something new.
+    dr.async_get(hass).async_get_or_create(config_entry_id=entry.entry_id, **card())
+    async_refresh_panel_device(hass, entry.entry_id, card())
+    entry.async_on_unload(
+        coordinator.async_add_listener(
+            lambda: async_refresh_panel_device(hass, entry.entry_id, card())
+        )
+    )
     await hass.config_entries.async_forward_entry_setups(entry, platforms)
     if satellite_known(hass, entry):
         await async_load_voice(hass, entry, platforms)
     runtime_data.voice_setup = async_follow_voice(hass, entry, platforms)
-    async_refresh_panel_device(
-        hass,
-        entry.entry_id,
-        panel_device_info(
-            entry.entry_id,
-            coordinator.data,
-            entry.title,
-            coordinator.app_build,
-        ),
-    )
-    # The coordinator's listeners run on every poll and whenever the session
-    # opens or closes, which is when the card can learn something new.
-    entry.async_on_unload(
-        coordinator.async_add_listener(
-            lambda: async_refresh_panel_device(
-                hass,
-                entry.entry_id,
-                panel_device_info(
-                    entry.entry_id,
-                    coordinator.data,
-                    entry.title,
-                    coordinator.app_build,
-                ),
-            )
-        )
-    )
     # Every poll and every session opening or closing can tell the panel's
     # version, which decides whether its move to native is offered.
     async_evaluate_native_move(hass, entry)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 from unittest.mock import AsyncMock, patch
 
@@ -261,7 +262,16 @@ async def test_literal_null_report_does_not_create_an_area(
     """A stored panel value of `null` cannot seed a new HA area."""
     entry = MockConfigEntry(domain=DOMAIN, title="alpha")
     entry.add_to_hass(hass)
-    info = panel_device_info(entry.entry_id, _snapshot(PanelDevice(area=reported_area)))
+    status = parse_status_response(
+        json.dumps(
+            {
+                "warnings": [],
+                "capabilities": [],
+                "panel_assistant_device": {"model": "NSPanel", "area": reported_area},
+            }
+        )
+    )
+    info = panel_device_info(entry.entry_id, _snapshot(status.panel_assistant_device))
 
     assert "suggested_area" not in info
     device = dr.async_get(hass).async_get_or_create(

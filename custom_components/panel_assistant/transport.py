@@ -48,6 +48,7 @@ from typing import Any, Final
 
 import voluptuous as vol
 from homeassistant.auth import EVENT_USER_REMOVED
+from homeassistant.auth.models import User
 from homeassistant.components import websocket_api
 from homeassistant.components.websocket_api.connection import ActiveConnection
 from homeassistant.components.websocket_api.const import ERR_INVALID_FORMAT
@@ -1916,6 +1917,16 @@ def async_binding_request(hass: HomeAssistant, did: str | None) -> str | None:
         del requests[did]
         return None
     return user_id
+
+
+async def async_confirmable_user(
+    hass: HomeAssistant, user_id: str | None
+) -> User | None:
+    """The account an administrator may still bind: present, active, not Core's."""
+    user = await hass.auth.async_get_user(user_id) if user_id else None
+    if user is None or not user.is_active or user.system_generated:
+        return None
+    return user
 
 
 @callback
