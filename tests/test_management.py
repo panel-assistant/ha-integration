@@ -149,6 +149,27 @@ async def test_a_session_read_that_fails_never_falls_back_to_http_data(
     assert coordinator.available
 
 
+async def test_a_status_body_over_the_http_bound_is_refused(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+) -> None:
+    entry = await _load(hass, hass_read_only_user.id)
+    coordinator = entry.runtime_data.coordinator
+    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token, MANAGED)
+    oversized = STATUS_BODY.replace("{", '{"padding": "' + "x" * 70_000 + '",', 1)
+    with _http_answers():
+        refresh = asyncio.ensure_future(coordinator.async_refresh())
+        request = await panel.manage()
+        await panel.answer(
+            request, "applied", result={"health": HEALTH_LINE, "status": oversized}
+        )
+        await refresh
+
+    assert not coordinator.last_update_success
+
+
 async def test_a_panel_without_management_is_still_polled_over_http(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,

@@ -37,7 +37,12 @@ from .client import (
     PanelHealth,
     parse_health_response,
 )
-from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, update_unique_id
+from .const import (
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    MAX_STATUS_RESPONSE_BYTES,
+    update_unique_id,
+)
 from .feed_coordinator import async_get_feed_coordinator
 from .identity import accept_health, is_installation
 from .permission_repair import async_reconcile_permission_issue
@@ -202,7 +207,12 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                 update_owner=self._shows_panel_update(),
             )
             health_line, status_body = result["health"], result["status"]
-            if not isinstance(health_line, str) or not isinstance(status_body, str):
+            # The bounds HTTP applies before parsing; the health parser checks its own.
+            if (
+                not isinstance(health_line, str)
+                or not isinstance(status_body, str)
+                or len(status_body.encode()) > MAX_STATUS_RESPONSE_BYTES
+            ):
                 raise InvalidResponseError
             health = parse_health_response(health_line)
             status = parse_status_response(status_body)
