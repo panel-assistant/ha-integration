@@ -273,6 +273,55 @@
       },
       "temperature": {
         "name": "Temperatur"
+      },
+      "zigbee_gateway_health": {
+        "name": "Zustand des Zigbee-Gateways",
+        "state": {
+          "off": "Aus",
+          "starting": "Startet",
+          "healthy": "In Ordnung",
+          "degraded_unjoined": "Eingeschränkt: nicht verbunden",
+          "degraded_high_cpu": "Eingeschränkt: hohe CPU-Last",
+          "runaway": "Außer Kontrolle",
+          "contained": "Eingedämmt",
+          "containment_failed": "Eindämmung fehlgeschlagen",
+          "unknown": "Unbekannt"
+        },
+        "state_attributes": {
+          "containment_result": {
+            "name": "Ergebnis der Eindämmung"
+          },
+          "firmware": {
+            "name": "Firmware"
+          },
+          "gateway_cpu_percent": {
+            "name": "Gateway-CPU"
+          },
+          "gateway_layout": {
+            "name": "Gateway-Aufbau"
+          },
+          "gateway_package_version": {
+            "name": "Gateway-Paketversion"
+          },
+          "guard_cpu_percent": {
+            "name": "Wächter-CPU"
+          },
+          "joined": {
+            "name": "Verbunden"
+          },
+          "product_version": {
+            "name": "Produktversion"
+          },
+          "recursive_watchdog_assignment": {
+            "name": "Rekursive Watchdog-Zuweisung"
+          },
+          "restart_count_10m": {
+            "name": "Neustarts in 10 Minuten"
+          },
+          "role": {
+            "name": "Rolle"
+          }
+        }
       }
     },
     "update": {

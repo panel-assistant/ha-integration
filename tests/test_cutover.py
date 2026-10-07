@@ -43,7 +43,14 @@ from custom_components.panel_assistant.diagnostics import (
     async_get_config_entry_diagnostics,
 )
 
-from .test_native import _session, _setup, _sync, panel_patches, supported
+from .test_native import (
+    PANEL_CHANNELS,
+    _session,
+    _setup,
+    _sync,
+    panel_patches,
+    supported,
+)
 from .test_transport import DID, HEALTH, WsClientFactory, _send
 
 PANEL_ID = HEALTH.panel_id
@@ -359,6 +366,7 @@ async def test_forward_cutover_keeps_each_entity_and_its_customisations(
             ("switch", "relay1", {"original_name": "Relay 1"}),
             ("light", "button_led2", {}),
             ("sensor", "diag_cpu", {"entity_category": EntityCategory.DIAGNOSTIC}),
+            ("sensor", "zigbee_gateway_health", {}),
             ("text", "home_dashboard", {}),
         ],
     )
@@ -379,7 +387,11 @@ async def test_forward_cutover_keeps_each_entity_and_its_customisations(
         for suffix, entity_id in mqtt["entity_ids"].items()
     }
 
-    entry = await _setup(hass, hass_read_only_user.id, native=True, options=NATIVE)
+    # A panel that describes Zigbee gateway health, as the next app release does.
+    described = PANEL_CHANNELS | {"zigbee_gateway_health"}
+    entry = await _setup(
+        hass, hass_read_only_user.id, native=True, options=NATIVE, described=described
+    )
 
     device = dr.async_get(hass).async_get_device_by_identifier(
         (DOMAIN, entry.entry_id), entry.entry_id

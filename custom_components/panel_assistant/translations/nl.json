@@ -273,6 +273,55 @@
       },
       "temperature": {
         "name": "Temperatuur"
+      },
+      "zigbee_gateway_health": {
+        "name": "Status Zigbee-gateway",
+        "state": {
+          "off": "Uit",
+          "starting": "Wordt gestart",
+          "healthy": "Gezond",
+          "degraded_unjoined": "Verminderd: niet gekoppeld",
+          "degraded_high_cpu": "Verminderd: hoge CPU",
+          "runaway": "Op hol geslagen",
+          "contained": "Ingedamd",
+          "containment_failed": "Indammen mislukt",
+          "unknown": "Onbekend"
+        },
+        "state_attributes": {
+          "containment_result": {
+            "name": "Resultaat indamming"
+          },
+          "firmware": {
+            "name": "Firmware"
+          },
+          "gateway_cpu_percent": {
+            "name": "Gateway-CPU"
+          },
+          "gateway_layout": {
+            "name": "Gateway-indeling"
+          },
+          "gateway_package_version": {
+            "name": "Gateway-pakketversie"
+          },
+          "guard_cpu_percent": {
+            "name": "Bewaker-CPU"
+          },
+          "joined": {
+            "name": "Gekoppeld"
+          },
+          "product_version": {
+            "name": "Productversie"
+          },
+          "recursive_watchdog_assignment": {
+            "name": "Recursieve watchdog-toewijzing"
+          },
+          "restart_count_10m": {
+            "name": "Herstarts in 10 minuten"
+          },
+          "role": {
+            "name": "Rol"
+          }
+        }
       }
     },
     "update": {

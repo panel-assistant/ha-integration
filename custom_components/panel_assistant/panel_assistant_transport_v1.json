@@ -306,6 +306,26 @@
       "attributes": []
     },
     {
+      "channel": "zigbee_gateway_health",
+      "family": null,
+      "platform": "sensor",
+      "translation_key": "zigbee_gateway_health",
+      "unique_suffix": "zigbee_gateway_health",
+      "attributes": [
+        "containment_result",
+        "firmware",
+        "gateway_cpu_percent",
+        "gateway_layout",
+        "gateway_package_version",
+        "guard_cpu_percent",
+        "joined",
+        "product_version",
+        "recursive_watchdog_assignment",
+        "restart_count_10m",
+        "role"
+      ]
+    },
+    {
       "channel": "auto_brightness",
       "family": null,
       "platform": "switch",

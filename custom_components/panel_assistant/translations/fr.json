@@ -273,6 +273,55 @@
       },
       "temperature": {
         "name": "Température"
+      },
+      "zigbee_gateway_health": {
+        "name": "État de la passerelle Zigbee",
+        "state": {
+          "off": "Éteinte",
+          "starting": "Démarrage",
+          "healthy": "Saine",
+          "degraded_unjoined": "Dégradée : non appairée",
+          "degraded_high_cpu": "Dégradée : CPU élevé",
+          "runaway": "Emballement",
+          "contained": "Contenue",
+          "containment_failed": "Échec du confinement",
+          "unknown": "Inconnu"
+        },
+        "state_attributes": {
+          "containment_result": {
+            "name": "Résultat du confinement"
+          },
+          "firmware": {
+            "name": "Micrologiciel"
+          },
+          "gateway_cpu_percent": {
+            "name": "CPU de la passerelle"
+          },
+          "gateway_layout": {
+            "name": "Organisation de la passerelle"
+          },
+          "gateway_package_version": {
+            "name": "Version du paquet de la passerelle"
+          },
+          "guard_cpu_percent": {
+            "name": "CPU du gardien"
+          },
+          "joined": {
+            "name": "Appairée"
+          },
+          "product_version": {
+            "name": "Version du produit"
+          },
+          "recursive_watchdog_assignment": {
+            "name": "Affectation récursive du watchdog"
+          },
+          "restart_count_10m": {
+            "name": "Redémarrages sur 10 minutes"
+          },
+          "role": {
+            "name": "Rôle"
+          }
+        }
       }
     },
     "update": {

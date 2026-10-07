@@ -273,6 +273,55 @@
       },
       "temperature": {
         "name": "Температура"
+      },
+      "zigbee_gateway_health": {
+        "name": "Стан шлюзу Zigbee",
+        "state": {
+          "off": "Вимкнено",
+          "starting": "Запускається",
+          "healthy": "Справний",
+          "degraded_unjoined": "Погіршено: не приєднано",
+          "degraded_high_cpu": "Погіршено: високе навантаження CPU",
+          "runaway": "Некерована робота",
+          "contained": "Стримано",
+          "containment_failed": "Не вдалося стримати",
+          "unknown": "Невідомо"
+        },
+        "state_attributes": {
+          "containment_result": {
+            "name": "Результат стримування"
+          },
+          "firmware": {
+            "name": "Прошивка"
+          },
+          "gateway_cpu_percent": {
+            "name": "CPU шлюзу"
+          },
+          "gateway_layout": {
+            "name": "Схема шлюзу"
+          },
+          "gateway_package_version": {
+            "name": "Версія пакета шлюзу"
+          },
+          "guard_cpu_percent": {
+            "name": "CPU охоронця"
+          },
+          "joined": {
+            "name": "Приєднано"
+          },
+          "product_version": {
+            "name": "Версія продукту"
+          },
+          "recursive_watchdog_assignment": {
+            "name": "Рекурсивне призначення watchdog"
+          },
+          "restart_count_10m": {
+            "name": "Перезапуски за 10 хвилин"
+          },
+          "role": {
+            "name": "Роль"
+          }
+        }
       }
     },
     "update": {

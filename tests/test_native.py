@@ -847,6 +847,12 @@ async def test_only_catalogued_attributes_are_shown(
                     "value": "healthy",
                     "attributes": {"quick_check": "ok", "unlisted": 1},
                 },
+                {
+                    "channel": "zigbee_gateway_health",
+                    "state": "known",
+                    "value": "runaway",
+                    "attributes": {"gateway_cpu_percent": 97, "unlisted": 1},
+                },
             ],
         ),
     )
@@ -859,6 +865,10 @@ async def test_only_catalogued_attributes_are_shown(
     storage = hass.states.get(entries[f"{DID}_storage_health"].entity_id)
     assert storage.attributes.get("quick_check") == "ok"
     assert "unlisted" not in storage.attributes
+    zigbee = hass.states.get(entries[f"{DID}_zigbee_gateway_health"].entity_id)
+    assert zigbee.state == "runaway"
+    assert zigbee.attributes.get("gateway_cpu_percent") == 97
+    assert "unlisted" not in zigbee.attributes
 
 
 async def test_an_event_channel_without_types_renders_and_fires_nothing(

@@ -371,6 +371,55 @@
       },
       "temperature": {
         "name": "Temperature"
+      },
+      "zigbee_gateway_health": {
+        "name": "Zigbee gateway health",
+        "state": {
+          "off": "Off",
+          "starting": "Starting",
+          "healthy": "Healthy",
+          "degraded_unjoined": "Degraded: not joined",
+          "degraded_high_cpu": "Degraded: high CPU",
+          "runaway": "Runaway",
+          "contained": "Contained",
+          "containment_failed": "Containment failed",
+          "unknown": "Unknown"
+        },
+        "state_attributes": {
+          "containment_result": {
+            "name": "Containment result"
+          },
+          "firmware": {
+            "name": "Firmware"
+          },
+          "gateway_cpu_percent": {
+            "name": "Gateway CPU"
+          },
+          "gateway_layout": {
+            "name": "Gateway layout"
+          },
+          "gateway_package_version": {
+            "name": "Gateway package version"
+          },
+          "guard_cpu_percent": {
+            "name": "Guard CPU"
+          },
+          "joined": {
+            "name": "Joined"
+          },
+          "product_version": {
+            "name": "Product version"
+          },
+          "recursive_watchdog_assignment": {
+            "name": "Recursive watchdog assignment"
+          },
+          "restart_count_10m": {
+            "name": "Restarts in 10 minutes"
+          },
+          "role": {
+            "name": "Role"
+          }
+        }
       }
     },
     "switch": {

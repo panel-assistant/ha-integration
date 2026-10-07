@@ -136,10 +136,34 @@ OLD_PANEL_DESCRIPTORS = [
         for channel in ("self_update", "companion_auto_update", "webview_auto_update")
     ),
 ]
+# Channels the next Android release describes, before its producer fixture is
+# vendored here.
+NEXT_PANEL_DESCRIPTORS = [
+    _old_panel(
+        "zigbee_gateway_health",
+        "sensor",
+        entity_category="diagnostic",
+        options=[
+            "off",
+            "starting",
+            "healthy",
+            "degraded_unjoined",
+            "degraded_high_cpu",
+            "runaway",
+            "contained",
+            "containment_failed",
+            "unknown",
+        ],
+    ),
+]
 # Every channel descriptor a panel sends, validated as the hello handler does.
 CHANNEL_DESCRIPTORS: list[dict[str, Any]] = [
     transport.DESCRIPTOR_SCHEMA(descriptor)
-    for descriptor in (*ANDROID_PRODUCER["channelDescriptors"], *OLD_PANEL_DESCRIPTORS)
+    for descriptor in (
+        *ANDROID_PRODUCER["channelDescriptors"],
+        *OLD_PANEL_DESCRIPTORS,
+        *NEXT_PANEL_DESCRIPTORS,
+    )
 ]
 _BY_CHANNEL = {descriptor["channel"]: descriptor for descriptor in CHANNEL_DESCRIPTORS}
 
@@ -228,6 +252,7 @@ def test_the_catalogue_preserves_old_panel_channels_absent_from_current_android(
         "companion_auto_update",
         "companion_update_channel",
         "webview_auto_update",
+        "zigbee_gateway_health",
     }
 
 
@@ -262,6 +287,7 @@ _SENSOR_KINDS = {
     "diag_ip": "text",
     "diag_wifi_ssid": "text",
     "storage_health": "option",
+    "zigbee_gateway_health": "option",
     **dict.fromkeys(
         (
             "diag_cpu",

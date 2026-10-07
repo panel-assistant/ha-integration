@@ -273,6 +273,55 @@
       },
       "temperature": {
         "name": "温度"
+      },
+      "zigbee_gateway_health": {
+        "name": "Zigbee 网关健康状况",
+        "state": {
+          "off": "关闭",
+          "starting": "正在启动",
+          "healthy": "正常",
+          "degraded_unjoined": "降级：未入网",
+          "degraded_high_cpu": "降级：CPU 占用高",
+          "runaway": "失控",
+          "contained": "已遏制",
+          "containment_failed": "遏制失败",
+          "unknown": "未知"
+        },
+        "state_attributes": {
+          "containment_result": {
+            "name": "遏制结果"
+          },
+          "firmware": {
+            "name": "固件"
+          },
+          "gateway_cpu_percent": {
+            "name": "网关 CPU"
+          },
+          "gateway_layout": {
+            "name": "网关布局"
+          },
+          "gateway_package_version": {
+            "name": "网关软件包版本"
+          },
+          "guard_cpu_percent": {
+            "name": "守护进程 CPU"
+          },
+          "joined": {
+            "name": "已入网"
+          },
+          "product_version": {
+            "name": "产品版本"
+          },
+          "recursive_watchdog_assignment": {
+            "name": "递归看门狗分配"
+          },
+          "restart_count_10m": {
+            "name": "10 分钟内重启次数"
+          },
+          "role": {
+            "name": "角色"
+          }
+        }
       }
     },
     "update": {
