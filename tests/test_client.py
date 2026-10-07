@@ -500,132 +500,35 @@ def test_status_parser_refuses_a_device_field_the_panel_should_have_dropped(
         parse_status_response(body)
 
 
-def test_status_parser_projects_only_the_cached_panel_update_target() -> None:
-    """The additive status contract does not request or expose a release catalogue."""
-    status = parse_status_response(
-        '{"warnings":[],"capabilities":[],"panel_assistant_update":'
-        '{"state":"available","current_version":"0.9.10-rc3",'
-        '"target_version":"0.9.10","tag":"v0.9.10",'
-        '"future":"ignored"}}'
-    )
-
-    assert status.panel_assistant_update is not None
-    assert status.panel_assistant_update.current_version == "0.9.10-rc3"
-    assert status.panel_assistant_update.target_version == "0.9.10"
-    assert status.panel_assistant_update.tag == "v0.9.10"
-
-
 @pytest.mark.parametrize(
     "cached_update",
     [
-        {"state": "available"},
         {
             "state": "available",
-            "current_version": "0.9.9",
-            "target_version": "0.9.10-rc1",
-            "tag": "v0.9.10-rc1",
-        },
-        {
-            "state": "available",
-            "current_version": "0.9.9",
+            "current_version": "0.9.8",
             "target_version": "0.9.10",
-            "tag": "bad/tag",
+            "tag": "v0.9.10",
         },
-        {
-            "state": "available",
-            "current_version": "0.9.9",
-            "target_version": "0.9.10",
-            "tag": "v0.9.11",
-        },
-        {"state": "none", "tag": "v0.9.10"},
-        {"state": "future"},
+        {"state": "none"},
+        {"state": "future", "tag": "bad/tag"},
     ],
 )
-def test_status_parser_rejects_malformed_cached_panel_update(
+def test_status_parser_ignores_the_retired_panel_update_projection(
     cached_update: dict[str, str],
 ) -> None:
-    """Malformed cached release facts never turn into an HA update action."""
-    with pytest.raises(InvalidResponseError):
-        parse_status_response(
-            json.dumps(
-                {
-                    "warnings": [],
-                    "capabilities": [],
-                    "panel_assistant_update": cached_update,
-                }
-            )
-        )
-
-
-def test_status_parser_accepts_an_explicit_empty_cached_panel_update() -> None:
-    """No cached target is a valid local-only outcome, not an unavailable panel."""
-    status = parse_status_response(
-        '{"warnings":[],"capabilities":[],"panel_assistant_update":{"state":"none"}}'
-    )
-
-    assert status.panel_assistant_update is None
-
-
-@pytest.mark.parametrize(
-    ("current_version", "target_version"),
-    [
-        ("123456789.9.9", "0.9.10"),
-        ("0.9.9-preview1", "0.9.10"),
-        ("0.9.9-rc123456789", "0.9.10"),
-        ("0.9.9", "123456789.9.10"),
-        ("0.9.9", "0.9.10-rc1"),
-    ],
-)
-def test_status_parser_matches_android_cached_update_version_bounds(
-    current_version: str, target_version: str
-) -> None:
-    """HA rejects every version shape the Android producer grammar rejects."""
-    with pytest.raises(InvalidResponseError):
-        parse_status_response(
-            json.dumps(
-                {
-                    "warnings": [],
-                    "capabilities": [],
-                    "panel_assistant_update": {
-                        "state": "available",
-                        "current_version": current_version,
-                        "target_version": target_version,
-                        "tag": f"v{target_version}",
-                    },
-                }
-            )
-        )
-
-
-@pytest.mark.parametrize(
-    "current_version",
-    [
-        "12345678.0.99999999",
-        "0.9.9-alpha0",
-        "0.9.9-beta12345678",
-        "0.9.9-rc1",
-    ],
-)
-def test_status_parser_accepts_android_cached_update_version_boundaries(
-    current_version: str,
-) -> None:
-    """HA accepts the producer's stable and bounded prerelease edge cases."""
+    """A body from an app up to 0.9.8 that still offers its own update parses."""
     status = parse_status_response(
         json.dumps(
             {
                 "warnings": [],
                 "capabilities": [],
-                "panel_assistant_update": {
-                    "state": "available",
-                    "current_version": current_version,
-                    "target_version": "12345678.0.99999999",
-                    "tag": "v12345678.0.99999999",
-                },
+                "panel_assistant_update": cached_update,
             }
         )
     )
 
-    assert status.panel_assistant_update is not None
+    assert status.warning_count == 0
+    assert "panel_assistant_update" not in status.as_dict()
 
 
 def test_parse_current_status_fixture_projects_only_safe_fields() -> None:

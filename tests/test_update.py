@@ -40,7 +40,6 @@ HEALTH = PanelHealth(
     build="1000",
     config_hash="1a2b3c4d",
 )
-OFFER = PanelCachedUpdate("0.9.9", "0.9.10", "v0.9.10")
 
 
 def _connection_refused() -> CannotConnectError:
@@ -62,7 +61,6 @@ def _entity(
     hass: HomeAssistant,
     *,
     version: str = "0.9.9",
-    offer: PanelCachedUpdate | None = OFFER,
     operation: PanelInstallStatus | None = None,
     update_error: str | None = None,
     install_capability: str | None = "api",
@@ -95,7 +93,6 @@ def _entity(
             warning_count=0,
             capability_count=0,
             install_capability=install_capability,
-            panel_assistant_update=offer,
         ),
         status_error=None,
     )

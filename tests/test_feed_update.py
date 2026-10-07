@@ -74,7 +74,7 @@ from custom_components.panel_assistant.provisioning import (
 from custom_components.panel_assistant.release import (
     _RELEASE_SIGNER_CERTIFICATE_SHA256,
 )
-from custom_components.panel_assistant.status import PanelCachedUpdate, PanelStatus
+from custom_components.panel_assistant.status import PanelStatus
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity
 from custom_components.panel_assistant.update_coordinator import (
     PanelUpdateCoordinator,
@@ -104,7 +104,6 @@ BACKUP = _archive()
 FEED_URL = URL("https://feed.example/x/maintainer.json")
 NAME = "0.9.7-rc4"
 APK = b"apk-bytes"
-OFFER = PanelCachedUpdate("0.9.9", "0.9.10", "v0.9.10")
 FETCH = "custom_components.panel_assistant.feed_coordinator.async_fetch_build_feed"
 
 
@@ -155,7 +154,6 @@ def _entity(
     hass: HomeAssistant,
     *,
     version: str = NAME,
-    offer: PanelCachedUpdate | None = None,
     feed: BuildFeed | None = None,
     with_feed: bool = True,
     installed_code: int | None = 771,
@@ -187,7 +185,6 @@ def _entity(
             warning_count=0,
             capability_count=0,
             install_capability="api",
-            panel_assistant_update=offer,
         ),
         status_error=None,
     )
@@ -318,7 +315,7 @@ async def test_without_a_feed_behaviour_is_unchanged(hass: HomeAssistant) -> Non
     """No feed: stable versions, no build numbers, no specific-version selector."""
     feed_entity, _ = _entity(hass)
     stable, client = _entity(
-        hass, version="0.9.9", offer=OFFER, with_feed=False, installed_code=None
+        hass, version="0.9.9", with_feed=False, installed_code=None
     )
 
     assert feed_entity.supported_features & UpdateEntityFeature.SPECIFIC_VERSION
@@ -335,7 +332,7 @@ async def test_feed_with_unknown_installed_code_falls_back_to_stable(
     hass: HomeAssistant, delivery: SimpleNamespace
 ) -> None:
     """A panel-cached offer cannot prove range compatibility while diagnostics load."""
-    entity, client = _entity(hass, version="0.9.9", offer=OFFER, installed_code=None)
+    entity, client = _entity(hass, version="0.9.9", installed_code=None)
 
     assert entity.installed_version == "0.9.9"
     assert entity.latest_version == entity.installed_version
@@ -351,7 +348,7 @@ async def test_feed_with_unknown_installed_code_falls_back_to_stable(
 
 def test_failed_feed_read_falls_back_to_stable(hass: HomeAssistant) -> None:
     """A feed that could not be authenticated offers nothing."""
-    entity, _ = _entity(hass, version="0.9.9", offer=OFFER)
+    entity, _ = _entity(hass, version="0.9.9")
     assert entity._feed is not None
     entity._feed.last_update_success = False
 

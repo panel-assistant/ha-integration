@@ -78,7 +78,7 @@ from custom_components.panel_assistant.provisioning import (
     InstallTargetProbe,
     InstallTargetState,
 )
-from custom_components.panel_assistant.status import PanelCachedUpdate, PanelStatus
+from custom_components.panel_assistant.status import PanelStatus
 from custom_components.panel_assistant.transport import async_get_sessions
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity
 from custom_components.panel_assistant.update_coordinator import (
@@ -103,7 +103,6 @@ APK_NAME = f"ha-paneld-{TAG}-manual-setup-required.apk"
 DESCRIPTOR_NAME = f"ha-paneld-{TAG}-install.json"
 # GitHub answers an asset URL with a redirect to its asset host.
 ASSET_HOST_URL = "https://release-assets.githubusercontent.com/asset/1?sig=x"
-OFFER = PanelCachedUpdate("0.9.9", VERSION, TAG)
 SIGNER = release._RELEASE_SIGNER_CERTIFICATE_SHA256
 
 
@@ -314,7 +313,6 @@ async def _entity(
     monkeypatch: pytest.MonkeyPatch,
     github: _GitHub,
     *,
-    offer: PanelCachedUpdate | None = None,
     package: str | None = None,
 ) -> tuple[HaPaneldUpdateEntity, SimpleNamespace]:
     """A panel on 0.9.9 whose app restarts into 0.9.10 once an install starts."""
@@ -350,7 +348,6 @@ async def _entity(
             warning_count=0,
             capability_count=0,
             install_capability="api",
-            panel_assistant_update=offer,
         ),
         status_error=None,
     )
@@ -405,16 +402,11 @@ async def test_a_panel_without_internet_is_offered_the_release_home_assistant_fo
     assert entity.latest_version == VERSION
 
 
-async def test_adb_only_panel_offers_host_release_despite_newer_panel_offer(
+async def test_adb_only_panel_offers_the_host_release(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, trust: None, key: Any
 ) -> None:
-    """An unreachable panel-only offer cannot hide an installable ADB release."""
-    entity, client = await _entity(
-        hass,
-        monkeypatch,
-        _GitHub(key),
-        offer=PanelCachedUpdate("0.9.9", "0.9.11", "v0.9.11"),
-    )
+    """A panel with no route of its own still gets the release over ADB."""
+    entity, client = await _entity(hass, monkeypatch, _GitHub(key))
     snapshot = entity.coordinator.data
     entity.coordinator.data = PanelSnapshot(
         health=snapshot.health,
@@ -422,7 +414,6 @@ async def test_adb_only_panel_offers_host_release_despite_newer_panel_offer(
             warning_count=0,
             capability_count=0,
             install_capability="none",
-            panel_assistant_update=snapshot.status.panel_assistant_update,
         ),
         status_error=None,
     )
@@ -443,17 +434,15 @@ async def test_adb_only_panel_offers_host_release_despite_newer_panel_offer(
     client.async_start_panel_update.assert_not_awaited()
 
 
-@pytest.mark.parametrize("offer", [None, OFFER], ids=["no-internet", "internet"])
 async def test_a_stable_update_is_staged_by_home_assistant_not_fetched_by_the_panel(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     trust: None,
     key: Any,
-    offer: PanelCachedUpdate | None,
 ) -> None:
     """Download here, stage the exact bytes, commit; never ask the panel to fetch."""
     github = _GitHub(key)
-    entity, client = await _entity(hass, monkeypatch, github, offer=offer)
+    entity, client = await _entity(hass, monkeypatch, github)
 
     await entity.async_install(None, backup=False)
 
@@ -507,7 +496,7 @@ async def test_accepted_update_projects_restart_when_panel_disappears(
 ) -> None:
     """An accepted install makes the absent panel Restarting until it returns."""
     entity, client = await _entity(
-        hass, monkeypatch, _GitHub(key), offer=OFFER, package=LEGACY_PACKAGE_ID
+        hass, monkeypatch, _GitHub(key), package=LEGACY_PACKAGE_ID
     )
     if route == "panel":
         client.async_stage_apk.side_effect = StagingUnavailableError
@@ -697,7 +686,7 @@ async def test_a_panel_that_cannot_take_an_upload_downloads_the_release_itself(
     refusal: type[Exception],
 ) -> None:
     """Only a panel that takes no upload at all falls back to its own download."""
-    entity, client = await _entity(hass, monkeypatch, _GitHub(key), offer=OFFER)
+    entity, client = await _entity(hass, monkeypatch, _GitHub(key))
     client.async_stage_apk.side_effect = refusal
 
     await entity.async_install(None, backup=False)
@@ -725,22 +714,6 @@ async def test_a_panel_already_past_the_release_is_offered_nothing(
     client.async_stage_apk.assert_not_awaited()
 
 
-async def test_panel_cached_newer_offer_cannot_displace_compatible_host_release(
-    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, trust: None, key: Any
-) -> None:
-    """A panel's cached target cannot establish the target's native range."""
-    newer = PanelCachedUpdate("0.9.9", "0.9.11", "v0.9.11")
-    github = _GitHub(key)
-    entity, client = await _entity(hass, monkeypatch, github, offer=newer)
-
-    assert entity.latest_version == VERSION
-    await entity.async_install(None, backup=False)
-
-    client.async_start_panel_update.assert_not_awaited()
-    client.async_commit_apk.assert_awaited_once()
-    assert github.apk_downloaded
-
-
 async def test_refreshing_the_update_reads_the_latest_release_again(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, trust: None, key: Any
 ) -> None:
@@ -759,7 +732,7 @@ async def test_a_release_home_assistant_cannot_download_is_left_to_the_panel(
 ) -> None:
     """A download that fetched nothing checked nothing; the panel fetches it."""
     github = _GitHub(key, asset_status=503)
-    entity, client = await _entity(hass, monkeypatch, github, offer=OFFER)
+    entity, client = await _entity(hass, monkeypatch, github)
 
     await entity.async_install(None, backup=False)
 
@@ -769,17 +742,15 @@ async def test_a_release_home_assistant_cannot_download_is_left_to_the_panel(
     assert entity.extra_state_attributes == {"update_route": "downloaded_by_panel"}
 
 
-@pytest.mark.parametrize("offer", [None, PanelCachedUpdate("0.8.5", VERSION, TAG)])
 async def test_a_panel_older_than_lan_updates_is_never_offered_what_it_cannot_take(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     trust: None,
     key: Any,
-    offer: PanelCachedUpdate | None,
 ) -> None:
-    """Before 0.8.6 a panel lacks LAN updates and cached offers lack range proof."""
+    """Before 0.8.6 a panel lacks LAN updates."""
     github = _GitHub(key)
-    entity, client = await _entity(hass, monkeypatch, github, offer=offer)
+    entity, client = await _entity(hass, monkeypatch, github)
     entity.coordinator.data = PanelSnapshot(
         health=_snapshot("0.8.5", "1000", None).health,
         status=entity.coordinator.data.status,
@@ -1110,7 +1081,6 @@ async def test_unproven_panel_offer_cannot_bypass_bridge_handover_admission(
             warning_count=0,
             capability_count=0,
             install_capability="api",
-            panel_assistant_update=PanelCachedUpdate(VERSION, "0.9.11", "v0.9.11"),
         ),
         status_error=None,
     )
@@ -1179,7 +1149,7 @@ async def test_an_apk_that_does_not_match_its_signed_hash_is_refused_on_both_rou
 ) -> None:
     """Tampered bytes are neither staged nor handed to the panel to fetch."""
     github = _GitHub(key, apk=APK[:-1] + b"X")
-    entity, client = await _entity(hass, monkeypatch, github, offer=OFFER)
+    entity, client = await _entity(hass, monkeypatch, github)
 
     with pytest.raises(HomeAssistantError) as error:
         await entity.async_install(None, backup=False)
@@ -1209,7 +1179,7 @@ async def test_a_staged_app_that_is_not_the_signed_release_is_discarded_on_both_
     preview: StagedApk,
 ) -> None:
     """The panel's own reading of the staged file must be the signed release."""
-    entity, client = await _entity(hass, monkeypatch, _GitHub(key), offer=OFFER)
+    entity, client = await _entity(hass, monkeypatch, _GitHub(key))
     client.async_stage_apk.return_value = preview
 
     with pytest.raises(HomeAssistantError) as error:
@@ -1256,7 +1226,7 @@ async def test_a_stage_that_fails_for_any_other_reason_never_falls_back(
     key_name: str,
 ) -> None:
     """A busy, full or interrupted panel is an error, not a reason to switch routes."""
-    entity, client = await _entity(hass, monkeypatch, _GitHub(key), offer=OFFER)
+    entity, client = await _entity(hass, monkeypatch, _GitHub(key))
     client.async_stage_apk.side_effect = failure
 
     with pytest.raises(HomeAssistantError) as error:
@@ -1267,11 +1237,11 @@ async def test_a_stage_that_fails_for_any_other_reason_never_falls_back(
     client.async_start_panel_update.assert_not_awaited()
 
 
-async def test_a_release_for_another_app_id_cannot_authorize_panel_cached_offer(
+async def test_a_release_for_another_app_id_is_not_offered(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, trust: None, key: Any
 ) -> None:
     github = _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID)
-    entity, client = await _entity(hass, monkeypatch, github, offer=OFFER)
+    entity, client = await _entity(hass, monkeypatch, github)
     assert entity.latest_version == entity.installed_version
     with pytest.raises(HomeAssistantError, match="unavailable"):
         await entity.async_install(None, backup=False)

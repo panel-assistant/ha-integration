@@ -9,7 +9,6 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.status import (
-    PanelCachedUpdate,
     PanelDevice,
     PanelStatus,
 )
@@ -26,9 +25,6 @@ def _status(**overrides) -> PanelStatus:
         "warning_count": 0,
         "capability_count": 0,
         "install_capability": "none",
-        "panel_assistant_update": PanelCachedUpdate(
-            current_version="0.9.9-rc3", target_version="0.9.9-rc3", tag="v0.9.9-rc3"
-        ),
         "panel_assistant_device": PanelDevice(
             name="Study display",
             manufacturer="Shelly",
@@ -46,7 +42,7 @@ def test_help_parameters_describe_the_hardware() -> None:
     assert parameters["make"] == "Shelly"
     assert parameters["model"] == "Jenna"
     assert parameters["hw"] == "rk30board"
-    assert parameters["app"] == "0.9.9-rc3"
+    assert "app" not in parameters
     # Separates "never had a route" from "route withdrawn" for the page.
     assert parameters["cap"] == "none"
 
