@@ -334,7 +334,24 @@
     },
     "binary_sensor": {
       "auto_sleep_activity": {
-        "name": "Активність для автосну"
+        "name": "Активність для автосну",
+        "state_attributes": {
+          "learned_delay": {
+            "name": "Вивчена затримка"
+          },
+          "manual_suppression": {
+            "name": "Ручне придушення"
+          },
+          "phase": {
+            "name": "Фаза"
+          },
+          "reason": {
+            "name": "Причина"
+          },
+          "source_count": {
+            "name": "Джерела"
+          }
+        }
       },
       "proximity": {
         "name": "Наближення"

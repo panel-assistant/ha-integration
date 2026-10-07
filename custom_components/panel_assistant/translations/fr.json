@@ -339,7 +339,24 @@
     },
     "binary_sensor": {
       "auto_sleep_activity": {
-        "name": "Activité pour la mise en veille automatique"
+        "name": "Activité pour la mise en veille automatique",
+        "state_attributes": {
+          "learned_delay": {
+            "name": "Délai appris"
+          },
+          "manual_suppression": {
+            "name": "Suspension manuelle"
+          },
+          "phase": {
+            "name": "Phase"
+          },
+          "reason": {
+            "name": "Raison"
+          },
+          "source_count": {
+            "name": "Sources"
+          }
+        }
       },
       "proximity": {
         "name": "Proximité"

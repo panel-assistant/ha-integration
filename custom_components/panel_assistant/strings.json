@@ -156,7 +156,24 @@
     },
     "binary_sensor": {
       "auto_sleep_activity": {
-        "name": "Auto-sleep activity"
+        "name": "Auto-sleep activity",
+        "state_attributes": {
+          "learned_delay": {
+            "name": "Learned delay"
+          },
+          "manual_suppression": {
+            "name": "Manual suppression"
+          },
+          "phase": {
+            "name": "Phase"
+          },
+          "reason": {
+            "name": "Reason"
+          },
+          "source_count": {
+            "name": "Sources"
+          }
+        }
       },
       "proximity": {
         "name": "Proximity"

@@ -850,6 +850,19 @@ async def test_only_catalogued_attributes_are_shown(
                     "attributes": {"quick_check": "ok", "unlisted": 1},
                 },
                 {
+                    "channel": "auto_sleep_activity",
+                    "state": "known",
+                    "value": True,
+                    "attributes": {
+                        "reason": "presence",
+                        "learned_delay": "90s",
+                        "source_count": 2,
+                        "phase": "holding",
+                        "manual_suppression": False,
+                        "unlisted": 1,
+                    },
+                },
+                {
                     "channel": "zigbee_gateway_health",
                     "state": "known",
                     "value": "runaway",
@@ -867,6 +880,26 @@ async def test_only_catalogued_attributes_are_shown(
     storage = hass.states.get(entries[f"{DID}_storage_health"].entity_id)
     assert storage.attributes.get("quick_check") == "ok"
     assert "unlisted" not in storage.attributes
+    # The attributes the MQTT auto-sleep activity entity carried.
+    activity = hass.states.get(entries[f"{DID}_auto_sleep_activity"].entity_id)
+    assert activity.state == "on"
+    assert {
+        key: activity.attributes.get(key)
+        for key in (
+            "reason",
+            "learned_delay",
+            "source_count",
+            "phase",
+            "manual_suppression",
+        )
+    } == {
+        "reason": "presence",
+        "learned_delay": "90s",
+        "source_count": 2,
+        "phase": "holding",
+        "manual_suppression": False,
+    }
+    assert "unlisted" not in activity.attributes
     zigbee = hass.states.get(entries[f"{DID}_zigbee_gateway_health"].entity_id)
     assert zigbee.state == "runaway"
     assert zigbee.attributes.get("gateway_cpu_percent") == 97

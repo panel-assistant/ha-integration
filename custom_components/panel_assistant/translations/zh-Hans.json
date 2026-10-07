@@ -339,7 +339,24 @@
     },
     "binary_sensor": {
       "auto_sleep_activity": {
-        "name": "自动休眠相关活动"
+        "name": "自动休眠相关活动",
+        "state_attributes": {
+          "learned_delay": {
+            "name": "学习的延迟"
+          },
+          "manual_suppression": {
+            "name": "手动抑制"
+          },
+          "phase": {
+            "name": "阶段"
+          },
+          "reason": {
+            "name": "原因"
+          },
+          "source_count": {
+            "name": "来源数"
+          }
+        }
       },
       "proximity": {
         "name": "接近"

@@ -22,7 +22,13 @@
       "platform": "binary_sensor",
       "translation_key": "auto_sleep_activity",
       "unique_suffix": "auto_sleep_activity",
-      "attributes": []
+      "attributes": [
+        "learned_delay",
+        "manual_suppression",
+        "phase",
+        "reason",
+        "source_count"
+      ]
     },
     {
       "channel": "proximity",

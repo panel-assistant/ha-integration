@@ -334,7 +334,24 @@
     },
     "binary_sensor": {
       "auto_sleep_activity": {
-        "name": "Activiteit voor automatische slaapstand"
+        "name": "Activiteit voor automatische slaapstand",
+        "state_attributes": {
+          "learned_delay": {
+            "name": "Aangeleerde vertraging"
+          },
+          "manual_suppression": {
+            "name": "Handmatige onderdrukking"
+          },
+          "phase": {
+            "name": "Fase"
+          },
+          "reason": {
+            "name": "Reden"
+          },
+          "source_count": {
+            "name": "Bronnen"
+          }
+        }
       },
       "proximity": {
         "name": "Nabijheid"

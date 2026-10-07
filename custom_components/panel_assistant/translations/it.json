@@ -339,7 +339,24 @@
     },
     "binary_sensor": {
       "auto_sleep_activity": {
-        "name": "Attività per la sospensione automatica"
+        "name": "Attività per la sospensione automatica",
+        "state_attributes": {
+          "learned_delay": {
+            "name": "Ritardo appreso"
+          },
+          "manual_suppression": {
+            "name": "Soppressione manuale"
+          },
+          "phase": {
+            "name": "Fase"
+          },
+          "reason": {
+            "name": "Motivo"
+          },
+          "source_count": {
+            "name": "Sorgenti"
+          }
+        }
       },
       "proximity": {
         "name": "Prossimità"

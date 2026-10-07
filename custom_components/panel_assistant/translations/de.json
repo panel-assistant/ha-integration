@@ -339,7 +339,24 @@
     },
     "binary_sensor": {
       "auto_sleep_activity": {
-        "name": "Aktivität für automatischen Ruhezustand"
+        "name": "Aktivität für automatischen Ruhezustand",
+        "state_attributes": {
+          "learned_delay": {
+            "name": "Gelernte Verzögerung"
+          },
+          "manual_suppression": {
+            "name": "Manuelle Unterdrückung"
+          },
+          "phase": {
+            "name": "Phase"
+          },
+          "reason": {
+            "name": "Grund"
+          },
+          "source_count": {
+            "name": "Quellen"
+          }
+        }
       },
       "proximity": {
         "name": "Nähe"

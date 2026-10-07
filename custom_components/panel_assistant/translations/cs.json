@@ -156,7 +156,24 @@
     },
     "binary_sensor": {
       "auto_sleep_activity": {
-        "name": "Aktivita automatického uspávání"
+        "name": "Aktivita automatického uspávání",
+        "state_attributes": {
+          "learned_delay": {
+            "name": "Naučená prodleva"
+          },
+          "manual_suppression": {
+            "name": "Ruční potlačení"
+          },
+          "phase": {
+            "name": "Fáze"
+          },
+          "reason": {
+            "name": "Důvod"
+          },
+          "source_count": {
+            "name": "Zdroje"
+          }
+        }
       },
       "proximity": {
         "name": "Přiblížení"
