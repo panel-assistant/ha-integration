@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from datetime import timedelta
 
 from homeassistant.core import HomeAssistant
@@ -25,7 +26,7 @@ from .release import (
     ReleaseArtifact,
     ReleaseResolutionError,
 )
-from .update_policy import build_allowed, prereleases_allowed
+from .update_policy import build_allowed, feed_build_key, prereleases_allowed
 
 _LOGGER = logging.getLogger(__name__)
 DATA_BUILD_FEED = "build_feed"
@@ -33,6 +34,19 @@ CONF_BUILD_FEED = "build_feed"
 FEED_REFRESH = timedelta(minutes=15)
 DATA_STABLE_RELEASE = "stable_release"
 STABLE_REFRESH = timedelta(hours=6)
+
+
+def newest_feed_build(builds: Iterable[FeedBuild]) -> FeedBuild | None:
+    """Rank signed feed builds by versionCode, never by name first.
+
+    Every offer and pre-verification of a feed build ranks through here, so the
+    build Home Assistant verifies is the build the update entity offers.
+    """
+    return max(
+        builds,
+        key=lambda build: feed_build_key(build.version_name, build.version_code),
+        default=None,
+    )
 
 
 class BuildFeedCoordinator(DataUpdateCoordinator[BuildFeed]):
@@ -58,23 +72,16 @@ class BuildFeedCoordinator(DataUpdateCoordinator[BuildFeed]):
             return None
         if allow_prerelease is None:
             allow_prerelease = prereleases_allowed()
-        build = max(
-            (
-                candidate
-                for candidate in feed.builds
-                if candidate.package_id == (package_id or LEGACY_PACKAGE_ID)
-                and build_allowed(
-                    candidate.version_name,
-                    candidate.protocol_min,
-                    candidate.protocol_max,
-                    allow_prerelease=allow_prerelease,
-                )
-            ),
-            key=lambda candidate: (
-                _version_key(candidate.version_name) or ((0, 0, 0), False, ()),
-                candidate.version_code,
-            ),
-            default=None,
+        build = newest_feed_build(
+            candidate
+            for candidate in feed.builds
+            if candidate.package_id == (package_id or LEGACY_PACKAGE_ID)
+            and build_allowed(
+                candidate.version_name,
+                candidate.protocol_min,
+                candidate.protocol_max,
+                allow_prerelease=allow_prerelease,
+            )
         )
         return (
             build
@@ -127,23 +134,16 @@ class BuildFeedCoordinator(DataUpdateCoordinator[BuildFeed]):
         }
         for package_id in ACCEPTED_PACKAGE_IDS:
             for allow_prerelease in (False, True):
-                build = max(
-                    (
-                        candidate
-                        for candidate in feed.builds
-                        if candidate.package_id == package_id
-                        and build_allowed(
-                            candidate.version_name,
-                            candidate.protocol_min,
-                            candidate.protocol_max,
-                            allow_prerelease=allow_prerelease,
-                        )
-                    ),
-                    key=lambda candidate: (
-                        _version_key(candidate.version_name) or ((0, 0, 0), False, ()),
-                        candidate.version_code,
-                    ),
-                    default=None,
+                build = newest_feed_build(
+                    candidate
+                    for candidate in feed.builds
+                    if candidate.package_id == package_id
+                    and build_allowed(
+                        candidate.version_name,
+                        candidate.protocol_min,
+                        candidate.protocol_max,
+                        allow_prerelease=allow_prerelease,
+                    )
                 )
                 if build is None:
                     continue

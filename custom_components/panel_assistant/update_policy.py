@@ -58,13 +58,52 @@ def version_allowed(
     version_code: int | None,
     installed_version: str,
     installed_code: int | None,
+    *,
+    feed: bool = False,
 ) -> bool:
-    """Never older than the installed build once it runs 1.0 or later."""
+    """Never older than the installed build once it runs 1.0 or later.
+
+    A signed build feed entry is older or newer by versionCode first
+    (``feed_build_key``); a GitHub release by name first.
+    """
     installed = _version_key(installed_version)
     if installed is None or _version_key(version_name) is None:
         return False
-    return installed[0] < (1, 0, 0) or version_not_older(
+    if installed[0] < (1, 0, 0):
+        return True
+    if feed and type(installed_code) is int:
+        return type(version_code) is int and feed_build_key(
+            version_name, version_code
+        ) >= feed_build_key(installed_version, installed_code)
+    return version_not_older(
         version_name, version_code, installed_version, installed_code
+    )
+
+
+def feed_build_key(
+    version_name: str, version_code: int
+) -> tuple[int, tuple[tuple[int, int, int], bool, tuple[tuple[int, str, int], ...]]]:
+    """Order signed build feed entries by versionCode, then by name.
+
+    The feed carries every build of a release line in versionCode order,
+    so a line renumbered to a lower name (1.0.0-rc1 became 0.9.11-rc1) still
+    ranks by when it was built. GitHub releases keep name-first order.
+    """
+    return (version_code, _version_key(version_name) or ((0, 0, 0), False, ()))
+
+
+def feed_build_newer(
+    version_name: str,
+    version_code: int | None,
+    installed_version: str,
+    installed_code: int | None,
+) -> bool:
+    """A feed build is an upgrade only when it ranks above the installed build."""
+    return (
+        type(version_code) is int
+        and type(installed_code) is int
+        and feed_build_key(version_name, version_code)
+        > feed_build_key(installed_version, installed_code)
     )
 
 

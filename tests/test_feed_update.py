@@ -1646,6 +1646,33 @@ async def test_shared_feed_keeps_both_channels_for_both_app_identities(
     assert download.await_count == 2
 
 
+async def test_feed_coordinator_verifies_the_highest_code_of_a_renumbered_line(
+    hass: HomeAssistant,
+) -> None:
+    renumbered = replace(_build(1168, SUCCESSOR_PACKAGE_ID), version_name="1.0.0-rc1")
+    renamed = replace(_build(1199, SUCCESSOR_PACKAGE_ID), version_name="0.9.11-rc1")
+    coordinator = BuildFeedCoordinator(hass, FEED_URL)
+    download = AsyncMock(return_value=APK)
+    with (
+        patch(
+            FETCH,
+            AsyncMock(return_value=BuildFeed("maintainer", (renumbered, renamed))),
+        ),
+        patch(
+            "custom_components.panel_assistant.feed_coordinator.async_download_build",
+            download,
+        ),
+    ):
+        await coordinator.async_refresh()
+    assert (
+        coordinator.verified_newest(SUCCESSOR_PACKAGE_ID, allow_prerelease=True)
+        == renamed
+    )
+    assert [
+        call.args[1].descriptor.version_code for call in download.await_args_list
+    ] == [1199]
+
+
 @pytest.mark.parametrize(
     ("candidate_version", "candidate_code", "minimum", "maximum", "pa_version"),
     [
@@ -1653,9 +1680,15 @@ async def test_shared_feed_keeps_both_channels_for_both_app_identities(
         ("1.1.0", 773, 5, 5, "0.7.0-rc3"),
         ("1.1.0-rc1", 773, 3, 3, "0.7.0"),
         ("1.0.0", 770, 3, 3, "0.7.0-rc3"),
-        ("0.9.9", 773, 3, 3, "0.7.0-rc3"),
+        ("1.1.0", 770, 3, 3, "0.7.0-rc3"),
     ],
-    ids=["unknown", "incompatible", "stable-channel", "older-code", "older-version"],
+    ids=[
+        "unknown",
+        "incompatible",
+        "stable-channel",
+        "older-code",
+        "newer-name-older-code",
+    ],
 )
 async def test_explicit_feed_install_refuses_unadmitted_candidate_before_backup(
     hass: HomeAssistant,

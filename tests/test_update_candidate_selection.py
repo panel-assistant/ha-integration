@@ -212,7 +212,7 @@ async def _panel(
         (
             ("1.0.0", 800),
             [("1.1.0", 900, (3, 3)), ("1.2.0", 850, (3, 3))],
-            ("1.2.0", 850),
+            ("1.1.0", 900),
         ),
         (
             ("1.0.0", 800),
@@ -236,14 +236,14 @@ async def _panel(
         ),
     ],
     ids=[
-        "semantic-before-code",
+        "code-before-semantic",
         "same-semantic-code-tie",
         "installed-code-before-rank",
         "unknown-range",
         "incompatible-range",
     ],
 )
-async def test_feed_offer_filters_eligibility_before_semantic_ranking(
+async def test_feed_offer_filters_eligibility_before_code_ranking(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     trust: None,
@@ -282,6 +282,82 @@ async def test_public_release_offers_newest_eligible_build(
     )
     assert entity.latest_version == expected
     assert entity.state == "on"
+
+
+# The 0.9.11 line was briefly numbered 1.0.0-rc1 (builds 1117 to 1176), then
+# renumbered. Some panels still run those builds.
+RENUMBERED = ("1.0.0-rc1", 1168)
+RENAMED_NEXT = ("0.9.11-rc1", 1199, (3, 3))
+
+
+async def test_feed_build_with_higher_code_upgrades_a_renumbered_line(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+) -> None:
+    github, _ = _public_pool(key, monkeypatch, [])
+    apks = _add_feed(github, key, [(*RENUMBERED, (3, 3)), RENAMED_NEXT])
+    entity, client = await _panel(
+        hass, monkeypatch, github, installed=RENUMBERED, prerelease=True
+    )
+    assert entity.latest_version == "0.9.11-rc1 build 1199"
+    assert entity.state == "on"
+    _restart_for_install(entity, client, RENAMED_NEXT[0], RENAMED_NEXT[1])
+    await entity.async_install(None, False)
+    client.async_stage_apk.assert_awaited_once_with(apks[RENAMED_NEXT[:2]])
+    client.async_commit_apk.assert_awaited_once_with("tok-1")
+
+
+@pytest.mark.parametrize(
+    "installed",
+    [("0.9.11-rc1", 1193), ("1.0.0-rc2", 1180)],
+    ids=["pre-1.0-installed", "post-1.0-installed"],
+)
+async def test_feed_build_with_lower_code_is_never_offered_or_installed(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    installed: tuple[str, int],
+) -> None:
+    github, _ = _public_pool(key, monkeypatch, [])
+    _add_feed(github, key, [(*RENUMBERED, (3, 3))])
+    entity, client = await _panel(
+        hass, monkeypatch, github, installed=installed, prerelease=True
+    )
+    assert entity.latest_version == entity.installed_version
+    assert entity.state == "off"
+    with pytest.raises(HomeAssistantError):
+        await entity.async_install(None, False)
+    if installed[0].startswith("1."):
+        # Asked for by number, a post-1.0 panel still refuses the older build.
+        with pytest.raises(HomeAssistantError):
+            await entity.async_install(str(RENUMBERED[1]), False)
+    client.async_stage_apk.assert_not_awaited()
+    client.async_commit_apk.assert_not_awaited()
+
+
+async def test_public_release_keeps_name_order_on_a_renumbered_line(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+) -> None:
+    github, _ = _public_pool(key, monkeypatch, [RENAMED_NEXT])
+    entity, client = await _panel(
+        hass,
+        monkeypatch,
+        github,
+        installed=RENUMBERED,
+        with_feed=False,
+        prerelease=True,
+    )
+    assert entity.latest_version == entity.installed_version
+    assert entity.state == "off"
+    with pytest.raises(HomeAssistantError):
+        await entity.async_install(None, False)
+    client.async_stage_apk.assert_not_awaited()
 
 
 def _restart_for_install(entity: Any, client: Any, version: str, code: int) -> None:

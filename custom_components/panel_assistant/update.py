@@ -81,6 +81,7 @@ from .feed_coordinator import (
     StableReleaseCoordinator,
     async_get_feed_coordinator,
     async_get_stable_release_coordinator,
+    newest_feed_build,
 )
 from .install_adb import (
     AdbInstallTarget,
@@ -116,7 +117,12 @@ from .release import (
 from .status import PanelCachedUpdate, home_ui_allows
 from .transport import async_get_sessions
 from .update_coordinator import PanelUpdateCoordinator
-from .update_policy import build_allowed, prereleases_allowed, version_allowed
+from .update_policy import (
+    build_allowed,
+    feed_build_newer,
+    prereleases_allowed,
+    version_allowed,
+)
 from .update_route_repair import async_reconcile_update_route_issue
 
 _ANDROID_DOWNLOAD_MAX_SECONDS = 10 * 60
@@ -1142,6 +1148,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             snapshot.health.version_code
             if snapshot.health.version_code is not None
             else self._installed_code,
+            feed=is_feed_build_tag(artifact.tag),
         )
 
     async def _async_admit_artifact(self, artifact: ReleaseArtifact) -> None:
@@ -1159,28 +1166,36 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         ):
             return None
         package_id = snapshot.health.package or LEGACY_PACKAGE_ID
-        candidates: list[ReleaseArtifact] = []
-        if (
-            self._feed is not None
-            and self._feed.last_update_success
-            and self._feed.data
-        ):
-            candidates.extend(
-                feed_release_artifact(build)
-                for build in self._feed.data.builds
-                if build.package_id == package_id
-                and (
-                    snapshot.health.version_code is not None
-                    or self._installed_code is not None
-                )
-            )
-        if self._release is not None:
-            candidates.extend(self._release.candidates_for(package_id))
         installed_key = _version_key(snapshot.health.version)
         if installed_key is None:
             return None
         installed_code = snapshot.health.version_code or self._installed_code
         eligible = []
+        if (
+            self._feed is not None
+            and self._feed.last_update_success
+            and self._feed.data
+        ):
+            # The feed's own order: versionCode first, whatever the name.
+            feed_offer = newest_feed_build(
+                build
+                for build in self._feed.data.builds
+                if build.package_id == package_id
+                and feed_build_newer(
+                    build.version_name,
+                    build.version_code,
+                    snapshot.health.version,
+                    installed_code,
+                )
+                and self._artifact_allowed(feed_release_artifact(build))
+            )
+            if feed_offer is not None:
+                eligible.append(feed_release_artifact(feed_offer))
+        candidates = (
+            self._release.candidates_for(package_id)
+            if self._release is not None
+            else ()
+        )
         for artifact in candidates:
             if not self._artifact_allowed(artifact):
                 continue
@@ -1306,7 +1321,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         return self._offer_label(artifact)
 
     def version_is_newer(self, latest_version: str, installed_version: str) -> bool:
-        """Compare semantic version first and build number only as a tie-break."""
+        """Compare semantic version first and build number only as a tie-break.
+
+        A signed feed build offer compares in the feed's own order instead,
+        versionCode first.
+        """
         release = self._host_release()
         if (
             release is not None
@@ -1320,6 +1339,17 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         installed_key = _version_key(installed_name)
         if latest_key is None or installed_key is None:
             return False
+        if (
+            release is not None
+            and is_feed_build_tag(release.tag)
+            and latest_version == self._offer_label(release)
+        ):
+            return feed_build_newer(
+                latest_name,
+                parse_build_request(latest_version),
+                installed_name,
+                parse_build_request(installed_version),
+            )
         if latest_key != installed_key:
             return latest_key > installed_key
         latest_code = parse_build_request(latest_version)
