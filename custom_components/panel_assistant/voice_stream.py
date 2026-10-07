@@ -16,7 +16,11 @@ config entry and is forgotten when the entry is removed.
 Announcements that Home Assistant hands to several panels as separate entity
 calls are gathered for ``COALESCE_WINDOW``, fetched and decoded once, and
 played to every panel whose Sendspin player is ready as one stream with one
-start time. A panel that is not ready gets the announcement by URL as before.
+start time. That time, the server-clock microsecond of the stream's first
+sample, goes in each panel's event as ``stream_start_us``: the first chunk a
+panel receives carries the same timestamp, so a panel claims exactly the stream
+its event names. A panel that is not ready gets the announcement by URL as
+before.
 """
 
 from __future__ import annotations
@@ -167,7 +171,7 @@ class SendspinView(HomeAssistantView):
 @dataclass(slots=True)
 class _Batch:
     urls: tuple[str, ...]
-    done: asyncio.Future[frozenset[str]]
+    done: asyncio.Future[dict[str, int]]
     members: list[str] = field(default_factory=list)
 
 
@@ -226,15 +230,16 @@ class VoiceStream:
 
     async def async_announce(
         self, key: Hashable, client_id: str | None, urls: tuple[str, ...]
-    ) -> bool:
-        """Join the announcement ``key``; return whether this panel streams it.
+    ) -> int | None:
+        """Join the announcement ``key``; return its stream's start, or None.
 
-        A panel that is not ready returns at once, to play by URL. Otherwise it
-        waits for the window to close; the stream then starts in the background,
-        and the caller tells the panel to play it.
+        A panel that is not ready returns None at once, to play by URL.
+        Otherwise it waits for the window to close and the stream to start; the
+        caller tells the panel to play the stream that starts at the time
+        returned.
         """
         if client_id is None or not self.ready(client_id):
-            return False
+            return None
         batch = self._batches.get(key)
         if batch is None:
             batch = _Batch(urls, self._hass.loop.create_future())
@@ -243,10 +248,10 @@ class VoiceStream:
                 self._async_run_batch(key, batch), f"{DOMAIN} voice announcement"
             )
         batch.members.append(client_id)
-        return client_id in await asyncio.shield(batch.done)
+        return (await asyncio.shield(batch.done)).get(client_id)
 
     async def _async_run_batch(self, key: Hashable, batch: _Batch) -> None:
-        streamed: frozenset[str] = frozenset()
+        streamed: dict[str, int] = {}
         try:
             pcm = self._hass.async_create_task(self._async_prepare(batch.urls))
             await asyncio.sleep(COALESCE_WINDOW)
@@ -265,17 +270,21 @@ class VoiceStream:
         if self._batches.get(key) is batch:
             del self._batches[key]
 
-    async def async_play_reply(self, client_id: str | None, url: str) -> bool:
-        """Stream a voice reply to the answering panel; False to play it by URL."""
+    async def async_play_reply(self, client_id: str | None, url: str) -> int | None:
+        """Stream a voice reply to the answering panel; return its start time.
+
+        None means play it by URL.
+        """
         if client_id is None or not self.ready(client_id):
-            return False
+            return None
         try:
-            return bool(
-                await self._async_start([client_id], await self._async_prepare((url,)))
+            started = await self._async_start(
+                [client_id], await self._async_prepare((url,))
             )
         except Exception:
             _LOGGER.warning("Could not stream a voice reply", exc_info=True)
-            return False
+            return None
+        return started.get(client_id)
 
     async def _async_prepare(self, urls: Iterable[str]) -> bytes:
         """Fetch and decode, chime and speech back to back in one run."""
@@ -290,11 +299,15 @@ class VoiceStream:
 
     async def _async_start(
         self, client_ids: Iterable[str], pcm: bytes
-    ) -> frozenset[str]:
-        """Start one stream to the panels that are ready; return which they are."""
+    ) -> dict[str, int]:
+        """Start one stream to the panels that are ready.
+
+        Return each streamed panel's id with the stream's start: the server
+        time of its first sample, which its first chunk carries.
+        """
         ids = [cid for cid in dict.fromkeys(client_ids) if self.ready(cid)]
         if not ids or not pcm:
-            return frozenset()
+            return {}
         async with self._start_lock:
             # Cut off what these panels were playing, and let its cleanup end
             # its stream and group first, or it would stop the new one.
@@ -304,11 +317,19 @@ class VoiceStream:
             if olds:
                 await asyncio.wait(olds)
             clients = [c for cid in ids if (c := self._server.get_client(cid))]
+            first: asyncio.Future[int | None] = self._hass.loop.create_future()
             task = self._hass.async_create_background_task(
-                self._async_stream(clients, pcm), f"{DOMAIN} voice stream"
+                self._async_stream(clients, pcm, first), f"{DOMAIN} voice stream"
+            )
+            # A stream that ends before its first chunk, even one cancelled
+            # before it ran, did not start.
+            task.add_done_callback(
+                lambda _task: None if first.done() else first.set_result(None)
             )
             for cid in ids:
                 self._playing[cid] = task
+            # Under the lock, so nothing newer cuts it off before it has a start.
+            start_us = await first
 
         def _done(_task: asyncio.Task[None]) -> None:
             for cid in ids:
@@ -316,9 +337,17 @@ class VoiceStream:
                     del self._playing[cid]
 
         task.add_done_callback(_done)
-        return frozenset(ids)
+        if start_us is None:
+            return {}
+        return dict.fromkeys(ids, start_us)
 
-    async def _async_stream(self, clients: list[SendspinClient], pcm: bytes) -> None:
+    async def _async_stream(
+        self,
+        clients: list[SendspinClient],
+        pcm: bytes,
+        first: asyncio.Future[int | None],
+    ) -> None:
+        """Play ``pcm`` to ``clients``, resolving ``first`` with its start."""
         group = clients[0].group
         for client in clients[1:]:
             await group.add_client(client)
@@ -335,6 +364,7 @@ class VoiceStream:
                 at = await stream.commit_audio()
                 if start_us is None:
                     start_us = at  # one start time for the whole group
+                    first.set_result(at)
                 await stream.sleep_to_limit_buffer(MAX_AHEAD_US)
             end_us = (start_us or 0) + len(pcm) // 2 * 1_000_000 // (
                 VOICE_FORMAT.sample_rate

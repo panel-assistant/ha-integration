@@ -51,7 +51,7 @@ from .test_transport_commands import (
     native,  # noqa: F401  # the fixture
 )
 from .test_transport_commands import _hello as _native_hello
-from .test_transport_contract import _hello_result_conforms
+from .test_transport_contract import _hello_result_conforms, _streamed_claim
 from .test_voice import (
     FakePipeline,
     Panel,
@@ -136,6 +136,9 @@ class Speaker:
     """A panel's Sendspin voice player (sendspin-cpp on the real thing)."""
 
     identity: Identity = field(default_factory=Identity.generate)
+    # The one format it offers; a real panel's player takes 44.1 kHz stereo.
+    rate: int = 48_000
+    channels: int = 1
     # One list per stream received: (server timestamp, bytes).
     streams: list[list[tuple[int, int]]] = field(default_factory=list)
     ends: int = 0
@@ -164,8 +167,8 @@ class Speaker:
                 supported_formats=[
                     SupportedAudioFormat(
                         codec=AudioCodec.PCM,
-                        channels=1,
-                        sample_rate=48_000,
+                        channels=self.channels,
+                        sample_rate=self.rate,
                         bit_depth=16,
                     )
                 ],
@@ -186,6 +189,10 @@ class Speaker:
 
     def _ended(self) -> None:
         self.ends += 1
+
+    def start(self, index: int) -> int:
+        """The server timestamp of a stream's first chunk."""
+        return self.streams[index][0][0]
 
     def seconds(self, index: int) -> float:
         return sum(size for _ts, size in self.streams[index]) / BYTES_PER_SECOND
@@ -396,6 +403,9 @@ async def test_one_announcement_to_two_panels_is_one_stream_in_step(
     assert len(a.streams) == len(b.streams) == 1
     assert a.streams[0]
     assert a.streams[0] == b.streams[0]
+    # Each event names its stream by the first chunk's server timestamp.
+    assert _streamed_claim(event_a) == a.start(0)
+    assert _streamed_claim(event_b) == b.start(0)
     # Chime and speech back to back in the one stream, each fetched once.
     expected = decode_clip(CLIPS["chime"]) + decode_clip(CLIPS["mp3"])
     assert a.seconds(0) == len(expected) / BYTES_PER_SECOND
@@ -634,6 +644,7 @@ async def test_a_reply_streams_to_the_answering_panel_only(
     run_id, handler = await _run(panel_a, "hey_jarvis")
     await panel_a.client.send_bytes(bytes([handler]))
     events = await _turn_events(panel_a, run_id)
+    await a.ended(1)
 
     assert events[-2:] == [
         {
@@ -641,10 +652,11 @@ async def test_a_reply_streams_to_the_answering_panel_only(
             "url": f"{base}/test_voice_stream/speech",
             "continue_conversation": True,
             "stream": True,
+            "stream_start_us": a.start(0),
         },
         {"kind": "end"},
     ]
-    await a.ended(1)
+    assert _streamed_claim(events[-2]) == a.start(0)
     assert a.seconds(0) == len(decode_clip(CLIPS["speech"])) / BYTES_PER_SECOND
     assert b.streams == []
     await _played(panel_a)
@@ -699,18 +711,23 @@ async def test_a_newer_media_announcement_cuts_the_older_stream_off(
         return value
 
     first = await announce("long")
+    await _until(lambda: bool(speaker.streams and speaker.streams[0]))
     assert first == {
         "action": "play",
         "url": f"{base}/test_voice_stream/long",
         "announce": True,
         "stream": True,
+        "stream_start_us": speaker.start(0),
     }
-    await _until(lambda: bool(speaker.streams and speaker.streams[0]))
     second = await announce("speech")
     assert second["stream"] is True
     await speaker.ended(2)
 
     assert len(speaker.streams) == 2
+    # Each command names its own stream, so a panel never plays the cut-off one.
+    assert _streamed_claim(first) == speaker.start(0)
+    assert _streamed_claim(second) == speaker.start(1)
+    assert speaker.start(0) != speaker.start(1)
     assert speaker.seconds(0) < 6.0  # of 8 s
     assert speaker.seconds(1) == len(decode_clip(CLIPS["speech"])) / BYTES_PER_SECOND
 
@@ -746,7 +763,7 @@ async def test_overlapping_replacements_leave_the_newest_playing_whole(
         voice_stream._async_start([cid], speech),
         voice_stream._async_start([cid], chime),
     )
-    assert first == second == frozenset({cid})
+    assert set(first) == set(second) == {cid}
 
     live = [
         task
@@ -758,6 +775,11 @@ async def test_overlapping_replacements_leave_the_newest_playing_whole(
     await speaker.ended(len(speaker.streams))
     assert speaker.seconds(-1) == len(chime) / BYTES_PER_SECOND
     assert speaker.seconds(0) < 6.0  # of 8 s, cut off
+    # Started in quick succession, each has its own start, its stream's first.
+    assert len(speaker.streams) == 3
+    assert first[cid] == speaker.start(1)
+    assert second[cid] == speaker.start(2)
+    assert first[cid] != second[cid]
     # One stream owned the panel; none ran on untracked.
     assert live == [tracked]
 
@@ -808,3 +830,60 @@ async def test_a_slow_earlier_batch_leaves_the_next_window_coalescing(
     assert b.streams[0]
     assert b.streams[0] == c.streams[0]
     assert _fetched(hass).count("speech") == 1
+
+
+@LINGERING
+async def test_every_member_s_first_chunk_carries_the_start_in_any_format(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,  # noqa: F811
+    base: str,
+    speakers: list[Speaker],
+) -> None:
+    """A member the server resamples for still starts at exactly the same time."""
+    voice_stream = async_get_voice_stream(hass)
+    assert voice_stream is not None
+    a, b = Speaker(), Speaker(rate=44_100, channels=2)
+    speakers += [a, b]
+    for speaker in (a, b):
+        await speaker.dial(base, voice_stream.grant(speaker.client_id, entry.entry_id))
+        await _ready(hass, speaker)
+    speech = (f"{base}/test_voice_stream/speech",)
+
+    started = await asyncio.gather(
+        voice_stream.async_announce("one", a.client_id, speech),
+        voice_stream.async_announce("one", b.client_id, speech),
+    )
+    await a.ended(1)
+    await b.ended(1)
+
+    assert len(a.streams) == len(b.streams) == 1
+    assert a.streams[0] != b.streams[0]  # b's audio was resampled for it
+    assert started == [a.start(0), b.start(0)]
+
+
+@LINGERING
+async def test_a_stream_that_fails_before_its_first_chunk_falls_back_to_urls(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,  # noqa: F811
+    base: str,
+    speakers: list[Speaker],
+) -> None:
+    """No start to name means play by URL, and the next stream still starts."""
+    voice_stream = async_get_voice_stream(hass)
+    assert voice_stream is not None
+    speaker = Speaker()
+    speakers.append(speaker)
+    await speaker.dial(base, voice_stream.grant(speaker.client_id, entry.entry_id))
+    await _ready(hass, speaker)
+    speech = decode_clip(CLIPS["speech"])
+
+    with patch(
+        "aiosendspin.server.group.SendspinGroup.start_stream",
+        side_effect=RuntimeError("no stream"),
+    ):
+        async with asyncio.timeout(5):
+            assert await voice_stream._async_start([speaker.client_id], speech) == {}
+    async with asyncio.timeout(5):
+        started = await voice_stream._async_start([speaker.client_id], speech)
+    await speaker.ended(1)
+    assert started == {speaker.client_id: speaker.start(0)}

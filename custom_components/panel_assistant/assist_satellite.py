@@ -379,9 +379,11 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         if (
             voice_stream is not None
             and source is not None
-            and await voice_stream.async_play_reply(client_id, source)
+            and (start := await voice_stream.async_play_reply(client_id, source))
+            is not None
         ):
             play["stream"] = True
+            play["stream_start_us"] = start
         run.send(play)
 
     @callback
@@ -433,19 +435,27 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         }
         # Every panel this one call announces to plays one stream, in step.
         voice_stream = async_get_voice_stream(self.hass)
-        if voice_stream is not None and await voice_stream.async_announce(
-            (
-                None if self._context is None else self._context.id,
-                announcement.original_media_id,
-                # Signed once per entity, so the signature can differ.
-                None if preannounce is None else str(URL(preannounce).with_query(None)),
-            ),
-            session.voice_stream_client_id,
-            (preannounce, announcement.media_id)
-            if preannounce
-            else (announcement.media_id,),
-        ):
+        start = (
+            None
+            if voice_stream is None
+            else await voice_stream.async_announce(
+                (
+                    None if self._context is None else self._context.id,
+                    announcement.original_media_id,
+                    # Signed once per entity, so the signature can differ.
+                    None
+                    if preannounce is None
+                    else str(URL(preannounce).with_query(None)),
+                ),
+                session.voice_stream_client_id,
+                (preannounce, announcement.media_id)
+                if preannounce
+                else (announcement.media_id,),
+            )
+        )
+        if start is not None:
             event["stream"] = True
+            event["stream_start_us"] = start
         session.connection.send_message(event_message(session.subscription_id, event))
         try:
             async with asyncio.timeout(ANNOUNCE_TIMEOUT):

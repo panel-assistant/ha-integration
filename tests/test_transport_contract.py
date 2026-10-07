@@ -401,6 +401,46 @@ def _hello_result_conforms(
         voice_stream(result["voice_stream"])
 
 
+def _integer(value: Any) -> int:
+    """Return a JSON integer; a fraction, a string or a boolean is refused."""
+    if type(value) is not int:
+        raise vol.Invalid("not an integer")
+    return value
+
+
+def _streamed_claim(payload: dict[str, Any]) -> int | None:
+    """Return the stream a panel claims for a play, or None to play its URLs.
+
+    Only an event or command with ``stream: true`` and an integer
+    ``stream_start_us`` names a stream: the one whose first chunk carries that
+    server timestamp. Without the start, as an older integration sends, the
+    panel plays the URLs and leaves any stream silent.
+    """
+    vol.Schema(
+        {
+            vol.Optional("stream"): bool,
+            vol.Optional("stream_start_us"): vol.All(_integer, vol.Range(min=0)),
+        },
+        extra=vol.ALLOW_EXTRA,
+    )(payload)
+    if payload.get("stream") is not True:
+        return None
+    start: int | None = payload.get("stream_start_us")
+    return start
+
+
+@pytest.mark.parametrize(
+    "vector", VECTORS["streamed"], ids=lambda vector: vector["name"]
+)
+def test_streamed_play_conformance_vectors(vector: dict[str, Any]) -> None:
+    """Each streamed play names its stream, or is refused, as the vector says."""
+    if vector["valid"]:
+        assert _streamed_claim(vector["payload"]) == vector["claims"]
+    else:
+        with pytest.raises(vol.Invalid):
+            _streamed_claim(vector["payload"])
+
+
 @pytest.mark.parametrize(
     "vector", VECTORS["results"], ids=lambda vector: vector["name"]
 )

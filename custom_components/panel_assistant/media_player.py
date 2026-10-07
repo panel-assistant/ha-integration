@@ -139,10 +139,17 @@ class NativeMediaPlayer(NativeEntity, MediaPlayerEntity):
                 source = async_process_play_media_url(self.hass, media_id)
             except HomeAssistantError:
                 source = None
-            if source is not None and await voice_stream.async_announce(
-                key, session.voice_stream_client_id, (source,)
+            if (
+                source is not None
+                and (
+                    start := await voice_stream.async_announce(
+                        key, session.voice_stream_client_id, (source,)
+                    )
+                )
+                is not None
             ):
                 command["stream"] = True
+                command["stream_start_us"] = start
         await self.async_command(command)
 
     async def async_browse_media(
