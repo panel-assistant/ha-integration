@@ -43,6 +43,7 @@ from collections import deque
 from collections.abc import Callable, Collection, Container, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from functools import partial
 from ipaddress import ip_address
 from typing import Any, Final
 
@@ -150,8 +151,9 @@ CAPABILITY_VOICE: Final = "voice"
 # is granted whenever offered; the channel's commands still need ``commands``.
 CAPABILITY_MEDIA: Final = "media"
 # A panel that offers this, with its Sendspin key, receives speech in step with
-# other panels (see ``voice_stream.py``). Granted whenever offered with a key.
-CAPABILITY_VOICE_STREAM: Final = "voice_stream"
+# other panels over Sendspin inside its session (see ``voice_stream.py``).
+# Granted whenever offered with a key.
+CAPABILITY_VOICE_STREAM_SESSION: Final = "voice_stream_session"
 KNOWN_CAPABILITIES: Final = frozenset(
     {
         CAPABILITY_STATE,
@@ -162,7 +164,7 @@ KNOWN_CAPABILITIES: Final = frozenset(
         CAPABILITY_EMBED_PROOF,
         CAPABILITY_VOICE,
         CAPABILITY_MEDIA,
-        CAPABILITY_VOICE_STREAM,
+        CAPABILITY_VOICE_STREAM_SESSION,
     }
 )
 # What each authority lets a session use, before intersecting with what the
@@ -537,8 +539,8 @@ HELLO_SCHEMA: Final = vol.Schema(
         vol.Optional("unsupported", default=list): _bounded_list(
             MAX_UNSUPPORTED, _channel
         ),
-        # The panel's Sendspin public key, offered with ``voice_stream``.
-        vol.Optional("voice_stream"): vol.Schema(
+        # The panel's Sendspin public key, offered with ``voice_stream_session``.
+        vol.Optional("voice_stream_session"): vol.Schema(
             {vol.Required("client_id"): _pattern(_SENDSPIN_KEY)},
             extra=vol.REMOVE_EXTRA,
         ),
@@ -912,7 +914,7 @@ class PanelSession:
     embed_key_id: str | None = field(default=None, repr=False)
     embed_key: bytes | None = field(default=None, repr=False)
     embed_counter: int = 0
-    # The panel's Sendspin client id, when ``voice_stream`` was granted.
+    # The panel's Sendspin client id, when ``voice_stream_session`` was granted.
     voice_stream_client_id: str | None = None
     # Commands sent and still waited for, by command ID.
     pending: dict[str, PendingCommand] = field(default_factory=dict)
@@ -1134,6 +1136,11 @@ class TransportSessions:
         # The panel discards its key when the session ends; so does this side.
         session.embed_key_id = None
         session.embed_key = None
+        # The session carried the panel's Sendspin connection; it ends too.
+        if session.voice_stream_client_id is not None and (
+            voice_stream := async_get_voice_stream(self._hass)
+        ):
+            voice_stream.detach(session.token)
         return True
 
     @callback
@@ -2228,13 +2235,13 @@ def _accept_hello(
     if CAPABILITY_MEDIA in offered:
         capabilities |= {CAPABILITY_MEDIA}
     voice_stream = async_get_voice_stream(hass)
-    stream_client_id = (msg.get("voice_stream") or {}).get("client_id")
+    stream_client_id = (msg.get("voice_stream_session") or {}).get("client_id")
     if (
-        CAPABILITY_VOICE_STREAM in offered
+        CAPABILITY_VOICE_STREAM_SESSION in offered
         and stream_client_id is not None
         and voice_stream is not None
     ):
-        capabilities |= {CAPABILITY_VOICE_STREAM}
+        capabilities |= {CAPABILITY_VOICE_STREAM_SESSION}
     mqtt_discovery = mqtt_discovery_claim(hass, entry)
     if mqtt_discovery == MQTT_DISCOVERY_WITHDRAW:
         # Whatever held the withdrawal back, such as a customised entity a
@@ -2321,12 +2328,27 @@ def _accept_hello(
             "key_id": session.embed_key_id,
             "key": encode_key(session.embed_key),
         }
-    if CAPABILITY_VOICE_STREAM in capabilities:
+    if CAPABILITY_VOICE_STREAM_SESSION in capabilities:
         assert voice_stream is not None and stream_client_id is not None
         session.voice_stream_client_id = stream_client_id
-        result["voice_stream"] = voice_stream.grant(stream_client_id, entry.entry_id)
+        result["voice_stream_session"] = voice_stream.grant(
+            stream_client_id, entry.entry_id
+        )
     async_get_sessions(hass).open(session)
+    if session.voice_stream_client_id is not None:
+        assert voice_stream is not None
+        voice_stream.attach(
+            session.token,
+            session.voice_stream_client_id,
+            partial(_send_event, connection, msg["id"]),
+        )
     connection.send_result(msg["id"], result)
+
+
+def _send_event(
+    connection: ActiveConnection, subscription_id: int, event: dict[str, Any]
+) -> None:
+    connection.send_message(event_message(subscription_id, event))
 
 
 @dataclass(slots=True)

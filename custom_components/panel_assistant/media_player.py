@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any, Final
 
 from homeassistant.components import media_source
@@ -24,7 +25,7 @@ from . import HaPaneldConfigEntry
 from .native import NativeEntity, async_setup_native_platform
 from .transport import STATE_KNOWN, async_send_command
 from .voice import panel_url
-from .voice_stream import async_get_voice_stream
+from .voice_stream import Listener, async_get_voice_stream
 
 # The volume has one path, the volume channel, whose number stays beside this.
 VOLUME_CHANNEL: Final = "volume"
@@ -139,17 +140,26 @@ class NativeMediaPlayer(NativeEntity, MediaPlayerEntity):
                 source = async_process_play_media_url(self.hass, media_id)
             except HomeAssistantError:
                 source = None
-            if (
-                source is not None
-                and (
-                    start := await voice_stream.async_announce(
-                        key, session.voice_stream_client_id, (source,)
-                    )
+            sent: asyncio.Task[None] | None = None
+
+            def _play(stream_id: str) -> bool:
+                # Started eagerly, so the command is on the session before
+                # the stream's first frame.
+                nonlocal sent
+                sent = self.hass.async_create_task(
+                    self.async_command(
+                        command | {"stream": True, "stream_id": stream_id}
+                    ),
+                    eager_start=True,
                 )
-                is not None
+                return not (sent.done() and sent.exception() is not None)
+
+            if source is not None and await voice_stream.async_announce(
+                key, Listener(session.voice_stream_client_id, _play), (source,)
             ):
-                command["stream"] = True
-                command["stream_start_us"] = start
+                assert sent is not None
+                await sent
+                return
         await self.async_command(command)
 
     async def async_browse_media(

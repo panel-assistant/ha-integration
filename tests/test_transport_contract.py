@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 import voluptuous as vol
 
-from custom_components.panel_assistant import old_app, release, transport
+from custom_components.panel_assistant import old_app, release, transport, voice
 from custom_components.panel_assistant.contract import CONTRACT, catalogue_entry
 from custom_components.panel_assistant.native import NOT_RENDERED
 
@@ -35,6 +35,11 @@ SCHEMAS = {
     transport.COMMAND_REPORT_EVENT: transport.REPORT_EVENT_SCHEMA,
     transport.COMMAND_COMMAND_RESULT: transport.COMMAND_RESULT_SCHEMA,
     transport.COMMAND_RESTART_NOTICE: transport.RESTART_NOTICE_SCHEMA,
+}
+# Requests outside the panel-owned v1 catalogue that the vectors also cover.
+VOICE_SCHEMAS = {
+    voice.COMMAND_VOICE_STREAM_FRAME: voice.VOICE_STREAM_FRAME_SCHEMA,
+    voice.COMMAND_VOICE_STREAM_STOP: voice.VOICE_STREAM_STOP_SCHEMA,
 }
 
 _HA_VECTOR_REVISION = "8c70df5c299c840308c664f9ac2325eddcd8e88a"
@@ -307,7 +312,7 @@ def test_sensor_values_are_typed_as_the_descriptor_declares(
 def test_message_conformance_vectors(vector: dict[str, Any]) -> None:
     """Each vector message validates, or fails, exactly as the vector says."""
     message = vector["message"]
-    schema = SCHEMAS[message["type"]]
+    schema = {**SCHEMAS, **VOICE_SCHEMAS}[message["type"]]
     if vector["valid"]:
         schema(message)
     else:
@@ -353,7 +358,6 @@ def _hello_result_conforms(
     )
     voice_stream = vol.Schema(
         {
-            vol.Required("path"): vol.Match(r"^/[A-Za-z0-9_/-]+$"),
             vol.Required("server_id"): vol.Match(r"^[A-Za-z0-9_-]{43}$"),
             vol.Required("psk"): _embed_key,
         },
@@ -369,7 +373,7 @@ def _hello_result_conforms(
             vol.Required("capabilities"): [vol.In(transport.KNOWN_CAPABILITIES)],
             vol.Optional("mqtt_discovery"): vol.In(transport.MQTT_DISCOVERIES),
             vol.Optional("embed"): object,
-            vol.Optional("voice_stream"): object,
+            vol.Optional("voice_stream_session"): object,
             vol.Required("integration"): integration,
             vol.Required("channels"): channels,
         },
@@ -388,50 +392,81 @@ def _hello_result_conforms(
         if "embed" not in result:
             raise vol.Invalid("an embed grant needs its key")
         embed(result["embed"])
-    if transport.CAPABILITY_VOICE_STREAM in result["capabilities"]:
-        if "voice_stream" not in result:
+    if transport.CAPABILITY_VOICE_STREAM_SESSION in result["capabilities"]:
+        if "voice_stream_session" not in result:
             raise vol.Invalid("a voice stream grant needs its server and key")
-        voice_stream(result["voice_stream"])
+        voice_stream(result["voice_stream_session"])
 
 
-def _integer(value: Any) -> int:
-    """Return a JSON integer; a fraction, a string or a boolean is refused."""
-    if type(value) is not int:
-        raise vol.Invalid("not an integer")
+_STREAM_ID = vol.Match(voice.STREAM_ID_PATTERN)
+
+
+def _base64(value: Any) -> str:
+    if type(value) is not str:
+        raise vol.Invalid("not base64")
+    try:
+        base64.b64decode(value, validate=True)
+    except ValueError as err:
+        raise vol.Invalid("not base64") from err
     return value
 
 
-def _streamed_claim(payload: dict[str, Any]) -> int | None:
-    """Return the stream a panel claims for a play, or None to play its URLs.
+def _true(value: Any) -> bool:
+    if value is not True:
+        raise vol.Invalid("stream is true when present")
+    return True
 
-    Only an event or command with ``stream: true`` and an integer
-    ``stream_start_us`` names a stream: the one whose first chunk carries that
-    server timestamp. Without the start, as an older integration sends, the
-    panel plays the URLs and leaves any stream silent.
+
+_VOICE_STREAM_EVENTS = {
+    "sendspin": vol.Schema(
+        {
+            vol.Required("kind"): "sendspin",
+            vol.Required("frame"): _base64,
+            vol.Required("text"): bool,
+            vol.Required("stream_id"): vol.Any(None, _STREAM_ID),
+        }
+    ),
+    "voice_stream_end": vol.Schema(
+        {
+            vol.Required("kind"): "voice_stream_end",
+            vol.Required("stream_id"): _STREAM_ID,
+            vol.Required("outcome"): vol.In(["played", "preempted", "failed"]),
+            vol.Required("listen_after"): bool,
+        }
+    ),
+}
+
+
+def _voice_stream_event_conforms(payload: dict[str, Any]) -> None:
+    """Read a voice stream event, or a play that names a stream, as a panel does.
+
+    ``sendspin`` and ``voice_stream_end`` events have exact shapes. A
+    ``voice_announce`` event, a voice run ``play`` event or a media ``play``
+    command value streams only with ``stream: true`` and the ``stream_id`` it
+    names; without both the panel plays its URL.
     """
+    if (schema := _VOICE_STREAM_EVENTS.get(payload.get("kind", ""))) is not None:
+        schema(payload)
+        return
     vol.Schema(
         {
-            vol.Optional("stream"): bool,
-            vol.Optional("stream_start_us"): vol.All(_integer, vol.Range(min=0)),
+            vol.Inclusive("stream", "stream"): _true,
+            vol.Inclusive("stream_id", "stream"): _STREAM_ID,
         },
         extra=vol.ALLOW_EXTRA,
     )(payload)
-    if payload.get("stream") is not True:
-        return None
-    start: int | None = payload.get("stream_start_us")
-    return start
 
 
 @pytest.mark.parametrize(
-    "vector", VECTORS["streamed"], ids=lambda vector: vector["name"]
+    "vector", VECTORS["voiceStream"], ids=lambda vector: vector["name"]
 )
-def test_streamed_play_conformance_vectors(vector: dict[str, Any]) -> None:
-    """Each streamed play names its stream, or is refused, as the vector says."""
+def test_voice_stream_conformance_vectors(vector: dict[str, Any]) -> None:
+    """Each voice stream event or streamed play is read, or refused, as it says."""
     if vector["valid"]:
-        assert _streamed_claim(vector["payload"]) == vector["claims"]
+        _voice_stream_event_conforms(vector["payload"])
     else:
         with pytest.raises(vol.Invalid):
-            _streamed_claim(vector["payload"])
+            _voice_stream_event_conforms(vector["payload"])
 
 
 @pytest.mark.parametrize(
