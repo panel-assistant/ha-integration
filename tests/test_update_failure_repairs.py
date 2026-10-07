@@ -15,6 +15,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from yarl import URL
 
 from custom_components.panel_assistant import update as panel_update
+from custom_components.panel_assistant import update_policy
 from custom_components.panel_assistant.app_identity import (
     LAUNCH_COMPONENTS,
     LEGACY_PACKAGE_ID,
@@ -33,7 +34,7 @@ from custom_components.panel_assistant.client import (
     UpdateBusyError,
     UpdateRejectedError,
 )
-from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.const import CONF_PRERELEASE_PANEL_BUILDS, DOMAIN
 from custom_components.panel_assistant.coordinator import (
     HaPaneldDataUpdateCoordinator,
     PanelSnapshot,
@@ -747,6 +748,69 @@ async def test_older_targetless_repair_clears_only_at_verified_current_feed_buil
         assert (await async_failure_events(hass, issue_id))[-1][
             "reason"
         ] == "interrupted rollout"
+
+
+@pytest.mark.parametrize("opted_in", [True, False])
+async def test_stable_pa_clears_repair_at_prerelease_feed_build_for_opted_in_panel(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, opted_in: bool
+) -> None:
+    """An opted-in panel counts the feed's newest prerelease as current."""
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "0.9.0")
+    entry = MockConfigEntry(
+        domain="panel_assistant",
+        title="Test panel",
+        data={CONF_ADDRESS: "panel.local"},
+        options={CONF_PRERELEASE_PANEL_BUILDS: opted_in},
+    )
+    entry.add_to_hass(hass)
+    issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
+    await async_record_update_failure(
+        hass, entry.entry_id, entry.title, None, RuntimeError("interrupted rollout")
+    )
+    hass.data.pop("panel_assistant.failure_repair_store", None)
+
+    build = FeedBuild(
+        version_code=102,
+        version_name="0.9.11-rc1",
+        apk_url=URL("https://feed.example/apk"),
+        apk_sha256="a" * 64,
+        apk_size=3,
+        commit="0" * 40,
+        database_compatibility="hapaneld-db:v1:ha-paneld.db:11:14",
+        min_sdk=26,
+        published="2026-09-28T00:00:00Z",
+        package_id=LEGACY_PACKAGE_ID,
+        launch_component=LAUNCH_COMPONENTS[LEGACY_PACKAGE_ID][0],
+        protocol_min=3,
+        protocol_max=3,
+    )
+    feed = BuildFeedCoordinator(hass, URL("https://feed.example/feed"))
+    feed.data = BuildFeed(channel="maintainer", builds=(build,))
+    feed.last_update_success = True
+    feed._verified_apks[build.apk_sha256] = b"apk"
+    hass.data.setdefault("panel_assistant", {})[DATA_BUILD_FEED] = feed
+
+    client = SimpleNamespace(
+        address="panel.local",
+        async_get_health=AsyncMock(
+            return_value=PanelHealth(
+                version="0.9.11-rc1",
+                version_code=102,
+                panel_id="alpha",
+                build="installed",
+                config_hash="abcd",
+                package=LEGACY_PACKAGE_ID,
+            )
+        ),
+        async_get_status=AsyncMock(return_value=PanelStatus(0, 0)),
+        async_get_version_code=AsyncMock(return_value=("0.9.11-rc1", 102)),
+    )
+    coordinator = HaPaneldDataUpdateCoordinator(hass, client, entry.entry_id)  # type: ignore[arg-type]
+    await coordinator.async_refresh()
+
+    assert (
+        ir.async_get(hass).async_get_issue("panel_assistant", issue_id) is None
+    ) is opted_in
 
 
 async def test_feed_failure_repair_uses_diagnostic_code_instead_of_health_label(

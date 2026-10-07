@@ -56,6 +56,7 @@ from .transport import (
     session_manages,
     signal_session_changed,
 )
+from .update_policy import prereleases_allowed
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -378,7 +379,10 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                     installed_code = None
         feed = async_get_feed_coordinator(self.hass)
         current = (
-            feed.verified_newest(health.package or LEGACY_PACKAGE_ID)
+            feed.verified_newest(
+                health.package or LEGACY_PACKAGE_ID,
+                allow_prerelease=prereleases_allowed(self._entry()),
+            )
             if feed is not None and feed.last_update_success and feed.data is not None
             else None
         )
