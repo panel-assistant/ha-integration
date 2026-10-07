@@ -1,8 +1,9 @@
-<p align="center">
-  <a href="https://panel-assistant.io"><img src="https://raw.githubusercontent.com/panel-assistant/ha-integration/main/custom_components/panel_assistant/static/logo.svg" width="240" height="180" alt="Panel Assistant"></a>
-</p>
-
-<h1 align="center">Panel Assistant</h1>
+<h1 align="center">
+  <a href="https://panel-assistant.io"><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="custom_components/panel_assistant/static/wordmark-on-dark.svg">
+    <img src="custom_components/panel_assistant/static/wordmark-on-light.svg" width="360" alt="Panel Assistant">
+  </picture></a>
+</h1>
 
 <p align="center"><strong>Home Assistant, on the wall, done properly.</strong></p>
 
