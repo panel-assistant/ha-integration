@@ -501,7 +501,9 @@ async def async_retry_install_job(
     from .install_adb import (
         async_installed_artifact_size,
         async_preflight_install,
+        same_physical_target,
     )
+    from .install_executor import _adb_target
     from .install_jobs import (
         InstallPhase,
         async_get_install_job_manager,
@@ -530,17 +532,7 @@ async def async_retry_install_job(
             InstallTargetState.INSTALL_CANDIDATE,
             InstallTargetState.INSTALLED,
             InstallTargetState.MIGRATION_CANDIDATE,
-        } or (
-            probe.serial,
-            probe.model,
-            probe.primary_abi,
-            probe.android_sdk,
-        ) != (
-            previous.target.adb_serial,
-            previous.target.model,
-            previous.target.primary_abi,
-            previous.target.android_sdk,
-        ):
+        } or not same_physical_target(probe, _adb_target(previous)):
             raise RetrySafetyHold("retry_target_changed")
         rc_tag = previous.artifact.release_tag
         release = await async_resolve_install_choice(hass, rc_tag)

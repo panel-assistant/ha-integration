@@ -28,6 +28,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from yarl import URL
 
 from custom_components.panel_assistant import CONFIG_SCHEMA, async_setup
+from custom_components.panel_assistant import install_network
 from custom_components.panel_assistant import update as panel_update
 from custom_components.panel_assistant.adb_credentials import AdbCredentialError
 from custom_components.panel_assistant.app_identity import (
@@ -395,7 +396,7 @@ async def test_feed_offer_is_withheld_when_no_install_route_works(
     )
     client.address = normalize_address("192.168.1.10")
     monkeypatch.setattr(
-        panel_update,
+        install_network,
         "async_pin_install_target",
         AsyncMock(side_effect=OSError("panel unreachable")),
     )
@@ -504,7 +505,7 @@ async def test_rootless_panel_uses_its_existing_authorized_adb_route(
         AsyncMock(return_value=credential),
     )
     monkeypatch.setattr(
-        panel_update, "async_pin_install_target", AsyncMock(return_value=pinned)
+        install_network, "async_pin_install_target", AsyncMock(return_value=pinned)
     )
     monkeypatch.setattr(
         panel_update, "async_revalidate_install_target", AsyncMock(return_value=pinned)
@@ -523,7 +524,7 @@ async def test_rootless_panel_uses_its_existing_authorized_adb_route(
     pinned_client = SimpleNamespace(
         async_get_health=AsyncMock(return_value=entity.coordinator.data.health)
     )
-    monkeypatch.setattr(panel_update, "HaPaneldClient", lambda *_args: pinned_client)
+    monkeypatch.setattr(install_network, "HaPaneldClient", lambda *_args: pinned_client)
 
     async def install(
         _target: Any, _signer: Any, _descriptor: Any, path: Path, *, before_install

@@ -43,6 +43,7 @@ from pytest_homeassistant_custom_component.common import (
 from yarl import URL
 
 from custom_components.panel_assistant import feed_coordinator, release
+from custom_components.panel_assistant import install_network
 from custom_components.panel_assistant import update as panel_update
 from custom_components.panel_assistant.adb_credentials import (
     AdbCredential,
@@ -1365,7 +1366,7 @@ async def _lan_grant_repair_panel(
         panel_update, "async_request_adb_authorization", request_authorization
     )
     monkeypatch.setattr(
-        panel_update, "async_pin_install_target", AsyncMock(return_value=pinned)
+        install_network, "async_pin_install_target", AsyncMock(return_value=pinned)
     )
     monkeypatch.setattr(
         panel_update, "async_revalidate_install_target", AsyncMock(return_value=pinned)
@@ -1383,7 +1384,7 @@ async def _lan_grant_repair_panel(
     pinned_client = SimpleNamespace(
         async_get_health=AsyncMock(side_effect=lambda: entity.coordinator.data.health)
     )
-    monkeypatch.setattr(panel_update, "HaPaneldClient", lambda *_args: pinned_client)
+    monkeypatch.setattr(install_network, "HaPaneldClient", lambda *_args: pinned_client)
 
     return SimpleNamespace(
         entity=entity,
