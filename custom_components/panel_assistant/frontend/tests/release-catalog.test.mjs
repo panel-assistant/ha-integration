@@ -50,21 +50,12 @@ test('accepts dev builds from the signed feed after GitHub releases', () => {
   assert.ok(JSON.stringify({ releases: full }, null, 2).length <= 128 * 1024);
 });
 for (const [name, value] of [
-  ['feed build marked stable', { ...feed, prerelease: false }],
-  ['stable feed marked prerelease', { ...stableFeed, prerelease: true }],
   ['feed nonboolean prerelease', { ...feed, prerelease: 'true' }],
-  ['unknown feed version marked prerelease', { ...feed, name: 'dev-772 build 772' }],
-  ['unknown feed version marked stable', { ...feed, prerelease: false, name: 'dev-772 build 772' }],
-  ['feed empty prerelease component', { ...feed, name: '0.9.7-rc..1 build 772' }],
-  ['feed numeric leading-zero prerelease', { ...feed, name: '0.9.7-01 build 772' }],
   ['feed build extra key', { ...feed, url: 'https://example.com' }],
   ['feed build without a name', { tag: feed.tag, prerelease: true }],
-  ['name for another build', { ...feed, name: '0.9.7-rc4 build 771' }],
-  ['successor with legacy display name', { ...successor, name: feed.name }],
-  ['name without a build number', { ...feed, name: '0.9.7-rc4' }],
-  ['name with a space in the version', { ...feed, name: '0.9.7 rc4 build 772' }],
-  ['name with an invalid version', { ...feed, name: '-0.9.7 build 772' }],
   ['non-string name', { ...feed, name: 772 }],
+  ['empty name', { ...feed, name: '' }],
+  ['overlong name', { ...feed, name: 'x'.repeat(129) }],
   ['GitHub tag with a name', { ...rc, name: '1.2.4-rc1 build 1' }],
   ['leading-zero build tag', { ...feed, tag: 'build-0772', name: '0.9.7-rc4 build 0772' }],
   ['build number above the Android bound', { ...feed, tag: 'build-2147483648', name: '0.9.7-rc4 build 2147483648' }],

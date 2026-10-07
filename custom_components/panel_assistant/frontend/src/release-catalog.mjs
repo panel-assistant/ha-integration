@@ -1,5 +1,4 @@
-import { buildLabel, buildTagPackageId, buildTagVersionCode, isBuildVersionName, isRcTag, isStableTag } from './release-identity.mjs';
-import { SUCCESSOR_PACKAGE_ID } from './app-identity.mjs';
+import { isBuildTag, isRcTag, isStableTag } from './release-identity.mjs';
 import { readBoundedResponse } from './ha-release-handoff.mjs';
 import { exactKeys } from './shared.mjs';
 
@@ -7,22 +6,13 @@ import { exactKeys } from './shared.mjs';
 const MAX_GITHUB_CHOICES = 30;
 const MAX_FEED_CHOICES = 500;
 const MAX_BYTES = 128 * 1024;
-const SEMANTIC_VERSION = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z][0-9A-Za-z.-]*))?$/;
 function requireValid(value) { if (!value) throw new Error('Invalid release catalogue'); }
 
-// A feed build is named by version and build number, with the successor clearly distinguished.
-function feedName(release) {
-  const code = buildTagVersionCode(release.tag);
-  const versionName = typeof release.name === 'string' ? release.name.split(' ')[0] : null;
-  const version = typeof versionName === 'string' ? SEMANTIC_VERSION.exec(versionName) : null;
-  const prerelease = version?.[4];
-  const suffix = buildTagPackageId(release.tag) === SUCCESSOR_PACKAGE_ID ? ' (Panel Assistant)' : '';
-  return code !== null && version !== null && version[0] === versionName &&
-    typeof release.prerelease === 'boolean' && release.prerelease === Boolean(prerelease) &&
-    (!prerelease || prerelease.split('.').every(part => part && !/^0[0-9]+$/.test(part))) &&
-    isBuildVersionName(versionName) &&
-    release.name === `${buildLabel(versionName, code)}${suffix}`;
-}
+// Home Assistant names a feed build (version, build number, app); the
+// browser shows that name and checks only its shape.
+const MAX_NAME_LENGTH = 128;
+const feedChoice = release => isBuildTag(release.tag) && typeof release.prerelease === 'boolean' &&
+  typeof release.name === 'string' && release.name.length > 0 && release.name.length <= MAX_NAME_LENGTH;
 
 export function parseReleaseCatalog(value) {
   requireValid(exactKeys(value, ['releases']) && Array.isArray(value.releases) &&
@@ -31,7 +21,7 @@ export function parseReleaseCatalog(value) {
   let githubCount = 0, feedCount = 0;
   return Object.freeze(value.releases.map(release => {
     if (exactKeys(release, ['tag', 'prerelease', 'name'])) {
-      requireValid(feedName(release) && !seen.has(release.tag) && ++feedCount <= MAX_FEED_CHOICES);
+      requireValid(feedChoice(release) && !seen.has(release.tag) && ++feedCount <= MAX_FEED_CHOICES);
       seen.add(release.tag);
       return Object.freeze({ tag: release.tag, prerelease: release.prerelease, name: release.name });
     }

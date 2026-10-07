@@ -1,5 +1,6 @@
 import { MAX_FEED_BYTES, buildTagPackageId, buildTagVersionCode, descriptorIdentityValid,
   isBuildTag, isBuildVersionName, isGithubTag, isStableTag } from './release-identity.mjs';
+import { exactKeys, fullMatch } from './shared.mjs';
 
 /** Byte-only metadata authentication. This does not validate an APK signing block. */
 const KEY = `MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3LH+db6kzNld/ERP612x
@@ -37,9 +38,6 @@ export class ReleaseVerificationError extends Error {
   constructor() { super('Release metadata could not be authenticated'); }
 }
 function requireValid(condition) { if (!condition) throw new ReleaseVerificationError(); }
-function fullMatch(pattern, value) {
-  return typeof value === 'string' && pattern.exec(value)?.[0] === value;
-}
 function bytes(value, maximum, exact = false) {
   requireValid(value instanceof Uint8Array && value.length > 0 &&
     (exact ? value.length === maximum : value.length <= maximum));
@@ -55,9 +53,6 @@ function integer(value, maximum) {
 }
 function record(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-function exactKeys(value, fields) {
-  return record(value) && JSON.stringify(Object.keys(value).sort()) === JSON.stringify(fields);
 }
 function supportedAbis(value) {
   return Array.isArray(value) && value.length === 2 &&

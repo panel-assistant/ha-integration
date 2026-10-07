@@ -1,41 +1,6 @@
 {
   "contract": "panel_assistant_transport",
   "version": 1,
-  "protocol": {
-    "min": 1,
-    "max": 1
-  },
-  "commands": [
-    "panel_assistant/hello",
-    "panel_assistant/report_state",
-    "panel_assistant/report_event",
-    "panel_assistant/command_result"
-  ],
-  "event_kinds": [
-    "command",
-    "session_closed"
-  ],
-  "sync": [
-    "full_begin",
-    "delta",
-    "full_end"
-  ],
-  "observation_states": [
-    "known",
-    "unavailable"
-  ],
-  "authorities": [
-    "mqtt",
-    "shadow",
-    "native"
-  ],
-  "outcomes": [
-    "applied",
-    "superseded",
-    "pending_approval",
-    "refused",
-    "failed"
-  ],
   "outcome_codes": [
     "unknown_command",
     "unknown_channel",
@@ -48,26 +13,6 @@
     "refused_hardened",
     "hardware_unavailable",
     "failed"
-  ],
-  "hello_errors": [
-    "protocol_unsupported",
-    "unknown_panel",
-    "panel_user_mismatch",
-    "panel_identity_unavailable",
-    "entry_removed"
-  ],
-  "request_errors": [
-    "session_unknown",
-    "unknown_channel",
-    "invalid_value"
-  ],
-  "session_closed_reasons": [
-    "superseded",
-    "entry_unloaded",
-    "entry_removed",
-    "authority_changed",
-    "user_removed",
-    "binding_changed"
   ],
   "max_family_index": 64,
   "channels": [

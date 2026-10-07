@@ -1,8 +1,8 @@
-"""The shared native transport contract, vendored from the panel.
+"""The native transport's channel catalogue and command outcome codes.
 
-``panel_assistant_transport_v1.json`` is the one definition of the protocol's
-closed code lists and of every channel the panel can describe. The panel owns
-it; this integration reads it and never restates it in Python. Its channel
+``panel_assistant_transport_v1.json`` is the one definition of the command
+outcome codes and of every channel this integration can render. The message
+vocabulary (commands, sync, states, errors) lives in ``transport.py``. The
 catalogue decides which descriptors are known: a descriptor the catalogue does
 not know is accepted but creates nothing.
 """

@@ -239,7 +239,7 @@ MAX_CAPABILITIES: Final = 16
 MAX_UNSUPPORTED: Final = 128
 MAX_OPTIONS: Final = 64
 MAX_ATTRIBUTES: Final = 32
-MAX_FAMILY_INDEX: Final = 64
+MAX_FAMILY_INDEX: Final[int] = CONTRACT["max_family_index"]
 MAX_STRING_LENGTH: Final = 255
 MAX_UNIT_LENGTH: Final = 16
 MAX_URL_LENGTH: Final = 2048
@@ -247,23 +247,8 @@ MAX_SESSION_TOKEN_LENGTH: Final = 64
 MAX_EVENT_ID: Final = 2**63 - 1
 MAX_JSON_INTEGER: Final = 2**63
 
-PLATFORMS: Final = frozenset(
-    {
-        "binary_sensor",
-        "button",
-        "camera",
-        "event",
-        "image",
-        "light",
-        "media_player",
-        "number",
-        "select",
-        "sensor",
-        "switch",
-        "text",
-        "update",
-    }
-)
+# A descriptor may name only a platform some catalogue channel renders on.
+PLATFORMS: Final = frozenset(entry["platform"] for entry in CONTRACT["channels"])
 SYNC_FULL_BEGIN: Final = "full_begin"
 SYNC_DELTA: Final = "delta"
 SYNC_FULL_END: Final = "full_end"

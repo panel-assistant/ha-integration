@@ -375,6 +375,8 @@ async def test_client_rejects_oversized_response() -> None:
         ("0.9.10", "0.9.10", False),
         ("0.9.9", "0.9.10", False),
         ("0.9.10", "invalid", False),
+        ("0.9.11-rc1", "0.9.10", False),
+        ("invalid", "0.9.10", False),
     ],
 )
 def test_stable_update_comparison_never_offers_a_downgrade(

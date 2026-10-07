@@ -128,58 +128,15 @@ def _entry(channel: str) -> dict[str, Any]:
     raise AssertionError(channel)
 
 
-def test_contract_code_lists_are_the_integrations_own() -> None:
-    """Python holds no second copy of a code list that disagrees with the file."""
-    # The panel-owned v1 catalogue remains the fixture for v1 producers;
-    # restart notices are an additive command gated by the negotiated v2 range.
-    assert CONTRACT["protocol"] == {"min": 1, "max": 1}
+def test_authority_grants_name_only_known_capabilities() -> None:
+    """Every authority grants a subset of the capabilities a panel may offer."""
     assert (transport.PROTOCOL_MIN, transport.PROTOCOL_MAX) == (1, 4)
-    assert set(CONTRACT["commands"]) == set(SCHEMAS) - {
-        transport.COMMAND_RESTART_NOTICE
-    }
-    assert CONTRACT["sync"] == [
-        transport.SYNC_FULL_BEGIN,
-        transport.SYNC_DELTA,
-        transport.SYNC_FULL_END,
-    ]
-    assert CONTRACT["observation_states"] == [
-        transport.STATE_KNOWN,
-        transport.STATE_UNAVAILABLE,
-    ]
-    assert set(CONTRACT["hello_errors"]) == {
-        transport.ERR_PROTOCOL_UNSUPPORTED,
-        transport.ERR_UNKNOWN_PANEL,
-        transport.ERR_PANEL_USER_MISMATCH,
-        transport.ERR_PANEL_IDENTITY_UNAVAILABLE,
-        transport.ERR_ENTRY_REMOVED,
-    }
-    # Reserved: a removal is a hello refusal, never a session end.
-    assert "entry_removed" in CONTRACT["session_closed_reasons"]
-    assert set(CONTRACT["request_errors"]) == {
-        transport.ERR_SESSION_UNKNOWN,
-        transport.ERR_UNKNOWN_CHANNEL,
-        transport.ERR_INVALID_VALUE,
-    }
-    assert {
-        transport.REASON_SUPERSEDED,
-        transport.REASON_ENTRY_UNLOADED,
-        transport.REASON_USER_REMOVED,
-        transport.REASON_BINDING_CHANGED,
-        transport.REASON_AUTHORITY_CHANGED,
-    } <= set(CONTRACT["session_closed_reasons"])
-    assert CONTRACT["authorities"] == list(transport.AUTHORITIES)
     assert set(transport.AUTHORITY_GRANTS) == set(transport.AUTHORITIES)
     assert (
         frozenset().union(*transport.AUTHORITY_GRANTS.values())
         <= transport.KNOWN_CAPABILITIES
     )
-    assert CONTRACT["outcomes"] == list(transport.OUTCOMES)
-    assert set(CONTRACT["outcomes"]) > transport.OUTCOMES_WITH_CODE
-    assert set(CONTRACT["outcome_codes"]) == transport.OUTCOME_CODES
-    assert CONTRACT["max_family_index"] == transport.MAX_FAMILY_INDEX
-    assert {entry["platform"] for entry in CONTRACT["channels"]} == set(
-        transport.PLATFORMS
-    )
+    assert set(transport.OUTCOMES) > transport.OUTCOMES_WITH_CODE
 
 
 @pytest.mark.parametrize(

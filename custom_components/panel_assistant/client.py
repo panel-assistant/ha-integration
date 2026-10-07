@@ -58,9 +58,6 @@ _VERSION_CODE_PATTERN = re.compile(r"^[1-9][0-9]{0,9}$")
 _RESTART_PATTERN = re.compile(
     r"^(app|panel),(update|settings|recovery|reboot),([1-9][0-9]{0,5})$"
 )
-_STABLE_VERSION_PATTERN = re.compile(
-    r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$"
-)
 _RELEASE_TAG_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 _MAX_VERSION_LENGTH = 63
 _MAX_ANDROID_LONG = 2**63 - 1
@@ -376,24 +373,15 @@ def _load_json_object(body: bytes) -> dict[str, Any]:
     return document
 
 
-def _stable_version_parts(value: str) -> tuple[int, int, int] | None:
-    match = _STABLE_VERSION_PATTERN.fullmatch(value)
-    if match is None:
-        return None
-    major, minor, patch = (int(part) for part in match.groups())
-    return major, minor, patch
-
-
 def is_newer_stable_version(candidate: str, installed: str) -> bool:
     """Compare a stable candidate with current Android SemVer, including RCs."""
-    candidate_parts = _stable_version_parts(candidate)
-    installed_match = _VERSION_PATTERN.fullmatch(installed)
-    if candidate_parts is None or installed_match is None:
-        return False
-    installed_parts = tuple(int(part) for part in installed_match.groups()[:3])
-    if candidate_parts != installed_parts:
-        return candidate_parts > installed_parts
-    return "-" in installed
+    candidate_key, installed_key = _version_key(candidate), _version_key(installed)
+    return (
+        candidate_key is not None
+        and candidate_key[1]  # only a stable release is a candidate
+        and installed_key is not None
+        and candidate_key > installed_key
+    )
 
 
 def _prerelease_key(identifier: str) -> tuple[int, str, int]:
