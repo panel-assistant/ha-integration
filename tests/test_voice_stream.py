@@ -33,6 +33,7 @@ from homeassistant.core import Context, HomeAssistant
 from homeassistant.helpers.http import HomeAssistantView
 from pytest_homeassistant_custom_component.common import MockConfigEntry, flush_store
 
+from custom_components.panel_assistant import voice_stream as voice_stream_module
 from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
 from custom_components.panel_assistant.identity import CONF_INSTALL_IDENTITY
 from custom_components.panel_assistant.voice_stream import (
@@ -111,9 +112,13 @@ class _ClipView(HomeAssistantView):
 
     def __init__(self) -> None:
         self.fetched: list[str] = []
+        # A clip named here is served only once its event is set.
+        self.held: dict[str, asyncio.Event] = {}
 
     async def get(self, request: web.Request, name: str) -> web.Response:
         self.fetched.append(name)
+        if (hold := self.held.get(name)) is not None:
+            await hold.wait()
         return web.Response(body=CLIPS[name])
 
 
@@ -708,3 +713,98 @@ async def test_a_newer_media_announcement_cuts_the_older_stream_off(
     assert len(speaker.streams) == 2
     assert speaker.seconds(0) < 6.0  # of 8 s
     assert speaker.seconds(1) == len(decode_clip(CLIPS["speech"])) / BYTES_PER_SECOND
+
+
+# ---------------------------------------------------------------------------
+# Overlapping announcements: the newest owns each panel.
+
+
+@LINGERING
+async def test_overlapping_replacements_leave_the_newest_playing_whole(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,  # noqa: F811
+    base: str,
+    speakers: list[Speaker],
+) -> None:
+    """Two streams replacing one: the later plays whole, and nothing stops it.
+
+    Starts are driven at the ownership seam itself, because only there can two
+    replacements be made to overlap every time.
+    """
+    voice_stream = async_get_voice_stream(hass)
+    assert voice_stream is not None
+    speaker = Speaker()
+    speakers.append(speaker)
+    await speaker.dial(base, voice_stream.grant(speaker.client_id, entry.entry_id))
+    await _ready(hass, speaker)
+    cid = speaker.client_id
+
+    await voice_stream._async_start([cid], decode_clip(CLIPS["long"]))
+    await _until(lambda: bool(speaker.streams and speaker.streams[0]))
+    speech, chime = decode_clip(CLIPS["speech"]), decode_clip(CLIPS["chime"])
+    first, second = await asyncio.gather(
+        voice_stream._async_start([cid], speech),
+        voice_stream._async_start([cid], chime),
+    )
+    assert first == second == frozenset({cid})
+
+    live = [
+        task
+        for task in asyncio.all_tasks()
+        if task.get_name() == f"{DOMAIN} voice stream" and not task.done()
+    ]
+    tracked = voice_stream._playing[cid]
+    await _until(lambda: all(task.done() for task in live), 10)
+    await speaker.ended(len(speaker.streams))
+    assert speaker.seconds(-1) == len(chime) / BYTES_PER_SECOND
+    assert speaker.seconds(0) < 6.0  # of 8 s, cut off
+    # One stream owned the panel; none ran on untracked.
+    assert live == [tracked]
+
+
+@LINGERING
+async def test_a_slow_earlier_batch_leaves_the_next_window_coalescing(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,  # noqa: F811
+    base: str,
+    speakers: list[Speaker],
+) -> None:
+    """An announcement still fetching when the next one opens does not split it."""
+    voice_stream = async_get_voice_stream(hass)
+    assert voice_stream is not None
+    a, b, c = Speaker(), Speaker(), Speaker()
+    speakers += [a, b, c]
+    for speaker in (a, b, c):
+        await speaker.dial(base, voice_stream.grant(speaker.client_id, entry.entry_id))
+        await _ready(hass, speaker)
+    view: _ClipView = hass.data[_ClipView.name]
+    view.held["chime"] = release = asyncio.Event()
+    speech = (f"{base}/test_voice_stream/speech",)
+
+    with patch.object(voice_stream_module, "COALESCE_WINDOW", 0.5):
+        earlier = asyncio.ensure_future(
+            voice_stream.async_announce(
+                "same", a.client_id, (f"{base}/test_voice_stream/chime",)
+            )
+        )
+        await asyncio.sleep(0.6)  # its window has closed; its clip is still held
+        later_b = asyncio.ensure_future(
+            voice_stream.async_announce("same", b.client_id, speech)
+        )
+        await asyncio.sleep(0)
+        release.set()
+        async with asyncio.timeout(5):
+            assert await earlier
+        later_c = asyncio.ensure_future(
+            voice_stream.async_announce("same", c.client_id, speech)
+        )
+        async with asyncio.timeout(5):
+            assert await later_b
+            assert await later_c
+
+    await b.ended(1)
+    await c.ended(1)
+    assert len(b.streams) == len(c.streams) == 1
+    assert b.streams[0]
+    assert b.streams[0] == c.streams[0]
+    assert _fetched(hass).count("speech") == 1

@@ -184,6 +184,9 @@ class VoiceStream:
         self._batches: dict[Hashable, _Batch] = {}
         # One clip at a time per panel: a newer one cuts the older off.
         self._playing: dict[str, asyncio.Task[None]] = {}
+        # Held from cutting off what plays to taking ownership, so overlapping
+        # starts take turns and the last to take it is what plays.
+        self._start_lock = asyncio.Lock()
 
     @property
     def server(self) -> SendspinServer:
@@ -248,14 +251,19 @@ class VoiceStream:
             pcm = self._hass.async_create_task(self._async_prepare(batch.urls))
             await asyncio.sleep(COALESCE_WINDOW)
             # A same-key call after this opens a new batch, out of step but heard.
-            self._batches.pop(key, None)
+            self._forget(key, batch)
             streamed = await self._async_start(batch.members, await pcm)
         except Exception:
             _LOGGER.warning("Could not stream an announcement", exc_info=True)
         finally:
-            self._batches.pop(key, None)
+            self._forget(key, batch)
             if not batch.done.done():
                 batch.done.set_result(streamed)
+
+    def _forget(self, key: Hashable, batch: _Batch) -> None:
+        """Unregister ``batch``, leaving a newer batch of the same key open."""
+        if self._batches.get(key) is batch:
+            del self._batches[key]
 
     async def async_play_reply(self, client_id: str | None, url: str) -> bool:
         """Stream a voice reply to the answering panel; False to play it by URL."""
@@ -287,19 +295,20 @@ class VoiceStream:
         ids = [cid for cid in dict.fromkeys(client_ids) if self.ready(cid)]
         if not ids or not pcm:
             return frozenset()
-        # Cut off what these panels were playing, and let its cleanup end its
-        # stream and group first, or it would stop the new one.
-        olds = {t for cid in ids if (t := self._playing.get(cid)) and not t.done()}
-        for old in olds:
-            old.cancel()
-        if olds:
-            await asyncio.wait(olds)
-        clients = [c for cid in ids if (c := self._server.get_client(cid))]
-        task = self._hass.async_create_background_task(
-            self._async_stream(clients, pcm), f"{DOMAIN} voice stream"
-        )
-        for cid in ids:
-            self._playing[cid] = task
+        async with self._start_lock:
+            # Cut off what these panels were playing, and let its cleanup end
+            # its stream and group first, or it would stop the new one.
+            olds = {t for cid in ids if (t := self._playing.get(cid)) and not t.done()}
+            for old in olds:
+                old.cancel()
+            if olds:
+                await asyncio.wait(olds)
+            clients = [c for cid in ids if (c := self._server.get_client(cid))]
+            task = self._hass.async_create_background_task(
+                self._async_stream(clients, pcm), f"{DOMAIN} voice stream"
+            )
+            for cid in ids:
+                self._playing[cid] = task
 
         def _done(_task: asyncio.Task[None]) -> None:
             for cid in ids:
