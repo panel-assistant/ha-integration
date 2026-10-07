@@ -11,7 +11,7 @@ import asyncio
 import base64
 import math
 from array import array
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Iterator
 from dataclasses import dataclass, field, replace
 from io import BytesIO
 from typing import Any
@@ -31,6 +31,7 @@ from aiosendspin.noise import (
     psk_id_for,
 )
 from homeassistant.components.assist_pipeline import PipelineEvent, PipelineEventType
+from homeassistant.components.assist_satellite import AssistSatelliteEntity
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import Context, HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -38,6 +39,7 @@ from homeassistant.helpers.http import HomeAssistantView
 from pytest_homeassistant_custom_component.common import MockConfigEntry, flush_store
 
 from custom_components.panel_assistant import voice_stream as voice_stream_module
+from custom_components.panel_assistant.assist_satellite import PanelAssistSatellite
 from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
 from custom_components.panel_assistant.identity import CONF_INSTALL_IDENTITY
 from custom_components.panel_assistant.voice_stream import (
@@ -429,6 +431,18 @@ async def wires() -> AsyncIterator[list[tuple[Wire, Speaker]]]:
     for wire, speaker in made:
         await speaker.close()
         await wire.close()
+
+
+@pytest.fixture
+def finished() -> Iterator[Any]:
+    """Count the satellite's tts_response_finished calls, still running each."""
+    with patch.object(
+        PanelAssistSatellite,
+        "tts_response_finished",
+        autospec=True,
+        side_effect=AssistSatelliteEntity.tts_response_finished,
+    ) as spy:
+        yield spy
 
 
 async def _ready(hass: HomeAssistant, speaker: Speaker) -> None:
@@ -974,6 +988,7 @@ async def test_a_reply_streams_to_the_answering_panel_only(
     base: str,
     wires: list[tuple[Wire, Speaker]],
     pipeline: FakePipeline,  # noqa: F811
+    finished: Any,
 ) -> None:
     """The panel that heard the wake word hears the reply; the other hears nothing.
 
@@ -1021,6 +1036,11 @@ async def test_a_reply_streams_to_the_answering_panel_only(
     assert b.streams == []
     assert wire_b.ends == []
     await _until(lambda: hass.states.get(entity_id).state != "responding")
+    assert finished.call_count == 1
+    # A panel that still reports the streamed reply played changes nothing.
+    await _played(panel_a)
+    await hass.async_block_till_done()
+    assert finished.call_count == 1
 
 
 # ---------------------------------------------------------------------------

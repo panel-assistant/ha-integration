@@ -100,6 +100,8 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         self._run: VoiceRun | None = None
         # A reply being prepared for streaming; the turn ends after it is sent.
         self._reply: asyncio.Task[None] | None = None
+        # The turn's reply was streamed, so its drain finished it.
+        self._reply_streamed = False
         # Announcements the panel has not finished, with the session each was
         # sent on: one that ends first cannot finish it.
         self._announcements: dict[str, tuple[str, asyncio.Future[bool]]] = {}
@@ -311,6 +313,7 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         """Run one conversation turn from the panel's audio."""
         voice = self._voice
         self._run = run
+        self._reply_streamed = False
         self._continue_conversation = False
         try:
             await self.async_accept_pipeline_from_satellite(
@@ -382,6 +385,7 @@ class PanelAssistSatellite(AssistSatelliteEntity):
             source = None
 
         def _play(stream_id: str) -> bool:
+            self._reply_streamed = True
             run.send(play | {"stream": True, "stream_id": stream_id})
             return True
 
@@ -402,7 +406,9 @@ class PanelAssistSatellite(AssistSatelliteEntity):
     def async_played(self, announce_id: str | None) -> None:
         """The panel finished playing an announcement, or a turn's reply."""
         if announce_id is None:
-            self.tts_response_finished()
+            # A streamed reply was finished at drain; a panel may still say so.
+            if not self._reply_streamed:
+                self.tts_response_finished()
             return
         pending = self._announcements.get(announce_id)
         if pending is not None and not pending[1].done():
