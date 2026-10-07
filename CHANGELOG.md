@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### New
+
+- **Announcements play in step on several panels.** When an automation announces something on several panels at once, through their voice assistants or with `tts.speak` to their media players, the panels now play it together instead of echoing one after another from room to room. Panel Assistant fetches the announcement once and sends it to every panel as one synchronised stream, chime included. A voice assistant's reply still plays only on the panel you spoke to. This needs a panel app build that supports it; a panel on an older build, or one that isn't ready, plays the announcement as before. Nothing to set up: Panel Assistant serves the stream on Home Assistant's own address and port, and pairs each panel with it automatically.
+
 ## 0.8.0 - 2026-10-07
 
 Panel Assistant 0.8.0 goes looking for your panels instead of waiting for you to add them. Panels that Home Assistant already knows through the Companion app, Fully Kiosk, ESPHome or a Shelly Wall Display now show up under Discovered, and Panel Assistant looks for them as soon as Home Assistant starts. Voice grows up a bit too: timers work, and when a panel's microphone can't hear anything, a Repair tells you so instead of the voice assistant quietly not answering. The sidebar and both USB installers now speak German, Spanish, French, Italian and Simplified Chinese. This release is also the one that installs ha-paneld v0.9.10, so please update Panel Assistant before your panels.
