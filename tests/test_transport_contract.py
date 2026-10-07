@@ -358,6 +358,14 @@ def _hello_result_conforms(
         },
         extra=vol.ALLOW_EXTRA,
     )
+    voice_stream = vol.Schema(
+        {
+            vol.Required("path"): vol.Match(r"^/[A-Za-z0-9_/-]+$"),
+            vol.Required("server_id"): vol.Match(r"^[A-Za-z0-9_-]{43}$"),
+            vol.Required("psk"): _embed_key,
+        },
+        extra=vol.ALLOW_EXTRA,
+    )
     vol.Schema(
         {
             vol.Required("protocol"): vol.All(
@@ -368,6 +376,7 @@ def _hello_result_conforms(
             vol.Required("capabilities"): [vol.In(transport.KNOWN_CAPABILITIES)],
             vol.Optional("mqtt_discovery"): vol.In(transport.MQTT_DISCOVERIES),
             vol.Optional("embed"): object,
+            vol.Optional("voice_stream"): object,
             vol.Required("integration"): integration,
             vol.Required("channels"): channels,
         },
@@ -386,6 +395,10 @@ def _hello_result_conforms(
         if "embed" not in result:
             raise vol.Invalid("an embed grant needs its key")
         embed(result["embed"])
+    if transport.CAPABILITY_VOICE_STREAM in result["capabilities"]:
+        if "voice_stream" not in result:
+            raise vol.Invalid("a voice stream grant needs its server and key")
+        voice_stream(result["voice_stream"])
 
 
 @pytest.mark.parametrize(

@@ -50,6 +50,7 @@ from .test_transport_commands import (
     native,  # noqa: F401  # the fixture
 )
 from .test_transport_commands import _hello as _native_hello
+from .test_transport_contract import _hello_result_conforms
 from .test_voice import (
     FakePipeline,
     Panel,
@@ -316,6 +317,8 @@ async def test_hello_grants_the_stream_and_hands_the_same_key_every_time(
     assert len(grant["server_id"]) == 43
     assert len(b64url_decode(grant["psk"])) == 32
     assert second.result["voice_stream"] == grant
+    # Exactly the reply the shared conformance vectors describe.
+    _hello_result_conforms(first.result, ["state", "events", "voice", "voice_stream"])
     # The key outlives the process: it is stored, owned by the panel's entry.
     await flush_store(async_get_voice_stream(hass)._pairing._ha_store)
     record = hass_storage[STORAGE_KEY]["data"]["records"][speaker.client_id]
