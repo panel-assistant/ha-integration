@@ -599,17 +599,19 @@ async def test_events_fire_once_per_counted_event_id(
     assert hass.states.get(button).state == "unknown"
     # So the panel's retry of that event, once synced, still fires.
     assert (await report(1, "keycode_home"))["success"]
-    assert hass.states.get(button).attributes["event_type"] == "keycode_home"
+    # The Android key names the MQTT button entity used, so automations match.
+    assert hass.states.get(button).attributes["event_type"] == "KEYCODE_HOME"
+    assert "KEYCODE_BACK" in hass.states.get(button).attributes["event_types"]
     assert (await report(2, "keycode_back"))["success"]
     fired = hass.states.get(button)
-    assert fired.attributes["event_type"] == "keycode_back"
+    assert fired.attributes["event_type"] == "KEYCODE_BACK"
 
     assert (await report(2, "keycode_home"))["success"]
     assert (await report(1, "keycode_home"))["success"]
     assert hass.states.get(button) == fired
 
     assert (await report(3, "keycode_home"))["success"]
-    assert hass.states.get(button).attributes["event_type"] == "keycode_home"
+    assert hass.states.get(button).attributes["event_type"] == "KEYCODE_HOME"
 
 
 @pytest.mark.parametrize(

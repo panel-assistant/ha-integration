@@ -25,12 +25,17 @@ async def async_setup_entry(
 
 
 class NativeEvent(NativeEntity, EventEntity):
-    """A panel button press, fired once per event the session counts."""
+    """A panel button press, fired once per event the session counts.
+
+    The wire carries lowercase codes (``keycode_home``); the entity shows the
+    Android key names (``KEYCODE_HOME``) the panel's MQTT button entity always
+    used, so automations matching them keep working after the move.
+    """
 
     @property
     def event_types(self) -> list[str]:
-        """Return the event type codes the panel declared."""
-        return list(self.descriptor["options"] or ())
+        """Return the event types the panel declared, as Android key names."""
+        return [code.upper() for code in self.descriptor["options"] or ()]
 
     async def async_added_to_hass(self) -> None:
         """Also follow this entry's counted events."""
@@ -45,7 +50,8 @@ class NativeEvent(NativeEntity, EventEntity):
     def _handle_event(self, channel: str, event_type: str) -> None:
         # The session counts an event only after its full sync, so only an
         # event type the panel did not declare needs refusing here.
-        if channel != self._channel or event_type not in self.event_types:
+        name = event_type.upper()
+        if channel != self._channel or name not in self.event_types:
             return
-        self._trigger_event(event_type)
+        self._trigger_event(name)
         self.async_write_ha_state()

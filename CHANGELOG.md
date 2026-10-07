@@ -14,6 +14,8 @@ All notable changes to this project will be documented in this file.
 
 The Zigbee gateway health sensor on panels with a Zigbee radio now comes over Panel Assistant's own connection too, keeping its entity ID and history when the panel moves. It needs a panel app build that reports it; until then it stays on MQTT.
 
+Physical button presses come over Panel Assistant's own connection the same way, and keep the event names your automations already match, such as `KEYCODE_HOME`.
+
 ### New
 
 - **Announcements play in step on several panels.** When an automation announces something on several panels at once, through their voice assistants or with `tts.speak` to their media players, the panels now play it together instead of echoing one after another from room to room. Panel Assistant fetches the announcement once and sends it to every panel as one synchronised stream, chime included. A voice assistant's reply still plays only on the panel you spoke to. This needs a panel app build that supports it; a panel on an older build, or one that isn't ready, plays the announcement as before. Nothing to set up: the stream travels inside the connection each panel already keeps to Home Assistant, and Panel Assistant pairs each panel with it automatically.
