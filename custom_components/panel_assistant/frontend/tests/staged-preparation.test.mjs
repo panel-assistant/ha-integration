@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { createUsbTransactionPorts } from '../src/usb-transaction-ports.mjs';
 import { ACCEPTED_PACKAGE_IDS, SUCCESSOR_PACKAGE_ID } from '../src/app-identity.mjs';
@@ -70,6 +71,63 @@ test('both staged-file checks prepare the file before reading its mode', async (
     await assert.rejects(ports.inspect({id: job, phase, target}, release), /staged_preparation_failed/);
     assert.equal(seen.at(-1), 'PREPARE', `${phase}: a failed preparation stops before any observation`);
     assert.ok(!seen.includes('STAGED'), `${phase} prepares before it observes`);
+  }
+});
+
+test('a lost upload\'s staged copy is matched to its release prefix and cleaned up by that digest', async () => {
+  const apk = new Blob([new TextEncoder().encode('abcd')]);
+  const target = {model: 'Test panel', serial: 'serial', primaryAbi: 'arm64-v8a', androidSdk: 34,
+    rootMode: 'rootless', usbVendorId: 1, usbProductId: 2, usbSerial: 'usb'};
+  const release = {kind: 'authenticated-apk-bytes', apk,
+    descriptor: {apkSize: 4, apkSha256: 'a'.repeat(64), packageId: SUCCESSOR_PACKAGE_ID, minSdk: 21,
+      supportedAbis: ['arm64-v8a', 'armeabi-v7a']}};
+  const identity = {MODEL: target.model, SERIAL: target.serial, ABI: target.primaryAbi, SDK: '34',
+    UID: '2000', SECURE: '1', DEBUGGABLE: '0', SU: 'absent'};
+  // The panel reports what it holds; 'xy' is a copy that is not this release's prefix.
+  for (const [copied, held] of [['ab', 'ab'], ['abcd', 'abcd'], ['ab', 'xy']]) {
+    const digest = createHash('sha256').update(held).digest('hex');
+    const cleanups = [];
+    const adb = {async createSocket(command) {
+      const n = command.match(/BEGIN:([a-f0-9]{32})/)[1];
+      const step = command.match(/HAPANELD_([A-Z]+)_BEGIN/)[1];
+      const section = (name, values) => [`HAPANELD_${step}_${name}_BEGIN:${n}`, ...values,
+        `HAPANELD_${step}_${name}_END:${n}:${values.length ? 0 : 1}`];
+      let lines;
+      if (step === 'POSTURE') {
+        lines = Object.entries(identity).flatMap(([name, value]) => section(name, [value]));
+      } else if (step === 'PREFLIGHT') {
+        lines = [...Object.entries(identity).flatMap(([name, value]) => section(name, [value])),
+          ...section('LIVE', ['package:/system/framework/framework-res.apk']),
+          ...ACCEPTED_PACKAGE_IDS.flatMap((_, i) => [...section(`PACKAGE${i}`, []),
+            `HAPANELD_PREFLIGHT_RETAINED${i}_BEGIN:${n}`, `HAPANELD_PREFLIGHT_RETAINED${i}_END:${n}:0`]),
+          ...[0, 1, 2].flatMap(i => section(`BASE${i}`, ['readable'])),
+          ...RESIDUE_PROBES.flatMap((_, i) => section(`RESIDUE${i}`, ['absent']))];
+      } else if (step === 'PATH') {
+        return shell(`HAPANELD_PATH_BEGIN:${n}\npresent\nHAPANELD_PATH_END:${n}:0\n`);
+      } else if (step === 'PREPARE') {
+        return shell(`HAPANELD_PREPARE_BEGIN:${n}\nHAPANELD_PREPARE_END:${n}:0\n`);
+      } else if (step === 'STAGED') {
+        lines = [...section('MODE', ['81a4']), ...section('SIZE', [String(copied.length)]),
+          ...section('SHA', [`${digest}  ${stagingPath(job)}`])];
+      } else if (step === 'CLEANUP') {
+        cleanups.push(command);
+        return shell(`HAPANELD_CLEANUP_BEGIN:${n}\nHAPANELD_CLEANUP_END:${n}:0\n`);
+      } else throw new Error(`unexpected ${step}`);
+      return shell([`HAPANELD_${step}_BEGIN:${n}`, ...lines, `HAPANELD_${step}_END:${n}`, ''].join('\n'));
+    }};
+    const ports = createUsbTransactionPorts({adb, usbDevice: {vendorId: 1, productId: 2, serialNumber: 'usb'},
+      authenticate: async () => release, quarantine() {}});
+    await ports.authenticate();
+    if (copied !== held) {
+      await assert.rejects(ports.inspect({id: job, phase: 'staging', target}, release), /staged_prefix_mismatch/);
+      continue;
+    }
+    const inspected = await ports.inspect({id: job, phase: 'staging', target}, release);
+    assert.equal(inspected.staged, copied.length === 4, `${copied}: a whole copy is staged, a partial one is not`);
+    await ports.cleanup({id: job, phase: 'cleanup_pending', target}, release);
+    assert.equal(cleanups.length, 1);
+    assert.ok(cleanups[0].includes(`'${digest}  ${stagingPath(job)}'`), `${copied}: cleanup rechecks the observed digest`);
+    assert.ok(cleanups[0].includes(`= ${copied.length} ]`), `${copied}: and the observed size`);
   }
 });
 

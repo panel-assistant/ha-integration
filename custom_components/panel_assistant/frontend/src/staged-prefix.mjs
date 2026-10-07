@@ -13,6 +13,7 @@ export async function verifyStagedPrefix(body, nonce, jobId, release) {
   if (observed.size > size) fail();
   const prefix = Blob.prototype.slice.call(release.apk, 0, observed.size);
   const hash = await crypto.subtle.digest('SHA-256', await Blob.prototype.arrayBuffer.call(prefix));
-  if (hex(hash) !== observed.sha256) fail();
+  const actual = hex(hash);
+  if (actual !== observed.sha256) fail();
   return Object.freeze({size: observed.size, sha256: actual, complete: observed.size === size});
 }
