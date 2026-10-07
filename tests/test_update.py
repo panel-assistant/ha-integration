@@ -275,7 +275,7 @@ async def test_matching_update_health_requires_ready_home_proof(
             ),
         )
     )
-    entity.coordinator.last_update_success = True
+    entity.coordinator.reachable = True
 
     monkeypatch.setattr(panel_update, "_ANDROID_PACKAGE_INSTALL_MAX_SECONDS", 0)
     monkeypatch.setattr(panel_update, "_RESTART_HEALTH_GRACE_SECONDS", 0.05)

@@ -277,7 +277,7 @@ async def test_panels_list_by_device_name_falling_back_to_title(
         ),
     ):
         await _load_entry(hass, unreachable)
-    unreachable.runtime_data.coordinator.last_update_success = False
+    unreachable.runtime_data.coordinator.reachable = False
     # No device is ever created for an entry that never finished loading, so this one
     # has no registry row to prefer and keeps showing its title-at-add-time verbatim.
     MockConfigEntry(

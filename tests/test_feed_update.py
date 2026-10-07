@@ -199,7 +199,7 @@ def _entity(
     if with_feed:
         coordinator = BuildFeedCoordinator(hass, FEED_URL)
         coordinator.data = feed if feed is not None else _feed_data(770, 771, 772)
-        coordinator.last_update_success = True
+        coordinator.reachable = True
         for package_id in (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID):
             newest = coordinator.data.newest(package_id)
             if newest is not None:

@@ -136,7 +136,7 @@ async def test_an_unreachable_panel_is_not_accused_of_losing_its_route(
     await route.entity._async_refresh_route()
     assert route.entity._has_install_route()
 
-    route.entity.coordinator.last_update_success = False
+    route.entity.coordinator.reachable = False
     route.entity._handle_coordinator_update()
     await hass.async_block_till_done()
 
@@ -154,7 +154,7 @@ async def test_an_established_repair_outlives_an_offline_spell(
     await route.entity._async_refresh_route()
     assert _issue(hass, entry) is not None
 
-    route.entity.coordinator.last_update_success = False
+    route.entity.coordinator.reachable = False
     route.entity._handle_coordinator_update()
     await hass.async_block_till_done()
 

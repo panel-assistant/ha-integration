@@ -89,6 +89,7 @@ def _diagnostics(entry: HaPaneldConfigEntry) -> dict[str, Any]:
         "integration_build": INTEGRATION_BUILD,
         "entry": async_redact_data(dict(entry.data), _ENTRY_KEYS_TO_REDACT),
         "last_update_success": coordinator.last_update_success,
+        "reachable": coordinator.reachable,
         "connected": coordinator.connected,
         "health": (
             None

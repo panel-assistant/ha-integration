@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -9,6 +10,7 @@ from dataclasses import dataclass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -33,16 +35,25 @@ from .client import (
     HaPaneldError,
     InvalidResponseError,
     PanelHealth,
+    parse_health_response,
 )
-from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, update_unique_id
+from .const import (
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    MAX_STATUS_RESPONSE_BYTES,
+    update_unique_id,
+)
 from .feed_coordinator import async_get_feed_coordinator
 from .identity import accept_health, is_installation
 from .permission_repair import async_reconcile_permission_issue
-from .status import PanelStatus
+from .status import PanelStatus, parse_status_response
 from .transport import (
+    MANAGE_SNAPSHOT,
     PanelSession,
     RestartNotice,
     async_get_sessions,
+    async_manage,
+    session_manages,
     signal_session_changed,
 )
 
@@ -59,14 +70,18 @@ class PanelSnapshot:
 
 
 class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
-    """Poll stable health plus optional read-only status diagnostics.
+    """Read the panel's health and status, over its session where it can.
 
-    `last_update_success` keeps its meaning: the stored address answered the
-    last poll. Whether the panel is available is `available`, which also
-    counts the panel's own session, since a panel talking to Home Assistant is
-    connected whatever the poll says. A failed poll while the panel is
-    connected is repaired from the session where it can be, and reported
-    where it cannot; it never takes the panel unavailable.
+    A panel whose session grants management answers on that session, so Home
+    Assistant needs no route back to it. Any other panel is polled at its
+    stored address over HTTP. `last_update_success` says the latest snapshot
+    was read, by either carrier; `reachable` says the stored address answered,
+    which is what the operations still carried over HTTP (updates, backups,
+    the camera) need. Whether the panel is available is `available`, which
+    also counts the panel's own session, since a panel talking to Home
+    Assistant is connected whatever the poll says. A failed poll while the
+    panel is connected is repaired from the session where it can be, and
+    reported where it cannot; it never takes the panel unavailable.
     """
 
     def __init__(
@@ -86,6 +101,8 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         self.client = client
         self._entry_id = entry_id
         self.identity_mismatch = False
+        # True until the first poll answers otherwise, as `last_update_success` starts.
+        self.reachable = True
 
     @property
     def connected(self) -> bool:
@@ -95,7 +112,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
     @property
     def available(self) -> bool:
         """Return whether the panel is reachable outbound or connected inbound."""
-        return self.last_update_success or self.connected
+        return self.reachable or self.connected
 
     @property
     def restart_notice(self) -> RestartNotice | None:
@@ -137,7 +154,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         @callback
         def _changed() -> None:
             self.async_update_listeners()
-            if self.connected and not self.last_update_success:
+            if self.connected and not self.reachable:
                 self.hass.async_create_task(
                     self.async_request_refresh(),
                     f"{DOMAIN} poll after the panel connected",
@@ -159,7 +176,103 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         return entry is not None and entry.disabled_by is None
 
     async def _async_update_data(self) -> PanelSnapshot:
-        """Fetch health authority, then best-effort sanitized status."""
+        """Read the snapshot from the session that manages, else over HTTP."""
+        session = self._session()
+        if session_manages(session):
+            assert session is not None
+            reachable, snapshot = await asyncio.gather(
+                self._async_probe_address(session),
+                self._async_read_session(session),
+                return_exceptions=True,
+            )
+            self.reachable = reachable is True
+            for outcome in (reachable, snapshot):
+                if isinstance(outcome, BaseException):
+                    raise outcome
+            assert isinstance(snapshot, PanelSnapshot)
+            return snapshot
+        self.reachable = False
+        snapshot = await self._async_poll_address()
+        self.reachable = True
+        return snapshot
+
+    async def _async_read_session(self, session: PanelSession) -> PanelSnapshot:
+        """Read health and status from the panel's own session."""
+        entry = self._entry()
+        try:
+            result = await async_manage(
+                self.hass,
+                session,
+                MANAGE_SNAPSHOT,
+                update_owner=self._shows_panel_update(),
+            )
+            health_line, status_body = result["health"], result["status"]
+            # The bounds HTTP applies before parsing; the health parser checks its own.
+            if (
+                not isinstance(health_line, str)
+                or not isinstance(status_body, str)
+                or len(status_body.encode()) > MAX_STATUS_RESPONSE_BYTES
+            ):
+                raise InvalidResponseError
+            health = parse_health_response(health_line)
+            status = parse_status_response(status_body)
+        except (HomeAssistantError, HaPaneldError, KeyError) as err:
+            raise UpdateFailed(
+                translation_domain=DOMAIN, translation_key="health_update_failed"
+            ) from err
+        if entry is not None and not accept_health(self.hass, entry, health):
+            self.identity_mismatch = True
+            raise UpdateFailed(
+                translation_domain=DOMAIN, translation_key="health_update_failed"
+            )
+        self.identity_mismatch = False
+        await self._async_clear_update_failure(health)
+        if entry is not None:
+            async_reconcile_permission_issue(self.hass, entry, status)
+        return PanelSnapshot(health=health, status=status, status_error=None)
+
+    async def _async_probe_address(self, session: PanelSession) -> bool:
+        """Whether the stored address answers as this panel, over HTTP.
+
+        Only the operations still carried over HTTP need it, and the address
+        repair follows from it. Delete it with them.
+        """
+        entry = self._entry()
+        address = self.client.address
+        stored_value = entry.data[CONF_ADDRESS] if entry is not None else None
+
+        def retired() -> bool:
+            # An address edit, a moved-panel adoption, a removed entry or a newer
+            # session during the read leaves this answer no authority.
+            return (
+                self._entry() is not entry
+                or self.client.address != address
+                or (entry is not None and entry.data[CONF_ADDRESS] != stored_value)
+                or self._session() is not session
+            )
+
+        try:
+            health: PanelHealth | None = await self.client.async_get_health()
+        except HaPaneldError:
+            health = None
+        if retired():
+            return False
+        if health is None or health.discovery_id != session.did:
+            # Recovery fences its own answer (entry, address and session) after
+            # its I/O, and moves the address when it adopts one.
+            health = await self._async_recover_address()
+            if health is None:
+                return False
+        if self._entry_id is not None:
+            async_delete_address_issue(self.hass, self._entry_id)
+        return True
+
+    async def _async_poll_address(self) -> PanelSnapshot:
+        """Read health, then best-effort sanitized status, over HTTP.
+
+        The carrier for a panel whose session does not manage. Delete it once
+        every supported panel offers management.
+        """
         entry = self._entry()
         address = self.client.address
         stored_value = entry.data[CONF_ADDRESS] if entry is not None else None
@@ -197,41 +310,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         status_entry_address = entry.data[CONF_ADDRESS] if entry is not None else None
         status_identity = entry.unique_id if entry is not None else None
         if self._entry_id is not None:
-            from .failure_repair import (
-                async_clear_update_failure_if_installed,
-                panel_failure_issue_id,
-            )
-
-            issue_id = panel_failure_issue_id(f"update:{self._entry_id}")
-            if ir.async_get(self.hass).async_get_issue(DOMAIN, issue_id) is not None:
-                installed_code = health.version_code
-                if installed_code is None:
-                    try:
-                        (
-                            name,
-                            installed_code,
-                        ) = await self.client.async_get_version_code()
-                    except HaPaneldError:
-                        installed_code = None
-                    else:
-                        if name != health.version:
-                            installed_code = None
-                feed = async_get_feed_coordinator(self.hass)
-                current = (
-                    feed.verified_newest(health.package or LEGACY_PACKAGE_ID)
-                    if feed is not None
-                    and feed.last_update_success
-                    and feed.data is not None
-                    else None
-                )
-                current_code = current.version_code if current is not None else None
-                await async_clear_update_failure_if_installed(
-                    self.hass,
-                    self._entry_id,
-                    health.version,
-                    installed_code,
-                    verified_current_code=current_code,
-                )
+            await self._async_clear_update_failure(health, allow_http=True)
             async_delete_address_issue(self.hass, self._entry_id)
             if not self.connected:
                 sessions = async_get_sessions(self.hass)
@@ -269,6 +348,48 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         if entry is not None:
             async_reconcile_permission_issue(self.hass, entry, status)
         return PanelSnapshot(health=health, status=status, status_error=None)
+
+    async def _async_clear_update_failure(
+        self, health: PanelHealth, *, allow_http: bool = False
+    ) -> None:
+        """Withdraw a failed-update repair once the panel runs the build it named.
+
+        An older panel's health line carries no build number; only the HTTP
+        carrier can then read it from the diagnostics dump.
+        """
+        if self._entry_id is None:
+            return
+        from .failure_repair import (
+            async_clear_update_failure_if_installed,
+            panel_failure_issue_id,
+        )
+
+        issue_id = panel_failure_issue_id(f"update:{self._entry_id}")
+        if ir.async_get(self.hass).async_get_issue(DOMAIN, issue_id) is None:
+            return
+        installed_code = health.version_code
+        if installed_code is None and allow_http:
+            try:
+                name, installed_code = await self.client.async_get_version_code()
+            except HaPaneldError:
+                installed_code = None
+            else:
+                if name != health.version:
+                    installed_code = None
+        feed = async_get_feed_coordinator(self.hass)
+        current = (
+            feed.verified_newest(health.package or LEGACY_PACKAGE_ID)
+            if feed is not None and feed.last_update_success and feed.data is not None
+            else None
+        )
+        current_code = current.version_code if current is not None else None
+        await async_clear_update_failure_if_installed(
+            self.hass,
+            self._entry_id,
+            health.version,
+            installed_code,
+            verified_current_code=current_code,
+        )
 
     async def _async_recover_address(self) -> PanelHealth | None:
         """Try the address a connected panel is talking from, when it has one.

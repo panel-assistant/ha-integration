@@ -147,7 +147,7 @@ def _entity(
     if feed:
         coordinator = BuildFeedCoordinator(hass, URL("https://feed.example/feed"))
         coordinator.data = BuildFeed(channel="maintainer", builds=(build,))
-        coordinator.last_update_success = True
+        coordinator.reachable = True
         coordinator._verified_apks[build.apk_sha256] = b"apk"
     host_artifact = replace(feed_release_artifact(build), tag="v0.9.10")
     host = StableReleaseCoordinator(hass)
@@ -246,7 +246,7 @@ async def test_recovered_stalled_update_creates_repair_without_requeue(
     repairs: SimpleNamespace,
 ) -> None:
     entity, client = _entity(hass, recovered=True)
-    entity.coordinator.last_update_success = False
+    entity.coordinator.reachable = False
     monkeypatch.setattr(panel_update, "_UPDATE_TIMEOUT_SECONDS", 0.01)
     real_sleep = panel_update.asyncio.sleep
 
@@ -1160,7 +1160,7 @@ async def test_slow_panel_return_after_terminal_slot_still_completes(
     async def refresh_health() -> None:
         nonlocal refreshes
         refreshes += 1
-        entity.coordinator.last_update_success = refreshes >= 4
+        entity.coordinator.reachable = refreshes >= 4
         if refreshes >= 4:
             entity.coordinator.data = replace(
                 snapshot, health=replace(snapshot.health, version="0.9.10")
