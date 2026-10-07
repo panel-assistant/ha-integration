@@ -273,6 +273,55 @@
       },
       "temperature": {
         "name": "Temperatura"
+      },
+      "zigbee_gateway_health": {
+        "name": "Stato del gateway Zigbee",
+        "state": {
+          "off": "Spento",
+          "starting": "In avvio",
+          "healthy": "Integro",
+          "degraded_unjoined": "Degradato: non associato",
+          "degraded_high_cpu": "Degradato: CPU elevata",
+          "runaway": "Fuori controllo",
+          "contained": "Contenuto",
+          "containment_failed": "Contenimento non riuscito",
+          "unknown": "Sconosciuto"
+        },
+        "state_attributes": {
+          "containment_result": {
+            "name": "Esito del contenimento"
+          },
+          "firmware": {
+            "name": "Firmware"
+          },
+          "gateway_cpu_percent": {
+            "name": "CPU del gateway"
+          },
+          "gateway_layout": {
+            "name": "Struttura del gateway"
+          },
+          "gateway_package_version": {
+            "name": "Versione del pacchetto del gateway"
+          },
+          "guard_cpu_percent": {
+            "name": "CPU del guardiano"
+          },
+          "joined": {
+            "name": "Associato"
+          },
+          "product_version": {
+            "name": "Versione del prodotto"
+          },
+          "recursive_watchdog_assignment": {
+            "name": "Assegnazione ricorsiva del watchdog"
+          },
+          "restart_count_10m": {
+            "name": "Riavvii in 10 minuti"
+          },
+          "role": {
+            "name": "Ruolo"
+          }
+        }
       }
     },
     "update": {

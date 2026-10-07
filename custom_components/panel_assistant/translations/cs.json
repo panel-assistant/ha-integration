@@ -371,6 +371,55 @@
       },
       "temperature": {
         "name": "Teplota"
+      },
+      "zigbee_gateway_health": {
+        "name": "Stav brány Zigbee",
+        "state": {
+          "off": "Vypnuto",
+          "starting": "Spouští se",
+          "healthy": "V pořádku",
+          "degraded_unjoined": "Omezeno: nepřipojeno",
+          "degraded_high_cpu": "Omezeno: vysoké vytížení CPU",
+          "runaway": "Nekontrolovaný běh",
+          "contained": "Zadrženo",
+          "containment_failed": "Zadržení selhalo",
+          "unknown": "Neznámý"
+        },
+        "state_attributes": {
+          "containment_result": {
+            "name": "Výsledek zadržení"
+          },
+          "firmware": {
+            "name": "Firmware"
+          },
+          "gateway_cpu_percent": {
+            "name": "CPU brány"
+          },
+          "gateway_layout": {
+            "name": "Uspořádání brány"
+          },
+          "gateway_package_version": {
+            "name": "Verze balíčku brány"
+          },
+          "guard_cpu_percent": {
+            "name": "CPU hlídače"
+          },
+          "joined": {
+            "name": "Připojeno"
+          },
+          "product_version": {
+            "name": "Verze produktu"
+          },
+          "recursive_watchdog_assignment": {
+            "name": "Rekurzivní přiřazení watchdogu"
+          },
+          "restart_count_10m": {
+            "name": "Restarty za 10 minut"
+          },
+          "role": {
+            "name": "Role"
+          }
+        }
       }
     },
     "switch": {

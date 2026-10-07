@@ -273,6 +273,55 @@
       },
       "temperature": {
         "name": "Temperatura"
+      },
+      "zigbee_gateway_health": {
+        "name": "Stan bramki Zigbee",
+        "state": {
+          "off": "Wyłączona",
+          "starting": "Uruchamianie",
+          "healthy": "Sprawna",
+          "degraded_unjoined": "Ograniczona: niedołączona",
+          "degraded_high_cpu": "Ograniczona: wysokie użycie CPU",
+          "runaway": "Niekontrolowana praca",
+          "contained": "Powstrzymana",
+          "containment_failed": "Powstrzymanie nie powiodło się",
+          "unknown": "Nieznany"
+        },
+        "state_attributes": {
+          "containment_result": {
+            "name": "Wynik powstrzymania"
+          },
+          "firmware": {
+            "name": "Oprogramowanie układowe"
+          },
+          "gateway_cpu_percent": {
+            "name": "CPU bramki"
+          },
+          "gateway_layout": {
+            "name": "Układ bramki"
+          },
+          "gateway_package_version": {
+            "name": "Wersja pakietu bramki"
+          },
+          "guard_cpu_percent": {
+            "name": "CPU strażnika"
+          },
+          "joined": {
+            "name": "Dołączona"
+          },
+          "product_version": {
+            "name": "Wersja produktu"
+          },
+          "recursive_watchdog_assignment": {
+            "name": "Rekurencyjne przypisanie watchdoga"
+          },
+          "restart_count_10m": {
+            "name": "Ponowne uruchomienia w 10 minut"
+          },
+          "role": {
+            "name": "Rola"
+          }
+        }
       }
     },
     "update": {

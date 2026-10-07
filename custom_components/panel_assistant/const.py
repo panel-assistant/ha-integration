@@ -14,7 +14,7 @@ INTEGRATION_VERSION: str = json.loads(
 # The public version (manifest.json) only changes when something ships. This
 # build number tells builds apart in between: it counts the commits that have
 # changed this integration.
-INTEGRATION_BUILD = 463
+INTEGRATION_BUILD = 466
 
 # The native transport range this running integration can serve. Protocol 4 is
 # protocol 3 under a new number: app 0.9.10, whose classes moved package, asks
