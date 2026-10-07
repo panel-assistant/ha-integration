@@ -57,10 +57,15 @@ test('a signed feed build becomes the v1 install descriptor the installer alread
     apkName: `${build.apkSha256}.apk`, apkSha256: build.apkSha256, apkSize: build.apkSize,
     databaseCompatibility: build.databaseCompatibility, launchComponent: build.launchComponent,
     minSdk: 26, packageId: build.packageId, releaseTag: 'build-772',
-    schema: 'io.github.maxlyth.hapaneld.install.v1', signerCertificateSha256: SIGNER,
+    schema: 'io.panelassistant.android.install.v1', signerCertificateSha256: SIGNER,
     supportedAbis: ['arm64-v8a', 'armeabi-v7a'], versionCode: 772, versionName: '0.9.7-rc4',
   });
   assert.ok(Object.isFrozen(result.descriptor) && Object.isFrozen(result.descriptor.supportedAbis));
+});
+
+test('a feed signed under the new schema name is read like one under the old', async () => {
+  const result = await verify(await bundle(await document({ schema: 'io.panelassistant.android.buildfeed.v1' })));
+  assert.equal(result.descriptor.versionCode, 772);
 });
 
 test('the tag number chooses exactly the build with that versionCode', async () => {
@@ -164,6 +169,7 @@ for (const [name, change] of [
   ['missing feed field', async feed => { delete feed.channel; }],
   ['unknown channel', async feed => { feed.channel = 'nightly'; }],
   ['wrong schema', async feed => { feed.schema = 'io.github.maxlyth.hapaneld.buildfeed.v2'; }],
+  ['wrong new schema', async feed => { feed.schema = 'io.panelassistant.android.buildfeed.v2'; }],
   ['wrong signer', async feed => { feed.builds[0].signerCertificateSha256 = 'f'.repeat(64); }],
   ['non-string package', async feed => { feed.builds[1].packageId = null; }],
   ['non-string launch component', async feed => { feed.builds[1].launchComponent = null; }],

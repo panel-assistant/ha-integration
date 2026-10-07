@@ -18,13 +18,14 @@ from aiohttp import ClientSession
 from yarl import URL
 
 from .app_identity import (
+    BUILD_FEED_SCHEMAS,
+    INSTALL_DESCRIPTOR_SCHEMAS,
     LEGACY_PACKAGE_ID,
     is_accepted_package_id,
     is_launch_component,
 )
 from .release import (
     _DATABASE_COMPATIBILITY_PATTERN,
-    _INSTALL_DESCRIPTOR_SCHEMA,
     _MAX_ANDROID_SDK,
     _MAX_ANDROID_VERSION_CODE,
     _MAX_APK_BYTES,
@@ -49,7 +50,6 @@ from .release import (
     release_apk_name,
 )
 
-FEED_SCHEMA = "io.github.maxlyth.hapaneld.buildfeed.v1"
 FEED_CHANNELS = frozenset({"maintainer", "beta"})
 _MAX_FEED_BYTES = 256 * 1024
 _MAX_SIGNATURE_BYTES = 512
@@ -171,7 +171,7 @@ def feed_release_artifact(build: FeedBuild) -> ReleaseArtifact:
         protocol_min=build.protocol_min,
         protocol_max=build.protocol_max,
         descriptor=InstallDescriptor(
-            schema=_INSTALL_DESCRIPTOR_SCHEMA,
+            schema=INSTALL_DESCRIPTOR_SCHEMAS[0],
             release_tag=tag,
             version_name=build.version_name,
             version_code=build.version_code,
@@ -334,7 +334,7 @@ def parse_build_feed(body: bytes, signature: bytes, feed_url: URL) -> BuildFeed:
     if (
         not isinstance(document, dict)
         or document.keys() != _FEED_FIELDS
-        or document["schema"] != FEED_SCHEMA
+        or document["schema"] not in BUILD_FEED_SCHEMAS
         or not isinstance(document["channel"], str)
         or document["channel"] not in FEED_CHANNELS
         or not isinstance(document["builds"], list)

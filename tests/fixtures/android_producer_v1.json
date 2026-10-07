@@ -1,5 +1,5 @@
 {
-  "sourceRevision": "fc4d41bba3d906b5a289fe6771ff81aae9e4f48c",
+  "sourceRevision": "c11b2996096a18f649d4aa5492c2f3bd312b2a1a",
   "releaseTagVerdicts": [
     {
       "tag": "v0.9.7",
@@ -92,15 +92,15 @@
   ],
   "installDescriptors": [
     {
-      "apkName": "panel-assistant-v1.2.3-rc1-manual-setup-required.apk",
+      "apkName": "panel-assistant-v1.2.3-rc1-manual-setup-required.apk.bin",
       "apkSha256": "48c0c1ac3eb738792ec63151e674be740a40d53dc4f33675bc2c8b5c2c51b45b",
       "apkSize": 19,
       "databaseCompatibility": "hapaneld-db:v1:ha-paneld.db:11:14",
-      "launchComponent": "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity",
+      "launchComponent": "io.panelassistant.android/io.panelassistant.android.MainActivity",
       "minSdk": 26,
       "packageId": "io.panelassistant.android",
       "releaseTag": "v1.2.3-rc1",
-      "schema": "io.github.maxlyth.hapaneld.install.v1",
+      "schema": "io.panelassistant.android.install.v1",
       "signerCertificateSha256": "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339",
       "supportedAbis": [
         "arm64-v8a",
@@ -117,8 +117,8 @@
         "id": 1,
         "type": "panel_assistant/hello",
         "protocol": {
-          "min": 3,
-          "max": 3
+          "min": 4,
+          "max": 4
         },
         "did": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
         "app": {

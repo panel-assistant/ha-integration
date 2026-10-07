@@ -698,7 +698,9 @@ def test_the_two_identity_modules_state_exactly_the_same_values() -> None:
         "accessibility: Object.fromEntries(Object.values(m.LAUNCH_COMPONENTS).flat()"
         ".map(c => [c, m.accessibilityComponentFor(c)])),"
         "equivalent: Object.fromEntries(Object.values(m.LAUNCH_COMPONENTS).flat()"
-        ".map(c => [c, m.accessibilityComponentsFor(c)]))"
+        ".map(c => [c, m.accessibilityComponentsFor(c)])),"
+        "descriptorSchemas: m.INSTALL_DESCRIPTOR_SCHEMAS,"
+        "feedSchemas: m.BUILD_FEED_SCHEMAS"
         "}));"
     )
     javascript = json.loads(
@@ -720,6 +722,11 @@ def test_the_two_identity_modules_state_exactly_the_same_values() -> None:
         for package_id, components in app_identity.LAUNCH_COMPONENTS.items()
     }
     assert javascript["legacyLaunch"] == app_identity.LEGACY_LAUNCH_COMPONENT
+    # Both installers verify the same signed documents and write the same schema.
+    assert javascript["descriptorSchemas"] == list(
+        app_identity.INSTALL_DESCRIPTOR_SCHEMAS
+    )
+    assert javascript["feedSchemas"] == list(app_identity.BUILD_FEED_SCHEMAS)
     # Both installers write the accessibility service into one device-wide list.
     assert javascript["accessibility"] == dict(app_identity.ACCESSIBILITY_COMPONENTS)
     assert javascript["equivalent"] == {

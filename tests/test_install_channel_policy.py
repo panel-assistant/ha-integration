@@ -219,7 +219,16 @@ async def test_protocol_proof_and_explicit_consent_survive_restart_and_bind_plan
             await create(restarted, install_artifact=changed)
 
 
-def test_historical_plan_hash_remains_byte_identical_without_protocol_proof() -> None:
+@pytest.mark.parametrize(
+    ("schema", "written_by"),
+    [
+        ("io.panelassistant.android.install-plan.v1", "0.9.0 and later"),
+        ("io.github.maxlyth.hapaneld.install-plan.v1", "before 0.9.0"),
+    ],
+)
+def test_historical_plan_hash_remains_byte_identical_without_protocol_proof(
+    schema: str, written_by: str
+) -> None:
     legacy_artifact = {
         key: value
         for key, value in asdict(stored_artifact()).items()
@@ -228,7 +237,7 @@ def test_historical_plan_hash_remains_byte_identical_without_protocol_proof() ->
     canonical = (
         json.dumps(
             {
-                "schema": "io.github.maxlyth.hapaneld.install-plan.v1",
+                "schema": schema,
                 "target": asdict(target()),
                 "artifact": legacy_artifact,
                 "adb_credential_id": CREDENTIAL_ID,
@@ -240,7 +249,12 @@ def test_historical_plan_hash_remains_byte_identical_without_protocol_proof() ->
         )
         + "\n"
     )
+    expected = hashlib.sha256(canonical.encode("ascii")).hexdigest()
     assert (
-        install_plan_sha256(target(), stored_artifact(), CREDENTIAL_ID)
-        == hashlib.sha256(canonical.encode("ascii")).hexdigest()
-    )
+        install_plan_sha256(target(), stored_artifact(), CREDENTIAL_ID, schema)
+        == expected
+    ), written_by
+    # New plans are bound under the new name only.
+    assert (
+        install_plan_sha256(target(), stored_artifact(), CREDENTIAL_ID) == expected
+    ) == (written_by == "0.9.0 and later")

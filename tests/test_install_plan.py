@@ -298,7 +298,7 @@ def test_build_maps_every_field_and_hashes_exact_canonical_plan() -> None:
     canonical = (
         json.dumps(
             {
-                "schema": "io.github.maxlyth.hapaneld.install-plan.v1",
+                "schema": "io.panelassistant.android.install-plan.v1",
                 "target": asdict(plan.target),
                 "artifact": {
                     key: value

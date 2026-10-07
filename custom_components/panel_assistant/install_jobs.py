@@ -27,7 +27,12 @@ from homeassistant.core import CoreState, HomeAssistant
 from homeassistant.helpers.storage import Store
 from homeassistant.util.ulid import bytes_to_ulid, ulid_to_bytes_or_none
 
-from .app_identity import is_accepted_package_id, is_launch_component
+from .app_identity import (
+    INSTALL_DESCRIPTOR_SCHEMAS,
+    INSTALL_PLAN_SCHEMAS,
+    is_accepted_package_id,
+    is_launch_component,
+)
 from .client import InvalidAddressError, normalize_address
 from .const import DOMAIN
 from .failure_repair import clear_install_failure, record_install_failure
@@ -46,7 +51,6 @@ _MANAGER_DATA_KEY = f"{DOMAIN}.install_job_manager"
 _LOCK_DATA_KEY = f"{DOMAIN}.install_job_store_lock"
 _FORMAT = "ha-paneld-install-jobs-v1"
 _DETAIL_FORMAT = "ha-paneld-install-job-details-v1"
-_PLAN_SCHEMA = "io.github.maxlyth.hapaneld.install-plan.v1"
 _MAX_STORE_BYTES = 128 * 1024
 _MAX_ACTIVE_JOBS = 4
 _MAX_TERMINAL_JOBS = 32
@@ -69,8 +73,6 @@ _APK_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.apk(?:\.bin)?$")
 _DATABASE_COMPATIBILITY = re.compile(
     r"^hapaneld-db:v1:ha-paneld\.db:([1-9][0-9]*):([1-9][0-9]*)$"
 )
-# Frozen on the legacy spelling: released integrations compare it byte for byte.
-_DESCRIPTOR_SCHEMA = "io.github.maxlyth.hapaneld.install.v1"
 _RELEASE_SIGNER_SHA256 = (
     "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
 )
@@ -560,7 +562,7 @@ def _parse_artifact(value: object) -> InstallArtifact:
     # stored id is read back and re-checked rather than replaced by a constant.
     package_id = value["package_id"]
     if (
-        value["descriptor_schema"] != _DESCRIPTOR_SCHEMA
+        value["descriptor_schema"] not in INSTALL_DESCRIPTOR_SCHEMAS
         or not is_accepted_package_id(package_id)
         or not is_launch_component(package_id, value["launch_component"])
         or signer != _RELEASE_SIGNER_SHA256
@@ -583,7 +585,7 @@ def _parse_artifact(value: object) -> InstallArtifact:
     ):
         raise InstallJobStoreError
     return InstallArtifact(
-        descriptor_schema=_DESCRIPTOR_SCHEMA,
+        descriptor_schema=value["descriptor_schema"],
         release_tag=release_tag,
         version_name=version_name,
         version_code=_integer(value["version_code"], 1, 2**31 - 1),
@@ -617,15 +619,20 @@ def install_plan_sha256(
     target: InstallTarget,
     artifact: InstallArtifact,
     adb_credential_id: str,
+    schema: str = INSTALL_PLAN_SCHEMAS[0],
 ) -> str:
-    """Bind every frozen mutation input into one canonical plan digest."""
+    """Bind every frozen mutation input into one canonical plan digest.
+
+    A receipt written before 0.9.0 was bound under the legacy schema name, so
+    loading one checks that name too (see ``_parse_receipt``).
+    """
     parsed_target = _parse_target(asdict(target))
     parsed_artifact = _parse_artifact(asdict(artifact))
     credential_id = _safe_text(adb_credential_id, 64)
     if _SHA256.fullmatch(credential_id) is None:
         raise InstallJobStoreError
     document = {
-        "schema": _PLAN_SCHEMA,
+        "schema": schema,
         "target": asdict(parsed_target),
         "artifact": _artifact_document(parsed_artifact),
         "adb_credential_id": credential_id,
@@ -770,10 +777,12 @@ def _validate_receipt_invariants(receipt: InstallJobReceipt) -> None:
         and receipt.actual_apk_bytes != receipt.artifact.apk_size
     ):
         raise InstallJobStoreError
-    if receipt.plan_sha256 != install_plan_sha256(
-        receipt.target,
-        receipt.artifact,
-        receipt.adb_credential_id,
+    if not any(
+        receipt.plan_sha256
+        == install_plan_sha256(
+            receipt.target, receipt.artifact, receipt.adb_credential_id, schema
+        )
+        for schema in INSTALL_PLAN_SCHEMAS
     ):
         raise InstallJobStoreError
     if (

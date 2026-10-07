@@ -45,6 +45,7 @@ from .app_identity import (
     ACCESSIBILITY_COMPONENTS,
     EQUIVALENT_ACCESSIBILITY_COMPONENTS,
     HOME_COMPONENTS,
+    INSTALL_DESCRIPTOR_SCHEMAS,
     LAUNCH_COMPONENTS,
     LEGACY_LAUNCH_COMPONENT,
     LEGACY_PACKAGE_ID,
@@ -62,8 +63,6 @@ _LOGGER = logging.getLogger(__name__)
 
 _ADB_BANNER = "ha-paneld-home-assistant"
 _PACKAGE_MANAGER_LIVENESS_PACKAGE = "android"
-# Frozen on the legacy spelling: released integrations compare it byte for byte.
-_DESCRIPTOR_SCHEMA = "io.github.maxlyth.hapaneld.install.v1"
 _RELEASE_SIGNER_SHA256 = (
     "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
 )
@@ -347,7 +346,7 @@ def _validate_descriptor(descriptor: InstallDescriptor) -> None:
         or not isinstance(descriptor.signer_certificate_sha256, str)
         or not isinstance(descriptor.apk_name, str)
         or not isinstance(descriptor.apk_sha256, str)
-        or descriptor.schema != _DESCRIPTOR_SCHEMA
+        or descriptor.schema not in INSTALL_DESCRIPTOR_SCHEMAS
         or not is_accepted_package_id(descriptor.package_id)
         or not is_launch_component(descriptor.package_id, descriptor.launch_component)
         or descriptor.signer_certificate_sha256 != _RELEASE_SIGNER_SHA256

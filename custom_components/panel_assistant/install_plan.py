@@ -8,7 +8,11 @@ import socket
 from dataclasses import dataclass
 from enum import StrEnum
 
-from .app_identity import is_accepted_package_id, is_launch_component
+from .app_identity import (
+    INSTALL_DESCRIPTOR_SCHEMAS,
+    is_accepted_package_id,
+    is_launch_component,
+)
 from .client import InvalidAddressError, PanelAddress, normalize_address
 from .install_jobs import (
     InstallArtifact,
@@ -27,8 +31,6 @@ from .release import (
 )
 from .update_policy import build_allowed, prereleases_allowed
 
-# Frozen on the legacy spelling: released integrations compare it byte for byte.
-_DESCRIPTOR_SCHEMA = "io.github.maxlyth.hapaneld.install.v1"
 _RELEASE_SIGNER_SHA256 = (
     "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
 )
@@ -234,7 +236,7 @@ def _build_artifact(
         )
 
     if (
-        descriptor.schema != _DESCRIPTOR_SCHEMA
+        descriptor.schema not in INSTALL_DESCRIPTOR_SCHEMAS
         or release_tag is None
         or not artifact_identity_matches(
             release_tag,

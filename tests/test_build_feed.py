@@ -19,12 +19,13 @@ from yarl import URL
 
 from custom_components.panel_assistant import build_feed, release
 from custom_components.panel_assistant.app_identity import (
+    BUILD_FEED_SCHEMAS,
+    INSTALL_DESCRIPTOR_SCHEMAS,
     LAUNCH_COMPONENTS,
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
 )
 from custom_components.panel_assistant.build_feed import (
-    FEED_SCHEMA,
     BuildFeedError,
     FeedBuild,
     async_download_build,
@@ -76,7 +77,8 @@ def _feed(builds: list[Any] | None = None, **replacements: Any) -> dict[str, Any
             else builds
         ),
         "channel": "maintainer",
-        "schema": FEED_SCHEMA,
+        # Feeds published so far carry the legacy spelling.
+        "schema": "io.github.maxlyth.hapaneld.buildfeed.v1",
     }
     document.update(replacements)
     return document
@@ -142,6 +144,32 @@ def test_valid_feed_parses_newest_first(sign: Callable[[bytes], bytes]) -> None:
     assert newest.label == "0.9.7-rc4 build 772"
     assert feed.find(771) is not None
     assert feed.find(773) is None
+
+
+@pytest.mark.parametrize(
+    ("schema", "accepted"),
+    [
+        ("io.panelassistant.android.buildfeed.v1", True),
+        ("io.github.maxlyth.hapaneld.buildfeed.v1", True),
+        ("io.panelassistant.android.buildfeed.v2", False),
+        ("io.github.maxlyth.hapaneld.buildfeed.v2", False),
+    ],
+)
+def test_feed_schema_is_accepted_under_either_name_and_nothing_else(
+    sign: Callable[[bytes], bytes], schema: str, accepted: bool
+) -> None:
+    """0.9.0 reads the feed under its new name and the one the publisher writes."""
+    body = _canonical(_feed(schema=schema))
+    if not accepted:
+        with pytest.raises(BuildFeedError):
+            parse_build_feed(body, sign(body), FEED_URL)
+        return
+    feed = parse_build_feed(body, sign(body), FEED_URL)
+    assert [build.version_code for build in feed.builds] == [772, 771, 770]
+    artifact = feed_release_artifact(feed.builds[0])
+    assert artifact.descriptor is not None
+    # A descriptor this integration builds for a feed entry carries the new name.
+    assert artifact.descriptor.schema == INSTALL_DESCRIPTOR_SCHEMAS[0]
 
 
 def test_signed_feed_accepts_one_build_per_package_at_the_same_code(
@@ -827,7 +855,7 @@ def test_a_non_string_channel_is_refused_not_a_crash(
     monkeypatch.setattr(build_feed, "_verify_detached_signature", lambda *_: None)
     body = (
         json.dumps(
-            {"builds": [], "channel": ["maintainer"], "schema": build_feed.FEED_SCHEMA},
+            {"builds": [], "channel": ["maintainer"], "schema": BUILD_FEED_SCHEMAS[0]},
             separators=(",", ":"),
             sort_keys=True,
         )

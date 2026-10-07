@@ -20,10 +20,11 @@ something that does not exist on the panel:
   lives in the id's own package. Both installers write these components, so
   they are defined here and in the browser installer's ``app-identity.mjs``,
   and a test compares the two copies by value.
-* The schema identifier strings, the database compatibility pattern and the
-  MQTT identifiers are frozen on the legacy spelling on purpose, because
-  released integrations compare them byte for byte. They are not derived from
-  anything here.
+* The schema identifier strings moved to the new id with app 0.9.11 and this
+  integration's 0.9.0, and every reader here accepts both spellings (see
+  ``INSTALL_DESCRIPTOR_SCHEMAS`` below). The database compatibility pattern and
+  the MQTT identifiers keep their spelling. None of them is derived from the
+  application id.
 
 Components are written out rather than computed so that a grep for the exact
 string a panel will be sent finds it, and so that a change to the Android
@@ -42,6 +43,28 @@ SUCCESSOR_PACKAGE_ID = "io.panelassistant.android"
 #: contract: preflight reports the legacy package first so an operator reading a
 #: failure sees the package a migrating panel actually has.
 ACCEPTED_PACKAGE_IDS: tuple[str, ...] = (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID)
+
+#: Signed release and record schemas. App releases from 0.9.11, and the records
+#: this integration writes from 0.9.0, use the new id; app releases up to
+#: 0.9.10, install jobs written before 0.9.0 and the signed build feed use
+#: the legacy spelling. Readers accept every entry; writers use the first. The
+#: legacy spellings go in 1.0, once no supported release or record carries them.
+INSTALL_DESCRIPTOR_SCHEMAS: tuple[str, ...] = (
+    "io.panelassistant.android.install.v1",
+    "io.github.maxlyth.hapaneld.install.v1",
+)
+PROTOCOL_METADATA_SCHEMAS: tuple[str, ...] = (
+    "io.panelassistant.android.protocol.v1",
+    "io.github.maxlyth.hapaneld.protocol.v1",
+)
+BUILD_FEED_SCHEMAS: tuple[str, ...] = (
+    "io.panelassistant.android.buildfeed.v1",
+    "io.github.maxlyth.hapaneld.buildfeed.v1",
+)
+INSTALL_PLAN_SCHEMAS: tuple[str, ...] = (
+    "io.panelassistant.android.install-plan.v1",
+    "io.github.maxlyth.hapaneld.install-plan.v1",
+)
 
 _OLD_CLASSES_SUCCESSOR_LAUNCH = (
     "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity"

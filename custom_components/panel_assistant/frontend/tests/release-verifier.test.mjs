@@ -60,6 +60,21 @@ for (const [tag, expectedRcTag] of RELEASES) {
   }
 }
 
+// App 0.9.11 signs its descriptors under the new id; 0.9.10 and earlier under the old one.
+for (const [schema, accepted] of [
+  ['io.panelassistant.android.install.v1', true],
+  ['io.github.maxlyth.hapaneld.install.v1', true],
+  ['io.panelassistant.android.install.v2', false],
+  ['io.github.maxlyth.hapaneld.install.v2', false],
+]) {
+  test(`a descriptor signed under ${schema} is ${accepted ? 'accepted' : 'refused'}`, async () => {
+    const signed = await bundle('v0.9.11', SUCCESSOR_PACKAGE_ID, { fields: { schema } });
+    if (!accepted) return refuses(verify(signed, null));
+    const result = await verify(signed, null);
+    assert.equal(result.descriptor.schema, schema);
+  });
+}
+
 test('the checksum must name the exact APK the signed descriptor names', async () => {
   const tag = 'v0.9.8-rc2';
   // Each identity's checksum paired with the other identity's descriptor: both

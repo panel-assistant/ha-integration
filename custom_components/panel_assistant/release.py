@@ -16,7 +16,9 @@ from yarl import URL
 
 from .app_identity import (
     ACCEPTED_PACKAGE_IDS,
+    INSTALL_DESCRIPTOR_SCHEMAS,
     LEGACY_PACKAGE_ID,
+    PROTOCOL_METADATA_SCHEMAS,
     SUCCESSOR_PACKAGE_ID,
     is_accepted_package_id,
     is_launch_component,
@@ -40,7 +42,6 @@ _MAX_SIGNATURE_RESPONSE_BYTES = 512
 _MAX_INSTALL_DESCRIPTOR_BYTES = 4 * 1024
 _MAX_PROTOCOL_METADATA_BYTES = 128 * 1024
 _MAX_PROTOCOL_ARTIFACTS = 500
-_PROTOCOL_METADATA_SCHEMA = "io.github.maxlyth.hapaneld.protocol.v1"
 _PROTOCOL_METADATA_FIELDS = frozenset({"schema", "artifacts"})
 _PROTOCOL_ARTIFACT_FIELDS = frozenset({"apkSha256", "protocolMin", "protocolMax"})
 _MAX_RELEASE_ASSETS = 128
@@ -53,9 +54,6 @@ _RSA_SIGNATURE_BYTES = 256
 _MAX_APK_BYTES = 64 * 1024 * 1024
 _MAX_ANDROID_SDK = 100
 _MAX_ANDROID_VERSION_CODE = 2**31 - 1
-# The schema identifier is frozen on the legacy spelling: released integrations
-# compare it byte for byte, so it never follows the application id.
-_INSTALL_DESCRIPTOR_SCHEMA = "io.github.maxlyth.hapaneld.install.v1"
 _RELEASE_SIGNER_CERTIFICATE_SHA256 = (
     "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
 )
@@ -596,7 +594,7 @@ def parse_protocol_metadata(
     if (
         not isinstance(document, dict)
         or document.keys() != _PROTOCOL_METADATA_FIELDS
-        or document["schema"] != _PROTOCOL_METADATA_SCHEMA
+        or document["schema"] not in PROTOCOL_METADATA_SCHEMAS
         or not isinstance(document["artifacts"], list)
         or len(document["artifacts"]) > _MAX_PROTOCOL_ARTIFACTS
     ):
@@ -713,7 +711,7 @@ def _parse_install_descriptor(
     supported_abis = document["supportedAbis"]
     apk_sha256_value = document["apkSha256"]
     if (
-        document["schema"] != _INSTALL_DESCRIPTOR_SCHEMA
+        document["schema"] not in INSTALL_DESCRIPTOR_SCHEMAS
         or document["releaseTag"] != tag
         or document["versionName"] != version
         or document["apkName"] != apk_name
@@ -739,7 +737,7 @@ def _parse_install_descriptor(
     # health-checks the package and classes this signed release actually ships.
     package_id: str = document["packageId"]
     return InstallDescriptor(
-        schema=_INSTALL_DESCRIPTOR_SCHEMA,
+        schema=document["schema"],
         release_tag=tag,
         version_name=version,
         version_code=version_code,

@@ -11,11 +11,26 @@
  * live in `io.panelassistant.android`. A signed descriptor's `launchComponent`
  * says which set an exact build carries, and every other component is looked up
  * from it. `<id>/.Class` appears only where the class lives in the id's package.
- * The schema identifier strings and the database pattern are frozen on the
- * legacy spelling and are never derived from these values.
+ * The schema identifier strings are listed below, never derived from these
+ * values; the database pattern keeps its spelling.
  */
 export const LEGACY_PACKAGE_ID = 'io.github.maxlyth.hapaneld';
 export const SUCCESSOR_PACKAGE_ID = 'io.panelassistant.android';
+
+/**
+ * Signed release and feed schemas, as app_identity.py lists them: app releases
+ * from 0.9.11 use the new id, earlier releases and the signed build feed the
+ * legacy one. Readers accept every entry; writers use the first. The legacy
+ * spellings go in 1.0.
+ */
+export const INSTALL_DESCRIPTOR_SCHEMAS = Object.freeze([
+  'io.panelassistant.android.install.v1',
+  'io.github.maxlyth.hapaneld.install.v1',
+]);
+export const BUILD_FEED_SCHEMAS = Object.freeze([
+  'io.panelassistant.android.buildfeed.v1',
+  'io.github.maxlyth.hapaneld.buildfeed.v1',
+]);
 
 /** Both installable panel application ids, legacy first. */
 export const ACCEPTED_PACKAGE_IDS = Object.freeze([LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID]);

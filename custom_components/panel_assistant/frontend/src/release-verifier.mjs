@@ -9,16 +9,15 @@ NwQ44hg5o9iVKtxpnnjHEc/m6o9TBySQvxDWF3RxCDyPLNBqhrsgKsDlAyh+dtA8
 aJpQsDUJoX42xsRvA1hkRCpnWdEs1Bwfyv0ztlOxj7MxeFrFxWc3mnUyGhsn6rCT
 O+ygQ2m7FHp3D5t1+wFIendluEzUC+y9MpUHmoyq/lFrVuA8EOiy1U+z7Lr1vBWf
 LQIDAQAB`;
-import { isAcceptedPackageId, isLaunchComponent } from './app-identity.mjs';
+import {
+  BUILD_FEED_SCHEMAS, INSTALL_DESCRIPTOR_SCHEMAS, isAcceptedPackageId, isLaunchComponent,
+} from './app-identity.mjs';
 
-// Frozen on the legacy spelling: released integrations compare it byte for byte.
-const PACKAGE = 'io.github.maxlyth.hapaneld';
 const SIGNER = 'ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339';
 const FIELDS = ['schema', 'releaseTag', 'versionName', 'versionCode', 'apkName',
   'apkSize', 'apkSha256', 'packageId', 'signerCertificateSha256', 'minSdk',
   'supportedAbis', 'databaseCompatibility', 'launchComponent'].sort();
 // The build feed mirrors build_feed.parse_build_feed and _parse_build exactly.
-const FEED_SCHEMA = `${PACKAGE}.buildfeed.v1`;
 const FEED_CHANNELS = ['maintainer', 'beta'];
 const FEED_FIELDS = ['builds', 'channel', 'schema'];
 const BUILD_FIELDS = ['apkPath', 'apkSha256', 'apkSize', 'commit', 'databaseCompatibility',
@@ -97,7 +96,7 @@ export function parseUnauthenticatedDescriptor(body, { tag, apkSha256 }) {
     const d = JSON.parse(text);
     requireValid(record(d));
     requireValid(JSON.stringify(Object.keys(d).sort()) === JSON.stringify(FIELDS));
-    requireValid(d.schema === `${PACKAGE}.install.v1` && descriptorIdentityValid(d, tag, apkSha256) &&
+    requireValid(INSTALL_DESCRIPTOR_SCHEMAS.includes(d.schema) && descriptorIdentityValid(d, tag, apkSha256) &&
       d.apkSha256 === apkSha256 && isAcceptedPackageId(d.packageId) &&
       d.signerCertificateSha256 === SIGNER &&
       isLaunchComponent(d.packageId, d.launchComponent));
@@ -151,7 +150,7 @@ async function verifyFeedBundle(bundle, expectedTag, verificationKey) {
   requireValid(await crypto.subtle.verify(ALGORITHM, key, signature, feed));
   const text = ascii(feed);
   const document = JSON.parse(text);
-  requireValid(exactKeys(document, FEED_FIELDS) && document.schema === FEED_SCHEMA &&
+  requireValid(exactKeys(document, FEED_FIELDS) && BUILD_FEED_SCHEMAS.includes(document.schema) &&
     FEED_CHANNELS.includes(document.channel) && Array.isArray(document.builds) &&
     document.builds.length <= MAX_FEED_BUILDS);
   requireValid(text === `${canonicalJson(document)}\n`);
@@ -164,7 +163,7 @@ async function verifyFeedBundle(bundle, expectedTag, verificationKey) {
     apkName: `${build.apkSha256}.apk`, apkSha256: build.apkSha256, apkSize: build.apkSize,
     databaseCompatibility: build.databaseCompatibility, launchComponent: build.launchComponent,
     minSdk: build.minSdk, packageId: build.packageId, releaseTag: expectedTag,
-    schema: `${PACKAGE}.install.v1`, signerCertificateSha256: build.signerCertificateSha256,
+    schema: INSTALL_DESCRIPTOR_SCHEMAS[0], signerCertificateSha256: build.signerCertificateSha256,
     supportedAbis: build.supportedAbis, versionCode: build.versionCode, versionName: build.versionName,
   };
   // The job store re-reads this exact descriptor later: prove now that it will.
