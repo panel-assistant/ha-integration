@@ -11,7 +11,7 @@ test('brand CLI rejects stale published, packaged and generated artwork', () => 
   const root = mkdtempSync(join(tmpdir(), 'pa-brand-'));
   try {
     cpSync(join(repo, 'tools/brand'), join(root, 'tools/brand'), { recursive: true });
-    const manifest = JSON.parse(readFileSync(join(root, 'tools/brand/manifest.json'), 'utf8'));
+    const manifest = JSON.parse(readFileSync(join(root, 'tools/brand/assets.json'), 'utf8'));
     for (const { path } of [...manifest.assets, ...manifest.generated]) {
       mkdirSync(dirname(join(root, path)), { recursive: true });
       cpSync(join(repo, path), join(root, path));

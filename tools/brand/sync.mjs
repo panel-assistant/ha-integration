@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const root = new URL('../../', import.meta.url);
-const manifestFile = new URL('manifest.json', import.meta.url);
+const manifestFile = new URL('assets.json', import.meta.url);
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 export function nameFromWordmark(wordmark) {
   const width = Number(wordmark.match(/viewBox="0 [^ ]+ ([^ ]+) [^"]+"/)[1]);
