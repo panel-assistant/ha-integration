@@ -1405,7 +1405,7 @@
     "step": {
       "init": {
         "title": "面板设置",
-        "description": "继续配置此面板、更改其连接方式，或授权 ADB 用于面板更新。如果面板尚未绑定，请确认已登录的账户以完成配置。",
+        "description": "继续配置此面板或授权 ADB 用于面板更新。如果面板尚未绑定，请确认已登录的账户以完成配置。",
         "menu_options": {
           "onboarding": "继续设置",
           "authorize_adb": "授权 ADB 更新",

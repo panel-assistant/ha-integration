@@ -1405,7 +1405,7 @@
     "step": {
       "init": {
         "title": "Configuración del panel",
-        "description": "Continúe la configuración de este panel, cambie su transporte o autorice ADB para sus actualizaciones. Si el panel aún no está vinculado, confirme la cuenta que inició sesión para terminar la configuración.",
+        "description": "Continúe la configuración de este panel o autorice ADB para sus actualizaciones. Si el panel aún no está vinculado, confirme la cuenta que inició sesión para terminar la configuración.",
         "menu_options": {
           "onboarding": "Continuar la configuración",
           "authorize_adb": "Autorizar ADB para actualizaciones",

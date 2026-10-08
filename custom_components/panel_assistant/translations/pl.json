@@ -1443,7 +1443,7 @@
     "step": {
       "init": {
         "title": "Konfiguracja panelu",
-        "description": "Kontynuuj konfigurację panelu, zmień sposób połączenia lub autoryzuj ADB do aktualizacji. Jeśli panel nie jest jeszcze powiązany, potwierdź zalogowane konto, aby ukończyć konfigurację.",
+        "description": "Kontynuuj konfigurację panelu lub autoryzuj ADB do aktualizacji. Jeśli panel nie jest jeszcze powiązany, potwierdź zalogowane konto, aby ukończyć konfigurację.",
         "menu_options": {
           "onboarding": "Kontynuuj konfigurację",
           "authorize_adb": "Autoryzuj ADB do aktualizacji",

@@ -1405,7 +1405,7 @@
     "step": {
       "init": {
         "title": "Configurazione del pannello",
-        "description": "Continua la configurazione di questo pannello, cambia il suo trasporto o autorizza ADB per gli aggiornamenti. Se il pannello non è ancora associato, conferma l’account connesso per completare la configurazione.",
+        "description": "Continua la configurazione di questo pannello o autorizza ADB per gli aggiornamenti. Se il pannello non è ancora associato, conferma l’account connesso per completare la configurazione.",
         "menu_options": {
           "onboarding": "Continua la configurazione",
           "authorize_adb": "Autorizza ADB per gli aggiornamenti",

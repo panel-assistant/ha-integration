@@ -1405,7 +1405,7 @@
     "step": {
       "init": {
         "title": "Panel-Einrichtung",
-        "description": "Setze die Einrichtung dieses Panels fort, ändere seine Verbindungsart oder autorisiere ADB für Panel-Updates. Falls das Panel noch ungebunden ist, bestätige zum Abschluss das angemeldete Konto.",
+        "description": "Setze die Einrichtung dieses Panels fort oder autorisiere ADB für Panel-Updates. Falls das Panel noch ungebunden ist, bestätige zum Abschluss das angemeldete Konto.",
         "menu_options": {
           "onboarding": "Einrichtung fortsetzen",
           "authorize_adb": "ADB für Updates autorisieren",

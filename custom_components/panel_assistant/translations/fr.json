@@ -1405,7 +1405,7 @@
     "step": {
       "init": {
         "title": "Configuration du panneau",
-        "description": "Poursuivez la configuration de ce panneau, modifiez son mode de connexion ou autorisez ADB pour ses mises à jour. Si le panneau n’est pas encore associé, confirmez le compte connecté pour terminer la configuration.",
+        "description": "Poursuivez la configuration de ce panneau ou autorisez ADB pour ses mises à jour. Si le panneau n’est pas encore associé, confirmez le compte connecté pour terminer la configuration.",
         "menu_options": {
           "onboarding": "Poursuivre la configuration",
           "authorize_adb": "Autoriser ADB pour les mises à jour",

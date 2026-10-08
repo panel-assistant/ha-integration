@@ -1445,7 +1445,7 @@
     "step": {
       "init": {
         "title": "Configuração do painel",
-        "description": "Continue a configuração deste painel, altere seu transporte ou autorize o ADB para atualizações do painel. Se o painel ainda não estiver vinculado, confirme a conta conectada nele para concluir a configuração.",
+        "description": "Continue a configuração deste painel ou autorize o ADB para atualizações do painel. Se o painel ainda não estiver vinculado, confirme a conta conectada nele para concluir a configuração.",
         "menu_options": {
           "onboarding": "Continuar configuração",
           "authorize_adb": "Autorizar ADB para atualizações",

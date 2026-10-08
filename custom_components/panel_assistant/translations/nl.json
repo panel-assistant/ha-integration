@@ -1443,7 +1443,7 @@
     "step": {
       "init": {
         "title": "Paneel instellen",
-        "description": "Ga verder met de configuratie van dit paneel, wijzig de verbinding of autoriseer ADB voor updates. Als het paneel nog niet gekoppeld is, bevestig dan het aangemelde account om de configuratie te voltooien.",
+        "description": "Ga verder met de configuratie van dit paneel of autoriseer ADB voor updates. Als het paneel nog niet gekoppeld is, bevestig dan het aangemelde account om de configuratie te voltooien.",
         "menu_options": {
           "onboarding": "Installatie voortzetten",
           "authorize_adb": "ADB voor updates autoriseren",

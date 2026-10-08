@@ -1445,7 +1445,7 @@
     "step": {
       "init": {
         "title": "Nastavení panelu",
-        "description": "Pokračujte v nastavení tohoto panelu, změňte způsob komunikace nebo povolte přístup přes ADB pro aktualizace panelu. Pokud panel ještě není propojený, potvrďte jeho přihlášený účet a dokončete nastavení.",
+        "description": "Pokračujte v nastavení tohoto panelu nebo povolte přístup přes ADB pro aktualizace panelu. Pokud panel ještě není propojený, potvrďte jeho přihlášený účet a dokončete nastavení.",
         "menu_options": {
           "onboarding": "Pokračovat v nastavení",
           "authorize_adb": "Povolit přístup přes ADB pro aktualizace",
