@@ -1,0 +1,38 @@
+{
+  "repository": "panel-assistant/panel-assistant.io",
+  "assets": [
+    {
+      "name": "icon-tight.svg",
+      "url": "https://panel-assistant.io/brand/icon-tight.svg",
+      "path": "tools/brand/source/icon-tight.svg",
+      "sha256": "7c67447903573a39586503128cf5cab60989f86ba3fdaa45070a1211990278d7"
+    },
+    {
+      "name": "wordmark-on-light.svg",
+      "url": "https://panel-assistant.io/brand/wordmark-on-light.svg",
+      "path": "tools/brand/source/wordmark-on-light.svg",
+      "sha256": "4ee288ce0e3924ae48c7b808c81902af1ab108e0afcf31ae5f3dfedf1d60fe4a"
+    },
+    {
+      "name": "icon-square-256.png",
+      "url": "https://panel-assistant.io/brand/icon-square-256.png",
+      "path": "custom_components/panel_assistant/brand/icon.png",
+      "sha256": "3533d9912d154cffe06236c103e2b31b129c502546785e558c03b52c16a06cf1"
+    },
+    {
+      "name": "icon-square-512.png",
+      "url": "https://panel-assistant.io/brand/icon-square-512.png",
+      "path": "custom_components/panel_assistant/brand/icon@2x.png",
+      "sha256": "e03a9768d1ac7a5558a3160e8d813703be30f479733863a6d49e1272b3a9f18b"
+    }
+  ],
+  "generated": [
+    {
+      "path": "custom_components/panel_assistant/frontend/src/brand.mjs",
+      "sources": [
+        "tools/brand/source/icon-tight.svg",
+        "tools/brand/source/wordmark-on-light.svg"
+      ]
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 <h1 align="center">
   <a href="https://panel-assistant.io"><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="custom_components/panel_assistant/static/wordmark-on-dark.svg">
-    <img src="custom_components/panel_assistant/static/wordmark-on-light.svg" width="360" alt="Panel Assistant">
+    <source media="(prefers-color-scheme: dark)" srcset="https://panel-assistant.io/brand/wordmark-on-dark.svg">
+    <img src="https://panel-assistant.io/brand/wordmark-on-light.svg" width="360" alt="Panel Assistant">
   </picture></a>
 </h1>
 

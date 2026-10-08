@@ -29,6 +29,8 @@ jobs:
       - name: Install frontend dependencies
         working-directory: custom_components/panel_assistant/frontend
         run: npm ci --ignore-scripts
+      - name: Verify packaged branding matches the published website
+        run: node tools/brand/sync.mjs check
       - name: Test and build frontend
         working-directory: custom_components/panel_assistant/frontend
         run: npm test && npm run build
