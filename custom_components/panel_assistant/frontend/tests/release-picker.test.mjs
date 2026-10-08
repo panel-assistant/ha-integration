@@ -232,3 +232,11 @@ for (const [signal, language] of [['de-DE', 'de'], ['cs-CZ', 'cs'], ['pt_br-u-nu
   assert.deepEqual([requests, opens], [1, 1]);
   } finally { f.panel.disconnectedCallback(); await tick(); }
 });
+
+test('the brand caption names the running integration build, and nothing when the config has none', async () => {
+  const { panel, element } = fixture(async () => response([stable]));
+  assert.equal(element('brand-version').textContent, '');
+  panel.panel = { config: { installer_url: 'https://installer.example/', version: '1.0.0-rc1', build: 485 } };
+  assert.equal(element('brand-version').textContent, '1.0.0-rc1 build 485');
+  panel.disconnectedCallback();
+});
