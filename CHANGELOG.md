@@ -2,23 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 0.9.0 - 2026-10-08
+
+A small release that finishes moving the last internal names onto the project's own namespace before 1.0, plus a few things that were ready. Install it before your panels take ha-paneld v0.9.11.
+
+Pairs with ha-paneld v0.9.11.
 
 ### Update Panel Assistant first
 
-**Update Panel Assistant to this release before your panels take ha-paneld v0.9.11.** v0.9.11 signs its release files under the app's new name, and only this Panel Assistant release reads them. Panels connected to Panel Assistant 0.8.0 or older aren't offered v0.9.11: they stay on the build they have and keep working, and they get the update once you install this release. Every earlier ha-paneld release still installs as before.
-
-### Moving off MQTT
-
-**Panels still on MQTT now move by themselves.** Until now each panel that had used MQTT showed a Repair, and nothing changed until you chose it. Panel Assistant now makes that move for you as soon as Home Assistant starts, or as soon as the panel next answers: each entity keeps its entity ID, history and customisations, and the panel stops announcing itself over MQTT. A panel running an ha-paneld older than 0.9.8 gets a Repair asking you to update it first, and moves once you have. This is the last Panel Assistant release that supports MQTT, so install it before any later one.
-
-The Zigbee gateway health sensor on panels with a Zigbee radio now comes over Panel Assistant's own connection too, keeping its entity ID and history when the panel moves. It needs a panel app build that reports it; until then it stays on MQTT.
-
-Physical button presses come over Panel Assistant's own connection the same way, and keep the event names your automations already match, such as `KEYCODE_HOME`.
+**Update Panel Assistant to 0.9.0 before your panels take ha-paneld v0.9.11.** Only this release reads v0.9.11's release files. Panels on an older Panel Assistant simply stay on v0.9.10 until you update.
 
 ### New
 
-- **Announcements play in step on several panels.** When an automation announces something on several panels at once, through their voice assistants or with `tts.speak` to their media players, the panels now play it together instead of echoing one after another from room to room. Panel Assistant fetches the announcement once and sends it to every panel as one synchronised stream, chime included. A voice assistant's reply still plays only on the panel you spoke to. This needs a panel app build that supports it; a panel on an older build, or one that isn't ready, plays the announcement as before. Nothing to set up: the stream travels inside the connection each panel already keeps to Home Assistant, and Panel Assistant pairs each panel with it automatically.
+- **Announcements play in step.** An announcement sent to several panels now plays on all of them together instead of echoing from room to room. Needs ha-paneld v0.9.11.
+- **Panels still on MQTT move by themselves.** Panel Assistant moves them to its own connection, keeping entity IDs, history and customisations. MQTT support ends after this release line.
+- **Czech and Brazilian Portuguese.**
+
+### Changed
+
+- **The last internal names moved to the project's own namespace.** Panel Assistant reads both old and new names, so every earlier ha-paneld release still installs.
 
 ## 0.8.0 - 2026-10-07
 

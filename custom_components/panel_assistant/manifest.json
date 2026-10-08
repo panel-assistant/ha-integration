@@ -48,6 +48,6 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/panel-assistant/ha-integration/issues",
   "requirements": ["adb-shell[async]>=0.4.4", "aiosendspin[server]==10.0.0"],
-  "version": "0.9.0-rc1",
+  "version": "0.9.0",
   "zeroconf": ["_adb._tcp.local.", "_ha-paneld._tcp.local."]
 }
