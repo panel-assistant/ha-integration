@@ -38,10 +38,25 @@ jobs:
   # A release tag publishes its own permanent copy at /<version>/. Pages replaces
   # the whole site on every deploy, so the site is rebuilt from every release tag
   # that has a copy, and the root serves the newest for releases up to 0.9.0.
+  # Snapshot, build, upload, deploy and verify run in one job under one shared
+  # lock, so tags are listed only once the lock is held and an older release run
+  # can never deploy a site that drops a newer release's copy. GitHub keeps one
+  # pending run per group and drops the older pending one; that is safe because
+  # the surviving newer run rebuilds every tag.
   site:
     if: startsWith(github.ref, 'refs/tags/')
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: usb-installer-pages
+      cancel-in-progress: false
     steps:
       - name: Check out repository with its tags
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -63,37 +78,14 @@ jobs:
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         with:
           path: ${{ runner.temp }}/site
-
-  deploy:
-    needs: site
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    concurrency:
-      group: usb-installer-pages
-      cancel-in-progress: false
-    steps:
       - name: Deploy installer site
         id: deployment
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
-      # The release check: fails unless every copy, this release's included, is
-      # live and byte-identical to what was just built.
-      - name: Check out the release check
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          sparse-checkout: .github/scripts
-      - name: Fetch the built site
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: github-pages
-          path: ${{ runner.temp }}/artifact
+      # The release check: fails unless every built file is live and unchanged,
+      # and every release copy the repository's tags call for right now is live.
       - name: Verify the published installer copies
         run: |
-          mkdir -p "$RUNNER_TEMP/site"
-          tar -xf "$RUNNER_TEMP/artifact/artifact.tar" -C "$RUNNER_TEMP/site"
-          python3 .github/scripts/verify_installer_copy.py "$RUNNER_TEMP/site" https://install.panel-assistant.io/
+          git fetch --tags --force origin
+          tags=$(.github/scripts/build_installer_site.sh --list-tags)
+          # shellcheck disable=SC2086 # one tag per word
+          python3 .github/scripts/verify_installer_copy.py "$RUNNER_TEMP/site" https://install.panel-assistant.io/ $tags
