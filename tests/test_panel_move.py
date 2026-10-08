@@ -1677,21 +1677,21 @@ async def _publish_move_candidate(
 @pytest.mark.parametrize(
     "pa_version,opt_in,version,protocol_range,installed_version,installed_code,allowed",
     [
-        ("1.0.0", False, "1.2.0", (3, 3), "0.9.9", None, True),
-        ("1.0.0", False, "1.2.0-rc1", (3, 3), "0.9.9", None, False),
-        ("1.0.0", True, "1.2.0-rc1", (3, 3), "0.9.9", None, True),
-        ("1.0.0-rc1", False, "1.2.0-rc1", (3, 3), "0.9.9", None, True),
+        ("1.0.0", False, "1.2.0", (5, 5), "0.9.9", None, True),
+        ("1.0.0", False, "1.2.0-rc1", (5, 5), "0.9.9", None, False),
+        ("1.0.0", True, "1.2.0-rc1", (5, 5), "0.9.9", None, True),
+        ("1.0.0-rc1", False, "1.2.0-rc1", (5, 5), "0.9.9", None, True),
         ("1.0.0", True, "1.2.0", (None, None), "0.9.9", None, False),
-        ("1.0.0", True, "1.2.0", (5, 5), "0.9.9", None, False),
-        ("1.0.0", False, "1.1.0", (3, 3), "1.2.0", 772, False),
-        ("1.0.0", False, "1.2.0", (3, 3), "1.2.0", 773, False),
-        ("1.0.0", False, "1.2.0", (3, 3), "1.2.0", 772, True),
-        ("1.0.0", False, "1.3.0", (3, 3), "1.2.0", None, True),
-        ("1.0.0", False, "0.9.8", (3, 3), "0.9.9", 773, False),
-        ("1.0.0-rc1", False, "0.9.8", (3, 3), "0.9.9-rc3", None, False),
-        ("1.0.0-rc1", False, "0.9.9-rc3", (3, 3), "0.9.9-rc3", 772, True),
-        ("1.0.0-rc1", False, "0.9.9-rc3", (3, 3), "0.9.9-rc3", 773, False),
-        ("1.0.0", False, "1.2.0", (3, 3), None, None, False),
+        ("1.0.0", True, "1.2.0", (6, 6), "0.9.9", None, False),
+        ("1.0.0", False, "1.1.0", (5, 5), "1.2.0", 772, False),
+        ("1.0.0", False, "1.2.0", (5, 5), "1.2.0", 773, False),
+        ("1.0.0", False, "1.2.0", (5, 5), "1.2.0", 772, True),
+        ("1.0.0", False, "1.3.0", (5, 5), "1.2.0", None, True),
+        ("1.0.0", False, "0.9.8", (5, 5), "0.9.9", 773, False),
+        ("1.0.0-rc1", False, "0.9.8", (5, 5), "0.9.9-rc3", None, False),
+        ("1.0.0-rc1", False, "0.9.9-rc3", (5, 5), "0.9.9-rc3", 772, True),
+        ("1.0.0-rc1", False, "0.9.9-rc3", (5, 5), "0.9.9-rc3", 773, False),
+        ("1.0.0", False, "1.2.0", (5, 5), None, None, False),
     ],
     ids=[
         "stable",
@@ -1813,7 +1813,7 @@ async def test_move_rechecks_changed_admission_before_each_apk_mutation(
     hass.config_entries.async_update_entry(
         entry, options={"prerelease_panel_builds": True}
     )
-    await _publish_move_candidate(hass, monkeypatch, "release", "1.2.0-rc1", (3, 3))
+    await _publish_move_candidate(hass, monkeypatch, "release", "1.2.0-rc1", (5, 5))
     events = []
 
     def observe(step):
@@ -1900,7 +1900,7 @@ async def test_move_revocation_during_final_adb_verification_cleans_without_inst
         entry, options={CONF_PRERELEASE_PANEL_BUILDS: True}
     )
     artifact = await _publish_move_candidate(
-        hass, monkeypatch, "release", "0.9.9-rc3", (3, 3)
+        hass, monkeypatch, "release", "0.9.9-rc3", (5, 5)
     )
     staged = install_adb.StagedApk(
         JOB_ID, REMOTE_PATH, artifact.descriptor.apk_size, artifact.sha256
@@ -2020,7 +2020,7 @@ async def test_an_accepted_move_finishes_after_current_admission_changes(
         entry, options={"prerelease_panel_builds": True}
     )
     panel.accepted_artifact = await _publish_move_candidate(
-        hass, monkeypatch, source, version, (3, 3)
+        hass, monkeypatch, source, version, (5, 5)
     )
     install, step = panel.install, panel.step
 
@@ -2069,7 +2069,7 @@ async def test_a_restart_before_launch_recovers_the_recorded_build(
         entry, options={"prerelease_panel_builds": True}
     )
     panel.accepted_artifact = await _publish_move_candidate(
-        hass, monkeypatch, "release", "1.2.0-rc1", (3, 3)
+        hass, monkeypatch, "release", "1.2.0-rc1", (5, 5)
     )
     launch = panel.launch
 
@@ -2091,7 +2091,7 @@ async def test_a_restart_before_launch_recovers_the_recorded_build(
         await _empty_move_catalogue(hass, monkeypatch)
     else:
         await _publish_move_candidate(
-            hass, monkeypatch, "release", "1.3.0", (3, 3), code=773
+            hass, monkeypatch, "release", "1.3.0", (5, 5), code=773
         )
     panel.launch = launch
     panel.steps.clear()
@@ -2119,7 +2119,7 @@ async def test_a_legacy_present_retry_keeps_the_accepted_install(
         entry, options={"prerelease_panel_builds": True}
     )
     panel.accepted_artifact = await _publish_move_candidate(
-        hass, monkeypatch, "release", "1.2.0-rc1", (3, 3)
+        hass, monkeypatch, "release", "1.2.0-rc1", (5, 5)
     )
     step = panel.step
 
@@ -2226,7 +2226,7 @@ async def test_an_unfinished_receipt_without_exact_build_identity_stays_untouche
     _attach(entry, panel)
     monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "1.0.0")
     panel.accepted_artifact = await _publish_move_candidate(
-        hass, monkeypatch, "release", "1.2.0", (3, 3)
+        hass, monkeypatch, "release", "1.2.0", (5, 5)
     )
     step = panel.step
 
@@ -2278,7 +2278,7 @@ async def test_a_receipt_does_not_admit_a_fresh_successor_install(
         entry, options={"prerelease_panel_builds": True}
     )
     panel.accepted_artifact = await _publish_move_candidate(
-        hass, monkeypatch, "release", "1.2.0-rc1", (3, 3)
+        hass, monkeypatch, "release", "1.2.0-rc1", (5, 5)
     )
     step = panel.step
 

@@ -11,7 +11,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.update_coordinator import (
@@ -41,7 +40,6 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     MAX_STATUS_RESPONSE_BYTES,
-    update_unique_id,
 )
 from .feed_coordinator import async_get_feed_coordinator
 from .identity import accept_health, is_installation
@@ -165,17 +163,6 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             self.hass, signal_session_changed(self._entry_id), _changed
         )
 
-    def _shows_panel_update(self) -> bool:
-        """Return whether this entry's update entity is registered and enabled."""
-        if self._entry_id is None:
-            return False
-        registry = er.async_get(self.hass)
-        entity_id = registry.async_get_entity_id(
-            "update", DOMAIN, update_unique_id(self._entry_id)
-        )
-        entry = registry.async_get(entity_id) if entity_id else None
-        return entry is not None and entry.disabled_by is None
-
     async def _async_update_data(self) -> PanelSnapshot:
         """Read the snapshot from the session that manages, else over HTTP."""
         session = self._session()
@@ -201,12 +188,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         """Read health and status from the panel's own session."""
         entry = self._entry()
         try:
-            result = await async_manage(
-                self.hass,
-                session,
-                MANAGE_SNAPSHOT,
-                update_owner=self._shows_panel_update(),
-            )
+            result = await async_manage(self.hass, session, MANAGE_SNAPSHOT)
             health_line, status_body = result["health"], result["status"]
             # The bounds HTTP applies before parsing; the health parser checks its own.
             if (
@@ -321,9 +303,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                     sessions.set_restart_notice(self._entry_id, *health.restart)
 
         try:
-            status = await self.client.async_get_status(
-                update_owner=self._shows_panel_update()
-            )
+            status = await self.client.async_get_status()
         except CannotConnectError:
             return PanelSnapshot(health=health, status=None, status_error="unavailable")
         except InvalidResponseError:

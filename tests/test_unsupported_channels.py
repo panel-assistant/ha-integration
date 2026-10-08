@@ -1,8 +1,7 @@
 """Channels a panel states it cannot serve: their native entities go.
 
 A hello may list channels as ``unsupported``. That explicit statement removes
-the channel's native entity and drops it from the panel's supported channels;
-a channel a hello merely leaves out keeps both.
+the channel's native entity; a channel a hello merely leaves out keeps it.
 """
 
 from dataclasses import replace
@@ -17,9 +16,8 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.panel_assistant.const import DOMAIN, update_unique_id
 from custom_components.panel_assistant.contract import catalogue_entry_for_channel
 
-from .test_cutover import NATIVE, _mqtt, _record, _reload
 from .test_native import _hello, _observations, _report, _setup
-from .test_supported_channels import _panel_descriptors, _producer_hello, _supported
+from .test_supported_channels import _panel_descriptors, _producer_hello
 from .test_transport import DID, WsClientFactory, _send
 
 # What the panel describes before it learns which hardware it lacks.
@@ -76,15 +74,14 @@ async def described(
     hass_read_only_access_token: str,
 ) -> MockConfigEntry:
     """A native entry whose panel has described FIRST and rendered it."""
-    entry = await _setup(hass, hass_read_only_user.id, native=True, described=None)
+    entry = await _setup(hass, hass_read_only_user.id)
     await _say_hello(
         hass, hass_ws_client, hass_read_only_access_token, _hello_with(FIRST)
     )
-    assert _supported(entry) == sorted(FIRST)
     return entry
 
 
-async def test_an_unsupported_channel_loses_its_entity_and_its_support(
+async def test_an_unsupported_channel_loses_its_entity(
     hass: HomeAssistant,
     described: MockConfigEntry,
     hass_ws_client: WsClientFactory,
@@ -121,12 +118,6 @@ async def test_an_unsupported_channel_loses_its_entity_and_its_support(
         assert _entity_id(hass, platform, suffix) is None, suffix
     for entity_id in (temperature, relay2):
         assert hass.states.get(entity_id) is None
-    assert _supported(described) == [
-        "humidity",
-        "illuminance",
-        "relay1",
-        "update_companion",
-    ]
     # The omitted channel keeps its entity, unavailable.
     relay1 = _entity_id(hass, "switch", "relay1")
     assert relay1 is not None
@@ -158,7 +149,6 @@ async def test_an_unsupported_companion_update_loses_its_native_entity(
 
     assert _entity_id(hass, "update", "ha_companion_update") is None
     assert hass.states.get(companion) is None
-    assert "update_companion" not in _supported(described)
 
 
 async def test_current_android_retires_old_auto_update_controls_on_upgrade(
@@ -176,7 +166,7 @@ async def test_current_android_retires_old_auto_update_controls_on_upgrade(
         "webview_auto_update",
     }
     retained = {"relay1", "update_paneld", "update_companion"}
-    entry = await _setup(hass, hass_read_only_user.id, native=True, described=None)
+    entry = await _setup(hass, hass_read_only_user.id)
     old_descriptors = _panel_descriptors(*sorted(retired | retained))
     assert {
         descriptor["channel"] for descriptor in old_descriptors
@@ -225,8 +215,6 @@ async def test_current_android_retires_old_auto_update_controls_on_upgrade(
         entity_id = old_entities[channel]
         assert registry.async_get(entity_id) is None, channel
         assert hass.states.get(entity_id) is None, channel
-    assert retired.isdisjoint(_supported(entry))
-    assert retained <= set(_supported(entry))
     assert {
         item.entity_id
         for item in er.async_entries_for_config_entry(registry, entry.entry_id)
@@ -266,7 +254,6 @@ async def test_unsupported_without_an_entity_or_catalogue_entry_changes_nothing(
     # Only the one channel with an entity went.
     assert before - after == {f"{DID}_humidity"}
     assert after <= before
-    assert _supported(described) == sorted(set(FIRST) - {"humidity"})
 
 
 async def test_a_channel_both_described_and_unsupported_is_kept(
@@ -286,10 +273,7 @@ async def test_a_channel_both_described_and_unsupported_is_kept(
     assert temperature is not None
     assert hass.states.get(temperature).state != STATE_UNAVAILABLE
     assert _entity_id(hass, "switch", "relay1") is not None
-    assert "relay1" in _supported(described)
     assert _entity_id(hass, "sensor", "humidity") is None
-    assert "temperature" in _supported(described)
-    assert "humidity" not in _supported(described)
 
 
 async def test_a_removed_channel_described_again_gets_its_entity_back(
@@ -317,7 +301,6 @@ async def test_a_removed_channel_described_again_gets_its_entity_back(
     temperature = _entity_id(hass, "sensor", "temperature")
     assert temperature is not None
     assert hass.states.get(temperature).state != STATE_UNAVAILABLE
-    assert "temperature" in _supported(described)
 
 
 async def test_only_this_identitys_native_entity_is_removed(
@@ -380,48 +363,6 @@ async def test_only_this_identitys_native_entity_is_removed(
     assert _entity_id(hass, "sensor", "humidity") is not None
     assert registry.async_get(lookalike.entity_id) == lookalike
     assert registry.async_get(foreign.entity_id) == foreign
-
-
-async def test_a_moved_mqtt_entity_goes_when_its_channel_is_unsupported(
-    hass: HomeAssistant,
-    hass_read_only_user: Any,
-    hass_ws_client: WsClientFactory,
-    hass_read_only_access_token: str,
-) -> None:
-    """A cut-over panel's moved entity is its native entity, so it goes too."""
-    mqtt = _mqtt(hass, [("switch", "relay1", {}), ("switch", "relay2", {})])
-    registry = er.async_get(hass)
-    relay1 = registry.async_get(mqtt["entity_ids"]["relay1"])
-    relay2 = registry.async_get(mqtt["entity_ids"]["relay2"])
-    assert relay1 is not None
-    assert relay2 is not None
-    entry = await _setup(
-        hass,
-        hass_read_only_user.id,
-        native=True,
-        options=NATIVE,
-        described={"relay1", "relay2"},
-    )
-    moved = registry.entities.get_entry(relay2.id)
-    assert moved is not None
-    assert (moved.platform, moved.unique_id) == (DOMAIN, f"{DID}_relay2")
-
-    await _say_hello(
-        hass,
-        hass_ws_client,
-        hass_read_only_access_token,
-        _hello_with(("relay1",), ["relay2"]),
-    )
-
-    assert registry.entities.get_entry(relay2.id) is None
-    kept = registry.entities.get_entry(relay1.id)
-    assert kept is not None
-    assert kept.entity_id == relay1.entity_id
-    assert _supported(entry) == ["relay1"]
-    # The next load carries on from the record without the removed entity.
-    await _reload(hass, entry)
-    assert _record(entry)["state"] == "complete"
-    assert registry.entities.get_entry(relay1.id) is not None
 
 
 @pytest.mark.parametrize(

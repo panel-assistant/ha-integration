@@ -79,7 +79,7 @@ async def test_two_clones_create_separate_entries_and_sessions(
     for entry in entries:
         client = await hass_ws_client(hass, hass_read_only_access_token)
         response = await _send(
-            client, _hello(did=entry.unique_id, protocol={"min": 3, "max": 3})
+            client, _hello(did=entry.unique_id, protocol={"min": 5, "max": 5})
         )
         assert response["success"], response
 
@@ -195,7 +195,6 @@ async def test_repair_rechecks_conflicts_and_the_shown_panel(
         "previous_legacy",
     ],
 )
-@pytest.mark.usefixtures("mqtt_era_panel")
 async def test_automatic_upgrade_requires_surviving_exclusive_installation_proof(
     hass, hass_ws_client, hass_read_only_user, hass_read_only_access_token, proof
 ):
@@ -262,7 +261,6 @@ async def test_automatic_upgrade_requires_surviving_exclusive_installation_proof
             assert not accept_health(hass, other, _health(OTHER_DID))
     from dataclasses import replace
 
-    # A panel from before the MQTT withdrawal, so the poll moves it nowhere.
     health = replace(_health(new_did), version="0.9.7")
     with patch.object(hass.config_entries, "async_reload", AsyncMock()):
         await _poll(hass, entry, {STORED: health})
@@ -375,83 +373,6 @@ async def test_interrupted_confirmation_retries_without_duplicate_entities(
     assert "identity_pending" not in entry.data
 
 
-async def test_legacy_clone_cannot_take_another_panels_session(
-    hass, hass_ws_client, hass_read_only_user, hass_read_only_access_token
-):
-    """A clone's legacy did and shared account cannot redirect panel controls."""
-    from custom_components.panel_assistant.transport import async_get_sessions
-
-    from .test_transport import _hello
-
-    entry = await _load(hass, hass_read_only_user.id, address="192.0.2.10")
-    hass.config_entries.async_update_entry(
-        entry, data={**entry.data, "installation_identity": False}
-    )
-    client = await hass_ws_client(hass, hass_read_only_access_token)
-    # Both endpoints still report the shared legacy identity: this is a clone,
-    # not the original panel moving away from a dead address.
-    with patch(
-        "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
-        AsyncMock(return_value=entry.runtime_data.coordinator.data.health),
-    ):
-        response = await _send(client, _hello(protocol={"min": 1, "max": 1}))
-    assert response["success"] is False
-    assert response["error"]["code"] == "unknown_panel"
-    assert async_get_sessions(hass).get(entry.entry_id) is None
-    assert entry.data[CONF_ADDRESS] == "192.0.2.10"
-
-
-async def test_confirmation_closes_old_session_before_rekey(
-    hass, hass_ws_client, hass_read_only_user, hass_read_only_access_token
-):
-    from custom_components.panel_assistant.repairs import async_create_fix_flow
-
-    from .test_transport import _hello, _receive
-
-    entry = await _load(hass, hass_read_only_user.id, address="127.0.0.1")
-    hass.config_entries.async_update_entry(
-        entry, data={**entry.data, "installation_identity": False}
-    )
-    client = await hass_ws_client(hass, hass_read_only_access_token)
-    response = await _send(client, _hello(protocol={"min": 1, "max": 1}))
-    assert response["success"]
-    token = response["result"]["session"]
-    flow = await async_create_fix_flow(
-        hass,
-        "panel_identity_confirmation_test",
-        {
-            "entry_id": entry.entry_id,
-            "did": OTHER_DID,
-            "legacy_did": DID,
-            "address": "127.0.0.1",
-        },
-    )
-    flow.hass = hass
-    with (
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
-            AsyncMock(return_value=_health(OTHER_DID)),
-        ),
-        patch.object(hass.config_entries, "async_reload", AsyncMock()),
-    ):
-        assert (await flow.async_step_confirm_identity({}))[
-            "type"
-        ] is FlowResultType.CREATE_ENTRY
-        await hass.async_block_till_done()
-    closed = await _receive(client)
-    assert closed["event"]["kind"] == "session_closed"
-    late = await _send(
-        client,
-        {
-            "type": "panel_assistant/report_state",
-            "session": token,
-            "sync": "delta",
-            "observations": [],
-        },
-    )
-    assert late["error"]["code"] == "session_unknown"
-
-
 async def test_restart_finishes_registry_save_that_lagged_identity_commit(
     hass, hass_read_only_user
 ):
@@ -515,60 +436,6 @@ def test_malformed_identity_hints_do_not_establish_authority(extra):
         )
 
 
-@pytest.mark.parametrize(
-    "peer,changed,accepted",
-    [
-        ("127.0.0.1", False, True),
-        ("::ffff:127.0.0.1", False, True),
-        ("192.0.2.10", False, False),
-        ("127.0.0.1", True, False),
-    ],
-)
-async def test_legacy_hostname_uses_only_the_verified_saved_http_peer(
-    hass,
-    hass_ws_client,
-    hass_read_only_user,
-    hass_read_only_access_token,
-    peer,
-    changed,
-    accepted,
-):
-    from .test_transport import _hello
-
-    entry = await _load(hass, hass_read_only_user.id)
-    hass.config_entries.async_update_entry(
-        entry, data={**entry.data, "installation_identity": False}
-    )
-    entry.runtime_data.client.health_peer = (
-        str(entry.runtime_data.client.health_url),
-        peer,
-    )
-    if changed:
-        hass.config_entries.async_update_entry(
-            entry, data={**entry.data, CONF_ADDRESS: "changed.local"}
-        )
-    # A different peer cannot move an endpoint that still answers this DID.
-    # Recovery now performs fresh health I/O instead of refusing every new peer.
-    with (
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
-            AsyncMock(
-                return_value=parse_health_response(
-                    f"ha-paneld 0.9.8-rc2 panel=alpha build=1000 cfg=1a2b3c4d did={DID}"
-                )
-            ),
-        ),
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
-            AsyncMock(return_value=STATUS),
-        ),
-    ):
-        client = await hass_ws_client(hass, hass_read_only_access_token)
-        response = await _send(client, _hello(protocol={"min": 1, "max": 1}))
-        assert response["success"] is accepted
-        await hass.async_block_till_done()
-
-
 async def test_discovery_mismatch_immediately_withdraws_existing_authority(
     hass, hass_ws_client, hass_read_only_user, hass_read_only_access_token
 ):
@@ -596,93 +463,6 @@ async def test_discovery_mismatch_immediately_withdraws_existing_authority(
     assert not entry.runtime_data.coordinator.last_update_success
     assert async_get_sessions(hass).get(entry.entry_id) is None
     assert (await _receive(client))["event"]["kind"] == "session_closed"
-
-
-async def test_restart_with_new_registry_and_old_entry_cannot_admit_old_session(
-    hass, hass_ws_client, hass_read_only_user, hass_read_only_access_token
-):
-    from custom_components.panel_assistant.repairs import async_create_fix_flow
-
-    from .test_transport import _hello
-
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        title="alpha",
-        unique_id=DID,
-        data={CONF_ADDRESS: "127.0.0.1", "transport_user_id": hass_read_only_user.id},
-    )
-    entry.add_to_hass(hass)
-    registry = er.async_get(hass)
-    moved = registry.async_get_or_create(
-        "switch", DOMAIN, f"{OTHER_DID}_relay1", config_entry=entry
-    )
-    old_health = parse_health_response(
-        f"ha-paneld 0.9.8-rc2 panel=alpha build=1000 cfg=1a2b3c4d did={DID}"
-    )
-    with (
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
-            AsyncMock(return_value=old_health),
-        ),
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
-            AsyncMock(return_value=STATUS),
-        ),
-        patch(
-            "custom_components.panel_assistant.async_resume_loaded_install_jobs",
-            AsyncMock(return_value=()),
-        ),
-    ):
-        assert not await hass.config_entries.async_setup(entry.entry_id)
-    client = await hass_ws_client(hass, hass_read_only_access_token)
-    response = await _send(client, _hello(protocol={"min": 1, "max": 1}))
-    assert response["success"] is False
-    assert response["error"]["code"] == "unknown_panel"
-    wrong = await async_create_fix_flow(
-        hass,
-        "panel_identity_confirmation_wrong",
-        {
-            "entry_id": entry.entry_id,
-            "did": "f" * 64,
-            "legacy_did": DID,
-            "address": "127.0.0.1",
-        },
-    )
-    wrong.hass = hass
-    with patch(
-        "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
-        AsyncMock(return_value=_health("f" * 64)),
-    ):
-        assert (await wrong.async_step_confirm_identity({}))[
-            "type"
-        ] is FlowResultType.ABORT
-    assert entry.unique_id == DID
-    assert registry.async_get(moved.entity_id).unique_id == f"{OTHER_DID}_relay1"
-    flow = await async_create_fix_flow(
-        hass,
-        "panel_identity_confirmation_test",
-        {
-            "entry_id": entry.entry_id,
-            "did": OTHER_DID,
-            "legacy_did": DID,
-            "address": "127.0.0.1",
-        },
-    )
-    flow.hass = hass
-    with (
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
-            AsyncMock(return_value=_health(OTHER_DID)),
-        ),
-        patch.object(hass.config_entries, "async_reload", AsyncMock()),
-    ):
-        assert (await flow.async_step_confirm_identity({}))[
-            "type"
-        ] is FlowResultType.CREATE_ENTRY
-        await hass.async_block_till_done()
-    assert registry.async_get(moved.entity_id).id == moved.id
-    assert len(er.async_entries_for_config_entry(registry, entry.entry_id)) == 1
-    assert entry.unique_id == OTHER_DID
 
 
 async def test_old_address_entry_keeps_identity_from_its_owned_entities(

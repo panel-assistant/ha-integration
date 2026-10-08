@@ -337,9 +337,7 @@ async def test_legacy_camera_switch_stays_controllable_until_camera_replaces_it(
     from .test_native import _setup
     from .test_transport_commands import Panel, _call
 
-    entry = await _setup(
-        hass, hass_read_only_user.id, native=True, options={"authority": "native"}
-    )
+    entry = await _setup(hass, hass_read_only_user.id)
     registry = er.async_get(hass)
     legacy = registry.async_get_or_create(
         "switch", DOMAIN, f"{DID}_camera_enabled", config_entry=entry

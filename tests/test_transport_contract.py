@@ -43,7 +43,7 @@ VOICE_SCHEMAS = {
 }
 
 _HA_VECTOR_REVISION = "8c70df5c299c840308c664f9ac2325eddcd8e88a"
-_ANDROID_PRODUCER_REVISION = "37da9c62def198ce5a46864ade317fb2afdc676f"
+_ANDROID_PRODUCER_REVISION = "b76fdaf723ff89397b98a2bda57ac78138296acb"
 
 
 def test_shared_vectors_name_the_ha_source_revision_vendored_by_android() -> None:
@@ -118,9 +118,6 @@ def _old_panel(channel: str, platform: str, **facts: Any) -> dict[str, Any]:
 
 # Catalogue channels the current app no longer describes; older panels still do.
 OLD_PANEL_DESCRIPTORS = [
-    _old_panel("auto_sleep_activity", "binary_sensor", enabled_default=False),
-    _old_panel("button", "event", options=["keycode_home", "keycode_back"]),
-    _old_panel("camera_snapshot", "image"),
     *(
         _old_panel(
             channel,
@@ -136,33 +133,12 @@ OLD_PANEL_DESCRIPTORS = [
         for channel in ("self_update", "companion_auto_update", "webview_auto_update")
     ),
 ]
-# Channels the next Android release describes, before its producer fixture is
-# vendored here.
-NEXT_PANEL_DESCRIPTORS = [
-    _old_panel(
-        "zigbee_gateway_health",
-        "sensor",
-        entity_category="diagnostic",
-        options=[
-            "off",
-            "starting",
-            "healthy",
-            "degraded_unjoined",
-            "degraded_high_cpu",
-            "runaway",
-            "contained",
-            "containment_failed",
-            "unknown",
-        ],
-    ),
-]
 # Every channel descriptor a panel sends, validated as the hello handler does.
 CHANNEL_DESCRIPTORS: list[dict[str, Any]] = [
     transport.DESCRIPTOR_SCHEMA(descriptor)
     for descriptor in (
         *ANDROID_PRODUCER["channelDescriptors"],
         *OLD_PANEL_DESCRIPTORS,
-        *NEXT_PANEL_DESCRIPTORS,
     )
 ]
 _BY_CHANNEL = {descriptor["channel"]: descriptor for descriptor in CHANNEL_DESCRIPTORS}
@@ -187,14 +163,9 @@ def _descriptor(entry: dict[str, Any], index: int = 1) -> dict[str, Any]:
     return descriptor
 
 
-def test_authority_grants_name_only_known_capabilities() -> None:
-    """Every authority grants a subset of the capabilities a panel may offer."""
-    assert (transport.PROTOCOL_MIN, transport.PROTOCOL_MAX) == (1, 4)
-    assert set(transport.AUTHORITY_GRANTS) == set(transport.AUTHORITIES)
-    assert (
-        frozenset().union(*transport.AUTHORITY_GRANTS.values())
-        <= transport.KNOWN_CAPABILITIES
-    )
+def test_the_protocol_is_5_alone_and_outcomes_with_a_code_are_outcomes() -> None:
+    """Protocol 5 is the first without MQTT, and the only one served."""
+    assert (transport.PROTOCOL_MIN, transport.PROTOCOL_MAX) == (5, 5)
     assert set(transport.OUTCOMES) > transport.OUTCOMES_WITH_CODE
 
 
@@ -244,15 +215,11 @@ def test_the_catalogue_preserves_old_panel_channels_absent_from_current_android(
         if entry["translation_key"] not in described
     }
     assert missing == {
-        "auto_sleep_activity",
-        "button",
-        "camera_snapshot",
         "self_update",
         "update_channel",
         "companion_auto_update",
         "companion_update_channel",
         "webview_auto_update",
-        "zigbee_gateway_health",
     }
 
 
@@ -362,11 +329,7 @@ def _embed_key(value: Any) -> str:
 def _hello_result_conforms(
     result: dict[str, Any], offered_capabilities: list[str]
 ) -> None:
-    """Check a hello result as a panel reads it, raising on what it refuses.
-
-    A panel granted ``mqtt_withdraw`` requires a valid ``mqtt_discovery``; one
-    not granted it, which is what an older integration answers, does without.
-    """
+    """Check a hello result as a panel reads it, raising on what it refuses."""
     integration = vol.Schema({vol.Required("version"): str}, extra=vol.ALLOW_EXTRA)
     channels = vol.Schema(
         {
@@ -395,9 +358,7 @@ def _hello_result_conforms(
                 int, vol.Range(transport.PROTOCOL_MIN, transport.PROTOCOL_MAX)
             ),
             vol.Required("session"): transport._session_token,
-            vol.Required("authority"): vol.In(transport.AUTHORITIES),
             vol.Required("capabilities"): [vol.In(transport.KNOWN_CAPABILITIES)],
-            vol.Optional("mqtt_discovery"): vol.In(transport.MQTT_DISCOVERIES),
             vol.Optional("embed"): object,
             vol.Optional("voice_stream_session"): object,
             vol.Required("integration"): integration,
@@ -409,11 +370,6 @@ def _hello_result_conforms(
         raise vol.Invalid(
             "the integration granted a capability the panel did not offer"
         )
-    if (
-        transport.CAPABILITY_MQTT_WITHDRAW in result["capabilities"]
-        and "mqtt_discovery" not in result
-    ):
-        raise vol.Invalid("a granted mqtt_withdraw needs mqtt_discovery")
     if transport.CAPABILITY_EMBED_PROOF in result["capabilities"]:
         if "embed" not in result:
             raise vol.Invalid("an embed grant needs its key")
@@ -507,17 +463,6 @@ def test_hello_result_conformance_vectors(vector: dict[str, Any]) -> None:
     else:
         with pytest.raises(vol.Invalid):
             _hello_result_conforms(vector["result"], vector["offeredCapabilities"])
-
-
-def test_the_hello_result_vectors_cover_the_negotiated_withdrawal() -> None:
-    """A granted withdrawal with its answer is among the vectors."""
-    assert any(
-        vector["valid"]
-        and transport.CAPABILITY_MQTT_WITHDRAW in vector["result"]["capabilities"]
-        and transport.CAPABILITY_MQTT_WITHDRAW in vector["request"]["capabilities"]
-        and vector["result"]["mqtt_discovery"] == transport.MQTT_DISCOVERY_WITHDRAW
-        for vector in VECTORS["results"]
-    )
 
 
 @pytest.mark.parametrize(
@@ -653,25 +598,21 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
     """A translated error or Repairs issue can never ship without its words."""
     keys = _raised_translation_keys()
 
-    assert "authority_mismatch" in keys["exceptions"]
+    assert "mqtt_panel_needs_090" in keys["exceptions"]
     assert "health_update_failed" in keys["exceptions"]
     assert "update_busy" in keys["exceptions"]
     assert keys["issues"] == {
         "adb_update_authorization",
-        "cutover_incomplete",
-        "cutover_blocked_by_customised_entities",
-        "native_controls_unavailable",
         "no_update_route",
         "merged_panel_identity",
-        "merged_mqtt_device",
         "move_to_new_app",
-        "panel_update_required",
+        "panel_app_too_old",
+        "mqtt_panel_needs_090",
         "panel_permissions",
         "panel_migration_incomplete",
         "panel_identity_confirmation",
         "panel_identity_mismatch",
         "restart_required",
-        "update_before_native_move",
     }
     # Which binding issue is raised depends on whether the panel already has an
     # account, so that call passes a variable and the scan above sees no literal.
@@ -699,7 +640,6 @@ def test_command_error_keys_are_the_integrations_own() -> None:
     assert {
         transport.ERR_PANEL_UNAVAILABLE,
         transport.ERR_APPROVAL_PENDING,
-        transport.ERR_AUTHORITY_MISMATCH,
         transport.ERR_NOT_COMMANDABLE,
     } <= transport.COMMAND_ERRORS
 

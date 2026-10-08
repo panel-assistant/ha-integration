@@ -62,8 +62,8 @@ def _build(
         published="2026-09-11T10:00:00Z",
         package_id=package_id,
         launch_component=LAUNCH_COMPONENTS[package_id][0],
-        protocol_min=3,
-        protocol_max=3,
+        protocol_min=5,
+        protocol_max=5,
     )
 
 
@@ -124,8 +124,8 @@ async def test_both_paths_list_newest_compatible_versions_first(
                         artifact=SimpleNamespace(
                             tag=choice["tag"],
                             version=choice["tag"][1:],
-                            protocol_min=3,
-                            protocol_max=3,
+                            protocol_min=5,
+                            protocol_max=5,
                             descriptor=SimpleNamespace(version_code=770),
                         )
                     ),
@@ -186,8 +186,8 @@ async def test_without_a_feed_the_list_is_github_only(hass: HomeAssistant) -> No
                         artifact=SimpleNamespace(
                             tag=choice["tag"],
                             version=choice["tag"][1:],
-                            protocol_min=3,
-                            protocol_max=3,
+                            protocol_min=5,
+                            protocol_max=5,
                             descriptor=SimpleNamespace(version_code=770),
                         )
                     ),

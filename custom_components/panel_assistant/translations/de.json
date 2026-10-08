@@ -504,6 +504,9 @@
     }
   },
   "exceptions": {
+    "mqtt_panel_needs_090": {
+      "message": "{panel} wurde nie von MQTT umgezogen: Installiere zuerst Panel Assistant 0.9.0, wie die Reparatur erklärt"
+    },
     "move_with_repair": {"message": "Ziehe dieses Panel mit seiner Reparatur in den Einstellungen in die neue App um."},
     "health_update_failed": {
       "message": "Der Funktionsstatus des Panels konnte nicht gelesen werden"
@@ -529,9 +532,6 @@
     "upload_disabled": { "message": "Das Panel nimmt keine App-Uploads an; aktiviere den APK-Upload in seinen Einstellungen" },
     "adb_authorization_required": {
       "message": "Für {panel} fehlt die ADB-Autorisierung. Öffnen Sie Reparaturen in Home Assistant, um Updates zu autorisieren, und bestätigen Sie auf dem physischen Panel „Debugging zulassen“, wenn Sie dazu aufgefordert werden."
-    },
-    "authority_mismatch": {
-      "message": "Dieses Panel wird über MQTT gesteuert, daher kann Panel Assistant ihm keine Befehle senden"
     },
     "panel_unavailable": {
       "message": "Das Panel ist nicht mit Panel Assistant verbunden, daher wurde der Befehl nicht gesendet"
@@ -589,6 +589,14 @@
     }
   },
   "issues": {
+    "panel_app_too_old": {
+      "title": "{panel} benötigt App {required_version}",
+      "description": "{panel} nutzt die App {version}, die ein älteres Protokoll als Panel Assistant 1.0 spricht. Deshalb kann Home Assistant es weder sehen noch steuern, und seine Entitäten werden als nicht verfügbar angezeigt. Es geht nichts verloren: Das Panel arbeitet allein weiter und behält seine Einstellungen und seinen Verlauf. Installiere das Update, das Panel Assistant für dieses Panel anbietet, dann verbindet es sich wieder."
+    },
+    "mqtt_panel_needs_090": {
+      "title": "{panel} wurde nie von MQTT umgezogen",
+      "description": "Panel Assistant 1.0 kann {panel} nicht mehr von MQTT auf die eigene Verbindung umziehen, und eine Verbindung jetzt würde einen zweiten Satz Entitäten anlegen und den Verlauf teilen. Installiere zuerst Panel Assistant 0.9.0 (öffne in HACS Panel Assistant, wähle Redownload und dann Version 0.9.0), lass das Panel umziehen und installiere danach 1.0.0. Wenn du lieber neu anfangen möchtest, lösche das Gerät dieses Panels unter Einstellungen, Geräte & Dienste, MQTT, lade dann diesen Eintrag neu oder entferne ihn und füge das Panel erneut hinzu; dabei entstehen neue Entitäten und es bleibt kein Verlauf erhalten."
+    },
     "move_to_new_app": {
       "title": "{panel} in die neue App umziehen",
       "fix_flow": {
@@ -707,18 +715,6 @@
         }
       }
     },
-    "cutover_incomplete": {
-      "title": "Der Umzug der Entitäten von {panel} wurde nicht abgeschlossen",
-      "description": "Panel Assistant konnte den Umzug der Entitäten von {panel} zwischen MQTT und sich selbst nicht abschließen: Der Schritt {step} ist mit {error} fehlgeschlagen. Das Panel funktioniert weiter, und der Umzug wird fortgesetzt, sobald das Panel neu geladen wird oder Home Assistant neu startet. Schlägt er weiterhin fehl, nennt das Home Assistant-Protokoll die Ursache."
-    },
-    "cutover_blocked_by_customised_entities": {
-      "title": "Angepasste MQTT-Entitäten halten den MQTT-Rückzug von {panel} zurück",
-      "description": "Panel Assistant besitzt jetzt die Entitäten von {panel}, hat aber für diese MQTT-Entitäten keine Entsprechung, und sie tragen einen Namen, ein Symbol, einen Bereich, ein Label, einen Alias oder eine Einstellung zum Ausblenden oder Deaktivieren von dir: {entities}. Lösche sie oder entferne diese Einstellungen, dann zieht das Panel seine MQTT-Entitäten beim nächsten Verbinden zurück. Bis dahin kündigt es sie weiterhin alle an."
-    },
-    "native_controls_unavailable": {
-      "title": "Native Bedienelemente auf {panel} nicht verfügbar",
-      "description": "Panel Assistant hat diese MQTT-Bedienelemente deaktiviert, weil {panel} ihre nativen Aktionen nicht anbietet: {entities}. Konfiguration und Entitäts-IDs bleiben erhalten. Aktualisiere die Panel-App, prüfe, ob die Voraussetzungen der Aktionen verfügbar sind, und verbinde das Panel erneut. Ein Neustart erfordert auch über MQTT Root-Zugriff. Falls ein Bedienelement zuvor über MQTT funktionierte, wird es durch das vorübergehende Zurückstellen dieses Panels auf MQTT wiederhergestellt."
-    },
     "no_update_route": {
       "title": "{panel} kann keine App-Updates empfangen",
       "description": "Panel Assistant kann auf {panel} keine App-Updates installieren, daher bleibt die App auf der aktuellen Version. Alles andere am Panel funktioniert weiter, weshalb dies leicht zu übersehen ist. Meist folgt es auf eine Änderung am Panel selbst, etwa ein Firmware-Update oder ein Zurücksetzen. Wähle Mehr erfahren für die Schritte zu diesem Panel."
@@ -726,18 +722,6 @@
     "merged_panel_identity": {
       "title": "Zusammengeführte Panels trennen: {panels}",
       "description": "Die Panels {panels} melden dieselbe Geräteidentität. Home Assistant kann daher nicht sicher entscheiden, welchem Eintrag eine native Verbindung oder Entität gehört. Die native Verbindung wird abgelehnt und es werden keine Entitäten verschoben. Aktualisiere ha-paneld auf allen betroffenen Panels, damit jedes eine eigene Identität erhält. Lösche anschließend das zusammengeführte Gerät und lasse die Panels erneut registrieren."
-    },
-    "merged_mqtt_device": {
-      "title": "Zusammengeführtes MQTT-Gerät für {panel} trennen",
-      "description": "Das von {panel} verwendete MQTT-Gerät enthält auch die Panel-Kennungen {panel_ids}. Panel Assistant lässt die Entitäten jedes Panels unverändert, aber Home Assistant kann ein Gerät nach dem Zusammenführen seiner Kennungen nicht mehr aufteilen. Aktualisiere ha-paneld auf allen betroffenen Panels, lösche das zusammengeführte Gerät und lasse die Panels anschließend erneut registrieren."
-    },
-    "panel_update_required": {
-      "title": "ha-paneld auf {panel} aktualisieren",
-      "description": "Panel Assistant besitzt jetzt die Entitäten von {panel}, aber die Version von ha-paneld auf diesem Panel kündigt sie weiterhin über MQTT an, sodass MQTT sie ein zweites Mal anlegt. Panel Assistant deaktiviert diese Duplikate. Aktualisiere ha-paneld auf {panel} auf Version {required_version} oder neuer; Panel Assistant selbst braucht keine Aktualisierung. Sobald sich das aktualisierte Panel verbindet, werden die deaktivierten Duplikate gelöscht und dieses Problem verschwindet."
-    },
-    "update_before_native_move": {
-      "title": "ha-paneld auf {panel} aktualisieren, bevor es von MQTT wegbewegt wird",
-      "description": "Die MQTT-Unterstützung endet nach dieser Release-Reihe, daher muss {panel} auf die eigene Verbindung von Panel Assistant umgestellt werden. Die darauf laufende Version von ha-paneld, {version}, kann ihre Entitäten noch nicht übergeben. Aktualisiere ha-paneld auf {panel} auf Version {required_version} oder neuer; Panel Assistant stellt es dann automatisch um."
     },
     "panel_migration_incomplete": {
       "title": "Das Panel unter {address} hat den Wechsel zur neuen App noch nicht abgeschlossen",

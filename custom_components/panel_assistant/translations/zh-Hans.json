@@ -504,6 +504,9 @@
     }
   },
   "exceptions": {
+    "mqtt_panel_needs_090": {
+      "message": "{panel} 尚未从 MQTT 迁移：请先安装 Panel Assistant 0.9.0，如其修复所述"
+    },
     "move_with_repair": {"message": "请在“设置”中通过此面板的修复将其迁移到新应用。"},
     "health_update_failed": {
       "message": "无法读取面板健康状态"
@@ -529,9 +532,6 @@
     "upload_disabled": { "message": "面板不接受应用上传；请在其设置中开启 APK 上传" },
     "adb_authorization_required": {
       "message": "{panel} 缺少 ADB 授权。请打开 Home Assistant 的“修复”以授权更新，并在出现提示时到实体面板上批准“允许调试”。"
-    },
-    "authority_mismatch": {
-      "message": "此面板通过 MQTT 控制，因此 Panel Assistant 无法向其发送命令"
     },
     "panel_unavailable": {
       "message": "面板未连接到 Panel Assistant，因此未发送命令"
@@ -589,6 +589,14 @@
     }
   },
   "issues": {
+    "panel_app_too_old": {
+      "title": "{panel} 需要应用 {required_version}",
+      "description": "{panel} 运行的应用 {version} 使用的协议比 Panel Assistant 1.0 更旧，因此 Home Assistant 无法看到或控制它，其实体会显示为不可用。不会丢失任何内容：面板仍会独立工作，并保留其设置和历史记录。请安装 Panel Assistant 为此面板提供的更新，它就会重新连接。"
+    },
+    "mqtt_panel_needs_090": {
+      "title": "{panel} 尚未从 MQTT 迁移",
+      "description": "Panel Assistant 1.0 无法再将 {panel} 从 MQTT 迁移到它自己的连接，现在连接它会创建第二组实体并拆分其历史记录。请先安装 Panel Assistant 0.9.0（在 HACS 中打开 Panel Assistant，选择 Redownload，然后选择 0.9.0 版本），让它迁移面板，再安装 1.0.0。如果你想重新开始，请在“设置”、“设备与服务”、MQTT 中删除此面板的设备，然后重新加载此条目，或将其移除并重新添加面板；这会创建新实体，且不保留历史记录。"
+    },
     "move_to_new_app": {
       "title": "将 {panel} 迁移到新应用",
       "fix_flow": {
@@ -707,18 +715,6 @@
         }
       }
     },
-    "cutover_incomplete": {
-      "title": "{panel} 的实体迁移未完成",
-      "description": "Panel Assistant 无法完成 {panel} 的实体在 MQTT 与自身之间的迁移：{step} 步骤失败，错误为 {error}。面板仍可正常使用，迁移会在下次重新加载面板或重启 Home Assistant 时继续。如果一直失败，Home Assistant 日志会给出原因。"
-    },
-    "cutover_blocked_by_customised_entities": {
-      "title": "自定义的 MQTT 实体阻止了 {panel} 撤回 MQTT",
-      "description": "Panel Assistant 现已拥有 {panel} 的实体，但这些 MQTT 实体没有对应的 Panel Assistant 实体，并且带有你自己设置的名称、图标、区域、标签、别名或隐藏、禁用设置：{entities}。删除它们或清除这些设置后，面板会在下次连接时撤回其 MQTT 实体。在此之前，它会继续通告全部 MQTT 实体。"
-    },
-    "native_controls_unavailable": {
-      "title": "{panel} 上的原生控制不可用",
-      "description": "Panel Assistant 已停用这些 MQTT 控制，因为 {panel} 未提供对应的原生操作：{entities}。其配置和实体 ID 均已保留。请更新面板应用，检查操作所需条件，然后重新连接面板。通过 MQTT 重启同样需要 root 权限。如果某项控制以前可通过 MQTT 使用，暂时将此面板切回 MQTT 即可恢复该控制。"
-    },
     "no_update_route": {
       "title": "{panel} 无法接收应用更新",
       "description": "Panel Assistant 无法在 {panel} 上安装应用更新，因此应用将保持当前版本。面板的其他功能一切照常，所以很容易被忽略。这通常发生在面板本身被更改之后，例如固件更新或重置。选择“了解更多”查看此面板的操作步骤。"
@@ -726,18 +722,6 @@
     "merged_panel_identity": {
       "title": "分离已合并的面板：{panels}",
       "description": "面板 {panels} 报告了相同的设备身份，因此 Home Assistant 无法安全判断原生连接或实体属于哪个条目。原生连接会被拒绝，且不会迁移任何实体。请更新所有受影响面板上的 ha-paneld，使每个面板都有不同的身份，然后删除已合并的设备并让面板重新注册。"
-    },
-    "merged_mqtt_device": {
-      "title": "分离 {panel} 的已合并 MQTT 设备",
-      "description": "{panel} 使用的 MQTT 设备还包含面板标识符 {panel_ids}。Panel Assistant 会保持每个面板的实体不变，但 Home Assistant 无法在标识符合并后拆分设备。请更新所有受影响面板上的 ha-paneld，删除已合并的设备，然后让面板重新注册。"
-    },
-    "panel_update_required": {
-      "title": "更新 {panel} 上的 ha-paneld",
-      "description": "Panel Assistant 现在管理 {panel} 的实体，但该面板上的 ha-paneld 版本仍通过 MQTT 公布这些实体，因此 MQTT 会再次创建它们。Panel Assistant 会禁用这些重复实体。请将 {panel} 上的 ha-paneld 更新到 {required_version} 或更高版本；Panel Assistant 本身无需更新。更新后的面板连接后，已禁用的重复实体会被删除，此问题随之消失。"
-    },
-    "update_before_native_move": {
-      "title": "在让 {panel} 脱离 MQTT 之前更新 ha-paneld",
-      "description": "MQTT 支持将在此发布系列之后结束，因此 {panel} 需要迁移到 Panel Assistant 自己的连接。它运行的 ha-paneld 版本 {version} 还无法移交其实体。请将 {panel} 上的 ha-paneld 更新到 {required_version} 或更高版本；之后 Panel Assistant 会自动迁移它。"
     },
     "panel_migration_incomplete": {
       "title": "{address} 的面板尚未完成向新应用的迁移",

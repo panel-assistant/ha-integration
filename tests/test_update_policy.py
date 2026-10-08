@@ -31,8 +31,8 @@ def test_channel_defaults_to_running_pa_with_per_panel_opt_in(
         assert prereleases_allowed() is ("-" in pa_version)
         assert prereleases_allowed(entry) is (override or "-" in pa_version)
         assert policy_for(entry) == {
-            "protocolMin": 1,
-            "protocolMax": 4,
+            "protocolMin": 5,
+            "protocolMax": 5,
             "prerelease": override or "-" in pa_version,
         }
 
@@ -59,27 +59,31 @@ def test_channel_defaults_to_running_pa_with_per_panel_opt_in(
     ],
 )
 def test_build_channel_admission(version: str, allow: bool, expected: bool) -> None:
-    assert build_allowed(version, 3, 3, allow_prerelease=allow) is expected
+    assert build_allowed(version, 5, 5, allow_prerelease=allow) is expected
 
 
 @pytest.mark.parametrize(
     "low,high,expected",
     [
-        (1, 1, True),
-        (3, 3, True),
-        (2, 4, True),
-        (4, 4, True),
-        (5, 6, False),
+        (5, 5, True),
+        (1, 5, True),
+        (5, 6, True),
+        (4, 9, True),
+        (1, 1, False),
+        (3, 3, False),
+        (2, 4, False),
+        (4, 4, False),
+        (6, 6, False),
         (None, None, False),
         (1, None, False),
-        (None, 3, False),
-        (0, 3, False),
-        (-1, 3, False),
-        (3, 1, False),
-        (True, 3, False),
+        (None, 5, False),
+        (0, 5, False),
+        (-1, 5, False),
+        (5, 1, False),
+        (True, 5, False),
         (1, False, False),
-        (1.0, 3, False),
-        (1, "3", False),
+        (1.0, 5, False),
+        (1, "5", False),
         (1, 2**31, False),
         (2**31, 2**31, False),
     ],

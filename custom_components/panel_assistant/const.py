@@ -14,13 +14,14 @@ INTEGRATION_VERSION: str = json.loads(
 # The public version (manifest.json) only changes when something ships. This
 # build number tells builds apart in between: it counts the commits that have
 # changed this integration.
-INTEGRATION_BUILD = 487
+INTEGRATION_BUILD = 488
 
-# The native transport range this running integration can serve. Protocol 4 is
-# protocol 3 under a new number: app 0.9.10, whose classes moved package, asks
-# for 4 alone, so no Panel Assistant that cannot drive it accepts it.
-PROTOCOL_MIN = 1
-PROTOCOL_MAX = 4
+# The native transport range this running integration can serve. Protocol 5 is
+# the first without MQTT: an app that speaks only 4 or older is refused, told
+# that it needs app 1.0.0, the first release speaking 5, and offered it.
+PROTOCOL_MIN = 5
+PROTOCOL_MAX = 5
+REQUIRED_APP_VERSION = "1.0.0"
 
 # Every outward link goes through the site's own redirect rather than a page
 # path, so pages can move. The version and build travel with it, so a later
@@ -62,9 +63,6 @@ MAX_ZIGBEE_CPU_PERCENT = 1000
 
 HEALTH_PATH = "/api/v1/health"
 STATUS_PATH = "/api/v1/status"
-# Tells the panel this Home Assistant shows its ha-paneld update, so the panel
-# withholds its own MQTT update entity rather than duplicating it.
-UPDATE_OWNER_HEADER = "X-Panel-Assistant-Update-Owner"
 INSTALL_COMPONENT_PATH = "/api/v1/install/component"
 INSTALL_STATUS_PATH = "/api/v1/install/status"
 APK_STAGE_PATH = "/api/v1/install/apk"
@@ -83,20 +81,18 @@ CONFIG_PATH = "/api/v1/config"
 # administrator's Repairs confirmation records it; the entry's identity does not
 # change.
 CONF_TRANSPORT_USER_ID = "transport_user_id"
-# The entry option choosing who owns a panel's entities and commands. It takes
-# effect only while native entities are turned on.
+# The entry option that chose who owned a panel's entities while MQTT could.
+# Nothing reads it; the entry migration to minor version 2 drops it.
 CONF_AUTHORITY = "authority"
 # A stable integration may admit prerelease panel builds for this panel only.
 CONF_PRERELEASE_PANEL_BUILDS = "prerelease_panel_builds"
-# The entry data key holding the record of a panel's entity cutover: which MQTT
-# entities were moved to this integration, and how far the move got.
+# The entry data key holding the record Panel Assistant 0.9.0 and earlier wrote
+# when they moved a panel's entities off MQTT: which entities moved, and whether
+# the move completed. Only read now.
 CONF_CUTOVER = "cutover"
 # The entry data key holding the channels the entry's panel has described in a
 # hello, with the identity it described them under (see ``transport.py``).
 CONF_SUPPORTED_CHANNELS = "supported_channels"
-# The first ha-paneld release whose panels negotiate their MQTT withdrawal, and
-# so never announce MQTT entities that this integration already owns.
-PANEL_MQTT_WITHDRAW_VERSION = "0.9.8-rc1"
 
 
 def update_unique_id(entry_id: str) -> str:

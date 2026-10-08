@@ -125,8 +125,8 @@ def _build(code: int, package_id: str = LEGACY_PACKAGE_ID) -> FeedBuild:
         package_id=package_id,
         launch_component=LAUNCH_COMPONENTS[package_id][0],
         published="2026-09-11T10:00:00Z",
-        protocol_min=3,
-        protocol_max=3,
+        protocol_min=5,
+        protocol_max=5,
     )
 
 
@@ -1544,7 +1544,7 @@ async def test_feed_skips_unknown_and_incompatible_heads_before_download(
         "maintainer",
         (
             replace(_build(775), protocol_min=None, protocol_max=None),
-            replace(_build(774), protocol_min=5, protocol_max=5),
+            replace(_build(774), protocol_min=6, protocol_max=6),
             _build(772),
         ),
     )
@@ -1677,10 +1677,10 @@ async def test_feed_coordinator_verifies_the_highest_code_of_a_renumbered_line(
     ("candidate_version", "candidate_code", "minimum", "maximum", "pa_version"),
     [
         ("1.1.0", 773, None, None, "0.7.0-rc3"),
-        ("1.1.0", 773, 5, 5, "0.7.0-rc3"),
-        ("1.1.0-rc1", 773, 3, 3, "0.7.0"),
-        ("1.0.0", 770, 3, 3, "0.7.0-rc3"),
-        ("1.1.0", 770, 3, 3, "0.7.0-rc3"),
+        ("1.1.0", 773, 6, 6, "0.7.0-rc3"),
+        ("1.1.0-rc1", 773, 5, 5, "0.7.0"),
+        ("1.0.0", 770, 5, 5, "0.7.0-rc3"),
+        ("1.1.0", 770, 5, 5, "0.7.0-rc3"),
     ],
     ids=[
         "unknown",

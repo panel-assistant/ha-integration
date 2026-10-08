@@ -1,8 +1,8 @@
-"""Native entities: dormant by default, rendered from descriptors when turned on."""
+"""Native entities, rendered from the descriptors a panel sends."""
 
 import json
 import logging
-from collections.abc import AsyncGenerator, Collection, Iterator
+from collections.abc import AsyncGenerator, Iterator
 from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import replace
@@ -15,14 +15,12 @@ import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_ADDRESS, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.const import (
-    CONF_SUPPORTED_CHANNELS,
     CONF_TRANSPORT_USER_ID,
     DOMAIN,
 )
@@ -30,7 +28,6 @@ from custom_components.panel_assistant.contract import catalogue_entry
 from custom_components.panel_assistant.diagnostics import (
     async_get_config_entry_diagnostics,
 )
-from custom_components.panel_assistant.native import NATIVE_ONLY_PLATFORMS
 
 from .test_transport import (
     DID,
@@ -55,11 +52,6 @@ DESCRIPTORS = [
 PANEL_HELLO: dict[str, Any] = json.loads(
     (FIXTURES / "panel_hello.json").read_text(encoding="utf-8")
 )
-# The channels the panel's own hello describes: what a panel that has said hello
-# leaves in its entry's supported channels.
-PANEL_CHANNELS: frozenset[str] = frozenset(
-    descriptor["channel"] for descriptor in PANEL_HELLO["channels"]
-)
 PANEL_REPORT: dict[str, Any] = json.loads(
     (FIXTURES / "panel_report_state.json").read_text(encoding="utf-8")
 )
@@ -80,7 +72,7 @@ EXTRA_OBSERVATIONS = [
 def _hello(channels: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "type": "panel_assistant/hello",
-        "protocol": {"min": 3, "max": 3},
+        "protocol": {"min": 5, "max": 5},
         "did": DID,
         # The version health reports, which a test may change.
         "app": {"version": HEALTH.version, "version_code": 790},
@@ -165,55 +157,34 @@ def panel_patches() -> Iterator[None]:
         yield
 
 
-def supported(channels: Collection[str] = PANEL_CHANNELS) -> dict[str, Any]:
-    """Return the entry data of a panel that has described these channels."""
-    return {CONF_SUPPORTED_CHANNELS: {"did": DID, "channels": sorted(channels)}}
-
-
 async def _setup(
-    hass: HomeAssistant,
-    user_id: str,
-    native: bool | None,
-    options: dict[str, Any] | None = None,
-    described: Collection[str] | None = PANEL_CHANNELS,
+    hass: HomeAssistant, user_id: str, options: dict[str, Any] | None = None
 ) -> MockConfigEntry:
-    """Set up a bound entry whose panel has described these channels before.
-
-    None sets up an entry whose panel has never said hello. ``native`` None
-    leaves ``native_entities`` out of YAML, as a fresh installation does.
-    """
-    data = {CONF_ADDRESS: "panel.local", CONF_TRANSPORT_USER_ID: user_id}
-    if described is not None:
-        data |= supported(described)
+    """Set up an entry an administrator bound to the panel's account."""
     config_entry = MockConfigEntry(
         domain=DOMAIN,
         title="alpha",
-        data=data,
+        data={
+            CONF_ADDRESS: "panel.local",
+            CONF_TRANSPORT_USER_ID: user_id,
+            "installation_identity": True,
+        },
         options=options or {},
     )
     config_entry.add_to_hass(hass)
     with panel_patches():
-        config = {} if native is None else {DOMAIN: {"native_entities": native}}
-        assert await async_setup_component(hass, DOMAIN, config)
+        assert await async_setup_component(hass, DOMAIN, {})
         await hass.async_block_till_done()
     assert config_entry.state is ConfigEntryState.LOADED
     return config_entry
 
 
 @pytest.fixture
-async def dormant(
-    hass: HomeAssistant, hass_read_only_user: Any
-) -> AsyncGenerator[MockConfigEntry]:
-    """A bound panel entry with native entities left off, as shipped."""
-    yield await _setup(hass, hass_read_only_user.id, native=False)
-
-
-@pytest.fixture
 async def native(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> AsyncGenerator[MockConfigEntry]:
-    """A bound panel entry with native entities turned on."""
-    yield await _setup(hass, hass_read_only_user.id, native=True)
+    """A bound panel entry."""
+    yield await _setup(hass, hass_read_only_user.id)
 
 
 def _native_entries(hass: HomeAssistant, entry_id: str) -> dict[str, er.RegistryEntry]:
@@ -237,46 +208,7 @@ def _expected_unique_ids() -> set[str]:
 
 
 # ---------------------------------------------------------------------------
-# Dormant by default.
-
-
-async def test_flag_off_creates_nothing_through_a_full_session(
-    hass: HomeAssistant,
-    dormant: MockConfigEntry,
-    hass_ws_client: WsClientFactory,
-    hass_read_only_access_token: str,
-) -> None:
-    """Every type described, synced and fired leaves the registry as it was."""
-    registry_before = _registry_digest(hass, dormant.entry_id)
-    states_before = sorted(hass.states.async_entity_ids())
-    client = await hass_ws_client(hass, hass_read_only_access_token)
-
-    token = await _session(client)
-    await _sync(hass, client, token)
-    event = await _send(
-        client,
-        {
-            "type": "panel_assistant/report_event",
-            "session": token,
-            "channel": "button",
-            "event_id": 1,
-            "event_type": "keycode_home",
-        },
-    )
-    assert event["success"]
-    await hass.async_block_till_done()
-
-    assert _registry_digest(hass, dormant.entry_id) == registry_before
-    assert sorted(hass.states.async_entity_ids()) == states_before
-    assert dormant.runtime_data.platforms == ["sensor", "update"]
-    for platform in NATIVE_ONLY_PLATFORMS:
-        assert f"{DOMAIN}.{platform}" not in hass.config.components
-    transport = (await async_get_config_entry_diagnostics(hass, dormant))["transport"]
-    assert transport.get("native_entities") is False
-
-
-# ---------------------------------------------------------------------------
-# Rendered when turned on.
+# Rendered from the descriptors.
 
 
 async def test_every_type_renders_under_the_native_unique_id(
@@ -562,7 +494,6 @@ async def test_unknown_descriptors_are_accepted_and_render_nothing(
     }
     diagnostics = await async_get_config_entry_diagnostics(hass, native)
     assert diagnostics["transport"]["unknown_channels"] == ["future_leaf", "volume"]
-    assert diagnostics["transport"].get("native_entities") is True
 
 
 async def test_events_fire_once_per_counted_event_id(
@@ -612,51 +543,6 @@ async def test_events_fire_once_per_counted_event_id(
 
     assert (await report(3, "keycode_home"))["success"]
     assert hass.states.get(button).attributes["event_type"] == "KEYCODE_HOME"
-
-
-@pytest.mark.parametrize(
-    ("domain", "suffix", "service", "data"),
-    [
-        ("switch", "relay1", "turn_on", {}),
-        ("camera", "camera", "turn_on", {}),
-        ("camera", "camera", "turn_off", {}),
-        ("switch", "relay1", "turn_off", {}),
-        ("light", "screen", "turn_on", {}),
-        ("light", "screen", "turn_off", {}),
-        ("select", "cpu_governor", "select_option", {"option": "auto"}),
-        ("number", "volume", "set_value", {"value": 10}),
-        ("text", "navigate", "set_value", {"value": "/x"}),
-        ("button", "reboot", "press", {}),
-    ],
-)
-async def test_commands_are_refused_with_a_translated_error(
-    hass: HomeAssistant,
-    native: MockConfigEntry,
-    hass_ws_client: WsClientFactory,
-    hass_read_only_access_token: str,
-    domain: str,
-    suffix: str,
-    service: str,
-    data: dict[str, Any],
-) -> None:
-    """Under the default shadow authority MQTT carries commands; none is sent."""
-    client = await hass_ws_client(hass, hass_read_only_access_token)
-    token = await _session(client)
-    await _sync(hass, client, token)
-    entity_id = _native_entries(hass, native.entry_id)[f"{DID}_{suffix}"].entity_id
-
-    with pytest.raises(HomeAssistantError) as raised:
-        await hass.services.async_call(
-            domain, service, {"entity_id": entity_id, **data}, blocking=True
-        )
-
-    assert raised.value.translation_domain == DOMAIN
-    assert raised.value.translation_key == "authority_mismatch"
-    # The next message answers this request: no command event was queued.
-    response = await _send(client, _report(token, "delta", []))
-    assert (response["type"], response["success"]) == ("result", True)
-    diagnostics = await async_get_config_entry_diagnostics(hass, native)
-    assert diagnostics["transport"]["commands"]["counts"] == {}
 
 
 async def test_the_panels_own_hello_is_fully_known_to_the_catalogue(
@@ -985,7 +871,7 @@ async def test_a_colour_light_stays_rgb_across_a_reload(
 
 async def test_the_session_names_the_build_on_the_device_card(
     hass: HomeAssistant,
-    dormant: MockConfigEntry,
+    native: MockConfigEntry,
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
 ) -> None:
@@ -996,7 +882,7 @@ async def test_the_session_names_the_build_on_the_device_card(
     """
     registry = dr.async_get(hass)
     device = registry.async_get_device_by_identifier(
-        (DOMAIN, dormant.entry_id), dormant.entry_id
+        (DOMAIN, native.entry_id), native.entry_id
     )
     assert device is not None
     assert device.sw_version == HEALTH.version
@@ -1006,7 +892,7 @@ async def test_the_session_names_the_build_on_the_device_card(
     await hass.async_block_till_done()
 
     device = registry.async_get_device_by_identifier(
-        (DOMAIN, dormant.entry_id), dormant.entry_id
+        (DOMAIN, native.entry_id), native.entry_id
     )
     assert device is not None
     assert device.sw_version == "0.9.8-rc1 (790)"

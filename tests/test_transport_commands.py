@@ -1,4 +1,4 @@
-"""Native commands: the authority a session is granted, and the command path."""
+"""Native commands: what a session is granted, and the command path."""
 
 import asyncio
 import base64
@@ -39,7 +39,7 @@ _COMMAND_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 def _hello(capabilities: list[str] | None = None) -> dict[str, Any]:
     return {
         "type": "panel_assistant/hello",
-        "protocol": {"min": 3, "max": 3},
+        "protocol": {"min": 5, "max": 5},
         "did": DID,
         # The version health reports, which a test may change.
         "app": {"version": test_native.HEALTH.version, "version_code": 790},
@@ -156,73 +156,40 @@ async def _commands(hass: HomeAssistant, entry: MockConfigEntry) -> dict[str, An
 
 @pytest.fixture
 async def native(hass: HomeAssistant, hass_read_only_user: Any) -> MockConfigEntry:
-    """A bound entry whose options chose the native authority."""
-    return await _setup(
-        hass, hass_read_only_user.id, native=True, options={"authority": "native"}
-    )
+    """A bound entry."""
+    return await _setup(hass, hass_read_only_user.id)
 
 
 # ---------------------------------------------------------------------------
-# The authority and what it grants.
+# What a session is granted.
 
 
 @pytest.mark.parametrize(
-    ("flag", "options", "offered", "authority", "granted"),
+    ("offered", "granted"),
     [
-        (False, {}, None, "shadow", ["events", "state"]),
-        (False, {"authority": "native"}, None, "shadow", ["events", "state"]),
-        (True, {}, None, "shadow", ["events", "state"]),
-        (True, {"authority": "shadow"}, None, "shadow", ["events", "state"]),
-        (True, {"authority": "mqtt"}, None, "mqtt", []),
-        (
-            True,
-            {"authority": "native"},
-            None,
-            "native",
-            ["approval", "commands", "events", "state"],
-        ),
-        (
-            True,
-            {"authority": "native"},
-            ["state", "events"],
-            "native",
-            ["events", "state"],
-        ),
-        (
-            True,
-            {"authority": "native"},
-            ["state", "commands"],
-            "native",
-            ["commands", "state"],
-        ),
-        (True, {"authority": "shadow"}, ["commands", "approval"], "shadow", []),
+        (None, ["approval", "commands", "events", "state"]),
+        (["state", "events"], ["events", "state"]),
+        (["state", "commands", "mqtt_withdraw"], ["commands", "state"]),
     ],
 )
-@pytest.mark.usefixtures("mqtt_era_panel")
-async def test_hello_grants_follow_the_effective_authority(
+async def test_hello_grants_what_the_panel_offered(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
     hass_read_only_user: Any,
     hass_read_only_access_token: str,
-    flag: bool,
-    options: dict[str, str],
     offered: list[str] | None,
-    authority: str,
     granted: list[str],
 ) -> None:
-    """The option counts only with native entities on; grants meet the offer."""
-    entry = await _setup(hass, hass_read_only_user.id, native=flag, options=options)
+    """Every implemented capability offered is granted; nothing else is."""
+    entry = await _setup(hass, hass_read_only_user.id)
     panel = await _connect(
         hass, hass_ws_client, hass_read_only_access_token, offered, sync=False
     )
 
-    assert panel.result["authority"] == authority
     assert panel.result["capabilities"] == granted
     transport_diagnostics = (await async_get_config_entry_diagnostics(hass, entry))[
         "transport"
     ]
-    assert transport_diagnostics["authority"] == authority
-    assert transport_diagnostics["effective_authority"] == authority
     assert transport_diagnostics["capabilities"] == granted
 
 
@@ -233,7 +200,7 @@ async def test_embed_grant_carries_the_key_shape_consumed_by_the_panel(
     hass_read_only_access_token: str,
 ) -> None:
     """An offered embed grant includes one decodable 32-byte proof key."""
-    await _setup(hass, hass_read_only_user.id, native=True)
+    await _setup(hass, hass_read_only_user.id)
 
     panel = await _connect(
         hass,
@@ -253,53 +220,18 @@ async def test_embed_grant_carries_the_key_shape_consumed_by_the_panel(
 
 
 # ---------------------------------------------------------------------------
-# The options flow.
+# Entry writes.
 
 
-async def test_changing_the_authority_ends_the_session_and_regrants(
+async def test_entry_writes_keep_the_session(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
     hass_read_only_user: Any,
     hass_read_only_access_token: str,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Saving a new authority closes the session; the next hello gets it."""
-    entry = await _setup(hass, hass_read_only_user.id, native=True)
-    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
-    assert panel.result["authority"] == "shadow"
-
-    # Saving a new authority reloads the entry, which sets it up again.
-    with panel_patches():
-        hass.config_entries.async_update_entry(entry, options={"authority": "native"})
-        await hass.async_block_till_done()
-
-    assert entry.options == {"authority": "native"}
-    closed = await panel.next_after_request()
-    assert closed.get("event") == {
-        "kind": "session_closed",
-        "reason": "authority_changed",
-    }, closed
-    assert closed["id"] == panel.subscription
-    refused = await _receive(panel.client)
-    assert refused.get("error", {}).get("code") == "session_unknown", refused
-
-    again = await _connect(hass, hass_ws_client, hass_read_only_access_token)
-    assert again.result["authority"] == "native"
-    assert again.result["capabilities"] == ["approval", "commands", "events", "state"]
-    assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
-
-
-async def test_entry_writes_that_keep_the_authority_keep_the_session(
-    hass: HomeAssistant,
-    hass_ws_client: WsClientFactory,
-    hass_read_only_user: Any,
-    hass_read_only_access_token: str,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """A data write, as binding makes, and an unchanged choice leave it open."""
-    entry = await _setup(
-        hass, hass_read_only_user.id, native=True, options={"authority": "native"}
-    )
+    """A data write, as binding makes, or an address change leaves it open."""
+    entry = await _setup(hass, hass_read_only_user.id)
     panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
 
     # A data write, as binding and user removal make, notifies the entry. A
@@ -312,49 +244,8 @@ async def test_entry_writes_that_keep_the_authority_keep_the_session(
         await hass.async_block_till_done()
     await panel.nothing_sent()
     assert entry.runtime_data.client.address.host == "panel-2.local"
-
-    hass.config_entries.async_update_entry(entry, options={"authority": "native"})
-    await hass.async_block_till_done()
-    await panel.nothing_sent()
     assert transport.async_get_sessions(hass).get(entry.entry_id) is not None
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
-
-
-async def test_a_panel_that_chose_native_runs_natively_without_yaml(
-    hass: HomeAssistant, hass_read_only_user: Any
-) -> None:
-    """A new panel stores native, and that alone makes it native: no YAML edit."""
-    entry = await _setup(
-        hass, hass_read_only_user.id, native=None, options={"authority": "native"}
-    )
-
-    assert transport.effective_authority(hass, entry) == "native"
-
-
-async def test_without_yaml_a_panel_that_chose_nothing_stays_shadow(
-    hass: HomeAssistant, hass_read_only_user: Any
-) -> None:
-    """A panel added before 0.6.3 keeps MQTT in charge until its owner switches."""
-    entry = await _setup(hass, hass_read_only_user.id, native=None)
-
-    assert transport.effective_authority(hass, entry) == "shadow"
-
-
-async def test_a_dark_option_change_keeps_a_shadow_session(
-    hass: HomeAssistant,
-    hass_ws_client: WsClientFactory,
-    hass_read_only_user: Any,
-    hass_read_only_access_token: str,
-) -> None:
-    """Without native entities, storing another authority changes nothing."""
-    entry = await _setup(hass, hass_read_only_user.id, native=False)
-    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
-
-    hass.config_entries.async_update_entry(entry, options={"authority": "native"})
-    await hass.async_block_till_done()
-
-    await panel.nothing_sent()
-    assert transport.async_get_sessions(hass).get(entry.entry_id) is not None
 
 
 # ---------------------------------------------------------------------------

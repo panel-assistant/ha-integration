@@ -89,7 +89,7 @@ BUTTON_EVENT = {
 }
 HELLO: dict[str, Any] = {
     "type": "panel_assistant/hello",
-    "protocol": {"min": 3, "max": 3},
+    "protocol": {"min": 5, "max": 5},
     "did": DID,
     "app": {"version": "0.9.8-rc1", "version_code": 790},
     "contract_digest": DIGEST,
@@ -147,7 +147,7 @@ async def test_panel_update_options_regrant_live_authenticated_policy(
     """Changing the granted channel revokes its token; PA prerelease stays allowed."""
     hass.config_entries.async_update_entry(
         entry,
-        options={"authority": "shadow", "prerelease_panel_builds": initial_opt_in},
+        options={"prerelease_panel_builds": initial_opt_in},
     )
     await hass.async_block_till_done()
     data_before = dict(entry.data)
@@ -160,8 +160,8 @@ async def test_panel_update_options_regrant_live_authenticated_policy(
         response = await _send(client, _hello())
         assert response["success"]
         assert response["result"]["update_policy"] == {
-            "protocolMin": 1,
-            "protocolMax": 4,
+            "protocolMin": 5,
+            "protocolMax": 5,
             "prerelease": expected_initial,
         }
         old_token = response["result"]["session"]
@@ -177,10 +177,7 @@ async def test_panel_update_options_regrant_live_authenticated_policy(
         )
         assert saved["type"] is FlowResultType.CREATE_ENTRY
         await hass.async_block_till_done()
-        assert entry.options == {
-            "authority": "shadow",
-            "prerelease_panel_builds": not initial_opt_in,
-        }
+        assert entry.options == {"prerelease_panel_builds": not initial_opt_in}
         assert dict(entry.data) == data_before
         assert entry.unique_id == identity_before
         if revoked:
@@ -203,8 +200,8 @@ async def test_panel_update_options_regrant_live_authenticated_policy(
         renewed = await _send(reconnected, _hello())
         assert renewed["success"]
         assert renewed["result"]["update_policy"] == {
-            "protocolMin": 1,
-            "protocolMax": 4,
+            "protocolMin": 5,
+            "protocolMax": 5,
             "prerelease": "-" in pa_version or not initial_opt_in,
         }
 
@@ -318,9 +315,8 @@ async def test_non_admin_panel_account_opens_a_session(
     assert dr.async_get(hass).async_get_device_by_identifier(
         (DOMAIN, result["entry_id"]), result["entry_id"]
     )
-    assert result["protocol"] == 3
-    assert result["authority"] == "shadow"
-    assert result["capabilities"] == ["events", "state"]
+    assert result["protocol"] == 5
+    assert result["capabilities"] == ["approval", "commands", "events", "state"]
     assert result["channels"] == {"accepted": 3, "unknown": []}
     assert isinstance(result["session"], str) and result["session"]
     session = async_get_sessions(hass).get(entry.entry_id)
@@ -330,7 +326,10 @@ async def test_non_admin_panel_account_opens_a_session(
     # Learned from the panel's health at setup, so it outlives the address.
     assert entry.unique_id == DID
     assert not session_available(hass, entry.entry_id)
-    assert _registry_digest(hass, entry.entry_id) == registry_before
+    # Native platforms add the panel's channels; nothing set up earlier is lost.
+    registry_after = _registry_digest(hass, entry.entry_id)
+    assert set(registry_before[0]) < set(registry_after[0])
+    assert registry_after[1] == registry_before[1]
 
 
 async def test_highest_family_index_opens_a_session(
@@ -613,7 +612,7 @@ async def test_malformed_envelope_is_invalid_format(
         ({"did": OTHER_DID}, "unknown_panel"),
         ({"did": None}, "panel_identity_unavailable"),
         ({"did": "absent"}, "panel_identity_unavailable"),
-        ({"protocol": {"min": 5, "max": 5}}, "protocol_unsupported"),
+        ({"protocol": {"min": 6, "max": 6}}, "protocol_unsupported"),
     ],
 )
 async def test_hello_refusals(
@@ -637,10 +636,10 @@ async def test_hello_refusals(
     assert async_get_sessions(hass).get(entry.entry_id) is None
     if code == "protocol_unsupported":
         assert response["error"]["translation_placeholders"] == {
-            "panel_min": "5",
-            "panel_max": "5",
-            "integration_min": "1",
-            "integration_max": "4",
+            "panel_min": "6",
+            "panel_max": "6",
+            "integration_min": "5",
+            "integration_max": "5",
         }
 
 
@@ -1052,7 +1051,6 @@ async def test_diagnostics_show_the_session_without_identity(
 
     transport = diagnostics["transport"]
     assert transport["connected"] is True
-    assert transport["authority"] == "shadow"
     assert transport["channels"] == 3
     assert diagnostics["entry"][CONF_TRANSPORT_USER_ID] == "**REDACTED**"
     rendered = repr(diagnostics)

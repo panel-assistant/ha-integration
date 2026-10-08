@@ -11,21 +11,11 @@ before anything is stored. Established-session handlers perform no I/O. A
 moved legacy panel must complete bounded health verification before its hello
 can grant a session.
 
-``hello`` answers with the entry's authority. By default that is ``shadow``:
-MQTT owns every panel entity and its commands, and the panel reports its state
-here so diagnostics can compare it with the MQTT entities (see
-``shadow_comparison``). The native entities that render these reports stay
-dormant unless the ``native_entities`` option is set (see ``native.py``), and
-only with that option can an entry's options choose ``native``, under which
-this integration sends the panel's commands on the session and waits for each
-outcome (see ``async_send_command``), and the panel's MQTT entities are moved
-to this integration at the entry's next setup (see ``cutover.py``). ``hello``
-also answers whether the panel should withdraw its MQTT discovery, which it
-does only once that move completed and nothing holds it back (see
-``mqtt_discovery_claim``). While this integration owns them, what a panel that
-still announces its MQTT discovery creates is kept disabled, and a removed
-entry's panel is told so (see ``guards.py``). This module itself never writes
-an entity or device registry.
+This integration owns every panel's entities: the panel reports its state
+here, the native entities render it (see ``native.py``), and the panel's
+commands are sent on the session, each waited for until its outcome (see
+``async_send_command``). A removed entry's panel is told so (see
+``removed_panels.py``). This module itself writes no device registry entry.
 
 A panel's identity is public on the LAN, so ``hello`` never binds a panel to the
 account that sends it. Only an administrator binds one, by confirming the
@@ -56,10 +46,9 @@ from homeassistant.components.websocket_api.const import ERR_INVALID_FORMAT
 from homeassistant.components.websocket_api.decorators import websocket_command
 from homeassistant.components.websocket_api.messages import event_message
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_ADDRESS, STATE_OFF, STATE_ON, STATE_UNKNOWN
-from homeassistant.core import Event, HomeAssistant, State, callback
+from homeassistant.const import CONF_ADDRESS
+from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_send
@@ -68,9 +57,6 @@ from yarl import URL
 
 from .client import is_valid_discovery_id, is_valid_panel_version
 from .const import (
-    CONF_AUTHORITY,
-    CONF_CUTOVER,
-    CONF_SUPPORTED_CHANNELS,
     CONF_TRANSPORT_USER_ID,
     DOMAIN,
     INTEGRATION_VERSION,
@@ -97,67 +83,26 @@ COMMAND_REPORT_EVENT: Final = f"{DOMAIN}/report_event"
 COMMAND_COMMAND_RESULT: Final = f"{DOMAIN}/command_result"
 COMMAND_RESTART_NOTICE: Final = f"{DOMAIN}/restart_notice"
 
-# Who owns a panel's entities and commands. MQTT, unless an entry's options
-# choose otherwise while native entities are turned on.
-AUTHORITY_MQTT: Final = "mqtt"
-AUTHORITY_SHADOW: Final = "shadow"
-AUTHORITY_NATIVE: Final = "native"
-AUTHORITIES: Final = (AUTHORITY_MQTT, AUTHORITY_SHADOW, AUTHORITY_NATIVE)
-DEFAULT_AUTHORITY: Final = AUTHORITY_SHADOW
-# What ``hello`` tells the panel to do with its MQTT discovery. It withdraws
-# its MQTT entities only once this integration owns them: the entry's
-# authority is native, its cutover record is complete, and no MQTT entity that
-# stayed behind carries a person's customisation or waits for its channel to be
-# described (see ``mqtt_discovery_claim``).
-MQTT_DISCOVERY_WITHDRAW: Final = "withdraw"
-MQTT_DISCOVERY_ANNOUNCE: Final = "announce"
-MQTT_DISCOVERIES: Final = (MQTT_DISCOVERY_WITHDRAW, MQTT_DISCOVERY_ANNOUNCE)
-
-# The cutover record an entry's data carries while, and after, its MQTT
-# entities are moved to this integration (see ``cutover.py``).
-CUTOVER_IN_PROGRESS: Final = "in_progress"
-CUTOVER_COMPLETE: Final = "complete"
-CUTOVER_REVERSING: Final = "reversing"
-CUTOVER_STATE: Final = "state"
-CUTOVER_UNMIGRATED: Final = "unmigrated"
-CUTOVER_REGISTRY_ID: Final = "registry_id"
-CUTOVER_ENTITIES: Final = "entities"
-CUTOVER_REASON: Final = "reason"
-CUTOVER_CHANNEL: Final = "channel"
-# Why an MQTT entity stayed behind: the catalogue knows its channel, but the
-# panel has never described that channel, so no native entity would render
-# into it. It stays MQTT's, and the next move after the panel describes the
-# channel takes it (see ``cutover.py``).
-CUTOVER_NOT_DESCRIBED: Final = "not_described"
-# The registry IDs of MQTT duplicates kept disabled while this integration owns
-# the panel's entities (see ``guards.py``).
-CUTOVER_QUARANTINED: Final = "quarantined"
-
 CAPABILITY_STATE: Final = "state"
 CAPABILITY_EVENTS: Final = "events"
 CAPABILITY_COMMANDS: Final = "commands"
 CAPABILITY_APPROVAL: Final = "approval"
-# A panel that offers this withdraws or announces its MQTT discovery exactly as
-# the hello reply says. It is granted whenever offered, under every authority.
-CAPABILITY_MQTT_WITHDRAW: Final = "mqtt_withdraw"
 # A panel that offers this receives a key to check the sidebar's proofs with
-# (see ``embed_proof.py``). It is granted whenever offered, under every authority.
+# (see ``embed_proof.py``).
 CAPABILITY_EMBED_PROOF: Final = "embed_proof"
-# A panel that offers this is an Assist satellite (see ``voice.py``). Voice has
-# no MQTT counterpart to defer to, so it is granted whenever offered.
+# A panel that offers this is an Assist satellite (see ``voice.py``).
 CAPABILITY_VOICE: Final = "voice"
 # A panel that offers this describes its media channel once granted: an older
-# integration would refuse a whole hello naming the media_player platform. It
-# is granted whenever offered; the channel's commands still need ``commands``.
+# integration would refuse a whole hello naming the media_player platform. The
+# channel's commands still need ``commands``.
 CAPABILITY_MEDIA: Final = "media"
 # A panel that offers this, with its Sendspin key, receives speech in step with
 # other panels over Sendspin inside its session (see ``voice_stream.py``).
-# Granted whenever offered with a key.
+# Granted only when offered with a key and the Sendspin server runs.
 CAPABILITY_VOICE_STREAM_SESSION: Final = "voice_stream_session"
 # A panel that offers this answers ``manage`` requests on its session: its
-# health and status snapshot, and the settings Panel Assistant writes. It is
-# not entity authority, so it is granted whenever offered, under every
-# authority. A panel without it is read and written over HTTP.
+# health and status snapshot, and the settings Panel Assistant writes. A panel
+# without it is read and written over HTTP.
 CAPABILITY_MANAGEMENT: Final = "management"
 KNOWN_CAPABILITIES: Final = frozenset(
     {
@@ -165,7 +110,6 @@ KNOWN_CAPABILITIES: Final = frozenset(
         CAPABILITY_EVENTS,
         CAPABILITY_COMMANDS,
         CAPABILITY_APPROVAL,
-        CAPABILITY_MQTT_WITHDRAW,
         CAPABILITY_EMBED_PROOF,
         CAPABILITY_VOICE,
         CAPABILITY_MEDIA,
@@ -173,23 +117,11 @@ KNOWN_CAPABILITIES: Final = frozenset(
         CAPABILITY_MANAGEMENT,
     }
 )
-# What each authority lets a session use, before intersecting with what the
-# panel offered. The panel reports state under shadow and native alike, since a
-# native entity is available only while its channel is reported.
-AUTHORITY_GRANTS: Final[dict[str, frozenset[str]]] = {
-    AUTHORITY_MQTT: frozenset(),
-    AUTHORITY_SHADOW: frozenset({CAPABILITY_STATE, CAPABILITY_EVENTS}),
-    AUTHORITY_NATIVE: frozenset(
-        {CAPABILITY_STATE, CAPABILITY_EVENTS, CAPABILITY_COMMANDS, CAPABILITY_APPROVAL}
-    ),
-}
-
 # Session end reasons sent in a ``session_closed`` event.
 REASON_SUPERSEDED: Final = "superseded"
 REASON_ENTRY_UNLOADED: Final = "entry_unloaded"
 REASON_USER_REMOVED: Final = "user_removed"
 REASON_BINDING_CHANGED: Final = "binding_changed"
-REASON_AUTHORITY_CHANGED: Final = "authority_changed"
 REASON_UPDATE_POLICY_CHANGED: Final = "update_policy_changed"
 
 # Command outcomes a panel reports. Interim ``pending_approval`` is followed by
@@ -213,7 +145,6 @@ OUTCOME_CODES: Final = frozenset(CONTRACT["outcome_codes"])
 # Translated errors a native command raises in Home Assistant, besides the
 # outcome codes a panel reports.
 ERR_PANEL_UNAVAILABLE: Final = "panel_unavailable"
-ERR_AUTHORITY_MISMATCH: Final = "authority_mismatch"
 ERR_NOT_COMMANDABLE: Final = "not_commandable"
 ERR_APPROVAL_PENDING: Final = "approval_pending"
 COMMAND_ERRORS: Final = OUTCOME_CODES | {ERR_PANEL_UNAVAILABLE, ERR_APPROVAL_PENDING}
@@ -239,7 +170,7 @@ ERR_UNKNOWN_PANEL: Final = "unknown_panel"
 ERR_PANEL_USER_MISMATCH: Final = "panel_user_mismatch"
 ERR_PANEL_IDENTITY_UNAVAILABLE: Final = "panel_identity_unavailable"
 # No loaded entry has the panel's identity, and an entry that had it was
-# removed: the panel releases its claim on its MQTT entities.
+# removed: the panel waits to be added again.
 ERR_ENTRY_REMOVED: Final = "entry_removed"
 ERR_SESSION_UNKNOWN: Final = "session_unknown"
 ERR_UNKNOWN_CHANNEL: Final = "unknown_channel"
@@ -279,7 +210,6 @@ _SENDSPIN_KEY = re.compile(r"^[A-Za-z0-9_-]{43}$")
 _CONTROL_CHARACTERS = re.compile(r"[\x00-\x1f\x7f]")
 
 DATA_TRANSPORT: Final = "transport"
-DATA_NATIVE_ENTITIES: Final = "native_entities"
 # The identities of panels whose entry was removed (see ``guards.py``).
 DATA_REMOVED_PANELS: Final = "removed_panels"
 # The account a panel asked to connect as before it had a config entry at all,
@@ -297,12 +227,6 @@ ISSUE_PANEL_USER_MISMATCH: Final = ERR_PANEL_USER_MISMATCH
 ISSUE_MERGED_PANEL_IDENTITY: Final = "merged_panel_identity"
 ISSUE_DATA_ENTRY_ID: Final = "entry_id"
 ISSUE_DATA_USER_ID: Final = "user_id"
-# The Repairs issues a cutover raises: one when a step failed and the move
-# resumes on the next setup, one when MQTT entities that stay behind carry a
-# person's customisation and so hold back the panel's MQTT withdrawal.
-ISSUE_CUTOVER_INCOMPLETE: Final = "cutover_incomplete"
-ISSUE_CUTOVER_BLOCKED: Final = "cutover_blocked_by_customised_entities"
-ISSUE_NATIVE_CONTROLS_UNAVAILABLE: Final = "native_controls_unavailable"
 
 
 def signal_session_changed(entry_id: str) -> str:
@@ -912,16 +836,8 @@ class PanelSession:
     # observation of that channel is accepted.
     rejections: dict[str, str] = field(default_factory=dict)
     closed_at: datetime | None = None
-    # The authority the hello reply granted. An options change that makes the
-    # entry's authority differ ends the session.
-    authority: str = DEFAULT_AUTHORITY
     # The channel granted for this live session. A changed option revokes it.
     prerelease_panel_builds: bool | None = None
-    # What the hello reply told the panel to do with its MQTT discovery.
-    mqtt_discovery: str = MQTT_DISCOVERY_ANNOUNCE
-    # Whether the panel offered to follow that answer. One that did not
-    # announces its MQTT discovery whatever the reply says.
-    mqtt_withdraw_offered: bool = False
     # The key the panel checks the sidebar's proofs with, while this session
     # lasts, and the counter of the last proof issued under it. Never shown.
     embed_key_id: str | None = field(default=None, repr=False)
@@ -1162,71 +1078,25 @@ class TransportSessions:
         async_dispatcher_send(self._hass, signal_session_changed(entry_id))
 
 
-def native_entities_enabled(hass: HomeAssistant) -> bool:
-    """Return whether native entities were turned on for every panel in YAML."""
-    return hass.data.get(DOMAIN, {}).get(DATA_NATIVE_ENTITIES) is True
-
-
-def native_entities_turned_off(hass: HomeAssistant) -> bool:
-    """Return whether YAML turned native entities off for every panel."""
-    return hass.data.get(DOMAIN, {}).get(DATA_NATIVE_ENTITIES) is False
-
-
-def native_enabled_for(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Return whether this entry may use native entities.
-
-    ``native_entities: true`` in YAML turns them on for every panel and
-    ``false`` turns them off for every panel. Without either, an entry has them
-    when it chose ``native``, which every panel added from 0.6.3 does, so
-    running a panel natively never needs a YAML edit.
-    """
-    if native_entities_turned_off(hass):
-        return False
-    return (
-        native_entities_enabled(hass)
-        or entry.options.get(CONF_AUTHORITY) == AUTHORITY_NATIVE
-    )
-
-
-def effective_authority(hass: HomeAssistant, entry: ConfigEntry) -> str:
-    """Return the authority a panel session of this entry is granted.
-
-    The entry's option counts only while native entities are turned on, so a
-    release carries the choice dark and answers shadow.
-    """
-    if not native_enabled_for(hass, entry):
-        return DEFAULT_AUTHORITY
-    authority = entry.options.get(CONF_AUTHORITY, DEFAULT_AUTHORITY)
-    return authority if authority in AUTHORITIES else DEFAULT_AUTHORITY
-
-
-def authority_options(entry: ConfigEntry, authority: str) -> dict[str, Any]:
-    """Return the entry's options with this authority chosen.
-
-    Saving them is the whole of a change of authority: the entry's update
-    listener ends the panel's session and reloads the entry, whose setup runs
-    the cutover the new authority asks for.
-    """
-    return {**entry.options, CONF_AUTHORITY: authority}
-
-
 @callback
-def async_apply_authority(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """End a live session whose authority or update grant is no longer current.
+def async_apply_update_policy(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """End a live session whose update grant is no longer current.
 
     Every change to an entry calls this, binding writes included, so it acts
     only on a real change. The panel sends hello again and is granted anew.
     """
     sessions = async_get_sessions(hass)
     session = sessions.get(entry.entry_id)
-    if session is not None and session.authority != effective_authority(hass, entry):
-        sessions.close(session, REASON_AUTHORITY_CHANGED)
-    elif (
+    if (
         session is not None
         and session.prerelease_panel_builds is not None
         and session.prerelease_panel_builds != prereleases_allowed(entry)
     ):
         sessions.close(session, REASON_UPDATE_POLICY_CHANGED)
+
+
+def _iso(moment: datetime | None) -> str | None:
+    return None if moment is None else moment.isoformat()
 
 
 def async_get_sessions(hass: HomeAssistant) -> TransportSessions:
@@ -1269,9 +1139,6 @@ def session_diagnostics(hass: HomeAssistant, entry_id: str) -> dict[str, Any]:
         "connected": sessions.get(entry_id) is session,
         "closed_at": _iso(session.closed_at),
         "protocol": session.protocol,
-        "authority": session.authority,
-        "mqtt_discovery_granted": session.mqtt_discovery,
-        "mqtt_withdraw_offered": session.mqtt_withdraw_offered,
         "app_version": session.app_version,
         "app_version_code": session.app_version_code,
         "contract_digest": session.contract_digest,
@@ -1293,471 +1160,10 @@ def session_diagnostics(hass: HomeAssistant, entry_id: str) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Shadow comparison. Diagnostics only: computed on demand from cached state,
-# never writing to a registry, and never sending anything to the panel.
-
-MQTT_DOMAIN: Final = "mqtt"
-REDACTED: Final = "**REDACTED**"
-COMPARISON_MATCH: Final = "match"
-COMPARISON_DIFFERS: Final = "differs"
-COMPARISON_WS_MISSING: Final = "ws_missing"
-COMPARISON_WS_REJECTED: Final = "ws_rejected"
-COMPARISON_MQTT_MISSING: Final = "mqtt_missing"
-COMPARISON_NOT_COMPARED: Final = "not_compared"
-COMPARISONS: Final = (
-    COMPARISON_MATCH,
-    COMPARISON_DIFFERS,
-    COMPARISON_WS_MISSING,
-    COMPARISON_WS_REJECTED,
-    COMPARISON_MQTT_MISSING,
-    COMPARISON_NOT_COMPARED,
-)
-_NUMBER_ABS_TOLERANCE: Final = 1e-3
-_NUMBER_REL_TOLERANCE: Final = 1e-6
-
-
-def _slug(value: Any) -> str:
-    """Reduce a label or a code to lowercase letters and digits."""
-    return re.sub(r"[^a-z0-9]", "", str(value).lower())
-
-
-def _as_float(value: Any) -> float | None:
-    try:
-        number = float(value)
-    except TypeError, ValueError:
-        return None
-    return number if math.isfinite(number) else None
-
-
-def _same_boolean(value: bool, state: State) -> bool:
-    return state.state == (STATE_ON if value else STATE_OFF)
-
-
-def _same_number(value: Any, state: State) -> bool:
-    ws, mqtt = _as_float(value), _as_float(state.state)
-    return (
-        ws is not None
-        and mqtt is not None
-        and math.isclose(
-            ws, mqtt, rel_tol=_NUMBER_REL_TOLERANCE, abs_tol=_NUMBER_ABS_TOLERANCE
-        )
-    )
-
-
-def _same_sensor(value: Any, state: State) -> bool:
-    if type(value) is str:
-        return state.state == value
-    return _same_number(value, state)
-
-
-def _same_option(value: str, state: State) -> bool:
-    # MQTT carries display labels such as "Pre-release"; the wire carries codes.
-    return _slug(state.state) == _slug(value)
-
-
-def _same_text(value: str, state: State) -> bool:
-    return state.state == value
-
-
-def _same_light(value: dict[str, Any], state: State) -> bool:
-    if not _same_boolean(value["on"], state):
-        return False
-    if not value["on"]:
-        # Home Assistant drops brightness, colour and effect while a light is off.
-        return True
-    attributes = state.attributes
-    if "brightness" in value and attributes.get("brightness") != value["brightness"]:
-        return False
-    if "color" in value and list(attributes.get("rgb_color") or ()) != [
-        value["color"][channel] for channel in "rgb"
-    ]:
-        return False
-    return "effect" not in value or _slug(attributes.get("effect")) == _slug(
-        value["effect"]
-    )
-
-
-def _same_update(value: dict[str, Any], state: State) -> bool:
-    attributes = state.attributes
-    return all(
-        attributes.get(key) == value[key]
-        for key in ("installed_version", "latest_version")
-    )
-
-
-# How a validated wire value compares with the MQTT entity's state. A platform
-# absent here (button, event, image) has no state both sides report alike.
-_SHADOW_COMPARATORS: Final[dict[str, Callable[[Any, State], bool]]] = {
-    "binary_sensor": _same_boolean,
-    "light": _same_light,
-    "number": _same_number,
-    "select": _same_option,
-    "sensor": _same_sensor,
-    "switch": _same_boolean,
-    "text": _same_text,
-    "update": _same_update,
-}
-_SHADOW_ATTRIBUTES: Final[dict[str, tuple[str, ...]]] = {
-    "light": ("brightness", "rgb_color", "effect"),
-    "update": ("installed_version", "latest_version"),
-}
-
-
-def _is_user_data(descriptor: Mapping[str, Any], value: Any) -> bool:
-    """Return whether a value may be a path, SSID or other user data."""
-    if type(value) is not str:
-        return False
-    if descriptor["platform"] == "text":
-        return True
-    return (
-        descriptor["platform"] == "sensor"
-        and descriptor["options"] is None
-        and _as_float(value) is None
-    )
-
-
-def _shown_state(descriptor: Mapping[str, Any], state: State) -> str:
-    if state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
-        return state.state
-    return REDACTED if _is_user_data(descriptor, state.state) else state.state
-
-
-def _iso(moment: datetime | None) -> str | None:
-    return None if moment is None else moment.isoformat()
-
-
-def _age(now: datetime, moment: datetime) -> float:
-    return round((now - moment).total_seconds(), 3)
-
-
-def _compare(
-    descriptor: Mapping[str, Any],
-    observation: Observation | None,
-    rejected: str | None,
-    state: State | None,
-) -> str:
-    comparator = _SHADOW_COMPARATORS.get(descriptor["platform"])
-    if comparator is None:
-        return COMPARISON_NOT_COMPARED
-    if state is None:
-        return COMPARISON_MQTT_MISSING
-    if rejected is not None:
-        return COMPARISON_WS_REJECTED
-    if observation is None:
-        return COMPARISON_WS_MISSING
-    if STATE_UNAVAILABLE in (observation.state, state.state):
-        both = observation.state == state.state == STATE_UNAVAILABLE
-        return COMPARISON_MATCH if both else COMPARISON_DIFFERS
-    if comparator(observation.value, state):
-        return COMPARISON_MATCH
-    return COMPARISON_DIFFERS
-
-
-def _shadow_channel(
-    hass: HomeAssistant,
-    entity_registry: er.EntityRegistry,
-    panel_id: str,
-    session: PanelSession,
-    descriptor: Mapping[str, Any],
-    now: datetime,
-) -> dict[str, Any]:
-    platform = descriptor["platform"]
-    observation = session.observations.get(descriptor["channel"])
-    rejected = session.rejections.get(descriptor["channel"])
-    ws: dict[str, Any] | None = None
-    if observation is not None or rejected is not None:
-        ws = {
-            "state": None,
-            "value": None,
-            "attributes": {},
-            "received_at": None,
-            "age_s": None,
-            "refresh": None,
-            "rejected": rejected,
-        }
-        if observation is not None:
-            ws |= {
-                "state": observation.state,
-                "value": (
-                    REDACTED
-                    if _is_user_data(descriptor, observation.value)
-                    else observation.value
-                ),
-                "attributes": dict(observation.attributes),
-                "received_at": observation.received_at.isoformat(),
-                "age_s": _age(now, observation.received_at),
-                "refresh": observation.refresh,
-            }
-
-    entity_id = entity_registry.async_get_entity_id(
-        platform, MQTT_DOMAIN, f"{panel_id}_{descriptor['unique_suffix']}"
-    )
-    state = None if entity_id is None else hass.states.get(entity_id)
-    mqtt: dict[str, Any] | None = None
-    if entity_id is not None:
-        mqtt = {
-            "entity_id": entity_id,
-            "state": None,
-            "attributes": {},
-            "last_reported": None,
-            "last_changed": None,
-            "age_s": None,
-        }
-        if state is not None:
-            mqtt |= {
-                "state": _shown_state(descriptor, state),
-                "attributes": {
-                    key: state.attributes[key]
-                    for key in _SHADOW_ATTRIBUTES.get(platform, ())
-                    if key in state.attributes
-                },
-                "last_reported": state.last_reported.isoformat(),
-                "last_changed": state.last_changed.isoformat(),
-                "age_s": _age(now, state.last_reported),
-            }
-
-    return {
-        "platform": platform,
-        "unique_suffix": descriptor["unique_suffix"],
-        "ws": ws,
-        "mqtt": mqtt,
-        "comparison": _compare(descriptor, observation, rejected, state),
-        "freshness_delta_s": (
-            None
-            if observation is None or state is None
-            else round(
-                (observation.received_at - state.last_reported).total_seconds(), 3
-            )
-        ),
-    }
-
-
-def shadow_comparison(
-    hass: HomeAssistant, entry_id: str, panel_id: str
-) -> dict[str, Any] | None:
-    """Compare what the panel last reported natively with its MQTT entities.
-
-    Reads the registries and the state machine only. Returns None when the
-    entry has never held a session.
-    """
-    session = async_get_sessions(hass).latest(entry_id)
-    if session is None:
-        return None
-    now = dt_util.utcnow()
-    entity_registry = er.async_get(hass)
-    channels = {
-        channel: _shadow_channel(
-            hass, entity_registry, panel_id, session, descriptor, now
-        )
-        for channel, descriptor in sorted(session.descriptors.items())
-    }
-    summary = dict.fromkeys(COMPARISONS, 0)
-    for item in channels.values():
-        summary[item["comparison"]] += 1
-
-    # The MQTT integration owns this device, so the lookup cannot name our
-    # config entry; the multi-device form is the one Core 2026.9 still allows.
-    devices = dr.async_get(hass).async_get_devices(
-        identifiers={(MQTT_DOMAIN, f"ha-paneld-{panel_id}")}
-    )
-    device = devices[0] if devices else None
-    mqtt_only: list[str] = []
-    if device is not None:
-        prefix = f"{panel_id}_"
-        described = {
-            descriptor["unique_suffix"] for descriptor in session.descriptors.values()
-        }
-        mqtt_only = sorted(
-            {
-                item.unique_id.removeprefix(prefix)
-                for item in er.async_entries_for_device(
-                    entity_registry, device.id, include_disabled_entities=True
-                )
-                if item.platform == MQTT_DOMAIN and item.unique_id.startswith(prefix)
-            }
-            - described
-        )
-    return {
-        "mqtt_device": device is not None,
-        "summary": summary,
-        "channels": channels,
-        "mqtt_only": mqtt_only,
-    }
-
-
-# ---------------------------------------------------------------------------
-# The cutover record and the MQTT discovery claim it decides. The record is
-# written by ``cutover.py`` during setup; here it is only read.
-
-
-def cutover_record(entry: ConfigEntry) -> Mapping[str, Any] | None:
-    """Return an entry's cutover record, if it holds one."""
-    record = entry.data.get(CONF_CUTOVER)
-    return record if isinstance(record, Mapping) else None
-
-
-def is_customised(item: er.RegistryEntry) -> bool:
-    """Return whether a person changed this registry entry.
-
-    A name, icon, area, label or alias of their own, hiding it, or disabling it
-    themselves all count. What an integration or a config entry did does not,
-    nor does the computed-name alias Home Assistant gives every new entry.
-    """
-    return (
-        item.name is not None
-        or item.icon is not None
-        or item.area_id is not None
-        or bool(item.labels)
-        or any(alias is not er.COMPUTED_NAME for alias in item.aliases)
-        or item.hidden_by is not None
-        or item.disabled_by is er.RegistryEntryDisabler.USER
-    )
-
-
-def blocking_entity_ids(hass: HomeAssistant, entry: ConfigEntry) -> list[str]:
-    """Return the customised MQTT entities the cutover left behind, as of now.
-
-    They are looked up by registry ID, so one a person deleted since no longer
-    counts and no reload is needed for the claim to change.
-    """
-    record = cutover_record(entry)
-    if record is None:
-        return []
-    registry = er.async_get(hass)
-    blocking: list[str] = []
-    for unmigrated in record.get(CUTOVER_UNMIGRATED, ()):
-        if "disabled_by_before" in unmigrated:
-            continue
-        item = registry.entities.get_entry(unmigrated[CUTOVER_REGISTRY_ID])
-        if item is not None and is_customised(item):
-            blocking.append(item.entity_id)
-    return sorted(blocking)
-
-
-def suspended_control_entity_ids(hass: HomeAssistant, entry: ConfigEntry) -> list[str]:
-    """Return preserved MQTT controls the native panel has not offered."""
-    record = cutover_record(entry)
-    if record is None:
-        return []
-    registry = er.async_get(hass)
-    return sorted(
-        item.entity_id
-        for row in record.get(CUTOVER_UNMIGRATED, ())
-        if "disabled_by_before" in row
-        and (item := registry.entities.get_entry(row[CUTOVER_REGISTRY_ID])) is not None
-        and item.platform == MQTT_DOMAIN
-        # Retired MQTT update buttons have no native action to wait for.
-        and not (
-            item.domain == "button"
-            and row.get("unique_suffix") in {"update_companion", "update_paneld"}
-        )
-    )
-
-
-def entity_owner(hass: HomeAssistant, entry: ConfigEntry) -> str:
-    """Return who owns the panel's entities now.
-
-    This integration does once a cutover completed under the native authority;
-    until then, and again after a release, MQTT does.
-    """
-    record = cutover_record(entry)
-    if (
-        effective_authority(hass, entry) == AUTHORITY_NATIVE
-        and record is not None
-        and record.get(CUTOVER_STATE) == CUTOVER_COMPLETE
-    ):
-        return AUTHORITY_NATIVE
-    return AUTHORITY_MQTT
-
-
-def undescribed_entities(
-    hass: HomeAssistant, entry: ConfigEntry
-) -> list[Mapping[str, Any]]:
-    """Return the cutover's leftovers still waiting for their channel, as of now.
-
-    Each is an MQTT entity whose known channel the panel has not described.
-    One deleted since, or no longer MQTT's, no longer counts.
-    """
-    record = cutover_record(entry)
-    if record is None:
-        return []
-    registry = er.async_get(hass)
-    waiting: list[Mapping[str, Any]] = []
-    for unmigrated in record.get(CUTOVER_UNMIGRATED, ()):
-        if unmigrated.get(CUTOVER_REASON) != CUTOVER_NOT_DESCRIBED:
-            continue
-        item = registry.entities.get_entry(unmigrated[CUTOVER_REGISTRY_ID])
-        if item is not None and item.platform == MQTT_DOMAIN:
-            waiting.append(unmigrated)
-    return waiting
-
-
-def mqtt_discovery_claim(hass: HomeAssistant, entry: ConfigEntry) -> str:
-    """Return what the next hello tells the panel about its MQTT discovery.
-
-    Withdraw only once this integration owns the panel's entities and nothing
-    blocks it. An MQTT entity waiting for its channel to be described holds
-    the withdrawal back too: the panel's tombstones would delete it, and no
-    native entity replaces it yet.
-    """
-    if (
-        entity_owner(hass, entry) != AUTHORITY_NATIVE
-        or blocking_entity_ids(hass, entry)
-        or undescribed_entities(hass, entry)
-        or suspended_control_entity_ids(hass, entry)
-    ):
-        return MQTT_DISCOVERY_ANNOUNCE
-    return MQTT_DISCOVERY_WITHDRAW
-
-
-# ---------------------------------------------------------------------------
-# The channels a panel supports. A cutover moves an MQTT entity only when the
-# panel has described its channel, since only then does a native entity render
-# into it. The set is the union of every hello's known channels, kept in the
-# entry's data: a later session that omits a channel leaves it in, because a
-# channel missing from one session is only unavailable. It never shrinks from
-# an omission. It shrinks only when a hello lists a channel as unsupported, the
-# panel's explicit statement that it cannot serve it; that channel's native
-# entity is removed at the same time. It is replaced only when a hello comes
-# from another panel identity, whose channels the earlier set says nothing
-# about, and it goes with the entry.
-
-
-def supported_channels(entry: ConfigEntry, did: str | None) -> frozenset[str] | None:
-    """Return the channels this identity has described, or None before any hello."""
-    stored = entry.data.get(CONF_SUPPORTED_CHANNELS)
-    if (
-        did is None
-        or not isinstance(stored, Mapping)
-        or stored.get("did") != did
-        or not isinstance(channels := stored.get("channels"), list)
-    ):
-        return None
-    return frozenset(channel for channel in channels if isinstance(channel, str))
-
-
-@callback
-def async_record_supported_channels(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-    did: str,
-    channels: Collection[str],
-    unsupported: Collection[str] = (),
-) -> None:
-    """Add what a hello described to the entry's channels, and drop what it
-    listed as unsupported; write only a change.
-    """
-    known = supported_channels(entry, did)
-    updated = (known or frozenset()).union(channels).difference(unsupported)
-    if known is not None and known == updated:
-        return
-    hass.config_entries.async_update_entry(
-        entry,
-        data={
-            **entry.data,
-            CONF_SUPPORTED_CHANNELS: {"did": did, "channels": sorted(updated)},
-        },
-    )
+# The channels a panel cannot serve. A hello that lists a channel as
+# unsupported, the panel's explicit statement that it cannot serve it, removes
+# that channel's native entity; a channel merely missing from one session is
+# only unavailable.
 
 
 @callback
@@ -1795,81 +1201,6 @@ def async_remove_unsupported_channels(
         async_dispatcher_send(
             hass, signal_native_removed(entry.entry_id), frozenset(removed)
         )
-
-
-def cutover_issue_id(issue: str, entry_id: str) -> str:
-    """Return the Repairs issue ID of one cutover issue for one entry."""
-    return f"{issue}_{entry_id}"
-
-
-@callback
-def async_raise_cutover_incomplete_issue(
-    hass: HomeAssistant, entry: ConfigEntry, step: str, error: str
-) -> None:
-    """Report a cutover step that failed; the next setup carries on from the record."""
-    ir.async_create_issue(
-        hass,
-        DOMAIN,
-        cutover_issue_id(ISSUE_CUTOVER_INCOMPLETE, entry.entry_id),
-        is_fixable=False,
-        is_persistent=False,
-        severity=ir.IssueSeverity.ERROR,
-        translation_key=ISSUE_CUTOVER_INCOMPLETE,
-        translation_placeholders={"panel": entry.title, "step": step, "error": error},
-    )
-
-
-@callback
-def async_raise_cutover_blocked_issue(
-    hass: HomeAssistant, entry: ConfigEntry, entity_ids: list[str]
-) -> None:
-    """Report the customised MQTT entities that hold back the panel's withdrawal."""
-    ir.async_create_issue(
-        hass,
-        DOMAIN,
-        cutover_issue_id(ISSUE_CUTOVER_BLOCKED, entry.entry_id),
-        is_fixable=False,
-        is_persistent=False,
-        severity=ir.IssueSeverity.WARNING,
-        translation_key=ISSUE_CUTOVER_BLOCKED,
-        translation_placeholders={
-            "panel": entry.title,
-            "entities": ", ".join(entity_ids),
-        },
-    )
-
-
-@callback
-def async_raise_native_controls_unavailable_issue(
-    hass: HomeAssistant, entry: ConfigEntry, entity_ids: list[str]
-) -> None:
-    """Report controls that this panel has not offered over native transport."""
-    ir.async_create_issue(
-        hass,
-        DOMAIN,
-        cutover_issue_id(ISSUE_NATIVE_CONTROLS_UNAVAILABLE, entry.entry_id),
-        is_fixable=False,
-        is_persistent=False,
-        severity=ir.IssueSeverity.WARNING,
-        translation_key=ISSUE_NATIVE_CONTROLS_UNAVAILABLE,
-        translation_placeholders={
-            "panel": entry.title,
-            "entities": ", ".join(entity_ids),
-        },
-    )
-
-
-@callback
-def async_delete_cutover_issues(
-    hass: HomeAssistant, entry_id: str, *issues: str
-) -> None:
-    """Delete an entry's cutover issues, or only the ones named."""
-    for issue in issues or (
-        ISSUE_CUTOVER_INCOMPLETE,
-        ISSUE_CUTOVER_BLOCKED,
-        ISSUE_NATIVE_CONTROLS_UNAVAILABLE,
-    ):
-        ir.async_delete_issue(hass, DOMAIN, cutover_issue_id(issue, entry_id))
 
 
 # ---------------------------------------------------------------------------
@@ -2236,69 +1567,44 @@ def _accept_hello(
     async_delete_merged_identity_issue(hass, entry)
     async_delete_binding_issue(hass, entry.entry_id, user_id)
 
-    authority = effective_authority(hass, entry)
+    # Every capability this integration implements that the panel offered.
     offered = frozenset(msg["capabilities"])
-    capabilities = AUTHORITY_GRANTS[authority].intersection(offered)
-    mqtt_withdraw_offered = CAPABILITY_MQTT_WITHDRAW in offered
-    if mqtt_withdraw_offered:
-        capabilities |= {CAPABILITY_MQTT_WITHDRAW}
-    if CAPABILITY_EMBED_PROOF in offered:
-        capabilities |= {CAPABILITY_EMBED_PROOF}
-    if CAPABILITY_VOICE in offered:
-        capabilities |= {CAPABILITY_VOICE}
-    if CAPABILITY_MEDIA in offered:
-        capabilities |= {CAPABILITY_MEDIA}
-    if CAPABILITY_MANAGEMENT in offered:
-        capabilities |= {CAPABILITY_MANAGEMENT}
+    capabilities = KNOWN_CAPABILITIES.intersection(offered)
     voice_stream = async_get_voice_stream(hass)
     stream_client_id = (msg.get("voice_stream_session") or {}).get("client_id")
-    if (
-        CAPABILITY_VOICE_STREAM_SESSION in offered
-        and stream_client_id is not None
-        and voice_stream is not None
-    ):
-        capabilities |= {CAPABILITY_VOICE_STREAM_SESSION}
-    mqtt_discovery = mqtt_discovery_claim(hass, entry)
-    if mqtt_discovery == MQTT_DISCOVERY_WITHDRAW:
-        # Whatever held the withdrawal back, such as a customised entity a
-        # person has since deleted, no longer does.
-        async_delete_cutover_issues(hass, entry.entry_id, ISSUE_CUTOVER_BLOCKED)
+    if stream_client_id is None or voice_stream is None:
+        capabilities -= {CAPABILITY_VOICE_STREAM_SESSION}
     descriptors = {item["channel"]: item for item in msg["channels"]}
     unknown = frozenset(
         channel
         for channel, descriptor in descriptors.items()
         if catalogue_entry(descriptor) is None
     )
-    if native_enabled_for(hass, entry):
-        # A channel the hello also describes is served, whatever it claims.
-        unsupported = frozenset(msg["unsupported"]).difference(descriptors)
-        # Before the session opens: opening it is what tells a cutover waiting
-        # for the panel's channels to run. The entry was found by this very
-        # identity, so the entities removed are this panel's own.
-        if (
-            "camera_enabled" in descriptors
-            and "camera_enabled" not in unknown
-            and descriptors["camera_enabled"]["platform"] == "camera"
-        ) or "camera_enabled" in unsupported:
-            registry = er.async_get(hass)
-            legacy_id = registry.async_get_entity_id(
-                "switch", DOMAIN, f"{did}_camera_enabled"
-            )
-            if (
-                legacy_id is not None
-                and (legacy := registry.async_get(legacy_id)) is not None
-                and legacy.config_entry_id == entry.entry_id
-            ):
-                registry.async_remove(legacy_id)
-                async_dispatcher_send(
-                    hass,
-                    signal_native_removed(entry.entry_id),
-                    frozenset({legacy.unique_id}),
-                )
-        async_remove_unsupported_channels(hass, entry, did, unsupported)
-        async_record_supported_channels(
-            hass, entry, did, frozenset(descriptors).difference(unknown), unsupported
+    # A channel the hello also describes is served, whatever it claims.
+    unsupported = frozenset(msg["unsupported"]).difference(descriptors)
+    # The entry was found by this very identity, so the entities removed are
+    # this panel's own.
+    if (
+        "camera_enabled" in descriptors
+        and "camera_enabled" not in unknown
+        and descriptors["camera_enabled"]["platform"] == "camera"
+    ) or "camera_enabled" in unsupported:
+        registry = er.async_get(hass)
+        legacy_id = registry.async_get_entity_id(
+            "switch", DOMAIN, f"{did}_camera_enabled"
         )
+        if (
+            legacy_id is not None
+            and (legacy := registry.async_get(legacy_id)) is not None
+            and legacy.config_entry_id == entry.entry_id
+        ):
+            registry.async_remove(legacy_id)
+            async_dispatcher_send(
+                hass,
+                signal_native_removed(entry.entry_id),
+                frozenset({legacy.unique_id}),
+            )
+    async_remove_unsupported_channels(hass, entry, did, unsupported)
     session = PanelSession(
         entry_id=entry.entry_id,
         did=did,
@@ -2316,10 +1622,7 @@ def _accept_hello(
         remote=connection.remote if isinstance(connection.remote, str) else None,
         addresses=tuple(msg.get("addresses", ())),
         unknown_channels=unknown,
-        authority=authority,
         prerelease_panel_builds=prereleases_allowed(entry),
-        mqtt_discovery=mqtt_discovery,
-        mqtt_withdraw_offered=mqtt_withdraw_offered,
     )
     result: dict[str, Any] = {
         "protocol": high,
@@ -2327,8 +1630,6 @@ def _accept_hello(
         # Optional on the wire: the panel finds its own device, (DOMAIN, entry_id),
         # from this and probes the entity registry only when it is absent.
         "entry_id": entry.entry_id,
-        "authority": authority,
-        "mqtt_discovery": mqtt_discovery,
         "capabilities": sorted(capabilities),
         "integration": {"version": INTEGRATION_VERSION},
         "lifecycle": hass.data[DOMAIN][DATA_LIFECYCLE].snapshot(),
@@ -2706,8 +2007,8 @@ async def async_send_command(
 ) -> None:
     """Send one command to a panel and wait for its outcome.
 
-    Only a live, fully synced session with the native authority and the
-    commands capability carries commands. A command is sent once and never
+    Only a live, fully synced session with the commands capability carries
+    commands. A command is sent once and never
     again: if the session ends first, or no outcome arrives in time, the call
     fails and the panel is not asked twice. Applied and superseded return;
     every other outcome raises its translated error.
@@ -2719,10 +2020,6 @@ async def async_send_command(
     ):
         raise HomeAssistantError(
             translation_domain=DOMAIN, translation_key=ERR_PANEL_UNAVAILABLE
-        )
-    if session.authority != AUTHORITY_NATIVE:
-        raise HomeAssistantError(
-            translation_domain=DOMAIN, translation_key=ERR_AUTHORITY_MISMATCH
         )
     if CAPABILITY_COMMANDS not in session.capabilities:
         raise HomeAssistantError(
@@ -2748,9 +2045,8 @@ async def async_manage(
     The same delivery as a command, with the same session token, deadline
     and command ID, so a repeat is answered from the panel's record rather
     than run twice. It needs only a live session that granted management:
-    management is not entity state, so neither a full sync nor native
-    authority is required. Any outcome but applied raises its translated
-    error.
+    management is not entity state, so no full sync is required. Any outcome
+    but applied raises its translated error.
     """
     if async_get_sessions(hass).get(session.entry_id) is not session or not (
         session_manages(session)

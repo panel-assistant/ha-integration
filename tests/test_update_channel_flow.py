@@ -129,6 +129,5 @@ async def test_completed_install_preserves_its_per_panel_prerelease_choice(
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"] == {CONF_ADDRESS: TARGET.address}
     assert result["options"] == {
-        "authority": "native",
         **({"prerelease_panel_builds": True} if opt_in else {}),
     }

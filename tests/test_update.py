@@ -105,8 +105,8 @@ def _entity(
         "https://github.com/app.apk",
         "a" * 64,
         descriptor=SimpleNamespace(package_id=LEGACY_PACKAGE_ID, version_code=1100),
-        protocol_min=3,
-        protocol_max=3,
+        protocol_min=5,
+        protocol_max=5,
     )
     host = StableReleaseCoordinator(hass)
     host._candidates[artifact.tag, LEGACY_PACKAGE_ID] = artifact

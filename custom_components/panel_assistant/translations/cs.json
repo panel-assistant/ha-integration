@@ -504,6 +504,9 @@
     }
   },
   "exceptions": {
+    "mqtt_panel_needs_090": {
+      "message": "{panel} nebyl přesunut z MQTT: nejprve nainstalujte Panel Assistant 0.9.0, jak vysvětluje jeho Oprava"
+    },
     "move_with_repair": {
       "message": "Převeďte tento panel na novou aplikaci pomocí jeho opravy v Nastavení."
     },
@@ -567,9 +570,6 @@
     "upload_disabled": {
       "message": "Panel nepřijímá nahrávání aplikací; zapněte nahrávání APK v jeho nastavení"
     },
-    "authority_mismatch": {
-      "message": "Tento panel se ovládá přes MQTT, proto mu Panel Assistant nemůže posílat příkazy"
-    },
     "panel_unavailable": {
       "message": "Panel není připojen k Panel Assistant, proto příkaz nebyl odeslán"
     },
@@ -629,6 +629,14 @@
     }
   },
   "issues": {
+    "panel_app_too_old": {
+      "title": "{panel} potřebuje aplikaci {required_version}",
+      "description": "{panel} používá aplikaci {version}, která mluví starším protokolem než Panel Assistant 1.0, takže ji Home Assistant nevidí ani neovládá a její entity se zobrazují jako nedostupné. Nic se neztratilo: panel dál funguje samostatně a ponechává si nastavení i historii. Nainstalujte aktualizaci, kterou Panel Assistant pro tento panel nabízí, a panel se znovu připojí."
+    },
+    "mqtt_panel_needs_090": {
+      "title": "{panel} nebyl přesunut z MQTT",
+      "description": "Panel Assistant 1.0 už nedokáže přesunout {panel} z MQTT na vlastní připojení a jeho připojení by teď vytvořilo druhou sadu entit a rozdělilo jeho historii. Nejprve nainstalujte Panel Assistant 0.9.0 (v HACS otevřete Panel Assistant, zvolte Redownload a vyberte verzi 0.9.0), nechte panel přesunout a poté nainstalujte 1.0.0. Pokud raději začnete znovu, smažte zařízení tohoto panelu v Nastavení, Zařízení a služby, MQTT, potom tuto položku znovu načtěte nebo ji odeberte a panel přidejte znovu; vzniknou nové entity a historie se nezachová."
+    },
     "move_to_new_app": {
       "title": "Převést {panel} na novou aplikaci",
       "fix_flow": {
@@ -747,18 +755,6 @@
         }
       }
     },
-    "cutover_incomplete": {
-      "title": "Převod entit panelu {panel} nebyl dokončen",
-      "description": "Panel Assistant nemohl dokončit převod entit panelu {panel} mezi MQTT a vlastní správou: krok {step} selhal s chybou {error}. Panel dál funguje a převod bude pokračovat při příštím opětovném načtení panelu nebo restartu systému Home Assistant. Pokud selhává opakovaně, příčinu najdete v protokolu systému Home Assistant."
-    },
-    "cutover_blocked_by_customised_entities": {
-      "title": "Upravené entity MQTT brání panelu {panel} ve stažení entit z MQTT",
-      "description": "Panel Assistant nyní spravuje entity panelu {panel}, ale pro tyto entity MQTT nemá ekvivalent a mají vámi nastavený název, ikonu, oblast, štítek, alias nebo nastavení skrytí či zakázání: {entities}. Smažte je nebo zrušte tato nastavení a panel při příštím připojení stáhne své entity z MQTT. Do té doby je všechny nadále oznamuje."
-    },
-    "native_controls_unavailable": {
-      "title": "Nativní ovládací prvky na panelu {panel} nejsou dostupné",
-      "description": "Panel Assistant zakázal tyto ovládací prvky MQTT, protože panel {panel} nenabídl jejich nativní akce: {entities}. Jejich konfigurace a ID entit jsou zachované. Aktualizujte aplikaci na panelu, zkontrolujte, že jsou splněny předpoklady jejích akcí, a poté panel znovu připojte. Restart zařízení při použití MQTT navíc vyžaduje oprávnění root. Pokud ovládací prvek dříve fungoval přes MQTT, přepnutí tohoto panelu zpět na MQTT jej dočasně obnoví."
-    },
     "no_update_route": {
       "title": "Panel {panel} nemůže přijímat aktualizace aplikace",
       "description": "Panel Assistant nemůže na panelu {panel} instalovat aktualizace aplikace, proto aplikace zůstává na stávající verzi. Vše ostatní na panelu dál funguje, a proto lze tento problém snadno přehlédnout. Obvykle následuje po změně provedené na samotném panelu, například po aktualizaci firmwaru nebo resetu. Výběrem Další informace zobrazíte postup pro tento panel."
@@ -766,18 +762,6 @@
     "merged_panel_identity": {
       "title": "Oddělit sloučené panely: {panels}",
       "description": "Panely {panels} hlásí stejnou identitu zařízení, proto systém Home Assistant nemůže bezpečně určit, kterému záznamu patří nativní připojení nebo entita. Jejich nativní připojení je odmítnuto a žádné entity se nepřevádějí. Aktualizujte ha-paneld na všech dotčených panelech, aby měl každý odlišnou identitu. Poté smažte sloučené zařízení a nechte panely znovu se zaregistrovat."
-    },
-    "merged_mqtt_device": {
-      "title": "Oddělit sloučené zařízení MQTT pro panel {panel}",
-      "description": "Zařízení MQTT používané panelem {panel} obsahuje také identifikátory panelů {panel_ids}. Panel Assistant ponechává entity jednotlivých panelů beze změny, ale systém Home Assistant nemůže zařízení rozdělit poté, co byly identifikátory sloučeny. Aktualizujte ha-paneld na všech dotčených panelech, smažte sloučené zařízení a poté nechte panely znovu se zaregistrovat."
-    },
-    "panel_update_required": {
-      "title": "Aktualizovat ha-paneld na panelu {panel}",
-      "description": "Panel Assistant nyní spravuje entity panelu {panel}, ale verze ha-paneld na tomto panelu je stále oznamuje přes MQTT, takže je MQTT vytváří podruhé. Panel Assistant tyto duplicity zakazuje. Aktualizujte ha-paneld na panelu {panel} na verzi {required_version} nebo novější; samotný Panel Assistant aktualizaci nepotřebuje. Jakmile se aktualizovaný panel připojí, zakázané duplicity se smažou a tento problém zmizí."
-    },
-    "update_before_native_move": {
-      "title": "Aktualizovat ha-paneld na panelu {panel} před převodem z MQTT",
-      "description": "Podpora MQTT končí po této řadě vydání, proto panel {panel} musí přejít na vlastní připojení aplikace Panel Assistant. Verze ha-paneld {version}, která na něm běží, ještě nedokáže předat jeho entity. Aktualizujte ha-paneld na panelu {panel} na verzi {required_version} nebo novější; Panel Assistant jej poté převede automaticky."
     },
     "panel_migration_incomplete": {
       "title": "Panel na adrese {address} nedokončil převod na novou aplikaci",

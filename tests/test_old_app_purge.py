@@ -224,8 +224,8 @@ def _offered_update(hass: HomeAssistant, panel: Panel) -> Iterator[None]:
         "https://github.com/panel-assistant/android/releases/download/v0.9.10/app.apk",
         "a" * 64,
         descriptor=SimpleNamespace(package_id=SUCCESSOR_PACKAGE_ID, version_code=1103),
-        protocol_min=3,
-        protocol_max=3,
+        protocol_min=5,
+        protocol_max=5,
     )
     catalogue = async_get_stable_release_coordinator(hass)
     catalogue._candidates[release.tag, SUCCESSOR_PACKAGE_ID] = release

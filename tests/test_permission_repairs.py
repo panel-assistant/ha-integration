@@ -359,8 +359,8 @@ async def test_successful_panel_update_keeps_its_dashboard_and_permission_warnin
         "https://github.com/app.apk",
         "a" * 64,
         descriptor=SimpleNamespace(package_id=LEGACY_PACKAGE_ID, version_code=101),
-        protocol_min=3,
-        protocol_max=3,
+        protocol_min=5,
+        protocol_max=5,
     )
     release = StableReleaseCoordinator(hass)
     release._candidates[artifact.tag, LEGACY_PACKAGE_ID] = artifact

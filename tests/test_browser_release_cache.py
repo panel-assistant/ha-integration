@@ -52,8 +52,8 @@ def services(monkeypatch):
                 "https://example.com",
                 "a" * 64,
                 SimpleNamespace(apk_size=state.size),
-                protocol_min=3,
-                protocol_max=3,
+                protocol_min=5,
+                protocol_max=5,
             ),
             SignedReleaseMetadata(b"checksum", b"signature", b"json", b"sig"),
         )

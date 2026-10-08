@@ -125,8 +125,8 @@ def route(
         package_id=LEGACY_PACKAGE_ID,
         launch_component=LAUNCH_COMPONENTS[LEGACY_PACKAGE_ID][0],
         published="2026-09-11T10:00:00Z",
-        protocol_min=3,
-        protocol_max=3,
+        protocol_min=5,
+        protocol_max=5,
     )
     feed = BuildFeedCoordinator(hass, URL("https://feed.example/maintainer.json"))
     feed.data = BuildFeed(channel="maintainer", builds=(build,))

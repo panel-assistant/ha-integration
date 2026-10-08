@@ -38,8 +38,8 @@ from tests.test_config_flow import RELEASE as FLOW_RELEASE
 from tests.test_install_jobs import Clock
 
 emulate_home_assistant_store_file = job_fixtures.emulate_home_assistant_store_file
-ARTIFACT = replace(FLOW_ARTIFACT, protocol_min=3, protocol_max=3)
-RELEASE = replace(FLOW_RELEASE, protocol_min=3, protocol_max=3)
+ARTIFACT = replace(FLOW_ARTIFACT, protocol_min=5, protocol_max=5)
+RELEASE = replace(FLOW_RELEASE, protocol_min=5, protocol_max=5)
 
 
 async def _failed_receipt(
@@ -206,8 +206,8 @@ async def test_retry_keeps_the_exact_signed_feed_build(hass: HomeAssistant) -> N
         published="2026-09-28T00:00:00Z",
         package_id="io.github.maxlyth.hapaneld",
         launch_component=LAUNCH_COMPONENTS["io.github.maxlyth.hapaneld"][0],
-        protocol_min=3,
-        protocol_max=3,
+        protocol_min=5,
+        protocol_max=5,
     )
     release = feed_release_artifact(build)
     artifact = _build_artifact(release, release.tag)

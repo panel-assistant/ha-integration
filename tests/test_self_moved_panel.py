@@ -613,7 +613,7 @@ async def test_rediscovery_of_a_held_panel_closes_its_session(
 
     entry = await _load(hass, hass_read_only_user.id, address="192.168.1.23")
     client = await hass_ws_client(hass, hass_read_only_access_token)
-    hello = _hello(did=OLD_APP_DID, protocol={"min": 3, "max": 3})
+    hello = _hello(did=OLD_APP_DID, protocol={"min": 5, "max": 5})
     assert (await _send(client, hello))["success"]
     network.health = _health()
     network.adb = MoveError(panel_move.REASON_ADB_UNREACHABLE)

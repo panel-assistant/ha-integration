@@ -82,8 +82,8 @@ def release(**changes: object) -> ReleaseArtifact:
         apk_url="https://github.invalid/secret-location.apk?token=do-not-persist",
         sha256=APK_SHA256,
         descriptor=descriptor(),
-        protocol_min=3,
-        protocol_max=3,
+        protocol_min=5,
+        protocol_max=5,
     )
     return replace(value, **changes)
 
@@ -144,7 +144,7 @@ def test_rc_plan_refuses_stable_substitution() -> None:
     assert caught.value.code is InstallPlanErrorCode.INVALID_RELEASE
 
 
-@pytest.mark.parametrize("minimum,maximum", [(5, 6), (0, 3), (3, 2), (True, 3)])
+@pytest.mark.parametrize("minimum,maximum", [(6, 6), (3, 4), (0, 3), (3, 2), (True, 3)])
 def test_new_install_refuses_incompatible_native_range(
     minimum: object, maximum: object
 ) -> None:
@@ -298,8 +298,8 @@ def test_build_maps_every_field_and_hashes_exact_canonical_plan() -> None:
         "supported_abis": ("arm64-v8a", "armeabi-v7a"),
         "database_compatibility": "hapaneld-db:v1:ha-paneld.db:1:14",
         "launch_component": "io.github.maxlyth.hapaneld/.MainActivity",
-        "protocol_min": 3,
-        "protocol_max": 3,
+        "protocol_min": 5,
+        "protocol_max": 5,
         "prerelease_opt_in": False,
     }
     assert plan.adb_credential_id == CREDENTIAL_ID

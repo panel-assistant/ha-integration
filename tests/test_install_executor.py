@@ -153,8 +153,8 @@ def artifact() -> InstallArtifact:
         supported_abis=("arm64-v8a", "armeabi-v7a"),
         database_compatibility="hapaneld-db:v1:ha-paneld.db:1:14",
         launch_component="io.github.maxlyth.hapaneld/.MainActivity",
-        protocol_min=3,
-        protocol_max=3,
+        protocol_min=5,
+        protocol_max=5,
     )
 
 
@@ -779,8 +779,8 @@ async def test_happy_path_stops_unclaimed_and_binds_every_operation(
         ),
         sha256=APK_SHA256,
         descriptor=expected_descriptor,
-        protocol_min=3,
-        protocol_max=3,
+        protocol_min=5,
+        protocol_max=5,
     )
     expected_staged = StagedApk(
         job_id=expected_staging_slot_id,

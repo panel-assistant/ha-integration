@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from homeassistant.components.diagnostics import async_redact_data
@@ -13,22 +12,11 @@ from . import HaPaneldConfigEntry
 from .const import CONF_CUTOVER, CONF_TRANSPORT_USER_ID, INTEGRATION_BUILD
 from .coordinator import PanelSnapshot
 from .restart_repair import restart_pending
-from .transport import (
-    cutover_record,
-    effective_authority,
-    entity_owner,
-    mqtt_discovery_claim,
-    native_enabled_for,
-    session_diagnostics,
-    shadow_comparison,
-)
+from .transport import session_diagnostics
 
-_LOGGER = logging.getLogger(__name__)
-
-SHADOW_ERROR_COMPARISON_FAILED = "comparison_failed"
-
-# The cutover record is shown under "transport", with its identities redacted.
-# The supported channels are shown, but not the identity that described them.
+# The record of an earlier move off MQTT names identities and MQTT IDs, and is
+# not shown. The supported channels are shown, but not the identity that
+# described them.
 _ENTRY_KEYS_TO_REDACT = {
     CONF_ADDRESS,
     CONF_TRANSPORT_USER_ID,
@@ -38,9 +26,7 @@ _ENTRY_KEYS_TO_REDACT = {
     "previous_installation_identity",
 }
 _HEALTH_KEYS_TO_REDACT = {"panel_id", "discovery_id", "legacy_discovery_id"}
-# The record's identities, and the MQTT unique IDs that embed one of them.
 _STATUS_KEYS_TO_REDACT = {"serial_number"}
-_CUTOVER_KEYS_TO_REDACT = {"did", "panel_id", "mqtt_unique_id"}
 
 
 async def async_get_config_entry_diagnostics(
@@ -48,32 +34,6 @@ async def async_get_config_entry_diagnostics(
 ) -> dict[str, Any]:
     """Return redacted diagnostics for a config entry."""
     transport = session_diagnostics(hass, entry.entry_id)
-    transport["native_entities"] = native_enabled_for(hass, entry)
-    # The authority a new session would be granted; "authority" is the one the
-    # current or last session was granted.
-    transport["effective_authority"] = effective_authority(hass, entry)
-    record = cutover_record(entry)
-    transport["cutover"] = (
-        None if record is None else async_redact_data(record, _CUTOVER_KEYS_TO_REDACT)
-    )
-    transport["active_owner"] = entity_owner(hass, entry)
-    # What the next hello would answer; "mqtt_discovery_granted" is what the
-    # current or last session was told.
-    transport["mqtt_discovery"] = mqtt_discovery_claim(hass, entry)
-    snapshot: PanelSnapshot | None = entry.runtime_data.coordinator.data
-    try:
-        shadow = (
-            None
-            if snapshot is None
-            else shadow_comparison(hass, entry.entry_id, snapshot.health.panel_id)
-        )
-    except Exception:
-        # The comparison is evidence for later slices, never a reason for the
-        # download to fail.
-        _LOGGER.debug("Transport shadow comparison failed", exc_info=True)
-        shadow = {"error": SHADOW_ERROR_COMPARISON_FAILED}
-    if shadow is not None:
-        transport["shadow"] = shadow
     return {
         **_diagnostics(entry),
         "restart_pending": restart_pending(hass),

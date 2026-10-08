@@ -197,10 +197,10 @@ class _GitHub:
                 document
             ).encode()
         protocol_name = f"ha-paneld-{TAG}-protocol.json"
-        records = [{"apkSha256": sha, "protocolMin": 3, "protocolMax": 3}]
+        records = [{"apkSha256": sha, "protocolMin": 5, "protocolMax": 5}]
         if bridge is not None:
             records.append(
-                {"apkSha256": bridge_sha, "protocolMin": 3, "protocolMax": 3}
+                {"apkSha256": bridge_sha, "protocolMin": 5, "protocolMax": 5}
             )
         protocol = (
             json.dumps(
@@ -1659,7 +1659,7 @@ async def test_shared_release_selects_compatible_stable_and_prerelease_candidate
             protocol_max=None,
         ),
         replace(
-            artifact, version="0.9.14", tag="v0.9.14", protocol_min=5, protocol_max=5
+            artifact, version="0.9.14", tag="v0.9.14", protocol_min=6, protocol_max=6
         ),
         replace(artifact, version="0.9.13-rc1", tag="v0.9.13-rc1"),
         replace(artifact, version="0.9.12", tag="v0.9.12"),

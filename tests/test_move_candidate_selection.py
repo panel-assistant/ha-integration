@@ -26,21 +26,21 @@ real_release_reader = candidates.real_release_reader
     ("feed", "public", "installed", "expected_source", "expected"),
     [
         (
-            [("1.1.0", 900, (3, 3))],
-            [("1.2.0", 950, (3, 3))],
+            [("1.1.0", 900, (5, 5))],
+            [("1.2.0", 950, (5, 5))],
             ("1.0.0", 800),
             "public",
             ("1.2.0", 950),
         ),
         (
-            [("1.2.0", 850, (3, 3)), ("1.1.0", 900, (3, 3))],
+            [("1.2.0", 850, (5, 5)), ("1.1.0", 900, (5, 5))],
             [],
             ("1.0.0", 875),
             "feed",
             ("1.1.0", 900),
         ),
         (
-            [("1.1.0", 900, (3, 3)), ("1.2.0", 850, (3, 3))],
+            [("1.1.0", 900, (5, 5)), ("1.2.0", 850, (5, 5))],
             [],
             ("1.0.0", 800),
             "feed",
@@ -48,20 +48,20 @@ real_release_reader = candidates.real_release_reader
         ),
         (
             [],
-            [("1.2.0", 850, (3, 3)), ("1.1.0", 900, (3, 3))],
+            [("1.2.0", 850, (5, 5)), ("1.1.0", 900, (5, 5))],
             ("1.0.0", 875),
             "public",
             ("1.1.0", 900),
         ),
         (
-            [("1.2.0", 900, (3, 3))],
-            [("1.2.0", 900, (3, 3))],
+            [("1.2.0", 900, (5, 5))],
+            [("1.2.0", 900, (5, 5))],
             ("1.0.0", 800),
             "feed",
             ("1.2.0", 900),
         ),
         (
-            [("1.2.0", 900, None), ("1.1.0", 850, (3, 3))],
+            [("1.2.0", 900, None), ("1.1.0", 850, (5, 5))],
             [],
             ("1.0.0", 800),
             "feed",
@@ -128,7 +128,7 @@ async def test_fresh_move_refuses_unknown_installed_snapshot(
     hass, monkeypatch, trust, key
 ):
     """A fresh install cannot assume ordering when the panel is unobserved."""
-    github, _ = candidates._public_pool(key, monkeypatch, [("1.2.0", 900, (3, 3))])
+    github, _ = candidates._public_pool(key, monkeypatch, [("1.2.0", 900, (5, 5))])
     entity, client = await candidates._panel(hass, monkeypatch, github, with_feed=False)
     entry = hass.config_entries.async_get_entry("entry-id")
     client.async_get_health = AsyncMock(return_value=entity.coordinator.data.health)

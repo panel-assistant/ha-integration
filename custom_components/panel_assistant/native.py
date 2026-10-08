@@ -1,20 +1,10 @@
 """Native entities rendered from a panel's transport session.
 
-Set up for an entry whose Control option is native, which every panel added
-from 0.6.3 is, or for every entry when ``native_entities: true`` is in this
-integration's YAML; ``false`` there keeps them off everywhere. Otherwise no
-native platform is set up and no registry entry is written. These entities
-render what the panel reports over the native transport beside the MQTT
-entities, so the two can be compared. Their commands reach the panel only while
-the entry's authority is native; otherwise each one fails with a translated
-error and MQTT carries the panel's commands.
-
 Every entity's shape comes from the descriptor the panel sent in ``hello``: its
 platform, translation key, category, default enablement, device class, unit
-and options. Its unique ID is ``<did>_<unique_suffix>``, the ID a later cutover
-migrates the MQTT entity to, so a native entity never claims an MQTT one.
-Entities are added when a session describes them and never removed when a
-later session does not: a channel that disappears only becomes unavailable.
+and options. Its unique ID is ``<did>_<unique_suffix>``. Entities are added
+when a session describes them and never removed when a later session does
+not: a channel that disappears only becomes unavailable.
 The one exception is a hello that lists a channel as unsupported, the panel's
 explicit statement that it cannot serve it: that channel's native entity is
 removed (see ``async_remove_unsupported_channels``), and a later session that
@@ -45,18 +35,18 @@ from .transport import (
     PanelSession,
     async_get_sessions,
     async_send_command,
-    native_enabled_for,
     session_available,
     signal_native_removed,
     signal_observations,
     signal_session_changed,
 )
 
+# The YAML key that once turned native entities on or off; still accepted, and
+# ignored.
 CONF_NATIVE_ENTITIES: Final = "native_entities"
 
-# Platforms only native entities use. Sensor and update are always set up for
-# the status sensor and the ha-paneld update entity, and add native entities
-# of their own only while the option is on.
+# Platforms only native entities use. Sensor and update are set up for the
+# status sensor and the ha-paneld update entity too.
 NATIVE_ONLY_PLATFORMS: Final = (
     Platform.BINARY_SENSOR,
     Platform.BUTTON,
@@ -241,12 +231,7 @@ def async_setup_native_platform(
     async_add_entities: AddConfigEntryEntitiesCallback,
     factory: NativeFactory,
 ) -> None:
-    """Add an entity for each channel of this platform a session describes.
-
-    Does nothing unless native entities are turned on.
-    """
-    if not native_enabled_for(hass, entry):
-        return
+    """Add an entity for each channel of this platform a session describes."""
     added: set[str] = set()
 
     @callback

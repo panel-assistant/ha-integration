@@ -141,8 +141,8 @@ def _entity(
         published="2026-09-28T00:00:00Z",
         package_id=LEGACY_PACKAGE_ID,
         launch_component=LAUNCH_COMPONENTS[LEGACY_PACKAGE_ID][0],
-        protocol_min=3,
-        protocol_max=3,
+        protocol_min=5,
+        protocol_max=5,
     )
     if feed:
         coordinator = BuildFeedCoordinator(hass, URL("https://feed.example/feed"))
@@ -709,8 +709,8 @@ async def test_older_targetless_repair_clears_only_at_verified_current_feed_buil
         published="2026-09-28T00:00:00Z",
         package_id=LEGACY_PACKAGE_ID,
         launch_component=LAUNCH_COMPONENTS[LEGACY_PACKAGE_ID][0],
-        protocol_min=3,
-        protocol_max=3,
+        protocol_min=5,
+        protocol_max=5,
     )
     feed = BuildFeedCoordinator(hass, URL("https://feed.example/feed"))
     feed.data = BuildFeed(channel="maintainer", builds=(build,))
@@ -781,8 +781,8 @@ async def test_stable_pa_clears_repair_at_prerelease_feed_build_for_opted_in_pan
         published="2026-09-28T00:00:00Z",
         package_id=LEGACY_PACKAGE_ID,
         launch_component=LAUNCH_COMPONENTS[LEGACY_PACKAGE_ID][0],
-        protocol_min=3,
-        protocol_max=3,
+        protocol_min=5,
+        protocol_max=5,
     )
     feed = BuildFeedCoordinator(hass, URL("https://feed.example/feed"))
     feed.data = BuildFeed(channel="maintainer", builds=(build,))

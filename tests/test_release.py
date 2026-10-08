@@ -1602,11 +1602,11 @@ async def test_coordinator_routes_by_package_and_clears_old_bridge(
         session = _dual_release_session(signing_key)
         records = sorted(
             [
-                {"apkSha256": _SHA256, "protocolMin": 3, "protocolMax": 3},
+                {"apkSha256": _SHA256, "protocolMin": 5, "protocolMax": 5},
                 {
                     "apkSha256": hashlib.sha256(b"successor APK").hexdigest(),
-                    "protocolMin": 3,
-                    "protocolMax": 3,
+                    "protocolMin": 5,
+                    "protocolMax": 5,
                 },
             ],
             key=lambda record: record["apkSha256"],
@@ -1781,7 +1781,7 @@ def _protocol_document(*records: dict[str, Any]) -> dict[str, Any]:
     return {
         "schema": "io.github.maxlyth.hapaneld.protocol.v1",
         "artifacts": list(records)
-        or [{"apkSha256": _SHA256, "protocolMin": 3, "protocolMax": 3}],
+        or [{"apkSha256": _SHA256, "protocolMin": 5, "protocolMax": 5}],
     }
 
 
@@ -1852,7 +1852,7 @@ async def test_protocol_companion_requires_exact_hash_for_each_resolved_identity
         _SHA256 if omit == "selected" else hashlib.sha256(b"successor APK").hexdigest()
     )
     body = _canonical_descriptor(
-        _protocol_document({"apkSha256": sha, "protocolMin": 3, "protocolMax": 3})
+        _protocol_document({"apkSha256": sha, "protocolMin": 5, "protocolMax": 5})
     )
     _serve_protocol_metadata(session, signing_key, body)
     with pytest.raises(ReleaseResolutionError):
@@ -1868,9 +1868,9 @@ async def test_protocol_companion_requires_exact_hash_for_each_resolved_identity
         ("protocolMin", -1),
         ("protocolMax", 2147483648),
         ("protocolMin", 2147483648),
-        ("protocolMin", "3"),
-        ("protocolMax", 3.0),
-        ("protocolMin", 4),
+        ("protocolMin", "5"),
+        ("protocolMax", 5.0),
+        ("protocolMin", 6),
         ("apkSha256", "A" * 64),
         ("apkSha256", []),
         ("apkSha256", "a" * 63),
@@ -1947,17 +1947,17 @@ async def test_protocol_companion_refuses_ambiguous_or_unauthenticated_metadata(
             document["artifacts"] *= 2
         case "unsorted-hashes":
             document["artifacts"].insert(
-                0, {"apkSha256": "f" * 64, "protocolMin": 3, "protocolMax": 3}
+                0, {"apkSha256": "f" * 64, "protocolMin": 5, "protocolMax": 5}
             )
         case "too-many-records":
             document["artifacts"] = [
-                {"apkSha256": f"{number:064x}", "protocolMin": 3, "protocolMax": 3}
+                {"apkSha256": f"{number:064x}", "protocolMin": 5, "protocolMax": 5}
                 for number in range(501)
             ]
     body = _canonical_descriptor(document)
     match fault:
         case "duplicate-key":
-            body = body.replace(b'"protocolMin":3', b'"protocolMin":3,"protocolMin":3')
+            body = body.replace(b'"protocolMin":5', b'"protocolMin":5,"protocolMin":5')
         case "noncanonical":
             body = json.dumps(document, sort_keys=True).encode() + b"\n"
         case "missing-newline":
@@ -1975,7 +1975,7 @@ async def test_protocol_companion_refuses_ambiguous_or_unauthenticated_metadata(
         case "payload-tamper":
             session.responses[_PROTOCOL_URL] = FakeResponse(
                 200,
-                body.replace(b'"protocolMax":3', b'"protocolMax":4'),
+                body.replace(b'"protocolMax":5', b'"protocolMax":6'),
                 URL(_PROTOCOL_URL),
             )
         case "signature-missing" | "asset-missing" | "wrong-asset-url":

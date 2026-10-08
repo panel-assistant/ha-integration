@@ -504,6 +504,9 @@
     }
   },
   "exceptions": {
+    "mqtt_panel_needs_090": {
+      "message": "{panel} is nooit van MQTT verhuisd: installeer eerst Panel Assistant 0.9.0, zoals de reparatie uitlegt"
+    },
     "move_with_repair": {"message": "Verhuis dit paneel naar de nieuwe app met de reparatie ervan in Instellingen."},
     "health_update_failed": {
       "message": "Kan de status van het paneel niet uitlezen"
@@ -577,9 +580,6 @@
     "approval_timeout": {
       "message": "De opdracht is niet op tijd goedgekeurd op het scherm van het paneel"
     },
-    "authority_mismatch": {
-      "message": "Dit paneel wordt via MQTT bestuurd, dus Panel Assistant kan er geen opdrachten naartoe sturen"
-    },
     "expired": {
       "message": "Het paneel was te druk om de opdracht op tijd uit te voeren"
     },
@@ -627,6 +627,14 @@
     }
   },
   "issues": {
+    "panel_app_too_old": {
+      "title": "{panel} heeft app {required_version} nodig",
+      "description": "{panel} draait app {version}, die een ouder protocol gebruikt dan Panel Assistant 1.0, waardoor Home Assistant het paneel niet kan zien of bedienen en de entiteiten als niet beschikbaar worden getoond. Er gaat niets verloren: het paneel blijft zelfstandig werken en houdt zijn instellingen en geschiedenis. Installeer de update die Panel Assistant voor dit paneel aanbiedt en het verbindt weer."
+    },
+    "mqtt_panel_needs_090": {
+      "title": "{panel} is nooit van MQTT verhuisd",
+      "description": "Panel Assistant 1.0 kan {panel} niet meer van MQTT naar de eigen verbinding verhuizen, en nu verbinden zou een tweede set entiteiten aanmaken en de geschiedenis splitsen. Installeer eerst Panel Assistant 0.9.0 (open in HACS Panel Assistant, kies Redownload en selecteer versie 0.9.0), laat het paneel verhuizen en installeer daarna 1.0.0. Wil je liever opnieuw beginnen, verwijder dan het apparaat van dit paneel onder Instellingen, Apparaten en diensten, MQTT, laad vervolgens deze configuratie opnieuw of verwijder haar en voeg het paneel opnieuw toe; dat maakt nieuwe entiteiten aan en bewaart geen geschiedenis."
+    },
     "move_to_new_app": {
       "title": "{panel} verhuizen naar de nieuwe app",
       "fix_flow": {
@@ -745,18 +753,6 @@
         }
       }
     },
-    "cutover_incomplete": {
-      "title": "Het verplaatsen van de entiteiten van {panel} is niet voltooid",
-      "description": "Panel Assistant kon het verplaatsen van de entiteiten van {panel} tussen MQTT en zichzelf niet voltooien: de stap {step} is mislukt met de fout {error}. Het paneel blijft gewoon werken en het verplaatsen gaat door zodra het paneel opnieuw wordt geladen of Home Assistant opnieuw wordt opgestart. Als het blijft mislukken, vind je de oorzaak in het logboek van Home Assistant."
-    },
-    "cutover_blocked_by_customised_entities": {
-      "title": "Aangepaste MQTT-entiteiten houden het intrekken van de MQTT-entiteiten van {panel} tegen",
-      "description": "Panel Assistant beheert nu de entiteiten van {panel}, maar heeft geen equivalent voor deze MQTT-entiteiten, en ze hebben een eigen naam, pictogram, ruimte, label, alias of door jou ingestelde verborgen of uitgeschakelde status: {entities}. Verwijder ze of wis die instellingen, dan trekt het paneel zijn MQTT-entiteiten in zodra het weer verbinding maakt. Tot die tijd blijft het ze allemaal aankondigen."
-    },
-    "native_controls_unavailable": {
-      "title": "Native bediening niet beschikbaar op {panel}",
-      "description": "Panel Assistant heeft deze MQTT-bediening uitgeschakeld omdat {panel} de bijbehorende native acties niet aanbiedt: {entities}. De configuratie en entiteits-ID’s blijven behouden. Werk de paneelapp bij, controleer of aan de vereisten voor de acties is voldaan en verbind het paneel opnieuw. Opnieuw opstarten vereist ook via MQTT roottoegang. Als een bediening eerder via MQTT werkte, herstelt het tijdelijk terugzetten van dit paneel op MQTT die bediening."
-    },
     "no_update_route": {
       "title": "{panel} kan geen app-updates ontvangen",
       "description": "Panel Assistant kan geen app-updates installeren op {panel}, dus de app blijft op de huidige versie. Al het andere op het paneel blijft werken, waardoor dit gemakkelijk over het hoofd wordt gezien. Meestal volgt het op een wijziging op het paneel zelf, zoals een firmware-update of een reset. Kies Meer informatie voor de stappen voor dit paneel."
@@ -764,18 +760,6 @@
     "merged_panel_identity": {
       "title": "Maak de samengevoegde panelen weer apart: {panels}",
       "description": "De panelen {panels} geven dezelfde apparaat-ID weer, dus Home Assistant kan niet met zekerheid vaststellen welk item een native verbinding of entiteit beheert. Hun native verbinding wordt geweigerd en er worden geen entiteiten verplaatst. Werk ha-paneld bij op elk betrokken paneel, zodat elk paneel een unieke identiteit krijgt. Verwijder vervolgens het samengevoegde apparaat en laat de panelen zich opnieuw registreren."
-    },
-    "merged_mqtt_device": {
-      "title": "Maak het samengevoegde MQTT-apparaat los voor {panel}",
-      "description": "Het MQTT-apparaat dat door {panel} wordt gebruikt, draagt ook de paneel-ID’s {panel_ids}. Panel Assistant laat de entiteiten van elk paneel ongewijzigd, maar Home Assistant kan een apparaat niet meer opsplitsen nadat de ID’s zijn samengevoegd. Werk ha-paneld bij voor elk betrokken paneel, verwijder het samengevoegde apparaat en laat de panelen zich vervolgens opnieuw registreren."
-    },
-    "panel_update_required": {
-      "title": "Update ha-paneld op {panel}",
-      "description": "Panel Assistant is nu eigenaar van de entiteiten van {panel}, maar de versie van ha-paneld op dat paneel meldt ze nog steeds via MQTT, waardoor MQTT ze een tweede keer aanmaakt. Panel Assistant schakelt die duplicaten uit. Werk ha-paneld op {panel} bij naar versie {required_version} of hoger; Panel Assistant zelf hoeft niet bijgewerkt te worden. Zodra het bijgewerkte paneel verbinding maakt, worden de uitgeschakelde duplicaten verwijderd en is dit probleem opgelost."
-    },
-    "update_before_native_move": {
-      "title": "Werk ha-paneld op {panel} bij voordat het van MQTT af gaat",
-      "description": "Ondersteuning voor MQTT stopt na deze releasereeks, dus {panel} moet over naar de eigen verbinding van Panel Assistant. De versie van ha-paneld die het draait, {version}, kan zijn entiteiten nog niet overdragen. Werk ha-paneld op {panel} bij naar versie {required_version} of later; Panel Assistant zet het daarna automatisch over."
     },
     "panel_migration_incomplete": {
       "title": "Het paneel op {address} is nog niet helemaal overgestapt naar de nieuwe app",

@@ -234,9 +234,9 @@ async def test_default_install_follows_running_pa_and_skips_incompatible_head(
     client = authenticated_session(
         release_key,
         [
-            ("v1.4.0", (5, 5)),
-            ("v1.3.0-rc2", (3, 3)),
-            ("v1.2.0", (3, 3)),
+            ("v1.4.0", (6, 6)),
+            ("v1.3.0-rc2", (5, 5)),
+            ("v1.2.0", (5, 5)),
         ],
     )
     monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", pa_version)
@@ -246,7 +246,7 @@ async def test_default_install_follows_running_pa_and_skips_incompatible_head(
     assert not any(url.endswith(".apk") for url, _ in client.requests)
 
 
-@pytest.mark.parametrize("protocol_range", [None, (5, 5)])
+@pytest.mark.parametrize("protocol_range", [None, (6, 6)])
 async def test_explicit_install_cannot_bypass_candidate_compatibility(
     hass, monkeypatch, release_key, protocol_range
 ):
@@ -262,7 +262,7 @@ async def test_prerelease_default_accepts_newer_final_promotion(
     from custom_components.panel_assistant import update_policy
 
     client = authenticated_session(
-        release_key, [("v1.3.0", (3, 3)), ("v1.3.0-rc10", (3, 3))]
+        release_key, [("v1.3.0", (5, 5)), ("v1.3.0-rc10", (5, 5))]
     )
     monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "1.0.0-rc1")
     monkeypatch.setattr(catalog, "async_get_clientsession", lambda _: client)
@@ -307,7 +307,7 @@ async def test_equal_version_default_uses_newest_authenticated_build(
     from .test_feed_install_paths import _build, _install_feed
 
     _install_feed(hass, replace(_build(), version_name="1.2.0"))
-    client = authenticated_session(release_key, [("v1.2.0", (3, 3))])
+    client = authenticated_session(release_key, [("v1.2.0", (5, 5))])
     monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "1.0.0")
     monkeypatch.setattr(catalog, "async_get_clientsession", lambda _: client)
     choices = await catalog.async_list_install_choices(hass)

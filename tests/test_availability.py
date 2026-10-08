@@ -158,7 +158,7 @@ async def test_restart_notice_tracks_session_return_and_keeps_entities_available
         hass_ws_client,
         hass_read_only_access_token,
         entry,
-        protocol={"min": 3, "max": 3},
+        protocol={"min": 5, "max": 5},
     )
     session = async_get_sessions(hass).get(entry.entry_id)
     assert session is not None
@@ -254,22 +254,18 @@ async def test_http_restart_fallback_clears_when_health_returns(
     assert _state(hass, STATUS_ENTITY) == "online"
 
 
-async def test_restart_notice_requires_protocol_two_and_bounded_schema(
+async def test_restart_notice_requires_bounded_schema(
     hass: HomeAssistant,
     entry: MockConfigEntry,
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
 ) -> None:
-    hass.config_entries.async_update_entry(
-        entry,
-        data={**entry.data, "installation_identity": False, CONF_ADDRESS: "127.0.0.1"},
-    )
     client = await _connect(
         hass,
         hass_ws_client,
         hass_read_only_access_token,
         entry,
-        protocol={"min": 1, "max": 1},
+        protocol={"min": 5, "max": 5},
     )
     session = async_get_sessions(hass).get(entry.entry_id)
     assert session is not None
@@ -280,24 +276,6 @@ async def test_restart_notice_requires_protocol_two_and_bounded_schema(
         "reason": "recovery",
         "expected_back_ms": 1,
     }
-    await client.send_json_auto_id(request)
-    assert (await client.receive_json())["error"]["code"] == "invalid_format"
-    assert _state(hass, STATUS_ENTITY) in {"online", "connected"}
-    await client.close()
-    hass.config_entries.async_update_entry(
-        entry, data={**entry.data, "installation_identity": True}
-    )
-
-    client = await _connect(
-        hass,
-        hass_ws_client,
-        hass_read_only_access_token,
-        entry,
-        protocol={"min": 3, "max": 3},
-    )
-    session = async_get_sessions(hass).get(entry.entry_id)
-    assert session is not None
-    request["session"] = session.token
     for change in (
         {"scope": "other"},
         {"reason": "arbitrary"},
@@ -326,7 +304,7 @@ async def test_restart_notice_expires_to_unavailable_without_a_return(
         hass_read_only_access_token,
         entry,
         remote=None,
-        protocol={"min": 3, "max": 3},
+        protocol={"min": 5, "max": 5},
     )
     await _poll(hass, entry, {STORED: CannotConnectError()})
     assert _state(hass, STATUS_ENTITY) == "connected"
@@ -1316,51 +1294,3 @@ async def test_address_edit_during_health_proof_is_not_overwritten(
         await hass.async_block_till_done()
     assert entry.data[CONF_ADDRESS] == chosen
     assert entry.runtime_data.client.address == normalize_address(chosen)
-
-
-async def test_old_address_poll_cannot_close_newly_admitted_moved_panel(
-    hass, entry, hass_ws_client, hass_read_only_access_token
-):
-    """A response from a recycled address cannot revoke the proven new session."""
-    from .test_transport import _hello, _send
-
-    hass.config_entries.async_update_entry(
-        entry, data={**entry.data, "installation_identity": False}
-    )
-    await hass.async_block_till_done()
-    coordinator = entry.runtime_data.coordinator
-    started, release = asyncio.Event(), asyncio.Event()
-    legacy_health = replace(HEALTH, installation_identity=False)
-
-    async def health(panel_client):
-        if panel_client.address.host == STORED:
-            if panel_client is entry.runtime_data.client:
-                started.set()
-                await release.wait()
-            return replace(legacy_health, discovery_id=OTHER_DID)
-        return legacy_health
-
-    client = await hass_ws_client(hass, hass_read_only_access_token)
-    with (
-        patch.object(HaPaneldClient, "async_get_health", health),
-        patch.object(
-            HaPaneldClient, "async_get_status", AsyncMock(return_value=STATUS)
-        ),
-    ):
-        poll = asyncio.create_task(coordinator.async_refresh())
-        await asyncio.wait_for(started.wait(), 1)
-        try:
-            response = await _send(
-                client, _hello(protocol={"min": 1, "max": 2}, addresses=[MOVED])
-            )
-            assert response["success"], response
-            session = async_get_sessions(hass).get(entry.entry_id)
-            assert session is not None
-        finally:
-            release.set()
-            await asyncio.wait_for(poll, 1)
-        await hass.async_block_till_done()
-
-    assert entry.data[CONF_ADDRESS] == MOVED
-    assert async_get_sessions(hass).get(entry.entry_id) is session
-    assert not coordinator.identity_mismatch

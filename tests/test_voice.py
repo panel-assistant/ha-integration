@@ -40,7 +40,7 @@ WAKE_WORDS = [
 def _hello(capabilities: list[str]) -> dict[str, Any]:
     return {
         "type": "panel_assistant/hello",
-        "protocol": {"min": 3, "max": 3},
+        "protocol": {"min": 5, "max": 5},
         "did": DID,
         "app": {"version": "0.9.9-rc1", "version_code": 990},
         "contract_digest": "c" * 64,
@@ -170,7 +170,7 @@ async def entry(hass: HomeAssistant, hass_read_only_user: Any) -> MockConfigEntr
     stack depends on; the test harness does not start it unasked.
     """
     assert await async_setup_component(hass, "homeassistant", {})
-    entry = await _setup(hass, hass_read_only_user.id, native=None, described=None)
+    entry = await _setup(hass, hass_read_only_user.id)
     hass.config_entries.async_update_entry(
         entry, data={**entry.data, CONF_INSTALL_IDENTITY: True}
     )
@@ -191,7 +191,7 @@ async def _ready(
     return panel, entity_id
 
 
-async def test_voice_is_granted_under_shadow_and_the_satellite_joins_the_panel_device(
+async def test_voice_is_granted_and_the_satellite_joins_the_panel_device(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
@@ -199,7 +199,6 @@ async def test_voice_is_granted_under_shadow_and_the_satellite_joins_the_panel_d
     entry: MockConfigEntry,
 ) -> None:
     panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
-    assert panel.result["authority"] == "shadow"
     assert "voice" in panel.result["capabilities"]
     assert (await panel.configure())["success"]
     await hass.async_block_till_done()

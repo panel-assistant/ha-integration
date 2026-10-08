@@ -121,8 +121,8 @@ RELEASE = ReleaseArtifact(
     apk_url=f"https://example.invalid/{DESCRIPTOR.apk_name}",
     sha256="a" * 64,
     descriptor=DESCRIPTOR,
-    protocol_min=3,
-    protocol_max=3,
+    protocol_min=5,
+    protocol_max=5,
 )
 LEGACY_RELEASE = replace(RELEASE, descriptor=None)
 
@@ -304,7 +304,7 @@ async def test_connect_existing_success(hass: HomeAssistant) -> None:
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "alpha"
     assert result["data"] == {CONF_ADDRESS: "panel.local"}
-    assert result["options"] == {"authority": "native"}
+    assert result["options"] == {}
     assert result["result"].unique_id is None
 
 
@@ -420,7 +420,7 @@ async def test_zeroconf_requires_fresh_health_confirmation_before_entry_creation
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "alpha"
     assert result["data"] == {CONF_ADDRESS: "192.168.1.23"}
-    assert result["options"] == {"authority": "native"}
+    assert result["options"] == {}
     assert result["result"].unique_id == DISCOVERY_ID
     assert health_mock.await_count >= 2
 
@@ -1816,8 +1816,8 @@ ARTIFACT = InstallArtifact(
     supported_abis=DESCRIPTOR.supported_abis,
     database_compatibility=DESCRIPTOR.database_compatibility,
     launch_component=DESCRIPTOR.launch_component,
-    protocol_min=3,
-    protocol_max=3,
+    protocol_min=5,
+    protocol_max=5,
 )
 CANDIDATE = InstallTargetProbe(
     state=InstallTargetState.INSTALL_CANDIDATE,

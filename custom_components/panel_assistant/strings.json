@@ -504,6 +504,9 @@
     }
   },
   "exceptions": {
+    "mqtt_panel_needs_090": {
+      "message": "{panel} was never moved off MQTT: install Panel Assistant 0.9.0 first, as its Repair explains"
+    },
     "move_with_repair": {"message": "Move this panel to the new app with its Repair in Settings."},
     "health_update_failed": {
       "message": "Unable to read panel health"
@@ -565,9 +568,6 @@
     "upload_disabled": {
       "message": "The panel does not accept app uploads; turn on APK upload in its settings"
     },
-    "authority_mismatch": {
-      "message": "This panel is controlled through MQTT, so Panel Assistant cannot send it commands"
-    },
     "panel_unavailable": {
       "message": "The panel is not connected to Panel Assistant, so the command was not sent"
     },
@@ -627,6 +627,14 @@
     }
   },
   "issues": {
+    "panel_app_too_old": {
+      "title": "{panel} needs app {required_version}",
+      "description": "{panel} runs app {version}, which speaks an older protocol than Panel Assistant 1.0, so Home Assistant cannot see or control it and its entities show as unavailable. Nothing is lost: it keeps working on its own and keeps its settings and history. Install the update that Panel Assistant offers for this panel and it reconnects."
+    },
+    "mqtt_panel_needs_090": {
+      "title": "{panel} was never moved off MQTT",
+      "description": "Panel Assistant 1.0 can no longer move {panel} from MQTT to its own connection, and connecting it now would create a second set of entities and split its history. Install Panel Assistant 0.9.0 first (in HACS open Panel Assistant, choose Redownload, and pick version 0.9.0), let it move the panel, then install 1.0.0. If you would rather start fresh, delete this panel's device under Settings, Devices & services, MQTT, then reload this entry or remove it and add the panel again; that creates new entities and keeps no history."
+    },
     "move_to_new_app": {
       "title": "Move {panel} to the new app",
       "fix_flow": {
@@ -745,18 +753,6 @@
         }
       }
     },
-    "cutover_incomplete": {
-      "title": "Moving the entities of {panel} did not finish",
-      "description": "Panel Assistant could not finish moving the entities of {panel} between MQTT and itself: the {step} step failed with {error}. The panel keeps working, and the move carries on the next time the panel is reloaded or Home Assistant restarts. If it keeps failing, the Home Assistant log names the cause."
-    },
-    "cutover_blocked_by_customised_entities": {
-      "title": "Customised MQTT entities hold back the MQTT withdrawal of {panel}",
-      "description": "Panel Assistant now owns the entities of {panel}, but it has no equivalent for these MQTT entities, and they carry a name, icon, area, label, alias, or hidden or disabled setting of your own: {entities}. Delete them, or clear those settings, and the panel withdraws its MQTT entities the next time it connects. Until then it keeps announcing all of them."
-    },
-    "native_controls_unavailable": {
-      "title": "Native controls unavailable on {panel}",
-      "description": "Panel Assistant disabled these MQTT controls because {panel} has not offered their native actions: {entities}. Their configuration and entity IDs are preserved. Update the panel app and check that its action prerequisites are available, then reconnect it. Reboot also requires root access under MQTT. If a control worked over MQTT before, switching this panel back to MQTT temporarily restores it."
-    },
     "no_update_route": {
       "title": "{panel} cannot receive app updates",
       "description": "Panel Assistant cannot install app updates on {panel}, so the app stays on its current version. Everything else about the panel keeps working, which is why this is easy to miss. It usually follows a change made on the panel itself, such as a firmware update or a reset. Select Learn more for the steps for this panel."
@@ -764,18 +760,6 @@
     "merged_panel_identity": {
       "title": "Separate the merged panels: {panels}",
       "description": "The panels {panels} report the same device identity, so Home Assistant cannot safely decide which entry owns a native connection or entity. Their native connection is refused and no entities are moved. Update ha-paneld on every affected panel so each has a distinct identity, then delete the merged device and let the panels register again."
-    },
-    "merged_mqtt_device": {
-      "title": "Separate the merged MQTT device for {panel}",
-      "description": "The MQTT device used by {panel} also carries the panel identifiers {panel_ids}. Panel Assistant keeps each panel's entities untouched, but Home Assistant cannot split a device after identifiers have been merged. Update ha-paneld on every affected panel, delete the merged device, then let the panels register again."
-    },
-    "panel_update_required": {
-      "title": "Update ha-paneld on {panel}",
-      "description": "Panel Assistant now owns the entities of {panel}, but the version of ha-paneld on that panel still announces them over MQTT, so MQTT creates them a second time. Panel Assistant disables those duplicates. Update ha-paneld on {panel} to version {required_version} or later; Panel Assistant itself needs no update. Once the updated panel connects, the disabled duplicates are deleted and this issue goes away."
-    },
-    "update_before_native_move": {
-      "title": "Update ha-paneld on {panel} before moving it off MQTT",
-      "description": "MQTT support ends after this release line, so {panel} needs to move to Panel Assistant's own connection. The version of ha-paneld it runs, {version}, cannot hand its entities over yet. Update ha-paneld on {panel} to version {required_version} or later; Panel Assistant then moves it automatically."
     },
     "panel_migration_incomplete": {
       "title": "The panel at {address} has not finished moving to its new app",

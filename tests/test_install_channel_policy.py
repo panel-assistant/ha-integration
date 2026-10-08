@@ -47,7 +47,7 @@ async def test_only_the_first_preflight_may_report_a_satisfied_target(
     assert "installed_size" not in harness.events
 
 
-@pytest.mark.parametrize("minimum,maximum", [(None, None), (5, 6)])
+@pytest.mark.parametrize("minimum,maximum", [(None, None), (6, 6)])
 async def test_durable_install_refuses_unknown_or_incompatible_range_before_download(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
@@ -134,8 +134,8 @@ async def test_running_pa_channel_is_rechecked_at_each_apk_mutation_barrier(
     completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
     assert channel_changed
     assert len(harness.download_arguments) == 1
-    assert harness.download_arguments[0][0].protocol_min == 3
-    assert harness.download_arguments[0][0].protocol_max == 3
+    assert harness.download_arguments[0][0].protocol_min == 5
+    assert harness.download_arguments[0][0].protocol_max == 5
     if explicit_opt_in:
         assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
         assert harness.events.count("stage") == 1

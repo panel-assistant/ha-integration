@@ -54,7 +54,6 @@ from .client import (
     normalize_address,
 )
 from .const import (
-    CONF_AUTHORITY,
     CONF_PRERELEASE_PANEL_BUILDS,
     CONF_TRANSPORT_USER_ID,
     DEFAULT_PORT,
@@ -117,7 +116,6 @@ from .release_catalog import async_list_install_choices, async_resolve_install_c
 from .removal import RemovalError, async_read_firmware, async_remove_app
 from .status import PanelStatus
 from .transport import (
-    AUTHORITY_NATIVE,
     _panel_did,
     async_bind_user,
     async_binding_request,
@@ -166,6 +164,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle an ha-paneld config flow."""
 
     VERSION = 1
+    # 2: the authority option is gone (see ``async_migrate_entry``).
+    MINOR_VERSION = 2
 
     @staticmethod
     @callback
@@ -1287,14 +1287,11 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_create_entry(
             title=result.health.panel_id,
             data={CONF_ADDRESS: receipt.target.address},
-            options={
-                **_NEW_PANEL_OPTIONS,
-                **(
-                    {CONF_PRERELEASE_PANEL_BUILDS: True}
-                    if receipt.artifact.prerelease_opt_in
-                    else {}
-                ),
-            },
+            options=(
+                {CONF_PRERELEASE_PANEL_BUILDS: True}
+                if receipt.artifact.prerelease_opt_in
+                else {}
+            ),
         )
 
     def _show_install_result_retry(
@@ -1496,15 +1493,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_create_entry(
             title=self._discovery_title or health.panel_id,
             data=data,
-            options=_NEW_PANEL_OPTIONS,
         )
 
 
 _FRIENDLY_NAME_MAX_LENGTH = 64
-
-# A panel added from now on talks to Home Assistant natively. Existing entries
-# keep whatever they stored, so nobody is switched off MQTT unasked.
-_NEW_PANEL_OPTIONS: dict[str, Any] = {CONF_AUTHORITY: AUTHORITY_NATIVE}
 
 
 def _qualified_name(friendly: str, panel_id: str) -> str:

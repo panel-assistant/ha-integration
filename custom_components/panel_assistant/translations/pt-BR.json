@@ -504,6 +504,9 @@
     }
   },
   "exceptions": {
+    "mqtt_panel_needs_090": {
+      "message": "{panel} nunca saiu do MQTT: instale primeiro o Panel Assistant 0.9.0, como a reparação explica"
+    },
     "move_with_repair": {
       "message": "Transfira este painel para o novo aplicativo pelo reparo dele em Configurações."
     },
@@ -567,9 +570,6 @@
     "upload_disabled": {
       "message": "O painel não aceita uploads de aplicativos; habilite o upload de APK nas configurações dele"
     },
-    "authority_mismatch": {
-      "message": "Este painel é controlado por MQTT, portanto o Panel Assistant não pode enviar comandos a ele"
-    },
     "panel_unavailable": {
       "message": "O painel não está conectado ao Panel Assistant, portanto o comando não foi enviado"
     },
@@ -629,6 +629,14 @@
     }
   },
   "issues": {
+    "panel_app_too_old": {
+      "title": "{panel} precisa do app {required_version}",
+      "description": "{panel} executa o app {version}, que usa um protocolo mais antigo que o do Panel Assistant 1.0, então o Home Assistant não consegue vê-lo nem controlá-lo e suas entidades aparecem como indisponíveis. Nada é perdido: ele continua funcionando sozinho e mantém suas configurações e seu histórico. Instale a atualização que o Panel Assistant oferece para este painel e ele se reconecta."
+    },
+    "mqtt_panel_needs_090": {
+      "title": "{panel} nunca saiu do MQTT",
+      "description": "O Panel Assistant 1.0 não consegue mais mover {panel} do MQTT para a conexão própria, e conectá-lo agora criaria um segundo conjunto de entidades e dividiria o histórico. Instale primeiro o Panel Assistant 0.9.0 (no HACS abra Panel Assistant, escolha Redownload e selecione a versão 0.9.0), deixe que ele mova o painel e depois instale 1.0.0. Se preferir começar do zero, exclua o dispositivo deste painel em Configurações, Dispositivos e serviços, MQTT, depois recarregue esta entrada ou remova-a e adicione o painel de novo; isso cria novas entidades e não mantém histórico."
+    },
     "move_to_new_app": {
       "title": "Migrar {panel} para o novo aplicativo",
       "fix_flow": {
@@ -747,18 +755,6 @@
         }
       }
     },
-    "cutover_incomplete": {
-      "title": "A migração das entidades de {panel} não foi concluída",
-      "description": "O Panel Assistant não conseguiu concluir a migração das entidades de {panel} entre o MQTT e a própria integração: a etapa {step} falhou com {error}. O painel continua funcionando, e a migração continua na próxima vez que o painel for recarregado ou que o Home Assistant reiniciar. Se a falha persistir, o registro do Home Assistant indicará a causa."
-    },
-    "cutover_blocked_by_customised_entities": {
-      "title": "Entidades MQTT personalizadas impedem a retirada do MQTT de {panel}",
-      "description": "O Panel Assistant agora é responsável pelas entidades de {panel}, mas não tem equivalentes para estas entidades MQTT, que têm nome, ícone, área, etiqueta, apelido ou configuração de ocultação ou desabilitação definidos por você: {entities}. Exclua-as ou remova essas configurações, e o painel retirará suas entidades MQTT na próxima conexão. Até lá, continuará anunciando todas elas."
-    },
-    "native_controls_unavailable": {
-      "title": "Controles nativos indisponíveis em {panel}",
-      "description": "O Panel Assistant desabilitou estes controles MQTT porque {panel} não disponibilizou suas ações nativas: {entities}. Suas configurações e IDs de entidade foram preservados. Atualize o aplicativo do painel, verifique se os pré-requisitos das ações estão disponíveis e reconecte-o. Reiniciar o dispositivo também exige acesso root via MQTT. Se um controle funcionava via MQTT antes, voltar este painel para MQTT o restaura temporariamente."
-    },
     "no_update_route": {
       "title": "{panel} não pode receber atualizações do aplicativo",
       "description": "O Panel Assistant não consegue instalar atualizações do aplicativo em {panel}, por isso ele permanece na versão atual. Todo o restante do painel continua funcionando, o que facilita deixar este problema passar despercebido. Isso geralmente ocorre após uma alteração feita no próprio painel, como uma atualização de firmware ou uma redefinição. Selecione Saiba mais para ver as etapas para este painel."
@@ -766,18 +762,6 @@
     "merged_panel_identity": {
       "title": "Separar os painéis mesclados: {panels}",
       "description": "Os painéis {panels} informam a mesma identidade de dispositivo, por isso o Home Assistant não consegue determinar com segurança a qual entrada pertence uma conexão nativa ou entidade. A conexão nativa deles é recusada e nenhuma entidade é migrada. Atualize o ha-paneld em todos os painéis afetados para que cada um tenha uma identidade distinta. Depois, exclua o dispositivo mesclado e deixe os painéis se registrarem novamente."
-    },
-    "merged_mqtt_device": {
-      "title": "Separar o dispositivo MQTT mesclado de {panel}",
-      "description": "O dispositivo MQTT usado por {panel} também tem os identificadores de painel {panel_ids}. O Panel Assistant mantém as entidades de cada painel intactas, mas o Home Assistant não consegue separar um dispositivo depois que os identificadores foram mesclados. Atualize o ha-paneld em todos os painéis afetados, exclua o dispositivo mesclado e deixe os painéis se registrarem novamente."
-    },
-    "panel_update_required": {
-      "title": "Atualizar o ha-paneld em {panel}",
-      "description": "O Panel Assistant agora é responsável pelas entidades de {panel}, mas a versão do ha-paneld nesse painel ainda as anuncia via MQTT, por isso o MQTT as cria uma segunda vez. O Panel Assistant desabilita essas duplicatas. Atualize o ha-paneld em {panel} para a versão {required_version} ou posterior; o próprio Panel Assistant não precisa de atualização. Quando o painel atualizado se conectar, as duplicatas desabilitadas serão excluídas e este problema desaparecerá."
-    },
-    "update_before_native_move": {
-      "title": "Atualizar o ha-paneld em {panel} antes de retirá-lo do MQTT",
-      "description": "O suporte ao MQTT termina após esta linha de versões, por isso {panel} precisa migrar para a conexão própria do Panel Assistant. A versão do ha-paneld que ele executa, {version}, ainda não consegue transferir suas entidades. Atualize o ha-paneld em {panel} para a versão {required_version} ou posterior; o Panel Assistant fará então a migração automaticamente."
     },
     "panel_migration_incomplete": {
       "title": "O painel em {address} ainda não concluiu a migração para o novo aplicativo",

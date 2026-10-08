@@ -9,7 +9,8 @@ from dataclasses import dataclass
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS, Platform
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import issue_registry as ir
@@ -22,14 +23,8 @@ from .browser_delivery import async_register_browser_delivery
 from .browser_panel import async_register_browser_panel
 from .build_feed import BuildFeedError, normalize_feed_url
 from .client import HaPaneldClient, PanelHealth, normalize_address
-from .const import DOMAIN
+from .const import CONF_AUTHORITY, DOMAIN
 from .coordinator import HaPaneldDataUpdateCoordinator
-from .cutover import (
-    async_apply_cutover,
-    async_release_removed_entry,
-    cutover_reconciliation_needed,
-    cutover_reconciliation_waiting,
-)
 from .device import async_refresh_panel_device, panel_device_info
 from .embed import (
     REASON_ENTRY_UNLOADED as EMBED_ENTRY_UNLOADED,
@@ -39,12 +34,6 @@ from .embed import (
     async_setup_embed,
 )
 from .feed_coordinator import CONF_BUILD_FEED, DATA_BUILD_FEED, BuildFeedCoordinator
-from .guards import (
-    async_forget_removed_panel,
-    async_load_removed_panels,
-    async_remember_removed_panel,
-    async_start_guards,
-)
 from .ha_url import async_setup_connection_info
 from .install_artifacts import register_feed_download_host
 from .install_executor import (
@@ -55,30 +44,35 @@ from .lifecycle import async_setup_lifecycle
 from .microphone_repair import async_delete_microphone_issue
 from .migration_targets import async_offer_migration_targets
 from .native import CONF_NATIVE_ENTITIES, NATIVE_ONLY_PLATFORMS
-from .native_move import async_delete_native_move_issues, async_evaluate_native_move
 from .panel_move import (
     async_evaluate_successor_move,
     async_recover_moved_identity,
     async_restore_move_offer,
 )
 from .permission_repair import permission_issue_id
+from .removed_panels import (
+    async_forget_removed_panel,
+    async_load_removed_panels,
+    async_remember_removed_panel,
+)
 from .restart_repair import async_setup_restart_check
 from .transport import (
-    DATA_NATIVE_ENTITIES,
-    DEFAULT_AUTHORITY,
     REASON_ENTRY_UNLOADED,
-    async_apply_authority,
+    async_apply_update_policy,
     async_delete_binding_issue,
-    async_delete_cutover_issues,
     async_delete_merged_identity_issue,
     async_get_sessions,
     async_setup_transport,
-    cutover_record,
-    effective_authority,
-    native_enabled_for,
 )
 from .update_coordinator import PanelUpdateCoordinator
 from .update_route_repair import no_update_route_issue_id
+from .upgrade_repairs import (
+    async_delete_upgrade_issues,
+    async_evaluate_app_too_old,
+    async_raise_needs_090,
+    needs_090,
+    needs_090_issue_id,
+)
 from .voice import (
     async_follow_voice,
     async_load_voice,
@@ -87,10 +81,11 @@ from .voice import (
 )
 from .voice_stream import async_get_voice_stream, async_setup_voice_stream
 
-PLATFORMS = [Platform.SENSOR, Platform.UPDATE]
+PLATFORMS = [Platform.SENSOR, Platform.UPDATE, *NATIVE_ONLY_PLATFORMS]
 # Panels are config entries. YAML holds only development options: an optional
 # build feed, without which nothing is fetched from anywhere but GitHub
-# releases, and native entities, which stay dormant unless turned on.
+# releases. ``native_entities`` is still accepted, so a configuration that
+# names it keeps loading, and ignored: every panel is native.
 CONFIG_SCHEMA = vol.Schema(
     {
         vol.Optional(DOMAIN): vol.Schema(
@@ -107,11 +102,13 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register browser delivery independently of panel config entries."""
-    # True or False in YAML decides for every panel; absent, each panel's own
-    # Control option decides (see native_enabled_for).
-    hass.data.setdefault(DOMAIN, {})[DATA_NATIVE_ENTITIES] = config.get(DOMAIN, {}).get(
-        CONF_NATIVE_ENTITIES
-    )
+    if CONF_NATIVE_ENTITIES in config.get(DOMAIN, {}):
+        _LOGGER.warning(
+            "%s: %s is no longer used and can be removed: every panel talks to"
+            " Panel Assistant over its own connection",
+            DOMAIN,
+            CONF_NATIVE_ENTITIES,
+        )
     # Before the commands exist, so no hello is answered without them.
     await async_load_removed_panels(hass)
     await async_setup_connection_info(hass)
@@ -156,45 +153,9 @@ class HaPaneldRuntimeData:
     update_coordinator: PanelUpdateCoordinator
     platforms: list[Platform]
     voice_setup: Callable[[], Awaitable[None]] | None = None
-    # The authority this load was set up with. Only a change of the effective
-    # authority reloads the entry, so its cutover runs; writes to the entry's
-    # data, as binding and the cutover record make, do not.
-    authority: str = DEFAULT_AUTHORITY
-    # Set only when forward migration was deferred because initial health was
-    # unavailable. The first successful publication consumes it before asking
-    # for one lifecycle reload, so a failed cutover cannot become a reload loop.
-    cutover_reconciliation_pending: bool = False
 
 
 type HaPaneldConfigEntry = ConfigEntry[HaPaneldRuntimeData]
-
-
-@callback
-def _async_request_cutover_reconciliation(
-    hass: HomeAssistant,
-    entry: HaPaneldConfigEntry,
-    runtime_data: HaPaneldRuntimeData,
-) -> None:
-    """Reload once when health or a hello makes a deferred ownership move actionable."""
-    if (
-        getattr(entry, "runtime_data", None) is not runtime_data
-        or not runtime_data.cutover_reconciliation_pending
-        or cutover_reconciliation_waiting(hass, entry)
-    ):
-        return
-    # Re-read requested authority before acting. A person may have cancelled
-    # the pending native move while health was unavailable.
-    runtime_data.cutover_reconciliation_pending = False
-    if not cutover_reconciliation_needed(hass, entry):
-        return
-    # Not eagerly: a hello that supplied the missing channels opened a session
-    # and still owes the panel its reply, which must reach it before the
-    # reload ends that session.
-    hass.async_create_task(
-        hass.config_entries.async_reload(entry.entry_id),
-        f"reconcile {DOMAIN} ownership after its prerequisites arrived",
-        eager_start=False,
-    )
 
 
 async def _async_resume_install_jobs(hass: HomeAssistant) -> None:
@@ -220,10 +181,22 @@ async def _async_reconcile_install_receipt(
     await executor.async_reconcile_entry(entry.entry_id, address, health)
 
 
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Drop the authority option: every panel is native.
+
+    A minor version, so Panel Assistant 0.9.0, which a panel never moved off
+    MQTT must go back to, still loads the entry. The move record stays.
+    """
+    if entry.version == 1 and entry.minor_version < 2:
+        options = {
+            key: value for key, value in entry.options.items() if key != CONF_AUTHORITY
+        }
+        hass.config_entries.async_update_entry(entry, options=options, minor_version=2)
+    return True
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> bool:
     """Set up ha-paneld from a config entry."""
-    from homeassistant.exceptions import ConfigEntryNotReady
-
     from .identity import reconcile_identity
 
     await _async_resume_install_jobs(hass)
@@ -243,6 +216,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
         raise ConfigEntryNotReady(
             translation_domain=DOMAIN, translation_key="panel_identity_conflict"
         )
+    # Before anything is created: entities set up beside a panel's MQTT ones
+    # would split their history, and only Panel Assistant 0.9.0 can move them.
+    health = None if coordinator.data is None else coordinator.data.health
+    if needs_090(hass, entry, health):
+        async_raise_needs_090(hass, entry)
+        raise ConfigEntryError(
+            translation_domain=DOMAIN,
+            translation_key="mqtt_panel_needs_090",
+            translation_placeholders={"panel": entry.title},
+        )
+    ir.async_delete_issue(hass, DOMAIN, needs_090_issue_id(entry.entry_id))
     update_coordinator = PanelUpdateCoordinator(hass, client)
     await update_coordinator.async_config_entry_first_refresh()
 
@@ -255,23 +239,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
         )
 
     platforms = list(PLATFORMS)
-    if native_enabled_for(hass, entry):
-        platforms.extend(NATIVE_ONLY_PLATFORMS)
     runtime_data = entry.runtime_data = HaPaneldRuntimeData(
         client=client,
         coordinator=coordinator,
         update_coordinator=update_coordinator,
         platforms=platforms,
-        authority=effective_authority(hass, entry),
     )
     await async_forget_removed_panel(hass, entry)
-    # Before any platform loads, so no entity of this entry is loaded, and
-    # before the update listener, so the record's writes reload nothing.
-    await async_apply_cutover(hass, entry)
-    runtime_data.cutover_reconciliation_pending = cutover_reconciliation_waiting(
-        hass, entry
-    )
-    async_start_guards(hass, entry)
     entry.async_on_unload(coordinator.async_follow_session())
     entry.async_on_unload(
         lambda: async_get_sessions(hass).close_entry(
@@ -305,13 +279,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     if satellite_known(hass, entry):
         await async_load_voice(hass, entry, platforms)
     runtime_data.voice_setup = async_follow_voice(hass, entry, platforms)
-    # A panel still on MQTT moves to native now, or as soon as a poll or a
-    # session tells its version; the move reloads the entry, whose next setup
-    # runs the cutover.
-    async_evaluate_native_move(hass, entry)
-    entry.async_on_unload(
-        coordinator.async_add_listener(lambda: async_evaluate_native_move(hass, entry))
-    )
     # A panel still on the old app id is offered the move to the new app.
     await async_restore_move_offer(hass, entry)
     async_evaluate_successor_move(hass, entry)
@@ -320,30 +287,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
             lambda: async_evaluate_successor_move(hass, entry)
         )
     )
-    # Register last so this coordinator listener is removed first on unload,
-    # even when a later teardown callback fails.
+    # After the move offer, which stands in for this when both apply.
+    async_evaluate_app_too_old(hass, entry)
     entry.async_on_unload(
-        coordinator.async_add_listener(
-            lambda: _async_request_cutover_reconciliation(hass, entry, runtime_data)
-        )
+        coordinator.async_add_listener(lambda: async_evaluate_app_too_old(hass, entry))
     )
     return True
 
 
 async def _async_entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Regrant the panel's session, and reload the entry when its authority changed.
+    """Regrant the panel's session when its update grant changed.
 
-    The reload runs the cutover the new authority asks for. Every other write
-    keeps the entry loaded: binding, the cutover record, and a changed address,
-    which the running client simply polls from now on, so the panel's session
+    Every write keeps the entry loaded: binding, and a changed address, which
+    the running client simply polls from now on, so the panel's session
     survives its own repair.
     """
-    async_apply_authority(hass, entry)
+    async_apply_update_policy(hass, entry)
     runtime_data = getattr(entry, "runtime_data", None)
     if runtime_data is None:
-        return
-    if effective_authority(hass, entry) != runtime_data.authority:
-        await hass.config_entries.async_reload(entry.entry_id)
         return
     address = normalize_address(entry.data[CONF_ADDRESS])
     if address != runtime_data.client.address:
@@ -364,27 +325,19 @@ async def async_unload_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
 async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> None:
     """Withdraw a removed panel's request and issues, and forget its last session.
 
-    Home Assistant has unloaded the entry and dropped it from its entries, but
-    not yet cleared its registry entries: the moved entities go back to MQTT
-    now, and the panel is remembered so its next hello learns of the removal.
+    The panel is remembered so its next hello learns of the removal.
     """
     async_delete_binding_issue(hass, entry.entry_id)
     ir.async_delete_issue(hass, DOMAIN, permission_issue_id(entry.entry_id))
     ir.async_delete_issue(hass, DOMAIN, no_update_route_issue_id(entry.entry_id))
     async_delete_microphone_issue(hass, entry.entry_id)
-    async_delete_cutover_issues(hass, entry.entry_id)
-    async_delete_native_move_issues(hass, entry.entry_id)
+    async_delete_upgrade_issues(hass, entry.entry_id)
     async_delete_merged_identity_issue(hass, entry)
     async_get_sessions(hass).forget_entry(entry.entry_id)
     # The panel's Sendspin key goes with its entry; a re-added panel gets a new one.
     if (voice_stream := async_get_voice_stream(hass)) is not None:
         await voice_stream.async_revoke(entry.entry_id)
-    record = cutover_record(entry)
-    recorded_did = None if record is None else record.get("did")
-    await async_release_removed_entry(hass, entry)
-    await async_remember_removed_panel(
-        hass, entry, recorded_did if isinstance(recorded_did, str) else None
-    )
+    await async_remember_removed_panel(hass, entry)
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> None:

@@ -74,7 +74,7 @@ async def test_shutdown_broadcasts_unknown_to_every_authority(
         reply = await _send(client, _hello(did=did))
         assert reply["success"]
         assert reply["result"]["lifecycle"]["phase"] == "ready"
-        assert reply["result"]["protocol"] == 3
+        assert reply["result"]["protocol"] == 5
     hass.bus.async_fire(
         EVENT_CALL_SERVICE, {"domain": "hassio", "service": "host_reboot"}
     )

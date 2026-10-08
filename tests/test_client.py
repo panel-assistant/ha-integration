@@ -816,22 +816,6 @@ def test_status_rejects_incomplete_or_invalid_home_proof(home_ui: object) -> Non
         )
 
 
-async def test_client_claims_the_panel_update_only_when_asked() -> None:
-    """The owner header rides only on a status poll that claims the update."""
-    session = _session(body=STATUS_FIXTURE.read_bytes())
-    client = HaPaneldClient(session, normalize_address("panel.local"))  # type: ignore[arg-type]
-
-    await client.async_get_status(update_owner=True)
-
-    assert session.requests
-    url, kwargs = session.requests[-1]
-    assert str(url) == "http://panel.local:8888/api/v1/status"
-    assert kwargs["headers"] == {
-        "Cache-Control": "no-cache",
-        "X-Panel-Assistant-Update-Owner": "1",
-    }
-
-
 async def test_client_rejects_invalid_status_utf8() -> None:
     """Invalid UTF-8 is rejected before status parsing."""
     client = HaPaneldClient(  # type: ignore[arg-type]

@@ -72,7 +72,7 @@ def _release(
     protocol = (
         json.dumps(
             {
-                "artifacts": [{"apkSha256": SHA, "protocolMax": 4, "protocolMin": 4}],
+                "artifacts": [{"apkSha256": SHA, "protocolMax": 5, "protocolMin": 5}],
                 "schema": protocol_schema,
             },
             separators=(",", ":"),
@@ -128,7 +128,7 @@ async def test_a_release_under_either_name_installs_and_its_job_resumes(
     assert resolved.apk_name == APK
     assert resolved.descriptor is not None
     assert resolved.descriptor.schema == schemas[0]
-    assert (resolved.protocol_min, resolved.protocol_max) == (4, 4)
+    assert (resolved.protocol_min, resolved.protocol_max) == (5, 5)
 
     plan = build_install_plan(pinned_target(), probe(), resolved, CREDENTIAL_ID)
     assert plan.artifact.descriptor_schema == schemas[0]

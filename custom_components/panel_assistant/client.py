@@ -30,7 +30,6 @@ from .const import (
     RESTORE_PATH,
     SETUP_PATH,
     STATUS_PATH,
-    UPDATE_OWNER_HEADER,
 )
 from .release import (
     VERSION_CODE_BODY,
@@ -55,6 +54,7 @@ _VERSION_PATTERN = re.compile(
 )
 _INSTALL_TIME_PATTERN = re.compile(r"^(0|[1-9][0-9]{0,18})$")
 _VERSION_CODE_PATTERN = re.compile(r"^[1-9][0-9]{0,9}$")
+_PROTOCOL_RANGE_PATTERN = re.compile(r"^([1-9][0-9]{0,2})-([1-9][0-9]{0,2})$")
 _RESTART_PATTERN = re.compile(
     r"^(app|panel),(update|settings|recovery|reboot),([1-9][0-9]{0,5})$"
 )
@@ -71,6 +71,7 @@ _KNOWN_HEALTH_FIELDS = frozenset(
         "legacy_did",
         "pkg",
         "vc",
+        "proto",
         "ha",
         "ha_src",
         "ha_refused",
@@ -181,9 +182,14 @@ class PanelHealth:
     package: str | None = None
     # The build number beside the version name. Absent from older builds.
     version_code: int | None = None
+    # The native protocol range the app speaks, (min, max). Absent from every
+    # build that speaks protocol 4 or older.
+    protocol: tuple[int, int] | None = None
     restart: tuple[str, str, int] | None = None
 
-    def as_dict(self) -> dict[str, str | bool | int | tuple[str, str, int] | None]:
+    def as_dict(
+        self,
+    ) -> dict[str, str | bool | int | tuple[int, int] | tuple[str, str, int] | None]:
         """Return a serializable diagnostics representation."""
         return asdict(self)
 
@@ -330,6 +336,14 @@ def parse_health_response(body: str) -> PanelHealth:
         else None
     )
 
+    protocol_match = _PROTOCOL_RANGE_PATTERN.fullmatch(fields.get("proto", ""))
+    protocol = (
+        (int(protocol_match[1]), int(protocol_match[2]))
+        if protocol_match is not None
+        and int(protocol_match[1]) <= int(protocol_match[2])
+        else None
+    )
+
     restart_match = _RESTART_PATTERN.fullmatch(fields.get("pa_restarting", ""))
     restart = (
         (restart_match[1], restart_match[2], int(restart_match[3]))
@@ -350,6 +364,7 @@ def parse_health_response(body: str) -> PanelHealth:
         installation_identity=fields.get("identity") == "install",
         package=package,
         version_code=version_code,
+        protocol=protocol,
         restart=restart,
     )
 
@@ -571,14 +586,12 @@ class HaPaneldClient:
         """Return the panel-owned component-update endpoint."""
         return self.address.base_url.with_path(INSTALL_COMPONENT_PATH)
 
-    async def _async_get_bounded(
-        self, url: URL, maximum_bytes: int, extra_headers: dict[str, str] | None = None
-    ) -> bytes:
+    async def _async_get_bounded(self, url: URL, maximum_bytes: int) -> bytes:
         try:
             async with self._session.get(
                 url,
                 allow_redirects=False,
-                headers={"Cache-Control": "no-cache", **(extra_headers or {})},
+                headers={"Cache-Control": "no-cache"},
                 timeout=ClientTimeout(total=DEFAULT_TIMEOUT_SECONDS),
             ) as response:
                 if response.status == 404 and url.path == "/api/v1/successor":
@@ -657,14 +670,8 @@ class HaPaneldClient:
         except UnicodeDecodeError as err:
             raise InvalidResponseError from err
 
-    async def async_get_status(
-        self, *, update_owner: bool = False, home_proof: bool = False
-    ) -> PanelStatus:
-        """Fetch and parse the bounded, privacy-safe status response.
-
-        With ``update_owner`` the request tells the panel this Home Assistant
-        shows its ha-paneld update entity.
-        """
+    async def async_get_status(self, *, home_proof: bool = False) -> PanelStatus:
+        """Fetch and parse the bounded, privacy-safe status response."""
         from .status import parse_status_response
 
         body = await self._async_get_bounded(
@@ -672,7 +679,6 @@ class HaPaneldClient:
             if home_proof
             else self.status_url,
             MAX_STATUS_RESPONSE_BYTES,
-            {UPDATE_OWNER_HEADER: "1"} if update_owner else None,
         )
         try:
             return parse_status_response(body.decode("utf-8"))

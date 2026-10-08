@@ -6,7 +6,6 @@
     "unknown_channel",
     "invalid_value",
     "not_commandable",
-    "authority_mismatch",
     "expired",
     "approval_denied",
     "approval_timeout",

@@ -32,7 +32,7 @@ from .test_voice import _connect, _satellite
 async def entry(hass: HomeAssistant, hass_read_only_user: Any) -> MockConfigEntry:
     """A loaded, bound entry, before its first voice-capable session."""
     assert await async_setup_component(hass, "homeassistant", {})
-    entry = await _setup(hass, hass_read_only_user.id, native=None, described=None)
+    entry = await _setup(hass, hass_read_only_user.id)
     hass.config_entries.async_update_entry(
         entry, data={**entry.data, CONF_INSTALL_IDENTITY: True}
     )

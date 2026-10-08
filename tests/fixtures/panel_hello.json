@@ -883,8 +883,8 @@
   "contract_digest": "7476a36a6910541fe60bfb0cfbffc6726b0ffcdef2873de4f32bc7446c65e7cc",
   "did": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "protocol": {
-    "min": 3,
-    "max": 3
+    "min": 5,
+    "max": 5
   },
   "type": "panel_assistant/hello"
 }
