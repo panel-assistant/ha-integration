@@ -882,7 +882,12 @@ const Ha = `/* Generated from tools/tokens/tokens.json by tools/tokens/tokens.py
   --tame-recommended:#2e6b3f;
   --uninstall-select-bg:#1c1c1c;
   --uninstall-select-border:#444;
-  --uninstall-select-fg:#eee;}
+  --uninstall-select-fg:#eee;
+  --api-get-bg:#173d2a;
+  --api-get-fg:#5ad18a;
+  --api-post-bg:#1b3a5c;
+  --api-post-fg:#6db3ff;
+  --api-response-fg:#cdd;}
 @media (prefers-color-scheme: light){:root:not([data-theme=dark]),:host(:not([theme=dark])){color-scheme:light;
   --bg:#f2f3f5;
   --card:#fff;
