@@ -47,6 +47,7 @@ from custom_components.panel_assistant.config_flow import (
 from custom_components.panel_assistant.const import (
     CONF_TRANSPORT_USER_ID,
     DOMAIN,
+    INTEGRATION_VERSION,
     help_url,
 )
 from custom_components.panel_assistant.install_adb import (
@@ -271,7 +272,9 @@ async def test_usb_step_links_local_admin_panel_without_creating_entry(
     }
     panel = hass.data[frontend.DATA_PANELS]["panel-assistant-usb"]
     assert panel.require_admin is True
-    assert panel.config["installer_url"] == "https://install.panel-assistant.io/"
+    assert panel.config["installer_url"] == (
+        f"https://install.panel-assistant.io/{INTEGRATION_VERSION}/"
+    )
     assert not hass.config_entries.async_entries(DOMAIN)
     returned = await hass.config_entries.flow.async_configure(result["flow_id"], {})
     assert returned["type"] is FlowResultType.MENU
