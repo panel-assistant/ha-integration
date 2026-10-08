@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { readBounded } from '../src/bounded-stream.mjs';
 import { installProgress } from '../src/install-view.mjs';
 import { ENGLISH_MESSAGES } from '../src/frontend-localization.mjs';
-import { WIZARD_CSS, BRAND_ICON } from '../src/wizard-look.mjs';
+import { WIZARD_CSS, BRAND_HTML } from '../src/wizard-look.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 
@@ -30,7 +30,7 @@ test('production build contains a root installer and a standalone HA panel', asy
   assert.ok(!panel.includes('sourceMappingURL'));
   // Both halves of the journey paint from the one shared look, from the first frame.
   assert.ok(html.includes(`<style>${WIZARD_CSS}</style>`), 'installer page carries the shared look inline');
-  assert.ok(html.includes(BRAND_ICON) && !html.includes('__BRAND_ICON__'));
+  assert.ok(html.includes(BRAND_HTML) && !html.includes('<!-- brand -->'));
   assert.ok(panel.includes('.wiz-dots li.current::before'), 'Home Assistant page uses the shared look');
   let registered;
   globalThis.HTMLElement = class {};

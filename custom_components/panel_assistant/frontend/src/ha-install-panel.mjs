@@ -1,7 +1,7 @@
 import { frontendMessages, frontendLocale, formatFrontendMessage } from './frontend-localization.mjs';
 import { startReleaseHandoff } from './ha-release-handoff.mjs';
 import { fetchReleaseCatalog } from './release-catalog.mjs';
-import { BRAND_ICON, WIZARD_CSS, journeyHtml, renderJourney } from './wizard-look.mjs';
+import { BRAND_HTML, WIZARD_CSS, journeyHtml, renderJourney } from './wizard-look.mjs';
 
 // Stable keys keep presentation separate from the release-transfer protocol.
 // This is the first stop of the same wizard the installer window and the
@@ -27,7 +27,7 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
       :host{display:block;min-height:100%;background:var(--bg);padding:24px 16px}
       .card p.status{color:var(--text);margin:14px 0 0}
     </style><main class="wiz">
-      <div class="wiz-brand"><img src="${BRAND_ICON}" alt=""><span>ha-paneld</span></div>
+      ${BRAND_HTML}
       <ol id="journey" class="wiz-dots">${journeyHtml(0)}</ol>
       <section class="card">
         <h2 data-message="title"></h2>
