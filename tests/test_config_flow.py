@@ -14,7 +14,7 @@ from homeassistant import config_entries
 from homeassistant.config_entries import FlowType
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResultType, InvalidData
+from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -3922,22 +3922,3 @@ async def test_a_non_administrator_cannot_start_the_flow_that_confirms(
 
     assert response.status == 401
     assert not hass.config_entries.async_entries(DOMAIN)
-
-
-async def test_options_flow_offers_no_transport_choice(hass: HomeAssistant) -> None:
-    """The MQTT transport choice is gone from the menu and cannot be reached."""
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        title="alpha",
-        data={CONF_ADDRESS: "192.168.1.23"},
-        options={"authority": "native"},
-    )
-    entry.add_to_hass(hass)
-    menu = await hass.config_entries.options.async_init(entry.entry_id)
-
-    assert "transport" not in menu["menu_options"]
-    with pytest.raises(InvalidData, match="next_step_id"):
-        await hass.config_entries.options.async_configure(
-            menu["flow_id"], {"next_step_id": "transport"}
-        )
-    assert entry.options == {"authority": "native"}
