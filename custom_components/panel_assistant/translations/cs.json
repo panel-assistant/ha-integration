@@ -1448,7 +1448,6 @@
         "description": "Pokračujte v nastavení tohoto panelu, změňte způsob komunikace nebo povolte přístup přes ADB pro aktualizace panelu. Pokud panel ještě není propojený, potvrďte jeho přihlášený účet a dokončete nastavení.",
         "menu_options": {
           "onboarding": "Pokračovat v nastavení",
-          "transport": "Nastavení komunikace",
           "authorize_adb": "Povolit přístup přes ADB pro aktualizace",
           "updates": "Aktualizace panelu",
           "remove_app": "Odebrat ha-paneld z tohoto panelu"
@@ -1473,13 +1472,6 @@
       "authorize_adb": {
         "title": "Povolit Home Assistant přístup k panelu {panel}",
         "description": "Zvolte Odeslat, aby se vytvořil nebo načetl trvalý klíč ADB této instalace Home Assistant a jeho veřejný klíč se nabídl panelu {panel}. Na fyzickém panelu potvrďte žádost systému Android „Povolit ladění“ a pak formulář znovu odešlete. Android může Home Assistant označovat jako počítač. Potvrzením udělujete obecný přístup k shellu přes ADB, dokud zůstává povolené ladění po síti; přístup můžete odvolat ve vývojářských nastaveních panelu. V tomto kroku se žádná aplikace neinstaluje."
-      },
-      "transport": {
-        "title": "Komunikace panelu",
-        "description": "Vyberte, co ovládá entity a příkazy tohoto panelu. Uložením volby Panel Assistant se entity panelu přesunou z MQTT do Panel Assistant se zachováním jejich ID, historie a úprav a panel pak přestane nabízet své entity přes MQTT. Uložením volby MQTT, s nativními hlášeními nebo bez nich, se entity přesunou zpět do MQTT. V obou případech se panel znovu připojí s novou volbou.",
-        "data": {
-          "authority": "Ovládání"
-        }
       },
       "updates": {
         "title": "Aktualizace panelu",
@@ -1536,18 +1528,8 @@
       "removal_remove_failed": "Panel už má svou domovskou obrazovku zpět, ale ha-paneld se nepodařilo úplně odebrat. Zkuste to znovu: další pokus dokončí zbývající kroky."
     },
     "abort": {
-      "native_entities_disabled": "Nativní entity nejsou pro tuto instanci Home Assistant zapnuté, takže tento panel ovládá MQTT.",
       "removed_entry_deleted": "ha-paneld byl odebrán a panel byl smazán z Home Assistant.",
       "removed_entry_kept": "ha-paneld byl odebrán. Panel zůstane v Home Assistant, dokud ho nesmažete."
-    }
-  },
-  "selector": {
-    "authority": {
-      "options": {
-        "mqtt": "MQTT",
-        "shadow": "MQTT s nativními hlášeními pro porovnání",
-        "native": "Panel Assistant"
-      }
     }
   }
 }

@@ -1408,7 +1408,6 @@
         "description": "继续配置此面板、更改其连接方式，或授权 ADB 用于面板更新。如果面板尚未绑定，请确认已登录的账户以完成配置。",
         "menu_options": {
           "onboarding": "继续设置",
-          "transport": "连接设置",
           "authorize_adb": "授权 ADB 更新",
           "updates": "面板更新",
           "remove_app": "从此面板移除 ha-paneld"
@@ -1433,13 +1432,6 @@
       "authorize_adb": {
         "title": "在 {panel} 上授权 Home Assistant",
         "description": "点击“提交”以创建或加载此 Home Assistant 安装的持久 ADB 密钥，并向 {panel} 提供公钥。在实体面板上批准 Android 的“允许调试”提示，然后再次提交。Android 可能将 Home Assistant 称为计算机。只要网络调试保持开启，此授权就允许一般 ADB shell 访问；可在面板的开发者选项中撤销。此步骤不会安装应用。"
-      },
-      "transport": {
-        "title": "面板连接",
-        "description": "选择由什么控制此面板的实体和命令。保存 Panel Assistant 后，Panel Assistant 会把面板的 MQTT 实体迁移到自身，并保留其实体 ID、历史记录和你的自定义设置，随后面板会撤回其 MQTT 实体。保存 MQTT（无论是否带原生报告）会把它们迁回 MQTT。无论哪种情况，面板都会以新的选择重新连接。",
-        "data": {
-          "authority": "控制方式"
-        }
       },
       "updates": {
         "title": "面板更新",
@@ -1496,18 +1488,8 @@
       "removal_remove_failed": "面板已经拿回主屏幕，但 ha-paneld 未能完全移除。请重试：重试会完成剩余部分。"
     },
     "abort": {
-      "native_entities_disabled": "此 Home Assistant 未启用原生实体，因此由 MQTT 控制此面板。",
       "removed_entry_deleted": "已移除 ha-paneld，并已从 Home Assistant 删除该面板。",
       "removed_entry_kept": "已移除 ha-paneld。在你删除之前，面板会保留在 Home Assistant 中。"
-    }
-  },
-  "selector": {
-    "authority": {
-      "options": {
-        "mqtt": "MQTT",
-        "shadow": "MQTT，并附带用于比较的原生报告",
-        "native": "Panel Assistant"
-      }
     }
   }
 }

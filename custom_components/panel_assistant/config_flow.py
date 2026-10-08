@@ -117,16 +117,12 @@ from .release_catalog import async_list_install_choices, async_resolve_install_c
 from .removal import RemovalError, async_read_firmware, async_remove_app
 from .status import PanelStatus
 from .transport import (
-    AUTHORITIES,
     AUTHORITY_NATIVE,
     _panel_did,
     async_bind_user,
     async_binding_request,
     async_confirmable_user,
     async_discard_binding_request,
-    authority_options,
-    effective_authority,
-    native_entities_turned_off,
 )
 from .update_policy import prereleases_allowed
 from .update_route_repair import help_parameters
@@ -1632,9 +1628,6 @@ def _install_terminal_abort_reason(receipt: InstallJobReceipt) -> str:
     return "install_failed"
 
 
-ABORT_NATIVE_ENTITIES_DISABLED = "native_entities_disabled"
-
-
 async def async_authorize_adb_form[ResultT: FlowResult[Any, Any]](
     flow: FlowHandler[Any, ResultT, Any],
     entry: ConfigEntry,
@@ -1714,14 +1707,7 @@ CONF_REMOVAL_CONFIRMED = "confirmed"
 
 
 class HaPaneldOptionsFlow(OptionsFlow):
-    """Complete setup, choose transport authority, or configure panel updates.
-
-    The authority choice exists only while native entities are turned on. Saving a
-    change ends a live panel session and reloads the entry, whose setup moves
-    the panel's MQTT entities to this integration under native and back under
-    the others, so the panel is granted the new authority when it says hello
-    again.
-    """
+    """Complete setup, configure panel updates, authorise ADB or remove the app."""
 
     _setup_watch: asyncio.Task[None] | None = None
     _pending_bind_user_id: str | None = None
@@ -1744,10 +1730,10 @@ class HaPaneldOptionsFlow(OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Offer this panel's setup, transport, updates and available ADB consent."""
+        """Offer this panel's setup, updates and available ADB consent."""
         if self.context.get("source") == "onboarding":
             return await self.async_step_onboarding()
-        options = ["transport", "updates"]
+        options = ["updates"]
         if self._current_panel_health() is not None:
             options.append("authorize_adb")
         if CONF_TRANSPORT_USER_ID not in self.config_entry.data:
@@ -1955,29 +1941,3 @@ class HaPaneldOptionsFlow(OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         return self.async_abort(reason="removed_entry_kept")
-
-    async def async_step_transport(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Show or save the authority."""
-        if native_entities_turned_off(self.hass):
-            return self.async_abort(reason=ABORT_NATIVE_ENTITIES_DISABLED)
-        if user_input is not None:
-            return self.async_create_entry(
-                data=authority_options(self.config_entry, user_input[CONF_AUTHORITY])
-            )
-        schema = vol.Schema(
-            {
-                vol.Required(
-                    CONF_AUTHORITY,
-                    default=effective_authority(self.hass, self.config_entry),
-                ): SelectSelector(
-                    SelectSelectorConfig(
-                        options=list(AUTHORITIES),
-                        mode=SelectSelectorMode.LIST,
-                        translation_key=CONF_AUTHORITY,
-                    )
-                )
-            }
-        )
-        return self.async_show_form(step_id="transport", data_schema=schema)

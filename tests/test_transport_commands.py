@@ -11,7 +11,6 @@ from unittest.mock import patch
 import pytest
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.exceptions import HomeAssistantError
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -256,39 +255,6 @@ async def test_embed_grant_carries_the_key_shape_consumed_by_the_panel(
 # The options flow.
 
 
-async def test_options_flow_aborts_without_native_entities(
-    hass: HomeAssistant, hass_read_only_user: Any
-) -> None:
-    """A release carries the choice dark."""
-    entry = await _setup(hass, hass_read_only_user.id, native=False)
-
-    menu = await hass.config_entries.options.async_init(entry.entry_id)
-    assert menu["type"] is FlowResultType.MENU
-    assert "authorize_adb" in menu["menu_options"]
-    result = await hass.config_entries.options.async_configure(
-        menu["flow_id"], {"next_step_id": "transport"}
-    )
-
-    assert result["type"] is FlowResultType.ABORT
-    assert result["reason"] == "native_entities_disabled"
-    assert entry.options == {}
-
-
-def _default(result: Any, key: str) -> Any:
-    for marker in result["data_schema"].schema:
-        if marker == key:
-            return marker.default()
-    raise AssertionError(key)
-
-
-async def _transport_form(hass: HomeAssistant, entry: MockConfigEntry) -> Any:
-    menu = await hass.config_entries.options.async_init(entry.entry_id)
-    assert menu["type"] is FlowResultType.MENU
-    return await hass.config_entries.options.async_configure(
-        menu["flow_id"], {"next_step_id": "transport"}
-    )
-
-
 async def test_changing_the_authority_ends_the_session_and_regrants(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
@@ -301,18 +267,11 @@ async def test_changing_the_authority_ends_the_session_and_regrants(
     panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
     assert panel.result["authority"] == "shadow"
 
-    form = await _transport_form(hass, entry)
-    assert form["type"] is FlowResultType.FORM
-    assert form["step_id"] == "transport"
-    assert _default(form, "authority") == "shadow"
     # Saving a new authority reloads the entry, which sets it up again.
     with panel_patches():
-        done = await hass.config_entries.options.async_configure(
-            form["flow_id"], {"authority": "native"}
-        )
+        hass.config_entries.async_update_entry(entry, options={"authority": "native"})
         await hass.async_block_till_done()
 
-    assert done["type"] is FlowResultType.CREATE_ENTRY
     assert entry.options == {"authority": "native"}
     closed = await panel.next_after_request()
     assert closed.get("event") == {
@@ -326,8 +285,6 @@ async def test_changing_the_authority_ends_the_session_and_regrants(
     again = await _connect(hass, hass_ws_client, hass_read_only_access_token)
     assert again.result["authority"] == "native"
     assert again.result["capabilities"] == ["approval", "commands", "events", "state"]
-    form = await _transport_form(hass, entry)
-    assert _default(form, "authority") == "native"
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
 
 
@@ -355,10 +312,7 @@ async def test_entry_writes_that_keep_the_authority_keep_the_session(
     await panel.nothing_sent()
     assert entry.runtime_data.client.address.host == "panel-2.local"
 
-    form = await _transport_form(hass, entry)
-    await hass.config_entries.options.async_configure(
-        form["flow_id"], {"authority": "native"}
-    )
+    hass.config_entries.async_update_entry(entry, options={"authority": "native"})
     await hass.async_block_till_done()
     await panel.nothing_sent()
     assert transport.async_get_sessions(hass).get(entry.entry_id) is not None
@@ -374,9 +328,6 @@ async def test_a_panel_that_chose_native_runs_natively_without_yaml(
     )
 
     assert transport.effective_authority(hass, entry) == "native"
-    result = await _transport_form(hass, entry)
-    assert result["type"] is FlowResultType.FORM
-    assert result["step_id"] == "transport"
 
 
 async def test_without_yaml_a_panel_that_chose_nothing_stays_shadow(
@@ -386,8 +337,6 @@ async def test_without_yaml_a_panel_that_chose_nothing_stays_shadow(
     entry = await _setup(hass, hass_read_only_user.id, native=None)
 
     assert transport.effective_authority(hass, entry) == "shadow"
-    result = await _transport_form(hass, entry)
-    assert result["type"] is FlowResultType.FORM
 
 
 async def test_a_dark_option_change_keeps_a_shadow_session(

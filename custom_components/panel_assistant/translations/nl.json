@@ -1446,7 +1446,6 @@
         "description": "Ga verder met de configuratie van dit paneel, wijzig de verbinding of autoriseer ADB voor updates. Als het paneel nog niet gekoppeld is, bevestig dan het aangemelde account om de configuratie te voltooien.",
         "menu_options": {
           "onboarding": "Installatie voortzetten",
-          "transport": "Verbindingsinstellingen",
           "authorize_adb": "ADB voor updates autoriseren",
           "updates": "Paneelupdates",
           "remove_app": "ha-paneld van dit paneel halen"
@@ -1471,13 +1470,6 @@
       "authorize_adb": {
         "title": "Home Assistant op {panel} autoriseren",
         "description": "Kies Verzenden om de permanente ADB-sleutel van deze Home Assistant-installatie te maken of te laden en de openbare sleutel aan {panel} aan te bieden. Sta de Android-vraag voor foutopsporing op het fysieke paneel toe en verzend het formulier opnieuw. Android kan Home Assistant als een computer omschrijven. De toestemming geeft algemene ADB-shelltoegang zolang foutopsporing via het netwerk aanstaat; trek deze in via de ontwikkelaarsopties van het paneel. In deze stap wordt geen app geïnstalleerd."
-      },
-      "transport": {
-        "title": "Verbindingswijze van het paneel",
-        "description": "Kies wat de entiteiten en opdrachten van dit paneel aanstuurt. Als je Panel Assistant opslaat, worden de MQTT-entiteiten van het paneel naar Panel Assistant verplaatst, waarbij hun entiteits-ID’s, geschiedenis en aanpassingen behouden blijven, en het paneel trekt vervolgens zijn MQTT-entiteiten in. Als je MQTT opslaat, met of zonder native rapporten, worden ze teruggezet naar MQTT. Hoe dan ook maakt het paneel opnieuw verbinding met de nieuwe keuze.",
-        "data": {
-          "authority": "Besturing"
-        }
       },
       "updates": {
         "title": "Paneelupdates",
@@ -1534,18 +1526,8 @@
       "removal_remove_failed": "Het paneel heeft zijn startscherm al terug, maar ha-paneld kon niet volledig worden weggehaald. Probeer het opnieuw: een nieuwe poging maakt de rest af."
     },
     "abort": {
-      "native_entities_disabled": "Native-entiteiten zijn voor deze Home Assistant niet ingeschakeld, dus MQTT regelt dit paneel.",
       "removed_entry_deleted": "ha-paneld is weggehaald en het paneel is uit Home Assistant gewist.",
       "removed_entry_kept": "ha-paneld is weggehaald. Het paneel blijft in Home Assistant tot je het wist."
-    }
-  },
-  "selector": {
-    "authority": {
-      "options": {
-        "mqtt": "MQTT",
-        "shadow": "MQTT, met native rapporten ter vergelijking",
-        "native": "Panel Assistant"
-      }
     }
   }
 }

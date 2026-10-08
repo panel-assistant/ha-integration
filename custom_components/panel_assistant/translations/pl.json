@@ -1446,7 +1446,6 @@
         "description": "Kontynuuj konfigurację panelu, zmień sposób połączenia lub autoryzuj ADB do aktualizacji. Jeśli panel nie jest jeszcze powiązany, potwierdź zalogowane konto, aby ukończyć konfigurację.",
         "menu_options": {
           "onboarding": "Kontynuuj konfigurację",
-          "transport": "Ustawienia połączenia",
           "authorize_adb": "Autoryzuj ADB do aktualizacji",
           "updates": "Aktualizacje panelu",
           "remove_app": "Usuń ha-paneld z tego panelu"
@@ -1471,13 +1470,6 @@
       "authorize_adb": {
         "title": "Autoryzuj Home Assistant na panelu {panel}",
         "description": "Wybierz Prześlij, aby utworzyć lub wczytać trwały klucz ADB tej instalacji Home Assistant i przekazać klucz publiczny panelowi {panel}. Zatwierdź monit systemu Android „Zezwól na debugowanie” bezpośrednio na panelu, a następnie prześlij formularz ponownie. Android może określić Home Assistant jako komputer. Zgoda daje ogólny dostęp do powłoki ADB, dopóki debugowanie sieciowe jest włączone; można ją cofnąć w opcjach programisty panelu. W tym kroku nie jest instalowana żadna aplikacja."
-      },
-      "transport": {
-        "title": "Transport panelu",
-        "description": "Wybierz, co steruje encjami i poleceniami tego panelu. Zapisanie opcji Panel Assistant przenosi encje MQTT panelu do Panel Assistant z zachowaniem ich identyfikatorów encji, historii i dostosowań, a następnie panel wycofuje swoje encje MQTT. Zapisanie opcji MQTT, z raportami natywnymi lub bez nich, przenosi je z powrotem do MQTT. W obu przypadkach panel łączy się ponownie z nowym wyborem.",
-        "data": {
-          "authority": "Sterowanie"
-        }
       },
       "updates": {
         "title": "Aktualizacje panelu",
@@ -1534,18 +1526,8 @@
       "removal_remove_failed": "Panel odzyskał już ekran główny, ale ha-paneld nie dał się usunąć całkowicie. Spróbuj ponownie: kolejna próba dokończy resztę."
     },
     "abort": {
-      "native_entities_disabled": "Natywne encje nie są włączone dla tego Home Assistant, więc tym panelem steruje MQTT.",
       "removed_entry_deleted": "ha-paneld został usunięty, a panel skasowany z Home Assistant.",
       "removed_entry_kept": "ha-paneld został usunięty. Panel pozostaje w Home Assistant, dopóki go nie skasujesz."
-    }
-  },
-  "selector": {
-    "authority": {
-      "options": {
-        "mqtt": "MQTT",
-        "shadow": "MQTT wraz z natywnymi raportami do celów porównawczych",
-        "native": "Panel Assistant"
-      }
     }
   }
 }

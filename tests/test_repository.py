@@ -398,7 +398,7 @@ def test_shipped_translation_catalogues_preserve_machine_contracts(
 
 @pytest.mark.parametrize("language", ("en", *TRANSLATED_LANGUAGES))
 @pytest.mark.parametrize(
-    "category", ("config", "entity", "exceptions", "issues", "options", "selector")
+    "category", ("config", "entity", "exceptions", "issues", "options")
 )
 async def test_home_assistant_serves_native_translations(
     hass: HomeAssistant, language: str, category: str

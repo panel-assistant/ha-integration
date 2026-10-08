@@ -1408,7 +1408,6 @@
         "description": "Continúe la configuración de este panel, cambie su transporte o autorice ADB para sus actualizaciones. Si el panel aún no está vinculado, confirme la cuenta que inició sesión para terminar la configuración.",
         "menu_options": {
           "onboarding": "Continuar la configuración",
-          "transport": "Ajustes de conexión",
           "authorize_adb": "Autorizar ADB para actualizaciones",
           "updates": "Actualizaciones del panel",
           "remove_app": "Quitar ha-paneld de este panel"
@@ -1433,13 +1432,6 @@
       "authorize_adb": {
         "title": "Autorizar Home Assistant en {panel}",
         "description": "Selecciona Enviar para crear o cargar la clave ADB persistente de esta instalación de Home Assistant y ofrecer su clave pública a {panel}. Aprueba la solicitud «Permitir depuración» de Android en el panel físico y vuelve a enviar el formulario. Android puede describir Home Assistant como un ordenador. La aprobación concede acceso general a la consola ADB mientras la depuración de red siga activada; revócala en las opciones de desarrollador del panel. En este paso no se instala ninguna aplicación."
-      },
-      "transport": {
-        "title": "Conexión del panel",
-        "description": "Elige qué controla las entidades y los comandos de este panel. Si guardas Panel Assistant, Panel Assistant traslada a sí mismo las entidades MQTT del panel, conservando sus ID de entidad, su historial y tus personalizaciones, y después el panel retira sus entidades MQTT. Si guardas MQTT, con o sin informes nativos, vuelven a MQTT. En ambos casos el panel se reconecta con la nueva opción.",
-        "data": {
-          "authority": "Control"
-        }
       },
       "updates": {
         "title": "Actualizaciones del panel",
@@ -1496,18 +1488,8 @@
       "removal_remove_failed": "El panel ya ha recuperado su pantalla de inicio, pero ha-paneld no se pudo quitar por completo. Vuelve a intentarlo: un nuevo intento termina lo que falta."
     },
     "abort": {
-      "native_entities_disabled": "Las entidades nativas no están activadas en este Home Assistant, así que MQTT controla este panel.",
       "removed_entry_deleted": "Se ha quitado ha-paneld y se ha eliminado el panel de Home Assistant.",
       "removed_entry_kept": "Se ha quitado ha-paneld. El panel se queda en Home Assistant hasta que lo elimines."
-    }
-  },
-  "selector": {
-    "authority": {
-      "options": {
-        "mqtt": "MQTT",
-        "shadow": "MQTT, con informes nativos para comparar",
-        "native": "Panel Assistant"
-      }
     }
   }
 }

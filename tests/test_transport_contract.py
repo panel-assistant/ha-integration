@@ -708,15 +708,3 @@ def test_command_error_keys_are_the_integrations_own() -> None:
 def test_every_command_error_has_english_text(key: str) -> None:
     """A command outcome can never raise an untranslated error."""
     assert str(ENGLISH["exceptions"].get(key, {}).get("message", "")).strip(), key
-
-
-def test_the_options_flow_has_text_in_english() -> None:
-    """The authority step, its abort and every choice resolve in English."""
-    options = ENGLISH["options"]
-    step = options["step"]["transport"]
-    assert step["title"].strip() and step["description"].strip()
-    assert step["data"]["authority"].strip()
-    assert options["abort"]["native_entities_disabled"].strip()
-    choices = ENGLISH["selector"]["authority"]["options"]
-    assert sorted(choices) == sorted(transport.AUTHORITIES)
-    assert all(label.strip() for label in choices.values())

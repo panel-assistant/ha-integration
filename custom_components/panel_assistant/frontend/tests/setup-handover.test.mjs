@@ -5,7 +5,7 @@ import { startReleaseHandoff } from '../src/ha-release-handoff.mjs';
 import { handOverThenOpen, requestSetupHandover } from '../src/release-handoff.mjs';
 
 // A USB-installed panel is told Home Assistant set it up before the installer
-// sends the browser to the panel's own setup, so its wizard skips the MQTT step.
+// sends the browser to the panel's own setup, so its wizard skips that step.
 // The installer holds no Home Assistant credential; the Home Assistant window
 // that opened it relays the panel's address to Home Assistant's own endpoint.
 

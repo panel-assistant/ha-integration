@@ -1408,7 +1408,6 @@
         "description": "Continua la configurazione di questo pannello, cambia il suo trasporto o autorizza ADB per gli aggiornamenti. Se il pannello non è ancora associato, conferma l’account connesso per completare la configurazione.",
         "menu_options": {
           "onboarding": "Continua la configurazione",
-          "transport": "Impostazioni di connessione",
           "authorize_adb": "Autorizza ADB per gli aggiornamenti",
           "updates": "Aggiornamenti del pannello",
           "remove_app": "Rimuovi ha-paneld da questo pannello"
@@ -1433,13 +1432,6 @@
       "authorize_adb": {
         "title": "Autorizza Home Assistant su {panel}",
         "description": "Premi Invia per creare o caricare la chiave ADB persistente di questa installazione di Home Assistant e presentare la sua chiave pubblica a {panel}. Approva la richiesta Android «Consenti debug» sul pannello fisico, poi invia di nuovo il modulo. Android potrebbe indicare Home Assistant come un computer. L’approvazione concede accesso generale alla shell ADB finché il debug di rete resta attivo; puoi revocarla nelle opzioni sviluppatore del pannello. In questo passaggio non viene installata alcuna app."
-      },
-      "transport": {
-        "title": "Connessione del pannello",
-        "description": "Scegli cosa controlla le entità e i comandi di questo pannello. Salvando Panel Assistant, Panel Assistant sposta a sé le entità MQTT del pannello, conservando i loro ID entità, la cronologia e le tue personalizzazioni, e poi il pannello ritira le sue entità MQTT. Salvando MQTT, con o senza report nativi, tornano a MQTT. In entrambi i casi il pannello si riconnette con la nuova scelta.",
-        "data": {
-          "authority": "Controllo"
-        }
       },
       "updates": {
         "title": "Aggiornamenti del pannello",
@@ -1496,18 +1488,8 @@
       "removal_remove_failed": "Il pannello ha già riavuto la sua schermata iniziale, ma ha-paneld non è stato rimosso completamente. Riprova: un nuovo tentativo completa ciò che resta."
     },
     "abort": {
-      "native_entities_disabled": "Le entità native non sono attivate in questo Home Assistant, quindi MQTT controlla questo pannello.",
       "removed_entry_deleted": "ha-paneld è stato rimosso e il pannello è stato eliminato da Home Assistant.",
       "removed_entry_kept": "ha-paneld è stato rimosso. Il pannello resta in Home Assistant finché non lo elimini."
-    }
-  },
-  "selector": {
-    "authority": {
-      "options": {
-        "mqtt": "MQTT",
-        "shadow": "MQTT, con rapporti nativi per il confronto",
-        "native": "Panel Assistant"
-      }
     }
   }
 }
