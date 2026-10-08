@@ -26,7 +26,12 @@
     "unreachableNext": "Comprueba que el panel esté encendido y conectado a tu red.",
     "notLoadedNext": "Abre Configuración de la integración para comprobar la conexión de este panel.",
     "failedNext": "Espera un momento mientras volvemos a intentarlo, o elige otro panel.",
-    "closedNext": "Elige otro panel o espera a que este panel vuelva a conectarse."
+    "closedNext": "Elige otro panel o espera a que este panel vuelva a conectarse.",
+    "pillOpening": "Abriendo",
+    "pillUnreachable": "Inaccesible",
+    "pillNotLoaded": "Sin cargar",
+    "pillRetrying": "Reintentando",
+    "pillClosed": "Cerrado"
   },
   "haInstall": {
     "title": "Instalar ha-paneld en un panel",

@@ -26,7 +26,12 @@
     "unreachableNext": "Verifique se o painel está ligado e conectado à sua rede.",
     "notLoadedNext": "Abra Configurações da integração para verificar a conexão deste painel.",
     "failedNext": "Aguarde um momento enquanto tentamos novamente ou escolha outro painel.",
-    "closedNext": "Escolha outro painel ou aguarde a reconexão deste painel."
+    "closedNext": "Escolha outro painel ou aguarde a reconexão deste painel.",
+    "pillOpening": "Abrindo",
+    "pillUnreachable": "Inacessível",
+    "pillNotLoaded": "Não carregado",
+    "pillRetrying": "Tentando novamente",
+    "pillClosed": "Fechado"
   },
   "haInstall": {
     "title": "Instalar ha-paneld em um painel",

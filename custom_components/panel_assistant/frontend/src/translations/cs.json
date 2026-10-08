@@ -26,7 +26,12 @@
     "unreachableNext": "Zkontrolujte, že je panel zapnutý a připojený k vaší síti.",
     "notLoadedNext": "Otevřete Nastavení integrace a zkontrolujte připojení tohoto panelu.",
     "failedNext": "Chvíli počkejte, než to zkusíme znovu, nebo vyberte jiný panel.",
-    "closedNext": "Vyberte jiný panel nebo počkejte, až se tento panel znovu připojí."
+    "closedNext": "Vyberte jiný panel nebo počkejte, až se tento panel znovu připojí.",
+    "pillOpening": "Otevírání",
+    "pillUnreachable": "Nedostupný",
+    "pillNotLoaded": "Nenačtený",
+    "pillRetrying": "Opakování",
+    "pillClosed": "Zavřeno"
   },
   "haInstall": {
     "title": "Nainstalovat ha-paneld na panel",

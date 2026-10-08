@@ -26,7 +26,12 @@
     "unreachableNext": "Vérifiez que le panneau est allumé et connecté à votre réseau.",
     "notLoadedNext": "Ouvrez les paramètres de l’intégration pour vérifier la connexion de ce panneau.",
     "failedNext": "Patientez pendant la nouvelle tentative, ou choisissez un autre panneau.",
-    "closedNext": "Choisissez un autre panneau, ou attendez que celui-ci se reconnecte."
+    "closedNext": "Choisissez un autre panneau, ou attendez que celui-ci se reconnecte.",
+    "pillOpening": "Ouverture",
+    "pillUnreachable": "Injoignable",
+    "pillNotLoaded": "Non chargé",
+    "pillRetrying": "Nouvel essai",
+    "pillClosed": "Fermé"
   },
   "haInstall": {
     "title": "Installer ha-paneld sur un panneau",

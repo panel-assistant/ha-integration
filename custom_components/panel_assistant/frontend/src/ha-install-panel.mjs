@@ -1,7 +1,7 @@
 import { frontendMessages, frontendLocale, formatFrontendMessage } from './frontend-localization.mjs';
 import { startReleaseHandoff } from './ha-release-handoff.mjs';
 import { fetchReleaseCatalog } from './release-catalog.mjs';
-import { BRAND_ICON, WIZARD_CSS, journeyHtml, renderJourney } from './wizard-look.mjs';
+import { BRAND_HTML, WIZARD_CSS, journeyHtml, renderJourney, versionText } from './wizard-look.mjs';
 
 // Stable keys keep presentation separate from the release-transfer protocol.
 // This is the first stop of the same wizard the installer window and the
@@ -25,21 +25,20 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
     // Only fixed markup is HTML. Configuration and translations use textContent.
     this.shadowRoot.innerHTML = `<style>${WIZARD_CSS}
       :host{display:block;min-height:100%;background:var(--bg);padding:24px 16px}
-      .card p.status{color:var(--text);margin:14px 0 0}
     </style><main class="wiz">
-      <div class="wiz-brand"><img src="${BRAND_ICON}" alt=""><span>ha-paneld</span></div>
+      ${BRAND_HTML}
       <ol id="journey" class="wiz-dots">${journeyHtml(0)}</ol>
-      <section class="card">
+      <section class="wiz-step"><div class="card">
         <h2 data-message="title"></h2>
-        <p class="lead" data-message="introduction"></p>
-        <label for="release" data-message="release"></label>
+        <p class="wiz-lead" data-message="introduction"></p>
+        <label class="wiz-fld" for="release"><b data-message="release"></b></label>
         <select id="release" aria-describedby="catalog-status"></select>
         <p id="catalog-status" role="status" aria-live="polite"></p>
-        <button id="retry" class="secondary" data-message="retry"></button>
-        <button id="start" class="primary" data-message="start"></button>
-        <p id="status" class="status" role="status" aria-live="polite"></p>
-        <button id="cancel" class="secondary" data-message="cancel"></button>
-      </section>
+        <button id="retry" class="pbtn wiz-secondary" data-message="retry"></button>
+        <button id="start" class="pbtn primary wiz-primary" data-message="start"></button>
+        <p id="status" role="status" aria-live="polite"></p>
+        <button id="cancel" class="pbtn wiz-secondary" data-message="cancel"></button>
+      </div></section>
     </main>`;
     for (const element of this.shadowRoot.querySelectorAll('[data-message]')) {
       element.textContent = this.#messages[element.dataset.message];
@@ -113,6 +112,7 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
     const language = this.#hass?.language;
     if (this.isConnected) this.setAttribute?.('lang', frontendLocale(language));
     for (const node of root.querySelectorAll('[data-message]')) node.textContent = this.#messages[node.dataset.message];
+    root.querySelector('#brand-version').textContent = versionText(this.#panel?.config, language);
     const journey = root.querySelector('#journey');
     journey.setAttribute('aria-label', frontendMessages('installer', language).progress);
     renderJourney(journey, 0, document, language);

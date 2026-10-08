@@ -26,7 +26,12 @@
     "unreachableNext": "Controlla che il pannello sia acceso e connesso alla tua rete.",
     "notLoadedNext": "Apri Impostazioni dell’integrazione per controllare la connessione di questo pannello.",
     "failedNext": "Attendi un momento mentre riproviamo, oppure scegli un altro pannello.",
-    "closedNext": "Scegli un altro pannello, oppure attendi che questo pannello si riconnetta."
+    "closedNext": "Scegli un altro pannello, oppure attendi che questo pannello si riconnetta.",
+    "pillOpening": "Apertura",
+    "pillUnreachable": "Non raggiungibile",
+    "pillNotLoaded": "Non caricato",
+    "pillRetrying": "Nuovo tentativo",
+    "pillClosed": "Chiuso"
   },
   "haInstall": {
     "title": "Installa ha-paneld su un pannello",

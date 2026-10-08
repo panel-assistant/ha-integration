@@ -7,7 +7,6 @@
   <!-- wizard-look -->
   <style>
     body { margin: 0; min-height: 100vh; background: var(--bg); padding: 24px 16px; }
-    .card p.activity { color: var(--text); margin: 0 0 .5rem; }
     details { margin-top: 1.25rem; color: var(--dim); font-size: .85rem; }
     details summary { cursor: pointer; }
     details pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 16rem; overflow: auto;
@@ -17,51 +16,49 @@
   </style>
 </head>
 <body><main class="wiz">
-  <div class="wiz-brand"><img src="__BRAND_ICON__" alt=""><span>ha-paneld</span></div>
+  <!-- brand -->
   <ol id="journey" class="wiz-dots" data-screen-aria="progress"><!-- journey --></ol>
-  <div class="card">
+  <div class="wiz-step"><div class="card">
 
     <section id="step-preparing" class="step">
       <h2 data-screen-message="title"></h2>
-      <div class="spinner" aria-hidden="true"></div>
-      <p id="preparing-text" class="lead" role="status" aria-live="polite" data-screen-message="preparing"></p>
+      <p id="preparing-text" class="wiz-status" role="status" aria-live="polite" data-screen-message="preparing"></p>
     </section>
 
     <section id="step-connect" class="step" hidden>
       <h2 data-screen-message="connectHeading"></h2>
-      <p class="lead" data-screen-message="connectBody"></p>
-      <button id="connect" class="primary" data-screen-message="connect"></button>
+      <p class="wiz-lead" data-screen-message="connectBody"></p>
+      <button id="connect" class="pbtn primary wiz-primary" data-screen-message="connect"></button>
     </section>
 
     <section id="step-allow" class="step" hidden>
       <h2 data-screen-message="allowHeading"></h2>
-      <div class="spinner" aria-hidden="true"></div>
-      <p id="allow-text" class="lead" role="status" aria-live="polite" data-screen-message="allowBody"></p>
+      <p id="allow-text" class="wiz-status" role="status" aria-live="polite" data-screen-message="allowBody"></p>
     </section>
 
     <section id="step-confirm" class="step" hidden>
       <h2 data-screen-message="confirmHeading"></h2>
-      <p id="confirm-body" class="lead" data-screen-message="confirmBody"></p>
-      <button id="install" class="primary" data-screen-message="install"></button>
+      <p id="confirm-body" class="wiz-lead" data-screen-message="confirmBody"></p>
+      <button id="install" class="pbtn primary wiz-primary" data-screen-message="install"></button>
     </section>
 
     <section id="step-progress" class="step" hidden>
       <h2 data-screen-message="progressHeading"></h2>
       <div class="bar" role="progressbar" data-screen-aria="installProgress" aria-valuemin="0" aria-valuemax="100"><div id="progress-fill"></div></div>
-      <p id="activity" class="activity" role="status" aria-live="polite"></p>
-      <p data-screen-message="keepConnected"></p>
+      <p id="activity" role="status" aria-live="polite"></p>
+      <p class="wiz-lead" data-screen-message="keepConnected"></p>
     </section>
 
     <section id="step-done" class="step" hidden>
       <h2 data-screen-message="doneHeading"></h2>
-      <p id="done-text" class="lead" role="status" aria-live="polite"></p>
-      <a id="open-setup" class="primary" hidden data-screen-message="openSetup"></a>
+      <p id="done-text" role="status" aria-live="polite"></p>
+      <a id="open-setup" class="pbtn primary wiz-primary" hidden data-screen-message="openSetup"></a>
     </section>
 
-    <section id="step-error" class="step error" hidden>
+    <section id="step-error" class="step" hidden>
       <h2 data-screen-message="errorHeading"></h2>
-      <p id="error-text" class="lead" role="alert"></p>
-      <button id="retry" class="primary" data-screen-message="tryAgain"></button>
+      <p id="error-text" role="alert"></p>
+      <button id="retry" class="pbtn primary wiz-primary" data-screen-message="tryAgain"></button>
     </section>
 
 
@@ -70,7 +67,7 @@
       <summary data-screen-message="details"></summary>
       <pre id="support-log"></pre>
     </details>
-  </div>
+  </div></div>
   <footer><a href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener" data-screen-message="licenses">Third-party licenses</a></footer>
 </main><script type="module" src="/src/install-main.mjs"></script></body>
 </html>

@@ -26,7 +26,12 @@
     "unreachableNext": "请检查面板是否已开机并连接到您的网络。",
     "notLoadedNext": "打开集成设置，检查此面板的连接。",
     "failedNext": "请稍候，我们正在重试；您也可以选择其他面板。",
-    "closedNext": "请选择其他面板，或等待此面板重新连接。"
+    "closedNext": "请选择其他面板，或等待此面板重新连接。",
+    "pillOpening": "正在打开",
+    "pillUnreachable": "无法连接",
+    "pillNotLoaded": "未加载",
+    "pillRetrying": "正在重试",
+    "pillClosed": "已关闭"
   },
   "haInstall": {
     "title": "在面板上安装 ha-paneld",

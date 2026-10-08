@@ -18,7 +18,9 @@ class Element {
   fire(name, event = {}) { for (const fn of this.listeners[name] ?? []) fn(event); }
 }
 globalThis.HTMLElement = class {
-  isConnected = false; events = [];
+  isConnected = false; events = []; attributes = new Map();
+  setAttribute(name, value) { this.attributes.set(name, String(value)); }
+  getAttribute(name) { return this.attributes.get(name) ?? null; }
   dispatchEvent(event) { this.events.push(event); return true; }
   attachShadow() {
     const elements = [];
@@ -526,7 +528,7 @@ test('every SIDEBAR_MESSAGES key renders through the real component; nothing is 
   // assigned from SIDEBAR_MESSAGES at construction.
   const bare = new PanelAssistantSidebar();
   const header = bare.shadowRoot.querySelectorAll('[data-message]');
-  for (const key of ['title', 'choosePanel', 'addPanel', 'loadingHint']) {
+  for (const key of ['title', 'choosePanel', 'addPanel', 'loadingHint', 'pillOpening']) {
     const element = header.find(e => e.dataset.message === key);
     assert.ok(element, `no data-message element for "${key}"`);
     seen(element.textContent);
@@ -569,7 +571,9 @@ test('every SIDEBAR_MESSAGES key renders through the real component; nothing is 
   {
     const hass = fakeHass();
     hass.callWS = async () => ({ panels: 'invalid' });
-    seen((await mount(hass)).$('#status').textContent);
+    const { $ } = await mount(hass);
+    seen($('#status').textContent);
+    seen($('#failure-pill').textContent);
   }
   seen((await mount(fakeHass({ panels: [] }))).$('#status').textContent);
   seen((await mount(fakeHass({ panels: [row('one', 'unreachable')] }))).$('#status').textContent);
@@ -591,6 +595,7 @@ test('every SIDEBAR_MESSAGES key renders through the real component; nothing is 
     hass.panels = [row('one', 'not_loaded'), row('two')];
     subs[0].callback({ kind: 'closed', reason: 'entry_unloaded' }); await tick();
     seen($('#status').textContent);
+    seen($('#failure-pill').textContent);
   }
 
   // versionLabel is a template, not a literal; prove it separately.
@@ -599,6 +604,7 @@ test('every SIDEBAR_MESSAGES key renders through the real component; nothing is 
 
   for (const state of ['unreachable', 'not_loaded']) {
     const { $ } = await mount(fakeHass({ panels: [row('one', state)] }));
+    seen($('#failure-pill').textContent);
     seen($('#pickles-story').textContent);
     seen($('#next-step').textContent);
   }
@@ -693,5 +699,20 @@ test('an administrator waiting for the first panel list sees localized loading r
   await tick();
   assert.equal($('#loading').hidden, true);
   assert.equal($('#failure-status').textContent, frontendMessages('sidebar', 'fr').unreachableBody);
+  panel.disconnectedCallback();
+});
+
+test('the shared card follows Home Assistant light or dark, and each failure names its state in the pill', async () => {
+  const hass = fakeHass({ dark: true, panels: [row('one', 'unreachable'), row('two', 'not_loaded')] });
+  const { panel, $ } = await mount(hass);
+  assert.equal(panel.getAttribute('theme'), 'dark');
+  assert.equal($('#failure-pill').textContent, SIDEBAR_MESSAGES.pillUnreachable);
+  panel.hass = { ...hass, themes: { darkMode: false } };
+  assert.equal(panel.getAttribute('theme'), 'light');
+  $('#panels').fire('change', { target: { value: 'two' } }); await tick();
+  assert.equal($('#failure-pill').textContent, SIDEBAR_MESSAGES.pillNotLoaded);
+  hass.panels = [row('one'), row('two')]; await intervals[0].fn(); await tick();
+  assert.equal($('#failure').hidden, true);
+  assert.equal($('#failure-pill').textContent, '', 'a recovered panel keeps no stale state word');
   panel.disconnectedCallback();
 });

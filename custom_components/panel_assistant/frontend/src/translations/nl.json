@@ -26,7 +26,12 @@
     "unreachableNext": "Controleer of het paneel aanstaat en is verbonden met je netwerk.",
     "notLoadedNext": "Open Integratie-instellingen om de verbinding van dit paneel te controleren.",
     "failedNext": "Wacht even terwijl we het opnieuw proberen, of kies een ander paneel.",
-    "closedNext": "Kies een ander paneel of wacht tot dit paneel opnieuw verbinding maakt."
+    "closedNext": "Kies een ander paneel of wacht tot dit paneel opnieuw verbinding maakt.",
+    "pillOpening": "Openen",
+    "pillUnreachable": "Onbereikbaar",
+    "pillNotLoaded": "Niet geladen",
+    "pillRetrying": "Opnieuw proberen",
+    "pillClosed": "Gesloten"
   },
   "haInstall": {
     "title": "ha-paneld op een paneel installeren",

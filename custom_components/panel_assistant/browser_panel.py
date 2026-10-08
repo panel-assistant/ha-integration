@@ -58,7 +58,12 @@ async def async_register_browser_panel(hass: HomeAssistant) -> None:
                 sidebar_title=None,
                 embed_iframe=False,
                 require_admin=True,
-                config={"installer_url": INSTALLER_URL},
+                # The version caption under the brand, as in the sidebar's top menu.
+                config={
+                    "installer_url": INSTALLER_URL,
+                    "version": INTEGRATION_VERSION,
+                    "build": INTEGRATION_BUILD,
+                },
             )
             registration.panel_registered = True
         if not registration.sidebar_registered:

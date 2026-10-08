@@ -46,6 +46,8 @@ async def test_real_panel_registration_and_admin_visibility(hass):
     assert sidebar.config["build"] == INTEGRATION_BUILD
     assert panel.config == {
         "installer_url": "https://install.panel-assistant.io/",
+        "version": INTEGRATION_VERSION,
+        "build": INTEGRATION_BUILD,
         "_panel_custom": {
             "name": "panel-assistant-usb-install",
             "embed_iframe": False,
