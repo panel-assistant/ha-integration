@@ -26,6 +26,7 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
     this.shadowRoot.innerHTML = `<style>${WIZARD_CSS}
       :host{display:block;min-height:100%;background:var(--bg);padding:24px 16px}
       .card p.status{color:var(--text);margin:14px 0 0}
+      #release{max-height:min(240px,40vh);overflow-y:auto}
     </style><main class="wiz">
       ${BRAND_HTML}
       <ol id="journey" class="wiz-dots">${journeyHtml(0)}</ol>
@@ -33,7 +34,7 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
         <h2 data-message="title"></h2>
         <p class="lead" data-message="introduction"></p>
         <label for="release" data-message="release"></label>
-        <select id="release" aria-describedby="catalog-status"></select>
+        <select id="release" size="6" aria-describedby="catalog-status"></select>
         <p id="catalog-status" role="status" aria-live="polite"></p>
         <button id="retry" class="secondary" data-message="retry"></button>
         <button id="start" class="primary" data-message="start"></button>

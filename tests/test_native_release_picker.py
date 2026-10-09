@@ -83,7 +83,6 @@ async def test_real_catalog_populates_selector_and_caches(
     assert selector.config["options"] == (
         [
             {"value": "stable", "label": "v1.2.3 (recommended)"},
-            {"value": "v1.3.0-rc2", "label": "v1.3.0-rc2"},
         ]
         if pa_version == "1.0.0"
         else [
@@ -179,7 +178,7 @@ async def test_connect_found_never_loads_catalog(hass):
 async def test_default_choice_cannot_opt_into_prerelease(
     hass, monkeypatch, release_key
 ):
-    """Following stable PA cannot silently select an explicitly offered prerelease."""
+    """Stable PA offers no prerelease when no compatible final release exists."""
     from custom_components.panel_assistant import update_policy
 
     client = authenticated_session(
@@ -195,15 +194,11 @@ async def test_default_choice_cannot_opt_into_prerelease(
             patch(f"{_CATALOG}.async_get_clientsession", return_value=client)
         )
         form = await flow.async_step_add_panel({CONF_ADDRESS: "panel.local"})
-        options = [{"value": "v1.3.0-rc2", "label": "v1.3.0-rc2"}]
-        assert form["data_schema"].schema["release_candidate"].config["options"] == (
-            options
-        )
+        assert "release_candidate" not in form["data_schema"].schema
+        assert form["errors"] == {"base": "release_catalog_empty"}
         result = await flow.async_step_choose_version({"release_candidate": ""})
-    assert result["errors"] == {"base": "cannot_resolve_release"}
-    assert result["data_schema"].schema["release_candidate"].config["options"] == (
-        options
-    )
+    assert result["errors"] == {"base": "release_catalog_empty"}
+    assert "release_candidate" not in result["data_schema"].schema
     mocks["credential"].assert_not_awaited()
     manager.async_create_or_join.assert_not_awaited()
 
@@ -246,7 +241,7 @@ async def test_network_setup_offers_and_installs_a_feed_build(
     client = authenticated_session(
         release_key, [("v0.9.6", (5, 5)), ("v0.9.7-rc3", (3, 3))]
     )
-    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "1.0.0")
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "1.0.0-rc1")
     flow = HaPaneldConfigFlow()
     flow.hass = hass
     manager = _manager_for(_receipt(InstallPhase.APPROVED))
@@ -257,16 +252,13 @@ async def test_network_setup_offers_and_installs_a_feed_build(
         )
         form = await flow.async_step_add_panel({CONF_ADDRESS: "panel.local"})
         assert form["data_schema"].schema["release_candidate"].config["options"] == [
-            {"value": "build-772", "label": "0.9.7-rc4 build 772"},
-            {"value": "v0.9.7-rc3", "label": "v0.9.7-rc3"},
+            {"value": "stable", "label": "0.9.7-rc4 build 772 (recommended)"},
         ]
-        result = await flow.async_step_choose_version(
-            {"release_candidate": "build-772"}
-        )
-    assert result["step_id"] == "confirm_install_rc"
+        result = await flow.async_step_choose_version({"release_candidate": "stable"})
+    assert result["step_id"] == "confirm_install_candidate"
     assert flow._pending_release is not None
     assert flow._pending_release.tag == "build-772"
-    assert flow._pending_rc_tag == "build-772"
+    assert flow._pending_rc_tag is None
     mocks["credential"].assert_not_awaited()
     manager.async_create_or_join.assert_not_awaited()
 
