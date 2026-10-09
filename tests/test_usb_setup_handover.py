@@ -14,13 +14,17 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant import browser_delivery as delivery
 from custom_components.panel_assistant.client import (
     CannotConnectError,
     HaPaneldClient,
+    PanelHealth,
     PanelSetupState,
 )
+from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.identity import CONF_INSTALL_IDENTITY
 
 URL = "/api/panel_assistant/usb/handover"
 _CLIENT = "custom_components.panel_assistant.client.HaPaneldClient"
@@ -45,6 +49,29 @@ class _Panel:
         if self.post_error is not None:
             raise self.post_error
         self.posted.append(ha_url)
+
+
+_HEALTH = PanelHealth(
+    version="1.0.0",
+    panel_id="portal",
+    build="1220",
+    config_hash="1a2b3c4d",
+    discovery_id="d" * 64,
+)
+
+
+@pytest.fixture(autouse=True)
+def panel_health() -> Any:
+    """The installed app answers its health check, as it does once started."""
+    health = AsyncMock(return_value=_HEALTH)
+    with (
+        patch(f"{_CLIENT}.async_get_health", health),
+        patch(
+            "custom_components.panel_assistant.async_setup_entry",
+            AsyncMock(return_value=True),
+        ),
+    ):
+        yield health
 
 
 @pytest.fixture
@@ -84,9 +111,79 @@ async def test_a_usb_installed_panel_gets_the_handover_every_install_path_sends(
     panel = _Panel(PanelSetupState(complete=False, accepts_handover=True))
     status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
     assert status == 200
-    assert body == {"outcome": "handed_over"}
+    assert body["outcome"] == "handed_over"
     assert panel.hosts == ["192.168.1.20:8888"]
     assert panel.posted == ["http://192.168.1.5:8123"]
+
+
+async def test_a_usb_installed_panel_is_added_to_panel_assistant_once(
+    endpoint: Any, hass: HomeAssistant
+) -> None:
+    """Without its entry the app loops on an unknown-panel refusal.
+
+    The network install adds its panel when the app answers; the USB install's
+    handover does the same, and a second handover adds nothing more.
+    """
+    panel = _Panel(PanelSetupState(complete=False, accepts_handover=True))
+
+    status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+
+    assert status == 200
+    assert body["registration"] == "added"
+    entries = hass.config_entries.async_entries(DOMAIN)
+    assert [(entry.data["address"], entry.unique_id) for entry in entries] == [
+        ("192.168.1.20", "d" * 64)
+    ]
+
+    status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+
+    assert body["registration"] == "already_configured"
+    assert len(hass.config_entries.async_entries(DOMAIN)) == 1
+
+
+async def test_a_panel_already_added_by_hand_is_not_added_again(
+    endpoint: Any, hass: HomeAssistant
+) -> None:
+    MockConfigEntry(
+        domain=DOMAIN, data={"address": "192.168.1.20"}, unique_id="d" * 64
+    ).add_to_hass(hass)
+    panel = _Panel(PanelSetupState(complete=False, accepts_handover=True))
+
+    _status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+
+    assert body["registration"] == "already_configured"
+    assert len(hass.config_entries.async_entries(DOMAIN)) == 1
+
+
+async def test_a_panel_that_moved_keeps_its_one_entry_at_the_new_address(
+    endpoint: Any, hass: HomeAssistant
+) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"address": "192.168.1.9", CONF_INSTALL_IDENTITY: True},
+        unique_id="d" * 64,
+    )
+    entry.add_to_hass(hass)
+    panel = _Panel(PanelSetupState(complete=False, accepts_handover=True))
+
+    _status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+
+    assert body["registration"] == "already_configured"
+    assert hass.config_entries.async_entries(DOMAIN) == [entry]
+    assert entry.data["address"] == "192.168.1.20"
+
+
+async def test_a_panel_whose_app_does_not_answer_is_reported_not_added(
+    endpoint: Any, hass: HomeAssistant, panel_health: AsyncMock
+) -> None:
+    panel_health.side_effect = CannotConnectError
+    panel = _Panel(PanelSetupState(complete=False, accepts_handover=True))
+
+    status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+
+    assert status == 200
+    assert body == {"outcome": "handed_over", "registration": "not_panel"}
+    assert hass.config_entries.async_entries(DOMAIN) == []
 
 
 @pytest.mark.parametrize(
@@ -138,7 +235,7 @@ async def test_without_a_panel_facing_url_the_marker_still_goes(
     ):
         status, body = await _post(endpoint, panel, {"address": "10.20.30.7"})
     assert status == 200
-    assert body == {"outcome": "handed_over_without_url"}
+    assert body["outcome"] == "handed_over_without_url"
     assert panel.posted == [None]
 
 
@@ -146,7 +243,7 @@ async def test_a_finished_panel_is_left_alone_and_says_why(endpoint: Any) -> Non
     panel = _Panel(PanelSetupState(complete=True, accepts_handover=True))
     status, body = await _post(endpoint, panel, {"address": "172.16.4.2"})
     assert status == 200
-    assert body == {"outcome": "setup_complete"}
+    assert body["outcome"] == "setup_complete"
     assert panel.posted == []
 
 
@@ -156,14 +253,14 @@ async def test_a_panel_that_refuses_is_reported_not_raised(endpoint: Any) -> Non
     panel.post_error = CannotConnectError()
     status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
     assert status == 200
-    assert body == {"outcome": "handover_refused"}
+    assert body["outcome"] == "handover_refused"
 
 
 async def test_an_unreachable_panel_is_reported_not_raised(endpoint: Any) -> None:
     panel = _Panel(CannotConnectError())
     status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
     assert status == 200
-    assert body == {"outcome": "setup_state_unreadable"}
+    assert body["outcome"] == "setup_state_unreadable"
 
 
 async def test_only_an_admin_may_hand_over(

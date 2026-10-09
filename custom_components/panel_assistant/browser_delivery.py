@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import logging
 import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -14,8 +15,9 @@ from typing import Any
 from aiohttp import web
 from homeassistant.auth.models import User
 from homeassistant.components.http.decorators import require_admin
-from homeassistant.const import EVENT_HOMEASSISTANT_STOP
+from homeassistant.const import CONF_ADDRESS, EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.http import HomeAssistantView
 
@@ -27,7 +29,7 @@ from .browser_release_cache import (
 )
 from .build_feed import FeedInstallBundle
 from .client import HaPaneldClient, InvalidAddressError, PanelAddress, normalize_address
-from .const import DEFAULT_PORT, DOMAIN
+from .const import DEFAULT_PORT, DOMAIN, SOURCE_USB_INSTALL
 from .ha_url import async_offer_ha_url
 from .install_network import is_allowed_install_address
 from .release import is_feed_build_tag, is_install_release_tag, unique_json_object
@@ -41,6 +43,8 @@ _CHUNK_SIZE = 64 * 1024
 _HEADERS = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
 _ID = re.compile(r"[0-9a-f]{32}")
 _HANDOVER_TIMEOUT = 30.0
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def _error(code: str, status: int) -> web.Response:
@@ -280,6 +284,30 @@ def _usb_panel_address(value: object) -> PanelAddress:
     return address
 
 
+async def _async_register_usb_panel(hass: HomeAssistant, address: PanelAddress) -> str:
+    """Add the USB-installed panel to Panel Assistant, as a network install does.
+
+    Without its entry the app is refused as an unknown panel until someone adds
+    it by hand. Best-effort like the handover: the install already succeeded,
+    and the person can still add the panel; the answer is for support logs.
+    """
+    try:
+        async with asyncio.timeout(_HANDOVER_TIMEOUT):
+            result = await hass.config_entries.flow.async_init(
+                DOMAIN,
+                context={"source": SOURCE_USB_INSTALL},
+                data={CONF_ADDRESS: address.stored_value},
+            )
+    except Exception:
+        _LOGGER.exception("Could not add the USB-installed panel")
+        return "failed"
+    if result["type"] is FlowResultType.CREATE_ENTRY:
+        return "added"
+    if result["type"] is FlowResultType.ABORT:
+        return str(result.get("reason"))
+    return "pending"
+
+
 class BrowserSetupHandoverView(HomeAssistantView):
     """Tell a USB-installed panel that Home Assistant set it up.
 
@@ -312,7 +340,13 @@ class BrowserSetupHandoverView(HomeAssistantView):
                 )
                 async with asyncio.timeout(_HANDOVER_TIMEOUT):
                     outcome = await async_offer_ha_url(self.service.hass, client)
-                return web.json_response({"outcome": outcome}, headers=_HEADERS)
+                registration = await _async_register_usb_panel(
+                    self.service.hass, address
+                )
+                return web.json_response(
+                    {"outcome": outcome, "registration": registration},
+                    headers=_HEADERS,
+                )
         except BrowserReleaseCacheError as error:
             return _cache_error(error)
         except Exception:

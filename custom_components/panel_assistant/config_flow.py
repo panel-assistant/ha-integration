@@ -232,6 +232,27 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             description_placeholders={"usb_install_url": f"/{PANEL_PATH}"},
         )
 
+    async def async_step_usb_install(
+        self, discovery_info: dict[str, Any]
+    ) -> ConfigFlowResult:
+        """Add the panel the browser USB installer has just installed.
+
+        The administrator pressed Install, the same consent a network install
+        asks for, and that path adds its panel when the app answers; so does
+        this one. A panel already added is left as it is, its address updated
+        when it has moved, exactly as when someone adds it by hand.
+        """
+        try:
+            address = normalize_address(discovery_info[CONF_ADDRESS])
+            health = await HaPaneldClient(
+                async_get_clientsession(self.hass), address
+            ).async_get_health()
+        except InvalidAddressError, CannotConnectError, InvalidResponseError:
+            return self.async_abort(reason="not_panel")
+        return await self._async_create_panel_entry(
+            address, health, confirm_account=False
+        )
+
     async def async_step_zeroconf(
         self, discovery_info: ZeroconfServiceInfo
     ) -> ConfigFlowResult:
@@ -1377,9 +1398,17 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     async def _async_create_panel_entry(
-        self, address: PanelAddress, health: PanelHealth
+        self,
+        address: PanelAddress,
+        health: PanelHealth,
+        *,
+        confirm_account: bool = True,
     ) -> ConfigFlowResult:
-        """Create an entry, confirming the panel's account first when one asked."""
+        """Create an entry, confirming the panel's account first when one asked.
+
+        Without ``confirm_account`` nobody is shown the form, so the entry is
+        made unbound and the panel raises its own Repairs issue when it asks.
+        """
         for existing in self.hass.config_entries.async_entries(DOMAIN):
             if existing.data.get(CONF_ADDRESS) == address.stored_value:
                 accept_health(self.hass, existing, health)
@@ -1403,7 +1432,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             )
         self._pending_address = address
         self._pending_health = health
-        user = await self._async_asking_user()
+        user = await self._async_asking_user() if confirm_account else None
         if user is None:
             # Nobody has asked to connect as this panel yet, which is the whole
             # of what could be confirmed here. The panel raises its own Repairs

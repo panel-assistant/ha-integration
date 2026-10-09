@@ -14,7 +14,7 @@ INTEGRATION_VERSION: str = json.loads(
 # The public version (manifest.json) only changes when something ships. This
 # build number tells builds apart in between: it counts the commits that have
 # changed this integration.
-INTEGRATION_BUILD = 506
+INTEGRATION_BUILD = 507
 
 # The native transport range this running integration can serve. Protocol 5 is
 # the first without MQTT: an app that speaks only 4 or older is refused, told
@@ -98,3 +98,8 @@ CONF_SUPPORTED_CHANNELS = "supported_channels"
 def update_unique_id(entry_id: str) -> str:
     """Return the registry unique ID of an entry's ha-paneld update entity."""
     return f"{entry_id}_update"
+
+
+#: The config flow source the browser USB installer's handover starts, adding
+#: the panel it installed.
+SOURCE_USB_INSTALL = "usb_install"
