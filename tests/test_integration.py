@@ -894,7 +894,7 @@ async def test_setup_loads_unavailable_when_panel_is_offline(
     assert entry.state is ConfigEntryState.LOADED
     status_mock.assert_not_awaited()
     assert entry.runtime_data.coordinator.data is None
-    for entity_id in ("sensor.alpha_status", "update.alpha_ha_paneld_update"):
+    for entity_id in ("sensor.alpha_status", "update.alpha_panel_assistant_update"):
         state = hass.states.get(entity_id)
         assert state is not None, entity_id
         assert state.state == "unavailable"

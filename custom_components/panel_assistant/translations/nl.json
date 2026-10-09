@@ -5,30 +5,30 @@
     "step": {
       "user": {
         "title": "Een paneel instellen",
-        "description": "Voeg een paneel op je netwerk toe, of installeer ha-paneld op een paneel dat op deze computer is aangesloten.",
+        "description": "Voeg een paneel op je netwerk toe, of installeer Panel Assistant op een paneel dat op deze computer is aangesloten.",
         "menu_options": {
           "add_panel": "Voeg een paneel op je netwerk toe",
           "install_usb": "Installeer via USB op deze computer"
         },
         "menu_option_descriptions": {
-          "add_panel": "Voer het adres van het paneel in. Home Assistant maakt verbinding als ha-paneld actief is, of biedt aan om ha-paneld te installeren als dat niet het geval is.",
+          "add_panel": "Voer het adres van het paneel in. Home Assistant maakt verbinding als Panel Assistant actief is, of biedt aan om Panel Assistant te installeren als dat niet het geval is.",
           "install_usb": "Sluit het paneel aan op deze computer, niet op de Home Assistant-server."
         }
       },
       "install_usb": {
         "title": "Installeer via USB",
-        "description": "[Open het USB-installatieprogramma]({usb_install_url}). Sluit het paneel aan op het apparaat waarop deze browser draait, niet op de Home Assistant-server, en gebruik een browser die WebUSB ondersteunt, waarbij USB-foutopsporing op het paneel is ingeschakeld.\n\nHet installatieprogramma zet ha-paneld op een paneel dat dit nog niet heeft. Daarna neemt de eigen instelprocedure van het paneel het over. Kom daarna hier terug om het paneel toe te voegen aan Home Assistant. Met ‘Verzenden’ ga je terug naar het installatiemenu."
+        "description": "[Open het USB-installatieprogramma]({usb_install_url}). Sluit het paneel aan op het apparaat waarop deze browser draait, niet op de Home Assistant-server, en gebruik een browser die WebUSB ondersteunt, waarbij USB-foutopsporing op het paneel is ingeschakeld.\n\nHet installatieprogramma zet Panel Assistant op een paneel dat dit nog niet heeft. Daarna neemt de eigen instelprocedure van het paneel het over. Kom daarna hier terug om het paneel toe te voegen aan Home Assistant. Met ‘Verzenden’ ga je terug naar het installatiemenu."
       },
       "add_panel": {
         "title": "Een paneel toevoegen",
-        "description": "Kies een paneel dat Home Assistant al kent via een andere app, of voer de hostnaam of het IP-adres van het paneel in. Panelen met ✓ reageren al via ADB via het netwerk. Als ha-paneld nog niet is geïnstalleerd, schakel dan eerst ADB via het netwerk in op poort 5555 met de [modelspecifieke handleiding voor toegang tot het paneel]({panel_access_url}). Root-toegang is niet nodig. Als het paneel niet reageert, vind je in [hulp bij het bereiken van een paneel]({panel_help_url}) stappen voor elk model en andere manieren om te installeren.",
+        "description": "Kies een paneel dat Home Assistant al kent via een andere app, of voer de hostnaam of het IP-adres van het paneel in. Panelen met ✓ reageren al via ADB via het netwerk. Als Panel Assistant nog niet is geïnstalleerd, schakel dan eerst ADB via het netwerk in op poort 5555 met de [modelspecifieke handleiding voor toegang tot het paneel]({panel_access_url}). Root-toegang is niet nodig. Als het paneel niet reageert, vind je in [hulp bij het bereiken van een paneel]({panel_help_url}) stappen voor elk model en andere manieren om te installeren.",
         "data": {
           "address": "Hostnaam of IP-adres van het paneel"
         }
       },
       "found_panel": {
-        "title": "ha-paneld is geïnstalleerd, maar niet verbonden",
-        "description": "De app ha-paneld {version} is geïnstalleerd en ingesteld op {address}, maar is nog niet verbonden met Home Assistant. Verbind de app om af te ronden.",
+        "title": "Panel Assistant is geïnstalleerd, maar niet verbonden",
+        "description": "De app Panel Assistant {version} is geïnstalleerd en ingesteld op {address}, maar is nog niet verbonden met Home Assistant. Verbind de app om af te ronden.",
         "menu_options": {
           "connect_found": "Verbind met Home Assistant",
           "add_panel": "Gebruik een ander adres"
@@ -36,7 +36,7 @@
       },
       "found_unconfigured": {
         "title": "Rond de installatie van dit paneel af",
-        "description": "De app ha-paneld {version} is geïnstalleerd op {address}, maar de installatie is nog niet voltooid en het paneel is nog niet verbonden met Home Assistant. Home Assistant kan de installatiewizard van het paneel openen en het paneel verbinden zodra de installatie klaar is.",
+        "description": "De app Panel Assistant {version} is geïnstalleerd op {address}, maar de installatie is nog niet voltooid en het paneel is nog niet verbonden met Home Assistant. Home Assistant kan de installatiewizard van het paneel openen en het paneel verbinden zodra de installatie klaar is.",
         "menu_options": {
           "panel_setup": "Open de installatiewizard",
           "connect_found": "Sla de installatie over en maak nu verbinding",
@@ -49,7 +49,7 @@
       },
       "choose_version": {
         "title": "Kies een versie",
-        "description": "ha-paneld reageert niet op {address}. Kies de versie die het paneel moet draaien. Testversies kunnen fouten bevatten.",
+        "description": "Panel Assistant reageert niet op {address}. Kies de versie die het paneel moet draaien. Testversies kunnen fouten bevatten.",
         "data": {
           "release_candidate": "Versie"
         }
@@ -60,7 +60,7 @@
       },
       "confirm_discovery": {
         "title": "Bevestig het gevonden paneel",
-        "description": "Home Assistant heeft een ha-paneld-installatie gevonden op {address}. Klik op ‘Verzenden’ om te controleren of het nog steeds hetzelfde paneel is en het toe te voegen als {panel_name}. De instellingen van het paneel blijven ongewijzigd."
+        "description": "Home Assistant heeft een Panel Assistant-installatie gevonden op {address}. Klik op ‘Verzenden’ om te controleren of het nog steeds hetzelfde paneel is en het toe te voegen als {panel_name}. De instellingen van het paneel blijven ongewijzigd."
       },
       "confirm_user": {
         "title": "Bevestig het account van dit paneel",
@@ -75,12 +75,12 @@
         "description": "De geselecteerde release bevat een geverifieerde installatiebeschrijving. Klik één keer op ‘Verzenden’ om een permanente ADB-identiteit voor deze Home Assistant-installatie aan te maken of te laden en de openbare sleutel ervan aan te bieden aan het Android-paneel op {address}. Keur op het paneel de Android-vraag ‘Foutopsporing toestaan’ goed, kom dan hier terug en klik nogmaals op ‘Verzenden’. Android kan Home Assistant als een computer beschrijven. Goedkeuring geeft algemene ADB-shelltoegang zolang foutopsporing via het netwerk ingeschakeld blijft; je kunt dit intrekken via de ontwikkelaarsopties van het paneel. Er wordt in deze stap geen APK gedownload of geïnstalleerd."
       },
       "confirm_install_candidate": {
-        "title": "Bevestig de installatie of het herstel",
-        "description": "Controleer het apparaat en de geverifieerde stabiele release:\n\n- Adres: {address}\n- Model: {model}\n- Serienummer: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Versie: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nKlik op ‘Verzenden’. Het installatieprogramma controleert het paneel opnieuw en neemt de installatie met precies deze bytes over als die al aanwezig is. Als het paneel schoon is, downloadt, verifieert, installeert en start het de gekozen versie en controleert de werking. Een installatie met andere bytes wordt niet overschreven of bijgewerkt.\n\nNadat Home Assistant het apparaat heeft toegevoegd, volg je de browserlink voor de installatie in het dialoogvenster Toevoegen op een computer die het paneel via het lokale netwerk kan bereiken. Keur ADB op het paneel goed als daarom wordt gevraagd. De installatie configureert het dashboard niet."
+        "title": "Install Panel Assistant {version}?",
+        "description": "Ready to install on {model} at {address}.\n\nYour other apps are not touched."
       },
       "confirm_install_rc": {
-        "title": "Bevestig de installatie van de releasekandidaat",
-        "description": "Alleen voor testen: dit is een releasekandidaat, geen stabiele release, en kan fouten bevatten.\n\nControleer het apparaat en de geverifieerde releasekandidaat:\n\n- Adres: {address}\n- Model: {model}\n- Serienummer: {serial}\n- ABI: {abi}\n- Android SDK: {sdk}\n- Versie: {version}\n- Tag: {tag}\n- SHA-256: {sha256}\n\nKlik op ‘Verzenden’ om precies deze kandidaat goed te keuren. Het installatieprogramma controleert het paneel opnieuw en neemt de installatie met precies deze bytes over als die al aanwezig is. Als het paneel schoon is, downloadt, verifieert, installeert en start het de gekozen kandidaat en controleert de werking. Een installatie met andere bytes wordt niet overschreven of bijgewerkt.\n\nNadat Home Assistant het apparaat heeft toegevoegd, volg je de browserlink voor de installatie in het dialoogvenster Toevoegen op een computer die het paneel via het lokale netwerk kan bereiken. Keur ADB op het paneel goed als daarom wordt gevraagd. De installatie configureert het dashboard niet."
+        "title": "Install Panel Assistant {version}?",
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on {model} at {address}.\n\nYour other apps are not touched."
       },
       "release_preview_only": {
         "title": "De release kan niet automatisch worden geïnstalleerd",
@@ -88,17 +88,17 @@
       },
       "install_result": {
         "title": "De paneelconfiguratie afronden",
-        "description": "ha-paneld {version} is geïnstalleerd op {address}.\n\nKlik op ‘Verzenden’ om alleen de laatste identiteits- en statuscontroles (alleen-lezen) opnieuw uit te voeren. Er worden geen installatiestappen herhaald.\n\nNadat Home Assistant het apparaat heeft toegevoegd, volg je de browserlink voor de installatie in het dialoogvenster Toevoegen op een computer die het paneel via het lokale netwerk kan bereiken. Keur ADB op het paneel goed als daarom wordt gevraagd."
+        "description": "Panel Assistant {version} is geïnstalleerd op {address}.\n\nKlik op ‘Verzenden’ om alleen de laatste identiteits- en statuscontroles (alleen-lezen) opnieuw uit te voeren. Er worden geen installatiestappen herhaald.\n\nNadat Home Assistant het apparaat heeft toegevoegd, volg je de browserlink voor de installatie in het dialoogvenster Toevoegen op een computer die het paneel via het lokale netwerk kan bereiken. Keur ADB op het paneel goed als daarom wordt gevraagd."
       }
     },
     "progress": {
-      "installing": "ha-paneld wordt geïnstalleerd en gecontroleerd op {address}. Laat dit venster open staan, zodat het proces automatisch wordt voltooid. Je kunt het venster sluiten; Home Assistant zet de installatie dan door, maar het apparaat kan pas worden toegevoegd als je opnieuw naar Instellingen → Apparaten en diensten → Integratie toevoegen gaat, Panel Assistant selecteert, ‘Voeg een paneel op je netwerk toe’ kiest en hetzelfde adres invoert. Nadat Home Assistant het apparaat heeft toegevoegd, volg je de browserlink voor de installatie in het dialoogvenster Toevoegen op een computer die het paneel via het lokale netwerk kan bereiken. Keur ADB op het paneel goed als daarom wordt gevraagd."
+      "installing": "Installing Panel Assistant on {address}. Keep this dialog open; it finishes on its own.\n\nIf you close it, the install keeps running. Add the same address again to finish."
     },
     "error": {
       "old_app_installed": "Op dit paneel is de oude ha-paneld-app nog geïnstalleerd, maar die reageert niet. Open hem op het paneel of herstart het paneel en voeg het daarna opnieuw toe. Panel Assistant biedt dan een reparatie aan die het naar de nieuwe app verhuist.",
-      "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig ha-paneld-status-eindpunt.",
+      "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig Panel Assistant-status-eindpunt.",
       "invalid_address": "Voer een hostnaam of een IP-adres in zonder het URL-schema of een pad.",
-      "invalid_install_address": "Voer alleen de hostnaam van het paneel of het IP-adres in. Het installatieprogramma gebruikt ha-paneld op poort 8888 en ADB op poort 5555 afzonderlijk.",
+      "invalid_install_address": "Enter only the panel hostname or IP address.",
       "install_resolution_failed": "Home Assistant kon dit paneeladres niet omzetten. Controleer het adres en de lokale DNS en probeer het daarna nog eens.",
       "install_resolution_timeout": "De lokale naamomzetting is verlopen voordat het adres van het paneel veilig kon worden vastgelegd. Controleer de lokale DNS en probeer het dan nog eens.",
       "install_too_many_addresses": "Deze hostnaam leverde te veel adressen op om veilig te kunnen vastleggen. Gebruik een speciale lokale hostnaam of een privé-IP-adres.",
@@ -109,10 +109,10 @@
       "adb_unauthorized": "Het paneel vraagt nog steeds om een autorisatie via ADB. Bevestig de melding op het paneel en probeer het daarna nog eens.",
       "adb_still_unauthorized": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd. Bevestig de ADB-melding op het paneel en probeer het dan nog eens.",
       "adb_credential_error": "Home Assistant kon de inloggegevens van ADB niet veilig laden of opslaan. Er is geen poging gedaan om het paneel te wijzigen. Controleer de opslag en logbestanden van Home Assistant voordat je het opnieuw probeert.",
-      "installed_without_health": "Het pakket ha-paneld is geïnstalleerd, maar het status-eindpunt reageerde niet. Dit installatieproces zal het pakket niet overschrijven of herstellen. Probeer de automatische installatie niet opnieuw; open ha-paneld op het paneel of volg de handleiding voor veilig inrichten en herstel waarnaar in de integratiedocumentatie wordt verwezen. Nadat je een werkende installatie hebt hersteld, begin je opnieuw om verbinding te maken.",
-      "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket ha-paneld, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de handleiding voor veilig inrichten en herstel, waarnaar in de integratiedocumentatie wordt verwezen. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
-      "incompatible": "Het pakket ha-paneld is niet gevonden, maar de Android SDK of processorarchitectuur van het paneel wordt niet ondersteund. Er is geen APK gedownload of geïnstalleerd.",
-      "cannot_resolve_release": "Er is een installatiekandidaat gevonden, maar Home Assistant kon de geselecteerde ha-paneld-release niet vinden en verifiëren. Er is geen APK gedownload of geïnstalleerd. Controleer of Home Assistant verbinding heeft met internet en, als je een releasekandidaat test, of precies die tag is gepubliceerd met de bijbehorende ondertekende bestanden. Er wordt geen andere release in de plaats gezet.",
+      "installed_without_health": "Het pakket Panel Assistant is geïnstalleerd, maar het status-eindpunt reageerde niet. Dit installatieproces zal het pakket niet overschrijven of herstellen. Probeer de automatische installatie niet opnieuw; open Panel Assistant op het paneel of volg de handleiding voor veilig inrichten en herstel waarnaar in de integratiedocumentatie wordt verwezen. Nadat je een werkende installatie hebt hersteld, begin je opnieuw om verbinding te maken.",
+      "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket Panel Assistant, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de handleiding voor veilig inrichten en herstel, waarnaar in de integratiedocumentatie wordt verwezen. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
+      "incompatible": "Het pakket Panel Assistant is niet gevonden, maar de Android SDK of processorarchitectuur van het paneel wordt niet ondersteund. Er is geen APK gedownload of geïnstalleerd.",
+      "cannot_resolve_release": "Er is een installatiekandidaat gevonden, maar Home Assistant kon de geselecteerde Panel Assistant-release niet vinden en verifiëren. Er is geen APK gedownload of geïnstalleerd. Controleer of Home Assistant verbinding heeft met internet en, als je een releasekandidaat test, of precies die tag is gepubliceerd met de bijbehorende ondertekende bestanden. Er wordt geen andere release in de plaats gezet.",
       "invalid_release_candidate": "Kies een versie uit de lijst.",
       "install_candidate_changed": "De identiteit van het paneel of de schone pakketstatus is na het voorbeeld veranderd. Er is geen installatietaak aangemaakt. Begin opnieuw nadat je het paneel hebt gecontroleerd.",
       "installed_artifact_mismatch": "De geïnstalleerde app is niet byte-voor-byte identiek aan de release die je hebt gekozen, dus Home Assistant heeft deze niet overschreven; kies precies die release of volg de handleiding voor veilig inrichten en herstel.",
@@ -129,7 +129,7 @@
     "abort": {
       "already_configured": "Dit paneel is al ingesteld.",
       "not_panel": "Geen paneel waarop Panel Assistant kan installeren.",
-      "invalid_discovery": "Er kon niet worden aangetoond dat het gevonden paneel dezelfde werkende ha-paneld-installatie was. Er is geen Home Assistant-item of paneelinstelling gewijzigd.",
+      "invalid_discovery": "Er kon niet worden aangetoond dat het gevonden paneel dezelfde werkende Panel Assistant-installatie was. Er is geen Home Assistant-item of paneelinstelling gewijzigd.",
       "install_cancelled": "De installatie is geannuleerd voordat er een APK was geïnstalleerd. Er is geen Home Assistant-item aangemaakt. Voeg de Panel Assistant-integratie toe en voer hetzelfde paneeladres in om het nog eens te proberen.",
       "install_cancelled_after_staging_cleanup": "De installatie is geannuleerd en de klaargezette APK is vóór de installatie verwijderd. Er is geen Home Assistant-item aangemaakt. Voeg de Panel Assistant-integratie toe en voer hetzelfde paneeladres in om het nog eens te proberen.",
       "install_authorization_failed": "Home Assistant kon de opgeslagen inloggegevens van ADB niet veilig laden of valideren. Er was geen APK geïnstalleerd. Controleer de opslag en logbestanden van Home Assistant, voeg vervolgens de Panel Assistant-integratie toe en voer hetzelfde adres in om het nog eens te proberen.",
@@ -137,8 +137,8 @@
       "install_artifact_rejected": "Home Assistant heeft de download of het klaarzetten van de release vóór de installatie van het pakket afgewezen. Er is geen APK geïnstalleerd. Controleer de internetverbinding, opslagruimte en logbestanden van Home Assistant en begin dan opnieuw met hetzelfde adres.",
       "install_transport_failed": "Home Assistant kon de verbinding, het downloaden of het klaarzetten vóór de installatie niet voltooien. Er is geen APK geïnstalleerd. Controleer het paneel, het netwerk, de internettoegang van Home Assistant en de logbestanden, en begin dan opnieuw met hetzelfde adres.",
       "install_package_failed": "Android heeft de APK definitief geweigerd en Home Assistant heeft het klaargezette bestand verwijderd. Er is geen app of Home Assistant-item aangemaakt. Controleer de compatibiliteit van het paneel en de beschikbare opslagruimte voordat je opnieuw begint.",
-      "install_launch_failed": "De APK is geïnstalleerd, maar Home Assistant kon de opstartstap niet voltooien of verifiëren. Probeer de automatische installatie niet opnieuw. Open ha-paneld op het paneel of volg de handleiding voor veilig inrichten en herstel, waarnaar in de integratiedocumentatie wordt verwezen.",
-      "install_health_check_failed": "De APK is geïnstalleerd, maar ha-paneld is niet geslaagd voor de statuscontrole. Probeer de automatische installatie niet opnieuw. Open ha-paneld op het paneel of volg de handleiding voor veilig inrichten en herstel, waarnaar in de integratiedocumentatie wordt verwezen.",
+      "install_launch_failed": "De APK is geïnstalleerd, maar Home Assistant kon de opstartstap niet voltooien of verifiëren. Probeer de automatische installatie niet opnieuw. Open Panel Assistant op het paneel of volg de handleiding voor veilig inrichten en herstel, waarnaar in de integratiedocumentatie wordt verwezen.",
+      "install_health_check_failed": "De APK is geïnstalleerd, maar Panel Assistant is niet geslaagd voor de statuscontrole. Probeer de automatische installatie niet opnieuw. Open Panel Assistant op het paneel of volg de handleiding voor veilig inrichten en herstel, waarnaar in de integratiedocumentatie wordt verwezen.",
       "install_ambiguous_mutation": "Het paneel is mogelijk gewijzigd door het klaarzetten, installeren of starten via ADB. Probeer de automatische installatie niet opnieuw en verwijder of reset de app niet. Volg de handleiding voor veilig inrichten en herstel, waarnaar in de integratiedocumentatie wordt verwezen.",
       "install_verification_required": "Het paneel is gewijzigd, maar Home Assistant kon het geïnstalleerde pakket niet verifiëren of precies het klaargezette bestand niet opruimen. Probeer de automatische installatie niet opnieuw en verwijder of reset de app niet. Volg de handleiding voor veilig inrichten en herstel, waarnaar in de integratiedocumentatie wordt verwezen.",
       "install_failed": "Het installatieprogramma is gestopt met een onbekend resultaat. Er is geen Home Assistant-item aangemaakt. Probeer de automatische installatie pas opnieuw als je het paneel hebt gecontroleerd en de handleiding voor veilig inrichten en herstel hebt doorgenomen, waarnaar in de integratiedocumentatie wordt verwezen.",
@@ -326,7 +326,7 @@
     },
     "update": {
       "paneld_update": {
-        "name": "ha-paneld-update"
+        "name": "Panel Assistant-update"
       },
       "update_companion": {
         "name": "Companion-app"
@@ -440,7 +440,7 @@
         }
       },
       "update_channel": {
-        "name": "Kanaal voor automatische ha-paneld-updates",
+        "name": "Kanaal voor automatische Panel Assistant-updates",
         "state": {
           "prerelease": "Pre-release",
           "stable": "Stabiel"
@@ -473,7 +473,7 @@
         "name": "Relais {index}"
       },
       "self_update": {
-        "name": "ha-paneld automatisch bijwerken"
+        "name": "Panel Assistant automatisch bijwerken"
       },
       "silence_boot_chime": {
         "name": "Opstartgeluid uitschakelen"
@@ -512,7 +512,7 @@
       "message": "Kan de status van het paneel niet uitlezen"
     },
     "update_unavailable": {
-      "message": "De gevraagde update van ha-paneld is niet beschikbaar"
+      "message": "De gevraagde update van Panel Assistant is niet beschikbaar"
     },
     "update_busy": {
       "message": "Het paneel is bezig met een andere bewerking"
@@ -569,7 +569,7 @@
       "message": "Het paneel accepteert geen app-uploads; schakel in de instellingen de optie ‘APK-upload’ in"
     },
     "adb_authorization_required": {
-      "message": "ADB-autorisatie ontbreekt voor {panel}. Open Reparaties in Home Assistant om updates te autoriseren en keur op het fysieke paneel ‘Debuggen toestaan’ goed wanneer daarom wordt gevraagd."
+      "message": "Updates are not allowed on {panel} yet. Open Home Assistant Repairs and select Allow updates on {panel}, then tap Allow on the panel's \"Allow debugging?\" prompt."
     },
     "approval_denied": {
       "message": "De opdracht is geweigerd op het eigen scherm van het paneel"
@@ -645,7 +645,7 @@
           }
         },
         "progress": {
-          "moving": "{panel} wordt naar de nieuwe app verhuisd. Dit duurt een paar minuten; laat het paneel aan staan."
+          "moving": "Moving {panel} to the new app. Keep the panel switched on."
         },
         "abort": {
           "entry_removed": "Dit paneel is uit Home Assistant verwijderd.",
@@ -653,7 +653,7 @@
           "release_unavailable": "Panel Assistant kon de release van de nieuwe app nu niet ophalen. Controleer of Home Assistant het internet kan bereiken en probeer het dan opnieuw.",
           "adb_authorization": "{panel} heeft Panel Assistant nog geen toestemming gegeven om verbinding te maken. Kijk op het paneel: als het ‘USB-foutopsporing toestaan?’ toont, tik dan op ‘Toestaan’, vink ‘Altijd toestaan vanaf deze computer’ aan en open deze reparatie opnieuw.",
           "adb_unreachable": "Panel Assistant kon geen verbinding maken met {panel} om het te verhuizen. Zorg dat het paneel aan staat en in hetzelfde netwerk zit als Home Assistant, en dat netwerkfoutopsporing aan staat in de instellingen van de paneel-app; open deze reparatie daarna opnieuw.",
-          "backup_failed": "Panel Assistant kon geen volledige back-up van {panel} maken, dus er is niets gewijzigd. Probeer het over een paar minuten opnieuw.",
+          "backup_failed": "Panel Assistant could not take a complete backup of {panel}, so nothing was changed. Try again later.",
           "new_app_is_home": "{panel} zit halverwege een eerdere verhuizing die deze versie nog niet kan afmaken. Er is niets gewijzigd. Een latere versie van Panel Assistant herstelt dit.",
           "move_failed": "De verhuizing van {panel} is niet afgerond. De instellingen zijn in Home Assistant geback-upt en het paneel houdt een werkend scherm. Open deze reparatie opnieuw om verder te gaan waar het stopte.",
           "panel_changed": "Het apparaat dat op het adres van {panel} antwoordt, is niet het paneel dat Panel Assistant kent, dus er is niets gewijzigd. Als het paneel is vervangen of gereset, verwijder het dan uit Home Assistant en voeg het opnieuw toe.",
@@ -680,7 +680,7 @@
         "step": {
           "commission_permissions": {
             "title": "Machtigingen op {panel} controleren",
-            "description": "Het dashboard op {panel} blijft beschikbaar. Open op het fysieke paneel Android-instellingen → Apps → ha-paneld. Sta toegang tot camera en microfoon toe waar deze worden vermeld, en sta meldingen toe. Sta onder Speciale app-toegang voor ha-paneld Systeeminstellingen wijzigen en Weergeven over andere apps toe. Schakel onder Toegankelijkheid de ha-paneld-service in. Keer hier terug en selecteer Verzenden om de machtigingen opnieuw te controleren."
+            "description": "Het dashboard op {panel} blijft beschikbaar. Open op het fysieke paneel Android-instellingen → Apps → Panel Assistant. Sta toegang tot camera en microfoon toe waar deze worden vermeld, en sta meldingen toe. Sta onder Speciale app-toegang voor Panel Assistant Systeeminstellingen wijzigen en Weergeven over andere apps toe. Schakel onder Toegankelijkheid de Panel Assistant-service in. Keer hier terug en selecteer Verzenden om de machtigingen opnieuw te controleren."
           }
         },
         "error": {
@@ -759,7 +759,7 @@
     },
     "merged_panel_identity": {
       "title": "Maak de samengevoegde panelen weer apart: {panels}",
-      "description": "De panelen {panels} geven dezelfde apparaat-ID weer, dus Home Assistant kan niet met zekerheid vaststellen welk item een native verbinding of entiteit beheert. Hun native verbinding wordt geweigerd en er worden geen entiteiten verplaatst. Werk ha-paneld bij op elk betrokken paneel, zodat elk paneel een unieke identiteit krijgt. Verwijder vervolgens het samengevoegde apparaat en laat de panelen zich opnieuw registreren."
+      "description": "The panels {panels} report the same device identity, so Home Assistant cannot safely decide which entry owns a native connection or entity. Their native connection is refused and no entities are moved. Update the Panel Assistant app on every affected panel so each has a distinct identity, then delete the merged device and let the panels register again."
     },
     "panel_migration_incomplete": {
       "title": "Het paneel op {address} is nog niet helemaal overgestapt naar de nieuwe app",
@@ -771,7 +771,7 @@
           }
         },
         "abort": {
-          "migration_unfinished": "De nieuwe app heeft nog niet gereageerd. Het paneel werkt gewoon door, dus open dit probleem over een paar minuten nog eens."
+          "migration_unfinished": "The new app has not answered yet. The panel carries on by itself, so open this issue again later."
         }
       }
     },
@@ -781,7 +781,7 @@
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "Kies wat je nu wilt doen.",
+            "description": "The install or update on {panel} did not finish.",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",
@@ -818,12 +818,12 @@
       }
     },
     "installer_failure_authorization_failed": {
-      "title": "Paneel {panel} heeft de installatie niet toegestaan.",
+      "title": "{panel} did not authorize the installation",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "Kies wat je nu wilt doen.",
+            "description": "The panel did not accept the connection from Home Assistant.",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",
@@ -860,12 +860,12 @@
       }
     },
     "installer_failure_preflight_rejected": {
-      "title": "Paneel {panel} heeft de controles vóór de installatie niet doorstaan.",
+      "title": "{panel} did not pass the checks needed to install",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "Kies wat je nu wilt doen.",
+            "description": "Nothing was installed on the panel.",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",
@@ -902,12 +902,12 @@
       }
     },
     "installer_failure_artifact_rejected": {
-      "title": "De appversie voor paneel {panel} kon niet worden gecontroleerd.",
+      "title": "The Panel Assistant release for {panel} could not be verified",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "Kies wat je nu wilt doen.",
+            "description": "The release could not be verified, so nothing was installed.",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",
@@ -944,12 +944,12 @@
       }
     },
     "installer_failure_transport_failed": {
-      "title": "De verbinding met paneel {panel} is tijdens de installatie mislukt.",
+      "title": "Connection to {panel} failed during installation",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "Kies wat je nu wilt doen.",
+            "description": "The connection dropped before the install finished.",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",
@@ -986,12 +986,12 @@
       }
     },
     "installer_failure_install_failed": {
-      "title": "Android heeft de installatie van de app op paneel {panel} geweigerd.",
+      "title": "Android refused to install Panel Assistant on {panel}",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "Kies wat je nu wilt doen.",
+            "description": "Android on the panel rejected the install.",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",
@@ -1028,12 +1028,12 @@
       }
     },
     "installer_failure_launch_failed": {
-      "title": "De app is op {panel} geïnstalleerd, maar kon niet worden gestart.",
+      "title": "Panel Assistant was installed on {panel}, but could not be started",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "Kies wat je nu wilt doen.",
+            "description": "Panel Assistant is installed but did not start.",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",
@@ -1070,12 +1070,12 @@
       }
     },
     "installer_failure_health_check_failed": {
-      "title": "De app op {panel} heeft de gezondheidscontrole niet doorstaan.",
+      "title": "Panel Assistant on {panel} did not pass its health check",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "Kies wat je nu wilt doen.",
+            "description": "Panel Assistant started but did not report healthy.",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",
@@ -1112,12 +1112,12 @@
       }
     },
     "installer_failure_ambiguous_mutation": {
-      "title": "De installatie kan paneel {panel} hebben gewijzigd; de toestand is onbekend.",
+      "title": "Installation may have changed {panel}; its state is unknown",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "Kies wat je nu wilt doen.",
+            "description": "Home Assistant cannot tell whether the install changed the panel.",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",
@@ -1154,12 +1154,12 @@
       }
     },
     "installer_failure_verification_required": {
-      "title": "De app op {panel} moet worden gecontroleerd vóór een nieuwe installatie.",
+      "title": "Panel Assistant on {panel} needs verification before another install",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "Kies wat je nu wilt doen.",
+            "description": "Another install is held until the panel is checked.",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",
@@ -1196,15 +1196,15 @@
       }
     },
     "installer_failure_update": {
-      "title": "De update op paneel {panel} is niet voltooid.",
+      "title": "The update on {panel} did not complete",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "Kies wat je nu wilt doen.",
+            "description": "Panel Assistant was not updated on the panel.",
             "menu_options": {
               "retry": "Opnieuw proberen",
-              "authorize_adb": "ADB voor updates autoriseren",
+              "authorize_adb": "Allow updates",
               "support_report": "Ondersteuningsrapport",
               "clear_error": "Fout wissen"
             }
@@ -1222,8 +1222,8 @@
             "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
           },
           "authorize_adb": {
-            "title": "Home Assistant op {panel} autoriseren",
-            "description": "Kies Verzenden om de permanente ADB-sleutel van deze Home Assistant-installatie te maken of te laden en de openbare sleutel aan {panel} aan te bieden. Sta de Android-vraag voor foutopsporing op het fysieke paneel toe en verzend het formulier opnieuw. Android kan Home Assistant als een computer omschrijven. De toestemming geeft algemene ADB-shelltoegang zolang foutopsporing via het netwerk aanstaat; trek deze in via de ontwikkelaarsopties van het paneel. In deze stap wordt geen app geïnstalleerd."
+            "title": "Allow updates on {panel}",
+            "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
           }
         },
         "progress": {
@@ -1239,8 +1239,8 @@
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt.",
-          "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig ha-paneld-status-eindpunt.",
-          "invalid_install_address": "Voer alleen de hostnaam van het paneel of het IP-adres in. Het installatieprogramma gebruikt ha-paneld op poort 8888 en ADB op poort 5555 afzonderlijk.",
+          "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig Panel Assistant-status-eindpunt.",
+          "invalid_install_address": "Enter only the panel hostname or IP address.",
           "install_resolution_failed": "Home Assistant kon dit paneeladres niet omzetten. Controleer het adres en de lokale DNS en probeer het daarna nog eens.",
           "install_resolution_timeout": "De lokale naamomzetting is verlopen voordat het adres van het paneel veilig kon worden vastgelegd. Controleer de lokale DNS en probeer het dan nog eens.",
           "install_too_many_addresses": "Deze hostnaam leverde te veel adressen op om veilig te kunnen vastleggen. Gebruik een speciale lokale hostnaam of een privé-IP-adres.",
@@ -1249,7 +1249,7 @@
           "adb_unreachable": "Het paneel reageerde wel, maar er kwam geen reactie op de Android Debug Bridge-poort (5555). Schakel op het paneel Android Debug Bridge in en sta dit toe via het netwerk, en probeer het dan nog eens. Als je het paneel kunt aansluiten op de computer waarop je nu surft, installeer dan via USB.",
           "adb_still_unauthorized": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd. Bevestig de ADB-melding op het paneel en probeer het dan nog eens.",
           "adb_credential_error": "Home Assistant kon de inloggegevens van ADB niet veilig laden of opslaan. Er is geen poging gedaan om het paneel te wijzigen. Controleer de opslag en logbestanden van Home Assistant voordat je het opnieuw probeert.",
-          "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket ha-paneld, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de handleiding voor veilig inrichten en herstel, waarnaar in de integratiedocumentatie wordt verwezen. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
+          "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket Panel Assistant, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de handleiding voor veilig inrichten en herstel, waarnaar in de integratiedocumentatie wordt verwezen. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
           "unknown": "Onverwachte fout",
           "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert."
         },
@@ -1259,12 +1259,12 @@
       }
     },
     "installer_failure_retry_hold": {
-      "title": "Opnieuw proberen op paneel {panel} is onderbroken omdat de toestand niet veilig kon worden gecontroleerd.",
+      "title": "Retry on {panel} paused because its state could not be checked safely",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "Kies wat je nu wilt doen.",
+            "description": "Retrying is on hold until the panel can be checked.",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",
@@ -1301,8 +1301,8 @@
       }
     },
     "panel_address_unreachable": {
-      "title": "Home Assistant kan {panel} niet bereiken op het opgeslagen adres",
-      "description": "{panel} is verbonden met Home Assistant, dus de entiteiten blijven beschikbaar, maar Home Assistant kan het paneel op {address} niet lezen, en de verbinding die het onderhoudt, via {session_address}, biedt geen ander adres om te proberen. De webpoort van het paneel is mogelijk geblokkeerd tussen Home Assistant en het paneel. Als het paneel is verplaatst, voeg het dan opnieuw toe op het nieuwe adres, waardoor het opgeslagen adres wordt bijgewerkt; het probleem lost zich vanzelf op zodra het adres weer reageert."
+      "title": "Can't reach {panel} at {address}",
+      "description": "Its entities still work through the live connection from {session_address}.\n\nIf the panel has moved, add it again at its new address. This clears by itself once the address answers."
     },
     "panel_address_unverified": {
       "title": "{panel} is verplaatst, en het nieuwe adres kon niet worden bevestigd",
@@ -1331,15 +1331,15 @@
       }
     },
     "installer_failure_adb_authorization": {
-      "title": "ADB-autorisatie ontbreekt voor {panel}.",
+      "title": "Allow updates on {panel}",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "ADB-autorisatie ontbreekt voor {panel}. Kies ‘ADB voor updates autoriseren’ en keur op het fysieke paneel ‘Debuggen toestaan’ goed wanneer daarom wordt gevraagd.",
+            "description": "Home Assistant is not yet allowed to update {panel}.",
             "menu_options": {
               "retry": "Opnieuw proberen",
-              "authorize_adb": "ADB voor updates autoriseren",
+              "authorize_adb": "Allow updates",
               "support_report": "Ondersteuningsrapport",
               "clear_error": "Fout wissen"
             }
@@ -1357,8 +1357,8 @@
             "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
           },
           "authorize_adb": {
-            "title": "Home Assistant op {panel} autoriseren",
-            "description": "Kies Verzenden om de permanente ADB-sleutel van deze Home Assistant-installatie te maken of te laden en de openbare sleutel aan {panel} aan te bieden. Sta de Android-vraag voor foutopsporing op het fysieke paneel toe en verzend het formulier opnieuw. Android kan Home Assistant als een computer omschrijven. De toestemming geeft algemene ADB-shelltoegang zolang foutopsporing via het netwerk aanstaat; trek deze in via de ontwikkelaarsopties van het paneel. In deze stap wordt geen app geïnstalleerd."
+            "title": "Allow updates on {panel}",
+            "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
           }
         },
         "progress": {
@@ -1374,8 +1374,8 @@
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt.",
-          "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig ha-paneld-status-eindpunt.",
-          "invalid_install_address": "Voer alleen de hostnaam van het paneel of het IP-adres in. Het installatieprogramma gebruikt ha-paneld op poort 8888 en ADB op poort 5555 afzonderlijk.",
+          "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig Panel Assistant-status-eindpunt.",
+          "invalid_install_address": "Enter only the panel hostname or IP address.",
           "install_resolution_failed": "Home Assistant kon dit paneeladres niet omzetten. Controleer het adres en de lokale DNS en probeer het daarna nog eens.",
           "install_resolution_timeout": "De lokale naamomzetting is verlopen voordat het adres van het paneel veilig kon worden vastgelegd. Controleer de lokale DNS en probeer het dan nog eens.",
           "install_too_many_addresses": "Deze hostnaam leverde te veel adressen op om veilig te kunnen vastleggen. Gebruik een speciale lokale hostnaam of een privé-IP-adres.",
@@ -1384,7 +1384,7 @@
           "adb_unreachable": "Het paneel reageerde wel, maar er kwam geen reactie op de Android Debug Bridge-poort (5555). Schakel op het paneel Android Debug Bridge in en sta dit toe via het netwerk, en probeer het dan nog eens. Als je het paneel kunt aansluiten op de computer waarop je nu surft, installeer dan via USB.",
           "adb_still_unauthorized": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd. Bevestig de ADB-melding op het paneel en probeer het dan nog eens.",
           "adb_credential_error": "Home Assistant kon de inloggegevens van ADB niet veilig laden of opslaan. Er is geen poging gedaan om het paneel te wijzigen. Controleer de opslag en logbestanden van Home Assistant voordat je het opnieuw probeert.",
-          "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket ha-paneld, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de handleiding voor veilig inrichten en herstel, waarnaar in de integratiedocumentatie wordt verwezen. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
+          "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket Panel Assistant, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de handleiding voor veilig inrichten en herstel, waarnaar in de integratiedocumentatie wordt verwezen. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
           "unknown": "Onverwachte fout",
           "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert."
         },
@@ -1394,17 +1394,17 @@
       }
     },
     "adb_update_authorization": {
-      "title": "ADB-autorisatie ontbreekt voor {panel}.",
+      "title": "Allow updates on {panel}",
       "fix_flow": {
         "step": {
           "authorize_adb": {
-            "title": "Home Assistant op {panel} autoriseren",
-            "description": "Kies Verzenden om de permanente ADB-sleutel van deze Home Assistant-installatie te maken of te laden en de openbare sleutel aan {panel} aan te bieden. Sta de Android-vraag voor foutopsporing op het fysieke paneel toe en verzend het formulier opnieuw. Android kan Home Assistant als een computer omschrijven. De toestemming geeft algemene ADB-shelltoegang zolang foutopsporing via het netwerk aanstaat; trek deze in via de ontwikkelaarsopties van het paneel. In deze stap wordt geen app geïnstalleerd."
+            "title": "Allow updates on {panel}",
+            "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
           }
         },
         "error": {
-          "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig ha-paneld-status-eindpunt.",
-          "invalid_install_address": "Voer alleen de hostnaam van het paneel of het IP-adres in. Het installatieprogramma gebruikt ha-paneld op poort 8888 en ADB op poort 5555 afzonderlijk.",
+          "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig Panel Assistant-status-eindpunt.",
+          "invalid_install_address": "Enter only the panel hostname or IP address.",
           "install_resolution_failed": "Home Assistant kon dit paneeladres niet omzetten. Controleer het adres en de lokale DNS en probeer het daarna nog eens.",
           "install_resolution_timeout": "De lokale naamomzetting is verlopen voordat het adres van het paneel veilig kon worden vastgelegd. Controleer de lokale DNS en probeer het dan nog eens.",
           "install_too_many_addresses": "Deze hostnaam leverde te veel adressen op om veilig te kunnen vastleggen. Gebruik een speciale lokale hostnaam of een privé-IP-adres.",
@@ -1413,7 +1413,7 @@
           "adb_unreachable": "Het paneel reageerde wel, maar er kwam geen reactie op de Android Debug Bridge-poort (5555). Schakel op het paneel Android Debug Bridge in en sta dit toe via het netwerk, en probeer het dan nog eens. Als je het paneel kunt aansluiten op de computer waarop je nu surft, installeer dan via USB.",
           "adb_still_unauthorized": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd. Bevestig de ADB-melding op het paneel en probeer het dan nog eens.",
           "adb_credential_error": "Home Assistant kon de inloggegevens van ADB niet veilig laden of opslaan. Er is geen poging gedaan om het paneel te wijzigen. Controleer de opslag en logbestanden van Home Assistant voordat je het opnieuw probeert.",
-          "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket ha-paneld, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de handleiding voor veilig inrichten en herstel, waarnaar in de integratiedocumentatie wordt verwezen. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
+          "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket Panel Assistant, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de handleiding voor veilig inrichten en herstel, waarnaar in de integratiedocumentatie wordt verwezen. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
           "unknown": "Onverwachte fout",
           "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert."
         },
@@ -1430,9 +1430,9 @@
         "description": "Ga verder met de configuratie van dit paneel of autoriseer ADB voor updates. Als het paneel nog niet gekoppeld is, bevestig dan het aangemelde account om de configuratie te voltooien.",
         "menu_options": {
           "onboarding": "Installatie voortzetten",
-          "authorize_adb": "ADB voor updates autoriseren",
+          "authorize_adb": "Allow updates",
           "updates": "Paneelupdates",
-          "remove_app": "ha-paneld van dit paneel halen"
+          "remove_app": "Panel Assistant van dit paneel halen"
         }
       },
       "onboarding": {
@@ -1452,8 +1452,8 @@
         }
       },
       "authorize_adb": {
-        "title": "Home Assistant op {panel} autoriseren",
-        "description": "Kies Verzenden om de permanente ADB-sleutel van deze Home Assistant-installatie te maken of te laden en de openbare sleutel aan {panel} aan te bieden. Sta de Android-vraag voor foutopsporing op het fysieke paneel toe en verzend het formulier opnieuw. Android kan Home Assistant als een computer omschrijven. De toestemming geeft algemene ADB-shelltoegang zolang foutopsporing via het netwerk aanstaat; trek deze in via de ontwikkelaarsopties van het paneel. In deze stap wordt geen app geïnstalleerd."
+        "title": "Allow updates on {panel}",
+        "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
       },
       "updates": {
         "title": "Paneelupdates",
@@ -1466,14 +1466,14 @@
         }
       },
       "remove_app": {
-        "title": "ha-paneld van {panel} halen",
-        "description": "Hiermee wordt ha-paneld van {panel} gehaald. Eerst geeft ha-paneld het startscherm terug aan de eigen launcher van het paneel en zet het de fabrikantapps die het had uitgeschakeld weer aan; pas daarna wordt het gedeïnstalleerd via de Android Debug Bridge-verbinding die Home Assistant al heeft. De instellingen op het paneel worden gewist.\n\nOp sommige panelen en firmwareversies is er daarna geen weg meer terug naar de Android-instellingen of naar debuggen via het netwerk, zodat de app niet opnieuw kan worden geïnstalleerd zonder het paneel open te maken. Lees voordat je verdergaat [wat het weghalen met dit paneel kan doen]({risks_url}).",
+        "title": "Panel Assistant van {panel} halen",
+        "description": "Hiermee wordt Panel Assistant van {panel} gehaald. Eerst geeft Panel Assistant het startscherm terug aan de eigen launcher van het paneel en zet het de fabrikantapps die het had uitgeschakeld weer aan; pas daarna wordt het gedeïnstalleerd via de Android Debug Bridge-verbinding die Home Assistant al heeft. De instellingen op het paneel worden gewist.\n\nOp sommige panelen en firmwareversies is er daarna geen weg meer terug naar de Android-instellingen of naar debuggen via het netwerk, zodat de app niet opnieuw kan worden geïnstalleerd zonder het paneel open te maken. Lees voordat je verdergaat [wat het weghalen met dit paneel kan doen]({risks_url}).",
         "data": {
-          "confirmed": "Ik heb de risico's voor dit paneel gelezen en wil ha-paneld weghalen"
+          "confirmed": "Ik heb de risico's voor dit paneel gelezen en wil Panel Assistant weghalen"
         }
       },
       "remove_app_done": {
-        "title": "ha-paneld is van {panel} gehaald",
+        "title": "Panel Assistant is van {panel} gehaald",
         "description": "Het paneel houdt zijn eigen startscherm. Moet Home Assistant {panel} ook vergeten?",
         "menu_options": {
           "remove_app_delete_entry": "Dit paneel uit Home Assistant wissen",
@@ -1482,8 +1482,8 @@
       }
     },
     "error": {
-      "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig ha-paneld-status-eindpunt.",
-      "invalid_install_address": "Voer alleen de hostnaam van het paneel of het IP-adres in. Het installatieprogramma gebruikt ha-paneld op poort 8888 en ADB op poort 5555 afzonderlijk.",
+      "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig Panel Assistant-status-eindpunt.",
+      "invalid_install_address": "Enter only the panel hostname or IP address.",
       "install_resolution_failed": "Home Assistant kon dit paneeladres niet omzetten. Controleer het adres en de lokale DNS en probeer het daarna nog eens.",
       "install_resolution_timeout": "De lokale naamomzetting is verlopen voordat het adres van het paneel veilig kon worden vastgelegd. Controleer de lokale DNS en probeer het dan nog eens.",
       "install_too_many_addresses": "Deze hostnaam leverde te veel adressen op om veilig te kunnen vastleggen. Gebruik een speciale lokale hostnaam of een privé-IP-adres.",
@@ -1492,26 +1492,26 @@
       "adb_unreachable": "Het paneel reageerde wel, maar er kwam geen reactie op de Android Debug Bridge-poort (5555). Schakel op het paneel Android Debug Bridge in en sta dit toe via het netwerk, en probeer het dan nog eens. Als je het paneel kunt aansluiten op de computer waarop je nu surft, installeer dan via USB.",
       "adb_still_unauthorized": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd. Bevestig de ADB-melding op het paneel en probeer het dan nog eens.",
       "adb_credential_error": "Home Assistant kon de inloggegevens van ADB niet veilig laden of opslaan. Er is geen poging gedaan om het paneel te wijzigen. Controleer de opslag en logbestanden van Home Assistant voordat je het opnieuw probeert.",
-      "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket ha-paneld, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de handleiding voor veilig inrichten en herstel, waarnaar in de integratiedocumentatie wordt verwezen. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
+      "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket Panel Assistant, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de handleiding voor veilig inrichten en herstel, waarnaar in de integratiedocumentatie wordt verwezen. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
       "unknown": "Onverwachte fout",
       "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert.",
       "removal_unconfirmed": "Vink het vakje aan om te bevestigen dat je de risico's hebt gelezen. Er is niets weggehaald.",
       "removal_busy": "Een update of verhuizing wijzigt dit paneel al. Er is niets weggehaald; probeer het opnieuw als die klaar is.",
       "removal_adb_unreachable": "Home Assistant kon het paneel niet bereiken via de Android Debug Bridge (poort 5555). Er is niets weggehaald. Controleer of het paneel aan staat en debuggen via het netwerk nog is ingeschakeld, en probeer het opnieuw.",
-      "removal_adb_authorization": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd voor de Android Debug Bridge. Er is niets weggehaald. Kies eerst ‘ADB autoriseren voor updates’ en probeer het daarna opnieuw.",
+      "removal_adb_authorization": "The panel has not accepted this Home Assistant instance for the Android Debug Bridge. Nothing was removed. Choose Allow updates first, then try again.",
       "removal_panel_changed": "Op het adres van dit paneel antwoordt nu een ander apparaat. Er is niets weggehaald.",
-      "removal_approval_required": "Verscherpte beveiliging staat aan, dus het teruggeven van het startscherm moet op het paneel zelf worden goedgekeurd. Er is niets gewijzigd en ha-paneld is nog geïnstalleerd. Keur het verzoek op het paneel goed en verstuur het binnen tien minuten opnieuw.",
-      "removal_no_replacement_home": "Het paneel kon zijn startscherm niet aan een andere launcher geven: er staat geen andere startscherm-app op, dus ha-paneld is het enige wat het kan tonen. Er is niets weggehaald en het paneel werkt nog. Installeer een launcher of zet die van de fabrikant weer aan, en probeer het opnieuw.",
-      "removal_ownership_unreadable": "Het paneel kon zijn eigen overzicht van de uitgeschakelde fabrikantapps niet lezen. Er is niets weggehaald. Start ha-paneld opnieuw op het paneel en probeer het daarna nog eens.",
+      "removal_approval_required": "Hardened security is on, so handing the home screen back has to be approved on the panel itself. Nothing was changed and Panel Assistant is still installed. Approve the request on the panel, then submit again.",
+      "removal_no_replacement_home": "Het paneel kon zijn startscherm niet aan een andere launcher geven: er staat geen andere startscherm-app op, dus Panel Assistant is het enige wat het kan tonen. Er is niets weggehaald en het paneel werkt nog. Installeer een launcher of zet die van de fabrikant weer aan, en probeer het opnieuw.",
+      "removal_ownership_unreadable": "Het paneel kon zijn eigen overzicht van de uitgeschakelde fabrikantapps niet lezen. Er is niets weggehaald. Start Panel Assistant opnieuw op het paneel en probeer het daarna nog eens.",
       "removal_package_state_unknown": "Het paneel kon niet lezen welke apps zijn geïnstalleerd of welke zijn startscherm is. Er is niets weggehaald. Probeer het zo meteen opnieuw.",
-      "removal_home_not_handed": "Het paneel bevestigde niet dat een andere launcher het startscherm heeft overgenomen, dus ha-paneld is niet weggehaald. Installeer een launcher of zet die van de fabrikant weer aan, en probeer het opnieuw.",
-      "removal_hand_back_unsupported": "De ha-paneld op dit paneel is te oud om het startscherm terug te geven. Er is niets weggehaald. Werk hem eerst bij en probeer het daarna opnieuw.",
-      "removal_app_unreachable": "ha-paneld antwoordde niet en is nog het startscherm van het paneel; nu weghalen zou het paneel zonder startscherm laten. Er is niets weggehaald. Start ha-paneld op het paneel en probeer het opnieuw.",
-      "removal_remove_failed": "Het paneel heeft zijn startscherm al terug, maar ha-paneld kon niet volledig worden weggehaald. Probeer het opnieuw: een nieuwe poging maakt de rest af."
+      "removal_home_not_handed": "Het paneel bevestigde niet dat een andere launcher het startscherm heeft overgenomen, dus Panel Assistant is niet weggehaald. Installeer een launcher of zet die van de fabrikant weer aan, en probeer het opnieuw.",
+      "removal_hand_back_unsupported": "The Panel Assistant app on this panel is too old to hand its home screen back. Nothing was removed. Update it first, then try again.",
+      "removal_app_unreachable": "Panel Assistant antwoordde niet en is nog het startscherm van het paneel; nu weghalen zou het paneel zonder startscherm laten. Er is niets weggehaald. Start Panel Assistant op het paneel en probeer het opnieuw.",
+      "removal_remove_failed": "Het paneel heeft zijn startscherm al terug, maar Panel Assistant kon niet volledig worden weggehaald. Probeer het opnieuw: een nieuwe poging maakt de rest af."
     },
     "abort": {
-      "removed_entry_deleted": "ha-paneld is weggehaald en het paneel is uit Home Assistant gewist.",
-      "removed_entry_kept": "ha-paneld is weggehaald. Het paneel blijft in Home Assistant tot je het wist."
+      "removed_entry_deleted": "Panel Assistant is weggehaald en het paneel is uit Home Assistant gewist.",
+      "removed_entry_kept": "Panel Assistant is weggehaald. Het paneel blijft in Home Assistant tot je het wist."
     }
   }
 }

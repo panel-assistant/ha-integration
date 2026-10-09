@@ -34,7 +34,7 @@
     "pillClosed": "Fermé"
   },
   "haInstall": {
-    "title": "Installer ha-paneld sur un panneau",
+    "title": "Installer Panel Assistant sur un panneau",
     "introduction": "Branchez le panneau à cet ordinateur avec un câble USB. Une nouvelle fenêtre le trouvera et installera l’application.",
     "release": "Version",
     "loading": "Chargement des versions…",

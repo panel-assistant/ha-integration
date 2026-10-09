@@ -278,7 +278,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         UpdateEntityFeature.INSTALL | UpdateEntityFeature.PROGRESS
     )
     _attr_translation_key = "paneld_update"
-    _attr_title = "ha-paneld"
+    _attr_title = "Panel Assistant"
 
     def __init__(
         self,
@@ -1405,7 +1405,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             raise
         if route is None:
             error = _update_error(
-                "update_unavailable", "The requested ha-paneld update is unavailable"
+                "update_unavailable",
+                "The requested Panel Assistant update is unavailable",
             )
             if self.latest_version != self.installed_version:
                 await async_record_update_failure(
@@ -1438,7 +1439,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             if route == ROUTE_ADB and selected_artifact.descriptor is None:
                 raise _update_error(
                     "update_unavailable",
-                    "The requested ha-paneld update is unavailable",
+                    "The requested Panel Assistant update is unavailable",
                 )
         else:
             offer = self._stable_target()
@@ -1458,7 +1459,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             ):
                 raise _update_error(
                     "update_unavailable",
-                    "The requested ha-paneld update is unavailable",
+                    "The requested Panel Assistant update is unavailable",
                 )
             target_version = offer.target_version
             release = self._host_release()
@@ -1763,7 +1764,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         if self.in_progress or backup:
             raise _update_error(
                 "update_unavailable",
-                "The requested ha-paneld update is unavailable",
+                "The requested Panel Assistant update is unavailable",
             )
         build = feed.find(code, package_id) if code is not None else None
         if build is None and code is not None and self._feed is not None:
@@ -1792,7 +1793,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         ):
             raise _update_error(
                 "update_unavailable",
-                "The requested ha-paneld update is unavailable",
+                "The requested Panel Assistant update is unavailable",
             )
         return build
 
@@ -1825,7 +1826,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             # replace and none to prove the replacement against.
             raise _update_error(
                 "update_unavailable",
-                "The requested ha-paneld update is unavailable",
+                "The requested Panel Assistant update is unavailable",
             )
         running_package = LEGACY_PACKAGE_ID if migration else package_id
         if not reports_package(snapshot.health.package, running_package):
@@ -2022,7 +2023,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             or fresh_credential.generation_id != credential.generation_id
         ):
             raise _update_error(
-                "update_unavailable", "The requested ha-paneld update is unavailable"
+                "update_unavailable",
+                "The requested Panel Assistant update is unavailable",
             )
         try:
             with NamedTemporaryFile(

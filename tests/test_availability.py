@@ -64,7 +64,7 @@ from .test_transport import (
 )
 
 STATUS_ENTITY = "sensor.alpha_status"
-UPDATE_ENTITY = "update.alpha_ha_paneld_update"
+UPDATE_ENTITY = "update.alpha_panel_assistant_update"
 STORED = "panel.local"
 MOVED = "192.0.2.9"
 # The add flow pins install targets to the installer's LAN ranges, so the

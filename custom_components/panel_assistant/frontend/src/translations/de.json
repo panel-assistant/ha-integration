@@ -34,7 +34,7 @@
     "pillClosed": "Geschlossen"
   },
   "haInstall": {
-    "title": "ha-paneld auf einem Panel installieren",
+    "title": "Panel Assistant auf einem Panel installieren",
     "introduction": "Verbinde das Panel über ein USB-Kabel mit diesem Computer. Ein neues Fenster findet es und installiert die App.",
     "release": "Version",
     "loading": "Versionen werden geladen…",

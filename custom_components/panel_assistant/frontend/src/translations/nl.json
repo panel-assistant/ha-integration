@@ -34,7 +34,7 @@
     "pillClosed": "Gesloten"
   },
   "haInstall": {
-    "title": "ha-paneld op een paneel installeren",
+    "title": "Panel Assistant op een paneel installeren",
     "introduction": "Sluit het paneel met een USB-kabel aan op deze computer. Een nieuw venster zoekt het paneel en installeert de app.",
     "release": "Versie",
     "loading": "Versies laden…",

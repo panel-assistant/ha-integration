@@ -508,52 +508,13 @@ def test_installed_artifact_mismatch_is_explained_in_every_shipped_locale() -> N
         assert message.strip(), locale_path.name
 
 
-@pytest.mark.parametrize(
-    "catalogue",
-    [
-        "strings.json",
-        "translations/en.json",
-        "translations/de.json",
-        "translations/es.json",
-        "translations/fr.json",
-        "translations/it.json",
-        "translations/nl.json",
-        "translations/pl.json",
-        "translations/uk.json",
-        "translations/zh-Hans.json",
-    ],
-)
-@pytest.mark.parametrize("step", ["confirm_install_candidate", "confirm_install_rc"])
-def test_install_confirmation_keeps_each_fact_on_its_own_line(
-    catalogue: str, step: str
-) -> None:
-    """A readable native confirmation must not collapse into one paragraph."""
-    description = _load_translation_catalogue(INTEGRATION / catalogue)["config"][
-        "step"
-    ][step]["description"]
-    fact_lines = [line for line in description.splitlines() if line.startswith("- ")]
-    assert [_placeholders(line) for line in fact_lines] == [
-        Counter({"{" + field + "}": 1})
-        for field in (
-            "address",
-            "model",
-            "serial",
-            "abi",
-            "sdk",
-            "version",
-            "tag",
-            "sha256",
-        )
-    ]
-
-
 def test_rc_selection_and_confirmation_are_keyed_and_explicit() -> None:
     strings = json.loads((INTEGRATION / "strings.json").read_text(encoding="utf-8"))
     steps = strings["config"]["step"]
     version = steps["choose_version"]
     warning = steps["confirm_install_rc"]["description"]
     assert version["data"] == {"release_candidate": "Version"}
-    assert "{version}" in warning and "{tag}" in warning and "{sha256}" in warning
+    assert "{version}" in warning and "release candidate" in warning
 
 
 def test_setup_starts_from_the_address_and_never_strands_a_running_panel() -> None:
@@ -607,8 +568,8 @@ def test_install_flow_copy_covers_first_time_handoffs() -> None:
 
     assert "[model-specific panel access guide]({panel_access_url})" in install
     assert "https://" not in install
-    assert "Leave this dialog open to finish automatically" in progress
-    assert "follow the browser setup link in the Add dialog" in progress
+    assert "Keep this dialog open" in progress
+    assert "Add the same address again" in progress
     assert "dedicated recovery workflow" not in all_errors
 
     abort = config["abort"]

@@ -34,7 +34,7 @@
     "pillClosed": "Cerrado"
   },
   "haInstall": {
-    "title": "Instalar ha-paneld en un panel",
+    "title": "Instalar Panel Assistant en un panel",
     "introduction": "Conecta el panel a este ordenador con un cable USB. Una nueva ventana lo encontrará e instalará la aplicación.",
     "release": "Versión",
     "loading": "Cargando versiones…",

@@ -5,30 +5,30 @@
     "step": {
       "user": {
         "title": "Configurar un panel",
-        "description": "Añade un panel de tu red o instala ha-paneld en uno conectado a este ordenador.",
+        "description": "Añade un panel de tu red o instala Panel Assistant en uno conectado a este ordenador.",
         "menu_options": {
           "add_panel": "Añadir un panel de tu red",
           "install_usb": "Instalar por USB en este ordenador"
         },
         "menu_option_descriptions": {
-          "add_panel": "Introduce la dirección del panel. Home Assistant lo conecta si ha-paneld está en ejecución, o te ofrece instalar ha-paneld si no lo está.",
+          "add_panel": "Introduce la dirección del panel. Home Assistant lo conecta si Panel Assistant está en ejecución, o te ofrece instalar Panel Assistant si no lo está.",
           "install_usb": "Conecta el panel a este ordenador, no al servidor de Home Assistant."
         }
       },
       "install_usb": {
         "title": "Instalar por USB",
-        "description": "[Abre el instalador por USB]({usb_install_url}). Conecta el panel al dispositivo donde se ejecuta este navegador, no al servidor de Home Assistant, y usa un navegador compatible con WebUSB con la depuración USB activada en el panel.\n\nEl instalador pone ha-paneld en un panel que aún no lo tiene y luego pasa el control al asistente de configuración del panel. Vuelve aquí después para añadir el panel a Home Assistant. Enviar vuelve al menú de configuración."
+        "description": "[Abre el instalador por USB]({usb_install_url}). Conecta el panel al dispositivo donde se ejecuta este navegador, no al servidor de Home Assistant, y usa un navegador compatible con WebUSB con la depuración USB activada en el panel.\n\nEl instalador pone Panel Assistant en un panel que aún no lo tiene y luego pasa el control al asistente de configuración del panel. Vuelve aquí después para añadir el panel a Home Assistant. Enviar vuelve al menú de configuración."
       },
       "add_panel": {
         "title": "Añadir un panel",
-        "description": "Elige un panel que Home Assistant ya conoce por otra app, o introduce el nombre de host o la dirección IP del panel. Los paneles marcados con ✓ ya responden por ADB de red. Si ha-paneld aún no está instalado, activa primero ADB de red en el puerto 5555 con la [guía de acceso al panel específica del modelo]({panel_access_url}). No se requiere acceso root. Si el panel no responde, la [ayuda para llegar a un panel]({panel_help_url}) tiene pasos para cada modelo y otras formas de instalar.",
+        "description": "Elige un panel que Home Assistant ya conoce por otra app, o introduce el nombre de host o la dirección IP del panel. Los paneles marcados con ✓ ya responden por ADB de red. Si Panel Assistant aún no está instalado, activa primero ADB de red en el puerto 5555 con la [guía de acceso al panel específica del modelo]({panel_access_url}). No se requiere acceso root. Si el panel no responde, la [ayuda para llegar a un panel]({panel_help_url}) tiene pasos para cada modelo y otras formas de instalar.",
         "data": {
           "address": "Nombre de host o dirección IP del panel"
         }
       },
       "found_panel": {
-        "title": "ha-paneld está instalado pero no conectado",
-        "description": "La app ha-paneld {version} está instalada y configurada en {address}, pero aún no está conectada a Home Assistant. Conéctala para terminar.",
+        "title": "Panel Assistant está instalado pero no conectado",
+        "description": "La app Panel Assistant {version} está instalada y configurada en {address}, pero aún no está conectada a Home Assistant. Conéctala para terminar.",
         "menu_options": {
           "connect_found": "Conectar a Home Assistant",
           "add_panel": "Usar otra dirección"
@@ -36,7 +36,7 @@
       },
       "found_unconfigured": {
         "title": "Termina de configurar este panel",
-        "description": "La app ha-paneld {version} está instalada en {address}, pero su configuración no ha terminado y aún no está conectada a Home Assistant. Home Assistant puede abrir el asistente de configuración del panel y conectarlo en cuanto termine la configuración.",
+        "description": "La app Panel Assistant {version} está instalada en {address}, pero su configuración no ha terminado y aún no está conectada a Home Assistant. Home Assistant puede abrir el asistente de configuración del panel y conectarlo en cuanto termine la configuración.",
         "menu_options": {
           "panel_setup": "Abrir el asistente de configuración",
           "connect_found": "Omitir la configuración y conectar ahora",
@@ -49,7 +49,7 @@
       },
       "choose_version": {
         "title": "Elige una versión",
-        "description": "ha-paneld no responde en {address}. Elige la versión que debe ejecutar el panel. Las versiones de prueba pueden contener errores.",
+        "description": "Panel Assistant no responde en {address}. Elige la versión que debe ejecutar el panel. Las versiones de prueba pueden contener errores.",
         "data": {
           "release_candidate": "Versión"
         }
@@ -60,7 +60,7 @@
       },
       "confirm_discovery": {
         "title": "Confirmar panel detectado",
-        "description": "Home Assistant encontró una instalación de ha-paneld en {address}. Envía el formulario para verificar que sigue siendo el mismo panel y añadirlo como {panel_name}. No se cambiará ninguna configuración del panel."
+        "description": "Home Assistant encontró una instalación de Panel Assistant en {address}. Envía el formulario para verificar que sigue siendo el mismo panel y añadirlo como {panel_name}. No se cambiará ninguna configuración del panel."
       },
       "confirm_user": {
         "title": "Confirmar la cuenta de este panel",
@@ -75,12 +75,12 @@
         "description": "La versión seleccionada incluye un descriptor de instalación verificado. Selecciona Enviar una vez para crear o cargar una identidad ADB persistente para esta instalación de Home Assistant y presentar su clave pública al panel Android en {address}. En el panel, acepta el aviso Permitir depuración de Android; después vuelve aquí y selecciona Enviar de nuevo. Android puede describir Home Assistant como un ordenador. La autorización concede acceso general al shell de ADB mientras la depuración por red permanezca activada; revócala desde los ajustes de desarrollador del panel. En este paso no se descarga ni se instala ningún APK."
       },
       "confirm_install_candidate": {
-        "title": "Confirmar la instalación o recuperación",
-        "description": "Comprueba el dispositivo y la versión estable verificada:\n\n- Dirección: {address}\n- Modelo: {model}\n- Número de serie: {serial}\n- ABI: {abi}\n- SDK de Android: {sdk}\n- Versión: {version}\n- Etiqueta: {tag}\n- SHA-256: {sha256}\n\nEnvía el formulario para volver a comprobar el panel y adoptar estos bytes exactos si ya están instalados o, si el panel está limpio, descargarlos, verificarlos, instalarlos, iniciarlos y comprobar su estado. No se sobrescribirá ni actualizará una instalación con bytes diferentes.\n\nCuando Home Assistant haya añadido el dispositivo, sigue el enlace de configuración en el navegador del cuadro de diálogo Añadir desde un ordenador que pueda acceder al panel por la red local. Si se solicita, autoriza ADB en el panel. La instalación no configura el panel de control."
+        "title": "Install Panel Assistant {version}?",
+        "description": "Ready to install on {model} at {address}.\n\nYour other apps are not touched."
       },
       "confirm_install_rc": {
-        "title": "Confirmar la instalación de la versión candidata",
-        "description": "Solo para pruebas: esta es una versión candidata, no una versión estable, y puede contener errores.\n\nComprueba el dispositivo y la versión candidata verificada:\n\n- Dirección: {address}\n- Modelo: {model}\n- Número de serie: {serial}\n- ABI: {abi}\n- SDK de Android: {sdk}\n- Versión: {version}\n- Etiqueta: {tag}\n- SHA-256: {sha256}\n\nEnvía el formulario para autorizar esta versión candidata exacta, volver a comprobar el panel y adoptar estos bytes exactos si ya están instalados o, si el panel está limpio, descargarlos, verificarlos, instalarlos, iniciarlos y comprobar su estado. No se sobrescribirá ni actualizará una instalación con bytes diferentes.\n\nCuando Home Assistant haya añadido el dispositivo, sigue el enlace de configuración en el navegador del cuadro de diálogo Añadir desde un ordenador que pueda acceder al panel por la red local. Si se solicita, autoriza ADB en el panel. La instalación no configura el panel de control."
+        "title": "Install Panel Assistant {version}?",
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on {model} at {address}.\n\nYour other apps are not touched."
       },
       "release_preview_only": {
         "title": "La versión no se puede instalar automáticamente",
@@ -88,17 +88,17 @@
       },
       "install_result": {
         "title": "Finalizar la configuración del panel",
-        "description": "ha-paneld {version} se ha instalado en {address}.\n\nEnvía el formulario para repetir únicamente las comprobaciones finales de identidad y estado, que son de solo lectura. No se repetirá ningún paso de la instalación.\n\nCuando Home Assistant haya añadido el dispositivo, sigue el enlace de configuración en el navegador del cuadro de diálogo Añadir desde un ordenador que pueda acceder al panel por la red local. Si se solicita, autoriza ADB en el panel."
+        "description": "Panel Assistant {version} se ha instalado en {address}.\n\nEnvía el formulario para repetir únicamente las comprobaciones finales de identidad y estado, que son de solo lectura. No se repetirá ningún paso de la instalación.\n\nCuando Home Assistant haya añadido el dispositivo, sigue el enlace de configuración en el navegador del cuadro de diálogo Añadir desde un ordenador que pueda acceder al panel por la red local. Si se solicita, autoriza ADB en el panel."
       }
     },
     "progress": {
-      "installing": "Instalando y verificando ha-paneld en {address}. Deja abierto este cuadro de diálogo para que finalice automáticamente. Puedes cerrarlo y Home Assistant mantendrá el trabajo de instalación en ejecución, pero no podrá añadir el dispositivo hasta que vuelvas a abrir Ajustes → Dispositivos y servicios → Añadir integración, selecciones Panel Assistant, elijas Añadir un panel de tu red e introduzcas la misma dirección. Cuando Home Assistant haya añadido el dispositivo, sigue el enlace de configuración en el navegador del cuadro de diálogo Añadir desde un ordenador que pueda acceder al panel por la red local. Si se solicita, autoriza ADB en el panel."
+      "installing": "Installing Panel Assistant on {address}. Keep this dialog open; it finishes on its own.\n\nIf you close it, the install keeps running. Add the same address again to finish."
     },
     "error": {
       "old_app_installed": "Este panel todavía tiene instalada la antigua app ha-paneld, pero no responde. Ábrela en el panel o reinicia el panel y vuelve a añadirlo. Después, Panel Assistant ofrece una reparación que lo mueve a la nueva app.",
-      "cannot_connect": "No se puede conectar a un punto de conexión de estado válido de ha-paneld.",
+      "cannot_connect": "No se puede conectar a un punto de conexión de estado válido de Panel Assistant.",
       "invalid_address": "Introduce un nombre de host o una dirección IP sin esquema de URL ni ruta.",
-      "invalid_install_address": "Introduce únicamente el nombre de host o la dirección IP del panel. El instalador utiliza por separado el puerto 8888 de ha-paneld y el puerto 5555 de ADB.",
+      "invalid_install_address": "Enter only the panel hostname or IP address.",
       "install_resolution_failed": "Home Assistant no ha podido resolver la dirección de este panel. Comprueba la dirección y el DNS local y vuelve a intentarlo.",
       "install_resolution_timeout": "La resolución de nombres local ha agotado el tiempo de espera antes de que se pudiera fijar de forma segura la dirección del panel. Comprueba el DNS local y vuelve a intentarlo.",
       "install_too_many_addresses": "Este nombre de host se ha resuelto en demasiadas direcciones para fijarlo de forma segura. Utiliza un nombre de host local dedicado o una dirección IP privada.",
@@ -109,10 +109,10 @@
       "adb_unauthorized": "El panel aún requiere autorización ADB. Acepta el aviso en el panel y vuelve a intentarlo.",
       "adb_still_unauthorized": "El panel todavía no ha aceptado esta instancia de Home Assistant. Acepta el aviso de ADB en el panel y vuelve a intentarlo.",
       "adb_credential_error": "Home Assistant no ha podido cargar ni conservar de forma segura su credencial ADB. No se ha intentado modificar el panel. Comprueba el almacenamiento y los registros de Home Assistant antes de volver a intentarlo.",
-      "installed_without_health": "El paquete ha-paneld está instalado, pero su punto de conexión de estado no ha respondido. Este flujo no lo sobrescribirá ni reparará. No repitas la instalación automática; abre ha-paneld en el panel o sigue la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración. Cuando hayas restaurado una instalación que funcione correctamente, vuelve a empezar para conectarla.",
-      "retained_or_ambiguous": "El panel podría contener un registro conservado del paquete ha-paneld o no se ha podido demostrar la ausencia del paquete. No se ha modificado el panel. Inténtalo una vez más si la conexión era inestable; de lo contrario, sigue la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración. No desinstales ni restablezcas la aplicación sin una copia de seguridad verificada.",
-      "incompatible": "No se ha encontrado el paquete ha-paneld, pero el SDK de Android o la arquitectura del procesador del panel no son compatibles. No se ha descargado ni instalado ningún APK.",
-      "cannot_resolve_release": "Se ha encontrado un candidato para instalar, pero Home Assistant no ha podido resolver ni verificar la versión seleccionada de ha-paneld. No se ha descargado ni instalado ningún APK. Comprueba el acceso a Internet y, si estás probando una versión candidata, que la etiqueta exacta esté publicada con sus recursos firmados. No se sustituirá por ninguna otra versión.",
+      "installed_without_health": "El paquete Panel Assistant está instalado, pero su punto de conexión de estado no ha respondido. Este flujo no lo sobrescribirá ni reparará. No repitas la instalación automática; abre Panel Assistant en el panel o sigue la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración. Cuando hayas restaurado una instalación que funcione correctamente, vuelve a empezar para conectarla.",
+      "retained_or_ambiguous": "El panel podría contener un registro conservado del paquete Panel Assistant o no se ha podido demostrar la ausencia del paquete. No se ha modificado el panel. Inténtalo una vez más si la conexión era inestable; de lo contrario, sigue la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración. No desinstales ni restablezcas la aplicación sin una copia de seguridad verificada.",
+      "incompatible": "No se ha encontrado el paquete Panel Assistant, pero el SDK de Android o la arquitectura del procesador del panel no son compatibles. No se ha descargado ni instalado ningún APK.",
+      "cannot_resolve_release": "Se ha encontrado un candidato para instalar, pero Home Assistant no ha podido resolver ni verificar la versión seleccionada de Panel Assistant. No se ha descargado ni instalado ningún APK. Comprueba el acceso a Internet y, si estás probando una versión candidata, que la etiqueta exacta esté publicada con sus recursos firmados. No se sustituirá por ninguna otra versión.",
       "invalid_release_candidate": "Elige una versión de la lista.",
       "install_candidate_changed": "La identidad del panel o el estado confirmado de ausencia del paquete han cambiado después de la vista previa. No se ha creado ninguna tarea de instalación. Comprueba el panel y vuelve a empezar.",
       "installed_artifact_mismatch": "La aplicación instalada no es idéntica byte a byte a la versión elegida, por lo que Home Assistant no la ha sobrescrito; elige su versión exacta o sigue la guía de seguridad y recuperación del aprovisionamiento.",
@@ -129,7 +129,7 @@
     "abort": {
       "already_configured": "Este panel ya está configurado.",
       "not_panel": "No es un panel en el que Panel Assistant pueda instalar.",
-      "invalid_discovery": "El panel detectado no pudo demostrar que fuera la misma instalación sana de ha-paneld. No se cambió ninguna entrada de Home Assistant ni configuración del panel.",
+      "invalid_discovery": "El panel detectado no pudo demostrar que fuera la misma instalación sana de Panel Assistant. No se cambió ninguna entrada de Home Assistant ni configuración del panel.",
       "install_cancelled": "La instalación se ha cancelado antes de instalar un APK. No se ha creado ninguna entrada de Home Assistant. Para volver a intentarlo, añade la integración Panel Assistant e introduce la misma dirección del panel.",
       "install_cancelled_after_staging_cleanup": "La instalación se ha cancelado y el APK preparado se ha eliminado antes de instalarlo. No se ha creado ninguna entrada de Home Assistant. Para volver a intentarlo, añade la integración Panel Assistant e introduce la misma dirección del panel.",
       "install_authorization_failed": "Home Assistant no ha podido cargar ni validar de forma segura su credencial ADB almacenada. No se ha instalado ningún APK. Comprueba el almacenamiento y los registros de Home Assistant; después, añade la integración Panel Assistant e introduce la misma dirección para volver a intentarlo.",
@@ -137,8 +137,8 @@
       "install_artifact_rejected": "Home Assistant ha rechazado la descarga de la versión o la operación de preparación antes de instalar el paquete. No se ha instalado ningún APK. Comprueba el acceso a Internet, el almacenamiento y los registros de Home Assistant y vuelve a empezar con la misma dirección.",
       "install_transport_failed": "Home Assistant no ha podido completar la conexión previa a la instalación, la descarga o el paso de preparación. No se ha instalado ningún APK. Comprueba el panel, la red, el acceso a Internet y los registros de Home Assistant y vuelve a empezar con la misma dirección.",
       "install_package_failed": "Android ha rechazado definitivamente el APK y Home Assistant ha eliminado el archivo preparado. No se ha instalado ninguna aplicación ni se ha creado ninguna entrada de Home Assistant. Comprueba la compatibilidad y el almacenamiento disponible del panel antes de volver a empezar.",
-      "install_launch_failed": "El APK está instalado, pero Home Assistant no ha podido completar o verificar el paso de inicio. No repitas la instalación automática. Abre ha-paneld en el panel o sigue la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración.",
-      "install_health_check_failed": "El APK está instalado, pero ha-paneld no ha superado su comprobación de estado. No repitas la instalación automática. Abre ha-paneld en el panel o sigue la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración.",
+      "install_launch_failed": "El APK está instalado, pero Home Assistant no ha podido completar o verificar el paso de inicio. No repitas la instalación automática. Abre Panel Assistant en el panel o sigue la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración.",
+      "install_health_check_failed": "El APK está instalado, pero Panel Assistant no ha superado su comprobación de estado. No repitas la instalación automática. Abre Panel Assistant en el panel o sigue la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración.",
       "install_ambiguous_mutation": "Es posible que una operación de preparación, instalación o inicio mediante ADB haya modificado el panel. No repitas la instalación automática; tampoco desinstales ni restablezcas la aplicación. Sigue la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración.",
       "install_verification_required": "El panel ha cambiado, pero Home Assistant no ha podido verificar el paquete instalado ni eliminar el archivo concreto que había preparado. No repitas la instalación automática; tampoco desinstales ni restablezcas la aplicación. Sigue la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración.",
       "install_failed": "El instalador se ha detenido con un resultado no reconocido. No se ha creado ninguna entrada de Home Assistant. No repitas la instalación automática hasta que hayas comprobado el panel y consultado la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración.",
@@ -326,7 +326,7 @@
     },
     "update": {
       "paneld_update": {
-        "name": "Actualización de ha-paneld"
+        "name": "Actualización de Panel Assistant"
       },
       "update_companion": {
         "name": "Aplicación Companion"
@@ -440,7 +440,7 @@
         }
       },
       "update_channel": {
-        "name": "Canal de actualización automática de ha-paneld",
+        "name": "Canal de actualización automática de Panel Assistant",
         "state": {
           "stable": "Estable",
           "prerelease": "Versión preliminar"
@@ -473,7 +473,7 @@
         "name": "Relé {index}"
       },
       "self_update": {
-        "name": "Actualización automática de ha-paneld"
+        "name": "Actualización automática de Panel Assistant"
       },
       "silence_boot_chime": {
         "name": "Silenciar el sonido de inicio"
@@ -511,7 +511,7 @@
     "health_update_failed": {
       "message": "No se puede leer el estado del panel"
     },
-    "update_unavailable": { "message": "La actualización de ha-paneld solicitada no está disponible" },
+    "update_unavailable": { "message": "La actualización de Panel Assistant solicitada no está disponible" },
     "update_busy": { "message": "El panel está ocupado con otra operación" },
     "update_approval_required": { "message": "Aprueba esta actualización en el panel y vuelve a intentarlo" },
     "update_rejected": { "message": "{panel} rechazó la solicitud de actualización. Revisa la pestaña Instalar del panel y vuelve a intentarlo." },
@@ -531,7 +531,7 @@
     "release_verification_failed": { "message": "La versión no coincidía con su firma, así que no se instaló nada" },
     "upload_disabled": { "message": "El panel no acepta subidas de apps; activa la subida de APK en su configuración" },
     "adb_authorization_required": {
-      "message": "Falta la autorización ADB para {panel}. Abre Reparaciones en Home Assistant para autorizar las actualizaciones y acepta «Permitir depuración» en el panel físico cuando se solicite."
+      "message": "Updates are not allowed on {panel} yet. Open Home Assistant Repairs and select Allow updates on {panel}, then tap Allow on the panel's \"Allow debugging?\" prompt."
     },
     "panel_unavailable": {
       "message": "El panel no está conectado a Panel Assistant, por lo que no se envió la orden"
@@ -607,7 +607,7 @@
           }
         },
         "progress": {
-          "moving": "Moviendo {panel} a la nueva app. Tarda unos minutos; mantén el panel encendido."
+          "moving": "Moving {panel} to the new app. Keep the panel switched on."
         },
         "abort": {
           "entry_removed": "Este panel se ha eliminado de Home Assistant.",
@@ -615,7 +615,7 @@
           "release_unavailable": "Panel Assistant no ha podido obtener ahora la versión de la nueva app. Comprueba que Home Assistant puede acceder a internet e inténtalo de nuevo.",
           "adb_authorization": "{panel} aún no ha permitido que Panel Assistant se conecte. Mira el panel: si muestra «¿Permitir depuración USB?», toca «Permitir», marca «Permitir siempre desde este ordenador» y vuelve a abrir esta reparación.",
           "adb_unreachable": "Panel Assistant no ha podido conectarse a {panel} para moverlo. Asegúrate de que el panel está encendido y en la misma red que Home Assistant, y de que la depuración por red está activada en los ajustes de la app del panel; después vuelve a abrir esta reparación.",
-          "backup_failed": "Panel Assistant no ha podido hacer una copia de seguridad completa de {panel}, así que no se ha cambiado nada. Inténtalo de nuevo en unos minutos.",
+          "backup_failed": "Panel Assistant could not take a complete backup of {panel}, so nothing was changed. Try again later.",
           "new_app_is_home": "{panel} está a medias de un traslado anterior que esta versión aún no puede terminar. No se ha cambiado nada. Una versión posterior de Panel Assistant lo repara.",
           "move_failed": "El traslado de {panel} no ha terminado. Sus ajustes están guardados en Home Assistant y el panel sigue mostrando una pantalla que funciona. Vuelve a abrir esta reparación para continuar desde donde se detuvo.",
           "panel_changed": "El dispositivo que responde en la dirección de {panel} no es el panel que conoce Panel Assistant, así que no se ha cambiado nada. Si el panel se ha sustituido o restablecido, elimínalo de Home Assistant y vuelve a añadirlo.",
@@ -642,7 +642,7 @@
         "step": {
           "commission_permissions": {
             "title": "Comprobar los permisos de {panel}",
-            "description": "El panel de control de {panel} sigue disponible. En el panel físico, abre Ajustes de Android → Aplicaciones → ha-paneld. Permite el acceso a la cámara y al micrófono si aparecen, y las notificaciones. En Acceso especial de aplicaciones, permite a ha-paneld Modificar ajustes del sistema y Mostrar sobre otras aplicaciones. En Accesibilidad, activa el servicio de ha-paneld. Vuelve aquí y selecciona Enviar para comprobar los permisos de nuevo."
+            "description": "El panel de control de {panel} sigue disponible. En el panel físico, abre Ajustes de Android → Aplicaciones → Panel Assistant. Permite el acceso a la cámara y al micrófono si aparecen, y las notificaciones. En Acceso especial de aplicaciones, permite a Panel Assistant Modificar ajustes del sistema y Mostrar sobre otras aplicaciones. En Accesibilidad, activa el servicio de Panel Assistant. Vuelve aquí y selecciona Enviar para comprobar los permisos de nuevo."
           }
         },
         "error": {
@@ -721,7 +721,7 @@
     },
     "merged_panel_identity": {
       "title": "Separa los paneles combinados: {panels}",
-      "description": "Los paneles {panels} comunican la misma identidad de dispositivo, por lo que Home Assistant no puede decidir de forma segura a qué entrada pertenece una conexión o entidad nativa. Se rechaza la conexión nativa y no se traslada ninguna entidad. Actualiza ha-paneld en cada panel afectado para que tenga una identidad distinta; después, elimina el dispositivo combinado y deja que los paneles vuelvan a registrarse."
+      "description": "The panels {panels} report the same device identity, so Home Assistant cannot safely decide which entry owns a native connection or entity. Their native connection is refused and no entities are moved. Update the Panel Assistant app on every affected panel so each has a distinct identity, then delete the merged device and let the panels register again."
     },
     "panel_migration_incomplete": {
       "title": "El panel en {address} no ha terminado de pasar a su nueva aplicación",
@@ -733,7 +733,7 @@
           }
         },
         "abort": {
-          "migration_unfinished": "La nueva aplicación aún no ha respondido. El panel continúa por su cuenta, así que vuelve a abrir este problema dentro de unos minutos."
+          "migration_unfinished": "The new app has not answered yet. The panel carries on by itself, so open this issue again later."
         }
       }
     },
@@ -743,7 +743,7 @@
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "Elige qué hacer ahora.",
+            "description": "The install or update on {panel} did not finish.",
             "menu_options": {
               "retry": "Reintentar",
               "support_report": "Informe de soporte",
@@ -780,12 +780,12 @@
       }
     },
     "installer_failure_authorization_failed": {
-      "title": "El panel {panel} no autorizó la instalación.",
+      "title": "{panel} did not authorize the installation",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "Elige qué hacer ahora.",
+            "description": "The panel did not accept the connection from Home Assistant.",
             "menu_options": {
               "retry": "Reintentar",
               "support_report": "Informe de soporte",
@@ -822,12 +822,12 @@
       }
     },
     "installer_failure_preflight_rejected": {
-      "title": "El panel {panel} no superó las comprobaciones previas a la instalación.",
+      "title": "{panel} did not pass the checks needed to install",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "Elige qué hacer ahora.",
+            "description": "Nothing was installed on the panel.",
             "menu_options": {
               "retry": "Reintentar",
               "support_report": "Informe de soporte",
@@ -864,12 +864,12 @@
       }
     },
     "installer_failure_artifact_rejected": {
-      "title": "No se pudo verificar la versión de la aplicación para el panel {panel}.",
+      "title": "The Panel Assistant release for {panel} could not be verified",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "Elige qué hacer ahora.",
+            "description": "The release could not be verified, so nothing was installed.",
             "menu_options": {
               "retry": "Reintentar",
               "support_report": "Informe de soporte",
@@ -906,12 +906,12 @@
       }
     },
     "installer_failure_transport_failed": {
-      "title": "Falló la conexión con el panel {panel} durante la instalación.",
+      "title": "Connection to {panel} failed during installation",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "Elige qué hacer ahora.",
+            "description": "The connection dropped before the install finished.",
             "menu_options": {
               "retry": "Reintentar",
               "support_report": "Informe de soporte",
@@ -948,12 +948,12 @@
       }
     },
     "installer_failure_install_failed": {
-      "title": "Android rechazó la instalación de la aplicación en el panel {panel}.",
+      "title": "Android refused to install Panel Assistant on {panel}",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "Elige qué hacer ahora.",
+            "description": "Android on the panel rejected the install.",
             "menu_options": {
               "retry": "Reintentar",
               "support_report": "Informe de soporte",
@@ -990,12 +990,12 @@
       }
     },
     "installer_failure_launch_failed": {
-      "title": "La aplicación se instaló en {panel}, pero no se pudo iniciar.",
+      "title": "Panel Assistant was installed on {panel}, but could not be started",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "Elige qué hacer ahora.",
+            "description": "Panel Assistant is installed but did not start.",
             "menu_options": {
               "retry": "Reintentar",
               "support_report": "Informe de soporte",
@@ -1032,12 +1032,12 @@
       }
     },
     "installer_failure_health_check_failed": {
-      "title": "La aplicación de {panel} no superó la comprobación de estado.",
+      "title": "Panel Assistant on {panel} did not pass its health check",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "Elige qué hacer ahora.",
+            "description": "Panel Assistant started but did not report healthy.",
             "menu_options": {
               "retry": "Reintentar",
               "support_report": "Informe de soporte",
@@ -1074,12 +1074,12 @@
       }
     },
     "installer_failure_ambiguous_mutation": {
-      "title": "La instalación pudo cambiar el panel {panel}; se desconoce su estado.",
+      "title": "Installation may have changed {panel}; its state is unknown",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "Elige qué hacer ahora.",
+            "description": "Home Assistant cannot tell whether the install changed the panel.",
             "menu_options": {
               "retry": "Reintentar",
               "support_report": "Informe de soporte",
@@ -1116,12 +1116,12 @@
       }
     },
     "installer_failure_verification_required": {
-      "title": "Hay que verificar la aplicación de {panel} antes de volver a instalarla.",
+      "title": "Panel Assistant on {panel} needs verification before another install",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "Elige qué hacer ahora.",
+            "description": "Another install is held until the panel is checked.",
             "menu_options": {
               "retry": "Reintentar",
               "support_report": "Informe de soporte",
@@ -1158,15 +1158,15 @@
       }
     },
     "installer_failure_update": {
-      "title": "La actualización del panel {panel} no se completó.",
+      "title": "The update on {panel} did not complete",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "Elige qué hacer ahora.",
+            "description": "Panel Assistant was not updated on the panel.",
             "menu_options": {
               "retry": "Reintentar",
-              "authorize_adb": "Autorizar ADB para actualizaciones",
+              "authorize_adb": "Allow updates",
               "support_report": "Informe de soporte",
               "clear_error": "Borrar error"
             }
@@ -1184,8 +1184,8 @@
             "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
           },
           "authorize_adb": {
-            "title": "Autorizar Home Assistant en {panel}",
-            "description": "Selecciona Enviar para crear o cargar la clave ADB persistente de esta instalación de Home Assistant y ofrecer su clave pública a {panel}. Aprueba la solicitud «Permitir depuración» de Android en el panel físico y vuelve a enviar el formulario. Android puede describir Home Assistant como un ordenador. La aprobación concede acceso general a la consola ADB mientras la depuración de red siga activada; revócala en las opciones de desarrollador del panel. En este paso no se instala ninguna aplicación."
+            "title": "Allow updates on {panel}",
+            "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
           }
         },
         "progress": {
@@ -1201,8 +1201,8 @@
           "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
           "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
           "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error.",
-          "cannot_connect": "No se puede conectar a un punto de conexión de estado válido de ha-paneld.",
-          "invalid_install_address": "Introduce únicamente el nombre de host o la dirección IP del panel. El instalador utiliza por separado el puerto 8888 de ha-paneld y el puerto 5555 de ADB.",
+          "cannot_connect": "No se puede conectar a un punto de conexión de estado válido de Panel Assistant.",
+          "invalid_install_address": "Enter only the panel hostname or IP address.",
           "install_resolution_failed": "Home Assistant no ha podido resolver la dirección de este panel. Comprueba la dirección y el DNS local y vuelve a intentarlo.",
           "install_resolution_timeout": "La resolución de nombres local ha agotado el tiempo de espera antes de que se pudiera fijar de forma segura la dirección del panel. Comprueba el DNS local y vuelve a intentarlo.",
           "install_too_many_addresses": "Este nombre de host se ha resuelto en demasiadas direcciones para fijarlo de forma segura. Utiliza un nombre de host local dedicado o una dirección IP privada.",
@@ -1211,7 +1211,7 @@
           "adb_unreachable": "El panel respondió, pero nada respondió en su puerto de Android Debug Bridge (5555). En el panel, activa Android Debug Bridge y permítelo por red, y vuelve a intentarlo. Si puedes conectar el panel al ordenador desde el que navegas, instala por USB en su lugar.",
           "adb_still_unauthorized": "El panel todavía no ha aceptado esta instancia de Home Assistant. Acepta el aviso de ADB en el panel y vuelve a intentarlo.",
           "adb_credential_error": "Home Assistant no ha podido cargar ni conservar de forma segura su credencial ADB. No se ha intentado modificar el panel. Comprueba el almacenamiento y los registros de Home Assistant antes de volver a intentarlo.",
-          "retained_or_ambiguous": "El panel podría contener un registro conservado del paquete ha-paneld o no se ha podido demostrar la ausencia del paquete. No se ha modificado el panel. Inténtalo una vez más si la conexión era inestable; de lo contrario, sigue la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración. No desinstales ni restablezcas la aplicación sin una copia de seguridad verificada.",
+          "retained_or_ambiguous": "El panel podría contener un registro conservado del paquete Panel Assistant o no se ha podido demostrar la ausencia del paquete. No se ha modificado el panel. Inténtalo una vez más si la conexión era inestable; de lo contrario, sigue la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración. No desinstales ni restablezcas la aplicación sin una copia de seguridad verificada.",
           "unknown": "Error inesperado",
           "panel_identity_changed": "La dirección ya no responde como este panel configurado. Compruebe el panel y su dirección antes de reintentar."
         },
@@ -1221,12 +1221,12 @@
       }
     },
     "installer_failure_retry_hold": {
-      "title": "Se detuvo el reintento en el panel {panel} porque no se pudo comprobar su estado de forma segura.",
+      "title": "Retry on {panel} paused because its state could not be checked safely",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "Elige qué hacer ahora.",
+            "description": "Retrying is on hold until the panel can be checked.",
             "menu_options": {
               "retry": "Reintentar",
               "support_report": "Informe de soporte",
@@ -1263,8 +1263,8 @@
       }
     },
     "panel_address_unreachable": {
-      "title": "Home Assistant no puede alcanzar {panel} en su dirección guardada",
-      "description": "{panel} está conectado a Home Assistant, por lo que sus entidades siguen disponibles, pero Home Assistant no puede leer el panel en {address}, y la conexión que mantiene, desde {session_address}, no ofrece otra dirección que probar. Puede que el puerto web del panel esté bloqueado entre Home Assistant y el panel. Si el panel se ha trasladado, vuelva a añadirlo con su nueva dirección, lo que actualiza la dirección guardada; el aviso desaparece por sí solo cuando la dirección vuelve a responder."
+      "title": "Can't reach {panel} at {address}",
+      "description": "Its entities still work through the live connection from {session_address}.\n\nIf the panel has moved, add it again at its new address. This clears by itself once the address answers."
     },
     "panel_address_unverified": {
       "title": "{panel} se ha trasladado y no se pudo confirmar su nueva dirección",
@@ -1293,15 +1293,15 @@
       }
     },
     "installer_failure_adb_authorization": {
-      "title": "Falta la autorización ADB para {panel}.",
+      "title": "Allow updates on {panel}",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "Falta la autorización ADB para {panel}. Elige «Autorizar ADB para actualizaciones» y acepta «Permitir depuración» en el panel físico cuando se solicite.",
+            "description": "Home Assistant is not yet allowed to update {panel}.",
             "menu_options": {
               "retry": "Reintentar",
-              "authorize_adb": "Autorizar ADB para actualizaciones",
+              "authorize_adb": "Allow updates",
               "support_report": "Informe de soporte",
               "clear_error": "Borrar error"
             }
@@ -1319,8 +1319,8 @@
             "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
           },
           "authorize_adb": {
-            "title": "Autorizar Home Assistant en {panel}",
-            "description": "Selecciona Enviar para crear o cargar la clave ADB persistente de esta instalación de Home Assistant y ofrecer su clave pública a {panel}. Aprueba la solicitud «Permitir depuración» de Android en el panel físico y vuelve a enviar el formulario. Android puede describir Home Assistant como un ordenador. La aprobación concede acceso general a la consola ADB mientras la depuración de red siga activada; revócala en las opciones de desarrollador del panel. En este paso no se instala ninguna aplicación."
+            "title": "Allow updates on {panel}",
+            "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
           }
         },
         "progress": {
@@ -1336,8 +1336,8 @@
           "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
           "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
           "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error.",
-          "cannot_connect": "No se puede conectar a un punto de conexión de estado válido de ha-paneld.",
-          "invalid_install_address": "Introduce únicamente el nombre de host o la dirección IP del panel. El instalador utiliza por separado el puerto 8888 de ha-paneld y el puerto 5555 de ADB.",
+          "cannot_connect": "No se puede conectar a un punto de conexión de estado válido de Panel Assistant.",
+          "invalid_install_address": "Enter only the panel hostname or IP address.",
           "install_resolution_failed": "Home Assistant no ha podido resolver la dirección de este panel. Comprueba la dirección y el DNS local y vuelve a intentarlo.",
           "install_resolution_timeout": "La resolución de nombres local ha agotado el tiempo de espera antes de que se pudiera fijar de forma segura la dirección del panel. Comprueba el DNS local y vuelve a intentarlo.",
           "install_too_many_addresses": "Este nombre de host se ha resuelto en demasiadas direcciones para fijarlo de forma segura. Utiliza un nombre de host local dedicado o una dirección IP privada.",
@@ -1346,7 +1346,7 @@
           "adb_unreachable": "El panel respondió, pero nada respondió en su puerto de Android Debug Bridge (5555). En el panel, activa Android Debug Bridge y permítelo por red, y vuelve a intentarlo. Si puedes conectar el panel al ordenador desde el que navegas, instala por USB en su lugar.",
           "adb_still_unauthorized": "El panel todavía no ha aceptado esta instancia de Home Assistant. Acepta el aviso de ADB en el panel y vuelve a intentarlo.",
           "adb_credential_error": "Home Assistant no ha podido cargar ni conservar de forma segura su credencial ADB. No se ha intentado modificar el panel. Comprueba el almacenamiento y los registros de Home Assistant antes de volver a intentarlo.",
-          "retained_or_ambiguous": "El panel podría contener un registro conservado del paquete ha-paneld o no se ha podido demostrar la ausencia del paquete. No se ha modificado el panel. Inténtalo una vez más si la conexión era inestable; de lo contrario, sigue la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración. No desinstales ni restablezcas la aplicación sin una copia de seguridad verificada.",
+          "retained_or_ambiguous": "El panel podría contener un registro conservado del paquete Panel Assistant o no se ha podido demostrar la ausencia del paquete. No se ha modificado el panel. Inténtalo una vez más si la conexión era inestable; de lo contrario, sigue la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración. No desinstales ni restablezcas la aplicación sin una copia de seguridad verificada.",
           "unknown": "Error inesperado",
           "panel_identity_changed": "La dirección ya no responde como este panel configurado. Compruebe el panel y su dirección antes de reintentar."
         },
@@ -1356,17 +1356,17 @@
       }
     },
     "adb_update_authorization": {
-      "title": "Falta la autorización ADB para {panel}.",
+      "title": "Allow updates on {panel}",
       "fix_flow": {
         "step": {
           "authorize_adb": {
-            "title": "Autorizar Home Assistant en {panel}",
-            "description": "Selecciona Enviar para crear o cargar la clave ADB persistente de esta instalación de Home Assistant y ofrecer su clave pública a {panel}. Aprueba la solicitud «Permitir depuración» de Android en el panel físico y vuelve a enviar el formulario. Android puede describir Home Assistant como un ordenador. La aprobación concede acceso general a la consola ADB mientras la depuración de red siga activada; revócala en las opciones de desarrollador del panel. En este paso no se instala ninguna aplicación."
+            "title": "Allow updates on {panel}",
+            "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
           }
         },
         "error": {
-          "cannot_connect": "No se puede conectar a un punto de conexión de estado válido de ha-paneld.",
-          "invalid_install_address": "Introduce únicamente el nombre de host o la dirección IP del panel. El instalador utiliza por separado el puerto 8888 de ha-paneld y el puerto 5555 de ADB.",
+          "cannot_connect": "No se puede conectar a un punto de conexión de estado válido de Panel Assistant.",
+          "invalid_install_address": "Enter only the panel hostname or IP address.",
           "install_resolution_failed": "Home Assistant no ha podido resolver la dirección de este panel. Comprueba la dirección y el DNS local y vuelve a intentarlo.",
           "install_resolution_timeout": "La resolución de nombres local ha agotado el tiempo de espera antes de que se pudiera fijar de forma segura la dirección del panel. Comprueba el DNS local y vuelve a intentarlo.",
           "install_too_many_addresses": "Este nombre de host se ha resuelto en demasiadas direcciones para fijarlo de forma segura. Utiliza un nombre de host local dedicado o una dirección IP privada.",
@@ -1375,7 +1375,7 @@
           "adb_unreachable": "El panel respondió, pero nada respondió en su puerto de Android Debug Bridge (5555). En el panel, activa Android Debug Bridge y permítelo por red, y vuelve a intentarlo. Si puedes conectar el panel al ordenador desde el que navegas, instala por USB en su lugar.",
           "adb_still_unauthorized": "El panel todavía no ha aceptado esta instancia de Home Assistant. Acepta el aviso de ADB en el panel y vuelve a intentarlo.",
           "adb_credential_error": "Home Assistant no ha podido cargar ni conservar de forma segura su credencial ADB. No se ha intentado modificar el panel. Comprueba el almacenamiento y los registros de Home Assistant antes de volver a intentarlo.",
-          "retained_or_ambiguous": "El panel podría contener un registro conservado del paquete ha-paneld o no se ha podido demostrar la ausencia del paquete. No se ha modificado el panel. Inténtalo una vez más si la conexión era inestable; de lo contrario, sigue la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración. No desinstales ni restablezcas la aplicación sin una copia de seguridad verificada.",
+          "retained_or_ambiguous": "El panel podría contener un registro conservado del paquete Panel Assistant o no se ha podido demostrar la ausencia del paquete. No se ha modificado el panel. Inténtalo una vez más si la conexión era inestable; de lo contrario, sigue la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración. No desinstales ni restablezcas la aplicación sin una copia de seguridad verificada.",
           "unknown": "Error inesperado",
           "panel_identity_changed": "La dirección ya no responde como este panel configurado. Compruebe el panel y su dirección antes de reintentar."
         },
@@ -1392,9 +1392,9 @@
         "description": "Continúe la configuración de este panel o autorice ADB para sus actualizaciones. Si el panel aún no está vinculado, confirme la cuenta que inició sesión para terminar la configuración.",
         "menu_options": {
           "onboarding": "Continuar la configuración",
-          "authorize_adb": "Autorizar ADB para actualizaciones",
+          "authorize_adb": "Allow updates",
           "updates": "Actualizaciones del panel",
-          "remove_app": "Quitar ha-paneld de este panel"
+          "remove_app": "Quitar Panel Assistant de este panel"
         }
       },
       "onboarding": {
@@ -1414,8 +1414,8 @@
         }
       },
       "authorize_adb": {
-        "title": "Autorizar Home Assistant en {panel}",
-        "description": "Selecciona Enviar para crear o cargar la clave ADB persistente de esta instalación de Home Assistant y ofrecer su clave pública a {panel}. Aprueba la solicitud «Permitir depuración» de Android en el panel físico y vuelve a enviar el formulario. Android puede describir Home Assistant como un ordenador. La aprobación concede acceso general a la consola ADB mientras la depuración de red siga activada; revócala en las opciones de desarrollador del panel. En este paso no se instala ninguna aplicación."
+        "title": "Allow updates on {panel}",
+        "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
       },
       "updates": {
         "title": "Actualizaciones del panel",
@@ -1428,14 +1428,14 @@
         }
       },
       "remove_app": {
-        "title": "Quitar ha-paneld de {panel}",
-        "description": "Esto quita ha-paneld de {panel}. Primero ha-paneld devuelve la pantalla de inicio al lanzador propio del panel y vuelve a activar las apps del fabricante que había desactivado; solo entonces se desinstala, a través de la conexión de Android Debug Bridge que Home Assistant ya tiene. Se eliminan sus ajustes en el panel.\n\nEn algunos paneles y versiones de firmware, quitarlo no deja forma de volver a los Ajustes de Android ni a la depuración por red, así que la app no podría volver a instalarse sin abrir el panel. Antes de continuar, lee [lo que puede provocar quitarlo en este panel]({risks_url}).",
+        "title": "Quitar Panel Assistant de {panel}",
+        "description": "Esto quita Panel Assistant de {panel}. Primero Panel Assistant devuelve la pantalla de inicio al lanzador propio del panel y vuelve a activar las apps del fabricante que había desactivado; solo entonces se desinstala, a través de la conexión de Android Debug Bridge que Home Assistant ya tiene. Se eliminan sus ajustes en el panel.\n\nEn algunos paneles y versiones de firmware, quitarlo no deja forma de volver a los Ajustes de Android ni a la depuración por red, así que la app no podría volver a instalarse sin abrir el panel. Antes de continuar, lee [lo que puede provocar quitarlo en este panel]({risks_url}).",
         "data": {
-          "confirmed": "He leído los riesgos de quitarlo de este panel y quiero quitar ha-paneld"
+          "confirmed": "He leído los riesgos de quitarlo de este panel y quiero quitar Panel Assistant"
         }
       },
       "remove_app_done": {
-        "title": "ha-paneld se ha quitado de {panel}",
+        "title": "Panel Assistant se ha quitado de {panel}",
         "description": "El panel conserva su propia pantalla de inicio. ¿Quieres que Home Assistant también olvide {panel}?",
         "menu_options": {
           "remove_app_delete_entry": "Eliminar este panel de Home Assistant",
@@ -1444,8 +1444,8 @@
       }
     },
     "error": {
-      "cannot_connect": "No se puede conectar a un punto de conexión de estado válido de ha-paneld.",
-      "invalid_install_address": "Introduce únicamente el nombre de host o la dirección IP del panel. El instalador utiliza por separado el puerto 8888 de ha-paneld y el puerto 5555 de ADB.",
+      "cannot_connect": "No se puede conectar a un punto de conexión de estado válido de Panel Assistant.",
+      "invalid_install_address": "Enter only the panel hostname or IP address.",
       "install_resolution_failed": "Home Assistant no ha podido resolver la dirección de este panel. Comprueba la dirección y el DNS local y vuelve a intentarlo.",
       "install_resolution_timeout": "La resolución de nombres local ha agotado el tiempo de espera antes de que se pudiera fijar de forma segura la dirección del panel. Comprueba el DNS local y vuelve a intentarlo.",
       "install_too_many_addresses": "Este nombre de host se ha resuelto en demasiadas direcciones para fijarlo de forma segura. Utiliza un nombre de host local dedicado o una dirección IP privada.",
@@ -1454,26 +1454,26 @@
       "adb_unreachable": "El panel respondió, pero nada respondió en su puerto de Android Debug Bridge (5555). En el panel, activa Android Debug Bridge y permítelo por red, y vuelve a intentarlo. Si puedes conectar el panel al ordenador desde el que navegas, instala por USB en su lugar.",
       "adb_still_unauthorized": "El panel todavía no ha aceptado esta instancia de Home Assistant. Acepta el aviso de ADB en el panel y vuelve a intentarlo.",
       "adb_credential_error": "Home Assistant no ha podido cargar ni conservar de forma segura su credencial ADB. No se ha intentado modificar el panel. Comprueba el almacenamiento y los registros de Home Assistant antes de volver a intentarlo.",
-      "retained_or_ambiguous": "El panel podría contener un registro conservado del paquete ha-paneld o no se ha podido demostrar la ausencia del paquete. No se ha modificado el panel. Inténtalo una vez más si la conexión era inestable; de lo contrario, sigue la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración. No desinstales ni restablezcas la aplicación sin una copia de seguridad verificada.",
+      "retained_or_ambiguous": "El panel podría contener un registro conservado del paquete Panel Assistant o no se ha podido demostrar la ausencia del paquete. No se ha modificado el panel. Inténtalo una vez más si la conexión era inestable; de lo contrario, sigue la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración. No desinstales ni restablezcas la aplicación sin una copia de seguridad verificada.",
       "unknown": "Error inesperado",
       "panel_identity_changed": "La dirección ya no responde como este panel configurado. Compruebe el panel y su dirección antes de reintentar.",
       "removal_unconfirmed": "Marca la casilla para confirmar que has leído los riesgos. No se ha quitado nada.",
       "removal_busy": "Una actualización o un traslado ya está modificando este panel. No se ha quitado nada; inténtalo de nuevo cuando termine.",
       "removal_adb_unreachable": "Home Assistant no pudo conectar con el panel mediante Android Debug Bridge (puerto 5555). No se ha quitado nada. Comprueba que el panel está encendido y que la depuración por red sigue activada, y vuelve a intentarlo.",
-      "removal_adb_authorization": "El panel aún no ha aceptado esta instancia de Home Assistant para Android Debug Bridge. No se ha quitado nada. Elige primero «Autorizar ADB para actualizaciones» y vuelve a intentarlo.",
+      "removal_adb_authorization": "The panel has not accepted this Home Assistant instance for the Android Debug Bridge. Nothing was removed. Choose Allow updates first, then try again.",
       "removal_panel_changed": "Ahora responde otro dispositivo en la dirección de este panel. No se ha quitado nada.",
-      "removal_approval_required": "La seguridad reforzada está activada, así que devolver la pantalla de inicio debe aprobarse en el propio panel. No se ha cambiado nada y ha-paneld sigue instalado. Aprueba la solicitud en el panel y vuelve a enviar en un plazo de diez minutos.",
-      "removal_no_replacement_home": "El panel no pudo dar su pantalla de inicio a otro lanzador: no tiene ninguna otra app de pantalla de inicio, así que ha-paneld es lo único que puede mostrar. No se ha quitado nada y el panel sigue funcionando. Instala un lanzador o vuelve a activar el del fabricante y vuelve a intentarlo.",
-      "removal_ownership_unreadable": "El panel no pudo leer su propio registro de las apps del fabricante que desactivó. No se ha quitado nada. Vuelve a iniciar ha-paneld en el panel y vuelve a intentarlo.",
+      "removal_approval_required": "Hardened security is on, so handing the home screen back has to be approved on the panel itself. Nothing was changed and Panel Assistant is still installed. Approve the request on the panel, then submit again.",
+      "removal_no_replacement_home": "El panel no pudo dar su pantalla de inicio a otro lanzador: no tiene ninguna otra app de pantalla de inicio, así que Panel Assistant es lo único que puede mostrar. No se ha quitado nada y el panel sigue funcionando. Instala un lanzador o vuelve a activar el del fabricante y vuelve a intentarlo.",
+      "removal_ownership_unreadable": "El panel no pudo leer su propio registro de las apps del fabricante que desactivó. No se ha quitado nada. Vuelve a iniciar Panel Assistant en el panel y vuelve a intentarlo.",
       "removal_package_state_unknown": "El panel no pudo leer qué apps están instaladas ni cuál es su pantalla de inicio. No se ha quitado nada. Vuelve a intentarlo en un momento.",
-      "removal_home_not_handed": "El panel no confirmó que otro lanzador tomara su pantalla de inicio, así que ha-paneld no se ha quitado. Instala un lanzador o vuelve a activar el del fabricante y vuelve a intentarlo.",
-      "removal_hand_back_unsupported": "El ha-paneld de este panel es demasiado antiguo para devolver la pantalla de inicio. No se ha quitado nada. Actualízalo primero y vuelve a intentarlo.",
-      "removal_app_unreachable": "ha-paneld no respondió y sigue siendo la pantalla de inicio del panel, así que quitarlo ahora dejaría el panel sin pantalla de inicio. No se ha quitado nada. Inicia ha-paneld en el panel y vuelve a intentarlo.",
-      "removal_remove_failed": "El panel ya ha recuperado su pantalla de inicio, pero ha-paneld no se pudo quitar por completo. Vuelve a intentarlo: un nuevo intento termina lo que falta."
+      "removal_home_not_handed": "El panel no confirmó que otro lanzador tomara su pantalla de inicio, así que Panel Assistant no se ha quitado. Instala un lanzador o vuelve a activar el del fabricante y vuelve a intentarlo.",
+      "removal_hand_back_unsupported": "The Panel Assistant app on this panel is too old to hand its home screen back. Nothing was removed. Update it first, then try again.",
+      "removal_app_unreachable": "Panel Assistant no respondió y sigue siendo la pantalla de inicio del panel, así que quitarlo ahora dejaría el panel sin pantalla de inicio. No se ha quitado nada. Inicia Panel Assistant en el panel y vuelve a intentarlo.",
+      "removal_remove_failed": "El panel ya ha recuperado su pantalla de inicio, pero Panel Assistant no se pudo quitar por completo. Vuelve a intentarlo: un nuevo intento termina lo que falta."
     },
     "abort": {
-      "removed_entry_deleted": "Se ha quitado ha-paneld y se ha eliminado el panel de Home Assistant.",
-      "removed_entry_kept": "Se ha quitado ha-paneld. El panel se queda en Home Assistant hasta que lo elimines."
+      "removed_entry_deleted": "Se ha quitado Panel Assistant y se ha eliminado el panel de Home Assistant.",
+      "removed_entry_kept": "Se ha quitado Panel Assistant. El panel se queda en Home Assistant hasta que lo elimines."
     }
   }
 }

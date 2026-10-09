@@ -34,7 +34,7 @@
     "pillClosed": "Zavřeno"
   },
   "haInstall": {
-    "title": "Nainstalovat ha-paneld na panel",
+    "title": "Nainstalovat Panel Assistant na panel",
     "introduction": "Připojte panel k tomuto počítači kabelem USB. Nové okno ho najde a nainstaluje aplikaci.",
     "release": "Verze",
     "loading": "Načítání verzí…",

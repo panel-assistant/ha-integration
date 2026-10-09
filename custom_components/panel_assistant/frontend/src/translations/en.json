@@ -14,7 +14,7 @@
     "restarting": "Restarting ({reason})",
     "not_loaded": "not loaded",
     "opening": "Opening {panel}…",
-    "loadingHint": "Usually takes a few seconds",
+    "loadingHint": "Just a moment",
     "empty": "No panels are attached yet.",
     "failed": "The panel could not be opened. It will be tried again shortly.",
     "admin": "An administrator must open this page.",
@@ -34,7 +34,7 @@
     "pillClosed": "Closed"
   },
   "haInstall": {
-    "title": "Install ha-paneld on a panel",
+    "title": "Install Panel Assistant on a panel",
     "introduction": "Plug the panel into this computer with a USB cable. A new window will find it and install the app.",
     "release": "Version",
     "loading": "Loading versions…",

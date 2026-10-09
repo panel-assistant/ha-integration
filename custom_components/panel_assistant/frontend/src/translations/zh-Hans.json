@@ -34,7 +34,7 @@
     "pillClosed": "已关闭"
   },
   "haInstall": {
-    "title": "在面板上安装 ha-paneld",
+    "title": "在面板上安装 Panel Assistant",
     "introduction": "用 USB 数据线将面板连接到此电脑。新窗口会查找面板并安装应用。",
     "release": "版本",
     "loading": "正在加载版本…",
