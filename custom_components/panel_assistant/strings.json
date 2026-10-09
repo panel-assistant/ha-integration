@@ -693,6 +693,25 @@
         }
       }
     },
+    "panel_proximity_setup": {
+      "title": "Set up proximity on {panel}.",
+      "fix_flow": {
+        "step": {
+          "set_up_proximity": {
+            "title": "Set up proximity on {panel}",
+            "description": "Until its proximity sensor is set up, {panel} cannot wake on a wave. Setup takes about a minute and needs you in front of the panel. Open Panel Assistant in the sidebar and choose {panel}. On its Configure page, under Presence & wake, select Set up proximity on panel, then follow the instructions on the panel's screen. You can also start it on the panel itself with Open proximity setup on its dashboard. When the panel says the calibration is saved, return here and select Submit."
+          }
+        },
+        "error": {
+          "proximity_not_calibrated": "The panel still reports that proximity is not set up. Finish setup on the panel, then submit again.",
+          "proximity_calibrating": "Setup is still running on the panel. Finish it, then submit again.",
+          "proximity_unreadable": "Home Assistant could not read the panel's proximity state. Check that the panel is connected, then submit again."
+        },
+        "abort": {
+          "entry_removed": "This panel has been removed."
+        }
+      }
+    },
     "voice_microphone_silent": {
       "title": "The voice assistant on {panel} is not listening.",
       "description": "The voice assistant on {panel} is not listening because its microphone recorded only silence when the panel checked it. To check again, turn the voice assistant off and on in the panel's Configure page, or choose another audio source there."

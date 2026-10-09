@@ -54,6 +54,7 @@ from .panel_move import (
     async_restore_move_offer,
 )
 from .permission_repair import permission_issue_id
+from .proximity_repair import proximity_issue_id
 from .removed_panels import (
     async_forget_removed_panel,
     async_load_removed_panels,
@@ -335,6 +336,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
     """
     async_delete_binding_issue(hass, entry.entry_id)
     ir.async_delete_issue(hass, DOMAIN, permission_issue_id(entry.entry_id))
+    ir.async_delete_issue(hass, DOMAIN, proximity_issue_id(entry.entry_id))
     ir.async_delete_issue(hass, DOMAIN, no_update_route_issue_id(entry.entry_id))
     async_delete_microphone_issue(hass, entry.entry_id)
     async_delete_upgrade_issues(hass, entry.entry_id)

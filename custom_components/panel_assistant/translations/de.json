@@ -655,6 +655,25 @@
         }
       }
     },
+    "panel_proximity_setup": {
+      "title": "Näherung auf {panel} einrichten.",
+      "fix_flow": {
+        "step": {
+          "set_up_proximity": {
+            "title": "Näherung auf {panel} einrichten",
+            "description": "Solange der Näherungssensor nicht eingerichtet ist, kann {panel} nicht durch eine Handbewegung aufwachen. Die Einrichtung dauert etwa eine Minute, und du musst dabei vor dem Panel stehen. Öffne Panel Assistant in der Seitenleiste und wähle {panel}. Wähle auf der Seite Konfiguration unter Anwesenheit & Aufwecken die Option Näherung auf dem Panel einrichten und folge den Anweisungen auf dem Bildschirm des Panels. Du kannst die Einrichtung auch direkt am Panel mit Näherungssensor einrichten auf seinem Dashboard starten. Sobald das Panel meldet, dass die Kalibrierung gespeichert ist, kehre hierher zurück und wähle Senden."
+          }
+        },
+        "error": {
+          "proximity_not_calibrated": "Das Panel meldet weiterhin, dass die Näherung nicht eingerichtet ist. Schließe die Einrichtung am Panel ab und sende dann erneut.",
+          "proximity_calibrating": "Die Einrichtung läuft noch auf dem Panel. Schließe sie ab und sende dann erneut.",
+          "proximity_unreadable": "Home Assistant konnte den Näherungsstatus des Panels nicht lesen. Prüfe, ob das Panel verbunden ist, und sende dann erneut."
+        },
+        "abort": {
+          "entry_removed": "Dieses Panel wurde entfernt."
+        }
+      }
+    },
     "voice_microphone_silent": {
       "title": "Der Sprachassistent auf {panel} hört nicht zu.",
       "description": "Der Sprachassistent auf {panel} hört nicht zu, weil sein Mikrofon bei der Prüfung durch das Panel nur Stille aufgenommen hat. Um erneut zu prüfen, schalte den Sprachassistenten auf der Configure-Seite des Panels aus und wieder ein oder wähle dort eine andere Audioquelle."

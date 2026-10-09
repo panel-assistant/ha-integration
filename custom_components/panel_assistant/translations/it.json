@@ -655,6 +655,25 @@
         }
       }
     },
+    "panel_proximity_setup": {
+      "title": "Configura la prossimità su {panel}.",
+      "fix_flow": {
+        "step": {
+          "set_up_proximity": {
+            "title": "Configura la prossimità su {panel}",
+            "description": "Finché il sensore di prossimità non è configurato, {panel} non può riattivarsi con un gesto della mano. La configurazione richiede circa un minuto e devi stare davanti al pannello. Apri Panel Assistant nella barra laterale e scegli {panel}. Nella sua pagina Configura, in Presenza e riattivazione, seleziona Configura prossimità sul pannello, quindi segui le istruzioni sullo schermo del pannello. Puoi avviarla anche dal pannello stesso con Apri configurazione di prossimità sulla sua dashboard. Quando il pannello indica che la calibrazione è salvata, torna qui e seleziona Invia."
+          }
+        },
+        "error": {
+          "proximity_not_calibrated": "Il pannello indica ancora che la prossimità non è configurata. Completa la configurazione sul pannello, quindi invia di nuovo.",
+          "proximity_calibrating": "La configurazione è ancora in corso sul pannello. Completala, quindi invia di nuovo.",
+          "proximity_unreadable": "Home Assistant non ha potuto leggere lo stato di prossimità del pannello. Verifica che sia connesso e invia di nuovo."
+        },
+        "abort": {
+          "entry_removed": "Questo pannello è stato rimosso."
+        }
+      }
+    },
     "voice_microphone_silent": {
       "title": "L'assistente vocale su {panel} non è in ascolto.",
       "description": "L'assistente vocale su {panel} non è in ascolto perché il suo microfono ha registrato solo silenzio durante il controllo del pannello. Per controllare di nuovo, disattiva e riattiva l'assistente vocale nella pagina Configure del pannello, oppure scegli lì un'altra sorgente audio."

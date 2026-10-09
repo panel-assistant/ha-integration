@@ -52,6 +52,7 @@ class PanelStatus:
     panel_assistant_device: PanelDevice | None = None
     panel_assistant_hardware: ComponentStatus | None = None
     permissions: ComponentStatus | None = None
+    proximity: ComponentStatus | None = None
 
     def as_dict(self) -> dict[str, object]:
         """Return a serializable copy suitable for diagnostics."""
@@ -66,6 +67,7 @@ class PanelStatus:
             "camera": _copy_component(self.camera),
             "power_safety": _copy_component(self.power_safety),
             "permissions": _copy_component(self.permissions),
+            "proximity": _copy_component(self.proximity),
             "panel_assistant_device": (
                 self.panel_assistant_device.as_dict()
                 if self.panel_assistant_device is not None
@@ -367,6 +369,23 @@ def _permission_state(value: object) -> str:
     return str(value)
 
 
+PROXIMITY_STATES = frozenset(
+    {"calibration_required", "calibrating", "ready", "source_unavailable"}
+)
+
+
+def _proximity_state(value: object) -> str:
+    if value not in PROXIMITY_STATES:
+        raise InvalidResponseError
+    return str(value)
+
+
+_PROXIMITY_FIELDS: dict[str, FieldValidator] = {
+    "state": _proximity_state,
+    "wake_ready": _boolean,
+}
+
+
 def home_ui_allows(status: PanelStatus, *, setup: bool = False) -> bool:
     """Accept only a fresh, complete HOME proof for this completion path.
 
@@ -543,5 +562,8 @@ def parse_status_response(body: str) -> PanelStatus:
             "permissions",
             dict.fromkeys(PERMISSION_NAMES, _permission_state),
             frozenset(),
+        ),
+        proximity=_sanitize_component(
+            parsed, "proximity", _PROXIMITY_FIELDS, frozenset({"state"})
         ),
     )

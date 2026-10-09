@@ -655,6 +655,25 @@
         }
       }
     },
+    "panel_proximity_setup": {
+      "title": "Configura la proximidad en {panel}.",
+      "fix_flow": {
+        "step": {
+          "set_up_proximity": {
+            "title": "Configurar la proximidad en {panel}",
+            "description": "Mientras su sensor de proximidad no esté configurado, {panel} no puede activarse con un gesto de la mano. La configuración tarda alrededor de un minuto y necesitas estar delante del panel. Abre Panel Assistant en la barra lateral y elige {panel}. En su página Configurar, en Presencia y activación, selecciona Configurar proximidad en el panel y sigue las instrucciones en la pantalla del panel. También puedes iniciarla en el propio panel con Abrir configuración de proximidad en su panel de control. Cuando el panel indique que la calibración se ha guardado, vuelve aquí y selecciona Enviar."
+          }
+        },
+        "error": {
+          "proximity_not_calibrated": "El panel sigue indicando que la proximidad no está configurada. Termina la configuración en el panel y vuelve a enviar.",
+          "proximity_calibrating": "La configuración sigue en curso en el panel. Termínala y vuelve a enviar.",
+          "proximity_unreadable": "Home Assistant no pudo leer el estado de proximidad del panel. Comprueba que esté conectado y vuelve a enviar."
+        },
+        "abort": {
+          "entry_removed": "Este panel se ha eliminado."
+        }
+      }
+    },
     "voice_microphone_silent": {
       "title": "El asistente de voz de {panel} no está escuchando.",
       "description": "El asistente de voz de {panel} no está escuchando porque su micrófono solo grabó silencio cuando el panel lo comprobó. Para comprobarlo de nuevo, desactiva y vuelve a activar el asistente de voz en la página Configure del panel, o elige allí otra fuente de audio."

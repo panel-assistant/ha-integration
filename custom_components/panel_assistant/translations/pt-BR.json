@@ -695,6 +695,25 @@
         }
       }
     },
+    "panel_proximity_setup": {
+      "title": "Configure a proximidade em {panel}.",
+      "fix_flow": {
+        "step": {
+          "set_up_proximity": {
+            "title": "Configurar a proximidade em {panel}",
+            "description": "Enquanto o sensor de proximidade não estiver configurado, {panel} não pode despertar com um aceno. A configuração leva cerca de um minuto e você precisa ficar na frente do painel. Abra o Panel Assistant na barra lateral e escolha {panel}. Na página Configurar, em Presença e despertar, selecione Configurar proximidade no painel e siga as instruções na tela do painel. Você também pode iniciá-la no próprio painel com Abrir configuração de proximidade no painel de controle dele. Quando o painel informar que a calibração foi salva, volte aqui e selecione Enviar."
+          }
+        },
+        "error": {
+          "proximity_not_calibrated": "O painel ainda informa que a proximidade não está configurada. Conclua a configuração no painel e envie novamente.",
+          "proximity_calibrating": "A configuração ainda está em andamento no painel. Conclua-a e envie novamente.",
+          "proximity_unreadable": "O Home Assistant não conseguiu ler o estado de proximidade do painel. Verifique se o painel está conectado e envie novamente."
+        },
+        "abort": {
+          "entry_removed": "Este painel foi removido."
+        }
+      }
+    },
     "voice_microphone_silent": {
       "title": "O assistente de voz em {panel} não está ouvindo.",
       "description": "O assistente de voz em {panel} não está ouvindo porque o microfone gravou apenas silêncio quando o painel o verificou. Para verificar novamente, desabilite e habilite o assistente de voz na página Configurar do painel ou escolha outra fonte de áudio nessa página."
