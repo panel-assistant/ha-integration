@@ -335,15 +335,15 @@ async def test_install_list_offers_newest_compatible_choice_per_pa_channel(
         replace(_build(774), version_name="1.3.0-rc2"),
         replace(_build(773), version_name="1.3.0-rc2"),
         replace(_build(772), version_name="1.1.0"),
-        replace(_build(775), version_name="1.4.0", protocol_min=5, protocol_max=5),
+        replace(_build(775), version_name="1.4.0", protocol_min=6, protocol_max=6),
     )
     client = authenticated_session(
         release_key,
         [
-            ("v1.4.0", (5, 5)),
-            ("v1.3.0-rc1", (3, 3)),
-            ("v1.2.0", (3, 3)),
-            ("v1.1.0", (3, 3)),
+            ("v1.4.0", (6, 6)),
+            ("v1.3.0-rc1", (5, 5)),
+            ("v1.2.0", (5, 5)),
+            ("v1.1.0", (5, 5)),
         ],
     )
     monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", pa_version)
