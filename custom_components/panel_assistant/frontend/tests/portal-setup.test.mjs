@@ -8,7 +8,7 @@ import {createUsbTransactionPorts} from '../src/usb-transaction-ports.mjs';
 import {LEGACY_LAUNCH_COMPONENT} from '../src/app-identity.mjs';
 import {CHOOSER_DUMP} from '../src/home-chooser.mjs';
 import {META_CONTROL_CENTER, META_RESTORE_RECORD, META_SCREENSAVER_COMPONENTS,
-  META_SCREENSAVER_DEFAULT_COMPONENT, META_VERIFIER_RECORD} from '../src/vendor-provisioning.mjs';
+  META_SCREENSAVER_DEFAULT_COMPONENT, META_VERIFIER_RECORD, SHELLY_LAUNCHER, SHELLY_RESTORE_RECORD} from '../src/vendor-provisioning.mjs';
 
 // The USB installer's grant, readback and Meta setup programs run unchanged in
 // a real shell whose settings, appops, pm, cmd, getprop and dumpsys keep one
@@ -62,9 +62,14 @@ uiautomator() { if [ -f "$STATE/chooser.shown" ]; then cp "$STATE/chooser.xml" "
 const CHOOSER = readFileSync(new URL('../../../../tests/fixtures/portal_home_chooser.xml', import.meta.url), 'utf8')
   .replaceAll('Panel Assistant', 'ha-paneld');
 
-function panel({portal = false, microphone = true} = {}) {
+function panel({portal = false, shelly = false, microphone = true} = {}) {
   const state = mkdtempSync(join(tmpdir(), 'portal-setup-'));
   if (microphone) writeFileSync(join(state, 'microphone'), '');
+  if (shelly) {
+    writeFileSync(join(state, 'prop.ro.product.device'), 'Jenna\n');
+    writeFileSync(join(state, `package.${SHELLY_LAUNCHER}`), '');
+    writeFileSync(join(state, `appop.${SHELLY_LAUNCHER}.SYSTEM_ALERT_WINDOW`), 'allow\n');
+  }
   if (portal) {
     writeFileSync(join(state, 'prop.ro.product.device'), 'omni\n');
     writeFileSync(join(state, 'screensaver_components'), `${META_SCREENSAVER_COMPONENTS}\n`);
@@ -99,7 +104,8 @@ function panel({portal = false, microphone = true} = {}) {
       body = spawnSync('/bin/sh', ['-c', STAND_IN +
         command.replace(/^shell:/, '').replaceAll(META_VERIFIER_RECORD, join(state, 'verifier-record'))
           .replaceAll(META_RESTORE_RECORD, join(state, 'restore-record'))
-          .replaceAll(CHOOSER_DUMP, join(state, 'chooser-dump.xml'))],
+          .replaceAll(CHOOSER_DUMP, join(state, 'chooser-dump.xml'))
+          .replaceAll(SHELLY_RESTORE_RECORD, join(state, 'shelly-record'))],
       {encoding: 'utf8', env: {PATH: process.env.PATH, STATE: state}}).stdout;
     }
     return {readable: new ReadableStream({start(controller) {
@@ -129,8 +135,7 @@ test('every USB install makes the app HOME and grants the microphone, with no Me
     assert.equal(result.vendor, undefined);
     assert.equal(p.read('home'), 'io.github.maxlyth.hapaneld/.DashboardActivity');
     assert.ok(p.calls().includes('pm grant io.github.maxlyth.hapaneld android.permission.RECORD_AUDIO'));
-    assert.ok(!p.commands.some(command => command.includes('HAPANELD_VENDOR')));
-    assert.ok(!p.calls().some(call => /screensaver|alohaapps/.test(call)));
+    assert.ok(!p.calls().some(call => /screensaver|alohaapps|stargate/.test(call)));
   } finally { p.cleanup(); }
 });
 
@@ -221,3 +226,21 @@ for (const [name, chooser, outcome] of [
     } finally { p.cleanup(); }
   });
 }
+
+test('a Shelly Wall Display has its launcher overlay denied once, with the mode recorded', async () => {
+  const p = panel({shelly: true});
+  try {
+    const result = await p.commission();
+    assert.equal(result.permissionsVerified, true);
+    assert.deepEqual(result.vendor,
+      {vendor: 'shelly', record: 'allow', launcherOverlay: 'deny', converged: true});
+    assert.deepEqual(p.calls().filter(call => call.includes(SHELLY_LAUNCHER)),
+      [`appops set ${SHELLY_LAUNCHER} SYSTEM_ALERT_WINDOW deny`]);
+    assert.equal(p.read('shelly-record'), 'stargate_overlay=allow');
+    assert.ok(!p.calls().some(call => /screensaver|alohaapps/.test(call)));
+    // A second install records nothing new and writes nothing more.
+    const again = await p.commission();
+    assert.equal(again.vendor.record, 'allow');
+    assert.equal(p.calls().filter(call => call.includes(SHELLY_LAUNCHER)).length, 1);
+  } finally { p.cleanup(); }
+});

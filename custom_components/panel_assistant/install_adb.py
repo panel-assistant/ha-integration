@@ -67,6 +67,8 @@ from .release import (
 )
 from .vendor_provisioning import (
     META_PORTAL_DEVICES,
+    SHELLY_LAUNCHER,
+    ShellySetup,
     VendorResponseError,
     VendorSetup,
     parse_vendor_restore,
@@ -826,6 +828,8 @@ def _permission_grant_command(
             _secure_settings_grant_command(package_id),
             f'echo "home:$({_HOME_QUERY})"',
             'echo "device:$(getprop ro.product.device)"',
+            f'if [ -n "$(pm path {SHELLY_LAUNCHER} 2>/dev/null)" ]; '
+            "then echo vendor:shelly; else echo vendor:none; fi",
             f"echo HAPANELD_PERMISSIONS_END:{nonce}:$?",
         )
     )
@@ -861,6 +865,8 @@ class _PermissionGrant:
     chooser: str | None
     #: ``ro.product.device``, or None when the answer could not be read.
     device: str | None
+    #: Shelly's launcher is installed: a Shelly Wall Display, whatever model.
+    shelly: bool = False
 
 
 _DEVICE_CODENAME = re.compile(r"[A-Za-z0-9_.-]{1,64}", flags=re.ASCII)
@@ -875,11 +881,11 @@ def _parse_permission_grant(
         lines, status = _parse_single_section(body, prefix="PERMISSIONS", nonce=nonce)
     except _MalformedAdbResponse:
         return refused
-    if status != 0 or len(lines) != 12:
+    if status != 0 or len(lines) != 13:
         return refused
     before, after, enabled, write_settings, overlay, installs = lines[:6]
     camera, microphone = lines[6:8]
-    chooser, secure_settings, home, device = (
+    chooser, secure_settings, home, device, vendor = (
         line.partition(":")[2] for line in lines[8:]
     )
     if (
@@ -887,6 +893,7 @@ def _parse_permission_grant(
         or not lines[9].startswith("secure_settings:")
         or not lines[10].startswith("home:")
         or not lines[11].startswith("device:")
+        or lines[12] not in ("vendor:shelly", "vendor:none")
     ):
         return refused
     expected = _expected_services(before, launch_component)
@@ -909,6 +916,7 @@ def _parse_permission_grant(
         home=home in EQUIVALENT_HOME_COMPONENTS[launch_component],
         chooser=chooser if chooser in CHOOSER_OUTCOMES else None,
         device=device if _DEVICE_CODENAME.fullmatch(device) else None,
+        shelly=vendor == "shelly",
     )
 
 
@@ -2291,7 +2299,7 @@ async def _async_repair_app_permissions(
             package_id,
             grant.chooser or "unread",
         )
-    if grant.device in META_PORTAL_DEVICES:
+    if grant.device in META_PORTAL_DEVICES or grant.shelly:
         await _async_vendor_setup(device)
     if not grant.granted:
         _LOGGER.warning(
@@ -2307,8 +2315,10 @@ async def _async_repair_app_permissions(
         )
 
 
-async def _async_vendor_setup(device: AdbDeviceAsync) -> VendorSetup | None:
-    """Apply a Portal's vendor setup; a refusal is reported, never fatal."""
+async def _async_vendor_setup(
+    device: AdbDeviceAsync,
+) -> VendorSetup | ShellySetup | None:
+    """Apply a vendor's setup; a refusal is reported, never fatal."""
     nonce = token_hex(16)
     body = await _async_shell(
         device, vendor_setup_command(nonce), read_timeout=_READ_TIMEOUT_SECONDS
@@ -2323,10 +2333,23 @@ async def _async_vendor_setup(device: AdbDeviceAsync) -> VendorSetup | None:
         converged = False
     else:
         converged = observed is None or observed.converged
-    if not converged:
+    if converged:
+        return observed
+    if isinstance(observed, ShellySetup):
+        _LOGGER.warning(
+            "The panel did not take Panel Assistant's Shelly setup: Shelly's "
+            "corner overlay may still show over the panel app"
+        )
+    elif isinstance(observed, VendorSetup):
         _LOGGER.warning(
             "The panel did not take Panel Assistant's Meta Portal setup: Meta's "
             "screensaver or its swipe-up bar may still show over the panel app"
+        )
+    else:
+        _LOGGER.warning(
+            "The panel did not take Panel Assistant's vendor setup: on a Meta "
+            "Portal, Meta's screensaver or its swipe-up bar may still show over "
+            "the panel app; on a Shelly Wall Display, Shelly's corner overlay"
         )
     return observed
 

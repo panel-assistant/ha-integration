@@ -188,7 +188,7 @@ class _RoutingFakeDevice(FakeDevice):
     ) -> AsyncIterator[bytes]:
         self.commands.append(command)
         self.shell_kwargs.append(kwargs)
-        match = re.search(r"HAPANELD_([A-Z]+)_BEGIN:([0-9a-f]{32})", command)
+        match = re.search(r"HAPANELD_([A-Z_]+?)_BEGIN:([0-9a-f]{32})", command)
         assert match is not None, command
         prefix, nonce = match.groups()
         if prefix == "POSTURE":
@@ -197,7 +197,7 @@ class _RoutingFakeDevice(FakeDevice):
             yield _single_output(
                 "PACKAGE", nonce, ["package:/data/app/ha-paneld/base.apk"], 0
             )
-        elif prefix in ("NOTIFICATIONS", "PERMISSIONS"):
+        elif prefix in ("NOTIFICATIONS", "PERMISSIONS", "VENDOR"):
             yield _run_on_stand_in_panel(command, self.state)
         else:
             assert prefix == "LAUNCH", command

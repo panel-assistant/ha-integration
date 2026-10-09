@@ -11,7 +11,7 @@ import { readUsbHealth } from './usb-health.mjs';
 import { buildPermissionRead, parsePermissionRead, buildPermissionGrant, parsePermissionGrant,
   buildPermissionVerification, parsePermissionVerification } from './permission-contract.mjs';
 import { verifyStagedPrefix } from './staged-prefix.mjs';
-import { META_PORTAL_DEVICES, buildVendorSetup, parseVendorSetup } from './vendor-provisioning.mjs';
+import { buildVendorSetup, parseVendorSetup } from './vendor-provisioning.mjs';
 import { buildPrefixCleanup, parsePrefixCleanup, buildSetAsideRemoval,
   parseSetAsideRemoval } from './cleanup-contract.mjs';
 import { TransactionError } from './transaction.mjs';
@@ -209,15 +209,16 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
       n, receipt.target.androidSdk, existing, packageId, launchComponent);
       binding(receipt, release);
       const result = Object.freeze({...verified, homeChooser});
-      if (!META_PORTAL_DEVICES.includes(result.device)) return result;
-      // A Portal also gets Meta's setup. What it read back is reported; an
-      // answer that cannot be read is reported too, and never fails the install.
+      // Every panel runs the vendor setup: it finds a Portal by its codename
+      // and a Shelly Wall Display by its launcher, and changes nothing on any
+      // other panel. What it read back is reported; an answer that cannot be
+      // read is reported too, and never fails the install.
       n = newNonce();
       const body = await readShell(adb, buildVendorSetup(n), {timeoutMs: 30000, maximum: 16384});
       binding(receipt, release);
       let vendor;
       try { vendor = parseVendorSetup(body, n); } catch { vendor = Object.freeze({converged: false}); }
-      return Object.freeze({...result, vendor});
+      return vendor === null ? result : Object.freeze({...result, vendor});
     }),
   });
 }

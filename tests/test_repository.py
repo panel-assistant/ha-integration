@@ -748,6 +748,7 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
         "console.log(JSON.stringify({"
         "program: v.buildVendorSetup('0123456789abcdef0123456789abcdef'),"
         "devices: v.META_PORTAL_DEVICES, record: v.META_RESTORE_RECORD,"
+        "shelly: [v.SHELLY_LAUNCHER, v.SHELLY_RESTORE_RECORD],"
         "homeQuery: p.HOME_QUERY, labels: h.APP_LABELS,"
         "outcomes: h.CHOOSER_OUTCOMES,"
         "claims: Object.fromEntries(Object.keys(a.HOME_COMPONENTS)"
@@ -769,6 +770,10 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
     )
     assert javascript["devices"] == list(vendor_provisioning.META_PORTAL_DEVICES)
     assert javascript["record"] == vendor_provisioning.META_RESTORE_RECORD
+    assert javascript["shelly"] == [
+        vendor_provisioning.SHELLY_LAUNCHER,
+        vendor_provisioning.SHELLY_RESTORE_RECORD,
+    ]
     assert javascript["homeQuery"] == install_adb._HOME_QUERY
     # HOME, including the chooser's Always, is claimed by one program.
     assert javascript["labels"] == {

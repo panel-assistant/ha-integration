@@ -223,7 +223,7 @@ def _permissions_output(
             "unsupported\nunsupported\n"
             "home_chooser:kept\nsecure_settings:granted\nhome:"
             f"{install_adb.HOME_COMPONENTS[install_adb.LAUNCH_COMPONENTS[package_id][0]]}"
-            "\ndevice:generic",
+            "\ndevice:generic\nvendor:none",
         ],
         0,
     )

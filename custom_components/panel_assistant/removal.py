@@ -132,7 +132,7 @@ async def _async_remove_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 
 async def _async_restore_vendor_setup(found: tuple[AdbInstallTarget, Any]) -> None:
-    """Give Meta back what installing changed, once HOME is no longer the app's.
+    """Give the vendor back what installing changed, once HOME is not the app's.
 
     Never a reason to keep the app: a panel whose values could not be put
     back is reported, and removal goes on. A retry finds the record and tries
@@ -145,8 +145,9 @@ async def _async_restore_vendor_setup(found: tuple[AdbInstallTarget, Any]) -> No
         outcome = "unreachable"
     if outcome not in ("restored", "none"):
         _LOGGER.warning(
-            "Could not put back Meta's screensaver and swipe-up bar on this "
-            "panel (%s); they stay off after the app is removed",
+            "Could not put back the vendor settings Panel Assistant changed on "
+            "this panel (%s): Meta's screensaver and swipe-up bar, or Shelly's "
+            "corner overlay, stay off after the app is removed",
             outcome,
         )
 

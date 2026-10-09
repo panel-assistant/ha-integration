@@ -37,6 +37,8 @@ function fixture({badTarget = false, badApk = false, badRead = false, failGrant 
         `HAPANELD_INSTALLED_SHA_END:${n}:0`, `HAPANELD_INSTALLED_END:${n}`, ''].join('\n');
     } else if (command.includes('HAPANELD_LAUNCH_BEGIN:')) {
       body = `HAPANELD_LAUNCH_BEGIN:${n}\nStatus: ok\nHAPANELD_LAUNCH_END:${n}:0\n`;
+    } else if (command.includes('HAPANELD_VENDOR_BEGIN:')) {
+      body = `HAPANELD_VENDOR_BEGIN:${n}\ndevice:other\nHAPANELD_VENDOR_END:${n}:0\n`;
     } else if (command.includes('HAPANELD_PERMISSIONS_READ_BEGIN:')) {
       body = `HAPANELD_PERMISSIONS_READ_BEGIN:${n}\n${badRead ? "cannot read settings" : 'com.other/.Reader'}\nHAPANELD_PERMISSIONS_READ_END:${n}:0\n`;
     } else if (command.includes('HAPANELD_PERMISSIONS_GRANT_BEGIN:')) {
@@ -68,7 +70,8 @@ test('permissions require current USB posture and exact installed APK before any
       assert.deepEqual(await f.ports.commissionPermissions(f.receipt, f.release),
         {permissionsVerified: true, notificationsRequired: sdk >= 33, microphone: 'granted', secureSettings: 'granted', home: true, homeChooser: 'kept',
           device: 'generic'});
-      assert.equal(f.commands.length, 5);
+      assert.equal(f.commands.length, 6);
+      assert.match(f.commands[5], /HAPANELD_VENDOR_BEGIN/);
       assert.match(f.commands[0], /HAPANELD_POSTURE_BEGIN/);
       assert.match(f.commands[1], /HAPANELD_INSTALLED_BEGIN/);
       assert.match(f.commands[3], /HAPANELD_PERMISSIONS_GRANT_BEGIN/);
