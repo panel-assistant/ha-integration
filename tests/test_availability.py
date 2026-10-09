@@ -52,7 +52,16 @@ from custom_components.panel_assistant.client import (
 from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
 from custom_components.panel_assistant.transport import async_get_sessions
 
-from .test_transport import DID, HEALTH, OTHER_DID, STATUS, WsClientFactory, _open
+from .test_transport import (
+    DID,
+    HEALTH,
+    OTHER_DID,
+    STATUS,
+    WsClientFactory,
+    _hello,
+    _open,
+    _send,
+)
 
 STATUS_ENTITY = "sensor.alpha_status"
 UPDATE_ENTITY = "update.alpha_ha_paneld_update"
@@ -736,6 +745,75 @@ async def test_panel_connecting_after_a_restart_with_a_dead_address_recovers(
     assert _state(hass, STATUS_ENTITY) == "online"
     assert _state(hass, UPDATE_ENTITY) != STATE_UNAVAILABLE
     assert _issue(hass, entry) is None
+
+
+async def _hello_on_an_older_protocol(
+    hass: HomeAssistant, client: Any, entry: MockConfigEntry
+) -> dict[str, Any]:
+    """Send the hello of an app too old for a session, from wherever it now is."""
+    old_health = replace(HEALTH, protocol=(4, 4))
+    with (
+        patch.object(
+            HaPaneldClient,
+            "async_get_health",
+            _health_by_host(
+                {
+                    STORED: CannotConnectError(),
+                    MOVED: old_health,
+                    "127.0.0.1": CannotConnectError(),
+                }
+            ),
+        ),
+        patch.object(
+            HaPaneldClient, "async_get_status", AsyncMock(return_value=STATUS)
+        ),
+    ):
+        response = await _send(
+            client, _hello(protocol={"min": 4, "max": 4}, addresses=[MOVED])
+        )
+        await hass.async_block_till_done()
+    return response
+
+
+async def test_panel_too_old_for_a_session_is_followed_to_its_new_address(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    hass_read_only_user: Any,
+) -> None:
+    """A refused hello still says where the panel is, so the poll can reach it.
+
+    Its app speaks an older protocol, so it gets no session and is served over
+    HTTP: status, the Repair naming the app it needs, and the update that
+    installs it. When its address changed, only its hello knows the new one.
+    """
+    entry = await _load_offline(hass, hass_read_only_user.id, DID)
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+
+    response = await _hello_on_an_older_protocol(hass, client, entry)
+
+    assert response["error"]["code"] == "protocol_unsupported"
+    assert async_get_sessions(hass).get(entry.entry_id) is None
+    assert entry.data[CONF_ADDRESS] == MOVED
+    assert _state(hass, STATUS_ENTITY) == "online"
+    assert _state(hass, UPDATE_ENTITY) != STATE_UNAVAILABLE
+
+
+async def test_refused_hello_from_another_account_moves_nothing(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_access_token: str,
+    hass_read_only_user: Any,
+) -> None:
+    """Only the account bound to the panel may point its entry somewhere new."""
+    entry = await _load_offline(hass, hass_read_only_user.id, DID)
+    client = await hass_ws_client(hass, hass_access_token)
+
+    response = await _hello_on_an_older_protocol(hass, client, entry)
+
+    assert response["error"]["code"] == "protocol_unsupported"
+    assert entry.data[CONF_ADDRESS] == STORED
+    assert _state(hass, STATUS_ENTITY) == STATE_UNAVAILABLE
 
 
 async def test_panel_connecting_to_an_unread_entry_is_available_before_any_poll(

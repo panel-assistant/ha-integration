@@ -1462,6 +1462,7 @@ def ws_hello(
     low = max(requested["min"], PROTOCOL_MIN)
     high = min(requested["max"], PROTOCOL_MAX)
     if low > high:
+        _follow_refused_panel(hass, connection, msg)
         connection.send_error(
             msg["id"],
             ERR_PROTOCOL_UNSUPPORTED,
@@ -1551,6 +1552,30 @@ def ws_hello(
         _start_address_proof(hass, connection, msg, entry, high)
         return
     _accept_hello(hass, connection, msg, entry, high)
+
+
+@callback
+def _follow_refused_panel(
+    hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Tell a panel's poll where the panel is, though its hello was refused.
+
+    An app too old for a session is served over HTTP, so a panel whose address
+    changed is reachable only through what its hello says. Only the account
+    bound to the entry is heard, and the poll still proves the identity there.
+    """
+    try:
+        entry = _entry_for_did(hass, msg["did"])
+    except SharedPanelIdentityError:
+        return
+    if entry is None or entry.data.get(CONF_TRANSPORT_USER_ID) != connection.user.id:
+        return
+    coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
+    if coordinator is not None:
+        coordinator.async_follow_refused_hello(
+            connection.remote if isinstance(connection.remote, str) else None,
+            tuple(msg.get("addresses", ())),
+        )
 
 
 @callback

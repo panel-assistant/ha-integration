@@ -102,6 +102,8 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         self.identity_mismatch = False
         # True until the first poll answers otherwise, as `last_update_success` starts.
         self.reachable = True
+        # Where a panel refused a session last said it was: (remote, reported).
+        self._refused_hello: tuple[str | None, tuple[str, ...]] | None = None
 
     @property
     def connected(self) -> bool:
@@ -162,6 +164,22 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         return async_dispatcher_connect(
             self.hass, signal_session_changed(self._entry_id), _changed
         )
+
+    @callback
+    def async_follow_refused_hello(
+        self, remote: str | None, addresses: tuple[str, ...]
+    ) -> None:
+        """Remember where a panel refused a session is, and poll it there now.
+
+        Its app is too old for a session, so the poll is all that reaches it,
+        and a panel that moved has no other way to say where it went.
+        """
+        self._refused_hello = (remote, addresses)
+        if not self.reachable:
+            self.hass.async_create_task(
+                self.async_request_refresh(),
+                f"{DOMAIN} poll after a refused hello",
+            )
 
     async def _async_update_data(self) -> PanelSnapshot:
         """Read the snapshot from the session that manages, else over HTTP."""
@@ -378,29 +396,39 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
     async def _async_recover_address(self) -> PanelHealth | None:
         """Try the address a connected panel is talking from, when it has one.
 
-        Returns the health read at the adopted address, or nothing when there
-        was no session, no other address to try, or the address did not answer
-        as this panel. Only the last two are reported: with no session the
-        panel is unavailable, which the failed poll already says.
+        A panel refused a session for its protocol still said where it is in
+        its hello, and is tried there. Returns the health read at the adopted
+        address, or nothing when there was neither, no other address to try,
+        or the address did not answer as this panel. Only a session's last two
+        are reported: without one the panel is unavailable, which the failed
+        poll already says.
         """
         session = self._session()
         entry = self._entry()
-        if session is None or entry is None or not is_installation(entry):
+        if entry is None or not is_installation(entry):
+            return None
+        if session is not None:
+            remote, reported = session.remote, session.addresses
+        elif self._refused_hello is not None:
+            remote, reported = self._refused_hello
+        else:
             return None
         stored = self.client.address
         stored_value = entry.data[CONF_ADDRESS]
-        candidates = session_candidates(session.remote, stored, session.addresses)
+        candidates = session_candidates(remote, stored, reported)
         if not candidates:
-            self._report(
-                entry, ISSUE_PANEL_ADDRESS_UNREACHABLE, session.remote or stored.host
-            )
+            if session is not None:
+                self._report(
+                    entry, ISSUE_PANEL_ADDRESS_UNREACHABLE, remote or stored.host
+                )
             return None
         answers = await async_probe_addresses(self.hass, candidates)
         for candidate, health in zip(candidates, answers, strict=True):  # noqa: B007 — used after the loop
-            if health is not None and health.discovery_id == session.did:
+            if health is not None and health.discovery_id == entry.unique_id:
                 break
         else:
-            self._report(entry, ISSUE_PANEL_ADDRESS_UNVERIFIED, candidates[0].host)
+            if session is not None:
+                self._report(entry, ISSUE_PANEL_ADDRESS_UNVERIFIED, candidates[0].host)
             return None
         # A superseded session or edited entry cannot move an endpoint after I/O.
         if (
@@ -409,7 +437,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             or self.client.address != stored
             or entry.data[CONF_ADDRESS] != stored_value
             or not is_installation(entry)
-            or entry.unique_id != session.did
+            or (session is not None and entry.unique_id != session.did)
         ):
             return None
         # The entry is the one record of the address. Its update listener
