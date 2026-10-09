@@ -19,7 +19,10 @@ STATIC_PATH = Path(__file__).parent / "static"
 STATIC_URL = "/panel_assistant/usb"
 PANEL_PATH = "panel-assistant-usb"
 SIDEBAR_PANEL_PATH = "panel-assistant"
-DEFAULT_INSTALLER_URL = "https://install.panel-assistant.io/"
+# Each release opens the installer copy published with it, so a later installer
+# deploy never changes what an installed release talks to. The root keeps the
+# newest copy for releases up to 0.9.0, which open the root.
+DEFAULT_INSTALLER_URL = f"https://install.panel-assistant.io/{INTEGRATION_VERSION}/"
 # A self-hosted or development installer can replace the published one. The browser
 # side still refuses anything that is not HTTPS or plain HTTP on localhost.
 INSTALLER_URL = os.environ.get("PANEL_ASSISTANT_INSTALLER_URL", DEFAULT_INSTALLER_URL)

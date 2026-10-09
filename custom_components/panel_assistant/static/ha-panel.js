@@ -952,10 +952,10 @@ class Va extends HTMLElement {
     this.shadowRoot.querySelector("#start").addEventListener("click", () => this.#l()), this.shadowRoot.querySelector("#cancel").addEventListener("click", () => this.#a?.cancel()), this.shadowRoot.querySelector("#retry").addEventListener("click", () => this.#u()), this.shadowRoot.querySelector("#release").addEventListener("change", () => this.#o()), this.#o();
   }
   set hass(e) {
-    const n = this.#e?.user?.id !== e?.user?.id || this.#e?.user?.is_admin !== e?.user?.is_admin || this.#e?.connection !== e?.connection || this.#e?.auth !== e?.auth;
+    const n = this.#e?.user?.id !== e?.user?.id || this.#e?.user?.is_admin !== e?.user?.is_admin || this.#e?.connection !== e?.connection || this.#e?.auth !== e?.auth, t = this.#e?.language !== e?.language;
     this.#e = e;
-    const t = e?.themes?.darkMode;
-    typeof t == "boolean" && this.setAttribute?.("theme", t ? "dark" : "light"), n && (this.#a?.cancel(), this.#u()), this.#o();
+    const i = e?.themes?.darkMode;
+    typeof i == "boolean" && this.setAttribute?.("theme", i ? "dark" : "light"), n && (this.#a?.cancel(), this.#u()), (n || t) && this.#o();
   }
   set panel(e) {
     const n = this.#d?.config?.installer_url !== e?.config?.installer_url;

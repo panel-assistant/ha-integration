@@ -45,7 +45,7 @@ async def test_real_panel_registration_and_admin_visibility(hass):
     assert sidebar.config["version"] == INTEGRATION_VERSION
     assert sidebar.config["build"] == INTEGRATION_BUILD
     assert panel.config == {
-        "installer_url": "https://install.panel-assistant.io/",
+        "installer_url": f"https://install.panel-assistant.io/{INTEGRATION_VERSION}/",
         "version": INTEGRATION_VERSION,
         "build": INTEGRATION_BUILD,
         "_panel_custom": {
@@ -186,9 +186,8 @@ def test_installer_address_defaults_to_published_and_can_be_self_hosted(monkeypa
     import importlib
 
     monkeypatch.delenv("PANEL_ASSISTANT_INSTALLER_URL", raising=False)
-    assert importlib.reload(browser_panel).INSTALLER_URL == (
-        "https://install.panel-assistant.io/"
-    )
+    installer_url = importlib.reload(browser_panel).INSTALLER_URL
+    assert installer_url == f"https://install.panel-assistant.io/{INTEGRATION_VERSION}/"
     monkeypatch.setenv("PANEL_ASSISTANT_INSTALLER_URL", "https://installer.example/")
     try:
         assert importlib.reload(browser_panel).INSTALLER_URL == (

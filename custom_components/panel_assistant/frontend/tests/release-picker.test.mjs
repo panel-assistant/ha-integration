@@ -233,6 +233,37 @@ for (const [signal, language] of [['de-DE', 'de'], ['cs-CZ', 'cs'], ['pt_br-u-nu
   } finally { f.panel.disconnectedCallback(); await tick(); }
 });
 
+test('a routine Home Assistant state push leaves an open version menu alone', async () => {
+  const f = fixture(async () => response([stable, rc]));
+  await tick();
+  const journey = f.element('journey').children;
+  // Rewriting an option while the native menu is open closes the menu.
+  let rewrites = 0;
+  for (const option of f.element('release').children) {
+    let text = option.textContent;
+    Object.defineProperty(option, 'textContent', { get: () => text, set: value => { rewrites++; text = value; } });
+  }
+  for (let push = 0; push < 3; push++) f.panel.hass = { ...f.hass, states: { push } };
+  assert.equal(rewrites, 0);
+  assert.equal(f.element('journey').children, journey);
+  f.panel.hass = { ...f.hass, language: 'de' };
+  assert.notEqual(f.element('journey').children, journey, 'a language change still re-renders');
+});
+
+test('a release installer copy opens at its own path and answers only its origin', async () => {
+  const f = fixture(async () => response([stable]));
+  f.panel.panel = { config: { installer_url: 'https://installer.example/0.9.1/' } };
+  await tick();
+  let opened;
+  globalThis.window = { crypto: webcrypto, location: { origin: 'http://ha.example' }, addEventListener() {}, removeEventListener() {}, open(url) { opened = new URL(url); return { closed: false }; } };
+  f.element('start').listeners.click();
+  assert.equal(opened.origin, 'https://installer.example');
+  assert.equal(opened.pathname, '/0.9.1/');
+  f.element('cancel').listeners.click();
+  f.panel.disconnectedCallback();
+  await tick();
+});
+
 test('the brand caption names the running integration build, and nothing when the config has none', async () => {
   const { panel, element } = fixture(async () => response([stable]));
   assert.equal(element('brand-version').textContent, '');

@@ -53,12 +53,15 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
     const changed = this.#hass?.user?.id !== value?.user?.id ||
       this.#hass?.user?.is_admin !== value?.user?.is_admin || this.#hass?.connection !== value?.connection ||
       this.#hass?.auth !== value?.auth;
+    const relabel = this.#hass?.language !== value?.language;
     this.#hass = value;
     // Follow Home Assistant's own light or dark choice, not only the device's.
     const dark = value?.themes?.darkMode;
     if (typeof dark === 'boolean') this.setAttribute?.('theme', dark ? 'dark' : 'light');
     if (changed) { this.#transfer?.cancel(); this.#loadCatalog(); }
-    this.#render();
+    // Home Assistant pushes a new object on every state change. Re-rendering
+    // then rewrote each option, which closes an open version menu.
+    if (changed || relabel) this.#render();
   }
   set panel(value) {
     const changed = this.#panel?.config?.installer_url !== value?.config?.installer_url;
