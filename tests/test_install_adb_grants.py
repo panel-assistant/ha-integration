@@ -56,7 +56,8 @@ settings() {
     [ ! -f "$STATE/read_fail.$3" ]
   else
     echo "settings $*" >> "$STATE/calls"
-    [ -f "$STATE/refuse.$3" ] || printf '%s\n' "$4" > "$STATE/$3"
+    if [ "$1" = delete ]; then rm -f "$STATE/$3"
+    else [ -f "$STATE/refuse.$3" ] || printf '%s\n' "$4" > "$STATE/$3"; fi
   fi
 }
 appops() {
@@ -74,8 +75,26 @@ appops() {
   fi
   if [ "$1" = get ]; then [ ! -f "$STATE/read_fail.$3" ]; fi
 }
+cmd() {
+  if [ "$1 $2" = "package resolve-activity" ]; then
+    echo "priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true"
+    if [ -f "$STATE/home" ]; then cat "$STATE/home"
+    else echo android/com.android.internal.app.ResolverActivity; fi
+  elif [ "$1 $2" = "package set-home-activity" ]; then
+    echo "cmd $*" >> "$STATE/calls"
+    # Android keeps the component and prints its short form back.
+    pkg=${3%%/*}; cls=${3#*/}
+    case "$cls" in "$pkg".*) cls=${cls#"$pkg"} ;; esac
+    [ -f "$STATE/refuse.home" ] || echo "$pkg/$cls" > "$STATE/home"
+  fi
+}
+getprop() {
+  if [ -f "$STATE/prop.$1" ]; then cat "$STATE/prop.$1"; else echo generic; fi
+}
 pm() {
-  if [ "$1" = list ] && [ "$2" = features ]; then
+  if [ "$1" = path ]; then
+    if [ -f "$STATE/package.$2" ]; then echo "package:/system/app/$2/$2.apk"; fi
+  elif [ "$1" = list ] && [ "$2" = features ]; then
     for f in "$STATE"/read_fail.android.hardware.*; do [ -e "$f" ] && return 2; done
     echo reqGlEsVersion=0x30002
     for f in "$STATE"/feature.android.hardware.*; do
@@ -357,7 +376,7 @@ async def test_post_update_repair_removes_only_the_obsolete_service(
         "org.other/org.other.a11y.Helper",
         install_adb.ACCESSIBILITY_COMPONENTS[install_adb.LEGACY_LAUNCH_COMPONENT],
     ]
-    _seed_granted_panel(tmp_path, installed.package_id)
+    _seed_granted_panel(tmp_path, installed.package_id, installed.launch_component)
     before = [others[0], old, *others[1:]] + ([new] if current else [])
     (tmp_path / "enabled_accessibility_services").write_text(":".join(before) + "\n")
 
@@ -386,7 +405,9 @@ async def test_refused_obsolete_service_cleanup_is_reported(
     caplog: pytest.LogCaptureFixture,
     tmp_path: Path,
 ) -> None:
-    _seed_granted_panel(tmp_path, successor_descriptor.package_id)
+    _seed_granted_panel(
+        tmp_path, successor_descriptor.package_id, successor_descriptor.launch_component
+    )
     installed = replace(
         successor_descriptor,
         launch_component=LAUNCH_COMPONENTS[successor_descriptor.package_id][-1],
@@ -459,7 +480,13 @@ async def test_a_fresh_install_gets_the_usb_installers_grants_before_its_first_s
     assert _GRANT_WARNING not in caplog.text
 
 
-def _seed_granted_panel(state: Path, package_id: str) -> None:
+def _seed_granted_panel(
+    state: Path, package_id: str, launch_component: str | None = None
+) -> None:
+    launch = launch_component or LAUNCH_COMPONENTS[package_id][0]
+    (state / "home").write_text(
+        install_adb.EQUIVALENT_HOME_COMPONENTS[launch][0] + "\n"
+    )
     (state / "enabled_accessibility_services").write_text(
         f"com.example.reader/.ReaderService:{_ACCESSIBILITY_SERVICES[package_id]}\n"
     )
@@ -539,7 +566,9 @@ async def test_an_update_preserves_every_existing_grant_without_writing(
     successor_descriptor: InstallDescriptor,  # noqa: F811
     tmp_path: Path,
 ) -> None:
-    _seed_granted_panel(tmp_path, successor_descriptor.package_id)
+    _seed_granted_panel(
+        tmp_path, successor_descriptor.package_id, successor_descriptor.launch_component
+    )
 
     await _launch_on(monkeypatch, signer, target, successor_descriptor, tmp_path)
 

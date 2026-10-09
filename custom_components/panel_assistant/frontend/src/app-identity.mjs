@@ -47,6 +47,28 @@ export const LAUNCH_COMPONENTS = Object.freeze({
 /** The old app's one launcher. */
 export const LEGACY_LAUNCH_COMPONENT = LAUNCH_COMPONENTS[LEGACY_PACKAGE_ID][0];
 
+/** The dashboard activity that answers HOME, by the build's launcher. */
+export const HOME_COMPONENTS = Object.freeze({
+  [LEGACY_LAUNCH_COMPONENT]: 'io.github.maxlyth.hapaneld/.DashboardActivity',
+  [OLD_CLASSES_SUCCESSOR_LAUNCH]: 'io.panelassistant.android/io.github.maxlyth.hapaneld.DashboardActivity',
+  [NEW_CLASSES_SUCCESSOR_LAUNCH]: 'io.panelassistant.android/io.panelassistant.android.DashboardActivity',
+});
+
+/** Every spelling HOME resolution reads back for that activity. */
+export const EQUIVALENT_HOME_COMPONENTS = Object.freeze({
+  [LEGACY_LAUNCH_COMPONENT]: Object.freeze([
+    'io.github.maxlyth.hapaneld/.DashboardActivity',
+    'io.github.maxlyth.hapaneld/io.github.maxlyth.hapaneld.DashboardActivity',
+  ]),
+  [OLD_CLASSES_SUCCESSOR_LAUNCH]: Object.freeze([
+    'io.panelassistant.android/io.github.maxlyth.hapaneld.DashboardActivity',
+  ]),
+  [NEW_CLASSES_SUCCESSOR_LAUNCH]: Object.freeze([
+    'io.panelassistant.android/.DashboardActivity',
+    'io.panelassistant.android/io.panelassistant.android.DashboardActivity',
+  ]),
+});
+
 /** The accessibility service written into the device-wide list, by the build's launcher. */
 export const ACCESSIBILITY_COMPONENTS = Object.freeze({
   [LEGACY_LAUNCH_COMPONENT]: 'io.github.maxlyth.hapaneld/.input.PanelAccessibilityService',
@@ -94,6 +116,16 @@ export function accessibilityComponentsFor(launchComponent) {
     throw new RangeError('unknown launcher');
   }
   return EQUIVALENT_ACCESSIBILITY_COMPONENTS[launchComponent];
+}
+
+export function homeComponentFor(launchComponent) {
+  if (!Object.hasOwn(HOME_COMPONENTS, launchComponent)) throw new RangeError('unknown launcher');
+  return HOME_COMPONENTS[launchComponent];
+}
+
+export function homeComponentsFor(launchComponent) {
+  if (!Object.hasOwn(EQUIVALENT_HOME_COMPONENTS, launchComponent)) throw new RangeError('unknown launcher');
+  return EQUIVALENT_HOME_COMPONENTS[launchComponent];
 }
 
 export function counterpartOf(packageId) {

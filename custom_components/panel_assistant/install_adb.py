@@ -45,6 +45,7 @@ from .app_identity import (
     ACCEPTED_PACKAGE_IDS,
     ACCESSIBILITY_COMPONENTS,
     EQUIVALENT_ACCESSIBILITY_COMPONENTS,
+    EQUIVALENT_HOME_COMPONENTS,
     HOME_COMPONENTS,
     LAUNCH_COMPONENTS,
     LEGACY_LAUNCH_COMPONENT,
@@ -61,6 +62,15 @@ from .release import (
     _SHA256_PATTERN,
     InstallDescriptor,
     install_descriptor_valid,
+)
+from .vendor_provisioning import (
+    META_PORTAL_DEVICES,
+    VendorResponseError,
+    VendorSetup,
+    parse_vendor_restore,
+    parse_vendor_setup,
+    vendor_restore_command,
+    vendor_setup_command,
 )
 
 ADB_PORT = 5555
@@ -680,12 +690,20 @@ def _permission_grant_command(
     A rerun writes nothing and other apps' services stay enabled. The list read before
     the write is printed so the readback can prove nothing was dropped. Grant
     output is discarded; only the readback decides.
+
+    The build's dashboard is made the panel's HOME whenever HOME resolves to
+    anything else: Android forgets a preferred HOME when the set of packages
+    changes, so every install, update and repair asserts it again. The
+    device codename is read last, for the vendor setup that follows.
     """
     component = ACCESSIBILITY_COMPONENTS[launch_component]
     known = "|".join(
         f"*:{name}:*" for name in EQUIVALENT_ACCESSIBILITY_COMPONENTS[launch_component]
     )
     obsolete = "|".join(_OBSOLETE_ACCESSIBILITY_COMPONENTS.get(launch_component, ()))
+    homes = "|".join(
+        f"'{name}'" for name in EQUIVALENT_HOME_COMPONENTS[launch_component]
+    )
     quiet = ">/dev/null 2>&1"
     # Android 14 reports an unset operation as two lines, including its default.
     default_modes = "|".join(
@@ -759,6 +777,9 @@ def _permission_grant_command(
             'if [ "$enabled_status" -eq 0 ]; then case "$enabled" in 0|null) '
             f"settings put secure accessibility_enabled 1 {quiet} ;; esac; fi ;; "
             "esac; fi",
+            f'case "$({_HOME_QUERY})" in {homes}) ;; '
+            f"*) cmd package set-home-activity {HOME_COMPONENTS[launch_component]} "
+            f"{quiet} ;; esac",
             _SERVICES_SETTING,
             "settings get secure accessibility_enabled",
             "for operation in WRITE_SETTINGS SYSTEM_ALERT_WINDOW; do "
@@ -769,6 +790,8 @@ def _permission_grant_command(
             # has-feature and answers it with its usage text.
             "features=$(pm list features 2>/dev/null); features_status=$?",
             *runtime_grants,
+            f'echo "home:$({_HOME_QUERY})"',
+            'echo "device:$(getprop ro.product.device)"',
             f"echo HAPANELD_PERMISSIONS_END:{nonce}:$?",
         )
     )
@@ -792,17 +815,38 @@ def _expected_services(before: str, launch_component: str) -> str | None:
     return ":".join((*services, ACCESSIBILITY_COMPONENTS[launch_component]))
 
 
-def _parse_permission_grant(body: bytes, nonce: str, launch_component: str) -> bool:
+@dataclass(frozen=True, slots=True)
+class _PermissionGrant:
+    """The readback of one grant program."""
+
+    #: Every permission the panel's controls need reads back as granted.
+    granted: bool
+    #: HOME resolves to this build's dashboard.
+    home: bool
+    #: ``ro.product.device``, or None when the answer could not be read.
+    device: str | None
+
+
+_DEVICE_CODENAME = re.compile(r"[A-Za-z0-9_.-]{1,64}", flags=re.ASCII)
+
+
+def _parse_permission_grant(
+    body: bytes, nonce: str, launch_component: str
+) -> _PermissionGrant:
     """Granted only when every readback line shows the grant and no service lost."""
+    refused = _PermissionGrant(granted=False, home=False, device=None)
     try:
         lines, status = _parse_single_section(body, prefix="PERMISSIONS", nonce=nonce)
     except _MalformedAdbResponse:
-        return False
-    if status != 0 or len(lines) != 7:
-        return False
-    before, after, enabled, write_settings, overlay, camera, microphone = lines
+        return refused
+    if status != 0 or len(lines) != 9:
+        return refused
+    before, after, enabled, write_settings, overlay, camera, microphone = lines[:7]
+    home, device = (line.partition(":")[2] for line in lines[7:])
+    if not lines[7].startswith("home:") or not lines[8].startswith("device:"):
+        return refused
     expected = _expected_services(before, launch_component)
-    return (
+    granted = (
         expected is not None
         and after == expected
         and enabled == "1"
@@ -812,6 +856,11 @@ def _parse_permission_grant(body: bytes, nonce: str, launch_component: str) -> b
         is not None
         and camera in ("granted", "unsupported")
         and microphone in ("granted", "unsupported")
+    )
+    return _PermissionGrant(
+        granted=granted,
+        home=home in EQUIVALENT_HOME_COMPONENTS[launch_component],
+        device=device if _DEVICE_CODENAME.fullmatch(device) else None,
     )
 
 
@@ -2177,7 +2226,7 @@ async def _async_repair_app_permissions(
             )
     # The same rule as notifications: a refusal is reported, never fatal.
     nonce = token_hex(16)
-    if not _parse_permission_grant(
+    grant = _parse_permission_grant(
         await _async_shell(
             device,
             _permission_grant_command(nonce, package_id, launch_component),
@@ -2185,7 +2234,16 @@ async def _async_repair_app_permissions(
         ),
         nonce,
         launch_component,
-    ):
+    )
+    if not grant.home:
+        _LOGGER.warning(
+            "The panel did not make %s its home screen. It still runs; choose "
+            "it on the panel when Android asks which app to use for Home",
+            package_id,
+        )
+    if grant.device in META_PORTAL_DEVICES:
+        await _async_vendor_setup(device)
+    if not grant.granted:
         _LOGGER.warning(
             "The panel did not grant %s every permission it needs: "
             "modify system settings, display over other apps and its "
@@ -2195,6 +2253,79 @@ async def _async_repair_app_permissions(
             "Android Settings, under the app",
             package_id,
         )
+
+
+async def _async_vendor_setup(device: AdbDeviceAsync) -> VendorSetup | None:
+    """Apply a Portal's vendor setup; a refusal is reported, never fatal."""
+    nonce = token_hex(16)
+    body = await _async_shell(
+        device, vendor_setup_command(nonce), read_timeout=_READ_TIMEOUT_SECONDS
+    )
+    try:
+        lines, status = _parse_single_section(body, prefix="VENDOR", nonce=nonce)
+        if status != 0:
+            raise _MalformedAdbResponse
+        observed = parse_vendor_setup(lines)
+    except _MalformedAdbResponse, VendorResponseError:
+        observed = None
+        converged = False
+    else:
+        converged = observed is None or observed.converged
+    if not converged:
+        _LOGGER.warning(
+            "The panel did not take Panel Assistant's Meta Portal setup: Meta's "
+            "screensaver or its swipe-up bar may still show over the panel app"
+        )
+    return observed
+
+
+async def async_restore_vendor_setup(
+    target: AdbInstallTarget, signer: PythonRSASigner
+) -> str:
+    """Put back the vendor values an install changed, before the app goes.
+
+    Returns ``restored``, ``unrestored`` or ``none`` (nothing was changed).
+    """
+    _validate_target(target)
+    device: AdbDeviceAsync | None = None
+    try:
+        async with asyncio.timeout(_LAUNCH_TIMEOUT_SECONDS):
+            device = await _async_connect(target, signer, authorize=False)
+            nonce = token_hex(16)
+            _parse_identity_root(
+                await _async_shell(
+                    device,
+                    _identity_root_command(nonce),
+                    read_timeout=_READ_TIMEOUT_SECONDS,
+                ),
+                nonce,
+                target,
+            )
+            nonce = token_hex(16)
+            lines, status = _parse_single_section(
+                await _async_shell(
+                    device,
+                    vendor_restore_command(nonce),
+                    read_timeout=_READ_TIMEOUT_SECONDS,
+                ),
+                prefix="VENDOR_RESTORE",
+                nonce=nonce,
+            )
+            if status != 0:
+                raise _MalformedAdbResponse
+            return parse_vendor_restore(lines)
+    except InstallAdbError:
+        raise
+    except (
+        TimeoutError,
+        VendorResponseError,
+        _MalformedAdbResponse,
+        _UnsafeAdbPacket,
+        *_ADB_EXCEPTIONS,
+    ):
+        raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE) from None
+    finally:
+        await _async_close(device)
 
 
 async def async_repair_installed_app_permissions(

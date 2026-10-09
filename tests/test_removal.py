@@ -29,7 +29,11 @@ from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from yarl import URL
 
-from custom_components.panel_assistant import install_adb, panel_move
+from custom_components.panel_assistant import (
+    install_adb,
+    panel_move,
+    vendor_provisioning,
+)
 from custom_components.panel_assistant.app_identity import (
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
@@ -79,6 +83,17 @@ case "${0##*/} $1 $2" in
         echo "Failure [DELETE_FAILED_INTERNAL_ERROR]"; exit 1
     fi ;;
 "getprop "*) cat "$s/firmware" ;;
+"settings get "*)
+    if [ -f "$s/setting.$3" ]; then cat "$s/setting.$3"; else echo null; fi ;;
+"settings put "*)
+    printf '%s\n' "$4" > "$s/setting.$3"; echo "settings put $3" >> "$s/events" ;;
+"settings delete "*)
+    rm -f "$s/setting.$3"; echo "settings delete $3" >> "$s/events" ;;
+"appops get "*)
+    if [ -f "$s/appop.$2.$3" ]; then echo "$3: $(cat "$s/appop.$2.$3")"
+    else echo "$3: default"; fi ;;
+"appops set "*)
+    echo "$4" > "$s/appop.$2.$3"; echo "appops set $2 $4" >> "$s/events" ;;
 "am "*|"dumpsys "*) ;;
 *) exit 1 ;;
 esac
@@ -97,7 +112,16 @@ class FakePanel:
         program.write_text(_FAKE_PANEL)
         program.chmod(program.stat().st_mode | stat.S_IEXEC)
         # The program reads the name it was started under to know its command.
-        for command in ("cmd", "pm", "am", "getprop", "dumpsys", "timeout"):
+        for command in (
+            "cmd",
+            "pm",
+            "am",
+            "getprop",
+            "dumpsys",
+            "timeout",
+            "settings",
+            "appops",
+        ):
             (self.bin / command).symlink_to(program)
         self.state_path = directory / "state"
         for name in _LISTS:
@@ -598,3 +622,44 @@ async def test_an_unauthorized_panel_is_sent_to_authorize_adb_first(
     assert result.get("errors") == {"base": "removal_adb_authorization"}
     assert fake.installed == [SUCCESSOR_PACKAGE_ID]
     assert fake.hand_back_requests == 0
+
+
+async def test_removal_gives_a_portal_its_meta_values_back_before_the_uninstall(
+    hass: HomeAssistant,
+    panel: tuple[FakePanel, TestServer],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """What installation recorded is put back once HOME is Meta's again."""
+    fake, server = panel
+    control_center = vendor_provisioning.META_CONTROL_CENTER
+    record = tmp_path / "meta-record"
+    monkeypatch.setattr(vendor_provisioning, "META_RESTORE_RECORD", str(record))
+    record.write_text(
+        "screensaver_components=meta/.Dream\n"
+        "screensaver_default_component=null\n"
+        "controlcenter_overlay=allow\n"
+    )
+    fake.set(installed=[SUCCESSOR_PACKAGE_ID, control_center])
+    for name in ("screensaver_components", "screensaver_default_component"):
+        (fake.state_path / f"setting.{name}").write_text("\n")
+    (fake.state_path / f"appop.{control_center}.SYSTEM_ALERT_WINDOW").write_text(
+        "deny\n"
+    )
+    entry = _entry(hass, server)
+
+    result = await _remove(hass, entry)
+
+    assert result["step_id"] == "remove_app_done"
+    assert fake.installed == [control_center]
+    events = fake.read()["events"]
+    assert events == [
+        "settings put screensaver_components",
+        "settings delete screensaver_default_component",
+        f"appops set {control_center} allow",
+        f"uninstall {SUCCESSOR_PACKAGE_ID}",
+    ]
+    assert (fake.state_path / "setting.screensaver_components").read_text() == (
+        "meta/.Dream\n"
+    )
+    assert not record.exists()

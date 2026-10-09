@@ -650,6 +650,8 @@ def test_the_two_identity_modules_state_exactly_the_same_values() -> None:
         ".map(c => [c, m.accessibilityComponentFor(c)])),"
         "equivalent: Object.fromEntries(Object.values(m.LAUNCH_COMPONENTS).flat()"
         ".map(c => [c, m.accessibilityComponentsFor(c)])),"
+        "home: m.HOME_COMPONENTS,"
+        "homeSpellings: m.EQUIVALENT_HOME_COMPONENTS,"
         "descriptorSchemas: m.INSTALL_DESCRIPTOR_SCHEMAS,"
         "feedSchemas: m.BUILD_FEED_SCHEMAS"
         "}));"
@@ -678,6 +680,14 @@ def test_the_two_identity_modules_state_exactly_the_same_values() -> None:
         app_identity.INSTALL_DESCRIPTOR_SCHEMAS
     )
     assert javascript["feedSchemas"] == list(app_identity.BUILD_FEED_SCHEMAS)
+    # Both installers make the same dashboard HOME and read it back the same way.
+    assert javascript["home"] == dict(app_identity.HOME_COMPONENTS)
+    assert javascript["homeSpellings"] == {
+        launch: list(spellings)
+        for launch, spellings in app_identity.EQUIVALENT_HOME_COMPONENTS.items()
+    }
+    for launch, spellings in app_identity.EQUIVALENT_HOME_COMPONENTS.items():
+        assert app_identity.HOME_COMPONENTS[launch] in spellings
     # Both installers write the accessibility service into one device-wide list.
     assert javascript["accessibility"] == dict(app_identity.ACCESSIBILITY_COMPONENTS)
     assert javascript["equivalent"] == {
@@ -695,3 +705,41 @@ def test_the_two_identity_modules_state_exactly_the_same_values() -> None:
             assert component.startswith(f"{package_id}/.") == (
                 package_id == app_identity.LEGACY_PACKAGE_ID
             )
+
+
+def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way() -> (
+    None
+):
+    """The browser and network installers each state the Meta Portal program.
+
+    A panel set up over USB is restored by Panel Assistant's removal, which
+    reads the record that program wrote, so the two must send the same text:
+    compared as sent, not by a few substrings.
+    """
+    from custom_components.panel_assistant import install_adb, vendor_provisioning
+
+    source = INTEGRATION / "frontend" / "src"
+    script = (
+        "import * as v from "
+        f"{json.dumps((source / 'vendor-provisioning.mjs').resolve().as_uri())};"
+        "import * as p from "
+        f"{json.dumps((source / 'permission-contract.mjs').resolve().as_uri())};"
+        "console.log(JSON.stringify({"
+        "program: v.buildVendorSetup('0123456789abcdef0123456789abcdef'),"
+        "devices: v.META_PORTAL_DEVICES, record: v.META_RESTORE_RECORD,"
+        "homeQuery: p.HOME_QUERY}));"
+    )
+    javascript = json.loads(
+        subprocess.run(
+            ["node", "--input-type=module", "-e", script],
+            capture_output=True,
+            check=True,
+            text=True,
+        ).stdout
+    )
+    assert javascript["program"] == vendor_provisioning.vendor_setup_command(
+        "0123456789abcdef0123456789abcdef"
+    )
+    assert javascript["devices"] == list(vendor_provisioning.META_PORTAL_DEVICES)
+    assert javascript["record"] == vendor_provisioning.META_RESTORE_RECORD
+    assert javascript["homeQuery"] == install_adb._HOME_QUERY

@@ -1,15 +1,18 @@
 """Remove the panel app from a panel, leaving the panel its own home screen.
 
 The app first gives HOME back to another launcher and re-enables the vendor
-apps it switched off; only then is it uninstalled, under both of its ids, over
-the ADB connection Panel Assistant already holds. The uninstall runs only
-while HOME resolves to another launcher, read in the same shell, so a panel is
-never left without a home screen. Every step is safe to repeat: a retry after
-an interrupted run finds what is left and finishes it.
+apps it switched off, and the vendor settings installation changed (Meta's
+screensaver and swipe-up bar) are put back; only then is it uninstalled,
+under both of its ids, over the ADB connection Panel Assistant already holds.
+The uninstall runs only while HOME resolves to another launcher, read in the
+same shell, so a panel is never left without a home screen. Every step is
+safe to repeat: a retry after an interrupted run finds what is left and
+finishes it.
 """
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntry
@@ -17,7 +20,7 @@ from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from . import panel_move
+from . import install_adb, panel_move
 from .app_identity import LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID
 from .client import (
     HandBackRefusedError,
@@ -27,6 +30,8 @@ from .client import (
     normalize_address,
 )
 from .install_adb import AdbInstallTarget, MoveObservation, MoveStep
+
+_LOGGER = logging.getLogger(__name__)
 
 #: Why a removal stopped; each is an options-flow error with its own text.
 REASON_BUSY: Final = "busy"
@@ -111,6 +116,7 @@ async def _async_remove_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
         # HOME is already another launcher goes on without the app.
         if observed.home is None or observed.home in _NOT_A_LAUNCHER:
             raise RemovalError(REASON_APP_UNREACHABLE) from err
+    await _async_restore_vendor_setup(found)
     try:
         removed = await _async_step(found, MoveStep.REMOVE_APP)
     except RemovalError as err:
@@ -122,6 +128,26 @@ async def _async_remove_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
             REASON_HOME_NOT_HANDED
             if removed.home is None or removed.home in _NOT_A_LAUNCHER
             else REASON_REMOVE_FAILED
+        )
+
+
+async def _async_restore_vendor_setup(found: tuple[AdbInstallTarget, Any]) -> None:
+    """Give Meta back what installing changed, once HOME is no longer the app's.
+
+    Never a reason to keep the app: a panel whose values could not be put
+    back is reported, and removal goes on. A retry finds the record and tries
+    again while the app is still there.
+    """
+    target, signer = found
+    try:
+        outcome = await install_adb.async_restore_vendor_setup(target, signer)
+    except install_adb.InstallAdbError:
+        outcome = "unreachable"
+    if outcome not in ("restored", "none"):
+        _LOGGER.warning(
+            "Could not put back Meta's screensaver and swipe-up bar on this "
+            "panel (%s); they stay off after the app is removed",
+            outcome,
         )
 
 

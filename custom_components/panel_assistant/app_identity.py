@@ -118,6 +118,24 @@ HOME_COMPONENTS: Mapping[str, str] = MappingProxyType(
     }
 )
 
+#: Every spelling Android reads back for that HOME activity. HOME resolution
+#: prints the short form where the class lives in the id's own package.
+EQUIVALENT_HOME_COMPONENTS: Mapping[str, tuple[str, ...]] = MappingProxyType(
+    {
+        LEGACY_LAUNCH_COMPONENT: (
+            "io.github.maxlyth.hapaneld/.DashboardActivity",
+            "io.github.maxlyth.hapaneld/io.github.maxlyth.hapaneld.DashboardActivity",
+        ),
+        _OLD_CLASSES_SUCCESSOR_LAUNCH: (
+            "io.panelassistant.android/io.github.maxlyth.hapaneld.DashboardActivity",
+        ),
+        _NEW_CLASSES_SUCCESSOR_LAUNCH: (
+            "io.panelassistant.android/.DashboardActivity",
+            "io.panelassistant.android/io.panelassistant.android.DashboardActivity",
+        ),
+    }
+)
+
 #: The accessibility service written into the device-wide list, by the build's
 #: launcher.
 ACCESSIBILITY_COMPONENTS: Mapping[str, str] = MappingProxyType(

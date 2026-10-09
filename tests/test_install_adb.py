@@ -284,7 +284,9 @@ def _permissions_output(
             _ACCESSIBILITY_SERVICES[package_id],
             "1",
             "WRITE_SETTINGS: allow",
-            "SYSTEM_ALERT_WINDOW: allow\nunsupported\nunsupported",
+            "SYSTEM_ALERT_WINDOW: allow\nunsupported\nunsupported\nhome:"
+            f"{install_adb.HOME_COMPONENTS[install_adb.LAUNCH_COMPONENTS[package_id][0]]}"
+            "\ndevice:generic",
         ],
         0,
     )

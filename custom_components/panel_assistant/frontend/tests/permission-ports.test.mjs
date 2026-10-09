@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createUsbTransactionPorts} from '../src/usb-transaction-ports.mjs';
 import {LEGACY_LAUNCH_COMPONENT, LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID,
-  accessibilityComponentFor} from '../src/app-identity.mjs';
+  accessibilityComponentFor, homeComponentFor} from '../src/app-identity.mjs';
 
 // App 0.9.10: the new app with its classes moved into its own package.
 const MOVED = 'io.panelassistant.android/io.panelassistant.android.MainActivity';
@@ -46,6 +46,7 @@ function fixture({badTarget = false, badApk = false, badRead = false, failGrant 
       body = [`HAPANELD_PERMISSIONS_VERIFY_BEGIN:${n}`, `com.other/.Reader:${accessibilityComponentFor(launchComponent)}`, '1',
         `WRITE_SETTINGS: ${badVerify ? 'deny' : 'allow'}`, 'SYSTEM_ALERT_WINDOW: allow',
         sdk >= 33 ? 'android.permission.POST_NOTIFICATIONS: granted=true, flags=[]' : 'not_required',
+        'granted', `home:${homeComponentFor(launchComponent)}`, 'device:generic',
         `HAPANELD_PERMISSIONS_VERIFY_END:${n}:0`, ''].join('\n');
     }
     return {readable: new ReadableStream({start(controller) {
@@ -64,7 +65,8 @@ test('permissions require current USB posture and exact installed APK before any
       const f = fixture({rootMode, sdk});
       await f.ports.authenticate();
       assert.deepEqual(await f.ports.commissionPermissions(f.receipt, f.release),
-        {permissionsVerified: true, notificationsRequired: sdk >= 33});
+        {permissionsVerified: true, notificationsRequired: sdk >= 33, microphone: 'granted', home: true,
+          device: 'generic'});
       assert.equal(f.commands.length, 5);
       assert.match(f.commands[0], /HAPANELD_POSTURE_BEGIN/);
       assert.match(f.commands[1], /HAPANELD_INSTALLED_BEGIN/);
@@ -115,7 +117,8 @@ test('a build whose classes moved package is started and granted by its own clas
   const f = fixture({launchComponent: MOVED}); await f.ports.authenticate();
   await f.ports.launch({...f.receipt, phase: 'launching'}, f.release);
   assert.deepEqual(await f.ports.commissionPermissions(f.receipt, f.release),
-    {permissionsVerified: true, notificationsRequired: true});
+    {permissionsVerified: true, notificationsRequired: true, microphone: 'granted', home: true,
+      device: 'generic'});
   const launch = f.commands.find(command => command.includes('HAPANELD_LAUNCH_BEGIN:'));
   assert.ok(launch.includes(`am start -W -n ${MOVED} -p ${SUCCESSOR_PACKAGE_ID};`));
   const grant = f.commands.find(command => command.includes('HAPANELD_PERMISSIONS_GRANT_BEGIN:'));
