@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### New
+
+- **Meta Portal setup during installation.** On a Meta Portal, installing the panel app also turns off Meta's screensaver, which otherwise starts every time the screen sleeps, and hides Meta's swipe-up bar over the panel. Panel Assistant notes Meta's settings first and puts them back if you remove the panel app.
+
+### Changed
+
+- **Every install makes the panel app the home screen and gives it the microphone.** Both the network install and the USB install now set the home screen and grant the microphone where the panel has one, and every update and repair sets the home screen again, because Android forgets it when apps change. Before, a USB install did neither.
+- **A panel installed over USB is added to Panel Assistant.** It no longer waits to be added by hand under Add panel.
+
 ## 0.9.0 - 2026-10-08
 
 A small release that finishes moving the last internal names onto the project's own namespace before 1.0, plus a few things that were ready. Install it before your panels take ha-paneld v0.9.11.
