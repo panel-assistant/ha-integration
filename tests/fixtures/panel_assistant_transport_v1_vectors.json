@@ -1022,8 +1022,8 @@
           "expected_ms": null
         },
         "update_policy": {
-          "protocolMin": 1,
-          "protocolMax": 4,
+          "protocolMin": 5,
+          "protocolMax": 5,
           "prerelease": true
         }
       },
@@ -1078,8 +1078,8 @@
           "expected_ms": null
         },
         "update_policy": {
-          "protocolMin": 1,
-          "protocolMax": 4,
+          "protocolMin": 5,
+          "protocolMax": 5,
           "prerelease": true
         }
       },
