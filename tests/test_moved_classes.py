@@ -31,13 +31,15 @@ from custom_components.panel_assistant.install_jobs import (
 from custom_components.panel_assistant.install_plan import build_install_plan
 
 from .http_fakes import FakeResponse, FakeSession
-from .test_install_adb import (  # noqa: F401
+from .install_adb_fakes import (
     NONCES,
     FakeDevice,
     _identity_root_output,
     _install_fakes,
     _notifications_output,
     _single_output,
+)
+from .test_install_adb import (  # noqa: F401 - fixtures resolve by parameter name
     signer,
     target,
 )

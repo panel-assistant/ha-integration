@@ -87,7 +87,8 @@ from custom_components.panel_assistant.update_coordinator import (
 )
 
 from .http_fakes import FakeResponse
-from .test_install_adb import _install_fakes, _preflight_output, signer  # noqa: F401
+from .install_adb_fakes import _install_fakes, _preflight_output
+from .test_install_adb import signer  # noqa: F401
 from .test_install_adb_grants import (
     _panel_value,
     _RoutingFakeDevice,

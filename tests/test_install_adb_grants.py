@@ -28,7 +28,7 @@ from custom_components.panel_assistant.install_adb import (
 )
 from custom_components.panel_assistant.release import InstallDescriptor
 
-from .test_install_adb import (  # noqa: F401 - fixtures resolve by parameter name
+from .install_adb_fakes import (
     _ACCESSIBILITY_SERVICES,
     _NOTIFICATIONS_GRANTED_LINE,
     NONCES,
@@ -38,6 +38,8 @@ from .test_install_adb import (  # noqa: F401 - fixtures resolve by parameter na
     _notifications_output,
     _permissions_output,
     _single_output,
+)
+from .test_install_adb import (  # noqa: F401 - fixtures resolve by parameter name
     descriptor,
     signer,
     successor_descriptor,

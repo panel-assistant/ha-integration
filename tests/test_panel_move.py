@@ -348,13 +348,9 @@ def _patches(
 
     from custom_components.panel_assistant.build_feed import feed_release_artifact
 
+    from .install_adb_fakes import FakeDevice, _identity_root_output, _single_output
     from .test_feed_install_paths import _build
-    from .test_install_adb import (
-        FakeDevice,
-        _identity_root_output,
-        _installed_artifact_output,
-        _single_output,
-    )
+    from .test_install_adb import _installed_artifact_output
 
     class InstalledDevice(FakeDevice):
         async def streaming_shell(self, command: str, **_kwargs: Any) -> Any:
@@ -1885,7 +1881,7 @@ async def test_move_revocation_during_final_adb_verification_cleans_without_inst
     from custom_components.panel_assistant.client import normalize_address
     from custom_components.panel_assistant.const import CONF_PRERELEASE_PANEL_BUILDS
 
-    from .test_install_adb import (
+    from .install_adb_fakes import (
         JOB_ID,
         REMOTE_PATH,
         FakeDevice,

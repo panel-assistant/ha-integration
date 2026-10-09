@@ -560,7 +560,7 @@ async def test_adb_transaction_uses_current_consent_until_command_submission(
     from custom_components.panel_assistant import install_adb, update_policy
     from custom_components.panel_assistant.const import CONF_PRERELEASE_PANEL_BUILDS
 
-    from .test_install_adb import (
+    from .install_adb_fakes import (
         JOB_ID,
         NONCES,
         REMOTE_PATH,
