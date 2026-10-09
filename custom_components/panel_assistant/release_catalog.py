@@ -199,10 +199,11 @@ async def async_list_install_choices(
 ) -> list[dict[str, str | bool]]:
     """The one version list every install path offers.
 
-    Newest compatible versions come first on the running PA channel. Explicit
-    prerelease choices follow on stable PA. Feed builds retain exact version-code
-    identities; either source can remain available when the other is unavailable.
+    Offer only the newest compatible choice per running PA channel. Feed builds
+    retain exact version-code identities; either source can remain available
+    when the other is unavailable.
     """
+    allowed_pre = prereleases_allowed()
     feed = await _async_current_feed(hass)
     builds: list[dict[str, str | bool]] = [
         {
@@ -215,7 +216,7 @@ async def async_list_install_choices(
             ),
         }
         for build in (feed.builds if feed is not None else ())
-        if _allowed(feed_release_artifact(build), allow_prerelease=True)
+        if _allowed(feed_release_artifact(build), allow_prerelease=allowed_pre)
     ]
     try:
         candidates = await async_resolve_update_candidates(
@@ -227,7 +228,7 @@ async def async_list_install_choices(
                 "prerelease": is_rc_release_tag(bundle.artifact.tag),
             }
             for bundle, _bridge in candidates
-            if _allowed(bundle.artifact, allow_prerelease=True)
+            if _allowed(bundle.artifact, allow_prerelease=allowed_pre)
         ]
     except ReleaseResolutionError, TimeoutError:
         if not builds:
@@ -268,13 +269,11 @@ async def async_list_install_choices(
         ),
         reverse=True,
     )
-    # Explicit prerelease choices are PA-managed per-panel opt-ins. The default
-    # remains the newest compatible release on the running PA's own channel.
-    allowed_pre = prereleases_allowed()
-    return sorted(
-        choices,
-        key=lambda choice: bool(choice["prerelease"]) and not allowed_pre,
-    )
+    # Keep one choice per channel, after compatibility filtering and ranking.
+    newest: dict[bool, dict[str, str | bool]] = {}
+    for choice in choices:
+        newest.setdefault(bool(choice["prerelease"]), choice)
+    return list(newest.values())
 
 
 async def async_resolve_feed_choice(

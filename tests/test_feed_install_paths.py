@@ -138,8 +138,6 @@ async def test_both_paths_list_newest_compatible_versions_first(
         choices = await release_catalog.async_list_install_choices(hass)
     assert choices == [
         {"tag": "build-772", "prerelease": True, "name": "0.9.7-rc4 build 772"},
-        {"tag": "build-771", "prerelease": True, "name": "0.9.7-rc4 build 771"},
-        {"tag": "v0.9.7-rc3", "prerelease": True},
     ]
 
 
@@ -154,7 +152,10 @@ async def test_catalog_resolves_each_app_at_the_same_build_number(
         release_catalog, "async_resolve_update_candidates", AsyncMock(return_value=[])
     ):
         choices = await release_catalog.async_list_install_choices(hass)
-    assert [choice["tag"] for choice in choices] == ["build-772", "build-772-successor"]
+        assert [choice["tag"] for choice in choices] == ["build-772"]
+        assert (
+            await release_catalog.async_resolve_install_choice(hass, None)
+        ).tag == choices[0]["tag"]
     artifact = await release_catalog.async_resolve_install_choice(
         hass, "build-772-successor"
     )

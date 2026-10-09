@@ -932,6 +932,7 @@ class Va extends HTMLElement {
   constructor() {
     super(), this.attachShadow({ mode: "open" }), this.shadowRoot.innerHTML = `<style>${sa}
       :host{display:block;min-height:100%;background:var(--bg);padding:24px 16px}
+      #release{max-height:min(240px,40vh);overflow-y:auto}
     </style><main class="wiz">
       ${ta}
       <ol id="journey" class="wiz-dots">${oa(0)}</ol>
@@ -939,7 +940,7 @@ class Va extends HTMLElement {
         <h2 data-message="title"></h2>
         <p class="wiz-lead" data-message="introduction"></p>
         <label class="wiz-fld" for="release"><b data-message="release"></b></label>
-        <select id="release" aria-describedby="catalog-status"></select>
+        <select id="release" size="6" aria-describedby="catalog-status"></select>
         <p id="catalog-status" role="status" aria-live="polite"></p>
         <button id="retry" class="pbtn wiz-secondary" data-message="retry"></button>
         <button id="start" class="pbtn primary wiz-primary" data-message="start"></button>
