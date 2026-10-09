@@ -221,7 +221,7 @@ def _permissions_output(
             "WRITE_SETTINGS: allow",
             "SYSTEM_ALERT_WINDOW: allow\nREQUEST_INSTALL_PACKAGES: allow\n"
             "unsupported\nunsupported\n"
-            "home_chooser:kept\nhome:"
+            "home_chooser:kept\nsecure_settings:granted\nhome:"
             f"{install_adb.HOME_COMPONENTS[install_adb.LAUNCH_COMPONENTS[package_id][0]]}"
             "\ndevice:generic",
         ],

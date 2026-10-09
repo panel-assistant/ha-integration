@@ -144,6 +144,14 @@ dumpsys() {
     fi
     echo "      $permission: granted=$granted, flags=[ USER_SET|USER_FIXED]"
   done
+  # An install-time permission, listed as granted only once it is, as Android
+  # 11 prints it. Held unless a test says it is missing.
+  secure=android.permission.WRITE_SECURE_SETTINGS
+  [ -f "$STATE/unrequested.$secure" ] || echo "      $secure"
+  if [ ! -f "$STATE/missing.$secure" ] ||
+    [ "$(cat "$STATE/permission.$2.$secure" 2>/dev/null)" = true ]; then
+    echo "      $secure: granted=true"
+  fi
   [ ! -f "$STATE/read_fail.permissions" ]
 }
 """
@@ -982,3 +990,75 @@ async def test_a_rerun_writes_no_second_copy_of_the_service(
         "allow"
     )
     assert _GRANT_WARNING not in caplog.text
+
+
+_SECURE = "android.permission.WRITE_SECURE_SETTINGS"
+
+
+async def test_a_missing_secure_settings_grant_is_granted_once_and_then_left(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    successor_descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    package = successor_descriptor.package_id
+    _seed_granted_panel(tmp_path, package, successor_descriptor.launch_component)
+    (tmp_path / f"missing.{_SECURE}").touch()
+
+    await _launch_on(monkeypatch, signer, target, successor_descriptor, tmp_path)
+
+    assert (tmp_path / "calls").read_text().splitlines() == [
+        f"pm grant {package} {_SECURE}"
+    ]
+    assert _panel_value(tmp_path, f"permission.{package}.{_SECURE}") == "true"
+    assert _GRANT_WARNING not in caplog.text
+
+    (tmp_path / "calls").unlink()
+    await _launch_on(monkeypatch, signer, target, successor_descriptor, tmp_path)
+
+    assert not (tmp_path / "calls").exists()
+
+
+async def test_a_refused_secure_settings_grant_is_reported_and_still_starts(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    successor_descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    package = successor_descriptor.package_id
+    _seed_granted_panel(tmp_path, package, successor_descriptor.launch_component)
+    (tmp_path / f"missing.{_SECURE}").touch()
+    (tmp_path / f"refuse.{_SECURE}").touch()
+
+    fake = await _launch_on(monkeypatch, signer, target, successor_descriptor, tmp_path)
+
+    assert _GRANT_WARNING in caplog.text
+    assert "full screen-off" in caplog.text
+    assert any("am start" in command for command in fake.commands)
+
+
+@pytest.mark.parametrize("reason", ["unrequested", "unreadable"])
+async def test_secure_settings_is_never_granted_without_proof_it_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    successor_descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    reason: str,
+) -> None:
+    package = successor_descriptor.package_id
+    _seed_granted_panel(tmp_path, package, successor_descriptor.launch_component)
+    (tmp_path / f"missing.{_SECURE}").touch()
+    if reason == "unrequested":
+        (tmp_path / f"unrequested.{_SECURE}").touch()
+    else:
+        (tmp_path / "read_fail.permissions").touch()
+
+    await _launch_on(monkeypatch, signer, target, successor_descriptor, tmp_path)
+
+    calls = tmp_path / "calls"
+    assert _SECURE not in (calls.read_text() if calls.exists() else "")

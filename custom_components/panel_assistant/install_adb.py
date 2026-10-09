@@ -681,6 +681,36 @@ _APPOP_ALLOWED = r"{}: allow(?:; [\x20-\x7e]{{1,1024}})?"
 _GRANTED_APP_OPS = "WRITE_SETTINGS SYSTEM_ALERT_WINDOW REQUEST_INSTALL_PACKAGES"
 
 
+_SECURE_SETTINGS_PERMISSION = "android.permission.WRITE_SECURE_SETTINGS"
+
+
+def _secure_settings_grant_command(package_id: str) -> str:
+    """Grant the secure-settings permission the build asks for, once.
+
+    Full screen-off on a panel whose firmware keeps the screen on while
+    plugged in (the Shelly X2i) lifts and restores that Global setting, which
+    only this permission allows; without it the app dims instead. It is an
+    install-time permission Android lists only once granted, so a dump that
+    names the request but no grant is the proof it is missing. A build that
+    does not ask for it is ``unsupported``; an unreadable dump is ``unknown``.
+    """
+    permission = re.escape(_SECURE_SETTINGS_PERMISSION)
+    read = f"secure=$(dumpsys package {package_id} 2>/dev/null); secure_status=$?"
+    granted = f"grep -Eq '^[[:space:]]*{permission}: granted=true'"
+    return (
+        f"{read}; "
+        'if [ "$secure_status" -ne 0 ] || [ -z "$secure" ]; then '
+        "echo secure_settings:unknown; "
+        f"elif ! printf '%s\\n' \"$secure\" | grep -Eqx '[[:space:]]*{permission}'; "
+        "then echo secure_settings:unsupported; else "
+        f"printf '%s\\n' \"$secure\" | {granted} || "
+        f"{{ pm grant {package_id} {_SECURE_SETTINGS_PERMISSION} >/dev/null 2>&1; "
+        f"{read}; }}; "
+        f"if printf '%s\\n' \"$secure\" | {granted}; "
+        "then echo secure_settings:granted; else echo secure_settings:unknown; fi; fi"
+    )
+
+
 def _permission_grant_command(
     nonce: str, package_id: str, launch_component: str
 ) -> str:
@@ -793,6 +823,7 @@ def _permission_grant_command(
             "features=$(pm list features 2>/dev/null); features_status=$?",
             *runtime_grants,
             'echo "home_chooser:$hp_chooser"',
+            _secure_settings_grant_command(package_id),
             f'echo "home:$({_HOME_QUERY})"',
             'echo "device:$(getprop ro.product.device)"',
             f"echo HAPANELD_PERMISSIONS_END:{nonce}:$?",
@@ -844,15 +875,18 @@ def _parse_permission_grant(
         lines, status = _parse_single_section(body, prefix="PERMISSIONS", nonce=nonce)
     except _MalformedAdbResponse:
         return refused
-    if status != 0 or len(lines) != 11:
+    if status != 0 or len(lines) != 12:
         return refused
     before, after, enabled, write_settings, overlay, installs = lines[:6]
     camera, microphone = lines[6:8]
-    chooser, home, device = (line.partition(":")[2] for line in lines[8:])
+    chooser, secure_settings, home, device = (
+        line.partition(":")[2] for line in lines[8:]
+    )
     if (
         not lines[8].startswith("home_chooser:")
-        or not lines[9].startswith("home:")
-        or not lines[10].startswith("device:")
+        or not lines[9].startswith("secure_settings:")
+        or not lines[10].startswith("home:")
+        or not lines[11].startswith("device:")
     ):
         return refused
     expected = _expected_services(before, launch_component)
@@ -868,6 +902,7 @@ def _parse_permission_grant(
         is not None
         and camera in ("granted", "unsupported")
         and microphone in ("granted", "unsupported")
+        and secure_settings in ("granted", "unsupported")
     )
     return _PermissionGrant(
         granted=granted,
@@ -2262,10 +2297,12 @@ async def _async_repair_app_permissions(
         _LOGGER.warning(
             "The panel did not grant %s every permission it needs: "
             "modify system settings, display over other apps and its "
-            "accessibility service, camera and microphone where present. "
+            "accessibility service, camera and microphone where present, "
+            "and the secure-settings permission full screen-off needs. "
             "Controls that depend on them, such as "
-            "touch sounds, stay unavailable; allow them on the panel in "
-            "Android Settings, under the app",
+            "touch sounds, stay unavailable, and the screen dims instead of "
+            "switching off; allow them on the panel in Android Settings, "
+            "under the app",
             package_id,
         )
 

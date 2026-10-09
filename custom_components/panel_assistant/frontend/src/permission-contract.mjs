@@ -15,6 +15,9 @@ const microphoneListed = 'for hp_f in $hp_features; do case "$hp_f" in ' +
 // installed build, and every spelling that already names it. The class lives in
 // whichever package the build's launcher names, so it follows the launcher.
 export const ACCESSIBILITY_SERVICE = accessibilityComponentFor(LEGACY_LAUNCH_COMPONENT);
+// Lets full screen-off lift a firmware's keep-screen-on-while-plugged-in
+// setting (the Shelly X2i); granted after every install like the network path.
+const SECURE_SETTINGS = 'android.permission.WRITE_SECURE_SETTINGS';
 const fail = () => { throw new Error('permissions_unverified'); };
 const checkBuild = (packageId, launchComponent) => {
   if (!isLaunchComponent(packageId, launchComponent)) fail();
@@ -83,6 +86,7 @@ ${expected === existing ? ':' : `settings put secure enabled_accessibility_servi
 settings put secure accessibility_enabled 1 || exit 1
 hp_mic=; hp_features=$(pm list features 2>/dev/null) && ${microphoneListed}
 [ -z "$hp_mic" ] || pm grant ${PACKAGE} android.permission.RECORD_AUDIO >/dev/null 2>&1
+pm grant ${PACKAGE} ${SECURE_SETTINGS} >/dev/null 2>&1
 ${buildHomeClaim(launchComponent)}
 echo "home_chooser:$hp_chooser"
 :
@@ -108,6 +112,7 @@ appops get ${PACKAGE} SYSTEM_ALERT_WINDOW || exit 1
 appops get ${PACKAGE} REQUEST_INSTALL_PACKAGES || exit 1
 ${sdk >= 33 ? `dumpsys package ${PACKAGE} | grep 'android.permission.POST_NOTIFICATIONS: granted=' || exit 1` : "echo not_required"}
 hp_mic=; if hp_features=$(pm list features 2>/dev/null); then ${microphoneListed}; if [ -z "$hp_mic" ]; then echo unsupported; else hp_r=$(dumpsys package ${PACKAGE} 2>/dev/null | grep -F 'android.permission.RECORD_AUDIO: granted='); case "$hp_r" in '') echo unknown ;; *granted=false*) echo denied ;; *) echo granted ;; esac; fi; else echo unknown; fi
+hp_s=$(dumpsys package ${PACKAGE} 2>/dev/null) && case "$hp_s" in *"${SECURE_SETTINGS}: granted=true"*) echo granted ;; *) echo missing ;; esac || echo unknown
 echo "home:$(${HOME_QUERY})"
 echo "device:$(getprop ro.product.device)"
 ); echo HAPANELD_PERMISSIONS_VERIFY_END:${nonce}:$?`;
@@ -116,18 +121,22 @@ echo "device:$(getprop ro.product.device)"
 export function parsePermissionVerification(body, nonce, sdk, existing, packageId, launchComponent) {
   checkSdk(sdk); checkBuild(packageId, launchComponent);
   const lines = frame(body, nonce, 'PERMISSIONS_VERIFY');
-  if (lines.length !== 9 || lines[0] !== expectedServices(existing, packageId, launchComponent) || lines[1] !== '1' ||
+  if (lines.length !== 10 || lines[0] !== expectedServices(existing, packageId, launchComponent) || lines[1] !== '1' ||
       !/^WRITE_SETTINGS: allow(?:; [\x20-\x7e]{1,1024})?$/.test(lines[2]) ||
       !/^SYSTEM_ALERT_WINDOW: allow(?:; [\x20-\x7e]{1,1024})?$/.test(lines[3]) ||
       !/^REQUEST_INSTALL_PACKAGES: allow(?:; [\x20-\x7e]{1,1024})?$/.test(lines[4]) ||
       (sdk >= 33 ? !/^\s*android\.permission\.POST_NOTIFICATIONS: granted=true, flags=\[[ A-Z0-9_|]*\]\s*$/.test(lines[5])
         : lines[5] !== 'not_required') ||
       !['granted', 'denied', 'unknown', 'unsupported'].includes(lines[6]) ||
-      !lines[7].startsWith('home:') || !lines[8].startsWith('device:')) fail();
-  const device = lines[8].slice(7);
-  // HOME and the microphone are reported, never a reason to fail the install:
-  // the app runs without either and the person can choose them on the panel.
+      !['granted', 'missing', 'unknown'].includes(lines[7]) ||
+      !lines[8].startsWith('home:') || !lines[9].startsWith('device:')) fail();
+  const device = lines[9].slice(7);
+  // HOME, the microphone and secure settings are reported, never a reason to
+  // fail the install: the app runs without them (without secure settings the
+  // screen dims instead of switching off) and the person can choose HOME on
+  // the panel.
   return Object.freeze({permissionsVerified: true, notificationsRequired: sdk >= 33,
-    microphone: lines[6], home: homeComponentsFor(launchComponent).includes(lines[7].slice(5)),
+    microphone: lines[6], secureSettings: lines[7],
+    home: homeComponentsFor(launchComponent).includes(lines[8].slice(5)),
     device: /^[A-Za-z0-9_.-]{1,64}$/.test(device) ? device : null});
 }
