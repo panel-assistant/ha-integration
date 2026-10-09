@@ -14,7 +14,7 @@ INTEGRATION_VERSION: str = json.loads(
 # The public version (manifest.json) only changes when something ships. This
 # build number tells builds apart in between: it counts the commits that have
 # changed this integration.
-INTEGRATION_BUILD = 500
+INTEGRATION_BUILD = 503
 
 # The native transport range this running integration can serve. Protocol 5 is
 # the first without MQTT: an app that speaks only 4 or older is refused, told
