@@ -30,6 +30,10 @@ from custom_components.panel_assistant.client import (
     PanelSetupState,
 )
 from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.display_provisioning import (
+    DisplayResult,
+    DisplaySizing,
+)
 from custom_components.panel_assistant.install_adb import (
     AdbInstallTarget,
     AdbPreflight,
@@ -346,6 +350,7 @@ class Harness:
         self.launch_error: Exception | None = None
         self.launch_outcome = LaunchOutcome.STARTED
         self.health_error: Exception | None = None
+        self.display: dict[str, Any] | None = None
         self.health_calls = 0
         self.home_ui_state: str | None = "setup"
         self.home_proof_calls = 0
@@ -422,6 +427,12 @@ class Harness:
                 harness.events.append("health_client")
                 harness.health_client_addresses.append(address)
                 self.address = address
+
+            async def async_get_display(self) -> dict[str, Any]:
+                harness.events.append("display")
+                if harness.display is None:
+                    raise CannotConnectError
+                return harness.display
 
             async def async_get_health(self) -> PanelHealth:
                 harness.events.append("health")
@@ -832,6 +843,9 @@ async def test_happy_path_stops_unclaimed_and_binds_every_operation(
         # hand over Home Assistant's address, over the same client. This harness
         # reports setup finished, so it asks and then says nothing further.
         "setup_state",
+        # Then it asks what display size the panel's profile recommends; this
+        # one answers nothing, so nothing is applied.
+        "display",
     ]
     assert harness.pin_arguments == [expected_pinned] * 7
     assert all(pin.original.host == "panel-one.local" for pin in harness.pin_arguments)
@@ -3648,3 +3662,65 @@ def test_one_installed_app_rule_takes_the_whole_health_line(
 
     assert health_is_installed_app(health, installed) is expected
     assert not health_is_installed_app(replace(health, version="9.9.9"), installed)
+
+
+_X2I_DISPLAY = {
+    "physical_pixels": {"width": 720, "height": 1440},
+    "recommended": {"density": 216, "font_scale": 1},
+    "privileged_sizing": False,
+}
+
+
+@pytest.mark.parametrize("outcome", ["applied", "refused", "unreachable"])
+async def test_a_rootless_panel_gets_its_recommended_display_size_once_at_setup(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, outcome: str
+) -> None:
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    harness = Harness(monkeypatch)
+    harness.display = _X2I_DISPLAY
+    applied: list[tuple[AdbInstallTarget, DisplaySizing]] = []
+
+    async def apply(
+        target: AdbInstallTarget, signer: PythonRSASigner, sizing: DisplaySizing
+    ) -> DisplayResult:
+        harness.events.append("display_sizing")
+        applied.append((target, sizing))
+        if outcome == "unreachable":
+            raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE)
+        density = "216" if outcome == "applied" else "none"
+        return DisplayResult(("none", "null"), density, "null", sizing)
+
+    monkeypatch.setattr(install_executor, "async_apply_display_sizing", apply)
+
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    # Never a reason to fail an install that worked.
+    assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
+    assert [sizing for _, sizing in applied] == [DisplaySizing(216, 1.0)]
+    assert applied[0][0].address.host == "192.168.250.23"
+    assert harness.events.index("display_sizing") > harness.events.index("launch")
+
+
+@pytest.mark.parametrize(
+    "display",
+    [
+        None,
+        {**_X2I_DISPLAY, "privileged_sizing": True},
+        {"physical_pixels": {"width": 720, "height": 1440}},
+    ],
+)
+async def test_no_display_size_is_applied_where_the_panel_sizes_itself_or_says_nothing(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, display: Any
+) -> None:
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    harness = Harness(monkeypatch)
+    harness.display = display
+    apply = AsyncMock()
+    monkeypatch.setattr(install_executor, "async_apply_display_sizing", apply)
+
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
+    apply.assert_not_awaited()

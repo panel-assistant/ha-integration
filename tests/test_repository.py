@@ -787,3 +787,36 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
         assert claim in install_adb._permission_grant_command(
             "0" * 32, launch.partition("/")[0], launch
         )
+
+
+def test_both_installers_send_the_same_display_sizing_program() -> None:
+    """The removal path reads the record either installer wrote."""
+    from custom_components.panel_assistant import display_provisioning as dp
+
+    source = INTEGRATION / "frontend" / "src"
+    nonce = "0123456789abcdef0123456789abcdef"
+    cases = [(216, 1), (None, 0.9), (200, None)]
+    script = (
+        "import * as d from "
+        f"{json.dumps((source / 'display-provisioning.mjs').resolve().as_uri())};"
+        f"const cases = {json.dumps(cases)};"
+        "console.log(JSON.stringify({record: d.DISPLAY_RESTORE_RECORD, programs: "
+        f"cases.map(([density, font_scale]) => d.buildDisplaySizing('{nonce}', "
+        "d.displaySizing({density, font_scale})))}));"
+    )
+    javascript = json.loads(
+        subprocess.run(
+            ["node", "--input-type=module", "-e", script],
+            capture_output=True,
+            check=True,
+            text=True,
+        ).stdout
+    )
+    assert javascript["record"] == dp.DISPLAY_RESTORE_RECORD
+    assert javascript["programs"] == [
+        dp.display_sizing_command(
+            nonce,
+            dp.DisplaySizing(density, None if scale is None else float(scale)),
+        )
+        for density, scale in cases
+    ]

@@ -141,6 +141,7 @@
     "permissions": "Permissions",
     "setupAddress": "Setup address",
     "setupHandover": "Setup handover",
+    "displaySizing": "Display and text size",
     "copiedDetail": "{bytes} bytes sent; waiting for the panel to confirm",
     "none": "none",
     "setupMissing": "not found; setup continues on the panel"

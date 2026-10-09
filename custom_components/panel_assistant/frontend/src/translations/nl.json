@@ -141,6 +141,7 @@
     "permissions": "Machtigingen",
     "setupAddress": "Configuratieadres",
     "setupHandover": "Configuratieoverdracht",
+    "displaySizing": "Weergave- en tekstgrootte",
     "copiedDetail": "{bytes} bytes verstuurd; wachten op bevestiging van het paneel",
     "none": "geen",
     "setupMissing": "niet gevonden; instellen gaat verder op het paneel"

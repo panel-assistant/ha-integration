@@ -30,6 +30,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from yarl import URL
 
 from custom_components.panel_assistant import (
+    display_provisioning,
     install_adb,
     panel_move,
     vendor_provisioning,
@@ -94,6 +95,15 @@ case "${0##*/} $1 $2" in
     else echo "$3: default"; fi ;;
 "appops set "*)
     echo "$4" > "$s/appop.$2.$3"; echo "appops set $2 $4" >> "$s/events" ;;
+"wm density"*)
+    if [ -z "$2" ]; then
+        echo "Physical density: 240"
+        [ ! -f "$s/density" ] || echo "Override density: $(cat "$s/density")"
+    elif [ "$2" = reset ]; then
+        rm -f "$s/density"; echo "wm density reset" >> "$s/events"
+    else
+        echo "$2" > "$s/density"; echo "wm density $2" >> "$s/events"
+    fi ;;
 "am "*|"dumpsys "*) ;;
 *) exit 1 ;;
 esac
@@ -121,6 +131,7 @@ class FakePanel:
             "timeout",
             "settings",
             "appops",
+            "wm",
         ):
             (self.bin / command).symlink_to(program)
         self.state_path = directory / "state"
@@ -670,3 +681,37 @@ async def test_removal_gives_a_portal_its_meta_values_back_before_the_uninstall(
     assert not record.exists()
     assert (fake.state_path / "setting.package_verifier_enable").read_text() == "1\n"
     assert not verifier.exists()
+
+
+async def test_removal_gives_shelly_its_overlay_and_the_panel_its_size_back(
+    hass: HomeAssistant,
+    panel: tuple[FakePanel, TestServer],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Both setup records are read and put back before the uninstall."""
+    fake, server = panel
+    launcher = vendor_provisioning.SHELLY_LAUNCHER
+    shelly = tmp_path / "shelly-record"
+    display = tmp_path / "display-record"
+    monkeypatch.setattr(vendor_provisioning, "SHELLY_RESTORE_RECORD", str(shelly))
+    monkeypatch.setattr(display_provisioning, "DISPLAY_RESTORE_RECORD", str(display))
+    shelly.write_text("stargate_overlay=allow\n")
+    display.write_text("density=none\nfont_scale=null\n")
+    fake.set(installed=[SUCCESSOR_PACKAGE_ID, launcher])
+    (fake.state_path / f"appop.{launcher}.SYSTEM_ALERT_WINDOW").write_text("deny\n")
+    (fake.state_path / "density").write_text("216\n")
+    entry = _entry(hass, server)
+
+    result = await _remove(hass, entry)
+
+    assert result["step_id"] == "remove_app_done"
+    assert fake.read()["events"] == [
+        f"appops set {launcher} allow",
+        "wm density reset",
+        "settings delete font_scale",
+        f"uninstall {SUCCESSOR_PACKAGE_ID}",
+    ]
+    assert not (fake.state_path / "density").exists()
+    assert not shelly.exists()
+    assert not display.exists()

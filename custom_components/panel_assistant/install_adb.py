@@ -56,6 +56,15 @@ from .app_identity import (
     is_launch_component,
 )
 from .client import PanelAddress
+from .display_provisioning import (
+    DisplayResponseError,
+    DisplayResult,
+    DisplaySizing,
+    display_restore_command,
+    display_sizing_command,
+    parse_display_restore,
+    parse_display_sizing,
+)
 from .home_chooser import CHOOSER_OUTCOMES, home_claim_command
 from .home_chooser import HOME_QUERY as _HOME_QUERY
 from .install_network import is_allowed_install_address
@@ -2352,6 +2361,84 @@ async def _async_vendor_setup(
             "the panel app; on a Shelly Wall Display, Shelly's corner overlay"
         )
     return observed
+
+
+async def _async_target_section(
+    target: AdbInstallTarget,
+    signer: PythonRSASigner,
+    command: Callable[[str], str],
+    prefix: str,
+) -> list[str]:
+    """Run one framed program on the identified panel and return its lines."""
+    _validate_target(target)
+    device: AdbDeviceAsync | None = None
+    try:
+        async with asyncio.timeout(_LAUNCH_TIMEOUT_SECONDS):
+            device = await _async_connect(target, signer, authorize=False)
+            nonce = token_hex(16)
+            _parse_identity_root(
+                await _async_shell(
+                    device,
+                    _identity_root_command(nonce),
+                    read_timeout=_READ_TIMEOUT_SECONDS,
+                ),
+                nonce,
+                target,
+            )
+            nonce = token_hex(16)
+            lines, status = _parse_single_section(
+                await _async_shell(
+                    device, command(nonce), read_timeout=_READ_TIMEOUT_SECONDS
+                ),
+                prefix=prefix,
+                nonce=nonce,
+            )
+            if status != 0:
+                raise _MalformedAdbResponse
+            return lines
+    except InstallAdbError:
+        raise
+    except (
+        TimeoutError,
+        _MalformedAdbResponse,
+        _UnsafeAdbPacket,
+        *_ADB_EXCEPTIONS,
+    ):
+        raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE) from None
+    finally:
+        await _async_close(device)
+
+
+async def async_apply_display_sizing(
+    target: AdbInstallTarget, signer: PythonRSASigner, sizing: DisplaySizing
+) -> DisplayResult:
+    """Apply the profile's recommended display and text size at setup."""
+    lines = await _async_target_section(
+        target,
+        signer,
+        lambda nonce: display_sizing_command(nonce, sizing),
+        "DISPLAY",
+    )
+    try:
+        return parse_display_sizing(lines, sizing)
+    except DisplayResponseError:
+        raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE) from None
+
+
+async def async_restore_display_sizing(
+    target: AdbInstallTarget, signer: PythonRSASigner
+) -> str:
+    """Put back the display and text size setup changed, before the app goes.
+
+    Returns ``restored``, ``unrestored`` or ``none`` (nothing was changed).
+    """
+    lines = await _async_target_section(
+        target, signer, display_restore_command, "DISPLAY_RESTORE"
+    )
+    try:
+        return parse_display_restore(lines)
+    except DisplayResponseError:
+        raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE) from None
 
 
 async def async_restore_vendor_setup(

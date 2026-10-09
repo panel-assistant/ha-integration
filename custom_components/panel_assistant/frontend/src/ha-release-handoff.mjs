@@ -1,3 +1,4 @@
+import { displaySizing } from './display-provisioning.mjs';
 import { frontendLocale } from './frontend-localization.mjs';
 import { MAX_FEED_BYTES, MAX_TAG_LENGTH, isBuildTag, isGithubTag } from './release-identity.mjs';
 import { exactKeys, fullMatch, newNonce } from './shared.mjs';
@@ -200,6 +201,7 @@ export function startReleaseHandoff(hass, installerUrl, {
     // from an older one that ignores the request, without waiting for the panel.
     reply('ha-paneld/usb-handover-accepted');
     let outcome;
+    let display = null;
     try {
       const response = await hass.fetchWithAuth(HANDOVER_API, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -209,12 +211,16 @@ export function startReleaseHandoff(hass, installerUrl, {
       const body = await response.json().catch(() => null);
       const answer = response.status === 200 ? body?.outcome : body?.error;
       outcome = fullMatch(OUTCOME, answer) ? answer : `http_${response.status}`;
+      // The display and text size the panel's profile recommends, which the
+      // installer applies over its USB session before it opens setup.
+      if (response.status === 200) display = displaySizing(body?.display);
     } catch {
       outcome = 'request_failed';
     } finally {
       handingOver = false;
     }
-    reply('ha-paneld/usb-handover-result', { outcome });
+    reply('ha-paneld/usb-handover-result',
+      display ? { outcome, display: { density: display.density, font_scale: display.fontScale } } : { outcome });
   }
   function receive(event) {
     if (event.source !== child || event.origin !== targetOrigin) return;

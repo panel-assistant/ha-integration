@@ -72,6 +72,7 @@ BACKUP_PATH = "/api/v1/backup"
 RESTORE_PATH = "/api/v1/restore"
 DIAG_PATH = "/api/v1/diag"
 SETUP_PATH = "/api/v1/setup"
+DISPLAY_PATH = "/api/v1/display"
 # The panel's own settings endpoint. This integration writes exactly one thing to
 # it: the Home Assistant address a newly installed or adopted panel should use,
 # for the panel to verify from its own network before accepting.

@@ -117,6 +117,7 @@ async def _async_remove_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
         if observed.home is None or observed.home in _NOT_A_LAUNCHER:
             raise RemovalError(REASON_APP_UNREACHABLE) from err
     await _async_restore_vendor_setup(found)
+    await _async_restore_display_sizing(found)
     try:
         removed = await _async_step(found, MoveStep.REMOVE_APP)
     except RemovalError as err:
@@ -148,6 +149,22 @@ async def _async_restore_vendor_setup(found: tuple[AdbInstallTarget, Any]) -> No
             "Could not put back the vendor settings Panel Assistant changed on "
             "this panel (%s): Meta's screensaver and swipe-up bar, or Shelly's "
             "corner overlay, stay off after the app is removed",
+            outcome,
+        )
+
+
+async def _async_restore_display_sizing(found: tuple[AdbInstallTarget, Any]) -> None:
+    """Put back the display and text size setup changed; never keeps the app."""
+    target, signer = found
+    try:
+        outcome = await install_adb.async_restore_display_sizing(target, signer)
+    except install_adb.InstallAdbError:
+        outcome = "unreachable"
+    if outcome not in ("restored", "none"):
+        _LOGGER.warning(
+            "Could not put back the display and text size this panel had before "
+            "Panel Assistant set it up (%s); they stay as set after the app is "
+            "removed",
             outcome,
         )
 
