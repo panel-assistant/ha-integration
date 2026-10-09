@@ -58,6 +58,7 @@ HEALTH = PanelHealth(
     build="100",
     config_hash="abcd1234",
     discovery_id="a" * 64,
+    protocol=(5, 5),
 )
 
 

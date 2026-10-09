@@ -108,7 +108,11 @@ def _entity(
     health = HaPaneldDataUpdateCoordinator(hass, client)  # type: ignore[arg-type]
     health.data = PanelSnapshot(
         health=PanelHealth(
-            version="0.9.9", panel_id="alpha", build="101", config_hash="abcd"
+            version="0.9.9",
+            panel_id="alpha",
+            build="101",
+            config_hash="abcd",
+            protocol=(5, 5),
         ),
         status=PanelStatus(
             warning_count=0,
@@ -296,6 +300,7 @@ async def test_recovered_update_accepts_newer_health_when_offer_advanced(
                     panel_id="alpha",
                     build="102",
                     config_hash="abcd",
+                    protocol=(5, 5),
                 ),
                 status=PanelStatus(warning_count=0, capability_count=0),
                 status_error=None,
@@ -466,7 +471,11 @@ async def test_verified_panel_success_clears_previous_repair(
     async def new_health() -> None:
         entity.coordinator.data = PanelSnapshot(
             health=PanelHealth(
-                version="0.9.10", panel_id="alpha", build="102", config_hash="abcd"
+                version="0.9.10",
+                panel_id="alpha",
+                build="102",
+                config_hash="abcd",
+                protocol=(5, 5),
             ),
             status=PanelStatus(warning_count=0, capability_count=0),
             status_error=None,
@@ -542,6 +551,7 @@ async def test_accepted_health_poll_clears_repair_when_failed_build_is_reached(
         panel_id="alpha",
         build="earlier",
         config_hash="abcd",
+        protocol=(5, 5),
     )
     await coordinator.async_refresh()
     assert ir.async_get(hass).async_get_issue("panel_assistant", issue_id) is not None
@@ -555,6 +565,7 @@ async def test_accepted_health_poll_clears_repair_when_failed_build_is_reached(
         panel_id="alpha",
         build="reached",
         config_hash="abcd",
+        protocol=(5, 5),
     )
     await coordinator.async_refresh()
     assert (
@@ -729,6 +740,7 @@ async def test_older_targetless_repair_clears_only_at_verified_current_feed_buil
                 build="installed",
                 config_hash="abcd",
                 package=package,
+                protocol=(5, 5),
             )
         ),
         async_get_status=AsyncMock(return_value=PanelStatus(0, 0)),
@@ -800,6 +812,7 @@ async def test_stable_pa_clears_repair_at_prerelease_feed_build_for_opted_in_pan
                 build="installed",
                 config_hash="abcd",
                 package=LEGACY_PACKAGE_ID,
+                protocol=(5, 5),
             )
         ),
         async_get_status=AsyncMock(return_value=PanelStatus(0, 0)),
@@ -839,6 +852,7 @@ async def test_feed_failure_repair_uses_diagnostic_code_instead_of_health_label(
                 panel_id="alpha",
                 build="installed",
                 config_hash="abcd",
+                protocol=(5, 5),
             )
         ),
         async_get_status=AsyncMock(return_value=PanelStatus(0, 0)),

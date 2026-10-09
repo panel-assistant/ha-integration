@@ -38,6 +38,7 @@ def _health(package: str | None, version: str = VERSION) -> PanelHealth:
         build="release",
         config_hash="01234567",
         package=package,
+        protocol=(5, 5),
     )
 
 

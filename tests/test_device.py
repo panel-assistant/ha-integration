@@ -34,6 +34,7 @@ HEALTH = PanelHealth(
     panel_id="alpha_panel",
     build="1788979164237",
     config_hash="7ac44093",
+    protocol=(5, 5),
 )
 
 

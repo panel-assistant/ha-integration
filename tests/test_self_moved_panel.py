@@ -76,6 +76,7 @@ def _health(
         installation_identity=True,
         package=package,
         version_code=version_code,
+        protocol=(5, 5),
     )
 
 

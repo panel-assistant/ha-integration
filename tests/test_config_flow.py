@@ -88,13 +88,9 @@ HEALTH = PanelHealth(
     panel_id="alpha",
     build="1000",
     config_hash="1a2b3c4d",
+    protocol=(5, 5),
 )
-BETA_HEALTH = PanelHealth(
-    version="0.9.0",
-    panel_id="beta",
-    build="1001",
-    config_hash="1a2b3c4d",
-)
+BETA_HEALTH = replace(HEALTH, version="0.9.0", panel_id="beta", build="1001")
 DISCOVERY_ID = "a" * 64
 DISCOVERY_HEALTH = replace(HEALTH, discovery_id=DISCOVERY_ID)
 DESCRIPTOR = InstallDescriptor(

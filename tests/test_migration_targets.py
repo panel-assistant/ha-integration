@@ -24,7 +24,11 @@ from custom_components.panel_assistant.client import CannotConnectError, PanelHe
 from custom_components.panel_assistant.const import DOMAIN
 
 HEALTH = PanelHealth(
-    version="0.9.0", panel_id="screen", build="1000", config_hash="1a2b3c4d"
+    version="0.9.0",
+    panel_id="screen",
+    build="1000",
+    config_hash="1a2b3c4d",
+    protocol=(5, 5),
 )
 
 

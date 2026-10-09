@@ -65,12 +65,14 @@ HEALTH = PanelHealth(
     config_hash="1a2b3c4d",
     ha_state="normal",
     ha_source="mqtt",
+    protocol=(5, 5),
 )
 BETA_HEALTH = PanelHealth(
     version="0.9.1",
     panel_id="beta",
     build="1001",
     config_hash="2a2b3c4d",
+    protocol=(5, 5),
 )
 DISCOVERY_HEALTH = PanelHealth(
     version="0.9.0",
@@ -80,6 +82,7 @@ DISCOVERY_HEALTH = PanelHealth(
     ha_state="normal",
     ha_source="mqtt",
     discovery_id="a" * 64,
+    protocol=(5, 5),
 )
 STATUS = PanelStatus(
     warning_count=2,
@@ -298,6 +301,7 @@ async def test_diagnostics_download_uses_privacy_safe_entry_filename(
         config_hash=HEALTH.config_hash,
         ha_state=HEALTH.ha_state,
         ha_source=HEALTH.ha_source,
+        protocol=(5, 5),
     )
     executor, _manager = _installer_doubles(hass)
 

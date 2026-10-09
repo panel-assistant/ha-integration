@@ -27,7 +27,7 @@ STATUS_BODY = (Path(__file__).parent / "fixtures" / "status.json").read_text()
 # The panel's own health line, as /health serves it, at a build HTTP never saw.
 HEALTH_LINE = (
     f"ha-paneld 0.9.11-rc1 panel=alpha build=2000 cfg=1a2b3c4d did={DID}"
-    " identity=install vc=1200\n"
+    " identity=install vc=1200 proto=5-5\n"
 )
 MANAGED = [*HELLO["capabilities"], "management"]
 

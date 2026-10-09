@@ -59,6 +59,7 @@ HEALTH = PanelHealth(
     config_hash="1a2b3c4d",
     discovery_id=DID,
     installation_identity=True,
+    protocol=(5, 5),
 )
 STATUS = PanelStatus(warning_count=0, capability_count=0)
 
@@ -1347,7 +1348,11 @@ async def test_missing_health_identity_refuses_saved_installation_session(
     )
     config_entry.add_to_hass(hass)
     health = PanelHealth(
-        version="0.9.8-rc1", panel_id="alpha", build="1000", config_hash="1a2b3c4d"
+        version="0.9.8-rc1",
+        panel_id="alpha",
+        build="1000",
+        config_hash="1a2b3c4d",
+        protocol=(5, 5),
     )
     with (
         patch(

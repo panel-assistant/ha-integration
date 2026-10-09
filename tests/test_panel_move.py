@@ -252,6 +252,7 @@ class FakePanel:
             discovery_id=self.did,
             installation_identity=self.did is not None,
             package=self.running,
+            protocol=(5, 5),
         )
 
     async def backup_panel(self) -> bytes:
@@ -312,6 +313,7 @@ def _attach(entry: MockConfigEntry, panel: FakePanel) -> None:
             build="1",
             config_hash=LEGACY_CFG,
             package=panel.running,
+            protocol=(5, 5),
         )
     )
     entry.runtime_data = SimpleNamespace(
@@ -1740,6 +1742,7 @@ async def test_move_installs_only_the_current_panel_policy_candidate(
                 build="observed",
                 config_hash=LEGACY_CFG,
                 package=LEGACY_PACKAGE_ID,
+                protocol=(5, 5),
             )
         )
     )

@@ -83,6 +83,7 @@ def _health(
         config_hash="1a2b3c4d",
         package=package,
         discovery_id=discovery_id,
+        protocol=(5, 5),
     )
 
 
@@ -304,6 +305,38 @@ async def test_existing_keyless_shelly_offers_and_installs_from_ha(
     assert (await adb_credentials.async_get_durable_adb_credential(hass)).generation_id
     assert route.probe_target.await_args_list[0].args == (route.pinned.pinned,)
     deliver.assert_awaited_once()
+    route.client.async_start_panel_update.assert_not_awaited()
+    route.client.async_stage_apk.assert_not_awaited()
+
+
+@pytest.mark.parametrize("capability", ["api", None])
+async def test_an_app_on_an_older_protocol_is_updated_over_adb(
+    route: SimpleNamespace, monkeypatch: pytest.MonkeyPatch, capability: str | None
+) -> None:
+    """It can install for itself only with a session's policy, which it never gets.
+
+    So its own install route, reported in its status or by an older app's
+    privileged-route probe, is passed over for the authorized ADB route.
+    """
+    coordinator = route.entity.coordinator
+    coordinator.data = PanelSnapshot(
+        health=replace(_health(), protocol=None),
+        status=PanelStatus(
+            warning_count=0, capability_count=0, install_capability=capability
+        ),
+        status_error=None,
+    )
+    legacy_probe = AsyncMock(return_value=True)
+    route.client.async_get_legacy_install_capability = legacy_probe
+    route.client.async_discard_apk = AsyncMock()
+    deliver = AsyncMock()
+    monkeypatch.setattr(route.entity, "_async_deliver_adb", deliver)
+
+    await route.entity._async_refresh_route()
+    await route.entity.async_install(None, False)
+
+    deliver.assert_awaited_once()
+    legacy_probe.assert_not_awaited()
     route.client.async_start_panel_update.assert_not_awaited()
     route.client.async_stage_apk.assert_not_awaited()
 

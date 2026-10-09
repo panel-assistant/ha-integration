@@ -39,6 +39,7 @@ HEALTH = PanelHealth(
     panel_id="alpha",
     build="1000",
     config_hash="1a2b3c4d",
+    protocol=(5, 5),
 )
 
 
@@ -88,6 +89,7 @@ def _entity(
             panel_id=HEALTH.panel_id,
             build=HEALTH.build,
             config_hash=HEALTH.config_hash,
+            protocol=(5, 5),
         ),
         status=PanelStatus(
             warning_count=0,
@@ -192,6 +194,7 @@ async def test_update_entity_starts_only_the_current_panel_offer(
                 panel_id=HEALTH.panel_id,
                 build=HEALTH.build,
                 config_hash=HEALTH.config_hash,
+                protocol=(5, 5),
             ),
             status=PanelStatus(warning_count=0, capability_count=0),
             status_error=None,
@@ -245,6 +248,7 @@ async def test_matching_update_health_requires_ready_home_proof(
             build="1001",
             config_hash="1a2b3c4d",
             package="io.panelassistant.android",
+            protocol=(5, 5),
         ),
         status=PanelStatus(warning_count=0, capability_count=0),
         status_error=None,
@@ -455,6 +459,7 @@ async def test_update_entity_observes_health_through_terminal_restart_race(
                     panel_id=HEALTH.panel_id,
                     build=HEALTH.build,
                     config_hash=HEALTH.config_hash,
+                    protocol=(5, 5),
                 ),
                 status=PanelStatus(warning_count=0, capability_count=0),
                 status_error=None,
@@ -518,6 +523,7 @@ async def test_reload_observer_latches_through_transient_and_terminal_status(
                     panel_id=HEALTH.panel_id,
                     build=HEALTH.build,
                     config_hash=HEALTH.config_hash,
+                    protocol=(5, 5),
                 ),
                 status=PanelStatus(warning_count=0, capability_count=0),
                 status_error=None,

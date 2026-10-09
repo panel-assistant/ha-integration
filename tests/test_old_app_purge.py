@@ -68,6 +68,7 @@ HEALTH = PanelHealth(
     installation_identity=True,
     package=SUCCESSOR_PACKAGE_ID,
     version_code=1102,
+    protocol=(5, 5),
 )
 
 

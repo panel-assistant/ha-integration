@@ -300,6 +300,7 @@ def _snapshot(version: str, build: str, package: str | None) -> PanelSnapshot:
             config_hash="1a2b3c4d",
             package=package,
             installation_identity=True,
+            protocol=(5, 5),
         ),
         status=PanelStatus(
             warning_count=0, capability_count=0, install_capability="api"

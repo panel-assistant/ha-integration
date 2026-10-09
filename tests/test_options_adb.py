@@ -32,7 +32,11 @@ async def test_existing_panel_options_authorize_adb_after_physical_approval(
 ) -> None:
     """Consent precedes key creation; approval refreshes the cached update route."""
     health = PanelHealth(
-        version="0.9.9", panel_id="jenna", build="998", config_hash="abcd1234"
+        version="0.9.9",
+        panel_id="jenna",
+        build="998",
+        config_hash="abcd1234",
+        protocol=(5, 5),
     )
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -117,6 +121,7 @@ async def test_existing_panel_adb_consent_refuses_changed_http_identity(
         build="998",
         config_hash="abcd1234",
         discovery_id=observed_did,
+        protocol=(5, 5),
     )
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -139,6 +144,7 @@ async def test_existing_panel_adb_consent_refuses_changed_http_identity(
                     build="998",
                     config_hash="abcd1234",
                     discovery_id="b" * 64,
+                    protocol=(5, 5),
                 )
             ),
         ),
@@ -171,7 +177,11 @@ async def test_adb_authorization_repair_retries_after_physical_approval(
     assert await async_setup_component(hass, "repairs", {})
     assert await async_setup_component(hass, DOMAIN, {})
     health = PanelHealth(
-        version="0.9.9", panel_id="jenna", build="998", config_hash="abcd1234"
+        version="0.9.9",
+        panel_id="jenna",
+        build="998",
+        config_hash="abcd1234",
+        protocol=(5, 5),
     )
     entry = MockConfigEntry(
         domain=DOMAIN, title="Jenna", data={CONF_ADDRESS: "panel.local"}
@@ -294,6 +304,7 @@ async def test_adb_authorization_repair_refuses_changed_panel(
         build="998",
         config_hash="abcd1234",
         discovery_id="a" * 64,
+        protocol=(5, 5),
     )
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -335,6 +346,7 @@ async def test_adb_authorization_repair_refuses_changed_panel(
                     build="998",
                     config_hash="abcd1234",
                     discovery_id="b" * 64,
+                    protocol=(5, 5),
                 )
             ),
         ),
@@ -441,6 +453,7 @@ async def test_onboarding_never_binds_an_account_deactivated_while_shown(
         build="1",
         config_hash="0123abcd",
         discovery_id=did,
+        protocol=(5, 5),
     )
     client = "custom_components.panel_assistant.config_flow.HaPaneldClient"
     with (

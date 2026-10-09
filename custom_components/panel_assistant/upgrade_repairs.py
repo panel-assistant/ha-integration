@@ -52,7 +52,8 @@ def needs_090_issue_id(entry_id: str) -> str:
     return f"{ISSUE_MQTT_PANEL_NEEDS_090}_{entry_id}"
 
 
-def _speaks_this_protocol(health: PanelHealth) -> bool:
+def speaks_this_protocol(health: PanelHealth) -> bool:
+    """Return whether the app's health says it speaks this protocol."""
     return health.protocol is not None and (
         health.protocol[0] <= PROTOCOL_MAX and health.protocol[1] >= PROTOCOL_MIN
     )
@@ -77,7 +78,7 @@ def async_evaluate_app_too_old(hass: HomeAssistant, entry: ConfigEntry) -> None:
         return
     health: PanelHealth = coordinator.data.health
     if (
-        _speaks_this_protocol(health)
+        speaks_this_protocol(health)
         or ir.async_get(hass).async_get_issue(DOMAIN, move_issue_id(entry.entry_id))
         is not None
     ):

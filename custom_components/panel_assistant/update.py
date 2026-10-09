@@ -124,6 +124,7 @@ from .update_policy import (
     version_allowed,
 )
 from .update_route_repair import async_reconcile_update_route_issue
+from .upgrade_repairs import speaks_this_protocol
 
 _ANDROID_DOWNLOAD_MAX_SECONDS = 10 * 60
 _ANDROID_PACKAGE_INSTALL_MAX_SECONDS = 3 * 60
@@ -383,6 +384,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
 
     def _api_capability(self) -> str | None:
         snapshot: PanelSnapshot | None = self.coordinator.data
+        if snapshot is not None and not speaks_this_protocol(snapshot.health):
+            # An app on an older protocol has no session here, and installs an
+            # update for itself only with the policy a session hands it, so only
+            # the authorized ADB route can update it.
+            return "none"
         return (
             snapshot.status.install_capability if snapshot and snapshot.status else None
         )

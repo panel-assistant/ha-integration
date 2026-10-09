@@ -150,7 +150,11 @@ def _preview(**replacements: str) -> StagedApk:
 
 def _health(version: str, build: str = "1000") -> PanelHealth:
     return PanelHealth(
-        version=version, panel_id="alpha", build=build, config_hash="1a2b3c4d"
+        version=version,
+        panel_id="alpha",
+        build=build,
+        config_hash="1a2b3c4d",
+        protocol=(5, 5),
     )
 
 
@@ -260,6 +264,7 @@ def _restart_into(
                 build="2000",
                 config_hash="1a2b3c4d",
                 package=package,
+                protocol=(5, 5),
             ),
             status=PanelStatus(
                 warning_count=0, capability_count=0, install_capability="api"
@@ -436,6 +441,7 @@ async def test_update_install_selects_the_installed_app_before_backup(
             build=health.build,
             config_hash=health.config_hash,
             package=package,
+            protocol=(5, 5),
         ),
         status=PanelStatus(
             warning_count=0, capability_count=0, install_capability="api"
@@ -580,6 +586,7 @@ async def test_same_number_from_another_app_does_not_verify_the_install(
             build=health.build,
             config_hash=health.config_hash,
             package=SUCCESSOR_PACKAGE_ID,
+            protocol=(5, 5),
         ),
         status=PanelStatus(
             warning_count=0, capability_count=0, install_capability="api"
@@ -813,6 +820,7 @@ async def test_identity_change_during_upload_refuses_commit(
                 build=health.build,
                 config_hash=health.config_hash,
                 package=SUCCESSOR_PACKAGE_ID,
+                protocol=(5, 5),
             ),
             status=snapshot.status,
             status_error=snapshot.status_error,
@@ -848,6 +856,7 @@ async def test_a_build_for_another_app_id_is_refused_before_backup(
             build=health.build,
             config_hash=health.config_hash,
             package=package,
+            protocol=(5, 5),
         ),
         status=PanelStatus(
             warning_count=0, capability_count=0, install_capability="api"

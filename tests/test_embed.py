@@ -50,6 +50,7 @@ HEALTH = PanelHealth(
     config_hash="1a2b3c4d",
     discovery_id=DID,
     installation_identity=True,
+    protocol=(5, 5),
 )
 STATUS = PanelStatus(warning_count=0, capability_count=0)
 HELLO: dict[str, Any] = {
@@ -262,6 +263,7 @@ async def test_panels_list_by_device_name_falling_back_to_title(
         build="1000",
         config_hash="1a2b3c4d",
         discovery_id="c" * 64,
+        protocol=(5, 5),
     )
     unreachable = MockConfigEntry(
         domain=DOMAIN, title="attic", data={CONF_ADDRESS: "127.0.0.1:1"}
