@@ -44,9 +44,10 @@ jobs:
   # only once the lock is held and an older release run can never deploy a site
   # that drops a newer release's copy. GitHub keeps one pending run per group and
   # drops the older pending one; that is safe because the surviving newer run
-  # rebuilds every tag.
+  # rebuilds every tag. A manual run on main republishes the same site, which is how
+  # a tag whose own workflow predates this deploy gets its copy.
   site:
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -70,7 +71,9 @@ jobs:
           cache-dependency-path: custom_components/panel_assistant/frontend/package-lock.json
       - name: Build every release's installer copy
         run: .github/scripts/build_installer_site.sh "$GITHUB_WORKSPACE/.installer-site"
+      # Only a tag run has a release of its own; a dispatch on main republishes every tag's copy.
       - name: Require this release's copy
+        if: startsWith(github.ref, 'refs/tags/')
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: test -f "$GITHUB_WORKSPACE/.installer-site/$RELEASE_TAG/index.html"
