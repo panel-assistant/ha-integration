@@ -40,7 +40,7 @@ function fixture({badTarget = false, badApk = false, badRead = false, failGrant 
     } else if (command.includes('HAPANELD_PERMISSIONS_READ_BEGIN:')) {
       body = `HAPANELD_PERMISSIONS_READ_BEGIN:${n}\n${badRead ? "cannot read settings" : 'com.other/.Reader'}\nHAPANELD_PERMISSIONS_READ_END:${n}:0\n`;
     } else if (command.includes('HAPANELD_PERMISSIONS_GRANT_BEGIN:')) {
-      body = `HAPANELD_PERMISSIONS_GRANT_BEGIN:${n}\nHAPANELD_PERMISSIONS_GRANT_END:${n}:${failGrant ? 1 : 0}\n`;
+      body = `HAPANELD_PERMISSIONS_GRANT_BEGIN:${n}\nhome_chooser:kept\nHAPANELD_PERMISSIONS_GRANT_END:${n}:${failGrant ? 1 : 0}\n`;
     } else {
       assert.ok(command.includes('HAPANELD_PERMISSIONS_VERIFY_BEGIN:'));
       body = [`HAPANELD_PERMISSIONS_VERIFY_BEGIN:${n}`, `com.other/.Reader:${accessibilityComponentFor(launchComponent)}`, '1',
@@ -65,7 +65,7 @@ test('permissions require current USB posture and exact installed APK before any
       const f = fixture({rootMode, sdk});
       await f.ports.authenticate();
       assert.deepEqual(await f.ports.commissionPermissions(f.receipt, f.release),
-        {permissionsVerified: true, notificationsRequired: sdk >= 33, microphone: 'granted', home: true,
+        {permissionsVerified: true, notificationsRequired: sdk >= 33, microphone: 'granted', home: true, homeChooser: 'kept',
           device: 'generic'});
       assert.equal(f.commands.length, 5);
       assert.match(f.commands[0], /HAPANELD_POSTURE_BEGIN/);
@@ -117,7 +117,7 @@ test('a build whose classes moved package is started and granted by its own clas
   const f = fixture({launchComponent: MOVED}); await f.ports.authenticate();
   await f.ports.launch({...f.receipt, phase: 'launching'}, f.release);
   assert.deepEqual(await f.ports.commissionPermissions(f.receipt, f.release),
-    {permissionsVerified: true, notificationsRequired: true, microphone: 'granted', home: true,
+    {permissionsVerified: true, notificationsRequired: true, microphone: 'granted', home: true, homeChooser: 'kept',
       device: 'generic'});
   const launch = f.commands.find(command => command.includes('HAPANELD_LAUNCH_BEGIN:'));
   assert.ok(launch.includes(`am start -W -n ${MOVED} -p ${SUCCESSOR_PACKAGE_ID};`));

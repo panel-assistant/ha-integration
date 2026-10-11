@@ -160,7 +160,7 @@ def vendor_restore_command(nonce: str) -> str:
     # so a later hand-back can try again. A control centre recorded absent was
     # never denied, so it is restored only while it is still absent.
     verify = (
-        'hp_now=$(hp_overlay); '
+        "hp_now=$(hp_overlay); "
         'if [ "$(settings get secure screensaver_components)" = "$hp_c" ] && '
         '[ "$(settings get secure screensaver_default_component)" = "$hp_d" ] && '
         'case "$hp_o" in absent|allow|ignore|default|foreground) '

@@ -716,7 +716,12 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
     reads the record that program wrote, so the two must send the same text:
     compared as sent, not by a few substrings.
     """
-    from custom_components.panel_assistant import install_adb, vendor_provisioning
+    from custom_components.panel_assistant import (
+        app_identity,
+        home_chooser,
+        install_adb,
+        vendor_provisioning,
+    )
 
     source = INTEGRATION / "frontend" / "src"
     script = (
@@ -724,10 +729,20 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
         f"{json.dumps((source / 'vendor-provisioning.mjs').resolve().as_uri())};"
         "import * as p from "
         f"{json.dumps((source / 'permission-contract.mjs').resolve().as_uri())};"
+        "import * as h from "
+        f"{json.dumps((source / 'home-chooser.mjs').resolve().as_uri())};"
+        "import * as a from "
+        f"{json.dumps((source / 'app-identity.mjs').resolve().as_uri())};"
         "console.log(JSON.stringify({"
         "program: v.buildVendorSetup('0123456789abcdef0123456789abcdef'),"
         "devices: v.META_PORTAL_DEVICES, record: v.META_RESTORE_RECORD,"
-        "homeQuery: p.HOME_QUERY}));"
+        "homeQuery: p.HOME_QUERY, labels: h.APP_LABELS,"
+        "outcomes: h.CHOOSER_OUTCOMES,"
+        "claims: Object.fromEntries(Object.keys(a.HOME_COMPONENTS)"
+        ".map(c => [c, h.buildHomeClaim(c)])),"
+        "grants: Object.fromEntries(Object.keys(a.HOME_COMPONENTS).map(c => [c,"
+        " p.buildPermissionGrant('0123456789abcdef0123456789abcdef', 34, '',"
+        " c.split('/')[0], c)]))}));"
     )
     javascript = json.loads(
         subprocess.run(
@@ -743,3 +758,15 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
     assert javascript["devices"] == list(vendor_provisioning.META_PORTAL_DEVICES)
     assert javascript["record"] == vendor_provisioning.META_RESTORE_RECORD
     assert javascript["homeQuery"] == install_adb._HOME_QUERY
+    # HOME, including the chooser's Always, is claimed by one program.
+    assert javascript["labels"] == {
+        package: list(labels) for package, labels in home_chooser.APP_LABELS.items()
+    }
+    assert javascript["outcomes"] == list(home_chooser.CHOOSER_OUTCOMES)
+    assert set(javascript["claims"]) == set(app_identity.HOME_COMPONENTS)
+    for launch, claim in javascript["claims"].items():
+        assert claim == home_chooser.home_claim_command(launch)
+        assert claim in javascript["grants"][launch]
+        assert claim in install_adb._permission_grant_command(
+            "0" * 32, launch.partition("/")[0], launch
+        )

@@ -198,16 +198,17 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
       // Grants go to the package whose installed bytes were verified above,
       // and name the service among the classes that exact build carries.
       const { packageId, launchComponent } = release.descriptor;
-      parsePermissionGrant(await readShell(adb,
+      const homeChooser = parsePermissionGrant(await readShell(adb,
         buildPermissionGrant(n, receipt.target.androidSdk, existing, packageId, launchComponent),
         {timeoutMs: 30000, maximum: 16384}), n);
       binding(receipt, release);
       n = newNonce();
-      const result = parsePermissionVerification(await readShell(adb,
+      const verified = parsePermissionVerification(await readShell(adb,
         buildPermissionVerification(n, receipt.target.androidSdk, packageId, launchComponent),
         {timeoutMs: 30000, maximum: 16384}),
       n, receipt.target.androidSdk, existing, packageId, launchComponent);
       binding(receipt, release);
+      const result = Object.freeze({...verified, homeChooser});
       if (!META_PORTAL_DEVICES.includes(result.device)) return result;
       // A Portal also gets Meta's setup. What it read back is reported; an
       // answer that cannot be read is reported too, and never fails the install.

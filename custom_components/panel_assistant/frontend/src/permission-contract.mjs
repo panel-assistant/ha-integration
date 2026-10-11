@@ -1,11 +1,11 @@
 // Fixed, explicitly confirmed post-install grants for the authenticated APK.
 // Nothing here configures MQTT, networking, device ownership or app data.
 import { LEGACY_LAUNCH_COMPONENT, accessibilityComponentFor, accessibilityComponentsFor,
-  homeComponentFor, homeComponentsFor, isLaunchComponent } from './app-identity.mjs';
+  homeComponentsFor, isLaunchComponent } from './app-identity.mjs';
+import { CHOOSER_OUTCOMES, HOME_QUERY, buildHomeClaim } from './home-chooser.mjs';
 
 // What HOME resolves to now, as the network installer reads it.
-export const HOME_QUERY = 'cmd package resolve-activity --brief ' +
-  '-a android.intent.action.MAIN -c android.intent.category.HOME 2>/dev/null | tail -n 1';
+export { HOME_QUERY };
 // The microphone is granted only where Android lists one, as the network
 // installer grants it; a refusal is reported, never fatal.
 const microphoneListed = 'for hp_f in $hp_features; do case "$hp_f" in ' +
@@ -67,6 +67,7 @@ export function buildPermissionGrant(nonce, sdk, existing, packageId, launchComp
   // Validated component characters cannot escape single-quoted shell literals.
   // The microphone and HOME come last and never decide the status: `:` ends
   // the program successfully whatever they answered; the readback reports them.
+  // The HOME claim prints the one line this program answers: what it did.
   // Check again immediately before the list write: unrelated services must not
   // disappear if another setup operation changed this device-wide setting.
   return `echo HAPANELD_PERMISSIONS_GRANT_BEGIN:${nonce}; (
@@ -81,13 +82,18 @@ ${expected === existing ? ':' : `settings put secure enabled_accessibility_servi
 settings put secure accessibility_enabled 1 || exit 1
 hp_mic=; hp_features=$(pm list features 2>/dev/null) && ${microphoneListed}
 [ -z "$hp_mic" ] || pm grant ${PACKAGE} android.permission.RECORD_AUDIO >/dev/null 2>&1
-case "$(${HOME_QUERY})" in ${homeComponentsFor(launchComponent).map(name => `'${name}'`).join('|')}) ;; *) cmd package set-home-activity ${homeComponentFor(launchComponent)} >/dev/null 2>&1 ;; esac
+${buildHomeClaim(launchComponent)}
+echo "home_chooser:$hp_chooser"
 :
 ); echo HAPANELD_PERMISSIONS_GRANT_END:${nonce}:$?`;
 }
 
+// What the HOME claim did, or null when its line could not be read; never fatal.
 export function parsePermissionGrant(body, nonce) {
-  if (frame(body, nonce, 'PERMISSIONS_GRANT').length !== 0) fail();
+  const lines = frame(body, nonce, 'PERMISSIONS_GRANT');
+  if (lines.length > 1 || (lines.length === 1 && !lines[0].startsWith('home_chooser:'))) fail();
+  const chooser = lines.length ? lines[0].slice(13) : null;
+  return CHOOSER_OUTCOMES.includes(chooser) ? chooser : null;
 }
 
 export function buildPermissionVerification(nonce, sdk, packageId, launchComponent) {

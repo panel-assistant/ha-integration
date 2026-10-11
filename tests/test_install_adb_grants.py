@@ -93,6 +93,21 @@ cmd() {
 getprop() {
   if [ -f "$STATE/prop.$1" ]; then cat "$STATE/prop.$1"; else echo generic; fi
 }
+sleep() { :; }
+# HOME opens the chooser in chooser.xml; tapping at chooser.tap presses its
+# Always, which makes chooser.home the preferred HOME.
+input() {
+  echo "input $*" >> "$STATE/calls"
+  if [ "$*" = "keyevent 3" ] && [ -f "$STATE/chooser.xml" ]; then
+    touch "$STATE/chooser.shown"
+  elif [ "$1" = tap ] && [ -f "$STATE/chooser.shown" ] &&
+      [ "$2 $3" = "$(cat "$STATE/chooser.tap")" ]; then
+    cp "$STATE/chooser.home" "$STATE/home"
+  fi
+}
+uiautomator() {
+  if [ -f "$STATE/chooser.shown" ]; then cp "$STATE/chooser.xml" "$2"; fi
+}
 pm() {
   if [ "$1" = path ]; then
     if [ -f "$STATE/package.$2" ]; then echo "package:/system/app/$2/$2.apk"; fi

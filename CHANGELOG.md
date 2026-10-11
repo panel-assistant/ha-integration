@@ -10,7 +10,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- **Every install makes the panel app the home screen and gives it the microphone.** Both the network install and the USB install now set the home screen and grant the microphone where the panel has one, and every update and repair sets the home screen again, because Android forgets it when apps change. Before, a USB install did neither.
+- **Every install makes the panel app the home screen and gives it the microphone.** Both the network install and the USB install now set the home screen and grant the microphone where the panel has one, and every update and repair sets the home screen again, because Android forgets it when apps change. On panels such as the Meta Portal, where Android only offers the panel app in its "Use as Home" question, Panel Assistant answers Always for you, and never when the question offers another app. Before, a USB install did neither.
 - **A panel installed over USB is added to Panel Assistant.** It no longer waits to be added by hand under Add panel.
 
 ## 0.9.0 - 2026-10-08

@@ -6,6 +6,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createUsbTransactionPorts} from '../src/usb-transaction-ports.mjs';
 import {LEGACY_LAUNCH_COMPONENT} from '../src/app-identity.mjs';
+import {CHOOSER_DUMP} from '../src/home-chooser.mjs';
 import {META_CONTROL_CENTER, META_RESTORE_RECORD, META_SCREENSAVER_COMPONENTS,
   META_SCREENSAVER_DEFAULT_COMPONENT} from '../src/vendor-provisioning.mjs';
 
@@ -47,7 +48,19 @@ cmd() {
   fi
 }
 getprop() { if [ -f "$STATE/prop.$1" ]; then cat "$STATE/prop.$1"; else echo generic; fi; }
+sleep() { :; }
+input() {
+  echo "input $*" >> "$STATE/calls"
+  if [ "$*" = "keyevent 3" ] && [ -f "$STATE/chooser.xml" ]; then touch "$STATE/chooser.shown"
+  elif [ "$1" = tap ] && [ -f "$STATE/chooser.shown" ] && [ "$2 $3" = "$(cat "$STATE/chooser.tap")" ]; then
+    cp "$STATE/chooser.home" "$STATE/home"; fi
+}
+uiautomator() { if [ -f "$STATE/chooser.shown" ]; then cp "$STATE/chooser.xml" "$2"; fi; }
 `;
+// The chooser a Portal showed on 2026-10-11 after set-home-activity, Always at
+// [772,601][862,646]; the build under test is labelled ha-paneld.
+const CHOOSER = readFileSync(new URL('../../../../tests/fixtures/portal_home_chooser.xml', import.meta.url), 'utf8')
+  .replaceAll('Panel Assistant', 'ha-paneld');
 
 function panel({portal = false, microphone = true} = {}) {
   const state = mkdtempSync(join(tmpdir(), 'portal-setup-'));
@@ -83,7 +96,8 @@ function panel({portal = false, microphone = true} = {}) {
         `HAPANELD_INSTALLED_SHA_END:${n}:0`, `HAPANELD_INSTALLED_END:${n}`, ''].join('\n');
     } else {
       body = spawnSync('/bin/sh', ['-c', STAND_IN +
-        command.replace(/^shell:/, '').replaceAll(META_RESTORE_RECORD, join(state, 'restore-record'))],
+        command.replace(/^shell:/, '').replaceAll(META_RESTORE_RECORD, join(state, 'restore-record'))
+          .replaceAll(CHOOSER_DUMP, join(state, 'chooser-dump.xml'))],
       {encoding: 'utf8', env: {PATH: process.env.PATH, STATE: state}}).stdout;
     }
     return {readable: new ReadableStream({start(controller) {
@@ -151,3 +165,53 @@ test('a Portal gets Meta setup read back and recorded, and a retry changes nothi
     assert.ok(!p.calls().some(call => /set-home-activity|screensaver|alohaapps/.test(call)), p.calls().join('\n'));
   } finally { p.cleanup(); }
 });
+
+// A panel that keeps HOME on Android's chooser after set-home-activity.
+function chooserPanel(chooser = CHOOSER) {
+  const p = panel({portal: true});
+  writeFileSync(join(p.state, 'refuse.home'), '');
+  writeFileSync(join(p.state, 'chooser.xml'), chooser);
+  writeFileSync(join(p.state, 'chooser.tap'), '817 623\n');
+  writeFileSync(join(p.state, 'chooser.home'), 'io.github.maxlyth.hapaneld/.DashboardActivity\n');
+  return p;
+}
+
+test('a chooser offering the app has its Always pressed, once', async () => {
+  const p = chooserPanel();
+  try {
+    const result = await p.commission();
+    assert.equal(result.home, true);
+    assert.equal(result.homeChooser, 'tapped');
+    assert.equal(p.read('home'), 'io.github.maxlyth.hapaneld/.DashboardActivity');
+    const calls = p.calls();
+    assert.ok(calls.indexOf('input keyevent 3') < calls.indexOf('input tap 817 623'));
+    assert.ok(!calls.includes('input keyevent 4'));
+    assert.equal(existsSync(join(p.state, 'chooser-dump.xml')), false);
+    rmSync(join(p.state, 'calls'));
+
+    const again = await p.commission();
+
+    assert.equal(again.homeChooser, 'kept');
+    assert.ok(!p.calls().some(call => call.startsWith('input')));
+  } finally { p.cleanup(); }
+});
+
+for (const [name, chooser, outcome] of [
+  ['offers another app', CHOOSER.replaceAll('Use ha-paneld as Home', 'Use Portal Launcher as Home'), 'other_app'],
+  ['has no Always button', CHOOSER.replaceAll('android:id/button_always', 'android:id/button_other'), 'no_button'],
+]) {
+  test(`a chooser that ${name} is dismissed and never pressed`, async () => {
+    assert.notEqual(chooser, CHOOSER);
+    const p = chooserPanel(chooser);
+    try {
+      const result = await p.commission();
+      assert.equal(result.permissionsVerified, true);
+      assert.equal(result.home, false);
+      assert.equal(result.homeChooser, outcome);
+      assert.ok(p.calls().includes('input keyevent 3'));
+      assert.ok(!p.calls().some(call => call.startsWith('input tap')));
+      assert.ok(p.calls().includes('input keyevent 4'));
+      assert.equal(p.read('home'), null);
+    } finally { p.cleanup(); }
+  });
+}

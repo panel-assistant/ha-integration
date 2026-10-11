@@ -15,6 +15,7 @@ import pytest
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 
 from custom_components.panel_assistant import vendor_provisioning
+from custom_components.panel_assistant.home_chooser import CHOOSER_DUMP
 from custom_components.panel_assistant.install_adb import (
     AdbInstallTarget,
     AdbRootMode,
@@ -48,8 +49,9 @@ _HOME_WARNING = "its home screen"
 class _PanelDevice(FakeDevice):
     """Runs every program the installer sends on the stand-in panel.
 
-    The restore record's fixed path on the panel is moved into the test's
-    state directory; nothing else in the program is changed.
+    The restore record's and the chooser dump's fixed paths on the panel are
+    moved into the test's state directory; nothing else in the program is
+    changed.
     """
 
     def __init__(self, state: Path) -> None:
@@ -83,7 +85,7 @@ class _PanelDevice(FakeDevice):
                 command.replace(
                     vendor_provisioning.META_RESTORE_RECORD,
                     str(self.state / "restore-record"),
-                ),
+                ).replace(CHOOSER_DUMP, str(self.state / "chooser-dump.xml")),
                 self.state,
             )
 
@@ -477,3 +479,98 @@ async def test_hand_back_that_cannot_restore_the_bar_reports_it_and_keeps_the_re
     assert await async_restore_vendor_setup(target, signer) == "unrestored"
 
     assert (tmp_path / "restore-record").exists()
+
+
+_DASHBOARD = "io.github.maxlyth.hapaneld/.DashboardActivity"
+#: The chooser a Portal showed on 2026-10-11 after set-home-activity, Always
+#: at [772,601][862,646]; the build under test is labelled ha-paneld.
+_CHOOSER = (
+    (Path(__file__).parent / "fixtures" / "portal_home_chooser.xml")
+    .read_text()
+    .replace("Panel Assistant", "ha-paneld")
+)
+
+
+def _chooser_panel(state: Path, chooser: str = _CHOOSER) -> None:
+    """A Portal that keeps HOME on Android's chooser after set-home-activity."""
+    _portal(state)
+    (state / "refuse.home").touch()
+    (state / "chooser.xml").write_text(chooser)
+    (state / "chooser.tap").write_text("817 623\n")
+    (state / "chooser.home").write_text(_DASHBOARD + "\n")
+
+
+async def test_a_chooser_offering_the_app_has_its_always_pressed_once(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+) -> None:
+    _chooser_panel(tmp_path)
+
+    await _launch(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert _value(tmp_path, "home") == _DASHBOARD
+    calls = _calls(tmp_path)
+    assert calls.index("input keyevent 3") < calls.index("input tap 817 623")
+    # Always itself opened the dashboard: nothing is dismissed.
+    assert "input keyevent 4" not in calls
+    assert not (tmp_path / "chooser-dump.xml").exists()
+    assert _HOME_WARNING not in caplog.text
+
+    (tmp_path / "calls").unlink()
+    await _launch(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert not any(call.startswith("input") for call in _calls(tmp_path))
+
+
+@pytest.mark.parametrize(
+    ("chooser", "outcome"),
+    [
+        # Android preselected another launcher: its Always must never be pressed.
+        (
+            _CHOOSER.replace("Use ha-paneld as Home", "Use Portal Launcher as Home"),
+            "other_app",
+        ),
+        # No Always button to press.
+        (
+            _CHOOSER.replace("android:id/button_always", "android:id/button_other"),
+            "no_button",
+        ),
+        # Always is greyed out until something is chosen.
+        (
+            _CHOOSER.replace(
+                'text="Always" resource-id="android:id/button_always" '
+                'class="android.widget.Button" package="android" content-desc="" '
+                'checkable="false" checked="false" clickable="true" enabled="true"',
+                'text="Always" resource-id="android:id/button_always" '
+                'class="android.widget.Button" package="android" content-desc="" '
+                'checkable="false" checked="false" clickable="true" enabled="false"',
+            ),
+            "no_button",
+        ),
+    ],
+)
+async def test_a_chooser_not_offering_the_app_is_dismissed_untouched(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+    chooser: str,
+    outcome: str,
+) -> None:
+    assert chooser != _CHOOSER
+    _chooser_panel(tmp_path, chooser)
+
+    await _launch(monkeypatch, signer, target, descriptor, tmp_path)
+
+    calls = _calls(tmp_path)
+    assert "input keyevent 3" in calls
+    assert not any(call.startswith("input tap") for call in calls)
+    assert "input keyevent 4" in calls
+    assert _value(tmp_path, "home") is None
+    assert f"{_HOME_WARNING} ({outcome})" in caplog.text

@@ -56,6 +56,8 @@ from .app_identity import (
     is_launch_component,
 )
 from .client import PanelAddress
+from .home_chooser import CHOOSER_OUTCOMES, home_claim_command
+from .home_chooser import HOME_QUERY as _HOME_QUERY
 from .install_network import is_allowed_install_address
 from .release import (
     _MAX_APK_BYTES,
@@ -693,17 +695,16 @@ def _permission_grant_command(
 
     The build's dashboard is made the panel's HOME whenever HOME resolves to
     anything else: Android forgets a preferred HOME when the set of packages
-    changes, so every install, update and repair asserts it again. The
-    device codename is read last, for the vendor setup that follows.
+    changes, so every install, update and repair asserts it again. Where the
+    firmware only preselects it in Android's chooser, the chooser's Always is
+    pressed (``home_chooser``). The device codename is read last, for the
+    vendor setup that follows.
     """
     component = ACCESSIBILITY_COMPONENTS[launch_component]
     known = "|".join(
         f"*:{name}:*" for name in EQUIVALENT_ACCESSIBILITY_COMPONENTS[launch_component]
     )
     obsolete = "|".join(_OBSOLETE_ACCESSIBILITY_COMPONENTS.get(launch_component, ()))
-    homes = "|".join(
-        f"'{name}'" for name in EQUIVALENT_HOME_COMPONENTS[launch_component]
-    )
     quiet = ">/dev/null 2>&1"
     # Android 14 reports an unset operation as two lines, including its default.
     default_modes = "|".join(
@@ -777,9 +778,7 @@ def _permission_grant_command(
             'if [ "$enabled_status" -eq 0 ]; then case "$enabled" in 0|null) '
             f"settings put secure accessibility_enabled 1 {quiet} ;; esac; fi ;; "
             "esac; fi",
-            f'case "$({_HOME_QUERY})" in {homes}) ;; '
-            f"*) cmd package set-home-activity {HOME_COMPONENTS[launch_component]} "
-            f"{quiet} ;; esac",
+            home_claim_command(launch_component),
             _SERVICES_SETTING,
             "settings get secure accessibility_enabled",
             "for operation in WRITE_SETTINGS SYSTEM_ALERT_WINDOW; do "
@@ -790,6 +789,7 @@ def _permission_grant_command(
             # has-feature and answers it with its usage text.
             "features=$(pm list features 2>/dev/null); features_status=$?",
             *runtime_grants,
+            'echo "home_chooser:$hp_chooser"',
             f'echo "home:$({_HOME_QUERY})"',
             'echo "device:$(getprop ro.product.device)"',
             f"echo HAPANELD_PERMISSIONS_END:{nonce}:$?",
@@ -823,6 +823,8 @@ class _PermissionGrant:
     granted: bool
     #: HOME resolves to this build's dashboard.
     home: bool
+    #: What the HOME claim did (``home_chooser.CHOOSER_OUTCOMES``), or None.
+    chooser: str | None
     #: ``ro.product.device``, or None when the answer could not be read.
     device: str | None
 
@@ -834,16 +836,20 @@ def _parse_permission_grant(
     body: bytes, nonce: str, launch_component: str
 ) -> _PermissionGrant:
     """Granted only when every readback line shows the grant and no service lost."""
-    refused = _PermissionGrant(granted=False, home=False, device=None)
+    refused = _PermissionGrant(granted=False, home=False, chooser=None, device=None)
     try:
         lines, status = _parse_single_section(body, prefix="PERMISSIONS", nonce=nonce)
     except _MalformedAdbResponse:
         return refused
-    if status != 0 or len(lines) != 9:
+    if status != 0 or len(lines) != 10:
         return refused
     before, after, enabled, write_settings, overlay, camera, microphone = lines[:7]
-    home, device = (line.partition(":")[2] for line in lines[7:])
-    if not lines[7].startswith("home:") or not lines[8].startswith("device:"):
+    chooser, home, device = (line.partition(":")[2] for line in lines[7:])
+    if (
+        not lines[7].startswith("home_chooser:")
+        or not lines[8].startswith("home:")
+        or not lines[9].startswith("device:")
+    ):
         return refused
     expected = _expected_services(before, launch_component)
     granted = (
@@ -860,6 +866,7 @@ def _parse_permission_grant(
     return _PermissionGrant(
         granted=granted,
         home=home in EQUIVALENT_HOME_COMPONENTS[launch_component],
+        chooser=chooser if chooser in CHOOSER_OUTCOMES else None,
         device=device if _DEVICE_CODENAME.fullmatch(device) else None,
     )
 
@@ -2230,16 +2237,18 @@ async def _async_repair_app_permissions(
         await _async_shell(
             device,
             _permission_grant_command(nonce, package_id, launch_component),
-            read_timeout=_READ_TIMEOUT_SECONDS,
+            # Pressing a HOME chooser's Always waits on the panel's UI dump.
+            read_timeout=_INSTALL_READ_TIMEOUT_SECONDS,
         ),
         nonce,
         launch_component,
     )
     if not grant.home:
         _LOGGER.warning(
-            "The panel did not make %s its home screen. It still runs; choose "
-            "it on the panel when Android asks which app to use for Home",
+            "The panel did not make %s its home screen (%s). It still runs; "
+            "choose it on the panel when Android asks which app to use for Home",
             package_id,
+            grant.chooser or "unread",
         )
     if grant.device in META_PORTAL_DEVICES:
         await _async_vendor_setup(device)
@@ -2505,11 +2514,6 @@ class MoveObservation:
     firmware: str | None = None
 
 
-_HOME_QUERY = (
-    "cmd package resolve-activity --brief "
-    "-a android.intent.action.MAIN -c android.intent.category.HOME 2>/dev/null"
-    " | tail -n 1"
-)
 _LEGACY_COPY = "/data/local/tmp/panel-assistant-old-app.apk"
 _MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
     MoveStep.OBSERVE: (),
