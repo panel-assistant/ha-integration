@@ -19,6 +19,7 @@ from custom_components.panel_assistant.coordinator import PanelSnapshot
 from custom_components.panel_assistant.device import (
     async_refresh_panel_device,
     panel_device_info,
+    panel_reported_name,
 )
 from custom_components.panel_assistant.diagnostics import (
     async_get_config_entry_diagnostics,
@@ -401,3 +402,38 @@ async def test_a_panel_without_hardware_facts_keeps_the_card_it_had(
     assert device.model == "NSPanel Pro"
     assert device.hw_version == "1.11.0 · Android 8.1.0"
     assert device.serial_number == "G000000000000000001"
+
+
+async def test_the_card_follows_the_name_the_panel_reports_but_not_a_user_rename(
+    hass: HomeAssistant,
+) -> None:
+    """A panel renamed on its own page renames its card; an HA rename still wins."""
+    entry = MockConfigEntry(domain=DOMAIN, title="jenna_6c08")
+    entry.add_to_hass(hass)
+    registry = dr.async_get(hass)
+    device = registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, entry.entry_id)},
+        name="Jenna",
+    )
+
+    def refresh(snapshot: PanelSnapshot | None) -> None:
+        async_refresh_panel_device(
+            hass,
+            entry.entry_id,
+            panel_device_info(entry.entry_id, snapshot, entry.title),
+            panel_reported_name(snapshot),
+        )
+
+    refresh(_snapshot(PanelDevice(name="Shelly HA Panel")))
+    assert registry.async_get(device.id).name == "Shelly HA Panel"
+
+    # Before the panel answers, the fallback never replaces what it reported.
+    refresh(None)
+    assert registry.async_get(device.id).name == "Shelly HA Panel"
+
+    registry.async_update_device(device.id, name_by_user="Office wall")
+    refresh(_snapshot(PanelDevice(name="Renamed on the panel")))
+    current = registry.async_get(device.id)
+    assert current.name == "Renamed on the panel"
+    assert current.name_by_user == "Office wall"

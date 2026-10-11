@@ -123,15 +123,29 @@ def is_literal_null_area(hass: HomeAssistant, area_id: str | None) -> bool:
     return area is not None and _is_null_area_name(area.name)
 
 
+def panel_reported_name(snapshot: PanelSnapshot | None) -> str | None:
+    """The name the panel itself reports (its friendly name), or None."""
+    status = snapshot.status if snapshot is not None else None
+    device = status.panel_assistant_device if status is not None else None
+    return device.name if device is not None and device.name else None
+
+
 @callback
 def async_refresh_panel_device(
-    hass: HomeAssistant, entry_id: str, info: DeviceInfo
+    hass: HomeAssistant,
+    entry_id: str,
+    info: DeviceInfo,
+    reported_name: str | None = None,
 ) -> None:
     """Bring an already registered card up to date with what is now known.
 
     Entities write their card only when they are added, which is before the
     panel's session arrives and before any later upgrade, so without this the
-    card would keep whatever the first answer said.
+    card would keep whatever the first answer said. That includes the name: a
+    panel renamed on its own page (its friendly name) renames its card, while
+    a rename made in Home Assistant, kept as ``name_by_user``, still wins. Only
+    a name the panel reported replaces it, never the panel id or entry title
+    the card falls back to before the panel has answered.
     """
     registry = dr.async_get(hass)
     device = registry.async_get_device_by_identifier((DOMAIN, entry_id), entry_id)
@@ -141,6 +155,7 @@ def async_refresh_panel_device(
     registry.async_update_device(
         device.id,
         area_id=None if is_literal_null_area(hass, device.area_id) else UNDEFINED,
+        name=reported_name if reported_name else UNDEFINED,
         manufacturer=info.get("manufacturer", UNDEFINED),
         model=info.get("model", UNDEFINED),
         sw_version=info.get("sw_version", UNDEFINED),

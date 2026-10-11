@@ -25,7 +25,11 @@ from .build_feed import BuildFeedError, normalize_feed_url
 from .client import HaPaneldClient, PanelHealth, normalize_address
 from .const import CONF_AUTHORITY, DOMAIN
 from .coordinator import HaPaneldDataUpdateCoordinator
-from .device import async_refresh_panel_device, panel_device_info
+from .device import (
+    async_refresh_panel_device,
+    panel_device_info,
+    panel_reported_name,
+)
 from .embed import (
     REASON_ENTRY_UNLOADED as EMBED_ENTRY_UNLOADED,
 )
@@ -269,12 +273,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     # listeners run on every poll and whenever the session opens or closes,
     # which is when the card can learn something new.
     dr.async_get(hass).async_get_or_create(config_entry_id=entry.entry_id, **card())
-    async_refresh_panel_device(hass, entry.entry_id, card())
-    entry.async_on_unload(
-        coordinator.async_add_listener(
-            lambda: async_refresh_panel_device(hass, entry.entry_id, card())
+
+    def refresh_card() -> None:
+        async_refresh_panel_device(
+            hass, entry.entry_id, card(), panel_reported_name(coordinator.data)
         )
-    )
+
+    refresh_card()
+    entry.async_on_unload(coordinator.async_add_listener(refresh_card))
     await hass.config_entries.async_forward_entry_setups(entry, platforms)
     if satellite_known(hass, entry):
         await async_load_voice(hass, entry, platforms)
