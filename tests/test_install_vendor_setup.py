@@ -43,6 +43,19 @@ _META_COMPONENTS = vendor_provisioning.META_SCREENSAVER_COMPONENTS
 _META_DEFAULT = vendor_provisioning.META_SCREENSAVER_DEFAULT_COMPONENT
 _CONTROL_CENTER = vendor_provisioning.META_CONTROL_CENTER
 _SETUP_WARNING = "Meta Portal setup"
+_VERIFIER = "package_verifier_enable"
+
+
+@pytest.fixture(autouse=True)
+def _verifier_record_in_state(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Move the verifier record's fixed path into the test's state directory."""
+    monkeypatch.setattr(
+        vendor_provisioning,
+        "META_VERIFIER_RECORD",
+        str(tmp_path / "verifier-record"),
+    )
+
+
 _HOME_WARNING = "its home screen"
 
 
@@ -97,6 +110,7 @@ def _portal(state: Path, *, components: str = _META_COMPONENTS) -> None:
     (state / "screensaver_default_component").write_text(_META_DEFAULT + "\n")
     (state / f"package.{_CONTROL_CENTER}").touch()
     (state / f"appop.{_CONTROL_CENTER}.SYSTEM_ALERT_WINDOW").write_text("allow\n")
+    (state / _VERIFIER).write_text("1\n")
 
 
 def _calls(state: Path) -> list[str]:
@@ -184,6 +198,9 @@ async def test_a_portal_gets_the_four_steps_read_back_and_recorded(
             "controlcenter_overlay=allow",
         )
     )
+    # Meta's verifier would refuse the app's own updates: off, with Meta's on.
+    assert _value(tmp_path, _VERIFIER) == "0"
+    assert _value(tmp_path, "verifier-record") == f"{_VERIFIER}=1"
     vendor = [i for i, c in enumerate(fake.commands) if "HAPANELD_VENDOR_BEGIN" in c]
     launch = [i for i, c in enumerate(fake.commands) if "HAPANELD_LAUNCH_BEGIN" in c]
     assert len(vendor) == 1 and vendor[0] < launch[0]
@@ -213,6 +230,8 @@ async def test_a_retry_or_update_on_a_portal_writes_nothing_more(
     assert _calls(tmp_path) == []
     # The blanked values are never recorded as Meta's.
     assert _value(tmp_path, "restore-record") == record
+    # The verifier's record still holds Meta's value, never the 0 written.
+    assert _value(tmp_path, "verifier-record") == f"{_VERIFIER}=1"
     assert _SETUP_WARNING not in caplog.text
 
 
@@ -322,6 +341,8 @@ async def test_hand_back_restores_metas_values_once(
     assert _value(tmp_path, "screensaver_default_component") == _META_DEFAULT
     assert _value(tmp_path, f"appop.{_CONTROL_CENTER}.SYSTEM_ALERT_WINDOW") == "allow"
     assert not (tmp_path / "restore-record").exists()
+    assert _value(tmp_path, _VERIFIER) == "1"
+    assert not (tmp_path / "verifier-record").exists()
     # A retry finds nothing left to put back.
     assert await async_restore_vendor_setup(target, signer) == "none"
 
@@ -574,3 +595,84 @@ async def test_a_chooser_not_offering_the_app_is_dismissed_untouched(
     assert "input keyevent 4" in calls
     assert _value(tmp_path, "home") is None
     assert f"{_HOME_WARNING} ({outcome})" in caplog.text
+
+
+async def test_a_verifier_already_off_is_recorded_as_metas_on(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+) -> None:
+    _portal(tmp_path)
+    (tmp_path / _VERIFIER).write_text("0\n")
+
+    await _launch(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert _value(tmp_path, "verifier-record") == f"{_VERIFIER}=1"
+    assert f"settings put global {_VERIFIER} 0" not in _calls(tmp_path)
+    assert _SETUP_WARNING not in caplog.text
+
+
+async def test_a_portal_set_up_before_the_verifier_step_gains_its_record(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+) -> None:
+    _portal(tmp_path)
+    _seed_granted_panel(tmp_path, descriptor.package_id, descriptor.launch_component)
+    old_record = (
+        f"screensaver_components={_META_COMPONENTS}\n"
+        f"screensaver_default_component={_META_DEFAULT}\n"
+        "controlcenter_overlay=allow\n"
+    )
+    (tmp_path / "restore-record").write_text(old_record)
+    for name in ("screensaver_components", "screensaver_default_component"):
+        (tmp_path / name).write_text("\n")
+    (tmp_path / f"appop.{_CONTROL_CENTER}.SYSTEM_ALERT_WINDOW").write_text("deny\n")
+
+    await _launch(monkeypatch, signer, target, descriptor, tmp_path)
+
+    # The old record is written once and left as it was.
+    assert (tmp_path / "restore-record").read_text() == old_record
+    assert _value(tmp_path, "verifier-record") == f"{_VERIFIER}=1"
+    assert _value(tmp_path, _VERIFIER) == "0"
+    assert _calls(tmp_path) == [f"settings put global {_VERIFIER} 0"]
+    assert _SETUP_WARNING not in caplog.text
+
+
+async def test_a_verifier_not_read_back_keeps_its_record(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    _portal(tmp_path)
+    await _launch(monkeypatch, signer, target, descriptor, tmp_path)
+    (tmp_path / f"refuse.{_VERIFIER}").touch()
+
+    _install_fakes(monkeypatch, [_PanelDevice(tmp_path)])
+    assert await async_restore_vendor_setup(target, signer) == "unrestored"
+
+    assert _value(tmp_path, _VERIFIER) == "0"
+    assert _value(tmp_path, "verifier-record") == f"{_VERIFIER}=1"
+    # The screensaver half did read back, so only its record is gone.
+    assert not (tmp_path / "restore-record").exists()
+
+
+def test_an_unset_verifier_is_restored_as_unset(tmp_path: Path) -> None:
+    _portal(tmp_path)
+    (tmp_path / _VERIFIER).unlink()
+
+    restored = _setup_then_restore(tmp_path)
+
+    assert _calls(tmp_path).count(f"settings put global {_VERIFIER} 0") == 1
+    assert b"\nrestored\n" in restored
+    assert not (tmp_path / _VERIFIER).exists()
+    assert f"settings delete global {_VERIFIER}" in _calls(tmp_path)
+    assert not (tmp_path / "verifier-record").exists()
