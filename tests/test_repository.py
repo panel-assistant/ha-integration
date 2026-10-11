@@ -186,7 +186,11 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
         "name": "Panel Assistant",
         "requirements": ["adb-shell[async]>=0.4.4", "aiosendspin[server]==10.0.0"],
         "version": "1.0.0-preview1",
-        "zeroconf": ["_adb._tcp.local.", "_ha-paneld._tcp.local."],
+        "zeroconf": [
+            "_adb._tcp.local.",
+            "_ha-paneld._tcp.local.",
+            {"type": "_shelly._tcp.local.", "name": "shellywalldisplay-*"},
+        ],
     }
     assert hacs == {"homeassistant": "2026.8.3", "name": "Panel Assistant"}
 
