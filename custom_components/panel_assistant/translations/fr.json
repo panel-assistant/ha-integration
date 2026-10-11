@@ -717,7 +717,7 @@
     },
     "no_update_route": {
       "title": "{panel} ne peut pas recevoir de mises à jour de l'application",
-      "description": "Panel Assistant ne peut pas installer de mises à jour de l'application sur {panel}, donc l'application reste sur sa version actuelle. Tout le reste du panneau continue de fonctionner, ce qui rend le problème facile à manquer. Cela fait généralement suite à une modification effectuée sur le panneau lui-même, comme une mise à jour du micrologiciel ou une réinitialisation. Sélectionnez En savoir plus pour les étapes propres à ce panneau."
+      "description": "Panel Assistant ne peut pas installer de mises à jour de l'application sur {panel}, donc l'application reste sur sa version actuelle. Tout le reste du panneau continue de fonctionner, ce qui rend le problème facile à manquer. Cela fait généralement suite à une modification effectuée sur le panneau lui-même, comme une mise à jour du micrologiciel ou une réinitialisation. Reconnectez le panneau à Panel Assistant par USB pour rétablir les mises à jour. Sélectionnez En savoir plus pour les étapes propres à ce panneau."
     },
     "merged_panel_identity": {
       "title": "Séparer les panneaux fusionnés : {panels}",

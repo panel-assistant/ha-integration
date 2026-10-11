@@ -757,7 +757,7 @@
     },
     "no_update_route": {
       "title": "{panel} não pode receber atualizações do aplicativo",
-      "description": "O Panel Assistant não consegue instalar atualizações do aplicativo em {panel}, por isso ele permanece na versão atual. Todo o restante do painel continua funcionando, o que facilita deixar este problema passar despercebido. Isso geralmente ocorre após uma alteração feita no próprio painel, como uma atualização de firmware ou uma redefinição. Selecione Saiba mais para ver as etapas para este painel."
+      "description": "O Panel Assistant não consegue instalar atualizações do aplicativo em {panel}, por isso ele permanece na versão atual. Todo o restante do painel continua funcionando, o que facilita deixar este problema passar despercebido. Isso geralmente ocorre após uma alteração feita no próprio painel, como uma atualização de firmware ou uma redefinição. Reconecte o painel ao Panel Assistant por USB para restaurar as atualizações. Selecione Saiba mais para ver as etapas para este painel."
     },
     "merged_panel_identity": {
       "title": "Separar os painéis mesclados: {panels}",

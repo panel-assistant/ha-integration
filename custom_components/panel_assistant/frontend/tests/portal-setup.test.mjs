@@ -8,11 +8,11 @@ import {createUsbTransactionPorts} from '../src/usb-transaction-ports.mjs';
 import {LEGACY_LAUNCH_COMPONENT} from '../src/app-identity.mjs';
 import {CHOOSER_DUMP} from '../src/home-chooser.mjs';
 import {META_CONTROL_CENTER, META_RESTORE_RECORD, META_SCREENSAVER_COMPONENTS,
-  META_SCREENSAVER_DEFAULT_COMPONENT} from '../src/vendor-provisioning.mjs';
+  META_SCREENSAVER_DEFAULT_COMPONENT, META_VERIFIER_RECORD} from '../src/vendor-provisioning.mjs';
 
 // The USB installer's grant, readback and Meta setup programs run unchanged in
 // a real shell whose settings, appops, pm, cmd, getprop and dumpsys keep one
-// panel's state in files. Only the restore record's path moves into that state.
+// panel's state in files. Only the restore records' paths move into that state.
 const STAND_IN = String.raw`
 settings() {
   if [ "$1" = get ]; then
@@ -70,6 +70,7 @@ function panel({portal = false, microphone = true} = {}) {
     writeFileSync(join(state, 'screensaver_components'), `${META_SCREENSAVER_COMPONENTS}\n`);
     writeFileSync(join(state, 'screensaver_default_component'), `${META_SCREENSAVER_DEFAULT_COMPONENT}\n`);
     writeFileSync(join(state, `package.${META_CONTROL_CENTER}`), '');
+    writeFileSync(join(state, 'package_verifier_enable'), '1\n');
   }
   const target = {model: 'Portal', serial: 'serial', primaryAbi: 'arm64-v8a', androidSdk: 33,
     rootMode: 'rootless', usbVendorId: 1, usbProductId: 2, usbSerial: 'usb'};
@@ -96,7 +97,8 @@ function panel({portal = false, microphone = true} = {}) {
         `HAPANELD_INSTALLED_SHA_END:${n}:0`, `HAPANELD_INSTALLED_END:${n}`, ''].join('\n');
     } else {
       body = spawnSync('/bin/sh', ['-c', STAND_IN +
-        command.replace(/^shell:/, '').replaceAll(META_RESTORE_RECORD, join(state, 'restore-record'))
+        command.replace(/^shell:/, '').replaceAll(META_VERIFIER_RECORD, join(state, 'verifier-record'))
+          .replaceAll(META_RESTORE_RECORD, join(state, 'restore-record'))
           .replaceAll(CHOOSER_DUMP, join(state, 'chooser-dump.xml'))],
       {encoding: 'utf8', env: {PATH: process.env.PATH, STATE: state}}).stdout;
     }
@@ -155,6 +157,9 @@ test('a Portal gets Meta setup read back and recorded, and a retry changes nothi
     assert.equal(p.read('screensaver_components'), '');
     assert.equal(p.read('screensaver_default_component'), '');
     assert.equal(p.read(`appop.${META_CONTROL_CENTER}.SYSTEM_ALERT_WINDOW`), 'deny');
+    assert.equal(result.vendor.verifierRecord, '1');
+    assert.equal(result.vendor.packageVerifierEnable, '0');
+    assert.equal(p.read('verifier-record'), 'package_verifier_enable=1');
     const record = p.read('restore-record');
     rmSync(join(p.state, 'calls'));
 
@@ -162,7 +167,8 @@ test('a Portal gets Meta setup read back and recorded, and a retry changes nothi
 
     assert.equal(again.vendor.converged, true);
     assert.equal(p.read('restore-record'), record);
-    assert.ok(!p.calls().some(call => /set-home-activity|screensaver|alohaapps/.test(call)), p.calls().join('\n'));
+    assert.equal(p.read('verifier-record'), 'package_verifier_enable=1');
+    assert.ok(!p.calls().some(call => /set-home-activity|screensaver|alohaapps|verifier/.test(call)), p.calls().join('\n'));
   } finally { p.cleanup(); }
 });
 

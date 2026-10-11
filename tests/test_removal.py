@@ -640,6 +640,10 @@ async def test_removal_gives_a_portal_its_meta_values_back_before_the_uninstall(
         "screensaver_default_component=null\n"
         "controlcenter_overlay=allow\n"
     )
+    verifier = tmp_path / "verifier-record"
+    monkeypatch.setattr(vendor_provisioning, "META_VERIFIER_RECORD", str(verifier))
+    verifier.write_text("package_verifier_enable=1\n")
+    (fake.state_path / "setting.package_verifier_enable").write_text("0\n")
     fake.set(installed=[SUCCESSOR_PACKAGE_ID, control_center])
     for name in ("screensaver_components", "screensaver_default_component"):
         (fake.state_path / f"setting.{name}").write_text("\n")
@@ -657,9 +661,12 @@ async def test_removal_gives_a_portal_its_meta_values_back_before_the_uninstall(
         "settings put screensaver_components",
         "settings delete screensaver_default_component",
         f"appops set {control_center} allow",
+        "settings put package_verifier_enable",
         f"uninstall {SUCCESSOR_PACKAGE_ID}",
     ]
     assert (fake.state_path / "setting.screensaver_components").read_text() == (
         "meta/.Dream\n"
     )
     assert not record.exists()
+    assert (fake.state_path / "setting.package_verifier_enable").read_text() == "1\n"
+    assert not verifier.exists()

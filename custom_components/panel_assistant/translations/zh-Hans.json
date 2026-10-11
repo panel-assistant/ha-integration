@@ -717,7 +717,7 @@
     },
     "no_update_route": {
       "title": "{panel} 无法接收应用更新",
-      "description": "Panel Assistant 无法在 {panel} 上安装应用更新，因此应用将保持当前版本。面板的其他功能一切照常，所以很容易被忽略。这通常发生在面板本身被更改之后，例如固件更新或重置。选择“了解更多”查看此面板的操作步骤。"
+      "description": "Panel Assistant 无法在 {panel} 上安装应用更新，因此应用将保持当前版本。面板的其他功能一切照常，所以很容易被忽略。这通常发生在面板本身被更改之后，例如固件更新或重置。通过 USB 将面板重新连接到 Panel Assistant 即可恢复更新。选择“了解更多”查看此面板的操作步骤。"
     },
     "merged_panel_identity": {
       "title": "分离已合并的面板：{panels}",

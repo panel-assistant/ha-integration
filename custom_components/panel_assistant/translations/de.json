@@ -717,7 +717,7 @@
     },
     "no_update_route": {
       "title": "{panel} kann keine App-Updates empfangen",
-      "description": "Panel Assistant kann auf {panel} keine App-Updates installieren, daher bleibt die App auf der aktuellen Version. Alles andere am Panel funktioniert weiter, weshalb dies leicht zu übersehen ist. Meist folgt es auf eine Änderung am Panel selbst, etwa ein Firmware-Update oder ein Zurücksetzen. Wähle Mehr erfahren für die Schritte zu diesem Panel."
+      "description": "Panel Assistant kann auf {panel} keine App-Updates installieren, daher bleibt die App auf der aktuellen Version. Alles andere am Panel funktioniert weiter, weshalb dies leicht zu übersehen ist. Meist folgt es auf eine Änderung am Panel selbst, etwa ein Firmware-Update oder ein Zurücksetzen. Verbinde das Panel erneut per USB mit Panel Assistant, um Updates wiederherzustellen. Wähle Mehr erfahren für die Schritte zu diesem Panel."
     },
     "merged_panel_identity": {
       "title": "Zusammengeführte Panels trennen: {panels}",

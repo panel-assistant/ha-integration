@@ -1432,7 +1432,11 @@ async def test_a_lan_update_repairs_missing_grants_and_preserves_held_grants(
             == "true"
         )
     assert _panel_value(tmp_path, "accessibility_enabled") == "1"
-    for operation in ("WRITE_SETTINGS", "SYSTEM_ALERT_WINDOW"):
+    for operation in (
+        "WRITE_SETTINGS",
+        "SYSTEM_ALERT_WINDOW",
+        "REQUEST_INSTALL_PACKAGES",
+    ):
         assert _panel_value(tmp_path, f"appop.{package_id}.{operation}") == "allow"
     commands = [command for device in devices for command in device.commands]
     assert not any(

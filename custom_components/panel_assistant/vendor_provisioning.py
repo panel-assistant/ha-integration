@@ -6,6 +6,14 @@ control centre draws a swipe-up bar over the panel app. Installation blanks
 both dream components and denies that bar its overlay; removal puts back what
 was there before.
 
+Meta also ships a package verifier (``com.facebook.appverifier``) that rejects
+every app Meta did not sign, so the Panel Assistant app could never update
+itself through Android's tap-confirmed installer. Meta has ended support, so
+installation switches the global ``package_verifier_enable`` off and removal
+puts back the value it found. That value has its own record: Portals set up
+before it hold the screensaver record, written once, and gain this one on
+their next setup.
+
 The values Meta had are recorded on the panel itself before anything changes,
 in a file the panel's shell owns. That record is the one place both install
 paths (network ADB here, browser USB in ``vendor-provisioning.mjs``) write and
@@ -41,6 +49,10 @@ META_SCREENSAVER_DEFAULT_COMPONENT: Final = (
 )
 META_CONTROL_CENTER: Final = "com.facebook.alohaapps.controlcenter"
 META_RESTORE_RECORD: Final = "/data/local/tmp/panel-assistant-meta-portal-restore"
+META_VERIFIER_RECORD: Final = (
+    "/data/local/tmp/panel-assistant-meta-portal-verifier-restore"
+)
+_VERIFIER: Final = "package_verifier_enable"
 
 _SETTINGS: Final = ("screensaver_components", "screensaver_default_component")
 _OVERLAY_MODES: Final = ("allow", "ignore", "deny", "default", "foreground")
@@ -72,7 +84,37 @@ def _read_back() -> tuple[str, ...]:
             for name in _SETTINGS
         ),
         'echo "controlcenter_overlay=$(hp_overlay)"',
+        f"hp_value=$(settings get global {_VERIFIER}) "
+        f'&& echo "{_VERIFIER}=$hp_value" || echo unreadable:{_VERIFIER}',
     )
+
+
+def _verifier_setup() -> tuple[str, str, str]:
+    """Record Meta's verifier setting once, show the record, then switch it off.
+
+    A value already off is recorded as Meta's default, on, as a blanked dream
+    is recorded as Meta's dream.
+    """
+    path = META_VERIFIER_RECORD
+    record = (
+        f"if [ ! -f {path} ]; then "
+        f"if hp_v=$(settings get global {_VERIFIER}); then "
+        '[ "$hp_v" != 0 ] || hp_v=1; '
+        f"printf '{_VERIFIER}=%s\\n' \"$hp_v\" "
+        f"> {path}.part && mv {path}.part {path}; "
+        f"rm -f {path}.part; fi; fi"
+    )
+    show_record = (
+        f"if [ -f {path} ]; then "
+        'while IFS= read -r hp_line; do echo "verifier_record:$hp_line"; '
+        f"done < {path}; fi"
+    )
+    apply = (
+        f"if [ -f {path} ]; then "
+        f'hp_value=$(settings get global {_VERIFIER}) && [ "$hp_value" = 0 ] || '
+        f"settings put global {_VERIFIER} 0 {_QUIET}; fi"
+    )
+    return record, show_record, apply
 
 
 def vendor_setup_command(nonce: str) -> str:
@@ -115,7 +157,16 @@ def vendor_setup_command(nonce: str) -> str:
             f"echo HAPANELD_VENDOR_BEGIN:{nonce}",
             f'case "$(getprop ro.product.device)" in '
             f"{'|'.join(META_PORTAL_DEVICES)}) "
-            + "; ".join((_OVERLAY_FUNCTION, record, show_record, apply, *_read_back()))
+            + "; ".join(
+                (
+                    _OVERLAY_FUNCTION,
+                    record,
+                    show_record,
+                    apply,
+                    *_verifier_setup(),
+                    *_read_back(),
+                )
+            )
             + " ;; *) echo device:other ;; esac",
             f"echo HAPANELD_VENDOR_END:{nonce}:0",
         )
@@ -125,9 +176,10 @@ def vendor_setup_command(nonce: str) -> str:
 def vendor_restore_command(nonce: str) -> str:
     """Put back the recorded values, then forget the record once they read back.
 
-    The record is deleted only when every value, the overlay mode included,
-    reads back exactly as recorded; otherwise it stays for the next attempt.
-    A panel without a record had nothing changed, and is left alone.
+    Each record is deleted only when every value it holds, the overlay mode
+    included, reads back exactly as recorded; otherwise it stays for the next
+    attempt. A panel without either record had nothing changed, and is left
+    alone. One line answers for both: ``restored`` only when no record is left.
     """
     path = META_RESTORE_RECORD
     load = (
@@ -165,15 +217,29 @@ def vendor_restore_command(nonce: str) -> str:
         '[ "$(settings get secure screensaver_default_component)" = "$hp_d" ] && '
         'case "$hp_o" in absent|allow|ignore|default|foreground) '
         '[ "$hp_now" = "$hp_o" ] ;; *) false ;; esac; '
-        f"then rm -f {path}; echo restored; else echo unrestored; fi"
+        f"then rm -f {path}; else hp_r=unrestored; fi"
+    )
+    verifier = META_VERIFIER_RECORD
+    put_back_verifier = (
+        f"if [ -f {verifier} ]; then hp_v=; "
+        f'while IFS= read -r hp_line; do case "$hp_line" in '
+        f"{_VERIFIER}=*) hp_v=${{hp_line#*=}} ;; esac; done < {verifier}; "
+        'if [ -z "$hp_v" ]; then hp_r=unrestored; else '
+        f'if [ "$hp_v" = null ]; then settings delete global {_VERIFIER} {_QUIET}; '
+        f'else settings put global {_VERIFIER} "$hp_v" {_QUIET}; fi; '
+        f'if [ "$(settings get global {_VERIFIER})" = "$hp_v" ]; '
+        f"then rm -f {verifier}; else hp_r=unrestored; fi; fi; fi"
     )
     return "; ".join(
         (
             f"echo HAPANELD_VENDOR_RESTORE_BEGIN:{nonce}",
             _OVERLAY_FUNCTION,
+            f"if [ -f {path} ] || [ -f {verifier} ]; then hp_r=restored; "
             f"if [ -f {path} ]; then hp_c=; hp_d=; hp_o=; "
             + "; ".join((load, put_back, allow, verify))
-            + "; else echo none; fi",
+            + "; fi; "
+            + put_back_verifier
+            + '; echo "$hp_r"; else echo none; fi',
             f"echo HAPANELD_VENDOR_RESTORE_END:{nonce}:0",
         )
     )
@@ -189,15 +255,20 @@ class VendorSetup:
     screensaver_default_component: str | None
     #: allow, deny, ..., ``absent`` without Meta's package, or ``unknown``.
     control_center_overlay: str
+    #: Meta's ``package_verifier_enable`` as recorded, or None with no record.
+    verifier_record: str | None
+    package_verifier_enable: str | None
 
     @property
     def converged(self) -> bool:
-        """Dreams blank, bar denied, and the values to undo it on record."""
+        """Dreams blank, bar denied, verifier off, and the undo on record."""
         return (
             self.record is not None
             and self.screensaver_components == ""
             and self.screensaver_default_component == ""
             and self.control_center_overlay in ("deny", "absent")
+            and self.verifier_record is not None
+            and self.package_verifier_enable == "0"
         )
 
 
@@ -210,11 +281,21 @@ def parse_vendor_setup(lines: list[str]) -> VendorSetup | None:
     if lines == ["device:other"]:
         return None
     records = [line.removeprefix("record:") for line in lines if line[:7] == "record:"]
-    rest = [line for line in lines if line[:7] != "record:"]
-    if len(rest) != 3 or len(records) not in (0, 3):
+    verifier_tag = "verifier_record:"
+    verifier_records = [
+        line.removeprefix(verifier_tag)
+        for line in lines
+        if line.startswith(verifier_tag)
+    ]
+    rest = [
+        line
+        for line in lines
+        if line[:7] != "record:" and not line.startswith(verifier_tag)
+    ]
+    if len(rest) != 4 or len(records) not in (0, 3) or len(verifier_records) > 1:
         raise VendorResponseError
     values: list[str | None] = []
-    for name, line in zip(_SETTINGS, rest[:2], strict=True):
+    for name, line in zip((*_SETTINGS, _VERIFIER), (*rest[:2], rest[3]), strict=True):
         if line == f"unreadable:{name}":
             values.append(None)
         elif line.startswith(f"{name}=") and _RECORD_VALUE.fullmatch(line):
@@ -234,7 +315,15 @@ def parse_vendor_setup(lines: list[str]) -> VendorSetup | None:
             raise VendorResponseError
         first, second, third = (line.split("=", 1)[1] for line in records)
         record = (first, second, third)
-    return VendorSetup(record, values[0], values[1], overlay)
+    verifier_record: str | None = None
+    if verifier_records:
+        line = verifier_records[0]
+        if not (line.startswith(f"{_VERIFIER}=") and _RECORD_VALUE.fullmatch(line)):
+            raise VendorResponseError
+        verifier_record = line.removeprefix(f"{_VERIFIER}=")
+    return VendorSetup(
+        record, values[0], values[1], overlay, verifier_record, values[2]
+    )
 
 
 def parse_vendor_restore(lines: list[str]) -> str:

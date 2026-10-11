@@ -1,8 +1,9 @@
 // The Meta Portal's vendor setup, sent exactly as vendor_provisioning.py
 // sends it: Meta's values are recorded on the panel once, then both dream
-// components are blanked and Meta's swipe-up bar is denied its overlay. Panel
-// Assistant's removal reads that record to put them back. A test compares this
-// program with the Python one by value.
+// components are blanked, Meta's swipe-up bar is denied its overlay, and Meta's
+// package verifier, which refuses the app's own updates, is switched off under
+// a record of its own. Panel Assistant's removal reads those records to put
+// them back. A test compares this program with the Python one by value.
 
 /** Meta's codenames for the Portals with a screen (2nd gen, 1st gen). */
 export const META_PORTAL_DEVICES = Object.freeze(['omni', 'aloha']);
@@ -13,6 +14,8 @@ export const META_SCREENSAVER_DEFAULT_COMPONENT =
   'com.facebook.alohaapps.launcher/com.facebook.aloha.app.home.touch.HomeDreamService';
 export const META_CONTROL_CENTER = 'com.facebook.alohaapps.controlcenter';
 export const META_RESTORE_RECORD = '/data/local/tmp/panel-assistant-meta-portal-restore';
+export const META_VERIFIER_RECORD = '/data/local/tmp/panel-assistant-meta-portal-verifier-restore';
+const VERIFIER = 'package_verifier_enable';
 
 const SETTINGS = ['screensaver_components', 'screensaver_default_component'];
 const OVERLAY_MODES = ['allow', 'ignore', 'deny', 'default', 'foreground'];
@@ -49,15 +52,30 @@ export function buildVendorSetup(nonce) {
       `settings put secure ${name} '' ${QUIET}; `).join('') +
     'case "$(hp_overlay)" in absent|deny) ;; ' +
     `*) appops set ${META_CONTROL_CENTER} SYSTEM_ALERT_WINDOW deny ${QUIET} ;; esac; fi`;
+  const verifier = META_VERIFIER_RECORD;
+  const verifierRecord = `if [ ! -f ${verifier} ]; then ` +
+    `if hp_v=$(settings get global ${VERIFIER}); then ` +
+    '[ "$hp_v" != 0 ] || hp_v=1; ' +
+    `printf '${VERIFIER}=%s\\n' "$hp_v" ` +
+    `> ${verifier}.part && mv ${verifier}.part ${verifier}; ` +
+    `rm -f ${verifier}.part; fi; fi`;
+  const showVerifier = `if [ -f ${verifier} ]; then ` +
+    'while IFS= read -r hp_line; do echo "verifier_record:$hp_line"; ' +
+    `done < ${verifier}; fi`;
+  const applyVerifier = `if [ -f ${verifier} ]; then ` +
+    `hp_value=$(settings get global ${VERIFIER}) && [ "$hp_value" = 0 ] || ` +
+    `settings put global ${VERIFIER} 0 ${QUIET}; fi`;
   const readBack = [
     ...SETTINGS.map(name => `hp_value=$(settings get secure ${name}) ` +
       `&& echo "${name}=$hp_value" || echo unreadable:${name}`),
     'echo "controlcenter_overlay=$(hp_overlay)"',
+    `hp_value=$(settings get global ${VERIFIER}) ` +
+      `&& echo "${VERIFIER}=$hp_value" || echo unreadable:${VERIFIER}`,
   ];
   return [
     `echo HAPANELD_VENDOR_BEGIN:${nonce}`,
     `case "$(getprop ro.product.device)" in ${META_PORTAL_DEVICES.join('|')}) ` +
-      [OVERLAY_FUNCTION, record, showRecord, apply, ...readBack].join('; ') +
+      [OVERLAY_FUNCTION, record, showRecord, apply, verifierRecord, showVerifier, applyVerifier, ...readBack].join('; ') +
       ' ;; *) echo device:other ;; esac',
     `echo HAPANELD_VENDOR_END:${nonce}:0`,
   ].join('; ');
@@ -66,8 +84,8 @@ export function buildVendorSetup(nonce) {
 const VALUE = /^[\x20-\x7e]{0,4096}$/;
 
 // Null for a panel that is not a Portal; otherwise what it read back, with
-// `converged` true only when the dreams are blank, the bar is denied and the
-// values to undo it are on record.
+// `converged` true only when the dreams are blank, the bar is denied, Meta's
+// package verifier is off and the values to undo all three are on record.
 export function parseVendorSetup(body, nonce) {
   if (typeof body !== 'string' || body.length > 16384) fail();
   const lines = body.replaceAll('\r\n', '\n').split('\n');
@@ -75,22 +93,25 @@ export function parseVendorSetup(body, nonce) {
       lines.pop() !== `HAPANELD_VENDOR_END:${nonce}:0` || lines.some(line => line.includes('HAPANELD_'))) fail();
   if (lines.length === 1 && lines[0] === 'device:other') return null;
   const records = lines.filter(line => line.startsWith('record:')).map(line => line.slice(7));
-  const rest = lines.filter(line => !line.startsWith('record:'));
-  if (rest.length !== 3 || ![0, 3].includes(records.length)) fail();
-  const values = SETTINGS.map((name, index) => {
-    if (rest[index] === `unreadable:${name}`) return null;
-    if (!rest[index].startsWith(`${name}=`) || !VALUE.test(rest[index])) fail();
-    return rest[index].slice(name.length + 1);
+  const verifierRecords = lines.filter(line => line.startsWith('verifier_record:')).map(line => line.slice(16));
+  const rest = lines.filter(line => !line.startsWith('record:') && !line.startsWith('verifier_record:'));
+  if (rest.length !== 4 || ![0, 3].includes(records.length) || verifierRecords.length > 1) fail();
+  const values = [[SETTINGS[0], rest[0]], [SETTINGS[1], rest[1]], [VERIFIER, rest[3]]].map(([name, line]) => {
+    if (line === `unreadable:${name}`) return null;
+    if (!line.startsWith(`${name}=`) || !VALUE.test(line)) fail();
+    return line.slice(name.length + 1);
   });
   const overlay = rest[2].startsWith('controlcenter_overlay=') ? rest[2].slice(22) : fail();
   if (![...OVERLAY_MODES, 'absent', 'unknown'].includes(overlay)) fail();
   const keys = [...SETTINGS, 'controlcenter_overlay'];
   if (records.some((line, index) => !line.startsWith(`${keys[index]}=`) || !VALUE.test(line))) fail();
   const record = records.length ? records.map(line => line.slice(line.indexOf('=') + 1)) : null;
+  if (verifierRecords.some(line => !line.startsWith(`${VERIFIER}=`) || !VALUE.test(line))) fail();
+  const verifierRecord = verifierRecords.length ? verifierRecords[0].slice(VERIFIER.length + 1) : null;
   return Object.freeze({
     record, screensaverComponents: values[0], screensaverDefaultComponent: values[1],
-    controlCenterOverlay: overlay,
+    controlCenterOverlay: overlay, verifierRecord, packageVerifierEnable: values[2],
     converged: record !== null && values[0] === '' && values[1] === '' &&
-      ['deny', 'absent'].includes(overlay),
+      ['deny', 'absent'].includes(overlay) && verifierRecord !== null && values[2] === '0',
   });
 }

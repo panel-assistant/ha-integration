@@ -107,6 +107,33 @@ async def test_a_panel_that_can_install_for_itself_again_is_let_off(
     assert _issue(hass, entry) is None
 
 
+async def test_a_rootless_panel_that_installs_its_own_update_has_a_route(
+    route, hass: HomeAssistant
+) -> None:
+    """No network ADB, but the app reports it can install its own update.
+
+    A rootless panel holding the install-packages app-op reports "api", so the
+    staged upload is its route and no Repair is raised although ADB never
+    answers.
+    """
+    entry = _entry(hass)
+    route.probe_target.return_value = InstallTargetProbe(
+        state=InstallTargetState.ADB_UNREACHABLE
+    )
+    route.entity.coordinator.data = replace(
+        route.entity.coordinator.data,
+        status=PanelStatus(
+            warning_count=0, capability_count=0, install_capability="api"
+        ),
+    )
+
+    await route.entity._async_refresh_route()
+
+    assert route.entity._has_install_route()
+    assert route.entity._legacy_api_ready_key is not None
+    assert _issue(hass, entry) is None
+
+
 async def test_removing_the_panel_takes_its_repair_with_it(
     route, hass: HomeAssistant
 ) -> None:

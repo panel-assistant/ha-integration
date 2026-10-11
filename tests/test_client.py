@@ -409,6 +409,27 @@ def test_parse_panel_install_status_keeps_only_progress_ownership() -> None:
     assert status.component == "ha-paneld"
 
 
+def test_parse_panel_install_status_reads_a_wait_for_the_owners_tap() -> None:
+    """Only the awaiting-confirmation code on a running operation counts."""
+    awaiting = (
+        b'{"running":true,"component":"ha-paneld","presentation":'
+        b'{"code":"install-awaiting-confirmation","params":{"component":"paneld"}}}'
+    )
+    assert parse_panel_install_status(awaiting).awaiting_confirmation is True
+    assert (
+        parse_panel_install_status(
+            b'{"running":true,"component":"ha-paneld"}'
+        ).awaiting_confirmation
+        is False
+    )
+    assert (
+        parse_panel_install_status(
+            awaiting.replace(b'running":true', b'running":false')
+        ).awaiting_confirmation
+        is False
+    )
+
+
 @pytest.mark.parametrize(
     "body",
     [

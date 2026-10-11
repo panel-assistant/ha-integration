@@ -12,6 +12,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from typing import Any
 
 from aiohttp import ClientConnectorError
 from aiohttp.web import HTTPBadRequest
@@ -138,6 +139,8 @@ _UPDATE_TIMEOUT_SECONDS = (
     + _RESTART_HEALTH_GRACE_SECONDS
 )
 _UPDATE_RECHECK_SECONDS = 2
+_AWAITING_CONFIRMATION_SUMMARY = "Tap Install on the panel to finish the update."
+AWAITING_CONFIRMATION_ATTRIBUTE = "awaiting_confirmation"
 # How long the permission repair after an update waits for the panel's ADB to
 # answer again: twelve tries, fifteen seconds apart.
 _PERMISSION_REPAIR_ATTEMPTS = 12
@@ -884,6 +887,33 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         if snapshot is None:
             return None
         return snapshot.health.package or LEGACY_PACKAGE_ID
+
+    def _awaiting_confirmation(self) -> bool:
+        """The panel's own installer waits for a tap on Install."""
+        snapshot = self._update_coordinator.data
+        operation = snapshot.operation if snapshot is not None else None
+        # Either route can wait: the panel's own download runs as "ha-paneld",
+        # an update Home Assistant sent runs as the uploaded "APK".
+        return (
+            operation is not None
+            and operation.running
+            and operation.awaiting_confirmation
+        )
+
+    @property
+    def release_summary(self) -> str | None:
+        """Tell the owner to finish an update waiting on the panel's prompt."""
+        if self._awaiting_confirmation():
+            return _AWAITING_CONFIRMATION_SUMMARY
+        return super().release_summary
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Route facts, plus the panel's wait for a tap when there is one."""
+        attributes = super().extra_state_attributes
+        if not self._awaiting_confirmation():
+            return attributes
+        return {**(attributes or {}), AWAITING_CONFIRMATION_ATTRIBUTE: True}
 
     def _handle_update_coordinator_update(self) -> None:
         """Keep a recovered operation latched across transient status samples."""

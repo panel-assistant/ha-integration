@@ -757,7 +757,7 @@
     },
     "no_update_route": {
       "title": "Panel {panel} nemůže přijímat aktualizace aplikace",
-      "description": "Panel Assistant nemůže na panelu {panel} instalovat aktualizace aplikace, proto aplikace zůstává na stávající verzi. Vše ostatní na panelu dál funguje, a proto lze tento problém snadno přehlédnout. Obvykle následuje po změně provedené na samotném panelu, například po aktualizaci firmwaru nebo resetu. Výběrem Další informace zobrazíte postup pro tento panel."
+      "description": "Panel Assistant nemůže na panelu {panel} instalovat aktualizace aplikace, proto aplikace zůstává na stávající verzi. Vše ostatní na panelu dál funguje, a proto lze tento problém snadno přehlédnout. Obvykle následuje po změně provedené na samotném panelu, například po aktualizaci firmwaru nebo resetu. Aktualizace obnovíte opětovným připojením panelu k Panel Assistant přes USB. Výběrem Další informace zobrazíte postup pro tento panel."
     },
     "merged_panel_identity": {
       "title": "Oddělit sloučené panely: {panels}",
