@@ -7,9 +7,11 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import aiohttp
 from homeassistant.components import panel_custom
 from homeassistant.components.http.server import StaticPathConfig
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import DOMAIN, INTEGRATION_BUILD, INTEGRATION_VERSION
 from .embed import EmbedProxyView
@@ -22,10 +24,36 @@ SIDEBAR_PANEL_PATH = "panel-assistant"
 # Each release opens the installer copy published with it, so a later installer
 # deploy never changes what an installed release talks to. The root keeps the
 # newest copy for releases up to 0.9.0, which open the root.
+PUBLISHED_INSTALLER_ROOT = "https://install.panel-assistant.io/"
 DEFAULT_INSTALLER_URL = f"https://install.panel-assistant.io/{INTEGRATION_VERSION}/"
 # A self-hosted or development installer can replace the published one. The browser
 # side still refuses anything that is not HTTPS or plain HTTP on localhost.
 INSTALLER_URL = os.environ.get("PANEL_ASSISTANT_INSTALLER_URL", DEFAULT_INSTALLER_URL)
+
+
+async def _async_copy_missing(hass: HomeAssistant, url: str) -> bool:
+    """Whether the site answers that this installer copy does not exist."""
+    try:
+        async with async_get_clientsession(hass).head(
+            url, timeout=aiohttp.ClientTimeout(total=5)
+        ) as response:
+            return response.status == 404
+    except aiohttp.ClientError, TimeoutError:
+        return False
+
+
+async def _async_installer_url(hass: HomeAssistant) -> str:
+    """Open this release's copy, or the newest one while its own is unpublished.
+
+    A build numbered ahead of its release tag has no copy yet, and the site
+    publishes one only when the tag is pushed. Only a definite 404 falls back,
+    so a check that cannot reach the site changes nothing.
+    """
+    if INSTALLER_URL == DEFAULT_INSTALLER_URL and await _async_copy_missing(
+        hass, INSTALLER_URL
+    ):
+        return PUBLISHED_INSTALLER_ROOT
+    return INSTALLER_URL
 
 
 @dataclass
@@ -63,7 +91,7 @@ async def async_register_browser_panel(hass: HomeAssistant) -> None:
                 require_admin=True,
                 # The version caption under the brand, as in the sidebar's top menu.
                 config={
-                    "installer_url": INSTALLER_URL,
+                    "installer_url": await _async_installer_url(hass),
                     "version": INTEGRATION_VERSION,
                     "build": INTEGRATION_BUILD,
                 },
