@@ -682,6 +682,22 @@ async def test_vendor_announced_panel_without_the_app_is_offered_with_adb_closed
     assert card["context"]["unique_id"] == "mdns:shellywalldisplay-00a90b9d900a"
 
 
+async def test_vendor_announcement_proves_a_panel_the_companion_app_already_knows(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """Companion's card is kept, and Shelly's name makes it a panel with ADB closed."""
+    _companion(hass, "Wall screen", "192.168.1.70", "a")
+    with patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)):
+        await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=_shelly_wall_display("192.168.1.70"),
+        )
+        await hass.async_block_till_done()
+
+    assert set(_cards(hass)) == {"Wall screen"}
+
+
 async def test_vendor_announcement_of_an_added_panel_raises_no_card(
     hass: HomeAssistant, adb_open: SimpleNamespace
 ) -> None:
