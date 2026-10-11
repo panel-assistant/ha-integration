@@ -14,7 +14,7 @@
     "restarting": "Reiniciando ({reason})",
     "not_loaded": "não carregado",
     "opening": "Abrindo {panel}…",
-    "loadingHint": "Geralmente leva alguns segundos",
+    "loadingHint": "Só um momento",
     "empty": "Ainda não há painéis vinculados.",
     "failed": "Não foi possível abrir o painel. Uma nova tentativa será feita em breve.",
     "admin": "Um administrador precisa abrir esta página.",

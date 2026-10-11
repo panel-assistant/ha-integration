@@ -76,12 +76,12 @@
         "description": "Vybrané vydání obsahuje ověřený popis instalace. Jednou zvolte Odeslat: tím vytvoříte nebo načtete trvalou identitu ADB pro tuto instalaci Home Assistant a nabídnete její veřejný klíč panelu Android na adrese {address}. Na panelu schvalte výzvu Android k povolení ladění, pak se sem vraťte a znovu zvolte Odeslat. Android může Home Assistant označovat jako počítač. Schválení uděluje obecný přístup k shellu ADB, dokud zůstává zapnuté síťové ladění; odeberte jej v nastavení pro vývojáře na panelu. V tomto kroku se žádný APK nestahuje ani neinstaluje."
       },
       "confirm_install_candidate": {
-        "title": "Install Panel Assistant {version}?",
-        "description": "Ready to install on {model} at {address}.\n\nYour other apps are not touched."
+        "title": "Nainstalovat Panel Assistant {version}?",
+        "description": "Připraveno k instalaci na {model} na adrese {address}.\n\nOstatní aplikace se nezmění."
       },
       "confirm_install_rc": {
-        "title": "Install Panel Assistant {version}?",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on {model} at {address}.\n\nYour other apps are not touched."
+        "title": "Nainstalovat Panel Assistant {version}?",
+        "description": "Pouze pro testování: Panel Assistant {version} je kandidát na vydání, nikoli stabilní verze, a může obsahovat chyby.\n\nPřipraveno k instalaci na {model} na adrese {address}.\n\nOstatní aplikace se nezmění."
       },
       "release_preview_only": {
         "title": "Vydání nelze nainstalovat automaticky",
@@ -93,13 +93,13 @@
       }
     },
     "progress": {
-      "installing": "Installing Panel Assistant on {address}. Keep this dialog open; it finishes on its own.\n\nIf you close it, the install keeps running. Add the same address again to finish."
+      "installing": "Instalace Panel Assistant na adrese {address}. Nechte tento dialog otevřený; operace se dokončí sama.\n\nPokud ho zavřete, instalace bude pokračovat. Pro dokončení přidejte stejnou adresu znovu."
     },
     "error": {
       "old_app_installed": "Na tomto panelu je stále nainstalovaná stará aplikace ha-paneld, ale neodpovídá. Otevřete ji na panelu nebo panel restartujte a pak jej znovu přidejte. Panel Assistant poté nabídne opravu, která jej převede na novou aplikaci.",
       "cannot_connect": "Nelze se připojit k platnému koncovému bodu kontroly stavu Panel Assistant.",
       "invalid_address": "Zadejte název hostitele nebo IP adresu bez schématu URL či cesty.",
-      "invalid_install_address": "Enter only the panel hostname or IP address.",
+      "invalid_install_address": "Zadejte pouze název hostitele nebo IP adresu panelu.",
       "install_resolution_failed": "Home Assistant nedokázal převést tuto adresu panelu. Zkontrolujte adresu a místní DNS a zkuste to znovu.",
       "install_resolution_timeout": "Časový limit místního překladu názvu vypršel před bezpečným zafixováním adresy panelu. Zkontrolujte místní DNS a zkuste to znovu.",
       "install_too_many_addresses": "Tento název hostitele se přeložil na příliš mnoho adres, aby jej bylo možné bezpečně zafixovat. Použijte vyhrazený místní název hostitele nebo soukromou IP adresu.",
@@ -608,7 +608,7 @@
       "message": "Panel nedokázal příkaz provést"
     },
     "adb_authorization_required": {
-      "message": "Updates are not allowed on {panel} yet. Open Home Assistant Repairs and select Allow updates on {panel}, then tap Allow on the panel's \"Allow debugging?\" prompt."
+      "message": "Aktualizace na {panel} zatím nejsou povolené. Otevřete Opravy v Home Assistant a vyberte „Povolit aktualizace na {panel}“. Potom na panelu v dotazu „Povolit ladění?“ klepněte na „Povolit“."
     },
     "voice_wake_words_rejected": {
       "message": "Panel nepřijal aktivační slova"
@@ -648,7 +648,7 @@
           }
         },
         "progress": {
-          "moving": "Moving {panel} to the new app. Keep the panel switched on."
+          "moving": "Přesun {panel} do nové aplikace. Nechte panel zapnutý."
         },
         "abort": {
           "entry_removed": "Tento panel byl ze systému Home Assistant odstraněn.",
@@ -656,7 +656,7 @@
           "release_unavailable": "Panel Assistant nyní nemohl získat vydání nové aplikace. Zkontrolujte, že systém Home Assistant má přístup k internetu, a zkuste to znovu.",
           "adb_authorization": "Panel {panel} dosud nepovolil připojení aplikaci Panel Assistant. Podívejte se na panel: pokud zobrazuje dotaz „Povolit ladění USB?“, klepněte na Povolit, zaškrtněte „Vždy povolit z tohoto počítače“ a poté znovu otevřete tuto opravu.",
           "adb_unreachable": "Panel Assistant se nemohl připojit k panelu {panel} a převést jej. Zkontrolujte, že je panel zapnutý a ve stejné síti jako systém Home Assistant a že je v nastavení aplikace na panelu zapnuté síťové ladění. Poté znovu otevřete tuto opravu.",
-          "backup_failed": "Panel Assistant could not take a complete backup of {panel}, so nothing was changed. Try again later.",
+          "backup_failed": "Panel Assistant nemohl vytvořit úplnou zálohu {panel}, takže se nic nezměnilo. Zkuste to později znovu.",
           "new_app_is_home": "Panel {panel} je uprostřed dřívějšího převodu, který toto vydání zatím nemůže dokončit. Nic se nezměnilo. Opraví to pozdější vydání aplikace Panel Assistant.",
           "move_failed": "Převod panelu {panel} nebyl dokončen. Jeho nastavení je zálohované v systému Home Assistant a obrazovka panelu zůstává funkční. Znovu otevřete tuto opravu a pokračujte tam, kde se převod zastavil.",
           "panel_changed": "Zařízení odpovídající na adrese panelu {panel} není panel, který zná Panel Assistant, proto se nic nezměnilo. Pokud byl panel vyměněn nebo resetován, odstraňte jej ze systému Home Assistant a znovu jej přidejte.",
@@ -781,7 +781,7 @@
     },
     "merged_panel_identity": {
       "title": "Oddělit sloučené panely: {panels}",
-      "description": "The panels {panels} report the same device identity, so Home Assistant cannot safely decide which entry owns a native connection or entity. Their native connection is refused and no entities are moved. Update the Panel Assistant app on every affected panel so each has a distinct identity, then delete the merged device and let the panels register again."
+      "description": "Panely {panels} hlásí stejnou identitu zařízení, takže Home Assistant nemůže bezpečně určit, ke kterému záznamu patří nativní připojení nebo entita. Jejich nativní připojení je odmítnuto a žádné entity se nepřesouvají. Aktualizujte aplikaci Panel Assistant na všech dotčených panelech, aby měl každý vlastní identitu. Potom odstraňte sloučené zařízení a nechte panely znovu se zaregistrovat."
     },
     "panel_migration_incomplete": {
       "title": "Panel na adrese {address} nedokončil převod na novou aplikaci",
@@ -793,7 +793,7 @@
           }
         },
         "abort": {
-          "migration_unfinished": "The new app has not answered yet. The panel carries on by itself, so open this issue again later."
+          "migration_unfinished": "Nová aplikace zatím neodpověděla. Panel pokračuje sám, proto tento problém otevřete znovu později."
         }
       }
     },
@@ -803,7 +803,7 @@
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "The install or update on {panel} did not finish.",
+            "description": "Instalace nebo aktualizace na {panel} nebyla dokončena.",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",
@@ -840,12 +840,12 @@
       }
     },
     "installer_failure_authorization_failed": {
-      "title": "{panel} did not authorize the installation",
+      "title": "{panel} nepovolil instalaci",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "The panel did not accept the connection from Home Assistant.",
+            "description": "Panel nepřijal připojení z Home Assistant.",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",
@@ -882,12 +882,12 @@
       }
     },
     "installer_failure_preflight_rejected": {
-      "title": "{panel} did not pass the checks needed to install",
+      "title": "{panel} neprošel kontrolami potřebnými k instalaci",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Nothing was installed on the panel.",
+            "description": "Na panel se nic nenainstalovalo.",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",
@@ -924,12 +924,12 @@
       }
     },
     "installer_failure_artifact_rejected": {
-      "title": "The Panel Assistant release for {panel} could not be verified",
+      "title": "Vydání Panel Assistant pro {panel} se nepodařilo ověřit",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "The release could not be verified, so nothing was installed.",
+            "description": "Vydání se nepodařilo ověřit, takže se nic nenainstalovalo.",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",
@@ -966,12 +966,12 @@
       }
     },
     "installer_failure_transport_failed": {
-      "title": "Connection to {panel} failed during installation",
+      "title": "Připojení k {panel} během instalace selhalo",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "The connection dropped before the install finished.",
+            "description": "Připojení se přerušilo před dokončením instalace.",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",
@@ -1008,12 +1008,12 @@
       }
     },
     "installer_failure_install_failed": {
-      "title": "Android refused to install Panel Assistant on {panel}",
+      "title": "Android odmítl nainstalovat Panel Assistant na {panel}",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Android on the panel rejected the install.",
+            "description": "Android na panelu odmítl instalaci.",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",
@@ -1050,12 +1050,12 @@
       }
     },
     "installer_failure_launch_failed": {
-      "title": "Panel Assistant was installed on {panel}, but could not be started",
+      "title": "Panel Assistant byl nainstalován na {panel}, ale nepodařilo se ho spustit",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Panel Assistant is installed but did not start.",
+            "description": "Panel Assistant je nainstalovaný, ale nespustil se.",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",
@@ -1092,12 +1092,12 @@
       }
     },
     "installer_failure_health_check_failed": {
-      "title": "Panel Assistant on {panel} did not pass its health check",
+      "title": "Panel Assistant na {panel} neprošel kontrolou funkčnosti",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Panel Assistant started but did not report healthy.",
+            "description": "Panel Assistant se spustil, ale neohlásil zdravý stav.",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",
@@ -1134,12 +1134,12 @@
       }
     },
     "installer_failure_ambiguous_mutation": {
-      "title": "Installation may have changed {panel}; its state is unknown",
+      "title": "Instalace mohla změnit {panel}; jeho stav není známý",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Home Assistant cannot tell whether the install changed the panel.",
+            "description": "Home Assistant nemůže určit, zda instalace panel změnila.",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",
@@ -1176,12 +1176,12 @@
       }
     },
     "installer_failure_verification_required": {
-      "title": "Panel Assistant on {panel} needs verification before another install",
+      "title": "Panel Assistant na {panel} potřebuje ověření před další instalací",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Another install is held until the panel is checked.",
+            "description": "Další instalace je pozastavena, dokud panel nebude zkontrolován.",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",
@@ -1218,15 +1218,15 @@
       }
     },
     "installer_failure_update": {
-      "title": "The update on {panel} did not complete",
+      "title": "Aktualizace na {panel} nebyla dokončena",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Panel Assistant was not updated on the panel.",
+            "description": "Panel Assistant se na panelu neaktualizoval.",
             "menu_options": {
               "retry": "Zkusit znovu",
-              "authorize_adb": "Allow updates",
+              "authorize_adb": "Povolit aktualizace",
               "support_report": "Zpráva pro podporu",
               "clear_error": "Vymazat chybu"
             }
@@ -1244,8 +1244,8 @@
             "description": "Opakovaný pokus je pozastaven. Chyba zůstává v části Opravy; podrobnosti najdete ve zprávě pro podporu."
           },
           "authorize_adb": {
-            "title": "Allow updates on {panel}",
-            "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt. Allowing gives this Home Assistant general ADB shell access to the panel while network debugging stays on.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
+            "title": "Povolit aktualizace na {panel}",
+            "description": "Vyberte „Odeslat“ a potom na panelu v dotazu „Povolit ladění?“ klepněte na „Povolit“. Tím této instanci Home Assistant udělíte obecný přístup k shellu ADB na panelu, dokud zůstane zapnuté síťové ladění.\n\nPotom znovu vyberte „Odeslat“. Toto oprávnění můžete později odvolat v nastavení pro vývojáře na panelu."
           }
         },
         "progress": {
@@ -1262,7 +1262,7 @@
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu.",
           "cannot_connect": "Nelze se připojit k platnému koncovému bodu kontroly funkčnosti Panel Assistant.",
-          "invalid_install_address": "Enter only the panel hostname or IP address.",
+          "invalid_install_address": "Zadejte pouze název hostitele nebo IP adresu panelu.",
           "install_resolution_failed": "Home Assistant nemohl přeložit tuto adresu panelu. Zkontrolujte adresu a místní DNS a zkuste to znovu.",
           "install_resolution_timeout": "Vypršel časový limit místního překladu názvu, než bylo možné bezpečně pevně určit adresu panelu. Zkontrolujte místní DNS a zkuste to znovu.",
           "install_too_many_addresses": "Tento název hostitele se přeložil na příliš mnoho adres, než aby bylo možné bezpečně pevně určit jednu z nich. Použijte vyhrazený místní název hostitele nebo soukromou IP adresu.",
@@ -1281,12 +1281,12 @@
       }
     },
     "installer_failure_retry_hold": {
-      "title": "Retry on {panel} paused because its state could not be checked safely",
+      "title": "Další pokus na {panel} je pozastaven, protože jeho stav nebylo možné bezpečně zkontrolovat",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Retrying is on hold until the panel can be checked.",
+            "description": "Další pokusy jsou pozastavené, dokud nebude možné panel zkontrolovat.",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",
@@ -1323,8 +1323,8 @@
       }
     },
     "panel_address_unreachable": {
-      "title": "Can't reach {panel} at {address}",
-      "description": "Its entities still work through the live connection from {session_address}.\n\nIf the panel has moved, add it again at its new address. This clears by itself once the address answers."
+      "title": "{panel} není dostupný na adrese {address}",
+      "description": "Jeho entity dál fungují přes aktivní připojení z {session_address}.\n\nPokud se adresa panelu změnila, přidejte ho znovu na nové adrese. Tento problém zmizí sám, jakmile adresa odpoví."
     },
     "panel_address_unverified": {
       "title": "Panel {panel} se přesunul a jeho novou adresu se nepodařilo potvrdit",
@@ -1353,15 +1353,15 @@
       }
     },
     "installer_failure_adb_authorization": {
-      "title": "Allow updates on {panel}",
+      "title": "Povolit aktualizace na {panel}",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Home Assistant is not yet allowed to update {panel}.",
+            "description": "Home Assistant zatím nemá oprávnění aktualizovat {panel}.",
             "menu_options": {
               "retry": "Zkusit znovu",
-              "authorize_adb": "Allow updates",
+              "authorize_adb": "Povolit aktualizace",
               "support_report": "Zpráva pro podporu",
               "clear_error": "Vymazat chybu"
             }
@@ -1379,8 +1379,8 @@
             "description": "Opakovaný pokus je pozastaven. Chyba zůstává v části Opravy; podrobnosti najdete ve zprávě pro podporu."
           },
           "authorize_adb": {
-            "title": "Allow updates on {panel}",
-            "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt. Allowing gives this Home Assistant general ADB shell access to the panel while network debugging stays on.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
+            "title": "Povolit aktualizace na {panel}",
+            "description": "Vyberte „Odeslat“ a potom na panelu v dotazu „Povolit ladění?“ klepněte na „Povolit“. Tím této instanci Home Assistant udělíte obecný přístup k shellu ADB na panelu, dokud zůstane zapnuté síťové ladění.\n\nPotom znovu vyberte „Odeslat“. Toto oprávnění můžete později odvolat v nastavení pro vývojáře na panelu."
           }
         },
         "progress": {
@@ -1397,7 +1397,7 @@
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu.",
           "cannot_connect": "Nelze se připojit k platnému koncovému bodu kontroly funkčnosti Panel Assistant.",
-          "invalid_install_address": "Enter only the panel hostname or IP address.",
+          "invalid_install_address": "Zadejte pouze název hostitele nebo IP adresu panelu.",
           "install_resolution_failed": "Home Assistant nemohl přeložit tuto adresu panelu. Zkontrolujte adresu a místní DNS a zkuste to znovu.",
           "install_resolution_timeout": "Vypršel časový limit místního překladu názvu, než bylo možné bezpečně pevně určit adresu panelu. Zkontrolujte místní DNS a zkuste to znovu.",
           "install_too_many_addresses": "Tento název hostitele se přeložil na příliš mnoho adres, takže jej nelze bezpečně zafixovat. Použijte vyhrazený místní název hostitele nebo soukromou IP adresu.",
@@ -1416,17 +1416,17 @@
       }
     },
     "adb_update_authorization": {
-      "title": "Allow updates on {panel}",
+      "title": "Povolit aktualizace na {panel}",
       "fix_flow": {
         "step": {
           "authorize_adb": {
-            "title": "Allow updates on {panel}",
-            "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt. Allowing gives this Home Assistant general ADB shell access to the panel while network debugging stays on.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
+            "title": "Povolit aktualizace na {panel}",
+            "description": "Vyberte „Odeslat“ a potom na panelu v dotazu „Povolit ladění?“ klepněte na „Povolit“. Tím této instanci Home Assistant udělíte obecný přístup k shellu ADB na panelu, dokud zůstane zapnuté síťové ladění.\n\nPotom znovu vyberte „Odeslat“. Toto oprávnění můžete později odvolat v nastavení pro vývojáře na panelu."
           }
         },
         "error": {
           "cannot_connect": "Nelze se připojit k platnému koncovému bodu Panel Assistant pro kontrolu stavu.",
-          "invalid_install_address": "Enter only the panel hostname or IP address.",
+          "invalid_install_address": "Zadejte pouze název hostitele nebo IP adresu panelu.",
           "install_resolution_failed": "Home Assistant nedokázal přeložit tuto adresu panelu. Zkontrolujte adresu a místní DNS a pak to zkuste znovu.",
           "install_resolution_timeout": "Překlad místního názvu překročil časový limit dříve, než bylo možné bezpečně zafixovat adresu panelu. Zkontrolujte místní DNS a pak to zkuste znovu.",
           "install_too_many_addresses": "Tento název hostitele se přeložil na příliš mnoho adres, takže adresu nelze bezpečně zafixovat. Použijte vyhrazený místní název hostitele nebo soukromou IP adresu.",
@@ -1452,7 +1452,7 @@
         "description": "Pokračujte v nastavení tohoto panelu nebo povolte přístup přes ADB pro aktualizace panelu. Pokud panel ještě není propojený, potvrďte jeho přihlášený účet a dokončete nastavení.",
         "menu_options": {
           "onboarding": "Pokračovat v nastavení",
-          "authorize_adb": "Allow updates",
+          "authorize_adb": "Povolit aktualizace",
           "updates": "Aktualizace panelu",
           "remove_app": "Odebrat Panel Assistant z tohoto panelu"
         }
@@ -1474,8 +1474,8 @@
         }
       },
       "authorize_adb": {
-        "title": "Allow updates on {panel}",
-        "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt. Allowing gives this Home Assistant general ADB shell access to the panel while network debugging stays on.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
+        "title": "Povolit aktualizace na {panel}",
+        "description": "Vyberte „Odeslat“ a potom na panelu v dotazu „Povolit ladění?“ klepněte na „Povolit“. Tím této instanci Home Assistant udělíte obecný přístup k shellu ADB na panelu, dokud zůstane zapnuté síťové ladění.\n\nPotom znovu vyberte „Odeslat“. Toto oprávnění můžete později odvolat v nastavení pro vývojáře na panelu."
       },
       "updates": {
         "title": "Aktualizace panelu",
@@ -1505,7 +1505,7 @@
     },
     "error": {
       "cannot_connect": "Nelze se připojit k platnému koncovému bodu Panel Assistant pro kontrolu stavu.",
-      "invalid_install_address": "Enter only the panel hostname or IP address.",
+      "invalid_install_address": "Zadejte pouze název hostitele nebo IP adresu panelu.",
       "install_resolution_failed": "Home Assistant nedokázal přeložit tuto adresu panelu. Zkontrolujte adresu a místní DNS a pak to zkuste znovu.",
       "install_resolution_timeout": "Překlad místního názvu překročil časový limit dříve, než bylo možné bezpečně zafixovat adresu panelu. Zkontrolujte místní DNS a pak to zkuste znovu.",
       "install_too_many_addresses": "Tento název hostitele se přeložil na příliš mnoho adres, takže adresu nelze bezpečně zafixovat. Použijte vyhrazený místní název hostitele nebo soukromou IP adresu.",
@@ -1520,14 +1520,14 @@
       "removal_unconfirmed": "Zaškrtnutím políčka potvrďte, že jste si přečetli rizika odebrání. Nic nebylo odebráno.",
       "removal_busy": "Tento panel už mění aktualizace nebo přesun. Nic nebylo odebráno; zkuste to znovu, až tato operace skončí.",
       "removal_adb_unreachable": "Home Assistant se nedokázal spojit s panelem přes Android Debug Bridge (port 5555). Nic nebylo odebráno. Zkontrolujte, že je panel zapnutý a ladění po síti je stále povolené, a pak to zkuste znovu.",
-      "removal_adb_authorization": "The panel has not accepted this Home Assistant instance for the Android Debug Bridge. Nothing was removed. Choose Allow updates first, then try again.",
+      "removal_adb_authorization": "Panel nepřijal tuto instanci Home Assistant pro Android Debug Bridge. Nic nebylo odstraněno. Nejdřív vyberte „Povolit aktualizace“ a potom to zkuste znovu.",
       "removal_panel_changed": "Na adrese tohoto panelu nyní odpovídá jiné zařízení. Nic nebylo odebráno.",
-      "removal_approval_required": "Hardened security is on, so handing the home screen back has to be approved on the panel itself. Nothing was changed and Panel Assistant is still installed. Approve the request on the panel, then submit again.",
+      "removal_approval_required": "Je zapnuté posílené zabezpečení, takže předání domovské obrazovky zpět musí být schváleno na samotném panelu. Nic se nezměnilo a Panel Assistant je stále nainstalovaný. Schvalte požadavek na panelu a potom znovu odešlete formulář.",
       "removal_no_replacement_home": "Panel nemohl předat svou domovskou obrazovku jinému spouštěči: nemá jinou aplikaci domovské obrazovky, takže může zobrazit pouze Panel Assistant. Nic nebylo odebráno a panel stále funguje. Nainstalujte spouštěč nebo znovu zapněte ten od výrobce a pak to zkuste znovu.",
       "removal_ownership_unreadable": "Panel nedokázal přečíst vlastní záznam o aplikacích výrobce, které vypnul. Nic nebylo odebráno. Znovu na panelu spusťte Panel Assistant a pak to zkuste znovu.",
       "removal_package_state_unknown": "Panel nedokázal zjistit, které aplikace jsou nainstalované nebo která z nich slouží jako domovská obrazovka. Nic nebylo odebráno. Zkuste to znovu za chvíli.",
       "removal_home_not_handed": "Panel nepotvrdil, že jeho domovskou obrazovku převzal jiný spouštěč, takže Panel Assistant nebyl odebrán. Nainstalujte spouštěč nebo znovu zapněte ten od výrobce a pak to zkuste znovu.",
-      "removal_hand_back_unsupported": "The Panel Assistant app on this panel is too old to hand its home screen back. Nothing was removed. Update it first, then try again.",
+      "removal_hand_back_unsupported": "Aplikace Panel Assistant na tomto panelu je příliš stará, aby předala domovskou obrazovku zpět. Nic nebylo odstraněno. Nejdřív ji aktualizujte a potom to zkuste znovu.",
       "removal_app_unreachable": "Panel Assistant neodpověděl a stále slouží jako domovská obrazovka panelu, takže jeho odebrání by nyní nechalo panel bez domovské obrazovky. Nic nebylo odebráno. Spusťte na panelu Panel Assistant a pak to zkuste znovu.",
       "removal_remove_failed": "Panel už má svou domovskou obrazovku zpět, ale Panel Assistant se nepodařilo úplně odebrat. Zkuste to znovu: další pokus dokončí zbývající kroky."
     },

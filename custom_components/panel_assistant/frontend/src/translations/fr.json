@@ -14,7 +14,7 @@
     "restarting": "Redémarrage ({reason})",
     "not_loaded": "non chargé",
     "opening": "Ouverture de {panel}…",
-    "loadingHint": "Prend généralement quelques secondes",
+    "loadingHint": "Un instant",
     "empty": "Aucun panneau n’est encore rattaché.",
     "failed": "Impossible d’ouvrir le panneau. Une nouvelle tentative aura lieu sous peu.",
     "admin": "Un administrateur doit ouvrir cette page.",

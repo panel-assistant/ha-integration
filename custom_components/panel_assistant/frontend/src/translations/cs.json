@@ -14,7 +14,7 @@
     "restarting": "Restartování ({reason})",
     "not_loaded": "nenačtený",
     "opening": "Otevírání panelu {panel}…",
-    "loadingHint": "Obvykle to trvá několik sekund",
+    "loadingHint": "Chvilku strpení",
     "empty": "Zatím nejsou připojené žádné panely.",
     "failed": "Panel se nepodařilo otevřít. Brzy proběhne další pokus.",
     "admin": "Tuto stránku musí otevřít správce.",

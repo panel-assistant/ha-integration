@@ -76,12 +76,12 @@
         "description": "Вибраний випуск містить перевірений дескриптор інсталяції. Натисніть «Надіслати» один раз, щоб створити або завантажити постійний ідентифікатор ADB для цієї інсталяції Home Assistant і запропонувати його відкритий ключ панелі Android за адресою {address}. На панелі підтвердьте запит Android «Дозволити налагодження», потім поверніться сюди й знову натисніть «Надіслати». Android може назвати Home Assistant комп’ютером. Схвалення надає загальний доступ до оболонки ADB, доки мережеве налагодження залишається увімкненим; відкликати його можна в налаштуваннях розробника на панелі. На цьому кроці APK не завантажується і не встановлюється."
       },
       "confirm_install_candidate": {
-        "title": "Install Panel Assistant {version}?",
-        "description": "Ready to install on {model} at {address}.\n\nYour other apps are not touched."
+        "title": "Установити Panel Assistant {version}?",
+        "description": "Усе готово до встановлення на {model} за адресою {address}.\n\nІнші ваші застосунки не буде змінено."
       },
       "confirm_install_rc": {
-        "title": "Install Panel Assistant {version}?",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on {model} at {address}.\n\nYour other apps are not touched."
+        "title": "Установити Panel Assistant {version}?",
+        "description": "Лише для тестування: Panel Assistant {version} — це кандидат на випуск, а не стабільна версія, і він може містити помилки.\n\nУсе готово до встановлення на {model} за адресою {address}.\n\nІнші ваші застосунки не буде змінено."
       },
       "release_preview_only": {
         "title": "Цей випуск неможливо встановити автоматично",
@@ -93,13 +93,13 @@
       }
     },
     "progress": {
-      "installing": "Installing Panel Assistant on {address}. Keep this dialog open; it finishes on its own.\n\nIf you close it, the install keeps running. Add the same address again to finish."
+      "installing": "Встановлення Panel Assistant за адресою {address}. Залиште цей діалог відкритим; операція завершиться автоматично.\n\nЯкщо ви закриєте його, встановлення триватиме. Додайте ту саму адресу ще раз, щоб завершити операцію."
     },
     "error": {
       "old_app_installed": "На цій панелі досі встановлено старий застосунок ha-paneld, але він не відповідає. Відкрийте його на панелі або перезапустіть панель, а потім додайте її знову. Після цього Panel Assistant запропонує виправлення, яке перенесе її в новий застосунок.",
       "cannot_connect": "Не вдалося встановити з'єднання з дійсною кінцевою точкою перевірки працездатності Panel Assistant.",
       "invalid_address": "Введіть ім’я хоста або адресу IP без схеми URL та шляху.",
-      "invalid_install_address": "Enter only the panel hostname or IP address.",
+      "invalid_install_address": "Введіть лише ім’я хоста або IP-адресу панелі.",
       "install_resolution_failed": "Home Assistant не зміг визначити адресу цієї панелі. Перевірте адресу та локальний DNS, а потім спробуйте ще раз.",
       "install_resolution_timeout": "Час очікування під час локального розпізнавання імен закінчився до того, як адресу панелі вдалося надійно зафіксувати. Перевірте локальний DNS, а потім спробуйте ще раз.",
       "install_too_many_addresses": "Ця назва хоста розпізнається як занадто багато адрес, щоб її можна було надійно прив’язати. Використовуйте виділену локальну назву хоста або приватну адресу IP.",
@@ -570,7 +570,7 @@
       "message": "Панель не приймає завантаження додатків; увімкніть у її налаштуваннях завантаження APK"
     },
     "adb_authorization_required": {
-      "message": "Updates are not allowed on {panel} yet. Open Home Assistant Repairs and select Allow updates on {panel}, then tap Allow on the panel's \"Allow debugging?\" prompt."
+      "message": "Оновлення на {panel} ще не дозволено. Відкрийте «Виправлення» в Home Assistant і виберіть «Дозволити оновлення на {panel}». Потім натисніть «Дозволити» в запиті «Дозволити налагодження?» на панелі."
     },
     "approval_denied": {
       "message": "Команду відхилено на екрані самої панелі"
@@ -646,7 +646,7 @@
           }
         },
         "progress": {
-          "moving": "Moving {panel} to the new app. Keep the panel switched on."
+          "moving": "Перенесення {panel} до нового застосунку. Залиште панель увімкненою."
         },
         "abort": {
           "entry_removed": "Цю панель видалено з Home Assistant.",
@@ -654,7 +654,7 @@
           "release_unavailable": "Panel Assistant зараз не вдалося отримати випуск нового застосунку. Перевірте, чи має Home Assistant доступ до інтернету, і спробуйте ще раз.",
           "adb_authorization": "{panel} ще не дозволила Panel Assistant підключитися. Подивіться на панель: якщо вона показує «Дозволити налагодження USB?», торкніться «Дозволити», позначивши «Завжди дозволяти з цього комп’ютера», а потім знову відкрийте це виправлення.",
           "adb_unreachable": "Panel Assistant не вдалося підключитися до {panel}, щоб перенести її. Переконайтеся, що панель увімкнена й перебуває в тій самій мережі, що й Home Assistant, і що мережеве налагодження ввімкнено в налаштуваннях застосунку панелі, а потім знову відкрийте це виправлення.",
-          "backup_failed": "Panel Assistant could not take a complete backup of {panel}, so nothing was changed. Try again later.",
+          "backup_failed": "Panel Assistant не вдалося створити повну резервну копію {panel}, тому нічого не було змінено. Спробуйте пізніше.",
           "new_app_is_home": "{panel} застрягла посеред попереднього перенесення, яке цей випуск ще не може завершити. Нічого не змінено. Пізніший випуск Panel Assistant це виправить.",
           "move_failed": "Перенесення {panel} не завершилося. Її налаштування збережено в Home Assistant, а панель і далі показує робочий екран. Знову відкрийте це виправлення, щоб продовжити з місця зупинки.",
           "panel_changed": "Пристрій, що відповідає за адресою {panel}, не є панеллю, яку знає Panel Assistant, тому нічого не змінено. Якщо панель замінили або скинули, видаліть її з Home Assistant і додайте знову.",
@@ -779,7 +779,7 @@
     },
     "merged_panel_identity": {
       "title": "Роз'єднати об'єднані панелі: {panels}",
-      "description": "The panels {panels} report the same device identity, so Home Assistant cannot safely decide which entry owns a native connection or entity. Their native connection is refused and no entities are moved. Update the Panel Assistant app on every affected panel so each has a distinct identity, then delete the merged device and let the panels register again."
+      "description": "Панелі {panels} повідомляють однаковий ідентифікатор пристрою, тому Home Assistant не може безпечно визначити, якому запису належить нативне з’єднання або сутність. Їхнє нативне з’єднання відхиляється, і жодні сутності не переміщуються. Оновіть застосунок Panel Assistant на всіх відповідних панелях, щоб кожна мала окремий ідентифікатор. Потім видаліть об’єднаний пристрій і дайте панелям зареєструватися знову."
     },
     "panel_migration_incomplete": {
       "title": "Панель за адресою {address} ще не завершила перехід на новий додаток",
@@ -791,7 +791,7 @@
           }
         },
         "abort": {
-          "migration_unfinished": "The new app has not answered yet. The panel carries on by itself, so open this issue again later."
+          "migration_unfinished": "Новий застосунок ще не відповів. Панель продовжує самостійно, тож відкрийте цю проблему знову пізніше."
         }
       }
     },
@@ -801,7 +801,7 @@
         "step": {
           "init": {
             "title": "Усунути помилку панелі",
-            "description": "The install or update on {panel} did not finish.",
+            "description": "Встановлення або оновлення на {panel} не завершилося.",
             "menu_options": {
               "retry": "Спробувати ще раз",
               "support_report": "Звіт для підтримки",
@@ -838,12 +838,12 @@
       }
     },
     "installer_failure_authorization_failed": {
-      "title": "{panel} did not authorize the installation",
+      "title": "{panel} не авторизувала встановлення",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Усунути помилку панелі",
-            "description": "The panel did not accept the connection from Home Assistant.",
+            "description": "Панель не прийняла з’єднання від Home Assistant.",
             "menu_options": {
               "retry": "Спробувати ще раз",
               "support_report": "Звіт для підтримки",
@@ -880,12 +880,12 @@
       }
     },
     "installer_failure_preflight_rejected": {
-      "title": "{panel} did not pass the checks needed to install",
+      "title": "{panel} не пройшла перевірки, потрібні для встановлення",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Усунути помилку панелі",
-            "description": "Nothing was installed on the panel.",
+            "description": "На панелі нічого не було встановлено.",
             "menu_options": {
               "retry": "Спробувати ще раз",
               "support_report": "Звіт для підтримки",
@@ -922,12 +922,12 @@
       }
     },
     "installer_failure_artifact_rejected": {
-      "title": "The Panel Assistant release for {panel} could not be verified",
+      "title": "Не вдалося перевірити випуск Panel Assistant для {panel}",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Усунути помилку панелі",
-            "description": "The release could not be verified, so nothing was installed.",
+            "description": "Не вдалося перевірити випуск, тому нічого не було встановлено.",
             "menu_options": {
               "retry": "Спробувати ще раз",
               "support_report": "Звіт для підтримки",
@@ -964,12 +964,12 @@
       }
     },
     "installer_failure_transport_failed": {
-      "title": "Connection to {panel} failed during installation",
+      "title": "З’єднання з {panel} перервалося під час встановлення",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Усунути помилку панелі",
-            "description": "The connection dropped before the install finished.",
+            "description": "З’єднання обірвалося до завершення встановлення.",
             "menu_options": {
               "retry": "Спробувати ще раз",
               "support_report": "Звіт для підтримки",
@@ -1006,12 +1006,12 @@
       }
     },
     "installer_failure_install_failed": {
-      "title": "Android refused to install Panel Assistant on {panel}",
+      "title": "Android відмовився встановлювати Panel Assistant на {panel}",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Усунути помилку панелі",
-            "description": "Android on the panel rejected the install.",
+            "description": "Android на панелі відхилив встановлення.",
             "menu_options": {
               "retry": "Спробувати ще раз",
               "support_report": "Звіт для підтримки",
@@ -1048,12 +1048,12 @@
       }
     },
     "installer_failure_launch_failed": {
-      "title": "Panel Assistant was installed on {panel}, but could not be started",
+      "title": "Panel Assistant встановлено на {panel}, але його не вдалося запустити",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Усунути помилку панелі",
-            "description": "Panel Assistant is installed but did not start.",
+            "description": "Panel Assistant встановлено, але він не запустився.",
             "menu_options": {
               "retry": "Спробувати ще раз",
               "support_report": "Звіт для підтримки",
@@ -1090,12 +1090,12 @@
       }
     },
     "installer_failure_health_check_failed": {
-      "title": "Panel Assistant on {panel} did not pass its health check",
+      "title": "Panel Assistant на {panel} не пройшов перевірку працездатності",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Усунути помилку панелі",
-            "description": "Panel Assistant started but did not report healthy.",
+            "description": "Panel Assistant запустився, але не повідомив про справний стан.",
             "menu_options": {
               "retry": "Спробувати ще раз",
               "support_report": "Звіт для підтримки",
@@ -1132,12 +1132,12 @@
       }
     },
     "installer_failure_ambiguous_mutation": {
-      "title": "Installation may have changed {panel}; its state is unknown",
+      "title": "Встановлення могло змінити {panel}; її стан невідомий",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Усунути помилку панелі",
-            "description": "Home Assistant cannot tell whether the install changed the panel.",
+            "description": "Home Assistant не може визначити, чи змінило встановлення панель.",
             "menu_options": {
               "retry": "Спробувати ще раз",
               "support_report": "Звіт для підтримки",
@@ -1174,12 +1174,12 @@
       }
     },
     "installer_failure_verification_required": {
-      "title": "Panel Assistant on {panel} needs verification before another install",
+      "title": "Panel Assistant на {panel} потрібно перевірити перед наступним встановленням",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Усунути помилку панелі",
-            "description": "Another install is held until the panel is checked.",
+            "description": "Наступне встановлення призупинено, доки панель не буде перевірено.",
             "menu_options": {
               "retry": "Спробувати ще раз",
               "support_report": "Звіт для підтримки",
@@ -1216,15 +1216,15 @@
       }
     },
     "installer_failure_update": {
-      "title": "The update on {panel} did not complete",
+      "title": "Оновлення на {panel} не завершилося",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Усунути помилку панелі",
-            "description": "Panel Assistant was not updated on the panel.",
+            "description": "Panel Assistant на панелі не було оновлено.",
             "menu_options": {
               "retry": "Спробувати ще раз",
-              "authorize_adb": "Allow updates",
+              "authorize_adb": "Дозволити оновлення",
               "support_report": "Звіт для підтримки",
               "clear_error": "Очистити помилку"
             }
@@ -1242,8 +1242,8 @@
             "description": "Повторну спробу призупинено. Помилка залишається у «Виправленнях»; подробиці є у звіті для підтримки."
           },
           "authorize_adb": {
-            "title": "Allow updates on {panel}",
-            "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt. Allowing gives this Home Assistant general ADB shell access to the panel while network debugging stays on.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
+            "title": "Дозволити оновлення на {panel}",
+            "description": "Виберіть «Надіслати», а потім натисніть «Дозволити» в запиті «Дозволити налагодження?» на панелі. Цей дозвіл надає цьому екземпляру Home Assistant загальний доступ до оболонки ADB на панелі, доки мережеве налагодження залишається ввімкненим.\n\nПотім знову виберіть «Надіслати». Пізніше ви зможете відкликати цей дозвіл у налаштуваннях розробника на панелі."
           }
         },
         "progress": {
@@ -1260,7 +1260,7 @@
           "retry_failed": "Повторна спроба не вдалася. Подробиці є у звіті для підтримки.",
           "retry_no_longer_needed": "Це встановлення більше не потребує повторної спроби. Відкрийте виправлення знову, якщо помилка повернеться.",
           "cannot_connect": "Не вдалося встановити з'єднання з дійсною кінцевою точкою перевірки працездатності Panel Assistant.",
-          "invalid_install_address": "Enter only the panel hostname or IP address.",
+          "invalid_install_address": "Введіть лише ім’я хоста або IP-адресу панелі.",
           "install_resolution_failed": "Home Assistant не зміг визначити адресу цієї панелі. Перевірте адресу та локальний DNS, а потім спробуйте ще раз.",
           "install_resolution_timeout": "Час очікування під час локального розпізнавання імен закінчився до того, як адресу панелі вдалося надійно зафіксувати. Перевірте локальний DNS, а потім спробуйте ще раз.",
           "install_too_many_addresses": "Ця назва хоста розпізнається як занадто багато адрес, щоб її можна було надійно прив’язати. Використовуйте виділену локальну назву хоста або приватну адресу IP.",
@@ -1279,12 +1279,12 @@
       }
     },
     "installer_failure_retry_hold": {
-      "title": "Retry on {panel} paused because its state could not be checked safely",
+      "title": "Повторну спробу на {panel} призупинено, оскільки не вдалося безпечно перевірити її стан",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Усунути помилку панелі",
-            "description": "Retrying is on hold until the panel can be checked.",
+            "description": "Повторні спроби призупинено, доки не з’явиться можливість перевірити панель.",
             "menu_options": {
               "retry": "Спробувати ще раз",
               "support_report": "Звіт для підтримки",
@@ -1321,8 +1321,8 @@
       }
     },
     "panel_address_unreachable": {
-      "title": "Can't reach {panel} at {address}",
-      "description": "Its entities still work through the live connection from {session_address}.\n\nIf the panel has moved, add it again at its new address. This clears by itself once the address answers."
+      "title": "Не вдається зв’язатися з {panel} за адресою {address}",
+      "description": "Її сутності й далі працюють через активне з’єднання з {session_address}.\n\nЯкщо адреса панелі змінилася, додайте її знову за новою адресою. Ця проблема зникне автоматично, щойно адреса відповість."
     },
     "panel_address_unverified": {
       "title": "{panel} переїхала, і її нову адресу не вдалося підтвердити",
@@ -1351,15 +1351,15 @@
       }
     },
     "installer_failure_adb_authorization": {
-      "title": "Allow updates on {panel}",
+      "title": "Дозволити оновлення на {panel}",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Усунути помилку панелі",
-            "description": "Home Assistant is not yet allowed to update {panel}.",
+            "description": "Home Assistant ще не має дозволу оновлювати {panel}.",
             "menu_options": {
               "retry": "Спробувати ще раз",
-              "authorize_adb": "Allow updates",
+              "authorize_adb": "Дозволити оновлення",
               "support_report": "Звіт для підтримки",
               "clear_error": "Очистити помилку"
             }
@@ -1377,8 +1377,8 @@
             "description": "Повторну спробу призупинено. Помилка залишається у «Виправленнях»; подробиці є у звіті для підтримки."
           },
           "authorize_adb": {
-            "title": "Allow updates on {panel}",
-            "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt. Allowing gives this Home Assistant general ADB shell access to the panel while network debugging stays on.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
+            "title": "Дозволити оновлення на {panel}",
+            "description": "Виберіть «Надіслати», а потім натисніть «Дозволити» в запиті «Дозволити налагодження?» на панелі. Цей дозвіл надає цьому екземпляру Home Assistant загальний доступ до оболонки ADB на панелі, доки мережеве налагодження залишається ввімкненим.\n\nПотім знову виберіть «Надіслати». Пізніше ви зможете відкликати цей дозвіл у налаштуваннях розробника на панелі."
           }
         },
         "progress": {
@@ -1395,7 +1395,7 @@
           "retry_failed": "Повторна спроба не вдалася. Подробиці є у звіті для підтримки.",
           "retry_no_longer_needed": "Це встановлення більше не потребує повторної спроби. Відкрийте виправлення знову, якщо помилка повернеться.",
           "cannot_connect": "Не вдалося встановити з'єднання з дійсною кінцевою точкою перевірки працездатності Panel Assistant.",
-          "invalid_install_address": "Enter only the panel hostname or IP address.",
+          "invalid_install_address": "Введіть лише ім’я хоста або IP-адресу панелі.",
           "install_resolution_failed": "Home Assistant не зміг визначити адресу цієї панелі. Перевірте адресу та локальний DNS, а потім спробуйте ще раз.",
           "install_resolution_timeout": "Час очікування під час локального розпізнавання імен закінчився до того, як адресу панелі вдалося надійно зафіксувати. Перевірте локальний DNS, а потім спробуйте ще раз.",
           "install_too_many_addresses": "Ця назва хоста розпізнається як занадто багато адрес, щоб її можна було надійно прив’язати. Використовуйте виділену локальну назву хоста або приватну адресу IP.",
@@ -1414,17 +1414,17 @@
       }
     },
     "adb_update_authorization": {
-      "title": "Allow updates on {panel}",
+      "title": "Дозволити оновлення на {panel}",
       "fix_flow": {
         "step": {
           "authorize_adb": {
-            "title": "Allow updates on {panel}",
-            "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt. Allowing gives this Home Assistant general ADB shell access to the panel while network debugging stays on.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
+            "title": "Дозволити оновлення на {panel}",
+            "description": "Виберіть «Надіслати», а потім натисніть «Дозволити» в запиті «Дозволити налагодження?» на панелі. Цей дозвіл надає цьому екземпляру Home Assistant загальний доступ до оболонки ADB на панелі, доки мережеве налагодження залишається ввімкненим.\n\nПотім знову виберіть «Надіслати». Пізніше ви зможете відкликати цей дозвіл у налаштуваннях розробника на панелі."
           }
         },
         "error": {
           "cannot_connect": "Не вдалося встановити з'єднання з дійсною кінцевою точкою перевірки працездатності Panel Assistant.",
-          "invalid_install_address": "Enter only the panel hostname or IP address.",
+          "invalid_install_address": "Введіть лише ім’я хоста або IP-адресу панелі.",
           "install_resolution_failed": "Home Assistant не зміг визначити адресу цієї панелі. Перевірте адресу та локальний DNS, а потім спробуйте ще раз.",
           "install_resolution_timeout": "Час очікування під час локального розпізнавання імен закінчився до того, як адресу панелі вдалося надійно зафіксувати. Перевірте локальний DNS, а потім спробуйте ще раз.",
           "install_too_many_addresses": "Ця назва хоста розпізнається як занадто багато адрес, щоб її можна було надійно прив’язати. Використовуйте виділену локальну назву хоста або приватну адресу IP.",
@@ -1450,7 +1450,7 @@
         "description": "Продовжте налаштування панелі або авторизуйте ADB для оновлень. Якщо панель ще не прив’язана, підтвердьте обліковий запис, у який виконано вхід, щоб завершити налаштування.",
         "menu_options": {
           "onboarding": "Продовжити налаштування",
-          "authorize_adb": "Allow updates",
+          "authorize_adb": "Дозволити оновлення",
           "updates": "Оновлення панелі",
           "remove_app": "Прибрати Panel Assistant з цієї панелі"
         }
@@ -1472,8 +1472,8 @@
         }
       },
       "authorize_adb": {
-        "title": "Allow updates on {panel}",
-        "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt. Allowing gives this Home Assistant general ADB shell access to the panel while network debugging stays on.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
+        "title": "Дозволити оновлення на {panel}",
+        "description": "Виберіть «Надіслати», а потім натисніть «Дозволити» в запиті «Дозволити налагодження?» на панелі. Цей дозвіл надає цьому екземпляру Home Assistant загальний доступ до оболонки ADB на панелі, доки мережеве налагодження залишається ввімкненим.\n\nПотім знову виберіть «Надіслати». Пізніше ви зможете відкликати цей дозвіл у налаштуваннях розробника на панелі."
       },
       "updates": {
         "title": "Оновлення панелі",
@@ -1503,7 +1503,7 @@
     },
     "error": {
       "cannot_connect": "Не вдалося встановити з'єднання з дійсною кінцевою точкою перевірки працездатності Panel Assistant.",
-      "invalid_install_address": "Enter only the panel hostname or IP address.",
+      "invalid_install_address": "Введіть лише ім’я хоста або IP-адресу панелі.",
       "install_resolution_failed": "Home Assistant не зміг визначити адресу цієї панелі. Перевірте адресу та локальний DNS, а потім спробуйте ще раз.",
       "install_resolution_timeout": "Час очікування під час локального розпізнавання імен закінчився до того, як адресу панелі вдалося надійно зафіксувати. Перевірте локальний DNS, а потім спробуйте ще раз.",
       "install_too_many_addresses": "Ця назва хоста розпізнається як занадто багато адрес, щоб її можна було надійно прив’язати. Використовуйте виділену локальну назву хоста або приватну адресу IP.",
@@ -1518,14 +1518,14 @@
       "removal_unconfirmed": "Позначте прапорець, щоб підтвердити, що ви прочитали про ризики. Нічого не прибрано.",
       "removal_busy": "Оновлення або перенесення вже змінює цю панель. Нічого не прибрано; спробуйте ще раз, коли воно завершиться.",
       "removal_adb_unreachable": "Home Assistant не зміг зв'язатися з панеллю через Android Debug Bridge (порт 5555). Нічого не прибрано. Перевірте, що панель увімкнена, а мережеве налагодження досі активне, і спробуйте ще раз.",
-      "removal_adb_authorization": "The panel has not accepted this Home Assistant instance for the Android Debug Bridge. Nothing was removed. Choose Allow updates first, then try again.",
+      "removal_adb_authorization": "Панель не прийняла цей екземпляр Home Assistant для Android Debug Bridge. Нічого не було видалено. Спочатку виберіть «Дозволити оновлення», а потім спробуйте знову.",
       "removal_panel_changed": "За адресою цієї панелі тепер відповідає інший пристрій. Нічого не прибрано.",
-      "removal_approval_required": "Hardened security is on, so handing the home screen back has to be approved on the panel itself. Nothing was changed and Panel Assistant is still installed. Approve the request on the panel, then submit again.",
+      "removal_approval_required": "Посилений захист увімкнено, тому повернення головного екрана потрібно схвалити на самій панелі. Нічого не було змінено, і Panel Assistant досі встановлено. Схваліть запит на панелі, а потім надішліть форму ще раз.",
       "removal_no_replacement_home": "Панель не змогла передати головний екран іншому лаунчеру: на ній немає іншого застосунку головного екрана, тож Panel Assistant — єдине, що вона може показати. Нічого не прибрано, і панель досі працює. Встановіть лаунчер або знову ввімкніть лаунчер виробника, потім спробуйте ще раз.",
       "removal_ownership_unreadable": "Панель не змогла прочитати власний запис про вимкнені застосунки виробника. Нічого не прибрано. Знову запустіть Panel Assistant на панелі, потім спробуйте ще раз.",
       "removal_package_state_unknown": "Панель не змогла прочитати, які застосунки встановлено або який із них є її головним екраном. Нічого не прибрано. Спробуйте ще раз за мить.",
       "removal_home_not_handed": "Панель не підтвердила, що інший лаунчер перейняв головний екран, тому Panel Assistant не прибрано. Встановіть лаунчер або знову ввімкніть лаунчер виробника, потім спробуйте ще раз.",
-      "removal_hand_back_unsupported": "The Panel Assistant app on this panel is too old to hand its home screen back. Nothing was removed. Update it first, then try again.",
+      "removal_hand_back_unsupported": "Застосунок Panel Assistant на цій панелі надто старий, щоб повернути її головний екран. Нічого не було видалено. Спочатку оновіть його, а потім спробуйте знову.",
       "removal_app_unreachable": "Panel Assistant не відповів і досі є головним екраном панелі, тож прибрати його зараз означало б залишити панель без головного екрана. Нічого не прибрано. Запустіть Panel Assistant на панелі, потім спробуйте ще раз.",
       "removal_remove_failed": "Панель уже повернула собі головний екран, але Panel Assistant не вдалося прибрати повністю. Спробуйте ще раз: нова спроба завершить решту."
     },
