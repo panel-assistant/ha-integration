@@ -104,3 +104,18 @@ def test_a_page_the_edge_added_its_analytics_script_to_still_matches(site) -> No
     assert _main(built, published) == 0
     (published / "index.html").write_text(page + "<script>alert(1)</script>")
     assert _main(built, published) == 1
+
+
+def test_a_foreign_script_naming_cloudflare_in_another_attribute_still_fails(
+    site,
+) -> None:
+    built, published = site
+    page = (published / "index.html").read_text()
+    for script in (
+        '<script src="https://example.org/x.js"'
+        ' data-note="static.cloudflareinsights.com"></script>',
+        '<script src="https://static.cloudflareinsights.com.example.org/x"></script>',
+        '<script src="https://static.cloudflareinsights.com/b" onload="x()"></script>',
+    ):
+        (published / "index.html").write_text(page + script)
+        assert _main(built, published) == 1, script

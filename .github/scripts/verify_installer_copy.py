@@ -36,8 +36,14 @@ def _open(url: str):
 
 # Cloudflare's Web Analytics adds this script to the HTML it serves, so a page it
 # serves is never byte-identical to the build until the script is taken out.
+_ATTRIBUTE = (
+    rb"defer|type=\"module\""
+    rb"|data-cf-beacon='[^']*'|data-cf-beacon=\"[^\"]*\""
+)
+_ATTRIBUTES = rb"(?:\s+(?:" + _ATTRIBUTE + rb"))*"
+_SOURCE = rb'\s+src="https://static\.cloudflareinsights\.com/[^"]*"'
 _EDGE_BEACON = re.compile(
-    rb"<script[^>]*static\.cloudflareinsights\.com[^>]*>\s*</script>"
+    rb"<script" + _ATTRIBUTES + _SOURCE + _ATTRIBUTES + rb"\s*></script>"
 )
 
 
