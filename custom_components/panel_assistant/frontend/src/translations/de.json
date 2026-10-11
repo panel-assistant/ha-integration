@@ -141,6 +141,7 @@
     "permissions": "Berechtigungen",
     "setupAddress": "Einrichtungsadresse",
     "setupHandover": "Übergabe an die Einrichtung",
+    "displaySizing": "Anzeige- und Textgröße",
     "copiedDetail": "{bytes} Bytes gesendet; Bestätigung des Panels ausstehend",
     "none": "keine",
     "setupMissing": "nicht gefunden; Einrichtung wird auf dem Panel fortgesetzt"

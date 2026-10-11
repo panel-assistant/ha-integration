@@ -197,3 +197,35 @@ test('a failed handover never blocks setup, and no address means no handover', a
   });
   assert.deepEqual(none, ['open:null']);
 });
+
+test('the Home Assistant window passes on the display size the panel recommends', async () => {
+  for (const [display, relayed] of [
+    [{ density: 216, font_scale: 1 }, { density: 216, font_scale: 1 }],
+    [{ density: 216, font_scale: null }, { density: 216, font_scale: null }],
+    [null, undefined],
+    [{ density: 9000, font_scale: 1 }, undefined],
+  ]) {
+    const f = await servingOpener(json({ outcome: 'handed_over', registration: 'added', display }));
+    f.send({ type: 'ha-paneld/usb-handover', address: '192.168.1.20' });
+    await tick(); await tick();
+    assert.deepEqual(f.posts.at(-1)[0].display, relayed);
+    f.handle.cancel();
+  }
+});
+
+test('the installer hands on a recommended display size, and only a valid one', async () => {
+  for (const [display, expected] of [
+    [{ density: 216, font_scale: 1 }, [{ density: 216, font_scale: 1 }]],
+    [{ density: '216', font_scale: 1 }, []],
+    [undefined, []],
+  ]) {
+    const w = installerWindow();
+    const seen = [];
+    const pending = requestSetupHandover({ windowObject: w.windowObject, options: w.options,
+      address: '192.168.1.20', onDisplay: value => seen.push(value) });
+    w.reply({ type: 'ha-paneld/usb-handover-accepted' });
+    w.reply({ type: 'ha-paneld/usb-handover-result', outcome: 'handed_over', display });
+    assert.equal(await pending, 'handed_over');
+    assert.deepEqual(seen, expected);
+  }
+});

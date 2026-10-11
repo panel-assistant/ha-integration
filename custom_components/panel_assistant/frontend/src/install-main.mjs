@@ -10,6 +10,8 @@ import { installProgress, errorView } from './install-view.mjs';
 import { frontendMessages, formatFrontendMessage, installerLocale } from './frontend-localization.mjs';
 import { handOverThenOpen, handoffOptions, receiveReleaseHandoff, requestSetupHandover } from './release-handoff.mjs';
 import { readSetupUrl } from './panel-address.mjs';
+import { applyDisplaySizing } from './display-provisioning.mjs';
+import { readShell } from './shell-session.mjs';
 import { renderJourney } from './wizard-look.mjs';
 import { newNonce } from './shared.mjs';
 
@@ -293,7 +295,17 @@ async function installAll() {
   // The install is done: losing USB from here on is not a failure.
   finished = true;
   await handOverThenOpen(url, {
-    handover: address => requestSetupHandover({ options: handoffSettings, address }),
+    handover: async address => {
+      let display = null;
+      const outcome = await requestSetupHandover({ options: handoffSettings, address,
+        onDisplay: value => { display = value; } });
+      // USB is still held: the display and text size the panel's profile
+      // recommends go on now, before its setup opens at the new size.
+      if (display) {
+        support('displaySizing', await applyDisplaySizing({ adb: sessionAdb, newNonce, value: display, readShell }));
+      }
+      return outcome;
+    },
     support,
     open: finish,
   });

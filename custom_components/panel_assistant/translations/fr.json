@@ -655,6 +655,25 @@
         }
       }
     },
+    "panel_proximity_setup": {
+      "title": "Configurez la proximité sur {panel}.",
+      "fix_flow": {
+        "step": {
+          "set_up_proximity": {
+            "title": "Configurer la proximité sur {panel}",
+            "description": "Tant que son capteur de proximité n’est pas configuré, {panel} ne peut pas se réveiller d’un geste de la main. La configuration prend environ une minute et vous devez vous tenir devant le panneau. Ouvrez Panel Assistant dans la barre latérale et choisissez {panel}. Sur sa page Configurer, sous Présence et réveil, sélectionnez Configurer la proximité sur le panneau, puis suivez les instructions à l’écran du panneau. Vous pouvez aussi la lancer sur le panneau lui-même avec Ouvrir la configuration de proximité sur son tableau de bord. Quand le panneau indique que l’étalonnage est enregistré, revenez ici et sélectionnez Envoyer."
+          }
+        },
+        "error": {
+          "proximity_not_calibrated": "Le panneau indique toujours que la proximité n’est pas configurée. Terminez la configuration sur le panneau, puis envoyez à nouveau.",
+          "proximity_calibrating": "La configuration est toujours en cours sur le panneau. Terminez-la, puis envoyez à nouveau.",
+          "proximity_unreadable": "Home Assistant n’a pas pu lire l’état de proximité du panneau. Vérifiez sa connexion, puis envoyez à nouveau."
+        },
+        "abort": {
+          "entry_removed": "Ce panneau a été supprimé."
+        }
+      }
+    },
     "voice_microphone_silent": {
       "title": "L'assistant vocal de {panel} n'écoute pas.",
       "description": "L'assistant vocal de {panel} n'écoute pas, car son microphone n'a enregistré que du silence lorsque le panneau l'a vérifié. Pour vérifier à nouveau, désactivez puis réactivez l'assistant vocal sur la page Configure du panneau, ou choisissez-y une autre source audio."

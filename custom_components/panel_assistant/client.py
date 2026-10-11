@@ -20,6 +20,7 @@ from .const import (
     DEFAULT_PORT,
     DEFAULT_TIMEOUT_SECONDS,
     DIAG_PATH,
+    DISPLAY_PATH,
     HEALTH_PATH,
     INSTALL_COMPONENT_PATH,
     INSTALL_STATUS_PATH,
@@ -505,6 +506,7 @@ def parse_update_approval_response(body: bytes) -> NoReturn:
 _MAX_DIAG_BYTES = 256 * 1024
 _MAX_LEGACY_INFO_BYTES = 256 * 1024
 _MAX_SETUP_BYTES = 64 * 1024
+_MAX_DISPLAY_BYTES = 16 * 1024
 # The panel verifies the address it is handed before answering, with its own
 # bounded probe, so this waits out that probe rather than the default request.
 _HANDOVER_TIMEOUT_SECONDS = 20.0
@@ -757,6 +759,13 @@ class HaPaneldClient:
             self.address.base_url.with_path(DIAG_PATH), _MAX_DIAG_BYTES
         )
         return parse_diag_version(body)
+
+    async def async_get_display(self) -> dict[str, Any]:
+        """Read the panel's display geometry and its profile's sizing advice."""
+        body = await self._async_get_bounded(
+            self.address.base_url.with_path(DISPLAY_PATH), _MAX_DISPLAY_BYTES
+        )
+        return _load_json_object(body)
 
     async def async_get_setup_complete(self) -> bool:
         """Whether the panel's own setup wizard reports itself finished."""

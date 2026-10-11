@@ -693,6 +693,25 @@
         }
       }
     },
+    "panel_proximity_setup": {
+      "title": "Stel nabijheid in op {panel}.",
+      "fix_flow": {
+        "step": {
+          "set_up_proximity": {
+            "title": "Nabijheid instellen op {panel}",
+            "description": "Zolang de nabijheidssensor niet is ingesteld, kan {panel} niet wakker worden door een handgebaar. Het instellen duurt ongeveer een minuut en je moet daarbij voor het paneel staan. Open Panel Assistant in de zijbalk en kies {panel}. Selecteer op de pagina Configureren onder Aanwezigheid & wekken de optie Nabijheid instellen op paneel en volg de instructies op het scherm van het paneel. Je kunt het ook op het paneel zelf starten met Nabijheidsinstelling openen op het dashboard. Zodra het paneel meldt dat de kalibratie is opgeslagen, keer je hier terug en selecteer je Verzenden."
+          }
+        },
+        "error": {
+          "proximity_not_calibrated": "Het paneel meldt nog steeds dat nabijheid niet is ingesteld. Rond het instellen op het paneel af en verzend opnieuw.",
+          "proximity_calibrating": "Het instellen loopt nog op het paneel. Rond het af en verzend opnieuw.",
+          "proximity_unreadable": "Home Assistant kon de nabijheidsstatus van het paneel niet lezen. Controleer of het paneel verbonden is en verzend opnieuw."
+        },
+        "abort": {
+          "entry_removed": "Dit paneel is verwijderd."
+        }
+      }
+    },
     "voice_microphone_silent": {
       "title": "De spraakassistent op {panel} luistert niet.",
       "description": "De spraakassistent op {panel} luistert niet, omdat de microfoon alleen stilte opnam toen het paneel hem controleerde. Zet de spraakassistent uit en weer aan op de Configure-pagina van het paneel, of kies daar een andere audiobron, om opnieuw te controleren."

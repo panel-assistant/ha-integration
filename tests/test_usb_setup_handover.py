@@ -182,7 +182,11 @@ async def test_a_panel_whose_app_does_not_answer_is_reported_not_added(
     status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
 
     assert status == 200
-    assert body == {"outcome": "handed_over", "registration": "not_panel"}
+    assert body == {
+        "outcome": "handed_over",
+        "registration": "not_panel",
+        "display": None,
+    }
     assert hass.config_entries.async_entries(DOMAIN) == []
 
 
@@ -278,3 +282,64 @@ async def test_only_an_admin_may_hand_over(
             )
             assert response.status == 401
     hand_over.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    ("display", "expected"),
+    [
+        (
+            {
+                "recommended": {"density": 216, "font_scale": 1.0},
+                "privileged_sizing": False,
+            },
+            {"density": 216, "font_scale": 1.0},
+        ),
+        (
+            {
+                "recommended": {"density": 216, "font_scale": None},
+                "privileged_sizing": False,
+            },
+            {"density": 216, "font_scale": None},
+        ),
+        # A panel that sizes itself keeps its own route.
+        (
+            {
+                "recommended": {"density": 216, "font_scale": 1.0},
+                "privileged_sizing": True,
+            },
+            None,
+        ),
+        # An older app reports neither, and gets nothing.
+        ({"physical_pixels": {"width": 720, "height": 1440}}, None),
+        (
+            {
+                "recommended": {"density": None, "font_scale": None},
+                "privileged_sizing": False,
+            },
+            None,
+        ),
+        (
+            {
+                "recommended": {"density": 9000, "font_scale": 1.0},
+                "privileged_sizing": False,
+            },
+            None,
+        ),
+        (CannotConnectError(), None),
+    ],
+)
+async def test_the_handover_tells_the_installer_what_display_size_to_apply(
+    endpoint: Any, display: Any, expected: Any
+) -> None:
+    panel = _Panel(PanelSetupState(complete=False, accepts_handover=True))
+    read = (
+        AsyncMock(side_effect=display)
+        if isinstance(display, Exception)
+        else AsyncMock(return_value=display)
+    )
+
+    with patch(f"{_CLIENT}.async_get_display", read):
+        status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+
+    assert status == 200
+    assert body["display"] == expected

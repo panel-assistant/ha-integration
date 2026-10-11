@@ -14,6 +14,8 @@ export const META_SCREENSAVER_DEFAULT_COMPONENT =
   'com.facebook.alohaapps.launcher/com.facebook.aloha.app.home.touch.HomeDreamService';
 export const META_CONTROL_CENTER = 'com.facebook.alohaapps.controlcenter';
 export const META_RESTORE_RECORD = '/data/local/tmp/panel-assistant-meta-portal-restore';
+export const SHELLY_LAUNCHER = 'cloud.shelly.stargate';
+export const SHELLY_RESTORE_RECORD = '/data/local/tmp/panel-assistant-shelly-restore';
 export const META_VERIFIER_RECORD = '/data/local/tmp/panel-assistant-meta-portal-verifier-restore';
 const VERIFIER = 'package_verifier_enable';
 
@@ -30,6 +32,30 @@ const OVERLAY_FUNCTION = 'hp_overlay() { ' +
   '*"Default mode: "*) hp_mode=${hp_mode##*Default mode: } ;; ' +
   '*) hp_mode=unknown ;; esac; ' +
   `case "$hp_mode" in ${OVERLAY_MODES.join('|')}) echo "$hp_mode" ;; *) echo unknown ;; esac; }`;
+
+const SHELLY_OVERLAY_FUNCTION = OVERLAY_FUNCTION.replace('hp_overlay()', 'hp_shelly_overlay()')
+  .replaceAll(META_CONTROL_CENTER, SHELLY_LAUNCHER);
+
+// A panel with Shelly's launcher: its overlay mode is recorded once, only when
+// Android reports it, and then denied, as vendor_provisioning.py does.
+function shellySetup() {
+  const path = SHELLY_RESTORE_RECORD;
+  return [
+    SHELLY_OVERLAY_FUNCTION,
+    'echo vendor:shelly',
+    `if [ ! -f ${path} ]; then ` +
+      'hp_o=$(hp_shelly_overlay); case "$hp_o" in ' +
+      'allow|ignore|deny|default|foreground) ' +
+      `printf 'stargate_overlay=%s\\n' "$hp_o" > ${path}.part && ` +
+      `mv ${path}.part ${path}; rm -f ${path}.part ;; esac; fi`,
+    `if [ -f ${path} ]; then ` +
+      'while IFS= read -r hp_line; do echo "record:$hp_line"; ' +
+      `done < ${path}; ` +
+      'case "$(hp_shelly_overlay)" in absent|deny) ;; ' +
+      `*) appops set ${SHELLY_LAUNCHER} SYSTEM_ALERT_WINDOW deny ${QUIET} ;; esac; fi`,
+    'echo "stargate_overlay=$(hp_shelly_overlay)"',
+  ].join('; ');
+}
 
 export function buildVendorSetup(nonce) {
   if (!/^[a-f0-9]{32}$/.test(nonce)) fail();
@@ -76,7 +102,8 @@ export function buildVendorSetup(nonce) {
     `echo HAPANELD_VENDOR_BEGIN:${nonce}`,
     `case "$(getprop ro.product.device)" in ${META_PORTAL_DEVICES.join('|')}) ` +
       [OVERLAY_FUNCTION, record, showRecord, apply, verifierRecord, showVerifier, applyVerifier, ...readBack].join('; ') +
-      ' ;; *) echo device:other ;; esac',
+      ` ;; *) if [ -n "$(pm path ${SHELLY_LAUNCHER} 2>/dev/null)" ]; then ` +
+      shellySetup() + '; else echo device:other; fi ;; esac',
     `echo HAPANELD_VENDOR_END:${nonce}:0`,
   ].join('; ');
 }
@@ -92,6 +119,7 @@ export function parseVendorSetup(body, nonce) {
   if (lines.shift() !== `HAPANELD_VENDOR_BEGIN:${nonce}` || lines.pop() !== '' ||
       lines.pop() !== `HAPANELD_VENDOR_END:${nonce}:0` || lines.some(line => line.includes('HAPANELD_'))) fail();
   if (lines.length === 1 && lines[0] === 'device:other') return null;
+  if (lines[0] === 'vendor:shelly') return parseShellySetup(lines.slice(1));
   const records = lines.filter(line => line.startsWith('record:')).map(line => line.slice(7));
   const verifierRecords = lines.filter(line => line.startsWith('verifier_record:')).map(line => line.slice(16));
   const rest = lines.filter(line => !line.startsWith('record:') && !line.startsWith('verifier_record:'));
@@ -114,4 +142,22 @@ export function parseVendorSetup(body, nonce) {
     converged: record !== null && values[0] === '' && values[1] === '' &&
       ['deny', 'absent'].includes(overlay) && verifierRecord !== null && values[2] === '0',
   });
+}
+
+// A panel with Shelly's launcher: `converged` only when its overlay is denied
+// and the mode to undo that is on record.
+function parseShellySetup(lines) {
+  const records = lines.filter(line => line.startsWith('record:'));
+  const rest = lines.filter(line => !line.startsWith('record:'));
+  if (records.length > 1 || rest.length !== 1 || !rest[0].startsWith('stargate_overlay=')) fail();
+  const overlay = rest[0].slice(17);
+  if (![...OVERLAY_MODES, 'absent', 'unknown'].includes(overlay)) fail();
+  let record = null;
+  if (records.length) {
+    if (!records[0].startsWith('record:stargate_overlay=')) fail();
+    record = records[0].slice(24);
+    if (!OVERLAY_MODES.includes(record)) fail();
+  }
+  return Object.freeze({vendor: 'shelly', record, launcherOverlay: overlay,
+    converged: record !== null && ['deny', 'absent'].includes(overlay)});
 }

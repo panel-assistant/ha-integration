@@ -37,6 +37,8 @@ function fixture({badTarget = false, badApk = false, badRead = false, failGrant 
         `HAPANELD_INSTALLED_SHA_END:${n}:0`, `HAPANELD_INSTALLED_END:${n}`, ''].join('\n');
     } else if (command.includes('HAPANELD_LAUNCH_BEGIN:')) {
       body = `HAPANELD_LAUNCH_BEGIN:${n}\nStatus: ok\nHAPANELD_LAUNCH_END:${n}:0\n`;
+    } else if (command.includes('HAPANELD_VENDOR_BEGIN:')) {
+      body = `HAPANELD_VENDOR_BEGIN:${n}\ndevice:other\nHAPANELD_VENDOR_END:${n}:0\n`;
     } else if (command.includes('HAPANELD_PERMISSIONS_READ_BEGIN:')) {
       body = `HAPANELD_PERMISSIONS_READ_BEGIN:${n}\n${badRead ? "cannot read settings" : 'com.other/.Reader'}\nHAPANELD_PERMISSIONS_READ_END:${n}:0\n`;
     } else if (command.includes('HAPANELD_PERMISSIONS_GRANT_BEGIN:')) {
@@ -47,7 +49,7 @@ function fixture({badTarget = false, badApk = false, badRead = false, failGrant 
         `WRITE_SETTINGS: ${badVerify ? 'deny' : 'allow'}`, 'SYSTEM_ALERT_WINDOW: allow',
         'REQUEST_INSTALL_PACKAGES: allow',
         sdk >= 33 ? 'android.permission.POST_NOTIFICATIONS: granted=true, flags=[]' : 'not_required',
-        'granted', `home:${homeComponentFor(launchComponent)}`, 'device:generic',
+        'granted', 'granted', `home:${homeComponentFor(launchComponent)}`, 'device:generic',
         `HAPANELD_PERMISSIONS_VERIFY_END:${n}:0`, ''].join('\n');
     }
     return {readable: new ReadableStream({start(controller) {
@@ -66,9 +68,10 @@ test('permissions require current USB posture and exact installed APK before any
       const f = fixture({rootMode, sdk});
       await f.ports.authenticate();
       assert.deepEqual(await f.ports.commissionPermissions(f.receipt, f.release),
-        {permissionsVerified: true, notificationsRequired: sdk >= 33, microphone: 'granted', home: true, homeChooser: 'kept',
+        {permissionsVerified: true, notificationsRequired: sdk >= 33, microphone: 'granted', secureSettings: 'granted', home: true, homeChooser: 'kept',
           device: 'generic'});
-      assert.equal(f.commands.length, 5);
+      assert.equal(f.commands.length, 6);
+      assert.match(f.commands[5], /HAPANELD_VENDOR_BEGIN/);
       assert.match(f.commands[0], /HAPANELD_POSTURE_BEGIN/);
       assert.match(f.commands[1], /HAPANELD_INSTALLED_BEGIN/);
       assert.match(f.commands[3], /HAPANELD_PERMISSIONS_GRANT_BEGIN/);
@@ -118,7 +121,7 @@ test('a build whose classes moved package is started and granted by its own clas
   const f = fixture({launchComponent: MOVED}); await f.ports.authenticate();
   await f.ports.launch({...f.receipt, phase: 'launching'}, f.release);
   assert.deepEqual(await f.ports.commissionPermissions(f.receipt, f.release),
-    {permissionsVerified: true, notificationsRequired: true, microphone: 'granted', home: true, homeChooser: 'kept',
+    {permissionsVerified: true, notificationsRequired: true, microphone: 'granted', secureSettings: 'granted', home: true, homeChooser: 'kept',
       device: 'generic'});
   const launch = f.commands.find(command => command.includes('HAPANELD_LAUNCH_BEGIN:'));
   assert.ok(launch.includes(`am start -W -n ${MOVED} -p ${SUCCESSOR_PACKAGE_ID};`));

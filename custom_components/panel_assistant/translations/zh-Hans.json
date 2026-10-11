@@ -655,6 +655,25 @@
         }
       }
     },
+    "panel_proximity_setup": {
+      "title": "请在 {panel} 上设置接近传感器。",
+      "fix_flow": {
+        "step": {
+          "set_up_proximity": {
+            "title": "在 {panel} 上设置接近传感器",
+            "description": "在接近传感器设置完成之前，{panel} 无法通过挥手唤醒。设置大约需要一分钟，需要您站在面板前。在侧边栏中打开 Panel Assistant 并选择 {panel}。在其设置页面的“存在与唤醒”下，选择“在面板上设置接近传感器”，然后按照面板屏幕上的说明操作。您也可以在面板本身的仪表板上选择“打开接近传感器设置”来开始。当面板显示校准已保存后，返回此处并选择提交。"
+          }
+        },
+        "error": {
+          "proximity_not_calibrated": "面板仍显示接近传感器尚未设置。请在面板上完成设置，然后再次提交。",
+          "proximity_calibrating": "面板上的设置仍在进行中。请完成设置，然后再次提交。",
+          "proximity_unreadable": "Home Assistant 无法读取面板的接近传感器状态。请检查面板是否已连接，然后再次提交。"
+        },
+        "abort": {
+          "entry_removed": "此面板已被移除。"
+        }
+      }
+    },
     "voice_microphone_silent": {
       "title": "{panel} 上的语音助手未在聆听。",
       "description": "{panel} 上的语音助手未在聆听，因为面板检查时其麦克风只录到了静音。要重新检查，请在面板的 Configure 页面中关闭再打开语音助手，或在那里选择其他音频源。"

@@ -1,10 +1,14 @@
 """Vendor setup Panel Assistant applies during installation, and hands back.
 
-The only vendor recipe so far is Meta's Portal. Meta's dream service starts on
-every sleep whatever ``screensaver_enabled`` says and sends HOME, and Meta's
-control centre draws a swipe-up bar over the panel app. Installation blanks
-both dream components and denies that bar its overlay; removal puts back what
-was there before.
+Two vendor recipes. Meta's Portal: Meta's dream service starts on every sleep
+whatever ``screensaver_enabled`` says and sends HOME, and Meta's control centre
+draws a swipe-up bar over the panel app. Installation blanks both dream
+components and denies that bar its overlay; removal puts back what was there
+before. Shelly's Wall Displays: Shelly's launcher draws a corner overlay over
+every app; installation denies it that overlay, which leaves the launcher
+itself installed and reachable from the panel app's launcher button. It is
+found by its package, not a codename, so every Wall Display on that firmware
+gets it, and removal puts its overlay mode back.
 
 Meta also ships a package verifier (``com.facebook.appverifier``) that rejects
 every app Meta did not sign, so the Panel Assistant app could never update
@@ -49,6 +53,9 @@ META_SCREENSAVER_DEFAULT_COMPONENT: Final = (
 )
 META_CONTROL_CENTER: Final = "com.facebook.alohaapps.controlcenter"
 META_RESTORE_RECORD: Final = "/data/local/tmp/panel-assistant-meta-portal-restore"
+#: Shelly's launcher, which draws the corner overlay on every Wall Display.
+SHELLY_LAUNCHER: Final = "cloud.shelly.stargate"
+SHELLY_RESTORE_RECORD: Final = "/data/local/tmp/panel-assistant-shelly-restore"
 META_VERIFIER_RECORD: Final = (
     "/data/local/tmp/panel-assistant-meta-portal-verifier-restore"
 )
@@ -74,6 +81,10 @@ _OVERLAY_FUNCTION: Final = (
     "*) echo unknown ;; esac; }"
 )
 _QUIET: Final = ">/dev/null 2>&1"
+# The same word for Shelly's launcher.
+_SHELLY_OVERLAY_FUNCTION: Final = _OVERLAY_FUNCTION.replace(
+    "hp_overlay()", "hp_shelly_overlay()"
+).replace(META_CONTROL_CENTER, SHELLY_LAUNCHER)
 
 
 def _read_back() -> tuple[str, ...]:
@@ -115,6 +126,34 @@ def _verifier_setup() -> tuple[str, str, str]:
         f"settings put global {_VERIFIER} 0 {_QUIET}; fi"
     )
     return record, show_record, apply
+
+
+def _shelly_setup() -> str:
+    """Record the launcher's overlay mode once, then deny it, and read it back.
+
+    Only a mode Android actually reports is recorded. When the mode cannot be
+    read nothing is recorded and nothing is denied, so removal can always put
+    back the launcher's real mode; the next launch or update tries again.
+    """
+    path = SHELLY_RESTORE_RECORD
+    return "; ".join(
+        (
+            _SHELLY_OVERLAY_FUNCTION,
+            "echo vendor:shelly",
+            f"if [ ! -f {path} ]; then "
+            'hp_o=$(hp_shelly_overlay); case "$hp_o" in '
+            "allow|ignore|deny|default|foreground) "
+            f"printf 'stargate_overlay=%s\\n' \"$hp_o\" > {path}.part && "
+            f"mv {path}.part {path}; rm -f {path}.part ;; esac; fi",
+            f"if [ -f {path} ]; then "
+            'while IFS= read -r hp_line; do echo "record:$hp_line"; '
+            f"done < {path}; "
+            'case "$(hp_shelly_overlay)" in absent|deny) ;; '
+            f"*) appops set {SHELLY_LAUNCHER} SYSTEM_ALERT_WINDOW deny {_QUIET} ;; "
+            "esac; fi",
+            'echo "stargate_overlay=$(hp_shelly_overlay)"',
+        )
+    )
 
 
 def vendor_setup_command(nonce: str) -> str:
@@ -167,7 +206,9 @@ def vendor_setup_command(nonce: str) -> str:
                     *_read_back(),
                 )
             )
-            + " ;; *) echo device:other ;; esac",
+            + f' ;; *) if [ -n "$(pm path {SHELLY_LAUNCHER} 2>/dev/null)" ]; then '
+            + _shelly_setup()
+            + "; else echo device:other; fi ;; esac",
             f"echo HAPANELD_VENDOR_END:{nonce}:0",
         )
     )
@@ -230,16 +271,33 @@ def vendor_restore_command(nonce: str) -> str:
         f'if [ "$(settings get global {_VERIFIER})" = "$hp_v" ]; '
         f"then rm -f {verifier}; else hp_r=unrestored; fi; fi; fi"
     )
+    shelly = SHELLY_RESTORE_RECORD
+    shelly_restore = "; ".join(
+        (
+            "hp_o=",
+            'while IFS= read -r hp_line; do case "$hp_line" in '
+            f"stargate_overlay=*) hp_o=${{hp_line#*=}} ;; esac; done < {shelly}",
+            'case "$hp_o" in allow|ignore|deny|default|foreground) '
+            f'[ -n "$(pm path {SHELLY_LAUNCHER} 2>/dev/null)" ] && '
+            f'appops set {SHELLY_LAUNCHER} SYSTEM_ALERT_WINDOW "$hp_o" {_QUIET} '
+            ";; esac",
+            'hp_now=$(hp_shelly_overlay); if [ "$hp_now" = absent ] || '
+            '[ "$hp_now" = "$hp_o" ]; then '
+            f"rm -f {shelly}; echo restored; else echo unrestored; fi",
+        )
+    )
     return "; ".join(
         (
             f"echo HAPANELD_VENDOR_RESTORE_BEGIN:{nonce}",
             _OVERLAY_FUNCTION,
+            _SHELLY_OVERLAY_FUNCTION,
             f"if [ -f {path} ] || [ -f {verifier} ]; then hp_r=restored; "
             f"if [ -f {path} ]; then hp_c=; hp_d=; hp_o=; "
             + "; ".join((load, put_back, allow, verify))
             + "; fi; "
             + put_back_verifier
-            + '; echo "$hp_r"; else echo none; fi',
+            + '; echo "$hp_r"; '
+            + f"elif [ -f {shelly} ]; then {shelly_restore}; else echo none; fi",
             f"echo HAPANELD_VENDOR_RESTORE_END:{nonce}:0",
         )
     )
@@ -272,14 +330,48 @@ class VendorSetup:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class ShellySetup:
+    """What a panel with Shelly's launcher reported after its vendor setup."""
+
+    #: The launcher's overlay mode as recorded before the change, or None.
+    record: str | None
+    #: allow, deny, ..., ``absent`` without the launcher, or ``unknown``.
+    launcher_overlay: str
+
+    @property
+    def converged(self) -> bool:
+        """Overlay denied, and the mode to undo it on record."""
+        return self.record is not None and self.launcher_overlay in ("deny", "absent")
+
+
 class VendorResponseError(ValueError):
     """The panel's answer was not one of the shapes the program prints."""
 
 
-def parse_vendor_setup(lines: list[str]) -> VendorSetup | None:
-    """Return the Portal's state, or None for a panel that is not a Portal."""
+def _parse_shelly_setup(lines: list[str]) -> ShellySetup:
+    modes = (*_OVERLAY_MODES, "absent", "unknown")
+    records = [line for line in lines if line.startswith("record:")]
+    rest = [line for line in lines if not line.startswith("record:")]
+    if len(records) > 1 or len(rest) != 1:
+        raise VendorResponseError
+    overlay = rest[0].removeprefix("stargate_overlay=")
+    if overlay == rest[0] or overlay not in modes:
+        raise VendorResponseError
+    record = None
+    if records:
+        record = records[0].removeprefix("record:stargate_overlay=")
+        if record == records[0] or record not in _OVERLAY_MODES:
+            raise VendorResponseError
+    return ShellySetup(record, overlay)
+
+
+def parse_vendor_setup(lines: list[str]) -> VendorSetup | ShellySetup | None:
+    """Return the vendor's state, or None for a panel with no vendor setup."""
     if lines == ["device:other"]:
         return None
+    if lines[:1] == ["vendor:shelly"]:
+        return _parse_shelly_setup(lines[1:])
     records = [line.removeprefix("record:") for line in lines if line[:7] == "record:"]
     verifier_tag = "verifier_record:"
     verifier_records = [

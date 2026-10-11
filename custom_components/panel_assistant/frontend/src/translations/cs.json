@@ -141,6 +141,7 @@
     "permissions": "Oprávnění",
     "setupAddress": "Adresa nastavení",
     "setupHandover": "Předání nastavení",
+    "displaySizing": "Velikost zobrazení a textu",
     "copiedDetail": "Odesláno {bytes} bajtů; čeká se na potvrzení panelu",
     "none": "žádné",
     "setupMissing": "nenalezeno; nastavení pokračuje na panelu"

@@ -141,6 +141,7 @@
     "permissions": "权限",
     "setupAddress": "设置地址",
     "setupHandover": "设置交接",
+    "displaySizing": "显示和文字大小",
     "copiedDetail": "已发送 {bytes} 字节；正在等待面板确认",
     "none": "无",
     "setupMissing": "未找到；设置将在面板上继续"

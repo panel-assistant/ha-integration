@@ -141,6 +141,7 @@
     "permissions": "Autorisations",
     "setupAddress": "Adresse de configuration",
     "setupHandover": "Passage à la configuration",
+    "displaySizing": "Taille d’affichage et du texte",
     "copiedDetail": "{bytes} octets envoyés ; en attente de confirmation du panneau",
     "none": "aucun",
     "setupMissing": "introuvable ; la configuration continue sur le panneau"

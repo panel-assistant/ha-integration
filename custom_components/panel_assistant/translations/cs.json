@@ -695,6 +695,25 @@
         }
       }
     },
+    "panel_proximity_setup": {
+      "title": "Nastavte detekci přiblížení na panelu {panel}.",
+      "fix_flow": {
+        "step": {
+          "set_up_proximity": {
+            "title": "Nastavení detekce přiblížení na panelu {panel}",
+            "description": "Dokud není nastaven snímač přiblížení, panel {panel} se nedá probudit mávnutím ruky. Nastavení trvá asi minutu a musíte při něm stát před panelem. Otevřete Panel Assistant na postranním panelu a vyberte {panel}. Na jeho stránce Konfigurovat v části Přítomnost a probuzení vyberte Nastavit detekci přiblížení na panelu a postupujte podle pokynů na obrazovce panelu. Nastavení můžete spustit i přímo na panelu tlačítkem Otevřít nastavení detekce přiblížení na jeho nástěnce. Až panel ohlásí, že je kalibrace uložena, vraťte se sem a vyberte Odeslat."
+          }
+        },
+        "error": {
+          "proximity_not_calibrated": "Panel stále hlásí, že detekce přiblížení není nastavena. Dokončete nastavení na panelu a poté formulář znovu odešlete.",
+          "proximity_calibrating": "Nastavení na panelu stále probíhá. Dokončete ho a poté formulář znovu odešlete.",
+          "proximity_unreadable": "Home Assistant nemohl zjistit stav detekce přiblížení na panelu. Zkontrolujte, že je panel připojený, a poté formulář znovu odešlete."
+        },
+        "abort": {
+          "entry_removed": "Tento panel byl odstraněn."
+        }
+      }
+    },
     "voice_microphone_silent": {
       "title": "Hlasový asistent na panelu {panel} neposlouchá.",
       "description": "Hlasový asistent na panelu {panel} neposlouchá, protože jeho mikrofon při kontrole panelem zaznamenal pouze ticho. Pro novou kontrolu hlasového asistenta vypněte a zapněte na stránce Konfigurace panelu, nebo tam vyberte jiný zdroj zvuku."

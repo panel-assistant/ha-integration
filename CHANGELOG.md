@@ -8,6 +8,11 @@ All notable changes to this project will be documented in this file.
 
 - **Meta Portal setup during installation.** On a Meta Portal, installing the panel app also turns off Meta's screensaver, which otherwise starts every time the screen sleeps, and hides Meta's swipe-up bar over the panel. Panel Assistant notes Meta's settings first and puts them back if you remove the panel app.
 
+- **Shelly Wall Display setup during installation.** On a Shelly Wall Display, installing the panel app also switches off Shelly's corner overlay, so the dashboard is clean; Shelly's own interface stays reachable from the launcher button on the panel's navigation bar. Panel Assistant notes the overlay setting first and puts it back if you remove the panel app.
+- **Full screen-off permission.** Every install and update grants the panel app the permission it needs to switch the screen fully off on panels whose firmware keeps the screen on while powered, such as the Shelly X2i. Without it those panels dim instead.
+- **The right display and text size from the first boot.** Where a panel's profile recommends a display size and text size, and the panel cannot set them itself, Panel Assistant sets them during installation, over the network or the USB installer. It does this only at installation, so a size you change later is left alone, and it puts back the earlier size if you remove the panel app. The Shelly X2i is the first panel with a recommendation.
+- **Proximity setup as part of setting up a panel.** When a panel's proximity sensor needs setting up before a wave can wake it, Panel Assistant raises a Repair that explains how to start it from the panel's page in the sidebar, and clears it once the panel reports the setup saved.
+
 ### Changed
 
 - **Every install makes the panel app the home screen and gives it the microphone.** Both the network install and the USB install now set the home screen and grant the microphone where the panel has one, and every update and repair sets the home screen again, because Android forgets it when apps change. On panels such as the Meta Portal, where Android only offers the panel app in its "Use as Home" question, Panel Assistant answers Always for you, and never when the question offers another app. Before, a USB install did neither.

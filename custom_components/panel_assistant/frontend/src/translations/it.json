@@ -141,6 +141,7 @@
     "permissions": "Autorizzazioni",
     "setupAddress": "Indirizzo di configurazione",
     "setupHandover": "Passaggio alla configurazione",
+    "displaySizing": "Dimensione dello schermo e del testo",
     "copiedDetail": "{bytes} byte inviati; in attesa della conferma del pannello",
     "none": "nessuno",
     "setupMissing": "non trovato; la configurazione prosegue sul pannello"

@@ -141,6 +141,7 @@
     "permissions": "Uprawnienia",
     "setupAddress": "Adres konfiguracji",
     "setupHandover": "Przekazanie konfiguracji",
+    "displaySizing": "Rozmiar wyświetlania i tekstu",
     "copiedDetail": "Wysłano {bytes} bajtów; oczekiwanie na potwierdzenie panelu",
     "none": "brak",
     "setupMissing": "nie znaleziono; konfiguracja trwa dalej na panelu"

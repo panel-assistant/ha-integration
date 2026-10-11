@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
+import {existsSync, mkdtempSync, readFileSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {ACCESSIBILITY_SERVICE, buildPermissionRead, parsePermissionRead,
   buildPermissionGrant, parsePermissionGrant, expectedServices,
   buildPermissionVerification, parsePermissionVerification} from '../src/permission-contract.mjs';
@@ -17,7 +20,7 @@ const verified = (sdk = 33, services = expectedServices(other, LEGACY_PACKAGE_ID
   'WRITE_SETTINGS: allow; time=+1s', 'SYSTEM_ALERT_WINDOW: allow',
   'REQUEST_INSTALL_PACKAGES: allow', sdk >= 33
     ? '      android.permission.POST_NOTIFICATIONS: granted=true, flags=[ USER_SET|USER_FIXED]' : 'not_required',
-  'granted', 'home:io.github.maxlyth.hapaneld/.DashboardActivity', 'device:generic']);
+  'granted', 'granted', 'home:io.github.maxlyth.hapaneld/.DashboardActivity', 'device:generic']);
 
 test('permission observation is nonce-bound and rejects malformed accessibility lists', () => {
   for (const existing of ['', 'null', other, ACCESSIBILITY_SERVICE, `${other}:${ACCESSIBILITY_SERVICE}`]) {
@@ -37,9 +40,9 @@ test('permission observation is nonce-bound and rejects malformed accessibility 
 
 test('readback requires every grant and exact preservation; no generic completion claim', () => {
   assert.deepEqual(parsePermissionVerification(verified(), nonce, 33, other, LEGACY_PACKAGE_ID, launch(LEGACY_PACKAGE_ID)),
-    {permissionsVerified: true, notificationsRequired: true, microphone: 'granted', home: true, device: 'generic'});
+    {permissionsVerified: true, notificationsRequired: true, microphone: 'granted', secureSettings: 'granted', home: true, device: 'generic'});
   assert.deepEqual(parsePermissionVerification(verified(32), nonce, 32, other, LEGACY_PACKAGE_ID, launch(LEGACY_PACKAGE_ID)),
-    {permissionsVerified: true, notificationsRequired: false, microphone: 'granted', home: true, device: 'generic'});
+    {permissionsVerified: true, notificationsRequired: false, microphone: 'granted', secureSettings: 'granted', home: true, device: 'generic'});
   for (const invalid of [verified().replace(other + ':', ''), verified().replace('\n1\n', '\n0\n'),
     verified().replace('WRITE_SETTINGS: allow', 'WRITE_SETTINGS: default'),
     verified().replace('SYSTEM_ALERT_WINDOW: allow', 'SYSTEM_ALERT_WINDOW: deny'),
@@ -48,7 +51,8 @@ test('readback requires every grant and exact preservation; no generic completio
     verified().replace('granted=true', 'granted=false'), verified().replace('flags=[', 'invalid=['),
     verified().replace('\n      android.', '\nextra\n      android.'), verified().replace(/:0\n$/, ':1\n'),
     verified().replace('\ngranted\n', '\nmaybe\n'), verified().replace('\nhome:', '\nhome '),
-    verified().replace('\ndevice:generic', '')]) {
+    verified().replace('\ndevice:generic', ''), verified().replace('\ngranted\nhome:', '\nmaybe\nhome:'),
+    verified().replace('\ngranted\nhome:', '\nhome:')]) {
     assert.throws(() => parsePermissionVerification(invalid, nonce, 33, other, LEGACY_PACKAGE_ID, launch(LEGACY_PACKAGE_ID)));
   }
   assert.throws(() => parsePermissionVerification(verified(), nonce, 101, other, LEGACY_PACKAGE_ID, launch(LEGACY_PACKAGE_ID)));
@@ -58,10 +62,12 @@ test('readback requires every grant and exact preservation; no generic completio
 
 function executeGrant(sdk, existing, {live = existing, rejectAppops = false} = {}) {
   const program = `settings() { if [ "$1" = get ]; then printf '%s\\n' '${live}'; else echo "settings $*" >&2; fi; }
-pm() { echo "pm $*" >&2; }
+pm() { echo "pm $*" >&2; echo "pm $*" >> "$HP_CALLS"; }
 appops() { echo "appops $*" >&2; ${rejectAppops ? 'return 1' : ':'}; }
 ${buildPermissionGrant(nonce, sdk, existing, LEGACY_PACKAGE_ID, launch(LEGACY_PACKAGE_ID))}`;
-  return spawnSync('/bin/sh', ['-c', program], {encoding: 'utf8'});
+  const calls = join(mkdtempSync(join(tmpdir(), 'grant-')), 'calls');
+  const result = spawnSync('/bin/sh', ['-c', program], {encoding: 'utf8', env: {...process.env, HP_CALLS: calls}});
+  return {...result, calls: existsSync(calls) ? readFileSync(calls, 'utf8') : ''};
 }
 
 test('real shell grant program is scoped, preserves other services and gates notifications by SDK', () => {
@@ -73,6 +79,9 @@ test('real shell grant program is scoped, preserves other services and gates not
   assert.match(result.stderr, /settings put secure accessibility_enabled 1/);
   assert.match(result.stderr, /appops set io.github.maxlyth.hapaneld REQUEST_INSTALL_PACKAGES allow/);
   assert.equal(result.stderr.trim().split('\n').length, 6);
+  // The secure-settings grant's output is discarded like the microphone grant's,
+  // so it is seen through a calls file rather than stderr.
+  assert.match(result.calls, /pm grant io.github.maxlyth.hapaneld android.permission.WRITE_SECURE_SETTINGS/);
   assert.ok(!executeGrant(32, other).stderr.includes('pm grant'));
   const again = executeGrant(33, `${other}:${ACCESSIBILITY_SERVICE}`);
   parsePermissionGrant(again.stdout, nonce);

@@ -56,6 +56,15 @@ from .app_identity import (
     is_launch_component,
 )
 from .client import PanelAddress
+from .display_provisioning import (
+    DisplayResponseError,
+    DisplayResult,
+    DisplaySizing,
+    display_restore_command,
+    display_sizing_command,
+    parse_display_restore,
+    parse_display_sizing,
+)
 from .home_chooser import CHOOSER_OUTCOMES, home_claim_command
 from .home_chooser import HOME_QUERY as _HOME_QUERY
 from .install_network import is_allowed_install_address
@@ -67,6 +76,8 @@ from .release import (
 )
 from .vendor_provisioning import (
     META_PORTAL_DEVICES,
+    SHELLY_LAUNCHER,
+    ShellySetup,
     VendorResponseError,
     VendorSetup,
     parse_vendor_restore,
@@ -681,6 +692,36 @@ _APPOP_ALLOWED = r"{}: allow(?:; [\x20-\x7e]{{1,1024}})?"
 _GRANTED_APP_OPS = "WRITE_SETTINGS SYSTEM_ALERT_WINDOW REQUEST_INSTALL_PACKAGES"
 
 
+_SECURE_SETTINGS_PERMISSION = "android.permission.WRITE_SECURE_SETTINGS"
+
+
+def _secure_settings_grant_command(package_id: str) -> str:
+    """Grant the secure-settings permission the build asks for, once.
+
+    Full screen-off on a panel whose firmware keeps the screen on while
+    plugged in (the Shelly X2i) lifts and restores that Global setting, which
+    only this permission allows; without it the app dims instead. It is an
+    install-time permission Android lists only once granted, so a dump that
+    names the request but no grant is the proof it is missing. A build that
+    does not ask for it is ``unsupported``; an unreadable dump is ``unknown``.
+    """
+    permission = re.escape(_SECURE_SETTINGS_PERMISSION)
+    read = f"secure=$(dumpsys package {package_id} 2>/dev/null); secure_status=$?"
+    granted = f"grep -Eq '^[[:space:]]*{permission}: granted=true'"
+    return (
+        f"{read}; "
+        'if [ "$secure_status" -ne 0 ] || [ -z "$secure" ]; then '
+        "echo secure_settings:unknown; "
+        f"elif ! printf '%s\\n' \"$secure\" | grep -Eqx '[[:space:]]*{permission}'; "
+        "then echo secure_settings:unsupported; else "
+        f"printf '%s\\n' \"$secure\" | {granted} || "
+        f"{{ pm grant {package_id} {_SECURE_SETTINGS_PERMISSION} >/dev/null 2>&1; "
+        f"{read}; }}; "
+        f"if printf '%s\\n' \"$secure\" | {granted}; "
+        "then echo secure_settings:granted; else echo secure_settings:unknown; fi; fi"
+    )
+
+
 def _permission_grant_command(
     nonce: str, package_id: str, launch_component: str
 ) -> str:
@@ -793,8 +834,11 @@ def _permission_grant_command(
             "features=$(pm list features 2>/dev/null); features_status=$?",
             *runtime_grants,
             'echo "home_chooser:$hp_chooser"',
+            _secure_settings_grant_command(package_id),
             f'echo "home:$({_HOME_QUERY})"',
             'echo "device:$(getprop ro.product.device)"',
+            f'if [ -n "$(pm path {SHELLY_LAUNCHER} 2>/dev/null)" ]; '
+            "then echo vendor:shelly; else echo vendor:none; fi",
             f"echo HAPANELD_PERMISSIONS_END:{nonce}:$?",
         )
     )
@@ -830,6 +874,8 @@ class _PermissionGrant:
     chooser: str | None
     #: ``ro.product.device``, or None when the answer could not be read.
     device: str | None
+    #: Shelly's launcher is installed: a Shelly Wall Display, whatever model.
+    shelly: bool = False
 
 
 _DEVICE_CODENAME = re.compile(r"[A-Za-z0-9_.-]{1,64}", flags=re.ASCII)
@@ -844,15 +890,19 @@ def _parse_permission_grant(
         lines, status = _parse_single_section(body, prefix="PERMISSIONS", nonce=nonce)
     except _MalformedAdbResponse:
         return refused
-    if status != 0 or len(lines) != 11:
+    if status != 0 or len(lines) != 13:
         return refused
     before, after, enabled, write_settings, overlay, installs = lines[:6]
     camera, microphone = lines[6:8]
-    chooser, home, device = (line.partition(":")[2] for line in lines[8:])
+    chooser, secure_settings, home, device, vendor = (
+        line.partition(":")[2] for line in lines[8:]
+    )
     if (
         not lines[8].startswith("home_chooser:")
-        or not lines[9].startswith("home:")
-        or not lines[10].startswith("device:")
+        or not lines[9].startswith("secure_settings:")
+        or not lines[10].startswith("home:")
+        or not lines[11].startswith("device:")
+        or lines[12] not in ("vendor:shelly", "vendor:none")
     ):
         return refused
     expected = _expected_services(before, launch_component)
@@ -868,12 +918,14 @@ def _parse_permission_grant(
         is not None
         and camera in ("granted", "unsupported")
         and microphone in ("granted", "unsupported")
+        and secure_settings in ("granted", "unsupported")
     )
     return _PermissionGrant(
         granted=granted,
         home=home in EQUIVALENT_HOME_COMPONENTS[launch_component],
         chooser=chooser if chooser in CHOOSER_OUTCOMES else None,
         device=device if _DEVICE_CODENAME.fullmatch(device) else None,
+        shelly=vendor == "shelly",
     )
 
 
@@ -2256,22 +2308,26 @@ async def _async_repair_app_permissions(
             package_id,
             grant.chooser or "unread",
         )
-    if grant.device in META_PORTAL_DEVICES:
+    if grant.device in META_PORTAL_DEVICES or grant.shelly:
         await _async_vendor_setup(device)
     if not grant.granted:
         _LOGGER.warning(
             "The panel did not grant %s every permission it needs: "
             "modify system settings, display over other apps and its "
-            "accessibility service, camera and microphone where present. "
+            "accessibility service, camera and microphone where present, "
+            "and the secure-settings permission full screen-off needs. "
             "Controls that depend on them, such as "
-            "touch sounds, stay unavailable; allow them on the panel in "
-            "Android Settings, under the app",
+            "touch sounds, stay unavailable, and the screen dims instead of "
+            "switching off; allow them on the panel in Android Settings, "
+            "under the app",
             package_id,
         )
 
 
-async def _async_vendor_setup(device: AdbDeviceAsync) -> VendorSetup | None:
-    """Apply a Portal's vendor setup; a refusal is reported, never fatal."""
+async def _async_vendor_setup(
+    device: AdbDeviceAsync,
+) -> VendorSetup | ShellySetup | None:
+    """Apply a vendor's setup; a refusal is reported, never fatal."""
     nonce = token_hex(16)
     body = await _async_shell(
         device, vendor_setup_command(nonce), read_timeout=_READ_TIMEOUT_SECONDS
@@ -2286,12 +2342,103 @@ async def _async_vendor_setup(device: AdbDeviceAsync) -> VendorSetup | None:
         converged = False
     else:
         converged = observed is None or observed.converged
-    if not converged:
+    if converged:
+        return observed
+    if isinstance(observed, ShellySetup):
+        _LOGGER.warning(
+            "The panel did not take Panel Assistant's Shelly setup: Shelly's "
+            "corner overlay may still show over the panel app"
+        )
+    elif isinstance(observed, VendorSetup):
         _LOGGER.warning(
             "The panel did not take Panel Assistant's Meta Portal setup: Meta's "
             "screensaver or its swipe-up bar may still show over the panel app"
         )
+    else:
+        _LOGGER.warning(
+            "The panel did not take Panel Assistant's vendor setup: on a Meta "
+            "Portal, Meta's screensaver or its swipe-up bar may still show over "
+            "the panel app; on a Shelly Wall Display, Shelly's corner overlay"
+        )
     return observed
+
+
+async def _async_target_section(
+    target: AdbInstallTarget,
+    signer: PythonRSASigner,
+    command: Callable[[str], str],
+    prefix: str,
+) -> list[str]:
+    """Run one framed program on the identified panel and return its lines."""
+    _validate_target(target)
+    device: AdbDeviceAsync | None = None
+    try:
+        async with asyncio.timeout(_LAUNCH_TIMEOUT_SECONDS):
+            device = await _async_connect(target, signer, authorize=False)
+            nonce = token_hex(16)
+            _parse_identity_root(
+                await _async_shell(
+                    device,
+                    _identity_root_command(nonce),
+                    read_timeout=_READ_TIMEOUT_SECONDS,
+                ),
+                nonce,
+                target,
+            )
+            nonce = token_hex(16)
+            lines, status = _parse_single_section(
+                await _async_shell(
+                    device, command(nonce), read_timeout=_READ_TIMEOUT_SECONDS
+                ),
+                prefix=prefix,
+                nonce=nonce,
+            )
+            if status != 0:
+                raise _MalformedAdbResponse
+            return lines
+    except InstallAdbError:
+        raise
+    except (
+        TimeoutError,
+        _MalformedAdbResponse,
+        _UnsafeAdbPacket,
+        *_ADB_EXCEPTIONS,
+    ):
+        raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE) from None
+    finally:
+        await _async_close(device)
+
+
+async def async_apply_display_sizing(
+    target: AdbInstallTarget, signer: PythonRSASigner, sizing: DisplaySizing
+) -> DisplayResult:
+    """Apply the profile's recommended display and text size at setup."""
+    lines = await _async_target_section(
+        target,
+        signer,
+        lambda nonce: display_sizing_command(nonce, sizing),
+        "DISPLAY",
+    )
+    try:
+        return parse_display_sizing(lines, sizing)
+    except DisplayResponseError:
+        raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE) from None
+
+
+async def async_restore_display_sizing(
+    target: AdbInstallTarget, signer: PythonRSASigner
+) -> str:
+    """Put back the display and text size setup changed, before the app goes.
+
+    Returns ``restored``, ``unrestored`` or ``none`` (nothing was changed).
+    """
+    lines = await _async_target_section(
+        target, signer, display_restore_command, "DISPLAY_RESTORE"
+    )
+    try:
+        return parse_display_restore(lines)
+    except DisplayResponseError:
+        raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE) from None
 
 
 async def async_restore_vendor_setup(

@@ -693,6 +693,25 @@
         }
       }
     },
+    "panel_proximity_setup": {
+      "title": "Skonfiguruj czujnik zbliżeniowy na panelu {panel}.",
+      "fix_flow": {
+        "step": {
+          "set_up_proximity": {
+            "title": "Konfiguracja czujnika zbliżeniowego na panelu {panel}",
+            "description": "Dopóki czujnik zbliżeniowy nie jest skonfigurowany, panelu {panel} nie można wybudzić ruchem ręki. Konfiguracja trwa około minuty i wymaga stania przed panelem. Otwórz Panel Assistant na pasku bocznym i wybierz {panel}. Na jego stronie Konfiguracja w sekcji Obecność i wybudzanie wybierz Skonfiguruj czujnik zbliżeniowy na panelu, a następnie postępuj zgodnie z instrukcjami na ekranie panelu. Możesz też rozpocząć ją na samym panelu przyciskiem Otwórz ustawienia zbliżenia na jego pulpicie. Gdy panel poinformuje, że kalibracja została zapisana, wróć tutaj i wybierz Zatwierdź."
+          }
+        },
+        "error": {
+          "proximity_not_calibrated": "Panel nadal zgłasza, że czujnik zbliżeniowy nie jest skonfigurowany. Dokończ konfigurację na panelu i wyślij ponownie.",
+          "proximity_calibrating": "Konfiguracja na panelu nadal trwa. Dokończ ją i wyślij ponownie.",
+          "proximity_unreadable": "Home Assistant nie mógł odczytać stanu czujnika zbliżeniowego panelu. Sprawdź, czy panel jest połączony, i wyślij ponownie."
+        },
+        "abort": {
+          "entry_removed": "Ten panel został usunięty."
+        }
+      }
+    },
     "voice_microphone_silent": {
       "title": "Asystent głosowy na {panel} nie nasłuchuje.",
       "description": "Asystent głosowy na {panel} nie nasłuchuje, ponieważ podczas sprawdzania przez panel jego mikrofon nagrał tylko ciszę. Aby sprawdzić ponownie, wyłącz i włącz asystenta głosowego na stronie Configure panelu albo wybierz tam inne źródło dźwięku."

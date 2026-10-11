@@ -30,6 +30,7 @@ from .browser_release_cache import (
 from .build_feed import FeedInstallBundle
 from .client import HaPaneldClient, InvalidAddressError, PanelAddress, normalize_address
 from .const import DEFAULT_PORT, DOMAIN, SOURCE_USB_INSTALL
+from .display_provisioning import async_read_recommended_sizing
 from .ha_url import async_offer_ha_url
 from .install_network import is_allowed_install_address
 from .release import is_feed_build_tag, is_install_release_tag, unique_json_object
@@ -340,11 +341,24 @@ class BrowserSetupHandoverView(HomeAssistantView):
                 )
                 async with asyncio.timeout(_HANDOVER_TIMEOUT):
                     outcome = await async_offer_ha_url(self.service.hass, client)
+                    # The installer still holds USB: it applies the display and
+                    # text size the panel's profile recommends before it opens
+                    # the panel's setup, as the network installer does over ADB.
+                    sizing = await async_read_recommended_sizing(client)
                 registration = await _async_register_usb_panel(
                     self.service.hass, address
                 )
                 return web.json_response(
-                    {"outcome": outcome, "registration": registration},
+                    {
+                        "outcome": outcome,
+                        "registration": registration,
+                        "display": None
+                        if sizing is None
+                        else {
+                            "density": sizing.density,
+                            "font_scale": sizing.font_scale,
+                        },
+                    },
                     headers=_HEADERS,
                 )
         except BrowserReleaseCacheError as error:

@@ -42,7 +42,9 @@ from .test_install_adb_grants import _run_on_stand_in_panel, _seed_granted_panel
 _META_COMPONENTS = vendor_provisioning.META_SCREENSAVER_COMPONENTS
 _META_DEFAULT = vendor_provisioning.META_SCREENSAVER_DEFAULT_COMPONENT
 _CONTROL_CENTER = vendor_provisioning.META_CONTROL_CENTER
+_SHELLY = vendor_provisioning.SHELLY_LAUNCHER
 _SETUP_WARNING = "Meta Portal setup"
+_SHELLY_WARNING = "Shelly setup"
 _VERIFIER = "package_verifier_enable"
 
 
@@ -98,7 +100,12 @@ class _PanelDevice(FakeDevice):
                 command.replace(
                     vendor_provisioning.META_RESTORE_RECORD,
                     str(self.state / "restore-record"),
-                ).replace(CHOOSER_DUMP, str(self.state / "chooser-dump.xml")),
+                )
+                .replace(CHOOSER_DUMP, str(self.state / "chooser-dump.xml"))
+                .replace(
+                    vendor_provisioning.SHELLY_RESTORE_RECORD,
+                    str(self.state / "shelly-record"),
+                ),
                 self.state,
             )
 
@@ -727,3 +734,129 @@ async def test_a_verifier_record_that_cannot_be_written_is_reported(
 
     assert not (tmp_path / "verifier-record").exists()
     assert _SETUP_WARNING in caplog.text
+
+
+def _shelly(state: Path, overlay: str = "allow") -> None:
+    """A Shelly Wall Display: its launcher installed, drawing its overlay."""
+    (state / "prop.ro.product.device").write_text("Jenna\n")
+    (state / f"package.{_SHELLY}").touch()
+    (state / f"appop.{_SHELLY}.SYSTEM_ALERT_WINDOW").write_text(overlay + "\n")
+
+
+async def test_a_shelly_panel_has_the_launcher_overlay_denied_and_recorded(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+) -> None:
+    _shelly(tmp_path)
+
+    fake = await _launch(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert _value(tmp_path, f"appop.{_SHELLY}.SYSTEM_ALERT_WINDOW") == "deny"
+    assert _value(tmp_path, "shelly-record") == "stargate_overlay=allow"
+    # The launcher stays installed and enabled: only its overlay is denied.
+    assert [call for call in _calls(tmp_path) if _SHELLY in call] == [
+        f"appops set {_SHELLY} SYSTEM_ALERT_WINDOW deny"
+    ]
+    assert not any("screensaver" in call for call in _calls(tmp_path))
+    vendor = [i for i, c in enumerate(fake.commands) if "HAPANELD_VENDOR_BEGIN" in c]
+    launch = [i for i, c in enumerate(fake.commands) if "HAPANELD_LAUNCH_BEGIN" in c]
+    assert len(vendor) == 1 and vendor[0] < launch[0]
+    assert _SHELLY_WARNING not in caplog.text
+
+    (tmp_path / "calls").unlink()
+    _install_fakes(monkeypatch, [_PanelDevice(tmp_path)])
+    await async_repair_installed_app_permissions(
+        target, signer, descriptor, expected_root_mode=AdbRootMode.ROOTLESS
+    )
+
+    assert not any(_SHELLY in call for call in _calls(tmp_path))
+    assert _value(tmp_path, "shelly-record") == "stargate_overlay=allow"
+
+
+async def test_a_shelly_overlay_android_keeps_is_reported_and_the_app_starts(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+) -> None:
+    _shelly(tmp_path)
+    (tmp_path / "refuse.SYSTEM_ALERT_WINDOW").touch()
+
+    fake = await _launch(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert _SHELLY_WARNING in caplog.text
+    assert "am start" in fake.commands[-1]
+
+
+@pytest.mark.parametrize("before", ["allow", "default", "deny"])
+async def test_hand_back_gives_the_shelly_launcher_its_overlay_mode_back_once(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    before: str,
+) -> None:
+    _shelly(tmp_path, before)
+    await _launch(monkeypatch, signer, target, descriptor, tmp_path)
+    assert _value(tmp_path, f"appop.{_SHELLY}.SYSTEM_ALERT_WINDOW") == "deny"
+
+    _install_fakes(monkeypatch, [_PanelDevice(tmp_path), _PanelDevice(tmp_path)])
+    assert await async_restore_vendor_setup(target, signer) == "restored"
+
+    assert _value(tmp_path, f"appop.{_SHELLY}.SYSTEM_ALERT_WINDOW") == before
+    assert not (tmp_path / "shelly-record").exists()
+    assert await async_restore_vendor_setup(target, signer) == "none"
+
+
+async def test_an_unreadable_launcher_overlay_is_left_alone_until_it_can_be_read(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+) -> None:
+    """A mode Android will not report is never recorded as something else."""
+    _shelly(tmp_path)
+    (tmp_path / "unreadable.SYSTEM_ALERT_WINDOW").write_text("garbage\n")
+
+    await _launch(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert not (tmp_path / "shelly-record").exists()
+    assert not any(_SHELLY in call for call in _calls(tmp_path))
+    assert _value(tmp_path, f"appop.{_SHELLY}.SYSTEM_ALERT_WINDOW") == "allow"
+    assert _SHELLY_WARNING in caplog.text
+
+    # The next launch reads it, records the real mode and only then denies it.
+    (tmp_path / "unreadable.SYSTEM_ALERT_WINDOW").unlink()
+    await _launch(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert _value(tmp_path, "shelly-record") == "stargate_overlay=allow"
+    assert _value(tmp_path, f"appop.{_SHELLY}.SYSTEM_ALERT_WINDOW") == "deny"
+
+
+async def test_a_recorded_deny_is_put_back_after_the_mode_changed(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    """An overlay the owner had denied before install is denied again on removal."""
+    _shelly(tmp_path, "deny")
+    await _launch(monkeypatch, signer, target, descriptor, tmp_path)
+    assert _value(tmp_path, "shelly-record") == "stargate_overlay=deny"
+    (tmp_path / f"appop.{_SHELLY}.SYSTEM_ALERT_WINDOW").write_text("allow\n")
+
+    _install_fakes(monkeypatch, [_PanelDevice(tmp_path), _PanelDevice(tmp_path)])
+    assert await async_restore_vendor_setup(target, signer) == "restored"
+
+    assert _value(tmp_path, f"appop.{_SHELLY}.SYSTEM_ALERT_WINDOW") == "deny"
+    assert not (tmp_path / "shelly-record").exists()

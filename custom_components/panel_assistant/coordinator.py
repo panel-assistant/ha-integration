@@ -44,6 +44,7 @@ from .const import (
 from .feed_coordinator import async_get_feed_coordinator
 from .identity import accept_health, is_installation, reinstalled
 from .permission_repair import async_reconcile_permission_issue
+from .proximity_repair import async_reconcile_proximity_issue
 from .status import PanelStatus, parse_status_response
 from .transport import (
     MANAGE_SNAPSHOT,
@@ -231,6 +232,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         await self._async_clear_update_failure(health)
         if entry is not None:
             async_reconcile_permission_issue(self.hass, entry, status)
+            async_reconcile_proximity_issue(self.hass, entry, status)
         return PanelSnapshot(health=health, status=status, status_error=None)
 
     async def _async_probe_address(self, session: PanelSession) -> bool:
@@ -347,6 +349,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             )
         if entry is not None:
             async_reconcile_permission_issue(self.hass, entry, status)
+            async_reconcile_proximity_issue(self.hass, entry, status)
         return PanelSnapshot(health=health, status=status, status_error=None)
 
     async def _async_clear_update_failure(

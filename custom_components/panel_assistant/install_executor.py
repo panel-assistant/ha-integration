@@ -38,6 +38,7 @@ from .client import (
     normalize_address,
 )
 from .const import ANDROID_RELEASE_DOWNLOAD_ROOT, DOMAIN
+from .display_provisioning import async_read_recommended_sizing
 from .feed_coordinator import async_get_feed_coordinator
 from .ha_url import async_offer_ha_url
 from .install_adb import (
@@ -50,6 +51,7 @@ from .install_adb import (
     InstallOutcome,
     LaunchOutcome,
     StagedApk,
+    async_apply_display_sizing,
     async_cleanup_staged_apk,
     async_install_staged_apk,
     async_installed_artifact_size,
@@ -989,6 +991,12 @@ class InstallExecutor:
                         # install that worked must not be failed by a
                         # convenience that did not.
                         await async_offer_ha_url(self._hass, panel)
+                        # The same moment, and the same best-effort rule: a
+                        # rootless panel gets the display and text size its
+                        # profile recommends, once, at setup.
+                        await self._async_offer_display_sizing(
+                            receipt, execution, panel
+                        )
                         receipt = await self._async_transition(
                             receipt,
                             InstallPhase.HEALTHY_UNCLAIMED,
@@ -1089,6 +1097,38 @@ class InstallExecutor:
             execution.descriptor,
             expected_root_mode=observed.root_mode,
         )
+
+    async def _async_offer_display_sizing(
+        self,
+        receipt: InstallJobReceipt,
+        execution: _FrozenExecution,
+        panel: HaPaneldClient,
+    ) -> None:
+        """Apply the panel's recommended sizing over ADB; never fails an install."""
+        sizing = await async_read_recommended_sizing(panel)
+        if sizing is None:
+            return
+        try:
+            credential = await self._async_current_credential(receipt)
+            result = await async_apply_display_sizing(
+                execution.adb_target, credential.signer, sizing
+            )
+        except (AdbCredentialError, InstallAdbError) as err:
+            _LOGGER.warning(
+                "Could not set the recommended display and text size on panel=%s "
+                "(%s); set them on the panel if its text looks too large or small",
+                receipt.target.address,
+                _result_subcode(err),
+            )
+            return
+        if not result.converged:
+            _LOGGER.warning(
+                "The panel did not take the recommended display and text size "
+                "(panel=%s density=%s font_scale=%s)",
+                receipt.target.address,
+                result.density,
+                result.font_scale,
+            )
 
     async def _async_current_credential(
         self, receipt: InstallJobReceipt
