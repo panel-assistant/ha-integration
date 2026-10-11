@@ -84,7 +84,9 @@ def _entity(
 ) -> tuple[HaPaneldUpdateEntity, SimpleNamespace]:
     client = SimpleNamespace(
         async_start_panel_update=AsyncMock(),
-        async_get_panel_install_status=AsyncMock(),
+        async_get_panel_install_status=AsyncMock(
+            return_value=PanelInstallStatus(running=True, component="APK")
+        ),
         async_backup_panel=AsyncMock(return_value=b"backup"),
         async_stage_apk=AsyncMock(
             return_value=StagedApk(

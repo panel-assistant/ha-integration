@@ -60,6 +60,7 @@ from custom_components.panel_assistant.client import (
     HaPaneldClient,
     NotABridgeError,
     PanelHealth,
+    PanelInstallStatus,
     StagedApk,
     StagingUnavailableError,
     UpdateBusyError,
@@ -327,7 +328,9 @@ async def _entity(
         async_commit_apk=AsyncMock(),
         async_discard_apk=AsyncMock(),
         async_start_panel_update=AsyncMock(),
-        async_get_panel_install_status=AsyncMock(),
+        async_get_panel_install_status=AsyncMock(
+            return_value=PanelInstallStatus(running=True, component="APK")
+        ),
         async_get_version_code=AsyncMock(return_value=(VERSION, CODE)),
         async_get_status=AsyncMock(
             return_value=PanelStatus(

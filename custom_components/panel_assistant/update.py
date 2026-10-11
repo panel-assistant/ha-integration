@@ -139,7 +139,7 @@ _UPDATE_TIMEOUT_SECONDS = (
     + _RESTART_HEALTH_GRACE_SECONDS
 )
 _UPDATE_RECHECK_SECONDS = 2
-# What a panel says when its own order refuses a build (AppInstaller.panelUpdateRefusal).
+# A panel's refusal of a build its own order ranks lower (panelUpdateRefusal).
 _DOWNGRADE_REFUSAL = "panel-app downgrades are not permitted"
 _AWAITING_CONFIRMATION_SUMMARY = "Tap Install on the panel to finish the update."
 AWAITING_CONFIRMATION_ATTRIBUTE = "awaiting_confirmation"
@@ -2207,7 +2207,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                         return
             if watch_refusal:
                 try:
-                    status = await self.coordinator.client.async_get_panel_install_status()
+                    status = (
+                        await self.coordinator.client.async_get_panel_install_status()
+                    )
                 except HaPaneldError:
                     status = None
                 # A started install resets the message, so a refusal is final.

@@ -51,10 +51,10 @@ from custom_components.panel_assistant.client import (
     CannotConnectError,
     HaPaneldClient,
     PanelHealth,
+    PanelInstallStatus,
     StagedApk,
     UpdateApprovalRequiredError,
     UploadDisabledError,
-    PanelInstallStatus,
     normalize_address,
 )
 from custom_components.panel_assistant.const import DOMAIN
@@ -170,7 +170,9 @@ def _entity(
 ) -> tuple[HaPaneldUpdateEntity, SimpleNamespace]:
     client = SimpleNamespace(
         async_start_panel_update=AsyncMock(),
-        async_get_panel_install_status=AsyncMock(),
+        async_get_panel_install_status=AsyncMock(
+            return_value=PanelInstallStatus(running=True, component="APK")
+        ),
         async_get_version_code=AsyncMock(return_value=(version, installed_code)),
         async_get_status=AsyncMock(
             return_value=PanelStatus(
@@ -1798,7 +1800,9 @@ def _refuse_committed_install(client: SimpleNamespace, reason: str) -> None:
 
 
 def _authorized_adb(
-    entity: HaPaneldUpdateEntity, client: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+    entity: HaPaneldUpdateEntity,
+    client: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> AsyncMock:
     """An authorized ADB peer for this panel; returns the ADB install call."""
     client.address = normalize_address("192.168.1.10")
@@ -1812,7 +1816,9 @@ def _authorized_adb(
         android_sdk=30,
     )
     monkeypatch.setattr(
-        panel_update, "async_get_durable_adb_credential", AsyncMock(return_value=credential)
+        panel_update,
+        "async_get_durable_adb_credential",
+        AsyncMock(return_value=credential),
     )
     monkeypatch.setattr(
         install_network, "async_pin_install_target", AsyncMock(return_value=pinned)
@@ -1859,9 +1865,11 @@ def _authorized_adb(
 async def test_a_refused_install_fails_at_once_with_the_panel_refusal(
     hass: HomeAssistant, delivery: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A refusal is reported as one, not waited out as an install that never came back."""
+    """A refusal is reported at once, not waited out as an unfinished install."""
     entity, client = _entity(hass)
-    _refuse_committed_install(client, "candidate cannot speak to the running Panel Assistant")
+    _refuse_committed_install(
+        client, "candidate cannot speak to the running Panel Assistant"
+    )
     adb_install = _authorized_adb(entity, client, monkeypatch)
 
     with pytest.raises(HomeAssistantError) as error:
@@ -1891,7 +1899,7 @@ async def test_a_refused_older_build_is_never_forced_over_adb(
 async def test_a_panel_refusing_a_higher_build_as_a_downgrade_is_crossed_over_adb(
     hass: HomeAssistant, delivery: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """vc1246 named 1.0.0-rc1 refused build 1391 named 1.0.0-preview1; Android orders by build."""
+    """vc1246 (1.0.0-rc1) refused 1391 (1.0.0-preview1); Android orders by build."""
     entity, client = _entity(hass)
     _refuse_committed_install(client, "panel-app downgrades are not permitted")
     adb_install = _authorized_adb(entity, client, monkeypatch)
