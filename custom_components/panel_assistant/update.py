@@ -892,10 +892,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         """The panel's own installer waits for a tap on Install."""
         snapshot = self._update_coordinator.data
         operation = snapshot.operation if snapshot is not None else None
+        # Either route can wait: the panel's own download runs as "ha-paneld",
+        # an update Home Assistant sent runs as the uploaded "APK".
         return (
             operation is not None
             and operation.running
-            and operation.component == "ha-paneld"
             and operation.awaiting_confirmation
         )
 

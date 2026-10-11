@@ -628,6 +628,18 @@ def test_an_update_waiting_for_a_tap_on_the_panel_says_so(
     assert "awaiting_confirmation" not in (entity.extra_state_attributes or {})
 
 
+def test_an_update_home_assistant_sent_also_says_to_tap(hass: HomeAssistant) -> None:
+    """The staged upload runs on the panel as "APK" and waits for the same tap."""
+    entity, _ = _entity(
+        hass,
+        operation=PanelInstallStatus(
+            running=True, component="APK", awaiting_confirmation=True
+        ),
+    )
+
+    assert entity.release_summary == "Tap Install on the panel to finish the update."
+
+
 async def test_waiting_for_the_tap_is_not_a_failure(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
