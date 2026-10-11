@@ -2,8 +2,10 @@
 raised under Discovered with no Panel Assistant entry."""
 
 import asyncio
+import json
 from collections.abc import Iterator
 from ipaddress import ip_address
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -22,6 +24,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.client import CannotConnectError, PanelHealth
 from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.migration_targets import VENDOR_SERVICE_TYPES
 
 HEALTH = PanelHealth(
     version="0.9.0",
@@ -646,3 +649,67 @@ async def test_overlapping_discovery_whose_probe_fails_leaves_the_other_card(
     await _overlapping(hass, adb_open, "192.168.1.11")
 
     assert set(_cards(hass)) == {"Stairs tablet"}
+
+
+def _shelly_wall_display(host: str) -> ZeroconfServiceInfo:
+    """The bench X2i's Stargate announcement, as browsed on the LAN (2026-10-11)."""
+    address = ip_address(host)
+    return ZeroconfServiceInfo(
+        ip_address=address,
+        ip_addresses=[address],
+        port=80,
+        hostname="ShellyWallDisplay-00A90B9D900A.local.",
+        type="_shelly._tcp.local.",
+        name="ShellyWallDisplay-00A90B9D900A._shelly._tcp.local.",
+        properties={"app": "WallDisplay", "gen": "2", "ver": "2.5.4"},
+    )
+
+
+async def test_vendor_announced_panel_without_the_app_is_offered_with_adb_closed(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """Shelly's own announcement raises a card even where adbd announces nothing."""
+    with patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)):
+        await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=_shelly_wall_display("192.168.1.70"),
+        )
+        await hass.async_block_till_done()
+
+    card = _cards(hass)["ShellyWallDisplay-00A90B9D900A"]
+    assert card["context"]["title_placeholders"]["address"] == "192.168.1.70"
+    assert card["context"]["unique_id"] == "mdns:shellywalldisplay-00a90b9d900a"
+
+
+async def test_vendor_announcement_of_an_added_panel_raises_no_card(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """An added panel's address is never offered for installation again."""
+    MockConfigEntry(domain=DOMAIN, data={CONF_ADDRESS: "192.168.1.70"}).add_to_hass(
+        hass
+    )
+    with patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)):
+        await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=_shelly_wall_display("192.168.1.70"),
+        )
+        await hass.async_block_till_done()
+
+    assert _cards(hass) == {}
+
+
+def test_manifest_browses_each_vendor_service_by_its_profile_name() -> None:
+    """Home Assistant starts the vendor flow only for a matcher in the manifest."""
+    manifest = json.loads(
+        (
+            Path(__file__).parents[1]
+            / "custom_components/panel_assistant/manifest.json"
+        ).read_text(encoding="utf-8")
+    )
+    matchers = [m for m in manifest["zeroconf"] if isinstance(m, dict)]
+    assert {m["type"] for m in matchers} == set(VENDOR_SERVICE_TYPES)
+    # Lower-cased, as Core compares the instance name; the app profile reads
+    # platform.vendor_mdns: ShellyWallDisplay-*._shelly._tcp.
+    assert {"type": "_shelly._tcp.local.", "name": "shellywalldisplay-*"} in matchers

@@ -95,6 +95,7 @@ from .install_network import (
 from .install_plan import InstallPlanError, build_install_plan
 from .migration_targets import (
     ADB_SERVICE_TYPE,
+    VENDOR_SERVICE_TYPES,
     MigrationTarget,
     adb_candidate,
     address_schema,
@@ -103,6 +104,7 @@ from .migration_targets import (
     async_offer_migration_targets,
     ignored_card_data,
     offer_blocked,
+    vendor_candidate,
 )
 from .provisioning import (
     InstallTargetProbe,
@@ -264,6 +266,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         """Offer a verified local mDNS discovery for explicit confirmation."""
         if discovery_info.type == ADB_SERVICE_TYPE:
             return await self._async_discovered_adb(discovery_info)
+        if discovery_info.type in VENDOR_SERVICE_TYPES:
+            return await self._async_discovered_vendor(discovery_info)
         discovery_id = discovery_info.properties.get("did")
         if (
             discovery_info.port != DEFAULT_PORT
@@ -271,6 +275,17 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             or not is_valid_discovery_id(discovery_id)
         ):
             return self.async_abort(reason="invalid_discovery")
+        return await self._async_discovered_app(
+            discovery_info, discovery_id, discovery_info.properties.get("name")
+        )
+
+    async def _async_discovered_app(
+        self,
+        discovery_info: ZeroconfServiceInfo,
+        discovery_id: str,
+        advertised_name: object,
+    ) -> ConfigFlowResult:
+        """Offer, or move to its new address, the panel with this discovery id."""
         # An IPv6 literal must be bracketed before a port can follow it; bare, its
         # colons read as a port and every IPv6-only panel was refused here.
         advertised = discovery_info.ip_address
@@ -329,9 +344,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         self._pending_address = address
         self._pending_health = health
         self._pending_discovery_id = discovery_id
-        self._pending_friendly_name = _presentation_safe_name(
-            discovery_info.properties.get("name")
-        )
+        self._pending_friendly_name = _presentation_safe_name(advertised_name)
         # Without a title placeholder the card for every discovered panel falls back
         # to the bare integration name, so a fleet is a list of indistinguishable
         # duplicates. Prefer the human name the panel advertises, and fall back to the
@@ -373,6 +386,37 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return await self.async_step_integration_discovery(candidate)
         # The app already answers here; its own advertisement offers it.
         return self.async_abort(reason="not_panel")
+
+    async def _async_discovered_vendor(
+        self, discovery_info: ZeroconfServiceInfo
+    ) -> ConfigFlowResult:
+        """A panel found by its vendor's own announcement (profile `vendor_mdns`).
+
+        The app's health line names the panel when the app answers, and the
+        panel is then handled as if it had announced itself; a panel whose app
+        does not answer is offered for installation like a network ADB device.
+        """
+        advertised = discovery_info.ip_address
+        host = f"[{advertised}]" if advertised.version == 6 else str(advertised)
+        try:
+            health = await HaPaneldClient(
+                async_get_clientsession(self.hass), normalize_address(host)
+            ).async_get_health()
+        except InvalidAddressError:
+            return self.async_abort(reason="invalid_discovery")
+        except CannotConnectError, InvalidResponseError:
+            instance = discovery_info.name.removesuffix(f".{discovery_info.type}")
+            candidate = vendor_candidate(
+                self.hass, host, instance, VENDOR_SERVICE_TYPES[discovery_info.type]
+            )
+            if candidate is None:
+                return self.async_abort(reason="not_panel")
+            return await self.async_step_integration_discovery(candidate)
+        if health.discovery_id is None:
+            return self.async_abort(reason="invalid_discovery")
+        return await self._async_discovered_app(
+            discovery_info, health.discovery_id, None
+        )
 
     async def async_step_integration_discovery(
         self, discovery_info: dict[str, Any]

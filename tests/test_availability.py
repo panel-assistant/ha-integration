@@ -960,6 +960,42 @@ async def test_known_panel_advertising_a_new_address_updates_the_stored_one(
     assert entry.state is ConfigEntryState.LOADED
 
 
+async def test_known_panel_found_by_its_vendor_announcement_updates_the_stored_one(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """A moved panel whose app does not announce itself is found by Shelly's name."""
+    entry = await _load(hass, hass_read_only_user.id, unique_id=DID)
+    await _poll(hass, entry, {STORED: CannotConnectError()})
+    address = ip_address(MOVED)
+    announcement = ZeroconfServiceInfo(
+        ip_address=address,
+        ip_addresses=[address],
+        port=80,
+        hostname="ShellyWallDisplay-00A90B9D900A.local.",
+        type="_shelly._tcp.local.",
+        name="ShellyWallDisplay-00A90B9D900A._shelly._tcp.local.",
+        properties={"app": "WallDisplay", "gen": "2", "ver": "2.5.4"},
+    )
+    with (
+        patch.object(
+            HaPaneldClient, "async_get_health", AsyncMock(return_value=HEALTH)
+        ),
+        patch.object(
+            HaPaneldClient, "async_get_status", AsyncMock(return_value=STATUS)
+        ),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=announcement,
+        )
+        await hass.async_block_till_done()
+
+    assert result["reason"] == "already_configured"
+    assert entry.data[CONF_ADDRESS] == MOVED
+    assert entry.runtime_data.client.address.host == MOVED
+
+
 @pytest.mark.parametrize(
     "answer",
     [replace(HEALTH, discovery_id=OTHER_DID), CannotConnectError()],

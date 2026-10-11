@@ -50,6 +50,10 @@ _COMPANION_TELEPHONY_SUFFIXES = ("_phone_state", "_mobile_data", "_sim_1")
 _ADB_PROBE_SECONDS = 2
 # Android's adbd advertises this while network ADB listens (manifest zeroconf).
 ADB_SERVICE_TYPE = "_adb._tcp.local."
+# Services a panel's own vendor software announces, whether or not the app runs,
+# with the label its card shows. Each mirrors a device profile's
+# `platform.vendor_mdns`; the manifest's zeroconf matchers narrow it by name.
+VENDOR_SERVICE_TYPES: dict[str, str] = {"_shelly._tcp.local.": "Shelly Wall Display"}
 # An ignored card keeps its address, because the same device can be raised by
 # the registries under one identity and by its ADB announcement under another.
 _IGNORED_ADDRESS = "ignored_address"
@@ -185,6 +189,25 @@ def adb_candidate(hass: HomeAssistant, host: str, serial: str) -> dict[str, Any]
     One another integration already knows keeps that integration's name and
     card, so it is never offered twice.
     """
+    return _unconfigured(
+        hass, host, f"adb:{serial}", f"Android {serial}", "network ADB", False
+    )
+
+
+def vendor_candidate(
+    hass: HomeAssistant, host: str, instance: str, source: str
+) -> dict[str, Any] | None:
+    """The panel its vendor's software announces, unless added or off the LAN.
+
+    The announcement names a panel model, so it is offered even with ADB closed.
+    """
+    return _unconfigured(hass, host, f"mdns:{instance.lower()}", instance, source, True)
+
+
+def _unconfigured(
+    hass: HomeAssistant, host: str, key: str, name: str, source: str, panel_only: bool
+) -> dict[str, Any] | None:
+    """A candidate card at this host, or the one another integration raises."""
     lan = _lan_address(host)
     if lan is None:
         return None
@@ -195,14 +218,16 @@ def adb_candidate(hass: HomeAssistant, host: str, serial: str) -> dict[str, Any]
     ):
         return None
     if (known := _candidates(hass).get(value)) is not None:
-        return known
+        # Keep the other integration's card, but a vendor announcement naming a
+        # panel model still proves a panel where that integration cannot.
+        return {**known, "panel_only": known["panel_only"] or panel_only}
     return {
-        "key": f"adb:{serial}",
+        "key": key,
         "address": value,
         "host": bare,
-        "name": f"Android {serial}",
-        "source": "network ADB",
-        "panel_only": False,
+        "name": name,
+        "source": source,
+        "panel_only": panel_only,
     }
 
 
