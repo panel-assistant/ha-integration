@@ -211,6 +211,11 @@ class _PanelServer(AbstractContextManager["_PanelServer"]):
                     # real panel of that age serves here. No privileged route.
                     mode = "info"
                     body = b'{"shot":false}'
+                elif self.path == "/api/v1/display":
+                    # Setup asks what text size to apply; this old panel sizes
+                    # itself through a privileged route, so nothing is applied.
+                    mode = "display"
+                    body = b'{"privileged_sizing":true}'
                 else:
                     body = b"not found"
                     self.send_response(404)

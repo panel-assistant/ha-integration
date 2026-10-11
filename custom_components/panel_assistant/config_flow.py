@@ -11,7 +11,6 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.auth.models import User
-from homeassistant.components.http import current_request
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -23,6 +22,7 @@ from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowHandler, FlowResult, UnknownFlow
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.http import current_request
 from homeassistant.helpers.selector import (
     BooleanSelector,
     SelectOptionDict,
