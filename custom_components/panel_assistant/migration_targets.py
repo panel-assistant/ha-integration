@@ -245,6 +245,22 @@ def offer_blocked(hass: HomeAssistant, address: str, flow_id: str) -> bool:
     )
 
 
+@callback
+def close_offers(hass: HomeAssistant, address: str, flow_id: str) -> None:
+    """Close every other card offering this address: its panel has a better one.
+
+    Called where the panel's identity is proven at the address, by the app's
+    own announcement or by an entry; every card is keyed by its channel, so
+    Core's own same-identity close never reaches the cards of other channels.
+    """
+    for flow in hass.config_entries.flow.async_progress_by_handler(DOMAIN):
+        if (
+            flow["flow_id"] != flow_id
+            and flow["context"].get("title_placeholders", {}).get("address") == address
+        ):
+            hass.config_entries.flow.async_abort(flow["flow_id"])
+
+
 def ignored_card_data(hass: HomeAssistant, unique_id: str) -> dict[str, str]:
     """Entry data for an Ignore: the address of the card being ignored, if any."""
     for flow in hass.config_entries.flow.async_progress_by_handler(DOMAIN):

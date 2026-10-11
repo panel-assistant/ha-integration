@@ -102,6 +102,7 @@ from .migration_targets import (
     async_check_migration_target,
     async_find_migration_targets,
     async_offer_migration_targets,
+    close_offers,
     ignored_card_data,
     offer_blocked,
     vendor_candidate,
@@ -316,6 +317,9 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="unknown")
         if health.discovery_id != discovery_id:
             return self.async_abort(reason="invalid_discovery")
+        # The panel has just answered as itself here: whatever happens next, an
+        # install card for this address is the same panel on a weaker channel.
+        close_offers(self.hass, address.stored_value, self.flow_id)
         for existing in self.hass.config_entries.async_entries(DOMAIN):
             if existing.data.get(CONF_ADDRESS) == address.stored_value:
                 accept_health(self.hass, existing, health)
@@ -340,6 +344,9 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         self._abort_if_unique_id_configured(
             updates={CONF_ADDRESS: address.stored_value}, reload_on_update=False
         )
+        # An Ignore on the card another channel showed covers the panel.
+        if offer_blocked(self.hass, address.stored_value, self.flow_id):
+            return self.async_abort(reason="already_configured")
 
         self._pending_address = address
         self._pending_health = health
@@ -523,8 +530,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         for flow in self.hass.config_entries.flow.async_progress_by_handler(DOMAIN):
             other_panel_id = clashing.get(flow["flow_id"])
             if other_panel_id is not None:
+                # Keep its address: the other channels and an Ignore match on it.
                 flow["context"]["title_placeholders"] = {
-                    "name": _qualified_name(friendly, other_panel_id)
+                    **flow["context"]["title_placeholders"],
+                    "name": _qualified_name(friendly, other_panel_id),
                 }
         self._set_discovery_title(
             _qualified_name(friendly, panel_id) if taken else friendly
@@ -532,7 +541,12 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
 
     def _set_discovery_title(self, display: str) -> None:
         """Record the rendered title for the card, the form and the created entry."""
-        self.context["title_placeholders"] = {"name": display}
+        # The address lets the other channels' cards, and an Ignore, find this one.
+        assert self._pending_address is not None
+        self.context["title_placeholders"] = {
+            "name": display,
+            "address": self._pending_address.stored_value,
+        }
         self._discovery_title = display
 
     def _announced_discovery_names(self) -> dict[str, tuple[str | None, str]]:
@@ -1379,10 +1393,16 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     async def async_on_create_entry(self, result: ConfigFlowResult) -> ConfigFlowResult:
-        """Hand the executor HA's actual entry id for the healthy receipt."""
+        """Close the panel's other cards; hand the executor HA's entry id."""
         job_id = self._finalizer_job_id
         executor = self._install_executor
         entry = result.get("result")
+        if isinstance(entry, ConfigEntry):
+            # Added by hand, over USB or from one card: a card another channel
+            # raised for this address must not stay beside the entry.
+            address = entry.data.get(CONF_ADDRESS)
+            if isinstance(address, str):
+                close_offers(self.hass, address, self.flow_id)
         if job_id is not None and executor is not None:
             if isinstance(entry, ConfigEntry):
                 # Never raises: the entry exists, and a receipt that cannot be

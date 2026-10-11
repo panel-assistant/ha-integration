@@ -4,6 +4,7 @@ raised under Discovered with no Panel Assistant entry."""
 import asyncio
 import json
 from collections.abc import Iterator
+from dataclasses import replace
 from ipaddress import ip_address
 from pathlib import Path
 from types import SimpleNamespace
@@ -729,3 +730,201 @@ def test_manifest_browses_each_vendor_service_by_its_profile_name() -> None:
     # Lower-cased, as Core compares the instance name; the app profile reads
     # platform.vendor_mdns: ShellyWallDisplay-*._shelly._tcp.
     assert {"type": "_shelly._tcp.local.", "name": "shellywalldisplay-*"} in matchers
+
+
+# One card per panel: the bench X2i was offered twice under Discovered, by the
+# Shelly registry card and by the app's own announcement (maintainer, 2026-10-11).
+PANEL = "192.168.1.70"
+APP_HEALTH = replace(HEALTH, panel_id="shelly_ha_panel", discovery_id="b" * 64)
+
+
+async def _app_announced(hass: HomeAssistant, host: str = PANEL) -> None:
+    """The app's own announcement, its health answering as the panel there."""
+    address = ip_address(host)
+    with patch(HEALTH_CHECK, AsyncMock(return_value=APP_HEALTH)):
+        await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=ZeroconfServiceInfo(
+                ip_address=address,
+                ip_addresses=[address],
+                port=8888,
+                hostname="shelly.local.",
+                type="_ha-paneld._tcp.local.",
+                name="shelly._ha-paneld._tcp.local.",
+                properties={"did": APP_HEALTH.discovery_id, "name": "Shelly HA Panel"},
+            ),
+        )
+        await hass.async_block_till_done()
+
+
+async def _by_vendor(hass: HomeAssistant, adb_open: SimpleNamespace) -> None:
+    """Stargate's announcement while the app is not answering."""
+    with patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)):
+        await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=_shelly_wall_display(PANEL),
+        )
+        await hass.async_block_till_done()
+
+
+async def _by_adb(hass: HomeAssistant, adb_open: SimpleNamespace) -> None:
+    """Android's network ADB announcement while the app is not answering."""
+    adb_open.open.add(PANEL)
+    await _adb_advertised(hass, PANEL)
+
+
+async def _by_registry(hass: HomeAssistant, adb_open: SimpleNamespace) -> None:
+    """The Shelly integration knowing the panel, raised by any dhcp event."""
+    if not hass.config_entries.async_entries("shelly"):
+        _host_entry(hass, "shelly", "ShellyWallDisplay-00A90B9D900A", PANEL)
+    adb_open.open.add(PANEL)
+    await _network_device_seen(hass)
+
+
+INSTALL_CHANNELS = pytest.mark.parametrize(
+    "offer", [_by_vendor, _by_adb, _by_registry], ids=["vendor", "adb", "registry"]
+)
+
+
+def _offers(hass: HomeAssistant) -> list[dict]:
+    """Every Panel Assistant card under Discovered, whatever step it shows."""
+    return [
+        flow
+        for flow in hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+        if flow["context"]["source"] != config_entries.SOURCE_USER
+    ]
+
+
+@INSTALL_CHANNELS
+async def test_app_announcing_a_panel_offered_for_installation_replaces_its_card(
+    hass: HomeAssistant, adb_open: SimpleNamespace, offer
+) -> None:
+    """The app's verified announcement is the best channel and takes over."""
+    await offer(hass, adb_open)
+    assert len(_offers(hass)) == 1
+
+    await _app_announced(hass)
+
+    [card] = _offers(hass)
+    assert card["context"]["unique_id"] == APP_HEALTH.discovery_id
+
+
+@INSTALL_CHANNELS
+async def test_install_announcement_of_a_panel_the_app_offers_adds_no_card(
+    hass: HomeAssistant, adb_open: SimpleNamespace, offer
+) -> None:
+    """A weaker channel arriving later, the app briefly silent, stands down."""
+    await _app_announced(hass)
+
+    await offer(hass, adb_open)
+
+    [card] = _offers(hass)
+    assert card["context"]["unique_id"] == APP_HEALTH.discovery_id
+
+
+@INSTALL_CHANNELS
+async def test_adding_an_offered_panel_by_hand_closes_its_card(
+    hass: HomeAssistant, adb_open: SimpleNamespace, offer
+) -> None:
+    """A card never stays beside the entry for its panel."""
+    await offer(hass, adb_open)
+    form = await _add_panel_form(hass)
+
+    with (
+        patch(HEALTH_CHECK, AsyncMock(return_value=APP_HEALTH)),
+        patch("custom_components.panel_assistant.async_setup_entry", return_value=True),
+    ):
+        found = await hass.config_entries.flow.async_configure(
+            form["flow_id"], {CONF_ADDRESS: PANEL}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            found["flow_id"], {"next_step_id": "connect_found"}
+        )
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert _offers(hass) == []
+
+
+@INSTALL_CHANNELS
+async def test_moved_panel_announcing_where_it_was_offered_closes_that_card(
+    hass: HomeAssistant, adb_open: SimpleNamespace, offer
+) -> None:
+    """An added panel's new address is its own; the install card there goes."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id=APP_HEALTH.discovery_id,
+        # Only an identity the installation protocol set follows an announcement.
+        data={CONF_ADDRESS: "192.168.1.99", "installation_identity": True},
+    )
+    entry.add_to_hass(hass)
+    await offer(hass, adb_open)
+
+    await _app_announced(hass)
+
+    assert entry.data[CONF_ADDRESS] == PANEL
+    assert _offers(hass) == []
+
+
+@INSTALL_CHANNELS
+async def test_ignoring_the_install_card_covers_the_app_announcement(
+    hass: HomeAssistant, adb_open: SimpleNamespace, offer
+) -> None:
+    """An Ignore on one card covers the panel, whichever channel shows next."""
+    await offer(hass, adb_open)
+    [card] = _offers(hass)
+    await _ignore_card(hass, card)
+
+    await _app_announced(hass)
+
+    assert _offers(hass) == []
+
+
+@INSTALL_CHANNELS
+async def test_ignoring_the_app_card_covers_every_install_announcement(
+    hass: HomeAssistant, adb_open: SimpleNamespace, offer
+) -> None:
+    """The reverse: an Ignore on the app's card holds against install channels."""
+    await _app_announced(hass)
+    [card] = _offers(hass)
+    await _ignore_card(hass, card)
+
+    await offer(hass, adb_open)
+
+    assert _offers(hass) == []
+
+
+async def test_app_card_retitled_for_a_name_clash_still_covers_its_panel(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """A second panel announcing the same name qualifies both titles, nothing else."""
+    await _app_announced(hass)
+    other = ip_address("192.168.1.71")
+    with patch(
+        HEALTH_CHECK,
+        AsyncMock(
+            return_value=replace(APP_HEALTH, panel_id="other", discovery_id="c" * 64)
+        ),
+    ):
+        await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=ZeroconfServiceInfo(
+                ip_address=other,
+                ip_addresses=[other],
+                port=8888,
+                hostname="other.local.",
+                type="_ha-paneld._tcp.local.",
+                name="other._ha-paneld._tcp.local.",
+                properties={"did": "c" * 64, "name": "Shelly HA Panel"},
+            ),
+        )
+        await hass.async_block_till_done()
+
+    await _by_vendor(hass, adb_open)
+
+    assert sorted(
+        flow["context"]["title_placeholders"]["name"] for flow in _offers(hass)
+    ) == ["Shelly HA Panel (other)", "Shelly HA Panel (shelly_ha_panel)"]

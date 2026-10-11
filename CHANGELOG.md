@@ -22,6 +22,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **A panel shows once under Discovered.** A panel that announces itself in more than one way, such as a Shelly Wall Display known to the Shelly integration that also runs the panel app, used to appear twice under **Settings, Devices & services, Discovered**, and the second card stayed even after the panel was added. Now it appears once: the panel app's own announcement replaces any other card for it, adding the panel closes its other cards, and **Ignore** on any of its cards hides the panel.
 - **A reinstalled panel rejoins its existing entry.** When the panel app is reinstalled from scratch, even if the panel also got a new address, Panel Assistant recognises the panel and keeps its entities, entity IDs and history. Before, the panel stayed unavailable until it was added again by hand. Panel Assistant learns what it needs the first time it reaches each panel after you update, so a panel reinstalled before then is not recognised.
 
 ## 0.9.0 - 2026-10-08
