@@ -70,3 +70,23 @@ def test_stale_deploy_missing_a_newer_release_copy_fails(tmp_path) -> None:
     (live / "0.9.2").mkdir()
     (live / "0.9.2" / "index.html").write_text("<p>0.9.2</p>")
     assert _main(built, live, "0.9.1", "0.9.2") == 0
+
+
+def test_the_check_names_itself_to_the_server(site, monkeypatch) -> None:
+    """Cloudflare answers 403 to urllib's default agent, so the check sends its own."""
+    import io
+    import urllib.request
+
+    built, published = site
+    agents: list[str] = []
+
+    def served(request, timeout):
+        agents.append(request.get_header("User-agent") or "")
+        if not agents[-1] or agents[-1].startswith("Python-urllib"):
+            raise OSError("HTTP Error 403: Forbidden")
+        name = request.full_url.rsplit("/" + published.name + "/", 1)[1]
+        return io.BytesIO((published / name).read_bytes())
+
+    monkeypatch.setattr(urllib.request, "urlopen", served)
+    assert _main(built, published) == 0
+    assert agents

@@ -24,6 +24,13 @@ from urllib.parse import quote
 ATTEMPTS = 20
 DELAY_SECONDS = 30.0
 TIMEOUT_SECONDS = 30.0
+USER_AGENT = "panel-assistant-installer-check"
+
+
+def _open(url: str):
+    """Open a URL with a named client; Cloudflare refuses urllib's default agent."""
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    return urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS)
 
 
 def _digest(data: bytes) -> str:
@@ -40,7 +47,7 @@ def differences(built: Path, base_url: str, tags: Sequence[str] = ()) -> list[st
     for tag in tags:
         url = base + quote(f"{tag}/index.html")
         try:
-            with urllib.request.urlopen(url, timeout=TIMEOUT_SECONDS):
+            with _open(url):
                 pass
         except (urllib.error.URLError, OSError) as err:
             problems.append(f"{tag}/index.html: release copy not served ({err})")
@@ -48,7 +55,7 @@ def differences(built: Path, base_url: str, tags: Sequence[str] = ()) -> list[st
         relative = path.relative_to(built).as_posix()
         url = base + quote(relative)
         try:
-            with urllib.request.urlopen(url, timeout=TIMEOUT_SECONDS) as response:
+            with _open(url) as response:
                 published = response.read()
         except (urllib.error.URLError, OSError) as err:
             problems.append(f"{relative}: not served ({err})")
