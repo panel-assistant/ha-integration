@@ -676,3 +676,54 @@ def test_an_unset_verifier_is_restored_as_unset(tmp_path: Path) -> None:
     assert not (tmp_path / _VERIFIER).exists()
     assert f"settings delete global {_VERIFIER}" in _calls(tmp_path)
     assert not (tmp_path / "verifier-record").exists()
+
+
+async def test_a_verifier_that_stays_on_is_reported(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+) -> None:
+    _portal(tmp_path)
+    (tmp_path / f"refuse.{_VERIFIER}").touch()
+
+    await _launch(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert _value(tmp_path, _VERIFIER) == "1"
+    assert _SETUP_WARNING in caplog.text
+
+
+async def test_a_verifier_record_that_cannot_be_written_is_reported(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+) -> None:
+    _portal(tmp_path)
+    # Already off, so only the missing record keeps setup from converging.
+    (tmp_path / _VERIFIER).write_text("0\n")
+    real = _PanelDevice.streaming_shell
+
+    async def unwritable(
+        self: _PanelDevice, command: str, **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        async for chunk in real(
+            self,
+            command.replace(
+                vendor_provisioning.META_VERIFIER_RECORD,
+                str(self.state / "missing" / "verifier"),
+            ),
+            **kwargs,
+        ):
+            yield chunk
+
+    monkeypatch.setattr(_PanelDevice, "streaming_shell", unwritable)
+
+    await _launch(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert not (tmp_path / "verifier-record").exists()
+    assert _SETUP_WARNING in caplog.text

@@ -618,7 +618,7 @@ def test_an_update_waiting_for_a_tap_on_the_panel_says_so(
 
     assert entity.in_progress is True
     assert entity.release_summary == "Tap Install on the panel to finish the update."
-    assert entity.extra_state_attributes["awaiting_confirmation"] is True
+    assert (entity.extra_state_attributes or {}).get("awaiting_confirmation") is True
 
     entity._update_coordinator.data = PanelUpdateSnapshot(
         operation=PanelInstallStatus(running=True, component="ha-paneld"),
