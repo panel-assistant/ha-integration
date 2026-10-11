@@ -91,3 +91,16 @@ def test_the_check_names_itself_to_the_server(site, monkeypatch) -> None:
     monkeypatch.setattr(urllib.request, "urlopen", served)
     assert _main(built, published) == 0
     assert agents
+
+
+def test_a_page_the_edge_added_its_analytics_script_to_still_matches(site) -> None:
+    built, published = site
+    page = (published / "index.html").read_text()
+    (published / "index.html").write_text(
+        page
+        + '<script type="module" src="https://static.cloudflareinsights.com/b.js"'
+        + " data-cf-beacon='{}'></script>"
+    )
+    assert _main(built, published) == 0
+    (published / "index.html").write_text(page + "<script>alert(1)</script>")
+    assert _main(built, published) == 1
