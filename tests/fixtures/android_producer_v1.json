@@ -21,6 +21,14 @@
       "tag": "v0.9.8-rc12"
     },
     {
+      "accepted": true,
+      "tag": "v1.0.0-preview1"
+    },
+    {
+      "accepted": true,
+      "tag": "v1.0.0-preview12"
+    },
+    {
       "accepted": false,
       "tag": "build-1"
     },
@@ -79,6 +87,18 @@
     {
       "accepted": false,
       "tag": "v1.2.3-rc1-rc1"
+    },
+    {
+      "accepted": false,
+      "tag": "v1.2.3-preview0"
+    },
+    {
+      "accepted": false,
+      "tag": "v1.2.3-preview"
+    },
+    {
+      "accepted": false,
+      "tag": "v1.2.3-preview1-rc1"
     },
     {
       "accepted": false,
@@ -192,7 +212,7 @@
       }
     }
   ],
-  "sourceRevision": "b76fdaf723ff89397b98a2bda57ac78138296acb",
+  "sourceRevision": "f25202ffa87f36c0d28f7e70e1d82d81c4ac57f9",
   "channelDescriptors": [
     {
       "entity_category": "config",

@@ -185,7 +185,7 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
         "issue_tracker": "https://github.com/panel-assistant/ha-integration/issues",
         "name": "Panel Assistant",
         "requirements": ["adb-shell[async]>=0.4.4", "aiosendspin[server]==10.0.0"],
-        "version": "1.0.0-rc1",
+        "version": "1.0.0-preview1",
         "zeroconf": ["_adb._tcp.local.", "_ha-paneld._tcp.local."],
     }
     assert hacs == {"homeassistant": "2026.8.3", "name": "Panel Assistant"}
@@ -197,7 +197,7 @@ def test_release_version_guard_accepts_current_and_prerelease_versions(
     """Tag admission uses exact raw equality for stable and prerelease versions."""
     verifier = _load_release_version_module()
 
-    verifier.verify_release_version("1.0.0-rc1", INTEGRATION / "manifest.json")
+    verifier.verify_release_version("1.0.0-preview1", INTEGRATION / "manifest.json")
     manifest = tmp_path / "manifest.json"
     manifest.write_text('{"version":"0.3.0b2"}', encoding="utf-8")
     verifier.verify_release_version("0.3.0b2", manifest)
@@ -205,7 +205,17 @@ def test_release_version_guard_accepts_current_and_prerelease_versions(
 
 @pytest.mark.parametrize(
     "version",
-    ["1.0.0", "1.0.1", "1.2.0b0", "2.0.0b12", "0.9.0", "0.7.0-rc1", "1.0.0-rc12"],
+    [
+        "1.0.0",
+        "1.0.1",
+        "1.2.0b0",
+        "2.0.0b12",
+        "0.9.0",
+        "0.7.0-rc1",
+        "1.0.0-rc12",
+        "1.0.0-preview1",
+        "1.0.0-preview12",
+    ],
 )
 def test_release_version_guard_accepts_semantic_versions(
     tmp_path: Path, version: str
@@ -227,6 +237,8 @@ def test_release_version_guard_accepts_semantic_versions(
         "1.0.0b01",
         "1.0.0-rc.1",
         "1.0.0-rc0",
+        "1.0.0-preview0",
+        "1.0.0-preview",
         "1.0.0-rc01",
         "1.0.0rc1",
         "1.0.0-rc",
@@ -284,7 +296,7 @@ def test_release_version_guard_cli_does_not_parse_tag_as_option(tag: str) -> Non
     )
 
     assert result.returncode != 0
-    assert "does not match manifest version '1.0.0-rc1'" in result.stderr
+    assert "does not match manifest version '1.0.0-preview1'" in result.stderr
 
 
 def test_hacs_workflow_runs_release_version_guard_for_tags() -> None:

@@ -22,8 +22,8 @@ test('the Android descriptor producer and browser agree on every release tag', (
 test('the shared corpus classifies every release identity', () => {
   for (const { tag, kind } of corpus.tags) {
     assert.equal(isStableTag(tag), kind === 'stable', tag);
-    assert.equal(isRcTag(tag), kind === 'rc', tag);
-    assert.equal(isGithubTag(tag), kind === 'stable' || kind === 'rc', tag);
+    assert.equal(isRcTag(tag), kind === 'prerelease', tag);
+    assert.equal(isGithubTag(tag), kind === 'stable' || kind === 'prerelease', tag);
     assert.equal(isBuildTag(tag), kind === 'build', tag);
   }
   for (const { tag, kind, versionCode } of corpus.tags) {

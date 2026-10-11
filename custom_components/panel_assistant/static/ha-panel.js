@@ -658,7 +658,7 @@ const le = "io.github.maxlyth.hapaneld", za = "io.panelassistant.android", Aa = 
   [za]: Object.freeze([Aa, Ca])
 });
 xa[le][0];
-const de = 64, ce = 256 * 1024, Sa = 2147483647, Pa = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/, ja = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-rc[1-9][0-9]*$/, W = /^build-([1-9][0-9]{0,9})(-successor)?$/, $ = (a, e) => typeof e == "string" && e.length <= de && a.exec(e)?.[0] === e, pe = (a) => $(Pa, a), ue = (a) => $(ja, a), J = (a) => pe(a) || ue(a);
+const de = 64, ce = 256 * 1024, Sa = 2147483647, Pa = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/, ja = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-(?:rc|preview)[1-9][0-9]*$/, W = /^build-([1-9][0-9]{0,9})(-successor)?$/, $ = (a, e) => typeof e == "string" && e.length <= de && a.exec(e)?.[0] === e, pe = (a) => $(Pa, a), ue = (a) => $(ja, a), J = (a) => pe(a) || ue(a);
 function Ha(a) {
   if (!$(W, a)) return null;
   const e = Number(W.exec(a)[1]);
