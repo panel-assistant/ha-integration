@@ -204,6 +204,8 @@ class PanelInstallStatus:
     # The panel waits for its owner to tap Install in Android's own installer
     # prompt. Builds before the rootless self-update route never send it.
     awaiting_confirmation: bool = False
+    # The finished operation's result line, such as "refused (<reason>)".
+    message: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -439,6 +441,9 @@ def is_version_at_least(version: str, minimum: str) -> bool | None:
     return current >= required
 
 
+_MAX_INSTALL_MESSAGE_LENGTH = 512
+
+
 def parse_panel_install_status(body: bytes) -> PanelInstallStatus:
     """Parse only the fixed progress fields needed to recover a self-update."""
     document = _load_json_object(body)
@@ -457,8 +462,18 @@ def parse_panel_install_status(body: bytes) -> PanelInstallStatus:
         and isinstance(presentation, dict)
         and presentation.get("code") == "install-awaiting-confirmation"
     )
+    message = document.get("message")
+    if (
+        not isinstance(message, str)
+        or len(message) > _MAX_INSTALL_MESSAGE_LENGTH
+        or any(not " " <= character <= "~" for character in message)
+    ):
+        message = ""
     return PanelInstallStatus(
-        running=running, component=component, awaiting_confirmation=awaiting
+        running=running,
+        component=component,
+        awaiting_confirmation=awaiting,
+        message=message,
     )
 
 
