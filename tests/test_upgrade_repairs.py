@@ -172,6 +172,37 @@ async def test_a_panel_never_moved_off_mqtt_is_refused_until_its_device_goes(
     assert response["success"], response
 
 
+async def test_a_re_added_panel_still_on_mqtt_is_told_it_is_unknown_not_removed(
+    hass: HomeAssistant,
+    hass_read_only_user: Any,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """A re-added panel keeps its fast retry, so it connects once the device goes."""
+    removed = _entry(hass, hass_read_only_user.id)
+    await _set_up(hass, removed, CURRENT)
+    await hass.config_entries.async_remove(removed.entry_id)
+    response = await _hello_response(hass, hass_ws_client, hass_read_only_access_token)
+    assert response["error"]["code"] == "entry_removed"
+
+    device = _mqtt_device(hass)
+    entry = _entry(hass, hass_read_only_user.id)
+    await _set_up(hass, entry, CURRENT)
+
+    assert entry.state is ConfigEntryState.SETUP_ERROR
+    response = await _hello_response(hass, hass_ws_client, hass_read_only_access_token)
+    assert response["error"]["code"] == "unknown_panel"
+
+    dr.async_get(hass).async_remove_device(device.id)
+    with _panel(CURRENT):
+        assert await hass.config_entries.async_reload(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    response = await _hello_response(hass, hass_ws_client, hass_read_only_access_token)
+    assert response["success"], response
+
+
 async def test_a_completed_move_or_an_unknown_panel_id_sets_up(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
