@@ -37,6 +37,19 @@ def _digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _describe(built: bytes, published: bytes) -> str:
+    """Say where the published bytes part from the build."""
+    at = next(
+        (i for i, (a, b) in enumerate(zip(built, published, strict=False)) if a != b),
+        min(len(built), len(published)),
+    )
+    return (
+        f"published bytes differ from the build (built {len(built)} bytes, "
+        f"published {len(published)}, first difference at byte {at}: "
+        f"built {built[at : at + 60]!r}, published {published[at : at + 60]!r})"
+    )
+
+
 def differences(built: Path, base_url: str, tags: Sequence[str] = ()) -> list[str]:
     """Return one line per file that is missing or different at the base URL."""
     base = base_url if base_url.endswith("/") else base_url + "/"
@@ -61,7 +74,7 @@ def differences(built: Path, base_url: str, tags: Sequence[str] = ()) -> list[st
             problems.append(f"{relative}: not served ({err})")
             continue
         if _digest(published) != _digest(path.read_bytes()):
-            problems.append(f"{relative}: published bytes differ from the build")
+            problems.append(f"{relative}: {_describe(path.read_bytes(), published)}")
     return problems
 
 

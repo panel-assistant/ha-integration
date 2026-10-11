@@ -40,10 +40,11 @@ def test_identical_copy_passes(site) -> None:
     assert _main(*site) == 0
 
 
-def test_changed_file_fails(site) -> None:
+def test_changed_file_fails_and_says_where(site, capsys) -> None:
     built, published = site
     (published / "assets" / "index-abc.js").write_text("export { stale }")
     assert _main(built, published) == 1
+    assert "first difference at byte 8" in capsys.readouterr().err
 
 
 def test_missing_file_fails(site) -> None:
