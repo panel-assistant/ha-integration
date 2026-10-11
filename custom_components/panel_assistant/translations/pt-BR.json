@@ -17,7 +17,8 @@
       },
       "install_usb": {
         "title": "Instalar via USB",
-        "description": "[Abra o instalador USB]({usb_install_url}). Conecte o painel ao dispositivo em que este navegador está sendo executado, não ao servidor do Home Assistant, e use um navegador com suporte a WebUSB, com a depuração USB habilitada no painel.\n\nO instalador instala Panel Assistant em um painel que ainda não o tem e depois passa para a configuração do próprio painel. Volte aqui em seguida para adicionar o painel ao Home Assistant. Ao selecionar Enviar, você volta ao menu de configuração."
+        "description": "Conecte o painel a este computador, não ao servidor do Home Assistant.",
+        "submit": "Abra o instalador USB"
       },
       "add_panel": {
         "title": "Adicionar um painel",

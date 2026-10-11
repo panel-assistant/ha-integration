@@ -17,7 +17,8 @@
       },
       "install_usb": {
         "title": "Nainstalovat přes USB",
-        "description": "[Otevřít instalátor USB]({usb_install_url}). Připojte panel k zařízení, na kterém běží tento prohlížeč, nikoli k serveru Home Assistant, a použijte prohlížeč s podporou WebUSB. Na panelu musí být zapnuté ladění USB.\n\nInstalátor nainstaluje Panel Assistant na panel, který jej ještě nemá, a pak předá řízení vlastnímu nastavení panelu. Poté se sem vraťte a přidejte panel do Home Assistant. Volba Odeslat vás vrátí do nabídky nastavení."
+        "description": "Připojte panel k tomuto počítači, nikoli k serveru Home Assistant.",
+        "submit": "Otevřít instalátor USB"
       },
       "add_panel": {
         "title": "Přidat panel",

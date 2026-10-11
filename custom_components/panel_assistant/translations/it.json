@@ -17,7 +17,8 @@
       },
       "install_usb": {
         "title": "Installa tramite USB",
-        "description": "[Apri l'installer USB]({usb_install_url}). Collega il pannello al dispositivo su cui gira questo browser, non al server Home Assistant, e usa un browser con supporto WebUSB con il debug USB attivo sul pannello.\n\nL'installer mette Panel Assistant su un pannello che non ce l'ha ancora, poi passa alla configurazione del pannello. Torna qui dopo per aggiungere il pannello a Home Assistant. Invia riporta al menu di configurazione."
+        "description": "Collega il pannello a questo computer, non al server Home Assistant.",
+        "submit": "Apri l'installer USB"
       },
       "add_panel": {
         "title": "Aggiungi un pannello",

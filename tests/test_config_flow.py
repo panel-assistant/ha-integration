@@ -128,7 +128,7 @@ async def test_first_user_flow_registers_browser_delivery_before_any_panel(
     assert not hass.config_entries.async_entries(DOMAIN)
 
 
-async def test_usb_step_links_local_admin_panel_without_creating_entry(
+async def test_usb_step_registers_the_local_admin_panel_without_creating_entry(
     hass: HomeAssistant,
 ) -> None:
     """The installer opens through HA so credentials stay at the HA origin."""
@@ -137,18 +137,38 @@ async def test_usb_step_links_local_admin_panel_without_creating_entry(
     result = await _start_step(hass, "install_usb")
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "install_usb"
-    assert result["description_placeholders"] == {
-        "usb_install_url": "/panel-assistant-usb"
-    }
     panel = hass.data[frontend.DATA_PANELS]["panel-assistant-usb"]
     assert panel.require_admin is True
     assert panel.config["installer_url"] == (
         f"https://install.panel-assistant.io/{INTEGRATION_VERSION}/"
     )
     assert not hass.config_entries.async_entries(DOMAIN)
-    returned = await hass.config_entries.flow.async_configure(result["flow_id"], {})
-    assert returned["type"] is FlowResultType.MENU
-    assert returned["step_id"] == "user"
+
+
+async def test_usb_step_button_opens_the_installer_where_the_browser_is(
+    hass: HomeAssistant, hass_client
+) -> None:
+    """The dialog opens only an absolute address, so it is this browser's own.
+
+    Driven through the REST API the dialog uses, since the address comes from
+    the request the button's press makes.
+    """
+    assert await async_setup_component(hass, "config", {})
+    client = await hass_client()
+    flows = "/api/config/config_entries/flow"
+    menu = await (await client.post(flows, json={"handler": DOMAIN})).json()
+    form = await (
+        await client.post(
+            f"{flows}/{menu['flow_id']}", json={"next_step_id": "install_usb"}
+        )
+    ).json()
+    assert form["type"] == "form"
+    assert form["step_id"] == "install_usb"
+
+    opened = await (await client.post(f"{flows}/{menu['flow_id']}", json={})).json()
+
+    assert opened["type"] == "external"
+    assert opened["url"] == str(client.make_url("/panel-assistant-usb"))
     assert not hass.config_entries.async_entries(DOMAIN)
 
 
