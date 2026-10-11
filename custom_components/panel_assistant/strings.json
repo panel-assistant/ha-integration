@@ -681,7 +681,7 @@
         "step": {
           "commission_permissions": {
             "title": "Check permissions on {panel}",
-            "description": "The dashboard on {panel} remains available. On the physical panel, open Android Settings → Apps → Panel Assistant. Allow camera and microphone access where listed, and notifications. Under Special app access, allow Modify system settings and Display over other apps for Panel Assistant. Under Accessibility, enable the Panel Assistant service. If swiping up from the bottom of the dashboard does not show the panel's navigation bar, that swipe opens the Display over other apps setting instead: allow it, go back, and swipe up again. Return here and select Submit to check the permissions again."
+            "description": "The dashboard on {panel} remains available. On the physical panel, open Android Settings → Apps → Panel Assistant. Allow camera and microphone access where listed, and notifications. Under Special app access, allow Modify system settings and Display over other apps for Panel Assistant. Under Accessibility, enable the Panel Assistant service. When the navigation bar is set to Swipe reveal or Always on and Display over other apps is missing, swiping up from the bottom of the dashboard opens the Display over other apps setting instead: allow it, go back, and swipe up again. Return here and select Submit to check the permissions again."
           }
         },
         "error": {

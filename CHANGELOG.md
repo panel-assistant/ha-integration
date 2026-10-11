@@ -18,7 +18,7 @@ All notable changes to this project will be documented in this file.
 - **Every install makes the panel app the home screen and gives it the microphone.** Both the network install and the USB install now set the home screen and grant the microphone where the panel has one, and every update and repair sets the home screen again, because Android forgets it when apps change. On panels such as the Meta Portal, where Android only offers the panel app in its "Use as Home" question, Panel Assistant answers Always for you, and never when the question offers another app. Before, a USB install did neither.
 - **A panel installed over USB is added to Panel Assistant.** It no longer waits to be added by hand under Add panel.
 - **Install using USB opens the installer from its button.** The step used to show a paragraph and a Submit that only went back to the menu, which looked like a failed install. It now says to plug the panel into this computer, and its button opens the USB installer.
-- **The permissions Repair names the way back to a missing overlay permission.** On a panel whose only way to Android Settings is the panel app's navigation bar, such as a Meta Portal, the Repair now says that swiping up opens the Display over other apps setting when the bar cannot appear.
+- **The permissions Repair names the way back to a missing overlay permission.** On a panel whose only way to Android Settings is the panel app's navigation bar, such as a Meta Portal, the Repair now says that, in Swipe reveal or Always on mode, swiping up opens the Display over other apps setting when that permission is missing.
 
 ### Fixed
 
