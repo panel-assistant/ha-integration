@@ -62,7 +62,7 @@ SERIAL = "SAWD959D900AN"
 def _health(
     *,
     did: str = NEW_APP_DID,
-    legacy: str = ORIGINAL_DID,
+    legacy: str | None = ORIGINAL_DID,
     package: str = SUCCESSOR_PACKAGE_ID,
     version_code: int = VERSION_CODE,
 ) -> PanelHealth:
@@ -80,7 +80,9 @@ def _health(
     )
 
 
-OLD_APP_HEALTH = _health(did=OLD_APP_DID, package=LEGACY_PACKAGE_ID)
+# An entry that recorded the panel's link follows it without this proof
+# (test_reinstalled_panel.py); these entries come from before links were kept.
+OLD_APP_HEALTH = _health(did=OLD_APP_DID, package=LEGACY_PACKAGE_ID, legacy=None)
 
 
 class Network:
