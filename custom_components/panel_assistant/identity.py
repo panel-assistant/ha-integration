@@ -100,16 +100,22 @@ def reinstalled(hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth) ->
 
     A clean reinstall gives the app a new installation identity and keeps the
     legacy identity the device reports beside it, which this entry recorded
-    while it accepted the panel's own identity. A different device reports a
-    different one. The link is followed only when no other entry, loaded or
-    not, holds it or the new identity: then nothing can say which entry the
-    panel belongs to, and none is guessed.
+    while it accepted the panel's own identity. It comes from the Android ID,
+    so panels made from one factory image share it: the link is followed only
+    when no other entry, loaded or not, holds it or the new identity, since
+    then nothing can say which entry the panel belongs to, and none is guessed.
+    A move of this integration's own that stopped part way is left to that
+    move, which alone can settle its record and any copy of the old app it
+    kept.
     """
+    from .panel_move import CONF_SUCCESSOR_MOVE
+
     did = health.discovery_id
     link = health.legacy_discovery_id
     return (
         is_installation(entry)
         and entry.unique_id is not None
+        and not isinstance(entry.data.get(CONF_SUCCESSOR_MOVE), dict)
         and health.installation_identity
         and did is not None
         and did != entry.unique_id

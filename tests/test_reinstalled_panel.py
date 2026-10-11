@@ -23,6 +23,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.panel_assistant import panel_move
 from custom_components.panel_assistant.app_identity import SUCCESSOR_PACKAGE_ID
 from custom_components.panel_assistant.client import (
     CannotConnectError,
@@ -31,7 +32,9 @@ from custom_components.panel_assistant.client import (
 )
 from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
 from custom_components.panel_assistant.panel_move import (
+    MoveError,
     claim_panel_operation,
+    move_issue_id,
     release_panel_operation,
 )
 from custom_components.panel_assistant.transport import async_get_sessions
@@ -394,6 +397,44 @@ async def test_a_panel_busy_with_an_update_is_adopted_on_the_next_poll(
     release_panel_operation(hass, entry.entry_id)
     await _poll(hass, entry)
     assert _adopted(hass, entry)
+
+
+async def test_a_move_that_stopped_part_way_is_left_to_that_move(
+    hass: HomeAssistant, hass_read_only_user: Any, network: Network
+) -> None:
+    """Panel Assistant's own move installed the new app, then lost the panel
+    before restoring it. Only that move can finish: the panel is not taken on
+    the link, and the move Repair stays the way to finish it."""
+    entry = await _load(hass, network, hass_read_only_user.id)
+    record = {
+        "receipt": "receipt.zip",
+        "sha256": "0" * 64,
+        "panel_id": "alpha",
+        "config_hash": "1a2b3c4d",
+        "legacy_did": OLD,
+        "serial": "SERIAL",
+    }
+    await hass.async_add_executor_job(
+        panel_move._write_record, panel_move._record_path(hass, entry.entry_id), record
+    )
+    hass.config_entries.async_update_entry(
+        entry, data={**entry.data, "successor_move": {"panel_id": "alpha"}}
+    )
+    network.answers[STORED] = replace(_health(NEW), package=SUCCESSOR_PACKAGE_ID)
+
+    with patch.object(
+        panel_move,
+        "_async_target",
+        AsyncMock(side_effect=MoveError(panel_move.REASON_ADB_UNREACHABLE)),
+    ):
+        await _poll(hass, entry)
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert entry.unique_id == OLD and _wifi(hass) == f"{OLD}_wifi"
+    assert (
+        ir.async_get(hass).async_get_issue(DOMAIN, move_issue_id(entry.entry_id))
+        is not None
+    )
 
 
 @pytest.mark.parametrize("saved", ["registry", "entry"])
