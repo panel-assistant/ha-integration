@@ -14,7 +14,7 @@
     "restarting": "Ponowne uruchamianie ({reason})",
     "not_loaded": "niewczytany",
     "opening": "Otwieranie {panel}…",
-    "loadingHint": "Zwykle zajmuje to kilka sekund",
+    "loadingHint": "Chwileczkę",
     "empty": "Nie podłączono jeszcze żadnych paneli.",
     "failed": "Nie udało się otworzyć panelu. Wkrótce nastąpi kolejna próba.",
     "admin": "Tę stronę musi otworzyć administrator.",

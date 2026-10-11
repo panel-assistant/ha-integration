@@ -14,7 +14,7 @@
     "restarting": "Opnieuw starten ({reason})",
     "not_loaded": "niet geladen",
     "opening": "{panel} openen…",
-    "loadingHint": "Duurt meestal enkele seconden",
+    "loadingHint": "Een ogenblik",
     "empty": "Er zijn nog geen panelen gekoppeld.",
     "failed": "Het paneel kon niet worden geopend. Er wordt binnenkort opnieuw geprobeerd.",
     "admin": "Een beheerder moet deze pagina openen.",

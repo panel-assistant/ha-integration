@@ -14,7 +14,7 @@
     "restarting": "Riavvio in corso ({reason})",
     "not_loaded": "non caricato",
     "opening": "Apertura di {panel}…",
-    "loadingHint": "Di solito bastano pochi secondi",
+    "loadingHint": "Un momento",
     "empty": "Non è ancora collegato alcun pannello.",
     "failed": "Non è stato possibile aprire il pannello. Riproveremo tra poco.",
     "admin": "Questa pagina deve essere aperta da un amministratore.",

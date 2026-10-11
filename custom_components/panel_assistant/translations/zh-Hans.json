@@ -76,12 +76,12 @@
         "description": "所选版本包含经过验证的安装描述文件。选择一次“提交”，为此 Home Assistant 安装创建或加载一个持久的 ADB 身份，并将其公钥提供给位于 {address} 的 Android 面板。在面板上批准 Android 的“允许调试”提示，然后返回此处再次选择“提交”。Android 可能会将 Home Assistant 描述为一台计算机。只要网络调试仍处于启用状态，此授权就会授予一般性的 ADB shell 访问权限；可在面板的开发者设置中撤销授权。此步骤不会下载或安装 APK。"
       },
       "confirm_install_candidate": {
-        "title": "Install Panel Assistant {version}?",
-        "description": "Ready to install on {model} at {address}.\n\nYour other apps are not touched."
+        "title": "安装 Panel Assistant {version}？",
+        "description": "已准备好在地址为 {address} 的 {model} 上安装。\n\n不会改动你的其他应用。"
       },
       "confirm_install_rc": {
-        "title": "Install Panel Assistant {version}?",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on {model} at {address}.\n\nYour other apps are not touched."
+        "title": "安装 Panel Assistant {version}？",
+        "description": "仅供测试：Panel Assistant {version} 是候选发布版，并非稳定版，可能存在错误。\n\n已准备好在地址为 {address} 的 {model} 上安装。\n\n不会改动你的其他应用。"
       },
       "release_preview_only": {
         "title": "无法自动安装此版本",
@@ -93,13 +93,13 @@
       }
     },
     "progress": {
-      "installing": "Installing Panel Assistant on {address}. Keep this dialog open; it finishes on its own.\n\nIf you close it, the install keeps running. Add the same address again to finish."
+      "installing": "正在 {address} 上安装 Panel Assistant。请保持此对话框打开；操作会自动完成。\n\n如果关闭对话框，安装仍会继续。请再次添加同一地址以完成操作。"
     },
     "error": {
       "old_app_installed": "此面板仍安装着旧版 ha-paneld 应用，但它没有响应。请在面板上打开它或重启面板，然后重新添加。之后 Panel Assistant 会提供一个修复，将其迁移到新应用。",
       "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
       "invalid_address": "请输入不含 URL 方案或路径的主机名或 IP 地址。",
-      "invalid_install_address": "Enter only the panel hostname or IP address.",
+      "invalid_install_address": "请只输入面板的主机名或 IP 地址。",
       "install_resolution_failed": "Home Assistant 无法解析此面板地址。请检查地址和本地 DNS，然后重试。",
       "install_resolution_timeout": "在能够安全固定面板地址之前，本地名称解析已超时。请检查本地 DNS，然后重试。",
       "install_too_many_addresses": "此主机名解析出的地址过多，无法安全固定。请使用专用的本地主机名或私有 IP 地址。",
@@ -532,7 +532,7 @@
     "release_verification_failed": { "message": "该版本与其签名不符，因此未安装任何内容" },
     "upload_disabled": { "message": "面板不接受应用上传；请在其设置中开启 APK 上传" },
     "adb_authorization_required": {
-      "message": "Updates are not allowed on {panel} yet. Open Home Assistant Repairs and select Allow updates on {panel}, then tap Allow on the panel's \"Allow debugging?\" prompt."
+      "message": "尚未允许更新 {panel}。请打开 Home Assistant 的“修复”，选择“允许更新 {panel}”，然后在面板的“允许调试？”提示中点按“允许”。"
     },
     "panel_unavailable": {
       "message": "面板未连接到 Panel Assistant，因此未发送命令"
@@ -608,7 +608,7 @@
           }
         },
         "progress": {
-          "moving": "Moving {panel} to the new app. Keep the panel switched on."
+          "moving": "正在将 {panel} 迁移到新应用。请保持面板开机。"
         },
         "abort": {
           "entry_removed": "此面板已从 Home Assistant 中移除。",
@@ -616,7 +616,7 @@
           "release_unavailable": "Panel Assistant 暂时无法获取新应用的发布版本。请检查 Home Assistant 能否访问互联网，然后重试。",
           "adb_authorization": "{panel} 尚未允许 Panel Assistant 连接。请查看面板：如果显示“允许 USB 调试吗？”，请勾选“一律允许使用这台计算机进行调试”并点按“允许”，然后重新打开此修复。",
           "adb_unreachable": "Panel Assistant 无法连接到 {panel} 进行迁移。请确认面板已开机、与 Home Assistant 位于同一网络，并且已在面板应用的设置中开启网络调试，然后重新打开此修复。",
-          "backup_failed": "Panel Assistant could not take a complete backup of {panel}, so nothing was changed. Try again later.",
+          "backup_failed": "Panel Assistant 无法为 {panel} 创建完整备份，因此未做任何更改。请稍后重试。",
           "new_app_is_home": "{panel} 停留在之前一次未完成的迁移中，此版本暂时无法完成。未做任何更改。Panel Assistant 的后续版本会修复此问题。",
           "move_failed": "{panel} 的迁移未完成。其设置已备份在 Home Assistant 中，面板仍保持可用的界面。重新打开此修复即可从中断处继续。",
           "panel_changed": "在 {panel} 地址上响应的设备不是 Panel Assistant 所知的面板，因此未做任何更改。如果面板已被更换或重置，请将其从 Home Assistant 中移除后重新添加。",
@@ -722,7 +722,7 @@
     },
     "merged_panel_identity": {
       "title": "分离已合并的面板：{panels}",
-      "description": "The panels {panels} report the same device identity, so Home Assistant cannot safely decide which entry owns a native connection or entity. Their native connection is refused and no entities are moved. Update the Panel Assistant app on every affected panel so each has a distinct identity, then delete the merged device and let the panels register again."
+      "description": "面板 {panels} 报告了相同的设备标识，因此 Home Assistant 无法安全地确定原生连接或实体属于哪个条目。它们的原生连接已被拒绝，也不会移动任何实体。请在所有受影响的面板上更新 Panel Assistant 应用，使每个面板都拥有不同的标识，然后删除合并后的设备，让面板重新注册。"
     },
     "panel_migration_incomplete": {
       "title": "{address} 的面板尚未完成向新应用的迁移",
@@ -734,7 +734,7 @@
           }
         },
         "abort": {
-          "migration_unfinished": "The new app has not answered yet. The panel carries on by itself, so open this issue again later."
+          "migration_unfinished": "新应用尚未响应。面板会自行继续操作，请稍后重新打开此问题。"
         }
       }
     },
@@ -744,7 +744,7 @@
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "The install or update on {panel} did not finish.",
+            "description": "{panel} 上的安装或更新未完成。",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -781,12 +781,12 @@
       }
     },
     "installer_failure_authorization_failed": {
-      "title": "{panel} did not authorize the installation",
+      "title": "{panel} 未授权安装",
       "fix_flow": {
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "The panel did not accept the connection from Home Assistant.",
+            "description": "面板未接受来自 Home Assistant 的连接。",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -823,12 +823,12 @@
       }
     },
     "installer_failure_preflight_rejected": {
-      "title": "{panel} did not pass the checks needed to install",
+      "title": "{panel} 未通过安装所需的检查",
       "fix_flow": {
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "Nothing was installed on the panel.",
+            "description": "未在面板上安装任何内容。",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -865,12 +865,12 @@
       }
     },
     "installer_failure_artifact_rejected": {
-      "title": "The Panel Assistant release for {panel} could not be verified",
+      "title": "无法验证用于 {panel} 的 Panel Assistant 发布版本",
       "fix_flow": {
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "The release could not be verified, so nothing was installed.",
+            "description": "无法验证发布版本，因此未安装任何内容。",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -907,12 +907,12 @@
       }
     },
     "installer_failure_transport_failed": {
-      "title": "Connection to {panel} failed during installation",
+      "title": "安装期间与 {panel} 的连接失败",
       "fix_flow": {
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "The connection dropped before the install finished.",
+            "description": "安装完成前连接已中断。",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -949,12 +949,12 @@
       }
     },
     "installer_failure_install_failed": {
-      "title": "Android refused to install Panel Assistant on {panel}",
+      "title": "Android 拒绝在 {panel} 上安装 Panel Assistant",
       "fix_flow": {
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "Android on the panel rejected the install.",
+            "description": "面板上的 Android 拒绝了安装。",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -991,12 +991,12 @@
       }
     },
     "installer_failure_launch_failed": {
-      "title": "Panel Assistant was installed on {panel}, but could not be started",
+      "title": "Panel Assistant 已安装到 {panel}，但无法启动",
       "fix_flow": {
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "Panel Assistant is installed but did not start.",
+            "description": "Panel Assistant 已安装，但未启动。",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -1033,12 +1033,12 @@
       }
     },
     "installer_failure_health_check_failed": {
-      "title": "Panel Assistant on {panel} did not pass its health check",
+      "title": "{panel} 上的 Panel Assistant 未通过健康检查",
       "fix_flow": {
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "Panel Assistant started but did not report healthy.",
+            "description": "Panel Assistant 已启动，但未报告健康状态。",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -1075,12 +1075,12 @@
       }
     },
     "installer_failure_ambiguous_mutation": {
-      "title": "Installation may have changed {panel}; its state is unknown",
+      "title": "安装可能已更改 {panel}；其状态未知",
       "fix_flow": {
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "Home Assistant cannot tell whether the install changed the panel.",
+            "description": "Home Assistant 无法确定安装是否更改了面板。",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -1117,12 +1117,12 @@
       }
     },
     "installer_failure_verification_required": {
-      "title": "Panel Assistant on {panel} needs verification before another install",
+      "title": "再次安装前，需要验证 {panel} 上的 Panel Assistant",
       "fix_flow": {
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "Another install is held until the panel is checked.",
+            "description": "在面板经过检查之前，暂缓再次安装。",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -1159,15 +1159,15 @@
       }
     },
     "installer_failure_update": {
-      "title": "The update on {panel} did not complete",
+      "title": "{panel} 上的更新未完成",
       "fix_flow": {
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "Panel Assistant was not updated on the panel.",
+            "description": "面板上的 Panel Assistant 未更新。",
             "menu_options": {
               "retry": "重试",
-              "authorize_adb": "Allow updates",
+              "authorize_adb": "允许更新",
               "support_report": "支持报告",
               "clear_error": "清除错误"
             }
@@ -1185,8 +1185,8 @@
             "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
           },
           "authorize_adb": {
-            "title": "Allow updates on {panel}",
-            "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt. Allowing gives this Home Assistant general ADB shell access to the panel while network debugging stays on.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
+            "title": "允许更新 {panel}",
+            "description": "选择“提交”，然后在面板的“允许调试？”提示中点按“允许”。允许后，只要网络调试保持开启，此 Home Assistant 就拥有对面板的一般 ADB shell 访问权限。\n\n然后再次选择“提交”。你可以稍后在面板的开发者设置中撤销此权限。"
           }
         },
         "progress": {
@@ -1203,7 +1203,7 @@
           "retry_failed": "重试失败。详细信息请查看支持报告。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。",
           "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
-          "invalid_install_address": "Enter only the panel hostname or IP address.",
+          "invalid_install_address": "请只输入面板的主机名或 IP 地址。",
           "install_resolution_failed": "Home Assistant 无法解析此面板地址。请检查地址和本地 DNS，然后重试。",
           "install_resolution_timeout": "在能够安全固定面板地址之前，本地名称解析已超时。请检查本地 DNS，然后重试。",
           "install_too_many_addresses": "此主机名解析出的地址过多，无法安全固定。请使用专用的本地主机名或私有 IP 地址。",
@@ -1222,12 +1222,12 @@
       }
     },
     "installer_failure_retry_hold": {
-      "title": "Retry on {panel} paused because its state could not be checked safely",
+      "title": "由于无法安全检查 {panel} 的状态，重试已暂停",
       "fix_flow": {
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "Retrying is on hold until the panel can be checked.",
+            "description": "重试已暂停，直到能够检查面板。",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -1264,8 +1264,8 @@
       }
     },
     "panel_address_unreachable": {
-      "title": "Can't reach {panel} at {address}",
-      "description": "Its entities still work through the live connection from {session_address}.\n\nIf the panel has moved, add it again at its new address. This clears by itself once the address answers."
+      "title": "无法通过 {address} 连接到 {panel}",
+      "description": "其实体仍可通过来自 {session_address} 的实时连接正常工作。\n\n如果面板的地址已更改，请用新地址再次添加它。地址恢复响应后，此问题会自动解除。"
     },
     "panel_address_unverified": {
       "title": "{panel} 已迁移，但无法确认其新地址",
@@ -1294,15 +1294,15 @@
       }
     },
     "installer_failure_adb_authorization": {
-      "title": "Allow updates on {panel}",
+      "title": "允许更新 {panel}",
       "fix_flow": {
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "Home Assistant is not yet allowed to update {panel}.",
+            "description": "Home Assistant 尚未获准更新 {panel}。",
             "menu_options": {
               "retry": "重试",
-              "authorize_adb": "Allow updates",
+              "authorize_adb": "允许更新",
               "support_report": "支持报告",
               "clear_error": "清除错误"
             }
@@ -1320,8 +1320,8 @@
             "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
           },
           "authorize_adb": {
-            "title": "Allow updates on {panel}",
-            "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt. Allowing gives this Home Assistant general ADB shell access to the panel while network debugging stays on.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
+            "title": "允许更新 {panel}",
+            "description": "选择“提交”，然后在面板的“允许调试？”提示中点按“允许”。允许后，只要网络调试保持开启，此 Home Assistant 就拥有对面板的一般 ADB shell 访问权限。\n\n然后再次选择“提交”。你可以稍后在面板的开发者设置中撤销此权限。"
           }
         },
         "progress": {
@@ -1338,7 +1338,7 @@
           "retry_failed": "重试失败。详细信息请查看支持报告。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。",
           "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
-          "invalid_install_address": "Enter only the panel hostname or IP address.",
+          "invalid_install_address": "请只输入面板的主机名或 IP 地址。",
           "install_resolution_failed": "Home Assistant 无法解析此面板地址。请检查地址和本地 DNS，然后重试。",
           "install_resolution_timeout": "在能够安全固定面板地址之前，本地名称解析已超时。请检查本地 DNS，然后重试。",
           "install_too_many_addresses": "此主机名解析出的地址过多，无法安全固定。请使用专用的本地主机名或私有 IP 地址。",
@@ -1357,17 +1357,17 @@
       }
     },
     "adb_update_authorization": {
-      "title": "Allow updates on {panel}",
+      "title": "允许更新 {panel}",
       "fix_flow": {
         "step": {
           "authorize_adb": {
-            "title": "Allow updates on {panel}",
-            "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt. Allowing gives this Home Assistant general ADB shell access to the panel while network debugging stays on.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
+            "title": "允许更新 {panel}",
+            "description": "选择“提交”，然后在面板的“允许调试？”提示中点按“允许”。允许后，只要网络调试保持开启，此 Home Assistant 就拥有对面板的一般 ADB shell 访问权限。\n\n然后再次选择“提交”。你可以稍后在面板的开发者设置中撤销此权限。"
           }
         },
         "error": {
           "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
-          "invalid_install_address": "Enter only the panel hostname or IP address.",
+          "invalid_install_address": "请只输入面板的主机名或 IP 地址。",
           "install_resolution_failed": "Home Assistant 无法解析此面板地址。请检查地址和本地 DNS，然后重试。",
           "install_resolution_timeout": "在能够安全固定面板地址之前，本地名称解析已超时。请检查本地 DNS，然后重试。",
           "install_too_many_addresses": "此主机名解析出的地址过多，无法安全固定。请使用专用的本地主机名或私有 IP 地址。",
@@ -1393,7 +1393,7 @@
         "description": "继续配置此面板或授权 ADB 用于面板更新。如果面板尚未绑定，请确认已登录的账户以完成配置。",
         "menu_options": {
           "onboarding": "继续设置",
-          "authorize_adb": "Allow updates",
+          "authorize_adb": "允许更新",
           "updates": "面板更新",
           "remove_app": "从此面板移除 Panel Assistant"
         }
@@ -1415,8 +1415,8 @@
         }
       },
       "authorize_adb": {
-        "title": "Allow updates on {panel}",
-        "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt. Allowing gives this Home Assistant general ADB shell access to the panel while network debugging stays on.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
+        "title": "允许更新 {panel}",
+        "description": "选择“提交”，然后在面板的“允许调试？”提示中点按“允许”。允许后，只要网络调试保持开启，此 Home Assistant 就拥有对面板的一般 ADB shell 访问权限。\n\n然后再次选择“提交”。你可以稍后在面板的开发者设置中撤销此权限。"
       },
       "updates": {
         "title": "面板更新",
@@ -1446,7 +1446,7 @@
     },
     "error": {
       "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
-      "invalid_install_address": "Enter only the panel hostname or IP address.",
+      "invalid_install_address": "请只输入面板的主机名或 IP 地址。",
       "install_resolution_failed": "Home Assistant 无法解析此面板地址。请检查地址和本地 DNS，然后重试。",
       "install_resolution_timeout": "在能够安全固定面板地址之前，本地名称解析已超时。请检查本地 DNS，然后重试。",
       "install_too_many_addresses": "此主机名解析出的地址过多，无法安全固定。请使用专用的本地主机名或私有 IP 地址。",
@@ -1461,14 +1461,14 @@
       "removal_unconfirmed": "请勾选复选框，确认你已阅读移除风险。未移除任何内容。",
       "removal_busy": "更新或迁移正在更改此面板。未移除任何内容；请在完成后重试。",
       "removal_adb_unreachable": "Home Assistant 无法通过 Android Debug Bridge（端口 5555）连接到面板。未移除任何内容。请确认面板已开启且网络调试仍处于启用状态，然后重试。",
-      "removal_adb_authorization": "The panel has not accepted this Home Assistant instance for the Android Debug Bridge. Nothing was removed. Choose Allow updates first, then try again.",
+      "removal_adb_authorization": "面板尚未接受此 Home Assistant 实例的 Android Debug Bridge 连接。未移除任何内容。请先选择“允许更新”，然后重试。",
       "removal_panel_changed": "此面板的地址现在由另一台设备响应。未移除任何内容。",
-      "removal_approval_required": "Hardened security is on, so handing the home screen back has to be approved on the panel itself. Nothing was changed and Panel Assistant is still installed. Approve the request on the panel, then submit again.",
+      "removal_approval_required": "已开启强化安全模式，因此交还主屏幕必须在面板上批准。未做任何更改，Panel Assistant 仍已安装。请在面板上批准请求，然后再次提交。",
       "removal_no_replacement_home": "面板无法把主屏幕交给其他启动器：面板上没有其他主屏幕应用，因此只能显示 Panel Assistant。未移除任何内容，面板仍可正常使用。请安装一个启动器或重新启用厂商启动器，然后重试。",
       "removal_ownership_unreadable": "面板无法读取它自己关于已停用厂商应用的记录。未移除任何内容。请在面板上重新启动 Panel Assistant，然后重试。",
       "removal_package_state_unknown": "面板无法读取已安装哪些应用或哪个是其主屏幕。未移除任何内容。请稍后重试。",
       "removal_home_not_handed": "面板没有确认其他启动器已接管主屏幕，因此未移除 Panel Assistant。请安装一个启动器或重新启用厂商启动器，然后重试。",
-      "removal_hand_back_unsupported": "The Panel Assistant app on this panel is too old to hand its home screen back. Nothing was removed. Update it first, then try again.",
+      "removal_hand_back_unsupported": "此面板上的 Panel Assistant 应用版本过旧，无法交还主屏幕。未移除任何内容。请先更新应用，然后重试。",
       "removal_app_unreachable": "Panel Assistant 没有响应，而它仍是面板的主屏幕，现在移除会让面板没有主屏幕。未移除任何内容。请在面板上启动 Panel Assistant，然后重试。",
       "removal_remove_failed": "面板已经拿回主屏幕，但 Panel Assistant 未能完全移除。请重试：重试会完成剩余部分。"
     },

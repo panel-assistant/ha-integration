@@ -14,7 +14,7 @@
     "restarting": "Neustart ({reason})",
     "not_loaded": "nicht geladen",
     "opening": "{panel} wird geöffnet…",
-    "loadingHint": "Dauert normalerweise nur wenige Sekunden",
+    "loadingHint": "Einen Moment bitte",
     "empty": "Es sind noch keine Panels verbunden.",
     "failed": "Das Panel konnte nicht geöffnet werden. In Kürze wird es erneut versucht.",
     "admin": "Diese Seite muss von einem Administrator geöffnet werden.",

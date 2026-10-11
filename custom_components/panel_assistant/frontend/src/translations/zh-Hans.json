@@ -14,7 +14,7 @@
     "restarting": "正在重启（{reason}）",
     "not_loaded": "未加载",
     "opening": "正在打开 {panel}…",
-    "loadingHint": "通常需要几秒钟",
+    "loadingHint": "请稍候",
     "empty": "尚未接入任何面板。",
     "failed": "无法打开面板。稍后会再次尝试。",
     "admin": "此页面必须由管理员打开。",
