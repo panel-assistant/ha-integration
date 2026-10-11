@@ -355,3 +355,125 @@ def test_an_unset_dream_is_restored_as_unset(tmp_path: Path) -> None:
     assert b"\nrestored\n" in restored
     assert not (tmp_path / "screensaver_components").exists()
     assert "settings delete secure screensaver_components" in _calls(tmp_path)
+
+
+def _setup_then_restore(state: Path, before_restore: str | None = None) -> bytes:
+    """Run the setup and then the hand-back program on one stand-in Portal."""
+    record = state / "restore-record"
+
+    def run(program: str) -> bytes:
+        return _run_on_stand_in_panel(
+            program.replace(vendor_provisioning.META_RESTORE_RECORD, str(record)),
+            state,
+        )
+
+    run(vendor_provisioning.vendor_setup_command("0" * 32))
+    assert record.exists()
+    if before_restore is not None:
+        (state / before_restore).write_text("garbage\n")
+    return run(vendor_provisioning.vendor_restore_command("1" * 32))
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        # Android refuses to put the saved mode back: the bar stays denied.
+        "refuse.SYSTEM_ALERT_WINDOW",
+        # The mode is put back but cannot be read: nothing proves it.
+        "unreadable.SYSTEM_ALERT_WINDOW",
+        "read_fail.SYSTEM_ALERT_WINDOW",
+    ],
+)
+def test_an_overlay_not_read_back_as_recorded_keeps_the_record(
+    tmp_path: Path, fault: str
+) -> None:
+    _portal(tmp_path)
+
+    restored = _setup_then_restore(tmp_path, fault)
+
+    assert b"\nunrestored\n" in restored
+    assert "controlcenter_overlay=allow" in _value(tmp_path, "restore-record")
+
+
+def test_an_overlay_read_back_as_another_mode_keeps_the_record(
+    tmp_path: Path,
+) -> None:
+    _portal(tmp_path)
+    # Android accepts the write but keeps a different mode than the one saved.
+    record = tmp_path / "restore-record"
+    _run_on_stand_in_panel(
+        vendor_provisioning.vendor_setup_command("0" * 32).replace(
+            vendor_provisioning.META_RESTORE_RECORD, str(record)
+        ),
+        tmp_path,
+    )
+    record.write_text(record.read_text().replace("=allow", "=ignore"))
+    (tmp_path / "refuse.SYSTEM_ALERT_WINDOW").touch()
+    (tmp_path / f"appop.{_CONTROL_CENTER}.SYSTEM_ALERT_WINDOW").write_text("allow\n")
+
+    restored = _run_on_stand_in_panel(
+        vendor_provisioning.vendor_restore_command("1" * 32).replace(
+            vendor_provisioning.META_RESTORE_RECORD, str(record)
+        ),
+        tmp_path,
+    )
+
+    assert b"\nunrestored\n" in restored
+    assert record.exists()
+
+
+def test_a_control_centre_recorded_absent_is_restored_while_still_absent(
+    tmp_path: Path,
+) -> None:
+    _portal(tmp_path)
+    (tmp_path / f"package.{_CONTROL_CENTER}").unlink()
+
+    restored = _setup_then_restore(tmp_path)
+
+    assert b"\nrestored\n" in restored
+    assert not (tmp_path / "restore-record").exists()
+    assert not any(_CONTROL_CENTER in call for call in _calls(tmp_path))
+
+
+def test_a_control_centre_recorded_absent_that_appeared_keeps_the_record(
+    tmp_path: Path,
+) -> None:
+    _portal(tmp_path)
+    (tmp_path / f"package.{_CONTROL_CENTER}").unlink()
+    record = tmp_path / "restore-record"
+    _run_on_stand_in_panel(
+        vendor_provisioning.vendor_setup_command("0" * 32).replace(
+            vendor_provisioning.META_RESTORE_RECORD, str(record)
+        ),
+        tmp_path,
+    )
+    # Meta's package arrived since, and its mode is no longer the one recorded.
+    (tmp_path / f"package.{_CONTROL_CENTER}").touch()
+    (tmp_path / f"appop.{_CONTROL_CENTER}.SYSTEM_ALERT_WINDOW").write_text("deny\n")
+
+    restored = _run_on_stand_in_panel(
+        vendor_provisioning.vendor_restore_command("1" * 32).replace(
+            vendor_provisioning.META_RESTORE_RECORD, str(record)
+        ),
+        tmp_path,
+    )
+
+    assert b"\nunrestored\n" in restored
+    assert record.exists()
+
+
+async def test_hand_back_that_cannot_restore_the_bar_reports_it_and_keeps_the_record(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    _portal(tmp_path)
+    await _launch(monkeypatch, signer, target, descriptor, tmp_path)
+    (tmp_path / "unreadable.SYSTEM_ALERT_WINDOW").write_text("garbage\n")
+
+    _install_fakes(monkeypatch, [_PanelDevice(tmp_path)])
+    assert await async_restore_vendor_setup(target, signer) == "unrestored"
+
+    assert (tmp_path / "restore-record").exists()

@@ -125,6 +125,8 @@ def vendor_setup_command(nonce: str) -> str:
 def vendor_restore_command(nonce: str) -> str:
     """Put back the recorded values, then forget the record once they read back.
 
+    The record is deleted only when every value, the overlay mode included,
+    reads back exactly as recorded; otherwise it stays for the next attempt.
     A panel without a record had nothing changed, and is left alone.
     """
     path = META_RESTORE_RECORD
@@ -153,10 +155,16 @@ def vendor_restore_command(nonce: str) -> str:
         f'[ -n "$(pm path {META_CONTROL_CENTER} 2>/dev/null)" ] && '
         f'appops set {META_CONTROL_CENTER} SYSTEM_ALERT_WINDOW "$hp_o" {_QUIET} ;; esac'
     )
+    # The overlay must read back as the mode recorded, not merely as something
+    # other than deny: an unknown, absent or different answer keeps the record,
+    # so a later hand-back can try again. A control centre recorded absent was
+    # never denied, so it is restored only while it is still absent.
     verify = (
+        'hp_now=$(hp_overlay); '
         'if [ "$(settings get secure screensaver_components)" = "$hp_c" ] && '
         '[ "$(settings get secure screensaver_default_component)" = "$hp_d" ] && '
-        '! { [ "$hp_o" != absent ] && [ "$(hp_overlay)" = deny ]; }; '
+        'case "$hp_o" in absent|allow|ignore|default|foreground) '
+        '[ "$hp_now" = "$hp_o" ] ;; *) false ;; esac; '
         f"then rm -f {path}; echo restored; else echo unrestored; fi"
     )
     return "; ".join(
