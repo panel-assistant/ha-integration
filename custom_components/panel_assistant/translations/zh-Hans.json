@@ -17,7 +17,8 @@
       },
       "install_usb": {
         "title": "使用 USB 安装",
-        "description": "[打开 USB 安装程序]({usb_install_url})。请将面板连接到运行此浏览器的设备，而不是 Home Assistant 服务器，并使用支持 WebUSB 的浏览器，同时在面板上开启 USB 调试。\n\n安装程序会在尚未安装 Panel Assistant 的面板上安装它，然后交给面板自身的设置向导。之后请回到这里，把面板添加到 Home Assistant。提交将返回设置菜单。"
+        "description": "将面板连接到这台计算机，而不是 Home Assistant 服务器。",
+        "submit": "打开 USB 安装程序"
       },
       "add_panel": {
         "title": "添加面板",

@@ -17,7 +17,8 @@
       },
       "install_usb": {
         "title": "Zainstaluj za pomocą USB",
-        "description": "[Otwórz instalator USB]({usb_install_url}). Podłącz panel do urządzenia, na którym działa ta przeglądarka, a nie do serwera Home Assistant, i użyj przeglądarki obsługującej WebUSB; na panelu musi być włączone debugowanie USB.\n\nInstalator instaluje Panel Assistant na panelu, który jeszcze go nie ma, a następnie przekazuje go do konfiguracji w samym panelu. Potem wróć tutaj, aby dodać panel do Home Assistant. „Zatwierdź” powraca do menu konfiguracji."
+        "description": "Podłącz panel do tego komputera, a nie do serwera Home Assistant.",
+        "submit": "Otwórz instalator USB"
       },
       "add_panel": {
         "title": "Dodaj panel",

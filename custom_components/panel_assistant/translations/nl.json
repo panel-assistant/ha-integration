@@ -17,7 +17,8 @@
       },
       "install_usb": {
         "title": "Installeer via USB",
-        "description": "[Open het USB-installatieprogramma]({usb_install_url}). Sluit het paneel aan op het apparaat waarop deze browser draait, niet op de Home Assistant-server, en gebruik een browser die WebUSB ondersteunt, waarbij USB-foutopsporing op het paneel is ingeschakeld.\n\nHet installatieprogramma zet Panel Assistant op een paneel dat dit nog niet heeft. Daarna neemt de eigen instelprocedure van het paneel het over. Kom daarna hier terug om het paneel toe te voegen aan Home Assistant. Met ‘Verzenden’ ga je terug naar het installatiemenu."
+        "description": "Sluit het paneel aan op deze computer, niet op de Home Assistant-server.",
+        "submit": "Open het USB-installatieprogramma"
       },
       "add_panel": {
         "title": "Een paneel toevoegen",

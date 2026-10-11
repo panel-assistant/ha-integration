@@ -11,6 +11,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.auth.models import User
+from homeassistant.components.http import current_request
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -223,13 +224,17 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_install_usb(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Link to browser-owned USB installation without creating an entry."""
-        if user_input is not None:
-            return await self.async_step_user()
-        return self.async_show_form(
-            step_id="install_usb",
-            data_schema=vol.Schema({}),
-            description_placeholders={"usb_install_url": f"/{PANEL_PATH}"},
+        """Open browser-owned USB installation without creating an entry."""
+        if user_input is None:
+            return self.async_show_form(
+                step_id="install_usb", data_schema=vol.Schema({})
+            )
+        # The dialog opens the installer window itself, and only for an absolute
+        # URL, so the address is the one this browser used to reach Home Assistant.
+        request = current_request.get()
+        origin = str(request.url.origin()) if request is not None else ""
+        return self.async_external_step(
+            step_id="install_usb", url=f"{origin}/{PANEL_PATH}"
         )
 
     async def async_step_usb_install(
