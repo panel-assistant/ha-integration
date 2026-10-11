@@ -1697,7 +1697,7 @@ def test_android_producer_and_python_agree_on_every_release_tag() -> None:
     }
     assert set(verdicts) == {case["tag"] for case in _IDENTITY_CORPUS["tags"]}
     for case in _IDENTITY_CORPUS["tags"]:
-        assert verdicts[case["tag"]] is (case["kind"] in {"stable", "rc"})
+        assert verdicts[case["tag"]] is (case["kind"] in {"stable", "prerelease"})
 
 
 @pytest.mark.parametrize("case", _IDENTITY_CORPUS["tags"], ids=lambda case: case["tag"])
@@ -1711,8 +1711,8 @@ def test_the_shared_corpus_classifies_every_release_identity(
     """
     tag, kind = case["tag"], case["kind"]
 
-    assert release.is_install_release_tag(tag) is (kind in {"stable", "rc"})
-    assert release.is_rc_release_tag(tag) is (kind == "rc")
+    assert release.is_install_release_tag(tag) is (kind in {"stable", "prerelease"})
+    assert release.is_rc_release_tag(tag) is (kind == "prerelease")
     assert release.is_feed_build_tag(tag) is (kind == "build")
     assert release.feed_build_code(tag) == (
         case["versionCode"] if kind == "build" else None

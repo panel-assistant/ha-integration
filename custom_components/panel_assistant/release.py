@@ -32,7 +32,7 @@ _STABLE_TAG_PATTERN = re.compile(
     r"^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$"
 )
 _RC_TAG_PATTERN = re.compile(
-    r"^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-rc[1-9][0-9]*$"
+    r"^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-(?:rc|preview)[1-9][0-9]*$"
 )
 _MAX_TAG_LENGTH = 64
 _MAX_RELEASE_RESPONSE_BYTES = 256 * 1024
@@ -166,7 +166,7 @@ class InstallReleaseBundle:
 
 
 def is_rc_release_tag(value: object) -> bool:
-    """Accept only a bounded canonical exact release-candidate tag."""
+    """Accept only a bounded canonical prerelease tag, ``-rcN`` or ``-previewN``."""
     return (
         isinstance(value, str)
         and len(value) <= _MAX_TAG_LENGTH
@@ -175,7 +175,7 @@ def is_rc_release_tag(value: object) -> bool:
 
 
 def is_install_release_tag(value: object) -> bool:
-    """Keep durable release identity restricted to stable or canonical RC tags."""
+    """Keep durable release identity to stable or canonical prerelease tags."""
     return (
         isinstance(value, str)
         and len(value) <= _MAX_TAG_LENGTH

@@ -9,7 +9,7 @@ export const MAX_TAG_LENGTH = 64;
 export const MAX_FEED_BYTES = 256 * 1024;
 const MAX_VERSION_CODE = 2147483647;
 const STABLE = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
-const RC = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-rc[1-9][0-9]*$/;
+const RC = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-(?:rc|preview)[1-9][0-9]*$/;
 const BUILD = /^build-([1-9][0-9]{0,9})(-successor)?$/;
 const VERSION_NAME = /^[0-9A-Za-z][0-9A-Za-z._+-]{0,63}$/;
 const matches = (pattern, value) => typeof value === 'string' && value.length <= MAX_TAG_LENGTH &&

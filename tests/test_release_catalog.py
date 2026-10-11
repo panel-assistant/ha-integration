@@ -246,6 +246,40 @@ async def test_default_install_follows_running_pa_and_skips_incompatible_head(
     assert not any(url.endswith(".apk") for url, _ in client.requests)
 
 
+_PREVIEW_CHAIN = [
+    "v0.9.0",
+    "v1.0.0-preview1",
+    "v1.0.0-preview2",
+    "v1.0.0-rc1",
+    "v1.0.0",
+]
+
+
+@pytest.mark.parametrize("published", range(1, len(_PREVIEW_CHAIN) + 1))
+async def test_prerelease_channel_offers_each_preview_then_rc_then_final(
+    hass, monkeypatch, release_key, published
+):
+    """0.9.0 < 1.0.0-preview1 < 1.0.0-preview2 < 1.0.0-rc1 < 1.0.0, in any order."""
+    from custom_components.panel_assistant import update_policy
+
+    tags = _PREVIEW_CHAIN[:published]
+    client = authenticated_session(release_key, [(tag, (5, 5)) for tag in tags[::-1]])
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "1.0.0-preview1")
+    monkeypatch.setattr(catalog, "async_get_clientsession", lambda _: client)
+    assert (await catalog.async_resolve_install_choice(hass, None)).tag == tags[-1]
+
+
+async def test_stable_channel_never_offers_a_preview(hass, monkeypatch, release_key):
+    from custom_components.panel_assistant import update_policy
+
+    client = authenticated_session(
+        release_key, [("v1.0.0-preview1", (5, 5)), ("v0.9.0", (5, 5))]
+    )
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "0.9.0")
+    monkeypatch.setattr(catalog, "async_get_clientsession", lambda _: client)
+    assert (await catalog.async_resolve_install_choice(hass, None)).tag == "v0.9.0"
+
+
 @pytest.mark.parametrize("protocol_range", [None, (6, 6)])
 async def test_explicit_install_cannot_bypass_candidate_compatibility(
     hass, monkeypatch, release_key, protocol_range

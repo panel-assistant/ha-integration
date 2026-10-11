@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import itertools
 import json
 import logging
 import stat
@@ -335,6 +336,15 @@ async def test_without_a_feed_behaviour_is_unchanged(hass: HomeAssistant) -> Non
     stable._refresh_installed_code()
     await hass.async_block_till_done()
     client.async_get_version_code.assert_not_awaited()
+
+
+async def test_update_entity_orders_previews_before_the_rc(hass: HomeAssistant) -> None:
+    """Core shows an update only when version_is_newer says so."""
+    entity, _ = _entity(hass, version="0.9.0", with_feed=False, installed_code=None)
+    chain = ["0.9.0", "1.0.0-preview1", "1.0.0-preview2", "1.0.0-rc1", "1.0.0"]
+    for older, newer in itertools.pairwise(chain):
+        assert entity.version_is_newer(newer, older) is True
+        assert entity.version_is_newer(older, newer) is False
 
 
 async def test_feed_with_unknown_installed_code_falls_back_to_stable(
