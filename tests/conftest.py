@@ -8,6 +8,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import get_test_config_dir
 
 from custom_components.panel_assistant import (
+    browser_panel,
     config_flow,
     feed_coordinator,
     update_policy,
@@ -76,6 +77,17 @@ def _no_stable_release_from_github(
             AsyncMock(return_value=None),
         )
     yield
+
+
+@pytest.fixture(autouse=True)
+def _installer_copy_published(
+    monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
+) -> None:
+    """Every release's installer copy exists unless a test serves the site."""
+    if "installer_copy" not in request.node.name:
+        monkeypatch.setattr(
+            browser_panel, "_async_copy_missing", AsyncMock(return_value=False)
+        )
 
 
 @pytest.fixture(autouse=True)

@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, call, patch
 
+import aiohttp
 import pytest
 from homeassistant import config_entries
 from homeassistant.config_entries import FlowType
@@ -143,6 +144,32 @@ async def test_usb_step_registers_the_local_admin_panel_without_creating_entry(
         f"https://install.panel-assistant.io/{INTEGRATION_VERSION}/"
     )
     assert not hass.config_entries.async_entries(DOMAIN)
+
+
+@pytest.mark.parametrize(
+    ("site", "opened"),
+    [
+        ({"status": 404}, "https://install.panel-assistant.io/"),
+        ({"status": 200}, f"https://install.panel-assistant.io/{INTEGRATION_VERSION}/"),
+        (
+            {"exc": aiohttp.ClientError()},
+            f"https://install.panel-assistant.io/{INTEGRATION_VERSION}/",
+        ),
+    ],
+    ids=["unpublished", "published", "unreachable"],
+)
+async def test_usb_step_opens_a_published_installer_copy(
+    hass: HomeAssistant, aioclient_mock, site: dict[str, Any], opened: str
+) -> None:
+    """A build numbered ahead of its release tag opens the newest copy, never a 404."""
+    from homeassistant.components import frontend
+
+    aioclient_mock.head(
+        f"https://install.panel-assistant.io/{INTEGRATION_VERSION}/", **site
+    )
+    await _start_step(hass, "install_usb")
+    panel = hass.data[frontend.DATA_PANELS]["panel-assistant-usb"]
+    assert panel.config["installer_url"] == opened
 
 
 async def test_usb_step_button_opens_the_installer_where_the_browser_is(
