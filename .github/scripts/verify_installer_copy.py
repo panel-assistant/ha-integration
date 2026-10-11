@@ -44,7 +44,7 @@ _ATTRIBUTE = (
 _ATTRIBUTES = rb"(?:\s+(?:" + _ATTRIBUTE + rb"))*"
 _SOURCE = rb'\s+src="https://static\.cloudflareinsights\.com/[^"]*"'
 _EDGE_BEACON = re.compile(
-    rb"<script" + _ATTRIBUTES + _SOURCE + _ATTRIBUTES + rb"\s*></script>"
+    rb"<script" + _ATTRIBUTES + _SOURCE + _ATTRIBUTES + rb"\s*></script>\n?"
 )
 
 

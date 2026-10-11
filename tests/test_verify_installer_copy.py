@@ -133,3 +133,16 @@ def test_the_beacon_with_its_integrity_and_crossorigin_attributes_is_accepted(
         + ' crossorigin="anonymous"></script>'
     )
     assert _main(built, published) == 0
+
+
+def test_the_newline_the_edge_adds_after_its_script_is_accepted(site) -> None:
+    built, published = site
+    page = (published / "index.html").read_text()
+    (published / "index.html").write_text(
+        page
+        + '<script type="module" src="https://static.cloudflareinsights.com/b"'
+        + ' integrity="sha512-AbC+/=" crossorigin="anonymous"></script>\n'
+    )
+    assert _main(built, published) == 0
+    (published / "index.html").write_text(page + "\n")
+    assert _main(built, published) == 1
