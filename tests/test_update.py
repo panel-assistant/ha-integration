@@ -69,7 +69,9 @@ def _entity(
     client = SimpleNamespace(
         async_get_legacy_install_capability=AsyncMock(return_value=True),
         async_start_panel_update=AsyncMock(),
-        async_get_panel_install_status=AsyncMock(),
+        async_get_panel_install_status=AsyncMock(
+            return_value=PanelInstallStatus(running=True, component="APK")
+        ),
         async_get_status=AsyncMock(
             return_value=PanelStatus(
                 warning_count=0,

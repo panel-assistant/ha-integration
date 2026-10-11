@@ -139,6 +139,8 @@ _UPDATE_TIMEOUT_SECONDS = (
     + _RESTART_HEALTH_GRACE_SECONDS
 )
 _UPDATE_RECHECK_SECONDS = 2
+# A panel's refusal of a build its own order ranks lower (panelUpdateRefusal).
+_DOWNGRADE_REFUSAL = "panel-app downgrades are not permitted"
 _AWAITING_CONFIRMATION_SUMMARY = "Tap Install on the panel to finish the update."
 AWAITING_CONFIRMATION_ATTRIBUTE = "awaiting_confirmation"
 # How long the permission repair after an update waits for the panel's ADB to
@@ -195,16 +197,24 @@ def _now() -> float:
 class _UpdateRefusalError(ServiceValidationError, HTTPBadRequest):
     """Report an expected refusal cleanly through both HA service transports."""
 
-    def __init__(self, panel: str) -> None:
-        message = (
-            f"{panel} refused the update request. "
-            "Check its Install tab, then try again."
-        )
+    def __init__(self, panel: str, reason: str | None = None) -> None:
+        if reason:
+            message = f"{panel} refused the update: {reason}"
+            key, placeholders = (
+                "update_refused_by_panel",
+                {"panel": panel, "reason": reason},
+            )
+        else:
+            message = (
+                f"{panel} refused the update request. "
+                "Check its Install tab, then try again."
+            )
+            key, placeholders = "update_rejected", {"panel": panel}
         HTTPBadRequest.__init__(self, text=message)
         self._message = message
         self.translation_domain = DOMAIN
-        self.translation_key = "update_rejected"
-        self.translation_placeholders = {"panel": panel}
+        self.translation_key = key
+        self.translation_placeholders = placeholders
 
 
 def _update_error(translation_key: str, fallback: str) -> HomeAssistantError:
@@ -577,9 +587,18 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 pass
         elif capability == "api":
             return ROUTE_PANEL, None, None
+        adb = await self._async_adb_route()
+        if adb is None:
+            return None, None, None
+        return ROUTE_ADB, *adb
+
+    async def _async_adb_route(
+        self,
+    ) -> tuple[AdbInstallTarget, AdbCredential] | None:
+        """Admit the authorized ADB route, whatever route the panel offers itself."""
         artifact = self._adb_artifact()
         if artifact is None or artifact.descriptor is None:
-            return None, None, None
+            return None
         try:
             try:
                 credential = await async_get_durable_adb_credential(self.hass)
@@ -587,21 +606,21 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 credential = None
             admitted = await self._async_admit_adb_target(artifact, credential)
             if admitted is None:
-                return None, None, None
+                return None
             target, credential, _root_mode = admitted
         except InstallAdbError as err:
             if err.code is InstallAdbErrorCode.AUTHORIZATION_REQUIRED:
                 raise self._adb_authorization_error() from err
-            return None, None, None
+            return None
         except (
             AdbCredentialError,
             InstallNetworkError,
             HaPaneldError,
             OSError,
         ):
-            return None, None, None
+            return None
         async_clear_adb_authorization(self.hass, self._entry_id)
-        return ROUTE_ADB, target, credential
+        return target, credential
 
     async def _async_pin_adb_target(self) -> PinnedPanelTarget | None:
         """Bind passive ADB evidence to the configured panel's pinned HTTP identity."""
@@ -1582,8 +1601,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                         await self._async_start_panel_download(offer, release)
                 else:
                     await self._async_start_panel_download(offer, release)
-        except UpdateRejectedError:
-            error = _UpdateRefusalError(self._panel_name())
+        except UpdateRejectedError as refusal:
+            # The panel's own reason, when its install result gave one.
+            reason = str(refusal).removeprefix("refused (").removesuffix(")")
+            error = _UpdateRefusalError(self._panel_name(), reason or None)
             await async_record_update_failure(
                 self.hass,
                 self._entry_id,
@@ -1976,7 +1997,29 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             ) from err
         self._record_route(ROUTE_STAGED, artifact.tag)
         self._enter("installing")
-        await self._async_wait_for_build(artifact, before)
+        try:
+            await self._async_wait_for_build(artifact, before, watch_refusal=True)
+        except UpdateRejectedError as refusal:
+            # A panel whose own rule refuses a higher build (its version-name
+            # order predates build-number order) can only be crossed by
+            # Android's installer, which orders by build number alone.
+            adb = (
+                await self._async_adb_route()
+                if _DOWNGRADE_REFUSAL in str(refusal)
+                and descriptor is not None
+                and (installed := snapshot.health.version_code or self._installed_code)
+                and descriptor.version_code > installed
+                else None
+            )
+            if adb is None:
+                raise
+            _LOGGER.info(
+                "%s refused %s (%s); installing it over ADB",
+                self._panel_name(),
+                artifact.tag,
+                refusal,
+            )
+            await self._async_deliver_adb(artifact, *adb, apk=apk)
         return True
 
     async def _async_backup_panel(self) -> None:
@@ -2044,10 +2087,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 raise _verification_error(artifact) from err
         # A download or backup may take minutes. Re-prove the same panel and
         # credential immediately before replacing its installed package.
-        route, fresh_target, fresh_credential = await self._async_install_route()
+        fresh = await self._async_adb_route()
+        fresh_target, fresh_credential = fresh if fresh else (None, None)
         if (
             not self._artifact_allowed(artifact)
-            or route != ROUTE_ADB
             or fresh_target != target
             or fresh_credential is None
             or fresh_credential.generation_id != credential.generation_id
@@ -2108,8 +2151,13 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         before: tuple[str, str | None],
         *,
         minimum_code: bool = False,
+        watch_refusal: bool = False,
     ) -> None:
-        """Wait for the panel to restart into exactly the committed build."""
+        """Wait for the panel to restart into exactly the committed build.
+
+        With ``watch_refusal``, a panel that finished the committed install by
+        refusing it raises ``UpdateRejectedError`` with its reason at once.
+        """
         build = artifact.descriptor
         package_id = build.package_id if build else LEGACY_PACKAGE_ID
         loop = asyncio.get_running_loop()
@@ -2167,6 +2215,16 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                             self._installed_code = code
                             self._code_key = (health.version, health.build)
                         return
+            if watch_refusal:
+                try:
+                    install = (
+                        await self.coordinator.client.async_get_panel_install_status()
+                    )
+                except HaPaneldError:
+                    install = None
+                # A started install resets the message, so a refusal is final.
+                if install is not None and install.message.startswith("refused ("):
+                    raise UpdateRejectedError(install.message)
             await asyncio.sleep(_UPDATE_RECHECK_SECONDS)
         raise _update_error("update_not_complete", "The panel update did not complete")
 

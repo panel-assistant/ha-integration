@@ -524,6 +524,9 @@
     "update_rejected": {
       "message": "{panel} heeft het updateverzoek geweigerd. Controleer het tabblad Installeren op het paneel en probeer het opnieuw."
     },
+    "update_refused_by_panel": {
+      "message": "{panel} heeft de update geweigerd: {reason}"
+    },
     "bridge_not_ready": {
       "message": "Het paneel kan nog niet naar de nieuwe app overstappen. Panel Assistant biedt de overstap opnieuw aan zodra het kan."
     },

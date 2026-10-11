@@ -526,6 +526,9 @@
     "update_rejected": {
       "message": "{panel} odmítl požadavek na aktualizaci. Zkontrolujte jeho kartu Instalace a zkuste to znovu."
     },
+    "update_refused_by_panel": {
+      "message": "{panel} odmítl aktualizaci: {reason}"
+    },
     "bridge_not_ready": {
       "message": "Panel zatím nelze převést na novou aplikaci. Panel Assistant převod znovu nabídne, jakmile to bude možné."
     },

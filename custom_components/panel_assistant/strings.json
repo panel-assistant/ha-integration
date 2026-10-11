@@ -524,6 +524,9 @@
     "update_rejected": {
       "message": "{panel} refused the update request. Check its Install tab, then try again."
     },
+    "update_refused_by_panel": {
+      "message": "{panel} refused the update: {reason}"
+    },
     "bridge_not_ready": {
       "message": "The panel cannot move to the new app yet. Panel Assistant offers the move again once it can."
     },
