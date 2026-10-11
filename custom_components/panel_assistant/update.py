@@ -2210,11 +2210,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     status = await self.coordinator.client.async_get_panel_install_status()
                 except HaPaneldError:
                     status = None
-                if (
-                    status is not None
-                    and not status.running
-                    and status.message.startswith("refused (")
-                ):
+                # A started install resets the message, so a refusal is final.
+                if status is not None and status.message.startswith("refused ("):
                     raise UpdateRejectedError(status.message)
             await asyncio.sleep(_UPDATE_RECHECK_SECONDS)
         raise _update_error("update_not_complete", "The panel update did not complete")
