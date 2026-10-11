@@ -486,6 +486,10 @@ async def test_a_fresh_install_gets_the_usb_installers_grants_before_its_first_s
     assert _panel_value(tmp_path, f"appop.{package_id}.WRITE_SETTINGS") == "allow"
     assert _panel_value(tmp_path, f"appop.{package_id}.SYSTEM_ALERT_WINDOW") == "allow"
     assert (
+        _panel_value(tmp_path, f"appop.{package_id}.REQUEST_INSTALL_PACKAGES")
+        == "allow"
+    )
+    assert (
         _panel_value(tmp_path, "enabled_accessibility_services")
         == (_ACCESSIBILITY_SERVICES[package_id])
     )
@@ -508,7 +512,11 @@ def _seed_granted_panel(
         f"com.example.reader/.ReaderService:{_ACCESSIBILITY_SERVICES[package_id]}\n"
     )
     (state / "accessibility_enabled").write_text("1\n")
-    for operation in ("WRITE_SETTINGS", "SYSTEM_ALERT_WINDOW"):
+    for operation in (
+        "WRITE_SETTINGS",
+        "SYSTEM_ALERT_WINDOW",
+        "REQUEST_INSTALL_PACKAGES",
+    ):
         (state / f"appop.{package_id}.{operation}").write_text("allow\n")
     for feature in ("camera.any", "microphone"):
         (state / f"feature.android.hardware.{feature}").write_text("true\n")
@@ -661,7 +669,11 @@ async def test_unreadable_operations_and_hardware_permissions_are_never_repaired
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     _seed_granted_panel(tmp_path, descriptor.package_id)
-    for operation in ("WRITE_SETTINGS", "SYSTEM_ALERT_WINDOW"):
+    for operation in (
+        "WRITE_SETTINGS",
+        "SYSTEM_ALERT_WINDOW",
+        "REQUEST_INSTALL_PACKAGES",
+    ):
         (tmp_path / f"unreadable.{operation}").write_text("permission denied\n")
     (tmp_path / "unreadable.permissions").write_text("permission denied\n")
     (tmp_path / "feature.android.hardware.camera.any").write_text("unknown\n")
@@ -738,6 +750,7 @@ async def test_runtime_repairs_follow_each_actual_hardware_feature(
         "permissions",
         "WRITE_SETTINGS",
         "SYSTEM_ALERT_WINDOW",
+        "REQUEST_INSTALL_PACKAGES",
         "enabled_accessibility_services",
         "accessibility_enabled",
         "android.hardware.camera.any",
@@ -760,7 +773,11 @@ async def test_a_failed_read_does_not_prove_a_missing_grant(
             (
                 tmp_path / f"permission.{package_id}.android.permission.{permission}"
             ).write_text("false\n")
-    elif read_fail in ("WRITE_SETTINGS", "SYSTEM_ALERT_WINDOW"):
+    elif read_fail in (
+        "WRITE_SETTINGS",
+        "SYSTEM_ALERT_WINDOW",
+        "REQUEST_INSTALL_PACKAGES",
+    ):
         (tmp_path / f"appop.{package_id}.{read_fail}").write_text("deny\n")
     elif read_fail == "enabled_accessibility_services":
         (tmp_path / read_fail).write_text("null\n")
@@ -865,6 +882,7 @@ async def test_other_apps_accessibility_services_stay_enabled(
     [
         "WRITE_SETTINGS",
         "SYSTEM_ALERT_WINDOW",
+        "REQUEST_INSTALL_PACKAGES",
         "enabled_accessibility_services",
         "accessibility_enabled",
     ],

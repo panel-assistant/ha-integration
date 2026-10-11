@@ -717,7 +717,7 @@
     },
     "no_update_route": {
       "title": "{panel} non può ricevere aggiornamenti dell'app",
-      "description": "Panel Assistant non può installare aggiornamenti dell'app su {panel}, quindi l'app resta alla versione attuale. Tutto il resto del pannello continua a funzionare, perciò è facile non accorgersene. Di solito accade dopo una modifica eseguita sul pannello stesso, come un aggiornamento del firmware o un ripristino. Seleziona Ulteriori informazioni per i passaggi relativi a questo pannello."
+      "description": "Panel Assistant non può installare aggiornamenti dell'app su {panel}, quindi l'app resta alla versione attuale. Tutto il resto del pannello continua a funzionare, perciò è facile non accorgersene. Di solito accade dopo una modifica eseguita sul pannello stesso, come un aggiornamento del firmware o un ripristino. Ricollega il pannello a Panel Assistant tramite USB per ripristinare gli aggiornamenti. Seleziona Ulteriori informazioni per i passaggi relativi a questo pannello."
     },
     "merged_panel_identity": {
       "title": "Separa i pannelli uniti: {panels}",

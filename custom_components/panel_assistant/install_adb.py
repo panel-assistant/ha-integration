@@ -678,6 +678,7 @@ _SERVICE_COMPONENT = re.compile(
     r"[A-Za-z][A-Za-z0-9_.]*/[A-Za-z.][A-Za-z0-9_.$]*", flags=re.ASCII
 )
 _APPOP_ALLOWED = r"{}: allow(?:; [\x20-\x7e]{{1,1024}})?"
+_GRANTED_APP_OPS = "WRITE_SETTINGS SYSTEM_ALERT_WINDOW REQUEST_INSTALL_PACKAGES"
 
 
 def _permission_grant_command(
@@ -686,8 +687,10 @@ def _permission_grant_command(
     """Repair only grants Android proves missing before an install or update start.
 
     Settings writes, the overlay and the accessibility service are what the
-    panel's controls need, and the browser installer's permission contract grants
-    them the same way. Keep unrelated services and remove only the obsolete
+    panel's controls need. The install-packages app-op lets a panel without
+    network ADB offer its own signed update for the owner to confirm. The
+    browser installer's permission contract grants them the same way.
+    Keep unrelated services and remove only the obsolete
     class of the same app, appending the current service when no valid spelling exists.
     A rerun writes nothing and other apps' services stay enabled. The list read before
     the write is printed so the readback can prove nothing was dropped. Grant
@@ -763,7 +766,7 @@ def _permission_grant_command(
             '[ "$current_status" -eq 0 ] && [ "$current" = "$before" ] && '
             f'settings put secure enabled_accessibility_services "$after" {quiet}; '
             "fi; fi",
-            "for operation in WRITE_SETTINGS SYSTEM_ALERT_WINDOW; do "
+            f"for operation in {_GRANTED_APP_OPS}; do "
             + read_operation
             + 'if [ "$mode_status" -eq 0 ] && [ -n "$mode" ] && '
             '! printf \'%s\\n\' "$mode" | grep -Evq "^($operation: '
@@ -781,7 +784,7 @@ def _permission_grant_command(
             home_claim_command(launch_component),
             _SERVICES_SETTING,
             "settings get secure accessibility_enabled",
-            "for operation in WRITE_SETTINGS SYSTEM_ALERT_WINDOW; do "
+            f"for operation in {_GRANTED_APP_OPS}; do "
             + read_operation
             + 'if [ "$mode_status" -eq 0 ]; then printf \'%s\\n\' "$mode"; '
             "else echo unknown; fi; done",
@@ -841,14 +844,15 @@ def _parse_permission_grant(
         lines, status = _parse_single_section(body, prefix="PERMISSIONS", nonce=nonce)
     except _MalformedAdbResponse:
         return refused
-    if status != 0 or len(lines) != 10:
+    if status != 0 or len(lines) != 11:
         return refused
-    before, after, enabled, write_settings, overlay, camera, microphone = lines[:7]
-    chooser, home, device = (line.partition(":")[2] for line in lines[7:])
+    before, after, enabled, write_settings, overlay, installs = lines[:6]
+    camera, microphone = lines[6:8]
+    chooser, home, device = (line.partition(":")[2] for line in lines[8:])
     if (
-        not lines[7].startswith("home_chooser:")
-        or not lines[8].startswith("home:")
-        or not lines[9].startswith("device:")
+        not lines[8].startswith("home_chooser:")
+        or not lines[9].startswith("home:")
+        or not lines[10].startswith("device:")
     ):
         return refused
     expected = _expected_services(before, launch_component)
@@ -859,6 +863,8 @@ def _parse_permission_grant(
         and re.fullmatch(_APPOP_ALLOWED.format("WRITE_SETTINGS"), write_settings)
         is not None
         and re.fullmatch(_APPOP_ALLOWED.format("SYSTEM_ALERT_WINDOW"), overlay)
+        is not None
+        and re.fullmatch(_APPOP_ALLOWED.format("REQUEST_INSTALL_PACKAGES"), installs)
         is not None
         and camera in ("granted", "unsupported")
         and microphone in ("granted", "unsupported")

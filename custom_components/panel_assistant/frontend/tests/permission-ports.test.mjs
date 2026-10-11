@@ -45,6 +45,7 @@ function fixture({badTarget = false, badApk = false, badRead = false, failGrant 
       assert.ok(command.includes('HAPANELD_PERMISSIONS_VERIFY_BEGIN:'));
       body = [`HAPANELD_PERMISSIONS_VERIFY_BEGIN:${n}`, `com.other/.Reader:${accessibilityComponentFor(launchComponent)}`, '1',
         `WRITE_SETTINGS: ${badVerify ? 'deny' : 'allow'}`, 'SYSTEM_ALERT_WINDOW: allow',
+        'REQUEST_INSTALL_PACKAGES: allow',
         sdk >= 33 ? 'android.permission.POST_NOTIFICATIONS: granted=true, flags=[]' : 'not_required',
         'granted', `home:${homeComponentFor(launchComponent)}`, 'device:generic',
         `HAPANELD_PERMISSIONS_VERIFY_END:${n}:0`, ''].join('\n');

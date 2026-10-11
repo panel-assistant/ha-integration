@@ -206,7 +206,8 @@ async def test_a_0_9_10_release_installs_and_starts_by_its_moved_classes(
                     MOVED_SERVICE,
                     "1",
                     "WRITE_SETTINGS: allow",
-                    "SYSTEM_ALERT_WINDOW: allow\nunsupported\nunsupported",
+                    "SYSTEM_ALERT_WINDOW: allow\nREQUEST_INSTALL_PACKAGES: allow\n"
+                    "unsupported\nunsupported",
                 ],
                 0,
             ),

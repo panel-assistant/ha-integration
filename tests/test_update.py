@@ -603,3 +603,72 @@ async def test_update_coordinator_keeps_local_operation_faults_out_of_entry_setu
     snapshot = await coordinator._async_update_data()
 
     assert snapshot == PanelUpdateSnapshot(operation=None, error="unavailable")
+
+
+_AWAITING = PanelInstallStatus(
+    running=True, component="ha-paneld", awaiting_confirmation=True
+)
+
+
+def test_an_update_waiting_for_a_tap_on_the_panel_says_so(
+    hass: HomeAssistant,
+) -> None:
+    """A rootless panel's own installer waits for its owner to tap Install."""
+    entity, _ = _entity(hass, operation=_AWAITING)
+
+    assert entity.in_progress is True
+    assert entity.release_summary == "Tap Install on the panel to finish the update."
+    assert entity.extra_state_attributes["awaiting_confirmation"] is True
+
+    entity._update_coordinator.data = PanelUpdateSnapshot(
+        operation=PanelInstallStatus(running=True, component="ha-paneld"),
+        error=None,
+    )
+    assert entity.release_summary is None
+    assert "awaiting_confirmation" not in (entity.extra_state_attributes or {})
+
+
+async def test_waiting_for_the_tap_is_not_a_failure(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The observer keeps waiting through the prompt and ends on fresh health."""
+    entity, client = _entity(hass)
+    entity.async_write_ha_state = MagicMock()
+    refreshes = 0
+    summaries: list[str | None] = []
+
+    async def refresh_health() -> None:
+        nonlocal refreshes
+        refreshes += 1
+        summaries.append(entity.release_summary)
+        if refreshes == 4:
+            entity.coordinator.data = PanelSnapshot(
+                health=PanelHealth(
+                    version="0.9.10",
+                    panel_id=HEALTH.panel_id,
+                    build=HEALTH.build,
+                    config_hash=HEALTH.config_hash,
+                    protocol=(5, 5),
+                ),
+                status=PanelStatus(warning_count=0, capability_count=0),
+                status_error=None,
+            )
+
+    entity.coordinator.async_request_refresh = AsyncMock(side_effect=refresh_health)
+    entity._update_coordinator.async_request_refresh = AsyncMock()
+
+    def panel_prompts(_tag: str) -> None:
+        # The panel accepted the update and now shows Android's install prompt.
+        entity._update_coordinator.data = PanelUpdateSnapshot(
+            operation=_AWAITING, error=None
+        )
+
+    client.async_start_panel_update.side_effect = panel_prompts
+    monkeypatch.setattr(panel_update.asyncio, "sleep", AsyncMock())
+
+    await entity.async_install(None, backup=False)
+
+    assert refreshes == 4
+    assert summaries[:3] == ["Tap Install on the panel to finish the update."] * 3
+    assert entity.installed_version == "0.9.10"
+    assert panel_update._UPDATE_TIMEOUT_SECONDS == 14 * 60

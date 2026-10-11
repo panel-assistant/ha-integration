@@ -200,6 +200,9 @@ class PanelInstallStatus:
 
     running: bool
     component: str
+    # The panel waits for its owner to tap Install in Android's own installer
+    # prompt. Builds before the rootless self-update route never send it.
+    awaiting_confirmation: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -447,7 +450,15 @@ def parse_panel_install_status(body: bytes) -> PanelInstallStatus:
         or any(not " " <= character <= "~" for character in component)
     ):
         raise InvalidResponseError
-    return PanelInstallStatus(running=running, component=component)
+    presentation = document.get("presentation")
+    awaiting = (
+        running
+        and isinstance(presentation, dict)
+        and presentation.get("code") == "install-awaiting-confirmation"
+    )
+    return PanelInstallStatus(
+        running=running, component=component, awaiting_confirmation=awaiting
+    )
 
 
 def parse_update_start_response(body: bytes) -> None:

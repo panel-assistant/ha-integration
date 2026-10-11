@@ -755,7 +755,7 @@
     },
     "no_update_route": {
       "title": "{panel} cannot receive app updates",
-      "description": "Panel Assistant cannot install app updates on {panel}, so the app stays on its current version. Everything else about the panel keeps working, which is why this is easy to miss. It usually follows a change made on the panel itself, such as a firmware update or a reset. Select Learn more for the steps for this panel."
+      "description": "Panel Assistant cannot install app updates on {panel}, so the app stays on its current version. Everything else about the panel keeps working, which is why this is easy to miss. It usually follows a change made on the panel itself, such as a firmware update or a reset. Reconnecting the panel to Panel Assistant by USB restores updates. Select Learn more for the steps for this panel."
     },
     "merged_panel_identity": {
       "title": "Separate the merged panels: {panels}",

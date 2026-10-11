@@ -14,7 +14,8 @@ const other = 'com.example.reader/.ReaderService';
 const frame = (kind, lines, code = 0) => [`HAPANELD_PERMISSIONS_${kind}_BEGIN:${nonce}`,
   ...lines, `HAPANELD_PERMISSIONS_${kind}_END:${nonce}:${code}`, ''].join('\n');
 const verified = (sdk = 33, services = expectedServices(other, LEGACY_PACKAGE_ID, launch(LEGACY_PACKAGE_ID))) => frame('VERIFY', [services, '1',
-  'WRITE_SETTINGS: allow; time=+1s', 'SYSTEM_ALERT_WINDOW: allow', sdk >= 33
+  'WRITE_SETTINGS: allow; time=+1s', 'SYSTEM_ALERT_WINDOW: allow',
+  'REQUEST_INSTALL_PACKAGES: allow', sdk >= 33
     ? '      android.permission.POST_NOTIFICATIONS: granted=true, flags=[ USER_SET|USER_FIXED]' : 'not_required',
   'granted', 'home:io.github.maxlyth.hapaneld/.DashboardActivity', 'device:generic']);
 
@@ -42,6 +43,8 @@ test('readback requires every grant and exact preservation; no generic completio
   for (const invalid of [verified().replace(other + ':', ''), verified().replace('\n1\n', '\n0\n'),
     verified().replace('WRITE_SETTINGS: allow', 'WRITE_SETTINGS: default'),
     verified().replace('SYSTEM_ALERT_WINDOW: allow', 'SYSTEM_ALERT_WINDOW: deny'),
+    verified().replace('REQUEST_INSTALL_PACKAGES: allow', 'REQUEST_INSTALL_PACKAGES: default'),
+    verified().replace('\nREQUEST_INSTALL_PACKAGES: allow', ''),
     verified().replace('granted=true', 'granted=false'), verified().replace('flags=[', 'invalid=['),
     verified().replace('\n      android.', '\nextra\n      android.'), verified().replace(/:0\n$/, ':1\n'),
     verified().replace('\ngranted\n', '\nmaybe\n'), verified().replace('\nhome:', '\nhome '),
@@ -68,7 +71,8 @@ test('real shell grant program is scoped, preserves other services and gates not
   assert.match(result.stderr, /pm grant io.github.maxlyth.hapaneld android.permission.POST_NOTIFICATIONS/);
   assert.ok(result.stderr.includes(`settings put secure enabled_accessibility_services ${other}:${ACCESSIBILITY_SERVICE}`));
   assert.match(result.stderr, /settings put secure accessibility_enabled 1/);
-  assert.equal(result.stderr.trim().split('\n').length, 5);
+  assert.match(result.stderr, /appops set io.github.maxlyth.hapaneld REQUEST_INSTALL_PACKAGES allow/);
+  assert.equal(result.stderr.trim().split('\n').length, 6);
   assert.ok(!executeGrant(32, other).stderr.includes('pm grant'));
   const again = executeGrant(33, `${other}:${ACCESSIBILITY_SERVICE}`);
   parsePermissionGrant(again.stdout, nonce);
@@ -103,6 +107,8 @@ test('the successor is granted through its own fully qualified component', () =>
 
   const verify = buildPermissionVerification(nonce, 33, SUCCESSOR_PACKAGE_ID, launch(SUCCESSOR_PACKAGE_ID));
   assert.ok(verify.includes(`appops get ${SUCCESSOR_PACKAGE_ID} SYSTEM_ALERT_WINDOW`));
+  assert.ok(grant.includes(`appops set ${SUCCESSOR_PACKAGE_ID} REQUEST_INSTALL_PACKAGES allow`));
+  assert.ok(verify.includes(`appops get ${SUCCESSOR_PACKAGE_ID} REQUEST_INSTALL_PACKAGES`));
   assert.ok(verify.includes(`dumpsys package ${SUCCESSOR_PACKAGE_ID} |`));
 });
 
