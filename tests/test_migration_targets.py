@@ -928,3 +928,26 @@ async def test_app_card_retitled_for_a_name_clash_still_covers_its_panel(
     assert sorted(
         flow["context"]["title_placeholders"]["name"] for flow in _offers(hass)
     ) == ["Shelly HA Panel (other)", "Shelly HA Panel (shelly_ha_panel)"]
+
+
+@INSTALL_CHANNELS
+async def test_install_started_from_a_card_survives_the_app_it_installs(
+    hass: HomeAssistant, adb_open: SimpleNamespace, offer
+) -> None:
+    """Only a card still waiting is closed; a person installing from one keeps it."""
+    await offer(hass, adb_open)
+    [card] = _offers(hass)
+    with (
+        patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)),
+        # Holds the person on the install form inside the card's own flow.
+        patch(
+            "custom_components.panel_assistant.config_flow.async_pin_install_target",
+            AsyncMock(side_effect=RuntimeError),
+        ),
+    ):
+        form = await hass.config_entries.flow.async_configure(card["flow_id"], {})
+    assert form["step_id"] == "add_panel"
+
+    await _app_announced(hass)
+
+    assert [flow["flow_id"] for flow in _offers(hass)] == [card["flow_id"]]

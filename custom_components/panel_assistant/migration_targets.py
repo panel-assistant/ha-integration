@@ -60,6 +60,8 @@ _IGNORED_ADDRESS = "ignored_address"
 # A candidate at the same address is raised at most this often, so a device that
 # is not a panel (ADB closed) is probed once an hour, not on every dhcp event.
 _REOFFER_SECONDS = 3600
+# The steps a discovery card shows before anyone confirms it.
+_CARD_STEPS = frozenset({"confirm_migration", "confirm_discovery"})
 _DATA_OFFERED = "migration_offered"
 
 
@@ -252,10 +254,14 @@ def close_offers(hass: HomeAssistant, address: str, flow_id: str) -> None:
     Called where the panel's identity is proven at the address, by the app's
     own announcement or by an entry; every card is keyed by its channel, so
     Core's own same-identity close never reaches the cards of other channels.
+    Only a card still waiting is closed: one a person has confirmed may be
+    installing the very app whose announcement calls this, and still holds
+    the address, so that announcement then stands down instead.
     """
     for flow in hass.config_entries.flow.async_progress_by_handler(DOMAIN):
         if (
             flow["flow_id"] != flow_id
+            and flow["step_id"] in _CARD_STEPS
             and flow["context"].get("title_placeholders", {}).get("address") == address
         ):
             hass.config_entries.flow.async_abort(flow["flow_id"])
