@@ -119,3 +119,17 @@ def test_a_foreign_script_naming_cloudflare_in_another_attribute_still_fails(
     ):
         (published / "index.html").write_text(page + script)
         assert _main(built, published) == 1, script
+
+
+def test_the_beacon_with_its_integrity_and_crossorigin_attributes_is_accepted(
+    site,
+) -> None:
+    built, published = site
+    page = (published / "index.html").read_text()
+    (published / "index.html").write_text(
+        page
+        + '<script type="module" src="https://static.cloudflareinsights.com/b/v1"'
+        + ' integrity="sha512-AbC+/=" data-cf-beacon=\'{"token":"x"}\''
+        + ' crossorigin="anonymous"></script>'
+    )
+    assert _main(built, published) == 0

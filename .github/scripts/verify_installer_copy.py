@@ -39,6 +39,7 @@ def _open(url: str):
 _ATTRIBUTE = (
     rb"defer|type=\"module\""
     rb"|data-cf-beacon='[^']*'|data-cf-beacon=\"[^\"]*\""
+    rb"|integrity=\"sha[0-9]+-[A-Za-z0-9+/=]+\"|crossorigin=\"anonymous\""
 )
 _ATTRIBUTES = rb"(?:\s+(?:" + _ATTRIBUTE + rb"))*"
 _SOURCE = rb'\s+src="https://static\.cloudflareinsights\.com/[^"]*"'
@@ -60,7 +61,7 @@ def _describe(built: bytes, published: bytes) -> str:
     return (
         f"published bytes differ from the build (built {len(built)} bytes, "
         f"published {len(published)}, first difference at byte {at}: "
-        f"built {built[at : at + 60]!r}, published {published[at : at + 60]!r})"
+        f"built {built[at : at + 60]!r}, published {published[at : at + 600]!r})"
     )
 
 
