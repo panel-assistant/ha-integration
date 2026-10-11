@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Build the whole installer site from release tags: every release that opens its
 # own copy gets <version>/, built from that tag, and the root serves the newest
-# one for releases up to 0.9.0, which open the root. Pages replaces the site on
-# every deploy, so rebuilding every copy is what keeps the earlier ones published.
+# one for releases up to 0.9.0, which open the root. A deploy replaces the whole site, so
+# rebuilding every copy is what keeps the earlier ones published.
 #
 # Usage: build_installer_site.sh <output-directory>
 #        build_installer_site.sh --list-tags   (print the tags that get a copy)

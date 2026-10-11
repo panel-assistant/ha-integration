@@ -5,8 +5,8 @@ Usage: verify_installer_copy.py <built-directory> <published-base-url> [<tag>...
 Every file in the built directory is fetched from the same relative path under
 the base URL and compared by SHA-256. Each tag named after the URL must also
 have its <tag>/index.html served, so a stale deploy that dropped a newer
-release's copy fails even though its own build matches. Pages reports a
-deployment finished before its CDN serves it, so a mismatch is retried for a
+release's copy fails even though its own build matches. A deploy can report
+itself finished before the edge serves it, so a mismatch is retried for a
 while before it fails.
 """
 

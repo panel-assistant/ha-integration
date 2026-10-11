@@ -1,0 +1,18 @@
+{
+  // The USB installer site: Workers Static Assets, like panel-assistant.io. The
+  // workflow builds every release's copy into .installer-site before deploying.
+  "name": "panel-assistant-installer",
+  "compatibility_date": "2026-09-09",
+  "workers_dev": false,
+  "assets": {
+    "directory": "../../.installer-site",
+  },
+  // Declared here so a deploy reconciles the hostname instead of it living only
+  // as a setting someone made by hand in the dashboard.
+  "routes": [
+    {
+      "pattern": "install.panel-assistant.io",
+      "custom_domain": true,
+    },
+  ],
+}
