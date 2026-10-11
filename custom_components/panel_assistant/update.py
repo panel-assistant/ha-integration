@@ -912,7 +912,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         """Route facts, plus the panel's wait for a tap when there is one."""
         attributes = super().extra_state_attributes
         if not self._awaiting_confirmation():
-            return attributes
+            return None if attributes is None else dict(attributes)
         return {**(attributes or {}), AWAITING_CONFIRMATION_ATTRIBUTE: True}
 
     def _handle_update_coordinator_update(self) -> None:
