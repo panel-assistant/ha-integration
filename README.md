@@ -1,11 +1,11 @@
 <h1 align="center">
   <a href="https://panel-assistant.io"><picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://panel-assistant.io/brand/wordmark-on-dark.svg">
-    <img src="https://panel-assistant.io/brand/wordmark-on-light.svg" width="360" alt="Panel Assistant">
+    <img src="https://panel-assistant.io/brand/wordmark-on-light.svg" width="500" alt="Panel Assistant">
   </picture></a>
 </h1>
 
-<p align="center"><strong>Home Assistant, on the wall, done properly.</strong></p>
+<h1 align="center">Home Assistant, on the wall, done properly.</h1>
 
 <p align="center">
   <a href="https://github.com/panel-assistant/ha-integration/releases/latest"><img src="https://img.shields.io/github/v/release/panel-assistant/ha-integration?label=release" alt="Latest release"></a>
