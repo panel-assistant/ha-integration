@@ -197,16 +197,24 @@ def _now() -> float:
 class _UpdateRefusalError(ServiceValidationError, HTTPBadRequest):
     """Report an expected refusal cleanly through both HA service transports."""
 
-    def __init__(self, panel: str) -> None:
-        message = (
-            f"{panel} refused the update request. "
-            "Check its Install tab, then try again."
-        )
+    def __init__(self, panel: str, reason: str | None = None) -> None:
+        if reason:
+            message = f"{panel} refused the update: {reason}"
+            key, placeholders = (
+                "update_refused_by_panel",
+                {"panel": panel, "reason": reason},
+            )
+        else:
+            message = (
+                f"{panel} refused the update request. "
+                "Check its Install tab, then try again."
+            )
+            key, placeholders = "update_rejected", {"panel": panel}
         HTTPBadRequest.__init__(self, text=message)
         self._message = message
         self.translation_domain = DOMAIN
-        self.translation_key = "update_rejected"
-        self.translation_placeholders = {"panel": panel}
+        self.translation_key = key
+        self.translation_placeholders = placeholders
 
 
 def _update_error(translation_key: str, fallback: str) -> HomeAssistantError:
@@ -1593,8 +1601,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                         await self._async_start_panel_download(offer, release)
                 else:
                     await self._async_start_panel_download(offer, release)
-        except UpdateRejectedError:
-            error = _UpdateRefusalError(self._panel_name())
+        except UpdateRejectedError as refusal:
+            # The panel's own reason, when its install result gave one.
+            reason = str(refusal).removeprefix("refused (").removesuffix(")")
+            error = _UpdateRefusalError(self._panel_name(), reason or None)
             await async_record_update_failure(
                 self.hass,
                 self._entry_id,

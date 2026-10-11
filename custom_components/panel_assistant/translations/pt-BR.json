@@ -526,6 +526,9 @@
     "update_rejected": {
       "message": "{panel} recusou a solicitação de atualização. Verifique a aba Instalar dele e tente novamente."
     },
+    "update_refused_by_panel": {
+      "message": "{panel} recusou a atualização: {reason}"
+    },
     "bridge_not_ready": {
       "message": "O painel ainda não pode ser transferido para o novo aplicativo. O Panel Assistant oferecerá a transferência novamente quando ela for possível."
     },

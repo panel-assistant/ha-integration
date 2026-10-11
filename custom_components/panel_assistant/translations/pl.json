@@ -524,6 +524,9 @@
     "update_rejected": {
       "message": "{panel} odrzucił żądanie aktualizacji. Sprawdź kartę Instalacja na panelu, a następnie spróbuj ponownie."
     },
+    "update_refused_by_panel": {
+      "message": "{panel} odrzucił aktualizację: {reason}"
+    },
     "bridge_not_ready": {
       "message": "Panel nie może jeszcze przejść na nową aplikację. Panel Assistant ponownie zaproponuje przejście, gdy będzie to możliwe."
     },
