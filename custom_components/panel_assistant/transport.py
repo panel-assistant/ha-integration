@@ -1498,9 +1498,11 @@ def ws_hello(
             # account instead. The administrator who adds this panel is then asked
             # to confirm it while they are still here, rather than afterwards.
             async_record_binding_request(hass, did, connection.user.id)
+        # An entry added again that failed setup still owns the panel, which then
+        # retries as an unknown panel rather than slowly as a removed one.
         if did in _removed_panels(hass) and not any(
             _panel_did(other) == did
-            for other in hass.config_entries.async_loaded_entries(DOMAIN)
+            for other in hass.config_entries.async_entries(DOMAIN)
         ):
             connection.send_error(
                 msg["id"], ERR_ENTRY_REMOVED, "The panel's entry was removed."
