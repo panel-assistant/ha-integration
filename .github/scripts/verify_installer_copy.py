@@ -13,6 +13,7 @@ while before it fails.
 from __future__ import annotations
 
 import hashlib
+import re
 import sys
 import time
 import urllib.error
@@ -31,6 +32,19 @@ def _open(url: str):
     """Open a URL with a named client; Cloudflare refuses urllib's default agent."""
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     return urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS)
+
+
+# Cloudflare's Web Analytics adds this script to the HTML it serves, so a page it
+# serves is never byte-identical to the build until the script is taken out.
+_ATTRIBUTE = (
+    rb"defer|type=\"module\""
+    rb"|data-cf-beacon='[^']*'|data-cf-beacon=\"[^\"]*\""
+)
+_ATTRIBUTES = rb"(?:\s+(?:" + _ATTRIBUTE + rb"))*"
+_SOURCE = rb'\s+src="https://static\.cloudflareinsights\.com/[^"]*"'
+_EDGE_BEACON = re.compile(
+    rb"<script" + _ATTRIBUTES + _SOURCE + _ATTRIBUTES + rb"\s*></script>"
+)
 
 
 def _digest(data: bytes) -> str:
@@ -73,6 +87,8 @@ def differences(built: Path, base_url: str, tags: Sequence[str] = ()) -> list[st
         except (urllib.error.URLError, OSError) as err:
             problems.append(f"{relative}: not served ({err})")
             continue
+        if relative.endswith(".html"):
+            published = _EDGE_BEACON.sub(b"", published)
         if _digest(published) != _digest(path.read_bytes()):
             problems.append(f"{relative}: {_describe(path.read_bytes(), published)}")
     return problems
