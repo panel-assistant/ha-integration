@@ -1857,11 +1857,12 @@ def _authorized_adb(
 
 
 async def test_a_refused_install_fails_at_once_with_the_panel_refusal(
-    hass: HomeAssistant, delivery: SimpleNamespace
+    hass: HomeAssistant, delivery: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A refusal is reported as one, not waited out as an install that never came back."""
     entity, client = _entity(hass)
     _refuse_committed_install(client, "candidate cannot speak to the running Panel Assistant")
+    adb_install = _authorized_adb(entity, client, monkeypatch)
 
     with pytest.raises(HomeAssistantError) as error:
         await entity.async_install(None, False)
@@ -1869,6 +1870,22 @@ async def test_a_refused_install_fails_at_once_with_the_panel_refusal(
     _assert_translated(error.value, "update_rejected")
     client.async_commit_apk.assert_awaited_once_with("tok-1")
     entity.coordinator.async_request_refresh.assert_awaited_once()
+    adb_install.assert_not_awaited()
+
+
+async def test_a_refused_older_build_is_never_forced_over_adb(
+    hass: HomeAssistant, delivery: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only a higher build crosses; the panel's refusal of an older one stands."""
+    entity, client = _entity(hass)
+    _refuse_committed_install(client, "panel-app downgrades are not permitted")
+    adb_install = _authorized_adb(entity, client, monkeypatch)
+
+    with pytest.raises(HomeAssistantError) as error:
+        await entity.async_install("770", False)
+
+    _assert_translated(error.value, "update_rejected")
+    adb_install.assert_not_awaited()
 
 
 async def test_a_panel_refusing_a_higher_build_as_a_downgrade_is_crossed_over_adb(
