@@ -951,3 +951,37 @@ async def test_install_started_from_a_card_survives_the_app_it_installs(
     await _app_announced(hass)
 
     assert [flow["flow_id"] for flow in _offers(hass)] == [card["flow_id"]]
+
+
+# The registry card's probing flow does not outlive opening the add form here,
+# so only the two announcements reproduce the race; all three share the check.
+@pytest.mark.parametrize("offer", [_by_vendor, _by_adb], ids=["vendor", "adb"])
+async def test_card_whose_probe_outlasts_a_manual_add_is_not_shown(
+    hass: HomeAssistant, adb_open: SimpleNamespace, offer
+) -> None:
+    """A card still probing when the panel is added by hand stands down after."""
+    adb_open.gate = asyncio.Event()
+    offered = asyncio.create_task(offer(hass, adb_open))
+    for _ in range(500):
+        if PANEL in adb_open.asked:
+            break
+        await asyncio.sleep(0.01)
+    assert PANEL in adb_open.asked
+    form = await _add_panel_form(hass)
+    with (
+        patch(HEALTH_CHECK, AsyncMock(return_value=APP_HEALTH)),
+        patch("custom_components.panel_assistant.async_setup_entry", return_value=True),
+    ):
+        found = await hass.config_entries.flow.async_configure(
+            form["flow_id"], {CONF_ADDRESS: PANEL}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            found["flow_id"], {"next_step_id": "connect_found"}
+        )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+    adb_open.gate.set()
+    await offered
+    await hass.async_block_till_done()
+
+    assert _offers(hass) == []

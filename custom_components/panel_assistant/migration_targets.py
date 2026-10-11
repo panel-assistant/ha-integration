@@ -185,7 +185,7 @@ def _candidates(hass: HomeAssistant) -> dict[str, dict[str, Any]]:
 
 
 def adb_candidate(hass: HomeAssistant, host: str, serial: str) -> dict[str, Any] | None:
-    """The device advertising network ADB, unless added already or off the LAN.
+    """The device advertising network ADB, unless it is off the LAN.
 
     Network ADB is what the installer needs, so any such device is a candidate.
     One another integration already knows keeps that integration's name and
@@ -199,7 +199,7 @@ def adb_candidate(hass: HomeAssistant, host: str, serial: str) -> dict[str, Any]
 def vendor_candidate(
     hass: HomeAssistant, host: str, instance: str, source: str
 ) -> dict[str, Any] | None:
-    """The panel its vendor's software announces, unless added or off the LAN.
+    """The panel its vendor's software announces, unless it is off the LAN.
 
     The announcement names a panel model, so it is offered even with ADB closed.
     """
@@ -209,16 +209,14 @@ def vendor_candidate(
 def _unconfigured(
     hass: HomeAssistant, host: str, key: str, name: str, source: str, panel_only: bool
 ) -> dict[str, Any] | None:
-    """A candidate card at this host, or the one another integration raises."""
+    """A candidate card at this host, or the one another integration raises.
+
+    An added panel's address is turned away by `offer_blocked`, before any probe.
+    """
     lan = _lan_address(host)
     if lan is None:
         return None
     value, bare = lan
-    if any(
-        entry.data.get(CONF_ADDRESS) == value
-        for entry in hass.config_entries.async_entries(DOMAIN)
-    ):
-        return None
     if (known := _candidates(hass).get(value)) is not None:
         # Keep the other integration's card, but a vendor announcement naming a
         # panel model still proves a panel where that integration cannot.
@@ -234,9 +232,17 @@ def _unconfigured(
 
 
 def offer_blocked(hass: HomeAssistant, address: str, flow_id: str) -> bool:
-    """Whether another card already offers this address, or one here was ignored."""
+    """Whether another card offers this address, or it was ignored or added.
+
+    Added counts because a card can still be probing when the panel is added
+    by hand, too early for the new entry to close it.
+    """
     if any(
-        entry.source == SOURCE_IGNORE and entry.data.get(_IGNORED_ADDRESS) == address
+        entry.data.get(CONF_ADDRESS) == address
+        or (
+            entry.source == SOURCE_IGNORE
+            and entry.data.get(_IGNORED_ADDRESS) == address
+        )
         for entry in hass.config_entries.async_entries(DOMAIN)
     ):
         return True
