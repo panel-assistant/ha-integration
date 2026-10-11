@@ -307,11 +307,17 @@ async def test_a_panel_whose_entry_never_learned_its_link_is_not_adopted(
 async def test_a_link_two_entries_hold_is_not_followed(
     hass: HomeAssistant, hass_read_only_user: Any, network: Network
 ) -> None:
-    """A stale duplicate of the same device makes the link ambiguous."""
+    """Two working panels made from one factory image share the link, so
+    neither entry may take a third panel on it. Both keep it, rather than
+    taking it from each other on every poll."""
     entry = await _load(hass, network, hass_read_only_user.id)
-    await _load(
+    beta = await _load(
         hass, network, hass_read_only_user.id, OTHER, OTHER_ADDRESS, title="beta"
     )
+    saved = (dict(entry.data), dict(beta.data))
+    for polled in (entry, beta, entry):
+        await _poll(hass, polled)
+        assert (dict(entry.data), dict(beta.data)) == saved
     network.answers[STORED] = _health(NEW)
 
     await _poll(hass, entry)
@@ -319,6 +325,24 @@ async def test_a_link_two_entries_hold_is_not_followed(
     assert entry.unique_id == OLD and _wifi(hass) == f"{OLD}_wifi"
     assert _wifi(hass, "beta") == f"{OTHER}_wifi"
     assert _address_issue(hass, entry)
+
+
+async def test_an_entry_left_behind_by_a_re_add_does_not_block_the_next_reinstall(
+    hass: HomeAssistant, hass_read_only_user: Any, network: Network
+) -> None:
+    """The panel was reinstalled and added again by hand, leaving its old entry
+    behind. Its next reinstall still rejoins the entry that is in use."""
+    stale = await _load(hass, network, hass_read_only_user.id, OTHER, title="beta")
+    network.answers[STORED] = _health(OLD)  # reinstalled, then added again
+    entry = await _load(hass, network, hass_read_only_user.id)
+    await _poll(hass, stale)
+    await _poll(hass, entry)
+    network.answers[STORED] = _health(NEW)
+
+    await _poll(hass, entry)
+
+    assert _adopted(hass, entry)
+    assert _wifi(hass, "beta") == f"{OTHER}_wifi"
 
 
 async def test_an_identity_another_entry_owns_is_not_adopted(

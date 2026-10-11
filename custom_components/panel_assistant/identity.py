@@ -100,13 +100,11 @@ def reinstalled(hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth) ->
 
     A clean reinstall gives the app a new installation identity and keeps the
     legacy identity the device reports beside it, which this entry recorded
-    while it accepted the panel's own identity. It comes from the Android ID,
-    so panels made from one factory image share it: the link is followed only
-    when no other entry, loaded or not, holds it or the new identity, since
-    then nothing can say which entry the panel belongs to, and none is guessed.
-    A move of this integration's own that stopped part way is left to that
-    move, which alone can settle its record and any copy of the old app it
-    kept.
+    while it accepted the panel's own identity. The link is followed unless
+    another entry holds it too (two panels from one factory image share it,
+    since it comes from the Android ID) or already owns the new identity. A
+    move of this integration's own that stopped part way is left to that move,
+    which alone can settle its record and any copy of the old app it kept.
     """
     from .panel_move import CONF_SUCCESSOR_MOVE
 
@@ -123,13 +121,7 @@ def reinstalled(hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth) ->
         and entry.data.get(CONF_LEGACY_DID) == link
         and identity_available(hass, entry, did)
         and not any(
-            other.entry_id != entry.entry_id
-            and link
-            in (
-                other.data.get(CONF_LEGACY_DID),
-                other.unique_id,
-                other.data.get(CONF_PREVIOUS_IDENTITY),
-            )
+            other.entry_id != entry.entry_id and other.data.get(CONF_LEGACY_DID) == link
             for other in hass.config_entries.async_entries(DOMAIN)
         )
     )
@@ -464,11 +456,13 @@ def accept_health(hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth) 
         hass.config_entries.async_update_entry(
             entry, unique_id=did, data=_accepted(entry, health)
         )
+        _claim_link(hass, entry)
         return True
     if did == entry.unique_id:
         ir.async_delete_issue(hass, DOMAIN, f"panel_identity_mismatch_{entry.entry_id}")
         if (data := _accepted(entry, health)) != entry.data:
             hass.config_entries.async_update_entry(entry, data=data)
+        _claim_link(hass, entry)
         return True
     if migration_candidate(entry, health):
         assert did is not None
@@ -511,6 +505,38 @@ def _accepted(entry: ConfigEntry, health: PanelHealth) -> dict[str, object]:
     if health.legacy_discovery_id is not None:
         data[CONF_LEGACY_DID] = health.legacy_discovery_id
     return data
+
+
+@callback
+def _claim_link(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """The link is this entry's now: an entry left behind when the panel was
+    added again, whose own panel no longer answers, gives it up."""
+    link = entry.data.get(CONF_LEGACY_DID)
+    if link is None:
+        return
+    for other in hass.config_entries.async_entries(DOMAIN):
+        if (
+            other.entry_id != entry.entry_id
+            and other.data.get(CONF_LEGACY_DID) == link
+            and not _answers_as_itself(other)
+        ):
+            data = dict(other.data)
+            del data[CONF_LEGACY_DID]
+            hass.config_entries.async_update_entry(other, data=data)
+
+
+def _answers_as_itself(entry: ConfigEntry) -> bool:
+    """Whether the entry's own panel is connected or last answered as itself."""
+    coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
+    if coordinator is None:
+        return False
+    if coordinator.connected:
+        return True
+    health = getattr(coordinator.data, "health", None)
+    return bool(
+        coordinator.last_update_success
+        and getattr(health, "discovery_id", None) == entry.unique_id
+    )
 
 
 @callback
