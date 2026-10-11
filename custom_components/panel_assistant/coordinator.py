@@ -42,7 +42,7 @@ from .const import (
     MAX_STATUS_RESPONSE_BYTES,
 )
 from .feed_coordinator import async_get_feed_coordinator
-from .identity import accept_health, is_installation
+from .identity import accept_health, is_installation, reinstalled
 from .permission_repair import async_reconcile_permission_issue
 from .status import PanelStatus, parse_status_response
 from .transport import (
@@ -171,8 +171,9 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
     ) -> None:
         """Remember where a panel refused a session is, and poll it there now.
 
-        Its app is too old for a session, so the poll is all that reaches it,
-        and a panel that moved has no other way to say where it went.
+        Its app is too old for a session, or it was reinstalled under an
+        identity no entry holds yet, so the poll is all that reaches it, and a
+        panel that moved has no other way to say where it went.
         """
         self._refused_hello = (remote, addresses)
         if not self.reachable:
@@ -396,8 +397,9 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
     async def _async_recover_address(self) -> PanelHealth | None:
         """Try the address a connected panel is talking from, when it has one.
 
-        A panel refused a session for its protocol still said where it is in
-        its hello, and is tried there. Returns the health read at the adopted
+        A panel refused a session for its protocol, or reinstalled under a
+        new identity linked to this entry, still said where it is in its
+        hello, and is tried there. Returns the health read at the adopted
         address, or nothing when there was neither, no other address to try,
         or the address did not answer as this panel. Only a session's last two
         are reported: without one the panel is unavailable, which the failed
@@ -424,7 +426,10 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             return None
         answers = await async_probe_addresses(self.hass, candidates)
         for candidate, health in zip(candidates, answers, strict=True):  # noqa: B007 — used after the loop
-            if health is not None and health.discovery_id == entry.unique_id:
+            if health is not None and (
+                health.discovery_id == entry.unique_id
+                or reinstalled(self.hass, entry, health)
+            ):
                 break
         else:
             if session is not None:

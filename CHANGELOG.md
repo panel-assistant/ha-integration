@@ -14,6 +14,10 @@ All notable changes to this project will be documented in this file.
 - **A panel installed over USB is added to Panel Assistant.** It no longer waits to be added by hand under Add panel.
 - **Install using USB opens the installer from its button.** The step used to show a paragraph and a Submit that only went back to the menu, which looked like a failed install. It now says to plug the panel into this computer, and its button opens the USB installer.
 
+### Fixed
+
+- **A reinstalled panel rejoins its existing entry.** When the panel app is reinstalled from scratch, even if the panel also got a new address, Panel Assistant recognises the panel and keeps its entities, entity IDs and history. Before, the panel stayed unavailable until it was added again by hand. Panel Assistant learns what it needs the first time it reaches each panel after you update, so a panel reinstalled before then is not recognised.
+
 ## 0.9.0 - 2026-10-08
 
 A small release that finishes moving the last internal names onto the project's own namespace before 1.0, plus a few things that were ready. Install it before your panels take ha-paneld v0.9.11.

@@ -1492,6 +1492,7 @@ def ws_hello(
         )
         return
     if entry is None:
+        _follow_refused_panel(hass, connection, msg)
         if _may_ask_to_bind(hass, connection):
             # There is no entry to raise a Repairs issue against, so remember the
             # account instead. The administrator who adds this panel is then asked
@@ -1561,21 +1562,37 @@ def _follow_refused_panel(
     """Tell a panel's poll where the panel is, though its hello was refused.
 
     An app too old for a session is served over HTTP, so a panel whose address
-    changed is reachable only through what its hello says. Only the account
-    bound to the entry is heard, and the poll still proves the identity there.
+    changed is reachable only through what its hello says. A panel no entry
+    knows may be one reinstalled under a new identity, so every entry that
+    can link a reinstall is told. Only the account bound to an entry is heard,
+    and the poll still proves the identity, or the link, there.
     """
+    from .identity import CONF_LEGACY_DID
+
     try:
         entry = _entry_for_did(hass, msg["did"])
     except SharedPanelIdentityError:
         return
-    if entry is None or entry.data.get(CONF_TRANSPORT_USER_ID) != connection.user.id:
-        return
-    coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
-    if coordinator is not None:
-        coordinator.async_follow_refused_hello(
-            connection.remote if isinstance(connection.remote, str) else None,
-            tuple(msg.get("addresses", ())),
+    entries = (
+        [entry]
+        if entry is not None
+        else [
+            other
+            for other in hass.config_entries.async_loaded_entries(DOMAIN)
+            if CONF_LEGACY_DID in other.data
+        ]
+    )
+    for candidate in entries:
+        if candidate.data.get(CONF_TRANSPORT_USER_ID) != connection.user.id:
+            continue
+        coordinator = getattr(
+            getattr(candidate, "runtime_data", None), "coordinator", None
         )
+        if coordinator is not None:
+            coordinator.async_follow_refused_hello(
+                connection.remote if isinstance(connection.remote, str) else None,
+                tuple(msg.get("addresses", ())),
+            )
 
 
 @callback
