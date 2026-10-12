@@ -1,5 +1,9 @@
-// The Meta Portal's vendor setup, sent exactly as vendor_provisioning.py
-// sends it: Meta's values are recorded on the panel once, then both dream
+// Panel Assistant's custom support on the USB install path, sent exactly as
+// vendor_provisioning.py sends it; that module lists the panels that use it and
+// why. The program selects itself: a Meta Portal by its codename, a Shelly Wall
+// Display by its launcher, and any other panel is left alone.
+//
+// The Meta Portal's vendor setup: Meta's values are recorded on the panel once, then both dream
 // components are blanked, Meta's swipe-up bar is denied its overlay, and Meta's
 // package verifier, which refuses the app's own updates, is switched off under
 // a record of its own. Panel Assistant's removal reads those records to put

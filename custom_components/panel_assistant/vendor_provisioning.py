@@ -1,5 +1,21 @@
 """Vendor setup Panel Assistant applies during installation, and hands back.
 
+This is Panel Assistant's custom support: the panel- and vendor-specific steps
+on its install, update, repair and removal paths live here and in the browser
+twin ``vendor-provisioning.mjs``, so generic code holds no vendor names. The
+grant step that every install, update and repair runs appends
+``VENDOR_PROBE`` and asks ``needs_vendor_setup``; removal runs the restore
+program, which acts only on a record a setup left. A device profile cannot
+select these steps, because they run over ADB before the app answers and on
+panels whose installed build predates any such profile field.
+
+Panels that use it, and why:
+
+- Meta Portal (codenames ``omni`` and ``aloha``): Meta's dream, swipe-up bar
+  and package verifier, below.
+- Shelly Wall Display (any with Shelly's ``cloud.shelly.stargate`` launcher):
+  the launcher's corner overlay, below.
+
 Two vendor recipes. Meta's Portal: Meta's dream service starts on every sleep
 whatever ``screensaver_enabled`` says and sends HOME, and Meta's control centre
 draws a swipe-up bar over the panel app. Installation blanks both dream
@@ -35,7 +51,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Final
+from typing import ClassVar, Final
 
 #: Meta's device codenames for the Portals with a screen: ``omni`` is the
 #: Android 10 (2nd gen) image, ``aloha`` the Android 9 (1st gen) one. The app's
@@ -85,6 +101,31 @@ _QUIET: Final = ">/dev/null 2>&1"
 _SHELLY_OVERLAY_FUNCTION: Final = _OVERLAY_FUNCTION.replace(
     "hp_overlay()", "hp_shelly_overlay()"
 ).replace(META_CONTROL_CENTER, SHELLY_LAUNCHER)
+
+
+#: Read by the install grant step after its HOME readback: the device codename
+#: and whether Shelly's launcher is installed. ``needs_vendor_setup`` reads the
+#: two lines back.
+VENDOR_PROBE: Final = (
+    'echo "device:$(getprop ro.product.device)"',
+    f'if [ -n "$(pm path {SHELLY_LAUNCHER} 2>/dev/null)" ]; '
+    "then echo vendor:shelly; else echo vendor:none; fi",
+)
+
+
+def needs_vendor_setup(device: str, vendor: str) -> bool | None:
+    """Whether ``VENDOR_PROBE`` found a panel a recipe here serves.
+
+    None when either line is not one the probe prints.
+    """
+    if not device.startswith("device:") or vendor not in (
+        "vendor:shelly",
+        "vendor:none",
+    ):
+        return None
+    return device.removeprefix("device:") in META_PORTAL_DEVICES or (
+        vendor == "vendor:shelly"
+    )
 
 
 def _read_back() -> tuple[str, ...]:
@@ -307,6 +348,12 @@ def vendor_restore_command(nonce: str) -> str:
 class VendorSetup:
     """What a Portal reported after its vendor setup, read in the same shell."""
 
+    #: Logged when the setup did not converge.
+    warning: ClassVar[str] = (
+        "The panel did not take Panel Assistant's Meta Portal setup: Meta's "
+        "screensaver or its swipe-up bar may still show over the panel app"
+    )
+
     #: Meta's values as recorded before the change, or None with no record.
     record: tuple[str, str, str] | None
     screensaver_components: str | None
@@ -334,6 +381,12 @@ class VendorSetup:
 class ShellySetup:
     """What a panel with Shelly's launcher reported after its vendor setup."""
 
+    #: Logged when the setup did not converge.
+    warning: ClassVar[str] = (
+        "The panel did not take Panel Assistant's Shelly setup: Shelly's "
+        "corner overlay may still show over the panel app"
+    )
+
     #: The launcher's overlay mode as recorded before the change, or None.
     record: str | None
     #: allow, deny, ..., ``absent`` without the launcher, or ``unknown``.
@@ -343,6 +396,20 @@ class ShellySetup:
     def converged(self) -> bool:
         """Overlay denied, and the mode to undo it on record."""
         return self.record is not None and self.launcher_overlay in ("deny", "absent")
+
+
+#: Logged when the panel's answer to the setup could not be read.
+UNREAD_SETUP_WARNING: Final = (
+    "The panel did not take Panel Assistant's vendor setup: on a Meta "
+    "Portal, Meta's screensaver or its swipe-up bar may still show over "
+    "the panel app; on a Shelly Wall Display, Shelly's corner overlay"
+)
+#: Logged by removal, with the restore outcome, when a record was not put back.
+RESTORE_WARNING: Final = (
+    "Could not put back the vendor settings Panel Assistant changed on "
+    "this panel (%s): Meta's screensaver and swipe-up bar, or Shelly's "
+    "corner overlay, stay off after the app is removed"
+)
 
 
 class VendorResponseError(ValueError):

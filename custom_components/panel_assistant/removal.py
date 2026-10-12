@@ -1,8 +1,8 @@
 """Remove the panel app from a panel, leaving the panel its own home screen.
 
 The app first gives HOME back to another launcher and re-enables the vendor
-apps it switched off, and the vendor settings installation changed (Meta's
-screensaver and swipe-up bar) are put back; only then is it uninstalled,
+apps it switched off, and the vendor settings installation changed
+(``vendor_provisioning``) are put back; only then is it uninstalled,
 under both of its ids, over the ADB connection Panel Assistant already holds.
 The uninstall runs only while HOME resolves to another launcher, read in the
 same shell, so a panel is never left without a home screen. Every step is
@@ -20,7 +20,7 @@ from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from . import install_adb, panel_move
+from . import install_adb, panel_move, vendor_provisioning
 from .app_identity import LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID
 from .client import (
     HandBackRefusedError,
@@ -145,12 +145,7 @@ async def _async_restore_vendor_setup(found: tuple[AdbInstallTarget, Any]) -> No
     except install_adb.InstallAdbError:
         outcome = "unreachable"
     if outcome not in ("restored", "none"):
-        _LOGGER.warning(
-            "Could not put back the vendor settings Panel Assistant changed on "
-            "this panel (%s): Meta's screensaver and swipe-up bar, or Shelly's "
-            "corner overlay, stay off after the app is removed",
-            outcome,
-        )
+        _LOGGER.warning(vendor_provisioning.RESTORE_WARNING, outcome)
 
 
 async def _async_restore_display_sizing(found: tuple[AdbInstallTarget, Any]) -> None:
