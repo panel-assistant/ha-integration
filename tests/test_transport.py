@@ -1246,11 +1246,6 @@ def _descriptor(platform: str, **fields: Any) -> dict[str, Any]:
         (_descriptor("sensor", options=["auto"]), "auto", "auto"),
         (_descriptor("text"), "lovelace/home", "lovelace/home"),
         (
-            _descriptor("image"),
-            {"url": "http://panel.local:8888/snapshot.jpg"},
-            {"url": "http://panel.local:8888/snapshot.jpg"},
-        ),
-        (
             _descriptor("update"),
             {
                 "installed_version": "0.9.7",
@@ -1295,9 +1290,6 @@ def test_values_are_stored_as_validated_copies(
         (_descriptor("sensor"), "line\nbreak"),
         (_descriptor("text"), "x" * 256),
         (_descriptor("text"), "line\nbreak"),
-        (_descriptor("image"), {"url": "file:///etc/passwd"}),
-        (_descriptor("image"), {"url": "http://"}),
-        (_descriptor("image"), {"url": "http://panel.local/snap shot.jpg"}),
         (_descriptor("update"), {"release_url": "http://example.com/r"}),
         (_descriptor("update"), {"in_progress": "no"}),
         (_descriptor("update"), {"installed_version": 7}),

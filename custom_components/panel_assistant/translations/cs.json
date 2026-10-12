@@ -193,11 +193,6 @@
         "name": "Tlačítko"
       }
     },
-    "image": {
-      "camera_snapshot": {
-        "name": "Snímek z kamery"
-      }
-    },
     "light": {
       "button_led": {
         "name": "LED tlačítka {index}"

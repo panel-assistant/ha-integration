@@ -376,11 +376,6 @@
         "name": "Taste"
       }
     },
-    "image": {
-      "camera_snapshot": {
-        "name": "Kamera-Schnappschuss"
-      }
-    },
     "light": {
       "button_led": {
         "name": "Tasten-LED {index}"

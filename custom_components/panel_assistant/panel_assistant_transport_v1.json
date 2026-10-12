@@ -62,14 +62,6 @@
       "attributes": []
     },
     {
-      "channel": "camera_snapshot",
-      "family": null,
-      "platform": "image",
-      "translation_key": "camera_snapshot",
-      "unique_suffix": "camera_snapshot",
-      "attributes": []
-    },
-    {
       "channel": null,
       "family": "button_led",
       "platform": "light",

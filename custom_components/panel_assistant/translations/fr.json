@@ -376,11 +376,6 @@
         "name": "Bouton"
       }
     },
-    "image": {
-      "camera_snapshot": {
-        "name": "Instantané de la caméra"
-      }
-    },
     "light": {
       "button_led": {
         "name": "LED du bouton {index}"

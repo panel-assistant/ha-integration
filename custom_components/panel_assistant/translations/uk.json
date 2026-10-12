@@ -376,11 +376,6 @@
         "name": "Кнопка"
       }
     },
-    "image": {
-      "camera_snapshot": {
-        "name": "Знімок камери"
-      }
-    },
     "light": {
       "button_led": {
         "name": "LED кнопки {index}"

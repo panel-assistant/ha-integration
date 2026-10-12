@@ -376,11 +376,6 @@
         "name": "Knop"
       }
     },
-    "image": {
-      "camera_snapshot": {
-        "name": "Cameramomentopname"
-      }
-    },
     "light": {
       "button_led": {
         "name": "LED voor knop {index}"
