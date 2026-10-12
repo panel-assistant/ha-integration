@@ -791,6 +791,14 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             self._async_abort_entries_match({CONF_ADDRESS: address.stored_value})
         except InvalidAddressError:
             return self._show_add_panel_form(user_input, {"base": "invalid_address"})
+        placeholders = self.context.get("title_placeholders", {})
+        if "address" in placeholders:
+            # A card's form can name another panel; the card then answers for
+            # that address, so the panel it first named is not closed through it.
+            self.context["title_placeholders"] = {
+                **placeholders,
+                "address": address.stored_value,
+            }
 
         if address.port != DEFAULT_PORT:
             # Installation only uses the standard port, so another port can only

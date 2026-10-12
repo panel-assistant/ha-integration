@@ -1284,3 +1284,28 @@ async def test_overlapping_runs_of_a_pressed_card_both_end_when_the_panel_is_add
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "already_configured"
     assert _offers(hass) == []
+
+
+async def test_card_retargeted_to_another_address_follows_that_address(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """A card whose form now names another panel answers for that one only."""
+    await _by_vendor(hass, adb_open)
+    [card] = _offers(hass)
+    with (
+        patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_pin_install_target",
+            AsyncMock(side_effect=RuntimeError),
+        ),
+    ):
+        await hass.config_entries.flow.async_configure(card["flow_id"], {})
+        form = await hass.config_entries.flow.async_configure(
+            card["flow_id"], {CONF_ADDRESS: "192.168.1.71"}
+        )
+    assert (form["flow_id"], form["step_id"]) == (card["flow_id"], "add_panel")
+
+    await _added_by_hand(hass)
+
+    # Adding the panel the card first named leaves the card for the other one.
+    assert [flow["flow_id"] for flow in _offers(hass)] == [card["flow_id"]]
