@@ -2,10 +2,12 @@
 
 import asyncio
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.components.camera import CameraEntityFeature, async_get_image
+from homeassistant.components.stream import Stream
+from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
@@ -95,6 +97,48 @@ async def test_camera_off_is_available_and_refuses_media_then_fetches_fresh_stil
         assert await camera.async_camera_image(320, 180) == b"320x180"
     assert await camera.async_create_stream() is stream
     assert stream.endpoint_url("hls") == endpoint
+
+
+async def test_snapshot_after_entry_address_update_replaces_source_and_revokes_old_hls(
+    hass: HomeAssistant,
+    native: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    hass_client_no_auth: Any,
+) -> None:
+    """An address edit changes snapshot origin without disturbing unchanged viewers."""
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    camera, token = await _camera(hass, native, client)
+    await _on(hass, client, token, True)
+    old_stream = await camera.async_create_stream()
+    old_stream.add_provider("hls")
+    old_endpoint = old_stream.endpoint_url("hls")
+
+    async def frame(stream: Stream, *args: Any, **kwargs: Any) -> bytes:
+        return stream.source.encode()
+
+    with patch.object(Stream, "async_get_image", new=frame):
+        assert (await async_get_image(hass, camera.entity_id)).content == (
+            b"rtsp://panel.local:8554/live"
+        )
+        assert await camera.async_create_stream() is old_stream
+        assert old_stream.endpoint_url("hls") == old_endpoint
+        with patch.object(
+            native.runtime_data.coordinator, "async_request_refresh", new=AsyncMock()
+        ):
+            hass.config_entries.async_update_entry(
+                native, data={**native.data, CONF_ADDRESS: "new-panel.local"}
+            )
+            await hass.async_block_till_done()
+        assert camera.available and camera.is_on
+        assert (await async_get_image(hass, camera.entity_id)).content == (
+            b"rtsp://new-panel.local:8554/live"
+        )
+    await hass.async_block_till_done()
+    assert old_stream.access_token is None
+    assert old_stream.outputs() == {}
+    http = await hass_client_no_auth()
+    assert (await http.get(old_endpoint)).status == 404
 
 
 @pytest.mark.parametrize(

@@ -98,10 +98,10 @@ class NativeCamera(NativeEntity, Camera):
         """Wait for a stream keyframe and discard an image whose owner changed."""
         if not self.available or not self.is_on:
             return None
-        identity = self._media_identity()
         stream = await self.async_create_stream()
         if stream is None:
             return None
+        identity = self._media_identity()
         image = await stream.async_get_image(width, height, wait_for_next_keyframe=True)
         if not self.available or not self.is_on or self._media_identity() != identity:
             return None
@@ -124,6 +124,8 @@ class NativeCamera(NativeEntity, Camera):
         """Do not reuse an old stream or complete creation across a privacy stop."""
         if not self.available or not self.is_on:
             return None
+        if self.stream is not None and self.stream.source != await self.stream_source():
+            self._invalidate_media()
         identity = self._media_identity()
         stream = await super().async_create_stream()
         if not self.available or not self.is_on or self._media_identity() != identity:
