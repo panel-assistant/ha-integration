@@ -23,9 +23,18 @@ from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.panel_assistant.client import CannotConnectError, PanelHealth
+from custom_components.panel_assistant.client import (
+    CannotConnectError,
+    PanelHealth,
+    normalize_address,
+)
 from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.install_network import PinnedPanelTarget
 from custom_components.panel_assistant.migration_targets import VENDOR_SERVICE_TYPES
+from custom_components.panel_assistant.provisioning import (
+    InstallTargetProbe,
+    InstallTargetState,
+)
 
 HEALTH = PanelHealth(
     version="0.9.0",
@@ -1140,3 +1149,87 @@ async def test_press_finding_the_app_after_the_panel_was_added_says_so(
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "already_configured"
+
+
+async def test_wizard_opened_from_a_card_when_the_panel_is_added_says_so(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """Any step a pressed card is running ends as already added, not vanished."""
+    await _by_vendor(hass, adb_open)
+    [card] = _offers(hass)
+    with (
+        patch(HEALTH_CHECK, AsyncMock(return_value=APP_HEALTH)),
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_setup_complete",
+            AsyncMock(return_value=False),
+        ),
+    ):
+        menu = await hass.config_entries.flow.async_configure(card["flow_id"], {})
+    assert (menu["flow_id"], menu["step_id"]) == (card["flow_id"], "found_unconfigured")
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def offer_url(*_args):
+        entered.set()
+        await release.wait()
+
+    with patch(
+        "custom_components.panel_assistant.config_flow.async_offer_ha_url",
+        side_effect=offer_url,
+    ):
+        pressed = asyncio.create_task(
+            hass.config_entries.flow.async_configure(
+                card["flow_id"], {"next_step_id": "panel_setup"}
+            )
+        )
+        await entered.wait()
+        await _added_by_hand(hass)
+        release.set()
+        result = await pressed
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert _offers(hass) == []
+
+
+async def test_press_moving_on_to_another_step_when_the_panel_is_added_says_so(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """A press still probing, which then opens the next step, ends as added."""
+    await _by_vendor(hass, adb_open)
+    [card] = _offers(hass)
+    address = normalize_address(PANEL)
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def probe(*_args):
+        entered.set()
+        await release.wait()
+        return InstallTargetProbe(state=InstallTargetState("adb_unauthorized"))
+
+    with (
+        patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_pin_install_target",
+            AsyncMock(return_value=PinnedPanelTarget(original=address, pinned=address)),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_probe_install_target",
+            side_effect=probe,
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_list_install_choices",
+            AsyncMock(return_value=[{"tag": "v1.0.0", "prerelease": False}]),
+        ),
+    ):
+        pressed = asyncio.create_task(
+            hass.config_entries.flow.async_configure(card["flow_id"], {})
+        )
+        await entered.wait()
+        await _added_by_hand(hass)
+        release.set()
+        result = await pressed
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert _offers(hass) == []

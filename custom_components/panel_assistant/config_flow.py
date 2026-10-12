@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import functools
 import logging
 import unicodedata
+from collections.abc import Awaitable, Callable
 from dataclasses import replace
 from typing import Any
 
@@ -95,7 +97,9 @@ from .install_network import (
 from .install_plan import InstallPlanError, build_install_plan
 from .migration_targets import (
     ADB_SERVICE_TYPE,
+    CLOSING,
     CONFIRMED,
+    RUNNING,
     VENDOR_SERVICE_TYPES,
     MigrationTarget,
     adb_candidate,
@@ -193,6 +197,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     _install_executor: InstallExecutor | None = None
     _finalizer_job_id: str | None = None
     _flow_removed = False
+    _step_running = False
     _install_releases: list[dict[str, Any]] | None = None
     _setup_watch: asyncio.Task[None] | None = None
     _release_catalog_error: str | None = None
@@ -541,23 +546,6 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         self._set_discovery_title(
             _qualified_name(friendly, panel_id) if taken else friendly
         )
-
-    def async_show_form(self, **kwargs: Any) -> ConfigFlowResult:
-        """Show the form, or end a flow closed while its step was running.
-
-        A card closed for an added panel, by Core or by `close_offers`, may be
-        mid-step for someone who pressed it. Core turns anything but an abort
-        from a removed flow into an unknown-flow error; this abort tells them.
-        """
-        if self._flow_removed:
-            return self.async_abort(reason="already_configured")
-        return super().async_show_form(**kwargs)
-
-    def async_show_menu(self, **kwargs: Any) -> ConfigFlowResult:
-        """Show the menu, or end a flow closed while its step was running."""
-        if self._flow_removed:
-            return self.async_abort(reason="already_configured")
-        return super().async_show_menu(**kwargs)
 
     def _mark_confirmed(self) -> None:
         """Keep this card's flow from being closed as a waiting card from now on."""
@@ -1619,6 +1607,43 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             title=self._discovery_title or health.panel_id,
             data=data,
         )
+
+
+def _closes_when_done(
+    step: Callable[[HaPaneldConfigFlow, Any], Awaitable[ConfigFlowResult]],
+) -> Callable[[HaPaneldConfigFlow, Any], Awaitable[ConfigFlowResult]]:
+    """Mark a card's flow RUNNING through a step; end it if asked to close.
+
+    Core turns anything but an abort from a flow removed mid-step into an
+    unknown-flow error for the person who pressed it, so `close_offers` never
+    aborts a running card; it writes CLOSING and the card ends itself here.
+    A step called from another step runs inside the outer one's mark.
+    """
+
+    @functools.wraps(step)
+    async def run(flow: HaPaneldConfigFlow, user_input: Any = None) -> ConfigFlowResult:
+        placeholders = flow.context.get("title_placeholders", {})
+        if flow._step_running or "address" not in placeholders:
+            return await step(flow, user_input)
+        flow._step_running = True
+        flow.context["title_placeholders"] = {**placeholders, RUNNING: "yes"}
+        try:
+            result = await step(flow, user_input)
+        finally:
+            flow._step_running = False
+            placeholders = dict(flow.context["title_placeholders"])
+            closing = placeholders.pop(RUNNING, None) == CLOSING
+            flow.context["title_placeholders"] = placeholders
+        if closing:
+            return flow.async_abort(reason="already_configured")
+        return result
+
+    return run
+
+
+for _name, _step in list(vars(HaPaneldConfigFlow).items()):
+    if _name.startswith("async_step_"):
+        setattr(HaPaneldConfigFlow, _name, _closes_when_done(_step))
 
 
 _FRIENDLY_NAME_MAX_LENGTH = 64

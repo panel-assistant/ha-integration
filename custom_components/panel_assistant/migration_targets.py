@@ -64,6 +64,11 @@ _REOFFER_SECONDS = 3600
 # the flow is theirs from then on, though Core keeps reporting the card's step
 # until the press has been handled. The card's title shows only {name}.
 CONFIRMED = "confirmed"
+# Set in a card's title placeholders while one of its steps runs (the flow sets
+# it; see config_flow). A card is never aborted then: `close_offers` writes
+# CLOSING instead, and the flow ends itself once that step returns.
+RUNNING = "running"
+CLOSING = "closing"
 _DATA_OFFERED = "migration_offered"
 
 
@@ -268,15 +273,21 @@ def close_offers(
     installing the very app whose announcement calls this, and still holds
     the address, so that announcement then stands down instead. Once the panel
     has an entry, `pressed` closes those too: nothing they could add remains,
-    and one left on a form after its dialog was shut would stay listed.
+    and one left on a form after its dialog was shut would stay listed. One
+    whose step is running is only asked to close, so a person's press never
+    meets a vanished flow.
     """
     for flow in hass.config_entries.flow.async_progress_by_handler(DOMAIN):
         placeholders = flow["context"].get("title_placeholders", {})
         if (
-            flow["flow_id"] != flow_id
-            and placeholders.get("address") == address
-            and (pressed or CONFIRMED not in placeholders)
+            flow["flow_id"] == flow_id
+            or placeholders.get("address") != address
+            or not (pressed or CONFIRMED not in placeholders)
         ):
+            continue
+        if RUNNING in placeholders:
+            flow["context"]["title_placeholders"] = {**placeholders, RUNNING: CLOSING}
+        else:
             hass.config_entries.flow.async_abort(flow["flow_id"])
 
 
