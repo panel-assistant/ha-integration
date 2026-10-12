@@ -120,6 +120,7 @@ from .release import (
 )
 from .vendor_provisioning import (
     UNREAD_SETUP_WARNING,
+    VENDOR_HOME_COMMAND,
     ShellySetup,
     VendorResponseError,
     VendorSetup,
@@ -1282,6 +1283,7 @@ class MoveStep(StrEnum):
     RETURN_HOME = "RETURN_HOME"
     START_LEGACY = "START_LEGACY"
     REMOVE_APP = "REMOVE_APP"
+    VENDOR_HOME = "VENDOR_HOME"
 
 
 @dataclass(frozen=True, slots=True)
@@ -1375,6 +1377,9 @@ _MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
         f"am force-stop {SUCCESSOR_PACKAGE_ID}; pm uninstall {SUCCESSOR_PACKAGE_ID} ;; "
         "esac ;; esac",
     ),
+    # The vendor's launcher takes HOME from the panel's shell when the app
+    # cannot hand it back (vendor_provisioning names the panels).
+    MoveStep.VENDOR_HOME: (VENDOR_HOME_COMMAND,),
     # A successor that first starts with no legacy app and no migration record
     # beside it runs as an ordinary app; clearing it makes that start certain.
     MoveStep.RESET_SUCCESSOR: (

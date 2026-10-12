@@ -1,10 +1,11 @@
 """Remove the panel app from a panel, leaving the panel its own home screen.
 
 The app first gives HOME back to another launcher and re-enables the vendor
-apps it switched off, and the vendor settings installation changed
-(``vendor_provisioning``) are put back; only then is it uninstalled,
-under both of its ids, over the ADB connection Panel Assistant already holds.
-The uninstall runs only while HOME resolves to another launcher, read in the
+apps it switched off (where an ordinary app cannot make the vendor's launcher
+HOME, Panel Assistant does that over ADB), and the vendor settings
+installation changed (``vendor_provisioning``) are put back; only then is it
+uninstalled, under both of its ids, over the ADB connection Panel Assistant
+already holds. The uninstall runs only while HOME resolves to another launcher, read in the
 same shell, so a panel is never left without a home screen. Every step is
 safe to repeat: a retry after an interrupted run finds what is left and
 finishes it.
@@ -108,9 +109,16 @@ async def _async_remove_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
     except UpdateApprovalRequiredError as err:
         raise RemovalError(REASON_APPROVAL_REQUIRED) from err
     except HandBackRefusedError as err:
-        raise RemovalError(
-            _HAND_BACK_REASONS.get(err.code, REASON_HOME_NOT_HANDED)
-        ) from err
+        # An app that could not make the vendor's launcher HOME answers
+        # without one; the panel's shell still can.
+        if (
+            err.code != "not-handed"
+            or (await _async_step(found, MoveStep.VENDOR_HOME)).home
+            not in vendor_provisioning.VENDOR_HOME_PACKAGES
+        ):
+            raise RemovalError(
+                _HAND_BACK_REASONS.get(err.code, REASON_HOME_NOT_HANDED)
+            ) from err
     except HaPaneldError as err:
         # An interrupted run may already have handed HOME back and removed the
         # app under one id, which leaves nothing to answer. Only a panel whose

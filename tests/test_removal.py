@@ -62,6 +62,9 @@ case "${0##*/} $1 $2" in
 "cmd package resolve-activity")
     echo "priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true"
     cat "$s/home" ;;
+"cmd package set-home-activity")
+    [ -e "$s/installed/${3%%/*}" ] || exit 1
+    echo "$3" > "$s/home"; echo "set home $3" >> "$s/events" ;;
 "pm path "*)
     [ -e "$s/installed/$2" ] || exit 1
     echo "package:/data/app/$2/base.apk" ;;
@@ -683,14 +686,20 @@ async def test_removal_gives_a_portal_its_meta_values_back_before_the_uninstall(
     assert not verifier.exists()
 
 
-async def test_removal_gives_shelly_its_overlay_and_the_panel_its_size_back(
+async def test_removal_gives_shelly_home_its_overlay_and_the_panel_its_size_back(
     hass: HomeAssistant,
     panel: tuple[FakePanel, TestServer],
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Both setup records are read and put back before the uninstall."""
+    """An app that cannot hand HOME to Stargate leaves it to Panel Assistant.
+
+    As on a rootless Wall Display: the app answers without a launcher, so
+    Panel Assistant makes Stargate HOME over ADB, then puts both setup records
+    back before the uninstall.
+    """
     fake, server = panel
+    fake.hand_back = "unconfirmed"
     launcher = vendor_provisioning.SHELLY_LAUNCHER
     shelly = tmp_path / "shelly-record"
     display = tmp_path / "display-record"
@@ -705,8 +714,12 @@ async def test_removal_gives_shelly_its_overlay_and_the_panel_its_size_back(
 
     result = await _remove(hass, entry)
 
+    assert result.get("errors") is None, (result.get("errors"), fake.read())
     assert result["step_id"] == "remove_app_done"
+    assert fake.installed == [launcher]
+    assert fake.read()["home"] == f"{launcher}/.activities.SplashActivity"
     assert fake.read()["events"] == [
+        f"set home {launcher}/.activities.SplashActivity",
         f"appops set {launcher} allow",
         "wm density reset",
         "settings delete font_scale",
@@ -715,3 +728,34 @@ async def test_removal_gives_shelly_its_overlay_and_the_panel_its_size_back(
     assert not (fake.state_path / "density").exists()
     assert not shelly.exists()
     assert not display.exists()
+
+
+async def test_an_unhanded_home_without_shelly_changes_nothing(
+    hass: HomeAssistant,
+    panel: tuple[FakePanel, TestServer],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only Shelly's launcher is made HOME over ADB; elsewhere the app keeps it.
+
+    A vendor record waits for the app to go: Meta's dreams stay blank while
+    the app is still HOME.
+    """
+    fake, server = panel
+    fake.hand_back = "unconfirmed"
+    record = tmp_path / "meta-record"
+    monkeypatch.setattr(vendor_provisioning, "META_RESTORE_RECORD", str(record))
+    record.write_text(
+        "screensaver_components=meta/.Dream\n"
+        "screensaver_default_component=null\n"
+        "controlcenter_overlay=allow\n"
+    )
+    entry = _entry(hass, server)
+
+    result = await _remove(hass, entry)
+
+    assert result.get("errors") == {"base": "removal_home_not_handed"}
+    assert fake.installed == [SUCCESSOR_PACKAGE_ID]
+    assert fake.read()["home"] == APP_HOME
+    assert fake.read()["events"] == []
+    assert record.exists()
