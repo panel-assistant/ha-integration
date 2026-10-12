@@ -542,6 +542,23 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             _qualified_name(friendly, panel_id) if taken else friendly
         )
 
+    def async_show_form(self, **kwargs: Any) -> ConfigFlowResult:
+        """Show the form, or end a flow closed while its step was running.
+
+        A card closed for an added panel, by Core or by `close_offers`, may be
+        mid-step for someone who pressed it. Core turns anything but an abort
+        from a removed flow into an unknown-flow error; this abort tells them.
+        """
+        if self._flow_removed:
+            return self.async_abort(reason="already_configured")
+        return super().async_show_form(**kwargs)
+
+    def async_show_menu(self, **kwargs: Any) -> ConfigFlowResult:
+        """Show the menu, or end a flow closed while its step was running."""
+        if self._flow_removed:
+            return self.async_abort(reason="already_configured")
+        return super().async_show_menu(**kwargs)
+
     def _mark_confirmed(self) -> None:
         """Keep this card's flow from being closed as a waiting card from now on."""
         self.context["title_placeholders"] = {
@@ -1412,7 +1429,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             # raised for this address must not stay beside the entry.
             address = entry.data.get(CONF_ADDRESS)
             if isinstance(address, str):
-                close_offers(self.hass, address, self.flow_id)
+                close_offers(self.hass, address, self.flow_id, pressed=True)
         if job_id is not None and executor is not None:
             if isinstance(entry, ConfigEntry):
                 # Never raises: the entry exists, and a receipt that cannot be

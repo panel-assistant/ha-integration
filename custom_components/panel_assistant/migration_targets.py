@@ -256,7 +256,9 @@ def offer_blocked(hass: HomeAssistant, address: str, flow_id: str) -> bool:
 
 
 @callback
-def close_offers(hass: HomeAssistant, address: str, flow_id: str) -> None:
+def close_offers(
+    hass: HomeAssistant, address: str, flow_id: str, *, pressed: bool = False
+) -> None:
     """Close every other card offering this address: its panel has a better one.
 
     Called where the panel's identity is proven at the address, by the app's
@@ -264,14 +266,16 @@ def close_offers(hass: HomeAssistant, address: str, flow_id: str) -> None:
     Core's own same-identity close never reaches the cards of other channels.
     Only a card still waiting is closed: one a person has confirmed may be
     installing the very app whose announcement calls this, and still holds
-    the address, so that announcement then stands down instead.
+    the address, so that announcement then stands down instead. Once the panel
+    has an entry, `pressed` closes those too: nothing they could add remains,
+    and one left on a form after its dialog was shut would stay listed.
     """
     for flow in hass.config_entries.flow.async_progress_by_handler(DOMAIN):
         placeholders = flow["context"].get("title_placeholders", {})
         if (
             flow["flow_id"] != flow_id
             and placeholders.get("address") == address
-            and CONFIRMED not in placeholders
+            and (pressed or CONFIRMED not in placeholders)
         ):
             hass.config_entries.flow.async_abort(flow["flow_id"])
 

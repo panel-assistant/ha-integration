@@ -824,14 +824,9 @@ async def test_install_announcement_of_a_panel_the_app_offers_adds_no_card(
     assert card["context"]["unique_id"] == APP_HEALTH.discovery_id
 
 
-@INSTALL_CHANNELS
-async def test_adding_an_offered_panel_by_hand_closes_its_card(
-    hass: HomeAssistant, adb_open: SimpleNamespace, offer
-) -> None:
-    """A card never stays beside the entry for its panel."""
-    await offer(hass, adb_open)
+async def _added_by_hand(hass: HomeAssistant) -> None:
+    """Someone typing the panel's address under Add panel, its app answering."""
     form = await _add_panel_form(hass)
-
     with (
         patch(HEALTH_CHECK, AsyncMock(return_value=APP_HEALTH)),
         patch("custom_components.panel_assistant.async_setup_entry", return_value=True),
@@ -843,8 +838,76 @@ async def test_adding_an_offered_panel_by_hand_closes_its_card(
             found["flow_id"], {"next_step_id": "connect_found"}
         )
     await hass.async_block_till_done()
-
     assert result["type"] is FlowResultType.CREATE_ENTRY
+
+
+@INSTALL_CHANNELS
+async def test_adding_an_offered_panel_by_hand_closes_its_card(
+    hass: HomeAssistant, adb_open: SimpleNamespace, offer
+) -> None:
+    """A card never stays beside the entry for its panel."""
+    await offer(hass, adb_open)
+
+    await _added_by_hand(hass)
+
+    assert _offers(hass) == []
+
+
+@INSTALL_CHANNELS
+async def test_adding_a_panel_by_hand_closes_a_card_pressed_and_left(
+    hass: HomeAssistant, adb_open: SimpleNamespace, offer
+) -> None:
+    """A press that came back to a form, its dialog shut, does not stay listed."""
+    await offer(hass, adb_open)
+    [card] = _offers(hass)
+    with (
+        patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_pin_install_target",
+            AsyncMock(side_effect=RuntimeError),
+        ),
+    ):
+        form = await hass.config_entries.flow.async_configure(card["flow_id"], {})
+    assert (form["flow_id"], form["step_id"]) == (card["flow_id"], "add_panel")
+
+    await _added_by_hand(hass)
+
+    assert _offers(hass) == []
+
+
+@INSTALL_CHANNELS
+async def test_press_still_running_when_the_panel_is_added_says_so(
+    hass: HomeAssistant, adb_open: SimpleNamespace, offer
+) -> None:
+    """The person's press ends as already added, never as an unknown flow."""
+    await offer(hass, adb_open)
+    [card] = _offers(hass)
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def pin(*_args):
+        entered.set()
+        await release.wait()
+        raise RuntimeError
+
+    with (
+        patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_pin_install_target",
+            side_effect=pin,
+        ),
+    ):
+        pressed = asyncio.create_task(
+            hass.config_entries.flow.async_configure(card["flow_id"], {})
+        )
+        await entered.wait()
+    await _added_by_hand(hass)
+    release.set()
+
+    result = await pressed
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
     assert _offers(hass) == []
 
 
@@ -1049,3 +1112,31 @@ async def test_pressed_app_card_survives_a_reinstalled_app_announcing_there(
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "invalid_discovery"
+
+
+async def test_press_finding_the_app_after_the_panel_was_added_says_so(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """A press whose health answer lands after the add ends as already added."""
+    await _by_vendor(hass, adb_open)
+    [card] = _offers(hass)
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def health(*_args):
+        entered.set()
+        await release.wait()
+        return APP_HEALTH
+
+    with patch(HEALTH_CHECK, side_effect=health):
+        pressed = asyncio.create_task(
+            hass.config_entries.flow.async_configure(card["flow_id"], {})
+        )
+        await entered.wait()
+    await _added_by_hand(hass)
+    release.set()
+
+    result = await pressed
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
