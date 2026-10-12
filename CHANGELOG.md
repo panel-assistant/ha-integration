@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Changed
+
+- **Camera snapshots use the camera entity.** The separate snapshot image entity is removed. Taking a snapshot uses the camera's video stream, so the camera and microphone may stay active until the stream's normal timeout. Turning the camera off still stops capture.
+
 ## 1.0.0-preview1 - 2026-10-11
 
 ### New

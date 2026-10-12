@@ -58,11 +58,6 @@ PANEL_REPORT: dict[str, Any] = json.loads(
 # Values for the catalogue channels the panel does not report yet.
 EXTRA_OBSERVATIONS = [
     {"channel": "auto_sleep_activity", "state": "known", "value": False},
-    {
-        "channel": "camera_snapshot",
-        "state": "known",
-        "value": {"url": "http://panel.local:8888/api/v1/camera/snapshot?t=1"},
-    },
     {"channel": "diag_boot", "state": "known", "value": "2026-09-14T08:00:00+00:00"},
     {"channel": "media", "state": "known", "value": {"state": "idle", "muted": False}},
     {"channel": "relay1", "state": "known", "value": True},
@@ -230,7 +225,6 @@ async def test_every_type_renders_under_the_native_unique_id(
         "button",
         "camera",
         "event",
-        "image",
         "light",
         "media_player",
         "number",
@@ -304,10 +298,6 @@ async def test_every_type_renders_under_the_native_unique_id(
     assert state("reboot").attributes.get("device_class") == "restart"
     assert state("reboot").state == "unknown"
     assert state("button").state == "unknown"
-    image = hass.data["image"].get_entity(by_suffix["camera_snapshot"].entity_id)
-    assert image.image_url == "http://panel.local:8888/api/v1/camera/snapshot?t=1"
-    assert state("camera_snapshot").state == image.image_last_updated.isoformat()
-
     # Every name resolves from the English catalogue, placeholders filled.
     english = json.loads(
         (
@@ -579,54 +569,6 @@ async def test_the_panels_own_hello_is_fully_known_to_the_catalogue(
     )
 
 
-async def test_a_new_snapshot_report_fetches_the_image_again(
-    hass: HomeAssistant,
-    native: MockConfigEntry,
-    hass_ws_client: WsClientFactory,
-    hass_read_only_access_token: str,
-) -> None:
-    """Each camera report is a new snapshot, never the previous cached bytes."""
-    client = await hass_ws_client(hass, hass_read_only_access_token)
-    token = await _session(client)
-    await _sync(hass, client, token)
-    entity_id = _native_entries(hass, native.entry_id)[
-        f"{DID}_camera_snapshot"
-    ].entity_id
-    image = hass.data["image"].get_entity(entity_id)
-    image._cached_image = object()
-    before = image.image_last_updated
-
-    url = "http://panel.local:8888/api/v1/camera/snapshot?t=2"
-    delta = await _send(
-        client,
-        _report(
-            token,
-            "delta",
-            [{"channel": "camera_snapshot", "state": "known", "value": {"url": url}}],
-        ),
-    )
-    assert delta["success"]
-    await hass.async_block_till_done()
-
-    assert image._cached_image is None
-    assert image.image_url == url
-    assert image.image_last_updated > before
-    assert hass.states.get(entity_id).state == image.image_last_updated.isoformat()
-
-    # An unavailable report is no new snapshot.
-    image._cached_image = object()
-    gone = await _send(
-        client,
-        _report(
-            token, "delta", [{"channel": "camera_snapshot", "state": "unavailable"}]
-        ),
-    )
-    assert gone["success"]
-    await hass.async_block_till_done()
-    assert image._cached_image is not None
-    assert hass.states.get(entity_id).state == STATE_UNAVAILABLE
-
-
 async def test_reload_unloads_every_native_platform_and_adds_each_entity_once(
     hass: HomeAssistant,
     native: MockConfigEntry,
@@ -634,12 +576,12 @@ async def test_reload_unloads_every_native_platform_and_adds_each_entity_once(
     hass_read_only_access_token: str,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A reload tears down all thirteen platforms and the next session re-adds."""
+    """A reload tears down all twelve platforms and the next session re-adds."""
     client = await hass_ws_client(hass, hass_read_only_access_token)
     token = await _session(client)
     await _sync(hass, client, token)
     before = _registry_digest(hass, native.entry_id)
-    assert len(native.runtime_data.platforms) == 13
+    assert len(native.runtime_data.platforms) == 12
 
     with (
         patch(

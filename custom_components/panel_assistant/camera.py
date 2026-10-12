@@ -16,7 +16,6 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from yarl import URL
 
 from . import HaPaneldConfigEntry
-from .client import HaPaneldError
 from .native import NativeEntity, async_setup_native_platform
 from .transport import PanelSession
 
@@ -39,7 +38,7 @@ async def async_setup_entry(
 
 
 class NativeCamera(NativeEntity, Camera):
-    """Fresh JPEG and RTSP media from the currently verified panel address."""
+    """Snapshots and RTSP media from the currently verified panel address."""
 
     def __init__(
         self,
@@ -96,14 +95,14 @@ class NativeCamera(NativeEntity, Camera):
     async def async_camera_image(
         self, width: int | None = None, height: int | None = None
     ) -> bytes | None:
-        """Fetch without caching and discard an image whose owner changed."""
+        """Wait for a stream keyframe and discard an image whose owner changed."""
         if not self.available or not self.is_on:
             return None
         identity = self._media_identity()
-        try:
-            image = await self._entry.runtime_data.client.async_get_camera_snapshot()
-        except HaPaneldError:
+        stream = await self.async_create_stream()
+        if stream is None:
             return None
+        image = await stream.async_get_image(width, height, wait_for_next_keyframe=True)
         if not self.available or not self.is_on or self._media_identity() != identity:
             return None
         return image

@@ -193,11 +193,6 @@
         "name": "Button"
       }
     },
-    "image": {
-      "camera_snapshot": {
-        "name": "Camera snapshot"
-      }
-    },
     "light": {
       "button_led": {
         "name": "Button LED {index}"

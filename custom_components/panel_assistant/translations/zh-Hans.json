@@ -376,11 +376,6 @@
         "name": "按键"
       }
     },
-    "image": {
-      "camera_snapshot": {
-        "name": "摄像头快照"
-      }
-    },
     "light": {
       "button_led": {
         "name": "按键 LED {index}"

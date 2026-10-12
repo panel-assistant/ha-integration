@@ -376,11 +376,6 @@
         "name": "Pulsante"
       }
     },
-    "image": {
-      "camera_snapshot": {
-        "name": "Istantanea della videocamera"
-      }
-    },
     "light": {
       "button_led": {
         "name": "LED del pulsante {index}"

@@ -192,8 +192,11 @@ MAX_SESSION_TOKEN_LENGTH: Final = 64
 MAX_EVENT_ID: Final = 2**63 - 1
 MAX_JSON_INTEGER: Final = 2**63
 
-# A descriptor may name only a platform some catalogue channel renders on.
-PLATFORMS: Final = frozenset(entry["platform"] for entry in CONTRACT["channels"])
+# Older panels may still describe the removed image entity. Admit its hello
+# shape as unknown so it cannot prevent the panel's remaining channels working.
+PLATFORMS: Final = frozenset(entry["platform"] for entry in CONTRACT["channels"]) | {
+    "image"
+}
 SYNC_FULL_BEGIN: Final = "full_begin"
 SYNC_DELTA: Final = "delta"
 SYNC_FULL_END: Final = "full_end"
@@ -692,11 +695,6 @@ def _validate_boolean(value: Any, _descriptor: Mapping[str, Any]) -> bool:
     return value
 
 
-def _validate_image(value: Any, _descriptor: Mapping[str, Any]) -> dict[str, str]:
-    image = _mapping(value)
-    return {"url": _url(image.get("url"), schemes=frozenset({"http", "https"}))}
-
-
 def _optional_version(value: Any) -> str | None:
     if value is None:
         return None
@@ -744,7 +742,6 @@ _VALUE_VALIDATORS: Final[dict[str, Callable[[Any, Mapping[str, Any]], Any]]] = {
     "button": _not_reported,
     "camera": _validate_boolean,
     "event": _not_reported,
-    "image": _validate_image,
     "light": _validate_light,
     "media_player": _validate_media,
     "number": _validate_number,
@@ -1628,15 +1625,16 @@ def _accept_hello(
     unsupported = frozenset(msg["unsupported"]).difference(descriptors)
     # The entry was found by this very identity, so the entities removed are
     # this panel's own.
+    retired_entities = [("image", "camera_snapshot")]
     if (
         "camera_enabled" in descriptors
         and "camera_enabled" not in unknown
         and descriptors["camera_enabled"]["platform"] == "camera"
     ) or "camera_enabled" in unsupported:
-        registry = er.async_get(hass)
-        legacy_id = registry.async_get_entity_id(
-            "switch", DOMAIN, f"{did}_camera_enabled"
-        )
+        retired_entities.append(("switch", "camera_enabled"))
+    registry = er.async_get(hass)
+    for platform, suffix in retired_entities:
+        legacy_id = registry.async_get_entity_id(platform, DOMAIN, f"{did}_{suffix}")
         if (
             legacy_id is not None
             and (legacy := registry.async_get(legacy_id)) is not None
@@ -1866,7 +1864,7 @@ def ws_report_state(
     for observation in msg["observations"]:
         channel = observation["channel"]
         descriptor = session.descriptors.get(channel)
-        if descriptor is None:
+        if descriptor is None or descriptor["platform"] not in _VALUE_VALIDATORS:
             rejected.append({"channel": channel, "code": ERR_UNKNOWN_CHANNEL})
             continue
         try:

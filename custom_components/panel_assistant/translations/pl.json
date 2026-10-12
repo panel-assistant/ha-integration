@@ -376,11 +376,6 @@
         "name": "Przycisk"
       }
     },
-    "image": {
-      "camera_snapshot": {
-        "name": "Zdjęcie z kamery"
-      }
-    },
     "light": {
       "button_led": {
         "name": "LED przycisku {index}"

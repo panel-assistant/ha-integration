@@ -930,22 +930,6 @@
       "accepted": true
     },
     {
-      "name": "camera_snapshot_url",
-      "channel": "camera_snapshot",
-      "value": {
-        "url": "http://panel.local:8888/snapshot.jpg"
-      },
-      "accepted": true
-    },
-    {
-      "name": "camera_snapshot_file_url",
-      "channel": "camera_snapshot",
-      "value": {
-        "url": "file:///etc/passwd"
-      },
-      "accepted": false
-    },
-    {
       "name": "update_facts",
       "channel": "update_companion",
       "value": {
