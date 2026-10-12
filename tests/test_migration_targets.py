@@ -1233,3 +1233,54 @@ async def test_press_moving_on_to_another_step_when_the_panel_is_added_says_so(
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "already_configured"
     assert _offers(hass) == []
+
+
+async def test_overlapping_runs_of_a_pressed_card_both_end_when_the_panel_is_added(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """Its dialog opened twice: the run still waiting ends as added, not vanished."""
+    await _by_vendor(hass, adb_open)
+    [card] = _offers(hass)
+    with (
+        patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_pin_install_target",
+            AsyncMock(side_effect=RuntimeError),
+        ),
+    ):
+        form = await hass.config_entries.flow.async_configure(card["flow_id"], {})
+    assert form["step_id"] == "add_panel"
+    entered = [asyncio.Event(), asyncio.Event()]
+    release = [asyncio.Event(), asyncio.Event()]
+    runs: list[int] = []
+
+    async def find(*_args):
+        run = len(runs)
+        runs.append(run)
+        if run < 2:  # the hand add's own form asks too
+            entered[run].set()
+            await release[run].wait()
+        return []
+
+    with patch(
+        "custom_components.panel_assistant.config_flow.async_find_migration_targets",
+        side_effect=find,
+    ):
+        # Opening the dialog shows its step again, so two runs overlap.
+        first = asyncio.create_task(
+            hass.config_entries.flow.async_configure(card["flow_id"])
+        )
+        await entered[0].wait()
+        second = asyncio.create_task(
+            hass.config_entries.flow.async_configure(card["flow_id"])
+        )
+        await entered[1].wait()
+        release[0].set()
+        assert (await first)["step_id"] == "add_panel"
+        await _added_by_hand(hass)
+        release[1].set()
+        result = await second
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert _offers(hass) == []

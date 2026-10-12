@@ -197,7 +197,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     _install_executor: InstallExecutor | None = None
     _finalizer_job_id: str | None = None
     _flow_removed = False
-    _step_running = False
+    _steps_running = 0
     _install_releases: list[dict[str, Any]] | None = None
     _setup_watch: asyncio.Task[None] | None = None
     _release_catalog_error: str | None = None
@@ -1612,28 +1612,33 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
 def _closes_when_done(
     step: Callable[[HaPaneldConfigFlow, Any], Awaitable[ConfigFlowResult]],
 ) -> Callable[[HaPaneldConfigFlow, Any], Awaitable[ConfigFlowResult]]:
-    """Mark a card's flow RUNNING through a step; end it if asked to close.
+    """Mark a card's flow RUNNING while any step runs; end it if asked to close.
 
     Core turns anything but an abort from a flow removed mid-step into an
     unknown-flow error for the person who pressed it, so `close_offers` never
     aborts a running card; it writes CLOSING and the card ends itself here.
-    A step called from another step runs inside the outer one's mark.
+    Runs are counted, not flagged: a step can call another, and opening a
+    card's dialog runs its step again while an earlier run still waits.
+    Every run that ends after CLOSING was written returns the abort.
     """
 
     @functools.wraps(step)
     async def run(flow: HaPaneldConfigFlow, user_input: Any = None) -> ConfigFlowResult:
         placeholders = flow.context.get("title_placeholders", {})
-        if flow._step_running or "address" not in placeholders:
+        if "address" not in placeholders:
             return await step(flow, user_input)
-        flow._step_running = True
-        flow.context["title_placeholders"] = {**placeholders, RUNNING: "yes"}
+        flow._steps_running += 1
+        if RUNNING not in placeholders:
+            flow.context["title_placeholders"] = {**placeholders, RUNNING: "yes"}
         try:
             result = await step(flow, user_input)
         finally:
-            flow._step_running = False
+            flow._steps_running -= 1
             placeholders = dict(flow.context["title_placeholders"])
-            closing = placeholders.pop(RUNNING, None) == CLOSING
-            flow.context["title_placeholders"] = placeholders
+            closing = placeholders.get(RUNNING) == CLOSING
+            if flow._steps_running == 0:
+                placeholders.pop(RUNNING, None)
+                flow.context["title_placeholders"] = placeholders
         if closing:
             return flow.async_abort(reason="already_configured")
         return result
