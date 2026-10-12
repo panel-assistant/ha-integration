@@ -576,11 +576,28 @@ async def test_an_old_app_set_aside_mid_move_is_finished_by_a_retry(
     assert fake.installed == []
 
 
+async def test_a_connection_lost_after_the_uninstall_still_ends_removed(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
+) -> None:
+    """The panel is read again, so an uninstall that ran is not reported failed."""
+    fake, server = panel
+    fake.drop_after = "pm uninstall"
+    entry = _entry(hass, server)
+
+    result = await _remove(hass, entry)
+
+    assert result.get("errors") is None, (result.get("errors"), fake.read())
+    assert result["step_id"] == "remove_app_done"
+    assert fake.installed == []
+
+
 async def test_a_dropped_connection_during_the_uninstall_is_finished_by_a_retry(
     hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
 ) -> None:
+    """An uninstall that did not run before the drop is reported; a retry runs it."""
     fake, server = panel
     fake.drop_after = "pm uninstall"
+    fake.set(fail_uninstall=[SUCCESSOR_PACKAGE_ID])
     entry = _entry(hass, server)
     form = await _open_form(hass, entry)
 
@@ -594,7 +611,8 @@ async def test_a_dropped_connection_during_the_uninstall_is_finished_by_a_retry(
     )
     assert retry["step_id"] == "remove_app_done"
     assert fake.installed == []
-    assert fake.hand_back_requests == 1
+    # The app was still there, so the retry asks it to hand HOME back again.
+    assert fake.hand_back_requests == 2
 
 
 async def test_a_silent_app_that_still_holds_home_is_not_removed(

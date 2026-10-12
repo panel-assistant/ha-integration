@@ -130,9 +130,13 @@ async def _async_remove_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
     try:
         removed = await _async_step(found, MoveStep.REMOVE_APP)
     except RemovalError as err:
-        # The uninstall may have run before the connection dropped; a retry
-        # observes what is left.
-        raise RemovalError(REASON_REMOVE_FAILED) from err
+        # The uninstall may have run before the connection dropped or the
+        # answer stalled (a Shelly Wall Display's did, for 30 s, once the app
+        # was gone), so what is left is read again; a retry does the rest.
+        try:
+            removed = await _async_step(found, MoveStep.OBSERVE)
+        except RemovalError:
+            raise RemovalError(REASON_REMOVE_FAILED) from err
     if _app_left(removed):
         raise RemovalError(
             REASON_HOME_NOT_HANDED
