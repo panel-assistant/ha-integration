@@ -60,6 +60,15 @@ _IGNORED_ADDRESS = "ignored_address"
 # A candidate at the same address is raised at most this often, so a device that
 # is not a panel (ADB closed) is probed once an hour, not on every dhcp event.
 _REOFFER_SECONDS = 3600
+# Set in a card's own title placeholders the moment someone presses its button:
+# the flow is theirs from then on, though Core keeps reporting the card's step
+# until the press has been handled. The card's title shows only {name}.
+CONFIRMED = "confirmed"
+# Set in a card's title placeholders while one of its steps runs (the flow sets
+# it; see config_flow). A card is never aborted then: `close_offers` writes
+# CLOSING instead, and the flow ends itself once that step returns.
+RUNNING = "running"
+CLOSING = "closing"
 _DATA_OFFERED = "migration_offered"
 
 
@@ -183,7 +192,7 @@ def _candidates(hass: HomeAssistant) -> dict[str, dict[str, Any]]:
 
 
 def adb_candidate(hass: HomeAssistant, host: str, serial: str) -> dict[str, Any] | None:
-    """The device advertising network ADB, unless added already or off the LAN.
+    """The device advertising network ADB, unless it is off the LAN.
 
     Network ADB is what the installer needs, so any such device is a candidate.
     One another integration already knows keeps that integration's name and
@@ -197,7 +206,7 @@ def adb_candidate(hass: HomeAssistant, host: str, serial: str) -> dict[str, Any]
 def vendor_candidate(
     hass: HomeAssistant, host: str, instance: str, source: str
 ) -> dict[str, Any] | None:
-    """The panel its vendor's software announces, unless added or off the LAN.
+    """The panel its vendor's software announces, unless it is off the LAN.
 
     The announcement names a panel model, so it is offered even with ADB closed.
     """
@@ -207,16 +216,14 @@ def vendor_candidate(
 def _unconfigured(
     hass: HomeAssistant, host: str, key: str, name: str, source: str, panel_only: bool
 ) -> dict[str, Any] | None:
-    """A candidate card at this host, or the one another integration raises."""
+    """A candidate card at this host, or the one another integration raises.
+
+    An added panel's address is turned away by `offer_blocked`, before any probe.
+    """
     lan = _lan_address(host)
     if lan is None:
         return None
     value, bare = lan
-    if any(
-        entry.data.get(CONF_ADDRESS) == value
-        for entry in hass.config_entries.async_entries(DOMAIN)
-    ):
-        return None
     if (known := _candidates(hass).get(value)) is not None:
         # Keep the other integration's card, but a vendor announcement naming a
         # panel model still proves a panel where that integration cannot.
@@ -232,9 +239,17 @@ def _unconfigured(
 
 
 def offer_blocked(hass: HomeAssistant, address: str, flow_id: str) -> bool:
-    """Whether another card already offers this address, or one here was ignored."""
+    """Whether another card offers this address, or it was ignored or added.
+
+    Added counts because a card can still be probing when the panel is added
+    by hand, too early for the new entry to close it.
+    """
     if any(
-        entry.source == SOURCE_IGNORE and entry.data.get(_IGNORED_ADDRESS) == address
+        entry.data.get(CONF_ADDRESS) == address
+        or (
+            entry.source == SOURCE_IGNORE
+            and entry.data.get(_IGNORED_ADDRESS) == address
+        )
         for entry in hass.config_entries.async_entries(DOMAIN)
     ):
         return True
@@ -243,6 +258,37 @@ def offer_blocked(hass: HomeAssistant, address: str, flow_id: str) -> bool:
         and flow["context"].get("title_placeholders", {}).get("address") == address
         for flow in hass.config_entries.flow.async_progress_by_handler(DOMAIN)
     )
+
+
+@callback
+def close_offers(
+    hass: HomeAssistant, address: str, flow_id: str, *, pressed: bool = False
+) -> None:
+    """Close every other card offering this address: its panel has a better one.
+
+    Called where the panel's identity is proven at the address, by the app's
+    own announcement or by an entry; every card is keyed by its channel, so
+    Core's own same-identity close never reaches the cards of other channels.
+    Only a card still waiting is closed: one a person has confirmed may be
+    installing the very app whose announcement calls this, and still holds
+    the address, so that announcement then stands down instead. Once the panel
+    has an entry, `pressed` closes those too: nothing they could add remains,
+    and one left on a form after its dialog was shut would stay listed. One
+    whose step is running is only asked to close, so a person's press never
+    meets a vanished flow.
+    """
+    for flow in hass.config_entries.flow.async_progress_by_handler(DOMAIN):
+        placeholders = flow["context"].get("title_placeholders", {})
+        if (
+            flow["flow_id"] == flow_id
+            or placeholders.get("address") != address
+            or not (pressed or CONFIRMED not in placeholders)
+        ):
+            continue
+        if RUNNING in placeholders:
+            flow["context"]["title_placeholders"] = {**placeholders, RUNNING: CLOSING}
+        else:
+            hass.config_entries.flow.async_abort(flow["flow_id"])
 
 
 def ignored_card_data(hass: HomeAssistant, unique_id: str) -> dict[str, str]:

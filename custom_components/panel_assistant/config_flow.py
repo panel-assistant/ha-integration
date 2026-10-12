@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import functools
 import logging
 import unicodedata
+from collections.abc import Awaitable, Callable
 from dataclasses import replace
 from typing import Any
 
@@ -95,6 +97,9 @@ from .install_network import (
 from .install_plan import InstallPlanError, build_install_plan
 from .migration_targets import (
     ADB_SERVICE_TYPE,
+    CLOSING,
+    CONFIRMED,
+    RUNNING,
     VENDOR_SERVICE_TYPES,
     MigrationTarget,
     adb_candidate,
@@ -102,6 +107,7 @@ from .migration_targets import (
     async_check_migration_target,
     async_find_migration_targets,
     async_offer_migration_targets,
+    close_offers,
     ignored_card_data,
     offer_blocked,
     vendor_candidate,
@@ -191,6 +197,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     _install_executor: InstallExecutor | None = None
     _finalizer_job_id: str | None = None
     _flow_removed = False
+    _steps_running = 0
     _install_releases: list[dict[str, Any]] | None = None
     _setup_watch: asyncio.Task[None] | None = None
     _release_catalog_error: str | None = None
@@ -316,6 +323,9 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="unknown")
         if health.discovery_id != discovery_id:
             return self.async_abort(reason="invalid_discovery")
+        # The panel has just answered as itself here: whatever happens next, an
+        # install card for this address is the same panel on a weaker channel.
+        close_offers(self.hass, address.stored_value, self.flow_id)
         for existing in self.hass.config_entries.async_entries(DOMAIN):
             if existing.data.get(CONF_ADDRESS) == address.stored_value:
                 accept_health(self.hass, existing, health)
@@ -340,6 +350,9 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         self._abort_if_unique_id_configured(
             updates={CONF_ADDRESS: address.stored_value}, reload_on_update=False
         )
+        # An Ignore on the card another channel showed covers the panel.
+        if offer_blocked(self.hass, address.stored_value, self.flow_id):
+            return self.async_abort(reason="already_configured")
 
         self._pending_address = address
         self._pending_health = health
@@ -454,6 +467,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         target = self._migration_target
         assert target is not None
         if user_input is not None:
+            self._mark_confirmed()
             return await self.async_step_add_panel({CONF_ADDRESS: target.address})
         return self.async_show_form(
             step_id="confirm_migration",
@@ -472,6 +486,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         if self._pending_address is None or self._pending_discovery_id is None:
             return self.async_abort(reason="unknown")
         if user_input is not None:
+            self._mark_confirmed()
             try:
                 health = await HaPaneldClient(
                     async_get_clientsession(self.hass), self._pending_address
@@ -523,16 +538,30 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         for flow in self.hass.config_entries.flow.async_progress_by_handler(DOMAIN):
             other_panel_id = clashing.get(flow["flow_id"])
             if other_panel_id is not None:
+                # Keep its address: the other channels and an Ignore match on it.
                 flow["context"]["title_placeholders"] = {
-                    "name": _qualified_name(friendly, other_panel_id)
+                    **flow["context"]["title_placeholders"],
+                    "name": _qualified_name(friendly, other_panel_id),
                 }
         self._set_discovery_title(
             _qualified_name(friendly, panel_id) if taken else friendly
         )
 
+    def _mark_confirmed(self) -> None:
+        """Keep this card's flow from being closed as a waiting card from now on."""
+        self.context["title_placeholders"] = {
+            **self.context.get("title_placeholders", {}),
+            CONFIRMED: "yes",
+        }
+
     def _set_discovery_title(self, display: str) -> None:
         """Record the rendered title for the card, the form and the created entry."""
-        self.context["title_placeholders"] = {"name": display}
+        # The address lets the other channels' cards, and an Ignore, find this one.
+        assert self._pending_address is not None
+        self.context["title_placeholders"] = {
+            "name": display,
+            "address": self._pending_address.stored_value,
+        }
         self._discovery_title = display
 
     def _announced_discovery_names(self) -> dict[str, tuple[str | None, str]]:
@@ -762,6 +791,14 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             self._async_abort_entries_match({CONF_ADDRESS: address.stored_value})
         except InvalidAddressError:
             return self._show_add_panel_form(user_input, {"base": "invalid_address"})
+        placeholders = self.context.get("title_placeholders", {})
+        if "address" in placeholders:
+            # A card's form can name another panel; the card then answers for
+            # that address, so the panel it first named is not closed through it.
+            self.context["title_placeholders"] = {
+                **placeholders,
+                "address": address.stored_value,
+            }
 
         if address.port != DEFAULT_PORT:
             # Installation only uses the standard port, so another port can only
@@ -1379,10 +1416,16 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     async def async_on_create_entry(self, result: ConfigFlowResult) -> ConfigFlowResult:
-        """Hand the executor HA's actual entry id for the healthy receipt."""
+        """Close the panel's other cards; hand the executor HA's entry id."""
         job_id = self._finalizer_job_id
         executor = self._install_executor
         entry = result.get("result")
+        if isinstance(entry, ConfigEntry):
+            # Added by hand, over USB or from one card: a card another channel
+            # raised for this address must not stay beside the entry.
+            address = entry.data.get(CONF_ADDRESS)
+            if isinstance(address, str):
+                close_offers(self.hass, address, self.flow_id, pressed=True)
         if job_id is not None and executor is not None:
             if isinstance(entry, ConfigEntry):
                 # Never raises: the entry exists, and a receipt that cannot be
@@ -1572,6 +1615,48 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             title=self._discovery_title or health.panel_id,
             data=data,
         )
+
+
+def _closes_when_done(
+    step: Callable[[HaPaneldConfigFlow, Any], Awaitable[ConfigFlowResult]],
+) -> Callable[[HaPaneldConfigFlow, Any], Awaitable[ConfigFlowResult]]:
+    """Mark a card's flow RUNNING while any step runs; end it if asked to close.
+
+    Core turns anything but an abort from a flow removed mid-step into an
+    unknown-flow error for the person who pressed it, so `close_offers` never
+    aborts a running card; it writes CLOSING and the card ends itself here.
+    Runs are counted, not flagged: a step can call another, and opening a
+    card's dialog runs its step again while an earlier run still waits.
+    Every run that ends after CLOSING was written returns the abort.
+    """
+
+    @functools.wraps(step)
+    async def run(flow: HaPaneldConfigFlow, user_input: Any = None) -> ConfigFlowResult:
+        placeholders = flow.context.get("title_placeholders", {})
+        if "address" not in placeholders:
+            return await step(flow, user_input)
+        flow._steps_running += 1
+        if RUNNING not in placeholders:
+            flow.context["title_placeholders"] = {**placeholders, RUNNING: "yes"}
+        try:
+            result = await step(flow, user_input)
+        finally:
+            flow._steps_running -= 1
+            placeholders = dict(flow.context["title_placeholders"])
+            closing = placeholders.get(RUNNING) == CLOSING
+            if flow._steps_running == 0:
+                placeholders.pop(RUNNING, None)
+                flow.context["title_placeholders"] = placeholders
+        if closing:
+            return flow.async_abort(reason="already_configured")
+        return result
+
+    return run
+
+
+for _name, _step in list(vars(HaPaneldConfigFlow).items()):
+    if _name.startswith("async_step_"):
+        setattr(HaPaneldConfigFlow, _name, _closes_when_done(_step))
 
 
 _FRIENDLY_NAME_MAX_LENGTH = 64

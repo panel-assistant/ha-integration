@@ -512,7 +512,10 @@ async def test_zeroconf_titles_each_discovery_with_its_own_panel(
         )
 
     flow = hass.config_entries.flow.async_progress()[0]
-    assert flow["context"]["title_placeholders"] == {"name": DISCOVERY_HEALTH.panel_id}
+    assert flow["context"]["title_placeholders"] == {
+        "name": DISCOVERY_HEALTH.panel_id,
+        "address": "192.168.1.23",
+    }
 
 
 @pytest.mark.parametrize(
