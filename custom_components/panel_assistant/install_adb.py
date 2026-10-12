@@ -75,11 +75,12 @@ from .release import (
     install_descriptor_valid,
 )
 from .vendor_provisioning import (
-    META_PORTAL_DEVICES,
-    SHELLY_LAUNCHER,
+    UNREAD_SETUP_WARNING,
+    VENDOR_PROBE,
     ShellySetup,
     VendorResponseError,
     VendorSetup,
+    needs_vendor_setup,
     parse_vendor_restore,
     parse_vendor_setup,
     vendor_restore_command,
@@ -741,8 +742,8 @@ def _permission_grant_command(
     anything else: Android forgets a preferred HOME when the set of packages
     changes, so every install, update and repair asserts it again. Where the
     firmware only preselects it in Android's chooser, the chooser's Always is
-    pressed (``home_chooser``). The device codename is read last, for the
-    vendor setup that follows.
+    pressed (``home_chooser``). The custom-support probe is read last, for the
+    vendor setup that follows (``vendor_provisioning``).
     """
     component = ACCESSIBILITY_COMPONENTS[launch_component]
     known = "|".join(
@@ -836,9 +837,7 @@ def _permission_grant_command(
             'echo "home_chooser:$hp_chooser"',
             _secure_settings_grant_command(package_id),
             f'echo "home:$({_HOME_QUERY})"',
-            'echo "device:$(getprop ro.product.device)"',
-            f'if [ -n "$(pm path {SHELLY_LAUNCHER} 2>/dev/null)" ]; '
-            "then echo vendor:shelly; else echo vendor:none; fi",
+            *VENDOR_PROBE,
             f"echo HAPANELD_PERMISSIONS_END:{nonce}:$?",
         )
     )
@@ -872,20 +871,15 @@ class _PermissionGrant:
     home: bool
     #: What the HOME claim did (``home_chooser.CHOOSER_OUTCOMES``), or None.
     chooser: str | None
-    #: ``ro.product.device``, or None when the answer could not be read.
-    device: str | None
-    #: Shelly's launcher is installed: a Shelly Wall Display, whatever model.
-    shelly: bool = False
-
-
-_DEVICE_CODENAME = re.compile(r"[A-Za-z0-9_.-]{1,64}", flags=re.ASCII)
+    #: ``vendor_provisioning`` has a setup for this panel.
+    vendor_setup: bool = False
 
 
 def _parse_permission_grant(
     body: bytes, nonce: str, launch_component: str
 ) -> _PermissionGrant:
     """Granted only when every readback line shows the grant and no service lost."""
-    refused = _PermissionGrant(granted=False, home=False, chooser=None, device=None)
+    refused = _PermissionGrant(granted=False, home=False, chooser=None)
     try:
         lines, status = _parse_single_section(body, prefix="PERMISSIONS", nonce=nonce)
     except _MalformedAdbResponse:
@@ -894,15 +888,13 @@ def _parse_permission_grant(
         return refused
     before, after, enabled, write_settings, overlay, installs = lines[:6]
     camera, microphone = lines[6:8]
-    chooser, secure_settings, home, device, vendor = (
-        line.partition(":")[2] for line in lines[8:]
-    )
+    chooser, secure_settings, home = (line.partition(":")[2] for line in lines[8:11])
+    vendor_setup = needs_vendor_setup(lines[11], lines[12])
     if (
         not lines[8].startswith("home_chooser:")
         or not lines[9].startswith("secure_settings:")
         or not lines[10].startswith("home:")
-        or not lines[11].startswith("device:")
-        or lines[12] not in ("vendor:shelly", "vendor:none")
+        or vendor_setup is None
     ):
         return refused
     expected = _expected_services(before, launch_component)
@@ -924,8 +916,7 @@ def _parse_permission_grant(
         granted=granted,
         home=home in EQUIVALENT_HOME_COMPONENTS[launch_component],
         chooser=chooser if chooser in CHOOSER_OUTCOMES else None,
-        device=device if _DEVICE_CODENAME.fullmatch(device) else None,
-        shelly=vendor == "shelly",
+        vendor_setup=vendor_setup,
     )
 
 
@@ -2308,7 +2299,7 @@ async def _async_repair_app_permissions(
             package_id,
             grant.chooser or "unread",
         )
-    if grant.device in META_PORTAL_DEVICES or grant.shelly:
+    if grant.vendor_setup:
         await _async_vendor_setup(device)
     if not grant.granted:
         _LOGGER.warning(
@@ -2342,24 +2333,8 @@ async def _async_vendor_setup(
         converged = False
     else:
         converged = observed is None or observed.converged
-    if converged:
-        return observed
-    if isinstance(observed, ShellySetup):
-        _LOGGER.warning(
-            "The panel did not take Panel Assistant's Shelly setup: Shelly's "
-            "corner overlay may still show over the panel app"
-        )
-    elif isinstance(observed, VendorSetup):
-        _LOGGER.warning(
-            "The panel did not take Panel Assistant's Meta Portal setup: Meta's "
-            "screensaver or its swipe-up bar may still show over the panel app"
-        )
-    else:
-        _LOGGER.warning(
-            "The panel did not take Panel Assistant's vendor setup: on a Meta "
-            "Portal, Meta's screensaver or its swipe-up bar may still show over "
-            "the panel app; on a Shelly Wall Display, Shelly's corner overlay"
-        )
+    if not converged:
+        _LOGGER.warning(UNREAD_SETUP_WARNING if observed is None else observed.warning)
     return observed
 
 
@@ -2448,46 +2423,13 @@ async def async_restore_vendor_setup(
 
     Returns ``restored``, ``unrestored`` or ``none`` (nothing was changed).
     """
-    _validate_target(target)
-    device: AdbDeviceAsync | None = None
+    lines = await _async_target_section(
+        target, signer, vendor_restore_command, "VENDOR_RESTORE"
+    )
     try:
-        async with asyncio.timeout(_LAUNCH_TIMEOUT_SECONDS):
-            device = await _async_connect(target, signer, authorize=False)
-            nonce = token_hex(16)
-            _parse_identity_root(
-                await _async_shell(
-                    device,
-                    _identity_root_command(nonce),
-                    read_timeout=_READ_TIMEOUT_SECONDS,
-                ),
-                nonce,
-                target,
-            )
-            nonce = token_hex(16)
-            lines, status = _parse_single_section(
-                await _async_shell(
-                    device,
-                    vendor_restore_command(nonce),
-                    read_timeout=_READ_TIMEOUT_SECONDS,
-                ),
-                prefix="VENDOR_RESTORE",
-                nonce=nonce,
-            )
-            if status != 0:
-                raise _MalformedAdbResponse
-            return parse_vendor_restore(lines)
-    except InstallAdbError:
-        raise
-    except (
-        TimeoutError,
-        VendorResponseError,
-        _MalformedAdbResponse,
-        _UnsafeAdbPacket,
-        *_ADB_EXCEPTIONS,
-    ):
+        return parse_vendor_restore(lines)
+    except VendorResponseError:
         raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE) from None
-    finally:
-        await _async_close(device)
 
 
 async def async_repair_installed_app_permissions(

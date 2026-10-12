@@ -6,6 +6,7 @@ the same launch and repair calls an install, an update and Repairs make.
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -19,6 +20,8 @@ from custom_components.panel_assistant.home_chooser import CHOOSER_DUMP
 from custom_components.panel_assistant.install_adb import (
     AdbInstallTarget,
     AdbRootMode,
+    InstallAdbError,
+    InstallAdbErrorCode,
     LaunchOutcome,
     async_launch_installed_app,
     async_repair_installed_app_permissions,
@@ -27,9 +30,12 @@ from custom_components.panel_assistant.install_adb import (
 from custom_components.panel_assistant.release import InstallDescriptor
 
 from .install_adb_fakes import (
+    NONCES,
     FakeDevice,
     _identity_root_output,
     _install_fakes,
+    _notifications_output,
+    _permissions_output,
     _single_output,
 )
 from .test_install_adb import (  # noqa: F401 - fixtures resolve by parameter name
@@ -352,6 +358,29 @@ async def test_hand_back_restores_metas_values_once(
     assert not (tmp_path / "verifier-record").exists()
     # A retry finds nothing left to put back.
     assert await async_restore_vendor_setup(target, signer) == "none"
+
+
+async def test_a_hand_back_answer_in_no_known_shape_is_an_unreachable_panel(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+) -> None:
+    _install_fakes(
+        monkeypatch,
+        [
+            FakeDevice(
+                [
+                    _identity_root_output(NONCES[0]),
+                    _single_output("VENDOR_RESTORE", NONCES[1], ["maybe"], 0),
+                ]
+            )
+        ],
+    )
+
+    with pytest.raises(InstallAdbError) as raised:
+        await async_restore_vendor_setup(target, signer)
+
+    assert raised.value.code is InstallAdbErrorCode.TARGET_UNREACHABLE
 
 
 async def test_hand_back_on_a_panel_never_changed_touches_nothing(
@@ -860,3 +889,46 @@ async def test_a_recorded_deny_is_put_back_after_the_mode_changed(
 
     assert _value(tmp_path, f"appop.{_SHELLY}.SYSTEM_ALERT_WINDOW") == "deny"
     assert not (tmp_path / "shelly-record").exists()
+
+
+@pytest.mark.parametrize(
+    ("old", "new"),
+    [("\ndevice:generic", "\nplatform:generic"), ("\nvendor:none", "\nvendor:maybe")],
+)
+async def test_an_unreadable_vendor_probe_is_reported_and_runs_no_vendor_setup(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+    old: str,
+    new: str,
+) -> None:
+    permissions = _permissions_output(NONCES[3])
+    assert permissions.count(old.encode()) == 1
+    fake = FakeDevice(
+        [
+            _identity_root_output(NONCES[0]),
+            _single_output(
+                "PACKAGE", NONCES[1], ["package:/data/app/ha-paneld/base.apk"], 0
+            ),
+            _notifications_output(NONCES[2], granted=True),
+            permissions.replace(old.encode(), new.encode()),
+            _single_output("LAUNCH", NONCES[4], ["Status: ok"], 0),
+        ]
+    )
+    _install_fakes(monkeypatch, [fake])
+
+    outcome = await async_launch_installed_app(
+        target, signer, descriptor, expected_root_mode=AdbRootMode.ROOTLESS
+    )
+
+    assert outcome is LaunchOutcome.STARTED
+    assert "am start" in fake.commands[4]
+    assert not any("VENDOR" in command for command in fake.commands)
+    assert [
+        record.levelno
+        for record in caplog.records
+        if "did not grant io.github.maxlyth.hapaneld every permission it needs"
+        in record.getMessage()
+    ] == [logging.WARNING]
