@@ -934,22 +934,41 @@ async def test_app_card_retitled_for_a_name_clash_still_covers_its_panel(
 async def test_install_started_from_a_card_survives_the_app_it_installs(
     hass: HomeAssistant, adb_open: SimpleNamespace, offer
 ) -> None:
-    """Only a card still waiting is closed; a person installing from one keeps it."""
+    """Only a card still waiting is closed; a person who pressed it keeps it.
+
+    The app announces twice: while the press is still being handled, when Core
+    still reports the card's step, and again once the install form is back.
+    """
     await offer(hass, adb_open)
     [card] = _offers(hass)
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def pin(*_args):
+        entered.set()
+        await release.wait()
+        raise RuntimeError
+
     with (
         patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)),
-        # Holds the person on the install form inside the card's own flow.
         patch(
             "custom_components.panel_assistant.config_flow.async_pin_install_target",
-            AsyncMock(side_effect=RuntimeError),
+            side_effect=pin,
         ),
     ):
-        form = await hass.config_entries.flow.async_configure(card["flow_id"], {})
+        pressed = asyncio.create_task(
+            hass.config_entries.flow.async_configure(card["flow_id"], {})
+        )
+        await entered.wait()
+        await _app_announced(hass)
+        assert [flow["flow_id"] for flow in _offers(hass)] == [card["flow_id"]]
+        release.set()
+        form = await pressed
+
+    # Held on the install form inside the card's own flow.
+    assert form["flow_id"] == card["flow_id"]
     assert form["step_id"] == "add_panel"
-
     await _app_announced(hass)
-
     assert [flow["flow_id"] for flow in _offers(hass)] == [card["flow_id"]]
 
 
@@ -985,3 +1004,48 @@ async def test_card_whose_probe_outlasts_a_manual_add_is_not_shown(
     await hass.async_block_till_done()
 
     assert _offers(hass) == []
+
+
+async def test_pressed_app_card_survives_a_reinstalled_app_announcing_there(
+    hass: HomeAssistant,
+) -> None:
+    """The person's press ends in the card's own answer, not a vanished flow."""
+    await _app_announced(hass)
+    [card] = _offers(hass)
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    reinstalled = replace(APP_HEALTH, discovery_id="c" * 64)
+
+    async def recheck(*_args):
+        entered.set()
+        await release.wait()
+        return reinstalled
+
+    with patch(HEALTH_CHECK, side_effect=recheck):
+        pressed = asyncio.create_task(
+            hass.config_entries.flow.async_configure(card["flow_id"], {})
+        )
+        await entered.wait()
+    address = ip_address(PANEL)
+    with patch(HEALTH_CHECK, AsyncMock(return_value=reinstalled)):
+        await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=ZeroconfServiceInfo(
+                ip_address=address,
+                ip_addresses=[address],
+                port=8888,
+                hostname="shelly.local.",
+                type="_ha-paneld._tcp.local.",
+                name="shelly._ha-paneld._tcp.local.",
+                properties={"did": "c" * 64, "name": "Shelly HA Panel"},
+            ),
+        )
+        await hass.async_block_till_done()
+    assert [flow["flow_id"] for flow in _offers(hass)] == [card["flow_id"]]
+    release.set()
+
+    result = await pressed
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "invalid_discovery"

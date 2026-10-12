@@ -95,6 +95,7 @@ from .install_network import (
 from .install_plan import InstallPlanError, build_install_plan
 from .migration_targets import (
     ADB_SERVICE_TYPE,
+    CONFIRMED,
     VENDOR_SERVICE_TYPES,
     MigrationTarget,
     adb_candidate,
@@ -461,6 +462,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         target = self._migration_target
         assert target is not None
         if user_input is not None:
+            self._mark_confirmed()
             return await self.async_step_add_panel({CONF_ADDRESS: target.address})
         return self.async_show_form(
             step_id="confirm_migration",
@@ -479,6 +481,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         if self._pending_address is None or self._pending_discovery_id is None:
             return self.async_abort(reason="unknown")
         if user_input is not None:
+            self._mark_confirmed()
             try:
                 health = await HaPaneldClient(
                     async_get_clientsession(self.hass), self._pending_address
@@ -538,6 +541,13 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         self._set_discovery_title(
             _qualified_name(friendly, panel_id) if taken else friendly
         )
+
+    def _mark_confirmed(self) -> None:
+        """Keep this card's flow from being closed as a waiting card from now on."""
+        self.context["title_placeholders"] = {
+            **self.context.get("title_placeholders", {}),
+            CONFIRMED: "yes",
+        }
 
     def _set_discovery_title(self, display: str) -> None:
         """Record the rendered title for the card, the form and the created entry."""

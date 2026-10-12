@@ -60,8 +60,10 @@ _IGNORED_ADDRESS = "ignored_address"
 # A candidate at the same address is raised at most this often, so a device that
 # is not a panel (ADB closed) is probed once an hour, not on every dhcp event.
 _REOFFER_SECONDS = 3600
-# The steps a discovery card shows before anyone confirms it.
-_CARD_STEPS = frozenset({"confirm_migration", "confirm_discovery"})
+# Set in a card's own title placeholders the moment someone presses its button:
+# the flow is theirs from then on, though Core keeps reporting the card's step
+# until the press has been handled. The card's title shows only {name}.
+CONFIRMED = "confirmed"
 _DATA_OFFERED = "migration_offered"
 
 
@@ -265,10 +267,11 @@ def close_offers(hass: HomeAssistant, address: str, flow_id: str) -> None:
     the address, so that announcement then stands down instead.
     """
     for flow in hass.config_entries.flow.async_progress_by_handler(DOMAIN):
+        placeholders = flow["context"].get("title_placeholders", {})
         if (
             flow["flow_id"] != flow_id
-            and flow["step_id"] in _CARD_STEPS
-            and flow["context"].get("title_placeholders", {}).get("address") == address
+            and placeholders.get("address") == address
+            and CONFIRMED not in placeholders
         ):
             hass.config_entries.flow.async_abort(flow["flow_id"])
 
