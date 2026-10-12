@@ -19,6 +19,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.typing import ConfigType
 
+from .blob import async_get_blobs
 from .browser_delivery import async_register_browser_delivery
 from .browser_panel import async_register_browser_panel
 from .build_feed import BuildFeedError, normalize_feed_url
@@ -123,6 +124,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async_setup_voice(hass)
     async_setup_embed(hass)
     async_register_browser_delivery(hass)
+    async_get_blobs(hass)
     await async_register_browser_panel(hass)
     await async_setup_restart_check(hass)
     # Installing or updating Panel Assistant means a restart, and someone at

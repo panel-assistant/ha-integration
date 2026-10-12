@@ -44,12 +44,13 @@ from .install_adb import (
 )
 from .panel_backup import PanelBackupInvalidError, async_store_panel_backup
 from .release import _RELEASE_SIGNER_CERTIFICATE_SHA256, ReleaseArtifact
+from .session_carrier import SessionCarrier, UpdateCarrier
 from .update_errors import UPDATE_LOGGER as _LOGGER
 from .update_errors import _update_error, _UpdateRefusalError, _verification_error
 from .update_offer import UpdateOffer
 from .update_panel_install import _retry_unstarted_install
 from .update_progress import UpdateProgress
-from .update_route import ROUTE_ADB, ROUTE_STAGED, async_adb_route
+from .update_route import ROUTE_ADB, ROUTE_SESSION, ROUTE_STAGED, async_adb_route
 
 # A panel's refusal of a build its own order ranks lower (panelUpdateRefusal).
 _DOWNGRADE_REFUSAL = "panel-app downgrades are not permitted"
@@ -80,6 +81,14 @@ class BuildDelivery:
         # Says on the entity which way this update reached the panel.
         self._record_route = record_route
         self._panel_name = panel_name
+        # Set for the length of one update carried by the panel's session.
+        self.session = False
+
+    def _carrier(self, hass: HomeAssistant) -> UpdateCarrier:
+        """The panel calls of the update in progress: its session, or HTTP."""
+        if self.session:
+            return SessionCarrier(hass, self._entry_id)
+        return self._coordinator.client
 
     async def async_deliver_build(
         self,
@@ -103,6 +112,8 @@ class BuildDelivery:
                 "update_unavailable", "The requested update is unavailable"
             )
         client = self._coordinator.client
+        carrier = self._carrier(hass)
+        route = ROUTE_SESSION if self.session else ROUTE_STAGED
         snapshot: PanelSnapshot | None = self._coordinator.data
         descriptor = artifact.descriptor
         package_id = descriptor.package_id if descriptor else LEGACY_PACKAGE_ID
@@ -170,9 +181,9 @@ class BuildDelivery:
         try:
             try:
                 staged = (
-                    await client.async_stage_apk(apk, migration_sha256=artifact.sha256)
+                    await carrier.async_stage_apk(apk, migration_sha256=artifact.sha256)
                     if migration
-                    else await client.async_stage_apk(apk)
+                    else await carrier.async_stage_apk(apk)
                 )
             except StagingUnavailableError:
                 if fallback:
@@ -191,7 +202,7 @@ class BuildDelivery:
             )
             if panel_changed or staged_mismatch:
                 with contextlib.suppress(HaPaneldError):
-                    await client.async_discard_apk(staged.token)
+                    await carrier.async_discard_apk(staged.token)
                 if panel_changed:
                     raise _update_error(
                         "panel_changed_during_update",
@@ -207,9 +218,9 @@ class BuildDelivery:
                     await self._offer.async_admit(artifact)
                 except HomeAssistantError:
                     with contextlib.suppress(HaPaneldError):
-                        await client.async_discard_apk(staged.token)
+                        await carrier.async_discard_apk(staged.token)
                     raise
-                await client.async_commit_apk(staged.token)
+                await carrier.async_commit_apk(staged.token)
 
             await _retry_unstarted_install(commit)
         except UploadDisabledError as err:
@@ -229,7 +240,7 @@ class BuildDelivery:
             raise _update_error(
                 "update_not_accepted", "The panel did not accept the update request"
             ) from err
-        self._record_route(ROUTE_STAGED, artifact.tag)
+        self._record_route(route, artifact.tag)
         self._progress.enter("installing")
         try:
             await self.async_wait_for_build(hass, artifact, before, watch_refusal=True)
@@ -271,7 +282,7 @@ class BuildDelivery:
                 hass,
                 self._entry_id,
                 self._installed_code(),
-                await self._coordinator.client.async_backup_panel(),
+                await self._carrier(hass).async_backup_panel(),
             )
         except UpdateApprovalRequiredError as err:
             raise _update_error(
@@ -406,6 +417,7 @@ class BuildDelivery:
             before,
             minimum_code=minimum_code,
             watch_refusal=watch_refusal,
+            carrier=self._carrier(hass) if self.session else None,
         )
         if proven is not None:
             self._record_code(*proven)

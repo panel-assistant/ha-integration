@@ -37,6 +37,7 @@ from .install_network import (
 )
 from .provisioning import InstallTargetState, async_probe_install_target
 from .release import ReleaseArtifact
+from .transport import async_get_sessions, session_manages
 from .update_errors import UPDATE_LOGGER as _LOGGER
 from .update_errors import _update_error, adb_authorization_error
 from .update_offer import UpdateOffer
@@ -47,6 +48,9 @@ ROUTE_ATTRIBUTE = "update_route"
 ROUTE_STAGED = "staged_by_home_assistant"
 ROUTE_PANEL = "downloaded_by_panel"
 ROUTE_ADB = "installed_by_home_assistant_adb"
+# The panel fetched the build from Home Assistant over its own session, because
+# Home Assistant could not reach its address.
+ROUTE_SESSION = "pulled_from_home_assistant"
 ROUTE_UNAVAILABLE_ATTRIBUTE = "update_unavailable_reason"
 
 
@@ -65,6 +69,25 @@ def api_capability(snapshot: PanelSnapshot | None) -> str | None:
     return snapshot.status.install_capability if snapshot and snapshot.status else None
 
 
+def session_route(
+    hass: HomeAssistant,
+    entry_id: str,
+    coordinator: HaPaneldDataUpdateCoordinator,
+    offer: UpdateOffer,
+) -> bool:
+    """Whether the panel's session can carry an update its address cannot.
+
+    Only a panel that installs for itself, and never the move to the new app,
+    which hands over through the panel's own address.
+    """
+    return (
+        not coordinator.reachable
+        and session_manages(async_get_sessions(hass).get(entry_id))
+        and api_capability(coordinator.data) == "api"
+        and not offer.bridge_handover_due()
+    )
+
+
 async def async_install_route(
     hass: HomeAssistant,
     entry_id: str,
@@ -74,6 +97,8 @@ async def async_install_route(
 ) -> tuple[str | None, AdbInstallTarget | None, AdbCredential | None]:
     """Choose from the panel's live install route, then authorized ADB."""
     snapshot: PanelSnapshot | None = coordinator.data
+    if snapshot is not None and session_route(hass, entry_id, coordinator, offer):
+        return ROUTE_SESSION, None, None
     if snapshot is None or not coordinator.reachable:
         return None, None, None
     if offer.bridge_handover_due():

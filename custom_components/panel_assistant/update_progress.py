@@ -29,6 +29,7 @@ from .client import (
 )
 from .coordinator import HaPaneldDataUpdateCoordinator
 from .release import ReleaseArtifact
+from .session_carrier import UpdateCarrier
 from .status import home_ui_allows
 from .transport import async_get_sessions
 from .update_coordinator import PanelUpdateCoordinator
@@ -297,6 +298,7 @@ class UpdateProgress:
         *,
         minimum_code: bool = False,
         watch_refusal: bool = False,
+        carrier: UpdateCarrier | None = None,
     ) -> tuple[int, tuple[str, str]] | None:
         """Wait for the panel to restart into exactly the committed build.
 
@@ -306,6 +308,9 @@ class UpdateProgress:
         refusing it raises ``UpdateRejectedError`` with its reason at once.
         """
         coordinator = self._coordinator
+        # A carrier is the panel's session, used while its address cannot be.
+        session = carrier is not None
+        panel: UpdateCarrier = carrier if carrier is not None else coordinator.client
         build = artifact.descriptor
         package_id = build.package_id if build else LEGACY_PACKAGE_ID
         loop = asyncio.get_running_loop()
@@ -319,7 +324,12 @@ class UpdateProgress:
             self.hold_through_restart(hass)
             health = coordinator.data.health if coordinator.data else None
             if (
-                coordinator.reachable
+                (
+                    # Over the session, the snapshot the session read answers.
+                    coordinator.last_update_success
+                    if session
+                    else coordinator.reachable
+                )
                 and health is not None
                 and (health.build, health.package) != before
                 and (minimum_code or health.version == artifact.version)
@@ -329,7 +339,7 @@ class UpdateProgress:
                 )
             ):
                 code = health.version_code
-                if build is not None and code is None:
+                if build is not None and code is None and not session:
                     try:
                         name, code = await coordinator.client.async_get_version_code()
                     except HaPaneldError:
@@ -350,16 +360,16 @@ class UpdateProgress:
                 if build is None or code is not None:
                     self.enter("back")
                     try:
-                        status = await coordinator.client.async_get_status(
-                            home_proof=True
-                        )
+                        status = await panel.async_get_status(home_proof=True)
                     except HaPaneldError:
                         status = None
                     if status is not None and home_ui_allows(status):
                         if code is not None:
                             return code, (health.version, health.build)
                         return None
-            if watch_refusal:
+            # The session carries no install status yet, so a refusal after
+            # the commit there shows only when this wait ends.
+            if watch_refusal and not session:
                 try:
                     install = await coordinator.client.async_get_panel_install_status()
                 except HaPaneldError:

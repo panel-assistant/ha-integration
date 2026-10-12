@@ -76,12 +76,14 @@ from .update_route import (
     ROUTE_ADB,
     ROUTE_ATTRIBUTE,
     ROUTE_PANEL,
+    ROUTE_SESSION,
     ROUTE_UNAVAILABLE_ATTRIBUTE,
     api_capability,
     async_admit_adb_target,
     async_install_route,
     async_observe_update_route,
     entry_discovery_id,
+    session_route,
 )
 from .update_route_repair import async_reconcile_update_route_issue
 from .update_staging import BuildDelivery
@@ -240,9 +242,12 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             artifact,
         )
 
+    def _session_route(self) -> bool:
+        return session_route(self.hass, self._entry_id, self.coordinator, self._offer)
+
     def _has_install_route(self) -> bool:
         if not self.coordinator.reachable:
-            return False
+            return self._session_route()
         if api_capability(self.coordinator.data) == "api":
             return (
                 not self._offer.bridge_handover_due()
@@ -301,7 +306,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
 
     def _route_observed(self) -> bool:
         """Whether the last answer came from the panel rather than from its absence."""
-        return self.coordinator.reachable and self.coordinator.data is not None
+        return self.coordinator.data is not None and (
+            self.coordinator.reachable or self._session_route()
+        )
 
     def _async_reconcile_route_issue(self, *, has_route: bool) -> None:
         """Keep the repair in step with the route from every path that decides one."""
@@ -775,6 +782,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             release = self._offer.host_release()
             repair_artifact = release
         self._progress.begin(self.hass, self.installed_version, self.latest_version)
+        self._delivery.session = route == ROUTE_SESSION
         self.async_write_ha_state()
         try:
             if feed is not None:
@@ -807,10 +815,23 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                         verified_success=True,
                     )
                     return
+                if route == ROUTE_SESSION:
+                    # Neither the move to the new app nor the panel's own
+                    # download is carried by its session.
+                    if (
+                        release is None
+                        or release.tag != offer.tag
+                        or release.descriptor is None
+                    ):
+                        raise _update_error(
+                            "update_unavailable",
+                            "The requested Panel Assistant update is unavailable",
+                        )
+                    await self._delivery.async_deliver_build(self.hass, release)
                 # Home Assistant sends the release over the LAN whenever it could
                 # authenticate it. Only a panel that cannot take an upload at all
                 # downloads the release itself, and verifies it itself.
-                if release is not None and release.tag == offer.tag:
+                elif release is not None and release.tag == offer.tag:
                     if release.descriptor is None:
                         # Keep the signed pair selected for this transaction even
                         # if the shared release coordinator refreshes mid-install.
@@ -934,6 +955,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 verified_success=True,
             )
         finally:
+            self._delivery.session = False
             self._progress.end()
             self.async_write_ha_state()
 

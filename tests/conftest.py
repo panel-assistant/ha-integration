@@ -68,7 +68,10 @@ def _no_stable_release_from_github(
     Every panel set up would otherwise open a real socket to GitHub. The LAN
     update tests serve a signed release over a fake GitHub instead.
     """
-    if request.path.name != "test_lan_staged_update.py" and request.node.name != (
+    if request.path.name not in (
+        "test_lan_staged_update.py",
+        "test_session_update.py",
+    ) and request.node.name != (
         "test_coordinator_routes_by_package_and_clears_old_bridge"
     ):
         monkeypatch.setattr(

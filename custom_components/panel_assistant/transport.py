@@ -2090,21 +2090,42 @@ async def async_manage(
     management is not entity state, so no full sync is required. Any outcome
     but applied raises its translated error.
     """
+    timeout = MANAGE_TIMEOUT if op == MANAGE_SNAPSHOT else COMMAND_TIMEOUT
+    outcome = await async_manage_outcome(hass, session, op, timeout, **fields)
+    if outcome.outcome in OUTCOMES_WITH_CODE:
+        raise _command_error(outcome.code)
+    if outcome.outcome != OUTCOME_APPLIED:
+        raise _command_error(ERR_PANEL_UNAVAILABLE)
+    return outcome.result or {}
+
+
+async def async_manage_outcome(
+    hass: HomeAssistant,
+    session: PanelSession,
+    op: str,
+    wait_seconds: float,
+    **fields: Any,
+) -> CommandOutcome:
+    """Ask one management request and return its final outcome, whatever it is.
+
+    For a caller that maps a refusal's code and body itself. A request the
+    panel never answered in time, or a session that ended first, still raises
+    the translated error ``async_manage`` raises.
+    """
     if async_get_sessions(hass).get(session.entry_id) is not session or not (
         session_manages(session)
     ):
         raise HomeAssistantError(
             translation_domain=DOMAIN, translation_key=ERR_PANEL_UNAVAILABLE
         )
-    timeout = MANAGE_TIMEOUT if op == MANAGE_SNAPSHOT else COMMAND_TIMEOUT
-    outcome = await _async_deliver(
-        hass, session, f"manage:{op}", {"op": op, **fields}, timeout, kind="manage"
+    return await _async_deliver(
+        hass,
+        session,
+        f"manage:{op}",
+        {"op": op, **fields},
+        wait_seconds,
+        kind="manage",
     )
-    if outcome.outcome in OUTCOMES_WITH_CODE:
-        raise _command_error(outcome.code)
-    if outcome.outcome != OUTCOME_APPLIED:
-        raise _command_error(ERR_PANEL_UNAVAILABLE)
-    return outcome.result or {}
 
 
 async def _async_deliver(
