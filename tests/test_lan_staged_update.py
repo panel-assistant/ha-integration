@@ -1815,7 +1815,7 @@ async def test_a_panel_withdrawn_during_the_update_gets_no_grant_repair(
     assert _panel_value(tmp_path, "accessibility_enabled") is None
 
 
-@pytest.mark.parametrize("panel_state", ["stopped", "no-adb", "session"])
+@pytest.mark.parametrize("panel_state", ["stopped", "no-adb", "session", "answering"])
 async def test_an_app_that_never_comes_back_after_an_update_is_started_and_reported(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
@@ -1828,8 +1828,8 @@ async def test_an_app_that_never_comes_back_after_an_update_is_started_and_repor
 ) -> None:
     """A panel took an update, crashed on its first start and stayed down.
 
-    Without ADB the failure stands; a panel whose session still answers has its
-    app, so nothing is started over it.
+    Without ADB the failure stands; a panel that still answers, over HTTP or its
+    own session, has its app, so nothing is started over it.
     """
     panel = await _lan_grant_repair_panel(hass, monkeypatch, key, signer, tmp_path)
     entity, client = panel.entity, panel.client
@@ -1844,6 +1844,8 @@ async def test_an_app_that_never_comes_back_after_an_update_is_started_and_repor
         monkeypatch.setattr(
             HaPaneldDataUpdateCoordinator, "connected", property(lambda _self: True)
         )
+    # The permission repair after a successful update takes ADB connections too.
+    panel.devices.extend(_InstalledPanel(tmp_path) for _ in range(4))
     if panel_state == "no-adb":
         panel.probe.return_value = InstallTargetProbe(
             state=InstallTargetState.ADB_UNREACHABLE,
@@ -1863,7 +1865,8 @@ async def test_an_app_that_never_comes_back_after_an_update_is_started_and_repor
     async def refresh() -> None:
         # Installed, then nothing answers until something starts the app.
         if client.async_commit_apk.await_count and not launched():
-            entity.coordinator.reachable = False
+            # An answering panel stays on its old build instead.
+            entity.coordinator.reachable = panel_state == "answering"
         elif launched():
             entity.coordinator.data = _snapshot(VERSION, "2000", LEGACY_PACKAGE_ID)
             entity.coordinator.reachable = True
@@ -1884,4 +1887,5 @@ async def test_an_app_that_never_comes_back_after_an_update_is_started_and_repor
             await entity.async_install(None, False)
         _assert_translated(raised.value, "update_not_complete")
         assert launched() == 0
+    await hass.async_block_till_done(wait_background_tasks=True)
     assert entity.in_progress is False

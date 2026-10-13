@@ -437,7 +437,6 @@ class BuildDelivery:
         except HomeAssistantError as err:
             if (
                 err.translation_key != "update_not_complete"
-                or self.session
                 # A panel that answers, over HTTP or its own session, has its app.
                 or self._coordinator.reachable
                 or self._coordinator.connected
