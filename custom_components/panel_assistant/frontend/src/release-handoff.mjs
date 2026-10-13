@@ -140,7 +140,7 @@ export function receiveReleaseHandoff({ windowObject = window,
 // Home Assistant ignores the request, so a missing acknowledgement ends the
 // wait quickly; an acknowledged one waits for the panel's own answer.
 export function requestSetupHandover({ windowObject = window, options, address,
-  ackMs = 3000, resultMs = 40000, onDisplay = () => {} } = {}) {
+  ackMs = 3000, resultMs = 40000, onDisplay = () => {}, onRegistration = () => {} } = {}) {
   return new Promise(resolve => {
     const source = windowObject.opener;
     if (!options || !source || source.closed) { resolve('no_home_assistant_window'); return; }
@@ -161,6 +161,9 @@ export function requestSetupHandover({ windowObject = window, options, address,
         // A Home Assistant that knows the panel's recommended display size
         // says so here; an older one sends the outcome alone.
         if (displaySizing(event.data.display)) onDisplay(event.data.display);
+        if (event.data.registration === 'added_to_another_home_assistant') {
+          onRegistration(event.data.registration);
+        }
         done(typeof outcome === 'string' && /^[a-z0-9_]{1,48}$/.test(outcome) ? outcome : 'invalid_result');
       }
     }

@@ -39,6 +39,7 @@ from .embed import (
     async_setup_embed,
 )
 from .feed_coordinator import CONF_BUILD_FEED, DATA_BUILD_FEED, BuildFeedCoordinator
+from .foreign_ha import async_clear_foreign_ha_issue
 from .ha_url import async_setup_connection_info
 from .install_artifacts import register_feed_download_host
 from .install_executor import (
@@ -282,6 +283,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
 
     refresh_card()
     entry.async_on_unload(coordinator.async_add_listener(refresh_card))
+
+    def clear_foreign_ha_warning() -> None:
+        if coordinator.connected:
+            async_clear_foreign_ha_issue(hass, entry.entry_id)
+
+    clear_foreign_ha_warning()
+    entry.async_on_unload(coordinator.async_add_listener(clear_foreign_ha_warning))
+    entry.async_on_unload(lambda: async_clear_foreign_ha_issue(hass, entry.entry_id))
     await hass.config_entries.async_forward_entry_setups(entry, platforms)
     if satellite_known(hass, entry):
         await async_load_voice(hass, entry, platforms)
@@ -335,6 +344,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
     The panel is remembered so its next hello learns of the removal.
     """
     async_delete_binding_issue(hass, entry.entry_id)
+    async_clear_foreign_ha_issue(hass, entry.entry_id)
     ir.async_delete_issue(hass, DOMAIN, permission_issue_id(entry.entry_id))
     ir.async_delete_issue(hass, DOMAIN, proximity_issue_id(entry.entry_id))
     ir.async_delete_issue(hass, DOMAIN, no_update_route_issue_id(entry.entry_id))

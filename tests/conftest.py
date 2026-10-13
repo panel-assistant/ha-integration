@@ -157,3 +157,25 @@ def _panel_installs_its_own_updates(
             AsyncMock(return_value=True),
         )
     yield
+
+
+@pytest.fixture(autouse=True)
+def _no_saved_foreign_account_unless_served(
+    monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
+) -> None:
+    """Existing lifecycle fixtures have no saved account to inspect over HTTP.
+
+    The account advisory's own tests serve the real config and identity
+    endpoints; unrelated entry-creation tests retain their declared panel
+    fixtures instead of opening an undeclared socket after adding an entry.
+    """
+    if request.path.name not in {
+        "test_client.py",
+        "test_ha_url.py",
+        "test_foreign_ha.py",
+    }:
+        monkeypatch.setattr(
+            HaPaneldClient,
+            "async_get_configured_ha_url",
+            AsyncMock(return_value=None),
+        )

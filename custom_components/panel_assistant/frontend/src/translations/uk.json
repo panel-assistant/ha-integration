@@ -101,7 +101,8 @@
     "pageClosed": "Сторінку було закрито.",
     "progress": "Перебіг",
     "installProgress": "Перебіг встановлення",
-    "licenses": "Ліцензії сторонніх компонентів"
+    "licenses": "Ліцензії сторонніх компонентів",
+    "doneAnotherHomeAssistant": "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
   },
   "errors": {
     "installErrorGeneric": "Щось пішло не так. Залиште панель під’єднаною та натисніть «Спробувати ще раз».",

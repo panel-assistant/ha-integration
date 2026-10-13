@@ -101,7 +101,8 @@
     "pageClosed": "Stránka byla zavřena.",
     "progress": "Průběh",
     "installProgress": "Průběh instalace",
-    "licenses": "Licence třetích stran"
+    "licenses": "Licence třetích stran",
+    "doneAnotherHomeAssistant": "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
   },
   "errors": {
     "installErrorGeneric": "Něco se pokazilo. Nechte panel připojený a stiskněte Zkusit znovu.",

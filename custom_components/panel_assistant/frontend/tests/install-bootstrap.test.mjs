@@ -36,10 +36,12 @@ function renderedJourney(scenario, locale = 'de', realCatalogue = false) {
   const target = realCatalogue ? FRONTEND_TRANSLATIONS[locale] : Object.fromEntries(Object.entries(FRONTEND_TRANSLATIONS.en).map(([group, values]) => [group, Object.fromEntries(Object.entries(values).map(([key, text]) => [key, text ? '★ ' + text : text]))]));
   const main = new URL('../src/install-main.mjs', import.meta.url).href;
   const english = new URL('../src/translations/en.json', import.meta.url).href;
+  const actualHandover = new URL('../src/release-handoff.mjs?actual', import.meta.url).href;
   const script = `
     import assert from 'node:assert/strict';
     import { registerHooks } from 'node:module';
     const scenario = ${JSON.stringify(scenario)};
+    const FRONTEND_WARNING = ${JSON.stringify(FRONTEND_TRANSLATIONS.en.installer.doneAnotherHomeAssistant)};
     const target = ${JSON.stringify(target)};
     const targetLanguage = ${JSON.stringify(locale)};
     const calls = { chooser: 0, authenticate: 0, preview: 0, install: 0, handover: 0 };
@@ -52,7 +54,11 @@ function renderedJourney(scenario, locale = 'de', realCatalogue = false) {
     };
     globalThis.document = { documentElement: {}, getElementById: node, querySelectorAll: () => [], createElement: () => ({ attributes: new Map(), setAttribute(name, value) { this.attributes.set(name, value); } }) };
     globalThis.location = { search: '?lang=en' };
-    globalThis.window = { isSecureContext: true, opener: { closed: false }, location: { hash: '#handoff', reload() {} },
+    let navigations = 0;
+    const scheduled = [];
+    const originalSetTimeout = globalThis.setTimeout;
+    globalThis.setTimeout = (fn, ms, ...args) => { scheduled.push(ms); return originalSetTimeout(fn, ms, ...args); };
+    globalThis.window = { isSecureContext: true, opener: { closed: false }, location: { hash: '#handoff', reload() {}, assign() { navigations++; } },
       addEventListener(name, fn) { handlers.set(name, fn); } };
     Object.defineProperty(globalThis, 'navigator', { value: { locks: {}, usb: {} }, configurable: true });
     globalThis.indexedDB = {};
@@ -73,6 +79,10 @@ function renderedJourney(scenario, locale = 'de', realCatalogue = false) {
       'release-handoff.mjs': 'export const handoffOptions = () => ({}); export const receiveReleaseHandoff = () => ({ cancel() {}, completion: Promise.resolve({ release: { descriptor: { versionName: "1.2.3", versionCode: 42 } }, authenticate: async () => ({}) }) }); export const requestSetupHandover = async () => {}; export const handOverThenOpen = async (url, options) => { globalThis.calls.handover++; options.support("Setup handover", "RAW_OUTCOME"); options.open(url); };',
       'panel-address.mjs': 'export const readSetupUrl = async () => null;',
     };
+    if (scenario === 'foreign') {
+      stubs['panel-address.mjs'] = 'export const readSetupUrl = async () => "http://192.168.1.20:8080/setup";';
+      stubs['release-handoff.mjs'] = 'import { handOverThenOpen as actualOpen } from '+JSON.stringify(${JSON.stringify(actualHandover)})+'; export const handoffOptions = () => ({}); export const receiveReleaseHandoff = () => ({ cancel() {}, completion: Promise.resolve({ release: { descriptor: { versionName: "1.2.3", versionCode: 42 } }, authenticate: async () => ({}) }) }); export const requestSetupHandover = async options => { options.onRegistration("added_to_another_home_assistant"); return "handed_over"; }; export const handOverThenOpen = async (url, options) => { globalThis.calls.handover++; return actualOpen(url, options); };';
+    }
     registerHooks({
       resolve(specifier, context, next) { if (Object.hasOwn(stubs, specifier)) return { url: 'stub:' + specifier, shortCircuit: true }; return next(specifier, context); },
       load(url, context, next) {
@@ -135,12 +145,19 @@ function renderedJourney(scenario, locale = 'de', realCatalogue = false) {
     installResolve({ permissions: { raw: 'RAW_PERMISSION' } }); await pending;
     assert.equal(node('step-done').hidden, false);
     assert.equal(node('journey').children.findIndex(item => item.attributes.has('aria-current')), 3);
-    assert.equal(node('done-text').textContent, target.installer.doneManual);
+    assert.equal(node('done-text').textContent, scenario === 'foreign' ? FRONTEND_WARNING : target.installer.doneManual);
     assert.ok(node('support-log').textContent.includes(target.support.setupHandover));
-    assert.match(node('support-log').textContent, /RAW_OUTCOME/);
+    assert.match(node('support-log').textContent, scenario === 'foreign' ? /handed_over/ : /RAW_OUTCOME/);
     const doneBefore = { ...calls };
     globalThis.location.search = '?lang=en'; handlers.get('popstate')();
-    assert.equal(node('done-text').textContent, 'Finish setting up on the panel’s screen.');
+    assert.equal(node('done-text').textContent, scenario === 'foreign' ? FRONTEND_WARNING : 'Finish setting up on the panel’s screen.');
+    if (scenario === 'foreign') {
+      assert.match(node('done-text').textContent, /signed in to another Home Assistant/);
+      assert.equal(node('open-setup').hidden, false);
+      assert.equal(node('open-setup').href, 'http://192.168.1.20:8080/setup');
+      assert.equal(scheduled.includes(1200), false, 'the warning is not replaced by scheduled navigation');
+      assert.equal(navigations, 0);
+    }
     assert.deepEqual(calls, doneBefore);
     assert.deepEqual(calls, { chooser: 1, authenticate: 1, preview: 1, install: 1, handover: 1 });
     // Closing USB after success is not a failure: the done screen stays.
@@ -163,3 +180,5 @@ test('every admitted catalogue redraws consent, progress, completion and refusal
     for (const scenario of ['adopt', 'clean', 'error']) renderedJourney(scenario, locale, true);
   }
 });
+
+test('a foreign-server completion stays readable with a setup link and English fallback', () => renderedJourney('foreign', 'de', true));

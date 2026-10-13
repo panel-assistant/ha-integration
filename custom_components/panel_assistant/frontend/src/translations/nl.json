@@ -101,7 +101,8 @@
     "pageClosed": "De pagina is gesloten.",
     "progress": "Voortgang",
     "installProgress": "Installatievoortgang",
-    "licenses": "Licenties van derden"
+    "licenses": "Licenties van derden",
+    "doneAnotherHomeAssistant": "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
   },
   "errors": {
     "installErrorGeneric": "Er ging iets mis. Laat het paneel aangesloten en druk op Opnieuw proberen.",

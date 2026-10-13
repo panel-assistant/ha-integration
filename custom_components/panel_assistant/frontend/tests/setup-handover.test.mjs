@@ -229,3 +229,47 @@ test('the installer hands on a recommended display size, and only a valid one', 
     assert.deepEqual(seen, expected);
   }
 });
+
+test('the authenticated Home Assistant opener relays only the recognized foreign-server registration', async t => {
+  for (const [registration, status, expected] of [
+    ['added_to_another_home_assistant', 200, 'added_to_another_home_assistant'],
+    ['added', 200, undefined],
+    ['unknown_warning', 200, undefined],
+    ['added_to_another_home_assistant', 400, undefined],
+  ]) {
+    const f = await servingOpener(json({ outcome: 'handed_over', registration }, status));
+    t.after(() => f.handle.cancel());
+    f.send({ type: 'ha-paneld/usb-handover', address: '192.168.1.20' });
+    await tick(); await tick();
+    assert.equal(f.calls.length, 3, 'the authenticated handover endpoint answered');
+    assert.equal(f.posts.at(-1)[0].registration, expected);
+    f.handle.cancel();
+  }
+});
+
+test('the installer reports a recognized warning only from its own Home Assistant opener', async () => {
+  const w = installerWindow();
+  const seen = [];
+  const pending = requestSetupHandover({ windowObject: w.windowObject, options: w.options,
+    address: '192.168.1.20', onRegistration: value => seen.push(value) });
+  const warning = { type: 'ha-paneld/usb-handover-result', outcome: 'handed_over',
+    registration: 'added_to_another_home_assistant' };
+  w.reply(warning, { source: {} });
+  w.reply(warning, { origin: 'https://evil.example' });
+  w.reply({ ...warning, nonce: 'd'.repeat(32) });
+  assert.deepEqual(seen, []);
+  assert.equal(w.listeners.size, 1, 'forged results leave the real response pending');
+  w.reply(warning);
+  assert.equal(await pending, 'handed_over');
+  assert.deepEqual(seen, ['added_to_another_home_assistant']);
+  assert.equal(w.listeners.size, 0);
+
+  for (const registration of ['added', 'unknown_warning', undefined]) {
+    const quiet = installerWindow();
+    const result = requestSetupHandover({ windowObject: quiet.windowObject, options: quiet.options,
+      address: '192.168.1.20', onRegistration: value => seen.push(value) });
+    quiet.reply({ type: 'ha-paneld/usb-handover-result', outcome: 'handed_over', registration });
+    assert.equal(await result, 'handed_over');
+    assert.deepEqual(seen, ['added_to_another_home_assistant']);
+  }
+});

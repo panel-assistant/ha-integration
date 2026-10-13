@@ -51,6 +51,7 @@ const manager = window.isSecureContext && navigator.usb
 const supported = Boolean(manager && navigator.locks && globalThis.indexedDB);
 let release, raw, adb, sessionAdb, store, controller;
 let handoff, handoffSettings, incomingAuthenticate;
+let anotherHomeAssistant = false;
 let busy = false, quarantined = false;
 let receipt = null;
 let deadline;
@@ -298,7 +299,8 @@ async function installAll() {
     handover: async address => {
       let display = null;
       const outcome = await requestSetupHandover({ options: handoffSettings, address,
-        onDisplay: value => { display = value; } });
+        onDisplay: value => { display = value; },
+        onRegistration: () => { anotherHomeAssistant = true; } });
       // USB is still held: the display and text size the panel's profile
       // recommends go on now, before its setup opens at the new size.
       if (display) {
@@ -322,6 +324,10 @@ function finish(url) {
   message('done-text', 'doneOpening');
   link.href = url;
   link.hidden = false;
+  if (anotherHomeAssistant) {
+    message('done-text', 'doneAnotherHomeAssistant');
+    return;
+  }
   // Same tab, so the panel's own wizard simply takes over. The visible button
   // stays in case this computer cannot reach the panel's network.
   setTimeout(() => {

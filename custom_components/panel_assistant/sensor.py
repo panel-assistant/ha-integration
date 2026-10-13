@@ -12,6 +12,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import EntityCategory, Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
@@ -25,6 +26,7 @@ from .coordinator import (
     PanelSnapshot,
 )
 from .device import version_with_build
+from .foreign_ha import foreign_ha_issue_id
 from .native import NativeEntity, async_setup_native_platform, enum_or_none
 
 
@@ -74,6 +76,14 @@ class HaPaneldStatusSensor(PanelCoordinatorEntity, SensorEntity):
         """Return whether the panel answers polls, or only holds its session."""
         if (notice := self.coordinator.restart_notice) is not None:
             return f"restarting_{notice.reason}"
+        if (
+            not self.coordinator.connected
+            and ir.async_get(self.coordinator.hass).async_get_issue(
+                DOMAIN, foreign_ha_issue_id(self._entry_id)
+            )
+            is not None
+        ):
+            return "another_home_assistant"
         return "online" if self.coordinator.reachable else "connected"
 
     @property

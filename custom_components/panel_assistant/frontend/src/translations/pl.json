@@ -101,7 +101,8 @@
     "pageClosed": "Strona została zamknięta.",
     "progress": "Postęp",
     "installProgress": "Postęp instalacji",
-    "licenses": "Licencje innych podmiotów"
+    "licenses": "Licencje innych podmiotów",
+    "doneAnotherHomeAssistant": "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
   },
   "errors": {
     "installErrorGeneric": "Coś poszło nie tak. Zostaw panel podłączony i naciśnij Spróbuj ponownie.",

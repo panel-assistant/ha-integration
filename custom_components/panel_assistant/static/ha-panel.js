@@ -104,7 +104,8 @@ var e = Object.freeze({
 			pageClosed: "The page was closed.",
 			progress: "Progress",
 			installProgress: "Installation progress",
-			licenses: "Third-party licenses"
+			licenses: "Third-party licenses",
+			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
 		},
 		errors: {
 			installErrorGeneric: "Something went wrong. Keep the panel plugged in and press Try again.",
@@ -253,7 +254,8 @@ var e = Object.freeze({
 			pageClosed: "Stránka byla zavřena.",
 			progress: "Průběh",
 			installProgress: "Průběh instalace",
-			licenses: "Licence třetích stran"
+			licenses: "Licence třetích stran",
+			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
 		},
 		errors: {
 			installErrorGeneric: "Něco se pokazilo. Nechte panel připojený a stiskněte Zkusit znovu.",
@@ -402,7 +404,8 @@ var e = Object.freeze({
 			pageClosed: "Die Seite wurde geschlossen.",
 			progress: "Fortschritt",
 			installProgress: "Installationsfortschritt",
-			licenses: "Lizenzen von Drittanbietern"
+			licenses: "Lizenzen von Drittanbietern",
+			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
 		},
 		errors: {
 			installErrorGeneric: "Etwas ist schiefgegangen. Lass das Panel angeschlossen und drücke „Erneut versuchen“.",
@@ -551,7 +554,8 @@ var e = Object.freeze({
 			pageClosed: "La página se cerró.",
 			progress: "Progreso",
 			installProgress: "Progreso de la instalación",
-			licenses: "Licencias de terceros"
+			licenses: "Licencias de terceros",
+			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
 		},
 		errors: {
 			installErrorGeneric: "Algo salió mal. Mantén el panel conectado y pulsa Volver a intentar.",
@@ -700,7 +704,8 @@ var e = Object.freeze({
 			pageClosed: "La page a été fermée.",
 			progress: "Progression",
 			installProgress: "Progression de l’installation",
-			licenses: "Licences tierces"
+			licenses: "Licences tierces",
+			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
 		},
 		errors: {
 			installErrorGeneric: "Une erreur s’est produite. Gardez le panneau branché et appuyez sur « Réessayer ».",
@@ -849,7 +854,8 @@ var e = Object.freeze({
 			pageClosed: "La pagina è stata chiusa.",
 			progress: "Avanzamento",
 			installProgress: "Avanzamento dell’installazione",
-			licenses: "Licenze di terze parti"
+			licenses: "Licenze di terze parti",
+			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
 		},
 		errors: {
 			installErrorGeneric: "Si è verificato un problema. Lascia il pannello collegato e premi Riprova.",
@@ -998,7 +1004,8 @@ var e = Object.freeze({
 			pageClosed: "De pagina is gesloten.",
 			progress: "Voortgang",
 			installProgress: "Installatievoortgang",
-			licenses: "Licenties van derden"
+			licenses: "Licenties van derden",
+			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
 		},
 		errors: {
 			installErrorGeneric: "Er ging iets mis. Laat het paneel aangesloten en druk op Opnieuw proberen.",
@@ -1147,7 +1154,8 @@ var e = Object.freeze({
 			pageClosed: "Strona została zamknięta.",
 			progress: "Postęp",
 			installProgress: "Postęp instalacji",
-			licenses: "Licencje innych podmiotów"
+			licenses: "Licencje innych podmiotów",
+			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
 		},
 		errors: {
 			installErrorGeneric: "Coś poszło nie tak. Zostaw panel podłączony i naciśnij Spróbuj ponownie.",
@@ -1296,7 +1304,8 @@ var e = Object.freeze({
 			pageClosed: "A página foi fechada.",
 			progress: "Progresso",
 			installProgress: "Progresso da instalação",
-			licenses: "Licenças de terceiros"
+			licenses: "Licenças de terceiros",
+			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
 		},
 		errors: {
 			installErrorGeneric: "Algo deu errado. Mantenha o painel conectado e pressione Tentar novamente.",
@@ -1445,7 +1454,8 @@ var e = Object.freeze({
 			pageClosed: "Сторінку було закрито.",
 			progress: "Перебіг",
 			installProgress: "Перебіг встановлення",
-			licenses: "Ліцензії сторонніх компонентів"
+			licenses: "Ліцензії сторонніх компонентів",
+			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
 		},
 		errors: {
 			installErrorGeneric: "Щось пішло не так. Залиште панель під’єднаною та натисніть «Спробувати ще раз».",
@@ -1594,7 +1604,8 @@ var e = Object.freeze({
 			pageClosed: "页面已关闭。",
 			progress: "进度",
 			installProgress: "安装进度",
-			licenses: "第三方许可"
+			licenses: "第三方许可",
+			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
 		},
 		errors: {
 			installErrorGeneric: "发生了错误。请保持面板连接，然后点击“重试”。",
@@ -2320,7 +2331,7 @@ function ge(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 			} catch {}
 		};
 		n("ha-paneld/usb-handover-accepted");
-		let r, i = null;
+		let r, i = null, a;
 		try {
 			let n = await e.fetchWithAuth(ue, {
 				method: "POST",
@@ -2328,20 +2339,21 @@ function ge(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 				body: JSON.stringify({ address: t.address }),
 				redirect: "error",
 				signal: AbortSignal.timeout(de)
-			}), a = await n.json().catch(() => null), o = n.status === 200 ? a?.outcome : a?.error;
-			r = H(pe, o) ? o : `http_${n.status}`, n.status === 200 && (i = ne(a?.display));
+			}), o = await n.json().catch(() => null), s = n.status === 200 ? o?.outcome : o?.error;
+			r = H(pe, s) ? s : `http_${n.status}`, n.status === 200 && (i = ne(o?.display)), n.status === 200 && o?.registration === "added_to_another_home_assistant" && (a = o.registration);
 		} catch {
 			r = "request_failed";
 		} finally {
 			C = !1;
 		}
-		n("ha-paneld/usb-handover-result", i ? {
+		n("ha-paneld/usb-handover-result", {
 			outcome: r,
-			display: {
+			...i ? { display: {
 				density: i.density,
 				font_scale: i.fontScale
-			}
-		} : { outcome: r });
+			} } : {},
+			...a ? { registration: a } : {}
+		});
 	}
 	function A(e) {
 		if (e.source === p && e.origin === h) {

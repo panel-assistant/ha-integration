@@ -1291,6 +1291,9 @@ def async_raise_binding_issue(
     hass: HomeAssistant, entry: ConfigEntry, user_id: str
 ) -> None:
     """Ask an administrator whether this user may connect as the entry's panel."""
+    from .foreign_ha import async_clear_foreign_ha_issue
+
+    async_clear_foreign_ha_issue(hass, entry.entry_id)
     asked = _binding_issue_for(entry)
     issue_id = binding_issue_id(asked, entry.entry_id)
     issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
