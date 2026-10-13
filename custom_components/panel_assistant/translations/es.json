@@ -1279,6 +1279,9 @@
           "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
           "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
           "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
+        },
+        "abort": {
+          "entry_removed": "Este panel se ha eliminado."
         }
       }
     },

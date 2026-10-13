@@ -1319,6 +1319,9 @@
           "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
           "retry_failed": "The retry failed. The support report has details.",
           "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
+        },
+        "abort": {
+          "entry_removed": "This panel has been removed."
         }
       }
     },

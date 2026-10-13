@@ -420,6 +420,41 @@ async def async_clear_failure(hass: HomeAssistant, issue_id: str) -> None:
     await _failure_store(hass).clear(issue_id)
 
 
+async def async_delete_issue_and_report(hass: HomeAssistant, issue_id: str) -> None:
+    """Delete a Repair together with any failure report saved for it."""
+    await _failure_store(hass).clear(
+        issue_id, lambda: ir.async_delete_issue(hass, DOMAIN, issue_id)
+    )
+
+
+def update_failure_entry_id(issue_id: str, events: list[Any]) -> str | None:
+    """Return the entry an update failure Repair belongs to, if it is one."""
+    for event in events:
+        if not isinstance(event, dict):
+            continue
+        entry_id = event.get("entry_id")
+        if (
+            event.get("kind") == "update"
+            and isinstance(entry_id, str)
+            and panel_failure_issue_id(f"update:{entry_id}") == issue_id
+        ):
+            return entry_id
+    return None
+
+
+async def async_update_failure_entry_ids(hass: HomeAssistant) -> set[str]:
+    """Return every entry that a saved update failure report names."""
+    store = _failure_store(hass)
+    async with store.lock:
+        records = await store.load()
+    named = (
+        update_failure_entry_id(issue_id, record.get("events", []))
+        for issue_id, record in records.items()
+        if isinstance(record, dict) and isinstance(record.get("events"), list)
+    )
+    return {entry_id for entry_id in named if entry_id is not None}
+
+
 async def async_record_retry_hold(
     hass: HomeAssistant, issue_id: str, previous: dict[str, Any], error: Exception
 ) -> None:

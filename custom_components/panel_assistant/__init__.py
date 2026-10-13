@@ -39,6 +39,7 @@ from .embed import (
     async_get_embed_sessions,
     async_setup_embed,
 )
+from .entry_issues import async_delete_entry_issues, async_delete_orphan_issues
 from .feed_coordinator import CONF_BUILD_FEED, DATA_BUILD_FEED, BuildFeedCoordinator
 from .foreign_ha import async_clear_foreign_ha_issue
 from .ha_url import async_setup_connection_info
@@ -55,8 +56,6 @@ from .panel_move import (
     async_recover_moved_identity,
     async_restore_move_offer,
 )
-from .permission_repair import permission_issue_id
-from .proximity_repair import proximity_issue_id
 from .removed_panels import (
     async_forget_removed_panel,
     async_load_removed_panels,
@@ -66,15 +65,12 @@ from .restart_repair import async_setup_restart_check
 from .transport import (
     REASON_ENTRY_UNLOADED,
     async_apply_update_policy,
-    async_delete_binding_issue,
     async_delete_merged_identity_issue,
     async_get_sessions,
     async_setup_transport,
 )
 from .update_coordinator import PanelUpdateCoordinator
-from .update_route_repair import no_update_route_issue_id
 from .upgrade_repairs import (
-    async_delete_upgrade_issues,
     async_evaluate_app_too_old,
     async_raise_needs_090,
     needs_090,
@@ -116,6 +112,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             DOMAIN,
             CONF_NATIVE_ENTITIES,
         )
+    await async_delete_orphan_issues(hass)
     # Before the commands exist, so no hello is answered without them.
     await async_load_removed_panels(hass)
     await async_setup_connection_info(hass)
@@ -345,13 +342,8 @@ async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
 
     The panel is remembered so its next hello learns of the removal.
     """
-    async_delete_binding_issue(hass, entry.entry_id)
+    await async_delete_entry_issues(hass, entry.entry_id)
     async_clear_foreign_ha_issue(hass, entry.entry_id)
-    ir.async_delete_issue(hass, DOMAIN, permission_issue_id(entry.entry_id))
-    ir.async_delete_issue(hass, DOMAIN, proximity_issue_id(entry.entry_id))
-    ir.async_delete_issue(hass, DOMAIN, no_update_route_issue_id(entry.entry_id))
-    async_delete_microphone_issue(hass, entry.entry_id)
-    async_delete_upgrade_issues(hass, entry.entry_id)
     async_delete_merged_identity_issue(hass, entry)
     async_get_sessions(hass).forget_entry(entry.entry_id)
     # The panel's Sendspin key goes with its entry; a re-added panel gets a new one.
