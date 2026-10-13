@@ -9,7 +9,6 @@ waits for the panel to return on that build.
 from __future__ import annotations
 
 import contextlib
-import logging
 from collections.abc import Callable
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -45,6 +44,7 @@ from .install_adb import (
 )
 from .panel_backup import PanelBackupInvalidError, async_store_panel_backup
 from .release import _RELEASE_SIGNER_CERTIFICATE_SHA256, ReleaseArtifact
+from .update_errors import UPDATE_LOGGER as _LOGGER
 from .update_errors import _update_error, _UpdateRefusalError, _verification_error
 from .update_offer import UpdateOffer
 from .update_panel_install import _retry_unstarted_install
@@ -53,8 +53,6 @@ from .update_route import ROUTE_ADB, ROUTE_STAGED, async_adb_route
 
 # A panel's refusal of a build its own order ranks lower (panelUpdateRefusal).
 _DOWNGRADE_REFUSAL = "panel-app downgrades are not permitted"
-
-_LOGGER = logging.getLogger(__name__)
 
 
 class BuildDelivery:

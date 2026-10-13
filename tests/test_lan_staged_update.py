@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
 import re
 import threading
 from collections.abc import AsyncIterator
@@ -1473,8 +1474,11 @@ async def test_the_grant_repair_waits_for_adb_to_answer_after_the_restart(
     signer: PythonRSASigner,  # noqa: F811
     tmp_path: Path,
     silent_probes: int,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """A restarting app re-asserts network ADB, so ADB can go quiet for a while."""
+    # The update's own debug logger is how a release check watches the repair.
+    caplog.set_level(logging.DEBUG, logger="custom_components.panel_assistant.update")
     panel = await _lan_grant_repair_panel(
         hass, monkeypatch, key, signer, tmp_path, handover=True
     )
@@ -1497,6 +1501,11 @@ async def test_the_grant_repair_waits_for_adb_to_answer_after_the_restart(
         # Quiet twice, then the panel answers and takes its grants.
         assert _panel_value(tmp_path, "accessibility_enabled") == "1"
         assert panel.probe.await_count == 3
+        assert any(
+            record.name == "custom_components.panel_assistant.update"
+            and record.getMessage().startswith("Repaired permissions after updating")
+            for record in caplog.records
+        )
     else:
         # A panel that never answers is left alone after a bounded wait.
         assert _panel_value(tmp_path, "accessibility_enabled") is None

@@ -6,6 +6,8 @@ route carried the update; the update entity records them as Repairs.
 
 from __future__ import annotations
 
+import logging
+
 from aiohttp.web import HTTPBadRequest
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
@@ -14,6 +16,10 @@ from .client import UpdateRejectedError
 from .const import DOMAIN
 from .failure_repair import async_request_adb_authorization
 from .release import ReleaseArtifact, is_feed_build_tag
+
+# Every update stage logs as the update entity, so one logger setting covers the
+# whole update path.
+UPDATE_LOGGER = logging.getLogger(f"{__package__}.update")
 
 
 class _UpdateRefusalError(ServiceValidationError, HTTPBadRequest):

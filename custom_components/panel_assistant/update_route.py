@@ -8,7 +8,6 @@ the exact signed build may replace.
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Callable
 
 from homeassistant.core import HomeAssistant
@@ -38,6 +37,7 @@ from .install_network import (
 )
 from .provisioning import InstallTargetState, async_probe_install_target
 from .release import ReleaseArtifact
+from .update_errors import UPDATE_LOGGER as _LOGGER
 from .update_errors import _update_error, adb_authorization_error
 from .update_offer import UpdateOffer
 from .upgrade_repairs import speaks_this_protocol
@@ -48,8 +48,6 @@ ROUTE_STAGED = "staged_by_home_assistant"
 ROUTE_PANEL = "downloaded_by_panel"
 ROUTE_ADB = "installed_by_home_assistant_adb"
 ROUTE_UNAVAILABLE_ATTRIBUTE = "update_unavailable_reason"
-
-_LOGGER = logging.getLogger(__name__)
 
 
 def entry_discovery_id(hass: HomeAssistant, entry_id: str) -> str | None:

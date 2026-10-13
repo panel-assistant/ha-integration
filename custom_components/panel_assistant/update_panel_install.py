@@ -9,7 +9,6 @@ runtime permissions Android dropped with the old package.
 from __future__ import annotations
 
 import asyncio
-import logging
 from collections.abc import Awaitable, Callable
 
 from aiohttp import ClientConnectorError
@@ -40,14 +39,13 @@ from .install_adb import async_repair_installed_app_permissions
 from .install_network import InstallNetworkError
 from .release import ReleaseArtifact
 from .status import PanelCachedUpdate
+from .update_errors import UPDATE_LOGGER as _LOGGER
 from .update_errors import _update_error
 
 # How long the permission repair after an update waits for the panel's ADB to
 # answer again: twelve tries, fifteen seconds apart.
 _PERMISSION_REPAIR_ATTEMPTS = 12
 _PERMISSION_REPAIR_RETRY_SECONDS = 15
-
-_LOGGER = logging.getLogger(__name__)
 
 
 async def _retry_unstarted_install(start: Callable[[], Awaitable[None]]) -> None:
