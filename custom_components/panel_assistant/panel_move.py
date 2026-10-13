@@ -1414,6 +1414,7 @@ class SuccessorMoveFlow(RepairsFlow):
     ) -> FlowResult:
         entry = self._entry()
         if entry is None:
+            ir.async_delete_issue(self.hass, DOMAIN, self.issue_id)
             return self.async_abort(reason=REASON_ENTRY_REMOVED)
         panel = panel_display_name(self.hass, entry)
         if user_input is None:
@@ -1444,6 +1445,7 @@ class SuccessorMoveFlow(RepairsFlow):
     ) -> FlowResult:
         entry = self._entry()
         if entry is None:
+            ir.async_delete_issue(self.hass, DOMAIN, self.issue_id)
             return self.async_abort(reason=REASON_ENTRY_REMOVED)
         if self._task is None:
             self._task = self.hass.async_create_task(

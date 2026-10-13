@@ -35,10 +35,12 @@ from .failure_repair import (
     RetrySafetyHold,
     adb_authorization_issue_id,
     async_clear_failure,
+    async_delete_issue_and_report,
     async_failure_events,
     async_record_retry_hold,
     async_retry_install_job,
     async_support_report,
+    update_failure_entry_id,
 )
 from .identity import (
     ISSUE_IDENTITY,
@@ -86,6 +88,12 @@ ABORT_ENTRY_REMOVED = "entry_removed"
 ABORT_USER_UNAVAILABLE = "user_unavailable"
 ABORT_MIGRATION_UNFINISHED = "migration_unfinished"
 _NOT_SHOWN = object()
+
+
+async def _async_entry_removed(flow: RepairsFlow) -> RepairsFlowResult:
+    """Clear a Repair whose panel was removed, and say so."""
+    await async_delete_issue_and_report(flow.hass, flow.issue_id)
+    return flow.async_abort(reason=ABORT_ENTRY_REMOVED)
 
 
 SUPPORT_REPORT_GUIDE_URL = "https://panel-assistant.io/go/support-report"
@@ -359,6 +367,13 @@ class InstallerFailureFlow(RepairsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> RepairsFlowResult:
+        entry_id = update_failure_entry_id(
+            self.issue_id, await async_failure_events(self.hass, self.issue_id)
+        )
+        if entry_id is not None and not self.hass.config_entries.async_get_entry(
+            entry_id
+        ):
+            return await _async_entry_removed(self)
         options = ["retry", "support_report", "clear_error"]
         entry = self._adb_entry()
         if entry is not None:
@@ -388,7 +403,7 @@ class InstallerFailureFlow(RepairsFlow):
         """Restore ADB trust, then leave the failed update report available."""
         entry = self._adb_entry()
         if entry is None:
-            return self.async_abort(reason=ABORT_ENTRY_REMOVED)
+            return await _async_entry_removed(self)
         panel = panel_display_name(self.hass, entry)
         form = await async_authorize_adb_form(self, entry, panel, user_input)
         if form is not None:
@@ -579,7 +594,7 @@ class PanelPermissionFlow(RepairsFlow):
     ) -> RepairsFlowResult:
         entry = self.hass.config_entries.async_get_entry(self._entry_id)
         if entry is None or entry.domain != DOMAIN:
-            return self.async_abort(reason=ABORT_ENTRY_REMOVED)
+            return await _async_entry_removed(self)
         errors = {}
         if user_input is not None:
             coordinator = getattr(
@@ -594,7 +609,7 @@ class PanelPermissionFlow(RepairsFlow):
                     self.hass.config_entries.async_get_entry(self._entry_id)
                     is not entry
                 ):
-                    return self.async_abort(reason=ABORT_ENTRY_REMOVED)
+                    return await _async_entry_removed(self)
                 snapshot: PanelSnapshot | None = coordinator.data
                 if (
                     not coordinator.last_update_success
@@ -641,7 +656,7 @@ class ProximitySetupFlow(RepairsFlow):
     ) -> RepairsFlowResult:
         entry = self.hass.config_entries.async_get_entry(self._entry_id)
         if entry is None or entry.domain != DOMAIN:
-            return self.async_abort(reason=ABORT_ENTRY_REMOVED)
+            return await _async_entry_removed(self)
         errors = {}
         if user_input is not None:
             coordinator = getattr(
@@ -657,7 +672,7 @@ class ProximitySetupFlow(RepairsFlow):
                     self.hass.config_entries.async_get_entry(self._entry_id)
                     is not entry
                 ):
-                    return self.async_abort(reason=ABORT_ENTRY_REMOVED)
+                    return await _async_entry_removed(self)
                 snapshot: PanelSnapshot | None = coordinator.data
                 if (
                     coordinator.last_update_success
@@ -700,7 +715,7 @@ class AdbAuthorizationFlow(RepairsFlow):
     ) -> RepairsFlowResult:
         entry = self.hass.config_entries.async_get_entry(self._entry_id)
         if entry is None or entry.domain != DOMAIN:
-            return self.async_abort(reason=ABORT_ENTRY_REMOVED)
+            return await _async_entry_removed(self)
         panel = panel_display_name(self.hass, entry)
         form = await async_authorize_adb_form(self, entry, panel, user_input)
         if form is not None:

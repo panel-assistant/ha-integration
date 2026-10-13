@@ -1275,6 +1275,9 @@
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
+        },
+        "abort": {
+          "entry_removed": "此面板已被移除。"
         }
       }
     },

@@ -1317,6 +1317,9 @@
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
+        },
+        "abort": {
+          "entry_removed": "Este painel foi removido."
         }
       }
     },

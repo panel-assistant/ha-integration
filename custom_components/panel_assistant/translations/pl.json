@@ -1315,6 +1315,9 @@
           "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
           "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
           "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz Naprawę ponownie, jeśli błąd wróci."
+        },
+        "abort": {
+          "entry_removed": "Ten panel został usunięty."
         }
       }
     },

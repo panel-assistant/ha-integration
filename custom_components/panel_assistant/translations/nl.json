@@ -1315,6 +1315,9 @@
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
+        },
+        "abort": {
+          "entry_removed": "Dit paneel is verwijderd."
         }
       }
     },
