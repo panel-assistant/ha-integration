@@ -49,7 +49,8 @@ from .identity import (
     is_installation,
 )
 from .install_executor import async_get_install_executor
-from .install_jobs import InstallPhase, async_get_install_job_manager
+from .install_jobs import async_get_install_job_manager
+from .install_receipt import InstallPhase
 from .migration_repair import (
     ISSUE_DATA_ADDRESS,
     ISSUE_DATA_VERSION,
