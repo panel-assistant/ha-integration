@@ -372,8 +372,8 @@ async def test_feed_with_unknown_installed_code_falls_back_to_stable(
 def test_failed_feed_read_falls_back_to_stable(hass: HomeAssistant) -> None:
     """A feed that could not be authenticated offers nothing."""
     entity, _ = _entity(hass, version="0.9.9")
-    assert entity._feed is not None
-    entity._feed.last_update_success = False
+    assert entity._offer.feed is not None
+    entity._offer.feed.last_update_success = False
 
     assert entity.installed_version == "0.9.9"
     assert entity.latest_version == entity.installed_version
@@ -464,22 +464,22 @@ async def test_update_install_selects_the_installed_app_before_backup(
     )
     client.async_stage_apk.return_value = _preview(package=package or LEGACY_PACKAGE_ID)
     expected_apk = f"apk-for-{expected_code}-{package or LEGACY_PACKAGE_ID}".encode()
-    assert entity._feed is not None
-    selected_build = entity._feed.verified_newest(package)
+    assert entity._offer.feed is not None
+    selected_build = entity._offer.feed.verified_newest(package)
     assert selected_build is not None
     verified_build = replace(
         selected_build,
         apk_sha256=hashlib.sha256(expected_apk).hexdigest(),
         apk_size=len(expected_apk),
     )
-    entity._feed.data = replace(
-        entity._feed.data,
+    entity._offer.feed.data = replace(
+        entity._offer.feed.data,
         builds=tuple(
             verified_build if build == selected_build else build
-            for build in entity._feed.data.builds
+            for build in entity._offer.feed.data.builds
         ),
     )
-    entity._feed._verified_apks[verified_build.apk_sha256] = expected_apk
+    entity._offer.feed._verified_apks[verified_build.apk_sha256] = expected_apk
     _restart_into(entity, client, expected_code, package=package)
 
     assert entity.latest_version == f"0.9.7-rc4 build {expected_code}"
@@ -702,7 +702,7 @@ async def test_install_refreshes_the_feed_to_find_a_newly_published_build(
 ) -> None:
     """A build missing from the cached feed is looked up once more after a refresh."""
     entity, client = _entity(hass)
-    feed = entity._feed
+    feed = entity._offer.feed
     assert feed is not None
 
     async def publish() -> None:
@@ -723,7 +723,7 @@ async def test_install_refuses_a_build_still_missing_after_one_refresh(
 ) -> None:
     """An unknown build refreshes the feed exactly once, then is unavailable."""
     entity, client = _entity(hass)
-    feed = entity._feed
+    feed = entity._offer.feed
     assert feed is not None
     feed.async_refresh = AsyncMock()  # type: ignore[method-assign]
 
@@ -743,7 +743,7 @@ async def test_install_refuses_a_missing_build_when_the_refresh_fails(
 ) -> None:
     """A failed refresh never turns stale or absent data into an install."""
     entity, client = _entity(hass)
-    feed = entity._feed
+    feed = entity._offer.feed
     assert feed is not None
 
     async def fail() -> None:
@@ -776,7 +776,7 @@ async def test_install_refuses_without_contacting_anything(
 ) -> None:
     """The installed build and HA-side backups are never offered."""
     entity, client = _entity(hass)
-    feed = entity._feed
+    feed = entity._offer.feed
     assert feed is not None
     feed.async_refresh = AsyncMock()  # type: ignore[method-assign]
 
@@ -1064,7 +1064,7 @@ async def test_wait_refuses_a_restart_into_a_different_build(
 async def test_manual_update_also_rereads_the_feed(hass: HomeAssistant) -> None:
     """Asking the entity to update refreshes panel health, then the feed."""
     entity, _ = _entity(hass)
-    feed = entity._feed
+    feed = entity._offer.feed
     assert feed is not None
     order: list[str] = []
     entity.coordinator.async_request_refresh = AsyncMock(
@@ -1357,8 +1357,8 @@ async def test_feed_offer_uses_the_verified_apk_after_its_origin_disappears(
 ) -> None:
     """The install uses the bytes checked for the offer, not a second fetch."""
     entity, client = _entity(hass)
-    assert entity._feed is not None
-    entity._feed._verified_apks.clear()
+    assert entity._offer.feed is not None
+    entity._offer.feed._verified_apks.clear()
     fetch = AsyncMock(return_value=_feed_data(770, 771, 772))
     verified_download = AsyncMock(return_value=APK)
     with (
@@ -1368,9 +1368,9 @@ async def test_feed_offer_uses_the_verified_apk_after_its_origin_disappears(
             verified_download,
         ),
     ):
-        await entity._feed.async_refresh()
+        await entity._offer.feed.async_refresh()
         verified_download.side_effect = BuildDownloadError
-        await entity._feed.async_refresh()
+        await entity._offer.feed.async_refresh()
 
     assert entity.latest_version == "0.9.7-rc4 build 772"
     delivery.download.side_effect = BuildDownloadError
@@ -1389,7 +1389,7 @@ async def test_new_unverifiable_feed_head_withdraws_the_old_offer(
     """A cached older APK cannot keep an obsolete offer alive."""
     entity, _ = _entity(hass)
     assert entity.latest_version == "0.9.7-rc4 build 772"
-    assert entity._feed is not None
+    assert entity._offer.feed is not None
     with (
         patch(FETCH, AsyncMock(return_value=_feed_data(770, 771, 773))),
         patch(
@@ -1397,7 +1397,7 @@ async def test_new_unverifiable_feed_head_withdraws_the_old_offer(
             AsyncMock(side_effect=BuildDownloadError),
         ),
     ):
-        await entity._feed.async_refresh()
+        await entity._offer.feed.async_refresh()
 
     assert entity.latest_version == entity.installed_version
 
@@ -1407,8 +1407,8 @@ async def test_unverified_feed_head_refuses_unversioned_install(
 ) -> None:
     """The service's default target is exactly the build eligible for offer."""
     entity, client = _entity(hass)
-    assert entity._feed is not None
-    entity._feed._verified_apks.clear()
+    assert entity._offer.feed is not None
+    entity._offer.feed._verified_apks.clear()
     delivery.download.side_effect = BuildDownloadError
 
     with pytest.raises(HomeAssistantError) as error:
@@ -1572,8 +1572,8 @@ async def test_feed_skips_unknown_and_incompatible_heads_before_download(
         ),
     )
     entity, _ = _entity(hass, feed=feed)
-    assert entity._feed is not None
-    entity._feed._verified_apks.clear()
+    assert entity._offer.feed is not None
+    entity._offer.feed._verified_apks.clear()
     download = AsyncMock(return_value=APK)
     with (
         patch(FETCH, AsyncMock(return_value=feed)),
@@ -1582,7 +1582,7 @@ async def test_feed_skips_unknown_and_incompatible_heads_before_download(
             download,
         ),
     ):
-        await entity._feed.async_refresh()
+        await entity._offer.feed.async_refresh()
 
     assert entity.latest_version == _build(772).label
     assert [
@@ -1619,8 +1619,8 @@ async def test_feed_channel_follows_loaded_pa_and_entry_opt_in(
     rc = replace(_build(773), version_name="0.9.11-rc1")
     feed = BuildFeed("maintainer", (rc, final))
     entity, _ = _entity(hass, version="0.9.9", feed=feed)
-    assert entity._feed is not None
-    entity._feed._verified_apks.clear()
+    assert entity._offer.feed is not None
+    entity._offer.feed._verified_apks.clear()
     with (
         patch(FETCH, AsyncMock(return_value=feed)),
         patch(
@@ -1628,7 +1628,7 @@ async def test_feed_channel_follows_loaded_pa_and_entry_opt_in(
             AsyncMock(return_value=APK),
         ),
     ):
-        await entity._feed.async_refresh()
+        await entity._offer.feed.async_refresh()
     assert entity.latest_version == feed.find(expected_code, LEGACY_PACKAGE_ID).label
 
 
@@ -1780,8 +1780,8 @@ async def test_post_one_release_uses_native_version_code_without_feed_diagnostic
         snapshot,
         health=replace(snapshot.health, version_code=800),
     )
-    entity._release = StableReleaseCoordinator(hass)
-    entity._release._candidates[candidate.tag, LEGACY_PACKAGE_ID] = candidate
+    entity._offer.release = StableReleaseCoordinator(hass)
+    entity._offer.release._candidates[candidate.tag, LEGACY_PACKAGE_ID] = candidate
     assert entity.latest_version == entity.installed_version
     with pytest.raises(HomeAssistantError) as caught:
         await entity.async_install(None, False)

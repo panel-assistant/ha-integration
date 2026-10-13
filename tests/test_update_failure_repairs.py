@@ -884,8 +884,8 @@ async def test_update_entity_health_reconciles_failed_build_without_diagnostics(
     entity.coordinator._entry_id = entry.entry_id
     client.address = "panel.local"
     client.async_get_version_code.side_effect = CannotConnectError
-    entity._feed.async_refresh = AsyncMock()
-    entity._release.async_refresh = AsyncMock()
+    entity._offer.feed.async_refresh = AsyncMock()
+    entity._offer.release.async_refresh = AsyncMock()
     entity._async_refresh_route = AsyncMock()
     client.async_get_health = AsyncMock(
         return_value=replace(
@@ -1077,13 +1077,13 @@ async def test_valid_feed_update_failure_before_commit_creates_repair(
     failure: str,
 ) -> None:
     entity, client = _entity(hass, feed=True)
-    selected = entity._feed.data.builds[0]
+    selected = entity._offer.feed.data.builds[0]
     if failure == "download":
         # An explicitly requested build outside the verified offer is still
         # downloaded and checked on demand, and its failure creates a repair.
         selected = replace(selected, version_code=103, apk_sha256="b" * 64)
-        entity._feed.data = BuildFeed(
-            channel="maintainer", builds=(selected, *entity._feed.data.builds)
+        entity._offer.feed.data = BuildFeed(
+            channel="maintainer", builds=(selected, *entity._offer.feed.data.builds)
         )
     backup = AsyncMock(
         side_effect=OSError("backup unavailable") if failure == "backup" else None
@@ -1100,7 +1100,7 @@ async def test_valid_feed_update_failure_before_commit_creates_repair(
     if failure == "stage":
 
         async def refresh_feed_during_backup(*_args: object) -> None:
-            entity._feed.data = BuildFeed(
+            entity._offer.feed.data = BuildFeed(
                 channel="maintainer",
                 builds=(replace(selected, version_code=103, apk_sha256="b" * 64),),
             )

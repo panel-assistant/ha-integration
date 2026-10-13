@@ -993,7 +993,7 @@ async def test_missing_release_download_is_not_called_a_bad_signature(
     monkeypatch.setattr(
         panel_update, "async_download_build", AsyncMock(side_effect=BuildDownloadError)
     )
-    artifact = entity._host_release()
+    artifact = entity._offer.host_release()
     assert artifact is not None
 
     with pytest.raises(HomeAssistantError) as error:
@@ -1666,7 +1666,7 @@ async def test_shared_release_selects_compatible_stable_and_prerelease_candidate
     from custom_components.panel_assistant import release_catalog
 
     entity, _ = await _entity(hass, monkeypatch, _GitHub(key))
-    coordinator = entity._release
+    coordinator = entity._offer.release
     assert coordinator is not None
     artifact = coordinator.artifact_for(LEGACY_PACKAGE_ID)
     assert artifact is not None
@@ -1712,7 +1712,7 @@ async def test_bridge_handover_pins_successor_from_the_bridge_selected_tag(
         monkeypatch,
         _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=b"bridge"),
     )
-    coordinator = entity._release
+    coordinator = entity._offer.release
     assert coordinator is not None
     bridge = coordinator.artifact_for(LEGACY_PACKAGE_ID)
     successor = coordinator.artifact_for(SUCCESSOR_PACKAGE_ID)

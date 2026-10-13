@@ -88,8 +88,8 @@ async def test_fresh_move_installs_newest_eligible_source_bytes(
     entry = hass.config_entries.async_get_entry("entry-id")
     entry.runtime_data = SimpleNamespace(client=client, coordinator=entity.coordinator)
     client.async_get_health = AsyncMock(return_value=entity.coordinator.data.health)
-    hass.data.setdefault(DOMAIN, {})[DATA_BUILD_FEED] = entity._feed
-    hass.data[DOMAIN][DATA_STABLE_RELEASE] = entity._release
+    hass.data.setdefault(DOMAIN, {})[DATA_BUILD_FEED] = entity._offer.feed
+    hass.data[DOMAIN][DATA_STABLE_RELEASE] = entity._offer.release
     monkeypatch.setattr(panel_move, "async_get_clientsession", lambda _h: github)
     monkeypatch.setattr(
         panel_move,
@@ -135,7 +135,7 @@ async def test_fresh_move_refuses_unknown_installed_snapshot(
     entry.runtime_data = SimpleNamespace(
         client=client, coordinator=SimpleNamespace(data=None)
     )
-    hass.data.setdefault(DOMAIN, {})[DATA_STABLE_RELEASE] = entity._release
+    hass.data.setdefault(DOMAIN, {})[DATA_STABLE_RELEASE] = entity._offer.release
     download = AsyncMock(
         side_effect=AssertionError("unobserved panel downloaded an APK")
     )

@@ -233,7 +233,7 @@ async def test_adb_loss_is_reported_without_a_pending_update(route, hass):
 
 async def test_build_verification_failure_is_not_route_loss(route, hass):
     entry = _entry(hass)
-    route.entity._feed.async_verify_build = AsyncMock(
+    route.entity._offer.feed.async_verify_build = AsyncMock(
         side_effect=RuntimeError("feed unavailable")
     )
     route.entity._schedule_route_refresh()

@@ -357,7 +357,7 @@ async def test_unstarted_panel_download_retry_rechecks_current_consent(
     entry.add_to_hass(hass)
     entity, client = _entity(hass)
     artifact = replace(
-        entity._release.artifact_for(LEGACY_PACKAGE_ID),
+        entity._offer.release.artifact_for(LEGACY_PACKAGE_ID),
         tag="v0.9.10-rc1",
         version="0.9.10-rc1",
     )

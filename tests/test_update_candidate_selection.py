@@ -198,8 +198,8 @@ async def _panel(
     entity._installed_code = installed[1]
     entity._code_key = (installed[0], snapshot.health.build)
     if with_feed:
-        entity._feed = BuildFeedCoordinator(hass, feed_http.FEED_URL)
-        await entity._feed.async_refresh()
+        entity._offer.feed = BuildFeedCoordinator(hass, feed_http.FEED_URL)
+        await entity._offer.feed.async_refresh()
     # This is the existing callback used when feed/release/health snapshots change.
     entity._handle_offer_refresh()
     await hass.async_block_till_done()
@@ -521,8 +521,8 @@ async def test_configured_feed_does_not_hide_an_installed_bridge_handover(
     )
     entity._installed_code = lan.CODE
     entity._code_key = (lan.VERSION, snapshot.health.build)
-    entity._feed = BuildFeedCoordinator(hass, feed_http.FEED_URL)
-    await entity._feed.async_refresh()
+    entity._offer.feed = BuildFeedCoordinator(hass, feed_http.FEED_URL)
+    await entity._offer.feed.async_refresh()
     client.async_get_successor_capability = AsyncMock(
         return_value=(SUCCESSOR_PACKAGE_ID, lan.VERSION, lan.CODE, False)
     )

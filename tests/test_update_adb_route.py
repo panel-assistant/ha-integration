@@ -597,7 +597,7 @@ async def test_adb_transaction_uses_current_consent_until_command_submission(
         return result
 
     monkeypatch.setattr(hass, "async_add_executor_job", executor)
-    build = route.entity._feed.data.builds[0]
+    build = route.entity._offer.feed.data.builds[0]
     identity = {"model": "model-a", "serial": "serial-a", "sdk": 30}
     installed = {"retained_lines": [f"package:{LEGACY_PACKAGE_ID}"]}
     remote = {"size": build.apk_size, "sha256": build.apk_sha256}
