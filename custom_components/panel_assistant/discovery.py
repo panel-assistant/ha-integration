@@ -1,40 +1,70 @@
-"""Panels Home Assistant already knows through another integration.
+"""Every way a panel is discovered, and the one-card-per-panel rule.
 
-The add-panel form offers them so nobody has to look up an address, and each is
-raised as a discovery so it appears under Discovered before anyone opens Add
-integration. A device is a definite target when its network ADB port answers,
-because that is what the installer needs. Otherwise it is listed only when its
-integration runs on nothing but Android screens; a relay with ADB closed is
-left out, and a phone never appears.
+The config flow's discovery steps delegate here: the app's own announcement
+(`_ha-paneld._tcp`), a vendor's announcement (profile `vendor_mdns`), Android's
+network ADB announcement, and DHCP, which is the cue to raise the panels other
+integrations already know.
+
+Those known panels are also offered in the add-panel form so nobody has to look
+up an address, and each is raised as a discovery so it appears under Discovered
+before anyone opens Add integration. A device is a definite target when its
+network ADB port answers, because that is what the installer needs. Otherwise it
+is listed only when its integration runs on nothing but Android screens; a relay
+with ADB closed is left out, and a phone never appears.
 """
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
+import functools
 import ipaddress
+import logging
 import time
+import unicodedata
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
-from homeassistant.config_entries import SOURCE_IGNORE, SOURCE_INTEGRATION_DISCOVERY
+from homeassistant.config_entries import (
+    SOURCE_IGNORE,
+    SOURCE_INTEGRATION_DISCOVERY,
+    ConfigFlowResult,
+)
 from homeassistant.const import CONF_ADDRESS, CONF_HOST
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import discovery_flow
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
 )
+from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
+from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
-from .client import InvalidAddressError, normalize_address
-from .const import DOMAIN
+from .client import (
+    CannotConnectError,
+    HaPaneldClient,
+    InvalidAddressError,
+    InvalidResponseError,
+    is_valid_discovery_id,
+    normalize_address,
+)
+from .const import DEFAULT_PORT, DOMAIN
+from .ha_url import async_offer_ha_url
+from .identity import accept_health, is_installation
 from .install_adb import ADB_PORT
 from .install_network import is_allowed_install_address
+
+if TYPE_CHECKING:
+    from .config_flow import HaPaneldConfigFlow
+
+_LOGGER = logging.getLogger(__name__)
 
 # Integration domain: (display name, runs only on Android screens).
 _HOST_SOURCES: dict[str, tuple[str, bool]] = {
@@ -65,11 +95,13 @@ _REOFFER_SECONDS = 3600
 # until the press has been handled. The card's title shows only {name}.
 CONFIRMED = "confirmed"
 # Set in a card's title placeholders while one of its steps runs (the flow sets
-# it; see config_flow). A card is never aborted then: `close_offers` writes
+# it; see `closes_when_done`). A card is never aborted then: `close_offers` writes
 # CLOSING instead, and the flow ends itself once that step returns.
 RUNNING = "running"
 CLOSING = "closing"
 _DATA_OFFERED = "migration_offered"
+_DATA_DISCOVERY_NAMES = "discovery_names"
+_FRIENDLY_NAME_MAX_LENGTH = 64
 
 
 @dataclass(frozen=True, slots=True)
@@ -382,3 +414,432 @@ def address_schema(targets: list[MigrationTarget] | None) -> vol.Schema | None:
             )
         }
     )
+
+
+async def async_zeroconf(
+    flow: HaPaneldConfigFlow, discovery_info: ZeroconfServiceInfo
+) -> ConfigFlowResult:
+    """Offer a verified local mDNS discovery for explicit confirmation."""
+    if discovery_info.type == ADB_SERVICE_TYPE:
+        return await _async_discovered_adb(flow, discovery_info)
+    if discovery_info.type in VENDOR_SERVICE_TYPES:
+        return await _async_discovered_vendor(flow, discovery_info)
+    discovery_id = discovery_info.properties.get("did")
+    if (
+        discovery_info.port != DEFAULT_PORT
+        or not isinstance(discovery_id, str)
+        or not is_valid_discovery_id(discovery_id)
+    ):
+        return flow.async_abort(reason="invalid_discovery")
+    return await _async_discovered_app(
+        flow, discovery_info, discovery_id, discovery_info.properties.get("name")
+    )
+
+
+async def async_dhcp(
+    flow: HaPaneldConfigFlow, discovery_info: DhcpServiceInfo
+) -> ConfigFlowResult:
+    """Any device on the network is the cue to offer panels other apps know.
+
+    Without an entry nothing else runs this integration's code, and Core
+    matches dhcp hostnames by their first character, hence the manifest's
+    one matcher per character.
+    """
+    async_offer_migration_targets(flow.hass)
+    return flow.async_abort(reason="not_panel")
+
+
+async def async_integration_discovery(
+    flow: HaPaneldConfigFlow, discovery_info: dict[str, Any]
+) -> ConfigFlowResult:
+    """Offer a panel another integration knows, unless ignored or added."""
+    await flow.async_set_unique_id(discovery_info["key"])
+    flow._abort_if_unique_id_configured()
+    # The registries and the ADB announcement can name one device twice.
+    if offer_blocked(flow.hass, discovery_info["address"], flow.flow_id):
+        return flow.async_abort(reason="already_configured")
+    target = await async_check_migration_target(discovery_info)
+    if target is None:
+        return flow.async_abort(reason="not_panel")
+    # Again after the probe: the other route may have shown its card while
+    # this one waited. Nothing awaits between here and publishing ours.
+    if offer_blocked(flow.hass, discovery_info["address"], flow.flow_id):
+        return flow.async_abort(reason="already_configured")
+    flow._migration_target = target
+    flow.context["title_placeholders"] = {
+        "name": target.name,
+        "address": target.address,
+    }
+    return await flow.async_step_confirm_migration()
+
+
+async def async_ignore(
+    flow: HaPaneldConfigFlow, user_input: dict[str, Any]
+) -> ConfigFlowResult:
+    """Ignore as Core does, keeping the card's address for the other route."""
+    data = ignored_card_data(flow.hass, user_input["unique_id"])
+    await flow.async_set_unique_id(user_input["unique_id"], raise_on_progress=False)
+    return flow.async_create_entry(title=user_input["title"], data=data)
+
+
+async def async_confirm_migration(
+    flow: HaPaneldConfigFlow, user_input: dict[str, Any] | None = None
+) -> ConfigFlowResult:
+    """Take the discovered address into the ordinary add-panel path."""
+    target = flow._migration_target
+    assert target is not None
+    if user_input is not None:
+        _mark_confirmed(flow)
+        return await flow.async_step_add_panel({CONF_ADDRESS: target.address})
+    return flow.async_show_form(
+        step_id="confirm_migration",
+        data_schema=vol.Schema({}),
+        description_placeholders={
+            "name": markdown_literal(target.name),
+            "source": target.source,
+            "address": target.address,
+        },
+    )
+
+
+async def async_confirm_discovery(
+    flow: HaPaneldConfigFlow, user_input: dict[str, Any] | None = None
+) -> ConfigFlowResult:
+    """Re-verify the discovered panel before creating its first entry."""
+    if flow._pending_address is None or flow._pending_discovery_id is None:
+        return flow.async_abort(reason="unknown")
+    if user_input is not None:
+        _mark_confirmed(flow)
+        try:
+            health = await HaPaneldClient(
+                async_get_clientsession(flow.hass), flow._pending_address
+            ).async_get_health()
+        except CannotConnectError, InvalidResponseError:
+            return _show_discovery_confirmation(flow, {"base": "cannot_connect"})
+        except Exception:
+            _LOGGER.exception(
+                "Unexpected exception while re-verifying discovered ha-paneld"
+            )
+            return _show_discovery_confirmation(flow, {"base": "unknown"})
+        if health.discovery_id != flow._pending_discovery_id:
+            return flow.async_abort(reason="invalid_discovery")
+        # Adoption counts as Home Assistant starting this panel just as much
+        # as installing it does, so a panel adopted mid-setup is handed the
+        # address too rather than being asked for one Home Assistant knows.
+        await async_offer_ha_url(
+            flow.hass,
+            HaPaneldClient(async_get_clientsession(flow.hass), flow._pending_address),
+        )
+        return await flow._async_create_panel_entry(flow._pending_address, health)
+
+    return _show_discovery_confirmation(flow)
+
+
+async def _async_discovered_app(
+    flow: HaPaneldConfigFlow,
+    discovery_info: ZeroconfServiceInfo,
+    discovery_id: str,
+    advertised_name: object,
+) -> ConfigFlowResult:
+    """Offer, or move to its new address, the panel with this discovery id."""
+    # An IPv6 literal must be bracketed before a port can follow it; bare, its
+    # colons read as a port and every IPv6-only panel was refused here.
+    advertised = discovery_info.ip_address
+    host = f"[{advertised}]" if advertised.version == 6 else str(advertised)
+    try:
+        address = normalize_address(host)
+    except InvalidAddressError:
+        return flow.async_abort(reason="invalid_discovery")
+
+    await flow.async_set_unique_id(discovery_id)
+    for existing in flow.hass.config_entries.async_entries(DOMAIN):
+        if (
+            existing.data.get(CONF_ADDRESS) == address.stored_value
+            and existing.unique_id == discovery_id
+        ):
+            return flow.async_abort(reason="already_configured")
+
+    try:
+        health = await HaPaneldClient(
+            async_get_clientsession(flow.hass), address
+        ).async_get_health()
+    except CannotConnectError, InvalidResponseError:
+        return flow.async_abort(reason="invalid_discovery")
+    except Exception:
+        _LOGGER.exception("Unexpected exception while verifying discovered ha-paneld")
+        return flow.async_abort(reason="unknown")
+    if health.discovery_id != discovery_id:
+        return flow.async_abort(reason="invalid_discovery")
+    # The panel has just answered as itself here: whatever happens next, an
+    # install card for this address is the same panel on a weaker channel.
+    close_offers(flow.hass, address.stored_value, flow.flow_id)
+    for existing in flow.hass.config_entries.async_entries(DOMAIN):
+        if existing.data.get(CONF_ADDRESS) == address.stored_value:
+            accept_health(flow.hass, existing, health)
+            return flow.async_abort(reason="already_configured")
+    known = flow.hass.config_entries.async_entry_for_domain_unique_id(
+        DOMAIN, discovery_id
+    )
+    if known is not None and not is_installation(known):
+        return flow.async_abort(reason="already_configured")
+    # A known panel advertising from a new address has moved, when its
+    # stored address has stopped answering and it is not connected. Its
+    # health has just answered as it at the new address, so the stored one
+    # is replaced; the running entry polls the new address without a
+    # reload, which would end the panel's session for nothing. The identity
+    # and the health line are both public on the LAN, so an advertisement
+    # never redirects a panel whose stored address still answers, nor one
+    # holding a session: that session is the credentialed authority on
+    # where the panel is, repairs the address itself, and reports when it
+    # cannot. One failed poll is then never enough to move a live panel.
+    if _entry_holds_its_address(flow):
+        flow._abort_if_unique_id_configured()
+    flow._abort_if_unique_id_configured(
+        updates={CONF_ADDRESS: address.stored_value}, reload_on_update=False
+    )
+    # An Ignore on the card another channel showed covers the panel.
+    if offer_blocked(flow.hass, address.stored_value, flow.flow_id):
+        return flow.async_abort(reason="already_configured")
+
+    flow._pending_address = address
+    flow._pending_health = health
+    flow._pending_discovery_id = discovery_id
+    flow._pending_friendly_name = _presentation_safe_name(advertised_name)
+    # Without a title placeholder the card for every discovered panel falls back
+    # to the bare integration name, so a fleet is a list of indistinguishable
+    # duplicates. Prefer the human name the panel advertises, and fall back to the
+    # panel id only when there is no usable name or the name is already taken.
+    _apply_discovery_title(flow)
+    return _show_discovery_confirmation(flow)
+
+
+async def _async_discovered_adb(
+    flow: HaPaneldConfigFlow, discovery_info: ZeroconfServiceInfo
+) -> ConfigFlowResult:
+    """Offer an Android device whose network ADB Android itself advertises."""
+    advertised = discovery_info.ip_address
+    host = f"[{advertised}]" if advertised.version == 6 else str(advertised)
+    serial = discovery_info.name.removesuffix(f".{ADB_SERVICE_TYPE}")
+    candidate = (
+        adb_candidate(flow.hass, host, serial.removeprefix("adb-"))
+        if discovery_info.port == ADB_PORT
+        else None
+    )
+    if candidate is None:
+        return flow.async_abort(reason="not_panel")
+    try:
+        await HaPaneldClient(
+            async_get_clientsession(flow.hass), normalize_address(host)
+        ).async_get_health()
+    except CannotConnectError, InvalidResponseError:
+        return await flow.async_step_integration_discovery(candidate)
+    # The app already answers here; its own advertisement offers it.
+    return flow.async_abort(reason="not_panel")
+
+
+async def _async_discovered_vendor(
+    flow: HaPaneldConfigFlow, discovery_info: ZeroconfServiceInfo
+) -> ConfigFlowResult:
+    """A panel found by its vendor's own announcement (profile `vendor_mdns`).
+
+    The app's health line names the panel when the app answers, and the
+    panel is then handled as if it had announced itself; a panel whose app
+    does not answer is offered for installation like a network ADB device.
+    """
+    advertised = discovery_info.ip_address
+    host = f"[{advertised}]" if advertised.version == 6 else str(advertised)
+    try:
+        health = await HaPaneldClient(
+            async_get_clientsession(flow.hass), normalize_address(host)
+        ).async_get_health()
+    except InvalidAddressError:
+        return flow.async_abort(reason="invalid_discovery")
+    except CannotConnectError, InvalidResponseError:
+        instance = discovery_info.name.removesuffix(f".{discovery_info.type}")
+        candidate = vendor_candidate(
+            flow.hass, host, instance, VENDOR_SERVICE_TYPES[discovery_info.type]
+        )
+        if candidate is None:
+            return flow.async_abort(reason="not_panel")
+        return await flow.async_step_integration_discovery(candidate)
+    if health.discovery_id is None:
+        return flow.async_abort(reason="invalid_discovery")
+    return await _async_discovered_app(flow, discovery_info, health.discovery_id, None)
+
+
+def _apply_discovery_title(flow: HaPaneldConfigFlow) -> None:
+    """Title this flow, disambiguating both sides of a friendly-name clash."""
+    assert flow._pending_health is not None
+    panel_id = flow._pending_health.panel_id
+    friendly = flow._pending_friendly_name
+    announced = _announced_discovery_names(flow)
+    announced[flow.flow_id] = (friendly, panel_id)
+
+    if friendly is None:
+        _set_discovery_title(flow, panel_id)
+        return
+
+    clashing = {
+        flow_id: other_panel_id
+        for flow_id, (other_friendly, other_panel_id) in announced.items()
+        if flow_id != flow.flow_id and other_friendly == friendly
+    }
+    taken = bool(clashing) or any(
+        entry.title == friendly for entry in flow._async_current_entries()
+    )
+    # A clash is symmetric. Qualifying only the newcomer would leave two cards
+    # that still cannot be told apart, so qualify the ones already showing it.
+    for progress in flow.hass.config_entries.flow.async_progress_by_handler(DOMAIN):
+        other_panel_id = clashing.get(progress["flow_id"])
+        if other_panel_id is not None:
+            # Keep its address: the other channels and an Ignore match on it.
+            progress["context"]["title_placeholders"] = {
+                **progress["context"]["title_placeholders"],
+                "name": _qualified_name(friendly, other_panel_id),
+            }
+    _set_discovery_title(
+        flow, _qualified_name(friendly, panel_id) if taken else friendly
+    )
+
+
+def _mark_confirmed(flow: HaPaneldConfigFlow) -> None:
+    """Keep this card's flow from being closed as a waiting card from now on."""
+    flow.context["title_placeholders"] = {
+        **flow.context.get("title_placeholders", {}),
+        CONFIRMED: "yes",
+    }
+
+
+def _set_discovery_title(flow: HaPaneldConfigFlow, display: str) -> None:
+    """Record the rendered title for the card, the form and the created entry."""
+    # The address lets the other channels' cards, and an Ignore, find this one.
+    assert flow._pending_address is not None
+    flow.context["title_placeholders"] = {
+        "name": display,
+        "address": flow._pending_address.stored_value,
+    }
+    flow._discovery_title = display
+
+
+def _announced_discovery_names(
+    flow: HaPaneldConfigFlow,
+) -> dict[str, tuple[str | None, str]]:
+    """Names claimed by live discovery flows, pruned of any that finished.
+
+    `ConfigFlowContext` is a closed TypedDict, so this cannot ride along in the
+    flow context. Keying on flow id makes the store self-pruning.
+    """
+    store: dict[str, tuple[str | None, str]] = flow.hass.data.setdefault(
+        DOMAIN, {}
+    ).setdefault(_DATA_DISCOVERY_NAMES, {})
+    live = {
+        progress["flow_id"]
+        for progress in flow.hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    }
+    for flow_id in [f for f in store if f not in live and f != flow.flow_id]:
+        del store[flow_id]
+    return store
+
+
+def _show_discovery_confirmation(
+    flow: HaPaneldConfigFlow, errors: dict[str, str] | None = None
+) -> ConfigFlowResult:
+    """Show only verified, presentation-safe discovery details."""
+    assert flow._pending_address is not None
+    assert flow._pending_health is not None
+    return flow.async_show_form(
+        step_id="confirm_discovery",
+        data_schema=vol.Schema({}),
+        description_placeholders={
+            "address": flow._pending_address.stored_value,
+            "panel_name": markdown_literal(
+                flow._discovery_title or flow._pending_health.panel_id
+            ),
+        },
+        errors=errors,
+    )
+
+
+def _entry_holds_its_address(flow: HaPaneldConfigFlow) -> bool:
+    """Return whether an advertisement must leave this panel's address alone.
+
+    It must while the stored address still answers, or while the panel is
+    connected, whose own session then moves the address if it has moved.
+    """
+    if flow.unique_id is None:
+        return False
+    entry = flow.hass.config_entries.async_entry_for_domain_unique_id(
+        DOMAIN, flow.unique_id
+    )
+    coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
+    return coordinator is not None and (
+        bool(coordinator.reachable) or coordinator.connected
+    )
+
+
+def _qualified_name(friendly: str, panel_id: str) -> str:
+    """Show the panel id only when the friendly name alone is ambiguous."""
+    return f"{friendly} ({panel_id})"
+
+
+def _presentation_safe_name(value: object) -> str | None:
+    """Accept an mDNS-advertised name only as bounded, printable, single-line text.
+
+    The TXT record is writable by anything on the LAN, so it is presentation input
+    and never an identity. Identity stays with the verified discovery id.
+    """
+    if not isinstance(value, str):
+        return None
+    name = value.strip()
+    if not name or len(name) > _FRIENDLY_NAME_MAX_LENGTH:
+        return None
+    if any(unicodedata.category(character).startswith("C") for character in name):
+        return None
+    if any(character.isspace() and character != " " for character in name):
+        return None
+    return name
+
+
+def markdown_literal(value: str) -> str:
+    """Keep interpolated device text literal in HA's Markdown descriptions."""
+    return "".join(
+        f"&#{ord(character)};" if character in "\\`*_{}[]()<>!&:./@" else character
+        for character in value
+    )
+
+
+def closes_when_done(
+    step: Callable[[HaPaneldConfigFlow, Any], Awaitable[ConfigFlowResult]],
+) -> Callable[[HaPaneldConfigFlow, Any], Awaitable[ConfigFlowResult]]:
+    """Mark a card's flow RUNNING while any step runs; end it if asked to close.
+
+    Core turns anything but an abort from a flow removed mid-step into an
+    unknown-flow error for the person who pressed it, so `close_offers` never
+    aborts a running card; it writes CLOSING and the card ends itself here.
+    Runs are counted, not flagged: a step can call another, and opening a
+    card's dialog runs its step again while an earlier run still waits.
+    Every run that ends after CLOSING was written returns the abort.
+    """
+
+    @functools.wraps(step)
+    async def run(flow: HaPaneldConfigFlow, user_input: Any = None) -> ConfigFlowResult:
+        placeholders = flow.context.get("title_placeholders", {})
+        if "address" not in placeholders:
+            return await step(flow, user_input)
+        flow._steps_running += 1
+        if RUNNING not in placeholders:
+            flow.context["title_placeholders"] = {**placeholders, RUNNING: "yes"}
+        try:
+            result = await step(flow, user_input)
+        finally:
+            flow._steps_running -= 1
+            placeholders = dict(flow.context["title_placeholders"])
+            closing = placeholders.get(RUNNING) == CLOSING
+            if flow._steps_running == 0:
+                placeholders.pop(RUNNING, None)
+                flow.context["title_placeholders"] = placeholders
+        if closing:
+            return flow.async_abort(reason="already_configured")
+        return result
+
+    return run
