@@ -5,13 +5,11 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-from collections.abc import Awaitable, Callable
 from dataclasses import asdict
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
 
-from aiohttp import ClientConnectorError
 from homeassistant.components.update import (
     UpdateDeviceClass,
     UpdateEntity,
@@ -89,7 +87,6 @@ from .feed_coordinator import (
 from .install_adb import (
     async_launch_installed_app,
     async_preflight_install,
-    async_repair_installed_app_permissions,
     async_update_installed_apk,
 )
 from .install_network import (
@@ -122,6 +119,11 @@ from .update_errors import (
     refusal_error,
     route_unavailable_reason,
 )
+from .update_panel_install import (
+    _retry_unstarted_install,
+    async_repair_update_permissions,
+    async_request_panel_download,
+)
 from .update_policy import (
     build_allowed,
     feed_build_newer,
@@ -136,10 +138,6 @@ from .upgrade_repairs import speaks_this_protocol
 _DOWNGRADE_REFUSAL = "panel-app downgrades are not permitted"
 _AWAITING_CONFIRMATION_SUMMARY = "Tap Install on the panel to finish the update."
 AWAITING_CONFIRMATION_ATTRIBUTE = "awaiting_confirmation"
-# How long the permission repair after an update waits for the panel's ADB to
-# answer again: twelve tries, fifteen seconds apart.
-_PERMISSION_REPAIR_ATTEMPTS = 12
-_PERMISSION_REPAIR_RETRY_SECONDS = 15
 # The first ha-paneld release that can be backed up and sent an app over the LAN.
 # Older panels cannot use this route to receive an authenticated replacement.
 _FIRST_LAN_UPDATE_VERSION = "0.8.6"
@@ -151,17 +149,6 @@ ROUTE_ADB = "installed_by_home_assistant_adb"
 ROUTE_UNAVAILABLE_ATTRIBUTE = "update_unavailable_reason"
 
 _LOGGER = logging.getLogger(__name__)
-
-
-async def _retry_unstarted_install(start: Callable[[], Awaitable[None]]) -> None:
-    """Retry once only when no connection was made to the panel."""
-    try:
-        await start()
-    except CannotConnectError as err:
-        if not isinstance(err.__cause__, ClientConnectorError):
-            raise
-        await asyncio.sleep(1)
-        await start()
 
 
 async def async_setup_entry(
@@ -635,91 +622,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             return None
         await async_revalidate_install_target(self.hass, pinned)
         return target, credential, admitted.root_mode
-
-    async def _async_repair_update_permissions(self, artifact: ReleaseArtifact) -> None:
-        """Reuse already-authorized ADB after a healthy LAN update, without relaunch."""
-        for attempt in range(_PERMISSION_REPAIR_ATTEMPTS):
-            if attempt:
-                await asyncio.sleep(_PERMISSION_REPAIR_RETRY_SECONDS)
-            snapshot = self.coordinator.data
-            # Read again on every try: the panel may have changed while ADB
-            # was quiet.
-            descriptor = artifact.descriptor
-            skipped = (
-                "no install descriptor"
-                if descriptor is None
-                else "no panel reading"
-                if snapshot is None
-                else "panel identity changed"
-                if self.coordinator.identity_mismatch
-                else "last panel reading failed"
-                if not self.coordinator.reachable
-                else f"panel reports {snapshot.health.version}, not {artifact.version}"
-                if snapshot.health.version != artifact.version
-                else f"panel reports package {snapshot.health.package}"
-                if not reports_package(snapshot.health.package, descriptor.package_id)
-                else None
-            )
-            if skipped is not None:
-                _LOGGER.debug(
-                    "No permission repair after updating %s: %s",
-                    self._panel_name(),
-                    skipped,
-                )
-                return
-            assert descriptor is not None
-            try:
-                # A successful update never requests new ADB trust or creates a key.
-                credential = await async_get_durable_adb_credential(self.hass)
-                admitted = await self._async_admit_adb_target(artifact, credential)
-                if admitted is None:
-                    _LOGGER.debug(
-                        "No permission repair after updating %s: "
-                        "ADB target not admitted",
-                        self._panel_name(),
-                    )
-                    return
-                target, credential, root_mode = admitted
-                await async_repair_installed_app_permissions(
-                    target,
-                    credential.signer,
-                    descriptor,
-                    expected_root_mode=root_mode,
-                )
-            except InstallAdbError as err:
-                # A restarting app re-asserts network ADB, so the panel's ADB
-                # can stop answering for a while after the dashboard is back.
-                if (
-                    err.code is InstallAdbErrorCode.TARGET_UNREACHABLE
-                    and attempt + 1 < _PERMISSION_REPAIR_ATTEMPTS
-                ):
-                    _LOGGER.debug(
-                        "ADB on %s not answering yet after the update; retrying",
-                        self._panel_name(),
-                    )
-                    continue
-                _LOGGER.debug(
-                    "No permission repair after updating %s: %r",
-                    self._panel_name(),
-                    err,
-                )
-                return
-            except (
-                AdbCredentialError,
-                InstallNetworkError,
-                HaPaneldError,
-                OSError,
-            ) as err:
-                # The dashboard already runs. An unavailable optional repair
-                # route does not change the successful update's result.
-                _LOGGER.debug(
-                    "No permission repair after updating %s: %r",
-                    self._panel_name(),
-                    err,
-                )
-                return
-            _LOGGER.debug("Repaired permissions after updating %s", self._panel_name())
-            return
 
     def _refresh_installed_code(self) -> None:
         """Read the running build number once per install, never per poll."""
@@ -1456,7 +1358,13 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 # so unloading or removing the panel ends the repair.
                 owner.async_create_background_task(
                     self.hass,
-                    self._async_repair_update_permissions(repair_artifact),
+                    async_repair_update_permissions(
+                        self.hass,
+                        self.coordinator,
+                        repair_artifact,
+                        admit_adb_target=self._async_admit_adb_target,
+                        panel_name=self._panel_name,
+                    ),
                     f"permission repair after updating {owner.title}",
                 )
             await async_clear_update_failure_if_installed(
@@ -1477,31 +1385,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
     async def _async_start_panel_download(
         self, offer: PanelCachedUpdate, artifact: ReleaseArtifact | None
     ) -> None:
-        """Ask the panel to fetch only the host-admitted release."""
-        if artifact is None or artifact.tag != offer.tag:
-            raise _update_error(
-                "update_unavailable", "The requested update is unavailable"
-            )
-
-        async def start() -> None:
-            await self._async_admit_artifact(artifact)
-            await self.coordinator.client.async_start_panel_update(offer.tag)
-
-        try:
-            await _retry_unstarted_install(start)
-        except UpdateBusyError as err:
-            raise _update_error(
-                "update_busy", "The panel is busy with another operation"
-            ) from err
-        except UpdateApprovalRequiredError as err:
-            raise _update_error(
-                "update_approval_required",
-                "Approve this update on the panel, then try again",
-            ) from err
-        except (CannotConnectError, InvalidResponseError) as err:
-            raise _update_error(
-                "update_not_accepted", "The panel did not accept the update request"
-            ) from err
+        """Ask the panel to fetch only the host-admitted release, then follow it."""
+        await async_request_panel_download(
+            self.coordinator.client, offer, artifact, self._async_admit_artifact
+        )
         self._record_route(ROUTE_PANEL, offer.tag)
         self._progress.enter("installing")
         observer = self._start_observer(offer.target_version)

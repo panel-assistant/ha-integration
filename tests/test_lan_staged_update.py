@@ -47,6 +47,7 @@ from custom_components.panel_assistant import (
     install_network,
     release,
     update_errors,
+    update_panel_install,
     update_progress,
 )
 from custom_components.panel_assistant import update as panel_update
@@ -1366,7 +1367,9 @@ async def _lan_grant_repair_panel(
         return credential
 
     key_load = AsyncMock(side_effect=durable_key)
-    monkeypatch.setattr(panel_update, "async_get_durable_adb_credential", key_load)
+    monkeypatch.setattr(
+        update_panel_install, "async_get_durable_adb_credential", key_load
+    )
     create_key = AsyncMock(side_effect=AssertionError("repair created a new key"))
     monkeypatch.setattr(panel_update, "async_get_adb_credential", create_key)
     request_authorization = MagicMock(
@@ -1471,7 +1474,7 @@ async def test_the_grant_repair_waits_for_adb_to_answer_after_the_restart(
     panel = await _lan_grant_repair_panel(
         hass, monkeypatch, key, signer, tmp_path, handover=True
     )
-    monkeypatch.setattr(panel_update, "_PERMISSION_REPAIR_RETRY_SECONDS", 0)
+    monkeypatch.setattr(update_panel_install, "_PERMISSION_REPAIR_RETRY_SECONDS", 0)
     answering = panel.probe.return_value
     silent = InstallTargetProbe(
         state=InstallTargetState.ADB_UNREACHABLE,
@@ -1493,7 +1496,9 @@ async def test_the_grant_repair_waits_for_adb_to_answer_after_the_restart(
     else:
         # A panel that never answers is left alone after a bounded wait.
         assert _panel_value(tmp_path, "accessibility_enabled") is None
-        assert panel.probe.await_count == panel_update._PERMISSION_REPAIR_ATTEMPTS
+        assert (
+            panel.probe.await_count == update_panel_install._PERMISSION_REPAIR_ATTEMPTS
+        )
     assert panel.entity.installed_version == VERSION
     assert panel.entity.in_progress is False
 
@@ -1510,7 +1515,7 @@ async def test_a_panel_that_changes_while_adb_is_quiet_gets_no_grant_repair(
     panel = await _lan_grant_repair_panel(
         hass, monkeypatch, key, signer, tmp_path, handover=True
     )
-    monkeypatch.setattr(panel_update, "_PERMISSION_REPAIR_RETRY_SECONDS", 0)
+    monkeypatch.setattr(update_panel_install, "_PERMISSION_REPAIR_RETRY_SECONDS", 0)
     answering = panel.probe.return_value
     silent = replace(
         answering,
@@ -1550,7 +1555,7 @@ async def test_removing_the_panel_ends_its_waiting_grant_repair(
     panel = await _lan_grant_repair_panel(
         hass, monkeypatch, key, signer, tmp_path, handover=True
     )
-    monkeypatch.setattr(panel_update, "_PERMISSION_REPAIR_RETRY_SECONDS", 0)
+    monkeypatch.setattr(update_panel_install, "_PERMISSION_REPAIR_RETRY_SECONDS", 0)
     answering = panel.probe.return_value
     silent = replace(
         answering,
