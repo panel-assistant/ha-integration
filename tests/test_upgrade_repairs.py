@@ -59,6 +59,10 @@ def _panel(health: PanelHealth | Exception) -> Iterator[AsyncMock]:
             "custom_components.panel_assistant.async_get_install_executor",
             AsyncMock(return_value=executor),
         ),
+        patch(
+            "custom_components.panel_assistant.update_route.async_pin_adb_target",
+            AsyncMock(return_value=None),
+        ),
     ):
         yield get_health
 
@@ -262,14 +266,17 @@ async def test_a_protocol_4_panel_is_refused_and_told_it_needs_app_1_0_0(
     # An outage says nothing about the app.
     with _panel(CannotConnectError()):
         await coordinator.async_refresh()
+        await hass.async_block_till_done()
     assert not coordinator.last_update_success
     assert _issue(hass, issue_id) is not None
 
     with _panel(CURRENT):
         await coordinator.async_refresh()
+        await hass.async_block_till_done()
     assert _issue(hass, issue_id) is None
     with _panel(OLDER_APP):
         await coordinator.async_refresh()
+        await hass.async_block_till_done()
     assert _issue(hass, issue_id) is not None
 
     # Updated: the panel says hello on protocol 5 before the next poll.
