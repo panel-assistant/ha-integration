@@ -403,7 +403,9 @@ class InstallerFailureFlow(RepairsFlow):
         """Restore ADB trust, then leave the failed update report available."""
         entry = self._adb_entry()
         if entry is None:
-            return await _async_entry_removed(self)
+            # Approval arrived while the menu was open, or the panel went: the
+            # menu shows what is left, and clears the Repair of a removed panel.
+            return await self.async_step_init()
         panel = panel_display_name(self.hass, entry)
         form = await async_authorize_adb_form(self, entry, panel, user_input)
         if form is not None:

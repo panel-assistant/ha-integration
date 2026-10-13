@@ -15,6 +15,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.panel_assistant import failure_repair
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.failure_repair import (
+    async_clear_adb_authorization,
     async_failure_events,
     async_record_update_failure,
     async_request_adb_authorization,
@@ -258,3 +259,28 @@ async def test_a_repair_opened_after_its_panel_went_clears_itself(
     assert await async_failure_events(hass, issue_id) == []
     strings = await async_get_translations(hass, "en", "issues", {DOMAIN})
     assert strings[f"component.{DOMAIN}.issues.{key}.fix_flow.abort.entry_removed"]
+
+
+async def test_allowing_updates_elsewhere_keeps_a_live_panels_repair(
+    hass: HomeAssistant, repairs_ready: None, hass_client: Any
+) -> None:
+    """Approval granted while the menu is open is not the panel being removed."""
+    admin = await hass_client()
+    entry = _entry(hass)
+    await async_record_update_failure(
+        hass, entry.entry_id, entry.title, "1.0.0", RuntimeError("download failed")
+    )
+    issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
+    async_request_adb_authorization(hass, entry.entry_id)
+    menu = await _open(admin, issue_id)
+    assert "authorize_adb" in menu["menu_options"]
+    async_clear_adb_authorization(hass, entry.entry_id)
+
+    result = await _choose(
+        hass, admin, menu["flow_id"], {"next_step_id": "authorize_adb"}
+    )
+
+    assert result["type"] == "menu"
+    assert result["menu_options"] == ["retry", "support_report", "clear_error"]
+    assert _issue(hass, issue_id) is not None
+    assert await async_failure_events(hass, issue_id)
