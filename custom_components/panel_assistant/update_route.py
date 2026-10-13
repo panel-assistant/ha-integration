@@ -29,7 +29,11 @@ from .adb_protocol import (
 from .client import HaPaneldError, is_valid_discovery_id
 from .coordinator import HaPaneldDataUpdateCoordinator, PanelSnapshot
 from .failure_repair import async_clear_adb_authorization
-from .install_adb import async_launch_installed_app, async_preflight_install
+from .install_adb import (
+    async_installed_artifact_size,
+    async_launch_installed_app,
+    async_preflight_install,
+)
 from .install_network import (
     InstallNetworkError,
     PinnedPanelTarget,
@@ -217,7 +221,8 @@ async def async_relaunch_stopped_app(
 
     Its HTTP identity went with the app, so the target is the entry's address,
     and what admits it is the panel's existing trust in this Home Assistant's
-    ADB key and the exact signed build installed there. Never creates a key.
+    ADB key and the exact signed bytes of this build installed there, proved
+    before the launch can change anything. Never creates a key.
     """
     descriptor = artifact.descriptor
     if descriptor is None:
@@ -232,6 +237,16 @@ async def async_relaunch_stopped_app(
             target, credential.signer, descriptor, admit_installed_target=True
         )
         if not installed.target_installed:
+            return False
+        if (
+            await async_installed_artifact_size(
+                target,
+                credential.signer,
+                descriptor,
+                expected_root_mode=installed.root_mode,
+            )
+            is None
+        ):
             return False
         outcome = await async_launch_installed_app(
             target,

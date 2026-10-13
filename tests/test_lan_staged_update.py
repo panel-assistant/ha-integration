@@ -98,7 +98,7 @@ from custom_components.panel_assistant.update_coordinator import (
 )
 
 from .http_fakes import FakeResponse
-from .install_adb_fakes import _install_fakes, _preflight_output
+from .install_adb_fakes import _install_fakes, _preflight_output, _section
 from .test_install_adb import signer  # noqa: F401
 from .test_install_adb_grants import (
     _panel_value,
@@ -1296,10 +1296,26 @@ class _InstalledPanel(_RoutingFakeDevice):
     present = True
     malformed = False
     package_id = LEGACY_PACKAGE_ID
+    # The bytes of the installed package's own APK, which a byte proof hashes.
+    installed_apk = APK
 
     async def streaming_shell(
         self, command: str, **kwargs: Any
     ) -> AsyncIterator[bytes]:
+        artifact = re.search(r"HAPANELD_ARTIFACT_BEGIN:([0-9a-f]{32})", command)
+        if artifact is not None:
+            self.commands.append(command)
+            nonce, path = artifact.group(1), "/data/app/ha-paneld/base.apk"
+            sha = hashlib.sha256(self.installed_apk).hexdigest()
+            lines = [f"HAPANELD_ARTIFACT_BEGIN:{nonce}"]
+            lines += _section("ARTIFACT", "MODE", nonce, ["81a4"], 0)
+            lines += _section(
+                "ARTIFACT", "SIZE", nonce, [str(len(self.installed_apk))], 0
+            )
+            lines += _section("ARTIFACT", "SHA", nonce, [f"{sha}  {path}"], 0)
+            lines.append(f"HAPANELD_ARTIFACT_END:{nonce}")
+            yield ("\n".join(lines) + "\n").encode()
+            return
         match = re.search(r"HAPANELD_PREFLIGHT_BEGIN:([0-9a-f]{32})", command)
         if match is None:
             async for packet in super().streaming_shell(command, **kwargs):
@@ -1815,7 +1831,9 @@ async def test_a_panel_withdrawn_during_the_update_gets_no_grant_repair(
     assert _panel_value(tmp_path, "accessibility_enabled") is None
 
 
-@pytest.mark.parametrize("panel_state", ["stopped", "no-adb", "session", "answering"])
+@pytest.mark.parametrize(
+    "panel_state", ["stopped", "no-adb", "session", "answering", "other-build"]
+)
 async def test_an_app_that_never_comes_back_after_an_update_is_started_and_reported(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
@@ -1829,7 +1847,8 @@ async def test_an_app_that_never_comes_back_after_an_update_is_started_and_repor
     """A panel took an update, crashed on its first start and stayed down.
 
     Without ADB the failure stands; a panel that still answers, over HTTP or its
-    own session, has its app, so nothing is started over it.
+    own session, has its app, so nothing is started over it; and a panel whose
+    installed APK is not this build's exact bytes is left untouched.
     """
     panel = await _lan_grant_repair_panel(hass, monkeypatch, key, signer, tmp_path)
     entity, client = panel.entity, panel.client
@@ -1845,7 +1864,10 @@ async def test_an_app_that_never_comes_back_after_an_update_is_started_and_repor
             HaPaneldDataUpdateCoordinator, "connected", property(lambda _self: True)
         )
     # The permission repair after a successful update takes ADB connections too.
-    panel.devices.extend(_InstalledPanel(tmp_path) for _ in range(4))
+    panel.devices.extend(_InstalledPanel(tmp_path) for _ in range(6))
+    if panel_state == "other-build":
+        for device in panel.devices:
+            device.installed_apk = b"another build of the same app"
     if panel_state == "no-adb":
         panel.probe.return_value = InstallTargetProbe(
             state=InstallTargetState.ADB_UNREACHABLE,
@@ -1887,5 +1909,16 @@ async def test_an_app_that_never_comes_back_after_an_update_is_started_and_repor
             await entity.async_install(None, False)
         _assert_translated(raised.value, "update_not_complete")
         assert launched() == 0
+        # Nothing on the panel changed: no grant, HOME or vendor step ran.
+        assert not any(
+            marker in command
+            for device in panel.devices
+            for command in device.commands
+            for marker in (
+                "_PERMISSIONS_BEGIN",
+                "_NOTIFICATIONS_BEGIN",
+                "_VENDOR_BEGIN",
+            )
+        )
     await hass.async_block_till_done(wait_background_tasks=True)
     assert entity.in_progress is False
