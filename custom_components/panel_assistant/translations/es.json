@@ -1297,6 +1297,10 @@
       "title": "Comprobar la dirección de {panel}",
       "description": "La respuesta de {address} no correspondía a {panel}, por lo que sus controles se han desactivado temporalmente. Comprueba que esta dirección pertenece al panel. Si su dirección ha cambiado, añádelo de nuevo con la dirección actual."
     },
+    "panel_link_shared": {
+      "title": "{panel} se reinstaló, pero comparte su vínculo de dispositivo",
+      "description": "{panel} respondió en {address} tras reinstalar su aplicación, pero {others} tiene el mismo vínculo de dispositivo, así que Home Assistant no puede saber a qué configuración pertenece este panel y ha pausado sus controles. La dirección es correcta. Si {others} ya no se usa, elimínalo y {panel} se volverá a unir por sí solo; si no, vuelve a añadir {panel}."
+    },
     "panel_identity_confirmation": {
       "title": "Conservar la configuración de {panel}",
       "fix_flow": {

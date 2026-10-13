@@ -1297,6 +1297,10 @@
       "title": "检查 {panel} 的地址",
       "description": "{address} 的响应与 {panel} 不符，因此已暂停此面板的控制功能。请检查此地址是否属于该面板。如果面板的地址已更改，请使用当前地址重新添加。"
     },
+    "panel_link_shared": {
+      "title": "{panel} 已重新安装，但与其他设置共用设备关联",
+      "description": "{panel} 在重新安装应用后从 {address} 应答，但 {others} 也持有相同的设备关联，因此 Home Assistant 无法判断此面板属于哪个设置，已暂停其控制。地址没有问题。如果 {others} 已不再使用，请将其删除，{panel} 会自动重新加入；否则请重新添加 {panel}。"
+    },
     "panel_identity_confirmation": {
       "title": "保留 {panel} 的现有设置",
       "fix_flow": {

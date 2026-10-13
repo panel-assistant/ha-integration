@@ -1337,6 +1337,10 @@
       "title": "Sprawdź adres panelu {panel}",
       "description": "Odpowiedź z adresu {address} nie odpowiadała panelowi {panel}, dlatego sterowanie nim zostało tymczasowo wyłączone. Sprawdź, czy ten adres należy do panelu. Jeśli jego adres się zmienił, dodaj panel ponownie, używając aktualnego adresu."
     },
+    "panel_link_shared": {
+      "title": "{panel} został ponownie zainstalowany, ale współdzieli powiązanie urządzenia",
+      "description": "{panel} odpowiedział pod adresem {address} po ponownej instalacji aplikacji, ale {others} ma to samo powiązanie urządzenia, więc Home Assistant nie może ustalić, do której konfiguracji należy ten panel, i wstrzymał jego sterowanie. Adres jest prawidłowy. Jeśli {others} nie jest już używany, usuń go, a {panel} połączy się ponownie samodzielnie; w przeciwnym razie dodaj {panel} ponownie."
+    },
     "panel_identity_confirmation": {
       "title": "Zachowaj konfigurację panelu {panel}",
       "fix_flow": {

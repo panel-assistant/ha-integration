@@ -1339,6 +1339,10 @@
       "title": "Zkontrolovat adresu panelu {panel}",
       "description": "Zařízení na adrese {address} neodpovědělo jako panel {panel}, proto bylo jeho ovládání pozastaveno. Zkontrolujte, že tato adresa patří panelu. Pokud se panel přesunul, přidejte jej znovu pomocí jeho aktuální adresy."
     },
+    "panel_link_shared": {
+      "title": "{panel} byl znovu nainstalován, ale sdílí propojení zařízení",
+      "description": "{panel} odpověděl na adrese {address} po přeinstalaci aplikace, ale {others} má stejné propojení zařízení, takže Home Assistant nedokáže určit, ke kterému nastavení tento panel patří, a pozastavil jeho ovládání. Adresa je v pořádku. Pokud se {others} už nepoužívá, smažte ho a {panel} se připojí sám; jinak přidejte {panel} znovu."
+    },
     "panel_identity_confirmation": {
       "title": "Zachovat stávající nastavení panelu {panel}",
       "fix_flow": {

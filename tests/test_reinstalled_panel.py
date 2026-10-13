@@ -287,7 +287,10 @@ async def test_a_different_device_at_the_address_is_not_adopted(
     await _poll(hass, entry)
 
     assert entry.unique_id == OLD and _wifi(hass) == f"{OLD}_wifi"
-    assert _address_issue(hass, entry)
+    issue = ir.async_get(hass).async_get_issue(
+        DOMAIN, f"panel_identity_mismatch_{entry.entry_id}"
+    )
+    assert issue is not None and issue.translation_key == "panel_identity_mismatch"
     assert not entry.runtime_data.coordinator.last_update_success
 
 
@@ -324,7 +327,43 @@ async def test_a_link_two_entries_hold_is_not_followed(
 
     assert entry.unique_id == OLD and _wifi(hass) == f"{OLD}_wifi"
     assert _wifi(hass, "beta") == f"{OTHER}_wifi"
+    issue = ir.async_get(hass).async_get_issue(
+        DOMAIN, f"panel_identity_mismatch_{entry.entry_id}"
+    )
+    assert issue is not None
+    assert issue.translation_key == "panel_link_shared"
+    assert issue.translation_placeholders is not None
+    assert issue.translation_placeholders["others"] == "beta"
+
+    await _poll(hass, entry)
+
+    assert entry.unique_id == OLD
+    assert (
+        ir.async_get(hass).async_get_issue(
+            DOMAIN, f"panel_identity_mismatch_{entry.entry_id}"
+        )
+        == issue
+    )
+
+
+async def test_removing_the_entry_that_shares_the_link_lets_the_panel_rejoin(
+    hass: HomeAssistant, hass_read_only_user: Any, network: Network
+) -> None:
+    """What the shared-link Repair advises works: once the entry not in use
+    is deleted, the reinstalled panel rejoins its entry on the next poll."""
+    entry = await _load(hass, network, hass_read_only_user.id)
+    beta = await _load(
+        hass, network, hass_read_only_user.id, OTHER, OTHER_ADDRESS, title="beta"
+    )
+    network.answers[STORED] = _health(NEW)
+    await _poll(hass, entry)
     assert _address_issue(hass, entry)
+
+    await hass.config_entries.async_remove(beta.entry_id)
+    await _poll(hass, entry)
+
+    assert _adopted(hass, entry)
+    assert not _address_issue(hass, entry)
 
 
 async def test_an_entry_left_behind_by_a_re_add_does_not_block_the_next_reinstall(

@@ -1339,6 +1339,10 @@
       "title": "Verificar o endereço de {panel}",
       "description": "{address} não respondeu como {panel}, por isso seus controles foram pausados. Verifique se este endereço pertence ao painel. Se o painel mudou de endereço, adicione-o novamente usando o endereço atual."
     },
+    "panel_link_shared": {
+      "title": "{panel} foi reinstalado, mas compartilha seu vínculo de dispositivo",
+      "description": "{panel} respondeu em {address} depois que o app foi reinstalado, mas {others} tem o mesmo vínculo de dispositivo, então o Home Assistant não consegue saber a qual configuração este painel pertence e pausou seus controles. O endereço está correto. Se {others} não estiver mais em uso, exclua-o e {panel} voltará sozinho; caso contrário, adicione {panel} novamente."
+    },
     "panel_identity_confirmation": {
       "title": "Manter a configuração existente de {panel}",
       "fix_flow": {

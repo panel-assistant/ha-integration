@@ -1297,6 +1297,10 @@
       "title": "Vérifier l’adresse de {panel}",
       "description": "La réponse de {address} ne correspondait pas à {panel}. Ses commandes ont donc été temporairement désactivées. Vérifiez que cette adresse appartient au panneau. Si son adresse a changé, ajoutez-le à nouveau avec son adresse actuelle."
     },
+    "panel_link_shared": {
+      "title": "{panel} a été réinstallé mais partage son lien d’appareil",
+      "description": "{panel} a répondu à {address} après la réinstallation de son application, mais {others} possède le même lien d’appareil : Home Assistant ne peut donc pas savoir à quelle configuration appartient ce panneau et a suspendu ses commandes. L’adresse est correcte. Si {others} n’est plus utilisé, supprimez-le et {panel} se reconnectera tout seul ; sinon, ajoutez {panel} à nouveau."
+    },
     "panel_identity_confirmation": {
       "title": "Conserver la configuration de {panel}",
       "fix_flow": {

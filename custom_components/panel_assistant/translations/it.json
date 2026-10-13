@@ -1297,6 +1297,10 @@
       "title": "Controlla l’indirizzo di {panel}",
       "description": "La risposta di {address} non corrispondeva a {panel}, quindi i suoi controlli sono stati disattivati temporaneamente. Verifica che questo indirizzo appartenga al pannello. Se il suo indirizzo è cambiato, aggiungilo di nuovo usando quello attuale."
     },
+    "panel_link_shared": {
+      "title": "{panel} è stato reinstallato ma condivide il collegamento del dispositivo",
+      "description": "{panel} ha risposto a {address} dopo la reinstallazione dell’app, ma {others} ha lo stesso collegamento del dispositivo, quindi Home Assistant non può sapere a quale configurazione appartiene questo pannello e ne ha sospeso i controlli. L’indirizzo è corretto. Se {others} non è più in uso, eliminalo e {panel} si ricollegherà da solo; altrimenti aggiungi di nuovo {panel}."
+    },
     "panel_identity_confirmation": {
       "title": "Mantieni la configurazione di {panel}",
       "fix_flow": {
