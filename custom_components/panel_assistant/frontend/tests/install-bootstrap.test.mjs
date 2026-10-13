@@ -145,7 +145,7 @@ function renderedJourney(scenario, locale = 'de', realCatalogue = false) {
     installResolve({ permissions: { raw: 'RAW_PERMISSION' } }); await pending;
     assert.equal(node('step-done').hidden, false);
     assert.equal(node('journey').children.findIndex(item => item.attributes.has('aria-current')), 3);
-    assert.equal(node('done-text').textContent, scenario === 'foreign' ? FRONTEND_WARNING : target.installer.doneManual);
+    assert.equal(node('done-text').textContent, scenario === 'foreign' ? target.installer.doneAnotherHomeAssistant : target.installer.doneManual);
     assert.ok(node('support-log').textContent.includes(target.support.setupHandover));
     assert.match(node('support-log').textContent, scenario === 'foreign' ? /handed_over/ : /RAW_OUTCOME/);
     const doneBefore = { ...calls };
@@ -181,4 +181,4 @@ test('every admitted catalogue redraws consent, progress, completion and refusal
   }
 });
 
-test('a foreign-server completion stays readable with a setup link and English fallback', () => renderedJourney('foreign', 'de', true));
+test('a foreign-server completion translates with a setup link and switches back to English', () => renderedJourney('foreign', 'de', true));
