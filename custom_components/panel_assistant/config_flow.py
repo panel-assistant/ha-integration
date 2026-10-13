@@ -63,6 +63,23 @@ from .const import (
     DOMAIN,
     help_url,
 )
+from .discovery import (
+    ADB_SERVICE_TYPE,
+    CLOSING,
+    CONFIRMED,
+    RUNNING,
+    VENDOR_SERVICE_TYPES,
+    MigrationTarget,
+    adb_candidate,
+    address_schema,
+    async_check_migration_target,
+    async_find_migration_targets,
+    async_offer_migration_targets,
+    close_offers,
+    ignored_card_data,
+    offer_blocked,
+    vendor_candidate,
+)
 from .failure_repair import async_clear_adb_authorization
 from .ha_url import async_offer_ha_url
 from .identity import CONF_INSTALL_IDENTITY, accept_health, is_installation
@@ -95,23 +112,6 @@ from .install_network import (
     async_revalidate_install_target,
 )
 from .install_plan import InstallPlanError, build_install_plan
-from .migration_targets import (
-    ADB_SERVICE_TYPE,
-    CLOSING,
-    CONFIRMED,
-    RUNNING,
-    VENDOR_SERVICE_TYPES,
-    MigrationTarget,
-    adb_candidate,
-    address_schema,
-    async_check_migration_target,
-    async_find_migration_targets,
-    async_offer_migration_targets,
-    close_offers,
-    ignored_card_data,
-    offer_blocked,
-    vendor_candidate,
-)
 from .provisioning import (
     InstallTargetProbe,
     InstallTargetState,

@@ -30,6 +30,7 @@ from .device import (
     panel_device_info,
     panel_reported_name,
 )
+from .discovery import async_offer_migration_targets
 from .embed import (
     REASON_ENTRY_UNLOADED as EMBED_ENTRY_UNLOADED,
 )
@@ -46,7 +47,6 @@ from .install_executor import (
 )
 from .lifecycle import async_setup_lifecycle
 from .microphone_repair import async_delete_microphone_issue
-from .migration_targets import async_offer_migration_targets
 from .native import CONF_NATIVE_ENTITIES, NATIVE_ONLY_PLATFORMS
 from .panel_move import (
     async_evaluate_successor_move,

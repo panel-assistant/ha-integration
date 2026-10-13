@@ -29,8 +29,8 @@ from custom_components.panel_assistant.client import (
     normalize_address,
 )
 from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.discovery import VENDOR_SERVICE_TYPES
 from custom_components.panel_assistant.install_network import PinnedPanelTarget
-from custom_components.panel_assistant.migration_targets import VENDOR_SERVICE_TYPES
 from custom_components.panel_assistant.provisioning import (
     InstallTargetProbe,
     InstallTargetState,
