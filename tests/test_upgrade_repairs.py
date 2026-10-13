@@ -125,13 +125,19 @@ async def test_a_native_entry_sets_up_on_protocol_5_without_its_authority(
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
 ) -> None:
-    """Whatever authority it stored, the entry is native; the hello is granted."""
-    entry = _entry(hass, hass_read_only_user.id, options={"authority": "shadow"})
+    """Whatever authority or channel record it stored, the entry is native."""
+    entry = _entry(
+        hass,
+        hass_read_only_user.id,
+        options={"authority": "shadow"},
+        data={"supported_channels": {"did": DID, "channels": ["relay1"]}},
+    )
 
     await _set_up(hass, entry, CURRENT)
 
     assert entry.state is ConfigEntryState.LOADED
     assert "authority" not in entry.options
+    assert "supported_channels" not in entry.data
     assert (entry.version, entry.minor_version) == (1, 2)
     assert ir.async_get(hass).issues == {}
     response = await _hello_response(hass, hass_ws_client, hass_read_only_access_token)

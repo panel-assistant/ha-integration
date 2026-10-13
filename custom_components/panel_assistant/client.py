@@ -74,8 +74,6 @@ _KNOWN_HEALTH_FIELDS = frozenset(
         "vc",
         "proto",
         "ha",
-        "ha_src",
-        "ha_refused",
         "ha_net",
         "ha_resp",
         "ha_net_p95",
@@ -88,7 +86,6 @@ _KNOWN_HEALTH_FIELDS = frozenset(
 _LIFECYCLE_STATES = frozenset(
     {"normal", "shutting_down", "starting", "back_online", "connection_lost"}
 )
-_LIFECYCLE_SOURCES = frozenset({"socket", "mqtt"})
 
 
 class HaPaneldError(Exception):
@@ -173,8 +170,6 @@ class PanelHealth:
     build: str
     config_hash: str
     ha_state: str | None = None
-    ha_source: str | None = None
-    ha_subscription_refused: bool = False
     discovery_id: str | None = None
     legacy_discovery_id: str | None = None
     installation_identity: bool = False
@@ -309,9 +304,6 @@ def parse_health_response(body: str) -> PanelHealth:
     ha_state = fields.get("ha")
     if ha_state not in _LIFECYCLE_STATES:
         ha_state = None
-    ha_source = fields.get("ha_src")
-    if ha_source not in _LIFECYCLE_SOURCES:
-        ha_source = None
     discovery_id = fields.get("did")
     if discovery_id is not None and not is_valid_discovery_id(discovery_id):
         raise InvalidResponseError
@@ -363,8 +355,6 @@ def parse_health_response(body: str) -> PanelHealth:
         build=build,
         config_hash=config_hash,
         ha_state=ha_state,
-        ha_source=ha_source,
-        ha_subscription_refused=fields.get("ha_refused") == "1",
         discovery_id=discovery_id,
         legacy_discovery_id=legacy_discovery_id,
         installation_identity=fields.get("identity") == "install",

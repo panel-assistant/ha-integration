@@ -187,7 +187,7 @@ async def _async_reconcile_install_receipt(
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Drop the authority option: every panel is native.
+    """Drop the authority option and the channel record: every panel is native.
 
     A minor version, so Panel Assistant 0.9.0, which a panel never moved off
     MQTT must go back to, still loads the entry. The move record stays.
@@ -196,7 +196,14 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         options = {
             key: value for key, value in entry.options.items() if key != CONF_AUTHORITY
         }
-        hass.config_entries.async_update_entry(entry, options=options, minor_version=2)
+        data = {
+            key: value
+            for key, value in entry.data.items()
+            if key != "supported_channels"
+        }
+        hass.config_entries.async_update_entry(
+            entry, data=data, options=options, minor_version=2
+        )
     return True
 
 

@@ -27,13 +27,12 @@ from .client import PanelHealth
 from .const import (
     CONF_CUTOVER,
     DOMAIN,
-    PROTOCOL_MAX,
-    PROTOCOL_MIN,
     REQUIRED_APP_VERSION,
 )
 from .device import panel_display_name
 from .panel_move import move_issue_id
 from .transport import async_get_sessions
+from .update_policy import overlaps
 
 ISSUE_PANEL_APP_TOO_OLD: Final = "panel_app_too_old"
 ISSUE_MQTT_PANEL_NEEDS_090: Final = "mqtt_panel_needs_090"
@@ -54,9 +53,7 @@ def needs_090_issue_id(entry_id: str) -> str:
 
 def speaks_this_protocol(health: PanelHealth) -> bool:
     """Return whether the app's health says it speaks this protocol."""
-    return health.protocol is not None and (
-        health.protocol[0] <= PROTOCOL_MAX and health.protocol[1] >= PROTOCOL_MIN
-    )
+    return health.protocol is not None and overlaps(*health.protocol)
 
 
 @callback

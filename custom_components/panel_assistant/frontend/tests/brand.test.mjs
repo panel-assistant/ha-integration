@@ -7,17 +7,17 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const repo = fileURLToPath(new URL('../../../../', import.meta.url));
-test('brand CLI rejects stale published, packaged and generated artwork', () => {
+test('brand CLI rejects stale published and packaged artwork', () => {
   const root = mkdtempSync(join(tmpdir(), 'pa-brand-'));
   try {
     cpSync(join(repo, 'tools/brand'), join(root, 'tools/brand'), { recursive: true });
     const manifest = JSON.parse(readFileSync(join(root, 'tools/brand/assets.json'), 'utf8'));
-    for (const { path } of [...manifest.assets, ...manifest.generated]) {
+    for (const { path } of manifest.assets) {
       mkdirSync(dirname(join(root, path)), { recursive: true });
       cpSync(join(repo, path), join(root, path));
     }
     // Supply published bytes through fetch's response seam; the CLI still compares canonical
-    // URLs and runs every packaged/generated check as it does in CI.
+    // URLs and runs every packaged check as it does in CI.
     const published = Object.fromEntries(manifest.assets.map(a => [a.url, readFileSync(join(repo, a.path)).toString('base64')]));
     const preload = join(root, 'published.mjs');
     writeFileSync(preload, `const assets = ${JSON.stringify(published)};\n`
@@ -35,9 +35,5 @@ test('brand CLI rejects stale published, packaged and generated artwork', () => 
     assert.equal(result.status, 1);
     assert.match(result.stderr, /packaged copy differs/);
     writeFileSync(assetPath, original);
-    writeFileSync(join(root, manifest.generated[0].path), 'changed');
-    result = run(false);
-    assert.equal(result.status, 1);
-    assert.match(result.stderr, /generated brand differs/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

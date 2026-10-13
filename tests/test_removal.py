@@ -291,7 +291,6 @@ def _entry(hass: HomeAssistant, server: TestServer, status: Any = None) -> Any:
         domain=DOMAIN,
         title="Test display",
         data={CONF_ADDRESS: f"127.0.0.1:{server.port}"},
-        options={"authority": "native"},
     )
     entry.add_to_hass(hass)
     if status is not None:

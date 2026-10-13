@@ -2205,7 +2205,6 @@ async def test_fresh_install_confirms_only_the_panels_requested_account(
         title="alpha",
         data={CONF_ADDRESS: "192.168.1.23"},
         unique_id=DISCOVERY_ID,
-        options={"authority": "native"},
     )
     entry.add_to_hass(hass)
     signed_in = await hass.auth.async_create_user("Current administrator")
@@ -2252,7 +2251,7 @@ async def test_fresh_install_confirms_only_the_panels_requested_account(
         )
     assert confirmed["type"] is FlowResultType.CREATE_ENTRY
     assert entry.data.get(CONF_TRANSPORT_USER_ID) == other.id
-    assert entry.options == {"authority": "native"}
+    assert entry.options == {}
 
 
 async def test_abandoned_fresh_install_can_resume_from_its_entry_options(
@@ -2264,7 +2263,6 @@ async def test_abandoned_fresh_install_can_resume_from_its_entry_options(
         domain=DOMAIN,
         title="alpha",
         data={CONF_ADDRESS: "192.168.1.23"},
-        options={"authority": "native"},
     )
     entry.add_to_hass(hass)
     menu = await hass.config_entries.options.async_init(entry.entry_id)

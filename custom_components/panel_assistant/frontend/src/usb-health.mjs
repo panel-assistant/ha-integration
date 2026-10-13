@@ -12,7 +12,7 @@ const versionPattern = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0
 const releaseVersion = value => typeof value === 'string' && value.length <= 63 && versionPattern.test(value) && !value.includes('\n');
 // A dev build from the signed feed reports its own versionName, which is free-form.
 const validVersion = value => releaseVersion(value) || isBuildVersionName(value);
-const knownFields = new Set(['panel', 'build', 'cfg', 'ha', 'ha_src', 'ha_refused', 'ha_net', 'ha_resp', 'ha_net_p95', 'ha_net_n', 'ha_net_miss', 'ha_net_age']);
+const knownFields = new Set(['panel', 'build', 'cfg', 'ha', 'ha_net', 'ha_resp', 'ha_net_p95', 'ha_net_n', 'ha_net_miss', 'ha_net_age']);
 
 // The native endpoint returns a text line, not a JSON status document.
 function healthVersion(body) {

@@ -72,7 +72,7 @@ from .contract import CONTRACT, catalogue_entry, catalogue_entry_for_channel
 from .embed_proof import encode_key, new_key
 from .ha_url import DATA_INSTANCE_ID, async_connection_urls
 from .lifecycle import DATA_LIFECYCLE
-from .update_policy import policy_for, prereleases_allowed
+from .update_policy import overlaps, policy_for, prereleases_allowed
 from .voice_stream import async_get_voice_stream
 
 _LOGGER = logging.getLogger(__name__)
@@ -1459,9 +1459,8 @@ def ws_hello(
         return
 
     requested = msg["protocol"]
-    low = max(requested["min"], PROTOCOL_MIN)
     high = min(requested["max"], PROTOCOL_MAX)
-    if low > high:
+    if not overlaps(requested["min"], requested["max"]):
         _follow_refused_panel(hass, connection, msg)
         connection.send_error(
             msg["id"],
@@ -1521,7 +1520,6 @@ def ws_hello(
     if (
         entry.data.get(CONF_IDENTITY_PENDING) is not None
         or (getattr(coordinator, "identity_mismatch", False) and not legacy_move)
-        or (is_installation(entry) and high < 3)
         or (not is_installation(entry) and high >= 3)
     ):
         connection.send_error(
@@ -1914,16 +1912,11 @@ def ws_report_state(
 def ws_restart_notice(
     hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    """Record a deliberate restart from the panel's current protocol-2 session."""
+    """Record a deliberate restart from the panel's current session."""
     sessions = async_get_sessions(hass)
     session = sessions.for_request(msg["session"], connection)
     if session is None:
         connection.send_error(msg["id"], ERR_SESSION_UNKNOWN, "No such session.")
-        return
-    if session.protocol < 2:
-        connection.send_error(
-            msg["id"], ERR_INVALID_FORMAT, "Restart notice requires protocol 2."
-        )
         return
     sessions.set_restart_notice(
         session.entry_id, msg["scope"], msg["reason"], msg["expected_back_ms"]

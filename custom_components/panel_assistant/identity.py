@@ -16,7 +16,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 
 from .client import PanelHealth, is_valid_discovery_id, normalize_address
-from .const import CONF_CUTOVER, CONF_SUPPORTED_CHANNELS, DOMAIN
+from .const import CONF_CUTOVER, DOMAIN
 
 CONF_INSTALL_IDENTITY = "installation_identity"
 CONF_PREVIOUS_IDENTITY = "previous_installation_identity"
@@ -312,10 +312,9 @@ def _commit_identity(
     for entity_id, target in changes:
         registry.async_update_entity(entity_id, new_unique_id=target)
     data = deepcopy(dict(entry.data))
-    for key in (CONF_CUTOVER, CONF_SUPPORTED_CHANNELS):
-        value = data.get(key)
-        if isinstance(value, dict) and value.get("did") == entry.unique_id:
-            value["did"] = did
+    cutover = data.get(CONF_CUTOVER)
+    if isinstance(cutover, dict) and cutover.get("did") == entry.unique_id:
+        cutover["did"] = did
     data[CONF_INSTALL_IDENTITY] = True
     data[CONF_PREVIOUS_IDENTITY] = entry.unique_id
     data.pop(CONF_IDENTITY_PENDING, None)
