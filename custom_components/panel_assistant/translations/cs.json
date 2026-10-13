@@ -179,6 +179,9 @@
           }
         }
       },
+      "usb_debugging": {
+        "name": "Ladění USB"
+      },
       "proximity": {
         "name": "Přiblížení"
       }

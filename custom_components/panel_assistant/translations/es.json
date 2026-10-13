@@ -363,6 +363,9 @@
           }
         }
       },
+      "usb_debugging": {
+        "name": "Depuración USB"
+      },
       "proximity": {
         "name": "Proximidad"
       }

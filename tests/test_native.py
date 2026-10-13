@@ -451,6 +451,89 @@ async def test_a_withheld_companion_update_is_never_a_pending_update(
     )
 
 
+USB_DEBUGGING_DESCRIPTOR = {
+    "channel": "diag_usb_debugging",
+    "platform": "binary_sensor",
+    "translation_key": "usb_debugging",
+    "unique_suffix": "usb_debugging",
+    "entity_category": "diagnostic",
+    "enabled_default": True,
+}
+
+
+async def test_usb_debugging_reports_observed_state_and_read_loss(
+    hass: HomeAssistant,
+    native: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """USB debugging follows actual reports, with unreadable state unavailable."""
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    token = await _session(client, [USB_DEBUGGING_DESCRIPTOR])
+    await hass.async_block_till_done()
+    entry = _native_entries(hass, native.entry_id)[f"{DID}_usb_debugging"]
+    assert entry.domain == "binary_sensor"
+    assert entry.entity_category == "diagnostic"
+    assert entry.disabled_by is None
+    assert entry.translation_key == "usb_debugging"
+    assert hass.states.get(entry.entity_id).state == STATE_UNAVAILABLE
+
+    # Completing a sync without a read must not invent an OFF observation.
+    await _sync(hass, client, token, [USB_DEBUGGING_DESCRIPTOR])
+    assert hass.states.get(entry.entity_id).state == STATE_UNAVAILABLE
+    for observation, expected in (
+        ({"state": "known", "value": True}, "on"),
+        ({"state": "unavailable"}, STATE_UNAVAILABLE),
+        ({"state": "known", "value": False}, "off"),
+        ({"state": "known", "value": True}, "on"),
+    ):
+        response = await _send(
+            client,
+            _report(token, "delta", [{"channel": "diag_usb_debugging", **observation}]),
+        )
+        assert response["success"], response
+        assert response["result"]["rejected"] == []
+        await hass.async_block_till_done()
+        assert hass.states.get(entry.entity_id).state == expected
+
+    await client.close()
+    await hass.async_block_till_done()
+    assert hass.states.get(entry.entity_id).state == STATE_UNAVAILABLE
+    assert f"{DID}_usb_debugging" in _native_entries(hass, native.entry_id)
+
+
+async def test_older_catalogue_ignores_usb_debugging_without_refusing_session(
+    hass: HomeAssistant,
+    native: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """An integration without this channel still serves the panel's known ones."""
+    from custom_components.panel_assistant import contract
+
+    earlier = {
+        key: value
+        for key, value in contract._BY_CHANNEL.items()
+        if key != "diag_usb_debugging"
+    }
+    known = DESCRIPTORS[0]
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    with patch.dict(contract._BY_CHANNEL, earlier, clear=True):
+        response = await _send(client, _hello([USB_DEBUGGING_DESCRIPTOR, known]))
+        assert response["success"], response
+        assert response["result"]["channels"] == {
+            "accepted": 2,
+            "unknown": ["diag_usb_debugging"],
+        }
+        token = response["result"]["session"]
+        await _sync(hass, client, token, [USB_DEBUGGING_DESCRIPTOR, known])
+        assert set(_native_entries(hass, native.entry_id)) == {
+            f"{DID}_{known['unique_suffix']}"
+        }
+        known_entry = next(iter(_native_entries(hass, native.entry_id).values()))
+        assert hass.states.get(known_entry.entity_id).state == "off"
+
+
 async def test_unknown_descriptors_are_accepted_and_render_nothing(
     hass: HomeAssistant,
     native: MockConfigEntry,

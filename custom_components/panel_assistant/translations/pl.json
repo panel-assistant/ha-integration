@@ -358,6 +358,9 @@
           }
         }
       },
+      "usb_debugging": {
+        "name": "Debugowanie USB"
+      },
       "proximity": {
         "name": "Zbliżenie"
       }

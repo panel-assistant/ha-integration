@@ -179,6 +179,9 @@
           }
         }
       },
+      "usb_debugging": {
+        "name": "USB debugging"
+      },
       "proximity": {
         "name": "Proximity"
       }

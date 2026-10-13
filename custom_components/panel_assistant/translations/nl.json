@@ -358,6 +358,9 @@
           }
         }
       },
+      "usb_debugging": {
+        "name": "USB-foutopsporing"
+      },
       "proximity": {
         "name": "Nabijheid"
       }
