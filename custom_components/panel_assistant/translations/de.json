@@ -42,6 +42,9 @@
           "panel_setup": "Einrichtungsassistent öffnen",
           "connect_found": "Einrichtung überspringen und jetzt verbinden",
           "add_panel": "Andere Adresse verwenden"
+        },
+        "menu_option_descriptions": {
+          "connect_found": "Einrichtung überspringen und jetzt verbinden"
         }
       },
       "panel_setup": {
@@ -1422,6 +1425,9 @@
           "authorize_adb": "Updates erlauben",
           "updates": "Panel-Updates",
           "remove_app": "Panel Assistant von diesem Panel entfernen"
+        },
+        "menu_option_descriptions": {
+          "remove_app": "Panel Assistant von diesem Panel entfernen"
         }
       },
       "onboarding": {
@@ -1466,6 +1472,9 @@
         "description": "Das Panel behält seinen eigenen Startbildschirm. Soll Home Assistant {panel} auch vergessen?",
         "menu_options": {
           "remove_app_delete_entry": "Dieses Panel aus Home Assistant löschen",
+          "remove_app_keep_entry": "Vorerst in Home Assistant behalten"
+        },
+        "menu_option_descriptions": {
           "remove_app_keep_entry": "Vorerst in Home Assistant behalten"
         }
       }

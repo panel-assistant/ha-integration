@@ -42,6 +42,9 @@
           "panel_setup": "Open de installatiewizard",
           "connect_found": "Sla de installatie over en maak nu verbinding",
           "add_panel": "Gebruik een ander adres"
+        },
+        "menu_option_descriptions": {
+          "connect_found": "Sla de installatie over en maak nu verbinding"
         }
       },
       "panel_setup": {
@@ -1462,6 +1465,9 @@
           "authorize_adb": "Updates toestaan",
           "updates": "Paneelupdates",
           "remove_app": "Panel Assistant van dit paneel halen"
+        },
+        "menu_option_descriptions": {
+          "remove_app": "Panel Assistant van dit paneel halen"
         }
       },
       "onboarding": {
@@ -1506,6 +1512,9 @@
         "description": "Het paneel houdt zijn eigen startscherm. Moet Home Assistant {panel} ook vergeten?",
         "menu_options": {
           "remove_app_delete_entry": "Dit paneel uit Home Assistant wissen",
+          "remove_app_keep_entry": "Voorlopig in Home Assistant houden"
+        },
+        "menu_option_descriptions": {
           "remove_app_keep_entry": "Voorlopig in Home Assistant houden"
         }
       }

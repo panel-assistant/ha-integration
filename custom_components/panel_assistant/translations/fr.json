@@ -42,6 +42,9 @@
           "panel_setup": "Ouvrir l'assistant de configuration",
           "connect_found": "Ignorer la configuration et connecter maintenant",
           "add_panel": "Utiliser une autre adresse"
+        },
+        "menu_option_descriptions": {
+          "connect_found": "Ignorer la configuration et connecter maintenant"
         }
       },
       "panel_setup": {
@@ -1422,6 +1425,9 @@
           "authorize_adb": "Autoriser les mises à jour",
           "updates": "Mises à jour du panneau",
           "remove_app": "Retirer Panel Assistant de ce panneau"
+        },
+        "menu_option_descriptions": {
+          "remove_app": "Retirer Panel Assistant de ce panneau"
         }
       },
       "onboarding": {
@@ -1466,6 +1472,9 @@
         "description": "Le panneau garde son propre écran d'accueil. Home Assistant doit-il aussi oublier {panel} ?",
         "menu_options": {
           "remove_app_delete_entry": "Supprimer ce panneau de Home Assistant",
+          "remove_app_keep_entry": "Le garder dans Home Assistant pour l'instant"
+        },
+        "menu_option_descriptions": {
           "remove_app_keep_entry": "Le garder dans Home Assistant pour l'instant"
         }
       }
