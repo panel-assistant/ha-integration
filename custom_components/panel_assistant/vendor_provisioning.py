@@ -71,6 +71,15 @@ META_CONTROL_CENTER: Final = "com.facebook.alohaapps.controlcenter"
 META_RESTORE_RECORD: Final = "/data/local/tmp/panel-assistant-meta-portal-restore"
 #: Shelly's launcher, which draws the corner overlay on every Wall Display.
 SHELLY_LAUNCHER: Final = "cloud.shelly.stargate"
+#: Removal hands HOME to the vendor's launcher over ADB when the app could not
+#: hand it back. Shelly's Wall Displays only: Stargate is a protected
+#: device-owner package, so an ordinary app cannot make it HOME, but the
+#: panel's shell can. Elsewhere the command fails and changes nothing.
+VENDOR_HOME_COMMAND: Final = (
+    f"cmd package set-home-activity {SHELLY_LAUNCHER}/.activities.SplashActivity"
+)
+#: The launchers that command makes HOME.
+VENDOR_HOME_PACKAGES: Final = frozenset({SHELLY_LAUNCHER})
 SHELLY_RESTORE_RECORD: Final = "/data/local/tmp/panel-assistant-shelly-restore"
 META_VERIFIER_RECORD: Final = (
     "/data/local/tmp/panel-assistant-meta-portal-verifier-restore"
