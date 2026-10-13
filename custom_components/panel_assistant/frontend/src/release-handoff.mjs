@@ -176,12 +176,14 @@ export function requestSetupHandover({ windowObject = window, options, address,
 }
 
 // The order that matters: the handover lands before the panel's setup page is
-// opened, because the wizard decides its steps when it loads.
-export async function handOverThenOpen(url, { handover, support, open }) {
+// opened, because the wizard decides its steps when it loads. The final app
+// acceptance must succeed even when the best-effort handover fails.
+export async function handOverThenOpen(url, { handover, support, beforeOpen = () => {}, open }) {
   if (url) {
     const outcome = await Promise.resolve().then(() => handover(new URL(url).hostname))
       .catch(() => 'failed');
     support('Setup handover', outcome);
   }
+  await beforeOpen();
   open(url);
 }

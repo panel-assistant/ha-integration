@@ -1,3 +1,5 @@
+import { LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID } from './app-identity.mjs';
+
 // Panel Assistant's custom support on the USB install path, sent exactly as
 // vendor_provisioning.py sends it; that module lists the panels that use it and
 // why. The program selects itself: a Meta Portal by its codename, a Shelly Wall
@@ -164,4 +166,120 @@ function parseShellySetup(lines) {
   }
   return Object.freeze({vendor: 'shelly', record, launcherOverlay: overlay,
     converged: record !== null && ['deny', 'absent'].includes(overlay)});
+}
+
+
+// Keep this program equal to vendor_provisioning.py. Client dumps execute on
+// the vendor main Looper; process death completes its pending shutdown hook.
+const DISPLAY_SETTLEMENT_PROGRAM = String.raw`
+hp_component=cloud.shelly.stargate/.activities.MainActivity
+hp_vendor_dump() {
+  hp_dump=$(timeout 2 dumpsys activity "$hp_component" 2>/dev/null) || return 1
+  hp_dump_pid=$(printf '%s\n' "$hp_dump" |
+    grep -F "ACTIVITY $hp_component " | sed 's/.* pid=//')
+  hp_dump_state=$(printf '%s\n' "$hp_dump" |
+    sed -n 's/^[[:space:]]*\(mResumed=.* mFinished=.*\)$/\1/p')
+  hp_dump_config=$(printf '%s\n' "$hp_dump" |
+    sed -n 's/^[[:space:]]*mCurrentConfig={\(.*\)$/\1/p')
+  case "$hp_dump_pid" in ''|*[!0-9]*) return 1 ;; esac
+  [ "$hp_dump_pid" = "$(pidof cloud.shelly.stargate)" ] &&
+    [ -n "$hp_dump_state" ]
+}
+hp_font() {
+  printf '%s\n' "$1" | grep -Eq '^[0-9]+([.][0-9]+)?$' || return 1
+  case "$1" in *.*) printf '%s\n' "$1" | sed 's/0*$//;s/\.$//' ;;
+    *) printf '%s\n' "$1" ;; esac
+}
+hp_config_matches() {
+  hp_wm=$(wm density) || return 1
+  hp_density=$(printf '%s\n' "$hp_wm" | sed -n 's/^Override density: //p')
+  if [ -z "$hp_density" ]; then
+    hp_density=$(printf '%s\n' "$hp_wm" | sed -n 's/^Physical density: //p')
+  fi
+  case "$hp_density" in ''|*[!0-9]*) return 1 ;; esac
+  hp_density_token="$hp_density"dpi
+  case "$hp_dump_config" in *" $hp_density_token "*) ;; *) return 1 ;; esac
+  hp_scale=$(settings get system font_scale) || return 1
+  [ "$hp_scale" != null ] || hp_scale=1
+  hp_scale=$(hp_font "$hp_scale") || return 1
+  hp_client_scale=$(printf '%s\n' "$hp_dump_config" | cut -d ' ' -f 1)
+  hp_client_scale=$(hp_font "$hp_client_scale") || return 1
+  [ "$hp_scale" = "$hp_client_scale" ]
+}
+hp_vendor_start() {
+  [ "$(date +%s)" -lt "$hp_deadline" ] || return 1
+  hp_start=$(timeout 5 am start -W -n "$hp_component" 2>&1) || return 1
+  case "$hp_start" in *'Status: ok'*) return 0 ;; *) return 1 ;; esac
+}
+hp_settle_vendor_display() {
+  hp_packages=$(pm list packages cloud.shelly.stargate) || return 1
+  hp_package=$(printf '%s\n' "$hp_packages" |
+    grep -Fx 'package:cloud.shelly.stargate')
+  if [ -z "$hp_package" ]; then echo skipped; return; fi
+  hp_home=$(cmd package resolve-activity --brief \
+    -a android.intent.action.MAIN -c android.intent.category.HOME) || return 1
+  hp_home=$(printf '%s\n' "$hp_home" | tail -n 1)
+  case "$hp_home" in __HOME_PACKAGE__/*) ;; *) return 1 ;; esac
+  hp_deadline=$(( $(date +%s) + 20 ))
+  hp_matched=
+  for hp_attempt in 1 2; do
+    hp_old=$(pidof cloud.shelly.stargate)
+    case "$hp_old" in *[!0-9]*) return 1 ;; esac
+    hp_vendor_start || return 1
+    while [ "$(date +%s)" -lt "$hp_deadline" ]; do
+      if hp_vendor_dump &&
+        [ "$hp_dump_state" = 'mResumed=true mStopped=false mFinished=false' ] &&
+        hp_config_matches; then hp_matched=$hp_dump_pid; break; fi
+      hp_pid=$(pidof cloud.shelly.stargate)
+      case "$hp_pid" in *[!0-9]*) return 1 ;; esac
+      if [ -z "$hp_old" ] && [ -n "$hp_pid" ]; then hp_old=$hp_pid; fi
+      if [ -n "$hp_old" ] && [ ! -d "/proc/$hp_old" ]; then break; fi
+      sleep 0.2
+    done
+    [ -z "$hp_matched" ] || break
+  done
+  [ -n "$hp_matched" ] || return 1
+  input keyevent 3 || return 1
+  hp_paused=0
+  while [ "$(date +%s)" -lt "$hp_deadline" ]; do
+    if hp_vendor_dump && [ "$hp_dump_pid" = "$hp_matched" ] &&
+      hp_config_matches; then
+      case "$hp_dump_state" in
+        'mResumed=false mStopped=true mFinished=false'|\
+        'mResumed=false mStopped=false mFinished=false') hp_paused=1; break ;;
+      esac
+    fi
+    [ -d "/proc/$hp_matched" ] || return 1
+    sleep 0.2
+  done
+  [ "$hp_paused" = 1 ] || return 1
+  hp_vendor_start || return 1
+  while [ "$(date +%s)" -lt "$hp_deadline" ]; do
+    if [ ! -d "/proc/$hp_matched" ]; then echo settled; return; fi
+    if hp_vendor_dump && [ "$hp_dump_pid" = "$hp_matched" ] &&
+      [ "$hp_dump_state" = 'mResumed=true mStopped=false mFinished=false' ] &&
+      hp_config_matches; then echo settled; return; fi
+    sleep 0.2
+  done
+  return 1
+}
+`.trim();
+
+export function buildVendorDisplaySettlement(nonce, packageId) {
+  if (!/^[a-f0-9]{32}$/.test(nonce) || ![LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID].includes(packageId)) fail();
+  return [
+    `echo HAPANELD_VENDOR_DISPLAY_SETTLEMENT_BEGIN:${nonce}`,
+    DISPLAY_SETTLEMENT_PROGRAM.replaceAll('__HOME_PACKAGE__', packageId),
+    'hp_settle_vendor_display || echo error',
+    `echo HAPANELD_VENDOR_DISPLAY_SETTLEMENT_END:${nonce}:0`,
+  ].join('\n');
+}
+
+export function parseVendorDisplaySettlement(body, nonce) {
+  if (typeof body !== 'string' || body.length > 1024 || !/^[a-f0-9]{32}$/.test(nonce)) fail();
+  const lines = body.replaceAll('\r\n', '\n').split('\n');
+  if (lines.length !== 4 || lines[0] !== `HAPANELD_VENDOR_DISPLAY_SETTLEMENT_BEGIN:${nonce}` ||
+      lines[2] !== `HAPANELD_VENDOR_DISPLAY_SETTLEMENT_END:${nonce}:0` || lines[3] !== '' ||
+      !['settled', 'skipped'].includes(lines[1])) fail();
+  return lines[1];
 }

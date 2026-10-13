@@ -60,6 +60,7 @@ from .install_adb import (
     async_installed_artifact_size,
     async_launch_installed_app,
     async_preflight_install,
+    async_settle_vendor_display,
     async_stage_apk,
     async_verify_installed_target,
 )
@@ -993,12 +994,42 @@ class InstallExecutor:
                         # install that worked must not be failed by a
                         # convenience that did not.
                         await async_offer_ha_url(self._hass, panel)
-                        # The same moment, and the same best-effort rule: a
-                        # rootless panel gets the display and text size its
-                        # profile recommends, once, at setup.
-                        await self._async_offer_display_sizing(
+                        # A rootless panel gets its recommended display and
+                        # text size at setup. A completed refusal is optional;
+                        # an interrupted command cannot become acceptance.
+                        try:
+                            await self._async_offer_display_sizing(
+                                receipt, execution, panel
+                            )
+                        except _CancellationObserved as err:
+                            receipt = err.receipt
+                            continue
+                        except (
+                            AdbCredentialError,
+                            InstallAdbError,
+                            InstallNetworkError,
+                        ) as err:
+                            # A lost shell may still be writing display state.
+                            # A later vendor resume cannot settle a write whose
+                            # completion is unknown, so retain recovery instead
+                            # of launching the app ahead of that command.
+                            receipt = await self._async_recovery(
+                                receipt,
+                                InstallResultCode.VERIFICATION_REQUIRED,
+                                _result_subcode(err),
+                            )
+                            continue
+                        # Display changes can leave a vendor shutdown pending.
+                        # Even equal sizing must settle a restart left by an
+                        # earlier attempt before this health becomes final.
+                        receipt = await self._async_settle_display_and_launch(
                             receipt, execution, panel
                         )
+                        if (
+                            receipt.phase is not InstallPhase.HEALTH_CHECK
+                            or receipt.cancel_requested
+                        ):
+                            continue
                         receipt = await self._async_transition(
                             receipt,
                             InstallPhase.HEALTHY_UNCLAIMED,
@@ -1106,23 +1137,14 @@ class InstallExecutor:
         execution: _FrozenExecution,
         panel: HaPaneldClient,
     ) -> None:
-        """Apply the panel's recommended sizing over ADB; never fails an install."""
+        """Offer sizing; a completed refusal is optional, lost custody is not."""
         sizing = await async_read_recommended_sizing(panel)
         if sizing is None:
             return
-        try:
-            credential = await self._async_current_credential(receipt)
-            result = await async_apply_display_sizing(
-                execution.adb_target, credential.signer, sizing
-            )
-        except (AdbCredentialError, InstallAdbError) as err:
-            _LOGGER.warning(
-                "Could not set the recommended display and text size on panel=%s "
-                "(%s); set them on the panel if its text looks too large or small",
-                receipt.target.address,
-                _result_subcode(err),
-            )
-            return
+        credential, receipt = await self._async_mutation_authority(receipt, execution)
+        result = await async_apply_display_sizing(
+            execution.adb_target, credential.signer, sizing
+        )
         if not result.converged:
             _LOGGER.warning(
                 "The panel did not take the recommended display and text size "
@@ -1131,6 +1153,80 @@ class InstallExecutor:
                 result.density,
                 result.font_scale,
             )
+
+    async def _async_settle_display_and_launch(
+        self,
+        receipt: InstallJobReceipt,
+        execution: _FrozenExecution,
+        panel: HaPaneldClient,
+    ) -> InstallJobReceipt:
+        """Only settled native display state may precede final app acceptance."""
+        try:
+            credential, receipt = await self._async_mutation_authority(
+                receipt, execution
+            )
+            settlement = await async_settle_vendor_display(
+                execution.adb_target,
+                credential.signer,
+                execution.descriptor,
+                expected_root_mode=_root_mode(receipt),
+            )
+            if settlement == "skipped":
+                return receipt
+            if settlement != "settled":
+                return await self._async_recovery(
+                    receipt,
+                    InstallResultCode.VERIFICATION_REQUIRED,
+                    "display_settlement:unexpected_outcome",
+                )
+            credential, receipt = await self._async_mutation_authority(
+                receipt, execution
+            )
+            if (
+                await async_installed_artifact_size(
+                    execution.adb_target,
+                    credential.signer,
+                    execution.descriptor,
+                    expected_root_mode=_root_mode(receipt),
+                )
+                != receipt.artifact.apk_size
+            ):
+                return await self._async_recovery(
+                    receipt,
+                    InstallResultCode.VERIFICATION_REQUIRED,
+                    "display_settlement:artifact_changed",
+                )
+            credential, receipt = await self._async_mutation_authority(
+                receipt, execution
+            )
+            outcome = await async_launch_installed_app(
+                execution.adb_target,
+                credential.signer,
+                execution.descriptor,
+                expected_root_mode=_root_mode(receipt),
+            )
+            if outcome is not LaunchOutcome.STARTED:
+                return await self._async_recovery(
+                    receipt,
+                    InstallResultCode.VERIFICATION_REQUIRED,
+                    "display_settlement:launch_refused",
+                )
+        except _CancellationObserved as err:
+            return err.receipt
+        except (AdbCredentialError, InstallAdbError, InstallNetworkError) as err:
+            return await self._async_recovery(
+                receipt,
+                InstallResultCode.VERIFICATION_REQUIRED,
+                _result_subcode(err),
+            )
+        health, subcode = await self._async_health(execution, panel)
+        if health is None or not health_is_installed_app(health, receipt.artifact):
+            return await self._async_recovery(
+                receipt,
+                InstallResultCode.VERIFICATION_REQUIRED,
+                subcode or "health:identity_mismatch",
+            )
+        return receipt
 
     async def _async_current_credential(
         self, receipt: InstallJobReceipt
