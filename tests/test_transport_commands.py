@@ -168,7 +168,7 @@ async def native(hass: HomeAssistant, hass_read_only_user: Any) -> MockConfigEnt
     [
         (None, ["approval", "commands", "events", "state"]),
         (["state", "events"], ["events", "state"]),
-        (["state", "commands", "mqtt_withdraw"], ["commands", "state"]),
+        (["state", "commands", "unknown_capability"], ["commands", "state"]),
     ],
 )
 async def test_hello_grants_what_the_panel_offered(
