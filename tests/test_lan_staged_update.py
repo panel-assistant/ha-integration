@@ -42,7 +42,13 @@ from pytest_homeassistant_custom_component.common import (
 )
 from yarl import URL
 
-from custom_components.panel_assistant import feed_coordinator, install_network, release
+from custom_components.panel_assistant import (
+    feed_coordinator,
+    install_network,
+    release,
+    update_errors,
+    update_progress,
+)
 from custom_components.panel_assistant import update as panel_update
 from custom_components.panel_assistant.adb_credentials import (
     AdbCredential,
@@ -549,7 +555,7 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
 ) -> None:
     """Never Unavailable, a bar that only rises, and the new version only at the end."""
     # A wait that can never succeed fails in a second, not fourteen minutes.
-    monkeypatch.setattr(panel_update, "_UPDATE_TIMEOUT_SECONDS", 1)
+    monkeypatch.setattr(update_progress, "_UPDATE_TIMEOUT_SECONDS", 1)
     entity, client = await _entity(hass, monkeypatch, _GitHub(key))
     start = entity.installed_version
     shown: list[dict[str, Any]] = []
@@ -563,7 +569,7 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
     restarted: PanelSnapshot | None = None
     answering = absent = 0
     clock = 0.0
-    monkeypatch.setattr(panel_update, "_now", lambda: clock)
+    monkeypatch.setattr(update_progress, "_now", lambda: clock)
 
     async def accept(*_args: Any) -> None:
         nonlocal restarted, absent, answering
@@ -643,7 +649,7 @@ async def test_the_update_bar_redraws_itself_between_polls_until_the_end(
     real_sleep = asyncio.sleep
     entity, client = await _entity(hass, monkeypatch, _GitHub(key))
     clock = 0.0
-    monkeypatch.setattr(panel_update, "_now", lambda: clock)
+    monkeypatch.setattr(update_progress, "_now", lambda: clock)
     drawn: list[tuple[int, int | None]] = []
 
     def write() -> None:
@@ -1367,7 +1373,7 @@ async def _lan_grant_repair_panel(
         side_effect=AssertionError("repair requested authorization")
     )
     monkeypatch.setattr(
-        panel_update, "async_request_adb_authorization", request_authorization
+        update_errors, "async_request_adb_authorization", request_authorization
     )
     monkeypatch.setattr(
         install_network, "async_pin_install_target", AsyncMock(return_value=pinned)

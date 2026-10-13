@@ -32,6 +32,7 @@ from custom_components.panel_assistant import (
     CONFIG_SCHEMA,
     async_setup,
     install_network,
+    update_progress,
 )
 from custom_components.panel_assistant import update as panel_update
 from custom_components.panel_assistant.adb_credentials import AdbCredentialError
@@ -240,8 +241,8 @@ def delivery(
     monkeypatch.setattr(panel_update.asyncio, "sleep", AsyncMock())
     # With sleep stubbed, an unexpected wait would spin to its real deadline;
     # keep that to about a second so a regression fails fast instead of hanging.
-    monkeypatch.setattr(panel_update, "_ANDROID_PACKAGE_INSTALL_MAX_SECONDS", 0)
-    monkeypatch.setattr(panel_update, "_RESTART_HEALTH_GRACE_SECONDS", 1)
+    monkeypatch.setattr(update_progress, "_ANDROID_PACKAGE_INSTALL_MAX_SECONDS", 0)
+    monkeypatch.setattr(update_progress, "_RESTART_HEALTH_GRACE_SECONDS", 1)
     return SimpleNamespace(
         session=session,
         download=download,
@@ -608,7 +609,7 @@ async def test_same_number_from_another_app_does_not_verify_the_install(
     )
     client.async_stage_apk.return_value = _preview(package=SUCCESSOR_PACKAGE_ID)
     _restart_into(entity, client, 772, package=LEGACY_PACKAGE_ID)
-    monkeypatch.setattr(panel_update, "_RESTART_HEALTH_GRACE_SECONDS", 0.01)
+    monkeypatch.setattr(update_progress, "_RESTART_HEALTH_GRACE_SECONDS", 0.01)
 
     with pytest.raises(HomeAssistantError) as error:
         await entity.async_install(None, False)

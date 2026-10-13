@@ -15,7 +15,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from yarl import URL
 
 from custom_components.panel_assistant import update as panel_update
-from custom_components.panel_assistant import update_policy
+from custom_components.panel_assistant import update_policy, update_progress
 from custom_components.panel_assistant.app_identity import (
     LAUNCH_COMPONENTS,
     LEGACY_PACKAGE_ID,
@@ -189,8 +189,8 @@ async def test_accepted_panel_update_failure_creates_repair(
         operation=PanelInstallStatus(running=False, component="ha-paneld"),
         error=None,
     )
-    monkeypatch.setattr(panel_update, "_UPDATE_TIMEOUT_SECONDS", 0.01)
-    monkeypatch.setattr(panel_update, "_UPDATE_RECHECK_SECONDS", 0.01)
+    monkeypatch.setattr(update_progress, "_UPDATE_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(update_progress, "_UPDATE_RECHECK_SECONDS", 0.01)
 
     with pytest.raises(HomeAssistantError, match="did not complete"):
         await entity.async_install(None, backup=False)
@@ -215,7 +215,7 @@ async def test_recovered_terminal_without_target_is_unknown_without_requeue(
     repairs: SimpleNamespace,
 ) -> None:
     entity, client = _entity(hass, recovered=True)
-    monkeypatch.setattr(panel_update, "_TERMINAL_STATUS_GRACE_SECONDS", 0)
+    monkeypatch.setattr(update_progress, "_TERMINAL_STATUS_GRACE_SECONDS", 0)
     monkeypatch.setattr(panel_update.asyncio, "sleep", AsyncMock())
 
     statuses = iter(
@@ -253,7 +253,7 @@ async def test_recovered_stalled_update_creates_repair_without_requeue(
 ) -> None:
     entity, client = _entity(hass, recovered=True)
     entity.coordinator.reachable = False
-    monkeypatch.setattr(panel_update, "_UPDATE_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(update_progress, "_UPDATE_TIMEOUT_SECONDS", 0.01)
     real_sleep = panel_update.asyncio.sleep
 
     async def wait_past_deadline(_seconds: float) -> None:
@@ -324,7 +324,7 @@ async def test_recovered_update_accepts_newer_health_when_offer_advanced(
     entity._update_coordinator.async_request_refresh = AsyncMock(
         side_effect=refresh_status
     )
-    monkeypatch.setattr(panel_update, "_TERMINAL_STATUS_GRACE_SECONDS", 0)
+    monkeypatch.setattr(update_progress, "_TERMINAL_STATUS_GRACE_SECONDS", 0)
     monkeypatch.setattr(panel_update.asyncio, "sleep", AsyncMock())
     entity._resume_running_operation()
     observer = entity._observer_task
@@ -379,7 +379,7 @@ async def test_recovered_feed_update_accepts_higher_code_with_same_name(
     entity._update_coordinator.async_request_refresh = AsyncMock(
         side_effect=refresh_status
     )
-    monkeypatch.setattr(panel_update, "_TERMINAL_STATUS_GRACE_SECONDS", 0)
+    monkeypatch.setattr(update_progress, "_TERMINAL_STATUS_GRACE_SECONDS", 0)
     monkeypatch.setattr(panel_update.asyncio, "sleep", AsyncMock())
 
     entity._resume_running_operation()
@@ -423,7 +423,7 @@ async def test_recovered_update_already_advanced_is_not_reported_failed(
     entity._update_coordinator.async_request_refresh = AsyncMock(
         side_effect=refresh_status
     )
-    monkeypatch.setattr(panel_update, "_TERMINAL_STATUS_GRACE_SECONDS", 0)
+    monkeypatch.setattr(update_progress, "_TERMINAL_STATUS_GRACE_SECONDS", 0)
     monkeypatch.setattr(panel_update.asyncio, "sleep", AsyncMock())
 
     entity._resume_running_operation()
@@ -442,7 +442,7 @@ async def test_recovered_terminal_before_running_is_unknown(
     repairs: SimpleNamespace,
 ) -> None:
     entity, client = _entity(hass, recovered=True)
-    monkeypatch.setattr(panel_update, "_TERMINAL_STATUS_GRACE_SECONDS", 0)
+    monkeypatch.setattr(update_progress, "_TERMINAL_STATUS_GRACE_SECONDS", 0)
 
     async def refresh_status() -> None:
         entity._update_coordinator.data = PanelUpdateSnapshot(
@@ -930,9 +930,9 @@ async def test_staged_update_finishes_on_reported_build_without_diagnostics(
     entity, client = _entity(hass, feed=True)
     entity._entry_id = entry.entry_id
     client.async_get_version_code.side_effect = CannotConnectError
-    monkeypatch.setattr(panel_update, "_ANDROID_PACKAGE_INSTALL_MAX_SECONDS", 0)
-    monkeypatch.setattr(panel_update, "_RESTART_HEALTH_GRACE_SECONDS", 0.05)
-    monkeypatch.setattr(panel_update, "_UPDATE_RECHECK_SECONDS", 0.001)
+    monkeypatch.setattr(update_progress, "_ANDROID_PACKAGE_INSTALL_MAX_SECONDS", 0)
+    monkeypatch.setattr(update_progress, "_RESTART_HEALTH_GRACE_SECONDS", 0.05)
+    monkeypatch.setattr(update_progress, "_UPDATE_RECHECK_SECONDS", 0.001)
     monkeypatch.setattr(panel_update, "async_store_panel_backup", AsyncMock())
     snapshot = entity.coordinator.data
 
@@ -1036,8 +1036,8 @@ async def test_invalid_request_does_not_create_repair(
         operation=PanelInstallStatus(running=False, component="ha-paneld"),
         error=None,
     )
-    monkeypatch.setattr(panel_update, "_UPDATE_TIMEOUT_SECONDS", 0.01)
-    monkeypatch.setattr(panel_update, "_UPDATE_RECHECK_SECONDS", 0.01)
+    monkeypatch.setattr(update_progress, "_UPDATE_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(update_progress, "_UPDATE_RECHECK_SECONDS", 0.01)
 
     with pytest.raises(HomeAssistantError, match="did not complete"):
         await entity.async_install(None, backup=False)
@@ -1155,8 +1155,8 @@ async def test_accepted_staged_update_failure_creates_repair(
     monkeypatch.setattr(
         panel_update, "async_download_build", AsyncMock(return_value=b"apk")
     )
-    monkeypatch.setattr(panel_update, "_ANDROID_PACKAGE_INSTALL_MAX_SECONDS", 0)
-    monkeypatch.setattr(panel_update, "_RESTART_HEALTH_GRACE_SECONDS", 0)
+    monkeypatch.setattr(update_progress, "_ANDROID_PACKAGE_INSTALL_MAX_SECONDS", 0)
+    monkeypatch.setattr(update_progress, "_RESTART_HEALTH_GRACE_SECONDS", 0)
 
     with pytest.raises(HomeAssistantError, match="did not complete"):
         await entity.async_install(None, backup=False)
@@ -1189,8 +1189,8 @@ async def test_recovered_prerelease_advance_completes_without_repair(
     entity.coordinator.data = replace(
         snapshot, health=replace(snapshot.health, version=before, version_code=1050)
     )
-    monkeypatch.setattr(panel_update, "_UPDATE_TIMEOUT_SECONDS", 0.02)
-    monkeypatch.setattr(panel_update, "_UPDATE_RECHECK_SECONDS", 0.01)
+    monkeypatch.setattr(update_progress, "_UPDATE_TIMEOUT_SECONDS", 0.02)
+    monkeypatch.setattr(update_progress, "_UPDATE_RECHECK_SECONDS", 0.01)
 
     async def refresh_health() -> None:
         entity.coordinator.data = replace(
@@ -1227,9 +1227,9 @@ async def test_slow_panel_return_after_terminal_slot_still_completes(
     """A stopped progress slot cannot shorten the accepted update's total wait."""
     entity, _ = _entity(hass)
     snapshot = entity.coordinator.data
-    monkeypatch.setattr(panel_update, "_TERMINAL_STATUS_GRACE_SECONDS", 0.001)
-    monkeypatch.setattr(panel_update, "_UPDATE_TIMEOUT_SECONDS", 0.5)
-    monkeypatch.setattr(panel_update, "_UPDATE_RECHECK_SECONDS", 0.01)
+    monkeypatch.setattr(update_progress, "_TERMINAL_STATUS_GRACE_SECONDS", 0.001)
+    monkeypatch.setattr(update_progress, "_UPDATE_TIMEOUT_SECONDS", 0.5)
+    monkeypatch.setattr(update_progress, "_UPDATE_RECHECK_SECONDS", 0.01)
     entity._update_coordinator.data = PanelUpdateSnapshot(
         operation=PanelInstallStatus(running=False, component="ha-paneld"), error=None
     )
@@ -1275,8 +1275,8 @@ async def test_reachable_panel_unproved_update_reports_incomplete(
         entity.coordinator.client.async_get_status = AsyncMock(
             return_value=PanelStatus(warning_count=0, capability_count=0)
         )
-    monkeypatch.setattr(panel_update, "_UPDATE_TIMEOUT_SECONDS", 0.02)
-    monkeypatch.setattr(panel_update, "_UPDATE_RECHECK_SECONDS", 0.01)
+    monkeypatch.setattr(update_progress, "_UPDATE_TIMEOUT_SECONDS", 0.02)
+    monkeypatch.setattr(update_progress, "_UPDATE_RECHECK_SECONDS", 0.01)
 
     with pytest.raises(HomeAssistantError, match="update did not complete") as error:
         await entity.async_install(None, backup=False)
@@ -1293,8 +1293,8 @@ async def test_recovered_disappeared_operation_ends_unknown_without_repair(
 ) -> None:
     """A past running sample with no durable target is not a failed install."""
     entity, client = _entity(hass, recovered=True)
-    monkeypatch.setattr(panel_update, "_UPDATE_TIMEOUT_SECONDS", 0.02)
-    monkeypatch.setattr(panel_update, "_UPDATE_RECHECK_SECONDS", 0.01)
+    monkeypatch.setattr(update_progress, "_UPDATE_TIMEOUT_SECONDS", 0.02)
+    monkeypatch.setattr(update_progress, "_UPDATE_RECHECK_SECONDS", 0.01)
     refreshes = 0
 
     async def refresh_status() -> None:

@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.panel_assistant import update as panel_update
+from custom_components.panel_assistant import update_progress
 from custom_components.panel_assistant.adb_credentials import AdbCredentialError
 from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
 from custom_components.panel_assistant.client import (
@@ -280,9 +281,9 @@ async def test_matching_update_health_requires_ready_home_proof(
     )
     entity.coordinator.reachable = True
 
-    monkeypatch.setattr(panel_update, "_ANDROID_PACKAGE_INSTALL_MAX_SECONDS", 0)
-    monkeypatch.setattr(panel_update, "_RESTART_HEALTH_GRACE_SECONDS", 0.05)
-    monkeypatch.setattr(panel_update, "_UPDATE_RECHECK_SECONDS", 0.001)
+    monkeypatch.setattr(update_progress, "_ANDROID_PACKAGE_INSTALL_MAX_SECONDS", 0)
+    monkeypatch.setattr(update_progress, "_RESTART_HEALTH_GRACE_SECONDS", 0.05)
+    monkeypatch.setattr(update_progress, "_UPDATE_RECHECK_SECONDS", 0.001)
     artifact = ReleaseArtifact("v0.9.10", "0.9.10", "app.apk", "", "")
 
     with pytest.raises(HomeAssistantError, match="did not complete"):
@@ -433,8 +434,8 @@ async def test_update_entity_reports_a_completed_panel_operation_without_new_hea
         ),
         error=None,
     )
-    monkeypatch.setattr(panel_update, "_UPDATE_TIMEOUT_SECONDS", 0.01)
-    monkeypatch.setattr(panel_update, "_UPDATE_RECHECK_SECONDS", 0.01)
+    monkeypatch.setattr(update_progress, "_UPDATE_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(update_progress, "_UPDATE_RECHECK_SECONDS", 0.01)
 
     with pytest.raises(HomeAssistantError, match="did not complete") as error:
         await entity.async_install(None, backup=False)
@@ -486,7 +487,7 @@ async def test_update_entity_observes_health_through_terminal_restart_race(
 
 def test_update_timeout_covers_android_download_install_and_restart_bounds() -> None:
     """HA must not time out during the panel's declared transaction bounds."""
-    assert panel_update._UPDATE_TIMEOUT_SECONDS == 14 * 60
+    assert update_progress._UPDATE_TIMEOUT_SECONDS == 14 * 60
 
 
 def test_update_entity_restores_a_panel_owned_operation_after_reload(
@@ -577,10 +578,12 @@ async def test_unload_cancels_recovered_observer_without_install_retry(
     entity.async_write_ha_state = MagicMock()
     waiting = asyncio.Event()
 
-    async def wait_forever(_expected_version: str) -> None:
+    async def wait_forever(_hass: HomeAssistant, _expected_version: str) -> None:
         await waiting.wait()
 
-    monkeypatch.setattr(entity, "_async_wait_for_installed_version", wait_forever)
+    monkeypatch.setattr(
+        entity._progress, "async_wait_for_installed_version", wait_forever
+    )
 
     entity._resume_running_operation()
     observer = entity._observer_task
@@ -685,4 +688,4 @@ async def test_waiting_for_the_tap_is_not_a_failure(
     assert refreshes == 4
     assert summaries[:3] == ["Tap Install on the panel to finish the update."] * 3
     assert entity.installed_version == "0.9.10"
-    assert panel_update._UPDATE_TIMEOUT_SECONDS == 14 * 60
+    assert update_progress._UPDATE_TIMEOUT_SECONDS == 14 * 60
