@@ -48,7 +48,11 @@ def read_installed_build(root: Path | None = None) -> Build | None:
         version = json.loads((root / "manifest.json").read_text(encoding="utf-8"))[
             "version"
         ]
-        match = _BUILD.search((root / "build.py").read_text(encoding="utf-8"))
+        # A build from before the number had its own file (a kept rollback copy).
+        source = root / "build.py"
+        if not source.exists():
+            source = root / "const.py"
+        match = _BUILD.search(source.read_text(encoding="utf-8"))
     except OSError, ValueError, KeyError, TypeError:
         return None
     if not isinstance(version, str) or match is None:

@@ -108,6 +108,14 @@ async def test_matching_files_clear_the_issue(
     assert restart_pending(hass) is None
 
 
+def test_a_build_from_before_the_number_moved_is_still_read(tmp_path: Path) -> None:
+    """A kept rollback copy carries its build in const.py."""
+    root = _install(tmp_path, "0.9.0", 499)
+    (root / "build.py").rename(root / "const.py")
+
+    assert read_installed_build(root) == ("0.9.0", 499)
+
+
 async def test_an_unreadable_build_neither_raises_nor_clears(
     hass: HomeAssistant, tmp_path: Path
 ) -> None:
