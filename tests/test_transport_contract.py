@@ -602,6 +602,7 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
     assert "health_update_failed" in keys["exceptions"]
     assert "update_busy" in keys["exceptions"]
     assert keys["issues"] == {
+        "another_home_assistant",
         "adb_update_authorization",
         "no_update_route",
         "merged_panel_identity",

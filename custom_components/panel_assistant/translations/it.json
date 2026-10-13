@@ -147,6 +147,9 @@
       "install_recovery_required": "Home Assistant non può dimostrare che sia sicuro continuare automaticamente. Non è stata creata alcuna voce. Non riprovare l'installazione automatica e non disinstallare o reimpostare l'app finché non avrai seguito la guida alla sicurezza e al ripristino del provisioning indicata nella documentazione dell'integrazione.",
       "install_receipt_error": "Home Assistant non è riuscito a leggere in modo sicuro la ricevuta di installazione persistente. Non è stata creata alcuna voce.",
       "unknown": "La procedura di configurazione ha perso lo stato in sospeso del pannello. Avvia nuovamente la procedura di configurazione."
+    },
+    "create_entry": {
+      "another_home_assistant": "This panel is signed in to another Home Assistant. It has been added here, but its settings and sign-in have not changed. To connect it here, change Home Assistant and sign in on the panel."
     }
   },
   "entity": {
@@ -162,7 +165,8 @@
           "restarting_update": "Riavvio in corso (aggiornamento)",
           "restarting_settings": "Riavvio in corso (impostazioni)",
           "restarting_recovery": "Riavvio in corso (ripristino)",
-          "restarting_reboot": "Riavvio in corso (riavvio di sistema)"
+          "restarting_reboot": "Riavvio in corso (riavvio di sistema)",
+          "another_home_assistant": "Signed in to another Home Assistant"
         }
       },
       "diag_boot": {
@@ -1399,6 +1403,10 @@
           "entry_removed": "Questo pannello è stato rimosso."
         }
       }
+    },
+    "another_home_assistant": {
+      "title": "{panel} is signed in to another Home Assistant",
+      "description": "{panel} has been added here, but it is signed in to another Home Assistant. Its settings and sign-in have not changed. To connect it here, change Home Assistant and sign in on the panel."
     }
   },
   "options": {

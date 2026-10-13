@@ -147,6 +147,9 @@
       "install_recovery_required": "Home Assistant no puede demostrar que sea seguro continuar automáticamente. No se ha creado ninguna entrada. Hasta que hayas seguido la guía de seguridad y recuperación de aprovisionamiento enlazada desde la documentación de la integración, no repitas la instalación automática; tampoco desinstales ni restablezcas la aplicación.",
       "install_receipt_error": "Home Assistant no ha podido leer de forma segura el comprobante persistente de la instalación. No se ha creado ninguna entrada.",
       "unknown": "El flujo de configuración ha perdido el estado pendiente del panel. Vuelve a iniciar la configuración."
+    },
+    "create_entry": {
+      "another_home_assistant": "This panel is signed in to another Home Assistant. It has been added here, but its settings and sign-in have not changed. To connect it here, change Home Assistant and sign in on the panel."
     }
   },
   "entity": {
@@ -162,7 +165,8 @@
           "restarting_update": "Reiniciando (actualización)",
           "restarting_settings": "Reiniciando (configuración)",
           "restarting_recovery": "Reiniciando (recuperación)",
-          "restarting_reboot": "Reiniciando (reinicio del sistema)"
+          "restarting_reboot": "Reiniciando (reinicio del sistema)",
+          "another_home_assistant": "Signed in to another Home Assistant"
         }
       },
       "diag_boot": {
@@ -1399,6 +1403,10 @@
           "entry_removed": "Este panel se ha eliminado."
         }
       }
+    },
+    "another_home_assistant": {
+      "title": "{panel} is signed in to another Home Assistant",
+      "description": "{panel} has been added here, but it is signed in to another Home Assistant. Its settings and sign-in have not changed. To connect it here, change Home Assistant and sign in on the panel."
     }
   },
   "options": {

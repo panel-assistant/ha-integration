@@ -202,6 +202,7 @@ export function startReleaseHandoff(hass, installerUrl, {
     reply('ha-paneld/usb-handover-accepted');
     let outcome;
     let display = null;
+    let registration;
     try {
       const response = await hass.fetchWithAuth(HANDOVER_API, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -214,13 +215,17 @@ export function startReleaseHandoff(hass, installerUrl, {
       // The display and text size the panel's profile recommends, which the
       // installer applies over its USB session before it opens setup.
       if (response.status === 200) display = displaySizing(body?.display);
+      if (response.status === 200 && body?.registration === 'added_to_another_home_assistant') {
+        registration = body.registration;
+      }
     } catch {
       outcome = 'request_failed';
     } finally {
       handingOver = false;
     }
     reply('ha-paneld/usb-handover-result',
-      display ? { outcome, display: { density: display.density, font_scale: display.fontScale } } : { outcome });
+      { outcome, ...(display ? { display: { density: display.density, font_scale: display.fontScale } } : {}),
+        ...(registration ? { registration } : {}) });
   }
   function receive(event) {
     if (event.source !== child || event.origin !== targetOrigin) return;

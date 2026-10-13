@@ -303,6 +303,8 @@ async def _async_register_usb_panel(hass: HomeAssistant, address: PanelAddress) 
         _LOGGER.exception("Could not add the USB-installed panel")
         return "failed"
     if result["type"] is FlowResultType.CREATE_ENTRY:
+        if result.get("description") == "another_home_assistant":
+            return "added_to_another_home_assistant"
         return "added"
     if result["type"] is FlowResultType.ABORT:
         return str(result.get("reason"))

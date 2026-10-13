@@ -77,6 +77,7 @@ from .discovery import (
     markdown_literal,
 )
 from .failure_repair import async_clear_adb_authorization
+from .foreign_ha import async_connected_to_other_ha, async_raise_foreign_ha_issue
 from .ha_url import async_offer_ha_url
 from .identity import CONF_INSTALL_IDENTITY, accept_health, is_installation
 from .install_adb import async_installed_artifact_size, async_preflight_install
@@ -1122,6 +1123,16 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 executor.release_finalizer(job_id, self.flow_id)
             self._finalizer_job_id = None
         result = await super().async_on_create_entry(result)
+        if isinstance(entry, ConfigEntry) and isinstance(
+            address := entry.data.get(CONF_ADDRESS), str
+        ):
+            client = HaPaneldClient(
+                async_get_clientsession(self.hass), normalize_address(address)
+            )
+            if await async_connected_to_other_ha(
+                self.hass, client
+            ) and async_raise_foreign_ha_issue(self.hass, entry):
+                result["description"] = "another_home_assistant"
         if job_id is not None and isinstance(entry, ConfigEntry):
             # Human sign-in must never retain the install finalizer lease. Core
             # supports continuing into options only after adding the entry.

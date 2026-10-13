@@ -101,7 +101,8 @@
     "pageClosed": "Die Seite wurde geschlossen.",
     "progress": "Fortschritt",
     "installProgress": "Installationsfortschritt",
-    "licenses": "Lizenzen von Drittanbietern"
+    "licenses": "Lizenzen von Drittanbietern",
+    "doneAnotherHomeAssistant": "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
   },
   "errors": {
     "installErrorGeneric": "Etwas ist schiefgegangen. Lass das Panel angeschlossen und drücke „Erneut versuchen“.",

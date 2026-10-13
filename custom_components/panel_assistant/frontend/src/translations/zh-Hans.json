@@ -101,7 +101,8 @@
     "pageClosed": "页面已关闭。",
     "progress": "进度",
     "installProgress": "安装进度",
-    "licenses": "第三方许可"
+    "licenses": "第三方许可",
+    "doneAnotherHomeAssistant": "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
   },
   "errors": {
     "installErrorGeneric": "发生了错误。请保持面板连接，然后点击“重试”。",

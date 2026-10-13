@@ -147,6 +147,9 @@
       "install_recovery_required": "Home Assistant не може підтвердити, що продовжувати автоматично безпечно. Запис не створено. Не повторюйте автоматичне встановлення, не видаляйте додаток і не скидайте його, доки не виконаєте вказівки посібника з безпеки та відновлення, посилання на який наведено в документації інтеграції.",
       "install_receipt_error": "Home Assistant не зміг безпечно зчитати збережену квитанцію про встановлення. Запис не створено.",
       "unknown": "Процес налаштування втратив незавершений стан панелі. Почніть налаштування знову."
+    },
+    "create_entry": {
+      "another_home_assistant": "This panel is signed in to another Home Assistant. It has been added here, but its settings and sign-in have not changed. To connect it here, change Home Assistant and sign in on the panel."
     }
   },
   "entity": {
@@ -159,7 +162,8 @@
           "restarting_reboot": "Перезапускається (перезавантаження)",
           "restarting_recovery": "Перезапускається (відновлення)",
           "restarting_settings": "Перезапускається (налаштування)",
-          "restarting_update": "Перезапускається (оновлення)"
+          "restarting_update": "Перезапускається (оновлення)",
+          "another_home_assistant": "Signed in to another Home Assistant"
         }
       },
       "panel_assistant_version": {
@@ -1439,6 +1443,10 @@
           "entry_removed": "Цю панель видалено."
         }
       }
+    },
+    "another_home_assistant": {
+      "title": "{panel} is signed in to another Home Assistant",
+      "description": "{panel} has been added here, but it is signed in to another Home Assistant. Its settings and sign-in have not changed. To connect it here, change Home Assistant and sign in on the panel."
     }
   },
   "options": {

@@ -101,7 +101,8 @@
     "pageClosed": "The page was closed.",
     "progress": "Progress",
     "installProgress": "Installation progress",
-    "licenses": "Third-party licenses"
+    "licenses": "Third-party licenses",
+    "doneAnotherHomeAssistant": "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
   },
   "errors": {
     "installErrorGeneric": "Something went wrong. Keep the panel plugged in and press Try again.",

@@ -779,6 +779,21 @@ class HaPaneldClient:
         """Whether the panel's own setup wizard reports itself finished."""
         return (await self.async_get_setup_state()).complete
 
+    async def async_get_configured_ha_url(self) -> str | None:
+        """Read the saved server only when the panel reports a configured account."""
+        body = await self._async_get_bounded(
+            self.address.base_url.with_path(CONFIG_PATH), _MAX_SETUP_BYTES
+        )
+        document = _load_json_object(body)
+        auth = document.get("ha_auth")
+        settings = document.get("settings")
+        if not isinstance(auth, dict) or auth.get("configured") is not True:
+            return None
+        if not isinstance(settings, dict):
+            return None
+        value = settings.get("ha_url")
+        return value if isinstance(value, str) else None
+
     async def async_get_setup_state(self) -> PanelSetupState:
         """Read the panel's setup state, including whether it accepts a handover."""
         body = await self._async_get_bounded(
