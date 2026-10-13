@@ -11,6 +11,7 @@ from hashlib import sha256
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
+from unittest.mock import AsyncMock, patch
 
 from homeassistant.config_entries import SOURCE_USER, ConfigEntry, ConfigEntryState
 from homeassistant.const import CONF_ADDRESS, EVENT_HOMEASSISTANT_STARTED
@@ -32,6 +33,13 @@ from custom_components.panel_assistant.install_jobs import (
     async_get_install_job_manager,
     install_plan_sha256,
 )
+
+# This disposable process tests restart and receipt recovery, not the live release catalogue.
+# Install before entry setup so background refreshes cannot depend on GitHub availability.
+patch(
+    "custom_components.panel_assistant.release_catalog.async_resolve_update_candidates",
+    new=AsyncMock(return_value=[]),
+).start()
 
 DOMAIN = "panel_assistant_runtime_probe"
 ENTRY_ID = "01M1K000000000000000000001"
