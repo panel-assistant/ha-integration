@@ -84,8 +84,6 @@ def test_parse_health_fixture() -> None:
     assert health.build == "1000"
     assert health.config_hash == "1a2b3c4d"
     assert health.ha_state == "normal"
-    assert health.ha_source == "mqtt"
-    assert health.ha_subscription_refused is False
 
 
 def test_restart_health_token_is_bounded_optional_status() -> None:
@@ -110,8 +108,6 @@ def test_parser_ignores_future_tokens_and_values() -> None:
     )
     assert health.panel_id == "test"
     assert health.ha_state is None
-    assert health.ha_source is None
-    assert health.ha_subscription_refused is True
 
 
 def test_parser_accepts_current_android_network_suffix() -> None:
@@ -221,8 +217,6 @@ def test_parser_accepts_metadata_boundaries_and_build_fallback() -> None:
         "cfg=89abcdef",
         f"did={'a' * 64} did={'a' * 64}",
         "ha=normal ha=starting",
-        "ha_src=mqtt ha_src=socket",
-        "ha_refused=1 ha_refused=1",
         "ha_net=healthy ha_net=warning",
     ],
 )

@@ -42,7 +42,6 @@ async def test_existing_panel_options_authorize_adb_after_physical_approval(
         domain=DOMAIN,
         title="Test display",
         data={CONF_ADDRESS: "panel.local"},
-        options={"authority": "native"},
     )
     entry.add_to_hass(hass)
     entry.runtime_data = SimpleNamespace(
@@ -105,7 +104,7 @@ async def test_existing_panel_options_authorize_adb_after_physical_approval(
         done = await hass.config_entries.options.async_configure(opened["flow_id"], {})
 
     assert done["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {"authority": "native"}
+    assert entry.options == {}
     reload.assert_awaited_once_with(entry.entry_id)
 
 
@@ -128,7 +127,6 @@ async def test_existing_panel_adb_consent_refuses_changed_http_identity(
         title="Test display",
         unique_id="a" * 64,
         data={CONF_ADDRESS: "192.168.1.23"},
-        options={"authority": "native"},
     )
     entry.add_to_hass(hass)
     entry.runtime_data = SimpleNamespace(
@@ -442,7 +440,6 @@ async def test_onboarding_never_binds_an_account_deactivated_while_shown(
         title="alpha",
         data={CONF_ADDRESS: "192.168.1.23"},
         unique_id=did,
-        options={"authority": "native"},
     )
     entry.add_to_hass(hass)
     user = await hass.auth.async_create_user("Panel account")

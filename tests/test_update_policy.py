@@ -121,7 +121,6 @@ async def test_offline_panel_options_default_off_and_remain_per_panel(
         domain=DOMAIN,
         unique_id="a" * 64,
         data={CONF_ADDRESS: "panel.local"},
-        options={"authority": "native"},
     )
     other = MockConfigEntry(
         domain=DOMAIN,
@@ -142,7 +141,7 @@ async def test_offline_panel_options_default_off_and_remain_per_panel(
         menu["flow_id"], {"prerelease_panel_builds": True}
     )
     assert saved["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {"authority": "native", "prerelease_panel_builds": True}
+    assert entry.options == {"prerelease_panel_builds": True}
     assert entry.data == {CONF_ADDRESS: "panel.local"}
     assert entry.unique_id == "a" * 64
     assert dict(other.options) == {}

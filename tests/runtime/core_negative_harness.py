@@ -154,7 +154,7 @@ class _PanelServer(AbstractContextManager["_PanelServer"]):
                     mode = "health"
                     body = (
                         b"ha-paneld 0.1.0 panel=runtime_negative build=100 "
-                        b"cfg=1a2b3c4d ha=normal ha_src=mqtt\n"
+                        b"cfg=1a2b3c4d ha=normal ha_reason=unknown ha_grace_ms=0\n"
                     )
                 elif self.path == "/api/v1/status?home_proof=1":
                     # Installer completion asks for fresh HOME evidence, while

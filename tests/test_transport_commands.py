@@ -11,7 +11,6 @@ from unittest.mock import patch
 import pytest
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import InvalidData
 from homeassistant.exceptions import HomeAssistantError
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -714,22 +713,3 @@ async def test_malformed_results_are_invalid_format_and_resolve_nothing(
     assert (await panel.answer(command["command_id"], "applied"))["success"]
     async with asyncio.timeout(5):
         await call
-
-
-async def test_options_flow_offers_no_transport_choice(hass: HomeAssistant) -> None:
-    """The MQTT transport choice is gone from the menu and cannot be reached."""
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        title="alpha",
-        data={CONF_ADDRESS: "192.168.1.23"},
-        options={"authority": "native"},
-    )
-    entry.add_to_hass(hass)
-    menu = await hass.config_entries.options.async_init(entry.entry_id)
-
-    assert "transport" not in menu["menu_options"]
-    with pytest.raises(InvalidData, match="next_step_id"):
-        await hass.config_entries.options.async_configure(
-            menu["flow_id"], {"next_step_id": "transport"}
-        )
-    assert entry.options == {"authority": "native"}

@@ -164,7 +164,7 @@ def _satellite(hass: HomeAssistant, entry: MockConfigEntry) -> str | None:
 
 @pytest.fixture
 async def entry(hass: HomeAssistant, hass_read_only_user: Any) -> MockConfigEntry:
-    """A bound panel entry on the default (shadow) authority.
+    """A bound panel entry.
 
     Home Assistant always runs its own core integration, which the Assist
     stack depends on; the test harness does not start it unasked.

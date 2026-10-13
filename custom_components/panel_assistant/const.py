@@ -89,9 +89,6 @@ CONF_PRERELEASE_PANEL_BUILDS = "prerelease_panel_builds"
 # when they moved a panel's entities off MQTT: which entities moved, and whether
 # the move completed. Only read now.
 CONF_CUTOVER = "cutover"
-# The entry data key holding the channels the entry's panel has described in a
-# hello, with the identity it described them under (see ``transport.py``).
-CONF_SUPPORTED_CHANNELS = "supported_channels"
 
 
 def update_unique_id(entry_id: str) -> str:

@@ -231,7 +231,7 @@ async def test_only_the_address_is_accepted(endpoint: Any, body: Any) -> None:
 async def test_without_a_panel_facing_url_the_marker_still_goes(
     endpoint: Any, hass: HomeAssistant
 ) -> None:
-    """The owner then types only the address; the MQTT step stays skipped."""
+    """The owner then types only the address; the setup step stays skipped."""
     panel = _Panel(PanelSetupState(complete=False, accepts_handover=True))
     with patch(
         "custom_components.panel_assistant.ha_url.async_panel_facing_url",
