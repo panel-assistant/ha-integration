@@ -5,10 +5,10 @@ apps it switched off (where an ordinary app cannot make the vendor's launcher
 HOME, Panel Assistant does that over ADB), and the vendor settings
 installation changed (``vendor_provisioning``) are put back; only then is it
 uninstalled, under both of its ids, over the ADB connection Panel Assistant
-already holds. The uninstall runs only while HOME resolves to another launcher, read in the
-same shell, so a panel is never left without a home screen. Every step is
-safe to repeat: a retry after an interrupted run finds what is left and
-finishes it.
+already holds. The uninstall runs only while HOME resolves to another
+launcher, read in the same shell, so a panel is never left without a home
+screen. Every step is safe to repeat: a retry after an interrupted run finds
+what is left and finishes it.
 """
 
 from __future__ import annotations
