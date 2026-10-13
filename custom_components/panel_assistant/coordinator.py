@@ -103,8 +103,10 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         self.identity_mismatch = False
         # True until the first poll answers otherwise, as `last_update_success` starts.
         self.reachable = True
-        # Where a panel refused a session last said it was: (remote, reported).
-        self._refused_hello: tuple[str | None, tuple[str, ...]] | None = None
+        # Where the panel last said it was, in a session or a refused hello:
+        # (remote, reported). Kept after the session ends, so a panel that
+        # moved while disconnected is still looked for there.
+        self._last_hello: tuple[str | None, tuple[str, ...]] | None = None
 
     @property
     def connected(self) -> bool:
@@ -154,7 +156,13 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         assert self._entry_id is not None
 
         @callback
+        def _remember() -> None:
+            if (session := self._session()) is not None:
+                self._last_hello = (session.remote, session.addresses)
+
+        @callback
         def _changed() -> None:
+            _remember()
             self.async_update_listeners()
             if self.connected and not self.reachable:
                 self.hass.async_create_task(
@@ -162,6 +170,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                     f"{DOMAIN} poll after the panel connected",
                 )
 
+        _remember()
         return async_dispatcher_connect(
             self.hass, signal_session_changed(self._entry_id), _changed
         )
@@ -176,7 +185,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         identity no entry holds yet, so the poll is all that reaches it, and a
         panel that moved has no other way to say where it went.
         """
-        self._refused_hello = (remote, addresses)
+        self._last_hello = (remote, addresses)
         if not self.reachable:
             self.hass.async_create_task(
                 self.async_request_refresh(),
@@ -400,13 +409,13 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
     async def _async_recover_address(self) -> PanelHealth | None:
         """Try the address a connected panel is talking from, when it has one.
 
-        A panel refused a session for its protocol, or reinstalled under a
-        new identity linked to this entry, still said where it is in its
-        hello, and is tried there. Returns the health read at the adopted
-        address, or nothing when there was neither, no other address to try,
-        or the address did not answer as this panel. Only a session's last two
-        are reported: without one the panel is unavailable, which the failed
-        poll already says.
+        A panel refused a session for its protocol, reinstalled under a new
+        identity linked to this entry, or whose session has ended, still said
+        where it is in its last hello, and is tried there. Returns the health
+        read at the adopted address, or nothing when there was neither, no
+        other address to try, or the address did not answer as this panel.
+        Only a session's last two are reported: without one the panel is
+        unavailable, which the failed poll already says.
         """
         session = self._session()
         entry = self._entry()
@@ -414,8 +423,8 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             return None
         if session is not None:
             remote, reported = session.remote, session.addresses
-        elif self._refused_hello is not None:
-            remote, reported = self._refused_hello
+        elif self._last_hello is not None:
+            remote, reported = self._last_hello
         else:
             return None
         stored = self.client.address

@@ -36,8 +36,10 @@ from .embed import (
     REASON_ENTRY_UNLOADED as EMBED_ENTRY_UNLOADED,
 )
 from .embed import (
+    STATE_UNREACHABLE,
     async_get_embed_sessions,
     async_setup_embed,
+    panel_state,
 )
 from .entry_issues import async_delete_entry_issues, async_delete_orphan_issues
 from .feed_coordinator import CONF_BUILD_FEED, DATA_BUILD_FEED, BuildFeedCoordinator
@@ -272,8 +274,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
 
     def card() -> DeviceInfo:
+        # When the sidebar can only say the panel is unreachable, the link
+        # goes straight to the panel's page at the stored address, which
+        # address recovery and discovery move to wherever it last answered.
+        unreachable = panel_state(entry) == STATE_UNREACHABLE
         return panel_device_info(
-            entry.entry_id, coordinator.data, entry.title, coordinator.app_build
+            entry.entry_id,
+            coordinator.data,
+            entry.title,
+            coordinator.app_build,
+            f"{coordinator.client.address.base_url}/" if unreachable else None,
         )
 
     # The one writer of the panel's device card: created here, before any
