@@ -34,8 +34,8 @@ from custom_components.panel_assistant.install_jobs import (
     install_plan_sha256,
 )
 
-# This disposable process tests restart and receipt recovery, not the live release catalogue.
-# Install before entry setup so background refreshes cannot depend on GitHub availability.
+# This disposable process tests restart and receipt recovery. Catalogue tests live
+# elsewhere. Patch before entry setup to avoid background GitHub dependencies.
 patch(
     "custom_components.panel_assistant.release_catalog.async_resolve_update_candidates",
     new=AsyncMock(return_value=[]),
