@@ -438,7 +438,9 @@ class BuildDelivery:
             if (
                 err.translation_key != "update_not_complete"
                 or self.session
+                # A panel that answers, over HTTP or its own session, has its app.
                 or self._coordinator.reachable
+                or self._coordinator.connected
                 or not await async_relaunch_stopped_app(
                     hass, self._coordinator, artifact, self._panel_name
                 )

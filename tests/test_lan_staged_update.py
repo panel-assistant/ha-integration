@@ -1815,7 +1815,7 @@ async def test_a_panel_withdrawn_during_the_update_gets_no_grant_repair(
     assert _panel_value(tmp_path, "accessibility_enabled") is None
 
 
-@pytest.mark.parametrize("adb", [True, False], ids=["adb", "no-adb"])
+@pytest.mark.parametrize("panel_state", ["stopped", "no-adb", "session"])
 async def test_an_app_that_never_comes_back_after_an_update_is_started_and_reported(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
@@ -1824,9 +1824,13 @@ async def test_an_app_that_never_comes_back_after_an_update_is_started_and_repor
     signer: PythonRSASigner,  # noqa: F811
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
-    adb: bool,
+    panel_state: str,
 ) -> None:
-    """A panel took an update, crashed on its first start and stayed down."""
+    """A panel took an update, crashed on its first start and stayed down.
+
+    Without ADB the failure stands; a panel whose session still answers has its
+    app, so nothing is started over it.
+    """
     panel = await _lan_grant_repair_panel(hass, monkeypatch, key, signer, tmp_path)
     entity, client = panel.entity, panel.client
     monkeypatch.setattr(update_progress, "_ANDROID_PACKAGE_INSTALL_MAX_SECONDS", 0)
@@ -1836,7 +1840,11 @@ async def test_an_app_that_never_comes_back_after_an_update_is_started_and_repor
         "async_get_durable_adb_credential",
         AsyncMock(return_value=AdbCredential(signer, "existing-host-key")),
     )
-    if not adb:
+    if panel_state == "session":
+        monkeypatch.setattr(
+            HaPaneldDataUpdateCoordinator, "connected", property(lambda _self: True)
+        )
+    if panel_state == "no-adb":
         panel.probe.return_value = InstallTargetProbe(
             state=InstallTargetState.ADB_UNREACHABLE,
             serial=None,
@@ -1862,7 +1870,7 @@ async def test_an_app_that_never_comes_back_after_an_update_is_started_and_repor
 
     entity.coordinator.async_request_refresh = AsyncMock(side_effect=refresh)  # type: ignore[method-assign]
 
-    if adb:
+    if panel_state == "stopped":
         await entity.async_install(None, False)
         assert entity.installed_version == VERSION
         assert launched() == 1
