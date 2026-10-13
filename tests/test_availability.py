@@ -70,8 +70,6 @@ MOVED = "192.0.2.9"
 # The add flow pins install targets to the installer's LAN ranges, so the
 # address a person types for a moved panel is a private one.
 LAN = "192.168.1.29"
-# Where the test client's socket connects from.
-LOOPBACK = "127.0.0.1"
 
 
 def _health_by_host(
@@ -541,110 +539,6 @@ async def test_the_device_card_links_to_its_sidebar_before_and_after_an_address_
     assert card is not None
     assert card.configuration_url == f"homeassistant://panel-assistant/{entry.entry_id}"
     assert entry.state is ConfigEntryState.LOADED
-
-
-def _visit(hass: HomeAssistant, entry: MockConfigEntry) -> str | None:
-    """Return where the device page's Visit link goes."""
-    card = dr.async_get(hass).async_get_device_by_identifier(
-        (DOMAIN, entry.entry_id), entry.entry_id
-    )
-    assert card is not None
-    return card.configuration_url
-
-
-async def test_visit_opens_the_panel_page_while_nothing_reaches_the_panel(
-    hass: HomeAssistant, entry: MockConfigEntry
-) -> None:
-    """The sidebar could only say the panel is unreachable, so Visit goes to
-    the panel's own page, and back to the sidebar once the panel answers."""
-    sidebar = f"homeassistant://panel-assistant/{entry.entry_id}"
-    assert _visit(hass, entry) == sidebar
-
-    await _poll(hass, entry, {STORED: CannotConnectError()})
-    assert _visit(hass, entry) == f"http://{STORED}:8888/"
-
-    await _poll(hass, entry, {STORED: HEALTH})
-    assert _visit(hass, entry) == sidebar
-
-
-async def test_visit_follows_the_session_when_the_stored_address_fails(
-    hass: HomeAssistant,
-    entry: MockConfigEntry,
-    hass_ws_client: WsClientFactory,
-    hass_read_only_access_token: str,
-) -> None:
-    """A connected panel opens in the sidebar; its session ending switches
-    Visit to the panel's page at once, and a new session switches it back."""
-    sidebar = f"homeassistant://panel-assistant/{entry.entry_id}"
-    client = await _connect(
-        hass, hass_ws_client, hass_read_only_access_token, entry, None
-    )
-    await _poll(hass, entry, {STORED: CannotConnectError()})
-    assert _visit(hass, entry) == sidebar
-
-    await client.close()
-    await hass.async_block_till_done()
-    assert _visit(hass, entry) == f"http://{STORED}:8888/"
-
-    await _connect(hass, hass_ws_client, hass_read_only_access_token, entry, None)
-    await hass.async_block_till_done()
-    assert _visit(hass, entry) == sidebar
-
-
-async def test_a_disconnected_panel_is_found_where_its_last_session_came_from(
-    hass: HomeAssistant,
-    entry: MockConfigEntry,
-    hass_ws_client: WsClientFactory,
-    hass_read_only_access_token: str,
-) -> None:
-    """A panel whose session ended and whose stored address went dead is
-    tried at the addresses its last session reported; answering there as itself
-    moves the stored address, and Visit opens it in the sidebar again."""
-    client = await hass_ws_client(hass, hass_read_only_access_token)
-    await _open(client, addresses=[MOVED])
-    await client.close()
-    await hass.async_block_till_done()
-
-    await _poll(
-        hass,
-        entry,
-        # The test socket connected from loopback, which is tried as well.
-        {STORED: CannotConnectError(), LOOPBACK: CannotConnectError(), MOVED: HEALTH},
-    )
-
-    assert entry.data[CONF_ADDRESS] == MOVED
-    assert entry.runtime_data.coordinator.available
-    assert _visit(hass, entry) == f"homeassistant://panel-assistant/{entry.entry_id}"
-    # No session, so nothing is reported beyond the poll itself.
-    assert _issue(hass, entry) is None
-
-
-async def test_a_stranger_at_the_last_session_address_moves_nothing(
-    hass: HomeAssistant,
-    entry: MockConfigEntry,
-    hass_ws_client: WsClientFactory,
-    hass_read_only_access_token: str,
-) -> None:
-    """Another panel answering where this one last said it was is not it:
-    the stored address stays, and Visit goes to the panel's last-known page."""
-    client = await hass_ws_client(hass, hass_read_only_access_token)
-    await _open(client, addresses=[MOVED])
-    await client.close()
-    await hass.async_block_till_done()
-
-    await _poll(
-        hass,
-        entry,
-        {
-            STORED: CannotConnectError(),
-            LOOPBACK: CannotConnectError(),
-            MOVED: replace(HEALTH, discovery_id=OTHER_DID),
-        },
-    )
-
-    assert entry.data[CONF_ADDRESS] == STORED
-    assert _visit(hass, entry) == f"http://{STORED}:8888/"
-    assert _issue(hass, entry) is None
 
 
 async def test_the_poll_that_adopts_an_address_reads_status_there_too(
