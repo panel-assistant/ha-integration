@@ -124,8 +124,10 @@ from .vendor_provisioning import (
     ShellySetup,
     VendorResponseError,
     VendorSetup,
+    parse_vendor_display_settlement,
     parse_vendor_restore,
     parse_vendor_setup,
+    vendor_display_settlement_command,
     vendor_restore_command,
     vendor_setup_command,
 )
@@ -610,35 +612,7 @@ async def async_installed_artifact_size(
         async with asyncio.timeout(_PREFLIGHT_TIMEOUT_SECONDS):
             device = await _async_connect(target, signer, authorize=authorize)
             await _async_require_identity_root(device, target, expected_root_mode)
-            nonce = token_hex(16)
-            path = _parse_installed_apk_path(
-                await _async_shell(
-                    device,
-                    _package_command(nonce, descriptor.package_id),
-                    read_timeout=_READ_TIMEOUT_SECONDS,
-                ),
-                nonce,
-            )
-            if path is None:
-                return None
-            nonce = token_hex(16)
-            mode, size, digest = _parse_artifact_observation(
-                await _async_shell(
-                    device,
-                    _artifact_observation_command(nonce, path, prepare=False),
-                    read_timeout=_READ_TIMEOUT_SECONDS,
-                ),
-                nonce,
-                path,
-                prepare=False,
-            )
-            if (
-                not stat.S_ISREG(mode)
-                or size != descriptor.apk_size
-                or digest != descriptor.apk_sha256
-            ):
-                return None
-            return size
+            return await _async_installed_artifact_size_on_device(device, descriptor)
     except InstallAdbError:
         raise
     except (
@@ -662,6 +636,41 @@ async def async_installed_artifact_size(
         raise InstallAdbError(InstallAdbErrorCode.TARGET_RESPONSE_INVALID) from None
     finally:
         await _async_close(device)
+
+
+async def _async_installed_artifact_size_on_device(
+    device: AdbDeviceAsync, descriptor: InstallDescriptor
+) -> int | None:
+    """Read exact installed bytes through the caller's verified connection."""
+    nonce = token_hex(16)
+    path = _parse_installed_apk_path(
+        await _async_shell(
+            device,
+            _package_command(nonce, descriptor.package_id),
+            read_timeout=_READ_TIMEOUT_SECONDS,
+        ),
+        nonce,
+    )
+    if path is None:
+        return None
+    nonce = token_hex(16)
+    mode, size, digest = _parse_artifact_observation(
+        await _async_shell(
+            device,
+            _artifact_observation_command(nonce, path, prepare=False),
+            read_timeout=_READ_TIMEOUT_SECONDS,
+        ),
+        nonce,
+        path,
+        prepare=False,
+    )
+    if (
+        not stat.S_ISREG(mode)
+        or size != descriptor.apk_size
+        or digest != descriptor.apk_sha256
+    ):
+        return None
+    return size
 
 
 async def async_stage_apk(
@@ -1120,6 +1129,60 @@ async def async_restore_display_sizing(
         return parse_display_restore(lines)
     except DisplayResponseError:
         raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE) from None
+
+
+async def async_settle_vendor_display(
+    target: AdbInstallTarget,
+    signer: PythonRSASigner,
+    descriptor: InstallDescriptor,
+    *,
+    expected_root_mode: AdbRootMode,
+) -> str:
+    """Finish a pending vendor display restart before the final app launch."""
+    _validate_request(target, descriptor)
+    _validate_expected_root_mode(expected_root_mode)
+    device: AdbDeviceAsync | None = None
+    mutation_started = False
+    try:
+        async with asyncio.timeout(_LAUNCH_TIMEOUT_SECONDS):
+            device = await _async_connect(target, signer, authorize=False)
+            await _async_require_identity_root(device, target, expected_root_mode)
+            if (
+                await _async_installed_artifact_size_on_device(device, descriptor)
+                != descriptor.apk_size
+            ):
+                raise InstallAdbError(InstallAdbErrorCode.TARGET_CHANGED)
+            nonce = token_hex(16)
+            mutation_started = True
+            lines, status = _parse_single_section(
+                await _async_shell(
+                    device,
+                    vendor_display_settlement_command(nonce, descriptor.package_id),
+                    read_timeout=_INSTALL_READ_TIMEOUT_SECONDS,
+                    transport_timeout=_INSTALL_READ_TIMEOUT_SECONDS,
+                ),
+                prefix="VENDOR_DISPLAY_SETTLEMENT",
+                nonce=nonce,
+            )
+            if status != 0:
+                raise VendorResponseError
+            return parse_vendor_display_settlement(lines)
+    except InstallAdbError:
+        raise
+    except (
+        TimeoutError,
+        _MalformedAdbResponse,
+        _UnsafeAdbPacket,
+        VendorResponseError,
+        *_ADB_EXCEPTIONS,
+    ):
+        raise InstallAdbError(
+            InstallAdbErrorCode.LAUNCH_AMBIGUOUS
+            if mutation_started
+            else InstallAdbErrorCode.TARGET_UNREACHABLE
+        ) from None
+    finally:
+        await _async_close(device)
 
 
 async def async_restore_vendor_setup(

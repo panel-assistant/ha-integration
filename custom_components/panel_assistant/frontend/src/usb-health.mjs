@@ -35,7 +35,7 @@ function healthVersion(body) {
   return tokens[1];
 }
 
-function parseHttp(text) {
+function parseHttp(text, maximumBody) {
   const boundary = text.indexOf('\r\n\r\n');
   if (boundary < 0 || boundary > 8192) malformed();
   const lines = text.slice(0, boundary).split('\r\n');
@@ -55,31 +55,35 @@ function parseHttp(text) {
   const length = headers.get('content-length'), transfer = headers.get('transfer-encoding');
   if (transfer !== undefined) {
     if (length !== undefined || transfer.toLowerCase() !== 'chunked') malformed();
-    let decoded = '', chunks = 0;
+    let bytes = encoder.encode(body), chunks = [], total = 0;
     for (;;) {
-      const end = body.indexOf('\r\n');
-      if (end < 1 || end > 8 || !/^[0-9a-fA-F]+$/.test(body.slice(0, end)) || ++chunks > 513) malformed();
-      const size = Number.parseInt(body.slice(0, end), 16);
-      body = body.slice(end + 2);
-      if (size === 0) { if (body !== '\r\n') malformed(); break; }
-      // Health is ASCII; reject non-ASCII before applying byte-count framing.
-      if (size > 512 || decoded.length + size > 512 || body.length < size + 2 ||
-          /[^\x00-\x7f]/.test(body.slice(0, size)) || body.slice(size, size + 2) !== '\r\n') malformed();
-      decoded += body.slice(0, size);
-      body = body.slice(size + 2);
+      const end = bytes.findIndex((value, at) => value === 13 && bytes[at + 1] === 10);
+      const sizeText = new TextDecoder().decode(bytes.slice(0, end));
+      if (end < 1 || end > 8 || !/^[0-9a-fA-F]+$/.test(sizeText) || chunks.length > maximumBody) malformed();
+      const size = Number.parseInt(sizeText, 16);
+      bytes = bytes.slice(end + 2);
+      if (size === 0) { if (bytes.length !== 2 || bytes[0] !== 13 || bytes[1] !== 10) malformed(); break; }
+      if (size > maximumBody || total + size > maximumBody || bytes.length < size + 2 ||
+          bytes[size] !== 13 || bytes[size + 1] !== 10) malformed();
+      chunks.push(bytes.slice(0, size));
+      total += size;
+      bytes = bytes.slice(size + 2);
     }
-    body = decoded;
-  } else if (length !== undefined && (!/^(0|[1-9][0-9]{0,3})$/.test(length) ||
-      Number(length) > 512 || Number(length) !== encoder.encode(body).length)) malformed();
-  return healthVersion(body);
+    const decoded = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) { decoded.set(chunk, offset); offset += chunk.length; }
+    try { body = new TextDecoder('utf-8', {fatal: true, ignoreBOM: true}).decode(decoded); } catch { malformed(); }
+  } else if (length !== undefined && (!/^(0|[1-9][0-9]{0,4})$/.test(length) ||
+      Number(length) > maximumBody || Number(length) !== encoder.encode(body).length)) malformed();
+  if (encoder.encode(body).length > maximumBody) malformed();
+  return body;
 }
 
 // Internal read-only observation on the transaction's existing ADB connection.
-export async function readUsbHealth(adb, descriptor, {
+async function readUsbApp(adb, path, parse, {
   ensureCurrent = () => {}, quarantine, timeoutMs = 5000, closeMs = 2000,
 } = {}) {
-  const expected = descriptor?.versionName;
-  if (!validVersion(expected) || typeof ensureCurrent !== 'function' || typeof quarantine !== 'function' ||
+  if (typeof ensureCurrent !== 'function' || typeof quarantine !== 'function' ||
       !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 5000 ||
       !Number.isSafeInteger(closeMs) || closeMs < 1 || closeMs > 2000) fail('invalid_request');
   let socket, writer, stopped = false, timer;
@@ -93,13 +97,13 @@ export async function readUsbHealth(adb, descriptor, {
     }
     guard();
     writer = socket.writable.getWriter();
-    await writer.write(encoder.encode('GET /api/v1/health HTTP/1.1\r\nHost: 127.0.0.1:8888\r\nConnection: close\r\n\r\n'));
+    await writer.write(encoder.encode(`GET ${path} HTTP/1.1\r\nHost: 127.0.0.1:8888\r\nConnection: close\r\n\r\n`));
     guard();
     let text;
     try { text = await readBounded(socket.readable, 32768); }
     catch { malformed(); }
     guard();
-    return parseHttp(text) === expected;
+    return parse(text);
   })();
   try {
     return await Promise.race([operation, new Promise((_, reject) => {
@@ -123,4 +127,28 @@ export async function readUsbHealth(adb, descriptor, {
       finally { clearTimeout(closeTimer); try { writer?.releaseLock(); } catch { /* Quarantined pending write. */ } }
     }
   }
+}
+
+
+export async function readUsbHealth(adb, descriptor, options = {}) {
+  const expected = descriptor?.versionName;
+  if (!validVersion(expected)) fail('invalid_request');
+  return readUsbApp(adb, '/api/v1/health', text => healthVersion(parseHttp(text, 512)) === expected, options);
+}
+
+// Ask the app for fresh HOME/foreground proof. The app knows which configured
+// surface owns the screen, including supported external dashboards.
+export async function readUsbHomeProof(adb, options = {}) {
+  return readUsbApp(adb, '/api/v1/status?home_proof=1', text => {
+    let status;
+    try { status = JSON.parse(parseHttp(text, 32768)); } catch { malformed(); }
+    const home = status?.home_ui;
+    const token = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/;
+    if (!status || typeof status !== 'object' || Array.isArray(status) ||
+        !home || typeof home !== 'object' || Array.isArray(home) ||
+        !['ready', 'setup', 'blocked', 'unknown'].includes(home.state) ||
+        typeof home.reason !== 'string' || !token.test(home.reason) ||
+        typeof home.evidence !== 'string' || !token.test(home.evidence)) malformed();
+    return ['ready', 'setup'].includes(home.state);
+  }, options);
 }

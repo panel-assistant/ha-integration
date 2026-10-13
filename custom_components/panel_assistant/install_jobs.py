@@ -159,7 +159,12 @@ _TERMINAL_PHASES = frozenset(
     }
 )
 _MUTATION_BARRIERS = frozenset(
-    {InstallPhase.STAGING, InstallPhase.INSTALLING, InstallPhase.LAUNCHING}
+    {
+        InstallPhase.STAGING,
+        InstallPhase.INSTALLING,
+        InstallPhase.LAUNCHING,
+        InstallPhase.HEALTH_CHECK,
+    }
 )
 _CLEANUP_BARRIER_CANCEL_POLARITY: Mapping[InstallPhase, bool] = {
     InstallPhase.STAGING: True,

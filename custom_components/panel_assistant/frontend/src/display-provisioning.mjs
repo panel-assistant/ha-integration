@@ -84,18 +84,3 @@ export function parseDisplaySizing(body, nonce, sizing) {
     (scale === null || fontScale === scale || (scale === '1' && ['1.0', 'null'].includes(fontScale)));
   return converged ? 'applied' : 'not_applied';
 }
-
-// Applies it over the installer's own USB session, read through the
-// installer's `readShell`. Never throws: the outcome goes to the support log,
-// and setup goes on whatever it was.
-export async function applyDisplaySizing({ adb, newNonce, value, readShell }) {
-  const sizing = displaySizing(value);
-  if (!sizing) return 'not_recommended';
-  const nonce = newNonce();
-  try {
-    return parseDisplaySizing(await readShell(adb, buildDisplaySizing(nonce, sizing),
-      { maximum: 4096, timeoutMs: 15000 }), nonce, sizing);
-  } catch {
-    return 'unreadable';
-  }
-}
