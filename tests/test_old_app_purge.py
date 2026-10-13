@@ -28,8 +28,8 @@ from custom_components.panel_assistant import (
     install_adb,
     old_app,
     panel_move,
+    update_staging,
 )
-from custom_components.panel_assistant import update as panel_update
 from custom_components.panel_assistant.adb_protocol import (
     AdbInstallTarget,
     InstallAdbError,
@@ -258,9 +258,9 @@ def _offered_update(hass: HomeAssistant, panel: Panel) -> Iterator[None]:
                 )
             ),
         ),
-        patch.object(panel_update, "async_store_panel_backup", panel.store),
+        patch.object(update_staging, "async_store_panel_backup", panel.store),
         patch.object(
-            panel_update,
+            update_staging,
             "async_download_build",
             AsyncMock(side_effect=BuildDownloadError),
         ),

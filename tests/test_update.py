@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.panel_assistant import update as panel_update
-from custom_components.panel_assistant import update_progress
+from custom_components.panel_assistant import update_progress, update_route
 from custom_components.panel_assistant.adb_credentials import AdbCredentialError
 from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
 from custom_components.panel_assistant.client import (
@@ -118,7 +118,7 @@ def _entity(
     entity = HaPaneldUpdateEntity("entry-id", health, updates, release=host)
     # These tests exercise the admitted panel-download route and its observer;
     # signed LAN staging and backup execution are exercised in the LAN suite.
-    entity._async_deliver_build = AsyncMock(return_value=False)
+    entity._delivery.async_deliver_build = AsyncMock(return_value=False)
     entity.hass = hass
     entity.async_write_ha_state = MagicMock()
     return entity, client
@@ -150,7 +150,7 @@ async def test_panel_without_an_install_route_offers_nothing(
     """A newer signed build is not actionable when the app cannot install it."""
     entity, client = _entity(hass, install_capability="none")
     monkeypatch.setattr(
-        panel_update,
+        update_route,
         "async_get_durable_adb_credential",
         AsyncMock(side_effect=AdbCredentialError),
     )
@@ -287,8 +287,8 @@ async def test_matching_update_health_requires_ready_home_proof(
     artifact = ReleaseArtifact("v0.9.10", "0.9.10", "app.apk", "", "")
 
     with pytest.raises(HomeAssistantError, match="did not complete"):
-        await entity._async_wait_for_build(
-            artifact, ("1000", "io.panelassistant.android")
+        await entity._delivery.async_wait_for_build(
+            hass, artifact, ("1000", "io.panelassistant.android")
         )
     client.async_get_status.assert_awaited()
 

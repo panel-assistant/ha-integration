@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import logging
 from dataclasses import asdict
-from pathlib import Path
-from tempfile import NamedTemporaryFile
+from functools import partial
 from typing import Any
 
 from homeassistant.components.update import (
@@ -19,49 +17,21 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import HaPaneldConfigEntry
-from .adb_credentials import (
-    AdbCredential,
-    AdbCredentialError,
-    AdbCredentialMissingError,
-    async_get_adb_credential,
-    async_get_durable_adb_credential,
-)
-from .adb_protocol import (
-    AdbInstallTarget,
-    AdbRootMode,
-    InstallAdbError,
-    InstallAdbErrorCode,
-    InstallOutcome,
-    LaunchOutcome,
-)
+from .adb_credentials import AdbCredential
+from .adb_protocol import AdbInstallTarget
 from .app_identity import LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, reports_package
 from .build_feed import (
-    BuildDownloadError,
     BuildFeed,
-    BuildFeedError,
     FeedBuild,
-    async_download_build,
     build_label,
     feed_release_artifact,
     parse_build_request,
 )
-from .client import (
-    CannotConnectError,
-    HaPaneldError,
-    InvalidResponseError,
-    StagingUnavailableError,
-    UpdateApprovalRequiredError,
-    UpdateBusyError,
-    UpdateRejectedError,
-    UploadDisabledError,
-    _version_key,
-    is_valid_discovery_id,
-)
+from .client import HaPaneldError, UpdateRejectedError, _version_key
 from .const import DOMAIN, update_unique_id
 from .coordinator import (
     HaPaneldDataUpdateCoordinator,
@@ -70,7 +40,6 @@ from .coordinator import (
 )
 from .device import panel_display_name
 from .failure_repair import (
-    async_clear_adb_authorization,
     async_clear_update_failure_if_installed,
     async_record_update_failure,
     async_refresh_update_failure_name,
@@ -81,65 +50,44 @@ from .feed_coordinator import (
     async_get_feed_coordinator,
     async_get_stable_release_coordinator,
 )
-from .install_adb import (
-    async_launch_installed_app,
-    async_preflight_install,
-    async_update_installed_apk,
-)
-from .install_network import (
-    InstallNetworkError,
-    PinnedPanelTarget,
-    async_pin_entry_target,
-    async_revalidate_install_target,
-)
 from .native import NativeEntity, async_setup_native_platform
-from .panel_backup import PanelBackupInvalidError, async_store_panel_backup
 from .panel_move import (
     async_evaluate_successor_move,
     claim_panel_operation,
     release_panel_operation,
 )
-from .provisioning import InstallTargetState, async_probe_install_target
-from .release import (
-    _RELEASE_SIGNER_CERTIFICATE_SHA256,
-    ReleaseArtifact,
-    is_feed_build_tag,
-)
+from .release import ReleaseArtifact, is_feed_build_tag
 from .status import PanelCachedUpdate
 from .update_coordinator import PanelUpdateCoordinator
 from .update_errors import (
     _bridge_not_ready,
     _update_error,
-    _UpdateRefusalError,
-    _verification_error,
-    adb_authorization_error,
     refusal_error,
     route_unavailable_reason,
 )
 from .update_offer import UpdateOffer
 from .update_panel_install import (
-    _retry_unstarted_install,
     async_repair_update_permissions,
     async_request_panel_download,
 )
-from .update_policy import (
-    feed_build_newer,
-    prereleases_allowed,
-)
+from .update_policy import feed_build_newer, prereleases_allowed
 from .update_progress import UpdateProgress
+from .update_route import (
+    ROUTE_ADB,
+    ROUTE_ATTRIBUTE,
+    ROUTE_PANEL,
+    ROUTE_UNAVAILABLE_ATTRIBUTE,
+    api_capability,
+    async_admit_adb_target,
+    async_install_route,
+    async_observe_update_route,
+    entry_discovery_id,
+)
 from .update_route_repair import async_reconcile_update_route_issue
-from .upgrade_repairs import speaks_this_protocol
+from .update_staging import BuildDelivery
 
-# A panel's refusal of a build its own order ranks lower (panelUpdateRefusal).
-_DOWNGRADE_REFUSAL = "panel-app downgrades are not permitted"
 _AWAITING_CONFIRMATION_SUMMARY = "Tap Install on the panel to finish the update."
 AWAITING_CONFIRMATION_ATTRIBUTE = "awaiting_confirmation"
-# Which way the last update reached the panel, shown on the entity.
-ROUTE_ATTRIBUTE = "update_route"
-ROUTE_STAGED = "staged_by_home_assistant"
-ROUTE_PANEL = "downloaded_by_panel"
-ROUTE_ADB = "installed_by_home_assistant_adb"
-ROUTE_UNAVAILABLE_ATTRIBUTE = "update_unavailable_reason"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -215,6 +163,16 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             lambda: self.async_write_ha_state(),
             lambda: self._installed_code,
         )
+        self._delivery = BuildDelivery(
+            entry_id,
+            coordinator,
+            self._offer,
+            self._progress,
+            installed_code=lambda: self._installed_code,
+            record_code=self._remember_code,
+            record_route=self._record_route,
+            panel_name=self._panel_name,
+        )
         self._observer_task: asyncio.Task[None] | None = None
         self._recovery_started = False
         self._attr_extra_state_attributes = {}
@@ -266,48 +224,32 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             else self._title or "This panel"
         )
 
-    def _entry_discovery_id(self) -> str | None:
-        entry = self.hass.config_entries.async_get_entry(self._entry_id)
-        unique_id = entry.unique_id if entry is not None else None
-        return unique_id if unique_id and is_valid_discovery_id(unique_id) else None
-
     def _route_key(self) -> tuple[object, ...] | None:
         snapshot: PanelSnapshot | None = self.coordinator.data
         if snapshot is None:
             return None
-        artifact = self._adb_artifact()
+        artifact = self._offer.adb_artifact()
         return (
             snapshot.health.panel_id,
             snapshot.health.package,
             snapshot.health.build,
             snapshot.health.discovery_id,
-            self._entry_discovery_id(),
+            entry_discovery_id(self.hass, self._entry_id),
             getattr(self.coordinator.client, "address", None),
-            self._api_capability(),
+            api_capability(self.coordinator.data),
             artifact,
-        )
-
-    def _api_capability(self) -> str | None:
-        snapshot: PanelSnapshot | None = self.coordinator.data
-        if snapshot is not None and not speaks_this_protocol(snapshot.health):
-            # An app on an older protocol has no session here, and installs an
-            # update for itself only with the policy a session hands it, so only
-            # the authorized ADB route can update it.
-            return "none"
-        return (
-            snapshot.status.install_capability if snapshot and snapshot.status else None
         )
 
     def _has_install_route(self) -> bool:
         if not self.coordinator.reachable:
             return False
-        if self._api_capability() == "api":
+        if api_capability(self.coordinator.data) == "api":
             return (
                 not self._offer.bridge_handover_due()
                 or self._legacy_api_ready_key == self._route_key()
             )
         if (
-            self._api_capability() is None
+            api_capability(self.coordinator.data) is None
             and self._legacy_api_ready_key is not None
             and self._legacy_api_ready_key == self._route_key()
         ):
@@ -315,12 +257,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         return (
             self._adb_ready_key is not None
             and self._adb_ready_key == self._route_key()
-            and self._adb_artifact() is not None
+            and self._offer.adb_artifact() is not None
         )
-
-    def _adb_artifact(self) -> ReleaseArtifact | None:
-        artifact = self._offer.host_release()
-        return artifact if artifact is not None and artifact.descriptor else None
 
     def _schedule_route_refresh(self) -> None:
         artifact = self._offer.host_release()
@@ -331,7 +269,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             and self._offer.feed.verified_apk(build) is None
         )
         if (
-            self._api_capability() == "api"
+            api_capability(self.coordinator.data) == "api"
             and not self._offer.bridge_handover_due()
             and not needs_verification
         ):
@@ -413,7 +351,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         # passively, without generating a key or requesting new authorization.
         has_route: bool | None = route is not None
         if not has_route and self._route_observed():
-            has_route = await self._async_observe_update_route()
+            has_route = await async_observe_update_route(
+                self.hass, self._entry_id, self.coordinator
+            )
         if key == self._route_key():
             self._route_checked_key = key
             self._adb_ready_key = key if route == ROUTE_ADB else None
@@ -423,7 +363,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             # loses nothing, so it reads as up to date rather than as a problem.
             if not self._has_install_route() and not _bridge_not_ready(error):
                 attributes[ROUTE_UNAVAILABLE_ATTRIBUTE] = route_unavailable_reason(
-                    error, has_adb_artifact=self._adb_artifact() is not None
+                    error, has_adb_artifact=self._offer.adb_artifact() is not None
                 )
             else:
                 attributes.pop(ROUTE_UNAVAILABLE_ATTRIBUTE, None)
@@ -436,186 +376,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         self,
     ) -> tuple[str | None, AdbInstallTarget | None, AdbCredential | None]:
         """Choose from the panel's live install route, then authorized ADB."""
-        snapshot: PanelSnapshot | None = self.coordinator.data
-        if snapshot is None or not self.coordinator.reachable:
-            return None, None, None
-        if self._offer.bridge_handover_due():
-            bridge = self._offer.host_release()
-            successor = (
-                self._offer.release.artifact_for(
-                    SUCCESSOR_PACKAGE_ID,
-                    allow_prerelease=self._allow_prerelease(),
-                    tag=bridge.tag,
-                )
-                if self._offer.release and bridge is not None
-                else None
-            )
-            if (
-                bridge is None
-                or successor is None
-                or successor.tag != bridge.tag
-                or successor.descriptor is None
-            ):
-                raise _update_error(
-                    "release_pair_unavailable",
-                    "The matching new-app release is unavailable",
-                )
-            await self._offer.async_check_successor(successor, snapshot)
-        capability = self._api_capability()
-        if capability is None:
-            try:
-                # Older panels exported this exact privileged-route observation
-                # as the dashboard's `shot` bit before the typed status field.
-                if await self.coordinator.client.async_get_legacy_install_capability():
-                    return ROUTE_PANEL, None, None
-            except HaPaneldError:
-                pass
-        elif capability == "api":
-            return ROUTE_PANEL, None, None
-        adb = await self._async_adb_route()
-        if adb is None:
-            return None, None, None
-        return ROUTE_ADB, *adb
-
-    async def _async_adb_route(
-        self,
-    ) -> tuple[AdbInstallTarget, AdbCredential] | None:
-        """Admit the authorized ADB route, whatever route the panel offers itself."""
-        artifact = self._adb_artifact()
-        if artifact is None or artifact.descriptor is None:
-            return None
-        try:
-            try:
-                credential = await async_get_durable_adb_credential(self.hass)
-            except AdbCredentialMissingError:
-                credential = None
-            admitted = await self._async_admit_adb_target(artifact, credential)
-            if admitted is None:
-                return None
-            target, credential, _root_mode = admitted
-        except InstallAdbError as err:
-            if err.code is InstallAdbErrorCode.AUTHORIZATION_REQUIRED:
-                raise adb_authorization_error(
-                    self.hass, self._entry_id, self._panel_name()
-                ) from err
-            return None
-        except (
-            AdbCredentialError,
-            InstallNetworkError,
-            HaPaneldError,
-            OSError,
-        ):
-            return None
-        async_clear_adb_authorization(self.hass, self._entry_id)
-        return target, credential
-
-    async def _async_pin_adb_target(self) -> PinnedPanelTarget | None:
-        """Bind passive ADB evidence to the configured panel's pinned HTTP identity."""
-        snapshot = self.coordinator.data
-        if snapshot is None or not self.coordinator.reachable:
-            return None
-        return await async_pin_entry_target(
-            self.hass,
-            self.coordinator.client.address,
-            snapshot.health,
-            self._entry_discovery_id(),
+        return await async_install_route(
+            self.hass, self._entry_id, self.coordinator, self._offer, self._panel_name
         )
-
-    async def _async_probe_adb_target(
-        self, pinned: PinnedPanelTarget, credential: AdbCredential | None
-    ) -> AdbInstallTarget | None:
-        """Observe the current installed app without offering an authorization key."""
-        probe = (
-            await async_probe_install_target(pinned.pinned)
-            if credential is None
-            else await async_probe_install_target(pinned.pinned, credential.signer)
-        )
-        if probe.state is InstallTargetState.ADB_UNREACHABLE:
-            raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE)
-        if probe.state is InstallTargetState.ADB_UNAUTHORIZED:
-            raise InstallAdbError(InstallAdbErrorCode.AUTHORIZATION_REQUIRED)
-        if probe.state not in {
-            InstallTargetState.INSTALLED,
-            InstallTargetState.MIGRATION_CANDIDATE,
-        }:
-            return None
-        return probe.adb_target(pinned.pinned)
-
-    async def _async_observe_update_route(self) -> bool | None:
-        """Check route recovery independently of a pending signed update."""
-        try:
-            capability = self._api_capability()
-            if capability == "api":
-                return True
-            if capability is None:
-                try:
-                    client = self.coordinator.client
-                    if await client.async_get_legacy_install_capability():
-                        return True
-                except HaPaneldError:
-                    pass
-            try:
-                credential = await async_get_durable_adb_credential(self.hass)
-            except AdbCredentialMissingError:
-                credential = None
-            pinned = await self._async_pin_adb_target()
-            if pinned is None:
-                return None
-            target = await self._async_probe_adb_target(pinned, credential)
-            if target is None:
-                return None
-            await async_revalidate_install_target(self.hass, pinned)
-            return True
-        except InstallAdbError:
-            return False
-        except (
-            AdbCredentialError,
-            InstallNetworkError,
-            HaPaneldError,
-            OSError,
-        ):
-            return None
-
-    async def _async_admit_adb_target(
-        self, artifact: ReleaseArtifact, credential: AdbCredential | None
-    ) -> tuple[AdbInstallTarget, AdbCredential, AdbRootMode] | None:
-        """Bind an ADB target to the live HTTP identity and exact signed artifact."""
-        snapshot = self.coordinator.data
-        if (
-            snapshot is None
-            or not self.coordinator.reachable
-            or artifact.descriptor is None
-        ):
-            return None
-        pinned = await self._async_pin_adb_target()
-        if pinned is None:
-            _LOGGER.debug(
-                "ADB for %s refused: the panel at its address is not this entry's",
-                self._panel_name(),
-            )
-            return None
-        if credential is None:
-            # Only an already-open peer permits install admission to create a key.
-            if await self._async_probe_adb_target(pinned, None) is None:
-                return None
-            await async_get_adb_credential(self.hass)
-            credential = await async_get_durable_adb_credential(self.hass)
-        target = await self._async_probe_adb_target(pinned, credential)
-        if target is None:
-            _LOGGER.debug(
-                "ADB for %s refused: no installed app found", self._panel_name()
-            )
-            return None
-        admitted = await async_preflight_install(
-            target,
-            credential.signer,
-            artifact.descriptor,
-            admit_installed_target=True,
-        )
-        if not admitted.target_installed:
-            return None
-        await async_revalidate_install_target(self.hass, pinned)
-        return target, credential, admitted.root_mode
 
     def _refresh_installed_code(self) -> None:
         """Read the running build number once per install, never per poll."""
@@ -932,7 +695,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             route, adb_target, adb_credential = await self._async_install_route()
         except HomeAssistantError as route_error:
             if route_error.translation_key == "adb_authorization_required":
-                artifact = self._adb_artifact()
+                artifact = self._offer.adb_artifact()
                 failed_target = version
                 if failed_target is None and artifact is not None:
                     failed_target = (
@@ -991,7 +754,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         else:
             offer = self._offer.stable_target()
             if route == ROUTE_ADB:
-                release = self._adb_artifact()
+                release = self._offer.adb_artifact()
                 if release is not None:
                     offer = PanelCachedUpdate(
                         self.coordinator.data.health.version,
@@ -1017,17 +780,25 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             if feed is not None:
                 if route == ROUTE_ADB:
                     assert adb_target is not None and adb_credential is not None
-                    await self._async_deliver_adb(
-                        selected_artifact, adb_target, adb_credential, apk=verified_apk
+                    await self._delivery.async_deliver_adb(
+                        self.hass,
+                        selected_artifact,
+                        adb_target,
+                        adb_credential,
+                        apk=verified_apk,
                     )
                 else:
-                    await self._async_deliver_build(selected_artifact, apk=verified_apk)
+                    await self._delivery.async_deliver_build(
+                        self.hass, selected_artifact, apk=verified_apk
+                    )
             else:
                 assert offer is not None
                 if route == ROUTE_ADB:
                     assert release is not None
                     assert adb_target is not None and adb_credential is not None
-                    await self._async_deliver_adb(release, adb_target, adb_credential)
+                    await self._delivery.async_deliver_adb(
+                        self.hass, release, adb_target, adb_credential
+                    )
                     await async_clear_update_failure_if_installed(
                         self.hass,
                         self._entry_id,
@@ -1043,15 +814,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     if release.descriptor is None:
                         # Keep the signed pair selected for this transaction even
                         # if the shared release coordinator refreshes mid-install.
-                        successor = (
-                            self._offer.release.artifact_for(
-                                SUCCESSOR_PACKAGE_ID,
-                                allow_prerelease=self._allow_prerelease(),
-                                tag=release.tag,
-                            )
-                            if self._offer.release
-                            else None
-                        )
+                        successor = self._offer.successor(release.tag)
                         if (
                             successor is None
                             or successor.tag != release.tag
@@ -1068,7 +831,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                             self.coordinator.data.health.version != release.version
                             or not self.coordinator.data.health.installation_identity
                         ):
-                            await self._async_deliver_build(release)
+                            await self._delivery.async_deliver_build(self.hass, release)
                             bridge_delivered = True
                             self._progress.next_delivery()
                         if reports_package(
@@ -1077,8 +840,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                             # A connected bridge may already have completed its
                             # own handover. Prove that result without reinstalling.
                             self._progress.enter("installing")
-                            await self._async_wait_for_build(
-                                successor, ("", LEGACY_PACKAGE_ID)
+                            await self._delivery.async_wait_for_build(
+                                self.hass, successor, ("", LEGACY_PACKAGE_ID)
                             )
                         else:
                             # Panel Assistant moves the panel to the new app
@@ -1095,7 +858,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                                     "Move this panel to the new app with its "
                                     "Repair in Settings",
                                 )
-                    elif not await self._async_deliver_build(release, fallback=True):
+                    elif not await self._delivery.async_deliver_build(
+                        self.hass, release, fallback=True
+                    ):
                         await self._async_start_panel_download(offer, release)
                 else:
                     await self._async_start_panel_download(offer, release)
@@ -1146,7 +911,13 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                         self.hass,
                         self.coordinator,
                         repair_artifact,
-                        admit_adb_target=self._async_admit_adb_target,
+                        admit_adb_target=partial(
+                            async_admit_adb_target,
+                            self.hass,
+                            self._entry_id,
+                            self.coordinator,
+                            panel_name=self._panel_name,
+                        ),
                         panel_name=self._panel_name,
                     ),
                     f"permission repair after updating {owner.title}",
@@ -1178,6 +949,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         observer = self._start_observer(offer.target_version)
         self.async_write_ha_state()
         await observer
+
+    def _remember_code(self, code: int, key: tuple[str, str]) -> None:
+        """Keep the build number a delivery proved, for the version just read."""
+        self._installed_code = code
+        self._code_key = key
 
     def _record_route(self, route: str, tag: str) -> None:
         """Say which way this update reached the panel."""
@@ -1236,322 +1012,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 "The requested Panel Assistant update is unavailable",
             )
         return build
-
-    async def _async_deliver_build(
-        self,
-        artifact: ReleaseArtifact,
-        *,
-        apk: bytes | None = None,
-        fallback: bool = False,
-        migration: bool = False,
-    ) -> bool:
-        """Back up, verify, upload and commit one signed build, then prove it.
-
-        With ``fallback``, a download that fetched nothing, or a panel that
-        cannot take an upload at all, returns False before anything is
-        installed, so the caller can use the panel's own route.
-        """
-        if self.coordinator.identity_mismatch:
-            raise _update_error("update_unavailable", "The panel identity has changed")
-        if not self._offer.allowed(artifact):
-            raise _update_error(
-                "update_unavailable", "The requested update is unavailable"
-            )
-        client = self.coordinator.client
-        snapshot: PanelSnapshot | None = self.coordinator.data
-        descriptor = artifact.descriptor
-        package_id = descriptor.package_id if descriptor else LEGACY_PACKAGE_ID
-        if snapshot is None:
-            # Nothing has been read from the panel, so there is no build to
-            # replace and none to prove the replacement against.
-            raise _update_error(
-                "update_unavailable",
-                "The requested Panel Assistant update is unavailable",
-            )
-        running_package = LEGACY_PACKAGE_ID if migration else package_id
-        if not reports_package(snapshot.health.package, running_package):
-            raise _update_error(
-                "panel_changed_during_update",
-                "The panel changed while preparing the update",
-            )
-        before = (snapshot.health.build, snapshot.health.package)
-        installed_successor_code: int | None = None
-        if migration:
-            installed_successor_code = await self._offer.async_check_successor(
-                artifact, snapshot
-            )
-        await self._async_backup_panel()
-        if (
-            migration
-            and descriptor is not None
-            and installed_successor_code is not None
-            and installed_successor_code >= descriptor.version_code
-        ):
-            try:
-                await client.async_offer_installed_successor()
-            except UpdateApprovalRequiredError as err:
-                raise _update_error(
-                    "update_approval_required",
-                    "Approve this update on the panel, then try again",
-                ) from err
-            except UpdateBusyError as err:
-                raise _update_error(
-                    "update_busy", "The panel is busy with another operation"
-                ) from err
-            except HaPaneldError as err:
-                raise _update_error(
-                    "bridge_handover_refused", "The panel refused the app handover"
-                ) from err
-            self._record_route(ROUTE_STAGED, artifact.tag)
-            self._progress.enter("installing")
-            await self._async_wait_for_build(artifact, before, minimum_code=True)
-            return True
-        if apk is None:
-            try:
-                apk = await async_download_build(
-                    async_get_clientsession(self.hass), artifact
-                )
-            except BuildDownloadError as err:
-                if fallback:
-                    # Nothing was fetched, so nothing failed a check: the panel
-                    # can still fetch and verify the release itself.
-                    _LOGGER.warning("Could not download %s here: %s", artifact.tag, err)
-                    return False
-                raise _update_error(
-                    "release_download_failed", "The app release could not be downloaded"
-                ) from err
-            except BuildFeedError as err:
-                raise _verification_error(artifact) from err
-        try:
-            try:
-                staged = (
-                    await client.async_stage_apk(apk, migration_sha256=artifact.sha256)
-                    if migration
-                    else await client.async_stage_apk(apk)
-                )
-            except StagingUnavailableError:
-                if fallback:
-                    return False
-                raise
-            health = self.coordinator.data.health if self.coordinator.data else None
-            panel_changed = (
-                health is None
-                or not reports_package(health.package, running_package)
-                or (migration and health.version != artifact.version)
-            )
-            staged_mismatch = (
-                staged.package != package_id
-                or staged.signer != _RELEASE_SIGNER_CERTIFICATE_SHA256
-                or staged.version != artifact.version
-            )
-            if panel_changed or staged_mismatch:
-                with contextlib.suppress(HaPaneldError):
-                    await client.async_discard_apk(staged.token)
-                if panel_changed:
-                    raise _update_error(
-                        "panel_changed_during_update",
-                        "The panel changed while preparing the update",
-                    )
-                raise _update_error(
-                    "staged_app_mismatch",
-                    "The staged app does not match the signed release details",
-                )
-
-            async def commit() -> None:
-                try:
-                    await self._offer.async_admit(artifact)
-                except HomeAssistantError:
-                    with contextlib.suppress(HaPaneldError):
-                        await client.async_discard_apk(staged.token)
-                    raise
-                await client.async_commit_apk(staged.token)
-
-            await _retry_unstarted_install(commit)
-        except UploadDisabledError as err:
-            raise _update_error(
-                "upload_disabled", "The panel does not accept app uploads"
-            ) from err
-        except UpdateBusyError as err:
-            raise _update_error(
-                "update_busy", "The panel is busy with another operation"
-            ) from err
-        except UpdateApprovalRequiredError as err:
-            raise _update_error(
-                "update_approval_required",
-                "Approve this update on the panel, then try again",
-            ) from err
-        except (CannotConnectError, InvalidResponseError) as err:
-            raise _update_error(
-                "update_not_accepted", "The panel did not accept the update request"
-            ) from err
-        self._record_route(ROUTE_STAGED, artifact.tag)
-        self._progress.enter("installing")
-        try:
-            await self._async_wait_for_build(artifact, before, watch_refusal=True)
-        except UpdateRejectedError as refusal:
-            # A panel whose own rule refuses a higher build (its version-name
-            # order predates build-number order) can only be crossed by
-            # Android's installer, which orders by build number alone.
-            adb = (
-                await self._async_adb_route()
-                if _DOWNGRADE_REFUSAL in str(refusal)
-                and descriptor is not None
-                and (installed := snapshot.health.version_code or self._installed_code)
-                and descriptor.version_code > installed
-                else None
-            )
-            if adb is None:
-                raise
-            _LOGGER.info(
-                "%s refused %s (%s); installing it over ADB",
-                self._panel_name(),
-                artifact.tag,
-                refusal,
-            )
-            await self._async_deliver_adb(artifact, *adb, apk=apk)
-        return True
-
-    async def _async_backup_panel(self) -> None:
-        """Keep the existing verified backup gate for both install routes."""
-        try:
-            await async_store_panel_backup(
-                self.hass,
-                self._entry_id,
-                self._installed_code,
-                await self.coordinator.client.async_backup_panel(),
-            )
-        except UpdateApprovalRequiredError as err:
-            raise _update_error(
-                "update_approval_required",
-                "Approve this update on the panel, then try again",
-            ) from err
-        except PanelBackupInvalidError as err:
-            # The archive was unreadable, so nothing here is a backup. Refuse
-            # the upgrade rather than replace the app that still holds the
-            # only copy of this panel's settings.
-            raise _update_error(
-                "panel_backup_failed", "The panel could not be backed up first"
-            ) from err
-        except (HaPaneldError, OSError) as err:
-            raise _update_error(
-                "panel_backup_failed", "The panel could not be backed up first"
-            ) from err
-
-    async def _async_deliver_adb(
-        self,
-        artifact: ReleaseArtifact,
-        target: AdbInstallTarget,
-        credential: AdbCredential,
-        *,
-        apk: bytes | None = None,
-    ) -> None:
-        """Send one signed replacement through the already-authorized ADB peer."""
-        descriptor = artifact.descriptor
-        snapshot: PanelSnapshot | None = self.coordinator.data
-        if not self._offer.allowed(artifact):
-            raise _update_error(
-                "update_unavailable", "The requested update is unavailable"
-            )
-        if (
-            descriptor is None
-            or snapshot is None
-            or not reports_package(snapshot.health.package, descriptor.package_id)
-        ):
-            raise _update_error(
-                "panel_changed_during_update",
-                "The panel changed while preparing the update",
-            )
-        before = (snapshot.health.build, snapshot.health.package)
-        await self._async_backup_panel()
-        if apk is None:
-            try:
-                apk = await async_download_build(
-                    async_get_clientsession(self.hass), artifact
-                )
-            except BuildDownloadError as err:
-                raise _update_error(
-                    "release_download_failed", "The app release could not be downloaded"
-                ) from err
-            except BuildFeedError as err:
-                raise _verification_error(artifact) from err
-        # A download or backup may take minutes. Re-prove the same panel and
-        # credential immediately before replacing its installed package.
-        fresh = await self._async_adb_route()
-        fresh_target, fresh_credential = fresh if fresh else (None, None)
-        if (
-            not self._offer.allowed(artifact)
-            or fresh_target != target
-            or fresh_credential is None
-            or fresh_credential.generation_id != credential.generation_id
-        ):
-            raise _update_error(
-                "update_unavailable",
-                "The requested Panel Assistant update is unavailable",
-            )
-        try:
-            with NamedTemporaryFile(
-                prefix="panel-assistant-update-", suffix=".apk"
-            ) as file:
-                await self.hass.async_add_executor_job(file.write, apk)
-                await self.hass.async_add_executor_job(file.flush)
-                outcome = await async_update_installed_apk(
-                    target,
-                    credential.signer,
-                    descriptor,
-                    Path(file.name),
-                    before_install=lambda: self._offer.async_admit(artifact),
-                )
-        except InstallAdbError as err:
-            raise _update_error(
-                "update_not_complete", "The panel update did not complete"
-            ) from err
-        if outcome is InstallOutcome.REFUSED:
-            raise _UpdateRefusalError(self._panel_name())
-        self._progress.enter("installing")
-        try:
-            installed = await async_preflight_install(
-                target,
-                credential.signer,
-                descriptor,
-                admit_installed_target=True,
-            )
-            if not installed.target_installed or (
-                await async_launch_installed_app(
-                    target,
-                    credential.signer,
-                    descriptor,
-                    expected_root_mode=installed.root_mode,
-                )
-                is not LaunchOutcome.STARTED
-            ):
-                raise _update_error(
-                    "update_not_complete", "The panel update did not complete"
-                )
-        except InstallAdbError as err:
-            raise _update_error(
-                "update_not_complete", "The panel update did not complete"
-            ) from err
-        self._record_route(ROUTE_ADB, artifact.tag)
-        await self._async_wait_for_build(artifact, before)
-
-    async def _async_wait_for_build(
-        self,
-        artifact: ReleaseArtifact,
-        before: tuple[str, str | None],
-        *,
-        minimum_code: bool = False,
-        watch_refusal: bool = False,
-    ) -> None:
-        """Wait for exactly the committed build, then remember its number."""
-        proven = await self._progress.async_wait_for_build(
-            self.hass,
-            artifact,
-            before,
-            minimum_code=minimum_code,
-            watch_refusal=watch_refusal,
-        )
-        if proven is not None:
-            self._installed_code, self._code_key = proven
 
 
 class NativeUpdate(NativeEntity, UpdateEntity):

@@ -150,6 +150,23 @@ class UpdateOffer:
             default=None,
         )
 
+    def adb_artifact(self) -> ReleaseArtifact | None:
+        """The offered build, when it carries the details an ADB install needs."""
+        artifact = self.host_release()
+        return artifact if artifact is not None and artifact.descriptor else None
+
+    def successor(self, tag: str) -> ReleaseArtifact | None:
+        """The new app released with this bridge, for the handover."""
+        return (
+            self.release.artifact_for(
+                SUCCESSOR_PACKAGE_ID,
+                allow_prerelease=self._allow_prerelease(),
+                tag=tag,
+            )
+            if self.release
+            else None
+        )
+
     def label(self, artifact: ReleaseArtifact) -> str:
         """Keep same-version rebuilds distinguishable in Home Assistant."""
         if artifact.descriptor is not None and (

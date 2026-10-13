@@ -24,8 +24,9 @@ from custom_components.panel_assistant import (
     adb_credentials,
     install_network,
     provisioning,
+    update_route,
+    update_staging,
 )
-from custom_components.panel_assistant import update as panel_update
 from custom_components.panel_assistant.adb_credentials import (
     AdbCredentialError,
     AdbCredentialMissingError,
@@ -158,21 +159,24 @@ def route(
     )
     adb_install = AsyncMock(return_value=InstallOutcome.INSTALLED)
     launch = AsyncMock(return_value=LaunchOutcome.STARTED)
-    monkeypatch.setattr(panel_update, "async_get_clientsession", lambda _hass: object())
+    monkeypatch.setattr(
+        update_staging, "async_get_clientsession", lambda _hass: object()
+    )
     monkeypatch.setattr(
         install_network,
         "HaPaneldClient",
         lambda *_args: SimpleNamespace(async_get_health=pinned_health),
     )
     monkeypatch.setattr(
-        panel_update, "async_get_durable_adb_credential", get_credential
+        update_route, "async_get_durable_adb_credential", get_credential
     )
     monkeypatch.setattr(install_network, "async_pin_install_target", pin)
-    monkeypatch.setattr(panel_update, "async_revalidate_install_target", revalidate)
-    monkeypatch.setattr(panel_update, "async_probe_install_target", probe_target)
-    monkeypatch.setattr(panel_update, "async_preflight_install", preflight)
-    monkeypatch.setattr(panel_update, "async_update_installed_apk", adb_install)
-    monkeypatch.setattr(panel_update, "async_launch_installed_app", launch)
+    monkeypatch.setattr(update_route, "async_revalidate_install_target", revalidate)
+    monkeypatch.setattr(update_route, "async_probe_install_target", probe_target)
+    monkeypatch.setattr(update_route, "async_preflight_install", preflight)
+    monkeypatch.setattr(update_staging, "async_preflight_install", preflight)
+    monkeypatch.setattr(update_staging, "async_update_installed_apk", adb_install)
+    monkeypatch.setattr(update_staging, "async_launch_installed_app", launch)
     return SimpleNamespace(
         entity=entity,
         client=client,
@@ -263,17 +267,17 @@ async def test_existing_keyless_shelly_offers_and_installs_from_ha(
         await store.hass.async_add_executor_job(store._write_data, data)
 
     monkeypatch.setattr(
-        panel_update,
+        update_route,
         "async_get_adb_credential",
         adb_credentials.async_get_adb_credential,
     )
     monkeypatch.setattr(
-        panel_update,
+        update_route,
         "async_get_durable_adb_credential",
         adb_credentials.async_get_durable_adb_credential,
     )
     deliver = AsyncMock()
-    monkeypatch.setattr(route.entity, "_async_deliver_adb", deliver)
+    monkeypatch.setattr(route.entity._delivery, "async_deliver_adb", deliver)
     key_path = Path(hass.config.path(".storage/panel_assistant.adb_key"))
     await hass.async_add_executor_job(
         lambda: key_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -330,7 +334,7 @@ async def test_an_app_on_an_older_protocol_is_updated_over_adb(
     route.client.async_get_legacy_install_capability = legacy_probe
     route.client.async_discard_apk = AsyncMock()
     deliver = AsyncMock()
-    monkeypatch.setattr(route.entity, "_async_deliver_adb", deliver)
+    monkeypatch.setattr(route.entity._delivery, "async_deliver_adb", deliver)
 
     await route.entity._async_refresh_route()
     await route.entity.async_install(None, False)
@@ -373,13 +377,13 @@ async def test_existing_protected_panel_requires_explicit_authorization(
     device = SimpleNamespace(connect=reject_untrusted_key, close=AsyncMock())
     monkeypatch.setattr(provisioning, "AdbDeviceAsync", lambda *_a, **_kw: device)
     monkeypatch.setattr(
-        panel_update,
+        update_route,
         "async_probe_install_target",
         provisioning.async_probe_install_target,
     )
     create_credential = AsyncMock()
     monkeypatch.setattr(
-        panel_update, "async_get_adb_credential", create_credential, raising=False
+        update_route, "async_get_adb_credential", create_credential, raising=False
     )
 
     await route.entity._async_refresh_route()
@@ -437,7 +441,7 @@ async def test_corrupt_adb_store_does_not_gain_an_update_route(
 ) -> None:
     route.get_credential.side_effect = AdbCredentialError()
     create_credential = AsyncMock(side_effect=AdbCredentialError())
-    monkeypatch.setattr(panel_update, "async_get_adb_credential", create_credential)
+    monkeypatch.setattr(update_route, "async_get_adb_credential", create_credential)
 
     await route.entity._async_refresh_route()
 
@@ -634,12 +638,12 @@ async def test_adb_transaction_uses_current_consent_until_command_submission(
     _install_update_fake(monkeypatch, device)
     route.credential.signer = object.__new__(PythonRSASigner)
     monkeypatch.setattr(
-        panel_update,
+        update_staging,
         "async_update_installed_apk",
         install_adb.async_update_installed_apk,
     )
     verified = AsyncMock()
-    monkeypatch.setattr(route.entity, "_async_wait_for_build", verified)
+    monkeypatch.setattr(route.entity._delivery, "async_wait_for_build", verified)
     if revoke_at == "submitted":
         await route.entity.async_install(None, False)
         assert any(f"pm install -r {REMOTE_PATH}" in cmd for cmd in device.commands)

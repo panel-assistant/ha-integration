@@ -14,7 +14,7 @@ from homeassistant.helpers.translation import async_get_translations
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.panel_assistant import update as panel_update
+from custom_components.panel_assistant import update_staging
 from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
 from custom_components.panel_assistant.build_feed import BuildDownloadError
 from custom_components.panel_assistant.client import (
@@ -368,7 +368,7 @@ async def test_successful_panel_update_keeps_its_dashboard_and_permission_warnin
     # The authenticated PA offer owns admission. A failed host download still
     # exercises the production panel-download route and its success observer.
     monkeypatch.setattr(
-        panel_update,
+        update_staging,
         "async_download_build",
         AsyncMock(side_effect=BuildDownloadError("host download unavailable")),
     )

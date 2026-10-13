@@ -30,9 +30,12 @@ from yarl import URL
 
 from custom_components.panel_assistant import (
     CONFIG_SCHEMA,
+    adb_protocol,
     async_setup,
     install_network,
     update_progress,
+    update_route,
+    update_staging,
 )
 from custom_components.panel_assistant import update as panel_update
 from custom_components.panel_assistant.adb_credentials import AdbCredentialError
@@ -236,8 +239,10 @@ def delivery(
     hass.config.config_dir = str(tmp_path)
     session = object()
     download = AsyncMock(return_value=APK)
-    monkeypatch.setattr(panel_update, "async_get_clientsession", lambda _hass: session)
-    monkeypatch.setattr(panel_update, "async_download_build", download)
+    monkeypatch.setattr(
+        update_staging, "async_get_clientsession", lambda _hass: session
+    )
+    monkeypatch.setattr(update_staging, "async_download_build", download)
     monkeypatch.setattr(panel_update.asyncio, "sleep", AsyncMock())
     # With sleep stubbed, an unexpected wait would spin to its real deadline;
     # keep that to about a second so a regression fails fast instead of hanging.
@@ -412,7 +417,7 @@ async def test_feed_offer_is_withheld_when_no_install_route_works(
         status_error=None,
     )
     monkeypatch.setattr(
-        panel_update,
+        update_route,
         "async_get_durable_adb_credential",
         AsyncMock(side_effect=AdbCredentialError),
     )
@@ -523,7 +528,7 @@ async def test_rootless_panel_uses_its_existing_authorized_adb_route(
         android_sdk=30,
     )
     monkeypatch.setattr(
-        panel_update,
+        update_route,
         "async_get_durable_adb_credential",
         AsyncMock(return_value=credential),
     )
@@ -531,19 +536,20 @@ async def test_rootless_panel_uses_its_existing_authorized_adb_route(
         install_network, "async_pin_install_target", AsyncMock(return_value=pinned)
     )
     monkeypatch.setattr(
-        panel_update, "async_revalidate_install_target", AsyncMock(return_value=pinned)
+        update_route, "async_revalidate_install_target", AsyncMock(return_value=pinned)
     )
     monkeypatch.setattr(
-        panel_update, "async_probe_install_target", AsyncMock(return_value=probe)
+        update_route, "async_probe_install_target", AsyncMock(return_value=probe)
     )
     preflight = AsyncMock(
         return_value=SimpleNamespace(
             target_installed=target_installed, root_mode="rootless"
         )
     )
-    monkeypatch.setattr(panel_update, "async_preflight_install", preflight)
-    launch = AsyncMock(return_value=panel_update.LaunchOutcome.STARTED)
-    monkeypatch.setattr(panel_update, "async_launch_installed_app", launch)
+    monkeypatch.setattr(update_route, "async_preflight_install", preflight)
+    monkeypatch.setattr(update_staging, "async_preflight_install", preflight)
+    launch = AsyncMock(return_value=adb_protocol.LaunchOutcome.STARTED)
+    monkeypatch.setattr(update_staging, "async_launch_installed_app", launch)
     pinned_client = SimpleNamespace(
         async_get_health=AsyncMock(return_value=entity.coordinator.data.health)
     )
@@ -561,7 +567,7 @@ async def test_rootless_panel_uses_its_existing_authorized_adb_route(
         return InstallOutcome.INSTALLED
 
     adb_install = AsyncMock(side_effect=install)
-    monkeypatch.setattr(panel_update, "async_update_installed_apk", adb_install)
+    monkeypatch.setattr(update_staging, "async_update_installed_apk", adb_install)
     _restart_into(entity, client, 772)
 
     await entity._async_refresh_route()
@@ -657,7 +663,7 @@ async def test_install_delivers_the_newest_build_in_order(
     client.async_backup_panel = AsyncMock(side_effect=backup)
     client.async_stage_apk = AsyncMock(side_effect=stage)
     client.async_commit_apk = AsyncMock(side_effect=commit)
-    monkeypatch.setattr(panel_update, "async_store_panel_backup", store)
+    monkeypatch.setattr(update_staging, "async_store_panel_backup", store)
     _restart_into(entity, client, 772, calls)
 
     await entity.async_install(None, False)
@@ -905,7 +911,7 @@ async def test_delivery_refuses_an_identity_change_before_backup(
         snapshot, health=replace(snapshot.health, package=package)
     )
     with pytest.raises(HomeAssistantError) as error:
-        await entity._async_deliver_build(selected)
+        await entity._delivery.async_deliver_build(hass, selected)
     _assert_translated(error.value, "panel_changed_during_update")
     client.async_backup_panel.assert_not_awaited()
     delivery.download.assert_not_awaited()
@@ -951,7 +957,7 @@ async def test_backup_store_failure_never_downloads(
     """A backup Home Assistant could not keep counts as no backup."""
     entity, _ = _entity(hass)
     monkeypatch.setattr(
-        panel_update, "async_store_panel_backup", AsyncMock(side_effect=OSError)
+        update_staging, "async_store_panel_backup", AsyncMock(side_effect=OSError)
     )
 
     with pytest.raises(HomeAssistantError) as error:
@@ -1817,7 +1823,7 @@ def _authorized_adb(
         android_sdk=30,
     )
     monkeypatch.setattr(
-        panel_update,
+        update_route,
         "async_get_durable_adb_credential",
         AsyncMock(return_value=credential),
     )
@@ -1825,22 +1831,20 @@ def _authorized_adb(
         install_network, "async_pin_install_target", AsyncMock(return_value=pinned)
     )
     monkeypatch.setattr(
-        panel_update, "async_revalidate_install_target", AsyncMock(return_value=pinned)
+        update_route, "async_revalidate_install_target", AsyncMock(return_value=pinned)
     )
     monkeypatch.setattr(
-        panel_update, "async_probe_install_target", AsyncMock(return_value=probe)
+        update_route, "async_probe_install_target", AsyncMock(return_value=probe)
     )
-    monkeypatch.setattr(
-        panel_update,
-        "async_preflight_install",
-        AsyncMock(
-            return_value=SimpleNamespace(target_installed=True, root_mode="rootless")
-        ),
+    preflight = AsyncMock(
+        return_value=SimpleNamespace(target_installed=True, root_mode="rootless")
     )
+    monkeypatch.setattr(update_route, "async_preflight_install", preflight)
+    monkeypatch.setattr(update_staging, "async_preflight_install", preflight)
     monkeypatch.setattr(
-        panel_update,
+        update_staging,
         "async_launch_installed_app",
-        AsyncMock(return_value=panel_update.LaunchOutcome.STARTED),
+        AsyncMock(return_value=adb_protocol.LaunchOutcome.STARTED),
     )
     pinned_client = SimpleNamespace(
         async_get_health=AsyncMock(return_value=entity.coordinator.data.health)
@@ -1859,7 +1863,7 @@ def _authorized_adb(
         return await entity.hass.async_add_executor_job(path.read_bytes)
 
     adb_install = AsyncMock(side_effect=install)
-    monkeypatch.setattr(panel_update, "async_update_installed_apk", adb_install)
+    monkeypatch.setattr(update_staging, "async_update_installed_apk", adb_install)
     return adb_install
 
 
@@ -1934,7 +1938,7 @@ async def test_a_downgrade_refusal_without_an_adb_route_is_still_reported(
     _refuse_committed_install(client, "panel-app downgrades are not permitted")
     adb_install = _authorized_adb(entity, client, monkeypatch)
     monkeypatch.setattr(
-        panel_update,
+        update_route,
         "async_probe_install_target",
         AsyncMock(
             return_value=InstallTargetProbe(state=InstallTargetState.ADB_UNREACHABLE)

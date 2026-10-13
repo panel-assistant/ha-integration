@@ -49,6 +49,8 @@ from custom_components.panel_assistant import (
     update_errors,
     update_panel_install,
     update_progress,
+    update_route,
+    update_staging,
 )
 from custom_components.panel_assistant import update as panel_update
 from custom_components.panel_assistant.adb_credentials import (
@@ -327,7 +329,7 @@ async def _entity(
 ) -> tuple[HaPaneldUpdateEntity, SimpleNamespace]:
     """A panel on 0.9.9 whose app restarts into 0.9.10 once an install starts."""
     monkeypatch.setattr(feed_coordinator, "async_get_clientsession", lambda _h: github)
-    monkeypatch.setattr(panel_update, "async_get_clientsession", lambda _h: github)
+    monkeypatch.setattr(update_staging, "async_get_clientsession", lambda _h: github)
     monkeypatch.setattr(panel_update.asyncio, "sleep", AsyncMock())
     client = SimpleNamespace(
         async_backup_panel=AsyncMock(return_value=_backup()),
@@ -436,13 +438,13 @@ async def test_adb_only_panel_offers_the_host_release(
         AsyncMock(return_value=(panel_update.ROUTE_ADB, object(), object())),
     )
     delivered = AsyncMock()
-    monkeypatch.setattr(entity, "_async_deliver_adb", delivered)
+    monkeypatch.setattr(entity._delivery, "async_deliver_adb", delivered)
 
     assert entity.latest_version == VERSION
     await entity.async_install(None, False)
 
     delivered.assert_awaited_once()
-    assert delivered.await_args.args[0].tag == TAG
+    assert delivered.await_args.args[1].tag == TAG
     client.async_start_panel_update.assert_not_awaited()
 
 
@@ -991,13 +993,15 @@ async def test_missing_release_download_is_not_called_a_bad_signature(
 ) -> None:
     entity, client = await _entity(hass, monkeypatch, _GitHub(key))
     monkeypatch.setattr(
-        panel_update, "async_download_build", AsyncMock(side_effect=BuildDownloadError)
+        update_staging,
+        "async_download_build",
+        AsyncMock(side_effect=BuildDownloadError),
     )
     artifact = entity._offer.host_release()
     assert artifact is not None
 
     with pytest.raises(HomeAssistantError) as error:
-        await entity._async_deliver_build(artifact)
+        await entity._delivery.async_deliver_build(hass, artifact)
     _assert_translated(error.value, "release_download_failed")
     client.async_stage_apk.assert_not_awaited()
     client.async_commit_apk.assert_not_awaited()
@@ -1371,7 +1375,7 @@ async def _lan_grant_repair_panel(
         update_panel_install, "async_get_durable_adb_credential", key_load
     )
     create_key = AsyncMock(side_effect=AssertionError("repair created a new key"))
-    monkeypatch.setattr(panel_update, "async_get_adb_credential", create_key)
+    monkeypatch.setattr(update_route, "async_get_adb_credential", create_key)
     request_authorization = MagicMock(
         side_effect=AssertionError("repair requested authorization")
     )
@@ -1382,7 +1386,7 @@ async def _lan_grant_repair_panel(
         install_network, "async_pin_install_target", AsyncMock(return_value=pinned)
     )
     monkeypatch.setattr(
-        panel_update, "async_revalidate_install_target", AsyncMock(return_value=pinned)
+        update_route, "async_revalidate_install_target", AsyncMock(return_value=pinned)
     )
     probe = AsyncMock(
         return_value=InstallTargetProbe(
@@ -1393,7 +1397,7 @@ async def _lan_grant_repair_panel(
             android_sdk=34,
         )
     )
-    monkeypatch.setattr(panel_update, "async_probe_install_target", probe)
+    monkeypatch.setattr(update_route, "async_probe_install_target", probe)
     pinned_client = SimpleNamespace(
         async_get_health=AsyncMock(side_effect=lambda: entity.coordinator.data.health)
     )
@@ -1631,7 +1635,10 @@ async def test_an_unavailable_adb_repair_keeps_a_successful_lan_dashboard_runnin
             entity.coordinator.data.health, panel_id="another-panel"
         )
     elif unavailable == "entry-discovery-mismatch":
-        monkeypatch.setattr(entity, "_entry_discovery_id", lambda: "pa-expected")
+        for module in (panel_update, update_route):
+            monkeypatch.setattr(
+                module, "entry_discovery_id", lambda _hass, _entry_id: "pa-expected"
+            )
         panel.pinned_client.async_get_health.side_effect = lambda: replace(
             entity.coordinator.data.health, discovery_id="pa-other"
         )

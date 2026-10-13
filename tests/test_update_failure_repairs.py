@@ -15,7 +15,11 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from yarl import URL
 
 from custom_components.panel_assistant import update as panel_update
-from custom_components.panel_assistant import update_policy, update_progress
+from custom_components.panel_assistant import (
+    update_policy,
+    update_progress,
+    update_staging,
+)
 from custom_components.panel_assistant.app_identity import (
     LAUNCH_COMPONENTS,
     LEGACY_PACKAGE_ID,
@@ -169,7 +173,7 @@ def _entity(
     if not feed:
         # The repair tests observe the admitted panel-download route; the LAN
         # suite independently exercises authenticated bytes, backup and staging.
-        entity._async_deliver_build = AsyncMock(return_value=False)
+        entity._delivery.async_deliver_build = AsyncMock(return_value=False)
     entity.hass = hass
     entity.entity_id = "update.kitchen_panel"
     entity.async_write_ha_state = MagicMock()
@@ -933,7 +937,7 @@ async def test_staged_update_finishes_on_reported_build_without_diagnostics(
     monkeypatch.setattr(update_progress, "_ANDROID_PACKAGE_INSTALL_MAX_SECONDS", 0)
     monkeypatch.setattr(update_progress, "_RESTART_HEALTH_GRACE_SECONDS", 0.05)
     monkeypatch.setattr(update_progress, "_UPDATE_RECHECK_SECONDS", 0.001)
-    monkeypatch.setattr(panel_update, "async_store_panel_backup", AsyncMock())
+    monkeypatch.setattr(update_staging, "async_store_panel_backup", AsyncMock())
     snapshot = entity.coordinator.data
 
     async def returned_health() -> None:
@@ -1007,11 +1011,11 @@ async def test_installing_older_named_feed_build_keeps_newer_failure_repair(
     entity._async_install_route = AsyncMock(
         return_value=(panel_update.ROUTE_PANEL, None, None)
     )
-    entity._async_deliver_build = AsyncMock()
+    entity._delivery.async_deliver_build = AsyncMock()
 
     await entity.async_install("0.9.10 build 102", backup=False)
 
-    entity._async_deliver_build.assert_awaited_once()
+    entity._delivery.async_deliver_build.assert_awaited_once()
     assert ir.async_get(hass).async_get_issue("panel_assistant", issue_id) is not None
     assert (await async_failure_events(hass, issue_id))[-1][
         "reason"
@@ -1094,9 +1098,11 @@ async def test_valid_feed_update_failure_before_commit_creates_repair(
         else None,
         return_value=b"apk",
     )
-    monkeypatch.setattr(panel_update, "async_store_panel_backup", backup)
-    monkeypatch.setattr(panel_update, "async_get_clientsession", lambda _hass: object())
-    monkeypatch.setattr(panel_update, "async_download_build", download)
+    monkeypatch.setattr(update_staging, "async_store_panel_backup", backup)
+    monkeypatch.setattr(
+        update_staging, "async_get_clientsession", lambda _hass: object()
+    )
+    monkeypatch.setattr(update_staging, "async_download_build", download)
     if failure == "stage":
 
         async def refresh_feed_during_backup(*_args: object) -> None:
@@ -1150,10 +1156,12 @@ async def test_accepted_staged_update_failure_creates_repair(
     repairs: SimpleNamespace,
 ) -> None:
     entity, client = _entity(hass, feed=True)
-    monkeypatch.setattr(panel_update, "async_store_panel_backup", AsyncMock())
-    monkeypatch.setattr(panel_update, "async_get_clientsession", lambda _hass: object())
+    monkeypatch.setattr(update_staging, "async_store_panel_backup", AsyncMock())
     monkeypatch.setattr(
-        panel_update, "async_download_build", AsyncMock(return_value=b"apk")
+        update_staging, "async_get_clientsession", lambda _hass: object()
+    )
+    monkeypatch.setattr(
+        update_staging, "async_download_build", AsyncMock(return_value=b"apk")
     )
     monkeypatch.setattr(update_progress, "_ANDROID_PACKAGE_INSTALL_MAX_SECONDS", 0)
     monkeypatch.setattr(update_progress, "_RESTART_HEALTH_GRACE_SECONDS", 0)
