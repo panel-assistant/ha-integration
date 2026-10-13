@@ -358,6 +358,9 @@
           }
         }
       },
+      "usb_debugging": {
+        "name": "Налагодження USB"
+      },
       "proximity": {
         "name": "Наближення"
       }

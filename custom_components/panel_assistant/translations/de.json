@@ -363,6 +363,9 @@
           }
         }
       },
+      "usb_debugging": {
+        "name": "USB-Debugging"
+      },
       "proximity": {
         "name": "Nähe"
       }

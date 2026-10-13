@@ -141,26 +141,24 @@
           "update_channel",
           "webview_auto_update"
         ],
-        "channels": [
-          {
-            "entity_category": null,
-            "unique_suffix": "relay1",
-            "max": null,
-            "channel": "relay1",
-            "index": 1,
-            "platform": "switch",
-            "unit": null,
-            "min": null,
-            "options": null,
-            "device_class": null,
-            "translation_key": "relay",
-            "step": null,
-            "enabled_default": true,
-            "state_class": null,
-            "family": "relay",
-            "force_update": false
-          }
-        ],
+        "channels": [{
+          "entity_category": null,
+          "unique_suffix": "relay1",
+          "max": null,
+          "channel": "relay1",
+          "index": 1,
+          "platform": "switch",
+          "unit": null,
+          "min": null,
+          "options": null,
+          "device_class": null,
+          "translation_key": "relay",
+          "step": null,
+          "enabled_default": true,
+          "state_class": null,
+          "family": "relay",
+          "force_update": false
+        }],
         "contract_digest": "15bf0d68a7edf0db83d1008f0c37c4f2804571314a3294e5049a67880da83d9c",
         "id": 1,
         "type": "panel_assistant/hello",
@@ -171,13 +169,11 @@
       "name": "report_state",
       "message": {
         "session": "fixture-session",
-        "observations": [
-          {
-            "channel": "relay1",
-            "state": "known",
-            "value": true
-          }
-        ],
+        "observations": [{
+          "channel": "relay1",
+          "state": "known",
+          "value": true
+        }],
         "id": 2,
         "type": "panel_assistant/report_state",
         "sync": "delta"
@@ -217,7 +213,7 @@
       }
     }
   ],
-  "sourceRevision": "9284fb565c806e4900bd7d8038c57744cdaf7256",
+  "sourceRevision": "4306b2f528b3268bdd4863be75d1b306f3838ce6",
   "channelDescriptors": [
     {
       "entity_category": "config",
@@ -477,7 +473,7 @@
       "channel": "diag_soc_temp",
       "index": null,
       "platform": "sensor",
-      "unit": "\u00b0C",
+      "unit": "°C",
       "min": null,
       "options": null,
       "device_class": "temperature",
@@ -487,6 +483,24 @@
       "state_class": "measurement",
       "family": null,
       "force_update": true
+    },
+    {
+      "entity_category": "diagnostic",
+      "unique_suffix": "usb_debugging",
+      "max": null,
+      "channel": "diag_usb_debugging",
+      "index": null,
+      "platform": "binary_sensor",
+      "unit": null,
+      "min": null,
+      "options": null,
+      "device_class": null,
+      "translation_key": "usb_debugging",
+      "step": null,
+      "enabled_default": true,
+      "state_class": null,
+      "family": null,
+      "force_update": false
     },
     {
       "entity_category": "diagnostic",
@@ -865,7 +879,7 @@
       "channel": "room_temp",
       "index": null,
       "platform": "sensor",
-      "unit": "\u00b0C",
+      "unit": "°C",
       "min": null,
       "options": null,
       "device_class": "temperature",
@@ -943,7 +957,7 @@
       "channel": "temperature",
       "index": null,
       "platform": "sensor",
-      "unit": "\u00b0C",
+      "unit": "°C",
       "min": null,
       "options": null,
       "device_class": "temperature",
@@ -1109,24 +1123,22 @@
       "force_update": false
     }
   ],
-  "installDescriptors": [
-    {
-      "schema": "io.panelassistant.android.install.v1",
-      "releaseTag": "v1.2.3-rc1",
-      "databaseCompatibility": "hapaneld-db:v1:ha-paneld.db:11:14",
-      "supportedAbis": [
-        "arm64-v8a",
-        "armeabi-v7a"
-      ],
-      "apkName": "panel-assistant-v1.2.3-rc1-manual-setup-required.apk.bin",
-      "packageId": "io.panelassistant.android",
-      "versionName": "1.2.3-rc1",
-      "versionCode": 701,
-      "launchComponent": "io.panelassistant.android/io.panelassistant.android.MainActivity",
-      "minSdk": 26,
-      "apkSha256": "48c0c1ac3eb738792ec63151e674be740a40d53dc4f33675bc2c8b5c2c51b45b",
-      "apkSize": 19,
-      "signerCertificateSha256": "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
-    }
-  ]
+  "installDescriptors": [{
+    "schema": "io.panelassistant.android.install.v1",
+    "releaseTag": "v1.2.3-rc1",
+    "databaseCompatibility": "hapaneld-db:v1:ha-paneld.db:11:14",
+    "supportedAbis": [
+      "arm64-v8a",
+      "armeabi-v7a"
+    ],
+    "apkName": "panel-assistant-v1.2.3-rc1-manual-setup-required.apk.bin",
+    "packageId": "io.panelassistant.android",
+    "versionName": "1.2.3-rc1",
+    "versionCode": 701,
+    "launchComponent": "io.panelassistant.android/io.panelassistant.android.MainActivity",
+    "minSdk": 26,
+    "apkSha256": "48c0c1ac3eb738792ec63151e674be740a40d53dc4f33675bc2c8b5c2c51b45b",
+    "apkSize": 19,
+    "signerCertificateSha256": "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
+  }]
 }

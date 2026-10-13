@@ -30,6 +30,14 @@
       ]
     },
     {
+      "channel": "diag_usb_debugging",
+      "family": null,
+      "platform": "binary_sensor",
+      "translation_key": "usb_debugging",
+      "unique_suffix": "usb_debugging",
+      "attributes": []
+    },
+    {
       "channel": "proximity",
       "family": null,
       "platform": "binary_sensor",

@@ -363,6 +363,9 @@
           }
         }
       },
+      "usb_debugging": {
+        "name": "USB 调试"
+      },
       "proximity": {
         "name": "接近"
       }
