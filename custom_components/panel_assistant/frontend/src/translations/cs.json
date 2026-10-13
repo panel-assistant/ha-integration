@@ -102,7 +102,7 @@
     "progress": "Průběh",
     "installProgress": "Průběh instalace",
     "licenses": "Licence třetích stran",
-    "doneAnotherHomeAssistant": "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
+    "doneAnotherHomeAssistant": "Tento panel je přihlášen k jiné instanci Home Assistant. Chcete-li jej připojit sem, změňte na panelu instanci Home Assistant a přihlaste se."
   },
   "errors": {
     "installErrorGeneric": "Něco se pokazilo. Nechte panel připojený a stiskněte Zkusit znovu.",

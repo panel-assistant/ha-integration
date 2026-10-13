@@ -149,7 +149,7 @@
       "unknown": "O processo de configuração perdeu o estado pendente do painel. Inicie a configuração novamente."
     },
     "create_entry": {
-      "another_home_assistant": "This panel is signed in to another Home Assistant. It has been added here, but its settings and sign-in have not changed. To connect it here, change Home Assistant and sign in on the panel."
+      "another_home_assistant": "Este painel está atualmente com sessão iniciada em outro Home Assistant. Ele foi adicionado aqui, mas suas configurações e seu login não foram alterados. Para conectá-lo aqui, troque o Home Assistant e faça login no painel."
     }
   },
   "entity": {
@@ -320,7 +320,7 @@
           "restarting_settings": "Reiniciando (configurações)",
           "restarting_recovery": "Reiniciando (recuperação)",
           "restarting_reboot": "Reiniciando (reinicialização)",
-          "another_home_assistant": "Signed in to another Home Assistant"
+          "another_home_assistant": "Com login em outro Home Assistant"
         }
       },
       "storage_health": {
@@ -685,7 +685,7 @@
         "step": {
           "commission_permissions": {
             "title": "Verificar as permissões em {panel}",
-            "description": "O painel de controle em {panel} continua disponível. No painel físico, abra Configurações do Android → Aplicativos → Panel Assistant. Permita o acesso à câmera e ao microfone onde aparecerem, além das notificações. Em Acesso especial a aplicativos, permita Modificar configurações do sistema e Exibir sobre outros aplicativos para o Panel Assistant. Em Acessibilidade, habilite o serviço Panel Assistant. Volte aqui e selecione Enviar para verificar as permissões novamente."
+            "description": "O dashboard em {panel} continua disponível. No painel físico, abra Configurações do Android → Apps → Panel Assistant. Permita o acesso à câmera e ao microfone, quando listados, e as notificações. Em Acesso especial para apps, permita Alterar configurações do sistema e Sobreposição a outros apps para o Panel Assistant. Em Acessibilidade, ative o serviço Panel Assistant. Quando a barra de navegação estiver definida como Revelar ao deslizar ou Sempre ativa e a permissão Sobreposição a outros apps estiver ausente, deslizar para cima a partir da parte inferior do dashboard abre, em vez disso, a configuração Sobreposição a outros apps: permita, volte e deslize para cima novamente. Volte aqui e selecione Enviar para verificar as permissões novamente."
           }
         },
         "error": {
@@ -1454,8 +1454,8 @@
       }
     },
     "another_home_assistant": {
-      "title": "{panel} is signed in to another Home Assistant",
-      "description": "{panel} has been added here, but it is signed in to another Home Assistant. Its settings and sign-in have not changed. To connect it here, change Home Assistant and sign in on the panel."
+      "title": "{panel} está com sessão iniciada em outro Home Assistant",
+      "description": "{panel} foi adicionado aqui, mas está atualmente com sessão iniciada em outro Home Assistant. Suas configurações e seu login não foram alterados. Para conectá-lo aqui, troque o Home Assistant e faça login no painel."
     }
   },
   "options": {

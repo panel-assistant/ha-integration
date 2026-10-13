@@ -255,7 +255,7 @@ var e = Object.freeze({
 			progress: "Průběh",
 			installProgress: "Průběh instalace",
 			licenses: "Licence třetích stran",
-			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
+			doneAnotherHomeAssistant: "Tento panel je přihlášen k jiné instanci Home Assistant. Chcete-li jej připojit sem, změňte na panelu instanci Home Assistant a přihlaste se."
 		},
 		errors: {
 			installErrorGeneric: "Něco se pokazilo. Nechte panel připojený a stiskněte Zkusit znovu.",
@@ -1305,7 +1305,7 @@ var e = Object.freeze({
 			progress: "Progresso",
 			installProgress: "Progresso da instalação",
 			licenses: "Licenças de terceiros",
-			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
+			doneAnotherHomeAssistant: "Este painel está atualmente com sessão iniciada em outro Home Assistant. Troque o Home Assistant e faça login no painel para conectá-lo aqui."
 		},
 		errors: {
 			installErrorGeneric: "Algo deu errado. Mantenha o painel conectado e pressione Tentar novamente.",
@@ -1345,7 +1345,7 @@ var e = Object.freeze({
 			permissions: "Permissões",
 			setupAddress: "Endereço de configuração",
 			setupHandover: "Transferência da configuração",
-			displaySizing: "Tamanho da tela e do texto",
+			displaySizing: "Escala de exibição e tamanho do texto",
 			copiedDetail: "{bytes} bytes enviados; aguardando a confirmação do painel",
 			none: "nenhum",
 			setupMissing: "não encontrado; a configuração continua no painel"

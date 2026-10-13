@@ -149,7 +149,7 @@
       "unknown": "Postup nastavení ztratil rozpracovaný stav panelu. Spusťte nastavení znovu."
     },
     "create_entry": {
-      "another_home_assistant": "This panel is signed in to another Home Assistant. It has been added here, but its settings and sign-in have not changed. To connect it here, change Home Assistant and sign in on the panel."
+      "another_home_assistant": "Tento panel je přihlášen k jiné instanci Home Assistant. Byl sem přidán, ale jeho nastavení a přihlášení se nezměnily. Chcete-li jej připojit sem, změňte na panelu instanci Home Assistant a přihlaste se."
     }
   },
   "entity": {
@@ -320,7 +320,7 @@
           "restarting_settings": "Restartování (nastavení)",
           "restarting_recovery": "Restartování (obnova)",
           "restarting_reboot": "Restartování (restart)",
-          "another_home_assistant": "Signed in to another Home Assistant"
+          "another_home_assistant": "Přihlášen k jiné instanci Home Assistant"
         }
       },
       "storage_health": {
@@ -685,7 +685,7 @@
         "step": {
           "commission_permissions": {
             "title": "Zkontrolovat oprávnění na panelu {panel}",
-            "description": "Ovládací panel na zařízení {panel} zůstává dostupný. Na fyzickém panelu otevřete Nastavení systému Android → Aplikace → Panel Assistant. Povolte přístup ke kameře a mikrofonu, pokud jsou uvedeny, a oznámení. V části Zvláštní přístup aplikací povolte aplikaci Panel Assistant možnost Měnit systémová nastavení a Zobrazovat přes jiné aplikace. V části Usnadnění přístupu povolte službu Panel Assistant. Vraťte se sem a výběrem Odeslat znovu zkontrolujte oprávnění."
+            "description": "Dashboard na panelu {panel} zůstává dostupný. Na fyzickém panelu otevřete Nastavení systému Android → Aplikace → Panel Assistant. Povolte přístup ke kameře a mikrofonu, pokud jsou uvedeny, a také oznámení. V části Speciální přístup aplikací povolte pro Panel Assistant Úpravu nastavení systému a Zobrazení přes jiné aplikace. V části Přístupnost zapněte službu Panel Assistant. Pokud je navigační lišta nastavena na Odhalit přejetím nebo Vždy zapnuto a chybí oprávnění Zobrazení přes jiné aplikace, přejetí prstem nahoru od spodního okraje dashboardu místo toho otevře nastavení Zobrazení přes jiné aplikace: povolte ho, vraťte se zpět a znovu přejeďte prstem nahoru. Vraťte se sem a výběrem možnosti Odeslat oprávnění znovu zkontrolujte."
           }
         },
         "error": {
@@ -703,7 +703,7 @@
         "step": {
           "set_up_proximity": {
             "title": "Nastavení detekce přiblížení na panelu {panel}",
-            "description": "Dokud není nastaven snímač přiblížení, panel {panel} se nedá probudit mávnutím ruky. Nastavení trvá asi minutu a musíte při něm stát před panelem. Otevřete Panel Assistant na postranním panelu a vyberte {panel}. Na jeho stránce Konfigurovat v části Přítomnost a probuzení vyberte Nastavit detekci přiblížení na panelu a postupujte podle pokynů na obrazovce panelu. Nastavení můžete spustit i přímo na panelu tlačítkem Otevřít nastavení detekce přiblížení na jeho nástěnce. Až panel ohlásí, že je kalibrace uložena, vraťte se sem a vyberte Odeslat."
+            "description": "Dokud není nastaven jeho senzor přiblížení, {panel} se nemůže probudit mávnutím. Nastavení trvá asi minutu a vyžaduje vaši přítomnost před panelem. Otevřete Panel Assistant v postranním panelu a vyberte {panel}. Na jeho stránce Konfigurovat v části Přítomnost a probuzení vyberte Nastavit přiblížení na panelu a pak postupujte podle pokynů na obrazovce panelu. Nastavení můžete spustit také přímo na panelu pomocí Otevřít nastavení přiblížení na jeho nástěnce. Až panel oznámí, že je kalibrace uložena, vraťte se sem a vyberte Odeslat."
           }
         },
         "error": {
@@ -1454,8 +1454,8 @@
       }
     },
     "another_home_assistant": {
-      "title": "{panel} is signed in to another Home Assistant",
-      "description": "{panel} has been added here, but it is signed in to another Home Assistant. Its settings and sign-in have not changed. To connect it here, change Home Assistant and sign in on the panel."
+      "title": "{panel} je přihlášen k jiné instanci Home Assistant",
+      "description": "{panel} byl sem přidán, ale je přihlášen k jiné instanci Home Assistant. Jeho nastavení a přihlášení se nezměnily. Chcete-li jej připojit sem, změňte na panelu instanci Home Assistant a přihlaste se."
     }
   },
   "options": {
