@@ -10,8 +10,8 @@ from homeassistant.components import frontend
 from homeassistant.setup import async_setup_component
 
 from custom_components.panel_assistant import browser_panel
+from custom_components.panel_assistant.build import INTEGRATION_BUILD
 from custom_components.panel_assistant.const import (
-    INTEGRATION_BUILD,
     INTEGRATION_VERSION,
 )
 

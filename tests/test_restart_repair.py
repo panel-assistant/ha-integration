@@ -19,9 +19,9 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from custom_components.panel_assistant import restart_repair
+from custom_components.panel_assistant.build import INTEGRATION_BUILD
 from custom_components.panel_assistant.const import (
     DOMAIN,
-    INTEGRATION_BUILD,
     INTEGRATION_VERSION,
 )
 from custom_components.panel_assistant.restart_repair import (
@@ -40,9 +40,7 @@ def _install(root: Path, version: str, build: int) -> Path:
     (root / "manifest.json").write_text(
         json.dumps({"domain": DOMAIN, "version": version}), encoding="utf-8"
     )
-    (root / "const.py").write_text(
-        f'DOMAIN = "{DOMAIN}"\nINTEGRATION_BUILD = {build}\n', encoding="utf-8"
-    )
+    (root / "build.py").write_text(f"INTEGRATION_BUILD = {build}\n", encoding="utf-8")
     return root
 
 
@@ -115,7 +113,7 @@ async def test_an_unreadable_build_neither_raises_nor_clears(
 ) -> None:
     root = _install(tmp_path, "0.7.0", 270)
     await _check(hass, root)
-    (root / "const.py").unlink()
+    (root / "build.py").unlink()
 
     await _check(hass, root)
 

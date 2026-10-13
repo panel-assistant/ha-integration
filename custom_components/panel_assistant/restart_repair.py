@@ -22,7 +22,8 @@ from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_track_time_interval
 
-from .const import DOMAIN, INTEGRATION_BUILD, INTEGRATION_VERSION
+from .build import INTEGRATION_BUILD
+from .const import DOMAIN, INTEGRATION_VERSION
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ def read_installed_build(root: Path | None = None) -> Build | None:
         version = json.loads((root / "manifest.json").read_text(encoding="utf-8"))[
             "version"
         ]
-        match = _BUILD.search((root / "const.py").read_text(encoding="utf-8"))
+        match = _BUILD.search((root / "build.py").read_text(encoding="utf-8"))
     except OSError, ValueError, KeyError, TypeError:
         return None
     if not isinstance(version, str) or match is None:

@@ -621,8 +621,8 @@ def test_the_address_screen_links_to_panel_specific_help() -> None:
 
 def test_outward_links_are_redirects_stamped_with_this_version() -> None:
     """Pages move; the site's redirect does not, and it is told who is asking."""
+    from custom_components.panel_assistant.build import INTEGRATION_BUILD
     from custom_components.panel_assistant.const import (
-        INTEGRATION_BUILD,
         INTEGRATION_VERSION,
         help_url,
     )

@@ -17,9 +17,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.storage import Store
 
+from .build import INTEGRATION_BUILD
 from .build_feed import parse_build_request
 from .client import is_newer_stable_version
-from .const import DOMAIN, INTEGRATION_BUILD, INTEGRATION_VERSION
+from .const import DOMAIN, INTEGRATION_VERSION
 from .device import panel_display_name
 
 if TYPE_CHECKING:

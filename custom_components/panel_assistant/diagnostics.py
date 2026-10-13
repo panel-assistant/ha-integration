@@ -9,7 +9,8 @@ from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 
 from . import HaPaneldConfigEntry
-from .const import CONF_CUTOVER, CONF_TRANSPORT_USER_ID, INTEGRATION_BUILD
+from .build import INTEGRATION_BUILD
+from .const import CONF_CUTOVER, CONF_TRANSPORT_USER_ID
 from .coordinator import PanelSnapshot
 from .restart_repair import restart_pending
 from .transport import session_diagnostics

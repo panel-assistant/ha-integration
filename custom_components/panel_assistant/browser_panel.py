@@ -13,7 +13,8 @@ from homeassistant.components.http.server import StaticPathConfig
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import DOMAIN, INTEGRATION_BUILD, INTEGRATION_VERSION
+from .build import INTEGRATION_BUILD
+from .const import DOMAIN, INTEGRATION_VERSION
 from .embed import EmbedProxyView
 
 DATA_BROWSER_PANEL = "browser_panel"

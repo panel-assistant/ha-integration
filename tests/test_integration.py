@@ -27,6 +27,7 @@ from custom_components.panel_assistant.app_identity import (
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
 )
+from custom_components.panel_assistant.build import INTEGRATION_BUILD
 from custom_components.panel_assistant.client import (
     CannotConnectError,
     InvalidResponseError,
@@ -35,7 +36,6 @@ from custom_components.panel_assistant.client import (
 )
 from custom_components.panel_assistant.const import (
     DOMAIN,
-    INTEGRATION_BUILD,
     INTEGRATION_VERSION,
 )
 from custom_components.panel_assistant.diagnostics import (

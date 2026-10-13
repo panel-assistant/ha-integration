@@ -19,10 +19,10 @@ from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant import repairs as panel_repairs
+from custom_components.panel_assistant.build import INTEGRATION_BUILD
 from custom_components.panel_assistant.build_feed import feed_release_artifact
 from custom_components.panel_assistant.const import (
     DOMAIN,
-    INTEGRATION_BUILD,
     INTEGRATION_VERSION,
     update_unique_id,
 )

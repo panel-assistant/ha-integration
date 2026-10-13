@@ -17,7 +17,8 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from . import HaPaneldConfigEntry
-from .const import DOMAIN, INTEGRATION_BUILD, INTEGRATION_VERSION
+from .build import INTEGRATION_BUILD
+from .const import DOMAIN, INTEGRATION_VERSION
 from .coordinator import (
     HaPaneldDataUpdateCoordinator,
     PanelCoordinatorEntity,
