@@ -1297,6 +1297,10 @@
       "title": "Adresse für {panel} prüfen",
       "description": "Unter {address} hat sich nicht {panel} gemeldet. Deshalb sind die Steuerelemente für dieses Panel vorübergehend deaktiviert. Prüfe, ob diese Adresse zum Panel gehört. Wenn sich seine Adresse geändert hat, füge es mit der aktuellen Adresse erneut hinzu."
     },
+    "panel_link_shared": {
+      "title": "{panel} wurde neu installiert, teilt aber seine Geräteverknüpfung",
+      "description": "{panel} hat sich nach der Neuinstallation der App unter {address} gemeldet, aber {others} hat dieselbe Geräteverknüpfung. Home Assistant kann daher nicht erkennen, zu welcher Einrichtung dieses Panel gehört, und hat seine Steuerelemente vorübergehend deaktiviert. Die Adresse ist in Ordnung. Wenn {others} nicht mehr verwendet wird, lösche es, dann verbindet sich {panel} von selbst wieder; andernfalls füge {panel} erneut hinzu."
+    },
     "panel_identity_confirmation": {
       "title": "Bestehende Einrichtung für {panel} behalten",
       "fix_flow": {

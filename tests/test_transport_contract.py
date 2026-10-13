@@ -584,13 +584,22 @@ def _raised_translation_keys() -> dict[str, set[str]]:
                 if name == "send_error":
                     # Codes the panel renders from its own catalogue.
                     continue
-                key = _resolve(keyword.value, constants)
-                if key is None and isinstance(keyword.value, ast.Name):
+                value = keyword.value
+                if isinstance(value, ast.Name) and _resolve(value, constants) is None:
                     # A helper's own parameter; its call sites are collected above.
                     continue
-                assert key is not None, f"{path.name}:{node.lineno}"
-                category = "issues" if name == "async_create_issue" else "exceptions"
-                keys[category].add(key)
+                # A choice between two keys needs words for both.
+                for branch in (
+                    (value.body, value.orelse)
+                    if isinstance(value, ast.IfExp)
+                    else (value,)
+                ):
+                    key = _resolve(branch, constants)
+                    assert key is not None, f"{path.name}:{node.lineno}"
+                    category = (
+                        "issues" if name == "async_create_issue" else "exceptions"
+                    )
+                    keys[category].add(key)
     return keys
 
 
@@ -614,6 +623,7 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
         "panel_migration_incomplete",
         "panel_identity_confirmation",
         "panel_identity_mismatch",
+        "panel_link_shared",
         "restart_required",
     }
     # Which binding issue is raised depends on whether the panel already has an

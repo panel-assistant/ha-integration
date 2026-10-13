@@ -1337,6 +1337,10 @@
       "title": "Controleer het adres van {panel}",
       "description": "Op {address} kwam geen antwoord dat overeenkwam met {panel}, dus de bediening van dit paneel is tijdelijk uitgeschakeld. Controleer of dit adres bij het paneel hoort. Als het adres is gewijzigd, voeg het paneel dan opnieuw toe met het huidige adres."
     },
+    "panel_link_shared": {
+      "title": "{panel} is opnieuw geïnstalleerd maar deelt zijn apparaatkoppeling",
+      "description": "{panel} reageerde op {address} nadat de app opnieuw is geïnstalleerd, maar {others} heeft dezelfde apparaatkoppeling. Home Assistant kan daardoor niet bepalen bij welke installatie dit paneel hoort en heeft de bediening gepauzeerd. Het adres klopt. Als {others} niet meer in gebruik is, verwijder het dan; {panel} sluit zich daarna vanzelf weer aan. Voeg anders {panel} opnieuw toe."
+    },
     "panel_identity_confirmation": {
       "title": "Bestaande instellingen van {panel} behouden",
       "fix_flow": {

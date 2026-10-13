@@ -29,6 +29,7 @@ from custom_components.panel_assistant.client import (
     parse_staged_apk,
 )
 from custom_components.panel_assistant.const import (
+    MAX_HEALTH_RESPONSE_BYTES,
     MAX_STATUS_CAPABILITIES,
     MAX_STATUS_RESPONSE_BYTES,
     MAX_STATUS_WARNING_LENGTH,
@@ -130,6 +131,43 @@ def test_parser_accepts_current_android_network_suffix() -> None:
     )
 
 
+# The longest line the app can produce: every optional token present at its
+# widest (LocalAdminEndpointTest renders the same line from the app's own token
+# builders). Over 512 bytes, the bound this replaces (PMARCH-18).
+LONGEST_HEALTH = (
+    "ha-paneld 1.0.0-preview1 panel=" + "p" * 63 + " build=1725312345678 cfg=0123abcd"
+    f" did={'a' * 64} identity=install legacy_did={'b' * 64}"
+    " pkg=io.panelassistant.android vc=2147483647 proto=999-999"
+    " ha=connection_lost ha_src=native ha_refused=1 ha_reason=host_reboot"
+    " ha_elapsed_ms=9999999999 ha_expected_ms=9999999999 ha_grace_ms=9999999999"
+    " ha_net=critical ha_net_cause=latency ha_resp=critical ha_net_p95=9999999"
+    " ha_net_n=9999999 ha_net_miss=9999999 ha_net_age=9999999999"
+    " pa_restarting=panel,recovery,999999 pa_notice=1\n"
+)
+
+
+def test_parser_accepts_the_longest_line_the_app_produces() -> None:
+    """A restart notice on a panel with a long ID is read, not refused."""
+    assert len(LONGEST_HEALTH) > 512
+
+    health = parse_health_response(LONGEST_HEALTH)
+
+    assert health.panel_id == "p" * 63
+    assert health.discovery_id == "a" * 64
+    assert health.legacy_discovery_id == "b" * 64
+
+
+def test_parser_still_bounds_the_line() -> None:
+    """The bound still holds one byte past it."""
+    padding = " x=" + "y" * (MAX_HEALTH_RESPONSE_BYTES - len(LONGEST_HEALTH) - 3)
+    at_bound = LONGEST_HEALTH[:-1] + padding + "\n"
+    assert len(at_bound) == MAX_HEALTH_RESPONSE_BYTES
+    parse_health_response(at_bound)
+
+    with pytest.raises(InvalidResponseError):
+        parse_health_response(LONGEST_HEALTH[:-1] + padding + "y\n")
+
+
 def test_parser_accepts_the_bounded_panel_assistant_discovery_id() -> None:
     """The new Android identity is consumed only after its strict grammar passes."""
     discovery_id = "a" * 64
@@ -209,7 +247,7 @@ def test_parser_rejects_malformed_suffix_tokens(suffix: str) -> None:
     "body",
     [
         "ha-paneld 1.2.3 panel=Test-Panel build=1234 cfg=0123abcd",
-        f"ha-paneld 1.2.3 panel={'a' * 470} build=1234 cfg=0123abcd",
+        f"ha-paneld 1.2.3 panel={'a' * 1000} build=1234 cfg=0123abcd",
         "ha-paneld 1.2.3 panel=test build=arbitrary cfg=0123abcd",
         f"ha-paneld 1.2.3 panel=test build=1.2.3-{'a' * 58} cfg=0123abcd",
         "ha-paneld 1.2.3 panel=test build=9223372036854775808 cfg=0123abcd",

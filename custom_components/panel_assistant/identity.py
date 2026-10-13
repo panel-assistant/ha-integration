@@ -106,6 +106,15 @@ def reinstalled(hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth) ->
     move of this integration's own that stopped part way is left to that move,
     which alone can settle its record and any copy of the old app it kept.
     """
+    return _linked_reinstall(hass, entry, health) and not _link_holders(
+        hass, entry, health.legacy_discovery_id
+    )
+
+
+def _linked_reinstall(
+    hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth
+) -> bool:
+    """A reinstall this entry's link points to, whoever else holds the link."""
     from .panel_move import CONF_SUCCESSOR_MOVE
 
     did = health.discovery_id
@@ -120,11 +129,18 @@ def reinstalled(hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth) ->
         and link is not None
         and entry.data.get(CONF_LEGACY_DID) == link
         and identity_available(hass, entry, did)
-        and not any(
-            other.entry_id != entry.entry_id and other.data.get(CONF_LEGACY_DID) == link
-            for other in hass.config_entries.async_entries(DOMAIN)
-        )
     )
+
+
+def _link_holders(
+    hass: HomeAssistant, entry: ConfigEntry, link: str | None
+) -> list[ConfigEntry]:
+    """The other entries that recorded the same link."""
+    return [
+        other
+        for other in hass.config_entries.async_entries(DOMAIN)
+        if other.entry_id != entry.entry_id and other.data.get(CONF_LEGACY_DID) == link
+    ]
 
 
 def _prior_installation(hass: HomeAssistant, entry: ConfigEntry, did: str) -> bool:
@@ -358,12 +374,23 @@ def reconcile_identity(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 @callback
-def _reject_health(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Withdraw both inbound and outbound authority for a changed endpoint."""
+def _reject_health(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    shared_with: list[ConfigEntry] | None = None,
+) -> bool:
+    """Withdraw both inbound and outbound authority for a changed endpoint.
+
+    A reinstalled panel whose link other entries hold too is told so, not to
+    check an address that is fine; the issue id stays the same either way.
+    """
     if (
         ir.async_get(hass).async_get_issue(DOMAIN, f"{ISSUE_IDENTITY}_{entry.entry_id}")
         is None
     ):
+        placeholders = {"panel": entry.title, "address": entry.data[CONF_ADDRESS]}
+        if shared_with:
+            placeholders["others"] = ", ".join(other.title for other in shared_with)
         ir.async_create_issue(
             hass,
             DOMAIN,
@@ -371,11 +398,10 @@ def _reject_health(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             is_fixable=False,
             is_persistent=False,
             severity=ir.IssueSeverity.ERROR,
-            translation_key="panel_identity_mismatch",
-            translation_placeholders={
-                "panel": entry.title,
-                "address": entry.data[CONF_ADDRESS],
-            },
+            translation_key="panel_link_shared"
+            if shared_with
+            else "panel_identity_mismatch",
+            translation_placeholders=placeholders,
         )
     _withdraw_authority(hass, entry)
     return False
@@ -494,6 +520,10 @@ def accept_health(hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth) 
         return _adopt_reinstalled(hass, entry, did)
     if self_moved(entry, health):
         return _hold_self_moved(hass, entry)
+    if _linked_reinstall(hass, entry, health):
+        return _reject_health(
+            hass, entry, _link_holders(hass, entry, health.legacy_discovery_id)
+        )
     return _reject_health(hass, entry)
 
 
@@ -514,12 +544,8 @@ def _claim_link(hass: HomeAssistant, entry: ConfigEntry) -> None:
     link = entry.data.get(CONF_LEGACY_DID)
     if link is None:
         return
-    for other in hass.config_entries.async_entries(DOMAIN):
-        if (
-            other.entry_id != entry.entry_id
-            and other.data.get(CONF_LEGACY_DID) == link
-            and not _answers_as_itself(other)
-        ):
+    for other in _link_holders(hass, entry, link):
+        if not _answers_as_itself(other):
             data = dict(other.data)
             del data[CONF_LEGACY_DID]
             hass.config_entries.async_update_entry(other, data=data)
