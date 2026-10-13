@@ -24,15 +24,17 @@ from .adb_protocol import (
     AdbRootMode,
     InstallAdbError,
     InstallAdbErrorCode,
+    LaunchOutcome,
 )
 from .client import HaPaneldError, is_valid_discovery_id
 from .coordinator import HaPaneldDataUpdateCoordinator, PanelSnapshot
 from .failure_repair import async_clear_adb_authorization
-from .install_adb import async_preflight_install
+from .install_adb import async_launch_installed_app, async_preflight_install
 from .install_network import (
     InstallNetworkError,
     PinnedPanelTarget,
     async_pin_entry_target,
+    async_pin_install_target,
     async_revalidate_install_target,
 )
 from .provisioning import InstallTargetState, async_probe_install_target
@@ -203,6 +205,44 @@ async def async_probe_adb_target(
     }:
         return None
     return probe.adb_target(pinned.pinned)
+
+
+async def async_relaunch_stopped_app(
+    hass: HomeAssistant,
+    coordinator: HaPaneldDataUpdateCoordinator,
+    artifact: ReleaseArtifact,
+    panel_name: Callable[[], str],
+) -> bool:
+    """Start the updated app over authorized ADB when it never came back.
+
+    Its HTTP identity went with the app, so the target is the entry's address,
+    and what admits it is the panel's existing trust in this Home Assistant's
+    ADB key and the exact signed build installed there. Never creates a key.
+    """
+    descriptor = artifact.descriptor
+    if descriptor is None:
+        return False
+    try:
+        credential = await async_get_durable_adb_credential(hass)
+        pinned = await async_pin_install_target(hass, coordinator.client.address)
+        target = await async_probe_adb_target(pinned, credential)
+        if target is None:
+            return False
+        installed = await async_preflight_install(
+            target, credential.signer, descriptor, admit_installed_target=True
+        )
+        if not installed.target_installed:
+            return False
+        outcome = await async_launch_installed_app(
+            target,
+            credential.signer,
+            descriptor,
+            expected_root_mode=installed.root_mode,
+        )
+    except (InstallAdbError, AdbCredentialError, InstallNetworkError, OSError) as err:
+        _LOGGER.debug("Could not start the app on %s over ADB: %r", panel_name(), err)
+        return False
+    return outcome is LaunchOutcome.STARTED
 
 
 async def async_observe_update_route(

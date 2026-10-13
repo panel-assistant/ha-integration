@@ -1813,3 +1813,67 @@ async def test_a_panel_withdrawn_during_the_update_gets_no_grant_repair(
 
     assert panel.probe.await_count == probes
     assert _panel_value(tmp_path, "accessibility_enabled") is None
+
+
+@pytest.mark.parametrize("adb", [True, False], ids=["adb", "no-adb"])
+async def test_an_app_that_never_comes_back_after_an_update_is_started_and_reported(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    signer: PythonRSASigner,  # noqa: F811
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    adb: bool,
+) -> None:
+    """A panel took an update, crashed on its first start and stayed down."""
+    panel = await _lan_grant_repair_panel(hass, monkeypatch, key, signer, tmp_path)
+    entity, client = panel.entity, panel.client
+    monkeypatch.setattr(update_progress, "_ANDROID_PACKAGE_INSTALL_MAX_SECONDS", 0)
+    monkeypatch.setattr(update_progress, "_RESTART_HEALTH_GRACE_SECONDS", 0.2)
+    monkeypatch.setattr(
+        update_route,
+        "async_get_durable_adb_credential",
+        AsyncMock(return_value=AdbCredential(signer, "existing-host-key")),
+    )
+    if not adb:
+        panel.probe.return_value = InstallTargetProbe(
+            state=InstallTargetState.ADB_UNREACHABLE,
+            serial=None,
+            model=None,
+            primary_abi=None,
+            android_sdk=None,
+        )
+
+    def launched() -> int:
+        return sum(
+            "am start" in command
+            for device in panel.devices
+            for command in device.commands
+        )
+
+    async def refresh() -> None:
+        # Installed, then nothing answers until something starts the app.
+        if client.async_commit_apk.await_count and not launched():
+            entity.coordinator.reachable = False
+        elif launched():
+            entity.coordinator.data = _snapshot(VERSION, "2000", LEGACY_PACKAGE_ID)
+            entity.coordinator.reachable = True
+
+    entity.coordinator.async_request_refresh = AsyncMock(side_effect=refresh)  # type: ignore[method-assign]
+
+    if adb:
+        await entity.async_install(None, False)
+        assert entity.installed_version == VERSION
+        assert launched() == 1
+        assert any(
+            record.levelno == logging.WARNING
+            and "did not start again" in record.getMessage()
+            for record in caplog.records
+        )
+    else:
+        with pytest.raises(HomeAssistantError) as raised:
+            await entity.async_install(None, False)
+        _assert_translated(raised.value, "update_not_complete")
+        assert launched() == 0
+    assert entity.in_progress is False

@@ -50,7 +50,13 @@ from .update_errors import _update_error, _UpdateRefusalError, _verification_err
 from .update_offer import UpdateOffer
 from .update_panel_install import _retry_unstarted_install
 from .update_progress import UpdateProgress
-from .update_route import ROUTE_ADB, ROUTE_SESSION, ROUTE_STAGED, async_adb_route
+from .update_route import (
+    ROUTE_ADB,
+    ROUTE_SESSION,
+    ROUTE_STAGED,
+    async_adb_route,
+    async_relaunch_stopped_app,
+)
 
 # A panel's refusal of a build its own order ranks lower (panelUpdateRefusal).
 _DOWNGRADE_REFUSAL = "panel-app downgrades are not permitted"
@@ -410,14 +416,40 @@ class BuildDelivery:
         minimum_code: bool = False,
         watch_refusal: bool = False,
     ) -> None:
-        """Wait for exactly the committed build, then remember its number."""
-        proven = await self._progress.async_wait_for_build(
-            hass,
-            artifact,
-            before,
-            minimum_code=minimum_code,
-            watch_refusal=watch_refusal,
-            carrier=self._carrier(hass) if self.session else None,
-        )
+        """Wait for exactly the committed build, then remember its number.
+
+        An app that installed but never came back is started once over
+        authorized ADB, and the owner is told it had stopped.
+        """
+
+        async def wait() -> tuple[int, tuple[str, str]] | None:
+            return await self._progress.async_wait_for_build(
+                hass,
+                artifact,
+                before,
+                minimum_code=minimum_code,
+                watch_refusal=watch_refusal,
+                carrier=self._carrier(hass) if self.session else None,
+            )
+
+        try:
+            proven = await wait()
+        except HomeAssistantError as err:
+            if (
+                err.translation_key != "update_not_complete"
+                or self.session
+                or self._coordinator.reachable
+                or not await async_relaunch_stopped_app(
+                    hass, self._coordinator, artifact, self._panel_name
+                )
+            ):
+                raise
+            _LOGGER.warning(
+                "%s installed %s but its app did not start again; "
+                "Panel Assistant started it over ADB",
+                self._panel_name(),
+                artifact.tag,
+            )
+            proven = await wait()
         if proven is not None:
             self._record_code(*proven)
