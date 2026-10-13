@@ -23,8 +23,18 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.panel_assistant import install_adb, old_app, panel_move
+from custom_components.panel_assistant import (
+    adb_protocol,
+    install_adb,
+    old_app,
+    panel_move,
+)
 from custom_components.panel_assistant import update as panel_update
+from custom_components.panel_assistant.adb_protocol import (
+    AdbInstallTarget,
+    InstallAdbError,
+    InstallAdbErrorCode,
+)
 from custom_components.panel_assistant.app_identity import (
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
@@ -41,13 +51,7 @@ from custom_components.panel_assistant.feed_coordinator import (
     StableReleaseCoordinator,
     async_get_stable_release_coordinator,
 )
-from custom_components.panel_assistant.install_adb import (
-    AdbInstallTarget,
-    InstallAdbError,
-    InstallAdbErrorCode,
-    MoveObservation,
-    MoveStep,
-)
+from custom_components.panel_assistant.install_adb import MoveObservation, MoveStep
 from custom_components.panel_assistant.old_app import old_app_issue_id
 from custom_components.panel_assistant.panel_move import MoveError, move_issue_id
 from custom_components.panel_assistant.release import ReleaseArtifact
@@ -822,7 +826,7 @@ def _real_move_steps(panel: Panel, revoke_at: int) -> Iterator[list[int]]:
     try:
         with (
             patch.object(panel_move, "async_move_step", install_adb.async_move_step),
-            patch.object(install_adb, "AdbDeviceAsync", _Adbd),
+            patch.object(adb_protocol, "AdbDeviceAsync", _Adbd),
             patch.object(install_adb, "_async_shell", shell),
             patch.object(install_adb, "_parse_identity_root", lambda *_args: None),
             patch.object(install_adb, "_validate_target", lambda _target: None),

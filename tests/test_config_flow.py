@@ -22,6 +22,11 @@ from custom_components.panel_assistant.adb_credentials import (
     AdbCredential,
     AdbCredentialError,
 )
+from custom_components.panel_assistant.adb_protocol import (
+    AdbRootMode,
+    InstallAdbError,
+    InstallAdbErrorCode,
+)
 from custom_components.panel_assistant.app_identity import (
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
@@ -45,11 +50,6 @@ from custom_components.panel_assistant.const import (
     CONF_TRANSPORT_USER_ID,
     DOMAIN,
     INTEGRATION_VERSION,
-)
-from custom_components.panel_assistant.install_adb import (
-    AdbRootMode,
-    InstallAdbError,
-    InstallAdbErrorCode,
 )
 from custom_components.panel_assistant.install_executor import InstallExecutor
 from custom_components.panel_assistant.install_jobs import (

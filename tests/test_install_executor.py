@@ -19,8 +19,14 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 
 from custom_components.panel_assistant import install_executor, install_jobs
-from custom_components.panel_assistant.adb_credentials import (
-    AdbCredential,
+from custom_components.panel_assistant.adb_credentials import AdbCredential
+from custom_components.panel_assistant.adb_protocol import (
+    AdbInstallTarget,
+    AdbRootMode,
+    InstallAdbError,
+    InstallAdbErrorCode,
+    InstallOutcome,
+    LaunchOutcome,
 )
 from custom_components.panel_assistant.client import (
     CannotConnectError,
@@ -34,13 +40,7 @@ from custom_components.panel_assistant.display_provisioning import (
     DisplaySizing,
 )
 from custom_components.panel_assistant.install_adb import (
-    AdbInstallTarget,
-    AdbRootMode,
     DefiniteCleanupReason,
-    InstallAdbError,
-    InstallAdbErrorCode,
-    InstallOutcome,
-    LaunchOutcome,
     StagedApk,
 )
 from custom_components.panel_assistant.install_artifacts import (

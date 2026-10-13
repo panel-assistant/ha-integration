@@ -8,12 +8,12 @@ from unittest.mock import AsyncMock
 import pytest
 
 from custom_components.panel_assistant import panel_move
+from custom_components.panel_assistant.adb_protocol import AdbRootMode, InstallOutcome
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.feed_coordinator import (
     DATA_BUILD_FEED,
     DATA_STABLE_RELEASE,
 )
-from custom_components.panel_assistant.install_adb import AdbRootMode, InstallOutcome
 
 from . import test_update_candidate_selection as candidates
 

@@ -733,6 +733,7 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
     compared as sent, not by a few substrings.
     """
     from custom_components.panel_assistant import (
+        adb_protocol,
         app_identity,
         home_chooser,
         install_adb,
@@ -788,7 +789,7 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
     for launch, claim in javascript["claims"].items():
         assert claim == home_chooser.home_claim_command(launch)
         assert claim in javascript["grants"][launch]
-        assert claim in install_adb._permission_grant_command(
+        assert claim in adb_protocol._permission_grant_command(
             "0" * 32, launch.partition("/")[0], launch
         )
 

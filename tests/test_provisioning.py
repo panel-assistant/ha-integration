@@ -8,19 +8,17 @@ import struct
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock
 
 import pytest
 from adb_shell import constants as adb_constants
 from adb_shell.adb_message import AdbMessage  # type: ignore[import-untyped]
 from adb_shell.auth.keygen import keygen
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
-from adb_shell.exceptions import AdbConnectionError, DeviceAuthError
-from adb_shell.transport.tcp_transport_async import TcpTransportAsync
+from adb_shell.exceptions import DeviceAuthError
 
-from custom_components.panel_assistant import install_adb, provisioning
+from custom_components.panel_assistant import adb_protocol, provisioning
+from custom_components.panel_assistant.adb_protocol import AdbInstallTarget
 from custom_components.panel_assistant.client import normalize_address
-from custom_components.panel_assistant.install_adb import AdbInstallTarget
 from custom_components.panel_assistant.provisioning import (
     InstallTargetProbe,
     InstallTargetState,
@@ -235,7 +233,7 @@ async def test_install_candidate_requires_two_complete_package_manager_proofs(
     constructor_args, constructor_kwargs = fake.constructor
     assert len(constructor_args) == 1
     transport = constructor_args[0]
-    assert isinstance(transport, install_adb._BoundedTcpTransportAsync)
+    assert isinstance(transport, adb_protocol._BoundedTcpTransportAsync)
     assert transport._host == "panel.local"
     assert transport._port == 5555
     assert constructor_kwargs == {
@@ -673,7 +671,7 @@ async def test_connection_packet_body_is_bounded_before_socket_read(
 ) -> None:
     """An attacker-declared connection body is refused before its socket read."""
     command = adb_constants.ID_TO_WIRE[adb_constants.CNXN]
-    excessive_length = install_adb._MAX_ADB_PACKET_BYTES + 1
+    excessive_length = adb_protocol._MAX_ADB_PACKET_BYTES + 1
     header = struct.pack(
         adb_constants.MESSAGE_FORMAT,
         command,
@@ -701,71 +699,6 @@ async def test_connection_packet_body_is_bounded_before_socket_read(
     assert reader.requested_reads == [adb_constants.MESSAGE_SIZE]
     assert excessive_length not in reader.requested_reads
     assert writer.closed is True
-
-
-async def test_connection_has_cumulative_read_budget(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Many valid-sized reads cannot fill adb-shell's unbounded packet store."""
-    packet = install_adb._MAX_ADB_PACKET_BYTES
-    transport = install_adb._BoundedTcpTransportAsync("panel.local", 5555)
-    underlying_read = AsyncMock(side_effect=lambda numbytes, _timeout: b"x" * numbytes)
-    monkeypatch.setattr(TcpTransportAsync, "bulk_read", underlying_read)
-
-    budget = install_adb._MAX_CONNECTION_READ_BYTES
-    for _index in range(budget // packet):
-        assert len(await transport.bulk_read(packet, 5.0)) == packet
-    with pytest.raises(install_adb._UnsafeAdbPacket):
-        await transport.bulk_read(packet, 5.0)
-
-    assert underlying_read.await_count == budget // packet
-
-
-async def test_connection_budget_counts_received_not_requested_bytes(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Fragmented reads consume only bytes that actually reached the transport."""
-    transport = install_adb._BoundedTcpTransportAsync("panel.local", 5555)
-    call_count = 0
-
-    async def _fragmented_read(numbytes: int, _timeout: float) -> bytes:
-        nonlocal call_count
-        call_count += 1
-        if call_count <= 4:
-            return b"x"
-        return b"y" * numbytes
-
-    underlying_read = AsyncMock(side_effect=_fragmented_read)
-    monkeypatch.setattr(TcpTransportAsync, "bulk_read", underlying_read)
-
-    for _index in range(4):
-        assert await transport.bulk_read(install_adb._MAX_ADB_PACKET_BYTES, 5.0) == b"x"
-    try:
-        final = await transport.bulk_read(install_adb._MAX_ADB_PACKET_BYTES, 5.0)
-    except install_adb._UnsafeAdbPacket as err:
-        raise AssertionError(
-            "fragmented reads exhausted the actual-byte budget"
-        ) from err
-
-    assert len(final) == install_adb._MAX_ADB_PACKET_BYTES
-    assert underlying_read.await_args_list[-1].args == (
-        install_adb._MAX_ADB_PACKET_BYTES,
-        5.0,
-    )
-
-
-async def test_connection_eof_fails_without_busy_loop(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A positive-length read at EOF raises instead of spinning in adb-shell."""
-    transport = install_adb._BoundedTcpTransportAsync("panel.local", 5555)
-    underlying_read = AsyncMock(return_value=b"")
-    monkeypatch.setattr(TcpTransportAsync, "bulk_read", underlying_read)
-
-    with pytest.raises(AdbConnectionError, match="closed"):
-        await transport.bulk_read(adb_constants.MESSAGE_SIZE, 5.0)
-
-    underlying_read.assert_awaited_once_with(adb_constants.MESSAGE_SIZE, 5.0)
 
 
 async def test_shell_output_limit_stops_before_a_second_chunk() -> None:
@@ -964,12 +897,12 @@ def test_one_changed_fact_is_another_physical_target(changed: dict[str, Any]) ->
         "primary_abi": "arm64-v8a",
         "android_sdk": 34,
     }
-    approved = install_adb.AdbInstallTarget(
+    approved = adb_protocol.AdbInstallTarget(
         address=normalize_address("192.168.1.20:5555"), **facts
     )
     probe = InstallTargetProbe(state=InstallTargetState.INSTALLED, **facts)
 
-    assert install_adb.same_physical_target(probe, approved)
-    assert not install_adb.same_physical_target(
+    assert adb_protocol.same_physical_target(probe, approved)
+    assert not adb_protocol.same_physical_target(
         dataclasses.replace(probe, **changed), approved
     )

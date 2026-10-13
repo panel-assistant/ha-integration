@@ -30,6 +30,7 @@ from custom_components.panel_assistant.adb_credentials import (
     AdbCredentialError,
     AdbCredentialMissingError,
 )
+from custom_components.panel_assistant.adb_protocol import InstallOutcome, LaunchOutcome
 from custom_components.panel_assistant.app_identity import (
     LAUNCH_COMPONENTS,
     LEGACY_PACKAGE_ID,
@@ -48,7 +49,6 @@ from custom_components.panel_assistant.failure_repair import (
     panel_failure_issue_id,
 )
 from custom_components.panel_assistant.feed_coordinator import BuildFeedCoordinator
-from custom_components.panel_assistant.install_adb import InstallOutcome, LaunchOutcome
 from custom_components.panel_assistant.install_network import PinnedPanelTarget
 from custom_components.panel_assistant.provisioning import (
     InstallTargetProbe,

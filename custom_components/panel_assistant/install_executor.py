@@ -29,6 +29,16 @@ from .adb_credentials import (
     AdbCredentialError,
     async_get_durable_adb_credential,
 )
+from .adb_protocol import (
+    AdbInstallTarget,
+    AdbPreflight,
+    AdbRootMode,
+    InstallAdbError,
+    InstallAdbErrorCode,
+    InstallOutcome,
+    LaunchOutcome,
+    same_physical_target,
+)
 from .app_identity import LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, reports_package
 from .client import (
     CannotConnectError,
@@ -42,14 +52,7 @@ from .display_provisioning import async_read_recommended_sizing
 from .feed_coordinator import async_get_feed_coordinator
 from .ha_url import async_offer_ha_url
 from .install_adb import (
-    AdbInstallTarget,
-    AdbPreflight,
-    AdbRootMode,
     DefiniteCleanupReason,
-    InstallAdbError,
-    InstallAdbErrorCode,
-    InstallOutcome,
-    LaunchOutcome,
     StagedApk,
     async_apply_display_sizing,
     async_cleanup_staged_apk,
@@ -59,7 +62,6 @@ from .install_adb import (
     async_preflight_install,
     async_stage_apk,
     async_verify_installed_target,
-    same_physical_target,
 )
 from .install_artifacts import (
     ArtifactCustodyError,

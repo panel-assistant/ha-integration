@@ -64,6 +64,14 @@ from .adb_credentials import (
     async_get_adb_credential,
     async_get_durable_adb_credential,
 )
+from .adb_protocol import (
+    AdbInstallTarget,
+    AdbRootMode,
+    InstallAdbError,
+    InstallAdbErrorCode,
+    InstallOutcome,
+    LaunchOutcome,
+)
 from .app_identity import LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, reports_package
 from .build_feed import (
     BuildDownloadError,
@@ -89,13 +97,7 @@ from .feed_coordinator import (
 )
 from .identity import adopt_moved_identity, self_moved
 from .install_adb import (
-    AdbInstallTarget,
-    AdbRootMode,
     DefiniteCleanupReason,
-    InstallAdbError,
-    InstallAdbErrorCode,
-    InstallOutcome,
-    LaunchOutcome,
     MoveObservation,
     MoveStep,
     async_cleanup_staged_apk,

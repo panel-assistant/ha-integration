@@ -15,17 +15,17 @@ from typing import Any
 import pytest
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 
-from custom_components.panel_assistant import install_adb
+from custom_components.panel_assistant import adb_protocol, app_identity, install_adb
+from custom_components.panel_assistant.adb_protocol import (
+    AdbInstallTarget,
+    AdbRootMode,
+    LaunchOutcome,
+)
 from custom_components.panel_assistant.app_identity import (
     LAUNCH_COMPONENTS,
     LEGACY_PACKAGE_ID,
 )
-from custom_components.panel_assistant.install_adb import (
-    AdbInstallTarget,
-    AdbRootMode,
-    LaunchOutcome,
-    async_launch_installed_app,
-)
+from custom_components.panel_assistant.install_adb import async_launch_installed_app
 from custom_components.panel_assistant.release import InstallDescriptor
 
 from .install_adb_fakes import (
@@ -354,7 +354,7 @@ def _run_notification_program(flags: str, calls: Path) -> list[str]:
             f" flags=[ {flags}]'; }}",
             f'pm() {{ echo "pm $*" >> {shlex.quote(str(calls))}; }}',
             f": > {shlex.quote(str(calls))}",
-            install_adb._notification_grant_command(
+            adb_protocol._notification_grant_command(
                 NONCES[0], "io.github.maxlyth.hapaneld"
             ),
         )
@@ -392,14 +392,14 @@ async def test_post_update_repair_removes_only_the_obsolete_service(
         successor_descriptor,
         launch_component=LAUNCH_COMPONENTS[successor_descriptor.package_id][-1],
     )
-    old = install_adb.ACCESSIBILITY_COMPONENTS[successor_descriptor.launch_component]
-    new = install_adb.ACCESSIBILITY_COMPONENTS[installed.launch_component]
+    old = app_identity.ACCESSIBILITY_COMPONENTS[successor_descriptor.launch_component]
+    new = app_identity.ACCESSIBILITY_COMPONENTS[installed.launch_component]
     if current == "short":
         new = installed.package_id + "/.input.PanelAccessibilityService"
     others = [
         "com.example.reader/.ReaderService",
         "org.other/org.other.a11y.Helper",
-        install_adb.ACCESSIBILITY_COMPONENTS[install_adb.LEGACY_LAUNCH_COMPONENT],
+        app_identity.ACCESSIBILITY_COMPONENTS[app_identity.LEGACY_LAUNCH_COMPONENT],
     ]
     _seed_granted_panel(tmp_path, installed.package_id, installed.launch_component)
     before = [others[0], old, *others[1:]] + ([new] if current else [])
@@ -437,7 +437,7 @@ async def test_refused_obsolete_service_cleanup_is_reported(
         successor_descriptor,
         launch_component=LAUNCH_COMPONENTS[successor_descriptor.package_id][-1],
     )
-    new = install_adb.ACCESSIBILITY_COMPONENTS[installed.launch_component]
+    new = app_identity.ACCESSIBILITY_COMPONENTS[installed.launch_component]
     before = _panel_value(tmp_path, "enabled_accessibility_services") + ":" + new
     (tmp_path / "enabled_accessibility_services").write_text(before + "\n")
     _install_fakes(
@@ -514,7 +514,7 @@ def _seed_granted_panel(
 ) -> None:
     launch = launch_component or LAUNCH_COMPONENTS[package_id][0]
     (state / "home").write_text(
-        install_adb.EQUIVALENT_HOME_COMPONENTS[launch][0] + "\n"
+        app_identity.EQUIVALENT_HOME_COMPONENTS[launch][0] + "\n"
     )
     (state / "enabled_accessibility_services").write_text(
         f"com.example.reader/.ReaderService:{_ACCESSIBILITY_SERVICES[package_id]}\n"

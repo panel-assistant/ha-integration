@@ -11,13 +11,13 @@ import pytest
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 
 from custom_components.panel_assistant import install_plan, update_policy
-from custom_components.panel_assistant.client import PanelAddress
-from custom_components.panel_assistant.install_adb import (
+from custom_components.panel_assistant.adb_protocol import (
     AdbInstallTarget,
     InstallAdbError,
     InstallAdbErrorCode,
-    async_preflight_install,
 )
+from custom_components.panel_assistant.client import PanelAddress
+from custom_components.panel_assistant.install_adb import async_preflight_install
 from custom_components.panel_assistant.install_jobs import InstallJobStoreError
 from custom_components.panel_assistant.install_network import PinnedPanelTarget
 from custom_components.panel_assistant.install_plan import (

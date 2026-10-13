@@ -20,7 +20,8 @@ from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from . import install_adb, panel_move, vendor_provisioning
+from . import adb_protocol, install_adb, panel_move, vendor_provisioning
+from .adb_protocol import AdbInstallTarget
 from .app_identity import LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID
 from .client import (
     HandBackRefusedError,
@@ -29,7 +30,7 @@ from .client import (
     UpdateApprovalRequiredError,
     normalize_address,
 )
-from .install_adb import AdbInstallTarget, MoveObservation, MoveStep
+from .install_adb import MoveObservation, MoveStep
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -142,7 +143,7 @@ async def _async_restore_vendor_setup(found: tuple[AdbInstallTarget, Any]) -> No
     target, signer = found
     try:
         outcome = await install_adb.async_restore_vendor_setup(target, signer)
-    except install_adb.InstallAdbError:
+    except adb_protocol.InstallAdbError:
         outcome = "unreachable"
     if outcome not in ("restored", "none"):
         _LOGGER.warning(vendor_provisioning.RESTORE_WARNING, outcome)
@@ -153,7 +154,7 @@ async def _async_restore_display_sizing(found: tuple[AdbInstallTarget, Any]) -> 
     target, signer = found
     try:
         outcome = await install_adb.async_restore_display_sizing(target, signer)
-    except install_adb.InstallAdbError:
+    except adb_protocol.InstallAdbError:
         outcome = "unreachable"
     if outcome not in ("restored", "none"):
         _LOGGER.warning(

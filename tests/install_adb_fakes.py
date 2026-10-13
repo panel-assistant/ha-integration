@@ -15,7 +15,7 @@ from typing import Any
 
 import pytest
 
-from custom_components.panel_assistant import install_adb
+from custom_components.panel_assistant import adb_protocol, app_identity, install_adb
 from custom_components.panel_assistant.install_adb import (
     StagedApk,
 )
@@ -126,10 +126,10 @@ def _preflight_output(
     ):
         lines.extend(_section(prefix, f"PACKAGE{index}", nonce, paths or [], 1))
         lines.extend(_section(prefix, f"RETAINED{index}", nonce, retained or [], 0))
-    for index in range(len(install_adb._ROOT_DATA_BASES)):
+    for index in range(len(adb_protocol._ROOT_DATA_BASES)):
         state = "unreadable" if index == unreadable_base else "readable"
         lines.extend(_section(prefix, f"BASE{index}", nonce, [state], 0))
-    for index in range(len(install_adb._RESIDUE_PATHS)):
+    for index in range(len(adb_protocol._RESIDUE_PATHS)):
         state = "present" if index == residue_index else "absent"
         lines.extend(_section(prefix, f"RESIDUE{index}", nonce, [state], 0))
     lines.append(f"HAPANELD_{prefix}_END:{nonce}")
@@ -222,7 +222,7 @@ def _permissions_output(
             "SYSTEM_ALERT_WINDOW: allow\nREQUEST_INSTALL_PACKAGES: allow\n"
             "unsupported\nunsupported\n"
             "home_chooser:kept\nsecure_settings:granted\nhome:"
-            f"{install_adb.HOME_COMPONENTS[install_adb.LAUNCH_COMPONENTS[package_id][0]]}"
+            f"{app_identity.HOME_COMPONENTS[app_identity.LAUNCH_COMPONENTS[package_id][0]]}"
             "\ndevice:generic\nvendor:none",
         ],
         0,
@@ -270,10 +270,10 @@ def _su_output(
     lines = [f"HAPANELD_DELEGATE_BEGIN:{nonce}", f"HAPANELD_SU_BEGIN:{nonce}"]
     lines.extend(_section("SU", "UID", nonce, [uid], 0))
     if clean:
-        for index in range(len(install_adb._ROOT_DATA_BASES)):
+        for index in range(len(adb_protocol._ROOT_DATA_BASES)):
             value = "unreadable" if index == unreadable_base else "readable"
             lines.extend(_section("SU", f"BASE{index}", nonce, [value], 0))
-        for index in range(len(install_adb._RESIDUE_PATHS)):
+        for index in range(len(adb_protocol._RESIDUE_PATHS)):
             value = "present" if index == residue_index else "absent"
             lines.extend(_section("SU", f"RESIDUE{index}", nonce, [value], 0))
     lines.extend([f"HAPANELD_SU_END:{nonce}", f"HAPANELD_DELEGATE_END:{nonce}:0"])
@@ -341,7 +341,7 @@ def _install_fakes(
         device.constructor = (args, kwargs)
         return device
 
-    monkeypatch.setattr(install_adb, "AdbDeviceAsync", factory)
+    monkeypatch.setattr(adb_protocol, "AdbDeviceAsync", factory)
     return device_iterator
 
 

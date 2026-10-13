@@ -20,9 +20,7 @@ from adb_shell.exceptions import (
     TcpTimeoutException,
 )
 
-from .app_identity import ACCEPTED_PACKAGE_IDS, LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID
-from .client import PanelAddress
-from .install_adb import (
+from .adb_protocol import (
     _ADB_BANNER,
     ADB_PORT,
     AdbInstallTarget,
@@ -35,6 +33,8 @@ from .install_adb import (
     _parse_identity,
     _UnsafeAdbPacket,
 )
+from .app_identity import ACCEPTED_PACKAGE_IDS, LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID
+from .client import PanelAddress
 
 _CONNECT_TIMEOUT_SECONDS = 5.0
 # Composite package-manager observations can take over 13 seconds on panels.

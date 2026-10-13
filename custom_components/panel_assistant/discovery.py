@@ -47,6 +47,7 @@ from homeassistant.helpers.selector import (
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
+from .adb_protocol import ADB_PORT
 from .client import (
     CannotConnectError,
     HaPaneldClient,
@@ -58,7 +59,6 @@ from .client import (
 from .const import DEFAULT_PORT, DOMAIN
 from .ha_url import async_offer_ha_url
 from .identity import accept_health, is_installation
-from .install_adb import ADB_PORT
 from .install_network import is_allowed_install_address
 
 if TYPE_CHECKING:

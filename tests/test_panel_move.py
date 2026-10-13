@@ -18,7 +18,15 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.panel_assistant import install_adb, panel_move
+from custom_components.panel_assistant import adb_protocol, install_adb, panel_move
+from custom_components.panel_assistant.adb_protocol import (
+    AdbInstallTarget,
+    AdbRootMode,
+    InstallAdbError,
+    InstallAdbErrorCode,
+    InstallOutcome,
+    LaunchOutcome,
+)
 from custom_components.panel_assistant.app_identity import (
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
@@ -40,12 +48,6 @@ from custom_components.panel_assistant.identity import (
     reconcile_identity,
 )
 from custom_components.panel_assistant.install_adb import (
-    AdbInstallTarget,
-    AdbRootMode,
-    InstallAdbError,
-    InstallAdbErrorCode,
-    InstallOutcome,
-    LaunchOutcome,
     MoveObservation,
     MoveStep,
     _move_command,
@@ -394,7 +396,7 @@ def _patches(
     if panel.accepted_artifact is None:
         panel.accepted_artifact = artifact
     patches = [
-        patch.object(install_adb, "AdbDeviceAsync", device),
+        patch.object(adb_protocol, "AdbDeviceAsync", device),
         patch.object(panel_move, "_async_target", target),
         patch.object(panel_move, "async_move_step", panel.step),
         patch.object(panel_move, "async_store_panel_backup", store),
@@ -1724,7 +1726,7 @@ async def test_move_installs_only_the_current_panel_policy_candidate(
 ):
     """The Repair's actual selector and installer respect source proof and opt-in."""
     from custom_components.panel_assistant import update_policy
-    from custom_components.panel_assistant.install_adb import InstallOutcome
+    from custom_components.panel_assistant.adb_protocol import InstallOutcome
 
     _attach(entry, FakePanel())
     entry.runtime_data.client.async_get_health = (
@@ -1801,7 +1803,7 @@ async def test_move_rechecks_changed_admission_before_each_apk_mutation(
 ):
     """Changed admission refuses the next APK mutation and clears its staged custody."""
     from custom_components.panel_assistant import update_policy
-    from custom_components.panel_assistant.install_adb import InstallOutcome
+    from custom_components.panel_assistant.adb_protocol import InstallOutcome
 
     _attach(entry, FakePanel())
     installed = [await entry.runtime_data.client.async_get_health()]
@@ -1913,7 +1915,7 @@ async def test_move_revocation_during_final_adb_verification_cleans_without_inst
         "async_preflight_install",
         AsyncMock(
             return_value=SimpleNamespace(
-                migration_candidate=True, root_mode=install_adb.AdbRootMode.ROOTLESS
+                migration_candidate=True, root_mode=adb_protocol.AdbRootMode.ROOTLESS
             )
         ),
     )
@@ -1947,7 +1949,7 @@ async def test_move_revocation_during_final_adb_verification_cleans_without_inst
 
     install_device, cleanup_device = MovingDevice([]), MovingDevice([])
     _install_fakes(monkeypatch, [install_device, cleanup_device])
-    target = install_adb.AdbInstallTarget(
+    target = adb_protocol.AdbInstallTarget(
         normalize_address("192.168.1.23"), "SERIAL-1", "Test Panel", "arm64-v8a", 34
     )
     with pytest.raises(MoveError) as caught:

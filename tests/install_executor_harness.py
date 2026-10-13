@@ -16,6 +16,15 @@ from custom_components.panel_assistant.adb_credentials import (
     AdbCredential,
     AdbCredentialError,
 )
+from custom_components.panel_assistant.adb_protocol import (
+    AdbInstallTarget,
+    AdbPreflight,
+    AdbRootMode,
+    InstallAdbError,
+    InstallAdbErrorCode,
+    InstallOutcome,
+    LaunchOutcome,
+)
 from custom_components.panel_assistant.client import (
     CannotConnectError,
     PanelAddress,
@@ -23,14 +32,7 @@ from custom_components.panel_assistant.client import (
     PanelSetupState,
 )
 from custom_components.panel_assistant.install_adb import (
-    AdbInstallTarget,
-    AdbPreflight,
-    AdbRootMode,
     DefiniteCleanupReason,
-    InstallAdbError,
-    InstallAdbErrorCode,
-    InstallOutcome,
-    LaunchOutcome,
     StagedApk,
 )
 from custom_components.panel_assistant.install_artifacts import (

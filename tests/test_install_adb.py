@@ -21,19 +21,20 @@ from adb_shell.exceptions import (
     DeviceAuthError,
     InvalidResponseError,
 )
-from adb_shell.transport.tcp_transport_async import TcpTransportAsync
 
-from custom_components.panel_assistant import install_adb
-from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
-from custom_components.panel_assistant.client import PanelAddress
-from custom_components.panel_assistant.install_adb import (
+from custom_components.panel_assistant import adb_protocol, install_adb
+from custom_components.panel_assistant.adb_protocol import (
     AdbInstallTarget,
     AdbRootMode,
-    DefiniteCleanupReason,
     InstallAdbError,
     InstallAdbErrorCode,
     InstallOutcome,
     LaunchOutcome,
+)
+from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
+from custom_components.panel_assistant.client import PanelAddress
+from custom_components.panel_assistant.install_adb import (
+    DefiniteCleanupReason,
     async_cleanup_staged_apk,
     async_install_staged_apk,
     async_installed_artifact_size,
@@ -141,7 +142,7 @@ async def test_preflight_admits_positive_rootless_target_with_persistent_signer(
     constructor_args, constructor_kwargs = fake.constructor
     assert len(constructor_args) == 1
     transport = constructor_args[0]
-    assert isinstance(transport, install_adb._BoundedTcpTransportAsync)
+    assert isinstance(transport, adb_protocol._BoundedTcpTransportAsync)
     assert transport._host == "192.168.1.23"
     assert transport._port == 5555
     assert constructor_kwargs == {
@@ -177,13 +178,13 @@ async def test_su_preflight_requires_exact_root_inventory_proof(
     assert fake.closed
     assert not fake.pushes
     command = fake.commands[-1]
-    prefix = install_adb._SU_PREFIXES[dialect]
-    payload = install_adb._su_inspection_command(NONCES[dialect + 1], clean=True)
+    prefix = adb_protocol._SU_PREFIXES[dialect]
+    payload = adb_protocol._su_inspection_command(NONCES[dialect + 1], clean=True)
     assert f"{prefix} {shlex.quote(payload)};" in command
     assert shlex.split(f"{prefix} {shlex.quote(payload)}")[-1] == payload
-    for path in install_adb._ROOT_DATA_BASES:
+    for path in adb_protocol._ROOT_DATA_BASES:
         assert f"ls -1A {path} >/dev/null" in payload
-    for path in install_adb._RESIDUE_PATHS:
+    for path in adb_protocol._RESIDUE_PATHS:
         assert f"[ -e {path} ] || [ -L {path} ]" in payload
     assert all(
         "pm install" not in cmd and "adb root" not in cmd for cmd in fake.commands
@@ -267,7 +268,7 @@ async def test_existing_package_short_circuits_before_su_invocation(
     with pytest.raises(InstallAdbError) as caught:
         await async_preflight_install(target, signer, descriptor)
     assert caught.value.code is InstallAdbErrorCode.TARGET_NOT_CLEAN
-    assert fake.commands == [install_adb._preflight_command(NONCES[0])]
+    assert fake.commands == [adb_protocol._preflight_command(NONCES[0])]
 
 
 async def test_su_denial_stops_after_five_bounded_dialects(
@@ -415,42 +416,6 @@ async def test_su_posture_barrier_reproves_capability_before_package_query(
     assert all("pm path" not in command for command in fake.commands)
 
 
-async def test_bounded_transport_honors_valid_phase_read_and_write_timeouts(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    observed: list[tuple[str, float]] = []
-
-    async def bulk_read(
-        _self: TcpTransportAsync, _numbytes: int, wait_seconds: float
-    ) -> bytes:
-        observed.append(("read", wait_seconds))
-        return b"x"
-
-    async def bulk_write(
-        _self: TcpTransportAsync, data: bytes | bytearray, wait_seconds: float
-    ) -> int:
-        observed.append(("write", wait_seconds))
-        return len(data)
-
-    monkeypatch.setattr(TcpTransportAsync, "bulk_read", bulk_read)
-    monkeypatch.setattr(TcpTransportAsync, "bulk_write", bulk_write)
-    transport = install_adb._BoundedTcpTransportAsync("192.168.1.23", 5555)
-
-    assert await transport.bulk_read(1, 23.0) == b"x"
-    assert await transport.bulk_write(bytearray(b"x"), 179.0) == 1
-    assert observed == [("read", 23.0), ("write", 179.0)]
-
-
-@pytest.mark.parametrize("wait_seconds", [None, 0, -1, 180.1, True, float("inf")])
-async def test_bounded_transport_rejects_unbounded_timeout_values(
-    wait_seconds: object,
-) -> None:
-    transport = install_adb._BoundedTcpTransportAsync("192.168.1.23", 5555)
-
-    with pytest.raises(install_adb._UnsafeAdbPacket):
-        await transport.bulk_read(1, wait_seconds)  # type: ignore[arg-type]
-
-
 async def test_root_adbd_requires_all_exact_residue_paths_absent(
     monkeypatch: pytest.MonkeyPatch,
     signer: PythonRSASigner,
@@ -464,8 +429,8 @@ async def test_root_adbd_requires_all_exact_residue_paths_absent(
 
     assert proof.root_mode is AdbRootMode.ROOT_ADBD
     command = fake.commands[0]
-    assert all(path in command for path in install_adb._ROOT_DATA_BASES)
-    assert all(path in command for path in install_adb._RESIDUE_PATHS)
+    assert all(path in command for path in adb_protocol._ROOT_DATA_BASES)
+    assert all(path in command for path in adb_protocol._RESIDUE_PATHS)
 
 
 async def test_root_adbd_refuses_an_unreadable_data_inventory(
@@ -900,7 +865,7 @@ async def test_installed_target_verification_accepts_matching_root_adbd_posture(
 
     assert len(fake.commands) == 2
     assert "HAPANELD_POSTURE_BEGIN" in fake.commands[0]
-    assert all(path not in fake.commands[0] for path in install_adb._RESIDUE_PATHS)
+    assert all(path not in fake.commands[0] for path in adb_protocol._RESIDUE_PATHS)
     assert "pm path io.github.maxlyth.hapaneld" in fake.commands[1]
 
 
@@ -2900,7 +2865,7 @@ async def test_the_old_package_alone_admits_the_successor_beside_it(
 
     assert preflight.migration_candidate is True
     # Nothing is done to the old package here: this observation is read-only.
-    assert fake.commands == [install_adb._preflight_command(NONCES[0])]
+    assert fake.commands == [adb_protocol._preflight_command(NONCES[0])]
 
 
 async def test_the_old_package_alone_never_admits_the_old_build_again(
@@ -2974,7 +2939,7 @@ async def test_the_old_app_s_own_data_is_what_a_handover_migrates(
     residue_index: int,
 ) -> None:
     """Legacy residue is expected beside a legacy package, under root too."""
-    assert install_adb._RESIDUE_PROBES[residue_index][0] == (
+    assert adb_protocol._RESIDUE_PROBES[residue_index][0] == (
         "io.github.maxlyth.hapaneld"
     )
     fake = FakeDevice(
@@ -3005,7 +2970,7 @@ async def test_the_successor_s_own_residue_is_never_a_handover(
     residue_index: int,
 ) -> None:
     """Data belonging to the package being installed still refuses the target."""
-    assert install_adb._RESIDUE_PROBES[residue_index][0] == "io.panelassistant.android"
+    assert adb_protocol._RESIDUE_PROBES[residue_index][0] == "io.panelassistant.android"
     fake = FakeDevice(
         [
             _preflight_output(

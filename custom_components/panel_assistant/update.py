@@ -38,6 +38,14 @@ from .adb_credentials import (
     async_get_adb_credential,
     async_get_durable_adb_credential,
 )
+from .adb_protocol import (
+    AdbInstallTarget,
+    AdbRootMode,
+    InstallAdbError,
+    InstallAdbErrorCode,
+    InstallOutcome,
+    LaunchOutcome,
+)
 from .app_identity import LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, reports_package
 from .build_feed import (
     BuildDownloadError,
@@ -85,12 +93,6 @@ from .feed_coordinator import (
     newest_feed_build,
 )
 from .install_adb import (
-    AdbInstallTarget,
-    AdbRootMode,
-    InstallAdbError,
-    InstallAdbErrorCode,
-    InstallOutcome,
-    LaunchOutcome,
     async_launch_installed_app,
     async_preflight_install,
     async_repair_installed_app_permissions,

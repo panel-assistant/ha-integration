@@ -22,8 +22,8 @@ from homeassistant.core import CoreState, HomeAssistant
 from homeassistant.helpers.storage import Store
 
 from custom_components.panel_assistant import install_jobs
+from custom_components.panel_assistant.adb_protocol import InstallAdbErrorCode
 from custom_components.panel_assistant.const import DOMAIN
-from custom_components.panel_assistant.install_adb import InstallAdbErrorCode
 from custom_components.panel_assistant.install_artifacts import ArtifactErrorCode
 from custom_components.panel_assistant.install_jobs import (
     InstallArtifact,

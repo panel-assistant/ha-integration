@@ -498,12 +498,9 @@ async def async_retry_install_job(
 ) -> InstallJobReceipt:
     """Create a fresh job only if the previous physical target still matches."""
     from .adb_credentials import async_get_durable_adb_credential
+    from .adb_protocol import same_physical_target
     from .client import normalize_address
-    from .install_adb import (
-        async_installed_artifact_size,
-        async_preflight_install,
-        same_physical_target,
-    )
+    from .install_adb import async_installed_artifact_size, async_preflight_install
     from .install_executor import _adb_target
     from .install_jobs import (
         InstallPhase,

@@ -17,12 +17,9 @@ from homeassistant.core import HomeAssistant
 from yarl import URL
 
 from custom_components.panel_assistant import release, update_policy
+from custom_components.panel_assistant.adb_protocol import AdbRootMode, LaunchOutcome
 from custom_components.panel_assistant.const import DOMAIN
-from custom_components.panel_assistant.install_adb import (
-    AdbRootMode,
-    LaunchOutcome,
-    async_launch_installed_app,
-)
+from custom_components.panel_assistant.install_adb import async_launch_installed_app
 from custom_components.panel_assistant.install_executor import InstallExecutor
 from custom_components.panel_assistant.install_jobs import (
     InstallJobManager,

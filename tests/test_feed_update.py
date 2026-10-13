@@ -35,6 +35,7 @@ from custom_components.panel_assistant import (
 )
 from custom_components.panel_assistant import update as panel_update
 from custom_components.panel_assistant.adb_credentials import AdbCredentialError
+from custom_components.panel_assistant.adb_protocol import InstallOutcome
 from custom_components.panel_assistant.app_identity import (
     LAUNCH_COMPONENTS,
     LEGACY_PACKAGE_ID,
@@ -67,7 +68,6 @@ from custom_components.panel_assistant.feed_coordinator import (
     StableReleaseCoordinator,
     async_get_feed_coordinator,
 )
-from custom_components.panel_assistant.install_adb import InstallOutcome
 from custom_components.panel_assistant.install_network import PinnedPanelTarget
 from custom_components.panel_assistant.panel_backup import (
     PanelBackupInvalidError,

@@ -16,13 +16,15 @@ import pytest
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 
 from custom_components.panel_assistant import vendor_provisioning
-from custom_components.panel_assistant.home_chooser import CHOOSER_DUMP
-from custom_components.panel_assistant.install_adb import (
+from custom_components.panel_assistant.adb_protocol import (
     AdbInstallTarget,
     AdbRootMode,
     InstallAdbError,
     InstallAdbErrorCode,
     LaunchOutcome,
+)
+from custom_components.panel_assistant.home_chooser import CHOOSER_DUMP
+from custom_components.panel_assistant.install_adb import (
     async_launch_installed_app,
     async_repair_installed_app_permissions,
     async_restore_vendor_setup,

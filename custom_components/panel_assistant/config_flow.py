@@ -40,6 +40,7 @@ from .adb_credentials import (
     async_get_adb_signer,
     async_get_durable_adb_credential,
 )
+from .adb_protocol import InstallAdbError, same_physical_target
 from .browser_delivery import async_register_browser_delivery
 from .browser_panel import PANEL_PATH, async_register_browser_panel
 from .client import (
@@ -78,12 +79,7 @@ from .discovery import (
 from .failure_repair import async_clear_adb_authorization
 from .ha_url import async_offer_ha_url
 from .identity import CONF_INSTALL_IDENTITY, accept_health, is_installation
-from .install_adb import (
-    InstallAdbError,
-    async_installed_artifact_size,
-    async_preflight_install,
-    same_physical_target,
-)
+from .install_adb import async_installed_artifact_size, async_preflight_install
 from .install_executor import (
     FinalizationOutcome,
     InstallExecutor,

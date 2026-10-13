@@ -19,6 +19,14 @@ from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant import panel_move
+from custom_components.panel_assistant.adb_protocol import (
+    AdbInstallTarget,
+    AdbPreflight,
+    AdbRootMode,
+    InstallAdbError,
+    InstallAdbErrorCode,
+    _classify_target_packages,
+)
 from custom_components.panel_assistant.app_identity import (
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
@@ -32,15 +40,7 @@ from custom_components.panel_assistant.client import (
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.feed_coordinator import StableReleaseCoordinator
 from custom_components.panel_assistant.identity import CONF_IDENTITY_PENDING
-from custom_components.panel_assistant.install_adb import (
-    AdbInstallTarget,
-    AdbPreflight,
-    AdbRootMode,
-    InstallAdbError,
-    InstallAdbErrorCode,
-    MoveObservation,
-    _classify_target_packages,
-)
+from custom_components.panel_assistant.install_adb import MoveObservation
 from custom_components.panel_assistant.panel_move import (
     MoveError,
     async_move_to_new_app,
@@ -690,11 +690,11 @@ class _UntrustedDevice:
 
 @pytest.fixture
 def untrusted() -> Any:
-    from custom_components.panel_assistant import install_adb
+    from custom_components.panel_assistant import adb_protocol, install_adb
 
     _UntrustedDevice.offered = []
     with (
-        patch.object(install_adb, "AdbDeviceAsync", _UntrustedDevice),
+        patch.object(adb_protocol, "AdbDeviceAsync", _UntrustedDevice),
         patch.object(
             panel_move, "async_preflight_install", install_adb.async_preflight_install
         ),
