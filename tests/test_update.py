@@ -1,6 +1,7 @@
 """Configured-panel update projection tests."""
 
 import asyncio
+from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, call
 
@@ -178,6 +179,38 @@ async def test_older_api_panel_keeps_its_existing_update_route(
     await entity._async_refresh_route()
     assert entity.latest_version == "0.9.10"
     client.async_get_legacy_install_capability.assert_awaited()
+
+
+async def test_changed_health_invalidates_a_cached_legacy_api_route(
+    hass: HomeAssistant,
+) -> None:
+    """An older panel's proven route counts only for the panel it was proven on."""
+    entity, _ = _entity(hass, install_capability=None)
+    entity.coordinator.async_request_refresh = AsyncMock()
+    await entity._async_refresh_route()
+    assert entity.latest_version == "0.9.10"
+
+    data = entity.coordinator.data
+    entity.coordinator.data = replace(data, health=replace(data.health, build="1001"))
+
+    assert entity.latest_version == entity.installed_version
+
+
+def test_unparseable_versions_are_never_newer(hass: HomeAssistant) -> None:
+    entity, _ = _entity(hass)
+
+    assert not entity.version_is_newer("garbage", "0.9.9")
+    assert not entity.version_is_newer("0.9.10", "garbage")
+
+
+def test_a_lower_build_of_the_same_release_is_never_newer(
+    hass: HomeAssistant,
+) -> None:
+    entity, _ = _entity(hass)
+
+    assert not entity.version_is_newer("1.0.0 build 100", "1.0.0 build 200")
+    assert not entity.version_is_newer("1.0.0 build 200", "1.0.0 build 200")
+    assert entity.version_is_newer("1.0.0 build 200", "1.0.0 build 100")
 
 
 @pytest.mark.parametrize("first_connect_refused", [False, True])
@@ -500,6 +533,23 @@ def test_update_entity_restores_a_panel_owned_operation_after_reload(
     )
 
     assert entity.in_progress is True
+
+
+async def test_another_components_running_install_is_not_resumed_as_this_update(
+    hass: HomeAssistant,
+) -> None:
+    """A Companion install found after reload is not this update."""
+    entity, _ = _entity(
+        hass, operation=PanelInstallStatus(running=True, component="companion")
+    )
+    entity.coordinator.async_request_refresh = AsyncMock()
+    entity._update_coordinator.async_request_refresh = AsyncMock()
+
+    entity._handle_update_coordinator_update()
+    try:
+        assert entity.in_progress is False
+    finally:
+        entity._cancel_observer()
 
 
 async def test_reload_observer_latches_through_transient_and_terminal_status(

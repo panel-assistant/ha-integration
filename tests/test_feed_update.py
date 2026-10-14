@@ -1738,12 +1738,16 @@ async def test_explicit_feed_install_refuses_unadmitted_candidate_before_backup(
         protocol_min=minimum,
         protocol_max=maximum,
     )
+    record = AsyncMock()
+    monkeypatch.setattr(panel_update, "async_record_update_failure", record)
     entity, client = _entity(
         hass, version="1.0.0", feed=BuildFeed("maintainer", (candidate,))
     )
     with pytest.raises(HomeAssistantError) as caught:
         await entity.async_install(str(candidate_code), False)
     assert caught.value.translation_key == "update_unavailable"
+    # A build the owner may not install is refused, not reported as a failure.
+    record.assert_not_awaited()
     client.async_backup_panel.assert_not_awaited()
     client.async_stage_apk.assert_not_awaited()
     client.async_commit_apk.assert_not_awaited()
