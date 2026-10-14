@@ -618,6 +618,22 @@ async def test_a_dropped_connection_during_the_uninstall_is_finished_by_a_retry(
     assert fake.hand_back_requests == 2
 
 
+async def test_a_panel_with_neither_app_left_is_reported_removed(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
+) -> None:
+    """An app already gone, by hand or by a run whose answer was lost, is done."""
+    fake, server = panel
+    fake.set(installed=[])
+    entry = _entry(hass, server)
+
+    result = await _remove(hass, entry)
+
+    assert result.get("errors") is None, (result.get("errors"), fake.read())
+    assert result["step_id"] == "remove_app_done"
+    assert fake.hand_back_requests == 0
+    assert fake.read()["events"] == []
+
+
 async def test_a_silent_app_that_still_holds_home_is_not_removed(
     hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
 ) -> None:
