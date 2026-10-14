@@ -76,7 +76,6 @@ from .discovery import (
     closes_when_done,
     markdown_literal,
 )
-from .failure_repair import async_clear_adb_authorization
 from .foreign_ha import async_connected_to_other_ha, async_raise_foreign_ha_issue
 from .ha_url import async_offer_ha_url
 from .identity import CONF_INSTALL_IDENTITY, accept_health, is_installation
@@ -114,6 +113,8 @@ from .release import (
 )
 from .release_catalog import async_list_install_choices, async_resolve_install_choice
 from .removal import RemovalError, async_read_firmware, async_remove_app
+from .repairs_failure import async_clear_adb_authorization
+from .repairs_update_route import help_parameters
 from .status import PanelStatus
 from .transport import (
     _panel_did,
@@ -123,7 +124,6 @@ from .transport import (
     async_discard_binding_request,
 )
 from .update_policy import prereleases_allowed
-from .update_route_repair import help_parameters
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -16,10 +16,6 @@ from custom_components.panel_assistant.build_feed import (
     feed_release_artifact,
 )
 from custom_components.panel_assistant.client import normalize_address
-from custom_components.panel_assistant.failure_repair import (
-    RetrySafetyHold,
-    async_retry_install_job,
-)
 from custom_components.panel_assistant.install_jobs import (
     InstallArtifact,
     InstallJobManager,
@@ -30,6 +26,10 @@ from custom_components.panel_assistant.install_network import PinnedPanelTarget
 from custom_components.panel_assistant.install_plan import (
     _build_artifact,
     install_plan_sha256,
+)
+from custom_components.panel_assistant.repairs_failure import (
+    RetrySafetyHold,
+    async_retry_install_job,
 )
 from tests import test_install_jobs as job_fixtures
 from tests.test_config_flow import ARTIFACT as FLOW_ARTIFACT

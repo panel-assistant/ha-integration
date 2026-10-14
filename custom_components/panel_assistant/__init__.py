@@ -51,7 +51,6 @@ from .install_executor import (
     async_resume_loaded_install_jobs,
 )
 from .lifecycle import async_setup_lifecycle
-from .microphone_repair import async_delete_microphone_issue
 from .native import CONF_NATIVE_ENTITIES, NATIVE_ONLY_PLATFORMS
 from .panel_move import (
     async_evaluate_successor_move,
@@ -63,7 +62,14 @@ from .removed_panels import (
     async_load_removed_panels,
     async_remember_removed_panel,
 )
-from .restart_repair import async_setup_restart_check
+from .repairs_microphone import async_delete_microphone_issue
+from .repairs_restart import async_setup_restart_check
+from .repairs_upgrade import (
+    async_evaluate_app_too_old,
+    async_raise_needs_090,
+    needs_090,
+    needs_090_issue_id,
+)
 from .transport import (
     REASON_ENTRY_UNLOADED,
     async_apply_update_policy,
@@ -72,12 +78,6 @@ from .transport import (
     async_setup_transport,
 )
 from .update_coordinator import PanelUpdateCoordinator
-from .upgrade_repairs import (
-    async_evaluate_app_too_old,
-    async_raise_needs_090,
-    needs_090,
-    needs_090_issue_id,
-)
 from .voice import (
     async_follow_voice,
     async_load_voice,

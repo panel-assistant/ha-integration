@@ -22,10 +22,10 @@ from custom_components.panel_assistant.provisioning import (
     InstallTargetProbe,
     InstallTargetState,
 )
-from custom_components.panel_assistant.status import PanelStatus
-from custom_components.panel_assistant.update_route_repair import (
+from custom_components.panel_assistant.repairs_update_route import (
     no_update_route_issue_id,
 )
+from custom_components.panel_assistant.status import PanelStatus
 
 pytest_plugins = ["tests.test_update_adb_route"]
 

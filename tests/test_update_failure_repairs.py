@@ -43,18 +43,18 @@ from custom_components.panel_assistant.coordinator import (
     HaPaneldDataUpdateCoordinator,
     PanelSnapshot,
 )
-from custom_components.panel_assistant.failure_repair import (
-    async_clear_update_failure_if_installed,
-    async_failure_events,
-    async_record_update_failure,
-    panel_failure_issue_id,
-)
 from custom_components.panel_assistant.feed_coordinator import (
     DATA_BUILD_FEED,
     BuildFeedCoordinator,
     StableReleaseCoordinator,
 )
 from custom_components.panel_assistant.release import _RELEASE_SIGNER_CERTIFICATE_SHA256
+from custom_components.panel_assistant.repairs_failure import (
+    async_clear_update_failure_if_installed,
+    async_failure_events,
+    async_record_update_failure,
+    panel_failure_issue_id,
+)
 from custom_components.panel_assistant.status import PanelStatus
 from custom_components.panel_assistant.transport import async_get_sessions
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity

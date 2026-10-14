@@ -26,14 +26,14 @@ from custom_components.panel_assistant.const import (
     INTEGRATION_VERSION,
     update_unique_id,
 )
-from custom_components.panel_assistant.failure_repair import (
+from custom_components.panel_assistant.install_jobs import InstallJobManager
+from custom_components.panel_assistant.repairs_failure import (
     RetrySafetyHold,
     async_clear_update_failure_if_installed,
     async_failure_events,
     async_record_update_failure,
     async_refresh_update_failure_name,
 )
-from custom_components.panel_assistant.install_jobs import InstallJobManager
 from tests import test_install_jobs as job_fixtures
 from tests.test_feed_update import _build
 from tests.test_install_failure_repairs import _authorization_failure

@@ -8,14 +8,14 @@ from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.const import DOMAIN
-from custom_components.panel_assistant.status import (
-    PanelDevice,
-    PanelStatus,
-)
-from custom_components.panel_assistant.update_route_repair import (
+from custom_components.panel_assistant.repairs_update_route import (
     async_reconcile_update_route_issue,
     help_parameters,
     no_update_route_issue_id,
+)
+from custom_components.panel_assistant.status import (
+    PanelDevice,
+    PanelStatus,
 )
 
 

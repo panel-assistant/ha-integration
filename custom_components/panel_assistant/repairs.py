@@ -29,7 +29,24 @@ from .config_flow import async_authorize_adb_form
 from .const import CONF_TRANSPORT_USER_ID, DOMAIN, update_unique_id
 from .coordinator import HaPaneldDataUpdateCoordinator, PanelSnapshot
 from .device import panel_display_name
-from .failure_repair import (
+from .identity import (
+    ISSUE_IDENTITY,
+    can_confirm_identity,
+    confirm_identity,
+    is_installation,
+)
+from .install_executor import async_get_install_executor
+from .install_jobs import async_get_install_job_manager
+from .install_receipt import InstallPhase
+from .panel_move import ISSUE_DATA_ENTRY_ID as SUCCESSOR_MOVE_ENTRY_ID
+from .panel_move import (
+    ISSUE_MOVE_TO_NEW_APP,
+    SuccessorMoveFlow,
+    move_issue_id,
+)
+from .release import ReleaseResolutionError
+from .release_catalog import async_resolve_install_choice
+from .repairs_failure import (
     ISSUE_ADB_AUTHORIZATION,
     ISSUE_INSTALLER_FAILURE,
     RetrySafetyHold,
@@ -42,40 +59,23 @@ from .failure_repair import (
     async_support_report,
     update_failure_entry_id,
 )
-from .identity import (
-    ISSUE_IDENTITY,
-    can_confirm_identity,
-    confirm_identity,
-    is_installation,
-)
-from .install_executor import async_get_install_executor
-from .install_jobs import async_get_install_job_manager
-from .install_receipt import InstallPhase
-from .migration_repair import (
+from .repairs_migration import (
     ISSUE_DATA_ADDRESS,
     ISSUE_DATA_VERSION,
     ISSUE_PANEL_MIGRATION_INCOMPLETE,
 )
-from .panel_move import ISSUE_DATA_ENTRY_ID as SUCCESSOR_MOVE_ENTRY_ID
-from .panel_move import (
-    ISSUE_MOVE_TO_NEW_APP,
-    SuccessorMoveFlow,
-    move_issue_id,
-)
-from .permission_repair import (
+from .repairs_permission import (
     ISSUE_PANEL_PERMISSIONS,
     permission_issue_id,
     permission_observations,
     permissions_held,
 )
-from .proximity_repair import (
+from .repairs_proximity import (
     ISSUE_PROXIMITY_SETUP,
     proximity_issue_id,
     proximity_state,
 )
-from .release import ReleaseResolutionError
-from .release_catalog import async_resolve_install_choice
-from .restart_repair import ISSUE_RESTART_REQUIRED, RestartRequiredFlow
+from .repairs_restart import ISSUE_RESTART_REQUIRED, RestartRequiredFlow
 from .transport import (
     BINDING_ISSUES,
     ISSUE_DATA_ENTRY_ID,

@@ -17,7 +17,7 @@ from custom_components.panel_assistant.client import (
     PanelHealth,
 )
 from custom_components.panel_assistant.const import DOMAIN
-from custom_components.panel_assistant.migration_repair import (
+from custom_components.panel_assistant.repairs_migration import (
     ISSUE_PANEL_MIGRATION_INCOMPLETE,
     async_delete_panel_migration_incomplete,
     async_raise_panel_migration_incomplete,

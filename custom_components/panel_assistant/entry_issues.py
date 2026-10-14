@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 
 from .const import DOMAIN
-from .failure_repair import (
+from .repairs_failure import (
     async_delete_issue_and_report,
     async_update_failure_entry_ids,
     panel_failure_issue_id,

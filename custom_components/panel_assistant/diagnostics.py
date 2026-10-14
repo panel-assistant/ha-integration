@@ -12,7 +12,7 @@ from . import HaPaneldConfigEntry
 from .build import INTEGRATION_BUILD
 from .const import CONF_CUTOVER, CONF_TRANSPORT_USER_ID
 from .coordinator import PanelSnapshot
-from .restart_repair import restart_pending
+from .repairs_restart import restart_pending
 from .transport import session_diagnostics
 
 # The record of an earlier move off MQTT names identities and MQTT IDs, and is
