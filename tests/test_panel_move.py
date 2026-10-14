@@ -563,7 +563,8 @@ async def test_a_failed_restore_leaves_the_old_app_working(
         panel.restore = refuse  # type: ignore[method-assign]
         _attach(entry, panel)
 
-    with pytest.raises(MoveError):
+    reason = "restore_approval" if failure == "approval" else "move_failed"
+    with pytest.raises(MoveError, match=reason):
         await _move(hass, entry, panel, tmp_path)
 
     assert panel.legacy and not panel.legacy_aside and not panel.successor
@@ -1199,6 +1200,127 @@ async def test_a_restore_still_running_is_waited_out(
     assert CONF_SUCCESSOR_MOVE not in entry.data
 
 
+async def _old_app_answers(panel: FakePanel) -> bool:
+    health = await panel.health()
+    return panel.legacy and reports_package(health.package, LEGACY_PACKAGE_ID)
+
+
+@pytest.mark.parametrize("receipt", ["changed", "missing"])
+async def test_a_receipt_that_changed_on_disk_is_never_restored(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path, receipt: str
+) -> None:
+    """The kept receipt must be the one recorded; otherwise the old app returns."""
+    panel = FakePanel()
+    step = panel.step
+
+    async def receipt_changes(*args: Any, **_kwargs: Any) -> MoveObservation:
+        observed = await step(*args)
+        if args[-1] is MoveStep.SET_ASIDE_LEGACY:
+            path = tmp_path / "receipt.zip"
+            if receipt == "missing":
+                path.unlink()
+            else:
+                path.write_bytes(_archive(panel_id="other"))
+        return observed
+
+    panel.step = receipt_changes  # type: ignore[method-assign]
+    _attach(entry, panel)
+    with pytest.raises(MoveError, match="move_failed"):
+        await _move(hass, entry, panel, tmp_path)
+
+    assert panel.restores == 0 and await _old_app_answers(panel)
+    assert "RETIRE_LEGACY" not in panel.steps
+    assert _record_file(hass, entry).exists()
+
+
+async def test_a_refused_launch_rolls_back_without_waiting(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
+) -> None:
+    """The new app refusing to start ends the move at once."""
+    panel = FakePanel()
+
+    async def refused(*_args: Any, **_kwargs: Any) -> LaunchOutcome:
+        panel.steps.append("LAUNCH")
+        return LaunchOutcome.REFUSED
+
+    panel.launch = refused  # type: ignore[method-assign]
+    _attach(entry, panel)
+    with (
+        patch.object(panel_move, "_HEALTH_WAIT_SECONDS", 30),
+        pytest.raises(MoveError, match="move_failed"),
+    ):
+        async with asyncio.timeout(2):
+            await _move(hass, entry, panel, tmp_path)
+
+    assert "SET_PANEL_ID" not in panel.steps and "RESTORE" not in panel.steps
+    assert await _old_app_answers(panel)
+
+
+async def test_a_panel_that_stays_busy_ends_the_move(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
+) -> None:
+    """A restore the panel never accepts stops waiting and returns the old app."""
+    panel = FakePanel()
+
+    async def busy(_data: bytes) -> None:
+        raise UpdateBusyError
+
+    panel.restore = busy  # type: ignore[method-assign]
+    _attach(entry, panel)
+    with (
+        patch.object(panel_move, "_RESTORE_WAIT_SECONDS", 0.2),
+        pytest.raises(MoveError, match="move_failed"),
+    ):
+        async with asyncio.timeout(5):
+            await _move(hass, entry, panel, tmp_path)
+
+    assert await _old_app_answers(panel)
+
+
+async def test_a_restore_that_lands_another_configuration_keeps_the_old_app(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
+) -> None:
+    """The old app goes only once the new one runs the receipt's configuration."""
+    panel = FakePanel()
+    real_restore = panel.restore
+
+    async def other_configuration(data: bytes) -> None:
+        await real_restore(data)
+        panel.cfg = "0000dead"
+
+    panel.restore = other_configuration  # type: ignore[method-assign]
+    _attach(entry, panel)
+    with (
+        patch.object(panel_move, "_RESTORE_WAIT_SECONDS", 0.5),
+        pytest.raises(MoveError, match="move_failed"),
+    ):
+        await _move(hass, entry, panel, tmp_path)
+
+    assert "RETIRE_LEGACY" not in panel.steps
+    assert _record_file(hass, entry).exists() and entry.unique_id == OLD_DID
+
+
+async def test_a_removed_old_app_is_never_reinstalled_from_its_copy(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
+) -> None:
+    """Its copy without the data Android kept would bring back an empty app."""
+    panel = FakePanel()
+
+    async def refuse_after_removal(_data: bytes) -> None:
+        # Android dropped the set-aside old app and its data; the copy remains.
+        panel.legacy_aside = False
+        raise UpdateRejectedError
+
+    panel.restore = refuse_after_removal  # type: ignore[method-assign]
+    _attach(entry, panel)
+    with pytest.raises(MoveError, match="move_failed"):
+        await _move(hass, entry, panel, tmp_path)
+
+    assert panel.legacy_copy is not None
+    assert "RESTORE_LEGACY" not in panel.steps
+    assert _record_file(hass, entry).exists()
+
+
 async def test_the_repair_follows_the_package_and_the_record(
     hass: HomeAssistant, entry: MockConfigEntry
 ) -> None:
@@ -1497,6 +1619,7 @@ async def test_the_record_outlives_the_adoption_until_it_is_saved(
     adopt.assert_called_once_with(hass, entry, NEW_DID, reload=False)
     await async_restore_move_offer(hass, entry)
     assert record.exists()
+    assert CONF_SUCCESSOR_MOVE not in entry.data
 
     # Saved: the next setup reads the new identity back from disk and settles.
     hass.config_entries.async_update_entry(entry, unique_id=NEW_DID)
