@@ -1059,6 +1059,33 @@ async def test_changed_pin_value_before_stage_prevents_the_mutation(
     assert completed.result_code is InstallResultCode.TRANSPORT_FAILED
 
 
+async def test_pin_drift_during_health_check_never_reports_healthy(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A pin that moves after launch stops health from believing the reply."""
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    harness = Harness(monkeypatch)
+    resolve = harness.async_pin
+
+    async def _moved_after_launch(
+        hass: HomeAssistant, pinned: PinnedPanelTarget
+    ) -> PinnedPanelTarget:
+        if "launch" in harness.events:
+            harness.pin_wrong_at = harness.pin_calls + 1
+        return await resolve(hass, pinned)
+
+    monkeypatch.setattr(
+        install_executor, "async_revalidate_install_target", _moved_after_launch
+    )
+
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert completed.phase is InstallPhase.RECOVERY_REQUIRED
+    assert completed.result_code is InstallResultCode.VERIFICATION_REQUIRED
+    assert completed.result_subcode == "network:pinned_target_removed"
+
+
 @pytest.mark.parametrize(
     ("initial", "changed"),
     [
@@ -1160,6 +1187,22 @@ async def test_same_connection_root_drift_fails_closed_before_mutation(
         assert not any(event.startswith("remote_cleanup:") for event in harness.events)
     if operation != "launch":
         assert "launch" not in harness.events
+
+
+async def test_same_connection_target_change_at_launch_requires_recovery(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An installed app whose device identity changed at launch is not a clean failure."""
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    harness = Harness(monkeypatch)
+    harness.launch_error = InstallAdbError(InstallAdbErrorCode.TARGET_CHANGED)
+
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert completed.phase is InstallPhase.RECOVERY_REQUIRED
+    assert completed.result_code is InstallResultCode.VERIFICATION_REQUIRED
+    assert completed.result_subcode == "adb:target_changed"
 
 
 @pytest.mark.parametrize(
@@ -2619,19 +2662,22 @@ async def test_concurrent_finalizers_have_one_owner_and_one_release(
         executor.async_verify_finalization(receipt.job_id, "flow_one")
     )
     await proof.health_started.wait()
-    racers = await asyncio.gather(
-        executor.async_verify_finalization(receipt.job_id, "flow_two"),
-        executor.async_verify_finalization(receipt.job_id, "flow_one"),
-        executor.async_reconcile_entry(
-            ENTRY_ID,
-            receipt.target.address,
-            PanelHealth(
-                version=receipt.artifact.version_name,
-                panel_id="alpha",
-                build="1",
-                config_hash="1a2b3c4d",
+    racers = await asyncio.wait_for(
+        asyncio.gather(
+            executor.async_verify_finalization(receipt.job_id, "flow_two"),
+            executor.async_verify_finalization(receipt.job_id, "flow_one"),
+            executor.async_reconcile_entry(
+                ENTRY_ID,
+                receipt.target.address,
+                PanelHealth(
+                    version=receipt.artifact.version_name,
+                    panel_id="alpha",
+                    build="1",
+                    config_hash="1a2b3c4d",
+                ),
             ),
         ),
+        timeout=5,
     )
     proof.release_health.set()
     verdict = await first
@@ -2645,6 +2691,32 @@ async def test_concurrent_finalizers_have_one_owner_and_one_release(
     assert proof.health_reads == 1
     assert (await manager.async_get(receipt.job_id)).consumed_entry_id == ENTRY_ID
     assert leases.released == [receipt.job_id]
+
+
+async def test_same_owner_resubmit_during_verification_is_busy(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The owner submitting again mid-proof never starts a second panel read."""
+    receipt, manager = await seed_healthy(hass)
+    proof = FinalProof(monkeypatch, hold_health=True)
+    executor, _ = counting_executor(hass, manager)
+
+    first = hass.async_create_task(
+        executor.async_verify_finalization(receipt.job_id, "flow_one")
+    )
+    await proof.health_started.wait()
+    again = hass.async_create_task(
+        executor.async_verify_finalization(receipt.job_id, "flow_one")
+    )
+    try:
+        for _ in range(10):
+            await asyncio.sleep(0)
+        assert again.done()
+        assert again.result().outcome is FinalizationOutcome.BUSY
+        assert proof.health_reads == 1
+    finally:
+        proof.release_health.set()
+        await asyncio.wait_for(asyncio.gather(first, again), timeout=5)
 
 
 async def test_cancelled_verification_releases_its_lease_exactly_once(
@@ -2784,6 +2856,27 @@ async def test_restart_settles_a_healthy_receipt_when_its_entry_loads(
     if expected_phase is InstallPhase.CONSUMED:
         assert settled.consumed_entry_id == ENTRY_ID
     assert leases.released == [receipt.job_id]
+
+
+async def test_an_entry_for_another_panel_never_settles_this_receipt(
+    hass: HomeAssistant,
+) -> None:
+    """A loading entry settles only the healthy receipt at its own address."""
+    receipt, _before_restart = await seed_healthy(hass)
+    restarted = InstallJobManager(hass)
+    executor, _ = counting_executor(hass, restarted)
+    health = PanelHealth(
+        version=receipt.artifact.version_name,
+        panel_id="alpha",
+        build="1",
+        config_hash="1a2b3c4d",
+    )
+
+    await executor.async_reconcile_entry(ENTRY_ID, "other-panel.local", health)
+    stored = await restarted.async_get(receipt.job_id)
+
+    assert stored.phase is InstallPhase.HEALTHY_UNCLAIMED
+    assert stored.consumed_entry_id is None
 
 
 async def test_cancelled_entry_reconciliation_releases_its_lease_once(
