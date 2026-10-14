@@ -14,7 +14,6 @@ import asyncio
 import logging
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from enum import StrEnum
 from functools import partial
 from hashlib import sha256
@@ -75,16 +74,7 @@ from .install_artifacts import (
     InstallArtifact as CustodiedArtifact,
 )
 from .install_jobs import (
-    InstallArtifact,
-    InstallJobCleanupRequiredError,
-    InstallJobError,
     InstallJobManager,
-    InstallJobReceipt,
-    InstallJobRevisionError,
-    InstallJobStoreError,
-    InstallJobTransitionError,
-    InstallPhase,
-    InstallResultCode,
     async_get_install_job_manager,
 )
 from .install_network import (
@@ -92,6 +82,19 @@ from .install_network import (
     InstallNetworkErrorCode,
     PinnedPanelTarget,
     async_revalidate_install_target,
+)
+from .install_receipt import (
+    _RESTART_AMBIGUOUS_PHASES,
+    InstallArtifact,
+    InstallJobCleanupRequiredError,
+    InstallJobError,
+    InstallJobReceipt,
+    InstallJobRevisionError,
+    InstallJobStoreError,
+    InstallJobTransitionError,
+    InstallPhase,
+    InstallResultCode,
+    _now_timestamp,
 )
 from .migration_repair import (
     async_delete_panel_migration_incomplete,
@@ -136,10 +139,6 @@ _SAFE_RESUME_PHASES = frozenset(
         InstallPhase.HEALTH_CHECK,
     }
 )
-_RESTART_AMBIGUOUS_PHASES = frozenset(
-    {InstallPhase.STAGING, InstallPhase.INSTALLING, InstallPhase.LAUNCHING}
-)
-
 _AMBIGUOUS_ADB_ERRORS = frozenset(
     {
         InstallAdbErrorCode.STAGE_AMBIGUOUS,
@@ -1627,10 +1626,6 @@ class InstallExecutor:
             result_code=result,
             result_subcode=subcode,
         )
-
-
-def _now_timestamp() -> str:
-    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def _execution_id(receipt: InstallJobReceipt) -> str:

@@ -24,7 +24,7 @@ from .const import DOMAIN, INTEGRATION_VERSION
 from .device import panel_display_name
 
 if TYPE_CHECKING:
-    from .install_jobs import InstallJobReceipt
+    from .install_receipt import InstallJobReceipt
 
 ISSUE_INSTALLER_FAILURE = "installer_failure"
 ISSUE_ADB_AUTHORIZATION = "adb_update_authorization"
@@ -394,7 +394,8 @@ async def async_failure_events(
     issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
     if issue is None:
         return []
-    from .install_jobs import InstallPhase, async_get_install_job_manager
+    from .install_jobs import async_get_install_job_manager
+    from .install_receipt import InstallPhase
 
     manager = await async_get_install_job_manager(hass)
     receipts = await manager.async_list()
@@ -537,15 +538,13 @@ async def async_retry_install_job(
     from .client import normalize_address
     from .install_adb import async_installed_artifact_size, async_preflight_install
     from .install_executor import _adb_target
-    from .install_jobs import (
-        InstallPhase,
-        async_get_install_job_manager,
-    )
+    from .install_jobs import async_get_install_job_manager
     from .install_network import (
         async_pin_install_target,
         async_revalidate_install_target,
     )
     from .install_plan import _build_artifact, build_install_plan
+    from .install_receipt import InstallPhase
     from .provisioning import InstallTargetState, async_probe_install_target
     from .release_catalog import async_resolve_install_choice
 
