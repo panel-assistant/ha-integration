@@ -43,17 +43,17 @@ from custom_components.panel_assistant.coordinator import (
     HaPaneldDataUpdateCoordinator,
     PanelSnapshot,
 )
-from custom_components.panel_assistant.failure_repair import (
-    adb_authorization_issue_id,
-    async_clear_adb_authorization,
-    async_failure_events,
-    panel_failure_issue_id,
-)
 from custom_components.panel_assistant.feed_coordinator import BuildFeedCoordinator
 from custom_components.panel_assistant.install_network import PinnedPanelTarget
 from custom_components.panel_assistant.provisioning import (
     InstallTargetProbe,
     InstallTargetState,
+)
+from custom_components.panel_assistant.repairs_failure import (
+    adb_authorization_issue_id,
+    async_clear_adb_authorization,
+    async_failure_events,
+    panel_failure_issue_id,
 )
 from custom_components.panel_assistant.status import PanelStatus
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity

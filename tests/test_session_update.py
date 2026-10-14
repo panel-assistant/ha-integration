@@ -41,6 +41,9 @@ from custom_components.panel_assistant.client import (
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.coordinator import PanelSnapshot
 from custom_components.panel_assistant.feed_coordinator import StableReleaseCoordinator
+from custom_components.panel_assistant.repairs_update_route import (
+    no_update_route_issue_id,
+)
 from custom_components.panel_assistant.session_carrier import SessionCarrier
 from custom_components.panel_assistant.status import PanelStatus
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity
@@ -49,9 +52,6 @@ from custom_components.panel_assistant.update_coordinator import (
     PanelUpdateSnapshot,
 )
 from custom_components.panel_assistant.update_errors import _UpdateRefusalError
-from custom_components.panel_assistant.update_route_repair import (
-    no_update_route_issue_id,
-)
 
 from .test_availability import _load
 from .test_lan_staged_update import (  # noqa: F401

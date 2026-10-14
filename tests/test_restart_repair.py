@@ -18,13 +18,13 @@ from pytest_homeassistant_custom_component.common import (
     async_mock_service,
 )
 
-from custom_components.panel_assistant import restart_repair
+from custom_components.panel_assistant import repairs_restart
 from custom_components.panel_assistant.build import INTEGRATION_BUILD
 from custom_components.panel_assistant.const import (
     DOMAIN,
     INTEGRATION_VERSION,
 )
-from custom_components.panel_assistant.restart_repair import (
+from custom_components.panel_assistant.repairs_restart import (
     ISSUE_RESTART_REQUIRED,
     async_check_restart_needed,
     read_installed_build,
@@ -138,7 +138,7 @@ async def test_repeated_checks_raise_the_issue_once(
         created.append(args[2])
         real(*args, **kwargs)
 
-    monkeypatch.setattr(restart_repair.ir, "async_create_issue", _record)
+    monkeypatch.setattr(repairs_restart.ir, "async_create_issue", _record)
     root = _install(tmp_path, "0.7.0", 270)
     for _ in range(3):
         await _check(hass, root)
@@ -177,7 +177,7 @@ async def test_installing_a_new_build_shows_the_repair_within_one_second(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     root = _install(tmp_path, INTEGRATION_VERSION, INTEGRATION_BUILD)
-    monkeypatch.setattr(restart_repair, "INTEGRATION_ROOT", root)
+    monkeypatch.setattr(repairs_restart, "INTEGRATION_ROOT", root)
     assert await async_setup_component(hass, "repairs", {})
     assert await async_setup_component(hass, DOMAIN, {})
     await hass.async_block_till_done(wait_background_tasks=True)

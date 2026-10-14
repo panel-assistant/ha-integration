@@ -96,11 +96,11 @@ from .install_receipt import (
     InstallResultCode,
     _now_timestamp,
 )
-from .migration_repair import (
+from .release import InstallDescriptor, ReleaseArtifact, is_feed_build_tag
+from .repairs_migration import (
     async_delete_panel_migration_incomplete,
     async_raise_panel_migration_incomplete,
 )
-from .release import InstallDescriptor, ReleaseArtifact, is_feed_build_tag
 from .status import home_ui_allows
 from .update_policy import build_allowed, prereleases_allowed
 

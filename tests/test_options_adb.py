@@ -15,14 +15,14 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.client import PanelAddress, PanelHealth
 from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
-from custom_components.panel_assistant.failure_repair import (
-    adb_authorization_issue_id,
-    panel_failure_issue_id,
-)
 from custom_components.panel_assistant.install_network import PinnedPanelTarget
 from custom_components.panel_assistant.provisioning import (
     InstallTargetProbe,
     InstallTargetState,
+)
+from custom_components.panel_assistant.repairs_failure import (
+    adb_authorization_issue_id,
+    panel_failure_issue_id,
 )
 from custom_components.panel_assistant.transport import async_record_binding_request
 

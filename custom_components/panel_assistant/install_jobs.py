@@ -27,7 +27,6 @@ from homeassistant.helpers.storage import Store
 
 from .client import InvalidAddressError, normalize_address
 from .const import DOMAIN
-from .failure_repair import clear_install_failure, record_install_failure
 from .install_network import (
     InstallNetworkError,
     _resolver_hostname,
@@ -77,6 +76,7 @@ from .release import (
     _SHA256_PATTERN,
     unique_json_object,
 )
+from .repairs_failure import clear_install_failure, record_install_failure
 
 _LOGGER = logging.getLogger(__name__)
 _STORE_VERSION = 1

@@ -59,7 +59,7 @@ from homeassistant.helpers.network import is_hass_url
 from homeassistant.helpers.storage import Store
 
 from .const import DOMAIN
-from .microphone_repair import async_reconcile_microphone_issue
+from .repairs_microphone import async_reconcile_microphone_issue
 from .transport import (
     _CONTROL_CHARACTERS,
     CAPABILITY_VOICE,

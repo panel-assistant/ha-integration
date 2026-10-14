@@ -43,8 +43,8 @@ from .const import (
 )
 from .feed_coordinator import async_get_feed_coordinator
 from .identity import accept_health, is_installation, reinstalled
-from .permission_repair import async_reconcile_permission_issue
-from .proximity_repair import async_reconcile_proximity_issue
+from .repairs_permission import async_reconcile_permission_issue
+from .repairs_proximity import async_reconcile_proximity_issue
 from .status import PanelStatus, parse_status_response
 from .transport import (
     MANAGE_SNAPSHOT,
@@ -371,7 +371,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         """
         if self._entry_id is None:
             return
-        from .failure_repair import (
+        from .repairs_failure import (
             async_clear_update_failure_if_installed,
             panel_failure_issue_id,
         )
