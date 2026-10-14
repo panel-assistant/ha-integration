@@ -9,6 +9,7 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
@@ -233,17 +234,19 @@ async def test_a_completed_move_or_an_unknown_panel_id_sets_up(
     assert ir.async_get(hass).issues == {}
 
 
-async def test_a_protocol_4_panel_is_refused_and_told_it_needs_app_1_0_0(
+@pytest.mark.parametrize("protocol", [None, (4, 4)])
+async def test_an_older_panel_is_refused_and_told_it_needs_app_1_0_0_preview1(
     hass: HomeAssistant,
     hass_read_only_user: Any,
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
+    protocol: tuple[int, int] | None,
 ) -> None:
     """Refused at hello; its health raises the Repair; protocol 5 clears it."""
     entry = _entry(hass, hass_read_only_user.id)
     issue_id = f"panel_app_too_old_{entry.entry_id}"
 
-    await _set_up(hass, entry, OLDER_APP)
+    await _set_up(hass, entry, replace(OLDER_APP, protocol=protocol))
 
     assert entry.state is ConfigEntryState.LOADED
     issue = _issue(hass, issue_id)
@@ -251,7 +254,7 @@ async def test_a_protocol_4_panel_is_refused_and_told_it_needs_app_1_0_0(
     assert issue.translation_placeholders == {
         "panel": "alpha",
         "version": "0.9.11",
-        "required_version": "1.0.0",
+        "required_version": "1.0.0-preview1",
     }
     response = await _hello_response(
         hass,

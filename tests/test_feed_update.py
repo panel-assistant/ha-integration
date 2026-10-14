@@ -1953,3 +1953,48 @@ async def test_a_downgrade_refusal_without_an_adb_route_is_still_reported(
         "panel-app downgrades are not permitted"
     )
     adb_install.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        (
+            "update not installed: cancelled on the panel or refused by its package "
+            "verifier (verifier detail)"
+        ),
+        "update not confirmed on the panel in time",
+        "install failed: insufficient storage (no space)",
+        "install blocked on the panel (verifier policy)",
+        "install failed (incompatible package)",
+        "update not installed: cancelled (panel-app downgrades are not permitted)",
+    ],
+)
+async def test_finished_staged_failure_preserves_the_panel_reason(
+    hass: HomeAssistant,
+    delivery: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
+    reason: str,
+) -> None:
+    """A finished failure ends once, without an ADB retry or a generic Repair."""
+    MockConfigEntry(domain=DOMAIN, entry_id="entry-id", title="Test panel").add_to_hass(
+        hass
+    )
+    entity, client = _entity(hass)
+    client.async_get_panel_install_status.return_value = PanelInstallStatus(
+        running=False, component="APK", message=reason
+    )
+    adb_install = _authorized_adb(entity, client, monkeypatch)
+    record = AsyncMock()
+    monkeypatch.setattr(panel_update, "async_record_update_failure", record)
+    with pytest.raises(HomeAssistantError) as caught:
+        await entity.async_install(None, False)
+    assert caught.value.translation_key == "update_refused_by_panel"
+    assert caught.value.translation_placeholders == {
+        "panel": entity._panel_name(),
+        "reason": reason,
+    }
+    assert reason in str(record.await_args.args[4])
+    client.async_get_panel_install_status.assert_awaited_once()
+    client.async_commit_apk.assert_awaited_once_with("tok-1")
+    adb_install.assert_not_awaited()
+    assert entity.in_progress is False

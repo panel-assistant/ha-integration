@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import asdict
 from typing import Any
 
@@ -561,7 +562,9 @@ class InstallerFailureFlow(RepairsFlow):
                     current = await async_resolve_install_choice(self.hass, tag)
                 except ReleaseResolutionError as err:
                     raise RetrySafetyHold("retry_release_changed") from err
-                if asdict(current) != saved_artifact:
+                if json.dumps(asdict(current), sort_keys=True) != json.dumps(
+                    saved_artifact, sort_keys=True
+                ):
                     raise RetrySafetyHold("retry_release_changed")
             service_data = {"entity_id": entity_id}
             if not current_retry and isinstance(previous.get("target_version"), str):
