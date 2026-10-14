@@ -149,7 +149,7 @@
       "unknown": "Der Einrichtungsablauf hat seinen ausstehenden Panelzustand verloren. Beginne die Einrichtung erneut."
     },
     "create_entry": {
-      "another_home_assistant": "This panel is signed in to another Home Assistant. It has been added here, but its settings and sign-in have not changed. To connect it here, change Home Assistant and sign in on the panel."
+      "another_home_assistant": "Dieses Panel ist bei einem anderen Home Assistant angemeldet. Es wurde hier hinzugefügt, aber seine Einstellungen und seine Anmeldung wurden nicht geändert. Um es hier zu verbinden, ändere Home Assistant und melde dich auf dem Panel an."
     }
   },
   "entity": {
@@ -166,7 +166,7 @@
           "restarting_settings": "Neustart (Einstellungen)",
           "restarting_recovery": "Neustart (Wiederherstellung)",
           "restarting_reboot": "Neustart (Systemneustart)",
-          "another_home_assistant": "Signed in to another Home Assistant"
+          "another_home_assistant": "Bei einem anderen Home Assistant angemeldet"
         }
       },
       "diag_boot": {
@@ -646,7 +646,7 @@
         "step": {
           "commission_permissions": {
             "title": "Berechtigungen auf {panel} prüfen",
-            "description": "Das Dashboard auf {panel} bleibt verfügbar. Öffne auf dem physischen Panel die Android-Einstellungen → Apps → Panel Assistant. Erlaube den Zugriff auf Kamera und Mikrofon, sofern aufgeführt, sowie Benachrichtigungen. Erlaube unter Spezieller App-Zugriff für Panel Assistant Systemeinstellungen ändern und Über anderen Apps einblenden. Aktiviere unter Bedienungshilfen den Panel Assistant-Dienst. Kehre hierher zurück und wähle Senden, um die Berechtigungen erneut zu prüfen."
+            "description": "Das Dashboard auf {panel} bleibt verfügbar. Öffne auf dem physischen Panel Android-Einstellungen → Apps → Panel Assistant. Erlaube den Zugriff auf Kamera und Mikrofon, sofern aufgeführt, sowie Benachrichtigungen. Erlaube unter „Spezieller App-Zugriff“ für Panel Assistant „Systemeinstellungen ändern“ und „Über anderen Apps einblenden“. Aktiviere unter „Bedienungshilfen“ den Dienst Panel Assistant. Wenn die Navigationsleiste auf „Durch Wischen einblenden“ oder „Immer sichtbar“ eingestellt ist und „Über anderen Apps einblenden“ fehlt, öffnet das Wischen vom unteren Rand des Dashboards nach oben stattdessen die Einstellung „Über anderen Apps einblenden“: Erlaube sie, geh zurück und wische erneut nach oben. Kehre hierher zurück und wähle „Senden“, um die Berechtigungen erneut zu prüfen."
           }
         },
         "error": {
@@ -664,7 +664,7 @@
         "step": {
           "set_up_proximity": {
             "title": "Näherung auf {panel} einrichten",
-            "description": "Solange der Näherungssensor nicht eingerichtet ist, kann {panel} nicht durch eine Handbewegung aufwachen. Die Einrichtung dauert etwa eine Minute, und du musst dabei vor dem Panel stehen. Öffne Panel Assistant in der Seitenleiste und wähle {panel}. Wähle auf der Seite Konfiguration unter Anwesenheit & Aufwecken die Option Näherung auf dem Panel einrichten und folge den Anweisungen auf dem Bildschirm des Panels. Du kannst die Einrichtung auch direkt am Panel mit Näherungssensor einrichten auf seinem Dashboard starten. Sobald das Panel meldet, dass die Kalibrierung gespeichert ist, kehre hierher zurück und wähle Senden."
+            "description": "Bis sein Näherungssensor eingerichtet ist, kann {panel} nicht durch Winken aufgeweckt werden. Die Einrichtung dauert etwa eine Minute und erfordert, dass du dich vor dem Panel befindest. Öffne Panel Assistant in der Seitenleiste und wähle {panel}. Wähle auf seiner Seite „Konfigurieren“ unter „Anwesenheit & Aufwecken“ die Option „Näherung auf dem Panel einrichten“ und folge dann den Anweisungen auf dem Bildschirm des Panels. Du kannst die Einrichtung auch direkt am Panel über „Näherungssensor einrichten“ auf dessen Dashboard starten. Wenn das Panel meldet, dass die Kalibrierung gespeichert ist, kehre hierher zurück und wähle „Absenden“."
           }
         },
         "error": {
@@ -1415,8 +1415,8 @@
       }
     },
     "another_home_assistant": {
-      "title": "{panel} is signed in to another Home Assistant",
-      "description": "{panel} has been added here, but it is signed in to another Home Assistant. Its settings and sign-in have not changed. To connect it here, change Home Assistant and sign in on the panel."
+      "title": "{panel} ist bei einem anderen Home Assistant angemeldet",
+      "description": "{panel} wurde hier hinzugefügt, ist aber bei einem anderen Home Assistant angemeldet. Die Einstellungen und die Anmeldung des Panels wurden nicht geändert. Um es hier zu verbinden, ändere Home Assistant und melde dich auf dem Panel an."
     }
   },
   "options": {

@@ -405,7 +405,7 @@ var e = Object.freeze({
 			progress: "Fortschritt",
 			installProgress: "Installationsfortschritt",
 			licenses: "Lizenzen von Drittanbietern",
-			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
+			doneAnotherHomeAssistant: "Dieses Panel ist bei einem anderen Home Assistant angemeldet. Ändere Home Assistant und melde dich auf dem Panel an, um es hier zu verbinden."
 		},
 		errors: {
 			installErrorGeneric: "Etwas ist schiefgegangen. Lass das Panel angeschlossen und drücke „Erneut versuchen“.",
@@ -555,7 +555,7 @@ var e = Object.freeze({
 			progress: "Progreso",
 			installProgress: "Progreso de la instalación",
 			licenses: "Licencias de terceros",
-			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
+			doneAnotherHomeAssistant: "Este panel tiene la sesión iniciada en otro Home Assistant. Cambia de Home Assistant e inicia sesión en el panel para conectarlo aquí."
 		},
 		errors: {
 			installErrorGeneric: "Algo salió mal. Mantén el panel conectado y pulsa Volver a intentar.",
@@ -705,7 +705,7 @@ var e = Object.freeze({
 			progress: "Progression",
 			installProgress: "Progression de l’installation",
 			licenses: "Licences tierces",
-			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
+			doneAnotherHomeAssistant: "Ce panneau a une session ouverte sur un autre Home Assistant. Changez de Home Assistant et connectez-vous sur le panneau pour le connecter ici."
 		},
 		errors: {
 			installErrorGeneric: "Une erreur s’est produite. Gardez le panneau branché et appuyez sur « Réessayer ».",
@@ -855,7 +855,7 @@ var e = Object.freeze({
 			progress: "Avanzamento",
 			installProgress: "Avanzamento dell’installazione",
 			licenses: "Licenze di terze parti",
-			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
+			doneAnotherHomeAssistant: "Su questo pannello è attivo l'accesso a un altro Home Assistant. Cambia Home Assistant ed esegui l'accesso sul pannello per collegarlo qui."
 		},
 		errors: {
 			installErrorGeneric: "Si è verificato un problema. Lascia il pannello collegato e premi Riprova.",
@@ -895,7 +895,7 @@ var e = Object.freeze({
 			permissions: "Autorizzazioni",
 			setupAddress: "Indirizzo di configurazione",
 			setupHandover: "Passaggio alla configurazione",
-			displaySizing: "Dimensione dello schermo e del testo",
+			displaySizing: "Dimensioni di visualizzazione e del testo",
 			copiedDetail: "{bytes} byte inviati; in attesa della conferma del pannello",
 			none: "nessuno",
 			setupMissing: "non trovato; la configurazione prosegue sul pannello"
@@ -1005,7 +1005,7 @@ var e = Object.freeze({
 			progress: "Voortgang",
 			installProgress: "Installatievoortgang",
 			licenses: "Licenties van derden",
-			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
+			doneAnotherHomeAssistant: "Dit paneel is aangemeld bij een andere Home Assistant. Wijzig op het paneel Home Assistant en meld je aan om het hier te verbinden."
 		},
 		errors: {
 			installErrorGeneric: "Er ging iets mis. Laat het paneel aangesloten en druk op Opnieuw proberen.",
@@ -1155,7 +1155,7 @@ var e = Object.freeze({
 			progress: "Postęp",
 			installProgress: "Postęp instalacji",
 			licenses: "Licencje innych podmiotów",
-			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
+			doneAnotherHomeAssistant: "Ten panel jest zalogowany do innej instancji Home Assistant. Zmień na panelu instancję Home Assistant i zaloguj się, aby połączyć go tutaj."
 		},
 		errors: {
 			installErrorGeneric: "Coś poszło nie tak. Zostaw panel podłączony i naciśnij Spróbuj ponownie.",
@@ -1455,7 +1455,7 @@ var e = Object.freeze({
 			progress: "Перебіг",
 			installProgress: "Перебіг встановлення",
 			licenses: "Ліцензії сторонніх компонентів",
-			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
+			doneAnotherHomeAssistant: "На цій панелі виконано вхід в інший екземпляр Home Assistant. Змініть на панелі екземпляр Home Assistant і увійдіть, щоб підключити її тут."
 		},
 		errors: {
 			installErrorGeneric: "Щось пішло не так. Залиште панель під’єднаною та натисніть «Спробувати ще раз».",
@@ -1605,7 +1605,7 @@ var e = Object.freeze({
 			progress: "进度",
 			installProgress: "安装进度",
 			licenses: "第三方许可",
-			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
+			doneAnotherHomeAssistant: "此面板当前已登录另一个 Home Assistant。请在面板上更改 Home Assistant 并登录，以将其连接到此处。"
 		},
 		errors: {
 			installErrorGeneric: "发生了错误。请保持面板连接，然后点击“重试”。",

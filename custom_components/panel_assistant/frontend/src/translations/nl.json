@@ -102,7 +102,7 @@
     "progress": "Voortgang",
     "installProgress": "Installatievoortgang",
     "licenses": "Licenties van derden",
-    "doneAnotherHomeAssistant": "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
+    "doneAnotherHomeAssistant": "Dit paneel is aangemeld bij een andere Home Assistant. Wijzig op het paneel Home Assistant en meld je aan om het hier te verbinden."
   },
   "errors": {
     "installErrorGeneric": "Er ging iets mis. Laat het paneel aangesloten en druk op Opnieuw proberen.",
