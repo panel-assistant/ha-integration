@@ -43,7 +43,7 @@ _GRACE_SECONDS = 1.0
 _RECOVERY_SECONDS = 8.0
 _STOP_AGE_SECONDS = 10.0
 _LOG_LINE = re.compile(
-    r"^\s*(\d+\.\d+)\s+\d+\s+\d+\s+[VDIWEF]\s+ActivityManager:\s+(.*)$"
+    r"^\s*(-?\d+\.\d+)\s+\d+\s+\d+\s+[VDIWEF]\s+ActivityManager:\s+(.*)$"
 )
 
 
@@ -75,7 +75,7 @@ def _observation(nonce: str, package: str, *, logs: bool = False) -> str:
         "cut -d' ' -f1 /proc/uptime || exit 1",
         HOME_QUERY,
         f'hp_pid=$(pidof {_VENDOR}); echo "${{hp_pid:-0}}"',
-        f"dumpsys package {package} | grep '^ *User 0:'",
+        f"dumpsys package {package} | grep '^ *User 0:.* installed=true'",
     ]
     if logs:
         # Retain all process reassignments, including other packages, to reject
@@ -107,7 +107,7 @@ def _read(lines: list[str]) -> tuple[str, float, str, int, bool]:
 
 def _vendor_stop(lines: list[str], witness: _Witness, now: float) -> str | None:
     actors = {witness.vendor_pid: _VENDOR}
-    previous = -1.0
+    previous = witness.uptime
     first = None
     latest: tuple[float, str | None, str] | None = None
     for line in lines:
@@ -115,13 +115,13 @@ def _vendor_stop(lines: list[str], witness: _Witness, now: float) -> str | None:
         if match is None:
             return None
         when, message = float(match[1]), match[2]
-        if when < previous:
-            return None
-        previous = when
         if first is None:
             first = when
         if when <= witness.uptime:
             continue
+        if when < previous:
+            return None
+        previous = when
         if proc := re.match(r"Start proc (\d+):([^/\s]+)/", message):
             actors[int(proc[1])] = proc[2]
         if message.startswith(f"Force stopping {witness.context.package} "):
@@ -381,7 +381,8 @@ class VendorRecovery:
                     [
                         f"echo HAPANELD_LAUNCH_BEGIN:{nonce}",
                         f"if [ \"$({HOME_QUERY})\" = '{witness.home}' ] && "
-                        f"dumpsys package {context.package} | grep '^ *User 0:' "
+                        f"dumpsys package {context.package} "
+                        "| grep '^ *User 0:.* installed=true' "
                         "| grep -q ' stopped=true' && "
                         '[ "$(logcat -d -v monotonic -s ActivityManager:I '
                         f"| grep -F 'Force stopping {context.package} ' "

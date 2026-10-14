@@ -95,6 +95,7 @@ async def panel(
         final_home=None,
         final_stop=None,
         malformed=False,
+        real_format=False,
     )
 
     async def get_health(_client: HaPaneldClient) -> PanelHealth:
@@ -136,6 +137,63 @@ async def panel(
         ),
     )
 
+    async def shell(command: str) -> bytes:
+        # Execute production observation/navigation programs against platform stubs.
+        bins = tmp_path / "bin"
+        bins.mkdir(exist_ok=True)
+        effects = tmp_path / "home-effects"
+        users = (
+            [
+                "    User 0: ceDataInode=1957 installed=true hidden=false "
+                "suspended=false distractionFlags=0 stopped=false notLaunched=false "
+                "enabled=0 instant=false virtual=false",
+                "    User 0:",
+                "  User 0:",
+            ]
+            if state.real_format
+            else ["  User 0: installed=true stopped=false"]
+        )
+        users = [
+            line.replace("stopped=false", "stopped=" + str(state.stopped).lower())
+            for line in users
+        ]
+        scripts = {
+            "cat": "echo " + shlex.quote(state.boot),
+            "cut": "echo " + str(state.now),
+            "pidof": "echo " + str(state.vendor_pid),
+            "cmd": "printf '%s\\n' " + shlex.quote(state.final_home or state.home),
+            "dumpsys": "printf '%s\\n' "
+            + " ".join(shlex.quote(line) for line in users),
+            "logcat": "printf '%s\\n' "
+            + " ".join(
+                shlex.quote(line.replace("101.000", "101.087"))
+                for line in [
+                    *state.logs,
+                    *([state.final_stop] if state.final_stop else []),
+                ]
+            ),
+            "input": "echo HOME >> " + shlex.quote(str(effects)),
+        }
+        for name, script in scripts.items():
+            path = bins / name
+            path.write_text("#!/bin/sh\n" + script + "\n")
+            path.chmod(0o700)
+        process = await asyncio.create_subprocess_exec(
+            "/bin/sh",
+            "-c",
+            command,
+            env={**os.environ, "PATH": str(bins) + ":/usr/bin:/bin"},
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        output, error = await process.communicate()
+        assert not error
+        state.homes = len(effects.read_text().splitlines()) if effects.exists() else 0
+        if state.homes:
+            state.stopped = False
+            state.online = True
+        return output
+
     class Device:
         def __init__(self, *_args: Any, **_kwargs: Any) -> None:
             pass
@@ -158,6 +216,9 @@ async def panel(
                 if state.block is not None and "logcat" in command:
                     state.reading.set()
                     await state.block.wait()
+                if state.real_format:
+                    yield await shell(command)
+                    return
                 lines = [
                     state.boot,
                     f"{state.now:.2f}",
@@ -173,49 +234,7 @@ async def panel(
                 )
             else:
                 assert "input keyevent 3" in command
-                # Execute the actual final guarded shell against platform stubs.
-                # A changed HOME/stop actor here must block the emitted input.
-                bins = tmp_path / "bin"
-                bins.mkdir(exist_ok=True)
-                effects = tmp_path / "home-effects"
-                scripts = {
-                    "cmd": "printf '%s\\n' "
-                    + shlex.quote(state.final_home or state.home),
-                    "dumpsys": "printf '%s\\n' "
-                    + shlex.quote(
-                        "  User 0: installed=true stopped=" + str(state.stopped).lower()
-                    ),
-                    "logcat": "printf '%s\\n' "
-                    + " ".join(
-                        shlex.quote(line.replace("101.000", "101.087"))
-                        for line in [
-                            *state.logs,
-                            *([state.final_stop] if state.final_stop else []),
-                        ]
-                    ),
-                    "input": "echo HOME >> " + shlex.quote(str(effects)),
-                }
-                for name, script in scripts.items():
-                    path = bins / name
-                    path.write_text("#!/bin/sh\n" + script + "\n")
-                    path.chmod(0o700)
-                process = await asyncio.create_subprocess_exec(
-                    "/bin/sh",
-                    "-c",
-                    command,
-                    env={**os.environ, "PATH": str(bins) + ":/usr/bin:/bin"},
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
-                output, error = await process.communicate()
-                assert not error
-                state.homes = (
-                    len(effects.read_text().splitlines()) if effects.exists() else 0
-                )
-                if state.homes:
-                    state.stopped = False
-                    state.online = True
-                yield output
+                yield await shell(command)
 
     monkeypatch.setattr(adb_protocol, "AdbDeviceAsync", Device)
     client = HaPaneldClient(MagicMock(), normalize_address(entry.data[CONF_ADDRESS]))
@@ -421,3 +440,20 @@ async def test_state_change_during_adb_read_retires_navigation(
     state.block.set()
     await hass.async_block_till_done()
     assert state.homes == 0
+
+
+async def test_vendor_shutdown_with_real_android_user_sections_and_old_negative_log(
+    panel: Any,
+) -> None:
+    # Rootless Android 11 emits several User 0 headings, and historical logcat
+    # records can become negative after the boot clock was corrected.
+    panel.state.real_format = True
+    panel.state.logs.insert(
+        0,
+        " -2851.244   475   500 I ActivityManager: "
+        "Start proc 618:com.android.bluetooth/1002 for service "
+        "{com.android.bluetooth/com.android.bluetooth.btservice.AdapterService}",
+    )
+    await panel.shutdown()
+    assert panel.state.homes == 1
+    assert panel.coordinator.reachable
