@@ -148,8 +148,13 @@ def test_update_entity_hides_a_release_older_than_running_health(
 async def test_panel_without_an_install_route_offers_nothing(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A newer signed build is not actionable when the app cannot install it."""
+    """A newer signed build is not actionable when the app cannot install it.
+
+    The stand-in panel refuses any start, so a request that reaches it fails
+    as a refusal at once instead of waiting for a restart that never comes.
+    """
     entity, client = _entity(hass, install_capability="none")
+    client.async_start_panel_update.side_effect = UpdateRejectedError
     monkeypatch.setattr(
         update_route,
         "async_get_durable_adb_credential",
@@ -330,8 +335,13 @@ async def test_matching_update_health_requires_ready_home_proof(
 async def test_update_entity_rejects_versions_outside_the_current_offer(
     hass: HomeAssistant, version: str
 ) -> None:
-    """HA cannot turn the update service into a version or downgrade control surface."""
+    """HA cannot turn the update service into a version or downgrade control surface.
+
+    The stand-in panel refuses any start, so installing the offered build in
+    place of the requested one fails as a refusal at once instead of waiting.
+    """
     entity, client = _entity(hass)
+    client.async_start_panel_update.side_effect = UpdateRejectedError
 
     with pytest.raises(HomeAssistantError, match="unavailable") as error:
         await entity.async_install(version, backup=False)
