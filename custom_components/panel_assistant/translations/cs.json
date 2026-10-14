@@ -132,6 +132,8 @@
     },
     "abort": {
       "already_configured": "Tento panel je již nastavený.",
+      "reinstall_successful": "Aplikace byla znovu nainstalována. Tento panel si zachovává svou historii a nastavení v Home Assistant.",
+      "reinstall_identity_mismatch": "Aplikace je nainstalovaná, ale nepodařilo se ji propojit se zachovaným panelem. Jeho historie a nastavení v Home Assistant byly zachovány. Před dalším pokusem zkontrolujte panel v Home Assistant.",
       "not_panel": "Toto není panel, na který může Panel Assistant instalovat.",
       "invalid_discovery": "Nepodařilo se prokázat, že nalezený panel je tatáž funkční instalace Panel Assistant. Žádný záznam v Home Assistant ani nastavení panelu se nezměnilo.",
       "install_cancelled": "Instalace byla zrušena před nainstalováním APK. Nebyl vytvořen žádný záznam v Home Assistant. Chcete-li to zkusit znovu, přidejte integraci Panel Assistant a zadejte stejnou adresu panelu.",

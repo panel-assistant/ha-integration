@@ -319,7 +319,7 @@ async def test_ignored_panel_stays_ignored(
 async def test_added_panel_is_not_offered_again(
     hass: HomeAssistant, adb_open: SimpleNamespace
 ) -> None:
-    """A panel Panel Assistant already has is neither offered nor probed."""
+    """A configured address is not re-offered without a clean-package proof."""
     _companion(hass, "Wall screen", "192.168.1.30", "a")
     adb_open.open.add("192.168.1.30")
     MockConfigEntry(domain=DOMAIN, data={CONF_ADDRESS: "192.168.1.30"}).add_to_hass(
@@ -329,7 +329,7 @@ async def test_added_panel_is_not_offered_again(
     await _network_device_seen(hass)
 
     assert _discovered(hass) == {}
-    assert adb_open.asked == []
+    assert adb_open.asked == ["192.168.1.30"]
 
 
 async def test_waiting_panel_is_probed_once_however_often_the_network_wakes(
@@ -526,7 +526,7 @@ async def test_network_adb_device_already_added_or_running_the_app_is_not_offere
     await _adb_advertised(hass, "192.168.1.52", serial="odd", port=5556)
 
     assert _cards(hass) == {}
-    assert adb_open.asked == []
+    assert adb_open.asked == ["192.168.1.50"]
 
 
 async def test_ignored_network_adb_device_stays_ignored_at_a_new_address(

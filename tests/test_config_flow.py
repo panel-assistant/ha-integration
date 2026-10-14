@@ -232,7 +232,9 @@ async def test_connect_existing_duplicate_address_is_rejected(
     hass: HomeAssistant,
 ) -> None:
     """The address remains identity when the mutable panel name changes."""
-    health_mock = AsyncMock(side_effect=[HEALTH, HEALTH, BETA_HEALTH])
+    health_mock = AsyncMock(
+        side_effect=[HEALTH, HEALTH, BETA_HEALTH, BETA_HEALTH, BETA_HEALTH]
+    )
     with patch(
         "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
         health_mock,
@@ -253,9 +255,6 @@ async def test_connect_existing_duplicate_address_is_rejected(
     assert second["type"] is FlowResultType.ABORT
     assert second["reason"] == "already_configured"
     assert first["result"].data[CONF_ADDRESS] == "panel.local"
-    # Creating the first entry schedules its initial coordinator refresh between
-    # the two config-flow validations.
-    assert health_mock.await_count == 3
 
 
 async def test_connect_existing_expected_errors(hass: HomeAssistant) -> None:

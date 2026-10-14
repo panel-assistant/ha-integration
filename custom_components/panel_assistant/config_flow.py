@@ -172,6 +172,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         """Return the flow that chooses who owns a panel's commands."""
         return HaPaneldOptionsFlow()
 
+    _pending_reinstall_entry: ConfigEntry | None = None
     _pending_address: PanelAddress | None = None
     _pending_health: PanelHealth | None = None
     _pending_discovery_id: str | None = None
@@ -448,6 +449,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
 
     def _reset_pending_panel(self) -> None:
         """Forget everything learned about a previously entered address."""
+        self._pending_reinstall_entry = None
         self._pending_address = None
         self._pending_health = None
         self._pending_probe = None
@@ -474,7 +476,14 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         self._reset_pending_panel()
         try:
             address = normalize_address(user_input[CONF_ADDRESS])
-            self._async_abort_entries_match({CONF_ADDRESS: address.stored_value})
+            self._pending_reinstall_entry = next(
+                (
+                    entry
+                    for entry in self.hass.config_entries.async_entries(DOMAIN)
+                    if entry.data.get(CONF_ADDRESS) == address.stored_value
+                ),
+                None,
+            )
         except InvalidAddressError:
             return self._show_add_panel_form(user_input, {"base": "invalid_address"})
         placeholders = self.context.get("title_placeholders", {})
@@ -533,6 +542,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             )
             return self._show_add_panel_form(user_input, {"base": "unknown"})
         else:
+            if self._address_is_configured(address.stored_value):
+                return await self._async_create_panel_entry(address, health)
             self._pending_health = health
             return await self._async_show_found_panel()
 
@@ -546,6 +557,11 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return self._show_add_panel_form(user_input, {"base": "unknown"})
 
         state = probe.state.value
+        if self._address_is_configured(address.stored_value) and state not in (
+            "install_candidate",
+            "adb_unauthorized",
+        ):
+            return self.async_abort(reason="already_configured")
         if state == "migration_candidate":
             # The old app is installed but not answering. Installing the new
             # app beside it would start the panel's own move, which Panel
@@ -764,11 +780,16 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is None:
             return self._show_install_candidate_preview()
 
-        # Entry identity is the normalized endpoint. This guard deliberately runs
-        # before DNS, credentials, ADB, release, or durable job work.
-        self._async_abort_entries_match(
-            {CONF_ADDRESS: self._pending_address.stored_value}
-        )
+        # A kept entry may reinstall only after the clean-package probe.
+        if self._address_is_configured(self._pending_address.stored_value) and (
+            self._pending_reinstall_entry is None
+            or self.hass.config_entries.async_get_entry(
+                self._pending_reinstall_entry.entry_id
+            )
+            is not self._pending_reinstall_entry
+            or self._pending_probe.state is not InstallTargetState.INSTALL_CANDIDATE
+        ):
+            return self.async_abort(reason="already_configured")
         try:
             target = await async_revalidate_install_target(
                 self.hass, self._pending_install_target
@@ -1038,8 +1059,14 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         """
         if self._flow_removed:
             return self.async_abort(reason="install_worker_stopped")
-        if self._address_is_configured(receipt.target.address):
-            return self.async_abort(reason="already_configured")
+        retained = next(
+            (
+                entry
+                for entry in self.hass.config_entries.async_entries(DOMAIN)
+                if entry.data.get(CONF_ADDRESS) == receipt.target.address
+            ),
+            None,
+        )
         executor = self._install_executor
         if executor is None:
             try:
@@ -1071,8 +1098,30 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         if outcome is not FinalizationOutcome.VERIFIED or result.health is None:
             return self.async_abort(reason="install_receipt_error")
         if self._address_is_configured(receipt.target.address):
+            # Reuse only the entry that existed before verification, and only
+            # when the ordinary identity authority accepts the installed panel.
+            if (
+                retained is not None
+                and self.hass.config_entries.async_get_entry(retained.entry_id)
+                is retained
+                and retained.data.get(CONF_ADDRESS) == receipt.target.address
+                and accept_health(self.hass, retained, result.health)
+            ):
+                await executor.async_consume_finalization(
+                    receipt.job_id, self.flow_id, retained.entry_id
+                )
+                close_offers(
+                    self.hass, receipt.target.address, self.flow_id, pressed=True
+                )
+                self._finalizer_job_id = None
+                return self.async_abort(reason="reinstall_successful")
             executor.release_finalizer(receipt.job_id, self.flow_id)
-            return self.async_abort(reason="already_configured")
+            self._finalizer_job_id = None
+            return self.async_abort(
+                reason="reinstall_identity_mismatch"
+                if retained is not None
+                else "already_configured"
+            )
 
         # The lease stays held through ConfigEntries' actual add.
         # async_on_create_entry hands HA's generated entry id to the executor,

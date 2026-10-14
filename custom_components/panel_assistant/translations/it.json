@@ -132,6 +132,8 @@
     },
     "abort": {
       "already_configured": "Questo pannello è già configurato.",
+      "reinstall_successful": "L’app è stata reinstallata. Questo pannello conserva la cronologia e le impostazioni in Home Assistant.",
+      "reinstall_identity_mismatch": "L’app è installata, ma non è stato possibile collegarla al pannello conservato. La cronologia e le impostazioni in Home Assistant sono state conservate. Controlla il pannello in Home Assistant prima di riprovare.",
       "not_panel": "Non è un pannello su cui Panel Assistant può installare.",
       "invalid_discovery": "Il pannello rilevato non ha dimostrato di essere la stessa installazione sana di Panel Assistant. Non sono stati modificati né una voce di Home Assistant né impostazioni del pannello.",
       "install_cancelled": "L'installazione è stata annullata prima che venisse installato un APK. Non è stata creata alcuna voce in Home Assistant. Per riprovare, aggiungi l'integrazione Panel Assistant e inserisci lo stesso indirizzo del pannello.",

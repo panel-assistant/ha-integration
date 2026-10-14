@@ -392,7 +392,9 @@ async def test_install_existing_duplicate_address_is_rejected(
     hass: HomeAssistant,
 ) -> None:
     """The install path shares the exact existing endpoint identity."""
-    health_mock = AsyncMock(side_effect=[HEALTH, HEALTH, BETA_HEALTH])
+    health_mock = AsyncMock(
+        side_effect=[HEALTH, HEALTH, BETA_HEALTH, BETA_HEALTH, BETA_HEALTH]
+    )
     with patch(
         "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
         health_mock,
@@ -414,17 +416,17 @@ async def test_install_existing_duplicate_address_is_rejected(
     assert duplicate["reason"] == "already_configured"
 
 
-async def test_install_unavailable_duplicate_address_is_rejected_before_probe(
+async def test_install_unavailable_duplicate_without_clean_probe_is_rejected(
     hass: HomeAssistant,
 ) -> None:
-    """An unavailable configured endpoint retains its config-entry identity."""
+    """An unavailable endpoint is not proof that its app was removed."""
     MockConfigEntry(
         domain=DOMAIN,
         title="Configured panel",
         data={CONF_ADDRESS: "panel.local"},
     ).add_to_hass(hass)
     health_mock = AsyncMock(side_effect=CannotConnectError)
-    probe_mock = AsyncMock()
+    probe_mock = AsyncMock(return_value=_probe("adb_unreachable"))
     with (
         patch(
             "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
@@ -442,8 +444,8 @@ async def test_install_unavailable_duplicate_address_is_rejected_before_probe(
 
     assert duplicate["type"] is FlowResultType.ABORT
     assert duplicate["reason"] == "already_configured"
-    health_mock.assert_not_awaited()
-    probe_mock.assert_not_awaited()
+    health_mock.assert_awaited_once()
+    probe_mock.assert_awaited_once()
 
 
 @pytest.mark.parametrize("health_error", [CannotConnectError, InvalidResponseError])

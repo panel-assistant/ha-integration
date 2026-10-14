@@ -60,6 +60,7 @@ from .const import DEFAULT_PORT, DOMAIN
 from .ha_url import async_offer_ha_url
 from .identity import accept_health, is_installation
 from .install_network import is_allowed_install_address
+from .provisioning import InstallTargetState, async_probe_install_target
 
 if TYPE_CHECKING:
     from .config_flow import HaPaneldConfigFlow
@@ -197,19 +198,13 @@ def _lan_address(host: str) -> tuple[str, str] | None:
 
 
 def _candidates(hass: HomeAssistant) -> dict[str, dict[str, Any]]:
-    """Known, unconfigured LAN addresses, keyed by stored address; nothing probed."""
-    configured = {
-        entry.data.get(CONF_ADDRESS)
-        for entry in hass.config_entries.async_entries(DOMAIN)
-    }
+    """Known LAN addresses, keyed by stored address; nothing probed."""
     candidates: dict[str, dict[str, Any]] = {}
     for key, host, name, source, panel_only in _known(hass):
         lan = _lan_address(host)
         if lan is None:
             continue
         value, bare = lan
-        if value in configured:
-            continue
         # One device can be known twice; the panel-only sources come first.
         if value not in candidates:
             candidates[value] = {
@@ -250,7 +245,7 @@ def _unconfigured(
 ) -> dict[str, Any] | None:
     """A candidate card at this host, or the one another integration raises.
 
-    An added panel's address is turned away by `offer_blocked`, before any probe.
+    A configured address is offered only after a clean-package probe.
     """
     lan = _lan_address(host)
     if lan is None:
@@ -271,17 +266,9 @@ def _unconfigured(
 
 
 def offer_blocked(hass: HomeAssistant, address: str, flow_id: str) -> bool:
-    """Whether another card offers this address, or it was ignored or added.
-
-    Added counts because a card can still be probing when the panel is added
-    by hand, too early for the new entry to close it.
-    """
+    """Whether another card offers this address, or it was ignored."""
     if any(
-        entry.data.get(CONF_ADDRESS) == address
-        or (
-            entry.source == SOURCE_IGNORE
-            and entry.data.get(_IGNORED_ADDRESS) == address
-        )
+        entry.source == SOURCE_IGNORE and entry.data.get(_IGNORED_ADDRESS) == address
         for entry in hass.config_entries.async_entries(DOMAIN)
     ):
         return True
@@ -335,10 +322,39 @@ def ignored_card_data(hass: HomeAssistant, unique_id: str) -> dict[str, str]:
 
 
 async def async_check_migration_target(
+    hass: HomeAssistant,
     candidate: dict[str, Any],
 ) -> MigrationTarget | None:
     """Probe one candidate: a target when ADB answers or its source is panel-only."""
+    configured = {
+        entry.entry_id
+        for entry in hass.config_entries.async_entries(DOMAIN)
+        if entry.data.get(CONF_ADDRESS) == candidate["address"]
+    }
+    if configured:
+        # An unavailable app is not evidence of removal. Only the normal ADB
+        # classifier can offer its kept entry for a clean reinstall.
+        try:
+            probe = await async_probe_install_target(
+                normalize_address(candidate["address"])
+            )
+        except Exception:
+            _LOGGER.debug(
+                "Could not classify a configured discovery target", exc_info=True
+            )
+            return None
+        if probe.state not in {
+            InstallTargetState.INSTALL_CANDIDATE,
+            InstallTargetState.ADB_UNAUTHORIZED,
+        }:
+            return None
     adb_open = await _async_adb_answers(candidate["host"])
+    if any(
+        entry.data.get(CONF_ADDRESS) == candidate["address"]
+        and entry.entry_id not in configured
+        for entry in hass.config_entries.async_entries(DOMAIN)
+    ):
+        return None
     if not (adb_open or candidate["panel_only"]):
         return None
     return MigrationTarget(
@@ -349,7 +365,7 @@ async def async_check_migration_target(
 async def async_find_migration_targets(hass: HomeAssistant) -> list[MigrationTarget]:
     """Return known, unconfigured panels: ADB-open ones first."""
     checked = await asyncio.gather(
-        *(async_check_migration_target(c) for c in _candidates(hass).values())
+        *(async_check_migration_target(hass, c) for c in _candidates(hass).values())
     )
     targets = [target for target in checked if target is not None]
     return sorted(targets, key=lambda target: not target.adb_open)
@@ -458,7 +474,7 @@ async def async_integration_discovery(
     # The registries and the ADB announcement can name one device twice.
     if offer_blocked(flow.hass, discovery_info["address"], flow.flow_id):
         return flow.async_abort(reason="already_configured")
-    target = await async_check_migration_target(discovery_info)
+    target = await async_check_migration_target(flow.hass, discovery_info)
     if target is None:
         return flow.async_abort(reason="not_panel")
     # Again after the probe: the other route may have shown its card while

@@ -132,6 +132,8 @@
     },
     "abort": {
       "already_configured": "Este painel já está configurado.",
+      "reinstall_successful": "O aplicativo foi instalado novamente. Este painel mantém seu histórico e suas configurações no Home Assistant.",
+      "reinstall_identity_mismatch": "O aplicativo está instalado, mas não foi possível vinculá-lo ao painel mantido. Seu histórico e suas configurações no Home Assistant foram mantidos. Verifique o painel no Home Assistant antes de tentar novamente.",
       "not_panel": "Não é um painel no qual o Panel Assistant possa instalar o aplicativo.",
       "invalid_discovery": "Não foi comprovado que o painel descoberto é a mesma instalação de Panel Assistant em bom funcionamento. Nenhuma entrada do Home Assistant nem configuração do painel foi alterada.",
       "install_cancelled": "A instalação foi cancelada antes que um APK fosse instalado. Nenhuma entrada do Home Assistant foi criada. Para tentar novamente, adicione a integração Panel Assistant e informe o mesmo endereço do painel.",

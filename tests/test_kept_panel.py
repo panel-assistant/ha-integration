@@ -1,0 +1,237 @@
+"""A removed app can be installed again without discarding its HA history."""
+
+from dataclasses import replace
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from homeassistant import config_entries
+from homeassistant.const import CONF_ADDRESS
+from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+from custom_components.panel_assistant.client import CannotConnectError
+from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.install_executor import InstallExecutor
+from custom_components.panel_assistant.install_receipt import InstallPhase
+
+from . import config_flow_helpers
+from .config_flow_helpers import RELEASE, _choose_version, _probe, _start_step
+from .test_config_flow import CREDENTIAL, HEALTH, _final_proof, _manager_for, _receipt
+
+install_release_catalog = config_flow_helpers.install_release_catalog
+install_network_pin = config_flow_helpers.install_network_pin
+OLD = "a" * 64
+NEW = "b" * 64
+LINK = "c" * 64
+CLEAN = _probe(
+    "install_candidate",
+    model="WF1589T",
+    serial="serial-123",
+    primary_abi="arm64-v8a",
+    android_sdk=31,
+)
+
+
+@pytest.mark.parametrize("route", ["address", "discovery"])
+async def test_kept_panel_installs_into_its_original_entry(
+    hass: HomeAssistant,
+    route: str,
+) -> None:
+    """The real keep/add caller retains entity IDs and the device after reinstall."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="My panel",
+        unique_id=OLD,
+        data={
+            CONF_ADDRESS: "panel.local",
+            "installation_identity": True,
+            "legacy_did": LINK,
+        },
+    )
+    entry.add_to_hass(hass)
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, OLD)},
+        name="My panel",
+    )
+    entity = er.async_get(hass).async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{OLD}_wifi",
+        config_entry=entry,
+        device_id=device.id,
+        suggested_object_id="my_panel_wifi",
+    )
+    er.async_get(hass).async_update_entity(entity.entity_id, name="My Wi-Fi")
+    with patch(
+        "custom_components.panel_assistant.config_flow.async_remove_app", AsyncMock()
+    ):
+        options = await hass.config_entries.options.async_init(entry.entry_id)
+        removal = await hass.config_entries.options.async_configure(
+            options["flow_id"], {"next_step_id": "remove_app"}
+        )
+        done = await hass.config_entries.options.async_configure(
+            removal["flow_id"], {"confirmed": True}
+        )
+        kept = await hass.config_entries.options.async_configure(
+            done["flow_id"], {"next_step_id": "remove_app_keep_entry"}
+        )
+    assert kept["reason"] == "removed_entry_kept"
+
+    receipt = _receipt(InstallPhase.HEALTHY_UNCLAIMED)
+    manager = _manager_for(receipt)
+    executor = InstallExecutor(hass, manager)
+    health = replace(
+        HEALTH,
+        version=receipt.artifact.version_name,
+        discovery_id=NEW,
+        legacy_discovery_id=LINK,
+        installation_identity=True,
+    )
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+            AsyncMock(side_effect=CannotConnectError),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_probe_install_target",
+            AsyncMock(return_value=CLEAN),
+        ),
+        patch(
+            "custom_components.panel_assistant.discovery.async_probe_install_target",
+            AsyncMock(return_value=CLEAN),
+        ),
+        patch(
+            "custom_components.panel_assistant.discovery._async_adb_answers",
+            AsyncMock(return_value=True),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_resolve_install_choice",
+            AsyncMock(return_value=RELEASE),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
+            AsyncMock(return_value=manager),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_install_executor",
+            AsyncMock(return_value=executor),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_adb_credential",
+            AsyncMock(return_value=CREDENTIAL),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_durable_adb_credential",
+            AsyncMock(return_value=CREDENTIAL),
+        ),
+        patch.object(executor, "async_ensure_job", AsyncMock()),
+        patch.object(executor, "async_wait", AsyncMock(return_value=receipt)),
+        patch(
+            "homeassistant.config_entries.ConfigEntries.async_reload",
+            AsyncMock(return_value=True),
+        ),
+    ):
+        if route == "address":
+            form = await _start_step(hass, "add_panel")
+            choose = await hass.config_entries.flow.async_configure(
+                form["flow_id"], {CONF_ADDRESS: "panel.local"}
+            )
+        else:
+            card = await hass.config_entries.flow.async_init(
+                DOMAIN,
+                context={"source": config_entries.SOURCE_INTEGRATION_DISCOVERY},
+                data={
+                    "key": "migration:vendor",
+                    "address": "panel.local",
+                    "host": "panel.local",
+                    "name": "My panel",
+                    "source": "vendor",
+                    "panel_only": True,
+                },
+            )
+            assert card["type"] is FlowResultType.FORM
+            choose = await hass.config_entries.flow.async_configure(card["flow_id"], {})
+        assert choose["type"] is FlowResultType.FORM
+        confirm = await _choose_version(hass, choose)
+        progress = await hass.config_entries.flow.async_configure(
+            confirm["flow_id"], {}
+        )
+        assert progress["step_id"] == "install_progress"
+        manager.async_create_or_join.assert_awaited_once()
+        manager.async_get.return_value = replace(
+            receipt, phase=InstallPhase.HEALTHY_UNCLAIMED
+        )
+        await hass.async_block_till_done()
+        with _final_proof(manager, health=AsyncMock(return_value=health)):
+            result = await hass.config_entries.flow.async_configure(progress["flow_id"])
+            if result.get("type") is FlowResultType.SHOW_PROGRESS_DONE:
+                result = await hass.config_entries.flow.async_configure(
+                    progress["flow_id"]
+                )
+        assert result["type"] is FlowResultType.ABORT
+        assert result["reason"] == "reinstall_successful"
+    await hass.async_block_till_done()
+    assert hass.config_entries.async_entries(DOMAIN) == [entry]
+    assert entry.unique_id == NEW
+    preserved = er.async_get(hass).async_get(entity.entity_id)
+    assert preserved is not None
+    assert preserved.id == entity.id
+    assert preserved.unique_id == f"{NEW}_wifi"
+    assert preserved.name == "My Wi-Fi"
+    assert preserved.device_id == device.id
+    assert dr.async_get(hass).async_get(device.id) is not None
+    assert (
+        manager.async_transition.await_args.kwargs["consumed_entry_id"]
+        == entry.entry_id
+    )
+    assert not executor.is_finalizer_active(receipt.job_id)
+
+
+@pytest.mark.parametrize("link", [None, "d" * 64])
+async def test_reinstall_does_not_give_an_unlinked_panel_the_kept_history(
+    hass: HomeAssistant,
+    link: str | None,
+) -> None:
+    """Verified installation does not make the endpoint an identity authority."""
+    from .test_config_flow import _direct_result_flow
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id=OLD,
+        data={
+            CONF_ADDRESS: "panel.local",
+            "installation_identity": True,
+            "legacy_did": LINK,
+        },
+    )
+    entry.add_to_hass(hass)
+    entity = er.async_get(hass).async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{OLD}_wifi",
+        config_entry=entry,
+    )
+    receipt = _receipt(InstallPhase.HEALTHY_UNCLAIMED)
+    manager = _manager_for(receipt)
+    executor = InstallExecutor(hass, manager)
+    health = replace(
+        HEALTH,
+        version=receipt.artifact.version_name,
+        discovery_id=NEW,
+        legacy_discovery_id=link,
+        installation_identity=True,
+    )
+    with _final_proof(manager, health=AsyncMock(return_value=health)):
+        result = await _direct_result_flow(
+            hass, receipt, executor
+        ).async_step_install_result()
+    assert result["reason"] == "reinstall_identity_mismatch"
+    assert hass.config_entries.async_entries(DOMAIN) == [entry]
+    assert entry.unique_id == OLD
+    assert er.async_get(hass).async_get(entity.entity_id) == entity
+    manager.async_transition.assert_not_awaited()
+    assert not executor.is_finalizer_active(receipt.job_id)
