@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import asyncio
+import json
+from collections.abc import Generator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
+from unittest.mock import patch
 
 import pytest
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 from homeassistant.core import HomeAssistant
 
-from custom_components.panel_assistant import install_executor
+from custom_components.panel_assistant import install_executor, install_jobs
 from custom_components.panel_assistant.adb_credentials import (
     AdbCredential,
     AdbCredentialError,
@@ -31,6 +34,7 @@ from custom_components.panel_assistant.client import (
     PanelHealth,
     PanelSetupState,
 )
+from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.install_adb import (
     DefiniteCleanupReason,
     StagedApk,
@@ -50,6 +54,7 @@ from custom_components.panel_assistant.install_jobs import (
     InstallJobReceipt,
     InstallPhase,
     InstallTarget,
+    install_plan_sha256,
 )
 from custom_components.panel_assistant.install_network import (
     InstallNetworkErrorCode,
@@ -552,3 +557,105 @@ async def run_job(
     receipt = (await manager.async_list())[0]
     executor = InstallExecutor(hass, manager)
     return await executor.async_wait(receipt.job_id)
+
+
+_REAL_STORE_PRESENCE = install_jobs._store_presence
+_REAL_PARSE_STORE_DOCUMENT = install_jobs._parse_store_document
+_REAL_PARSE_DETAIL_STORE_DOCUMENT = install_jobs._parse_detail_store_document
+
+
+@pytest.fixture(autouse=True)
+def emulate_home_assistant_store_file(
+    hass_storage: dict[str, Any],
+) -> Generator[None]:
+    """Model the Store file hidden by HA's in-memory test storage manager."""
+
+    def _presence(path: str) -> tuple[bool, bool]:
+        exists, corrupt = _REAL_STORE_PRESENCE(path)
+        if exists or corrupt:
+            return exists, corrupt
+        key = Path(path).name
+        if key in {
+            f"{DOMAIN}.install_jobs",
+            f"{DOMAIN}.install_jobs.details",
+        }:
+            return key in hass_storage, False
+        return False, False
+
+    def _durable_reader(_path: str) -> dict[str, InstallJobReceipt]:
+        document = hass_storage.get(f"{DOMAIN}.install_jobs")
+        if document is None:
+            raise install_jobs.InstallJobStoreError
+        return _REAL_PARSE_STORE_DOCUMENT(
+            json.dumps(document, separators=(",", ":")).encode("utf-8")
+        )
+
+    def _detail_reader(_path: str) -> Any:
+        document = hass_storage.get(f"{DOMAIN}.install_jobs.details")
+        if document is None:
+            raise install_jobs.InstallJobStoreError
+        return _REAL_PARSE_DETAIL_STORE_DOCUMENT(
+            json.dumps(document, separators=(",", ":")).encode("utf-8")
+        )
+
+    with (
+        patch.object(install_jobs, "_store_presence", side_effect=_presence),
+        patch.object(install_jobs, "_read_durable_jobs", side_effect=_durable_reader),
+        patch.object(install_jobs, "_read_durable_details", side_effect=_detail_reader),
+    ):
+        yield
+
+
+async def create_job(
+    manager: InstallJobManager,
+    selected_artifact: InstallArtifact | None = None,
+) -> InstallJobReceipt:
+    """Create one durable approved receipt."""
+    selected_target = target()
+    selected_artifact = selected_artifact or artifact()
+    receipt, created = await manager.async_create_or_join(
+        selected_target,
+        selected_artifact,
+        install_plan_sha256(selected_target, selected_artifact, CREDENTIAL_ID),
+        CREDENTIAL_ID,
+    )
+    assert created
+    return receipt
+
+
+async def seed_phase(
+    hass: HomeAssistant, phase: InstallPhase
+) -> tuple[InstallJobReceipt, InstallJobManager]:
+    """Persist a phase, then return a new manager which has no memory claim."""
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    if phase is InstallPhase.APPROVED:
+        return receipt, InstallJobManager(hass)
+    receipt = await manager.async_claim(receipt.job_id, receipt.revision)
+    phases = (
+        InstallPhase.AUTHORIZING,
+        InstallPhase.PREFLIGHT,
+        InstallPhase.DOWNLOADING,
+        InstallPhase.ARTIFACT_READY,
+        InstallPhase.REVALIDATING,
+        InstallPhase.STAGING,
+        InstallPhase.INSTALLING,
+        InstallPhase.INSTALLED,
+        InstallPhase.LAUNCHING,
+        InstallPhase.HEALTH_CHECK,
+    )
+    for next_phase in phases:
+        transition_fields: dict[str, object] = {}
+        if next_phase is InstallPhase.ARTIFACT_READY:
+            transition_fields["actual_apk_bytes"] = artifact().apk_size
+        if next_phase is InstallPhase.DOWNLOADING:
+            transition_fields["preflight_root_mode"] = AdbRootMode.ROOTLESS.value
+        receipt = await manager.async_transition(
+            receipt.job_id,
+            receipt.revision,
+            next_phase,
+            **transition_fields,
+        )
+        if next_phase is phase:
+            return receipt, InstallJobManager(hass)
+    raise AssertionError
