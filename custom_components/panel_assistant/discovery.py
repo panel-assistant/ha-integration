@@ -335,9 +335,16 @@ async def async_check_migration_target(
         # An unavailable app is not evidence of removal. Only the normal ADB
         # classifier can offer its kept entry for a clean reinstall.
         try:
-            probe = await async_probe_install_target(
-                normalize_address(candidate["address"])
-            )
+            address = normalize_address(candidate["address"])
+            try:
+                await HaPaneldClient(
+                    async_get_clientsession(hass), address
+                ).async_get_health()
+            except CannotConnectError, InvalidResponseError:
+                pass
+            else:
+                return None
+            probe = await async_probe_install_target(address)
         except Exception:
             _LOGGER.debug(
                 "Could not classify a configured discovery target", exc_info=True

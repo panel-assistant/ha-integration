@@ -262,3 +262,39 @@ async def test_reinstall_does_not_give_an_unlinked_panel_the_kept_history(
     assert er.async_get(hass).async_get(entity.entity_id) == entity
     manager.async_transition.assert_not_awaited()
     assert not executor.is_finalizer_active(receipt.job_id)
+
+
+async def test_running_kept_address_is_not_offered_as_a_new_install(
+    hass: HomeAssistant,
+) -> None:
+    """A healthy configured panel stays added when an unsigned ADB probe needs auth."""
+    MockConfigEntry(domain=DOMAIN, data={CONF_ADDRESS: "panel.local"}).add_to_hass(hass)
+    with (
+        patch(
+            "custom_components.panel_assistant.discovery.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=HEALTH),
+        ),
+        patch(
+            "custom_components.panel_assistant.discovery.async_probe_install_target",
+            AsyncMock(return_value=_probe("adb_unauthorized")),
+        ) as probe,
+        patch(
+            "custom_components.panel_assistant.discovery._async_adb_answers",
+            AsyncMock(return_value=True),
+        ),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_INTEGRATION_DISCOVERY},
+            data={
+                "key": "migration:vendor",
+                "address": "panel.local",
+                "host": "panel.local",
+                "name": "My panel",
+                "source": "vendor",
+                "panel_only": True,
+            },
+        )
+    assert result["type"] is FlowResultType.ABORT
+    assert not hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    probe.assert_not_awaited()

@@ -169,7 +169,8 @@ async def test_form_offers_known_panels_adb_open_first(
         }
     )
 
-    form = await _add_panel_form(hass)
+    with patch(HEALTH_CHECK, AsyncMock(return_value=HEALTH)):
+        form = await _add_panel_form(hass)
 
     assert form["step_id"] == "add_panel"
     assert _offered(form) == [
@@ -326,10 +327,11 @@ async def test_added_panel_is_not_offered_again(
         hass
     )
 
-    await _network_device_seen(hass)
+    with patch(HEALTH_CHECK, AsyncMock(return_value=HEALTH)):
+        await _network_device_seen(hass)
 
     assert _discovered(hass) == {}
-    assert adb_open.asked == ["192.168.1.30"]
+    assert adb_open.asked == []
 
 
 async def test_waiting_panel_is_probed_once_however_often_the_network_wakes(
