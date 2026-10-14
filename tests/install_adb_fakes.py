@@ -14,17 +14,59 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 
 from custom_components.panel_assistant import adb_protocol, app_identity, install_adb
+from custom_components.panel_assistant.adb_protocol import AdbInstallTarget
+from custom_components.panel_assistant.client import PanelAddress
 from custom_components.panel_assistant.install_adb import (
     StagedApk,
 )
+from custom_components.panel_assistant.release import InstallDescriptor
 
 NONCES = tuple(f"{number:032x}" for number in range(1, 20))
 JOB_ID = "a" * 32
 REMOTE_PATH = f"/data/local/tmp/ha-paneld-install-{JOB_ID}.apk"
 APK_BYTES = b"signed apk fixture"
 APK_SHA256 = hashlib.sha256(APK_BYTES).hexdigest()
+
+
+@pytest.fixture
+def signer() -> PythonRSASigner:
+    """Return an identity-only signer; fake ADB never asks it to sign."""
+    return object.__new__(PythonRSASigner)
+
+
+@pytest.fixture
+def target() -> AdbInstallTarget:
+    return AdbInstallTarget(
+        address=PanelAddress(host="192.168.1.23", port=8888),
+        serial="SERIAL-1",
+        model="Test Panel",
+        primary_abi="arm64-v8a",
+        android_sdk=34,
+    )
+
+
+@pytest.fixture
+def descriptor() -> InstallDescriptor:
+    return InstallDescriptor(
+        schema="io.github.maxlyth.hapaneld.install.v1",
+        release_tag="v0.9.7",
+        version_name="0.9.7",
+        version_code=678,
+        apk_name="ha-paneld-v0.9.7-manual-setup-required.apk",
+        apk_size=len(APK_BYTES),
+        apk_sha256=APK_SHA256,
+        package_id="io.github.maxlyth.hapaneld",
+        signer_certificate_sha256=(
+            "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
+        ),
+        min_sdk=26,
+        supported_abis=("arm64-v8a", "armeabi-v7a"),
+        database_compatibility="hapaneld-db:v1:ha-paneld.db:1:14",
+        launch_component="io.github.maxlyth.hapaneld/.MainActivity",
+    )
 
 
 async def _allow_install() -> None:
