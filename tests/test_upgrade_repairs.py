@@ -294,6 +294,12 @@ async def test_an_older_panel_is_refused_and_told_it_needs_app_1_0_0_preview1(
     await hass.async_block_till_done()
     assert _issue(hass, issue_id) is None
 
+    # End the entry while its simulated panel still answers, before the
+    # WebSocket fixture closes and dispatches its final session change.
+    with _panel(CURRENT):
+        assert await hass.config_entries.async_unload(entry.entry_id)
+        await hass.async_block_till_done()
+
 
 async def test_a_panel_on_the_old_app_id_is_offered_only_its_move(
     hass: HomeAssistant, hass_read_only_user: Any
