@@ -42,6 +42,9 @@
           "panel_setup": "Otwórz kreator konfiguracji",
           "connect_found": "Pomiń konfigurację i połącz panel teraz.",
           "add_panel": "Użyj innego adresu"
+        },
+        "menu_option_descriptions": {
+          "connect_found": "Pomiń konfigurację i połącz panel teraz."
         }
       },
       "panel_setup": {
@@ -1469,6 +1472,9 @@
           "authorize_adb": "Zezwól na aktualizacje",
           "updates": "Aktualizacje panelu",
           "remove_app": "Usuń Panel Assistant z tego panelu"
+        },
+        "menu_option_descriptions": {
+          "remove_app": "Usuń Panel Assistant z tego panelu"
         }
       },
       "onboarding": {
@@ -1513,6 +1519,9 @@
         "description": "Panel zachowuje własny ekran główny. Czy Home Assistant ma też zapomnieć {panel}?",
         "menu_options": {
           "remove_app_delete_entry": "Usuń ten panel z Home Assistant",
+          "remove_app_keep_entry": "Na razie zachowaj go w Home Assistant"
+        },
+        "menu_option_descriptions": {
           "remove_app_keep_entry": "Na razie zachowaj go w Home Assistant"
         }
       }

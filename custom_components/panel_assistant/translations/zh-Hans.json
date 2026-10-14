@@ -42,6 +42,9 @@
           "panel_setup": "打开设置向导",
           "connect_found": "跳过设置并立即连接",
           "add_panel": "使用其他地址"
+        },
+        "menu_option_descriptions": {
+          "connect_found": "跳过设置并立即连接"
         }
       },
       "panel_setup": {
@@ -1429,6 +1432,9 @@
           "authorize_adb": "允许更新",
           "updates": "面板更新",
           "remove_app": "从此面板移除 Panel Assistant"
+        },
+        "menu_option_descriptions": {
+          "remove_app": "从此面板移除 Panel Assistant"
         }
       },
       "onboarding": {
@@ -1473,6 +1479,9 @@
         "description": "面板保留其自带的主屏幕。是否也让 Home Assistant 忘记 {panel}？",
         "menu_options": {
           "remove_app_delete_entry": "从 Home Assistant 删除此面板",
+          "remove_app_keep_entry": "暂时保留在 Home Assistant 中"
+        },
+        "menu_option_descriptions": {
           "remove_app_keep_entry": "暂时保留在 Home Assistant 中"
         }
       }

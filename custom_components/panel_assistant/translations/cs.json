@@ -42,6 +42,9 @@
           "panel_setup": "Otevřít průvodce nastavením",
           "connect_found": "Přeskočit nastavení a připojit nyní",
           "add_panel": "Použít jinou adresu"
+        },
+        "menu_option_descriptions": {
+          "connect_found": "Přeskočit nastavení a připojit nyní"
         }
       },
       "panel_setup": {
@@ -1471,6 +1474,9 @@
           "authorize_adb": "Povolit aktualizace",
           "updates": "Aktualizace panelu",
           "remove_app": "Odebrat Panel Assistant z tohoto panelu"
+        },
+        "menu_option_descriptions": {
+          "remove_app": "Odebrat Panel Assistant z tohoto panelu"
         }
       },
       "onboarding": {
@@ -1515,6 +1521,9 @@
         "description": "Panel si ponechá vlastní domovskou obrazovku. Má Home Assistant také zapomenout panel {panel}?",
         "menu_options": {
           "remove_app_delete_entry": "Smazat tento panel z Home Assistant",
+          "remove_app_keep_entry": "Zatím ho ponechat v Home Assistant"
+        },
+        "menu_option_descriptions": {
           "remove_app_keep_entry": "Zatím ho ponechat v Home Assistant"
         }
       }

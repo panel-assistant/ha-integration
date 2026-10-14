@@ -42,6 +42,9 @@
           "panel_setup": "Open the setup wizard",
           "connect_found": "Skip setup and connect now",
           "add_panel": "Use a different address"
+        },
+        "menu_option_descriptions": {
+          "connect_found": "Skip setup and connect now"
         }
       },
       "panel_setup": {
@@ -1469,6 +1472,9 @@
           "authorize_adb": "Allow updates",
           "updates": "Panel updates",
           "remove_app": "Remove Panel Assistant from this panel"
+        },
+        "menu_option_descriptions": {
+          "remove_app": "Remove Panel Assistant from this panel"
         }
       },
       "onboarding": {
@@ -1513,6 +1519,9 @@
         "description": "The panel keeps its own home screen. Should Home Assistant also forget {panel}?",
         "menu_options": {
           "remove_app_delete_entry": "Delete this panel from Home Assistant",
+          "remove_app_keep_entry": "Keep it in Home Assistant for now"
+        },
+        "menu_option_descriptions": {
           "remove_app_keep_entry": "Keep it in Home Assistant for now"
         }
       }

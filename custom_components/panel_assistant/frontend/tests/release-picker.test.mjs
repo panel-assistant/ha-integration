@@ -8,7 +8,8 @@ class Element {
   getAttribute(name) { return this.attributes.get(name); }
   listeners = {}; children = []; value = ''; disabled = false; hidden = false; textContent = '';
   addEventListener(name, callback) { this.listeners[name] = callback; }
-  append(child) { this.children.push(child); }
+  append(...children) { this.children.push(...children); }
+  querySelector(selector) { return this.children.find(child => selector === 'span' ? child.tagName === 'span' : child.type === 'radio' && child.checked) ?? null; }
   replaceChildren(...children) { this.children = children; this.value = ''; }
 }
 globalThis.HTMLElement = class {
@@ -17,11 +18,11 @@ globalThis.HTMLElement = class {
     const elements = new Map();
     this.shadowRoot = {
       querySelectorAll: () => [],
-      querySelector: key => { if (!elements.has(key)) elements.set(key, new Element()); return elements.get(key); },
+      querySelector: key => { if (key === '#release input:checked') return elements.get('#release-choices')?.children.map(label => label.children[0]).find(input => input.checked) ?? null; if (!elements.has(key)) elements.set(key, new Element()); return elements.get(key); },
     };
   }
 };
-globalThis.document = { createElement: () => new Element() };
+globalThis.document = { createElement: tag => Object.assign(new Element(), { tagName: tag }) };
 globalThis.customElements = { get: () => true };
 const { HaPaneldUsbInstallPanel } = await import('../src/ha-install-panel.mjs');
 const { ENGLISH_MESSAGES: { haInstall: HA_INSTALL_MESSAGES } } = await import('../src/frontend-localization.mjs');
@@ -38,28 +39,33 @@ function fixture(fetchWithAuth) {
   panel.connectedCallback();
   return { panel, hass, element: id => panel.shadowRoot.querySelector(`#${id}`) };
 }
+function radios(f) { return f.element('release-choices').children.map(label => label.children[0]); }
+function labels(f) { return f.element('release-choices').children.map(label => label.children[1]); }
+function selected(f) { return radios(f).find(input => input.checked)?.value; }
+function choose(f, value) { for (const input of radios(f)) input.checked = input.value === value; }
+
 test('PA channel default stays implicit while explicit first RC and stable selections keep exact tags', async () => {
   const f = fixture(async () => response([rc, stable]));
   assert.equal(f.element('start').disabled, true);
   assert.equal(f.element('catalog-status').textContent, HA_INSTALL_MESSAGES.loading);
   await tick();
-  assert.equal(f.element('release').value, '');
+  assert.equal(selected(f), '');
   assert.equal(f.element('start').disabled, false);
-  assert.equal(f.element('release').children[0].disabled, false);
-  assert.deepEqual(f.element('release').children.map(option => option.textContent), [HA_INSTALL_MESSAGES.choose, '1.2.4-rc1 (test version)', '1.2.3']);
+  assert.equal(radios(f)[0].disabled, false);
+  assert.deepEqual(labels(f).map(option => option.textContent), [HA_INSTALL_MESSAGES.choose, '1.2.4-rc1 (test version)', '1.2.3']);
   let opened;
   globalThis.window = { crypto: webcrypto, location: { origin: 'http://ha.example' }, addEventListener() {}, removeEventListener() {}, open(url) { opened = new URL(url); return { closed: false }; } };
   f.element('start').listeners.click();
   assert.equal(new URLSearchParams(opened.hash.slice(1)).get('rc'), '');
   f.element('cancel').listeners.click();
   await tick();
-  f.element('release').value = rc.tag;
+  choose(f, rc.tag);
   f.element('release').listeners.change();
   f.element('start').listeners.click();
   assert.equal(new URLSearchParams(opened.hash.slice(1)).get('rc'), rc.tag);
   f.element('cancel').listeners.click();
   await tick();
-  f.element('release').value = stable.tag;
+  choose(f, stable.tag);
   f.element('release').listeners.change();
   f.element('start').listeners.click();
   assert.equal(new URLSearchParams(opened.hash.slice(1)).get('rc'), stable.tag);
@@ -70,12 +76,12 @@ test('PA channel default stays implicit while explicit first RC and stable selec
 test('RC-only catalogue keeps the PA channel default and permits an explicit first RC only', async () => {
   const f = fixture(async () => response([rc]));
   await tick();
-  assert.equal(f.element('release').value, '');
+  assert.equal(selected(f), '');
   assert.equal(f.element('start').disabled, false);
-  f.element('release').value = 'v9.9.9-rc1';
+  choose(f, 'v9.9.9-rc1');
   f.element('release').listeners.change();
   assert.equal(f.element('start').disabled, true);
-  f.element('release').value = rc.tag;
+  choose(f, rc.tag);
   f.element('release').listeners.change();
   assert.equal(f.element('start').disabled, false);
 });
@@ -108,7 +114,7 @@ test('disconnect and identity changes abort pending requests and ignore late cat
   f.panel.disconnectedCallback();
   assert.equal(pending[1].signal.aborted, true);
   pending[1].resolve(response([rc])); await tick();
-  assert.equal(f.element('release').children.length, 0);
+  assert.equal(f.element('release-choices').children.length, 0);
 });
 test('installer destination changes invalidate selection and non-admin users never fetch', async () => {
   let calls = 0;
@@ -126,13 +132,13 @@ test('dev builds are labelled by name, PA channel defaults, and an explicit buil
   const feed = { tag: 'build-772', prerelease: true, name: '0.9.7-rc4 build 772' };
   const f = fixture(async () => response([stable, rc, feed]));
   await tick();
-  assert.deepEqual(f.element('release').children.map(option => option.textContent),
+  assert.deepEqual(labels(f).map(option => option.textContent),
     [HA_INSTALL_MESSAGES.choose, '1.2.3', '1.2.4-rc1 (test version)', '0.9.7-rc4 build 772 (dev build)']);
-  assert.deepEqual(f.element('release').children.map(option => option.value), ['', stable.tag, rc.tag, feed.tag]);
-  assert.equal(f.element('release').value, '');
+  assert.deepEqual(radios(f).map(option => option.value), ['', stable.tag, rc.tag, feed.tag]);
+  assert.equal(selected(f), '');
   let opened;
   globalThis.window = { crypto: webcrypto, location: { origin: 'http://ha.example' }, addEventListener() {}, removeEventListener() {}, open(url) { opened = new URL(url); return { closed: false }; } };
-  f.element('release').value = feed.tag;
+  choose(f, feed.tag);
   f.element('release').listeners.change();
   f.element('start').listeners.click();
   assert.equal(new URLSearchParams(opened.hash.slice(1)).get('rc'), feed.tag);
@@ -142,9 +148,9 @@ test('dev builds are labelled by name, PA channel defaults, and an explicit buil
 test('compatible feed-only catalogue retains PA channel default and exact build choice', async () => {
   const f = fixture(async () => response([{ tag: 'build-772', prerelease: true, name: '0.9.7-rc4 build 772' }]));
   await tick();
-  assert.deepEqual(f.element('release').children.map(option => option.textContent),
+  assert.deepEqual(labels(f).map(option => option.textContent),
     [HA_INSTALL_MESSAGES.choose, '0.9.7-rc4 build 772 (dev build)']);
-  assert.equal(f.element('release').value, '');
+  assert.equal(selected(f), '');
   assert.equal(f.element('start').disabled, false);
 });
 
@@ -210,44 +216,27 @@ for (const [signal, language] of [['de-DE', 'de'], ['cs-CZ', 'cs'], ['pt_br-u-nu
   const f = fixture(async () => { requests++; return response([rc, stable]); });
   await tick();
   try {
-  f.element('release').value = rc.tag;
+  choose(f, rc.tag);
   f.element('release').listeners.change();
   let opened;
   globalThis.window = { crypto: webcrypto, location: { origin: 'http://ha.example' }, addEventListener() {}, removeEventListener() {},
     open(url) { opens++; opened = new URL(url); return { closed: false }; } };
   f.panel.hass = { ...f.hass, language: signal };
-  assert.equal(f.element('release').value, rc.tag);
+  assert.equal(selected(f), rc.tag);
   assert.equal(requests, 1);
-  assert.equal(f.element('release').children[0].textContent, frontendMessages('haInstall', language).choose);
+  assert.equal(labels(f)[0].textContent, frontendMessages('haInstall', language).choose);
   f.element('start').listeners.click();
   assert.equal(opened.searchParams.get('lang'), language);
   assert.equal(new URLSearchParams(opened.hash.slice(1)).get('rc'), rc.tag);
-  const childOptions = f.element('release').children;
+  const childOptions = f.element('release-choices').children;
   f.panel.hass = { ...f.hass, language: 'fr' };
-  assert.equal(f.element('release').children, childOptions);
-  assert.equal(f.element('release').value, rc.tag);
+  assert.equal(f.element('release-choices').children, childOptions);
+  assert.equal(selected(f), rc.tag);
   assert.equal(f.element('release').disabled, true);
   assert.equal(f.element('cancel').disabled, false);
   assert.equal(f.element('status').textContent, frontendMessages('haInstall', 'fr').waiting);
   assert.deepEqual([requests, opens], [1, 1]);
   } finally { f.panel.disconnectedCallback(); await tick(); }
-});
-
-test('a routine Home Assistant state push leaves an open version menu alone', async () => {
-  const f = fixture(async () => response([stable, rc]));
-  await tick();
-  const journey = f.element('journey').children;
-  // Rewriting an option while the native menu is open closes the menu.
-  let rewrites = 0;
-  for (const option of f.element('release').children) {
-    let text = option.textContent;
-    Object.defineProperty(option, 'textContent', { get: () => text, set: value => { rewrites++; text = value; } });
-  }
-  for (let push = 0; push < 3; push++) f.panel.hass = { ...f.hass, states: { push } };
-  assert.equal(rewrites, 0);
-  assert.equal(f.element('journey').children, journey);
-  f.panel.hass = { ...f.hass, language: 'de' };
-  assert.notEqual(f.element('journey').children, journey, 'a language change still re-renders');
 });
 
 test('a release installer copy opens at its own path and answers only its origin', async () => {

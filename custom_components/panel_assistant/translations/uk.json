@@ -42,6 +42,9 @@
           "panel_setup": "Відкрити майстер налаштування",
           "connect_found": "Пропустити налаштування та підключитися зараз",
           "add_panel": "Використати іншу адресу"
+        },
+        "menu_option_descriptions": {
+          "connect_found": "Пропустити налаштування та підключитися зараз"
         }
       },
       "panel_setup": {
@@ -1469,6 +1472,9 @@
           "authorize_adb": "Дозволити оновлення",
           "updates": "Оновлення панелі",
           "remove_app": "Прибрати Panel Assistant з цієї панелі"
+        },
+        "menu_option_descriptions": {
+          "remove_app": "Прибрати Panel Assistant з цієї панелі"
         }
       },
       "onboarding": {
@@ -1513,6 +1519,9 @@
         "description": "Панель зберігає власний головний екран. Чи має Home Assistant також забути {panel}?",
         "menu_options": {
           "remove_app_delete_entry": "Стерти цю панель з Home Assistant",
+          "remove_app_keep_entry": "Поки що залишити в Home Assistant"
+        },
+        "menu_option_descriptions": {
           "remove_app_keep_entry": "Поки що залишити в Home Assistant"
         }
       }

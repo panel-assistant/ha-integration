@@ -25,15 +25,16 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
     // Only fixed markup is HTML. Configuration and translations use textContent.
     this.shadowRoot.innerHTML = `<style>${WIZARD_CSS}
       :host{display:block;min-height:100%;background:var(--bg);padding:24px 16px}
-      #release{max-height:min(240px,40vh);overflow-y:auto}
+      #release{border:0;padding:0;margin:14px 0;min-width:0}
+      #release legend{font-size:.92rem;font-weight:600;margin-bottom:5px}
+      #release-choices{max-height:min(240px,40vh)}
     </style><main class="wiz">
       ${BRAND_HTML}
       <ol id="journey" class="wiz-dots">${journeyHtml(0)}</ol>
       <section class="wiz-step"><div class="card">
         <h2 data-message="title"></h2>
         <p class="wiz-lead" data-message="introduction"></p>
-        <label class="wiz-fld" for="release"><b data-message="release"></b></label>
-        <select id="release" size="6" aria-describedby="catalog-status"></select>
+        <fieldset id="release" aria-describedby="catalog-status"><legend data-message="release"></legend><div id="release-choices" class="choice-list"></div></fieldset>
         <p id="catalog-status" role="status" aria-live="polite"></p>
         <button id="retry" class="pbtn wiz-secondary" data-message="retry"></button>
         <button id="start" class="pbtn primary wiz-primary" data-message="start"></button>
@@ -60,8 +61,7 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
     const dark = value?.themes?.darkMode;
     if (typeof dark === 'boolean') this.setAttribute?.('theme', dark ? 'dark' : 'light');
     if (changed) { this.#transfer?.cancel(); this.#loadCatalog(); }
-    // Home Assistant pushes a new object on every state change. Re-rendering
-    // then rewrote each option, which closes an open version menu.
+    // Home Assistant pushes a new object on every state change. Keep the focused choice and selection stable on routine state updates.
     if (changed || relabel) this.#render();
   }
   set panel(value) {
@@ -78,7 +78,7 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
     this.#catalogRequest = undefined;
     this.#releases = [];
     this.#catalogState = 'loading';
-    this.shadowRoot.querySelector('#release').replaceChildren();
+    this.shadowRoot.querySelector('#release-choices').replaceChildren();
     this.#render();
     if (!this.isConnected || this.#hass?.user?.is_admin !== true || !this.#panel?.config?.installer_url) return;
     const request = new AbortController();
@@ -88,22 +88,16 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
       if (this.#catalogRequest !== request) return;
       this.#releases = releases;
       this.#catalogState = releases.length ? 'ready' : 'empty';
-      const select = this.shadowRoot.querySelector('#release');
-      const placeholder = document.createElement('option');
-      placeholder.value = '';
-      placeholder.textContent = this.#messages.choose;
-      placeholder.disabled = false;
-      select.append(placeholder);
-      for (const release of releases) {
-        const option = document.createElement('option');
-        option.value = release.tag;
-        // A dev build from the signed feed is named by version and build number.
-        const note = release.name ? this.#messages.devBuild
-          : release.prerelease ? this.#messages.testing : '';
-        option.textContent = `${release.name ?? release.tag.replace(/^v/, '')}${note ? ` (${note})` : ''}`;
-        select.append(option);
+      const choices = this.shadowRoot.querySelector('#release-choices');
+      for (const [index, release] of [null, ...releases].entries()) {
+        const label = document.createElement('label');
+        const input = document.createElement('input');
+        input.type = 'radio'; input.name = 'release'; input.value = release?.tag ?? '';
+        input.checked = index === 0;
+        const text = document.createElement('span');
+        label.append(input, text);
+        choices.append(label);
       }
-      select.value = '';
     } catch {
       if (this.#catalogRequest !== request) return;
       this.#catalogState = 'catalogError';
@@ -120,18 +114,18 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
     const journey = root.querySelector('#journey');
     journey.setAttribute('aria-label', frontendMessages('installer', language).progress);
     renderJourney(journey, 0, document, language);
-    const options = root.querySelector('#release').children;
+    const options = root.querySelector('#release-choices').children;
     if (options.length) {
-      options[0].textContent = this.#messages.choose;
+      options[0].querySelector('span').textContent = this.#messages.choose;
       for (const [index, release] of this.#releases.entries()) {
         const note = release.name ? this.#messages.devBuild : release.prerelease ? this.#messages.testing : '';
-        options[index + 1].textContent = `${release.name ?? release.tag.replace(/^v/, '')}${note ? ` (${note})` : ''}`;
+        options[index + 1].querySelector('span').textContent = `${release.name ?? release.tag.replace(/^v/, '')}${note ? ` (${note})` : ''}`;
       }
     }
     const allowed = this.#hass?.user?.is_admin === true;
     const configured = typeof this.#panel?.config?.installer_url === 'string' &&
       this.#panel.config.installer_url.length > 0;
-    const selection = this.shadowRoot.querySelector('#release').value;
+    const selection = this.shadowRoot.querySelector('#release input:checked')?.value;
     const selected = selection === '' ? this.#releases[0] : this.#releases.find(release => release.tag === selection);
     this.shadowRoot.querySelector('#start').disabled = !allowed || !configured || Boolean(this.#transfer) || !selected;
     this.shadowRoot.querySelector('#cancel').disabled = !this.#transfer;
@@ -148,7 +142,7 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
   }
   #start() {
     if (this.#transfer || this.#hass?.user?.is_admin !== true) return;
-    const selection = this.shadowRoot.querySelector('#release').value;
+    const selection = this.shadowRoot.querySelector('#release input:checked')?.value;
     const release = selection === '' ? this.#releases[0] : this.#releases.find(item => item.tag === selection);
     if (!release || !this.isConnected) return;
     this.#served?.cancel();

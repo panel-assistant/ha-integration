@@ -42,6 +42,9 @@
           "panel_setup": "Apri la procedura guidata",
           "connect_found": "Salta la configurazione e collega ora",
           "add_panel": "Usa un altro indirizzo"
+        },
+        "menu_option_descriptions": {
+          "connect_found": "Salta la configurazione e collega ora"
         }
       },
       "panel_setup": {
@@ -1429,6 +1432,9 @@
           "authorize_adb": "Consenti aggiornamenti",
           "updates": "Aggiornamenti del pannello",
           "remove_app": "Rimuovi Panel Assistant da questo pannello"
+        },
+        "menu_option_descriptions": {
+          "remove_app": "Rimuovi Panel Assistant da questo pannello"
         }
       },
       "onboarding": {
@@ -1473,6 +1479,9 @@
         "description": "Il pannello mantiene la propria schermata iniziale. Home Assistant deve dimenticare anche {panel}?",
         "menu_options": {
           "remove_app_delete_entry": "Elimina questo pannello da Home Assistant",
+          "remove_app_keep_entry": "Mantienilo in Home Assistant per ora"
+        },
+        "menu_option_descriptions": {
           "remove_app_keep_entry": "Mantienilo in Home Assistant per ora"
         }
       }
