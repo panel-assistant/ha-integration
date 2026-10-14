@@ -44,6 +44,7 @@ from .test_migration_targets import (
 )
 from .test_migration_targets import adb_open as adb_open
 from .test_transport import DID, OTHER_DID, STATUS, _hello, _send
+from .test_usb_setup_handover import endpoint as endpoint
 
 _NEW = "192.168.1.23"
 _LINK = "c" * 64
@@ -471,3 +472,72 @@ async def test_enriched_discovery_clash_persists_both_qualified_names(hass):
         for form, panel_id in [(alpha, "alpha"), (other, "beta")]:
             result = await hass.config_entries.flow.async_configure(form["flow_id"], {})
             assert result["title"] == f"Shared name ({panel_id})"
+
+
+@pytest.mark.parametrize("route", ["manual", "usb"])
+@pytest.mark.parametrize("hold", ["connected", "reachable"])
+async def test_explicit_add_of_live_clone_preserves_original_history(
+    hass,
+    hass_read_only_user,
+    hass_ws_client,
+    hass_read_only_access_token,
+    endpoint,
+    route,
+    hold,
+):
+    """An explicit add does not make a shared legacy hint own a live original."""
+    from custom_components.panel_assistant.client import PanelSetupState
+
+    from .test_usb_setup_handover import _Panel, _post
+
+    original = await _original(hass, hass_read_only_user.id)
+    old_health = replace(_REINSTALLED, discovery_id=DID)
+    await _poll(hass, original, {STORED: old_health})
+    if hold == "connected":
+        client = await hass_ws_client(hass, hass_read_only_access_token)
+        assert (await _send(client, _hello()))["success"]
+    registry = er.async_get(hass)
+    entities = {
+        item.id: (item.entity_id, item.device_id, item.unique_id)
+        for item in er.async_entries_for_config_entry(registry, original.entry_id)
+    }
+    with (
+        patch.object(
+            HaPaneldClient,
+            "async_get_health",
+            _health_by_host({STORED: old_health, _NEW: _REINSTALLED}),
+        ),
+        patch.object(
+            HaPaneldClient, "async_get_status", AsyncMock(return_value=STATUS)
+        ),
+        patch(
+            "custom_components.panel_assistant.browser_delivery.async_read_recommended_sizing",
+            AsyncMock(return_value=None),
+        ),
+    ):
+        if route == "manual":
+            form = await _start_step(hass, "add_panel")
+            found = await hass.config_entries.flow.async_configure(
+                form["flow_id"], {CONF_ADDRESS: _NEW + ":9999"}
+            )
+            assert found["type"] is FlowResultType.MENU
+            result = await _connect_found(hass, found)
+            assert result["type"] is FlowResultType.CREATE_ENTRY
+        else:
+            status, body = await _post(
+                endpoint,
+                _Panel(PanelSetupState(complete=False, accepts_handover=True)),
+                {"address": _NEW},
+            )
+            assert status == 200
+            assert body["registration"] == "added"
+        await hass.async_block_till_done()
+    assert original.unique_id == DID
+    assert original.data[CONF_ADDRESS] == STORED
+    assert original.data[CONF_LEGACY_DID] == _LINK
+    assert original.data[CONF_TRANSPORT_USER_ID] == hass_read_only_user.id
+    assert len(hass.config_entries.async_entries(DOMAIN)) == 2
+    assert {
+        item.id: (item.entity_id, item.device_id, item.unique_id)
+        for item in er.async_entries_for_config_entry(registry, original.entry_id)
+    } == entities

@@ -13,7 +13,6 @@ from homeassistant.auth.models import User
 from homeassistant.config_entries import (
     SOURCE_IGNORE,
     SOURCE_USER,
-    SOURCE_ZEROCONF,
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
@@ -406,6 +405,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             (known is not None and known.source != SOURCE_IGNORE)
             or any(
                 reinstalled(self.hass, entry, self._pending_health)
+                and not _entry_holds_its_address(self, entry)
                 for entry in self.hass.config_entries.async_entries(DOMAIN)
             )
         ):
@@ -1282,10 +1282,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                     self._pending_job_id is not None
                     and existing is self._pending_reinstall_entry
                 )
-                and not (
-                    self.source == SOURCE_ZEROCONF
-                    and _entry_holds_its_address(self, existing)
-                )
+                and not _entry_holds_its_address(self, existing)
             ):
                 if accept_health(self.hass, existing, health):
                     self.hass.config_entries.async_update_entry(

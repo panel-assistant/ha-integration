@@ -1256,12 +1256,8 @@ async def test_adding_a_known_panel_at_a_new_address_repairs_its_entry(
         flow = await hass.config_entries.flow.async_configure(
             flow["flow_id"], {"next_step_id": "add_panel"}
         )
-        flow = await hass.config_entries.flow.async_configure(
-            flow["flow_id"], {CONF_ADDRESS: LAN}
-        )
-        assert flow["type"] is FlowResultType.MENU, flow
         result = await hass.config_entries.flow.async_configure(
-            flow["flow_id"], {"next_step_id": "connect_found"}
+            flow["flow_id"], {CONF_ADDRESS: LAN}
         )
         await hass.async_block_till_done()
 
@@ -1272,6 +1268,7 @@ async def test_adding_a_known_panel_at_a_new_address_repairs_its_entry(
     ]
     assert entry.data[CONF_ADDRESS] == LAN
     assert entry.runtime_data.client.address.host == LAN
+    assert entry.unique_id == DID
     assert entry.state is ConfigEntryState.LOADED
 
 
