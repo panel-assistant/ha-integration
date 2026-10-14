@@ -47,7 +47,9 @@ class _UpdateRefusalError(ServiceValidationError, HTTPBadRequest):
 
 def refusal_error(panel: str, refusal: UpdateRejectedError) -> _UpdateRefusalError:
     """The panel's own reason, when its install result gave one."""
-    reason = str(refusal).removeprefix("refused (").removesuffix(")")
+    reason = str(refusal)
+    if reason.startswith("refused ("):
+        reason = reason.removeprefix("refused (").removesuffix(")")
     return _UpdateRefusalError(panel, reason or None)
 
 

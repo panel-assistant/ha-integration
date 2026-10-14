@@ -24,18 +24,21 @@ from .client import (
     CannotConnectError,
     HaPaneldError,
     InvalidResponseError,
+    PanelInstallStatus,
     UpdateRejectedError,
     _version_key,
 )
 from .coordinator import HaPaneldDataUpdateCoordinator
+from .device import panel_display_name
 from .release import ReleaseArtifact
 from .session_carrier import UpdateCarrier
 from .status import home_ui_allows
 from .transport import async_get_sessions
 from .update_coordinator import PanelUpdateCoordinator
-from .update_errors import _update_error
+from .update_errors import _update_error, refusal_error
 
 _ANDROID_DOWNLOAD_MAX_SECONDS = 10 * 60
+_ANDROID_CONFIRMATION_MAX_SECONDS = 5 * 60
 _ANDROID_PACKAGE_INSTALL_MAX_SECONDS = 3 * 60
 _RESTART_HEALTH_GRACE_SECONDS = 60
 # Android bounds the signed release download to ten minutes and package-manager
@@ -81,6 +84,25 @@ _PROGRESS_REDRAW = timedelta(seconds=2)
 
 def _now() -> float:
     return time.monotonic()
+
+
+def _confirmation_completion_deadline(
+    operation: PanelInstallStatus | None, component: str
+) -> float | None:
+    """Bound the panel's five-minute prompt plus installation and fresh health."""
+    if (
+        operation is not None
+        and operation.running
+        and operation.component == component
+        and operation.awaiting_confirmation
+    ):
+        return (
+            asyncio.get_running_loop().time()
+            + _ANDROID_CONFIRMATION_MAX_SECONDS
+            + _ANDROID_PACKAGE_INSTALL_MAX_SECONDS
+            + _RESTART_HEALTH_GRACE_SECONDS
+        )
+    return None
 
 
 class UpdateProgress:
@@ -193,6 +215,33 @@ class UpdateProgress:
         waited = max(0.0, _now() - self.attempt.started)
         return int(95 * (1 - math.exp(-waited / _PROGRESS_PACE_SECONDS)))
 
+    def _raise_finished_failure(
+        self, hass: HomeAssistant, operation: PanelInstallStatus | None, component: str
+    ) -> None:
+        """Keep explicit failed results; an empty or successful slot proves nothing."""
+        if (
+            operation is None
+            or operation.running
+            or operation.component != component
+            or not operation.message.startswith(
+                (
+                    "refused (",
+                    "update not installed:",
+                    "update not confirmed",
+                    "install failed",
+                    "install blocked",
+                    "cancelled",
+                    "error:",
+                )
+            )
+        ):
+            return
+        entry = hass.config_entries.async_get_entry(self._entry_id)
+        panel = panel_display_name(hass, entry) if entry is not None else "This panel"
+        # Raise the translated action error directly. A cancellation is not a
+        # version-order refusal and must never trigger the staged ADB crossover.
+        raise refusal_error(panel, UpdateRejectedError(operation.message))
+
     async def async_wait_for_installed_version(
         self, hass: HomeAssistant, expected_version: str | None
     ) -> bool:
@@ -204,6 +253,8 @@ class UpdateProgress:
             else None
         )
         deadline = asyncio.get_running_loop().time() + _UPDATE_TIMEOUT_SECONDS
+        # Retain the first prompt observation; later polls cannot renew it.
+        confirmation_deadline: float | None = None
         starting_version = (
             _version_key(starting_health.version)
             if starting_health is not None
@@ -261,6 +312,14 @@ class UpdateProgress:
                 status = self._update_coordinator.data.operation
             except CannotConnectError, InvalidResponseError:
                 status = None
+            if expected_version is not None:
+                self._raise_finished_failure(hass, status, "ha-paneld")
+            if confirmation_deadline is None:
+                confirmation_deadline = _confirmation_completion_deadline(
+                    status, "ha-paneld"
+                )
+                if confirmation_deadline is not None:
+                    deadline = max(deadline, confirmation_deadline)
             if (
                 expected_version is None
                 and status is not None
@@ -319,6 +378,8 @@ class UpdateProgress:
             + _ANDROID_PACKAGE_INSTALL_MAX_SECONDS
             + _RESTART_HEALTH_GRACE_SECONDS
         )
+        # Retain the first prompt observation; later polls cannot renew it.
+        confirmation_deadline: float | None = None
         while loop.time() < deadline:
             await coordinator.async_request_refresh()
             self.hold_through_restart(hass)
@@ -377,5 +438,12 @@ class UpdateProgress:
                 # A started install resets the message, so a refusal is final.
                 if install is not None and install.message.startswith("refused ("):
                     raise UpdateRejectedError(install.message)
+                self._raise_finished_failure(hass, install, "APK")
+                if confirmation_deadline is None:
+                    confirmation_deadline = _confirmation_completion_deadline(
+                        install, "APK"
+                    )
+                    if confirmation_deadline is not None:
+                        deadline = max(deadline, confirmation_deadline)
             await asyncio.sleep(_UPDATE_RECHECK_SECONDS)
         raise _update_error("update_not_complete", "The panel update did not complete")

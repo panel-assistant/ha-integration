@@ -33,7 +33,7 @@ from .release import (
     release_descriptor_name,
     strict_json_hooks,
 )
-from .update_policy import build_allowed, prereleases_allowed
+from .update_policy import build_allowed, feed_build_key, prereleases_allowed
 
 _RECENT_RELEASES_URL = URL(f"{ANDROID_RELEASES_API}?per_page=30")
 _MAX_RECENT_RELEASES = 30
@@ -194,6 +194,25 @@ async def _async_current_feed(hass: HomeAssistant) -> BuildFeed | None:
     return coordinator.data
 
 
+def _install_feed_builds(
+    feed: BuildFeed | None, *, allow_prerelease: bool
+) -> list[FeedBuild]:
+    """Keep the newest compatible feed build per install channel, by code."""
+    newest: dict[bool, FeedBuild] = {}
+    for build in feed.builds if feed is not None else ():
+        if not _allowed(
+            feed_release_artifact(build), allow_prerelease=allow_prerelease
+        ):
+            continue
+        prerelease = "-" in build.version_name
+        previous = newest.get(prerelease)
+        if previous is None or feed_build_key(
+            build.version_name, build.version_code
+        ) > feed_build_key(previous.version_name, previous.version_code):
+            newest[prerelease] = build
+    return list(newest.values())
+
+
 async def async_list_install_choices(
     hass: HomeAssistant,
 ) -> list[dict[str, str | bool]]:
@@ -215,8 +234,7 @@ async def async_list_install_choices(
                 else build.label
             ),
         }
-        for build in (feed.builds if feed is not None else ())
-        if _allowed(feed_release_artifact(build), allow_prerelease=allowed_pre)
+        for build in _install_feed_builds(feed, allow_prerelease=allowed_pre)
     ]
     try:
         candidates = await async_resolve_update_candidates(
@@ -320,13 +338,9 @@ async def async_resolve_install_bundle_choice(
             raise ReleaseResolutionError
         return bundle
     current_feed = await _async_current_feed(hass)
-    eligible_feed = [
-        build
-        for build in (current_feed.builds if current_feed is not None else ())
-        if _allowed(
-            feed_release_artifact(build), allow_prerelease=prereleases_allowed()
-        )
-    ]
+    eligible_feed = _install_feed_builds(
+        current_feed, allow_prerelease=prereleases_allowed()
+    )
     try:
         candidates = await async_resolve_update_candidates(session)
     except ReleaseResolutionError, TimeoutError:

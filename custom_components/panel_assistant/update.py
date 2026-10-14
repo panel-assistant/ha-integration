@@ -575,7 +575,12 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             or (
                 operation is not None
                 and operation.running
-                and operation.component == "ha-paneld"
+                and (
+                    operation.component == "ha-paneld"
+                    or (
+                        operation.component == "APK" and operation.awaiting_confirmation
+                    )
+                )
             )
         )
 

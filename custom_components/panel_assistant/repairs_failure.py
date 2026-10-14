@@ -19,7 +19,7 @@ from homeassistant.helpers.storage import Store
 
 from .build import INTEGRATION_BUILD
 from .build_feed import parse_build_request
-from .client import is_newer_stable_version
+from .client import is_newer_stable_version, is_version_at_least
 from .const import DOMAIN, INTEGRATION_VERSION
 from .device import panel_display_name
 
@@ -368,11 +368,7 @@ async def async_clear_update_failure_if_installed(
         target_code = parse_build_request(target)
         if target_code is not None:
             return installed_code is not None and installed_code >= target_code
-        # A prerelease of a later version is newer than the failed stable
-        # version; one of the same version has not reached that stable build.
-        return installed_version == target or is_newer_stable_version(
-            installed_version.split("-", 1)[0], target
-        )
+        return is_version_at_least(installed_version, target) is True
 
     await _failure_store(hass).clear(
         issue_id,
