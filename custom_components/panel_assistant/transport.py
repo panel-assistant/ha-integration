@@ -1590,6 +1590,7 @@ def _follow_refused_panel(
         )
         if coordinator is not None:
             coordinator.async_follow_refused_hello(
+                msg["did"],
                 connection.remote if isinstance(connection.remote, str) else None,
                 tuple(msg.get("addresses", ())),
             )

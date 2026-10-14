@@ -26,6 +26,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.panel_assistant.client import (
     CannotConnectError,
     PanelHealth,
+    PanelSetupState,
     normalize_address,
 )
 from custom_components.panel_assistant.const import DOMAIN
@@ -791,7 +792,8 @@ async def _by_registry(hass: HomeAssistant, adb_open: SimpleNamespace) -> None:
     if not hass.config_entries.async_entries("shelly"):
         _host_entry(hass, "shelly", "ShellyWallDisplay-00A90B9D900A", PANEL)
     adb_open.open.add(PANEL)
-    await _network_device_seen(hass)
+    with patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)):
+        await _network_device_seen(hass)
 
 
 INSTALL_CHANNELS = pytest.mark.parametrize(
@@ -1162,8 +1164,8 @@ async def test_wizard_opened_from_a_card_when_the_panel_is_added_says_so(
     with (
         patch(HEALTH_CHECK, AsyncMock(return_value=APP_HEALTH)),
         patch(
-            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_setup_complete",
-            AsyncMock(return_value=False),
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_setup_state",
+            AsyncMock(return_value=PanelSetupState(complete=False)),
         ),
     ):
         menu = await hass.config_entries.flow.async_configure(card["flow_id"], {})

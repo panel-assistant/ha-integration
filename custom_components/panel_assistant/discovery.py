@@ -58,11 +58,13 @@ from .client import (
 )
 from .const import DEFAULT_PORT, DOMAIN
 from .ha_url import async_offer_ha_url
-from .identity import accept_health, is_installation
+from .identity import accept_health, is_installation, reinstalled
 from .install_network import is_allowed_install_address
 from .provisioning import InstallTargetState, async_probe_install_target
 
 if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+
     from .config_flow import HaPaneldConfigFlow
 
 _LOGGER = logging.getLogger(__name__)
@@ -281,7 +283,12 @@ def offer_blocked(hass: HomeAssistant, address: str, flow_id: str) -> bool:
 
 @callback
 def close_offers(
-    hass: HomeAssistant, address: str, flow_id: str, *, pressed: bool = False
+    hass: HomeAssistant,
+    address: str,
+    flow_id: str,
+    *,
+    pressed: bool = False,
+    discovery_id: str | None = None,
 ) -> None:
     """Close every other card offering this address: its panel has a better one.
 
@@ -300,7 +307,11 @@ def close_offers(
         placeholders = flow["context"].get("title_placeholders", {})
         if (
             flow["flow_id"] == flow_id
-            or placeholders.get("address") != address
+            or (
+                flow["context"].get("unique_id") != discovery_id
+                if discovery_id is not None
+                else placeholders.get("address") != address
+            )
             or not (pressed or CONFIRMED not in placeholders)
         ):
             continue
@@ -331,19 +342,34 @@ async def async_check_migration_target(
         for entry in hass.config_entries.async_entries(DOMAIN)
         if entry.data.get(CONF_ADDRESS) == candidate["address"]
     }
+    if configured or any(
+        is_installation(entry) for entry in hass.config_entries.async_entries(DOMAIN)
+    ):
+        try:
+            address = normalize_address(candidate["address"])
+            health = await HaPaneldClient(
+                async_get_clientsession(hass), address
+            ).async_get_health()
+        except InvalidAddressError, CannotConnectError, InvalidResponseError:
+            pass
+        except Exception:
+            _LOGGER.debug("Could not verify a discovery target", exc_info=True)
+            return None
+        else:
+            known = (
+                hass.config_entries.async_entry_for_domain_unique_id(
+                    DOMAIN, health.discovery_id
+                )
+                if health.discovery_id is not None
+                else None
+            )
+            if configured or (known is not None and is_installation(known)):
+                return None
     if configured:
         # An unavailable app is not evidence of removal. Only the normal ADB
         # classifier can offer its kept entry for a clean reinstall.
         try:
             address = normalize_address(candidate["address"])
-            try:
-                await HaPaneldClient(
-                    async_get_clientsession(hass), address
-                ).async_get_health()
-            except CannotConnectError, InvalidResponseError:
-                pass
-            else:
-                return None
             probe = await async_probe_install_target(address)
         except Exception:
             _LOGGER.debug(
@@ -574,6 +600,10 @@ async def _async_discovered_app(
     except InvalidAddressError:
         return flow.async_abort(reason="invalid_discovery")
 
+    flow._pending_discovery_id = discovery_id
+    flow._pending_friendly_name = _presentation_safe_name(advertised_name)
+    if flow.hass.config_entries.flow.async_has_matching_flow(flow):
+        return flow.async_abort(reason="already_in_progress")
     await flow.async_set_unique_id(discovery_id)
     for existing in flow.hass.config_entries.async_entries(DOMAIN):
         if (
@@ -597,6 +627,10 @@ async def _async_discovered_app(
     # install card for this address is the same panel on a weaker channel.
     close_offers(flow.hass, address.stored_value, flow.flow_id)
     for existing in flow.hass.config_entries.async_entries(DOMAIN):
+        if reinstalled(flow.hass, existing, health) and not _entry_holds_its_address(
+            flow, existing
+        ):
+            return await flow._async_create_panel_entry(address, health)
         if existing.data.get(CONF_ADDRESS) == address.stored_value:
             accept_health(flow.hass, existing, health)
             return flow.async_abort(reason="already_configured")
@@ -626,8 +660,6 @@ async def _async_discovered_app(
 
     flow._pending_address = address
     flow._pending_health = health
-    flow._pending_discovery_id = discovery_id
-    flow._pending_friendly_name = _presentation_safe_name(advertised_name)
     # Without a title placeholder the card for every discovered panel falls back
     # to the bare integration name, so a fleet is a list of indistinguishable
     # duplicates. Prefer the human name the panel advertises, and fall back to the
@@ -738,10 +770,10 @@ def _set_discovery_title(flow: HaPaneldConfigFlow, display: str) -> None:
     # The address lets the other channels' cards, and an Ignore, find this one.
     assert flow._pending_address is not None
     flow.context["title_placeholders"] = {
+        **flow.context.get("title_placeholders", {}),
         "name": display,
         "address": flow._pending_address.stored_value,
     }
-    flow._discovery_title = display
 
 
 def _announced_discovery_names(
@@ -776,24 +808,28 @@ def _show_discovery_confirmation(
         description_placeholders={
             "address": flow._pending_address.stored_value,
             "panel_name": markdown_literal(
-                flow._discovery_title or flow._pending_health.panel_id
+                flow.context.get("title_placeholders", {}).get("name")
+                or flow._pending_health.panel_id
             ),
         },
         errors=errors,
     )
 
 
-def _entry_holds_its_address(flow: HaPaneldConfigFlow) -> bool:
+def _entry_holds_its_address(
+    flow: HaPaneldConfigFlow, entry: ConfigEntry | None = None
+) -> bool:
     """Return whether an advertisement must leave this panel's address alone.
 
     It must while the stored address still answers, or while the panel is
     connected, whose own session then moves the address if it has moved.
     """
-    if flow.unique_id is None:
-        return False
-    entry = flow.hass.config_entries.async_entry_for_domain_unique_id(
-        DOMAIN, flow.unique_id
-    )
+    if entry is None:
+        if flow.unique_id is None:
+            return False
+        entry = flow.hass.config_entries.async_entry_for_domain_unique_id(
+            DOMAIN, flow.unique_id
+        )
     coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
     return coordinator is not None and (
         bool(coordinator.reachable) or coordinator.connected

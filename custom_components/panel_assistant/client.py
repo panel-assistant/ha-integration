@@ -491,6 +491,7 @@ class PanelSetupState:
     """
 
     complete: bool
+    needs_user: bool | None = None
     accepts_handover: bool = False
     handover_url: str | None = None
     handover_reason: str | None = None
@@ -793,6 +794,9 @@ class HaPaneldClient:
         complete = document.get("complete")
         if not isinstance(complete, bool):
             raise InvalidResponseError
+        needs_user = document.get("needs_user", not complete)
+        if not isinstance(needs_user, bool):
+            raise InvalidResponseError
         # A panel older than the release that accepts a handover has no `handover`
         # object at all, and that absence IS the version gate: its config admission
         # refuses an unknown key, atomically, so posting the handover to it would
@@ -800,9 +804,12 @@ class HaPaneldClient:
         # therefore reads as "not supported" rather than as a malformed response.
         handover = document.get("handover")
         if not isinstance(handover, dict):
-            return PanelSetupState(complete=complete, accepts_handover=False)
+            return PanelSetupState(
+                complete=complete, needs_user=needs_user, accepts_handover=False
+            )
         return PanelSetupState(
             complete=complete,
+            needs_user=needs_user,
             accepts_handover=handover.get("supported") is True,
             handover_url=_optional_string(handover.get("url")),
             handover_reason=_optional_string(handover.get("reason")),

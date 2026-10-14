@@ -343,3 +343,48 @@ async def test_the_handover_tells_the_installer_what_display_size_to_apply(
 
     assert status == 200
     assert body["display"] == expected
+
+
+@pytest.mark.parametrize("with_card", [False, True])
+async def test_usb_registration_replaces_an_ignored_discovery(
+    hass, endpoint, with_card
+):
+    """An explicit USB install supersedes Ignore only when registration finishes."""
+    from homeassistant import config_entries
+    from homeassistant.data_entry_flow import FlowResultType
+
+    from .config_flow_helpers import _zeroconf_info
+
+    if with_card:
+        card = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=_zeroconf_info(discovery_id=_HEALTH.discovery_id, host="192.168.1.20"),
+        )
+        assert card["type"] is FlowResultType.FORM
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_IGNORE},
+        data={"unique_id": _HEALTH.discovery_id, "title": "Ignored panel"},
+    )
+    ignored = result["result"]
+    panel = _Panel(PanelSetupState(complete=False, accepts_handover=True))
+    with patch(
+        "custom_components.panel_assistant.browser_delivery.async_read_recommended_sizing",
+        AsyncMock(return_value=None),
+    ):
+        status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+    assert status == 200
+    assert body["registration"] == "added"
+    entries = hass.config_entries.async_entries(DOMAIN)
+    assert len(entries) == 1
+    assert entries[0].source != config_entries.SOURCE_IGNORE
+    assert entries[0].unique_id == _HEALTH.discovery_id
+    assert hass.config_entries.async_get_entry(ignored.entry_id) is None
+    with patch(
+        "custom_components.panel_assistant.browser_delivery.async_read_recommended_sizing",
+        AsyncMock(return_value=None),
+    ):
+        _, again = await _post(endpoint, panel, {"address": "192.168.1.20"})
+    assert again["registration"] == "already_configured"
+    assert hass.config_entries.async_entries(DOMAIN) == entries

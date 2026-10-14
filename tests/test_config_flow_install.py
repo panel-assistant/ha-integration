@@ -17,6 +17,7 @@ from custom_components.panel_assistant.client import (
     InvalidAddressError,
     InvalidResponseError,
     PanelAddress,
+    PanelSetupState,
 )
 from custom_components.panel_assistant.config_flow import (
     HaPaneldConfigFlow,
@@ -363,8 +364,8 @@ async def test_install_rejects_an_http_port_as_an_adb_port(
         ),
     ):
         client_class.return_value.async_get_health = health_mock
-        client_class.return_value.async_get_setup_complete = AsyncMock(
-            return_value=True
+        client_class.return_value.async_get_setup_state = AsyncMock(
+            return_value=PanelSetupState(complete=True)
         )
         form = await _start_step(hass, "add_panel")
         result = await hass.config_entries.flow.async_configure(

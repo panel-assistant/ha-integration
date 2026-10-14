@@ -6,11 +6,14 @@ import asyncio
 import contextlib
 import logging
 from dataclasses import replace
-from typing import Any
+from typing import Any, Self
 
 import voluptuous as vol
 from homeassistant.auth.models import User
 from homeassistant.config_entries import (
+    SOURCE_IGNORE,
+    SOURCE_USER,
+    SOURCE_ZEROCONF,
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
@@ -59,10 +62,14 @@ from .const import (
     CONF_TRANSPORT_USER_ID,
     DEFAULT_PORT,
     DOMAIN,
+    SOURCE_USB_INSTALL,
     help_url,
 )
 from .discovery import (
+    CONFIRMED,
     MigrationTarget,
+    _apply_discovery_title,
+    _entry_holds_its_address,
     address_schema,
     async_confirm_discovery,
     async_confirm_migration,
@@ -78,7 +85,7 @@ from .discovery import (
 )
 from .foreign_ha import async_connected_to_other_ha, async_raise_foreign_ha_issue
 from .ha_url import async_offer_ha_url
-from .identity import CONF_INSTALL_IDENTITY, accept_health, is_installation
+from .identity import CONF_INSTALL_IDENTITY, accept_health, is_installation, reinstalled
 from .install_adb import async_installed_artifact_size, async_preflight_install
 from .install_executor import (
     FinalizationOutcome,
@@ -177,7 +184,6 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     _pending_health: PanelHealth | None = None
     _pending_discovery_id: str | None = None
     _pending_friendly_name: str | None = None
-    _discovery_title: str | None = None
     _pending_probe: InstallTargetProbe | None = None
     _pending_probe_state: str | None = None
     _pending_release: ReleaseArtifact | None = None
@@ -195,6 +201,22 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     _pending_bind_user_id: str | None = None
     _migration_targets: list[MigrationTarget] | None = None
     _migration_target: MigrationTarget | None = None
+
+    def is_matching(self, other_flow: Self) -> bool:
+        """Enrich the pending card when the app follows its vendor announcement."""
+        if (
+            self._pending_discovery_id is None
+            or self._pending_discovery_id != other_flow.unique_id
+            or other_flow._pending_health is None
+        ):
+            return False
+        if (
+            self._pending_friendly_name is not None
+            and CONFIRMED not in other_flow.context.get("title_placeholders", {})
+        ):
+            other_flow._pending_friendly_name = self._pending_friendly_name
+            _apply_discovery_title(other_flow)
+        return True
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -373,15 +395,35 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         """
         assert self._pending_address is not None
         assert self._pending_health is not None
+        known = (
+            self.hass.config_entries.async_entry_for_domain_unique_id(
+                DOMAIN, self._pending_health.discovery_id
+            )
+            if self._pending_health.discovery_id is not None
+            else None
+        )
+        if self._pending_job_id is None and (
+            (known is not None and known.source != SOURCE_IGNORE)
+            or any(
+                reinstalled(self.hass, entry, self._pending_health)
+                for entry in self.hass.config_entries.async_entries(DOMAIN)
+            )
+        ):
+            return await self._async_create_panel_entry(
+                self._pending_address, self._pending_health
+            )
         try:
-            complete = await self._found_client().async_get_setup_complete()
+            state = await self._found_client().async_get_setup_state()
+            needs_user = (
+                state.needs_user if state.needs_user is not None else not state.complete
+            )
         except HaPaneldError:
-            complete = True
+            needs_user = False
         return self.async_show_menu(
-            step_id="found_panel" if complete else "found_unconfigured",
+            step_id="found_unconfigured" if needs_user else "found_panel",
             menu_options=(
                 ["connect_found", "add_panel"]
-                if complete
+                if not needs_user
                 else ["panel_setup", "connect_found", "add_panel"]
             ),
             description_placeholders={
@@ -1234,6 +1276,24 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         made unbound and the panel raises its own Repairs issue when it asks.
         """
         for existing in self.hass.config_entries.async_entries(DOMAIN):
+            if (
+                reinstalled(self.hass, existing, health)
+                and not (
+                    self._pending_job_id is not None
+                    and existing is self._pending_reinstall_entry
+                )
+                and not (
+                    self.source == SOURCE_ZEROCONF
+                    and _entry_holds_its_address(self, existing)
+                )
+            ):
+                if accept_health(self.hass, existing, health):
+                    self.hass.config_entries.async_update_entry(
+                        existing,
+                        data={**existing.data, CONF_ADDRESS: address.stored_value},
+                    )
+                # A busy operation owns adoption; it must never create a duplicate.
+                return self.async_abort(reason="already_configured")
             if existing.data.get(CONF_ADDRESS) == address.stored_value:
                 accepted = accept_health(self.hass, existing, health)
                 if (
@@ -1261,12 +1321,18 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             known = self.hass.config_entries.async_entry_for_domain_unique_id(
                 DOMAIN, health.discovery_id
             )
-            if known is not None and not is_installation(known):
+            replace_ignore = (
+                known is not None
+                and known.source == SOURCE_IGNORE
+                and self.source in {SOURCE_USER, SOURCE_USB_INSTALL}
+            )
+            if known is not None and not is_installation(known) and not replace_ignore:
                 return self.async_abort(reason="already_configured")
             await self.async_set_unique_id(health.discovery_id, raise_on_progress=False)
-            self._abort_if_unique_id_configured(
-                updates={CONF_ADDRESS: address.stored_value}, reload_on_update=False
-            )
+            if not replace_ignore:
+                self._abort_if_unique_id_configured(
+                    updates={CONF_ADDRESS: address.stored_value}, reload_on_update=False
+                )
         self._pending_address = address
         self._pending_health = health
         user = await self._async_asking_user() if confirm_account else None
@@ -1311,7 +1377,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="confirm_user",
             menu_options=["bind_user", "skip_binding"],
             description_placeholders={
-                "panel": self._discovery_title or self._pending_health.panel_id,
+                "panel": self.context.get("title_placeholders", {}).get("name")
+                or self._pending_health.panel_id,
                 "user": user.name or "",
             },
         )
@@ -1366,10 +1433,22 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             data[CONF_INSTALL_IDENTITY] = True
         if user_id is not None:
             data[CONF_TRANSPORT_USER_ID] = user_id
+        known = (
+            self.hass.config_entries.async_entry_for_domain_unique_id(
+                DOMAIN, self.unique_id
+            )
+            if self.unique_id is not None
+            else None
+        )
+        if known is not None and known.source == SOURCE_IGNORE:
+            # Core skips async_on_create_entry when it replaces Ignore. The
+            # explicit flow is committing now, so its other cards can close.
+            close_offers(self.hass, address.stored_value, self.flow_id, pressed=True)
         # A discovered panel keeps the name its card promised. A manually added one
         # has no advertisement to read, so it stays on the panel id.
         return self.async_create_entry(
-            title=self._discovery_title or health.panel_id,
+            title=self.context.get("title_placeholders", {}).get("name")
+            or health.panel_id,
             data=data,
         )
 

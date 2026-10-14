@@ -321,6 +321,9 @@ def _commit_identity(
     hass.config_entries.async_update_entry(entry, unique_id=did, data=data)
     ir.async_delete_issue(hass, DOMAIN, f"{ISSUE_IDENTITY}_{entry.entry_id}")
     ir.async_delete_issue(hass, DOMAIN, f"panel_identity_mismatch_{entry.entry_id}")
+    from .discovery import close_offers
+
+    close_offers(hass, entry.data[CONF_ADDRESS], "", pressed=True, discovery_id=did)
     if reload:
         hass.async_create_task(hass.config_entries.async_reload(entry.entry_id))
 

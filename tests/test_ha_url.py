@@ -443,3 +443,9 @@ async def test_setup_complete_still_reads_through_the_richer_state() -> None:
     """The narrow caller keeps working, so one read answers both questions."""
     client = _client_returning(b'{"complete":true,"handover":{"supported":true}}')
     assert await client.async_get_setup_complete() is True
+
+
+async def test_automatic_render_proof_is_not_reported_as_setup_complete() -> None:
+    """The completion poll waits for readiness even when no wizard step is needed."""
+    client = _client_returning(b'{"complete":false,"needs_user":false}')
+    assert await client.async_get_setup_complete() is False
