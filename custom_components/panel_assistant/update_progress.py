@@ -38,6 +38,7 @@ from .update_coordinator import PanelUpdateCoordinator
 from .update_errors import _update_error, refusal_error
 
 _ANDROID_DOWNLOAD_MAX_SECONDS = 10 * 60
+_ANDROID_CONFIRMATION_MAX_SECONDS = 5 * 60
 _ANDROID_PACKAGE_INSTALL_MAX_SECONDS = 3 * 60
 _RESTART_HEALTH_GRACE_SECONDS = 60
 # Android bounds the signed release download to ten minutes and package-manager
@@ -83,6 +84,25 @@ _PROGRESS_REDRAW = timedelta(seconds=2)
 
 def _now() -> float:
     return time.monotonic()
+
+
+def _confirmation_completion_deadline(
+    operation: PanelInstallStatus | None, component: str
+) -> float | None:
+    """Bound the panel's five-minute prompt plus installation and fresh health."""
+    if (
+        operation is not None
+        and operation.running
+        and operation.component == component
+        and operation.awaiting_confirmation
+    ):
+        return (
+            asyncio.get_running_loop().time()
+            + _ANDROID_CONFIRMATION_MAX_SECONDS
+            + _ANDROID_PACKAGE_INSTALL_MAX_SECONDS
+            + _RESTART_HEALTH_GRACE_SECONDS
+        )
+    return None
 
 
 class UpdateProgress:
@@ -233,6 +253,8 @@ class UpdateProgress:
             else None
         )
         deadline = asyncio.get_running_loop().time() + _UPDATE_TIMEOUT_SECONDS
+        # Retain the first prompt observation; later polls cannot renew it.
+        confirmation_deadline: float | None = None
         starting_version = (
             _version_key(starting_health.version)
             if starting_health is not None
@@ -292,6 +314,12 @@ class UpdateProgress:
                 status = None
             if expected_version is not None:
                 self._raise_finished_failure(hass, status, "ha-paneld")
+            if confirmation_deadline is None:
+                confirmation_deadline = _confirmation_completion_deadline(
+                    status, "ha-paneld"
+                )
+                if confirmation_deadline is not None:
+                    deadline = max(deadline, confirmation_deadline)
             if (
                 expected_version is None
                 and status is not None
@@ -350,6 +378,8 @@ class UpdateProgress:
             + _ANDROID_PACKAGE_INSTALL_MAX_SECONDS
             + _RESTART_HEALTH_GRACE_SECONDS
         )
+        # Retain the first prompt observation; later polls cannot renew it.
+        confirmation_deadline: float | None = None
         while loop.time() < deadline:
             await coordinator.async_request_refresh()
             self.hold_through_restart(hass)
@@ -409,5 +439,11 @@ class UpdateProgress:
                 if install is not None and install.message.startswith("refused ("):
                     raise UpdateRejectedError(install.message)
                 self._raise_finished_failure(hass, install, "APK")
+                if confirmation_deadline is None:
+                    confirmation_deadline = _confirmation_completion_deadline(
+                        install, "APK"
+                    )
+                    if confirmation_deadline is not None:
+                        deadline = max(deadline, confirmation_deadline)
             await asyncio.sleep(_UPDATE_RECHECK_SECONDS)
         raise _update_error("update_not_complete", "The panel update did not complete")
