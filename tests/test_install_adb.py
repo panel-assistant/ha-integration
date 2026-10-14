@@ -33,13 +33,19 @@ from custom_components.panel_assistant.adb_protocol import (
 )
 from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
 from custom_components.panel_assistant.client import PanelAddress
+from custom_components.panel_assistant.display_provisioning import DisplaySizing
 from custom_components.panel_assistant.install_adb import (
     DefiniteCleanupReason,
+    MoveStep,
+    async_apply_display_sizing,
     async_cleanup_staged_apk,
     async_install_staged_apk,
     async_installed_artifact_size,
     async_launch_installed_app,
+    async_move_step,
     async_preflight_install,
+    async_restore_display_sizing,
+    async_restore_vendor_setup,
     async_stage_apk,
     async_update_installed_apk,
     async_verify_installed_target,
@@ -3312,3 +3318,136 @@ async def test_data_with_no_application_to_own_it_is_never_an_installed_target(
         )
 
     assert caught.value.code is InstallAdbErrorCode.TARGET_NOT_CLEAN
+
+
+async def test_in_place_update_refuses_an_occupied_staging_path_before_push(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+) -> None:
+    apk = tmp_path / "release.apk"
+    _write_private_apk(apk)
+    fake = FakeDevice(
+        [
+            _preflight_output(
+                NONCES[0], retained_lines=[f"package:{descriptor.package_id}"]
+            ),
+            _installed_package_output(NONCES[1]),
+            _single_output("PATH", NONCES[2], ["present"], 0),
+            # A panel that pushed over the file would read on into these.
+            AdbConnectionError("peer EOF"),
+            AdbConnectionError("peer EOF"),
+        ]
+    )
+    _install_update_fake(monkeypatch, fake)
+
+    with pytest.raises(InstallAdbError) as caught:
+        await async_update_installed_apk(
+            target, signer, descriptor, apk, before_install=_allow_install
+        )
+
+    assert caught.value.code is InstallAdbErrorCode.STAGING_PATH_OCCUPIED
+    assert fake.pushes == []
+    assert all("rm -f" not in command for command in fake.commands)
+
+
+_HAND_BACKS = {
+    "vendor_restore": lambda target, signer: async_restore_vendor_setup(target, signer),
+    "display_restore": lambda target, signer: async_restore_display_sizing(
+        target, signer
+    ),
+    "display_sizing": lambda target, signer: async_apply_display_sizing(
+        target, signer, DisplaySizing(density=240, font_scale=1.0)
+    ),
+}
+
+
+@pytest.mark.parametrize("hand_back", list(_HAND_BACKS))
+async def test_a_hand_back_program_on_another_device_is_never_sent(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    hand_back: str,
+) -> None:
+    fake = FakeDevice([_identity_root_output(NONCES[0], serial="SERIAL-2")])
+    _install_fakes(monkeypatch, [fake])
+
+    with pytest.raises(InstallAdbError) as caught:
+        await _HAND_BACKS[hand_back](target, signer)
+
+    assert caught.value.code is InstallAdbErrorCode.TARGET_CHANGED
+    assert len(fake.commands) == 1
+
+
+async def test_a_display_restore_answer_in_no_known_shape_is_an_unreachable_panel(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+) -> None:
+    fake = FakeDevice(
+        [
+            _identity_root_output(NONCES[0]),
+            _single_output("DISPLAY_RESTORE", NONCES[1], ["maybe"], 0),
+        ]
+    )
+    _install_fakes(monkeypatch, [fake])
+
+    with pytest.raises(InstallAdbError) as caught:
+        await async_restore_display_sizing(target, signer)
+
+    assert caught.value.code is InstallAdbErrorCode.TARGET_UNREACHABLE
+
+
+@pytest.mark.parametrize(("old_app_back", "copy_removals"), [(False, 0), (True, 1)])
+async def test_restoring_the_old_app_drops_its_copy_only_once_it_is_back(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    old_app_back: bool,
+    copy_removals: int,
+) -> None:
+    """Run the real restore program in ``sh`` over stand-ins for the panel's tools.
+
+    The kept copy is the only way back onto the data Android kept, so it goes
+    only when the package manager shows the old app installed again.
+    """
+    tools, log = tmp_path / "bin", tmp_path / "rm.log"
+    tools.mkdir()
+    back = (
+        f"echo package:/data/app/{LEGACY_PACKAGE_ID}/base.apk" if old_app_back else ":"
+    )
+    scripts = {
+        "pm": f'#!/bin/sh\n[ "$*" = "path {LEGACY_PACKAGE_ID}" ] && {back}\nexit 0\n',
+        "rm": f'#!/bin/sh\necho "$*" >> {log}\n',
+        **{name: "#!/bin/sh\nexit 1\n" for name in ("su", "cmd", "dumpsys", "getprop")},
+    }
+    for name, script in scripts.items():
+        (tools / name).write_text(script)
+        (tools / name).chmod(0o755)
+
+    async def panel_shell(_device: Any, command: str, **_kwargs: Any) -> bytes:
+        process = await asyncio.create_subprocess_exec(
+            "sh",
+            "-c",
+            command,
+            stdout=asyncio.subprocess.PIPE,
+            env={**os.environ, "PATH": f"{tools}:{os.environ['PATH']}"},
+        )
+        stdout, _ = await process.communicate()
+        return stdout
+
+    _install_fakes(monkeypatch, [FakeDevice([])])
+    monkeypatch.setattr(install_adb, "token_hex", lambda _length: NONCES[0])
+    monkeypatch.setattr(install_adb, "_parse_identity_root", lambda *_args: None)
+    monkeypatch.setattr(install_adb, "_async_shell", panel_shell)
+
+    await async_move_step(target, signer, MoveStep.RESTORE_LEGACY)
+
+    removals = log.read_text().splitlines() if log.exists() else []
+    assert (
+        removals.count("-f /data/local/tmp/panel-assistant-old-app.apk")
+        == copy_removals
+    )
