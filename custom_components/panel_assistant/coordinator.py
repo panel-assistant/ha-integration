@@ -107,6 +107,9 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         # (remote, reported). Kept after the session ends, so a panel that
         # moved while disconnected is still looked for there.
         self._last_hello: tuple[str | None, tuple[str, ...]] | None = None
+        from .vendor_recovery import VendorRecovery
+
+        self._vendor_recovery = VendorRecovery(self)
 
     @property
     def connected(self) -> bool:
@@ -164,6 +167,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         def _changed() -> None:
             _remember()
             self.async_update_listeners()
+            self._vendor_recovery.changed()
             if self.connected and not self.reachable:
                 self.hass.async_create_task(
                     self.async_request_refresh(),
@@ -171,9 +175,16 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                 )
 
         _remember()
-        return async_dispatcher_connect(
+        unsubscribe = async_dispatcher_connect(
             self.hass, signal_session_changed(self._entry_id), _changed
         )
+        self._vendor_recovery.observe(self.data)
+
+        def stop_following() -> None:
+            self._vendor_recovery.close()
+            unsubscribe()
+
+        return stop_following
 
     @callback
     def async_follow_refused_hello(
@@ -207,10 +218,12 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                 if isinstance(outcome, BaseException):
                     raise outcome
             assert isinstance(snapshot, PanelSnapshot)
+            self._vendor_recovery.observe(snapshot)
             return snapshot
         self.reachable = False
         snapshot = await self._async_poll_address()
         self.reachable = True
+        self._vendor_recovery.observe(snapshot)
         return snapshot
 
     async def _async_read_session(self, session: PanelSession) -> PanelSnapshot:
