@@ -642,6 +642,7 @@ def test_job_authority_rejects_targets_the_network_plan_cannot_produce(
                 "database_compatibility": ("hapaneld-db:v1:ha-paneld.db:1:9999999999"),
             }
         ),
+        InstallArtifact(**{**asdict(artifact()), "signer_certificate_sha256": "0" * 64}),
     ],
 )
 def test_job_authority_matches_authenticated_descriptor_bounds(
@@ -3453,3 +3454,123 @@ async def test_an_artifact_size_is_refused_at_every_other_transition(
             preflight_root_mode="rootless",
             actual_apk_bytes=12_345,
         )
+
+
+@pytest.mark.parametrize(
+    "phase",
+    [
+        InstallPhase.INSTALLING,
+        InstallPhase.INSTALLED,
+        InstallPhase.LAUNCHING,
+        InstallPhase.HEALTH_CHECK,
+    ],
+)
+async def test_cancel_request_is_refused_once_install_has_started(
+    hass: HomeAssistant, phase: InstallPhase
+) -> None:
+    """A cancel pressed after the install began is not durably accepted."""
+    manager = InstallJobManager(hass, now=Clock())
+    receipt = await receipt_at_phase(manager, phase)
+
+    with pytest.raises(InstallJobTransitionError):
+        await manager.async_request_cancel(receipt.job_id, receipt.revision)
+
+    stored = await InstallJobManager(hass, now=Clock()).async_get(receipt.job_id)
+    assert stored.cancel_requested is False
+    assert stored.revision == receipt.revision
+
+
+async def test_healthy_unclaimed_receipt_cannot_be_claimed_again(
+    hass: HomeAssistant,
+) -> None:
+    """A resume never spends an attempt on a healthy, unconsumed install."""
+    receipt = await receipt_at_phase(
+        InstallJobManager(hass, now=Clock()), InstallPhase.HEALTHY_UNCLAIMED
+    )
+    restarted = InstallJobManager(hass, now=Clock())
+
+    with pytest.raises(InstallJobTransitionError):
+        await restarted.async_claim(receipt.job_id, receipt.revision)
+
+    stored = await InstallJobManager(hass, now=Clock()).async_get(receipt.job_id)
+    assert stored == receipt
+
+
+@pytest.mark.parametrize(
+    ("source", "destination"),
+    [
+        (InstallPhase.REVALIDATING, InstallPhase.INSTALLING),
+        (InstallPhase.ARTIFACT_READY, InstallPhase.STAGING),
+    ],
+)
+async def test_a_revalidation_or_staging_skip_is_refused(
+    hass: HomeAssistant, source: InstallPhase, destination: InstallPhase
+) -> None:
+    """The executor cannot jump over the revalidation or staging barrier."""
+    manager = InstallJobManager(hass, now=Clock())
+    receipt = await receipt_at_phase(manager, source)
+
+    with pytest.raises(InstallJobTransitionError):
+        await manager.async_transition(receipt.job_id, receipt.revision, destination)
+
+    stored = await InstallJobManager(hass, now=Clock()).async_get(receipt.job_id)
+    assert (stored.phase, stored.revision) == (source, receipt.revision)
+
+
+async def test_a_cancel_request_stops_forward_progress(hass: HomeAssistant) -> None:
+    """After a cancel request the executor may only stop, never advance."""
+    manager = InstallJobManager(hass, now=Clock())
+    receipt = await receipt_at_phase(manager, InstallPhase.AUTHORIZING)
+    requested = await manager.async_request_cancel(receipt.job_id, receipt.revision)
+
+    with pytest.raises(InstallJobTransitionError):
+        await manager.async_transition(
+            requested.job_id, requested.revision, InstallPhase.PREFLIGHT
+        )
+
+    stored = await InstallJobManager(hass, now=Clock()).async_get(receipt.job_id)
+    assert stored.phase == InstallPhase.AUTHORIZING
+    assert stored.cancel_requested is True
+    cancelled = await manager.async_transition(
+        requested.job_id,
+        requested.revision,
+        InstallPhase.CANCELLED,
+        result_code=InstallResultCode.CANCELLED_BY_USER,
+    )
+    assert cancelled.phase == InstallPhase.CANCELLED
+
+
+async def test_a_store_moved_aside_as_corrupt_fails_closed(
+    hass: HomeAssistant, hass_storage: dict[str, Any]
+) -> None:
+    """A Store Home Assistant moved aside as corrupt never reads as empty."""
+    store_path = Path(Store(hass, 1, f"{DOMAIN}.install_jobs").path)
+    store_path.parent.mkdir(parents=True, exist_ok=True)
+    (store_path.parent / f"{store_path.name}.corrupt.20261013").write_text("{")
+
+    with pytest.raises(InstallJobStoreError):
+        await InstallJobManager(hass, now=Clock()).async_list()
+    with pytest.raises(InstallJobStoreError):
+        await create(InstallJobManager(hass, now=Clock()))
+    assert f"{DOMAIN}.install_jobs" not in hass_storage
+
+
+async def test_a_terminal_failure_cannot_record_an_artifact_size(
+    hass: HomeAssistant,
+) -> None:
+    """A job that failed before any download never claims a downloaded size."""
+    manager = InstallJobManager(hass, now=Clock())
+    receipt = await receipt_at_phase(manager, InstallPhase.AUTHORIZING)
+
+    with pytest.raises(InstallJobTransitionError):
+        await manager.async_transition(
+            receipt.job_id,
+            receipt.revision,
+            InstallPhase.FAILED,
+            result_code=InstallResultCode.AUTHORIZATION_FAILED,
+            actual_apk_bytes=artifact().apk_size,
+        )
+
+    stored = await InstallJobManager(hass, now=Clock()).async_get(receipt.job_id)
+    assert (stored.phase, stored.revision) == (InstallPhase.AUTHORIZING, receipt.revision)
+    assert stored.actual_apk_bytes is None
