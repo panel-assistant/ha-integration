@@ -642,7 +642,9 @@ def test_job_authority_rejects_targets_the_network_plan_cannot_produce(
                 "database_compatibility": ("hapaneld-db:v1:ha-paneld.db:1:9999999999"),
             }
         ),
-        InstallArtifact(**{**asdict(artifact()), "signer_certificate_sha256": "0" * 64}),
+        InstallArtifact(
+            **{**asdict(artifact()), "signer_certificate_sha256": "0" * 64}
+        ),
     ],
 )
 def test_job_authority_matches_authenticated_descriptor_bounds(
@@ -3572,5 +3574,8 @@ async def test_a_terminal_failure_cannot_record_an_artifact_size(
         )
 
     stored = await InstallJobManager(hass, now=Clock()).async_get(receipt.job_id)
-    assert (stored.phase, stored.revision) == (InstallPhase.AUTHORIZING, receipt.revision)
+    assert (stored.phase, stored.revision) == (
+        InstallPhase.AUTHORIZING,
+        receipt.revision,
+    )
     assert stored.actual_apk_bytes is None

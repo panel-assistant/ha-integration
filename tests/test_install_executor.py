@@ -1192,7 +1192,8 @@ async def test_same_connection_root_drift_fails_closed_before_mutation(
 async def test_same_connection_target_change_at_launch_requires_recovery(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """An installed app whose device identity changed at launch is not a clean failure."""
+    """An installed app whose device identity changed at launch is not a clean
+    failure."""
     manager = InstallJobManager(hass)
     receipt = await create_job(manager)
     harness = Harness(monkeypatch)
