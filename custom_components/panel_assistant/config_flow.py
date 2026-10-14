@@ -1114,9 +1114,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                     self.hass, receipt.target.address, self.flow_id, pressed=True
                 )
                 self._finalizer_job_id = None
-                return await self._async_continue_onboarding(
-                    retained, self.async_abort(reason="reinstall_successful")
-                )
+                self._pending_reinstall_entry = retained
+                self._pending_address = normalize_address(receipt.target.address)
+                self._pending_health = result.health
+                return await self.async_step_panel_setup()
             executor.release_finalizer(receipt.job_id, self.flow_id)
             self._finalizer_job_id = None
             return self.async_abort(
@@ -1185,23 +1186,18 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             ) and async_raise_foreign_ha_issue(self.hass, entry):
                 result["description"] = "another_home_assistant"
         if job_id is not None and isinstance(entry, ConfigEntry):
-            return await self._async_continue_onboarding(entry, result)
-        return result
-
-    async def _async_continue_onboarding(
-        self, entry: ConfigEntry, result: ConfigFlowResult
-    ) -> ConfigFlowResult:
-        """Continue setup against an existing entry after releasing its lease."""
-        try:
-            continuation = await self.hass.config_entries.options.async_init(
-                entry.entry_id, context={"source": "onboarding"}
-            )
-        except Exception:
-            _LOGGER.exception("Could not open panel onboarding after installation")
-        else:
-            # The entry already exists for both creation and reinstall. Core's
-            # finish-flow manager validates this options flow on either result.
-            result["next_flow"] = (FlowType.OPTIONS_FLOW, continuation["flow_id"])
+            # Human sign-in must never retain the install finalizer lease. Core
+            # supports continuing into options only after adding the entry.
+            try:
+                continuation = await self.hass.config_entries.options.async_init(
+                    entry.entry_id, context={"source": "onboarding"}
+                )
+            except Exception:
+                _LOGGER.exception(
+                    "Could not open panel onboarding after entry creation"
+                )
+            else:
+                result["next_flow"] = (FlowType.OPTIONS_FLOW, continuation["flow_id"])
         return result
 
     def async_remove(self) -> None:
@@ -1239,8 +1235,21 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         """
         for existing in self.hass.config_entries.async_entries(DOMAIN):
             if existing.data.get(CONF_ADDRESS) == address.stored_value:
-                accept_health(self.hass, existing, health)
-                return self.async_abort(reason="already_configured")
+                accepted = accept_health(self.hass, existing, health)
+                if (
+                    existing is not self._pending_reinstall_entry
+                    or self._pending_job_id is None
+                ):
+                    return self.async_abort(reason="already_configured")
+                if not accepted:
+                    return self.async_abort(reason="reinstall_identity_mismatch")
+                self._pending_address = address
+                self._pending_health = health
+                user = await self._async_asking_user() if confirm_account else None
+                if user is not None:
+                    self._pending_bind_user_id = user.id
+                    return await self.async_step_confirm_user()
+                return self._async_finish_panel_entry(address, health)
         # A panel that reports its identity is known by it. Adding a known panel
         # again, at the address it has moved to, repairs its entry's stored
         # address rather than creating a second entry for one panel: health at
@@ -1340,6 +1349,18 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Create the entry, bound to a confirmed account or to none."""
         async_discard_binding_request(self.hass, health.discovery_id)
+        retained = self._pending_reinstall_entry
+        if self._pending_job_id is not None and retained is not None:
+            if (
+                self.hass.config_entries.async_get_entry(retained.entry_id)
+                is not retained
+                or retained.data.get(CONF_ADDRESS) != address.stored_value
+                or not accept_health(self.hass, retained, health)
+            ):
+                return self.async_abort(reason="reinstall_identity_mismatch")
+            if user_id is not None:
+                async_bind_user(self.hass, retained, user_id)
+            return self.async_abort(reason="reinstall_successful")
         data: dict[str, Any] = {CONF_ADDRESS: address.stored_value}
         if health.installation_identity:
             data[CONF_INSTALL_IDENTITY] = True

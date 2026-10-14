@@ -5,7 +5,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant import config_entries
-from homeassistant.config_entries import FlowType
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -17,6 +16,7 @@ from custom_components.panel_assistant.client import CannotConnectError
 from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
 from custom_components.panel_assistant.install_executor import InstallExecutor
 from custom_components.panel_assistant.install_receipt import InstallPhase
+from custom_components.panel_assistant.transport import async_record_binding_request
 
 from . import config_flow_helpers
 from .config_flow_helpers import RELEASE, _choose_version, _probe, _start_step
@@ -83,6 +83,7 @@ async def test_kept_panel_installs_into_its_original_entry(
         )
     assert kept["reason"] == "removed_entry_kept"
 
+    signed_in = await hass.auth.async_create_user("Panel account")
     receipt = _receipt(InstallPhase.HEALTHY_UNCLAIMED)
     manager = _manager_for(receipt)
     executor = InstallExecutor(hass, manager)
@@ -175,13 +176,30 @@ async def test_kept_panel_installs_into_its_original_entry(
                 result = await hass.config_entries.flow.async_configure(
                     progress["flow_id"]
                 )
+            assert result["type"] is FlowResultType.EXTERNAL_STEP
+            assert result["step_id"] == "panel_setup"
+            assert result["url"] == "http://192.168.1.23:8888/setup"
+            assert not executor.is_finalizer_active(receipt.job_id)
+            if route == "address":
+                async_record_binding_request(hass, NEW, signed_in.id)
+            result = await hass.config_entries.flow.async_configure(
+                result["flow_id"], {}
+            )
+            assert result["type"] is FlowResultType.EXTERNAL_STEP_DONE
+            result = await hass.config_entries.flow.async_configure(
+                result["flow_id"], {}
+            )
+            if route == "address":
+                assert result["step_id"] == "confirm_user"
+                assert entry.data[CONF_TRANSPORT_USER_ID] == "retained-panel-user"
+                result = await hass.config_entries.flow.async_configure(
+                    result["flow_id"], {"next_step_id": "bind_user"}
+                )
         assert result["type"] is FlowResultType.ABORT
         assert result["reason"] == "reinstall_successful"
-        assert result.get("next_flow", (None,))[0] is FlowType.OPTIONS_FLOW
-        continuation = hass.config_entries.options.async_get(result["next_flow"][1])
-        assert continuation["handler"] == entry.entry_id
-        assert continuation["step_id"] == "onboarding"
-        assert entry.data[CONF_TRANSPORT_USER_ID] == "retained-panel-user"
+        assert entry.data[CONF_TRANSPORT_USER_ID] == (
+            signed_in.id if route == "address" else "retained-panel-user"
+        )
     await hass.async_block_till_done()
     assert hass.config_entries.async_entries(DOMAIN) == [entry]
     assert entry.unique_id == NEW
@@ -237,6 +255,7 @@ async def test_reinstall_does_not_give_an_unlinked_panel_the_kept_history(
         result = await _direct_result_flow(
             hass, receipt, executor
         ).async_step_install_result()
+    assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reinstall_identity_mismatch"
     assert hass.config_entries.async_entries(DOMAIN) == [entry]
     assert entry.unique_id == OLD
