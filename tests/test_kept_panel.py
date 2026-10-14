@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant import config_entries
+from homeassistant.config_entries import FlowType
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -13,7 +14,7 @@ from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.client import CannotConnectError
-from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
 from custom_components.panel_assistant.install_executor import InstallExecutor
 from custom_components.panel_assistant.install_receipt import InstallPhase
 
@@ -49,6 +50,7 @@ async def test_kept_panel_installs_into_its_original_entry(
             CONF_ADDRESS: "panel.local",
             "installation_identity": True,
             "legacy_did": LINK,
+            CONF_TRANSPORT_USER_ID: "retained-panel-user",
         },
     )
     entry.add_to_hass(hass)
@@ -160,6 +162,7 @@ async def test_kept_panel_installs_into_its_original_entry(
         progress = await hass.config_entries.flow.async_configure(
             confirm["flow_id"], {}
         )
+        assert progress["type"] is FlowResultType.SHOW_PROGRESS
         assert progress["step_id"] == "install_progress"
         manager.async_create_or_join.assert_awaited_once()
         manager.async_get.return_value = replace(
@@ -174,6 +177,11 @@ async def test_kept_panel_installs_into_its_original_entry(
                 )
         assert result["type"] is FlowResultType.ABORT
         assert result["reason"] == "reinstall_successful"
+        assert result.get("next_flow", (None,))[0] is FlowType.OPTIONS_FLOW
+        continuation = hass.config_entries.options.async_get(result["next_flow"][1])
+        assert continuation["handler"] == entry.entry_id
+        assert continuation["step_id"] == "onboarding"
+        assert entry.data[CONF_TRANSPORT_USER_ID] == "retained-panel-user"
     await hass.async_block_till_done()
     assert hass.config_entries.async_entries(DOMAIN) == [entry]
     assert entry.unique_id == NEW

@@ -416,8 +416,13 @@ async def test_install_existing_duplicate_address_is_rejected(
     assert duplicate["reason"] == "already_configured"
 
 
+@pytest.mark.parametrize(
+    "state",
+    ["adb_unreachable", "installed", "migration_candidate", "retained_or_ambiguous"],
+)
 async def test_install_unavailable_duplicate_without_clean_probe_is_rejected(
     hass: HomeAssistant,
+    state: str,
 ) -> None:
     """An unavailable endpoint is not proof that its app was removed."""
     MockConfigEntry(
@@ -426,7 +431,7 @@ async def test_install_unavailable_duplicate_without_clean_probe_is_rejected(
         data={CONF_ADDRESS: "panel.local"},
     ).add_to_hass(hass)
     health_mock = AsyncMock(side_effect=CannotConnectError)
-    probe_mock = AsyncMock(return_value=_probe("adb_unreachable"))
+    probe_mock = AsyncMock(return_value=_probe(state))
     with (
         patch(
             "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",

@@ -1114,7 +1114,9 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                     self.hass, receipt.target.address, self.flow_id, pressed=True
                 )
                 self._finalizer_job_id = None
-                return self.async_abort(reason="reinstall_successful")
+                return await self._async_continue_onboarding(
+                    retained, self.async_abort(reason="reinstall_successful")
+                )
             executor.release_finalizer(receipt.job_id, self.flow_id)
             self._finalizer_job_id = None
             return self.async_abort(
@@ -1183,18 +1185,23 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             ) and async_raise_foreign_ha_issue(self.hass, entry):
                 result["description"] = "another_home_assistant"
         if job_id is not None and isinstance(entry, ConfigEntry):
-            # Human sign-in must never retain the install finalizer lease. Core
-            # supports continuing into options only after adding the entry.
-            try:
-                continuation = await self.hass.config_entries.options.async_init(
-                    entry.entry_id, context={"source": "onboarding"}
-                )
-            except Exception:
-                _LOGGER.exception(
-                    "Could not open panel onboarding after entry creation"
-                )
-            else:
-                result["next_flow"] = (FlowType.OPTIONS_FLOW, continuation["flow_id"])
+            return await self._async_continue_onboarding(entry, result)
+        return result
+
+    async def _async_continue_onboarding(
+        self, entry: ConfigEntry, result: ConfigFlowResult
+    ) -> ConfigFlowResult:
+        """Continue setup against an existing entry after releasing its lease."""
+        try:
+            continuation = await self.hass.config_entries.options.async_init(
+                entry.entry_id, context={"source": "onboarding"}
+            )
+        except Exception:
+            _LOGGER.exception("Could not open panel onboarding after installation")
+        else:
+            # The entry already exists for both creation and reinstall. Core's
+            # finish-flow manager validates this options flow on either result.
+            result["next_flow"] = (FlowType.OPTIONS_FLOW, continuation["flow_id"])
         return result
 
     def async_remove(self) -> None:
