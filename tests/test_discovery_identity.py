@@ -124,8 +124,13 @@ async def test_reinstalled_panel_keeps_original_entry_and_history(
             if route == "hello":
                 client = await hass_ws_client(hass, hass_read_only_access_token)
                 await _send(client, _hello(did=OTHER_DID, addresses=[_NEW]))
-            elif result["type"] is FlowResultType.FORM:
-                await hass.config_entries.flow.async_configure(result["flow_id"], {})
+            else:
+                # A known offline reinstall rejoins at discovery, without an
+                # owner having to find and confirm another discovery card.
+                assert result["type"] is FlowResultType.ABORT
+                assert result["reason"] == "already_configured"
+                assert original.unique_id == OTHER_DID
+                assert original.data[CONF_ADDRESS] == _NEW
         await hass.async_block_till_done()
     assert hass.config_entries.async_entries(DOMAIN) == [original]
     assert original.unique_id == OTHER_DID
