@@ -169,3 +169,12 @@ def async_bind_user(hass: HomeAssistant, entry: ConfigEntry, user_id: str) -> No
             entry, data={**entry.data, CONF_TRANSPORT_USER_ID: user_id}
         )
     async_delete_binding_issue(hass, entry.entry_id, user_id)
+
+
+@callback
+def async_unbind_user(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Forget an entry's account, so the panel's next hello binds its own."""
+    if CONF_TRANSPORT_USER_ID in entry.data:
+        data = dict(entry.data)
+        del data[CONF_TRANSPORT_USER_ID]
+        hass.config_entries.async_update_entry(entry, data=data)

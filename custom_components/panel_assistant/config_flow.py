@@ -124,10 +124,10 @@ from .repairs_update_route import help_parameters
 from .status import PanelStatus
 from .transport import _panel_did
 from .transport_binding import (
-    async_bind_user,
     async_binding_request,
     async_confirmable_user,
     async_discard_binding_request,
+    async_unbind_user,
 )
 from .update_policy import prereleases_allowed
 
@@ -1147,6 +1147,9 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 and retained.data.get(CONF_ADDRESS) == receipt.target.address
                 and accept_health(self.hass, retained, result.health)
             ):
+                # A reinstall is the owner's own install: the panel binds the
+                # account it signs in as next, as a new panel does.
+                async_unbind_user(self.hass, retained)
                 await executor.async_consume_finalization(
                     receipt.job_id, self.flow_id, retained.entry_id
                 )
@@ -1296,9 +1299,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                     return self.async_abort(reason="already_configured")
                 if not accepted:
                     return self.async_abort(reason="reinstall_identity_mismatch")
-                return self._async_finish_panel_entry(
-                    address, health, await self._async_asking_user_id(health)
-                )
+                return self._async_finish_panel_entry(address, health)
         # A panel that reports its identity is known by it. Adding a known panel
         # again, at the address it has moved to, repairs its entry's stored
         # address rather than creating a second entry for one panel: health at
@@ -1357,10 +1358,6 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 or not accept_health(self.hass, retained, health)
             ):
                 return self.async_abort(reason="reinstall_identity_mismatch")
-            if user_id is not None:
-                # A reinstall is the owner's own install: the account the panel
-                # now signs in as replaces the one it had.
-                async_bind_user(self.hass, retained, user_id)
             return self.async_abort(reason="reinstall_successful")
         data: dict[str, Any] = {CONF_ADDRESS: address.stored_value}
         if health.installation_identity:

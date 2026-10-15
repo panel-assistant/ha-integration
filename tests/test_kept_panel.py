@@ -103,6 +103,14 @@ async def test_kept_panel_installs_into_its_original_entry(
         )
     assert kept["reason"] == "removed_entry_kept"
     assert entry.state is config_entries.ConfigEntryState.LOADED
+    # Outside a reinstall, another account asking for the kept panel is still
+    # a takeover for an administrator to confirm.
+    issue = f"panel_user_mismatch_{entry.entry_id}"
+    client = await hass_ws_client(hass, hass_access_token)
+    response = await _send(client, _hello(did=OLD))
+    assert response["error"]["code"] == "panel_user_mismatch"
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue) is not None
+    assert entry.data[CONF_TRANSPORT_USER_ID] == hass_read_only_user.id
     receipt = _receipt(InstallPhase.HEALTHY_UNCLAIMED)
     manager = _manager_for(receipt)
     executor = InstallExecutor(hass, manager)
@@ -216,7 +224,6 @@ async def test_kept_panel_installs_into_its_original_entry(
     await hass.async_block_till_done()
     assert hass.config_entries.async_entries(DOMAIN) == [entry]
     assert entry.unique_id == NEW
-    issue = f"panel_user_mismatch_{entry.entry_id}"
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue) is None
     preserved = er.async_get(hass).async_get(entity.entity_id)
     assert preserved is not None
