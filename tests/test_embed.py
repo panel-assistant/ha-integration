@@ -991,13 +991,15 @@ async def test_an_update_reaches_only_its_subscriber_until_the_browser_leaves(
     other = await hass_ws_client(hass)
     await _subscribe(subscriber, entry.entry_id, "s1")
     request = await live.event("subscribe")
+    # The other browser holds a subscription of its own.
+    await _subscribe(other, entry.entry_id, "s2")
 
     await live.update(request["command_id"], {"cpu": 1})
     assert (await _receive(subscriber))["event"] == {
         "subscription": "s1",
         "observations": [{"channel": "perf", "state": "known", "value": {"cpu": 1}}],
     }
-    # Nothing reached the other browser: its next message answers its own request.
+    # Nothing reached the other browser: its next message answers its next request.
     reply = await _ui(
         other, entry.entry_id, {"kind": "manage", "command_id": "p", "op": "perf"}
     )

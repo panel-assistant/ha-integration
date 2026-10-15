@@ -36,7 +36,7 @@ export function parsePanels(value) {
   });
 }
 
-// Only the proxy's own root path is ever loaded into the same-origin frame.
+// Only the embed view's own root path is ever loaded into the same-origin frame.
 export function embedToken(url) {
   return typeof url === 'string' ? url.match(/^\/api\/panel_assistant\/embed\/([A-Za-z0-9_-]{43})\/$/)?.[1] ?? null : null;
 }

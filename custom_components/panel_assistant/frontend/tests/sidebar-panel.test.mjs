@@ -96,7 +96,7 @@ test('panel list parser keeps the display contract and rejects anything else', (
   for (const [name, value] of Object.entries(bad)) assert.throws(() => parsePanels(value), undefined, name);
 });
 
-test('only the proxy root URL yields a token', () => {
+test('only the embed view root URL yields a token', () => {
   assert.equal(embedToken(url(TOKEN)), TOKEN);
   for (const value of [`https://evil.example${url(TOKEN)}`, url('a'.repeat(42)), `${url(TOKEN)}x`, `/api/other/embed/${TOKEN}/`, null]) {
     assert.equal(embedToken(value), null, String(value));
