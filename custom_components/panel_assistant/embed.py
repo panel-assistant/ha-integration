@@ -93,6 +93,12 @@ REQUEST_HEADERS: Final = (
     hdrs.IF_MODIFIED_SINCE,
     hdrs.LAST_EVENT_ID,
     hdrs.USER_AGENT,
+    # Panel page values that travel in a header on the panel's HTTP door: a
+    # profile preview's token, an encrypted backup's passphrase (the body is the
+    # archive) and the setup wizard's presence.
+    "X-Profile-Preview-Token",
+    "X-Backup-Passphrase",
+    "X-ha-paneld-setup-presence",
 )
 RESPONSE_HEADERS: Final = (
     hdrs.CONTENT_TYPE,
@@ -108,6 +114,12 @@ RESPONSE_HEADERS: Final = (
     # panel page reads it to refresh the screenshot instead of calling the tap
     # refused, which would invite a second tap.
     "X-ha-paneld-Input-Route",
+    "X-ha-paneld-Input-Id",
+    "X-ha-paneld-Screenshot-Route",
+    "X-ha-paneld-Screenshot-Id",
+    # A profile import's localized outcome; without it the page shows raw text.
+    "X-Profile-Presentation-Code",
+    "X-Profile-Presentation-Params",
 )
 # Core's header middleware stamps these only after the handler returns, which is
 # too late for a response that has already started streaming.

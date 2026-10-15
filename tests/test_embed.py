@@ -84,6 +84,7 @@ class FakePanel:
         self.config_posts: list[dict[str, str]] = []
         self.config_status = 200
         self.input_reply: Callable[[], web.Response] | None = None
+        self.replies: dict[str, Callable[[web.Request], web.Response]] = {}
         self.stream_release = asyncio.Event()
         self.stream_closed = asyncio.Event()
         # Room for a body just past the largest one the proxy signs.
@@ -108,6 +109,8 @@ class FakePanel:
             }
         )
         path = request.path
+        if (reply := self.replies.get(path)) is not None:
+            return reply(request)
         if path == "/api/v1/config" and request.method == "POST":
             self.config_posts.append(dict(parse_qsl(body.decode())))
             return web.json_response({"ok": True}, status=self.config_status)
@@ -508,6 +511,105 @@ async def test_tap_that_ran_without_a_screenshot_still_reads_as_executed(
     response = await browser.post(url + "api/v1/input", data="x=1&y=2&capture=1")
     assert (response.status, await response.json()) == (409, body)
     assert INPUT_ROUTE_HEADER not in response.headers
+
+
+async def test_sidebar_features_that_carry_a_value_in_a_header_work(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    entry: MockConfigEntry,
+    panel: FakePanel,
+) -> None:
+    """Each fake route answers as the panel's own route does without its header."""
+
+    def profile_import(request: web.Request) -> web.Response:
+        if not request.headers.get("X-Profile-Preview-Token", "").strip():
+            return web.json_response({"error": "preview-token-required"}, status=400)
+        return web.json_response(
+            {"ok": True},
+            headers={
+                "X-Profile-Presentation-Code": "profile.imported",
+                "X-Profile-Presentation-Params": '{"name":"p"}',
+            },
+        )
+
+    def restore(request: web.Request) -> web.Response:
+        if not request.headers.get("X-Backup-Passphrase"):
+            return web.json_response({"error": "passphrase-required"}, status=400)
+        return web.json_response({"ok": True})
+
+    def setup(request: web.Request) -> web.Response:
+        presence = request.headers.get("X-ha-paneld-setup-presence")
+        return web.json_response({"presence": presence})
+
+    def screenshot(request: web.Request) -> web.Response:
+        return web.Response(
+            body=b"png",
+            content_type="image/png",
+            headers={"X-ha-paneld-Screenshot-Id": "s7"},
+        )
+
+    def tap(request: web.Request) -> web.Response:
+        return web.json_response(
+            {"ok": True},
+            headers={
+                "X-ha-paneld-Input-Id": "41",
+                "X-ha-paneld-Screenshot-Route": "su",
+                "X-ha-paneld-Screenshot-Id": "s8",
+            },
+        )
+
+    panel.replies = {
+        "/api/v1/profiles/import": profile_import,
+        "/api/v1/restore": restore,
+        "/api/v1/setup": setup,
+        "/api/v1/screenshot.png": screenshot,
+        "/api/v1/input": tap,
+    }
+    ws = await hass_ws_client(hass)
+    _, url = await _open_session(ws, entry.entry_id)
+    browser = await hass_client_no_auth()
+
+    response = await browser.post(
+        url + "api/v1/profiles/import",
+        data=b"name: p\n",
+        headers={
+            "Content-Type": "application/yaml; charset=utf-8",
+            "X-Profile-Preview-Token": "t1",
+        },
+    )
+    assert (response.status, await response.json()) == (200, {"ok": True})
+    assert response.headers["X-Profile-Presentation-Code"] == "profile.imported"
+    assert response.headers["X-Profile-Presentation-Params"] == '{"name":"p"}'
+
+    response = await browser.post(
+        url + "api/v1/restore",
+        data=b"archive",
+        headers={"X-Backup-Passphrase": "correct horse"},
+    )
+    assert (response.status, await response.json()) == (200, {"ok": True})
+
+    response = await browser.get(
+        url + "api/v1/setup", headers={"X-ha-paneld-setup-presence": "p-1"}
+    )
+    assert await response.json() == {"presence": "p-1"}
+
+    response = await browser.get(url + "api/v1/screenshot.png")
+    assert response.headers["X-ha-paneld-Screenshot-Id"] == "s7"
+
+    response = await browser.post(url + "api/v1/input", data="x=1&y=2&capture=1")
+    assert {
+        name: response.headers.get(name)
+        for name in (
+            "X-ha-paneld-Input-Id",
+            "X-ha-paneld-Screenshot-Route",
+            "X-ha-paneld-Screenshot-Id",
+        )
+    } == {
+        "X-ha-paneld-Input-Id": "41",
+        "X-ha-paneld-Screenshot-Route": "su",
+        "X-ha-paneld-Screenshot-Id": "s8",
+    }
 
 
 @pytest.mark.parametrize("path", ["late-base", "huge"])
