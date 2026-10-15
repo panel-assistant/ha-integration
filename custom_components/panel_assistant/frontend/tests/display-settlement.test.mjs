@@ -58,7 +58,9 @@ async function fixture({shelly = true, pending = true, hold = false, density = 2
     if (step === 'DISPLAY') {
       if (density !== 216) { pending = true; density = 216; events.push('sizing-changed'); }
       else events.push('sizing-equal');
-      return frame(['record:density=none', 'record:font_scale=1', `density=${density}`, 'font_scale=1']);
+      // The panel reads back the text size the program told it to write.
+      const scale = command.match(/settings put system font_scale (\S+)/)?.[1] ?? '1';
+      return frame(['record:density=none', 'record:font_scale=1', `density=${density}`, `font_scale=${scale}`]);
     }
     if (step === 'VENDOR_DISPLAY_SETTLEMENT') {
       if (!shelly) { events.push('vendor-skipped'); return frame(['skipped']); }
@@ -139,6 +141,12 @@ test('equal sizing and no sizing recommendation still consume an earlier pending
     assert.deepEqual(f.events, [...(display ? ['sizing-equal'] : []), 'native-resume', 'grants', 'launch', 'health', 'home-proof']);
     assert.equal(f.running, true, 'repeated setup converges without another pending shutdown');
   }
+});
+
+test('a text size with more digits than Android keeps is applied and read back as applied', async () => {
+  const f = await fixture({shelly: false, pending: false});
+  const result = await f.controller.completeSetup({density: 216, font_scale: 1.1234567});
+  assert.equal(result.displaySizing, 'applied');
 });
 
 test('other vendors finish sizing without another app launch', async () => {
