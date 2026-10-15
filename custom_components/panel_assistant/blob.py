@@ -22,10 +22,12 @@ import hashlib
 import secrets
 import time
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Final
 
 from aiohttp import web
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, HassJob, HomeAssistant, callback
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.http import HomeAssistantView
 
 from .const import CONF_TRANSPORT_USER_ID, DOMAIN
@@ -56,6 +58,8 @@ class _Transfer:
     used: bool = field(default=False)
     # Set for a browser's transfer: the administrator it belongs to.
     user_id: str | None = None
+    # Forgets the transfer once it expires, whether or not anything else runs.
+    sweep: CALLBACK_TYPE | None = None
 
 
 class BlobRegistry:
@@ -66,11 +70,20 @@ class BlobRegistry:
         self._transfers: dict[str, _Transfer] = {}
 
     def _mint(self, transfer: _Transfer) -> str:
-        now = _now()
-        for token in [t for t, item in self._transfers.items() if item.expires <= now]:
-            self.discard(token)
         token = secrets.token_urlsafe(32)
+
+        @callback
+        def _expired(_: datetime) -> None:
+            transfer.sweep = None
+            if self._transfers.get(token) is transfer:
+                self.discard(token)
+
         self._transfers[token] = transfer
+        transfer.sweep = async_call_later(
+            self._hass,
+            BLOB_LIFETIME_SECONDS,
+            HassJob(_expired, cancel_on_shutdown=True),
+        )
         return token
 
     @callback
@@ -146,6 +159,9 @@ class BlobRegistry:
     def discard(self, token: str) -> None:
         """Forget a transfer whose caller finished or failed."""
         transfer = self._transfers.pop(token, None)
+        if transfer is not None and transfer.sweep is not None:
+            transfer.sweep()
+            transfer.sweep = None
         received = transfer.received if transfer is not None else None
         if received is None:
             return
@@ -183,6 +199,10 @@ class BlobRegistry:
         elif transfer.user_id != user_id or transfer.entry_id != entry_id:
             return None
         transfer.used = True
+        if not upload:
+            # A download is sent once from the transfer returned here, so its
+            # bytes need not stay behind.
+            self.discard(token)
         return transfer
 
 

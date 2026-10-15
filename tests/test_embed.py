@@ -7,6 +7,7 @@ import io
 import re
 import zipfile
 from collections.abc import AsyncGenerator, Awaitable, Callable
+from datetime import timedelta
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -21,9 +22,17 @@ from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.setup import async_setup_component
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
 
 from custom_components.panel_assistant import embed, ui_relay
+from custom_components.panel_assistant.blob import (
+    BLOB_LIFETIME_SECONDS,
+    async_get_blobs,
+)
 from custom_components.panel_assistant.client import PanelHealth
 from custom_components.panel_assistant.const import (
     CONF_TRANSPORT_USER_ID,
@@ -156,6 +165,12 @@ async def _open_session(client: Any, entry_id: str, **extra: Any) -> tuple[int, 
     assert opened["event"] == {"kind": "opened", "url": result["result"]["url"]}
     url: str = result["result"]["url"]
     return result["id"], url
+
+
+def blob_registry(hass: HomeAssistant) -> dict[str, Any]:
+    """Return the transfers Panel Assistant still holds, bytes included."""
+    transfers: dict[str, Any] = async_get_blobs(hass)._transfers
+    return transfers
 
 
 def _notified_login_failure(hass: HomeAssistant) -> bool:
@@ -1083,6 +1098,23 @@ async def test_a_large_answer_is_reachable_once_at_its_blob(
     assert first.status == 200
     assert await first.read() == data
     assert (await browser.get(url + reference["url"])).status == 404
+    # Its bytes are not held once sent: the registry is where they would stay.
+    assert reference["url"].removeprefix("blob/") not in blob_registry(hass)
+
+
+async def test_an_unused_transfer_is_forgotten_when_it_expires(
+    hass: HomeAssistant, entry: MockConfigEntry, hass_admin_user: Any
+) -> None:
+    """Expired bytes go without waiting for another transfer to be minted."""
+    blobs = async_get_blobs(hass)
+    blobs.download(entry.entry_id, b"x" * 1024, "text/plain", hass_admin_user.id)
+    blobs.upload(entry.entry_id, 1024, hass_admin_user.id)
+    assert len(blob_registry(hass)) == 2
+    async_fire_time_changed(
+        hass, dt_util.utcnow() + timedelta(seconds=BLOB_LIFETIME_SECONDS + 1)
+    )
+    await hass.async_block_till_done()
+    assert not blob_registry(hass)
 
 
 async def test_a_blob_typed_with_parameters_keeps_its_media_type(
