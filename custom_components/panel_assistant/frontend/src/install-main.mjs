@@ -354,7 +354,6 @@ if (!supported) {
       if (!quarantined) quarantine('handoffFailure', 'installer');
     }).finally(() => { clearTimeout(slow); busy = false; });
   } catch { quarantine('handoffFailure', 'installer'); busy = false; }
-  message('retry', 'backToHa');
 } else {
   quarantine('handoffFailure', 'installer');
   message('retry', 'backToHa');

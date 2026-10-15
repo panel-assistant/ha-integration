@@ -52,7 +52,7 @@ function renderedJourney(scenario, locale = 'de', realCatalogue = false) {
         querySelector() { return node(id + ':child'); }, setAttribute(name, value) { this.attributes.set(name, value); }, replaceChildren(...children) { this.children = children; } });
       return elements.get(id);
     };
-    globalThis.document = { documentElement: {}, getElementById: node, querySelectorAll: () => [], createElement: () => ({ attributes: new Map(), setAttribute(name, value) { this.attributes.set(name, value); } }) };
+    globalThis.document = { documentElement: {}, getElementById: node, querySelectorAll: selector => selector === '[data-screen-message]' ? [Object.assign(node('retry'), { dataset: { screenMessage: 'tryAgain' } })] : [], createElement: () => ({ attributes: new Map(), setAttribute(name, value) { this.attributes.set(name, value); } }) };
     globalThis.location = { search: '?lang=en' };
     let navigations = 0;
     const scheduled = [];
@@ -137,9 +137,11 @@ function renderedJourney(scenario, locale = 'de', realCatalogue = false) {
       const error = new Error('RAW_DIAGNOSTIC'); error.code = 'shell_timeout'; installReject(error); await pending;
       assert.equal(node('step-error').hidden, false);
       assert.equal(node('error-text').textContent, target.errors.installErrorConnection);
+      assert.equal(node('retry').textContent, target.installer.tryAgain, 'the only error button matches the message: press Try again');
       const errorBefore = { ...calls };
       globalThis.location.search = '?lang=en'; handlers.get('languagechange')();
       assert.equal(node('error-text').textContent, 'The connection to the panel dropped. Keep it plugged in and press Try again.');
+      assert.equal(node('retry').textContent, 'Try again');
       assert.match(node('support-log').textContent, /shell_timeout/);
       assert.deepEqual(calls, errorBefore);
     } else {
