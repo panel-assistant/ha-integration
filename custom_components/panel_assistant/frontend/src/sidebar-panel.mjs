@@ -68,6 +68,9 @@ export class PanelAssistantSidebar extends HTMLElement {
   #onReady = () => this.#reconnected();
   // Relayed subscriptions by the page's command ID; a new generation drops late answers.
   #relays = new Map(); #relayGeneration = 0;
+  // Set when the panel's session closed the relayed subscriptions: the page reopens them
+  // once the list shows the panel reachable again.
+  #relaysClosed = false;
   #onMessage = event => this.#relayFrame(event);
   constructor() {
     super();
@@ -356,6 +359,12 @@ export class PanelAssistantSidebar extends HTMLElement {
       this.#selected = panels.some(panel => panel.entry_id === stored) ? stored : panels[0]?.entry_id ?? null;
     }
     this.#reconcile();
+    const session = this.#session;
+    if (this.#relaysClosed && session?.state === 'open' &&
+      panels.some(panel => panel.entry_id === session.entryId && panel.state === 'reachable')) {
+      this.#relaysClosed = false;
+      this.#postToFrame({ type: RELAY_TYPE, open: true });
+    }
   }
 
   #choose(entryId) {
@@ -381,7 +390,8 @@ export class PanelAssistantSidebar extends HTMLElement {
 
   #subscribe(entryId, resume, url) {
     const hass = this.#hass;
-    const session = { entryId, token: resume, url, state: 'opening', code: null, unsubscribe: null };
+    // A resumed session follows a closed signal to the page (see #reconnected).
+    const session = { entryId, token: resume, url, state: 'opening', code: null, unsubscribe: null, reopen: Boolean(resume) };
     this.#session = session;
     const message = {
       type: 'panel_assistant/embed_session', entry_id: entryId, language: hass.language,
@@ -412,7 +422,10 @@ export class PanelAssistantSidebar extends HTMLElement {
       session.url = event.url;
       session.state = 'open';
       const frame = this.shadowRoot.querySelector('#frame');
+      // A new URL reloads the page; the same one keeps it, so it is told to reopen what closed.
       if (frame.getAttribute('src') !== event.url) frame.setAttribute('src', event.url);
+      else if (session.reopen) this.#postToFrame({ type: RELAY_TYPE, open: true });
+      session.reopen = false;
       this.#render();
     } else if (event.kind === 'closed') {
       // The server has ended this subscription; drop it and let the list decide when to reopen.
@@ -456,6 +469,7 @@ export class PanelAssistantSidebar extends HTMLElement {
   // Ends every relayed subscription; after a reconnect they are already gone and must not be ended.
   #endRelays(unsubscribe) {
     this.#relayGeneration++;
+    this.#relaysClosed = false;
     const relays = [...this.#relays.values()];
     this.#relays.clear();
     if (unsubscribe) for (const relay of relays) relay.then(end => end()).catch(() => {});
@@ -483,7 +497,9 @@ export class PanelAssistantSidebar extends HTMLElement {
       const relay = Promise.resolve().then(() => connection.subscribeMessage(update => {
         if (update?.closed === true) {
           this.#relays.delete(request.command_id);
-          if (generation === this.#relayGeneration) this.#postToFrame({ type: RELAY_TYPE, closed: true });
+          if (generation !== this.#relayGeneration) return;
+          this.#relaysClosed = true;
+          this.#postToFrame({ type: RELAY_TYPE, closed: true });
         } else post(update);
       }, message, { resubscribe: false }));
       this.#relays.set(request.command_id, relay);

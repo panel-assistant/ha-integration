@@ -1789,10 +1789,11 @@ var ne = class extends HTMLElement {
 	#d = null;
 	#f = null;
 	#p = null;
-	#m = () => this.#A();
+	#m = () => this.#j();
 	#h = /* @__PURE__ */ new Map();
 	#g = 0;
-	#_ = (e) => this.#F(e);
+	#_ = !1;
+	#v = (e) => this.#I(e);
 	constructor() {
 		super(), this.attachShadow({ mode: "open" }), this.shadowRoot.innerHTML = `<style>${o}${s}
       :host{display:block;height:100vh;height:100dvh;overflow:hidden;background:var(--primary-background-color,#fafafa);color:var(--primary-text-color,#212121)}
@@ -1878,25 +1879,25 @@ var ne = class extends HTMLElement {
 			composed: !0
 		})));
 		let n = e.querySelector("#overflow");
-		n.setAttribute("aria-label", this.#e.more), n.setAttribute("title", this.#e.more), n.hidden = !0, e.querySelector("#backdrop").hidden = !0, e.querySelector("#dot").hidden = !0, n.addEventListener("click", () => this.#y(!this.#v())), e.querySelector("#backdrop").addEventListener("click", () => this.#y(!1)), e.querySelector("#root").addEventListener("keydown", (e) => {
-			e.key === "Escape" && this.#v() && (this.#y(!1), n.focus?.());
+		n.setAttribute("aria-label", this.#e.more), n.setAttribute("title", this.#e.more), n.hidden = !0, e.querySelector("#backdrop").hidden = !0, e.querySelector("#dot").hidden = !0, n.addEventListener("click", () => this.#b(!this.#y())), e.querySelector("#backdrop").addEventListener("click", () => this.#b(!1)), e.querySelector("#root").addEventListener("keydown", (e) => {
+			e.key === "Escape" && this.#y() && (this.#b(!1), n.focus?.());
 		}), e.querySelector("#frame").setAttribute("title", this.#e.frameTitle);
 		let r = e.querySelector("#settings");
 		r.setAttribute("aria-label", this.#e.integrationSettings), r.setAttribute("title", this.#e.integrationSettings);
 		let i = e.querySelector("#github");
-		i.setAttribute("aria-label", this.#e.github), i.setAttribute("title", this.#e.github), i.addEventListener("click", () => this.#y(!1));
+		i.setAttribute("aria-label", this.#e.github), i.setAttribute("title", this.#e.github), i.addEventListener("click", () => this.#b(!1));
 		let a = e.querySelector("#device");
 		a.setAttribute("aria-label", this.#e.device), a.setAttribute("title", this.#e.device), a.addEventListener("click", (e) => {
 			let t = a.getAttribute("href");
-			this.#y(!1), !(!t || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) && (e.preventDefault(), k(t));
+			this.#b(!1), !(!t || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) && (e.preventDefault(), k(t));
 		});
 		for (let [t, n] of [["add", x], ["settings", S]]) {
 			let r = e.querySelector(`#${t}`);
 			r.setAttribute("href", n), r.addEventListener("click", (e) => {
-				this.#y(!1), !(e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) && (e.preventDefault(), k(n));
+				this.#b(!1), !(e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) && (e.preventDefault(), k(n));
 			});
 		}
-		e.querySelector("#panels").addEventListener("change", (e) => this.#E(e.target.value)), this.#I();
+		e.querySelector("#panels").addEventListener("change", (e) => this.#D(e.target.value)), this.#L();
 	}
 	get hass() {
 		return this.#t;
@@ -1906,11 +1907,11 @@ var ne = class extends HTMLElement {
 		this.#t = e;
 		let n = e?.themes?.darkMode;
 		if (typeof n == "boolean" && this.setAttribute?.("theme", n ? "dark" : "light"), this.isConnected) {
-			if (this.#b(), t?.connection !== e?.connection || t?.user?.id !== e?.user?.id || t?.user?.is_admin !== e?.user?.is_admin) {
-				this.#w();
+			if (this.#x(), t?.connection !== e?.connection || t?.user?.id !== e?.user?.id || t?.user?.is_admin !== e?.user?.is_admin) {
+				this.#T();
 				return;
 			}
-			(t?.language !== e?.language || !!t?.themes?.darkMode != !!e?.themes?.darkMode) && (this.#j(), this.#D());
+			(t?.language !== e?.language || !!t?.themes?.darkMode != !!e?.themes?.darkMode) && (this.#M(), this.#O());
 		}
 	}
 	get panel() {
@@ -1924,7 +1925,7 @@ var ne = class extends HTMLElement {
 	}
 	set route(e) {
 		let t = this.#r?.path;
-		this.#r = e, t !== e?.path && this.#E(e?.path?.slice(1));
+		this.#r = e, t !== e?.path && this.#D(e?.path?.slice(1));
 	}
 	get narrow() {
 		return this.#i;
@@ -1944,16 +1945,16 @@ var ne = class extends HTMLElement {
 			let n = t.querySelector(`#${e}`);
 			this.#i ? n.setAttribute("role", "menuitem") : n.removeAttribute("role");
 		}
-		this.#i || this.#y(!1), this.#b();
+		this.#i || this.#b(!1), this.#x();
 	}
-	#v() {
+	#y() {
 		return this.shadowRoot.querySelector("#more").getAttribute("data-open") !== null;
 	}
-	#y(e) {
+	#b(e) {
 		let t = this.shadowRoot, n = t.querySelector("#more"), r = e && this.#i;
 		r ? n.setAttribute("data-open", "") : n.removeAttribute("data-open"), t.querySelector("#backdrop").hidden = !r, t.querySelector("#overflow").setAttribute("aria-expanded", String(r));
 	}
-	#b() {
+	#x() {
 		let e = this.isConnected && this.#i ? this.#t?.connection : void 0, t = this.#p;
 		if (t?.connection === e || (t && (this.#p = null, t.unsubscribe?.then((e) => e()).catch(() => {}), this.shadowRoot.querySelector("#dot").hidden = !0), !e?.subscribeMessage)) return;
 		let n = {
@@ -1961,9 +1962,9 @@ var ne = class extends HTMLElement {
 			notifications: {},
 			unsubscribe: null
 		};
-		this.#p = n, n.unsubscribe = Promise.resolve().then(() => e.subscribeMessage((e) => this.#x(n, e), { type: "persistent_notification/subscribe" })), n.unsubscribe.catch(() => {});
+		this.#p = n, n.unsubscribe = Promise.resolve().then(() => e.subscribeMessage((e) => this.#S(n, e), { type: "persistent_notification/subscribe" })), n.unsubscribe.catch(() => {});
 	}
-	#x(e, t) {
+	#S(e, t) {
 		if (this.#p === e && E.has(t?.type) && t.notifications && typeof t.notifications == "object") {
 			if (t.type === "current") e.notifications = { ...t.notifications };
 			else if (t.type === "removed") for (let n of Object.keys(t.notifications)) delete e.notifications[n];
@@ -1975,24 +1976,24 @@ var ne = class extends HTMLElement {
 		}
 	}
 	connectedCallback() {
-		window.addEventListener("message", this.#_), clearInterval(this.#f), this.#w(), this.#b(), this.#f = setInterval(() => this.#T(), T);
+		window.addEventListener("message", this.#v), clearInterval(this.#f), this.#T(), this.#x(), this.#f = setInterval(() => this.#E(), T);
 	}
 	disconnectedCallback() {
-		window.removeEventListener("message", this.#_), clearInterval(this.#f), this.#f = null, this.#c++, this.#C(), this.#j(), this.#b();
-	}
-	#S() {
-		return this.#t?.user?.is_admin === !0;
+		window.removeEventListener("message", this.#v), clearInterval(this.#f), this.#f = null, this.#c++, this.#w(), this.#M(), this.#x();
 	}
 	#C() {
-		this.#a?.removeEventListener?.("ready", this.#m), this.#a = void 0;
+		return this.#t?.user?.is_admin === !0;
 	}
 	#w() {
-		this.#C(), this.#j(), this.#o = null, this.#l = "", this.#s = "loading", this.#S() && this.#t.connection && (this.#a = this.#t.connection, this.#a.addEventListener("ready", this.#m)), this.#I(), this.#T();
+		this.#a?.removeEventListener?.("ready", this.#m), this.#a = void 0;
 	}
-	async #T() {
+	#T() {
+		this.#w(), this.#M(), this.#o = null, this.#l = "", this.#s = "loading", this.#C() && this.#t.connection && (this.#a = this.#t.connection, this.#a.addEventListener("ready", this.#m)), this.#L(), this.#E();
+	}
+	async #E() {
 		let e = ++this.#c;
-		if (!this.#S()) {
-			this.#I();
+		if (!this.#C()) {
+			this.#L();
 			return;
 		}
 		let t;
@@ -2007,32 +2008,37 @@ var ne = class extends HTMLElement {
 			t = ee(e);
 		} catch {
 			if (e !== this.#c) return;
-			this.#o = null, this.#s = "failed", this.#j(), this.#I();
+			this.#o = null, this.#s = "failed", this.#M(), this.#L();
 			return;
 		}
-		if (e === this.#c) {
-			if (this.#o = t, this.#s = t.length ? "ready" : "empty", !t.some((e) => e.entry_id === this.#u)) {
-				let e = this.#r?.path?.slice(1), n = t.some((t) => t.entry_id === e) ? e : A();
-				this.#u = t.some((e) => e.entry_id === n) ? n : t[0]?.entry_id ?? null;
-			}
-			this.#D();
+		if (e !== this.#c) return;
+		if (this.#o = t, this.#s = t.length ? "ready" : "empty", !t.some((e) => e.entry_id === this.#u)) {
+			let e = this.#r?.path?.slice(1), n = t.some((t) => t.entry_id === e) ? e : A();
+			this.#u = t.some((e) => e.entry_id === n) ? n : t[0]?.entry_id ?? null;
 		}
+		this.#O();
+		let n = this.#d;
+		this.#_ && n?.state === "open" && t.some((e) => e.entry_id === n.entryId && e.state === "reachable") && (this.#_ = !1, this.#P({
+			type: b,
+			open: !0
+		}));
 	}
-	#E(e) {
-		this.#o?.some((t) => t.entry_id === e) && e !== this.#u && (this.#u = e, te(e), this.#j(), this.#D());
+	#D(e) {
+		this.#o?.some((t) => t.entry_id === e) && e !== this.#u && (this.#u = e, te(e), this.#M(), this.#O());
 	}
-	#D() {
+	#O() {
 		let e = this.#o?.find((e) => e.entry_id === this.#u), t = this.#d;
-		!e || e.state !== "reachable" ? t && (t.state !== "closed" || t.entryId !== e?.entry_id) && this.#j() : (!t || t.entryId !== e.entry_id || !["opening", "open"].includes(t.state)) && (this.#j(), this.#O(e.entry_id, null, null)), this.#I();
+		!e || e.state !== "reachable" ? t && (t.state !== "closed" || t.entryId !== e?.entry_id) && this.#M() : (!t || t.entryId !== e.entry_id || !["opening", "open"].includes(t.state)) && (this.#M(), this.#k(e.entry_id, null, null)), this.#L();
 	}
-	#O(e, t, n) {
+	#k(e, t, n) {
 		let r = this.#t, i = {
 			entryId: e,
 			token: t,
 			url: n,
 			state: "opening",
 			code: null,
-			unsubscribe: null
+			unsubscribe: null,
+			reopen: !!t
 		};
 		this.#d = i;
 		let a = {
@@ -2042,65 +2048,68 @@ var ne = class extends HTMLElement {
 			theme: r.themes?.darkMode ? "dark" : "light",
 			...t ? { resume: t } : {}
 		};
-		i.unsubscribe = Promise.resolve().then(() => r.connection.subscribeMessage((e) => this.#k(i, e), a, { resubscribe: !1 })), i.unsubscribe.catch((e) => {
-			this.#d === i && (i.state = "failed", i.code = e?.code ?? null, this.#M(), this.#I());
+		i.unsubscribe = Promise.resolve().then(() => r.connection.subscribeMessage((e) => this.#A(i, e), a, { resubscribe: !1 })), i.unsubscribe.catch((e) => {
+			this.#d === i && (i.state = "failed", i.code = e?.code ?? null, this.#N(), this.#L());
 		});
 	}
-	#k(e, t) {
+	#A(e, t) {
 		if (this.#d === e && t) {
 			if (t.kind === "opened") {
 				let n = D(t.url);
 				if (!n) {
-					this.#j(), this.#d = {
+					this.#M(), this.#d = {
 						entryId: e.entryId,
 						state: "failed",
 						code: null,
 						unsubscribe: null
-					}, this.#I();
+					}, this.#L();
 					return;
 				}
 				e.token = n, e.url = t.url, e.state = "open";
 				let r = this.shadowRoot.querySelector("#frame");
-				r.getAttribute("src") !== t.url && r.setAttribute("src", t.url), this.#I();
-			} else t.kind === "closed" && (this.#N({
+				r.getAttribute("src") === t.url ? e.reopen && this.#P({
+					type: b,
+					open: !0
+				}) : r.setAttribute("src", t.url), e.reopen = !1, this.#L();
+			} else t.kind === "closed" && (this.#P({
 				type: b,
 				closed: !0
-			}), this.#j(), this.#d = {
+			}), this.#M(), this.#d = {
 				entryId: e.entryId,
 				state: "closed",
 				code: null,
 				unsubscribe: null
-			}, this.#I(), this.#T());
+			}, this.#L(), this.#E());
 		}
 	}
-	#A() {
+	#j() {
 		let e = this.#d;
-		this.isConnected && e && ["opening", "open"].includes(e.state) && (this.#P(!1), this.#N({
+		this.isConnected && e && ["opening", "open"].includes(e.state) && (this.#F(!1), this.#P({
 			type: b,
 			closed: !0
-		}), this.#O(e.entryId, e.token, e.url), this.#I());
-	}
-	#j() {
-		this.#P(!0);
-		let e = this.#d;
-		this.#d = null, e && (e.state = "ended", e.unsubscribe?.then((e) => e()).catch(() => {}), this.#M());
+		}), this.#k(e.entryId, e.token, e.url), this.#L());
 	}
 	#M() {
+		this.#F(!0);
+		let e = this.#d;
+		this.#d = null, e && (e.state = "ended", e.unsubscribe?.then((e) => e()).catch(() => {}), this.#N());
+	}
+	#N() {
 		this.shadowRoot.querySelector("#frame").removeAttribute("src");
 	}
-	#N(e) {
+	#P(e) {
 		this.shadowRoot.querySelector("#frame").contentWindow?.postMessage(e, location.origin);
 	}
-	#P(e) {
-		this.#g++;
+	#F(e) {
+		this.#g++, this.#_ = !1;
 		let t = [...this.#h.values()];
 		if (this.#h.clear(), e) for (let e of t) e.then((e) => e()).catch(() => {});
 	}
-	#F(e) {
+	#I(e) {
 		let t = this.shadowRoot.querySelector("#frame").contentWindow, n = e.data?.frame, r = this.#d;
 		if (!t || e.source !== t || e.data?.type !== "panel-assistant-ui" || !n || typeof n != "object") return;
 		let i = this.#g, a = (e) => {
-			i === this.#g && this.#N({
+			i === this.#g && this.#P({
 				type: b,
 				frame: e
 			});
@@ -2126,17 +2135,20 @@ var ne = class extends HTMLElement {
 			});
 		} else if (n.op === "subscribe") {
 			let e = Promise.resolve().then(() => c.subscribeMessage((e) => {
-				e?.closed === !0 ? (this.#h.delete(n.command_id), i === this.#g && this.#N({
-					type: b,
-					closed: !0
-				})) : a(e);
+				if (e?.closed === !0) {
+					if (this.#h.delete(n.command_id), i !== this.#g) return;
+					this.#_ = !0, this.#P({
+						type: b,
+						closed: !0
+					});
+				} else a(e);
 			}, s, { resubscribe: !1 }));
 			this.#h.set(n.command_id, e), e.catch(() => {
 				this.#h.get(n.command_id) === e && this.#h.delete(n.command_id), o();
 			});
 		} else Promise.resolve().then(() => this.#t.callWS(s)).then(a, o);
 	}
-	#I() {
+	#L() {
 		let e = this.shadowRoot, t = this.#t?.language;
 		this.isConnected && this.setAttribute?.("lang", r(t));
 		let n = this.#e;
@@ -2150,7 +2162,7 @@ var ne = class extends HTMLElement {
 			["add", "addPanel"]
 		]) e.querySelector(`#${t}`).setAttribute("aria-label", n[r]), e.querySelector(`#${t}`).setAttribute("title", n[r]);
 		e.querySelector("#frame").setAttribute("title", n.frameTitle), e.querySelector("#version").textContent = d(this.#n?.config, t);
-		let o = e.querySelector("#panels"), s = this.#S() ? this.#o ?? [] : [], c = JSON.stringify([s, r(t)]);
+		let o = e.querySelector("#panels"), s = this.#C() ? this.#o ?? [] : [], c = JSON.stringify([s, r(t)]);
 		if (c !== this.#l) {
 			this.#l = c, o.replaceChildren();
 			for (let e of s) {
@@ -2162,7 +2174,7 @@ var ne = class extends HTMLElement {
 		let l = s.find((e) => e.entry_id === this.#u), u = e.querySelector("#device");
 		u.hidden = !l?.device_id, l?.device_id && u.setAttribute("href", `/config/devices/device/${encodeURIComponent(l.device_id)}`);
 		let f = this.#d, p = e.querySelector("#frame"), m = "", h = !1;
-		this.#S() ? this.#s === "loading" ? h = !0 : this.#s === "ready" ? f?.state === "closed" && f.entryId === l?.entry_id ? m = "closed" : l?.state === "restarting" ? m = "restarting" : l?.state === "unreachable" ? m = "unreachableBody" : l?.state === "not_loaded" ? m = "notLoadedBody" : f?.state === "failed" ? m = f.code === "not_loaded" ? "notLoadedBody" : "failed" : f?.state !== "open" && !p.getAttribute("src") && (h = !0) : m = this.#s : m = "admin";
+		this.#C() ? this.#s === "loading" ? h = !0 : this.#s === "ready" ? f?.state === "closed" && f.entryId === l?.entry_id ? m = "closed" : l?.state === "restarting" ? m = "restarting" : l?.state === "unreachable" ? m = "unreachableBody" : l?.state === "not_loaded" ? m = "notLoadedBody" : f?.state === "failed" ? m = f.code === "not_loaded" ? "notLoadedBody" : "failed" : f?.state !== "open" && !p.getAttribute("src") && (h = !0) : m = this.#s : m = "admin";
 		let g = e.querySelector("#status");
 		g.textContent = m === "restarting" ? a(this.#e.restarting, { reason: i("sidebarReason", t)[l.reason] }) : m ? this.#e[m] : "";
 		let _ = [

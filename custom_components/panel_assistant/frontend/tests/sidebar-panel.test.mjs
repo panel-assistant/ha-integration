@@ -775,6 +775,17 @@ test('the relay answers its own frame only and ignores every other source', asyn
   assert.deepEqual(target.posted[1][0], { type: RELAY_TYPE, frame: { command_id: 'r2', outcome: 'failed', code: 'failed' } });
 });
 
+test('a reconnect that reloads the frame posts no open signal, and supersedes an earlier close', async () => {
+  const hass = fakeHass();
+  const { subs, target } = await relaying(hass);
+  fromWindow(target, { type: RELAY_TYPE, frame: { kind: 'manage', command_id: 's1', op: 'subscribe', args: { family: 'perf' } } }); await tick();
+  subs[1].callback({ closed: true });
+  hass.connection.listeners.get('ready')(); await tick();
+  subs[2].callback({ kind: 'opened', url: url(TOKEN2) });
+  intervals[0].fn(); await tick();
+  assert.equal(target.posted.filter(([message]) => message.open).length, 0);
+});
+
 test('relayed subscriptions forward updates, close on reconnect and end with the frame', async () => {
   const hass = fakeHass();
   const { panel, subs, target } = await relaying(hass);
@@ -785,9 +796,15 @@ test('relayed subscriptions forward updates, close on reconnect and end with the
   subs[1].callback(update);
   assert.deepEqual(target.posted.at(-1)[0], { type: RELAY_TYPE, frame: update });
 
-  // The panel's session ended: the page is told to reopen its subscriptions.
+  // The panel's session ended: the page is told its subscriptions closed, and to reopen
+  // them once the list shows the panel reachable again; only once.
   subs[1].callback({ closed: true });
   assert.deepEqual(target.posted.at(-1)[0], { type: RELAY_TYPE, closed: true });
+  intervals[0].fn(); await tick();
+  assert.deepEqual(target.posted.at(-1)[0], { type: RELAY_TYPE, open: true });
+  const reopened = target.posted.length;
+  intervals[0].fn(); await tick();
+  assert.equal(target.posted.length, reopened);
 
   // A reconnect drops every relayed subscription without ending it on the new socket.
   fromWindow(target, { type: RELAY_TYPE, frame: { ...subscribe, command_id: 's2' } }); await tick();
@@ -795,8 +812,11 @@ test('relayed subscriptions forward updates, close on reconnect and end with the
   assert.deepEqual(target.posted.at(-1)[0], { type: RELAY_TYPE, closed: true });
   assert.equal(subs[2].unsubscribed, 0);
 
-  // The page's own unsubscribe, a panel change and a disconnect each end the browser's subscription.
+  // The resumed session keeps the frame's URL, so the page is not reloaded: it is told to reopen.
   subs[3].callback({ kind: 'opened', url: url(TOKEN) });
+  assert.deepEqual(target.posted.at(-1)[0], { type: RELAY_TYPE, open: true });
+
+  // The page's own unsubscribe, a panel change and a disconnect each end the browser's subscription.
   fromWindow(target, { type: RELAY_TYPE, frame: { ...subscribe, command_id: 's3' } }); await tick();
   fromWindow(target, { type: RELAY_TYPE, frame: { kind: 'manage', command_id: 'u', op: 'unsubscribe', args: { subscription: 's3' } } }); await tick();
   assert.equal(subs[4].unsubscribed, 1);
