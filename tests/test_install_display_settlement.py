@@ -468,3 +468,24 @@ async def test_sizing_custody_loss_stops_before_display_or_native_mutation(
     assert "display_settlement" not in harness.events
     assert harness.events.count("launch") == 1
     apply.assert_not_awaited()
+
+
+async def test_a_reinstall_over_a_set_up_panel_leaves_its_display_size_alone(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Sizing happens at setup only: never fight an owner's later change."""
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    harness = Harness(monkeypatch)
+    harness.setup_state = PanelSetupState(complete=True, accepts_handover=True)
+    harness.display = {
+        "recommended": {"density": 200, "font_scale": 0.9},
+        "privileged_sizing": False,
+    }
+    apply = AsyncMock()
+    monkeypatch.setattr(install_executor, "async_apply_display_sizing", apply)
+
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
+    apply.assert_not_awaited()
