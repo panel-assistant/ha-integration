@@ -77,7 +77,7 @@ from .repairs_proximity import (
     proximity_state,
 )
 from .repairs_restart import ISSUE_RESTART_REQUIRED, RestartRequiredFlow
-from .transport import (
+from .transport_binding import (
     BINDING_ISSUES,
     ISSUE_DATA_ENTRY_ID,
     ISSUE_DATA_USER_ID,

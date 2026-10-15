@@ -6,7 +6,7 @@ from homeassistant.helpers import issue_registry as ir
 
 from .const import DOMAIN
 from .status import PERMISSION_NAMES, ComponentStatus, PanelStatus
-from .transport import async_get_sessions
+from .transport_sessions import async_get_sessions
 
 ISSUE_PANEL_PERMISSIONS = "panel_permissions"
 

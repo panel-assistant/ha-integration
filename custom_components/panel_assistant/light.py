@@ -20,7 +20,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from . import HaPaneldConfigEntry
 from .contract import catalogue_entry
 from .native import NativeEntity, async_setup_native_platform
-from .transport import PanelSession
+from .transport_sessions import PanelSession
 
 
 async def async_setup_entry(

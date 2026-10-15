@@ -17,7 +17,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from . import client as panel_client
-from . import transport
+from . import transport_protocol, transport_sessions
 from .blob import BLOB_PATH, async_get_blobs
 from .client import (
     CannotConnectError,
@@ -85,24 +85,24 @@ class SessionCarrier:
 
     async def _request(
         self, op: str, wait_seconds: float, args: dict[str, Any]
-    ) -> transport.CommandOutcome:
-        session = transport.async_get_sessions(self._hass).get(self._entry_id)
-        if session is None or not transport.session_manages(session):
+    ) -> transport_sessions.CommandOutcome:
+        session = transport_sessions.async_get_sessions(self._hass).get(self._entry_id)
+        if session is None or not transport_sessions.session_manages(session):
             raise CannotConnectError
         try:
-            outcome = await transport.async_manage_outcome(
+            outcome = await transport_sessions.async_manage_outcome(
                 self._hass, session, op, wait_seconds, args=args
             )
         except HomeAssistantError as err:
-            if err.translation_key == transport.ERR_APPROVAL_PENDING:
+            if err.translation_key == transport_protocol.ERR_APPROVAL_PENDING:
                 raise UpdateApprovalRequiredError from err
             raise CannotConnectError from err
-        if outcome.outcome == transport.OUTCOME_REFUSED:
+        if outcome.outcome == transport_protocol.OUTCOME_REFUSED:
             # Each caller maps the HTTP error body it carries. A build that does
             # not know the name answers unknown_command with none, which every
             # caller refuses as a rejection, at once.
             return outcome
-        if outcome.outcome != transport.OUTCOME_APPLIED:
+        if outcome.outcome != transport_protocol.OUTCOME_APPLIED:
             raise CannotConnectError
         return outcome
 
@@ -110,10 +110,10 @@ class SessionCarrier:
         """Read the status body, with the bound HTTP applies before parsing."""
         outcome = await self._request(
             OP_STATUS,
-            transport.MANAGE_TIMEOUT,
+            transport_protocol.MANAGE_TIMEOUT,
             {"home_proof": True} if home_proof else {},
         )
-        if outcome.outcome != transport.OUTCOME_APPLIED:
+        if outcome.outcome != transport_protocol.OUTCOME_APPLIED:
             raise UpdateRejectedError
         body = json.dumps(outcome.result or {})
         if len(body.encode()) > MAX_STATUS_RESPONSE_BYTES:
@@ -134,7 +134,7 @@ class SessionCarrier:
                     "blob_token": token,
                 },
             )
-            if outcome.outcome != transport.OUTCOME_APPLIED:
+            if outcome.outcome != transport_protocol.OUTCOME_APPLIED:
                 if _refusal(outcome.result, "error") == "busy":
                     raise UpdateBusyError
                 raise HaPaneldError
@@ -172,7 +172,7 @@ class SessionCarrier:
             )
         finally:
             blobs.discard(token)
-        if outcome.outcome == transport.OUTCOME_APPLIED:
+        if outcome.outcome == transport_protocol.OUTCOME_APPLIED:
             return parse_staged_apk(_body(outcome.result))
         error = _refusal(outcome.result, "error")
         if error == "disabled":
@@ -186,9 +186,9 @@ class SessionCarrier:
     async def async_commit_apk(self, token: str) -> None:
         """Install the staged upload, after the panel's approval where it asks."""
         outcome = await self._request(
-            OP_COMMIT, transport.COMMAND_TIMEOUT, {"token": token}
+            OP_COMMIT, transport_protocol.COMMAND_TIMEOUT, {"token": token}
         )
-        if outcome.outcome == transport.OUTCOME_APPLIED:
+        if outcome.outcome == transport_protocol.OUTCOME_APPLIED:
             parse_update_start_response(_body(outcome.result))
             return
         if _refusal(outcome.result, "status") == "disabled":
@@ -197,4 +197,6 @@ class SessionCarrier:
 
     async def async_discard_apk(self, token: str) -> None:
         """Delete a staged upload that must not be installed."""
-        await self._request(OP_DISCARD, transport.COMMAND_TIMEOUT, {"token": token})
+        await self._request(
+            OP_DISCARD, transport_protocol.COMMAND_TIMEOUT, {"token": token}
+        )

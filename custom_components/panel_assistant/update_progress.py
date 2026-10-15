@@ -33,7 +33,7 @@ from .device import panel_display_name
 from .release import ReleaseArtifact
 from .session_carrier import UpdateCarrier
 from .status import home_ui_allows
-from .transport import async_get_sessions
+from .transport_sessions import async_get_sessions
 from .update_coordinator import PanelUpdateCoordinator
 from .update_errors import _update_error, refusal_error
 

@@ -92,7 +92,8 @@ def async_clear_foreign_ha_issue(hass: HomeAssistant, entry_id: str) -> None:
 @callback
 def async_raise_foreign_ha_issue(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Present positive evidence unless the panel has since contacted this Core."""
-    from .transport import _panel_did, async_binding_request
+    from .transport import _panel_did
+    from .transport_binding import async_binding_request
 
     runtime_data = getattr(entry, "runtime_data", None)
     coordinator = getattr(runtime_data, "coordinator", None)

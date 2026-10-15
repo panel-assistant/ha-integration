@@ -42,9 +42,8 @@ from . import HaPaneldConfigEntry
 from .browser_panel import STATIC_URL
 from .client import HaPaneldError
 from .const import DOMAIN
-from .transport import (
-    CAPABILITY_VOICE,
-    MANAGE_SETTINGS,
+from .transport_protocol import CAPABILITY_VOICE, MANAGE_SETTINGS
+from .transport_sessions import (
     PanelSession,
     async_get_sessions,
     async_manage,

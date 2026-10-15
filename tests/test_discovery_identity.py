@@ -222,7 +222,7 @@ async def test_manual_add_replaces_ignore_only_when_finished(hass, with_card):
         )
         ignored = result["result"]
         user = await hass.auth.async_create_user("Panel account")
-        from custom_components.panel_assistant.transport import (
+        from custom_components.panel_assistant.transport_binding import (
             async_record_binding_request,
         )
 

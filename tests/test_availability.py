@@ -50,7 +50,7 @@ from custom_components.panel_assistant.client import (
     normalize_address,
 )
 from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
-from custom_components.panel_assistant.transport import async_get_sessions
+from custom_components.panel_assistant.transport_sessions import async_get_sessions
 
 from .test_transport import (
     DID,

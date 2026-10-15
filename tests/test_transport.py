@@ -31,20 +31,24 @@ from custom_components.panel_assistant.diagnostics import (
     async_get_config_entry_diagnostics,
 )
 from custom_components.panel_assistant.status import PanelStatus
-from custom_components.panel_assistant.transport import (
-    _VALUE_VALIDATORS,
+from custom_components.panel_assistant.transport_binding import (
     BINDING_REQUEST_TTL,
     DATA_BINDING_REQUESTS,
-    DESCRIPTOR_SCHEMA,
     MAX_BINDING_REQUESTS,
+    async_bind_user,
+    async_binding_request,
+    async_raise_binding_issue,
+    async_record_binding_request,
+)
+from custom_components.panel_assistant.transport_protocol import (
+    _VALUE_VALIDATORS,
+    DESCRIPTOR_SCHEMA,
     MAX_CHANNELS,
     ValueRejected,
     _validate_attributes,
-    async_bind_user,
-    async_binding_request,
+)
+from custom_components.panel_assistant.transport_sessions import (
     async_get_sessions,
-    async_raise_binding_issue,
-    async_record_binding_request,
     session_available,
     signal_session_changed,
 )

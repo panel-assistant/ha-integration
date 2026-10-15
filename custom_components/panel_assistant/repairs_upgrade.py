@@ -31,7 +31,7 @@ from .const import (
 )
 from .device import panel_display_name
 from .panel_move import move_issue_id
-from .transport import async_get_sessions
+from .transport_sessions import async_get_sessions
 from .update_policy import overlaps
 
 ISSUE_PANEL_APP_TOO_OLD: Final = "panel_app_too_old"

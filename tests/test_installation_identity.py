@@ -439,7 +439,7 @@ async def test_discovery_mismatch_immediately_withdraws_existing_authority(
 ):
     from dataclasses import replace
 
-    from custom_components.panel_assistant.transport import async_get_sessions
+    from custom_components.panel_assistant.transport_sessions import async_get_sessions
 
     from .test_transport import _hello, _receive
 
@@ -496,7 +496,7 @@ async def test_identity_repair_admits_the_panels_next_connection(
     from homeassistant.helpers import issue_registry as ir
 
     from custom_components.panel_assistant.repairs import async_create_fix_flow
-    from custom_components.panel_assistant.transport import async_get_sessions
+    from custom_components.panel_assistant.transport_sessions import async_get_sessions
 
     from .test_transport import _hello
 

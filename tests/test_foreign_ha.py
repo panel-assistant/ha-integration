@@ -26,7 +26,7 @@ from custom_components.panel_assistant.foreign_ha import (
     foreign_ha_issue_id,
 )
 from custom_components.panel_assistant.ha_url import DATA_INSTANCE_ID
-from custom_components.panel_assistant.transport import (
+from custom_components.panel_assistant.transport_binding import (
     async_raise_binding_issue,
     async_record_binding_request,
 )

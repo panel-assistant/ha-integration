@@ -29,13 +29,13 @@ from .install_network import (
 )
 from .install_receipt import InstallJobError
 from .provisioning import InstallTargetState, async_probe_install_target
-from .transport import async_get_sessions
+from .transport_sessions import async_get_sessions
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
 
     from .coordinator import HaPaneldDataUpdateCoordinator, PanelSnapshot
-    from .transport import PanelSession
+    from .transport_sessions import PanelSession
 
 _LOGGER = logging.getLogger(__name__)
 _VENDOR = "cloud.shelly.stargate"

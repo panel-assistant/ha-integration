@@ -73,7 +73,7 @@ from custom_components.panel_assistant.release import (
     ReleaseResolutionError,
 )
 from custom_components.panel_assistant.status import PanelStatus
-from custom_components.panel_assistant.transport import (
+from custom_components.panel_assistant.transport_binding import (
     async_binding_request,
     async_record_binding_request,
 )

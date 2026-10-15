@@ -60,7 +60,7 @@ from homeassistant.helpers.storage import Store
 
 from .const import DOMAIN
 from .repairs_microphone import async_reconcile_microphone_issue
-from .transport import (
+from .transport_protocol import (
     _CONTROL_CHARACTERS,
     CAPABILITY_VOICE,
     CAPABILITY_VOICE_STREAM_SESSION,
@@ -69,9 +69,8 @@ from .transport import (
     _code,
     _plain_string,
     _session_token,
-    async_get_sessions,
-    signal_session_changed,
 )
+from .transport_sessions import async_get_sessions, signal_session_changed
 from .voice_stream import VoiceStream, async_get_voice_stream
 
 if TYPE_CHECKING:

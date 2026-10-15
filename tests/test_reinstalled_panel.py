@@ -37,7 +37,7 @@ from custom_components.panel_assistant.panel_move import (
     move_issue_id,
     release_panel_operation,
 )
-from custom_components.panel_assistant.transport import async_get_sessions
+from custom_components.panel_assistant.transport_sessions import async_get_sessions
 
 from .test_transport import HEALTH, STATUS, WsClientFactory, _hello, _send
 

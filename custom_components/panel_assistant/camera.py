@@ -17,7 +17,7 @@ from yarl import URL
 
 from . import HaPaneldConfigEntry
 from .native import NativeEntity, async_setup_native_platform
-from .transport import PanelSession
+from .transport_sessions import PanelSession
 
 
 async def async_setup_entry(

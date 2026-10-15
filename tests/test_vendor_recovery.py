@@ -39,7 +39,10 @@ from custom_components.panel_assistant.provisioning import (
     InstallTargetState,
 )
 from custom_components.panel_assistant.status import PanelDevice, PanelStatus
-from custom_components.panel_assistant.transport import PanelSession, async_get_sessions
+from custom_components.panel_assistant.transport_sessions import (
+    PanelSession,
+    async_get_sessions,
+)
 
 from .install_adb_fakes import _identity_root_output, _single_output
 

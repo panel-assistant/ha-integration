@@ -2,8 +2,8 @@
 
 ``panel_assistant_transport_v1.json`` is the one definition of the command
 outcome codes and of every channel this integration can render. The message
-vocabulary (commands, sync, states, errors) lives in ``transport.py``. The
-catalogue holds each channel's identity and the presentation only Home
+vocabulary (commands, sync, states, errors) lives in ``transport_protocol.py``.
+The catalogue holds each channel's identity and the presentation only Home
 Assistant decides (attributes, colour modes); every other entity fact comes
 from the panel's own descriptor. It decides which descriptors are known: a
 descriptor the catalogue does not know is accepted but creates nothing.

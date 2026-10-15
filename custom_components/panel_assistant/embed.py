@@ -48,7 +48,7 @@ from . import embed_proof
 from .client import PanelAddress, normalize_address
 from .const import DOMAIN
 from .device import panel_display_name
-from .transport import PanelSession, async_get_sessions
+from .transport_sessions import PanelSession, async_get_sessions
 
 _LOGGER = logging.getLogger(__name__)
 

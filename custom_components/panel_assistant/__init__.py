@@ -70,13 +70,9 @@ from .repairs_upgrade import (
     needs_090,
     needs_090_issue_id,
 )
-from .transport import (
-    REASON_ENTRY_UNLOADED,
-    async_apply_update_policy,
-    async_delete_merged_identity_issue,
-    async_get_sessions,
-    async_setup_transport,
-)
+from .transport import async_delete_merged_identity_issue, async_setup_transport
+from .transport_protocol import REASON_ENTRY_UNLOADED
+from .transport_sessions import async_apply_update_policy, async_get_sessions
 from .update_coordinator import PanelUpdateCoordinator
 from .voice import (
     async_follow_voice,

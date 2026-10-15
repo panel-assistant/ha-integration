@@ -122,8 +122,8 @@ from .removal import RemovalError, async_read_firmware, async_remove_app
 from .repairs_failure import async_clear_adb_authorization
 from .repairs_update_route import help_parameters
 from .status import PanelStatus
-from .transport import (
-    _panel_did,
+from .transport import _panel_did
+from .transport_binding import (
     async_bind_user,
     async_binding_request,
     async_confirmable_user,

@@ -18,7 +18,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.panel_assistant import transport
+from custom_components.panel_assistant import transport_protocol
 
 from .test_native import DESCRIPTORS, _hello, _observations, _report
 from .test_transport import DID, WsClientFactory, _send
@@ -103,11 +103,11 @@ async def panel(
 def test_media_observation_values(value: Any, accepted: bool) -> None:
     """Only the four states with a strict mute flag are a media observation."""
     descriptor = _BY_CHANNEL["media"]
-    validate = transport._VALUE_VALIDATORS[descriptor["platform"]]
+    validate = transport_protocol._VALUE_VALIDATORS[descriptor["platform"]]
     if accepted:
         assert validate(value | {"extra": 1}, descriptor) == value
     else:
-        with pytest.raises(transport.ValueRejected):
+        with pytest.raises(transport_protocol.ValueRejected):
             validate(value, descriptor)
 
 

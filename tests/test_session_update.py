@@ -23,7 +23,7 @@ from homeassistant.helpers import issue_registry as ir
 from custom_components.panel_assistant import (
     blob,
     feed_coordinator,
-    transport,
+    transport_protocol,
     update_staging,
 )
 from custom_components.panel_assistant import update as panel_update
@@ -553,7 +553,7 @@ async def test_a_commit_waiting_for_approval_asks_for_it(
     hass: HomeAssistant, offline: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     entity, panel = offline
-    monkeypatch.setattr(transport, "COMMAND_TIMEOUT", 0.2)
+    monkeypatch.setattr(transport_protocol, "COMMAND_TIMEOUT", 0.2)
 
     async def pending(_args: dict[str, Any]) -> list[Answer]:
         return [("pending_approval", None, None)]

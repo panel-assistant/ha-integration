@@ -35,7 +35,7 @@ from custom_components.panel_assistant.diagnostics import (
     async_get_config_entry_diagnostics,
 )
 from custom_components.panel_assistant.status import PanelStatus
-from custom_components.panel_assistant.transport import (
+from custom_components.panel_assistant.transport_sessions import (
     async_get_sessions,
     session_diagnostics,
 )

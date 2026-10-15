@@ -24,7 +24,9 @@ from custom_components.panel_assistant.repairs_failure import (
     adb_authorization_issue_id,
     panel_failure_issue_id,
 )
-from custom_components.panel_assistant.transport import async_record_binding_request
+from custom_components.panel_assistant.transport_binding import (
+    async_record_binding_request,
+)
 
 
 async def test_existing_panel_options_authorize_adb_after_physical_approval(

@@ -29,8 +29,8 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
 from .contract import catalogue_entry
-from .transport import (
-    STATE_KNOWN,
+from .transport_protocol import STATE_KNOWN
+from .transport_sessions import (
     Observation,
     PanelSession,
     async_get_sessions,

@@ -14,7 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.panel_assistant import transport
+from custom_components.panel_assistant import transport_sessions
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.diagnostics import (
     async_get_config_entry_diagnostics,
@@ -243,7 +243,7 @@ async def test_entry_writes_keep_the_session(
         await hass.async_block_till_done()
     await panel.nothing_sent()
     assert entry.runtime_data.client.address.host == "panel-2.local"
-    assert transport.async_get_sessions(hass).get(entry.entry_id) is not None
+    assert transport_sessions.async_get_sessions(hass).get(entry.entry_id) is not None
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
 
 
@@ -432,7 +432,7 @@ async def test_approval_that_outlasts_the_wait_raises_and_records_the_late_outco
 ) -> None:
     """Past the wait the call raises approval_pending; the final is kept as late."""
     panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
-    with patch.object(transport, "COMMAND_TIMEOUT", 0.3):
+    with patch.object(transport_sessions, "COMMAND_TIMEOUT", 0.3):
         call = _call(
             hass, "button", "press", {"entity_id": _entity_id(hass, native, "reboot")}
         )
@@ -472,7 +472,7 @@ async def test_no_outcome_raises_panel_unavailable(
 ) -> None:
     """A panel that never answers leaves the call failing, not hanging."""
     panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
-    with patch.object(transport, "COMMAND_TIMEOUT", 0.2):
+    with patch.object(transport_sessions, "COMMAND_TIMEOUT", 0.2):
         call = _call(
             hass,
             "switch",
@@ -569,14 +569,14 @@ async def test_a_session_that_has_ended_carries_no_command(
 ) -> None:
     """A session held from before its end is refused, never written to."""
     panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
-    ended = transport.async_get_sessions(hass).get(native.entry_id)
+    ended = transport_sessions.async_get_sessions(hass).get(native.entry_id)
     assert ended is not None
     replacement = await _connect(hass, hass_ws_client, hass_read_only_access_token)
     closed = await _receive(panel.client)
     assert closed["event"] == {"kind": "session_closed", "reason": "superseded"}
 
     sent = asyncio.ensure_future(
-        transport.async_send_command(hass, ended, "relay1", True)
+        transport_sessions.async_send_command(hass, ended, "relay1", True)
     )
     await asyncio.wait({sent}, timeout=1)
 

@@ -298,7 +298,7 @@ def _commit_identity(
         for item in er.async_entries_for_config_entry(registry, entry.entry_id)
         if item.platform == DOMAIN and item.unique_id.startswith(f"{entry.unique_id}_")
     ]
-    from .transport import async_get_sessions
+    from .transport_sessions import async_get_sessions
 
     async_get_sessions(hass).close_entry(entry.entry_id, "entry_unloaded")
     pending = {
@@ -414,7 +414,7 @@ def _withdraw_authority(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Stop status, controls and the session until the identity is settled."""
     from homeassistant.helpers.update_coordinator import UpdateFailed
 
-    from .transport import async_get_sessions
+    from .transport_sessions import async_get_sessions
 
     coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
     if coordinator is not None:

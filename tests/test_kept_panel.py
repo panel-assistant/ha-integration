@@ -16,7 +16,9 @@ from custom_components.panel_assistant.client import CannotConnectError
 from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
 from custom_components.panel_assistant.install_executor import InstallExecutor
 from custom_components.panel_assistant.install_receipt import InstallPhase
-from custom_components.panel_assistant.transport import async_record_binding_request
+from custom_components.panel_assistant.transport_binding import (
+    async_record_binding_request,
+)
 
 from . import config_flow_helpers
 from .config_flow_helpers import RELEASE, _choose_version, _probe, _start_step

@@ -56,7 +56,7 @@ from custom_components.panel_assistant.repairs_failure import (
     panel_failure_issue_id,
 )
 from custom_components.panel_assistant.status import PanelStatus
-from custom_components.panel_assistant.transport import async_get_sessions
+from custom_components.panel_assistant.transport_sessions import async_get_sessions
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity
 from custom_components.panel_assistant.update_coordinator import (
     PanelUpdateCoordinator,

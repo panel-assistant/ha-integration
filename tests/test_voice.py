@@ -463,7 +463,7 @@ async def test_a_pipeline_that_no_longer_exists_falls_back_to_the_preferred(
 
 
 def _connection_of(hass: HomeAssistant, entry: MockConfigEntry) -> Any:
-    from custom_components.panel_assistant.transport import async_get_sessions
+    from custom_components.panel_assistant.transport_sessions import async_get_sessions
 
     session = async_get_sessions(hass).get(entry.entry_id)
     assert session is not None

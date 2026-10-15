@@ -80,7 +80,9 @@ async def test_shutdown_broadcasts_unknown_to_every_authority(
     )
     await hass.async_block_till_done()
     if failed_sender:
-        from custom_components.panel_assistant.transport import async_get_sessions
+        from custom_components.panel_assistant.transport_sessions import (
+            async_get_sessions,
+        )
 
         session = async_get_sessions(hass).get(entry.entry_id)
         assert session is not None

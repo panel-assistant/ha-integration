@@ -46,7 +46,7 @@ from custom_components.panel_assistant.panel_move import (
     async_move_to_new_app,
     move_issue_id,
 )
-from custom_components.panel_assistant.transport import async_get_sessions
+from custom_components.panel_assistant.transport_sessions import async_get_sessions
 
 from .test_feed_install_paths import _build, _install_feed
 from .test_transport import STATUS

@@ -46,8 +46,8 @@ from .identity import accept_health, is_installation, reinstalled
 from .repairs_permission import async_reconcile_permission_issue
 from .repairs_proximity import async_reconcile_proximity_issue
 from .status import PanelStatus, parse_status_response
-from .transport import (
-    MANAGE_SNAPSHOT,
+from .transport_protocol import MANAGE_SNAPSHOT
+from .transport_sessions import (
     PanelSession,
     RestartNotice,
     async_get_sessions,
