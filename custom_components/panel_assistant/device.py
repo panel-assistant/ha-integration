@@ -39,8 +39,13 @@ def panel_device_info(
     snapshot: PanelSnapshot | None,
     fallback_name: str | None = None,
     app_build: tuple[str, int] | None = None,
+    panel_url: str | None = None,
 ) -> DeviceInfo:
     """Return the fullest device card the panel's own reported facts support.
+
+    The card's link opens the panel in the sidebar, or, given `panel_url`
+    because the sidebar cannot show the panel now, the panel's own page, so
+    its owner can still reach the settings that would reconnect it.
 
     With no snapshot yet, because the stored address has not answered since
     the entry loaded, the card carries the entry's own name. A fact nobody has
@@ -63,7 +68,7 @@ def panel_device_info(
         identifiers={(DOMAIN, entry_id)},
         name=name,
         # Home Assistant turns this scheme into a same-window, same-origin link.
-        configuration_url=f"homeassistant://panel-assistant/{entry_id}",
+        configuration_url=panel_url or f"homeassistant://panel-assistant/{entry_id}",
     )
     software = _software_version(health, app_build)
     if software is not None:

@@ -27,12 +27,12 @@ from custom_components.panel_assistant.client import (
 )
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.coordinator import HaPaneldDataUpdateCoordinator
-from custom_components.panel_assistant.failure_repair import (
+from custom_components.panel_assistant.feed_coordinator import StableReleaseCoordinator
+from custom_components.panel_assistant.release import ReleaseArtifact
+from custom_components.panel_assistant.repairs_failure import (
     async_clear_update_failure_if_installed,
     panel_failure_issue_id,
 )
-from custom_components.panel_assistant.feed_coordinator import StableReleaseCoordinator
-from custom_components.panel_assistant.release import ReleaseArtifact
 from custom_components.panel_assistant.status import parse_status_response
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity
 from custom_components.panel_assistant.update_coordinator import PanelUpdateCoordinator

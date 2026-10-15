@@ -14,8 +14,8 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 
 from .client import UpdateRejectedError
 from .const import DOMAIN
-from .failure_repair import async_request_adb_authorization
 from .release import ReleaseArtifact, is_feed_build_tag
+from .repairs_failure import async_request_adb_authorization
 
 # Every update stage logs as the update entity, so one logger setting covers the
 # whole update path.
@@ -47,7 +47,9 @@ class _UpdateRefusalError(ServiceValidationError, HTTPBadRequest):
 
 def refusal_error(panel: str, refusal: UpdateRejectedError) -> _UpdateRefusalError:
     """The panel's own reason, when its install result gave one."""
-    reason = str(refusal).removeprefix("refused (").removesuffix(")")
+    reason = str(refusal)
+    if reason.startswith("refused ("):
+        reason = reason.removeprefix("refused (").removesuffix(")")
     return _UpdateRefusalError(panel, reason or None)
 
 

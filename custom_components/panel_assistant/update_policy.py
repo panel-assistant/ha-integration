@@ -24,6 +24,11 @@ def prereleases_allowed(entry: ConfigEntry | None = None) -> bool:
     )
 
 
+def overlaps(low: int, high: int) -> bool:
+    """Return whether a panel's protocol range shares a version with ours."""
+    return low <= PROTOCOL_MAX and high >= PROTOCOL_MIN
+
+
 def build_allowed(
     version_name: str,
     protocol_min: int | None,
@@ -38,8 +43,7 @@ def build_allowed(
         or type(protocol_min) is not int
         or type(protocol_max) is not int
         or not 1 <= protocol_min <= protocol_max <= MAX_ANDROID_INTEGER
-        or protocol_min > PROTOCOL_MAX
-        or protocol_max < PROTOCOL_MIN
+        or not overlaps(protocol_min, protocol_max)
     ):
         return False
     version = _version_key(version_name)

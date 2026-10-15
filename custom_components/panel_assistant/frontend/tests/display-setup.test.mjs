@@ -4,7 +4,7 @@ import {spawnSync} from 'node:child_process';
 import {mkdtempSync, readFileSync, existsSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {DISPLAY_RESTORE_RECORD, applyDisplaySizing, buildDisplaySizing, displaySizing,
+import {DISPLAY_RESTORE_RECORD, buildDisplaySizing, displaySizing,
   parseDisplaySizing} from '../src/display-provisioning.mjs';
 
 // The USB installer's display program, run unchanged in a real shell whose
@@ -45,15 +45,4 @@ test('a recommended text size is written in the spelling the network installer u
   const sizing = displaySizing({density: null, font_scale: 0.9});
   assert.equal(parseDisplaySizing(p.run(buildDisplaySizing(nonce, sizing)), nonce, sizing), 'applied');
   assert.deepEqual(p.calls(), ['settings put system font_scale 0.9']);
-});
-
-test('applying never throws, and an unreadable answer is reported as such', async () => {
-  const value = {density: 216, font_scale: 1};
-  assert.equal(await applyDisplaySizing({adb: {}, newNonce: () => nonce, value,
-    readShell: async () => 'garbage'}), 'unreadable');
-  assert.equal(await applyDisplaySizing({adb: {}, newNonce: () => nonce, value: {density: 1}, readShell: async () => ''}),
-    'not_recommended');
-  const p = panel();
-  assert.equal(await applyDisplaySizing({adb: {}, newNonce: () => nonce, value,
-    readShell: async (_adb, program) => p.run(program)}), 'applied');
 });

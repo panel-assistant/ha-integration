@@ -39,11 +39,6 @@ from .coordinator import (
     PanelSnapshot,
 )
 from .device import panel_display_name
-from .failure_repair import (
-    async_clear_update_failure_if_installed,
-    async_record_update_failure,
-    async_refresh_update_failure_name,
-)
 from .feed_coordinator import (
     BuildFeedCoordinator,
     StableReleaseCoordinator,
@@ -57,6 +52,12 @@ from .panel_move import (
     release_panel_operation,
 )
 from .release import ReleaseArtifact, is_feed_build_tag
+from .repairs_failure import (
+    async_clear_update_failure_if_installed,
+    async_record_update_failure,
+    async_refresh_update_failure_name,
+)
+from .repairs_update_route import async_reconcile_update_route_issue
 from .status import PanelCachedUpdate
 from .update_coordinator import PanelUpdateCoordinator
 from .update_errors import (
@@ -85,7 +86,6 @@ from .update_route import (
     entry_discovery_id,
     session_route,
 )
-from .update_route_repair import async_reconcile_update_route_issue
 from .update_staging import BuildDelivery
 
 _AWAITING_CONFIRMATION_SUMMARY = "Tap Install on the panel to finish the update."
@@ -575,7 +575,12 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             or (
                 operation is not None
                 and operation.running
-                and operation.component == "ha-paneld"
+                and (
+                    operation.component == "ha-paneld"
+                    or (
+                        operation.component == "APK" and operation.awaiting_confirmation
+                    )
+                )
             )
         )
 

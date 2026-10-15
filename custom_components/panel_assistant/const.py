@@ -16,10 +16,10 @@ INTEGRATION_VERSION: str = json.loads(
 
 # The native transport range this running integration can serve. Protocol 5 is
 # the first without MQTT: an app that speaks only 4 or older is refused, told
-# that it needs app 1.0.0, the first release speaking 5, and offered it.
+# that it needs app 1.0.0-preview1, the first release speaking 5, and offered it.
 PROTOCOL_MIN = 5
 PROTOCOL_MAX = 5
-REQUIRED_APP_VERSION = "1.0.0"
+REQUIRED_APP_VERSION = "1.0.0-preview1"
 
 # Every outward link goes through the site's own redirect rather than a page
 # path, so pages can move. The version and build travel with it, so a later
@@ -89,9 +89,6 @@ CONF_PRERELEASE_PANEL_BUILDS = "prerelease_panel_builds"
 # when they moved a panel's entities off MQTT: which entities moved, and whether
 # the move completed. Only read now.
 CONF_CUTOVER = "cutover"
-# The entry data key holding the channels the entry's panel has described in a
-# hello, with the identity it described them under (see ``transport.py``).
-CONF_SUPPORTED_CHANNELS = "supported_channels"
 
 
 def update_unique_id(entry_id: str) -> str:

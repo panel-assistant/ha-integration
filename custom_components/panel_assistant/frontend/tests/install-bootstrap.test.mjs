@@ -67,6 +67,7 @@ function renderedJourney(scenario, locale = 'de', realCatalogue = false) {
     globalThis.controllerOptions = null;
     globalThis.installResolve = null;
     globalThis.installReject = null;
+    globalThis.settlementHold = scenario === 'settlement_interrupted';
     const stubs = {
       '@yume-chan/adb': 'export class Adb { disconnected = new Promise(() => {}); close() {} }; export const AdbDaemonTransport = { authenticate: async () => { globalThis.calls.authenticate++; return {}; } };',
       '@yume-chan/adb-credential-web': 'export default class Store {}',
@@ -75,11 +76,11 @@ function renderedJourney(scenario, locale = 'de', realCatalogue = false) {
       'session-target.mjs': 'export const inspectSessionTarget = async () => ({ serial: "RAW_SERIAL" });',
       'job-store.mjs': 'export const openJobStore = async () => ({ close() {} });',
       'usb-transaction-ports.mjs': 'export function createUsbTransactionPorts(options) { globalThis.portOptions = options; return {}; }',
-      'install-controller.mjs': 'export function createInstallController(options) { globalThis.controllerOptions = options; return { preview: async () => { globalThis.calls.preview++; return '+JSON.stringify({receipt:null,adopt:scenario==='adopt',discarded:scenario==='adopt'?{reason:'RAW_REASON'}:null})+'; }, install: async () => { globalThis.calls.install++; return new Promise((resolve, reject) => { globalThis.installResolve = resolve; globalThis.installReject = reject; }); } }; }',
-      'release-handoff.mjs': 'export const handoffOptions = () => ({}); export const receiveReleaseHandoff = () => ({ cancel() {}, completion: Promise.resolve({ release: { descriptor: { versionName: "1.2.3", versionCode: 42 } }, authenticate: async () => ({}) }) }); export const requestSetupHandover = async () => {}; export const handOverThenOpen = async (url, options) => { globalThis.calls.handover++; options.support("Setup handover", "RAW_OUTCOME"); options.open(url); };',
+      'install-controller.mjs': 'export function createInstallController(options) { globalThis.controllerOptions = options; return { preview: async () => { globalThis.calls.preview++; return '+JSON.stringify({receipt:null,adopt:scenario==='adopt',discarded:scenario==='adopt'?{reason:'RAW_REASON'}:null})+'; }, install: async () => { globalThis.calls.install++; return new Promise((resolve, reject) => { globalThis.installResolve = resolve; globalThis.installReject = reject; }); }, completeSetup: async () => { globalThis.settlementStarted = true; if (globalThis.settlementHold) return new Promise(resolve => { globalThis.settlementResolve = resolve; }); return {}; } }; }',
+      'release-handoff.mjs': 'export const handoffOptions = () => ({}); export const receiveReleaseHandoff = () => ({ cancel() {}, completion: Promise.resolve({ release: { descriptor: { versionName: "1.2.3", versionCode: 42 } }, authenticate: async () => ({}) }) }); export const requestSetupHandover = async () => {}; export const handOverThenOpen = async (url, options) => { globalThis.calls.handover++; options.support("Setup handover", "RAW_OUTCOME"); await options.beforeOpen(); options.open(url); };',
       'panel-address.mjs': 'export const readSetupUrl = async () => null;',
     };
-    if (scenario === 'foreign') {
+    if (scenario === 'foreign' || scenario === 'settlement_interrupted') {
       stubs['panel-address.mjs'] = 'export const readSetupUrl = async () => "http://192.168.1.20:8080/setup";';
       stubs['release-handoff.mjs'] = 'import { handOverThenOpen as actualOpen } from '+JSON.stringify(${JSON.stringify(actualHandover)})+'; export const handoffOptions = () => ({}); export const receiveReleaseHandoff = () => ({ cancel() {}, completion: Promise.resolve({ release: { descriptor: { versionName: "1.2.3", versionCode: 42 } }, authenticate: async () => ({}) }) }); export const requestSetupHandover = async options => { options.onRegistration("added_to_another_home_assistant"); return "handed_over"; }; export const handOverThenOpen = async (url, options) => { globalThis.calls.handover++; return actualOpen(url, options); };';
     }
@@ -142,10 +143,25 @@ function renderedJourney(scenario, locale = 'de', realCatalogue = false) {
       assert.match(node('support-log').textContent, /shell_timeout/);
       assert.deepEqual(calls, errorBefore);
     } else {
-    installResolve({ permissions: { raw: 'RAW_PERMISSION' } }); await pending;
+    installResolve({ permissions: { raw: 'RAW_PERMISSION' } });
+    if (scenario === 'settlement_interrupted') {
+      await tick(); await tick();
+      assert.equal(globalThis.settlementStarted, true);
+      assert.equal(node('step-done').hidden, true);
+      assert.equal(node('step-progress').hidden, false);
+      portOptions.quarantine();
+      globalThis.settlementResolve({});
+      await pending;
+      assert.equal(node('step-done').hidden, true, 'a late settlement cannot complete the interrupted session');
+      assert.equal(node('step-error').hidden, false, 'retry remains available');
+      assert.equal(scheduled.includes(1200), false);
+      assert.equal(navigations, 0);
+      process.exit(0);
+    }
+    await pending;
     assert.equal(node('step-done').hidden, false);
     assert.equal(node('journey').children.findIndex(item => item.attributes.has('aria-current')), 3);
-    assert.equal(node('done-text').textContent, scenario === 'foreign' ? FRONTEND_WARNING : target.installer.doneManual);
+    assert.equal(node('done-text').textContent, scenario === 'foreign' ? target.installer.doneAnotherHomeAssistant : target.installer.doneManual);
     assert.ok(node('support-log').textContent.includes(target.support.setupHandover));
     assert.match(node('support-log').textContent, scenario === 'foreign' ? /handed_over/ : /RAW_OUTCOME/);
     const doneBefore = { ...calls };
@@ -181,4 +197,6 @@ test('every admitted catalogue redraws consent, progress, completion and refusal
   }
 });
 
-test('a foreign-server completion stays readable with a setup link and English fallback', () => renderedJourney('foreign', 'de', true));
+test('a foreign-server completion translates with a setup link and switches back to English', () => renderedJourney('foreign', 'de', true));
+
+test('losing USB while display settlement is pending cannot mark finished or open setup', () => renderedJourney('settlement_interrupted'));

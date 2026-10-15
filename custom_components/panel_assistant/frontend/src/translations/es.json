@@ -102,7 +102,7 @@
     "progress": "Progreso",
     "installProgress": "Progreso de la instalación",
     "licenses": "Licencias de terceros",
-    "doneAnotherHomeAssistant": "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
+    "doneAnotherHomeAssistant": "Este panel tiene la sesión iniciada en otro Home Assistant. Cambia de Home Assistant e inicia sesión en el panel para conectarlo aquí."
   },
   "errors": {
     "installErrorGeneric": "Algo salió mal. Mantén el panel conectado y pulsa Volver a intentar.",

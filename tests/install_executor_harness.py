@@ -256,6 +256,11 @@ class Harness:
             "async_launch_installed_app",
             self.async_launch,
         )
+        self.monkeypatch.setattr(
+            install_executor,
+            "async_settle_vendor_display",
+            self.async_settle_display,
+        )
         harness = self
 
         class FakeClient:
@@ -542,6 +547,17 @@ class Harness:
         if self.launch_error is not None:
             raise self.launch_error
         return self.launch_outcome
+
+    async def async_settle_display(
+        self,
+        target: AdbInstallTarget,
+        signer: PythonRSASigner,
+        descriptor: InstallDescriptor,
+        *,
+        expected_root_mode: AdbRootMode,
+    ) -> str:
+        self.events.append("display_settlement")
+        return "skipped"
 
 
 async def run_job(

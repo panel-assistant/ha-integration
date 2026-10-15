@@ -226,7 +226,6 @@ async def test_automatic_upgrade_requires_surviving_exclusive_installation_proof
             "state": "complete",
             "entities": {entity.id: {"mqtt_device_id": device.id}},
         },
-        "supported_channels": {"did": DID, "channels": ["relay1"]},
     }
     hass.config_entries.async_update_entry(entry, data=data)
     if proof in ("deleted", "deleted_merged", "pruned"):
@@ -270,7 +269,6 @@ async def test_automatic_upgrade_requires_surviving_exclusive_installation_proof
         assert registry.async_get(entity.entity_id).id == entity.id
         assert registry.async_get(entity.entity_id).unique_id == f"{new_did}_relay1"
         assert entry.data["cutover"]["did"] == new_did
-        assert entry.data["supported_channels"]["did"] == new_did
         from homeassistant.helpers import issue_registry as ir
 
         from .test_transport import _hello

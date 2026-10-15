@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import asdict, replace
 from typing import Any
 from unittest.mock import AsyncMock
@@ -26,14 +27,14 @@ from custom_components.panel_assistant.const import (
     INTEGRATION_VERSION,
     update_unique_id,
 )
-from custom_components.panel_assistant.failure_repair import (
+from custom_components.panel_assistant.install_jobs import InstallJobManager
+from custom_components.panel_assistant.repairs_failure import (
     RetrySafetyHold,
     async_clear_update_failure_if_installed,
     async_failure_events,
     async_record_update_failure,
     async_refresh_update_failure_name,
 )
-from custom_components.panel_assistant.install_jobs import InstallJobManager
 from tests import test_install_jobs as job_fixtures
 from tests.test_feed_update import _build
 from tests.test_install_failure_repairs import _authorization_failure
@@ -310,12 +311,18 @@ async def test_update_repair_retries_via_home_assistant_and_clears_on_success(
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue.issue_id) is None
 
 
-async def test_update_retry_holds_when_signed_feed_artifact_changed(
+@pytest.mark.parametrize("reloaded", [False, True], ids=["in-memory", "reloaded"])
+@pytest.mark.parametrize("change", [None, "digest", "signer", "url"])
+async def test_update_retry_preserves_saved_feed_artifact_across_storage_reload(
     hass: HomeAssistant,
     repairs_ready: None,
     hass_client: Any,
     monkeypatch: pytest.MonkeyPatch,
+    hass_storage: dict[str, Any],
+    reloaded: bool,
+    change: str | None,
 ) -> None:
+    """Retry survives a restart but still refuses changed signed metadata."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test panel",
@@ -336,16 +343,44 @@ async def test_update_retry_holds_when_signed_feed_artifact_changed(
         for (domain, _), item in ir.async_get(hass).issues.items()
         if domain == DOMAIN
     )
-    er.async_get(hass).async_get_or_create(
+    if reloaded:
+        await hass.async_block_till_done()
+        # The test Store holds Python values; the real Store reloads JSON.
+        key = f"{DOMAIN}.failure_repairs"
+        hass_storage[key] = json.loads(json.dumps(hass_storage[key]))
+        hass.data.pop(f"{DOMAIN}.failure_repair_store")
+    entity = er.async_get(hass).async_get_or_create(
         "update", DOMAIN, update_unique_id(entry.entry_id)
+    )
+    hass.states.async_set(
+        entity.entity_id,
+        "on",
+        {
+            "installed_version": "0.9.7-rc4 build 101",
+            "latest_version": "0.9.7-rc4 build 102",
+        },
     )
     calls = []
 
     async def installed(service) -> None:
         calls.append(service.data)
+        await async_clear_update_failure_if_installed(
+            hass, entry.entry_id, "0.9.7-rc4", 102
+        )
 
     hass.services.async_register("update", "install", installed)
-    resolver = AsyncMock(return_value=replace(original, sha256="b" * 64))
+    current = original
+    if change == "digest":
+        current = replace(original, sha256="b" * 64)
+    elif change == "signer":
+        assert original.descriptor is not None
+        current = replace(
+            original,
+            descriptor=replace(original.descriptor, signer_certificate_sha256="b" * 64),
+        )
+    elif change == "url":
+        current = replace(original, apk_url=f"{original.apk_url}?changed")
+    resolver = AsyncMock(return_value=current)
     monkeypatch.setattr(panel_repairs, "async_resolve_install_choice", resolver)
     admin = await hass_client()
     response = await admin.post(
@@ -364,10 +399,17 @@ async def test_update_retry_holds_when_signed_feed_artifact_changed(
             f"/api/repairs/issues/fix/{menu['flow_id']}", json={}
         )
         result = await response.json()
-    assert result["step_id"] == "retry_error"
-    assert result["errors"] == {"base": "retry_release_changed"}
-    assert calls == []
-    assert ir.async_get(hass).async_get_issue(DOMAIN, issue.issue_id) is not None
+    if change is None:
+        assert calls == [
+            {"entity_id": entity.entity_id, "version": "0.9.7-rc4 build 102"}
+        ]
+        assert result["type"] == "create_entry"
+        assert ir.async_get(hass).async_get_issue(DOMAIN, issue.issue_id) is None
+    else:
+        assert result["step_id"] == "retry_error"
+        assert result["errors"] == {"base": "retry_release_changed"}
+        assert calls == []
+        assert ir.async_get(hass).async_get_issue(DOMAIN, issue.issue_id) is not None
     resolver.assert_awaited_once_with(hass, original.tag)
 
 

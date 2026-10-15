@@ -102,7 +102,7 @@
     "progress": "Avanzamento",
     "installProgress": "Avanzamento dell’installazione",
     "licenses": "Licenze di terze parti",
-    "doneAnotherHomeAssistant": "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
+    "doneAnotherHomeAssistant": "Su questo pannello è attivo l'accesso a un altro Home Assistant. Cambia Home Assistant ed esegui l'accesso sul pannello per collegarlo qui."
   },
   "errors": {
     "installErrorGeneric": "Si è verificato un problema. Lascia il pannello collegato e premi Riprova.",
@@ -142,7 +142,7 @@
     "permissions": "Autorizzazioni",
     "setupAddress": "Indirizzo di configurazione",
     "setupHandover": "Passaggio alla configurazione",
-    "displaySizing": "Dimensione dello schermo e del testo",
+    "displaySizing": "Dimensioni di visualizzazione e del testo",
     "copiedDetail": "{bytes} byte inviati; in attesa della conferma del pannello",
     "none": "nessuno",
     "setupMissing": "non trovato; la configurazione prosegue sul pannello"

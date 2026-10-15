@@ -12,9 +12,9 @@ from homeassistant.helpers.translation import async_get_translations
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.panel_assistant import failure_repair
+from custom_components.panel_assistant import repairs_failure
 from custom_components.panel_assistant.const import DOMAIN
-from custom_components.panel_assistant.failure_repair import (
+from custom_components.panel_assistant.repairs_failure import (
     async_clear_adb_authorization,
     async_failure_events,
     async_record_update_failure,
@@ -246,7 +246,7 @@ async def test_a_repair_opened_after_its_panel_went_clears_itself(
     data: dict[str, str],
 ) -> None:
     """The owner is told the panel was removed, and the Repair is gone."""
-    await failure_repair._failure_store(hass).append(
+    await repairs_failure._failure_store(hass).append(
         issue_id, {"kind": "update", "entry_id": GONE, "reason": "x"}
     )
     _raise(hass, issue_id, key, is_fixable=True, is_persistent=True, data=data)

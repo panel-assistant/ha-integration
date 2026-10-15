@@ -36,8 +36,10 @@ from .embed import (
     REASON_ENTRY_UNLOADED as EMBED_ENTRY_UNLOADED,
 )
 from .embed import (
+    STATE_UNREACHABLE,
     async_get_embed_sessions,
     async_setup_embed,
+    panel_state,
 )
 from .entry_issues import async_delete_entry_issues, async_delete_orphan_issues
 from .feed_coordinator import CONF_BUILD_FEED, DATA_BUILD_FEED, BuildFeedCoordinator
@@ -49,7 +51,6 @@ from .install_executor import (
     async_resume_loaded_install_jobs,
 )
 from .lifecycle import async_setup_lifecycle
-from .microphone_repair import async_delete_microphone_issue
 from .native import CONF_NATIVE_ENTITIES, NATIVE_ONLY_PLATFORMS
 from .panel_move import (
     async_evaluate_successor_move,
@@ -61,7 +62,14 @@ from .removed_panels import (
     async_load_removed_panels,
     async_remember_removed_panel,
 )
-from .restart_repair import async_setup_restart_check
+from .repairs_microphone import async_delete_microphone_issue
+from .repairs_restart import async_setup_restart_check
+from .repairs_upgrade import (
+    async_evaluate_app_too_old,
+    async_raise_needs_090,
+    needs_090,
+    needs_090_issue_id,
+)
 from .transport import (
     REASON_ENTRY_UNLOADED,
     async_apply_update_policy,
@@ -70,12 +78,6 @@ from .transport import (
     async_setup_transport,
 )
 from .update_coordinator import PanelUpdateCoordinator
-from .upgrade_repairs import (
-    async_evaluate_app_too_old,
-    async_raise_needs_090,
-    needs_090,
-    needs_090_issue_id,
-)
 from .voice import (
     async_follow_voice,
     async_load_voice,
@@ -187,7 +189,7 @@ async def _async_reconcile_install_receipt(
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Drop the authority option: every panel is native.
+    """Drop the authority option and the channel record: every panel is native.
 
     A minor version, so Panel Assistant 0.9.0, which a panel never moved off
     MQTT must go back to, still loads the entry. The move record stays.
@@ -196,7 +198,14 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         options = {
             key: value for key, value in entry.options.items() if key != CONF_AUTHORITY
         }
-        hass.config_entries.async_update_entry(entry, options=options, minor_version=2)
+        data = {
+            key: value
+            for key, value in entry.data.items()
+            if key != "supported_channels"
+        }
+        hass.config_entries.async_update_entry(
+            entry, data=data, options=options, minor_version=2
+        )
     return True
 
 
@@ -265,8 +274,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
 
     def card() -> DeviceInfo:
+        # When the sidebar can only say the panel is unreachable, the link
+        # goes straight to the panel's page at the stored address, which
+        # address recovery and discovery move to wherever it last answered.
+        unreachable = panel_state(entry) == STATE_UNREACHABLE
         return panel_device_info(
-            entry.entry_id, coordinator.data, entry.title, coordinator.app_build
+            entry.entry_id,
+            coordinator.data,
+            entry.title,
+            coordinator.app_build,
+            f"{coordinator.client.address.base_url}/" if unreachable else None,
         )
 
     # The one writer of the panel's device card: created here, before any

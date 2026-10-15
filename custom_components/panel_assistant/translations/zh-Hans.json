@@ -42,6 +42,9 @@
           "panel_setup": "打开设置向导",
           "connect_found": "跳过设置并立即连接",
           "add_panel": "使用其他地址"
+        },
+        "menu_option_descriptions": {
+          "connect_found": "跳过设置并立即连接"
         }
       },
       "panel_setup": {
@@ -129,6 +132,8 @@
     },
     "abort": {
       "already_configured": "此面板已配置。",
+      "reinstall_successful": "应用已重新安装。此面板在 Home Assistant 中的历史记录和设置会保留。",
+      "reinstall_identity_mismatch": "应用已安装，但无法关联到保留的面板。该面板在 Home Assistant 中的历史记录和设置已保留。请先在 Home Assistant 中检查此面板，再重试。",
       "not_panel": "这不是 Panel Assistant 可以在其上进行安装的面板。",
       "invalid_discovery": "发现的面板无法证明它是同一健康的 Panel Assistant 安装。未更改 Home Assistant 条目或面板设置。",
       "install_cancelled": "安装流程已在 APK 安装前取消。未创建 Home Assistant 条目。要重试，请添加 Panel Assistant 集成并输入相同的面板地址。",
@@ -149,7 +154,7 @@
       "unknown": "设置流程丢失了待处理的面板状态。请重新开始设置。"
     },
     "create_entry": {
-      "another_home_assistant": "This panel is signed in to another Home Assistant. It has been added here, but its settings and sign-in have not changed. To connect it here, change Home Assistant and sign in on the panel."
+      "another_home_assistant": "此面板当前已登录另一个 Home Assistant。它已添加到此处，但其设置和登录状态未更改。若要将其连接到此处，请在面板上更改 Home Assistant 并登录。"
     }
   },
   "entity": {
@@ -166,7 +171,7 @@
           "restarting_settings": "正在重启（设置）",
           "restarting_recovery": "正在重启（恢复）",
           "restarting_reboot": "正在重启（系统重启）",
-          "another_home_assistant": "Signed in to another Home Assistant"
+          "another_home_assistant": "已登录另一个 Home Assistant"
         }
       },
       "diag_boot": {
@@ -362,6 +367,9 @@
             "name": "来源数"
           }
         }
+      },
+      "usb_debugging": {
+        "name": "USB 调试"
       },
       "proximity": {
         "name": "接近"
@@ -643,7 +651,7 @@
         "step": {
           "commission_permissions": {
             "title": "检查 {panel} 的权限",
-            "description": "{panel} 的仪表盘仍可使用。在实体面板上打开 Android 设置 → 应用 → Panel Assistant。允许列表中显示的相机和麦克风权限，以及通知。在特殊应用权限中，允许 Panel Assistant 修改系统设置和显示在其他应用上层。在无障碍设置中启用 Panel Assistant 服务。返回此处并选择提交，再次检查权限。"
+            "description": "{panel} 上的仪表盘仍可使用。请在实体面板上打开 Android 设置 → 应用 → Panel Assistant。允许相机和麦克风访问权限（如有列出）以及通知权限。在“特殊应用权限”下，为 Panel Assistant 允许“修改系统设置”和“显示在其他应用的上层”。在“无障碍”下，启用 Panel Assistant 服务。当导航栏设为“滑动显示”或“始终显示”，且缺少“显示在其他应用的上层”权限时，从仪表盘底部向上滑动会改为打开“显示在其他应用的上层”设置：请允许该权限，返回，然后再次向上滑动。返回此处并选择“提交”以重新检查权限。"
           }
         },
         "error": {
@@ -1412,8 +1420,8 @@
       }
     },
     "another_home_assistant": {
-      "title": "{panel} is signed in to another Home Assistant",
-      "description": "{panel} has been added here, but it is signed in to another Home Assistant. Its settings and sign-in have not changed. To connect it here, change Home Assistant and sign in on the panel."
+      "title": "{panel} 已登录另一个 Home Assistant",
+      "description": "{panel} 已添加到此处，但它当前已登录另一个 Home Assistant。其设置和登录状态未更改。若要将其连接到此处，请在面板上更改 Home Assistant 并登录。"
     }
   },
   "options": {
@@ -1425,6 +1433,9 @@
           "onboarding": "继续设置",
           "authorize_adb": "允许更新",
           "updates": "面板更新",
+          "remove_app": "从此面板移除 Panel Assistant"
+        },
+        "menu_option_descriptions": {
           "remove_app": "从此面板移除 Panel Assistant"
         }
       },
@@ -1470,6 +1481,9 @@
         "description": "面板保留其自带的主屏幕。是否也让 Home Assistant 忘记 {panel}？",
         "menu_options": {
           "remove_app_delete_entry": "从 Home Assistant 删除此面板",
+          "remove_app_keep_entry": "暂时保留在 Home Assistant 中"
+        },
+        "menu_option_descriptions": {
           "remove_app_keep_entry": "暂时保留在 Home Assistant 中"
         }
       }

@@ -33,6 +33,7 @@ from custom_components.panel_assistant.client import (
     InvalidResponseError,
     PanelHealth,
     PanelInstallStatus,
+    parse_health_response,
 )
 from custom_components.panel_assistant.const import (
     DOMAIN,
@@ -58,14 +59,10 @@ from custom_components.panel_assistant.install_jobs import (
 )
 from custom_components.panel_assistant.status import PanelStatus, parse_status_response
 
-HEALTH = PanelHealth(
-    version="0.9.0",
-    panel_id="alpha",
-    build="1000",
-    config_hash="1a2b3c4d",
-    ha_state="normal",
-    ha_source="mqtt",
-    protocol=(5, 5),
+# The line the app sends while it observes Home Assistant over its native socket.
+HEALTH = parse_health_response(
+    "ha-paneld 0.9.0 panel=alpha build=1000 cfg=1a2b3c4d proto=5-5"
+    " ha=normal ha_src=native ha_reason=unknown ha_grace_ms=0\n"
 )
 BETA_HEALTH = PanelHealth(
     version="0.9.1",
@@ -80,7 +77,6 @@ DISCOVERY_HEALTH = PanelHealth(
     build="1000",
     config_hash="1a2b3c4d",
     ha_state="normal",
-    ha_source="mqtt",
     discovery_id="a" * 64,
     protocol=(5, 5),
 )
@@ -220,6 +216,9 @@ async def test_setup_entry_diagnostics_unload_reload(hass: HomeAssistant) -> Non
         assert state is not None
         assert state.state == "online"
         assert state.attributes["build"] == HEALTH.build
+        assert state.attributes["home_assistant_state"] == "normal"
+        assert "home_assistant_source" not in state.attributes
+        assert "home_assistant_subscription_refused" not in state.attributes
         # The panel's device names the Panel Assistant build it is connected
         # through, as a diagnostic entity beside its own Update entity.
         version = next(
@@ -300,7 +299,6 @@ async def test_diagnostics_download_uses_privacy_safe_entry_filename(
         build=HEALTH.build,
         config_hash=HEALTH.config_hash,
         ha_state=HEALTH.ha_state,
-        ha_source=HEALTH.ha_source,
         protocol=(5, 5),
     )
     executor, _manager = _installer_doubles(hass)

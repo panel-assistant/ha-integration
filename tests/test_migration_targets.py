@@ -26,6 +26,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.panel_assistant.client import (
     CannotConnectError,
     PanelHealth,
+    PanelSetupState,
     normalize_address,
 )
 from custom_components.panel_assistant.const import DOMAIN
@@ -169,7 +170,8 @@ async def test_form_offers_known_panels_adb_open_first(
         }
     )
 
-    form = await _add_panel_form(hass)
+    with patch(HEALTH_CHECK, AsyncMock(return_value=HEALTH)):
+        form = await _add_panel_form(hass)
 
     assert form["step_id"] == "add_panel"
     assert _offered(form) == [
@@ -319,14 +321,15 @@ async def test_ignored_panel_stays_ignored(
 async def test_added_panel_is_not_offered_again(
     hass: HomeAssistant, adb_open: SimpleNamespace
 ) -> None:
-    """A panel Panel Assistant already has is neither offered nor probed."""
+    """A configured address is not re-offered without a clean-package proof."""
     _companion(hass, "Wall screen", "192.168.1.30", "a")
     adb_open.open.add("192.168.1.30")
     MockConfigEntry(domain=DOMAIN, data={CONF_ADDRESS: "192.168.1.30"}).add_to_hass(
         hass
     )
 
-    await _network_device_seen(hass)
+    with patch(HEALTH_CHECK, AsyncMock(return_value=HEALTH)):
+        await _network_device_seen(hass)
 
     assert _discovered(hass) == {}
     assert adb_open.asked == []
@@ -526,7 +529,7 @@ async def test_network_adb_device_already_added_or_running_the_app_is_not_offere
     await _adb_advertised(hass, "192.168.1.52", serial="odd", port=5556)
 
     assert _cards(hass) == {}
-    assert adb_open.asked == []
+    assert adb_open.asked == ["192.168.1.50"]
 
 
 async def test_ignored_network_adb_device_stays_ignored_at_a_new_address(
@@ -789,7 +792,8 @@ async def _by_registry(hass: HomeAssistant, adb_open: SimpleNamespace) -> None:
     if not hass.config_entries.async_entries("shelly"):
         _host_entry(hass, "shelly", "ShellyWallDisplay-00A90B9D900A", PANEL)
     adb_open.open.add(PANEL)
-    await _network_device_seen(hass)
+    with patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)):
+        await _network_device_seen(hass)
 
 
 INSTALL_CHANNELS = pytest.mark.parametrize(
@@ -1160,8 +1164,8 @@ async def test_wizard_opened_from_a_card_when_the_panel_is_added_says_so(
     with (
         patch(HEALTH_CHECK, AsyncMock(return_value=APP_HEALTH)),
         patch(
-            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_setup_complete",
-            AsyncMock(return_value=False),
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_setup_state",
+            AsyncMock(return_value=PanelSetupState(complete=False)),
         ),
     ):
         menu = await hass.config_entries.flow.async_configure(card["flow_id"], {})

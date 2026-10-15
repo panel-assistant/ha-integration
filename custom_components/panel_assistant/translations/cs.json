@@ -42,6 +42,9 @@
           "panel_setup": "Otevřít průvodce nastavením",
           "connect_found": "Přeskočit nastavení a připojit nyní",
           "add_panel": "Použít jinou adresu"
+        },
+        "menu_option_descriptions": {
+          "connect_found": "Přeskočit nastavení a připojit nyní"
         }
       },
       "panel_setup": {
@@ -129,6 +132,8 @@
     },
     "abort": {
       "already_configured": "Tento panel je již nastavený.",
+      "reinstall_successful": "Aplikace byla znovu nainstalována. Tento panel si zachovává svou historii a nastavení v Home Assistant.",
+      "reinstall_identity_mismatch": "Aplikace je nainstalovaná, ale nepodařilo se ji propojit se zachovaným panelem. Jeho historie a nastavení v Home Assistant byly zachovány. Před dalším pokusem zkontrolujte panel v Home Assistant.",
       "not_panel": "Toto není panel, na který může Panel Assistant instalovat.",
       "invalid_discovery": "Nepodařilo se prokázat, že nalezený panel je tatáž funkční instalace Panel Assistant. Žádný záznam v Home Assistant ani nastavení panelu se nezměnilo.",
       "install_cancelled": "Instalace byla zrušena před nainstalováním APK. Nebyl vytvořen žádný záznam v Home Assistant. Chcete-li to zkusit znovu, přidejte integraci Panel Assistant a zadejte stejnou adresu panelu.",
@@ -178,6 +183,9 @@
             "name": "Zdroje"
           }
         }
+      },
+      "usb_debugging": {
+        "name": "Ladění USB"
       },
       "proximity": {
         "name": "Přiblížení"
@@ -1468,6 +1476,9 @@
           "authorize_adb": "Povolit aktualizace",
           "updates": "Aktualizace panelu",
           "remove_app": "Odebrat Panel Assistant z tohoto panelu"
+        },
+        "menu_option_descriptions": {
+          "remove_app": "Odebrat Panel Assistant z tohoto panelu"
         }
       },
       "onboarding": {
@@ -1512,6 +1523,9 @@
         "description": "Panel si ponechá vlastní domovskou obrazovku. Má Home Assistant také zapomenout panel {panel}?",
         "menu_options": {
           "remove_app_delete_entry": "Smazat tento panel z Home Assistant",
+          "remove_app_keep_entry": "Zatím ho ponechat v Home Assistant"
+        },
+        "menu_option_descriptions": {
           "remove_app_keep_entry": "Zatím ho ponechat v Home Assistant"
         }
       }

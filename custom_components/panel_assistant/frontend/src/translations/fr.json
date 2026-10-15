@@ -102,7 +102,7 @@
     "progress": "Progression",
     "installProgress": "Progression de l’installation",
     "licenses": "Licences tierces",
-    "doneAnotherHomeAssistant": "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
+    "doneAnotherHomeAssistant": "Ce panneau a une session ouverte sur un autre Home Assistant. Changez de Home Assistant et connectez-vous sur le panneau pour le connecter ici."
   },
   "errors": {
     "installErrorGeneric": "Une erreur s’est produite. Gardez le panneau branché et appuyez sur « Réessayer ».",

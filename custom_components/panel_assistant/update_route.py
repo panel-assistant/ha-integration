@@ -28,7 +28,6 @@ from .adb_protocol import (
 )
 from .client import HaPaneldError, is_valid_discovery_id
 from .coordinator import HaPaneldDataUpdateCoordinator, PanelSnapshot
-from .failure_repair import async_clear_adb_authorization
 from .install_adb import (
     async_installed_artifact_size,
     async_launch_installed_app,
@@ -43,11 +42,12 @@ from .install_network import (
 )
 from .provisioning import InstallTargetState, async_probe_install_target
 from .release import ReleaseArtifact
+from .repairs_failure import async_clear_adb_authorization
+from .repairs_upgrade import speaks_this_protocol
 from .transport import async_get_sessions, session_manages
 from .update_errors import UPDATE_LOGGER as _LOGGER
 from .update_errors import _update_error, adb_authorization_error
 from .update_offer import UpdateOffer
-from .upgrade_repairs import speaks_this_protocol
 
 # Which way the last update reached the panel, shown on the entity.
 ROUTE_ATTRIBUTE = "update_route"

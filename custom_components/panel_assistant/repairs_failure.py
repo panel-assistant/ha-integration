@@ -19,12 +19,12 @@ from homeassistant.helpers.storage import Store
 
 from .build import INTEGRATION_BUILD
 from .build_feed import parse_build_request
-from .client import is_newer_stable_version
+from .client import is_newer_stable_version, is_version_at_least
 from .const import DOMAIN, INTEGRATION_VERSION
 from .device import panel_display_name
 
 if TYPE_CHECKING:
-    from .install_jobs import InstallJobReceipt
+    from .install_receipt import InstallJobReceipt
 
 ISSUE_INSTALLER_FAILURE = "installer_failure"
 ISSUE_ADB_AUTHORIZATION = "adb_update_authorization"
@@ -368,11 +368,7 @@ async def async_clear_update_failure_if_installed(
         target_code = parse_build_request(target)
         if target_code is not None:
             return installed_code is not None and installed_code >= target_code
-        # A prerelease of a later version is newer than the failed stable
-        # version; one of the same version has not reached that stable build.
-        return installed_version == target or is_newer_stable_version(
-            installed_version.split("-", 1)[0], target
-        )
+        return is_version_at_least(installed_version, target) is True
 
     await _failure_store(hass).clear(
         issue_id,
@@ -394,7 +390,8 @@ async def async_failure_events(
     issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
     if issue is None:
         return []
-    from .install_jobs import InstallPhase, async_get_install_job_manager
+    from .install_jobs import async_get_install_job_manager
+    from .install_receipt import InstallPhase
 
     manager = await async_get_install_job_manager(hass)
     receipts = await manager.async_list()
@@ -537,15 +534,13 @@ async def async_retry_install_job(
     from .client import normalize_address
     from .install_adb import async_installed_artifact_size, async_preflight_install
     from .install_executor import _adb_target
-    from .install_jobs import (
-        InstallPhase,
-        async_get_install_job_manager,
-    )
+    from .install_jobs import async_get_install_job_manager
     from .install_network import (
         async_pin_install_target,
         async_revalidate_install_target,
     )
     from .install_plan import _build_artifact, build_install_plan
+    from .install_receipt import InstallPhase
     from .provisioning import InstallTargetState, async_probe_install_target
     from .release_catalog import async_resolve_install_choice
 

@@ -273,3 +273,28 @@ test('the installer reports a recognized warning only from its own Home Assistan
     assert.deepEqual(seen, ['added_to_another_home_assistant']);
   }
 });
+
+
+test('setup acceptance is awaited outside the best-effort handover, including without an address', async () => {
+  for (const url of ['http://192.168.1.20:8888/setup', null]) {
+    let resolveAcceptance, opened = false;
+    const pending = handOverThenOpen(url, {
+      handover: async () => { throw new Error('handover failed'); },
+      support() {},
+      beforeOpen: () => new Promise(resolve => { resolveAcceptance = resolve; }),
+      open() { opened = true; },
+    });
+    await tick();
+    assert.equal(opened, false);
+    resolveAcceptance();
+    await pending;
+    assert.equal(opened, true);
+    opened = false;
+    await assert.rejects(handOverThenOpen(url, {
+      handover: async () => 'handed_over', support() {},
+      beforeOpen: async () => { throw new Error('settlement incomplete'); },
+      open() { opened = true; },
+    }), /settlement incomplete/);
+    assert.equal(opened, false);
+  }
+});

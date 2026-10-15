@@ -25,7 +25,7 @@ from homeassistant.helpers.event import async_track_time_interval
 from .build import INTEGRATION_BUILD
 from .const import DOMAIN, INTEGRATION_VERSION
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger("custom_components.panel_assistant.restart_repair")
 
 ISSUE_RESTART_REQUIRED = "restart_required"
 DATA_RESTART_CHECK = "restart_check"

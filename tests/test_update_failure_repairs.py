@@ -43,18 +43,18 @@ from custom_components.panel_assistant.coordinator import (
     HaPaneldDataUpdateCoordinator,
     PanelSnapshot,
 )
-from custom_components.panel_assistant.failure_repair import (
-    async_clear_update_failure_if_installed,
-    async_failure_events,
-    async_record_update_failure,
-    panel_failure_issue_id,
-)
 from custom_components.panel_assistant.feed_coordinator import (
     DATA_BUILD_FEED,
     BuildFeedCoordinator,
     StableReleaseCoordinator,
 )
 from custom_components.panel_assistant.release import _RELEASE_SIGNER_CERTIFICATE_SHA256
+from custom_components.panel_assistant.repairs_failure import (
+    async_clear_update_failure_if_installed,
+    async_failure_events,
+    async_record_update_failure,
+    panel_failure_issue_id,
+)
 from custom_components.panel_assistant.status import PanelStatus
 from custom_components.panel_assistant.transport import async_get_sessions
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity
@@ -504,6 +504,86 @@ async def test_verified_panel_success_clears_previous_repair(
         ("0.9.10", ("0.9.9", None), ("0.9.10", None), True, None),
         ("0.9.10", ("0.9.9", None), ("0.9.11", None), True, None),
         ("0.9.10", ("0.9.9", None), ("0.9.11-rc1", 103), True, None),
+        pytest.param(
+            "1.0.0-preview2",
+            ("1.0.0-preview1", None),
+            ("1.0.0-preview2", None),
+            True,
+            None,
+            id="preview-target-equal",
+        ),
+        pytest.param(
+            "1.0.0-rc1",
+            ("1.0.0-preview1", None),
+            ("1.0.0-rc1", None),
+            True,
+            None,
+            id="rc-target-after-preview",
+        ),
+        pytest.param(
+            "1.0.0-rc2",
+            ("1.0.0-rc1", None),
+            ("1.0.0-rc2", None),
+            True,
+            None,
+            id="rc-target-equal",
+        ),
+        pytest.param(
+            "1.0.0-preview2",
+            ("1.0.0-preview1", None),
+            ("1.0.0-rc1", None),
+            True,
+            None,
+            id="preview-target-later-rc",
+        ),
+        pytest.param(
+            "1.0.0-rc2",
+            ("1.0.0-rc1", None),
+            ("1.0.0", None),
+            True,
+            None,
+            id="rc-target-later-stable",
+        ),
+        pytest.param(
+            "1.0.0",
+            ("1.0.0-rc1", None),
+            ("1.0.0-rc1", None),
+            False,
+            None,
+            id="stable-target-not-reached",
+        ),
+        pytest.param(
+            "1.0.0-preview10",
+            ("1.0.0-preview9", None),
+            ("1.0.0-preview10", None),
+            True,
+            None,
+            id="preview-target-numeric-order",
+        ),
+        pytest.param(
+            "1.0.0-rc10",
+            ("1.0.0-rc9", None),
+            ("1.0.0-rc10", None),
+            True,
+            None,
+            id="rc-target-numeric-order",
+        ),
+        pytest.param(
+            "1.0.0-preview2",
+            ("unknown", None),
+            ("1.0.0-preview2-invalid!", None),
+            False,
+            None,
+            id="unknown-installed-version-retained",
+        ),
+        pytest.param(
+            "unknown",
+            ("1.0.0-preview1", None),
+            ("unknown", None),
+            False,
+            None,
+            id="unknown-target-version-retained",
+        ),
         ("0.9.7-rc4 build 102", ("0.9.7-rc4", 101), ("0.9.7-rc4", 102), True, None),
         ("0.9.7-rc4 build 102", ("0.9.7-rc4", 101), ("0.9.7-rc4", 103), True, None),
         ("0.9.7-rc4 build 102", ("0.9.7-rc4", 101), ("0.9.7-rc4", None), False, None),
@@ -560,6 +640,7 @@ async def test_accepted_health_poll_clears_repair_when_failed_build_is_reached(
         protocol=(5, 5),
     )
     await coordinator.async_refresh()
+    assert coordinator.last_update_success
     assert ir.async_get(hass).async_get_issue("panel_assistant", issue_id) is not None
     assert (await async_failure_events(hass, issue_id))[-1][
         "reason"
@@ -574,6 +655,7 @@ async def test_accepted_health_poll_clears_repair_when_failed_build_is_reached(
         protocol=(5, 5),
     )
     await coordinator.async_refresh()
+    assert coordinator.last_update_success
     assert (
         ir.async_get(hass).async_get_issue("panel_assistant", issue_id) is None
     ) is clears

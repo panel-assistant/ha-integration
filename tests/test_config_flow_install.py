@@ -17,6 +17,7 @@ from custom_components.panel_assistant.client import (
     InvalidAddressError,
     InvalidResponseError,
     PanelAddress,
+    PanelSetupState,
 )
 from custom_components.panel_assistant.config_flow import (
     HaPaneldConfigFlow,
@@ -363,8 +364,8 @@ async def test_install_rejects_an_http_port_as_an_adb_port(
         ),
     ):
         client_class.return_value.async_get_health = health_mock
-        client_class.return_value.async_get_setup_complete = AsyncMock(
-            return_value=True
+        client_class.return_value.async_get_setup_state = AsyncMock(
+            return_value=PanelSetupState(complete=True)
         )
         form = await _start_step(hass, "add_panel")
         result = await hass.config_entries.flow.async_configure(
@@ -392,7 +393,9 @@ async def test_install_existing_duplicate_address_is_rejected(
     hass: HomeAssistant,
 ) -> None:
     """The install path shares the exact existing endpoint identity."""
-    health_mock = AsyncMock(side_effect=[HEALTH, HEALTH, BETA_HEALTH])
+    health_mock = AsyncMock(
+        side_effect=[HEALTH, HEALTH, BETA_HEALTH, BETA_HEALTH, BETA_HEALTH]
+    )
     with patch(
         "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
         health_mock,
@@ -414,17 +417,22 @@ async def test_install_existing_duplicate_address_is_rejected(
     assert duplicate["reason"] == "already_configured"
 
 
-async def test_install_unavailable_duplicate_address_is_rejected_before_probe(
+@pytest.mark.parametrize(
+    "state",
+    ["adb_unreachable", "installed", "migration_candidate", "retained_or_ambiguous"],
+)
+async def test_install_unavailable_duplicate_without_clean_probe_is_rejected(
     hass: HomeAssistant,
+    state: str,
 ) -> None:
-    """An unavailable configured endpoint retains its config-entry identity."""
+    """An unavailable endpoint is not proof that its app was removed."""
     MockConfigEntry(
         domain=DOMAIN,
         title="Configured panel",
         data={CONF_ADDRESS: "panel.local"},
     ).add_to_hass(hass)
     health_mock = AsyncMock(side_effect=CannotConnectError)
-    probe_mock = AsyncMock()
+    probe_mock = AsyncMock(return_value=_probe(state))
     with (
         patch(
             "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
@@ -442,8 +450,8 @@ async def test_install_unavailable_duplicate_address_is_rejected_before_probe(
 
     assert duplicate["type"] is FlowResultType.ABORT
     assert duplicate["reason"] == "already_configured"
-    health_mock.assert_not_awaited()
-    probe_mock.assert_not_awaited()
+    health_mock.assert_awaited_once()
+    probe_mock.assert_awaited_once()
 
 
 @pytest.mark.parametrize("health_error", [CannotConnectError, InvalidResponseError])

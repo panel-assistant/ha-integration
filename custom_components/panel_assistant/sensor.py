@@ -113,8 +113,6 @@ class HaPaneldStatusSensor(PanelCoordinatorEntity, SensorEntity):
             "build": health.build,
             "config_hash": health.config_hash,
             "home_assistant_state": health.ha_state,
-            "home_assistant_source": health.ha_source,
-            "home_assistant_subscription_refused": health.ha_subscription_refused,
         }
 
 
