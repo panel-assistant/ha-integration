@@ -21,6 +21,7 @@ from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.http import HomeAssistantView
 
+from .adb_credentials import AdbCredentialError, async_get_adb_credential
 from .browser_artifacts import async_read_browser_artifact
 from .browser_release_cache import (
     BrowserReleaseCache,
@@ -369,6 +370,33 @@ class BrowserSetupHandoverView(HomeAssistantView):
             return _error("browser_handover_failed", 503)
 
 
+class BrowserAdbKeyView(HomeAssistantView):
+    """Panel Assistant's public ADB key, for the USB installer to offer.
+
+    The installer presents this key at the panel's "Allow USB debugging"
+    prompt, so the one approval the owner gives over USB authorizes Panel
+    Assistant itself, as approving a network install does. Only the public
+    half leaves Home Assistant; the key is created here if it does not exist.
+    """
+
+    url = "/api/panel_assistant/usb/adb_key"
+    name = "api:panel_assistant:usb:adb_key"
+    requires_auth = True
+
+    def __init__(self, service: BrowserDelivery) -> None:
+        self.service = service
+
+    @require_admin
+    async def get(self, request: web.Request) -> web.Response:
+        try:
+            credential = await async_get_adb_credential(self.service.hass)
+        except AdbCredentialError:
+            return _error("browser_adb_key_unavailable", 503)
+        return web.json_response(
+            {"public_key": credential.signer.GetPublicKey()}, headers=_HEADERS
+        )
+
+
 @callback
 def async_register_browser_delivery(hass: HomeAssistant) -> None:
     """Register once per domain, without requiring a panel config entry."""
@@ -380,5 +408,6 @@ def async_register_browser_delivery(hass: HomeAssistant) -> None:
     hass.http.register_view(BrowserReleaseView(service))
     hass.http.register_view(BrowserApkView(service))
     hass.http.register_view(BrowserSetupHandoverView(service))
+    hass.http.register_view(BrowserAdbKeyView(service))
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, service.async_stop)
     data[DATA_BROWSER_DELIVERY] = service

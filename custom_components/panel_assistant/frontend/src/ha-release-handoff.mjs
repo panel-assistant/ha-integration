@@ -8,6 +8,7 @@ const API = '/api/panel_assistant/usb/release';
 // Assistant credential, so it asks this window to tell the panel Home Assistant
 // set it up. The server validates the address; this only refuses obvious junk.
 const HANDOVER_API = '/api/panel_assistant/usb/handover';
+const ADB_KEY_API = '/api/panel_assistant/usb/adb_key';
 const HANDOVER_MS = 35000;
 const IPV4 = /(?:[0-9]{1,3}\.){3}[0-9]{1,3}/;
 const OUTCOME = /[a-z_]{1,48}/;
@@ -227,8 +228,28 @@ export function startReleaseHandoff(hass, installerUrl, {
       { outcome, ...(display ? { display: { density: display.density, font_scale: display.fontScale } } : {}),
         ...(registration ? { registration } : {}) });
   }
+  // Panel Assistant's public ADB key, which the installer offers at the
+  // panel's USB prompt so that approval lets Panel Assistant in afterwards.
+  async function sendAdbKey() {
+    let key = null;
+    try {
+      const response = await hass.fetchWithAuth(ADB_KEY_API, {
+        method: 'GET', redirect: 'error', signal: AbortSignal.timeout(Math.min(timeoutMs, 10000)),
+      });
+      const body = response.status === 200 ? await response.json() : null;
+      if (typeof body?.public_key === 'string' && body.public_key.length <= 1024) key = body.public_key;
+    } catch { /* The installer connects with its own key instead. */ }
+    if (!delivered || child.closed) return;
+    try { child.postMessage({ type: 'ha-paneld/usb-adb-key-result', nonce, key }, targetOrigin); }
+    catch { /* The installer has gone. */ }
+  }
   function receive(event) {
     if (event.source !== child || event.origin !== targetOrigin) return;
+    if (event.data?.type === 'ha-paneld/usb-adb-key' && event.data.nonce === nonce &&
+        exactKeys(event.data, ['type', 'nonce'])) {
+      if (finished && delivered && !child.closed) void sendAdbKey();
+      return;
+    }
     if (event.data?.type === 'ha-paneld/usb-admission' && event.data.nonce === nonce) {
       void admit(event.data);
       return;

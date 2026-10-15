@@ -67,7 +67,7 @@
     "connectBody": "Collega il pannello a questo computer con un cavo USB, poi premi Trova il mio pannello.",
     "connect": "Trova il mio pannello",
     "allowHeading": "Autorizza questo computer",
-    "allowBody": "Guarda lo schermo del pannello e tocca Consenti.",
+    "allowBody": "Sul pannello, seleziona «Consenti sempre da questo computer» e tocca Consenti, così Panel Assistant potrà aggiornarlo in seguito senza il cavo.",
     "checkingPanel": "Verifica del pannello…",
     "confirmHeading": "Pronto per l’installazione",
     "confirmBody": "Questa operazione installa l’app e la imposta come schermata iniziale del pannello. Le altre app non vengono modificate.",
@@ -143,6 +143,7 @@
     "setupAddress": "Indirizzo di configurazione",
     "setupHandover": "Passaggio alla configurazione",
     "displaySizing": "Dimensioni di visualizzazione e del testo",
+    "networkAdb": "ADB di rete",
     "copiedDetail": "{bytes} byte inviati; in attesa della conferma del pannello",
     "none": "nessuno",
     "setupMissing": "non trovato; la configurazione prosegue sul pannello"

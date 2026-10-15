@@ -67,7 +67,7 @@
     "connectBody": "Verbinde das Panel über ein USB-Kabel mit diesem Computer und drücke dann „Mein Panel finden“.",
     "connect": "Mein Panel finden",
     "allowHeading": "Diesen Computer zulassen",
-    "allowBody": "Schau auf den Bildschirm des Panels und tippe auf „Zulassen“.",
+    "allowBody": "Setze auf dem Panel das Häkchen bei „Von diesem Computer immer zulassen“ und tippe auf „Zulassen“, damit Panel Assistant es später ohne Kabel aktualisieren kann.",
     "checkingPanel": "Dein Panel wird geprüft…",
     "confirmHeading": "Bereit zur Installation",
     "confirmBody": "Die App wird installiert und als Startbildschirm deines Panels eingerichtet. Deine anderen Apps bleiben unberührt.",
@@ -143,6 +143,7 @@
     "setupAddress": "Einrichtungsadresse",
     "setupHandover": "Übergabe an die Einrichtung",
     "displaySizing": "Anzeige- und Textgröße",
+    "networkAdb": "ADB über das Netzwerk",
     "copiedDetail": "{bytes} Bytes gesendet; Bestätigung des Panels ausstehend",
     "none": "keine",
     "setupMissing": "nicht gefunden; Einrichtung wird auf dem Panel fortgesetzt"

@@ -67,7 +67,7 @@
     "connectBody": "Conecte o painel a este computador com um cabo USB e pressione Encontrar meu painel.",
     "connect": "Encontrar meu painel",
     "allowHeading": "Permita este computador",
-    "allowBody": "Olhe a tela do painel e toque em Permitir.",
+    "allowBody": "No painel, marque “Sempre permitir a partir deste computador” e toque em Permitir, para que o Panel Assistant possa atualizá-lo depois sem o cabo.",
     "checkingPanel": "Verificando seu painel…",
     "confirmHeading": "Pronto para instalar",
     "confirmBody": "Isso instala o aplicativo e o torna a tela inicial do seu painel. Seus outros aplicativos não são alterados.",
@@ -143,6 +143,7 @@
     "setupAddress": "Endereço de configuração",
     "setupHandover": "Transferência da configuração",
     "displaySizing": "Escala de exibição e tamanho do texto",
+    "networkAdb": "ADB pela rede",
     "copiedDetail": "{bytes} bytes enviados; aguardando a confirmação do painel",
     "none": "nenhum",
     "setupMissing": "não encontrado; a configuração continua no painel"

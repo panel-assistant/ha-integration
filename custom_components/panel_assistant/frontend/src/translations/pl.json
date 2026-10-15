@@ -67,7 +67,7 @@
     "connectBody": "Podłącz panel do tego komputera kablem USB, a potem naciśnij Znajdź mój panel.",
     "connect": "Znajdź mój panel",
     "allowHeading": "Zezwól temu komputerowi",
-    "allowBody": "Spójrz na ekran panelu i dotknij Zezwól.",
+    "allowBody": "Na panelu zaznacz „Zawsze zezwalaj z tego komputera” i dotknij Zezwól, aby Panel Assistant mógł go później aktualizować bez kabla.",
     "checkingPanel": "Sprawdzanie panelu…",
     "confirmHeading": "Gotowe do instalacji",
     "confirmBody": "To zainstaluje aplikację i ustawi ją jako ekran główny panelu. Pozostałe aplikacje pozostaną nietknięte.",
@@ -143,6 +143,7 @@
     "setupAddress": "Adres konfiguracji",
     "setupHandover": "Przekazanie konfiguracji",
     "displaySizing": "Rozmiar wyświetlania i tekstu",
+    "networkAdb": "ADB przez sieć",
     "copiedDetail": "Wysłano {bytes} bajtów; oczekiwanie na potwierdzenie panelu",
     "none": "brak",
     "setupMissing": "nie znaleziono; konfiguracja trwa dalej na panelu"
