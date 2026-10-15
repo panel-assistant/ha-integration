@@ -118,6 +118,8 @@ function quarantine(key = 'installErrorConnection', group = 'errors') {
     handoff?.cancel();
     rejectStop(new Error('session_closed'));
     message('error-text', key, group);
+    // This error sends the person back to Home Assistant; the button says so.
+    if (key === 'handoffFailure') message('retry', 'backToHa');
     show('error');
   }
   closeResources();
@@ -369,7 +371,6 @@ if (!supported) {
   } catch { quarantine('handoffFailure', 'installer'); busy = false; }
 } else {
   quarantine('handoffFailure', 'installer');
-  message('retry', 'backToHa');
 }
 
 translatePage();
