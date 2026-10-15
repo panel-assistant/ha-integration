@@ -153,6 +153,10 @@ class BlobRegistry:
         ):
             return None
         del self._transfers[token]
+        # The pending sweep holds the transfer, and with it the bytes, until it fires.
+        if transfer.sweep is not None:
+            transfer.sweep()
+            transfer.sweep = None
         return received.result()
 
     @callback

@@ -3,8 +3,10 @@
 import asyncio
 import dataclasses
 import hashlib
+import gc
 import io
 import re
+import weakref
 import zipfile
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from datetime import timedelta
@@ -1186,6 +1188,20 @@ async def test_an_unused_transfer_is_forgotten_when_it_expires(
     )
     await hass.async_block_till_done()
     assert not blob_registry(hass)
+
+
+async def test_a_taken_upload_is_not_held_once_used(
+    hass: HomeAssistant, entry: MockConfigEntry, hass_admin_user: Any
+) -> None:
+    """A browser upload handed on to its request leaves Home Assistant's memory."""
+    blobs = async_get_blobs(hass)
+    token, received = blobs.upload(entry.entry_id, 1024, hass_admin_user.id)
+    received.set_result(b"y" * 1024)
+    watched = weakref.ref(received)
+    assert blobs.take(token, entry.entry_id, hass_admin_user.id) == b"y" * 1024
+    del received
+    gc.collect()
+    assert watched() is None
 
 
 async def test_a_blob_typed_with_parameters_keeps_its_media_type(
