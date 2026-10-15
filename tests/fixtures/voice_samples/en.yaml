@@ -1,0 +1,24 @@
+# Must-match samples name the command (and {page} value) they must reach and
+# nothing else; must-not-match samples must reach no panel command at all.
+match:
+  - {text: "show the cameras page", command: show_page, page: cameras}
+  - {text: "show me the energy dashboard", command: show_page, page: energy}
+  - {text: "go to the living room view", command: show_page, page: living room}
+  - {text: "show the home page", command: show_page, page: home}
+  - {text: "show android settings", command: android_settings}
+  - {text: "show me the android settings", command: android_settings}
+  - {text: "show the launcher", command: launcher}
+  - {text: "show the android home screen", command: launcher}
+  - {text: "reload the dashboard", command: reload}
+  - {text: "refresh the page", command: reload}
+miss:
+  - "turn off the screen"
+  - "go back"
+  - "show me the weather"
+  - "what time is it"
+  - "open the garage door"
+  - "set the brightness to 50 percent"
+# Said through Home Assistant's built-in intents, with the screen's alias.
+builtin:
+  screen_off: "turn off the screen"
+  screen_on: "turn on the screen"
