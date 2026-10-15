@@ -211,6 +211,22 @@ test('a rejected subscription shows a message and only the list refresh retries'
   assert.equal(subs.length, 2);
 });
 
+test('a panel whose session cannot serve the sidebar shows the retrying failure, not a blank frame', async () => {
+  const hass = fakeHass();
+  hass.connection.subscribeMessage = function (callback, message) {
+    const sub = { callback, message }; this.subscriptions.push(sub);
+    return Promise.reject({ code: 'panel_unavailable', message: 'The panel cannot be reached now.' });
+  };
+  const { $, subs } = await mount(hass);
+  await tick(); await tick();
+  assert.equal($('#failure').hidden, false);
+  assert.equal($('#failure-status').textContent, SIDEBAR_MESSAGES.failed);
+  assert.equal($('#failure-pill').textContent, SIDEBAR_MESSAGES.pillRetrying);
+  assert.equal($('#frame').getAttribute('src'), null);
+  intervals[0].fn(); await tick();
+  assert.equal(subs.length, 2);
+});
+
 test('selection is remembered, survives broken storage and restarts the session', async () => {
   store.set(SELECTION_KEY, 'two');
   const hass = fakeHass();
