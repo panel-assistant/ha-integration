@@ -51,7 +51,8 @@ from homeassistant.components.websocket_api.decorators import (
 from homeassistant.components.websocket_api.messages import event_message
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_platform
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -65,12 +66,17 @@ from .transport_protocol import (
     CAPABILITY_VOICE,
     CAPABILITY_VOICE_STREAM_SESSION,
     ERR_SESSION_UNKNOWN,
+    MANAGE_SETTINGS,
     _bounded_list,
     _code,
     _plain_string,
     _session_token,
 )
-from .transport_sessions import async_get_sessions, signal_session_changed
+from .transport_sessions import (
+    async_get_sessions,
+    async_manage,
+    signal_session_changed,
+)
 from .voice_stream import VoiceStream, async_get_voice_stream
 
 if TYPE_CHECKING:
@@ -638,9 +644,98 @@ def async_follow_voice(
     entry.async_on_unload(
         async_dispatcher_connect(hass, signal_session_changed(entry.entry_id), _changed)
     )
+    _follow_voice_switch(hass, entry)
 
     async def _wait() -> None:
         if task is not None:
             await task
 
     return _wait
+
+
+@callback
+def _follow_voice_switch(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Keep the satellite entity enabled exactly while the panel's voice is on.
+
+    The panel's ``voice_enabled`` setting is the one switch. While it is off,
+    the entity is disabled by the integration rather than left unavailable;
+    when it comes on, an entity the integration disabled is enabled again. An
+    entity disabled by anyone else is never touched. Enabling the entity in
+    Home Assistant turns voice on at the panel (maintainer, 2026-10-15).
+    """
+    registry = er.async_get(hass)
+    unique_id = satellite_unique_id(entry.entry_id)
+
+    def _voice() -> VoiceConfiguration | None:
+        session = async_get_sessions(hass).get(entry.entry_id)
+        if session is None or CAPABILITY_VOICE not in session.capabilities:
+            return None
+        voice: VoiceConfiguration | None = session.voice
+        return voice
+
+    def _entity() -> er.RegistryEntry | None:
+        entity_id = registry.async_get_entity_id(
+            Platform.ASSIST_SATELLITE, DOMAIN, unique_id
+        )
+        return None if entity_id is None else registry.async_get(entity_id)
+
+    @callback
+    def _sync() -> None:
+        voice = _voice()
+        entity = _entity()
+        if voice is None or entity is None:
+            return
+        if not voice.enabled and entity.disabled_by is None:
+            registry.async_update_entity(
+                entity.entity_id, disabled_by=er.RegistryEntryDisabler.INTEGRATION
+            )
+        elif (
+            voice.enabled and entity.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+        ):
+            registry.async_update_entity(entity.entity_id, disabled_by=None)
+
+    async def _turn_voice_on() -> None:
+        session = async_get_sessions(hass).get(entry.entry_id)
+        try:
+            if session is None:
+                raise HomeAssistantError("the panel is not connected")
+            await async_manage(
+                hass, session, MANAGE_SETTINGS, settings={"voice_enabled": "true"}
+            )
+        except HomeAssistantError as err:
+            # An older panel refuses the setting; its satellite is disabled again.
+            _LOGGER.warning(
+                "%s: the Assist entity was enabled, but the panel did not turn "
+                "voice on: %s",
+                entry.title,
+                err,
+            )
+        _sync()
+
+    @callback
+    def _registry_updated(event: Event[er.EventEntityRegistryUpdatedData]) -> None:
+        data = event.data
+        entity = _entity()
+        if entity is None or data["entity_id"] != entity.entity_id:
+            return
+        if data["action"] == "create":
+            # A new satellite starts enabled; disable it at once if voice is off.
+            _sync()
+            return
+        if (
+            data["action"] != "update"
+            or data["changes"].get("disabled_by")
+            is not er.RegistryEntryDisabler.INTEGRATION
+            or entity.disabled_by is not None
+        ):
+            return
+        voice = _voice()
+        if voice is not None and not voice.enabled:
+            entry.async_create_task(hass, _turn_voice_on(), f"{DOMAIN}_voice_on")
+
+    entry.async_on_unload(
+        async_dispatcher_connect(hass, signal_session_changed(entry.entry_id), _sync)
+    )
+    entry.async_on_unload(
+        hass.bus.async_listen(er.EVENT_ENTITY_REGISTRY_UPDATED, _registry_updated)
+    )

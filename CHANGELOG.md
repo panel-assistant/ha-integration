@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 
 - **Visit reaches a panel Panel Assistant cannot.** On a panel's device page, Visit opens the panel in the sidebar whenever Panel Assistant can reach it. When it cannot, Visit opens the panel's own page at its last known address instead, from a browser on the panel's network, so you can put right whatever disconnected it; Visit returns to the sidebar once the panel answers. Panel Assistant also looks for a disconnected panel at the addresses its last connection reported, not only at the one it stored.
 - **A USB install grants the camera too.** Like a network install, the USB installer now gives the panel app the camera permission on panels that have a camera, so camera features work without an on-screen prompt. It also removes the accessibility service entry an earlier update of the panel app retired, as the network install already did.
+- **The Assist entity follows the panel's voice assistant.** While a panel's voice assistant is off, its Assist satellite entity is disabled by Panel Assistant instead of showing as unavailable, and it is enabled again when voice is turned on. Enabling the entity in Home Assistant turns the panel's voice assistant on. An entity you disabled yourself is left alone.
 - **Camera snapshots use the camera entity.** The separate snapshot image entity is removed. Taking a snapshot uses the camera's video stream, so the camera and microphone may stay active until the stream's normal timeout. Turning the camera off still stops capture.
 
 ### Fixed
