@@ -20,6 +20,14 @@ match:
   - {text: "zeig den android homescreen", command: launcher}
   - {text: "geh zum launcher", command: launcher}
   - {text: "wechsle zum android launcher", command: launcher}
+  - {text: "zeig mir die übersicht energie", command: show_page, page: energie}
+  - {text: "zeig mir den tab garten", command: show_page, page: garten}
+  - {text: "geh zur seite garten", command: show_page, page: garten}
+  - {text: "wechsle zur ansicht wohnzimmer", command: show_page, page: wohnzimmer}
+  - {text: "wechsel bitte zum dashboard energie", command: show_page, page: energie}
+  - {text: "wechsle zum tab kameras", command: show_page, page: kameras}
+  - {text: "wechsle zum android homescreen", command: launcher}
+  - {text: "zurück zum android startbildschirm", command: launcher}
 miss:
   - "schalte den bildschirm aus"
   - "geh zurück"

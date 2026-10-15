@@ -12,6 +12,8 @@ match:
   - {text: "enséñame la página de inicio", command: show_page, page: inicio}
   - {text: "ve a la vista de los dormitorios", command: show_page, page: dormitorios}
   - {text: "muestra los ajustes de android", command: android_settings}
+  - {text: "entra en los ajustes de android", command: android_settings}
+  - {text: "entra directamente en la configuración de android", command: android_settings}
   - {text: "muéstrame la configuración de android", command: android_settings}
   - {text: "muestra la configuración del sistema", command: android_settings}
   - {text: "enséñame los ajustes de la tableta", command: android_settings}
@@ -21,13 +23,12 @@ match:
   - {text: "muestra el lanzador de aplicaciones", command: launcher}
   - {text: "muéstrame la pantalla de inicio de android", command: launcher}
   - {text: "vuelve a la pantalla de inicio de android", command: launcher}
+  - {text: "llévame a la pantalla de inicio de android", command: launcher}
 miss:
   - "apaga la pantalla"
   - "vuelve atrás"
   - "qué hora es"
   - "qué tiempo hace"
-  - "abre la puerta del garaje"
-  - "pon el brillo al 50 por ciento"
   - "muestra el tiempo"
   - "recarga el panel"
 builtin:

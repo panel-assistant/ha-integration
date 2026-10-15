@@ -7,13 +7,17 @@ commands:
       - "laat [mij|me|ons] [de|het] {page} (pagina|weergave|dashboard|tab|tabblad|overzicht) zien [alsjeblieft]"
       - "ga naar [de|het] {page} (pagina|weergave|dashboard|tab|tabblad|overzicht) [alsjeblieft]"
       - "ga naar de {page}(pagina|weergave) [alsjeblieft]"
-      - "ga naar (de pagina|de weergave|het dashboard) {page}"
+      - "ga naar (de pagina|de weergave|het dashboard|het tabblad|de tab) {page}"
+      - "toon [mij|me|ons] (de pagina|de weergave|het dashboard|het tabblad) {page}"
+      - "laat [mij|me|ons] (de pagina|de weergave|het dashboard|het tabblad) {page} zien"
   android_settings:
     sentences:
       - "toon [mij|me|ons] [de] android instellingen"
       - "laat [mij|me|ons] [de] android instellingen zien"
       - "ga naar [de] android instellingen"
       - "toon [mij|me|ons] de instellingen van android"
+      - "laat [mij|me|ons] de instellingen van android zien"
+      - "ga naar de instellingen van android"
   launcher:
     sentences:
       - "toon [mij|me|ons] [de] [android] launcher"
@@ -22,6 +26,7 @@ commands:
       - "ga naar (de [android] launcher|het android startscherm)"
       - "toon [mij|me|ons] het startscherm van android"
       - "laat [mij|me|ons] het startscherm van android zien"
+      - "ga naar het startscherm van android"
 home_pages: [home, start, hoofd, thuis]
 screen_names: [scherm]
 responses:
@@ -32,5 +37,5 @@ responses:
   not_a_panel: "Vraag dit aan een paneel"
   panel_unavailable: "Het paneel is niet verbonden"
   panel_refused: "Het paneel kon dat niet doen"
-  panel_locked: "Het paneel is vergrendeld op het dashboard"
+  panel_locked: "Het paneel is vastgezet op het dashboard en kan dat niet openen"
   needs_update: "Werk de paneel-app bij om deze opdracht te gebruiken"

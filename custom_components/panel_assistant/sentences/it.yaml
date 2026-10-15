@@ -11,6 +11,7 @@ commands:
   launcher:
     sentences:
       - "(mostra|mostrami|fammi vedere|voglio vedere) il launcher [di android]"
+      - "(vai|torna) al launcher [di android]"
       - "(mostra|mostrami|fammi vedere|voglio vedere) la (schermata (home|iniziale|principale)|home) di android"
       - "(vai|torna) alla (schermata (home|iniziale|principale)|home) di android"
 home_pages: [home, principale, iniziale]
@@ -23,5 +24,5 @@ responses:
   not_a_panel: "Chiedilo a un pannello"
   panel_unavailable: "Il pannello non è connesso"
   panel_refused: "Il pannello non è riuscito a farlo"
-  panel_locked: "Il pannello è bloccato sulla sua dashboard"
+  panel_locked: "Il pannello è bloccato sulla sua dashboard e non può aprire Android"
   needs_update: "Aggiorna l'app del pannello per usare questo comando"

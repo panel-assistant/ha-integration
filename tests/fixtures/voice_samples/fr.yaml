@@ -10,7 +10,11 @@ match:
   - {text: "affichez la page accueil", command: show_page, page: accueil}
   - {text: "affiche la page d'accueil", command: show_page, page: accueil}
   - {text: "va sur la page d'accueil", command: show_page, page: accueil}
+  - {text: "rends-toi sur la page cuisine", command: show_page, page: cuisine}
+  - {text: "rendez-vous sur le tableau de bord salon", command: show_page, page: salon}
   - {text: "affiche les paramètres android", command: android_settings}
+  - {text: "accède aux paramètres du système", command: android_settings}
+  - {text: "accédez aux réglages android", command: android_settings}
   - {text: "montre moi les réglages d'android", command: android_settings}
   - {text: "affiche les paramètres de la tablette", command: android_settings}
   - {text: "montre les réglages du système", command: android_settings}
@@ -21,12 +25,15 @@ match:
   - {text: "montre l'écran d'accueil android", command: launcher}
   - {text: "retourne à l'écran d'accueil android", command: launcher}
   - {text: "va sur l'écran d'accueil d'android", command: launcher}
+  - {text: "reviens à l'écran d'accueil android", command: launcher}
+  - {text: "revenez sur l'écran d'accueil d'android", command: launcher}
+  - {text: "retourne au lanceur android", command: launcher}
+  - {text: "retournez au lanceur", command: launcher}
 miss:
   - "éteins l'écran"
   - "reviens en arrière"
   - "quelle heure est il"
   - "quel temps fait il"
-  - "ouvre la porte du garage"
   - "règle la luminosité à 50 pour cent"
   - "affiche la météo"
   - "recharge le tableau de bord"

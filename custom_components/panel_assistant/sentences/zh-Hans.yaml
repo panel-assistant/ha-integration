@@ -14,6 +14,8 @@ commands:
       - "[请][给我]显示[安卓|Android]启动器"
       - "[请][给我]显示(安卓|Android)主屏幕"
       - "[请](回到|返回)[安卓|Android]桌面"
+      - "[请]显示(安卓|Android)桌面"
+      - "[请](回到|返回)(安卓|Android)主屏幕"
 home_pages: [主, 主页, 首页, 首, 开始, 起始]
 screen_names: [屏幕, 显示屏]
 responses:
@@ -24,5 +26,5 @@ responses:
   not_a_panel: "请让面板来做这件事"
   panel_unavailable: "面板未连接"
   panel_refused: "面板无法执行该操作"
-  panel_locked: "面板已锁定在仪表盘"
+  panel_locked: "面板已锁定，只能显示仪表盘，无法打开设置或启动器"
   needs_update: "请更新面板应用以使用此命令"

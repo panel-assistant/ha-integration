@@ -20,6 +20,12 @@ match:
   - {text: "ga naar de launcher", command: launcher}
   - {text: "toon het startscherm van android", command: launcher}
   - {text: "laat het startscherm van android zien", command: launcher}
+  - {text: "toon mij de pagina keuken", command: show_page, page: keuken}
+  - {text: "laat me de pagina tuin zien", command: show_page, page: tuin}
+  - {text: "ga naar het tabblad tuin", command: show_page, page: tuin}
+  - {text: "laat me de instellingen van android zien", command: android_settings}
+  - {text: "ga naar de instellingen van android", command: android_settings}
+  - {text: "ga naar het startscherm van android", command: launcher}
 miss:
   - "zet het scherm uit"
   - "ga terug"

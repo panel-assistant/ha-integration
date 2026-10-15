@@ -4,7 +4,8 @@ commands:
     sentences:
       - "(zeig|zeige|zeigen sie) [mir|uns] [bitte] [die|das|den] {page} (seite|ansicht|übersicht|dashboard)"
       - "(zeig|zeige|zeigen sie) [mir|uns] [bitte] die {page}(seite|ansicht)"
-      - "(zeig|zeige|zeigen sie) [mir|uns] [bitte] (die seite|die ansicht|das dashboard) {page}"
+      - "(zeig|zeige|zeigen sie) [mir|uns] [bitte] (die seite|die ansicht|die übersicht|das dashboard|den tab) {page}"
+      - "(geh|gehe|wechsle|wechsel) [bitte] (zur seite|zur ansicht|zum dashboard|zum tab) {page}"
       - "(geh|gehe|wechsle|wechsel) [bitte] zur {page}(seite|ansicht)"
       - "(geh|gehe|wechsle|wechsel) [bitte] (zu|zur|zum) [der|dem] {page} (seite|ansicht|dashboard)"
   android_settings:
@@ -16,6 +17,8 @@ commands:
       - "(zeig|zeige|zeigen sie) [mir|uns] [bitte] [den] [android] launcher"
       - "(zeig|zeige|zeigen sie) [mir|uns] [bitte] [den] android (startbildschirm|homescreen|home bildschirm)"
       - "(geh|gehe|wechsle|wechsel) [bitte] zum [android] launcher"
+      - "(geh|gehe|wechsle|wechsel) [bitte] zum android (startbildschirm|homescreen)"
+      - "zurück zum android (startbildschirm|homescreen)"
 home_pages: [start, home, haupt]
 screen_names: [bildschirm, bildschirms]
 responses:
@@ -26,5 +29,5 @@ responses:
   not_a_panel: "Frag dafür ein Panel"
   panel_unavailable: "Das Panel ist nicht verbunden"
   panel_refused: "Das Panel konnte das nicht ausführen"
-  panel_locked: "Das Panel ist auf sein Dashboard gesperrt"
+  panel_locked: "Das Panel ist auf sein Dashboard beschränkt und kann das nicht öffnen"
   needs_update: "Aktualisiere die Panel-App, um diesen Befehl zu nutzen"

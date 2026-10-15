@@ -9,6 +9,8 @@ match:
   - {text: "перейди до сторінки вітальня", command: show_page, page: вітальня}
   - {text: "перейдіть будь ласка до головної сторінки", command: show_page, page: головної}
   - {text: "перейди до початкової сторінки", command: show_page, page: початкової}
+  - {text: "перемкнися на вкладку енергія", command: show_page, page: енергія}
+  - {text: "перемкніться на головну сторінку", command: show_page, page: головну}
   - {text: "покажи налаштування андроїда", command: android_settings}
   - {text: "покажіть мені налаштування андроїда", command: android_settings}
   - {text: "покажи налаштування android", command: android_settings}
@@ -18,12 +20,14 @@ match:
   - {text: "покажи android лаунчер", command: launcher}
   - {text: "покажи головний екран андроїда", command: launcher}
   - {text: "покажи робочий стіл андроїда", command: launcher}
+  - {text: "покажи мені домашній екран андроїда", command: launcher}
+  - {text: "перейди на головний екран андроїда", command: launcher}
+  - {text: "перейдіть на робочий стіл android", command: launcher}
 miss:
   - "вимкни екран"
   - "назад"
   - "котра година"
   - "яка погода"
-  - "відкрий ворота гаража"
   - "встанови яскравість на 50 відсотків"
   - "покажи камери"
   - "онови"

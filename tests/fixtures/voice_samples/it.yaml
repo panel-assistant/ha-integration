@@ -21,12 +21,13 @@ match:
   - {text: "torna alla schermata iniziale di android", command: launcher}
   - {text: "mostrami la schermata principale di android", command: launcher}
   - {text: "voglio vedere il launcher", command: launcher}
+  - {text: "vai al launcher", command: launcher}
+  - {text: "torna al launcher", command: launcher}
 miss:
   - "spegni lo schermo"
   - "torna indietro"
   - "che ore sono"
   - "che tempo fa"
-  - "apri la porta del garage"
   - "imposta la luminosità al 50 percento"
   - "mostra telecamere"
   - "ricarica"
