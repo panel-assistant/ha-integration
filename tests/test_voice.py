@@ -1,6 +1,7 @@
 """The panel as an Assist satellite, over its own session."""
 
 import asyncio
+import logging
 from collections.abc import AsyncIterable, Callable
 from datetime import timedelta
 from types import SimpleNamespace
@@ -224,6 +225,7 @@ async def test_turning_voice_off_disables_the_satellite_and_on_enables_it(
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
     entry: MockConfigEntry,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """While the panel's voice is off its satellite is disabled, not unavailable."""
     panel, entity_id = await _ready(
@@ -251,6 +253,19 @@ async def test_turning_voice_off_disables_the_satellite_and_on_enables_it(
     assert (await panel.configure())["success"]
     await hass.async_block_till_done()
     assert hass.states.get(entity_id).state == "idle"
+    # The satellite left and came back without a fault on its way out.
+    assert not [
+        record.getMessage()
+        for record in caplog.records
+        if record.levelno >= logging.WARNING
+        and record.name.startswith(
+            (
+                "homeassistant.helpers.dispatcher",
+                "homeassistant.helpers.entity",
+                "homeassistant.components.assist_satellite",
+            )
+        )
+    ]
 
 
 async def test_a_new_satellite_of_a_panel_with_voice_off_starts_disabled(
@@ -316,8 +331,7 @@ async def test_enabling_the_satellite_turns_voice_on_at_the_panel(
     assert event["kind"] == "manage", event
     assert event["op"] == "settings"
     assert event["settings"] == {"voice_enabled": "true"}
-    # The panel reports voice on as it applies the setting, then answers.
-    assert (await panel.configure(enabled=True))["success"]
+    # The panel answers first and reports its voice configuration after.
     answered = await panel.send(
         {
             "type": "panel_assistant/command_result",
@@ -327,6 +341,9 @@ async def test_enabling_the_satellite_turns_voice_on_at_the_panel(
         }
     )
     assert answered["success"], answered
+    await hass.async_block_till_done()
+    assert registry.async_get(entity_id).disabled_by is None
+    assert (await panel.configure(enabled=True))["success"]
     await hass.async_block_till_done()
     assert registry.async_get(entity_id).disabled_by is None
 

@@ -704,13 +704,20 @@ def _follow_voice_switch(hass: HomeAssistant, entry: ConfigEntry) -> None:
             )
         except HomeAssistantError as err:
             # An older panel refuses the setting; its satellite is disabled again.
+            # On success the panel's next voice configuration settles it.
             _LOGGER.warning(
                 "%s: the Assist entity was enabled, but the panel did not turn "
                 "voice on: %s",
                 entry.title,
                 err,
             )
-        _sync()
+            _sync()
+
+    @callback
+    def _session_changed() -> None:
+        # After the dispatch, so a satellite removed by being disabled is not
+        # handed the same session change on its way out.
+        hass.loop.call_soon(_sync)
 
     @callback
     def _registry_updated(event: Event[er.EventEntityRegistryUpdatedData]) -> None:
@@ -730,11 +737,19 @@ def _follow_voice_switch(hass: HomeAssistant, entry: ConfigEntry) -> None:
         ):
             return
         voice = _voice()
-        if voice is not None and not voice.enabled:
+        if voice is None:
+            _LOGGER.warning(
+                "%s: the Assist entity was enabled while the panel is not "
+                "connected; turn voice on at the panel",
+                entry.title,
+            )
+        elif not voice.enabled:
             entry.async_create_task(hass, _turn_voice_on(), f"{DOMAIN}_voice_on")
 
     entry.async_on_unload(
-        async_dispatcher_connect(hass, signal_session_changed(entry.entry_id), _sync)
+        async_dispatcher_connect(
+            hass, signal_session_changed(entry.entry_id), _session_changed
+        )
     )
     entry.async_on_unload(
         hass.bus.async_listen(er.EVENT_ENTITY_REGISTRY_UPDATED, _registry_updated)
