@@ -1413,7 +1413,7 @@ async def test_an_unbound_panel_binds_the_account_it_signs_in_as(
     response = await _send(panel, _hello())
 
     assert response["success"], response
-    assert entry.data[CONF_TRANSPORT_USER_ID] == hass_read_only_user.id
+    assert entry.data.get(CONF_TRANSPORT_USER_ID) == hass_read_only_user.id
     session = async_get_sessions(hass).get(entry.entry_id)
     assert session is not None and session.user_id == hass_read_only_user.id
     assert _issue(hass, entry.entry_id) is None
@@ -1432,7 +1432,7 @@ async def test_home_assistants_own_account_is_never_bound(
 
     response = await _send(panel, _hello())
 
-    assert response["error"]["code"] == "panel_user_mismatch"
+    assert response.get("error", {}).get("code") == "panel_user_mismatch"
     assert CONF_TRANSPORT_USER_ID not in entry.data
     assert _issue(hass, entry.entry_id) is None
 
@@ -1492,7 +1492,7 @@ async def test_a_usb_installed_panel_connects_with_nothing_to_confirm(
         response = await _send(panel, _hello())
 
     assert response["success"], response
-    assert added.data[CONF_TRANSPORT_USER_ID] == hass_read_only_user.id
+    assert added.data.get(CONF_TRANSPORT_USER_ID) == hass_read_only_user.id
     assert _issue(hass, added.entry_id) is None
 
 
@@ -1515,7 +1515,7 @@ async def test_other_user_cannot_take_over_a_bound_panel(
     reconnect = await hass_ws_client(hass, hass_read_only_access_token)
     await _open(reconnect)
 
-    assert refused["error"]["code"] == "panel_user_mismatch"
+    assert refused.get("error", {}).get("code") == "panel_user_mismatch"
     assert entry.data[CONF_TRANSPORT_USER_ID] == hass_read_only_user.id
     current = async_get_sessions(hass).get(entry.entry_id)
     assert current is not None and current is not session
