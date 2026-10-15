@@ -442,6 +442,48 @@ async def test_session_refuses_an_unknown_or_unloaded_entry(
         assert reply["error"]["code"] == code
 
 
+async def test_a_panel_whose_session_cannot_serve_the_sidebar_is_refused(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client: Any,
+    hass_client_no_auth: Any,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    session_panels: list[SessionPanel],
+    entry: MockConfigEntry,
+) -> None:
+    """No session, or one without the bundle, gets the sidebar's failure copy.
+
+    The panel still answers its poll, so it is listed reachable; an embed
+    session for it would frame a blank page.
+    """
+    request = {
+        "type": "panel_assistant/embed_session",
+        "entry_id": entry.entry_id,
+        "language": "en",
+        "theme": "light",
+    }
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id(request)
+    reply = await _receive(client)
+    assert reply["error"]["code"] == "panel_unavailable"
+
+    await _connect_panel(
+        hass,
+        hass_ws_client,
+        hass_client,
+        session_panels,
+        entry,
+        hass_read_only_user.id,
+        hass_read_only_access_token,
+        {**HELLO, "capabilities": [c for c in RELAY if c != "ui_bundle"]},
+    )
+    await client.send_json_auto_id(request)
+    reply = await _receive(client)
+    assert reply["error"]["code"] == "panel_unavailable"
+    assert not embed.async_get_embed_sessions(hass)._by_token
+
+
 # ---------------------------------------------------------------------------
 # The proxy
 
@@ -618,6 +660,7 @@ async def test_resume_from_another_sign_in_gets_a_new_token(
     hass_ws_client: WsClientFactory,
     hass_admin_user: Any,
     entry: MockConfigEntry,
+    live: SessionPanel,
 ) -> None:
     ws = await hass_ws_client(hass)
     _, url = await _open_session(ws, entry.entry_id)
@@ -634,6 +677,7 @@ async def test_removing_the_user_ends_its_sessions(
     hass_ws_client: WsClientFactory,
     hass_admin_user: Any,
     entry: MockConfigEntry,
+    live: SessionPanel,
 ) -> None:
     ws = await hass_ws_client(hass)
     subscription, _ = await _open_session(ws, entry.entry_id)

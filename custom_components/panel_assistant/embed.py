@@ -41,7 +41,7 @@ from homeassistant.helpers.http import HomeAssistantView
 from .blob import async_get_blobs, receive, send
 from .const import DOMAIN
 from .device import panel_display_name
-from .transport_protocol import OUTCOME_APPLIED
+from .transport_protocol import ERR_PANEL_UNAVAILABLE, OUTCOME_APPLIED
 from .ui_relay import (
     BROWSER_BLOB,
     async_get_bundles,
@@ -361,6 +361,13 @@ def ws_embed_session(
         return
     if connection.refresh_token_id is None:
         raise Unauthorized
+    if live_ui_session(hass, entry.entry_id) is None:
+        # Without a session that serves the sidebar the frame would stay blank;
+        # refused, the sidebar shows why and asks again on its next refresh.
+        connection.send_error(
+            msg["id"], ERR_PANEL_UNAVAILABLE, "The panel cannot be reached now."
+        )
+        return
     session = async_get_embed_sessions(hass).open(
         connection,
         msg["id"],
