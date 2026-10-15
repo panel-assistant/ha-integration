@@ -709,6 +709,8 @@ def _follow_voice_switch(hass: HomeAssistant, entry: ConfigEntry) -> None:
         # A satellite still registered was disabled moments ago and is leaving.
         if (leaving := satellites(hass).get(entry.entry_id)) is not None:
             await leaving.async_remove()
+        if entry.state is not ConfigEntryState.LOADED:
+            return  # Unloading meanwhile; setup adds the satellite again.
         for platform in entity_platform.async_get_platforms(hass, DOMAIN):
             if (
                 platform.domain == Platform.ASSIST_SATELLITE

@@ -32,7 +32,11 @@ from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.device import panel_display_name
 from custom_components.panel_assistant.identity import CONF_INSTALL_IDENTITY
 from custom_components.panel_assistant.transport_sessions import async_get_sessions
-from custom_components.panel_assistant.voice import PIPELINE_COLORS, PipelineColors
+from custom_components.panel_assistant.voice import (
+    PIPELINE_COLORS,
+    PipelineColors,
+    satellites,
+)
 
 from .test_native import _setup
 from .test_transport import DID, WsClientFactory, _receive, _send
@@ -334,6 +338,39 @@ async def test_voice_back_on_while_the_satellite_is_still_leaving_brings_it_back
     run_id, handler = await _run(panel, "hey_jarvis")
     await panel.client.send_bytes(bytes([handler]))
     assert (await _turn_events(panel, run_id))[-1] == {"kind": "end"}
+
+
+async def test_an_entry_unloaded_while_voice_comes_back_keeps_no_satellite(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+) -> None:
+    """A satellite waiting to come back is not added to an entry being unloaded."""
+    panel, entity_id = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    leave = asyncio.Event()
+    leaving = PanelAssistSatellite.async_will_remove_from_hass
+
+    async def _slow_leave(self: PanelAssistSatellite) -> None:
+        await leave.wait()
+        await leaving(self)
+
+    with patch.object(PanelAssistSatellite, "async_will_remove_from_hass", _slow_leave):
+        assert (await panel.configure(enabled=False))["success"]
+        assert (await panel.configure(enabled=True))["success"]
+        unload = hass.async_create_task(
+            hass.config_entries.async_unload(entry.entry_id)
+        )
+        await asyncio.sleep(0)
+        leave.set()
+        assert await unload
+        await hass.async_block_till_done()
+
+    assert entry.entry_id not in satellites(hass)
+    state = hass.states.get(entity_id)
+    assert state is None or state.state == "unavailable"
 
 
 async def test_a_new_satellite_of_a_panel_with_voice_off_starts_disabled(
