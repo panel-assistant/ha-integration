@@ -320,16 +320,16 @@ def test_message_conformance_vectors(vector: dict[str, Any]) -> None:
             schema(message)
 
 
-def _embed_key(value: Any) -> str:
-    """Return one wire-format embed key, or reject it like the panel does."""
+def _stream_key(value: Any) -> str:
+    """Return one wire-format stream key, or reject it like the panel does."""
     if type(value) is not str or re.fullmatch(r"[A-Za-z0-9_-]{43}", value) is None:
-        raise vol.Invalid("invalid embed key")
+        raise vol.Invalid("invalid stream key")
     try:
         decoded = base64.b64decode(value + "=", altchars=b"-_", validate=True)
     except ValueError as err:
-        raise vol.Invalid("invalid embed key") from err
+        raise vol.Invalid("invalid stream key") from err
     if len(decoded) != 32:
-        raise vol.Invalid("invalid embed key")
+        raise vol.Invalid("invalid stream key")
     return value
 
 
@@ -345,17 +345,10 @@ def _hello_result_conforms(
         },
         extra=vol.ALLOW_EXTRA,
     )
-    embed = vol.Schema(
-        {
-            vol.Required("key_id"): vol.Match(r"[0-9a-f]{16}"),
-            vol.Required("key"): _embed_key,
-        },
-        extra=vol.ALLOW_EXTRA,
-    )
     voice_stream = vol.Schema(
         {
             vol.Required("server_id"): vol.Match(r"^[A-Za-z0-9_-]{43}$"),
-            vol.Required("psk"): _embed_key,
+            vol.Required("psk"): _stream_key,
         },
         extra=vol.ALLOW_EXTRA,
     )
@@ -368,7 +361,6 @@ def _hello_result_conforms(
             vol.Required("capabilities"): [
                 vol.In(transport_protocol.KNOWN_CAPABILITIES)
             ],
-            vol.Optional("embed"): object,
             vol.Optional("voice_stream_session"): object,
             vol.Required("integration"): integration,
             vol.Required("channels"): channels,
@@ -379,10 +371,6 @@ def _hello_result_conforms(
         raise vol.Invalid(
             "the integration granted a capability the panel did not offer"
         )
-    if transport_protocol.CAPABILITY_EMBED_PROOF in result["capabilities"]:
-        if "embed" not in result:
-            raise vol.Invalid("an embed grant needs its key")
-        embed(result["embed"])
     if transport_protocol.CAPABILITY_VOICE_STREAM_SESSION in result["capabilities"]:
         if "voice_stream_session" not in result:
             raise vol.Invalid("a voice stream grant needs its server and key")

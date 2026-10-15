@@ -8,6 +8,11 @@ own Home Assistant credential. Frames on the session are too small for either.
 Each transfer is minted per request, belongs to one panel entry, is accepted
 only from that entry's bound panel user, works once and expires after ten
 minutes. Anything else is answered as if the token did not exist.
+
+The sidebar's browser moves bytes to and from a panel the same way, through
+the embed view rather than the view here: such a transfer is bound to the
+administrator whose embed session minted it, and only the embed view can use
+it (see ``embed.py``).
 """
 
 from __future__ import annotations
@@ -49,6 +54,8 @@ class _Transfer:
     content_type: str = "application/octet-stream"
     max_bytes: int = 0
     used: bool = field(default=False)
+    # Set for a browser's transfer: the administrator it belongs to.
+    user_id: str | None = None
 
 
 class BlobRegistry:
@@ -68,15 +75,23 @@ class BlobRegistry:
 
     @callback
     def download(
-        self, entry_id: str, data: bytes, content_type: str
+        self,
+        entry_id: str,
+        data: bytes,
+        content_type: str,
+        user_id: str | None = None,
     ) -> tuple[str, dict[str, Any]]:
-        """Register bytes the panel may fetch once; return the token and reference."""
+        """Register bytes the panel may fetch once; return the token and reference.
+
+        With ``user_id``, the bytes are for that administrator's browser.
+        """
         token = self._mint(
             _Transfer(
                 entry_id=entry_id,
                 expires=_now() + BLOB_LIFETIME_SECONDS,
                 data=data,
                 content_type=content_type,
+                user_id=user_id,
             )
         )
         return token, {
@@ -88,9 +103,15 @@ class BlobRegistry:
 
     @callback
     def upload(
-        self, entry_id: str, max_bytes: int = MAX_UPLOAD_BYTES
+        self,
+        entry_id: str,
+        max_bytes: int = MAX_UPLOAD_BYTES,
+        user_id: str | None = None,
     ) -> tuple[str, asyncio.Future[bytes]]:
-        """Open a slot the panel may fill once; the future resolves with its bytes."""
+        """Open a slot the panel may fill once; the future resolves with its bytes.
+
+        With ``user_id``, the slot is for that administrator's browser.
+        """
         received: asyncio.Future[bytes] = self._hass.loop.create_future()
         token = self._mint(
             _Transfer(
@@ -98,9 +119,28 @@ class BlobRegistry:
                 expires=_now() + BLOB_LIFETIME_SECONDS,
                 received=received,
                 max_bytes=max_bytes,
+                user_id=user_id,
             )
         )
         return token, received
+
+    @callback
+    def take(self, token: str, entry_id: str, user_id: str) -> bytes | None:
+        """Return, once, the bytes a browser uploaded for one entry."""
+        transfer = self._transfers.get(token)
+        received = transfer.received if transfer is not None else None
+        if (
+            transfer is None
+            or received is None
+            or transfer.entry_id != entry_id
+            or transfer.user_id != user_id
+            or not received.done()
+            or received.cancelled()
+            or received.exception() is not None
+        ):
+            return None
+        del self._transfers[token]
+        return received.result()
 
     @callback
     def discard(self, token: str) -> None:
@@ -115,8 +155,15 @@ class BlobRegistry:
             # Mark a failed upload's error as seen; its caller already gave up.
             received.exception()
 
-    def claim(self, token: str, user_id: str, *, upload: bool) -> _Transfer | None:
-        """Use a live transfer of the right direction, for its panel's user only."""
+    def claim(
+        self, token: str, user_id: str, *, upload: bool, entry_id: str | None = None
+    ) -> _Transfer | None:
+        """Use a live transfer of the right direction, for its own user only.
+
+        Without ``entry_id`` the caller is a panel, and the transfer must be
+        its entry's; with it the caller is that entry's sidebar browser, and
+        the transfer must be one minted for that browser's administrator.
+        """
         transfer = self._transfers.get(token)
         if (
             transfer is None
@@ -125,8 +172,15 @@ class BlobRegistry:
             or (transfer.received is not None) != upload
         ):
             return None
-        entry = self._hass.config_entries.async_get_entry(transfer.entry_id)
-        if entry is None or entry.data.get(CONF_TRANSPORT_USER_ID) != user_id:
+        if entry_id is None:
+            entry = self._hass.config_entries.async_get_entry(transfer.entry_id)
+            if (
+                transfer.user_id is not None
+                or entry is None
+                or entry.data.get(CONF_TRANSPORT_USER_ID) != user_id
+            ):
+                return None
+        elif transfer.user_id != user_id or transfer.entry_id != entry_id:
             return None
         transfer.used = True
         return transfer
@@ -134,6 +188,48 @@ class BlobRegistry:
 
 def _not_found() -> web.Response:
     return web.Response(status=404)
+
+
+def send(transfer: _Transfer) -> web.Response:
+    """Answer a claimed download with its bytes."""
+    if transfer.data is None:
+        return _not_found()
+    return web.Response(
+        body=transfer.data,
+        content_type=transfer.content_type,
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+async def receive(request: web.Request, transfer: _Transfer) -> web.Response:
+    """Receive one bounded upload into a claimed slot."""
+    received = transfer.received
+    if received is None:
+        return _not_found()
+    body = bytearray()
+    try:
+        # Read in chunks: request.read() is capped by the server's own
+        # request size limit, which a panel backup can exceed.
+        async for chunk in request.content.iter_chunked(_CHUNK_BYTES):
+            body.extend(chunk)
+            if len(body) > transfer.max_bytes:
+                raise BlobTransferError("too large")
+    except BlobTransferError as err:
+        if not received.done():
+            received.set_exception(err)
+        return web.Response(status=413)
+    except Exception as err:
+        if not received.done():
+            received.set_exception(BlobTransferError("upload interrupted"))
+        raise web.HTTPBadRequest from err
+    data = bytes(body)
+    if received.cancelled():
+        # Its caller gave up while the bytes arrived.
+        return _not_found()
+    received.set_result(data)
+    return web.json_response(
+        {"size": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+    )
 
 
 class BlobView(HomeAssistantView):
@@ -149,44 +245,12 @@ class BlobView(HomeAssistantView):
     async def get(self, request: web.Request, token: str) -> web.StreamResponse:
         """Send registered bytes once."""
         transfer = self.registry.claim(token, request["hass_user"].id, upload=False)
-        if transfer is None or transfer.data is None:
-            return _not_found()
-        return web.Response(
-            body=transfer.data,
-            content_type=transfer.content_type,
-            headers={"Cache-Control": "no-store"},
-        )
+        return _not_found() if transfer is None else send(transfer)
 
     async def put(self, request: web.Request, token: str) -> web.Response:
         """Receive one bounded upload into its waiting slot."""
         transfer = self.registry.claim(token, request["hass_user"].id, upload=True)
-        if transfer is None or transfer.received is None:
-            return _not_found()
-        received = transfer.received
-        body = bytearray()
-        try:
-            # Read in chunks: request.read() is capped by the server's own
-            # request size limit, which a panel backup can exceed.
-            async for chunk in request.content.iter_chunked(_CHUNK_BYTES):
-                body.extend(chunk)
-                if len(body) > transfer.max_bytes:
-                    raise BlobTransferError("too large")
-        except BlobTransferError as err:
-            if not received.done():
-                received.set_exception(err)
-            return web.Response(status=413)
-        except Exception as err:
-            if not received.done():
-                received.set_exception(BlobTransferError("upload interrupted"))
-            raise web.HTTPBadRequest from err
-        data = bytes(body)
-        if received.cancelled():
-            # Its caller gave up while the bytes arrived.
-            return _not_found()
-        received.set_result(data)
-        return self.json(
-            {"size": len(data), "sha256": hashlib.sha256(data).hexdigest()}
-        )
+        return _not_found() if transfer is None else await receive(request, transfer)
 
 
 @callback

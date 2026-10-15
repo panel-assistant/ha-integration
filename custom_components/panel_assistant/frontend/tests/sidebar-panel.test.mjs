@@ -47,12 +47,13 @@ globalThis.localStorage = { getItem: key => store.get(key) ?? null, setItem: (ke
 const pushed = [];
 globalThis.history = { pushState: (...args) => pushed.push(args) };
 globalThis.window = new EventTarget();
+globalThis.location = { origin: 'http://ha.example' };
 let intervals = [];
 globalThis.setInterval = (fn, ms) => { const handle = { fn, ms, cleared: false }; intervals.push(handle); return handle; };
 globalThis.clearInterval = handle => { if (handle) handle.cleared = true; };
 
 const { ENGLISH_MESSAGES: { sidebar: SIDEBAR_MESSAGES } } = await import('../src/frontend-localization.mjs');
-const { SELECTION_KEY, parsePanels, embedToken, versionText, openingText, PanelAssistantSidebar } = await import('../src/sidebar-panel.mjs');
+const { SELECTION_KEY, RELAY_TYPE, parsePanels, embedToken, versionText, openingText, PanelAssistantSidebar } = await import('../src/sidebar-panel.mjs');
 
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const TOKEN = 'a'.repeat(43);
@@ -725,4 +726,90 @@ test('the shared card follows Home Assistant light or dark, and each failure nam
   assert.equal($('#failure').hidden, true);
   assert.equal($('#failure-pill').textContent, '', 'a recovered panel keeps no stale state word');
   panel.disconnectedCallback();
+});
+
+// The frame's window as the sidebar sees it, recording what is posted to it.
+function frameWindow() {
+  return { posted: [], postMessage(message, origin) { this.posted.push([message, origin]); } };
+}
+function fromWindow(source, data) {
+  const event = new Event('message');
+  Object.assign(event, { source, data });
+  window.dispatchEvent(event);
+}
+
+async function relaying(hass) {
+  const relayed = [];
+  const list = hass.callWS;
+  hass.callWS = message => {
+    if (message.type !== 'panel_assistant/ui') return list(message);
+    const call = { message }; relayed.push(call);
+    return new Promise((resolve, reject) => { call.resolve = resolve; call.reject = reject; });
+  };
+  const mounted = await mount(hass, false, '/one');
+  mounted.subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  const target = frameWindow();
+  mounted.$('#frame').contentWindow = target;
+  return { ...mounted, relayed, target };
+}
+
+test('the relay answers its own frame only and ignores every other source', async () => {
+  const hass = fakeHass();
+  const { relayed, target } = await relaying(hass);
+  const request = { kind: 'manage', command_id: 'r1', op: 'perf', args: {} };
+  fromWindow(frameWindow(), { type: RELAY_TYPE, frame: request });
+  fromWindow(null, { type: RELAY_TYPE, frame: request });
+  fromWindow(target, { type: 'other', frame: request });
+  fromWindow(target, { type: RELAY_TYPE });
+  await tick();
+  assert.equal(relayed.length, 0);
+
+  fromWindow(target, { type: RELAY_TYPE, frame: request }); await tick();
+  assert.deepEqual(relayed.map(call => call.message), [{ type: 'panel_assistant/ui', entry_id: 'one', request }]);
+  relayed[0].resolve({ command_id: 'r1', outcome: 'applied', result: { cpu: 1 } }); await tick();
+  assert.deepEqual(target.posted, [[{ type: RELAY_TYPE, frame: { command_id: 'r1', outcome: 'applied', result: { cpu: 1 } } }, 'http://ha.example']]);
+
+  // A request the relay rejects still answers, so the page's request fails rather than hangs.
+  fromWindow(target, { type: RELAY_TYPE, frame: { ...request, command_id: 'r2' } }); await tick();
+  relayed[1].reject(Object.assign(Error('no session'), { code: 'panel_unavailable' })); await tick();
+  assert.deepEqual(target.posted[1][0], { type: RELAY_TYPE, frame: { command_id: 'r2', outcome: 'failed', code: 'failed' } });
+});
+
+test('relayed subscriptions forward updates, close on reconnect and end with the frame', async () => {
+  const hass = fakeHass();
+  const { panel, subs, target } = await relaying(hass);
+  const subscribe = { kind: 'manage', command_id: 's1', op: 'subscribe', args: { family: 'perf' } };
+  fromWindow(target, { type: RELAY_TYPE, frame: subscribe }); await tick();
+  assert.deepEqual([subs[1].message, subs[1].options], [{ type: 'panel_assistant/ui', entry_id: 'one', request: subscribe }, { resubscribe: false }]);
+  const update = { subscription: 's1', observations: [{ channel: 'perf', state: 'known', value: 1 }] };
+  subs[1].callback(update);
+  assert.deepEqual(target.posted.at(-1)[0], { type: RELAY_TYPE, frame: update });
+
+  // The panel's session ended: the page is told to reopen its subscriptions.
+  subs[1].callback({ closed: true });
+  assert.deepEqual(target.posted.at(-1)[0], { type: RELAY_TYPE, closed: true });
+
+  // A reconnect drops every relayed subscription without ending it on the new socket.
+  fromWindow(target, { type: RELAY_TYPE, frame: { ...subscribe, command_id: 's2' } }); await tick();
+  hass.connection.listeners.get('ready')(); await tick();
+  assert.deepEqual(target.posted.at(-1)[0], { type: RELAY_TYPE, closed: true });
+  assert.equal(subs[2].unsubscribed, 0);
+
+  // The page's own unsubscribe, a panel change and a disconnect each end the browser's subscription.
+  subs[3].callback({ kind: 'opened', url: url(TOKEN) });
+  fromWindow(target, { type: RELAY_TYPE, frame: { ...subscribe, command_id: 's3' } }); await tick();
+  fromWindow(target, { type: RELAY_TYPE, frame: { kind: 'manage', command_id: 'u', op: 'unsubscribe', args: { subscription: 's3' } } }); await tick();
+  assert.equal(subs[4].unsubscribed, 1);
+  assert.deepEqual(target.posted.at(-1)[0], { type: RELAY_TYPE, frame: { command_id: 'u', outcome: 'applied' } });
+  fromWindow(target, { type: RELAY_TYPE, frame: { ...subscribe, command_id: 's4' } }); await tick();
+  panel.route = { path: '/two' }; await tick();
+  assert.equal(subs[5].unsubscribed, 1);
+  subs[6].callback({ kind: 'opened', url: url(TOKEN2) });
+  fromWindow(target, { type: RELAY_TYPE, frame: { ...subscribe, command_id: 's5' } }); await tick();
+  panel.isConnected = false; panel.disconnectedCallback(); await tick();
+  assert.equal(subs[7].unsubscribed, 1);
+  // An update for a subscription that ended reaches no frame.
+  const posted = target.posted.length;
+  subs[5].callback(update);
+  assert.equal(target.posted.length, posted);
 });

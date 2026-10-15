@@ -73,6 +73,7 @@ from .repairs_upgrade import (
 from .transport import async_delete_merged_identity_issue, async_setup_transport
 from .transport_protocol import REASON_ENTRY_UNLOADED
 from .transport_sessions import async_apply_update_policy, async_get_sessions
+from .ui_relay import async_setup_ui_relay
 from .update_coordinator import PanelUpdateCoordinator
 from .voice import (
     async_follow_voice,
@@ -119,6 +120,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async_setup_transport(hass)
     async_setup_voice(hass)
     async_setup_embed(hass)
+    async_setup_ui_relay(hass)
     async_register_browser_delivery(hass)
     async_get_blobs(hass)
     await async_register_browser_panel(hass)

@@ -28,14 +28,12 @@ COMMAND_REPORT_STATE: Final = f"{DOMAIN}/report_state"
 COMMAND_REPORT_EVENT: Final = f"{DOMAIN}/report_event"
 COMMAND_COMMAND_RESULT: Final = f"{DOMAIN}/command_result"
 COMMAND_RESTART_NOTICE: Final = f"{DOMAIN}/restart_notice"
+COMMAND_UI_UPDATE: Final = f"{DOMAIN}/ui_update"
 
 CAPABILITY_STATE: Final = "state"
 CAPABILITY_EVENTS: Final = "events"
 CAPABILITY_COMMANDS: Final = "commands"
 CAPABILITY_APPROVAL: Final = "approval"
-# A panel that offers this receives a key to check the sidebar's proofs with
-# (see ``embed_proof.py``).
-CAPABILITY_EMBED_PROOF: Final = "embed_proof"
 # A panel that offers this is an Assist satellite (see ``voice.py``).
 CAPABILITY_VOICE: Final = "voice"
 # A panel that offers this describes its media channel once granted: an older
@@ -50,17 +48,27 @@ CAPABILITY_VOICE_STREAM_SESSION: Final = "voice_stream_session"
 # health and status snapshot, and the settings Panel Assistant writes. A panel
 # without it is read and written over HTTP.
 CAPABILITY_MANAGEMENT: Final = "management"
+# A panel that offers this answers ``subscribe`` with ``ui_update`` requests,
+# which Panel Assistant forwards to the sidebar that subscribed (see
+# ``ui_relay.py``).
+CAPABILITY_UI_SUBSCRIBE: Final = "ui_subscribe"
+# A panel that offers this uploads its page bundle on request, so the sidebar
+# shows it with no route to the panel's address (see ``ui_relay.py``).
+CAPABILITY_UI_BUNDLE: Final = "ui_bundle"
+# Never granted here: ``rest_retired`` lets a panel close its REST routes, and
+# Panel Assistant still calls some of them.
 KNOWN_CAPABILITIES: Final = frozenset(
     {
         CAPABILITY_STATE,
         CAPABILITY_EVENTS,
         CAPABILITY_COMMANDS,
         CAPABILITY_APPROVAL,
-        CAPABILITY_EMBED_PROOF,
         CAPABILITY_VOICE,
         CAPABILITY_MEDIA,
         CAPABILITY_VOICE_STREAM_SESSION,
         CAPABILITY_MANAGEMENT,
+        CAPABILITY_UI_SUBSCRIBE,
+        CAPABILITY_UI_BUNDLE,
     }
 )
 # Session end reasons sent in a ``session_closed`` event.
@@ -109,6 +117,8 @@ MANAGE_SETTINGS: Final = "settings"
 MAX_LATE_COMMANDS: Final = 16
 MAX_RECENT_OUTCOMES: Final = 16
 MAX_PLACEHOLDERS: Final = 8
+MAX_HEADERS: Final = 16
+MAX_HEADER_LENGTH: Final = 1024
 
 # Error codes returned to the panel. The panel renders its own text from them.
 ERR_PROTOCOL_UNSUPPORTED: Final = "protocol_unsupported"
@@ -156,6 +166,7 @@ _DIGEST_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _SESSION_TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 # An X25519 public key, base64url without padding.
 _SENDSPIN_KEY = re.compile(r"^[A-Za-z0-9_-]{43}$")
+_HEADER_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 _CONTROL_CHARACTERS = re.compile(r"[\x00-\x1f\x7f]")
 
 
@@ -450,11 +461,44 @@ RESTART_NOTICE_SCHEMA: Final = vol.Schema(
 )
 
 
+UI_UPDATE_SCHEMA: Final = vol.Schema(
+    {
+        vol.Required("type"): COMMAND_UI_UPDATE,
+        vol.Required("session"): _session_token,
+        vol.Required("subscription"): _session_token,
+        vol.Required("observations"): _bounded_list(
+            MAX_OBSERVATIONS,
+            vol.All(
+                vol.Schema(
+                    {
+                        vol.Required("channel"): _channel,
+                        vol.Required("state"): vol.In((STATE_KNOWN, STATE_UNAVAILABLE)),
+                        vol.Optional("value"): object,
+                    },
+                    extra=vol.REMOVE_EXTRA,
+                ),
+                _observation_consistent,
+            ),
+        ),
+    },
+    extra=vol.REMOVE_EXTRA,
+)
+
+
 def _placeholders(value: Any) -> dict[str, str]:
     if type(value) is not dict or len(value) > MAX_PLACEHOLDERS:
         raise vol.Invalid("expected bounded placeholders")
     return {
         _code(key): _plain_string(MAX_STRING_LENGTH)(item)
+        for key, item in value.items()
+    }
+
+
+def _headers(value: Any) -> dict[str, str]:
+    if type(value) is not dict or len(value) > MAX_HEADERS:
+        raise vol.Invalid("expected bounded headers")
+    return {
+        _pattern(_HEADER_NAME_PATTERN)(key): _plain_string(MAX_HEADER_LENGTH)(item)
         for key, item in value.items()
     }
 
@@ -475,8 +519,14 @@ COMMAND_RESULT_SCHEMA: Final = vol.All(
             vol.Required("outcome"): vol.In(OUTCOMES),
             vol.Optional("code"): vol.In(OUTCOME_CODES),
             vol.Optional("placeholders"): _placeholders,
-            # What an applied ``manage`` request answered with.
-            vol.Optional("result"): dict,
+            # What a ``manage`` request answered with: an object, or a page's
+            # text.
+            vol.Optional("result"): vol.Any(dict, str),
+            # The answering route's own status and response headers, and an
+            # interim answer that a final one for the same command follows.
+            vol.Optional("status"): _strict_int(100, 599),
+            vol.Optional("headers"): _headers,
+            vol.Optional("interim"): _strict_bool,
         },
         extra=vol.REMOVE_EXTRA,
     ),

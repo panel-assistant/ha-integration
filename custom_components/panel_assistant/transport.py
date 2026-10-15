@@ -61,7 +61,6 @@ from .const import (
     PROTOCOL_MIN as PROTOCOL_MIN,
 )
 from .contract import catalogue_entry, catalogue_entry_for_channel
-from .embed_proof import encode_key, new_key
 from .ha_url import DATA_INSTANCE_ID, async_connection_urls
 from .lifecycle import DATA_LIFECYCLE
 from .transport_binding import (
@@ -72,7 +71,6 @@ from .transport_binding import (
 )
 from .transport_protocol import (
     _VALUE_VALIDATORS,
-    CAPABILITY_EMBED_PROOF,
     CAPABILITY_VOICE_STREAM_SESSION,
     COMMAND_RESULT_SCHEMA,
     ERR_ENTRY_REMOVED,
@@ -497,12 +495,6 @@ def _accept_hello(
         # Unknown descriptors are accepted too, but render nothing.
         "channels": {"accepted": len(descriptors), "unknown": sorted(unknown)},
     }
-    if CAPABILITY_EMBED_PROOF in capabilities:
-        session.embed_key_id, session.embed_key = new_key()
-        result["embed"] = {
-            "key_id": session.embed_key_id,
-            "key": encode_key(session.embed_key),
-        }
     if CAPABILITY_VOICE_STREAM_SESSION in capabilities:
         assert voice_stream is not None and stream_client_id is not None
         session.voice_stream_client_id = stream_client_id
@@ -823,6 +815,8 @@ def ws_command_result(
     _record_outcome(session, command, msg, late)
     if msg["outcome"] == OUTCOME_PENDING_APPROVAL:
         command.approval_pending = True
+        if command.on_interim is not None:
+            command.on_interim()
     elif late:
         # Too late for its service call; recorded above and nothing else.
         del session.late[command_id]
@@ -830,7 +824,13 @@ def ws_command_result(
         del session.pending[command_id]
         if not command.future.done():
             command.future.set_result(
-                CommandOutcome(msg["outcome"], msg.get("code"), msg.get("result"))
+                CommandOutcome(
+                    msg["outcome"],
+                    msg.get("code"),
+                    msg.get("result"),
+                    msg.get("status"),
+                    msg.get("headers"),
+                )
             )
     connection.send_result(msg["id"])
 

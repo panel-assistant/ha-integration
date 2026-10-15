@@ -125,11 +125,13 @@
           "state",
           "commands",
           "approval",
-          "embed_proof",
           "voice",
           "media",
           "voice_stream_session",
-          "management"
+          "management",
+          "ui_subscribe",
+          "ui_bundle",
+          "rest_retired"
         ],
         "unsupported": [
           "camera_snapshot",
@@ -159,7 +161,7 @@
           "family": "relay",
           "force_update": false
         }],
-        "contract_digest": "15bf0d68a7edf0db83d1008f0c37c4f2804571314a3294e5049a67880da83d9c",
+        "contract_digest": "6f1323498d65ea4d46cd1b810107d5a93474326045e0bcb4a20672eeb94ff05f",
         "id": 1,
         "type": "panel_assistant/hello",
         "did": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"

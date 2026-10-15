@@ -129,11 +129,9 @@ class PanelSession:
     closed_at: datetime | None = None
     # The channel granted for this live session. A changed option revokes it.
     prerelease_panel_builds: bool | None = None
-    # The key the panel checks the sidebar's proofs with, while this session
-    # lasts, and the counter of the last proof issued under it. Never shown.
-    embed_key_id: str | None = field(default=None, repr=False)
-    embed_key: bytes | None = field(default=None, repr=False)
-    embed_counter: int = 0
+    # The sidebar subscriptions relayed on this session, by the panel's
+    # subscription ID (see ``ui_relay.py``). Each ends with the session.
+    ui_relays: dict[str, list[Any]] = field(default_factory=dict)
     # The panel's Sendspin client id, when ``voice_stream_session`` was granted.
     voice_stream_client_id: str | None = None
     # Commands sent and still waited for, by command ID.
@@ -160,7 +158,10 @@ class CommandOutcome:
 
     outcome: str
     code: str | None
-    result: dict[str, Any] | None = None
+    result: dict[str, Any] | str | None = None
+    # The answering route's own status and headers, for a relayed request.
+    status: int | None = None
+    headers: dict[str, str] | None = None
 
 
 @dataclass(slots=True)
@@ -174,6 +175,8 @@ class PendingCommand:
     channel: str
     future: asyncio.Future[CommandOutcome | None]
     approval_pending: bool = False
+    # Run when an interim pending_approval arrives, to wait longer for it.
+    on_interim: Callable[[], None] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -354,9 +357,11 @@ class TransportSessions:
                 command.future.set_result(None)
         session.pending.clear()
         session.late.clear()
-        # The panel discards its key when the session ends; so does this side.
-        session.embed_key_id = None
-        session.embed_key = None
+        # A relayed subscription cannot outlive the session that carries it.
+        relays = [relay for group in session.ui_relays.values() for relay in group]
+        session.ui_relays.clear()
+        for relay in relays:
+            relay.session_ended()
         # The session carried the panel's Sendspin connection; it ends too.
         if session.voice_stream_client_id is not None and (
             voice_stream := async_get_voice_stream(self._hass)
@@ -490,7 +495,7 @@ async def async_send_command(
         raise HomeAssistantError(
             translation_domain=DOMAIN, translation_key=ERR_NOT_COMMANDABLE
         )
-    result = await _async_deliver(
+    result = await async_deliver(
         hass, session, channel, {"channel": channel, "value": value}, COMMAND_TIMEOUT
     )
     if result.outcome in OUTCOMES_WITH_CODE:
@@ -517,7 +522,9 @@ async def async_manage(
     outcome = await async_manage_outcome(hass, session, op, timeout, **fields)
     if outcome.outcome in OUTCOMES_WITH_CODE:
         raise _command_error(outcome.code)
-    if outcome.outcome != OUTCOME_APPLIED:
+    if outcome.outcome != OUTCOME_APPLIED or not isinstance(
+        outcome.result, dict | None
+    ):
         raise _command_error(ERR_PANEL_UNAVAILABLE)
     return outcome.result or {}
 
@@ -541,7 +548,7 @@ async def async_manage_outcome(
         raise HomeAssistantError(
             translation_domain=DOMAIN, translation_key=ERR_PANEL_UNAVAILABLE
         )
-    return await _async_deliver(
+    return await async_deliver(
         hass,
         session,
         f"manage:{op}",
@@ -551,16 +558,26 @@ async def async_manage_outcome(
     )
 
 
-async def _async_deliver(
+async def async_deliver(
     hass: HomeAssistant,
     session: PanelSession,
     label: str,
     fields: dict[str, Any],
     wait_seconds: float,
     kind: str = "command",
+    *,
+    command_id: str | None = None,
+    deadline_ms: int = COMMAND_DEADLINE_MS,
+    approval_seconds: float = 0,
 ) -> CommandOutcome:
-    """Send one event on a session once and wait for its final outcome."""
-    command_id = secrets.token_urlsafe(24)
+    """Send one event on a session once and wait for its final outcome.
+
+    With ``approval_seconds``, an interim pending_approval extends the wait to
+    that long after it arrived, for a request a person is approving on the
+    panel's screen.
+    """
+    if command_id is None:
+        command_id = secrets.token_urlsafe(24)
     command = PendingCommand(channel=label, future=hass.loop.create_future())
     session.pending[command_id] = command
     session.count("sent")
@@ -572,13 +589,17 @@ async def _async_deliver(
                 "command_id": command_id,
                 "session": session.token,
                 **fields,
-                "deadline_ms": COMMAND_DEADLINE_MS,
+                "deadline_ms": deadline_ms,
             },
         )
     )
     future = command.future
     try:
-        async with asyncio.timeout(wait_seconds):
+        async with asyncio.timeout(wait_seconds) as scope:
+            if approval_seconds:
+                command.on_interim = lambda: scope.reschedule(
+                    hass.loop.time() + approval_seconds
+                )
             # Shielded, so a cancelled caller leaves the command to be recorded.
             result = await asyncio.shield(future)
     except TimeoutError:
