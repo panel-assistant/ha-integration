@@ -132,7 +132,7 @@ test('the panel’s first token is answered with Panel Assistant’s key and not
   assert.equal(reply.command, AdbCommand.Auth);
   assert.equal(reply.arg0, 3, 'an RSA public key, for the owner to approve');
   assert.equal(new TextDecoder().decode(reply.payload), `${KEY}\0`);
-  // A second token means the owner refused: nothing else is offered.
+  // Another token after the key was offered gets nothing more from this side.
   await assert.rejects(processor.process({ command: AdbCommand.Auth, arg0: 1, arg1: 0, payload: new Uint8Array(20) }));
 });
 
@@ -147,13 +147,18 @@ function panelAdb(props, reply = 'restarting in TCP mode port: 5555\n') {
 
 test('network ADB is turned on last when it is off, and left alone when it is on', async () => {
   for (const props of [{ 'service.adb.tcp.port': '5555' }, { 'persist.adb.tcp.port': '5555' },
-    { 'service.adb.listen_addrs': 'tcp:5555,vsock:5555' }]) {
+    { 'service.adb.listen_addrs': 'tcp:5555,vsock:5555' },
+    { 'service.adb.listen_addrs': 'tcp:5555', 'service.adb.tcp.port': '5556' }]) {
     const p = panelAdb(props);
     assert.equal(await ensureNetworkAdb(p.adb, { beforeRestart: () => assert.fail('restarted adbd') }), 'already_on');
     assert.deepEqual(p.services, []);
   }
+  // adbd's own precedence: listen addresses replace the ports, and a service
+  // port that is set, "0" (after \`adb usb\`) included, wins over the persistent one.
   for (const props of [{}, { 'service.adb.tcp.port': '0' }, { 'service.adb.tcp.port': '5556' },
-    { 'service.adb.tcp.port': '5556', 'persist.adb.tcp.port': '5555' }]) {
+    { 'service.adb.tcp.port': '5556', 'persist.adb.tcp.port': '5555' },
+    { 'service.adb.tcp.port': '0', 'persist.adb.tcp.port': '5555' },
+    { 'service.adb.listen_addrs': 'vsock:5555', 'service.adb.tcp.port': '5555' }]) {
     const p = panelAdb(props);
     const steps = [];
     p.adb.createSocketAndWait = async service => { steps.push(service); return 'restarting in TCP mode port: 5555\n'; };

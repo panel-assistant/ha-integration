@@ -193,8 +193,10 @@ export function parsePanelAssistantKey(value) {
 // Panel Assistant's public ADB key, from the Home Assistant window that opened
 // this page, for the installer to offer at the panel's USB prompt. Never
 // rejects: an older Home Assistant ignores the request, and null means connect
-// as before, with this browser's own key.
-export function requestPanelAssistantKey({ windowObject = window, options, timeoutMs = 5000 } = {}) {
+// as before, with this browser's own key. The wait outlasts Home Assistant's
+// own 10-second fetch, which may be creating the key for the first time; it
+// runs while the person plugs the panel in, before Connect needs it.
+export function requestPanelAssistantKey({ windowObject = window, options, timeoutMs = 12000 } = {}) {
   return new Promise(resolve => {
     const source = windowObject.opener;
     if (!options || !source || source.closed) { resolve(null); return; }

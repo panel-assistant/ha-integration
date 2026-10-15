@@ -19,10 +19,15 @@ export function panelAssistantKeyAuthenticator(key) {
   };
 }
 
-// The port adbd listens on when it starts, as adbd itself reads it.
-function listening({ serviceListenAddresses, servicePort, persistPort }) {
-  return serviceListenAddresses.includes(`tcp:${PANEL_ASSISTANT_ADB_PORT}`) ||
-    (servicePort ?? persistPort) === PANEL_ASSISTANT_ADB_PORT;
+// Whether adbd listens on the port, read as adbd reads it: a non-empty listen
+// address list (Android 11+) replaces the port properties, and a service port
+// that is set at all, "0" included, wins over the persistent one.
+async function listening(adb) {
+  const addresses = (await adb.getProp('service.adb.listen_addrs')).trim();
+  if (addresses) return addresses.split(',').includes(`tcp:${PANEL_ASSISTANT_ADB_PORT}`);
+  const service = (await adb.getProp('service.adb.tcp.port')).trim();
+  const port = service !== '' ? service : (await adb.getProp('persist.adb.tcp.port')).trim();
+  return port === String(PANEL_ASSISTANT_ADB_PORT);
 }
 
 // Turns network ADB on when it is off. adbd restarts to do it, which ends this
@@ -31,7 +36,7 @@ function listening({ serviceListenAddresses, servicePort, persistPort }) {
 export async function ensureNetworkAdb(adb, { beforeRestart = () => {} } = {}) {
   const tcpip = new AdbTcpIpService(adb);
   try {
-    if (listening(await tcpip.getListenAddresses())) return 'already_on';
+    if (await listening(adb)) return 'already_on';
     beforeRestart();
     await tcpip.setPort(PANEL_ASSISTANT_ADB_PORT);
     return 'turned_on';
