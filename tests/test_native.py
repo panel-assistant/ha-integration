@@ -195,10 +195,11 @@ def touch_sound(hass: HomeAssistant, entry: MockConfigEntry) -> str:
 
 
 def _expected_unique_ids() -> set[str]:
+    # The media player shows the volume, so a panel with one has no number.
     return {
         f"{DID}_{descriptor['unique_suffix']}"
         for descriptor in DESCRIPTORS
-        if descriptor["channel"] != "update_paneld"
+        if descriptor["channel"] not in ("update_paneld", "volume")
     }
 
 
@@ -227,7 +228,6 @@ async def test_every_type_renders_under_the_native_unique_id(
         "event",
         "light",
         "media_player",
-        "number",
         "select",
         "sensor",
         "switch",
@@ -280,7 +280,6 @@ async def test_every_type_renders_under_the_native_unique_id(
         "efficiency",
         "auto",
     ]
-    assert state("volume").state == "0"
     assert state("navigate").state == "/"
     assert state("proximity").state == "on"
     assert state("temperature").state == "21.5"
@@ -376,12 +375,12 @@ async def test_availability_follows_the_session_and_the_description(
     assert hass.states.get(relay).state == STATE_UNAVAILABLE
 
     reload = _native_entries(hass, native.entry_id)[f"{DID}_reload"].entity_id
-    volume = _native_entries(hass, native.entry_id)[f"{DID}_volume"].entity_id
+    navigate = _native_entries(hass, native.entry_id)[f"{DID}_navigate"].entity_id
     again = await hass_ws_client(hass, hass_read_only_access_token)
-    # Omit a relay and a button, and describe volume in a shape the catalogue
+    # Omit a relay and a button, and describe navigate in a shape the catalogue
     # does not know: its reports are still accepted, but it renders nothing.
     later = [
-        item | {"translation_key": "loudness"} if item["channel"] == "volume" else item
+        item | {"translation_key": "route"} if item["channel"] == "navigate" else item
         for item in DESCRIPTORS
         if item["channel"] not in ("relay1", "reload")
     ]
@@ -389,7 +388,7 @@ async def test_availability_follows_the_session_and_the_description(
     await _sync(hass, again, token, later)
     assert hass.states.get(relay).state == STATE_UNAVAILABLE
     assert hass.states.get(reload).state == STATE_UNAVAILABLE
-    assert hass.states.get(volume).state == STATE_UNAVAILABLE
+    assert hass.states.get(navigate).state == STATE_UNAVAILABLE
     assert hass.states.get(touch_sound(hass, native)).state == "on"
     assert {f"{DID}_relay1", f"{DID}_reload"} <= set(
         _native_entries(hass, native.entry_id)

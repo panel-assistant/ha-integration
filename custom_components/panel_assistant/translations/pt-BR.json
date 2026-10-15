@@ -734,6 +734,10 @@
       "title": "O assistente de voz em {panel} não está ouvindo.",
       "description": "O assistente de voz em {panel} não está ouvindo porque o microfone não forneceu áudio quando o painel o verificou. Para verificar novamente, desabilite e habilite o assistente de voz na página Configurar do painel ou escolha outra fonte de áudio nessa página. O painel informou: {detail}"
     },
+    "volume_number_removed": {
+      "title": "{panel} não tem mais um número de volume separado",
+      "description": "{panel} tem um reprodutor de mídia que mostra e ajusta o volume, então o Panel Assistant removeu o número de volume separado {entity}. Estas automações ou scripts ainda o usam: {users}. Altere-os para ajustar o volume com a ação `media_player.volume_set` no reprodutor de mídia do painel. Depois de alterá-los, você pode ignorar esta mensagem."
+    },
     "restart_required": {
       "title": "Reiniciar o Home Assistant para concluir a atualização do Panel Assistant",
       "fix_flow": {

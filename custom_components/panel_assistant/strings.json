@@ -732,6 +732,10 @@
       "title": "The voice assistant on {panel} is not listening.",
       "description": "The voice assistant on {panel} is not listening because its microphone delivered no audio when the panel checked it. To check again, turn the voice assistant off and on in the panel's Configure page, or choose another audio source there. The panel reported: {detail}"
     },
+    "volume_number_removed": {
+      "title": "{panel} no longer has a separate volume number",
+      "description": "{panel} has a media player that shows and sets its volume, so Panel Assistant removed its separate volume number {entity}. These automations or scripts still use it: {users}. Change them to set the volume with the `media_player.volume_set` action on the panel's media player. Once they are changed, you can ignore this message."
+    },
       "restart_required": {
         "title": "Restart Home Assistant to finish updating Panel Assistant",
         "fix_flow": {

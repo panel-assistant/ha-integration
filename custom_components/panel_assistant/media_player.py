@@ -28,7 +28,8 @@ from .transport_sessions import async_send_command
 from .voice import panel_url
 from .voice_stream import Listener, async_get_voice_stream
 
-# The volume has one path, the volume channel, whose number stays beside this.
+# The volume has one path, the volume channel; with this player beside it the
+# panel has no separate volume number (see ``native.SHOWN_BY``).
 VOLUME_CHANNEL: Final = "volume"
 
 _STATES: Final = {

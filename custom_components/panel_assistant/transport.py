@@ -64,6 +64,7 @@ from .contract import catalogue_entry, catalogue_entry_for_channel
 from .embed_proof import encode_key, new_key
 from .ha_url import DATA_INSTANCE_ID, async_connection_urls
 from .lifecycle import DATA_LIFECYCLE
+from .native import shown_elsewhere
 from .transport_binding import (
     _may_ask_to_bind,
     async_bind_user,
@@ -109,6 +110,7 @@ from .transport_sessions import (
 )
 from .update_policy import overlaps, policy_for, prereleases_allowed
 from .voice_stream import async_get_voice_stream
+from .volume_number import async_retire_volume_number
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -464,6 +466,8 @@ def _accept_hello(
                 signal_native_removed(entry.entry_id),
                 frozenset({legacy.unique_id}),
             )
+    if shown_elsewhere("volume", descriptors, unknown):
+        async_retire_volume_number(hass, entry, did)
     async_remove_unsupported_channels(hass, entry, did, unsupported)
     session = PanelSession(
         entry_id=entry.entry_id,

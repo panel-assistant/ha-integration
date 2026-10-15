@@ -647,6 +647,7 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
         "panel_identity_mismatch",
         "panel_link_shared",
         "restart_required",
+        "volume_number_removed",
     }
     # The binding issue is raised under a constant, which the scan above misses.
     issues = keys["issues"] | {transport_binding.ISSUE_PANEL_USER_MISMATCH}

@@ -734,6 +734,10 @@
       "title": "Hlasový asistent na panelu {panel} neposlouchá.",
       "description": "Hlasový asistent na panelu {panel} neposlouchá, protože jeho mikrofon při kontrole panelem neposkytl žádný zvuk. Pro novou kontrolu hlasového asistenta vypněte a zapněte na stránce Konfigurace panelu, nebo tam vyberte jiný zdroj zvuku. Panel nahlásil: {detail}"
     },
+    "volume_number_removed": {
+      "title": "Panel {panel} už nemá samostatné číslo hlasitosti",
+      "description": "Panel {panel} má přehrávač médií, který zobrazuje a nastavuje jeho hlasitost, proto Panel Assistant odstranil jeho samostatné číslo hlasitosti {entity}. Tyto automatizace nebo skripty ho stále používají: {users}. Upravte je tak, aby nastavovaly hlasitost akcí `media_player.volume_set` na přehrávači médií panelu. Až budou upravené, můžete tuto zprávu ignorovat."
+    },
     "restart_required": {
       "title": "Pro dokončení aktualizace Panel Assistant restartujte systém Home Assistant",
       "fix_flow": {
