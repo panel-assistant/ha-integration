@@ -270,8 +270,8 @@ async def test_found_panel_offers_its_unfinished_setup_before_connecting(hass):
             f"{_FLOW}.HaPaneldClient.async_get_health", AsyncMock(return_value=HEALTH)
         ),
         patch(
-            f"{_FLOW}.HaPaneldClient.async_get_setup_complete",
-            AsyncMock(return_value=False),
+            f"{_FLOW}.HaPaneldClient.async_get_setup_state",
+            AsyncMock(return_value=PanelSetupState(complete=False)),
         ),
     ):
         form = await _start_step(hass, "add_panel")
@@ -292,6 +292,10 @@ async def test_setup_wizard_opens_and_the_flow_connects_when_setup_is_done(hass)
     with (
         patch(
             f"{_FLOW}.HaPaneldClient.async_get_health", AsyncMock(return_value=HEALTH)
+        ),
+        patch(
+            f"{_FLOW}.HaPaneldClient.async_get_setup_state",
+            AsyncMock(return_value=PanelSetupState(complete=False)),
         ),
         patch(f"{_FLOW}.HaPaneldClient.async_get_setup_complete", setup),
         patch(f"{_FLOW}._SETUP_POLL_SECONDS", 0),
