@@ -1,7 +1,9 @@
 """The panel as an Assist satellite, over its own session."""
 
 import asyncio
+import logging
 from collections.abc import AsyncIterable, Callable
+from datetime import timedelta
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -15,9 +17,11 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.setup import async_setup_component
+from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     async_capture_events,
+    async_fire_time_changed,
     flush_store,
 )
 
@@ -216,7 +220,71 @@ async def test_voice_is_granted_and_the_satellite_joins_the_panel_device(
     assert devices == {device}
 
 
-async def test_turning_the_voice_assistant_off_makes_the_satellite_unavailable(
+async def test_turning_voice_off_disables_the_satellite_and_on_enables_it(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """While the panel's voice is off its satellite is disabled, not unavailable."""
+    panel, entity_id = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    registry = er.async_get(hass)
+    assert (await panel.configure(enabled=False))["success"]
+    await hass.async_block_till_done()
+    assert registry.async_get(entity_id).disabled_by is (
+        er.RegistryEntryDisabler.INTEGRATION
+    )
+    assert hass.states.get(entity_id) is None
+    assert (await panel.configure(enabled=False))["success"]
+    await hass.async_block_till_done()
+    assert registry.async_get(entity_id).disabled_by is (
+        er.RegistryEntryDisabler.INTEGRATION
+    )
+    assert (await panel.configure(enabled=True))["success"]
+    await hass.async_block_till_done()
+    assert registry.async_get(entity_id).disabled_by is None
+    # Core adds the enabled entity back by reloading the entry.
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=31))
+    await hass.async_block_till_done()
+    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
+    assert (await panel.configure())["success"]
+    await hass.async_block_till_done()
+    assert hass.states.get(entity_id).state == "idle"
+    # The satellite left and came back without a fault on its way out.
+    assert not [
+        record.getMessage()
+        for record in caplog.records
+        if record.levelno >= logging.WARNING
+        and record.name.startswith(
+            (
+                "homeassistant.helpers.dispatcher",
+                "homeassistant.helpers.entity",
+                "homeassistant.components.assist_satellite",
+            )
+        )
+    ]
+
+
+async def test_a_new_satellite_of_a_panel_with_voice_off_starts_disabled(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+) -> None:
+    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
+    assert (await panel.configure(enabled=False))["success"]
+    await hass.async_block_till_done()
+    entity_id = _satellite(hass, entry)
+    assert entity_id is not None
+    assert er.async_get(hass).async_get(entity_id).disabled_by is (
+        er.RegistryEntryDisabler.INTEGRATION
+    )
+
+
+async def test_a_satellite_disabled_by_the_user_is_left_alone(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
@@ -225,12 +293,95 @@ async def test_turning_the_voice_assistant_off_makes_the_satellite_unavailable(
     panel, entity_id = await _ready(
         hass, hass_ws_client, hass_read_only_access_token, entry
     )
+    registry = er.async_get(hass)
+    registry.async_update_entity(entity_id, disabled_by=er.RegistryEntryDisabler.USER)
+    await hass.async_block_till_done()
+    for enabled in (False, True):
+        assert (await panel.configure(enabled=enabled))["success"]
+        await hass.async_block_till_done()
+        assert registry.async_get(entity_id).disabled_by is (
+            er.RegistryEntryDisabler.USER
+        )
+
+
+async def test_enabling_the_satellite_turns_voice_on_at_the_panel(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+) -> None:
+    """Enabling the entity Panel Assistant disabled asks the panel to turn voice on."""
+    panel = await _connect(
+        hass,
+        hass_ws_client,
+        hass_read_only_access_token,
+        ["state", "events", "voice", "management"],
+    )
     assert (await panel.configure(enabled=False))["success"]
     await hass.async_block_till_done()
-    assert hass.states.get(entity_id).state == "unavailable"
+    entity_id = _satellite(hass, entry)
+    registry = er.async_get(hass)
+    assert registry.async_get(entity_id).disabled_by is (
+        er.RegistryEntryDisabler.INTEGRATION
+    )
+
+    registry.async_update_entity(entity_id, disabled_by=None)
+    message = await panel.receive()
+    event = message["event"]
+    assert event["kind"] == "manage", event
+    assert event["op"] == "settings"
+    assert event["settings"] == {"voice_enabled": "true"}
+    # The panel answers first and reports its voice configuration after.
+    answered = await panel.send(
+        {
+            "type": "panel_assistant/command_result",
+            "session": panel.token,
+            "command_id": event["command_id"],
+            "outcome": "applied",
+        }
+    )
+    assert answered["success"], answered
+    await hass.async_block_till_done()
+    assert registry.async_get(entity_id).disabled_by is None
     assert (await panel.configure(enabled=True))["success"]
     await hass.async_block_till_done()
-    assert hass.states.get(entity_id).state == "idle"
+    assert registry.async_get(entity_id).disabled_by is None
+
+
+async def test_a_refused_voice_on_disables_the_satellite_again(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+) -> None:
+    """An older panel that cannot take voice_enabled keeps its satellite disabled."""
+    panel = await _connect(
+        hass,
+        hass_ws_client,
+        hass_read_only_access_token,
+        ["state", "events", "voice", "management"],
+    )
+    assert (await panel.configure(enabled=False))["success"]
+    await hass.async_block_till_done()
+    entity_id = _satellite(hass, entry)
+    registry = er.async_get(hass)
+
+    registry.async_update_entity(entity_id, disabled_by=None)
+    event = (await panel.receive())["event"]
+    answered = await panel.send(
+        {
+            "type": "panel_assistant/command_result",
+            "session": panel.token,
+            "command_id": event["command_id"],
+            "outcome": "refused",
+            "code": "not_commandable",
+        }
+    )
+    assert answered["success"], answered
+    await hass.async_block_till_done()
+    assert registry.async_get(entity_id).disabled_by is (
+        er.RegistryEntryDisabler.INTEGRATION
+    )
 
 
 async def test_a_panel_that_offers_no_voice_has_no_satellite(

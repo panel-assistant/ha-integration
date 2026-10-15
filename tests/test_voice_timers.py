@@ -2,6 +2,7 @@
 
 import asyncio
 import contextlib
+from datetime import timedelta
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
@@ -11,13 +12,18 @@ from homeassistant.components.intent.timers import TimersNotSupportedError
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import intent
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
 
 from .test_transport import WsClientFactory
 from .test_voice import (  # noqa: F401  (fixtures)
     FakePipeline,
     Panel,
     _configuration,
+    _connect,
     _ready,
     _run,
     entry,
@@ -153,6 +159,13 @@ async def test_a_panel_takes_timers_only_while_its_voice_assistant_is_on(
 
     assert (await panel.configure(enabled=True))["success"]
     await hass.async_block_till_done()
+    # The satellite was disabled while voice was off; Core adds it back by
+    # reloading the entry, and the panel reconnects.
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=31))
+    await hass.async_block_till_done()
+    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
+    assert (await panel.configure())["success"]
+    await hass.async_block_till_done()
     await _timer(hass, device_id, seconds=60)
 
     assert await hass.config_entries.async_unload(entry.entry_id)
@@ -198,7 +211,7 @@ async def test_a_ring_waiting_on_a_turn_is_dropped_when_voice_turns_off(
         while (message := await panel.receive())["type"] != "result":
             events.append(message["event"])
         assert message["success"], message
-        assert hass.states.get(entity_id).state == "unavailable"
+        assert hass.states.get(entity_id) is None
         release.set()
         await hass.async_block_till_done()
 
