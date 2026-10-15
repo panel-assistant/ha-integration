@@ -407,6 +407,7 @@ async def test_a_wake_word_turn_streams_to_the_pipeline_the_panel_named(
     assert events == [
         {"kind": "listen_end"},
         {"kind": "listen_end"},
+        {"kind": "transcript", "text": "hi"},
         {
             "kind": "play",
             "url": "/api/tts_proxy/reply.mp3",
@@ -424,6 +425,89 @@ async def test_a_wake_word_turn_streams_to_the_pipeline_the_panel_named(
     assert hass.states.get(entity_id).state == "idle"
     # The turn's binary handler was released with the turn.
     assert all(slot is None for slot in _connection_of(hass, entry).binary_handlers)
+
+
+async def test_the_panel_is_sent_what_was_heard_and_the_reply_as_it_is_written(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+    pipeline: FakePipeline,
+) -> None:
+    def progress(delta: dict[str, Any]) -> PipelineEvent:
+        return PipelineEvent(
+            PipelineEventType.INTENT_PROGRESS, {"chat_log_delta": delta}
+        )
+
+    # An AI agent that speaks, calls a tool, then speaks again.
+    pipeline.events = [
+        PipelineEvent(PipelineEventType.STT_VAD_END),
+        PipelineEvent(PipelineEventType.STT_END, {"stt_output": {"text": "Lights on"}}),
+        PipelineEvent(PipelineEventType.INTENT_START),
+        progress({"role": "assistant", "content": "Turning"}),
+        progress({"content": " on"}),
+        progress({"thinking_content": "which lights?"}),
+        progress({"tool_calls": [{"id": "1", "tool_name": "HassTurnOn"}]}),
+        progress(
+            {
+                "role": "tool_result",
+                "agent_id": "conversation.agent",
+                "tool_call_id": "1",
+                "tool_name": "HassTurnOn",
+                "tool_result": {"success": True},
+            }
+        ),
+        # Not a shape Core sends: only the assistant's words are the reply.
+        progress({"role": "tool_result", "content": "not the reply"}),
+        progress({"role": "assistant"}),
+        progress({"content": " the lights."}),
+        PipelineEvent(
+            PipelineEventType.INTENT_END,
+            {
+                "intent_output": {
+                    "response": {
+                        "speech": {"plain": {"speech": "Turning on the lights."}}
+                    },
+                    "continue_conversation": False,
+                }
+            },
+        ),
+        PipelineEvent(PipelineEventType.RUN_END),
+    ]
+    panel, _entity_id = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    run_id, handler = await _run(panel, "hey_jarvis")
+    await panel.client.send_bytes(bytes([handler]))
+
+    assert await _turn_events(panel, run_id) == [
+        {"kind": "listen_end"},
+        {"kind": "listen_end"},
+        {"kind": "transcript", "text": "Lights on"},
+        {"kind": "reply", "text": "Turning", "final": False},
+        {"kind": "reply", "text": "Turning on", "final": False},
+        {"kind": "reply", "text": "Turning on the lights.", "final": False},
+        {"kind": "reply", "text": "Turning on the lights.", "final": True},
+        {"kind": "end"},
+    ]
+
+    # A continued turn starts its reply afresh; with nothing heard and no
+    # reply, the panel is sent no text at all.
+    pipeline.events = [
+        PipelineEvent(PipelineEventType.STT_END, {"stt_output": {"text": ""}}),
+        PipelineEvent(PipelineEventType.INTENT_START),
+        progress({"role": "assistant", "content": "Yes?"}),
+        PipelineEvent(PipelineEventType.INTENT_END, {"intent_output": {}}),
+        PipelineEvent(PipelineEventType.RUN_END),
+    ]
+    run_id, handler = await _run(panel, "hey_jarvis", continued=True)
+    await panel.client.send_bytes(bytes([handler]))
+
+    assert await _turn_events(panel, run_id) == [
+        {"kind": "listen_end"},
+        {"kind": "reply", "text": "Yes?", "final": False},
+        {"kind": "end"},
+    ]
 
 
 async def test_a_continued_turn_keeps_the_pipeline_without_the_wake_phrase(
