@@ -12,8 +12,10 @@ Three requests and one event kind carry it, all on the panel's session:
 - ``voice_run``: a subscription for one conversation turn. Its result names a
   binary handler; each binary frame is that handler's byte then PCM, and a
   frame of only that byte ends the audio. Its events tell the panel to stop
-  listening (``listen_end``), what to play (``play``) and that the turn is over
-  (``end``).
+  listening (``listen_end``), what speech-to-text heard (``transcript``, its
+  ``text``), the reply as the agent writes it (``reply``, its ``text`` so far
+  and ``final`` once the reply is complete), what to play (``play``) and that
+  the turn is over (``end``).
 - ``voice_played``: the panel finished playing a reply or an announcement.
 - ``voice_announce`` events on the hello subscription ask the panel to play an
   announcement, and optionally to listen afterwards.

@@ -373,6 +373,11 @@ class PanelAssistSatellite(AssistSatelliteEntity):
             delta = data.get("chat_log_delta") or {}
             if role := delta.get("role"):
                 self._reply_role = role
+                # A later assistant message, after a tool call, starts apart
+                # from the words before it.
+                text = self._reply_text
+                if role == "assistant" and text and not text[-1].isspace():
+                    self._reply_text += " "
             if self._reply_role == "assistant" and (content := delta.get("content")):
                 self._reply_text += content
                 run.send({"kind": "reply", "text": self._reply_text, "final": False})

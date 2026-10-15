@@ -459,8 +459,9 @@ async def test_the_panel_is_sent_what_was_heard_and_the_reply_as_it_is_written(
         ),
         # Not a shape Core sends: only the assistant's words are the reply.
         progress({"role": "tool_result", "content": "not the reply"}),
+        # A later message is kept apart from the words before it.
         progress({"role": "assistant"}),
-        progress({"content": " the lights."}),
+        progress({"content": "the lights."}),
         PipelineEvent(
             PipelineEventType.INTENT_END,
             {
@@ -496,6 +497,8 @@ async def test_the_panel_is_sent_what_was_heard_and_the_reply_as_it_is_written(
     pipeline.events = [
         PipelineEvent(PipelineEventType.STT_END, {"stt_output": {"text": ""}}),
         PipelineEvent(PipelineEventType.INTENT_START),
+        progress({"role": "assistant", "content": "Hmm.\n"}),
+        # Already apart: nothing is added between the messages.
         progress({"role": "assistant", "content": "Yes?"}),
         PipelineEvent(PipelineEventType.INTENT_END, {"intent_output": {}}),
         PipelineEvent(PipelineEventType.RUN_END),
@@ -505,7 +508,8 @@ async def test_the_panel_is_sent_what_was_heard_and_the_reply_as_it_is_written(
 
     assert await _turn_events(panel, run_id) == [
         {"kind": "listen_end"},
-        {"kind": "reply", "text": "Yes?", "final": False},
+        {"kind": "reply", "text": "Hmm.\n", "final": False},
+        {"kind": "reply", "text": "Hmm.\nYes?", "final": False},
         {"kind": "end"},
     ]
 
