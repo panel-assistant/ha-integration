@@ -25,6 +25,7 @@ from homeassistant.helpers.translation import async_get_translations
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.panel_assistant.app_identity import SUCCESSOR_PACKAGE_ID
 from custom_components.panel_assistant.client import CannotConnectError, PanelHealth
 from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
 from custom_components.panel_assistant.diagnostics import (
@@ -64,6 +65,7 @@ HEALTH = PanelHealth(
     discovery_id=DID,
     installation_identity=True,
     protocol=(5, 5),
+    package=SUCCESSOR_PACKAGE_ID,
 )
 STATUS = PanelStatus(warning_count=0, capability_count=0)
 

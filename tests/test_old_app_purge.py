@@ -53,7 +53,13 @@ from custom_components.panel_assistant.feed_coordinator import (
 )
 from custom_components.panel_assistant.install_adb import MoveObservation, MoveStep
 from custom_components.panel_assistant.old_app import old_app_issue_id
-from custom_components.panel_assistant.panel_move import MoveError, move_issue_id
+from custom_components.panel_assistant.panel_move import (
+    MoveError,
+    move_issue_id,
+)
+from custom_components.panel_assistant.panel_move import (
+    old_app_issue_id as refusal_issue_id,
+)
 from custom_components.panel_assistant.release import ReleaseArtifact
 
 from .test_transport import STATUS
@@ -476,14 +482,16 @@ async def test_a_backup_that_fails_removes_nothing(
     assert _issue(hass, entry) == "remove_old_app_failed"
 
 
-async def test_a_panel_the_old_app_answers_keeps_the_move_repair(
+async def test_a_panel_the_old_app_answers_is_refused_not_moved(
     hass: HomeAssistant, hass_read_only_user: Any, panel: Panel
 ) -> None:
     panel.health = replace(HEALTH, package=LEGACY_PACKAGE_ID, version_code=1096)
     entry = await _load(hass, hass_read_only_user.id)
 
     assert panel.targets == 0
-    assert ir.async_get(hass).async_get_issue(DOMAIN, move_issue_id(entry.entry_id))
+    registry = ir.async_get(hass)
+    assert registry.async_get_issue(DOMAIN, refusal_issue_id(entry.entry_id))
+    assert registry.async_get_issue(DOMAIN, move_issue_id(entry.entry_id)) is None
     assert _issue(hass, entry) is None
 
 

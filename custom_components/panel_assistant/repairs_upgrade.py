@@ -30,7 +30,7 @@ from .const import (
     REQUIRED_APP_VERSION,
 )
 from .device import panel_display_name
-from .panel_move import move_issue_id
+from .panel_move import move_issue_id, runs_old_app
 from .transport_sessions import async_get_sessions
 from .update_policy import overlaps
 
@@ -62,9 +62,8 @@ def async_evaluate_app_too_old(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
     A live session means the hello was accepted, so the app speaks this
     protocol. A failed read keeps the last health, so it changes nothing.
-    A panel still on the old app id is offered its move instead, which
-    installs the new app; two Repairs asking for one install would read as
-    two jobs.
+    A panel still on the old app id has its own Repair, which says what to
+    install first; two Repairs asking for one install would read as two jobs.
     """
     issue_id = app_too_old_issue_id(entry.entry_id)
     if async_get_sessions(hass).get(entry.entry_id) is not None:
@@ -76,6 +75,7 @@ def async_evaluate_app_too_old(hass: HomeAssistant, entry: ConfigEntry) -> None:
     health: PanelHealth = coordinator.data.health
     if (
         speaks_this_protocol(health)
+        or runs_old_app(health)
         or ir.async_get(hass).async_get_issue(DOMAIN, move_issue_id(entry.entry_id))
         is not None
     ):

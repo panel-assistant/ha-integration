@@ -99,7 +99,7 @@
       "installing": "Instalando Panel Assistant en {address}. Mantén abierto este cuadro de diálogo; terminará por sí solo.\n\nSi lo cierras, la instalación seguirá en marcha. Añade de nuevo la misma dirección para terminar."
     },
     "error": {
-      "old_app_installed": "Este panel todavía tiene instalada la antigua app ha-paneld, pero no responde. Ábrela en el panel o reinicia el panel y vuelve a añadirlo. Después, Panel Assistant ofrece una reparación que lo mueve a la nueva app.",
+      "old_app_installed": "Este panel todavía ejecuta la antigua app ha-paneld. Panel Assistant 1.0 no puede moverlo a la nueva app y no instala nada a su lado. Instala primero Panel Assistant 0.9.0 (en HACS abre Panel Assistant, elige Redownload y selecciona la versión 0.9.0), añade el panel y muévelo con su reparación, y después instala 1.0.0.",
       "cannot_connect": "No se puede conectar a un punto de conexión de estado válido de Panel Assistant.",
       "invalid_address": "Introduce un nombre de host o una dirección IP sin esquema de URL ni ruta.",
       "invalid_install_address": "Introduce solo el nombre de host o la dirección IP del panel.",
@@ -131,6 +131,7 @@
       "release_selection_required": "Elige una versión de la lista."
     },
     "abort": {
+      "old_app_installed": "Este panel todavía ejecuta la antigua app ha-paneld. Panel Assistant 1.0 no puede moverlo a la nueva app y no instala nada a su lado. Instala primero Panel Assistant 0.9.0 (en HACS abre Panel Assistant, elige Redownload y selecciona la versión 0.9.0), añade el panel y muévelo con su reparación, y después instala 1.0.0.",
       "already_configured": "Este panel ya está configurado.",
       "reinstall_successful": "La aplicación se ha vuelto a instalar. Este panel conserva su historial y sus ajustes en Home Assistant.",
       "reinstall_identity_mismatch": "La aplicación está instalada, pero no se ha podido vincular al panel conservado. Se han conservado su historial y sus ajustes en Home Assistant. Revisa el panel en Home Assistant antes de volver a intentarlo.",
@@ -512,6 +513,7 @@
     }
   },
   "exceptions": {
+    "old_app_needs_090": {"message": "Este panel todavía ejecuta la app antigua: instala primero Panel Assistant 0.9.0, como explica su reparación"},
     "mqtt_panel_needs_090": {
       "message": "{panel} nunca se movió desde MQTT: instala primero Panel Assistant 0.9.0, como explica su reparación"
     },
@@ -601,6 +603,10 @@
     "panel_app_too_old": {
       "title": "{panel} necesita la app {required_version}",
       "description": "{panel} ejecuta la app {version}, que usa un protocolo anterior al de Panel Assistant 1.0, por lo que Home Assistant no puede verlo ni controlarlo y sus entidades aparecen como no disponibles. No se pierde nada: sigue funcionando por su cuenta y conserva sus ajustes y su historial. Instala la actualización que Panel Assistant ofrece para este panel y se reconectará."
+    },
+    "old_app_needs_090": {
+      "title": "{panel} todavía ejecuta la app antigua",
+      "description": "{panel} todavía ejecuta la antigua app ha-paneld. Panel Assistant 1.0 ya no puede mover un panel a la nueva app, así que no instala ni actualiza nada en {panel} hasta que se haya movido. Instala primero Panel Assistant 0.9.0 (en HACS abre Panel Assistant, elige Redownload y selecciona la versión 0.9.0), mueve el panel con su reparación y después instala 1.0.0. Mientras tanto, el panel sigue funcionando con la app antigua."
     },
     "mqtt_panel_needs_090": {
       "title": "{panel} nunca se movió desde MQTT",

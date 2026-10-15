@@ -99,7 +99,7 @@
       "installing": "Panel Assistant wordt geïnstalleerd op {address}. Houd dit dialoogvenster open; de bewerking wordt vanzelf afgerond.\n\nAls je het sluit, gaat de installatie door. Voeg hetzelfde adres opnieuw toe om af te ronden."
     },
     "error": {
-      "old_app_installed": "Op dit paneel is de oude ha-paneld-app nog geïnstalleerd, maar die reageert niet. Open hem op het paneel of herstart het paneel en voeg het daarna opnieuw toe. Panel Assistant biedt dan een reparatie aan die het naar de nieuwe app verhuist.",
+      "old_app_installed": "Op dit paneel draait nog de oude ha-paneld-app. Panel Assistant 1.0 kan het niet naar de nieuwe app verhuizen en installeert er niets naast. Installeer eerst Panel Assistant 0.9.0 (open in HACS Panel Assistant, kies Redownload en selecteer versie 0.9.0), voeg het paneel toe en verhuis het met de reparatie ervan, en installeer daarna 1.0.0.",
       "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig Panel Assistant-status-eindpunt.",
       "invalid_address": "Voer een hostnaam of een IP-adres in zonder het URL-schema of een pad.",
       "invalid_install_address": "Voer alleen de hostnaam of het IP-adres van het paneel in.",
@@ -131,6 +131,7 @@
       "release_selection_required": "Kies een versie uit de lijst."
     },
     "abort": {
+      "old_app_installed": "Op dit paneel draait nog de oude ha-paneld-app. Panel Assistant 1.0 kan het niet naar de nieuwe app verhuizen en installeert er niets naast. Installeer eerst Panel Assistant 0.9.0 (open in HACS Panel Assistant, kies Redownload en selecteer versie 0.9.0), voeg het paneel toe en verhuis het met de reparatie ervan, en installeer daarna 1.0.0.",
       "already_configured": "Dit paneel is al ingesteld.",
       "reinstall_successful": "De app is opnieuw geïnstalleerd. Dit paneel behoudt zijn geschiedenis en instellingen in Home Assistant.",
       "reinstall_identity_mismatch": "De app is geïnstalleerd, maar kon niet aan het bewaarde paneel worden gekoppeld. De geschiedenis en instellingen in Home Assistant zijn bewaard gebleven. Controleer het paneel in Home Assistant voordat je het opnieuw probeert.",
@@ -512,6 +513,7 @@
     }
   },
   "exceptions": {
+    "old_app_needs_090": {"message": "Op dit paneel draait nog de oude app: installeer eerst Panel Assistant 0.9.0, zoals de reparatie ervan uitlegt"},
     "mqtt_panel_needs_090": {
       "message": "{panel} is nooit van MQTT verhuisd: installeer eerst Panel Assistant 0.9.0, zoals de reparatie uitlegt"
     },
@@ -641,6 +643,10 @@
     "panel_app_too_old": {
       "title": "{panel} heeft app {required_version} nodig",
       "description": "{panel} draait app {version}, die een ouder protocol gebruikt dan Panel Assistant 1.0, waardoor Home Assistant het paneel niet kan zien of bedienen en de entiteiten als niet beschikbaar worden getoond. Er gaat niets verloren: het paneel blijft zelfstandig werken en houdt zijn instellingen en geschiedenis. Installeer de update die Panel Assistant voor dit paneel aanbiedt en het verbindt weer."
+    },
+    "old_app_needs_090": {
+      "title": "Op {panel} draait nog de oude app",
+      "description": "Op {panel} draait nog de oude ha-paneld-app. Panel Assistant 1.0 kan geen paneel meer naar de nieuwe app verhuizen, dus installeert of werkt het niets bij op {panel} tot het verhuisd is. Installeer eerst Panel Assistant 0.9.0 (open in HACS Panel Assistant, kies Redownload en selecteer versie 0.9.0), verhuis het paneel met de reparatie ervan en installeer daarna 1.0.0. Tot die tijd blijft het paneel werken met de oude app."
     },
     "mqtt_panel_needs_090": {
       "title": "{panel} is nooit van MQTT verhuisd",

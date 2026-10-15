@@ -17,6 +17,7 @@ from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant import browser_delivery as delivery
+from custom_components.panel_assistant.app_identity import SUCCESSOR_PACKAGE_ID
 from custom_components.panel_assistant.client import (
     CannotConnectError,
     HaPaneldClient,
@@ -57,6 +58,7 @@ _HEALTH = PanelHealth(
     build="1220",
     config_hash="1a2b3c4d",
     discovery_id="d" * 64,
+    package=SUCCESSOR_PACKAGE_ID,
 )
 
 

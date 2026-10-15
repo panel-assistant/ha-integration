@@ -556,10 +556,10 @@ async def async_retry_install_job(
         if credential.generation_id != previous.adb_credential_id:
             raise RetrySafetyHold("retry_credential_changed")
         probe = await async_probe_install_target(target.pinned, credential.signer)
+        # A panel holding only the old app is never given the new one beside it.
         if probe.state not in {
             InstallTargetState.INSTALL_CANDIDATE,
             InstallTargetState.INSTALLED,
-            InstallTargetState.MIGRATION_CANDIDATE,
         } or not same_physical_target(probe, _adb_target(previous)):
             raise RetrySafetyHold("retry_target_changed")
         rc_tag = previous.artifact.release_tag
@@ -571,10 +571,7 @@ async def async_retry_install_job(
             != previous.artifact
         ):
             raise RetrySafetyHold("retry_release_changed")
-        if probe.state in {
-            InstallTargetState.INSTALLED,
-            InstallTargetState.MIGRATION_CANDIDATE,
-        }:
+        if probe.state is InstallTargetState.INSTALLED:
             assert release.descriptor is not None
             adb_target = probe.adb_target(target.pinned)
             assert adb_target is not None

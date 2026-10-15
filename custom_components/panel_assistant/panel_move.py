@@ -117,6 +117,8 @@ from .update_policy import build_allowed, prereleases_allowed, version_not_older
 _LOGGER = logging.getLogger(__name__)
 
 ISSUE_MOVE_TO_NEW_APP: Final = "move_to_new_app"
+# Panel Assistant 1.0 moves no panel off the old app; 0.9.0 was the last that could.
+ISSUE_OLD_APP_NEEDS_090: Final = "old_app_needs_090"
 ISSUE_DATA_ENTRY_ID: Final = "entry_id"
 #: The entry's record of a move whose old app is already gone.
 CONF_SUCCESSOR_MOVE: Final = "successor_move"
@@ -158,15 +160,36 @@ def move_issue_id(entry_id: str) -> str:
     return f"{ISSUE_MOVE_TO_NEW_APP}_{entry_id}"
 
 
+def old_app_issue_id(entry_id: str) -> str:
+    """Return the Repair saying this entry's panel must move with 0.9.0 first."""
+    return f"{ISSUE_OLD_APP_NEEDS_090}_{entry_id}"
+
+
+def runs_old_app(health: PanelHealth | None) -> bool:
+    """Return whether the panel's health says it still runs the old app id."""
+    return health is not None and reports_package(health.package, LEGACY_PACKAGE_ID)
+
+
+def refuses_old_app(entry: ConfigEntry, health: PanelHealth | None) -> bool:
+    """Return whether this release refuses the panel: old app, no move started."""
+    return runs_old_app(health) and not isinstance(
+        entry.data.get(CONF_SUCCESSOR_MOVE), dict
+    )
+
+
 def _needs_move(entry: ConfigEntry, health: PanelHealth | None) -> bool:
     if isinstance(entry.data.get(CONF_SUCCESSOR_MOVE), dict):
         return True
-    return health is not None and reports_package(health.package, LEGACY_PACKAGE_ID)
+    return runs_old_app(health)
 
 
 @callback
 def async_evaluate_successor_move(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Offer the move for a panel on the old app id, and withdraw it after."""
+    """Refuse a panel on the old app id, and withdraw the refusal after.
+
+    Only a move this entry already started is still offered, so a panel
+    caught half-way is finished rather than stranded; nothing starts a new one.
+    """
     runtime = getattr(entry, "runtime_data", None)
     coordinator = getattr(runtime, "coordinator", None)
     snapshot = getattr(coordinator, "data", None)
@@ -176,18 +199,37 @@ def async_evaluate_successor_move(hass: HomeAssistant, entry: ConfigEntry) -> No
         return
     if not _needs_move(entry, health):
         ir.async_delete_issue(hass, DOMAIN, move_issue_id(entry.entry_id))
+        ir.async_delete_issue(hass, DOMAIN, old_app_issue_id(entry.entry_id))
         if health is not None:
             # An old app left beside the new one goes, until v1.0.
             from .old_app import async_evaluate_old_app
 
             async_evaluate_old_app(hass, entry, health)
         return
+    if refuses_old_app(entry, health):
+        if getattr(coordinator, "identity_mismatch", False):
+            # That health is not the panel's current answer: a panel that
+            # moved itself is held with the move as its fallback (identity.py).
+            return
+        ir.async_delete_issue(hass, DOMAIN, move_issue_id(entry.entry_id))
+        ir.async_create_issue(
+            hass,
+            DOMAIN,
+            old_app_issue_id(entry.entry_id),
+            is_fixable=False,
+            is_persistent=False,
+            severity=ir.IssueSeverity.ERROR,
+            translation_key=ISSUE_OLD_APP_NEEDS_090,
+            translation_placeholders={"panel": panel_display_name(hass, entry)},
+        )
+        return
     async_offer_move(hass, entry)
 
 
 @callback
 def async_offer_move(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Raise this entry's move Repair."""
+    """Raise this entry's move Repair, which replaces any refusal."""
+    ir.async_delete_issue(hass, DOMAIN, old_app_issue_id(entry.entry_id))
     ir.async_create_issue(
         hass,
         DOMAIN,

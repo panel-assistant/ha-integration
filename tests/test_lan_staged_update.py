@@ -843,78 +843,33 @@ def _move_repair(hass: HomeAssistant) -> Any:
     return ir.async_get(hass).async_get_issue(DOMAIN, "move_to_new_app_entry-id")
 
 
-async def test_bridge_at_release_moves_only_through_the_repair(
+@pytest.mark.parametrize("package", [None, LEGACY_PACKAGE_ID])
+async def test_an_old_app_panel_is_refused_its_update_before_any_delivery(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     trust: None,
     key: Any,
+    package: str | None,
 ) -> None:
-    """The update never sends the new app; it points to the move Repair."""
+    """A panel on the old app gets no bridge, no new app and no move Repair."""
     github = _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=b"bridge")
     entity, client = await _entity(hass, monkeypatch, github)
-    entity.coordinator.data = _snapshot(VERSION, "2000", LEGACY_PACKAGE_ID)
+    entity.coordinator.data = _snapshot(VERSION, "2000", package)
     client.async_get_successor_capability = AsyncMock(
         return_value=(SUCCESSOR_PACKAGE_ID, VERSION, CODE, False)
     )
     _move_entry(hass, entity)
-    assert _move_repair(hass) is None
 
     with pytest.raises(HomeAssistantError) as error:
         await entity.async_install(None, backup=False)
-    _assert_translated(error.value, "move_with_repair")
+    _assert_translated(error.value, "old_app_needs_090")
+    client.async_backup_panel.assert_not_awaited()
     client.async_stage_apk.assert_not_awaited()
     client.async_commit_apk.assert_not_awaited()
     client.async_start_panel_update.assert_not_awaited()
     client.async_offer_installed_successor.assert_not_awaited()
     assert not github.apk_downloaded
-    assert _move_repair(hass) is not None
-
-
-@pytest.mark.parametrize("resume_bridge", [False, "old_identity"])
-@pytest.mark.parametrize("package", [None, LEGACY_PACKAGE_ID])
-async def test_offline_legacy_panel_gets_the_bridge_and_the_move_repair(
-    hass: HomeAssistant,
-    monkeypatch: pytest.MonkeyPatch,
-    trust: None,
-    key: Any,
-    resume_bridge: bool | str,
-    package: str | None,
-) -> None:
-    """The bridge delivery succeeds alone; the new app waits for the Repair."""
-    bridge = b"bridge for offline move"
-    github = _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=bridge)
-    entity, client = await _entity(hass, monkeypatch, github, package=package)
-    if resume_bridge == "old_identity":
-        # The bridge version without a proven installation identity is resent.
-        entity.coordinator.data = _snapshot(VERSION, "2000", LEGACY_PACKAGE_ID)
-        entity.coordinator.data = replace(
-            entity.coordinator.data,
-            health=replace(
-                entity.coordinator.data.health,
-                build="1500",
-                installation_identity=False,
-            ),
-        )
-    client.async_get_successor_capability = AsyncMock(
-        return_value=(SUCCESSOR_PACKAGE_ID, VERSION, None, False)
-    )
-
-    async def commit(_token: str) -> None:
-        entity.coordinator.data = _snapshot(VERSION, "2000", LEGACY_PACKAGE_ID)
-
-    client.async_commit_apk.side_effect = commit
-    entity.coordinator.async_request_refresh = AsyncMock()
-    _move_entry(hass, entity)
-
-    assert entity.state == "on"
-    await entity.async_install(None, backup=False)
-
-    assert client.async_stage_apk.await_args_list == [call(bridge)]
-    client.async_start_panel_update.assert_not_awaited()
-    client.async_offer_installed_successor.assert_not_awaited()
-    assert not github.apk_downloaded
-    assert entity.coordinator.data.health.package == LEGACY_PACKAGE_ID
-    assert _move_repair(hass) is not None
+    assert _move_repair(hass) is None
 
 
 async def test_retry_refuses_untrusted_installed_successor(
@@ -1343,16 +1298,13 @@ async def _lan_grant_repair_panel(
     key: Any,
     adb_signer: PythonRSASigner,
     tmp_path: Path,
-    *,
-    handover: bool = False,
 ) -> SimpleNamespace:
     hass.config.config_dir = str(tmp_path)
-    github = (
-        _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=b"bridge")
-        if handover
-        else _GitHub(key)
+    github = _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID)
+    entity, client = await _entity(
+        hass, monkeypatch, github, package=SUCCESSOR_PACKAGE_ID
     )
-    entity, client = await _entity(hass, monkeypatch, github)
+    client.async_stage_apk.return_value = _preview(package=SUCCESSOR_PACKAGE_ID)
     entry = _move_entry(hass, entity)
     mock_integration(
         hass,
@@ -1363,12 +1315,6 @@ async def _lan_grant_repair_panel(
         ),
     )
     entry.mock_state(hass, ConfigEntryState.LOADED)
-    if handover:
-
-        async def refresh() -> None:
-            entity.coordinator.data = _snapshot(VERSION, "2000", SUCCESSOR_PACKAGE_ID)
-
-        entity.coordinator.async_request_refresh = AsyncMock(side_effect=refresh)
     assert entity.latest_version == VERSION
     client.address = normalize_address("192.168.1.23")
     pinned = PinnedPanelTarget(client.address, client.address)
@@ -1377,7 +1323,7 @@ async def _lan_grant_repair_panel(
         (tmp_path / f"feature.android.hardware.{feature}").write_text("true\n")
     devices = [_InstalledPanel(tmp_path), _InstalledPanel(tmp_path)]
     for device in devices:
-        device.package_id = SUCCESSOR_PACKAGE_ID if handover else LEGACY_PACKAGE_ID
+        device.package_id = SUCCESSOR_PACKAGE_ID
     _install_fakes(monkeypatch, devices)
 
     async def durable_key(_hass: HomeAssistant) -> AdbCredential:
@@ -1434,7 +1380,6 @@ async def _lan_grant_repair_panel(
 
 
 @pytest.mark.parametrize("held", [False, True])
-@pytest.mark.parametrize("handover", [False, True], ids=["legacy", "handover"])
 async def test_a_lan_update_repairs_missing_grants_and_preserves_held_grants(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
@@ -1443,13 +1388,10 @@ async def test_a_lan_update_repairs_missing_grants_and_preserves_held_grants(
     signer: PythonRSASigner,  # noqa: F811
     tmp_path: Path,
     held: bool,
-    handover: bool,
 ) -> None:
-    panel = await _lan_grant_repair_panel(
-        hass, monkeypatch, key, signer, tmp_path, handover=handover
-    )
+    panel = await _lan_grant_repair_panel(hass, monkeypatch, key, signer, tmp_path)
     entity, devices = panel.entity, panel.devices
-    package_id = SUCCESSOR_PACKAGE_ID if handover else LEGACY_PACKAGE_ID
+    package_id = SUCCESSOR_PACKAGE_ID
     if held:
         _seed_granted_panel(tmp_path, package_id)
 
@@ -1495,9 +1437,7 @@ async def test_the_grant_repair_waits_for_adb_to_answer_after_the_restart(
     """A restarting app re-asserts network ADB, so ADB can go quiet for a while."""
     # The update's own debug logger is how a release check watches the repair.
     caplog.set_level(logging.DEBUG, logger="custom_components.panel_assistant.update")
-    panel = await _lan_grant_repair_panel(
-        hass, monkeypatch, key, signer, tmp_path, handover=True
-    )
+    panel = await _lan_grant_repair_panel(hass, monkeypatch, key, signer, tmp_path)
     monkeypatch.setattr(update_panel_install, "_PERMISSION_REPAIR_RETRY_SECONDS", 0)
     answering = panel.probe.return_value
     silent = InstallTargetProbe(
@@ -1541,9 +1481,7 @@ async def test_a_panel_that_changes_while_adb_is_quiet_gets_no_grant_repair(
     tmp_path: Path,
 ) -> None:
     """Each retry checks the panel again before it can write anything."""
-    panel = await _lan_grant_repair_panel(
-        hass, monkeypatch, key, signer, tmp_path, handover=True
-    )
+    panel = await _lan_grant_repair_panel(hass, monkeypatch, key, signer, tmp_path)
     monkeypatch.setattr(update_panel_install, "_PERMISSION_REPAIR_RETRY_SECONDS", 0)
     answering = panel.probe.return_value
     silent = replace(
@@ -1581,9 +1519,7 @@ async def test_removing_the_panel_ends_its_waiting_grant_repair(
     tmp_path: Path,
 ) -> None:
     """Once the entry is gone, a repair waiting for ADB writes nothing."""
-    panel = await _lan_grant_repair_panel(
-        hass, monkeypatch, key, signer, tmp_path, handover=True
-    )
+    panel = await _lan_grant_repair_panel(hass, monkeypatch, key, signer, tmp_path)
     monkeypatch.setattr(update_panel_install, "_PERMISSION_REPAIR_RETRY_SECONDS", 0)
     answering = panel.probe.return_value
     silent = replace(
@@ -1776,9 +1712,7 @@ async def test_a_panel_withdrawn_during_the_update_gets_no_grant_repair(
     withdrawn: str,
 ) -> None:
     """Unloaded before the update finished, the entry can no longer cancel a repair."""
-    panel = await _lan_grant_repair_panel(
-        hass, monkeypatch, key, signer, tmp_path, handover=True
-    )
+    panel = await _lan_grant_repair_panel(hass, monkeypatch, key, signer, tmp_path)
     status = panel.client.async_get_status
     proving = asyncio.Event()
     proved = asyncio.Event()
@@ -1890,7 +1824,7 @@ async def test_an_app_that_never_comes_back_after_an_update_is_started_and_repor
             # An answering panel stays on its old build instead.
             entity.coordinator.reachable = panel_state == "answering"
         elif launched():
-            entity.coordinator.data = _snapshot(VERSION, "2000", LEGACY_PACKAGE_ID)
+            entity.coordinator.data = _snapshot(VERSION, "2000", SUCCESSOR_PACKAGE_ID)
             entity.coordinator.reachable = True
 
     entity.coordinator.async_request_refresh = AsyncMock(side_effect=refresh)  # type: ignore[method-assign]

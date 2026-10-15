@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
+from custom_components.panel_assistant.app_identity import SUCCESSOR_PACKAGE_ID
 from custom_components.panel_assistant.client import (
     PanelAddress,
     PanelHealth,
@@ -36,6 +37,7 @@ HEALTH = PanelHealth(
     build="1000",
     config_hash="1a2b3c4d",
     protocol=(5, 5),
+    package=SUCCESSOR_PACKAGE_ID,
 )
 BETA_HEALTH = replace(HEALTH, version="0.9.0", panel_id="beta", build="1001")
 DISCOVERY_ID = "a" * 64

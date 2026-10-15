@@ -99,7 +99,7 @@
       "installing": "正在 {address} 上安装 Panel Assistant。请保持此对话框打开；操作会自动完成。\n\n如果关闭对话框，安装仍会继续。请再次添加同一地址以完成操作。"
     },
     "error": {
-      "old_app_installed": "此面板仍安装着旧版 ha-paneld 应用，但它没有响应。请在面板上打开它或重启面板，然后重新添加。之后 Panel Assistant 会提供一个修复，将其迁移到新应用。",
+      "old_app_installed": "此面板仍在运行旧版 ha-paneld 应用。Panel Assistant 1.0 无法将其迁移到新应用，也不会在旁边安装任何内容。请先安装 Panel Assistant 0.9.0（在 HACS 中打开 Panel Assistant，选择 Redownload，然后选择 0.9.0 版本），添加面板并通过其修复完成迁移，再安装 1.0.0。",
       "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
       "invalid_address": "请输入不含 URL 方案或路径的主机名或 IP 地址。",
       "invalid_install_address": "请只输入面板的主机名或 IP 地址。",
@@ -131,6 +131,7 @@
       "release_selection_required": "请从列表中选择一个版本。"
     },
     "abort": {
+      "old_app_installed": "此面板仍在运行旧版 ha-paneld 应用。Panel Assistant 1.0 无法将其迁移到新应用，也不会在旁边安装任何内容。请先安装 Panel Assistant 0.9.0（在 HACS 中打开 Panel Assistant，选择 Redownload，然后选择 0.9.0 版本），添加面板并通过其修复完成迁移，再安装 1.0.0。",
       "already_configured": "此面板已配置。",
       "reinstall_successful": "应用已重新安装。此面板在 Home Assistant 中的历史记录和设置会保留。",
       "reinstall_identity_mismatch": "应用已安装，但无法关联到保留的面板。该面板在 Home Assistant 中的历史记录和设置已保留。请先在 Home Assistant 中检查此面板，再重试。",
@@ -512,6 +513,7 @@
     }
   },
   "exceptions": {
+    "old_app_needs_090": {"message": "此面板仍在运行旧应用：请先安装 Panel Assistant 0.9.0，如其修复所述"},
     "mqtt_panel_needs_090": {
       "message": "{panel} 尚未从 MQTT 迁移：请先安装 Panel Assistant 0.9.0，如其修复所述"
     },
@@ -601,6 +603,10 @@
     "panel_app_too_old": {
       "title": "{panel} 需要应用 {required_version}",
       "description": "{panel} 运行的应用 {version} 使用的协议比 Panel Assistant 1.0 更旧，因此 Home Assistant 无法看到或控制它，其实体会显示为不可用。不会丢失任何内容：面板仍会独立工作，并保留其设置和历史记录。请安装 Panel Assistant 为此面板提供的更新，它就会重新连接。"
+    },
+    "old_app_needs_090": {
+      "title": "{panel} 仍在运行旧应用",
+      "description": "{panel} 仍在运行旧版 ha-paneld 应用。Panel Assistant 1.0 已无法将面板迁移到新应用，因此在迁移完成前不会在 {panel} 上安装或更新任何内容。请先安装 Panel Assistant 0.9.0（在 HACS 中打开 Panel Assistant，选择 Redownload，然后选择 0.9.0 版本），通过其修复迁移面板，再安装 1.0.0。在此期间，面板会继续使用旧应用正常工作。"
     },
     "mqtt_panel_needs_090": {
       "title": "{panel} 尚未从 MQTT 迁移",

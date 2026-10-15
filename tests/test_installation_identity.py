@@ -21,7 +21,8 @@ from .test_transport import DID, OTHER_DID, STATUS, _send
 def _health(did: str, legacy: str = DID):
     return parse_health_response(
         f"ha-paneld 0.9.8-rc2 panel=alpha build=1000 cfg=1a2b3c4d "
-        f"did={did} identity=install legacy_did={legacy} proto=5-5"
+        f"did={did} identity=install legacy_did={legacy} "
+        "pkg=io.panelassistant.android proto=5-5"
     )
 
 
