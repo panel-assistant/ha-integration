@@ -2,8 +2,8 @@
 
 import asyncio
 import dataclasses
-import hashlib
 import gc
+import hashlib
 import io
 import re
 import weakref
@@ -881,6 +881,39 @@ async def test_a_panel_answering_a_newer_build_is_fetched_once(
     _set_build(entry, "2000")
     assert await (await browser.get(url + "info.js")).read() == b"new"
     assert len([e for e in live.events if e["op"] == "bundle"]) == 1
+
+
+async def test_a_bundle_gets_two_minutes_and_a_failed_one_is_not_asked_again_at_once(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    entry: MockConfigEntry,
+    live: SessionPanel,
+) -> None:
+    """A slow panel gets time, and a frame's many files never multiply its uploads."""
+
+    async def too_slow(event: dict[str, Any]) -> dict[str, Any]:
+        return {"outcome": "failed", "code": "failed"}
+
+    live.answers["bundle"] = too_slow
+    ws = await hass_ws_client(hass)
+    _, url = await _open_session(ws, entry.entry_id)
+    browser = await hass_client_no_auth()
+    for name in ("info.js", "info.css", "assets/transport.js", "assets/i18n.js"):
+        assert (await browser.get(url + name)).status == 404
+    asked = [e for e in live.events if e["op"] == "bundle"]
+    assert len(asked) == 1
+    assert asked[0]["deadline_ms"] == ui_relay.MAX_DEADLINE_MS
+    # After the pause the panel is asked again, and its answer serves the frame.
+    live.answers["bundle"] = _bundle(live, {"info.js": b"js"})
+    with patch.object(
+        ui_relay.time,
+        "monotonic",
+        return_value=ui_relay.time.monotonic() + ui_relay.BUNDLE_RETRY_SECONDS + 1,
+    ):
+        response = await browser.get(url + "info.js")
+    assert (response.status, await response.read()) == (200, b"js")
+    assert len([e for e in live.events if e["op"] == "bundle"]) == 2
 
 
 # ---------------------------------------------------------------------------

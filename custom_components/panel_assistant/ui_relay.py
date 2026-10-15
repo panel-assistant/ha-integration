@@ -26,6 +26,7 @@ import logging
 import mimetypes
 import re
 import secrets
+import time
 import zipfile
 from collections.abc import Callable
 from pathlib import PurePosixPath
@@ -80,6 +81,9 @@ DEFAULT_DEADLINE_MS: Final = 10_000
 MAX_DEADLINE_MS: Final = 120_000
 # How long past its deadline an answer may take to arrive.
 ANSWER_GRACE_SECONDS: Final = 5.0
+# A bundle fetch that failed is not asked again for this long, so a frame's many
+# file requests cannot each start a fresh upload from a panel that is too slow.
+BUNDLE_RETRY_SECONDS: Final = 30.0
 # The panel's approval window: a relayed request someone is approving on the
 # panel's screen is waited for this long after the panel says so.
 APPROVAL_SECONDS: Final = 600.0
@@ -664,6 +668,8 @@ class BundleStore:
         # A panel that answered another build than its entry reports (it was
         # updated since the last poll), by entry: (reported, answered).
         self._answered: dict[str, tuple[str, str]] = {}
+        # When a fetch of a build last failed (monotonic seconds).
+        self._failed: dict[str, float] = {}
 
     def _build(self, entry: ConfigEntry) -> str | None:
         """Return the build whose bundle serves the entry's pages now."""
@@ -698,6 +704,13 @@ class BundleStore:
         files = self._bundles.get(build)
         if files is None:
             fetch = self._fetching.get(reported)
+            failed = self._failed.get(reported)
+            if (
+                fetch is None
+                and failed is not None
+                and time.monotonic() - failed < BUNDLE_RETRY_SECONDS
+            ):
+                return None
             if fetch is None:
                 fetch = self._fetching[reported] = self._hass.async_create_task(
                     self._fetch(entry.entry_id, session, reported),
@@ -710,9 +723,25 @@ class BundleStore:
     async def _fetch(
         self, entry_id: str, session: PanelSession, build: str
     ) -> dict[str, bytes] | None:
+        files = await self._fetch_once(entry_id, session, build)
+        if files is None:
+            self._failed[build] = time.monotonic()
+        else:
+            self._failed.pop(build, None)
+        return files
+
+    async def _fetch_once(
+        self, entry_id: str, session: PanelSession, build: str
+    ) -> dict[str, bytes] | None:
         try:
+            # A panel on slow Wi-Fi needs time to upload the bundle once.
             outcome, data = await async_manage(
-                self._hass, session, OP_BUNDLE, {"build": build}, None
+                self._hass,
+                session,
+                OP_BUNDLE,
+                {"build": build},
+                None,
+                deadline_ms=MAX_DEADLINE_MS,
             )
         except HomeAssistantError:
             return None
