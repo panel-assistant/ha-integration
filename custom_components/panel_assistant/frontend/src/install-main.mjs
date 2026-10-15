@@ -178,7 +178,6 @@ window.addEventListener('pagehide', () => { if (!leaving) quarantine('pageClosed
 connect.addEventListener('click', async () => {
   if (busy || !release || quarantined) return;
   busy = true;
-  deadline = setTimeout(() => quarantine('connectionTimeout', 'installer'), 45000);
   try {
     // requestDevice is invoked directly within this user gesture, never on load.
     const chosen = manager.requestDevice();
@@ -198,6 +197,8 @@ connect.addEventListener('click', async () => {
         readTimeLimit: 10000,
       });
       adb = new Adb(transport);
+      // Bound a silent cable only once the panel has allowed this computer.
+      deadline = setTimeout(() => quarantine('connectionTimeout', 'installer'), 45000);
       if (quarantined) { closeResources(); return; }
       ensureCurrent();
       void adb.disconnected.then(() => quarantine('disconnected', 'installer'), fail);

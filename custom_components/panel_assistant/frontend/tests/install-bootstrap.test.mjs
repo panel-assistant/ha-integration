@@ -202,3 +202,84 @@ test('every admitted catalogue redraws consent, progress, completion and refusal
 test('a foreign-server completion translates with a setup link and switches back to English', () => renderedJourney('foreign', 'de', true));
 
 test('losing USB while display settlement is pending cannot mark finished or open setup', () => renderedJourney('settlement_interrupted'));
+
+// The cable timer bounds a silent cable, not the person: it starts once the
+// panel has allowed this computer, never while the chooser or Allow prompt waits.
+function cableTimer(leg) {
+  const main = new URL('../src/install-main.mjs', import.meta.url).href;
+  const script = `
+    import assert from 'node:assert/strict';
+    import { registerHooks } from 'node:module';
+    const leg = ${JSON.stringify(leg)};
+    const elements = new Map(), handlers = new Map();
+    const node = id => {
+      if (!elements.has(id)) elements.set(id, { hidden: false, dataset: {}, style: {}, textContent: '', attributes: new Map(), children: [],
+        listeners: new Map(), addEventListener(type, fn) { this.listeners.set(type, fn); },
+        querySelector() { return node(id + ':child'); }, setAttribute(name, value) { this.attributes.set(name, value); }, replaceChildren(...children) { this.children = children; } });
+      return elements.get(id);
+    };
+    globalThis.document = { documentElement: {}, getElementById: node, querySelectorAll: () => [], createElement: () => ({ attributes: new Map(), setAttribute(name, value) { this.attributes.set(name, value); } }) };
+    globalThis.location = { search: '?lang=en' };
+    const cable = [];
+    const originalSetTimeout = globalThis.setTimeout, originalClearTimeout = globalThis.clearTimeout;
+    globalThis.setTimeout = (fn, ms, ...args) => {
+      if (ms !== 45000) return originalSetTimeout(fn, ms, ...args);
+      const timer = { fn, cleared: false }; cable.push(timer); return timer;
+    };
+    globalThis.clearTimeout = timer => { if (cable.includes(timer)) timer.cleared = true; else originalClearTimeout(timer); };
+    globalThis.window = { isSecureContext: true, opener: { closed: false }, location: { hash: '#handoff', reload() {}, assign() {} },
+      addEventListener(name, fn) { handlers.set(name, fn); } };
+    Object.defineProperty(globalThis, 'navigator', { value: { locks: {}, usb: {} }, configurable: true });
+    globalThis.indexedDB = {};
+    globalThis.calls = { authenticate: 0, preview: 0 };
+    let allow = () => {};
+    globalThis.authenticated = leg === 'allow' ? new Promise(resolve => { allow = resolve; }) : Promise.resolve({});
+    const stubs = {
+      '@yume-chan/adb': 'export class Adb { disconnected = new Promise(() => {}); close() {} }; export const AdbDaemonTransport = { authenticate: () => { globalThis.calls.authenticate++; return globalThis.authenticated; } };',
+      '@yume-chan/adb-credential-web': 'export default class Store {}',
+      '@yume-chan/adb-daemon-webusb': 'export class AdbDaemonWebUsbDeviceManager { requestDevice() { return Promise.resolve({ raw: { close() {} }, serial: "panel", connect: async () => ({}) }); } }',
+      'usb-bounds.mjs': 'export const boundedUsb = value => value;',
+      'session-target.mjs': leg === 'allow' ? 'export const inspectSessionTarget = async () => ({ serial: "panel" });' : 'export const inspectSessionTarget = () => new Promise(() => {});',
+      'job-store.mjs': 'export const openJobStore = async () => ({ close() {} });',
+      'usb-transaction-ports.mjs': 'export function createUsbTransactionPorts() { return {}; }',
+      'install-controller.mjs': 'export function createInstallController() { return { preview: async () => { globalThis.calls.preview++; return { receipt: null, adopt: false, discarded: null }; } }; }',
+      'release-handoff.mjs': 'export const handoffOptions = () => ({}); export const receiveReleaseHandoff = () => ({ cancel() {}, completion: Promise.resolve({ release: { descriptor: { versionName: "1.2.3", versionCode: 42 } }, authenticate: async () => ({}) }) }); export const requestSetupHandover = async () => {}; export const handOverThenOpen = async () => {};',
+      'panel-address.mjs': 'export const readSetupUrl = async () => null;',
+    };
+    registerHooks({
+      resolve(specifier, context, next) { if (Object.hasOwn(stubs, specifier)) return { url: 'stub:' + specifier, shortCircuit: true }; return next(specifier, context); },
+      load(url, context, next) {
+        if (url.startsWith('stub:')) return { format: 'module', source: stubs[url.slice(5)], shortCircuit: true };
+        const name = url.split('/').at(-1);
+        if (Object.hasOwn(stubs, name)) return { format: 'module', source: stubs[name], shortCircuit: true };
+        return next(url, context);
+      },
+    });
+    const tick = () => new Promise(resolve => setImmediate(resolve));
+    const expire = () => { for (const timer of cable) if (!timer.cleared) timer.fn(); };
+    const timeout = 'The panel didn’t answer. Check the cable is firmly in, or swap it: a cable can power the panel and still carry no data.';
+    await import(${JSON.stringify(main)});
+    await tick();
+    const clicked = node('connect').listeners.get('click')();
+    for (let i = 0; i < 5; i++) await tick();
+    assert.equal(calls.authenticate, 1);
+    expire();
+    if (leg === 'allow') {
+      assert.equal(node('step-error').hidden, true, 'waiting for Allow is not a cable timeout');
+      assert.notEqual(node('error-text').textContent, timeout);
+      assert.equal(node('step-allow').hidden, false);
+      allow({});
+      await clicked;
+      assert.equal(calls.preview, 1);
+      assert.equal(node('step-confirm').hidden, false);
+    } else {
+      assert.equal(node('error-text').textContent, timeout, 'a panel that allowed and then went silent still times out');
+      assert.equal(node('step-error').hidden, false);
+    }
+    process.exit(0);
+  `;
+  execFileSync(process.execPath, ['--input-type=module', '-e', script], { stdio: 'pipe' });
+}
+
+test('the cable timer does not run while the person is asked to tap Allow', () => cableTimer('allow'));
+test('the cable timer still stops a panel that goes silent after Allow', () => cableTimer('silent'));
