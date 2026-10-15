@@ -388,3 +388,23 @@ async def test_usb_registration_replaces_an_ignored_discovery(
         _, again = await _post(endpoint, panel, {"address": "192.168.1.20"})
     assert again["registration"] == "already_configured"
     assert hass.config_entries.async_entries(DOMAIN) == entries
+
+
+async def test_the_handover_leaves_display_size_alone_once_setup_is_complete(
+    endpoint: Any,
+) -> None:
+    """A repeat USB install must not undo an owner's later display change."""
+    panel = _Panel(PanelSetupState(complete=True, accepts_handover=True))
+    recommends = AsyncMock(
+        return_value={
+            "recommended": {"density": 200, "font_scale": 0.9},
+            "privileged_sizing": False,
+        }
+    )
+
+    with patch(f"{_CLIENT}.async_get_display", recommends):
+        status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+
+    assert status == 200
+    assert body["outcome"] == "setup_complete"
+    assert body["display"] is None

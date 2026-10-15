@@ -230,6 +230,7 @@ async def test_happy_path_stops_unclaimed_and_binds_every_operation(
     manager = InstallJobManager(hass)
     receipt = await create_job(manager)
     harness = Harness(monkeypatch)
+    harness.setup_state = PanelSetupState(complete=False, accepts_handover=True)
     add_entry = AsyncMock()
     monkeypatch.setattr(hass.config_entries, "async_add", add_entry)
     verify_mutation = manager.async_verify_mutation_barrier
@@ -3174,3 +3175,24 @@ def test_one_installed_app_rule_takes_the_whole_health_line(
 
     assert health_is_installed_app(health, installed) is expected
     assert not health_is_installed_app(replace(health, version="9.9.9"), installed)
+
+
+async def test_a_reinstall_over_a_set_up_panel_leaves_its_display_size_alone(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Sizing happens at setup only: never fight an owner's later change."""
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    harness = Harness(monkeypatch)
+    harness.setup_state = PanelSetupState(complete=True, accepts_handover=True)
+    harness.display = {
+        "recommended": {"density": 200, "font_scale": 0.9},
+        "privileged_sizing": False,
+    }
+    apply = AsyncMock()
+    monkeypatch.setattr(install_executor, "async_apply_display_sizing", apply)
+
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
+    apply.assert_not_awaited()

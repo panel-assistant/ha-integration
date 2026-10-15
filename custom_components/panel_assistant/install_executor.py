@@ -992,32 +992,35 @@ class InstallExecutor:
                         # address the installer already knew. Best-effort: an
                         # install that worked must not be failed by a
                         # convenience that did not.
-                        await async_offer_ha_url(self._hass, panel)
+                        outcome = await async_offer_ha_url(self._hass, panel)
                         # A rootless panel gets its recommended display and
-                        # text size at setup. A completed refusal is optional;
-                        # an interrupted command cannot become acceptance.
-                        try:
-                            await self._async_offer_display_sizing(
-                                receipt, execution, panel
-                            )
-                        except _CancellationObserved as err:
-                            receipt = err.receipt
-                            continue
-                        except (
-                            AdbCredentialError,
-                            InstallAdbError,
-                            InstallNetworkError,
-                        ) as err:
-                            # A lost shell may still be writing display state.
-                            # A later vendor resume cannot settle a write whose
-                            # completion is unknown, so retain recovery instead
-                            # of launching the app ahead of that command.
-                            receipt = await self._async_recovery(
-                                receipt,
-                                InstallResultCode.VERIFICATION_REQUIRED,
-                                _result_subcode(err),
-                            )
-                            continue
+                        # text size at setup, and only then: a reinstall over
+                        # a set-up panel keeps the size its owner chose. A
+                        # completed refusal is optional; an interrupted
+                        # command cannot become acceptance.
+                        if outcome != "setup_complete":
+                            try:
+                                await self._async_offer_display_sizing(
+                                    receipt, execution, panel
+                                )
+                            except _CancellationObserved as err:
+                                receipt = err.receipt
+                                continue
+                            except (
+                                AdbCredentialError,
+                                InstallAdbError,
+                                InstallNetworkError,
+                            ) as err:
+                                # A lost shell may still be writing display state.
+                                # A later vendor resume cannot settle a write whose
+                                # completion is unknown, so retain recovery instead
+                                # of launching the app ahead of that command.
+                                receipt = await self._async_recovery(
+                                    receipt,
+                                    InstallResultCode.VERIFICATION_REQUIRED,
+                                    _result_subcode(err),
+                                )
+                                continue
                         # Display changes can leave a vendor shutdown pending.
                         # Even equal sizing must settle a restart left by an
                         # earlier attempt before this health becomes final.

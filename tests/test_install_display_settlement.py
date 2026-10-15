@@ -22,6 +22,7 @@ from custom_components.panel_assistant.client import (
     CannotConnectError,
     HaPaneldClient,
     PanelHealth,
+    PanelSetupState,
 )
 from custom_components.panel_assistant.display_provisioning import (
     DisplayResult,
@@ -169,6 +170,7 @@ async def test_a_rootless_panel_gets_its_recommended_display_size_once_at_setup(
     manager = InstallJobManager(hass)
     receipt = await create_job(manager)
     harness = Harness(monkeypatch)
+    harness.setup_state = PanelSetupState(complete=False, accepts_handover=True)
     harness.display = _X2I_DISPLAY
     applied: list[tuple[AdbInstallTarget, DisplaySizing]] = []
 
@@ -216,6 +218,7 @@ async def test_no_display_size_is_applied_where_the_panel_sizes_itself_or_says_n
     manager = InstallJobManager(hass)
     receipt = await create_job(manager)
     harness = Harness(monkeypatch)
+    harness.setup_state = PanelSetupState(complete=False, accepts_handover=True)
     harness.display = display
     apply = AsyncMock()
     monkeypatch.setattr(install_executor, "async_apply_display_sizing", apply)
@@ -309,6 +312,7 @@ async def test_shelly_success_requires_native_settlement_then_fresh_app_acceptan
     manager = InstallJobManager(hass)
     receipt = await create_job(manager)
     harness = ShellySettlementHarness(monkeypatch)
+    harness.setup_state = PanelSetupState(complete=False, accepts_handover=True)
     harness.pending = pending
     harness.display = _X2I_DISPLAY
 
@@ -445,6 +449,7 @@ async def test_sizing_custody_loss_stops_before_display_or_native_mutation(
     manager = InstallJobManager(hass)
     receipt = await create_job(manager)
     harness = Harness(monkeypatch)
+    harness.setup_state = PanelSetupState(complete=False, accepts_handover=True)
 
     async def recommended(panel: HaPaneldClient) -> DisplaySizing:
         if custody == "credential":
