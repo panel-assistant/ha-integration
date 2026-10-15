@@ -631,7 +631,9 @@ async def _async_step(
             # The reply was lost, not necessarily the change: look again, and
             # the caller's check of the observation decides as for any reply.
             await asyncio.sleep(_POLL_SECONDS)
-            return await _async_step(target, signer, MoveStep.OBSERVE)
+            return await _async_step(
+                target, signer, MoveStep.OBSERVE, authorize=authorize
+            )
         raise MoveError(REASON_MOVE_FAILED) from err
 
 

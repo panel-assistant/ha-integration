@@ -125,6 +125,7 @@ class Panel:
         self, _target: Any, _signer: Any, step: MoveStep, **_kwargs: Any
     ) -> MoveObservation:
         self.events.append(step.value)
+        assert _kwargs["authorize"] is False, "offered Panel Assistant's key"
         if step is MoveStep.RETIRE_LEGACY:
             assert self.home != LEGACY_PACKAGE_ID, "launcher stranded"
             assert "backup" in self.events, "removed before the backup"
@@ -457,17 +458,13 @@ async def test_a_refused_key_while_removing_names_adb(
     assert _issue(hass, entry) == "remove_old_app_adb"
 
 
-async def test_a_removal_that_dropped_its_connection_ends_clean_on_the_next_check(
+async def test_a_removal_that_dropped_its_connection_is_observed_clean(
     hass: HomeAssistant, hass_read_only_user: Any, panel: Panel
 ) -> None:
+    """The uninstall ran but its reply was lost: no Repair for a removal that worked."""
     panel.retire_fails = InstallAdbError(InstallAdbErrorCode.INSTALL_AMBIGUOUS)
     entry = await _load(hass, hass_read_only_user.id)
-    assert _issue(hass, entry) == "remove_old_app_failed"
-
-    panel.events.clear()
-    with _retry_now():
-        await _poll(hass, entry)
-    assert panel.events == ["OBSERVE"]
+    assert panel.events[-2:] == ["RETIRE_LEGACY", "OBSERVE"]
     assert _issue(hass, entry) is None
 
 
