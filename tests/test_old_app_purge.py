@@ -5,7 +5,7 @@ import json
 import os
 import shutil
 import tempfile
-from collections.abc import AsyncGenerator, Iterator
+from collections.abc import AsyncGenerator, Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
@@ -51,6 +51,7 @@ from custom_components.panel_assistant.feed_coordinator import (
     StableReleaseCoordinator,
     async_get_stable_release_coordinator,
 )
+from custom_components.panel_assistant.home_chooser import CHOOSER_DUMP
 from custom_components.panel_assistant.install_adb import MoveObservation, MoveStep
 from custom_components.panel_assistant.old_app import old_app_issue_id
 from custom_components.panel_assistant.panel_move import (
@@ -62,6 +63,7 @@ from custom_components.panel_assistant.panel_move import (
 )
 from custom_components.panel_assistant.release import ReleaseArtifact
 
+from .test_install_adb_grants import _STAND_IN_PANEL
 from .test_transport import STATUS
 
 NEW_DID = "9" * 64
@@ -756,29 +758,31 @@ class _Adbd:
         return None
 
 
-#: The panel's package manager, HOME and activity manager, as shell commands
-#: reading and writing ``$STATE``, so the move step's real shell runs on them.
-_PANEL_TOOLS = {
-    "pm": """#!/bin/sh
-case "$1" in
-  path) [ -f "$STATE/$2" ] && echo "package:/data/app/$2/base.apk" ;;
-  uninstall) for a; do p=$a; done; rm -f "$STATE/$p" "$STATE/$p.aside" ;;
-  list) for a; do p=$a; done
-        { [ -f "$STATE/$p" ] || [ -f "$STATE/$p.aside" ]; } && echo "package:$p" ;;
-esac
-exit 0
-""",
-    "cmd": """#!/bin/sh
-[ "$2" = resolve-activity ] && cat "$STATE/home"
-exit 0
-""",
-    "am": "#!/bin/sh\nexit 0\n",
-    "dumpsys": "#!/bin/sh\nexit 0\n",
+#: The panel's package manager, as a shell function over ``$STATE``, defined
+#: after the install tests' stand-in panel so it replaces that panel's ``pm``;
+#: HOME, its chooser and the rest come from that stand-in. Removing a package
+#: that answers HOME drops the preferred HOME, as Android does.
+_PANEL_PM = r"""
+pm() {
+  case "$1" in
+    path) [ -f "$STATE/$2" ] && echo "package:/data/app/$2/base.apk" ;;
+    uninstall) for a; do p=$a; done; rm -f "$STATE/$p" "$STATE/$p.aside"
+               rm -f "$STATE/home" ;;
+    list) for a; do p=$a; done
+          { [ -f "$STATE/$p" ] || [ -f "$STATE/$p.aside" ]; } && echo "package:$p" ;;
+  esac
+  return 0
 }
+am() { :; }
+"""
 
 
 @contextmanager
-def _real_move_steps(panel: Panel, revoke_at: int) -> Iterator[list[int]]:
+def _real_move_steps(
+    panel: Panel,
+    revoke_at: int,
+    stand_in: Callable[[Path], None] = lambda _state: None,
+) -> Iterator[list[int]]:
     """Run the real move step and its real shell against ``panel``.
 
     Only the transport is replaced: adbd trusts the key except on connection
@@ -788,12 +792,9 @@ def _real_move_steps(panel: Panel, revoke_at: int) -> Iterator[list[int]]:
     nonce = "0" * 32
     _Adbd.revoke_at, _Adbd.connections, _Adbd.offered = revoke_at, 0, []
     root = Path(tempfile.mkdtemp(prefix="panel-shell-"))
-    tools, state = root / "bin", root / "state"
-    tools.mkdir()
+    state = root / "state"
     state.mkdir()
-    for name, script in _PANEL_TOOLS.items():
-        (tools / name).write_text(script)
-        (tools / name).chmod(0o755)
+    stand_in(state)
 
     async def shell(_device: Any, command: str, **_kwargs: Any) -> bytes:
         if "HAPANELD_MOVE_BEGIN" not in command:
@@ -817,18 +818,18 @@ def _real_move_steps(panel: Panel, revoke_at: int) -> Iterator[list[int]]:
         process = await asyncio.create_subprocess_exec(
             "sh",
             "-c",
-            command,
+            _STAND_IN_PANEL
+            + _PANEL_PM
+            + command.replace(CHOOSER_DUMP, str(state / "chooser-dump.xml")),
             stdout=asyncio.subprocess.PIPE,
-            env={
-                **os.environ,
-                "STATE": str(state),
-                "PATH": f"{tools}:{os.environ['PATH']}",
-            },
+            env={**os.environ, "STATE": str(state)},
         )
         stdout, _ = await process.communicate()
         panel.legacy = (state / LEGACY_PACKAGE_ID).exists()
         panel.aside = (state / f"{LEGACY_PACKAGE_ID}.aside").exists()
         panel.successor = (state / SUCCESSOR_PACKAGE_ID).exists()
+        home_path = state / "home"
+        panel.home = home_path.read_text().strip() if home_path.exists() else None
         return stdout
 
     try:
@@ -854,6 +855,37 @@ async def test_the_real_move_step_removes_the_old_app(
 
     assert panel.events == ["OBSERVE", "backup", "RETIRE_LEGACY"]
     assert not panel.legacy
+    assert offered == []
+    assert _issue(hass, entry) is None
+
+
+_DASHBOARD = f"{SUCCESSOR_PACKAGE_ID}/.DashboardActivity"
+
+
+@pytest.mark.parametrize("portal", [False, True], ids=["android", "portal"])
+async def test_removing_the_old_app_leaves_home_on_the_new_app(
+    hass: HomeAssistant, hass_read_only_user: Any, panel: Panel, portal: bool
+) -> None:
+    """Uninstalling the old app drops the preferred HOME; the removal claims it back.
+
+    A Portal keeps HOME on Android's chooser after set-home-activity, so there
+    only pressing the chooser's Always makes the dashboard HOME again.
+    """
+    chooser = Path(__file__).parent / "fixtures" / "portal_home_chooser.xml"
+
+    def stand_in(state: Path) -> None:
+        if portal:
+            (state / "refuse.home").touch()
+            (state / "chooser.xml").write_text(chooser.read_text())
+            (state / "chooser.tap").write_text("817 623\n")
+            (state / "chooser.home").write_text(_DASHBOARD + "\n")
+
+    with _real_move_steps(panel, revoke_at=0, stand_in=stand_in) as offered:
+        entry = await _load(hass, hass_read_only_user.id)
+
+    assert panel.events == ["OBSERVE", "backup", "RETIRE_LEGACY"]
+    assert not panel.legacy
+    assert panel.home == _DASHBOARD
     assert offered == []
     assert _issue(hass, entry) is None
 

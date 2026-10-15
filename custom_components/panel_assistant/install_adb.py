@@ -93,7 +93,9 @@ from .adb_protocol import (
     _validate_filesync_maxdata,
 )
 from .app_identity import (
+    EQUIVALENT_HOME_COMPONENTS,
     HOME_COMPONENTS,
+    LAUNCH_COMPONENTS,
     LEGACY_LAUNCH_COMPONENT,
     LEGACY_PACKAGE_ID,
     RELEASE_DEVICE_ADMIN_RECEIVER,
@@ -112,6 +114,7 @@ from .display_provisioning import (
     parse_display_sizing,
 )
 from .home_chooser import HOME_QUERY as _HOME_QUERY
+from .home_chooser import home_claim_command
 from .install_network import is_allowed_install_address
 from .release import (
     _MAX_APK_BYTES,
@@ -1434,10 +1437,19 @@ _MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
     # the old app itself, which would leave the panel without one, nor a HOME
     # that cannot be read, nor the system chooser. Read in the same shell as
     # the uninstall, so a HOME that changed since the last observation counts.
+    # Android forgets the preferred HOME when an app answering HOME goes, so a
+    # HOME that was the new app's dashboard is claimed back for it.
     MoveStep.RETIRE_LEGACY: (
-        f'case "$({_HOME_QUERY})" in {LEGACY_PACKAGE_ID}/*|android/*) ;; ?*/?*) '
+        f'hp_home=$({_HOME_QUERY}); case "$hp_home" in '
+        f"{LEGACY_PACKAGE_ID}/*|android/*) ;; ?*/?*) "
         f"am force-stop {LEGACY_PACKAGE_ID}; {_uninstall(LEGACY_PACKAGE_ID)}; "
-        f"rm -f {_LEGACY_COPY} ;; esac",
+        f'rm -f {_LEGACY_COPY}; case "$hp_home" in '
+        + " ".join(
+            f"{'|'.join(EQUIVALENT_HOME_COMPONENTS[launch])}) "
+            f"{home_claim_command(launch)} ;;"
+            for launch in LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID]
+        )
+        + " esac ;; esac",
     ),
     # Reinstalling the kept APK returns the old app onto the data Android kept.
     MoveStep.RESTORE_LEGACY: (
