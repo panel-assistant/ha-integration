@@ -700,10 +700,17 @@ async def test_a_panel_that_changed_mid_move_is_not_rolled_back(
     assert panel.steps[-1] == before[changed_at]
 
 
-@pytest.mark.parametrize("how", ["error", "core-stops"])
 @pytest.mark.parametrize(
-    "stop_at",
-    ["after-reinstall", "RETURN_HOME", "REMOVE_SUCCESSOR", "START_LEGACY"],
+    ("stop_at", "how"),
+    [
+        # A lost reply after the old app came back is observed past instead.
+        ("after-reinstall", "core-stops"),
+        *(
+            (stop_at, how)
+            for stop_at in ("RETURN_HOME", "REMOVE_SUCCESSOR", "START_LEGACY")
+            for how in ("error", "core-stops")
+        ),
+    ],
 )
 async def test_a_rollback_that_stopped_part_way_is_finished_next_time(
     hass: HomeAssistant,
@@ -755,6 +762,81 @@ async def test_a_rollback_that_stopped_part_way_is_finished_next_time(
     _attach(entry, panel)
     assert await _move(hass, entry, panel, tmp_path) == [NEW_DID]
     assert not panel.legacy and not panel.legacy_aside
+
+
+@pytest.mark.parametrize(
+    "lost", ["KEEP_LEGACY", "CLAIM_HOME", "SET_ASIDE_LEGACY", "RETIRE_LEGACY"]
+)
+async def test_a_step_whose_reply_was_lost_after_it_landed_moves_on(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path, lost: str
+) -> None:
+    """ADB dropped after the change was made: the panel is looked at again."""
+    panel = FakePanel()
+    step = panel.step
+
+    async def lose_reply(*args: Any, **kwargs: Any) -> MoveObservation:
+        observed = await step(*args, **kwargs)
+        if args[-1].value == lost:
+            raise InstallAdbError(InstallAdbErrorCode.INSTALL_AMBIGUOUS)
+        return observed
+
+    panel.step = lose_reply  # type: ignore[method-assign]
+    _attach(entry, panel)
+    assert await _move(hass, entry, panel, tmp_path) == [NEW_DID]
+    assert not panel.legacy and not panel.legacy_aside and panel.legacy_copy is None
+    assert panel.steps[panel.steps.index(lost) + 1] == "OBSERVE"
+
+
+async def test_a_lost_reset_reply_never_launches_the_new_app_on_stale_state(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
+) -> None:
+    """Nothing observed proves a reset, so a lost reply stops before the launch."""
+    panel = FakePanel()
+    _attach(entry, panel)
+    step, launch = panel.step, panel.launch
+
+    async def interrupted_launch(*_args: Any, **_kwargs: Any) -> LaunchOutcome:
+        raise asyncio.CancelledError
+
+    panel.launch = interrupted_launch  # type: ignore[method-assign]
+    with pytest.raises(asyncio.CancelledError):
+        await _move(hass, entry, panel, tmp_path)
+
+    async def lost_reset(*args: Any, **kwargs: Any) -> MoveObservation:
+        if args[-1] is MoveStep.RESET_SUCCESSOR:
+            raise InstallAdbError(InstallAdbErrorCode.INSTALL_AMBIGUOUS)
+        return await step(*args, **kwargs)
+
+    panel.successor_state = True
+    panel.step, panel.launch = lost_reset, launch  # type: ignore[method-assign]
+    panel.steps.clear()
+    with pytest.raises(MoveError, match="move_failed"):
+        await _move(hass, entry, panel, tmp_path)
+    assert "LAUNCH" not in panel.steps
+
+
+async def test_a_rollback_whose_restore_reply_was_lost_finishes_at_once(
+    hass: HomeAssistant, entry: MockConfigEntry, tmp_path: Path
+) -> None:
+    """The old app came back but ADB dropped first: the rollback still completes."""
+    panel = FakePanel()
+    step = panel.step
+
+    async def lose_reply(*args: Any, **kwargs: Any) -> MoveObservation:
+        observed = await step(*args, **kwargs)
+        if args[-1] is MoveStep.RESTORE_LEGACY:
+            raise InstallAdbError(InstallAdbErrorCode.INSTALL_AMBIGUOUS)
+        return observed
+
+    async def refuse(_data: bytes) -> None:
+        raise UpdateRejectedError
+
+    panel.step, panel.restore = lose_reply, refuse  # type: ignore[method-assign]
+    _attach(entry, panel)
+    with pytest.raises(MoveError):
+        await _move(hass, entry, panel, tmp_path)
+    assert panel.running == LEGACY_PACKAGE_ID and panel.home == LEGACY_PACKAGE_ID
+    assert panel.legacy and not panel.successor
 
 
 @pytest.mark.parametrize("then", ["moves", "receipt-fails"])
