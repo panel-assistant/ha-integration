@@ -820,6 +820,7 @@ def ws_command_result(
     elif late:
         # Too late for its service call; recorded above and nothing else.
         del session.late[command_id]
+        command.settle()
     else:
         del session.pending[command_id]
         if not command.future.done():

@@ -177,6 +177,15 @@ class PendingCommand:
     approval_pending: bool = False
     # Run when an interim pending_approval arrives, to wait longer for it.
     on_interim: Callable[[], None] | None = None
+    # Run once a command no longer waited for is finally answered, or can no
+    # longer be (its session ended, or it was forgotten for a newer one).
+    on_settled: Callable[[], None] | None = None
+
+    def settle(self) -> None:
+        """Run ``on_settled`` once."""
+        settled, self.on_settled = self.on_settled, None
+        if settled is not None:
+            settled()
 
 
 @dataclass(frozen=True, slots=True)
@@ -356,7 +365,10 @@ class TransportSessions:
             if not command.future.done():
                 command.future.set_result(None)
         session.pending.clear()
+        late = list(session.late.values())
         session.late.clear()
+        for command in late:
+            command.settle()
         # A relayed subscription cannot outlive the session that carries it.
         relays = [relay for group in session.ui_relays.values() for relay in group]
         session.ui_relays.clear()
@@ -469,7 +481,7 @@ def _stop_waiting(session: PanelSession, command_id: str) -> None:
         return
     session.late[command_id] = command
     while len(session.late) > MAX_LATE_COMMANDS:
-        del session.late[next(iter(session.late))]
+        session.late.pop(next(iter(session.late))).settle()
 
 
 async def async_send_command(
@@ -569,16 +581,20 @@ async def async_deliver(
     command_id: str | None = None,
     deadline_ms: int = COMMAND_DEADLINE_MS,
     approval_seconds: float = 0,
+    on_settled: Callable[[], None] | None = None,
 ) -> CommandOutcome:
     """Send one event on a session once and wait for its final outcome.
 
     With ``approval_seconds``, an interim pending_approval extends the wait to
     that long after it arrived, for a request a person is approving on the
-    panel's screen.
+    panel's screen. ``on_settled`` runs if the wait ends first and the command
+    is kept: when its final outcome arrives late, or never can.
     """
     if command_id is None:
         command_id = secrets.token_urlsafe(24)
-    command = PendingCommand(channel=label, future=hass.loop.create_future())
+    command = PendingCommand(
+        channel=label, future=hass.loop.create_future(), on_settled=on_settled
+    )
     session.pending[command_id] = command
     session.count("sent")
     session.connection.send_message(

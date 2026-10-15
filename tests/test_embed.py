@@ -1219,6 +1219,115 @@ async def test_a_blob_typed_with_parameters_keeps_its_media_type(
     assert await response.read() == data
 
 
+async def _drained(hass: HomeAssistant) -> None:
+    """Wait for Panel Assistant to hold no transfer at all."""
+    for _ in range(500):
+        if not blob_registry(hass):
+            return
+        await asyncio.sleep(0.01)
+    raise AssertionError(f"still held: {list(blob_registry(hass))}")
+
+
+async def test_a_long_relayed_request_keeps_its_slot_until_the_panel_answers(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    entry: MockConfigEntry,
+    live: SessionPanel,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The browser stops waiting; the panel still uploads, then answers."""
+    ws = await hass_ws_client(hass)
+    await _open_session(ws, entry.entry_id)
+    # A long operation's deadline reaches the panel as the page set it.
+    live.answers["config.import"] = _applied
+    reply = await _ui(
+        ws,
+        entry.entry_id,
+        {
+            "kind": "manage",
+            "command_id": "c1",
+            "op": "config.import",
+            "deadline_ms": 120_000,
+        },
+    )
+    assert reply["result"]["outcome"] == "applied"
+    assert (await live.event("config.import"))["deadline_ms"] == 120_000
+
+    monkeypatch.setattr(ui_relay, "ANSWER_GRACE_SECONDS", 0)
+    go = asyncio.Event()
+    uploaded: list[int] = []
+
+    async def backup(event: dict[str, Any]) -> dict[str, Any]:
+        await go.wait()
+        url = f"/api/panel_assistant/blob/{event['args']['blob_token']}"
+        uploaded.append((await live.http.put(url, data=b"archive")).status)
+        return {"outcome": "applied", "result": {"blob": {"url": url}}}
+
+    live.answers["backup"] = backup
+    reply = await _ui(
+        ws,
+        entry.entry_id,
+        {"kind": "manage", "command_id": "b1", "op": "backup", "deadline_ms": 1},
+    )
+    assert reply["error"]["code"] == "panel_unavailable"
+    go.set()
+    await _drained(hass)
+    assert uploaded == [200]
+
+
+async def test_a_lent_download_outlives_the_browser_wait_until_the_session_ends(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    entry: MockConfigEntry,
+    live: SessionPanel,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A slow install still fetches the browser's file; the session's end frees it."""
+    monkeypatch.setattr(ui_relay, "ANSWER_GRACE_SECONDS", 0)
+    ws = await hass_ws_client(hass)
+    _, url = await _open_session(ws, entry.entry_id)
+    upload = await _ui(
+        ws,
+        entry.entry_id,
+        {"kind": "manage", "command_id": "u1", "op": "blob.upload", "args": {}},
+    )
+    target = upload["result"]["result"]["url"]
+    browser = await hass_client_no_auth()
+    assert (await browser.put(url + target, data=b"app")).status == 200
+    go = asyncio.Event()
+    fetched: list[int] = []
+    asked = asyncio.Event()
+
+    async def install(event: dict[str, Any]) -> dict[str, Any]:
+        await go.wait()
+        fetched.append((await live.http.get(event["args"]["blob"]["url"])).status)
+        asked.set()
+        await asyncio.Event().wait()  # never answers
+        raise AssertionError
+
+    live.answers["install.apk"] = install
+    reply = await _ui(
+        ws,
+        entry.entry_id,
+        {
+            "kind": "manage",
+            "command_id": "i1",
+            "op": "install.apk",
+            "args": {"blob": {"url": target}},
+            "deadline_ms": 1,
+        },
+    )
+    assert reply["error"]["code"] == "panel_unavailable"
+    go.set()
+    async with asyncio.timeout(5):
+        await asked.wait()
+    assert fetched == [200]
+    assert blob_registry(hass)
+    await live.ws.close()
+    await _drained(hass)
+
+
 async def test_an_upload_reaches_the_panel_as_its_own_download(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,

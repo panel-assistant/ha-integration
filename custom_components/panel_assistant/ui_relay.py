@@ -185,19 +185,31 @@ async def async_manage(
     origin: dict[str, str] | None,
     deadline_ms: int = DEFAULT_DEADLINE_MS,
     command_id: str | None = None,
+    lent: tuple[str, ...] = (),
 ) -> tuple[CommandOutcome, bytes | None]:
     """Ask one ``manage`` request with a fresh upload slot, and return its answer.
 
-    An answer the panel moved as a blob comes back with its bytes; the slot is
-    discarded after the answer either way. A relayed request (one with an
-    origin) is waited for through the panel's approval window.
+    An answer the panel moved as a blob comes back with its bytes. The slot,
+    and any download ``lent`` to the panel for the request, are discarded once
+    the panel has answered or never can: a wait that ends first leaves them for
+    a panel still moving the bytes. A relayed request (one with an origin) is
+    waited for through the panel's approval window.
     """
+    blobs = async_get_blobs(hass)
     if async_get_sessions(hass).get(session.entry_id) is not session:
+        for held in lent:
+            blobs.discard(held)
         raise HomeAssistantError(
             translation_domain=DOMAIN, translation_key=ERR_PANEL_UNAVAILABLE
         )
-    blobs = async_get_blobs(hass)
     token, received = blobs.upload(session.entry_id)
+    if command_id is None:
+        command_id = secrets.token_urlsafe(24)
+
+    def release() -> None:
+        for held in (token, *lent):
+            blobs.discard(held)
+
     fields: dict[str, Any] = {"op": op, "args": {**args, "blob_token": token}}
     if origin is not None:
         fields["origin"] = origin
@@ -212,6 +224,7 @@ async def async_manage(
             command_id=command_id,
             deadline_ms=deadline_ms,
             approval_seconds=APPROVAL_SECONDS if origin is not None else 0,
+            on_settled=release,
         )
         result = outcome.result
         reference = result.get("blob") if isinstance(result, dict) else None
@@ -228,7 +241,9 @@ async def async_manage(
             return CommandOutcome(OUTCOME_FAILED, OUTCOME_FAILED), None
         return outcome, received.result()
     finally:
-        blobs.discard(token)
+        # A command still kept for its late answer releases them then.
+        if command_id not in session.late:
+            release()
 
 
 def _frame(command_id: str, outcome: CommandOutcome) -> dict[str, Any]:
@@ -450,13 +465,15 @@ async def _async_relay(
         assert isinstance(reference, dict)
         sent, minted = blobs.download(entry_id, data, media_type(reference.get("type")))
         args["blob"] = {**reference, "url": minted["url"]}
-    try:
-        outcome, data = await async_manage(
-            hass, session, request["op"], args, origin, deadline_ms
-        )
-    finally:
-        if sent is not None:
-            blobs.discard(sent)
+    outcome, data = await async_manage(
+        hass,
+        session,
+        request["op"],
+        args,
+        origin,
+        deadline_ms,
+        lent=() if sent is None else (sent,),
+    )
     frame = _frame(command_id, outcome)
     if data is not None:
         assert isinstance(outcome.result, dict)
