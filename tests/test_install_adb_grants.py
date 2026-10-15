@@ -567,6 +567,36 @@ async def test_the_grant_warning_describes_only_the_missing_grants(
     assert not [other for other in others - {named} if other in warning]
 
 
+async def test_an_unreadable_grant_readback_says_the_missing_grants_are_unknown(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    fake = FakeDevice(
+        [
+            _identity_root_output(NONCES[0]),
+            _single_output(
+                "PACKAGE", NONCES[1], ["package:/data/app/ha-paneld/base.apk"], 0
+            ),
+            _notifications_output(NONCES[2], granted=True),
+            b"garbage\n",
+            _single_output("LAUNCH", NONCES[4], ["Status: ok"], 0),
+        ]
+    )
+    _install_fakes(monkeypatch, [fake])
+
+    await async_launch_installed_app(
+        target, signer, descriptor, expected_root_mode=AdbRootMode.ROOTLESS
+    )
+
+    [warning] = [
+        r.getMessage() for r in caplog.records if _GRANT_WARNING in r.getMessage()
+    ]
+    assert "cannot tell which permissions it lacks" in warning
+
+
 @pytest.mark.parametrize("identity", ["legacy", "successor"])
 async def test_the_new_app_is_made_a_device_admin_once_and_the_old_app_never(
     monkeypatch: pytest.MonkeyPatch,

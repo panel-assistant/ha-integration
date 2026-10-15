@@ -261,6 +261,7 @@ _GRANT_CONSEQUENCES = {
     "modify system settings": "touch sounds stay unavailable",
     "install packages": "the panel cannot install its own update with a tap",
     "secure settings": "the screen dims instead of switching off",
+    "grant readback": "Panel Assistant cannot tell which permissions it lacks",
 }
 
 
