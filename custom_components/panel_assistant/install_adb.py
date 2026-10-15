@@ -1019,7 +1019,8 @@ async def _async_repair_app_permissions(
         await _async_vendor_setup(device)
     if not grant.granted:
         _LOGGER.warning(
-            "The panel did not grant %s every permission it needs: "
+            "The panel did not grant %s every permission it needs "
+            "(missing: %s; panel %s). The permissions are: "
             "modify system settings, display over other apps and its "
             "accessibility service, camera and microphone where present, "
             "and the secure-settings permission full screen-off needs. "
@@ -1028,6 +1029,8 @@ async def _async_repair_app_permissions(
             "switching off; allow them on the panel in Android Settings, "
             "under the app",
             package_id,
+            ", ".join(grant.missing),
+            target.address.stored_value,
         )
 
 

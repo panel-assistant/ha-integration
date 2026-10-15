@@ -783,8 +783,8 @@ def _expected_services(before: str, launch_component: str) -> str | None:
 class _PermissionGrant:
     """The readback of one grant program."""
 
-    #: Every permission the panel's controls need reads back as granted.
-    granted: bool
+    #: The grants that did not read back as granted; empty when all did.
+    missing: tuple[str, ...]
     #: HOME resolves to this build's dashboard.
     home: bool
     #: What the HOME claim did (``home_chooser.CHOOSER_OUTCOMES``), or None.
@@ -792,12 +792,17 @@ class _PermissionGrant:
     #: ``vendor_provisioning`` has a setup for this panel.
     vendor_setup: bool = False
 
+    @property
+    def granted(self) -> bool:
+        """Every permission the panel's controls need reads back as granted."""
+        return not self.missing
+
 
 def _parse_permission_grant(
     body: bytes, nonce: str, launch_component: str
 ) -> _PermissionGrant:
     """Granted only when every readback line shows the grant and no service lost."""
-    refused = _PermissionGrant(granted=False, home=False, chooser=None)
+    refused = _PermissionGrant(missing=("grant readback",), home=False, chooser=None)
     try:
         lines, status = _parse_single_section(body, prefix="PERMISSIONS", nonce=nonce)
     except _MalformedAdbResponse:
@@ -816,22 +821,32 @@ def _parse_permission_grant(
     ):
         return refused
     expected = _expected_services(before, launch_component)
-    granted = (
-        expected is not None
-        and after == expected
-        and enabled == "1"
-        and re.fullmatch(_APPOP_ALLOWED.format("WRITE_SETTINGS"), write_settings)
-        is not None
-        and re.fullmatch(_APPOP_ALLOWED.format("SYSTEM_ALERT_WINDOW"), overlay)
-        is not None
-        and re.fullmatch(_APPOP_ALLOWED.format("REQUEST_INSTALL_PACKAGES"), installs)
-        is not None
-        and camera in ("granted", "unsupported")
-        and microphone in ("granted", "unsupported")
-        and secure_settings in ("granted", "unsupported")
+    checks = (
+        (
+            "accessibility service",
+            expected is not None and after == expected and enabled == "1",
+        ),
+        (
+            "modify system settings",
+            re.fullmatch(_APPOP_ALLOWED.format("WRITE_SETTINGS"), write_settings)
+            is not None,
+        ),
+        (
+            "display over other apps",
+            re.fullmatch(_APPOP_ALLOWED.format("SYSTEM_ALERT_WINDOW"), overlay)
+            is not None,
+        ),
+        (
+            "install packages",
+            re.fullmatch(_APPOP_ALLOWED.format("REQUEST_INSTALL_PACKAGES"), installs)
+            is not None,
+        ),
+        ("camera", camera in ("granted", "unsupported")),
+        ("microphone", microphone in ("granted", "unsupported")),
+        ("secure settings", secure_settings in ("granted", "unsupported")),
     )
     return _PermissionGrant(
-        granted=granted,
+        missing=tuple(name for name, ok in checks if not ok),
         home=home in EQUIVALENT_HOME_COMPONENTS[launch_component],
         chooser=chooser if chooser in CHOOSER_OUTCOMES else None,
         vendor_setup=vendor_setup,

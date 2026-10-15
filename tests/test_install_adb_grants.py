@@ -1062,3 +1062,25 @@ async def test_secure_settings_is_never_granted_without_proof_it_is_missing(
 
     calls = tmp_path / "calls"
     assert _SECURE not in (calls.read_text() if calls.exists() else "")
+
+
+async def test_the_grant_warning_names_the_missing_grant_and_the_panel(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "refuse.SYSTEM_ALERT_WINDOW").touch()
+
+    await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
+
+    messages = [
+        record.getMessage()
+        for record in caplog.records
+        if _GRANT_WARNING in record.getMessage()
+    ]
+    assert len(messages) == 1
+    assert "(missing: display over other apps; panel " in messages[0]
+    assert f"panel {target.address.stored_value})" in messages[0]
