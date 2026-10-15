@@ -66,6 +66,11 @@ INSTALL_PLAN_SCHEMAS: tuple[str, ...] = (
     "io.github.maxlyth.hapaneld.install-plan.v1",
 )
 
+#: The app's device admin, holding only the right to lock the screen: the
+#: screen-off falls back to it where Android's screen timeout does not take.
+#: Panel Assistant makes the new app id one at install and after each update.
+DEVICE_ADMIN_RECEIVER = "io.panelassistant.android.platform.PanelDeviceAdminReceiver"
+
 #: The receiver that makes the app give up its device admin, which Android
 #: refuses to uninstall and the panel's shell cannot remove. Builds of either id
 #: that have it keep it under the new classes; one without it ignores the ask.

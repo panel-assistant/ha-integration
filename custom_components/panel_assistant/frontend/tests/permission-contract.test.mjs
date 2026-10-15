@@ -92,6 +92,35 @@ test('real shell grant program is scoped, preserves other services and gates not
     'io.github.maxlyth.hapaneld/io.github.maxlyth.hapaneld.input.PanelAccessibilityService');
 });
 
+// Android lists each active admin by its short name, as a Meta Portal printed it.
+function executeAdminGrant(packageId, adminActive) {
+  const dir = mkdtempSync(join(tmpdir(), 'admin-'));
+  const program = `settings() { if [ "$1" = get ]; then echo null; fi; }
+pm() { :; }
+appops() { :; }
+dumpsys() { echo '  Enabled Device Admins (User 0, provisioningState: 0):'
+  [ ! -e "$HP_DIR/admin" ] || echo '    io.panelassistant.android/.platform.PanelDeviceAdminReceiver:'; }
+dpm() { echo "dpm $*" >> "$HP_DIR/calls"
+  [ "$1 $2" != 'set-active-admin io.panelassistant.android/io.panelassistant.android.platform.PanelDeviceAdminReceiver' ] ||
+  touch "$HP_DIR/admin"; }
+${adminActive ? 'touch "$HP_DIR/admin"' : ':'}
+${buildPermissionGrant(nonce, 33, 'null', packageId, launch(packageId))}`;
+  const result = spawnSync('/bin/sh', ['-c', program], {encoding: 'utf8', env: {...process.env, HP_DIR: dir}});
+  const calls = join(dir, 'calls');
+  return {...result, calls: existsSync(calls) ? readFileSync(calls, 'utf8') : '', active: existsSync(join(dir, 'admin'))};
+}
+
+test('the new app is made a device admin unless it already is, and the old app never', () => {
+  const fresh = executeAdminGrant(SUCCESSOR_PACKAGE_ID, false);
+  assert.equal(fresh.active, true);
+  assert.equal(fresh.calls,
+    'dpm set-active-admin io.panelassistant.android/io.panelassistant.android.platform.PanelDeviceAdminReceiver\n');
+  assert.equal(executeAdminGrant(SUCCESSOR_PACKAGE_ID, true).calls, '');
+  const legacy = executeAdminGrant(LEGACY_PACKAGE_ID, false);
+  assert.equal(legacy.calls, '');
+  assert.equal(legacy.active, false);
+});
+
 test('live accessibility change or grant refusal stops and cannot report verified success', () => {
   const changed = executeGrant(33, other, {live: 'com.example.second/.Service'});
   assert.throws(() => parsePermissionGrant(changed.stdout, nonce));

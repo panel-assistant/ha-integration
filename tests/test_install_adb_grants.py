@@ -131,7 +131,23 @@ pm() {
     [ -f "$STATE/refuse.$3" ] || echo true > "$STATE/permission.$2.$3"
   fi
 }
+# Android lists each active admin by its short name, as a Meta Portal printed it.
+dpm() {
+  echo "dpm $*" >> "$STATE/calls"
+  if [ "$1" = set-active-admin ] &&
+      [ "${2#*/}" = io.panelassistant.android.platform.PanelDeviceAdminReceiver ]; then
+    touch "$STATE/admin.${2%%/*}"
+  fi
+}
 dumpsys() {
+  if [ "$1" = device_policy ]; then
+    echo "  Enabled Device Admins (User 0, provisioningState: 0):"
+    for admin in "$STATE"/admin.*; do
+      [ -e "$admin" ] || continue
+      echo "    ${admin##*/admin.}/.platform.PanelDeviceAdminReceiver:"
+    done
+    return 0
+  fi
   if [ -f "$STATE/unreadable.permissions" ]; then
     cat "$STATE/unreadable.permissions"
     return
@@ -509,6 +525,35 @@ async def test_a_fresh_install_gets_the_usb_installers_grants_before_its_first_s
     assert _GRANT_WARNING not in caplog.text
 
 
+@pytest.mark.parametrize("identity", ["legacy", "successor"])
+async def test_the_new_app_is_made_a_device_admin_once_and_the_old_app_never(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    successor_descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    identity: str,
+) -> None:
+    """The screen-off's lock fallback, asked for at install and kept by updates."""
+    installed = descriptor if identity == "legacy" else successor_descriptor
+
+    await _launch_on(monkeypatch, signer, target, installed, tmp_path)
+    await _launch_on(monkeypatch, signer, target, installed, tmp_path)
+
+    calls = (tmp_path / "calls").read_text().splitlines()
+    admin_calls = [call for call in calls if call.startswith("dpm ")]
+    if identity == "successor":
+        assert (tmp_path / f"admin.{installed.package_id}").exists()
+        assert admin_calls == [
+            f"dpm set-active-admin {installed.package_id}/"
+            f"{app_identity.DEVICE_ADMIN_RECEIVER}"
+        ]
+    else:
+        assert admin_calls == []
+        assert _panel_value(tmp_path, f"admin.{installed.package_id}") is None
+
+
 def _seed_granted_panel(
     state: Path, package_id: str, launch_component: str | None = None
 ) -> None:
@@ -532,6 +577,8 @@ def _seed_granted_panel(
         (state / f"permission.{package_id}.android.permission.{permission}").write_text(
             "true\n"
         )
+    if package_id == app_identity.SUCCESSOR_PACKAGE_ID:
+        (state / f"admin.{package_id}").touch()
 
 
 @pytest.mark.parametrize(

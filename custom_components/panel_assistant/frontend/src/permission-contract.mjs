@@ -1,7 +1,7 @@
 // Fixed, explicitly confirmed post-install grants for the authenticated APK.
 // Nothing here configures MQTT, networking, device ownership or app data.
-import { LEGACY_LAUNCH_COMPONENT, OBSOLETE_ACCESSIBILITY_COMPONENTS, accessibilityComponentFor,
-  accessibilityComponentsFor, homeComponentsFor, isLaunchComponent } from './app-identity.mjs';
+import { DEVICE_ADMIN_RECEIVER, LEGACY_LAUNCH_COMPONENT, OBSOLETE_ACCESSIBILITY_COMPONENTS, SUCCESSOR_PACKAGE_ID,
+  accessibilityComponentFor, accessibilityComponentsFor, homeComponentsFor, isLaunchComponent } from './app-identity.mjs';
 import { CHOOSER_OUTCOMES, HOME_QUERY, buildHomeClaim } from './home-chooser.mjs';
 
 // What HOME resolves to now, as the network installer reads it.
@@ -20,6 +20,14 @@ export const ACCESSIBILITY_SERVICE = accessibilityComponentFor(LEGACY_LAUNCH_COM
 // Lets full screen-off lift a firmware's keep-screen-on-while-plugged-in
 // setting (the Shelly X2i); granted after every install like the network path.
 const SECURE_SETTINGS = 'android.permission.WRITE_SECURE_SETTINGS';
+// Makes the new app a device admin, which only locks the screen, unless Android
+// already lists it: the network installer's device_admin_claim_command, as text.
+export function buildDeviceAdminClaim(packageId) {
+  if (packageId !== SUCCESSOR_PACKAGE_ID) return ':';
+  const listed = `${packageId}/${DEVICE_ADMIN_RECEIVER.slice(packageId.length)}:`;
+  return `case "$(dumpsys device_policy 2>/dev/null)" in *"${listed}"*) ;; ` +
+    `*) dpm set-active-admin ${packageId}/${DEVICE_ADMIN_RECEIVER} >/dev/null 2>&1 ;; esac`;
+}
 const fail = () => { throw new Error('permissions_unverified'); };
 const checkBuild = (packageId, launchComponent) => {
   if (!isLaunchComponent(packageId, launchComponent)) fail();
@@ -92,6 +100,7 @@ hp_features=$(pm list features 2>/dev/null) || hp_features=
 ${RUNTIME_GRANTS.map(([feature, permission]) => `${listed(feature)}
 [ -z "$hp_has" ] || pm grant ${PACKAGE} android.permission.${permission} >/dev/null 2>&1`).join('\n')}
 pm grant ${PACKAGE} ${SECURE_SETTINGS} >/dev/null 2>&1
+${buildDeviceAdminClaim(PACKAGE)}
 ${buildHomeClaim(launchComponent)}
 echo "home_chooser:$hp_chooser"
 :

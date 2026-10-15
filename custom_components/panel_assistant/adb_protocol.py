@@ -36,6 +36,7 @@ from adb_shell.transport.tcp_transport_async import TcpTransportAsync
 from .app_identity import (
     ACCEPTED_PACKAGE_IDS,
     ACCESSIBILITY_COMPONENTS,
+    DEVICE_ADMIN_RECEIVER,
     EQUIVALENT_ACCESSIBILITY_COMPONENTS,
     EQUIVALENT_HOME_COMPONENTS,
     OBSOLETE_ACCESSIBILITY_COMPONENTS,
@@ -644,6 +645,25 @@ def _secure_settings_grant_command(package_id: str) -> str:
     )
 
 
+def device_admin_claim_command(package_id: str) -> str:
+    """Make the new app a device admin unless Android already lists it as one.
+
+    The admin only locks the screen, the screen-off's fallback where Android's
+    screen timeout does not take. It is asked for only when missing, so an
+    update does not reset it, and never for the old app id, whose builds may not
+    give it up before an uninstall. Android lists an admin by its short name.
+    The browser installer's permission contract sends the same text.
+    """
+    if package_id != SUCCESSOR_PACKAGE_ID:
+        return ":"
+    listed = f"{package_id}/{DEVICE_ADMIN_RECEIVER.removeprefix(package_id)}:"
+    return (
+        f'case "$(dumpsys device_policy 2>/dev/null)" in *"{listed}"*) ;; '
+        f"*) dpm set-active-admin {package_id}/{DEVICE_ADMIN_RECEIVER} "
+        ">/dev/null 2>&1 ;; esac"
+    )
+
+
 def _permission_grant_command(
     nonce: str, package_id: str, launch_component: str
 ) -> str:
@@ -658,6 +678,9 @@ def _permission_grant_command(
     A rerun writes nothing and other apps' services stay enabled. The list read before
     the write is printed so the readback can prove nothing was dropped. Grant
     output is discarded; only the readback decides.
+
+    The new app is also made a device admin (``device_admin_claim_command``);
+    the panel's own diagnostics report whether its screen-off can use it.
 
     The build's dashboard is made the panel's HOME whenever HOME resolves to
     anything else: Android forgets a preferred HOME when the set of packages
@@ -733,6 +756,7 @@ def _permission_grant_command(
             "(default|deny|ignore|foreground|errored)(; [ -~]+)?|"
             'No operations\\.)$"; then '
             f'appops set {package_id} "$operation" allow {quiet}; fi; done',
+            device_admin_claim_command(package_id),
             f"observed=$({_SERVICES_SETTING}); observed_status=$?; "
             'if [ "$before_status" -eq 0 ] && [ "$valid" -eq 1 ] && '
             '[ "$observed_status" -eq 0 ] && [ "$observed" = "$after" ]; then '

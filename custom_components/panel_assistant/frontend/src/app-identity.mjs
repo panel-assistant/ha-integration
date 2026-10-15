@@ -16,6 +16,8 @@
  */
 export const LEGACY_PACKAGE_ID = 'io.github.maxlyth.hapaneld';
 export const SUCCESSOR_PACKAGE_ID = 'io.panelassistant.android';
+// The app's device admin, which only locks the screen (app_identity.py).
+export const DEVICE_ADMIN_RECEIVER = 'io.panelassistant.android.platform.PanelDeviceAdminReceiver';
 
 /**
  * Signed release and feed schemas, as app_identity.py lists them: app releases

@@ -768,7 +768,9 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
         ".map(c => [c, h.buildHomeClaim(c)])),"
         "grants: Object.fromEntries(Object.keys(a.HOME_COMPONENTS).map(c => [c,"
         " p.buildPermissionGrant('0123456789abcdef0123456789abcdef', 34, '',"
-        " c.split('/')[0], c)]))}));"
+        " c.split('/')[0], c)])),"
+        "admins: Object.fromEntries(a.ACCEPTED_PACKAGE_IDS"
+        ".map(i => [i, p.buildDeviceAdminClaim(i)]))}));"
     )
     javascript = json.loads(
         subprocess.run(
@@ -801,6 +803,19 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
         assert claim in javascript["grants"][launch]
         assert claim in adb_protocol._permission_grant_command(
             "0" * 32, launch.partition("/")[0], launch
+        )
+    # Both make the new app a device admin with the same text, and only the new app.
+    assert javascript["admins"] == {
+        package_id: adb_protocol.device_admin_claim_command(package_id)
+        for package_id in app_identity.ACCEPTED_PACKAGE_IDS
+    }
+    assert javascript["admins"][app_identity.LEGACY_PACKAGE_ID] == ":"
+    for launch, grant in javascript["grants"].items():
+        package_id = launch.partition("/")[0]
+        admin = javascript["admins"][package_id]
+        assert admin in grant
+        assert admin in adb_protocol._permission_grant_command(
+            "0" * 32, package_id, launch
         )
 
 
