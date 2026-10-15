@@ -292,6 +292,16 @@ test('a restarting panel shows its reason until the list reports return', async 
   assert.equal($('#status').hidden, true);
 });
 
+test('a restarting panel option carries one bracketed qualifier in every language', async () => {
+  for (const language of ['en', 'de']) {
+    const { $ } = await mount(fakeHass({ panels: [{ ...row('one', 'restarting', 'Lobby screen'), reason: 'recovery' }], language }));
+    const text = $('#panels').children[0].textContent;
+    const status = frontendMessages('sidebar', language).restarting.replace('{reason}', frontendMessages('sidebarReason', language).recovery);
+    assert.equal(text, `Lobby screen · ${status}`);
+    assert.equal(text.split('(').length - 1, 1);
+  }
+});
+
 test('an open sidebar observes a short restart and its timeout or return', async () => {
   const hass = fakeHass({ panels: [row('one')] });
   const { $, subs } = await mount(hass);
@@ -669,7 +679,7 @@ test('sidebar language switching redraws navigation, accessibility, restart reas
       assert.equal($('#settings').getAttribute('title'), messages.integrationSettings);
       assert.equal($('#device').getAttribute('aria-label'), messages.device);
       const status = state === 'restarting' ? formatFrontendMessage(messages.restarting, { reason: frontendMessages('sidebarReason', language).settings }) : messages[state];
-      assert.equal($('#panels').children[1].textContent, `Panel <b>$&</b> (${status})`);
+      assert.equal($('#panels').children[1].textContent, state === 'restarting' ? `Panel <b>$&</b> · ${status}` : `Panel <b>$&</b> (${status})`);
       if (state === 'restarting') assert.equal($('#status').textContent, status);
       else {
         assert.equal($('#failure-status').textContent, messages[state === 'unreachable' ? 'unreachableBody' : 'notLoadedBody']);

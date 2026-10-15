@@ -459,7 +459,7 @@ export class PanelAssistantSidebar extends HTMLElement {
         option.value = panel.entry_id;
         // Reachable is the expected, silent case; only a problem state earns a suffix.
         option.textContent = panel.state === 'reachable' ? panel.title : panel.state === 'restarting'
-          ? `${panel.title} (${formatFrontendMessage(this.#messages.restarting, { reason: frontendMessages('sidebarReason', language)[panel.reason] })})`
+          ? `${panel.title} · ${formatFrontendMessage(this.#messages.restarting, { reason: frontendMessages('sidebarReason', language)[panel.reason] })}`
           : `${panel.title} (${this.#messages[panel.state]})`;
         select.append(option);
       }

@@ -2086,7 +2086,7 @@ var ne = class extends HTMLElement {
 			this.#l = c, o.replaceChildren();
 			for (let e of s) {
 				let n = document.createElement("option");
-				n.value = e.entry_id, n.textContent = e.state === "reachable" ? e.title : e.state === "restarting" ? `${e.title} (${a(this.#e.restarting, { reason: i("sidebarReason", t)[e.reason] })})` : `${e.title} (${this.#e[e.state]})`, o.append(n);
+				n.value = e.entry_id, n.textContent = e.state === "reachable" ? e.title : e.state === "restarting" ? `${e.title} · ${a(this.#e.restarting, { reason: i("sidebarReason", t)[e.reason] })}` : `${e.title} (${this.#e[e.state]})`, o.append(n);
 			}
 		}
 		o.value = this.#u ?? "", e.querySelector("#picker").hidden = s.length === 0;
