@@ -348,11 +348,9 @@ async def test_happy_path_stops_unclaimed_and_binds_every_operation(
         "health",
         # Proven healthy, the install asks the panel about its setup so it can
         # hand over Home Assistant's address, over the same client. This harness
-        # reports setup finished, so it asks and then says nothing further.
+        # reports setup finished, so it asks and then says nothing further:
+        # a set-up panel keeps its display size, so no sizing is read either.
         "setup_state",
-        # Then it asks what display size the panel's profile recommends; this
-        # one answers nothing, so nothing is applied.
-        "display",
         "pin",
         "mutation_barrier:health_check",
         "credential",

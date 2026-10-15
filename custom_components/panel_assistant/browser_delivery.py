@@ -346,7 +346,12 @@ class BrowserSetupHandoverView(HomeAssistantView):
                     # The installer still holds USB: it applies the display and
                     # text size the panel's profile recommends before it opens
                     # the panel's setup, as the network installer does over ADB.
-                    sizing = await async_read_recommended_sizing(client)
+                    # A panel already set up keeps the size its owner chose.
+                    sizing = (
+                        None
+                        if outcome == "setup_complete"
+                        else await async_read_recommended_sizing(client)
+                    )
                 registration = await _async_register_usb_panel(
                     self.service.hass, address
                 )
