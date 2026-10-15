@@ -854,6 +854,33 @@ async def test_each_panel_is_served_the_bundle_of_its_own_build(
     assert not panel.requests
 
 
+async def test_a_panel_answering_a_newer_build_is_fetched_once(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    entry: MockConfigEntry,
+    live: SessionPanel,
+) -> None:
+    """A panel updated since the last poll answers its new build; it is kept."""
+
+    async def newer(event: dict[str, Any]) -> dict[str, Any]:
+        reference = await live.upload(event, _zip({"info.js": b"new"}))
+        return {"outcome": "applied", "result": {"blob": reference, "build": "2000"}}
+
+    live.answers["bundle"] = newer
+    ws = await hass_ws_client(hass)
+    _, url = await _open_session(ws, entry.entry_id)
+    browser = await hass_client_no_auth()
+    for _ in range(2):
+        response = await browser.get(url + "info.js")
+        assert (response.status, await response.read()) == (200, b"new")
+    assert [e["args"]["build"] for e in live.events if e["op"] == "bundle"] == ["1000"]
+    # The poll catches up: the same bundle serves it without another fetch.
+    _set_build(entry, "2000")
+    assert await (await browser.get(url + "info.js")).read() == b"new"
+    assert len([e for e in live.events if e["op"] == "bundle"]) == 1
+
+
 # ---------------------------------------------------------------------------
 # The relay: panel_assistant/ui.
 
