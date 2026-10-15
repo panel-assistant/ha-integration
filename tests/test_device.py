@@ -11,6 +11,7 @@ from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
+from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.client import PanelHealth
@@ -76,8 +77,8 @@ def test_reported_facts_fill_every_card_field() -> None:
     assert info["configuration_url"] == "homeassistant://panel-assistant/entry-1"
 
 
-def test_the_card_never_adopts_an_identity_the_mqtt_bridge_owns() -> None:
-    """Sharing an identifier or a MAC merges the devices and splits authority."""
+def test_the_card_keeps_its_own_identifier_and_claims_no_unstated_hardware() -> None:
+    """The identifier is this entry's alone; a MAC only once the panel states it."""
     info = panel_device_info(
         "entry-1",
         _snapshot(PanelDevice(name="Alpha panel", manufacturer="Acme")),
@@ -437,3 +438,131 @@ async def test_the_card_follows_the_name_the_panel_reports_but_not_a_user_rename
     current = registry.async_get(device.id)
     assert current.name == "Renamed on the panel"
     assert current.name_by_user == "Office wall"
+
+
+SHELLY_MAC = "00:1a:2b:3c:4d:5e"
+
+
+def _shelly_wall_display(hass: HomeAssistant) -> dr.DeviceEntry:
+    """The Shelly integration's own device for a Shelly Wall Display."""
+    shelly = MockConfigEntry(domain="shelly", unique_id="001A2B3C4D5E")
+    shelly.add_to_hass(hass)
+    return dr.async_get(hass).async_get_or_create(
+        config_entry_id=shelly.entry_id,
+        identifiers={("shelly", "001A2B3C4D5E")},
+        connections={(dr.CONNECTION_NETWORK_MAC, "001A2B3C4D5E")},
+        name="ShellyWallDisplay-001A2B3C4D5E",
+        manufacturer="Shelly",
+        model="Shelly Wall Display X2i",
+    )
+
+
+async def _linked_devices(hass_ws_client, device_id: str) -> set[str]:
+    client = await hass_ws_client()
+    await client.send_json_auto_id(
+        {"type": "config/device_registry/list_linked_devices", "device_id": device_id}
+    )
+    response = await client.receive_json()
+    assert response["success"], response
+    return set(response["result"]["linked_devices"])
+
+
+async def test_the_card_lists_the_shelly_integrations_device_as_linked(
+    hass: HomeAssistant, hass_ws_client
+) -> None:
+    """The panel's reported Wi-Fi MAC links its card to Shelly's, and back.
+
+    Neither device absorbs the other: Shelly's keeps its own entry, name and
+    model, and the panel's card keeps its own.
+    """
+    assert await async_setup_component(hass, "config", {})
+    shelly = _shelly_wall_display(hass)
+    entry = _loaded_entry(hass)
+
+    card = await _card_after_setup(
+        hass,
+        entry,
+        _status_body(
+            f'{{"serial_number":"0123456789abcdef","network_macs":["{SHELLY_MAC}"]}}'
+        ),
+    )
+
+    assert card.id != shelly.id
+    assert card.connections == {(dr.CONNECTION_NETWORK_MAC, SHELLY_MAC)}
+    assert await _linked_devices(hass_ws_client, card.id) == {shelly.id}
+    assert await _linked_devices(hass_ws_client, shelly.id) == {card.id}
+    shelly_now = dr.async_get(hass).async_get(shelly.id)
+    assert shelly_now.config_entry_id == shelly.config_entry_id
+    assert shelly_now.name == "ShellyWallDisplay-001A2B3C4D5E"
+    assert card.config_entry_id == entry.entry_id
+    assert card.name == "Alpha panel"
+    # Redacted like the serial: diagnostics are shared in public issues.
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+    assert SHELLY_MAC not in json.dumps(diagnostics)
+
+
+async def test_a_panel_without_a_reported_mac_links_to_nothing(
+    hass: HomeAssistant, hass_ws_client
+) -> None:
+    """Older apps send no MAC; the card must not link on anything else it knows."""
+    assert await async_setup_component(hass, "config", {})
+    _shelly_wall_display(hass)
+    entry = _loaded_entry(hass)
+
+    card = await _card_after_setup(
+        hass, entry, _status_body('{"serial_number":"0123456789abcdef"}')
+    )
+
+    assert card.connections == set()
+    assert await _linked_devices(hass_ws_client, card.id) == set()
+
+
+async def test_a_later_report_replaces_the_addresses_and_silence_keeps_them(
+    hass: HomeAssistant,
+) -> None:
+    """A changed adapter stops linking; a status that omits MACs changes nothing."""
+    entry = _loaded_entry(hass)
+    card = await _card_after_setup(
+        hass, entry, _status_body(f'{{"network_macs":["{SHELLY_MAC}"]}}')
+    )
+    registry = dr.async_get(hass)
+
+    def refresh(hardware: str) -> set[tuple[str, str]]:
+        snapshot = PanelSnapshot(
+            health=HEALTH, status=_status_body(hardware), status_error=None
+        )
+        async_refresh_panel_device(
+            hass, entry.entry_id, panel_device_info(entry.entry_id, snapshot)
+        )
+        return registry.async_get(card.id).connections
+
+    assert refresh('{"network_macs":["00:1a:2b:3c:4d:60"]}') == {
+        (dr.CONNECTION_NETWORK_MAC, "00:1a:2b:3c:4d:60")
+    }
+    assert refresh('{"firmware":"1.11.0"}') == {
+        (dr.CONNECTION_NETWORK_MAC, "00:1a:2b:3c:4d:60")
+    }
+
+
+@pytest.mark.parametrize(
+    ("macs", "kept"),
+    [
+        ('"00:1a:2b:3c:4d:5e"', []),
+        ('["00:1A:2B:3C:4D:5E","001a2b3c4d5e",1,"00:1a:2b:3c:4d:5e"]', [SHELLY_MAC]),
+        (
+            '["00:00:00:00:00:01","00:00:00:00:00:02","00:00:00:00:00:03",'
+            '"00:00:00:00:00:04","00:00:00:00:00:05"]',
+            [f"00:00:00:00:00:0{n}" for n in range(1, 5)],
+        ),
+    ],
+)
+def test_an_address_outside_the_apps_grammar_costs_only_that_link(
+    macs: str, kept: list[str]
+) -> None:
+    """A later app's different spelling must never refuse the panel's whole status."""
+    status = _status_body(f'{{"firmware":"1.11.0","network_macs":{macs}}}')
+
+    assert status.panel_assistant_hardware == {
+        "firmware": "1.11.0",
+        "network_macs": kept,
+    }

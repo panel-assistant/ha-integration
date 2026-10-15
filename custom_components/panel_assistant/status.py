@@ -243,6 +243,24 @@ def _reason_codes(value: object) -> list[str]:
     return [_token(item) for item in value]
 
 
+_MAC_PATTERN = re.compile(r"^[0-9a-f]{2}(:[0-9a-f]{2}){5}$")
+_MAX_NETWORK_MACS = 4
+
+
+def _network_macs(value: object) -> list[str]:
+    """Keep the addresses in the app's grammar and drop the rest.
+
+    A link is a nicety, so an address a later app writes differently costs only
+    that link, never the panel's whole status.
+    """
+    if not isinstance(value, list):
+        return []
+    macs = [
+        item for item in value if isinstance(item, str) and _MAC_PATTERN.match(item)
+    ]
+    return macs[:_MAX_NETWORK_MACS]
+
+
 def _panel_device(root: Mapping[str, object]) -> PanelDevice | None:
     """Parse the additive device projection: presentation text, never identity."""
     if "panel_assistant_device" not in root:
@@ -283,6 +301,9 @@ _HARDWARE_FIELDS: dict[str, FieldValidator] = {
     "android_release": _short_text,
     # The hardware serial when the panel can read it, else its Android ID.
     "serial_number": _short_text,
+    # Its Wi-Fi and Ethernet hardware addresses, which another integration's device
+    # for the same panel carries too.
+    "network_macs": _network_macs,
 }
 
 _ZIGBEE_FIELDS: dict[str, FieldValidator] = {

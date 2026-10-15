@@ -17,11 +17,11 @@ from .client import PanelHealth
 from .const import DOMAIN
 from .coordinator import PanelSnapshot
 
-# The MQTT bridge registers `ha-paneld-<panel_id>` and `ha-paneld-aid-<android_id>`, and
-# Home Assistant merges a device on ANY matching identifier. Adopting either, or
-# publishing a MAC through `connections`, would make two config entries write the same
-# device and risk the MQTT bridge's authority. This integration keeps its own
-# config-entry-scoped identity.
+# The card's identifier is this config entry's own. Its MAC connections are the panel's
+# hardware addresses: since Home Assistant 2026.8 a device belongs to one config entry,
+# so a device another integration registers with the same MAC (the Shelly integration's
+# for a Shelly Wall Display, Fully Kiosk's, ESPHome's) stays its own device and each
+# card lists the other as a linked device.
 
 
 def panel_display_name(hass: HomeAssistant, entry: ConfigEntry) -> str:
@@ -86,6 +86,9 @@ def panel_device_info(
             info["hw_version"] = " · ".join(str(part) for part in parts if part)
         if hardware.get("serial_number"):
             info["serial_number"] = str(hardware["serial_number"])
+        macs = hardware.get("network_macs")
+        if isinstance(macs, list):
+            info["connections"] = {(dr.CONNECTION_NETWORK_MAC, mac) for mac in macs}
     if device is None:
         return info
 
@@ -166,6 +169,8 @@ def async_refresh_panel_device(
         sw_version=info.get("sw_version", UNDEFINED),
         hw_version=info.get("hw_version", UNDEFINED),
         serial_number=info.get("serial_number", UNDEFINED),
+        # Replaced, not merged, so an address the panel no longer has stops linking.
+        new_connections=info.get("connections", UNDEFINED),
         # Replace links registered by earlier versions as well.
         configuration_url=info.get("configuration_url", UNDEFINED),
     )
