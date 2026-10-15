@@ -12,7 +12,8 @@ import pytest
 from homeassistant.components.assist_pipeline import PipelineEvent, PipelineEventType
 from homeassistant.components.assist_satellite.const import DATA_COMPONENT
 from homeassistant.components.assist_satellite.entity import AssistSatelliteAnnouncement
-from homeassistant.core import HomeAssistant
+from homeassistant.const import EVENT_STATE_CHANGED, STATE_UNAVAILABLE
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
@@ -29,6 +30,7 @@ from custom_components.panel_assistant.client import HaPaneldError
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.device import panel_display_name
 from custom_components.panel_assistant.identity import CONF_INSTALL_IDENTITY
+from custom_components.panel_assistant.transport_sessions import async_get_sessions
 from custom_components.panel_assistant.voice import PIPELINE_COLORS, PipelineColors
 
 from .test_native import _setup
@@ -225,13 +227,37 @@ async def test_turning_voice_off_disables_the_satellite_and_on_enables_it(
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
     entry: MockConfigEntry,
+    pipeline: FakePipeline,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """While the panel's voice is off its satellite is disabled, not unavailable."""
+    """Voice off disables the satellite; voice on brings it back on the live session.
+
+    Turning voice on must not cost Core's config-entry reload, which would end
+    the session and write the panel's entities unavailable 30 s later.
+    """
     panel, entity_id = await _ready(
         hass, hass_ws_client, hass_read_only_access_token, entry
     )
     registry = er.async_get(hass)
+    session = async_get_sessions(hass).get(entry.entry_id)
+    entity_ids = {
+        item.entity_id
+        for item in er.async_entries_for_config_entry(registry, entry.entry_id)
+    }
+    assert any(item.startswith("update.") for item in entity_ids)
+    assert any(item.startswith("sensor.") for item in entity_ids)
+    unavailable: list[str] = []
+
+    @callback
+    def _record(event: Any) -> None:
+        state = event.data["new_state"]
+        if event.data["entity_id"] in entity_ids and (
+            state is None or state.state == STATE_UNAVAILABLE
+        ):
+            unavailable.append(event.data["entity_id"])
+
+    hass.bus.async_listen(EVENT_STATE_CHANGED, _record)
+
     assert (await panel.configure(enabled=False))["success"]
     await hass.async_block_till_done()
     assert registry.async_get(entity_id).disabled_by is (
@@ -243,16 +269,26 @@ async def test_turning_voice_off_disables_the_satellite_and_on_enables_it(
     assert registry.async_get(entity_id).disabled_by is (
         er.RegistryEntryDisabler.INTEGRATION
     )
+    unavailable.clear()  # The satellite leaving while voice is off is expected.
+
     assert (await panel.configure(enabled=True))["success"]
     await hass.async_block_till_done()
     assert registry.async_get(entity_id).disabled_by is None
-    # Core adds the enabled entity back by reloading the entry.
+    # Voice answers at once, on the same session.
+    run_id, handler = await _run(panel, "hey_jarvis")
+    await panel.client.send_bytes(bytes([handler]))
+    assert (await _turn_events(panel, run_id))[-1] == {"kind": "end"}
+    assert (
+        await panel.send(
+            {"type": "panel_assistant/voice_played", "session": panel.token}
+        )
+    )["success"]
+    # Core's reload delay passes without ending the session.
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=31))
     await hass.async_block_till_done()
-    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
-    assert (await panel.configure())["success"]
-    await hass.async_block_till_done()
+    assert async_get_sessions(hass).get(entry.entry_id) is session
     assert hass.states.get(entity_id).state == "idle"
+    assert unavailable == []
     # The satellite left and came back without a fault on its way out.
     assert not [
         record.getMessage()

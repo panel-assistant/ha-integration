@@ -694,7 +694,30 @@ def _follow_voice_switch(hass: HomeAssistant, entry: ConfigEntry) -> None:
         elif (
             voice.enabled and entity.disabled_by is er.RegistryEntryDisabler.INTEGRATION
         ):
+            # Core reloads the entry 30 s after an entity is enabled, ending the
+            # panel's session; it skips the reload for an entity enabled from
+            # CONFIG_ENTRY. Pass through it and add the satellite here instead.
+            registry.async_update_entity(
+                entity.entity_id, disabled_by=er.RegistryEntryDisabler.CONFIG_ENTRY
+            )
             registry.async_update_entity(entity.entity_id, disabled_by=None)
+            _add_satellite()
+
+    @callback
+    def _add_satellite() -> None:
+        from .assist_satellite import PanelAssistSatellite
+
+        for platform in entity_platform.async_get_platforms(hass, DOMAIN):
+            if (
+                platform.domain == Platform.ASSIST_SATELLITE
+                and platform.config_entry is entry
+                and entry.entry_id not in satellites(hass)
+            ):
+                entry.async_create_task(
+                    hass,
+                    platform.async_add_entities([PanelAssistSatellite(entry.entry_id)]),
+                    f"{DOMAIN}_voice_satellite",
+                )
 
     async def _turn_voice_on() -> None:
         session = async_get_sessions(hass).get(entry.entry_id)
