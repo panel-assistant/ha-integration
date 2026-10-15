@@ -31,4 +31,4 @@ jobs:
         run: .github/scripts/already_passed.sh
       - name: Run Hassfest
         if: steps.gate.outputs.run == 'true'
-        uses: home-assistant/actions/hassfest@06749dd8c0b54f350bc69c8752456cee498808a3 # master
+        uses: home-assistant/actions/hassfest@423f101405f08e80c0df5b6520655f9d8a0001a4 # master
