@@ -64,12 +64,17 @@ class Collision:
 
 
 def grammar_languages() -> list[str]:
-    return sorted(path.stem for path in SENTENCES.glob("*.yaml"))
+    return sorted({path.stem for path in SENTENCES.glob("*.yaml")} | set(DRAFTS))
+
+
+# A draft file to check in place of (or beside) the committed one, by locale.
+DRAFTS: dict[str, Path] = {}
 
 
 @cache
 def load_grammar(language: str) -> dict[str, Any]:
-    return yaml.safe_load((SENTENCES / f"{language}.yaml").read_text("utf-8"))
+    path = DRAFTS.get(language, SENTENCES / f"{language}.yaml")
+    return yaml.safe_load(path.read_text("utf-8"))
 
 
 @cache
@@ -338,8 +343,47 @@ def overlaps(languages: tuple[str, ...]) -> list[Collision]:
 SAMPLES = Path(__file__).resolve().parent / "fixtures" / "voice_samples"
 
 
+SAMPLE_DRAFTS: dict[str, Path] = {}
+
+
 def load_samples(language: str) -> dict[str, Any]:
-    return yaml.safe_load((SAMPLES / f"{language}.yaml").read_text("utf-8"))
+    path = SAMPLE_DRAFTS.get(language, SAMPLES / f"{language}.yaml")
+    return yaml.safe_load(path.read_text("utf-8"))
+
+
+def screen_alias(language: str) -> str:
+    """The screen light's translated name, which Panel Assistant adds as its alias."""
+    import json
+
+    translations = SENTENCES.parent / "translations" / f"{language}.json"
+    return json.loads(translations.read_text("utf-8"))["entity"]["light"]["screen"]["name"]
+
+
+def builtin_errors(language: str) -> list[str]:
+    """The screen phrases reach the built-in on/off intents through the alias."""
+    from hassil.intents import TextSlotList
+    from hassil.recognize import recognize_all
+
+    intents = builtin_intents(language)
+    lists = {
+        "name": TextSlotList.from_tuples(
+            [(screen_alias(language), screen_alias(language), {"domain": "light"})]
+        ),
+        "area": TextSlotList.from_strings(["Zorblat"]),
+        "floor": TextSlotList.from_strings(["Zorblat"]),
+    }
+    want = {"screen_off": "HassTurnOff", "screen_on": "HassTurnOn"}
+    errors = []
+    for key, text in load_samples(language)["builtin"].items():
+        got = {
+            r.intent.name
+            for r in recognize_all(
+                text, intents, slot_lists=lists, intent_context={"area": "Zorblat"}
+            )
+        }
+        if want[key] not in got:
+            errors.append(f"built-in {key} {text!r}: got {sorted(got)}, want {want[key]}")
+    return errors
 
 
 def sample_errors(language: str, languages: tuple[str, ...]) -> list[str]:
@@ -378,16 +422,27 @@ def report(language: str) -> list[str]:
             for c in stolen(builtin_language, languages)
         ]
     problems += [f"overlap {c.builtin_intent}/{c.command}: {c.example!r}" for c in overlaps(languages)]
-    if (SAMPLES / f"{language}.yaml").exists():
+    if language in SAMPLE_DRAFTS or (SAMPLES / f"{language}.yaml").exists():
         problems += sample_errors(language, languages)
+        problems += builtin_errors(language)
     else:
         problems.append(f"no samples file {SAMPLES / f'{language}.yaml'}")
     return problems
 
 
 if __name__ == "__main__":
+    import argparse
     import sys
 
-    problems = report(sys.argv[1])
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("language")
+    parser.add_argument("--grammar", type=Path, help="draft grammar for this locale")
+    parser.add_argument("--samples", type=Path, help="draft samples for this locale")
+    options = parser.parse_args()
+    if options.grammar:
+        DRAFTS[options.language] = options.grammar.resolve()
+    if options.samples:
+        SAMPLE_DRAFTS[options.language] = options.samples.resolve()
+    problems = report(options.language)
     print("\n".join(problems) or "OK")
     sys.exit(1 if problems else 0)
