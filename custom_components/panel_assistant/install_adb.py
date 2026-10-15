@@ -256,6 +256,13 @@ def _validate_request(target: AdbInstallTarget, descriptor: InstallDescriptor) -
 # POST_NOTIFICATIONS became a runtime permission in Android 13 (API 33).
 _NOTIFICATIONS_RUNTIME_SDK = 33
 
+# What a person loses without a grant, by the permission parser's own names.
+_GRANT_CONSEQUENCES = {
+    "modify system settings": "touch sounds stay unavailable",
+    "install packages": "the panel cannot install its own update with a tap",
+    "secure settings": "the screen dims instead of switching off",
+}
+
 
 def _require_expected_root_mode(observed: AdbRootMode, expected: AdbRootMode) -> None:
     if observed is not expected:
@@ -1023,17 +1030,15 @@ async def _async_repair_app_permissions(
     if not grant.granted:
         _LOGGER.warning(
             "The panel did not grant %s every permission it needs "
-            "(missing: %s; panel %s). The permissions are: "
-            "modify system settings, display over other apps and its "
-            "accessibility service, camera and microphone where present, "
-            "and the secure-settings permission full screen-off needs. "
-            "Controls that depend on them, such as "
-            "touch sounds, stay unavailable, and the screen dims instead of "
-            "switching off; allow them on the panel in Android Settings, "
-            "under the app",
+            "(missing: %s; panel %s). Until it does, %s; allow them on the "
+            "panel in Android Settings, under the app",
             package_id,
             ", ".join(grant.missing),
             target.address.stored_value,
+            "; ".join(
+                _GRANT_CONSEQUENCES.get(name, f"what needs {name} stays unavailable")
+                for name in grant.missing
+            ),
         )
 
 

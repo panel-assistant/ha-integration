@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - **Removing a panel app that is a device admin.** Android refuses to uninstall an app that has been made a device admin in its settings, so removing the panel app, and the clean-up of an old panel app, failed on such a panel. Panel Assistant now asks the panel app to give up device admin first, then removes it.
+- **The missing-permission warning says what is missing.** When a panel refuses a permission at install, the warning in the log now names only the permissions it refused and what each one stops, including that a panel without the permission to install packages cannot install its own update with a tap.
 
 ## 1.0.0-preview1 - 2026-10-11
 
