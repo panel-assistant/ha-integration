@@ -158,7 +158,7 @@ class CommandOutcome:
 
     outcome: str
     code: str | None
-    result: dict[str, Any] | str | None = None
+    result: Any = None
     # The answering route's own status and headers, for a relayed request.
     status: int | None = None
     headers: dict[str, str] | None = None

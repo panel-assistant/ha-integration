@@ -64,11 +64,11 @@ class UpdateCarrier(Protocol):
         """Read the panel's status."""
 
 
-def _body(result: dict[str, Any] | str | None) -> bytes:
+def _body(result: object) -> bytes:
     return json.dumps(result or {}).encode()
 
 
-def _refusal(result: dict[str, Any] | str | None, key: str) -> object:
+def _refusal(result: object, key: str) -> object:
     return result.get(key) if isinstance(result, dict) else None
 
 

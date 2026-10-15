@@ -519,9 +519,9 @@ COMMAND_RESULT_SCHEMA: Final = vol.All(
             vol.Required("outcome"): vol.In(OUTCOMES),
             vol.Optional("code"): vol.In(OUTCOME_CODES),
             vol.Optional("placeholders"): _placeholders,
-            # What a ``manage`` request answered with: an object, or a page's
-            # text.
-            vol.Optional("result"): vol.Any(dict, str),
+            # What a ``manage`` request answered with: the JSON body its route
+            # returns, or a page's text.
+            vol.Optional("result"): object,
             # The answering route's own status and response headers, and an
             # interim answer that a final one for the same command follows.
             vol.Optional("status"): _strict_int(100, 599),

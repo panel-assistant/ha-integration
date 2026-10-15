@@ -680,7 +680,14 @@ async def test_a_page_comes_over_the_session_with_its_base_rewritten(
     entry: MockConfigEntry,
     live: SessionPanel,
 ) -> None:
+    # Home Assistant cannot reach the panel's address; its session is enough.
+    entry.runtime_data.coordinator.reachable = False
     ws = await hass_ws_client(hass)
+    await ws.send_json_auto_id({"type": "panel_assistant/embed_panels"})
+    listed = (await _receive(ws))["result"]["panels"]
+    assert [(p["entry_id"], p["state"]) for p in listed] == [
+        (entry.entry_id, "reachable")
+    ]
     # A language the panel's grammar refuses is left out of the switch.
     _, url = await _open_session(ws, entry.entry_id, language="x;hide=setup")
     browser = await hass_client_no_auth()
@@ -828,6 +835,10 @@ async def test_a_relayed_request_names_its_caller_and_returns_the_answer(
     entry: MockConfigEntry,
     live: SessionPanel,
 ) -> None:
+    async def revisions(event: dict[str, Any]) -> dict[str, Any]:
+        # A route whose body is a list answers with that list.
+        return {"outcome": "applied", "result": [{"id": 1}, {"id": 2}]}
+
     async def perf(event: dict[str, Any]) -> dict[str, Any]:
         return {
             "outcome": "refused",
@@ -837,7 +848,9 @@ async def test_a_relayed_request_names_its_caller_and_returns_the_answer(
             "result": {"error": "bad"},
         }
 
-    live.answers.update({"perf": perf, "screen": _applied})
+    live.answers.update(
+        {"perf": perf, "screen": _applied, "config.revisions": revisions}
+    )
     ws = await hass_ws_client(hass)
     forged = {"user": "someone-else", "connection": "theirs"}
     reply = await _ui(
@@ -886,6 +899,17 @@ async def test_a_relayed_request_names_its_caller_and_returns_the_answer(
     assert (command["kind"], command["value"]) == ("command", True)
     assert command["origin"] == request["origin"]
 
+    reply = await _ui(
+        ws,
+        entry.entry_id,
+        {"kind": "manage", "command_id": "r3", "op": "config.revisions"},
+    )
+    assert reply["result"] == {
+        "command_id": "r3",
+        "outcome": "applied",
+        "result": [{"id": 1}, {"id": 2}],
+    }
+
 
 async def test_a_relayed_request_waits_through_its_approval(
     hass: HomeAssistant,
@@ -899,7 +923,7 @@ async def test_a_relayed_request_waits_through_its_approval(
     async def reboot(event: dict[str, Any]) -> dict[str, Any]:
         await live.send_result(event, outcome="pending_approval", interim=True)
         # Approved on the panel's screen well after the request's deadline.
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(1.0)
         return {"outcome": "applied", "result": {"ok": True}}
 
     live.answers["device.reboot"] = reboot
@@ -911,7 +935,7 @@ async def test_a_relayed_request_waits_through_its_approval(
             "kind": "manage",
             "command_id": "r1",
             "op": "device.reboot",
-            "deadline_ms": 50,
+            "deadline_ms": 500,
         },
     )
     assert reply["result"] == {
