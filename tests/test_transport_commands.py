@@ -35,7 +35,10 @@ ALL_CAPABILITIES = ["state", "events", "commands", "approval"]
 _COMMAND_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
-def _hello(capabilities: list[str] | None = None) -> dict[str, Any]:
+def _hello(
+    capabilities: list[str] | None = None,
+    channels: list[dict[str, Any]] = DESCRIPTORS,
+) -> dict[str, Any]:
     return {
         "type": "panel_assistant/hello",
         "protocol": {"min": 5, "max": 5},
@@ -44,7 +47,7 @@ def _hello(capabilities: list[str] | None = None) -> dict[str, Any]:
         "app": {"version": test_native.HEALTH.version, "version_code": 790},
         "contract_digest": "c" * 64,
         "capabilities": ALL_CAPABILITIES if capabilities is None else capabilities,
-        "channels": DESCRIPTORS,
+        "channels": channels,
     }
 
 
@@ -113,9 +116,10 @@ async def _connect(
     token: str,
     capabilities: list[str] | None = None,
     sync: bool = True,
+    channels: list[dict[str, Any]] = DESCRIPTORS,
 ) -> Panel:
     client = await hass_ws_client(hass, token)
-    await client.send_json_auto_id(_hello(capabilities))
+    await client.send_json_auto_id(_hello(capabilities, channels))
     hello = await _receive(client)
     assert hello["success"], hello
     panel = Panel(client, hello)
@@ -294,7 +298,14 @@ async def test_each_platform_sends_its_typed_value(
     value: Any,
 ) -> None:
     """The command carries the session, channel and value, and applied returns."""
-    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
+    # Only a panel without a speaker has a volume number.
+    channels = [item for item in DESCRIPTORS if item["channel"] != "media"]
+    panel = await _connect(
+        hass,
+        hass_ws_client,
+        hass_read_only_access_token,
+        channels=channels if domain == "number" else DESCRIPTORS,
+    )
     entity_id = _entity_id(hass, native, suffix)
 
     call = _call(hass, domain, service, {"entity_id": entity_id, **data})

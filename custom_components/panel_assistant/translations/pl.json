@@ -738,6 +738,10 @@
       "title": "Asystent głosowy na {panel} nie nasłuchuje.",
       "description": "Asystent głosowy na {panel} nie nasłuchuje, ponieważ podczas sprawdzania przez panel jego mikrofon nie dostarczył dźwięku. Aby sprawdzić ponownie, wyłącz i włącz asystenta głosowego na stronie Configure panelu albo wybierz tam inne źródło dźwięku. Panel zgłosił: {detail}"
     },
+    "volume_number_removed": {
+      "title": "{panel} nie ma już osobnej liczby głośności",
+      "description": "{panel} ma odtwarzacz multimediów, który pokazuje i ustawia jego głośność, dlatego Panel Assistant usunął osobną liczbę głośności {entity}. Te automatyzacje lub skrypty nadal jej używają: {users}. Zmień je tak, aby ustawiały głośność akcją `media_player.volume_set` na odtwarzaczu multimediów panelu. Gdy zostaną zmienione, możesz zignorować ten komunikat."
+    },
       "restart_required": {
         "title": "Uruchom ponownie Home Assistant, aby dokończyć aktualizację Panel Assistant",
         "fix_flow": {

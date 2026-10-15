@@ -698,6 +698,10 @@
       "title": "L'assistant vocal de {panel} n'écoute pas.",
       "description": "L'assistant vocal de {panel} n'écoute pas, car son microphone n'a fourni aucun son lorsque le panneau l'a vérifié. Pour vérifier à nouveau, désactivez puis réactivez l'assistant vocal sur la page Configure du panneau, ou choisissez-y une autre source audio. Le panneau a signalé : {detail}"
     },
+    "volume_number_removed": {
+      "title": "{panel} n'a plus de nombre de volume séparé",
+      "description": "{panel} a un lecteur multimédia qui affiche et règle son volume, Panel Assistant a donc supprimé son nombre de volume séparé {entity}. Ces automatisations ou scripts l'utilisent encore : {users}. Modifiez-les pour régler le volume avec l'action `media_player.volume_set` sur le lecteur multimédia du panneau. Une fois qu'ils sont modifiés, vous pouvez ignorer ce message."
+    },
       "restart_required": {
         "title": "Redémarrez Home Assistant pour terminer la mise à jour de Panel Assistant",
         "fix_flow": {

@@ -738,6 +738,10 @@
       "title": "De spraakassistent op {panel} luistert niet.",
       "description": "De spraakassistent op {panel} luistert niet, omdat de microfoon geen geluid leverde toen het paneel hem controleerde. Zet de spraakassistent uit en weer aan op de Configure-pagina van het paneel, of kies daar een andere audiobron, om opnieuw te controleren. Het paneel meldde: {detail}"
     },
+    "volume_number_removed": {
+      "title": "{panel} heeft geen apart volumegetal meer",
+      "description": "{panel} heeft een mediaspeler die het volume toont en instelt, dus Panel Assistant heeft het aparte volumegetal {entity} verwijderd. Deze automatiseringen of scripts gebruiken het nog: {users}. Pas ze aan zodat ze het volume instellen met de actie `media_player.volume_set` op de mediaspeler van het paneel. Zodra ze zijn aangepast, kun je deze melding negeren."
+    },
       "restart_required": {
         "title": "Herstart Home Assistant om de update van Panel Assistant af te ronden",
         "fix_flow": {

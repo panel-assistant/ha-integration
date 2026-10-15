@@ -698,6 +698,10 @@
       "title": "Der Sprachassistent auf {panel} hört nicht zu.",
       "description": "Der Sprachassistent auf {panel} hört nicht zu, weil sein Mikrofon bei der Prüfung durch das Panel keinen Ton geliefert hat. Um erneut zu prüfen, schalte den Sprachassistenten auf der Configure-Seite des Panels aus und wieder ein oder wähle dort eine andere Audioquelle. Das Panel meldete: {detail}"
     },
+    "volume_number_removed": {
+      "title": "{panel} hat keine separate Lautstärke-Zahl mehr",
+      "description": "{panel} hat einen Mediaplayer, der seine Lautstärke anzeigt und einstellt, daher hat Panel Assistant die separate Lautstärke-Zahl {entity} entfernt. Diese Automationen oder Skripte verwenden sie noch: {users}. Ändere sie so, dass sie die Lautstärke mit der Aktion `media_player.volume_set` am Mediaplayer des Panels einstellen. Sobald sie geändert sind, kannst du diese Meldung ignorieren."
+    },
       "restart_required": {
         "title": "Home Assistant neu starten, um das Update von Panel Assistant abzuschließen",
         "fix_flow": {
