@@ -1,0 +1,36 @@
+match:
+  - {text: "toon de camera pagina", command: show_page, page: camera}
+  - {text: "toon mij het energie dashboard", command: show_page, page: energie}
+  - {text: "laat me de woonkamer weergave zien", command: show_page, page: woonkamer}
+  - {text: "ga naar de home pagina", command: show_page, page: home}
+  - {text: "ga naar het tuin dashboard", command: show_page, page: tuin}
+  - {text: "toon de camerapagina", command: show_page, page: camera}
+  - {text: "ga naar de hoofdpagina", command: show_page, page: hoofd}
+  - {text: "toon het energie overzicht alsjeblieft", command: show_page, page: energie}
+  - {text: "laat me het tuin tabblad zien", command: show_page, page: tuin}
+  - {text: "ga naar de pagina camera", command: show_page, page: camera}
+  - {text: "toon android instellingen", command: android_settings}
+  - {text: "laat me de android instellingen zien", command: android_settings}
+  - {text: "laat me android instellingen zien", command: android_settings}
+  - {text: "ga naar de android instellingen", command: android_settings}
+  - {text: "toon de instellingen van android", command: android_settings}
+  - {text: "toon de launcher", command: launcher}
+  - {text: "toon het android startscherm", command: launcher}
+  - {text: "laat me de launcher zien", command: launcher}
+  - {text: "ga naar de launcher", command: launcher}
+  - {text: "toon het startscherm van android", command: launcher}
+  - {text: "laat het startscherm van android zien", command: launcher}
+miss:
+  - "zet het scherm uit"
+  - "ga terug"
+  - "hoe laat is het"
+  - "wat voor weer is het"
+  - "open de garagedeur"
+  - "zet de helderheid op 50 procent"
+  - "toon de camera"
+  - "laad het dashboard"
+  - "herlaad het dashboard"
+  - "toon de instellingen"
+builtin:
+  screen_off: "zet het scherm uit"
+  screen_on: "zet het scherm aan"

@@ -1,0 +1,36 @@
+match:
+  - {text: "zeig die kameras seite", command: show_page, page: kameras}
+  - {text: "zeig mir das energie dashboard", command: show_page, page: energie}
+  - {text: "zeigen sie mir die wohnzimmer ansicht", command: show_page, page: wohnzimmer}
+  - {text: "zeige die start seite", command: show_page, page: start}
+  - {text: "geh zur garten ansicht", command: show_page, page: garten}
+  - {text: "wechsle zum home dashboard", command: show_page, page: home}
+  - {text: "zeig mir die kameraseite", command: show_page, page: kamera}
+  - {text: "zeig mir bitte die hauptansicht", command: show_page, page: haupt}
+  - {text: "zeig mir die seite garten", command: show_page, page: garten}
+  - {text: "zeig mir bitte die energie übersicht", command: show_page, page: energie}
+  - {text: "geh zur startseite", command: show_page, page: start}
+  - {text: "geh bitte zum home dashboard", command: show_page, page: home}
+  - {text: "zeig mir das android menü", command: android_settings}
+  - {text: "zeig mir bitte das android menü", command: android_settings}
+  - {text: "zeige die android konfiguration", command: android_settings}
+  - {text: "zeig den launcher", command: launcher}
+  - {text: "zeig bitte den launcher", command: launcher}
+  - {text: "zeig mir den android startbildschirm", command: launcher}
+  - {text: "zeig den android homescreen", command: launcher}
+  - {text: "geh zum launcher", command: launcher}
+  - {text: "wechsle zum android launcher", command: launcher}
+miss:
+  - "schalte den bildschirm aus"
+  - "geh zurück"
+  - "wie spät ist es"
+  - "wie ist das wetter"
+  - "öffne das garagentor"
+  - "setze die helligkeit auf 50 prozent"
+  - "zeig mir die kameras"
+  - "lade das dashboard"
+  - "lade das dashboard neu"
+  - "zeig die einstellungen"
+builtin:
+  screen_off: "schalte den bildschirm aus"
+  screen_on: "schalte den bildschirm ein"

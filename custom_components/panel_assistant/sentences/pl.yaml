@@ -1,0 +1,26 @@
+language: pl
+commands:
+  show_page:
+    sentences:
+      - "(pokaż|pokaz|wyświetl|pokażesz) [mi] (stronę|widok|pulpit|kartę|panel) {page}"
+      - "(przejdź|przejdz|idź) do (strony|widoku|pulpitu|karty|panelu) {page}"
+      - "(przejdź|przejdz|idź) na (stronę|widok|pulpit|kartę) {page}"
+  android_settings:
+    sentences:
+      - "(pokaż|pokaz|wyświetl) [mi] ustawienia (androida|systemu [android]|systemowe)"
+  launcher:
+    sentences:
+      - "(pokaż|pokaz|wyświetl) [mi] launcher [androida]"
+      - "(pokaż|pokaz|wyświetl) [mi] ekran (główny|startowy) androida"
+home_pages: [główna, główną, głównej, glowna, główny, głównego, glowny, startowa, startową, startowej, startowy, startowego, domowa, domową, domowej, domowy, domowego, start]
+screen_names: [ekran, ekranu]
+responses:
+  show_page: "Pokazuję {page}"
+  android_settings: "Otwieram ustawienia Androida"
+  launcher: "Otwieram launcher"
+  page_unknown: "Ten panel nie ma strony {page}"
+  not_a_panel: "Poproś o to panel"
+  panel_unavailable: "Panel nie jest połączony"
+  panel_refused: "Panel nie mógł tego zrobić"
+  panel_locked: "Panel jest zablokowany na swoim pulpicie"
+  needs_update: "Zaktualizuj aplikację panelu, aby użyć tego polecenia"

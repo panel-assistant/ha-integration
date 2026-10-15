@@ -1,0 +1,30 @@
+language: de
+commands:
+  show_page:
+    sentences:
+      - "(zeig|zeige|zeigen sie) [mir|uns] [bitte] [die|das|den] {page} (seite|ansicht|übersicht|dashboard)"
+      - "(zeig|zeige|zeigen sie) [mir|uns] [bitte] die {page}(seite|ansicht)"
+      - "(zeig|zeige|zeigen sie) [mir|uns] [bitte] (die seite|die ansicht|das dashboard) {page}"
+      - "(geh|gehe|wechsle|wechsel) [bitte] zur {page}(seite|ansicht)"
+      - "(geh|gehe|wechsle|wechsel) [bitte] (zu|zur|zum) [der|dem] {page} (seite|ansicht|dashboard)"
+  android_settings:
+    sentences:
+      - "(zeig|zeige|zeigen sie) [mir|uns] [bitte] [das] android (menü|systemmenü)"
+      - "(zeig|zeige|zeigen sie) [mir|uns] [bitte] [die] android konfiguration"
+  launcher:
+    sentences:
+      - "(zeig|zeige|zeigen sie) [mir|uns] [bitte] [den] [android] launcher"
+      - "(zeig|zeige|zeigen sie) [mir|uns] [bitte] [den] android (startbildschirm|homescreen|home bildschirm)"
+      - "(geh|gehe|wechsle|wechsel) [bitte] zum [android] launcher"
+home_pages: [start, home, haupt]
+screen_names: [bildschirm, bildschirms]
+responses:
+  show_page: "{page} wird angezeigt"
+  android_settings: "Die Android-Einstellungen werden geöffnet"
+  launcher: "Der Launcher wird geöffnet"
+  page_unknown: "Dieses Panel hat keine Seite namens {page}"
+  not_a_panel: "Frag dafür ein Panel"
+  panel_unavailable: "Das Panel ist nicht verbunden"
+  panel_refused: "Das Panel konnte das nicht ausführen"
+  panel_locked: "Das Panel ist auf sein Dashboard gesperrt"
+  needs_update: "Aktualisiere die Panel-App, um diesen Befehl zu nutzen"

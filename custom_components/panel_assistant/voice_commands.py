@@ -18,19 +18,20 @@ on every supported Core release fail; the documented route then is a
 
 from __future__ import annotations
 
+import logging
+import re
 from collections.abc import Callable
 from functools import partial
-import logging
 from pathlib import Path
-import re
 from typing import Any
-
-import yaml
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.util import language as language_util
+from homeassistant.util.hass_dict import HassKey
+from homeassistant.util.yaml import load_yaml_dict
 
 from .const import DOMAIN
 from .transport_protocol import ERR_PANEL_UNAVAILABLE, STATE_KNOWN
@@ -46,19 +47,18 @@ COMMANDS = ("show_page", *APP_ACTIONS)
 # Registry option recording that the screen aliases were added once, so an
 # alias the owner removes is never added back.
 OPTION_SCREEN_ALIAS = "voice_alias"
-DATA_GRAMMARS = f"{DOMAIN}_voice_grammars"
+DATA_GRAMMARS: HassKey[dict[str, dict[str, Any]]] = HassKey(f"{DOMAIN}_voice_grammars")
 
 
 def _load_grammars() -> dict[str, dict[str, Any]]:
     return {
-        path.stem: yaml.safe_load(path.read_text("utf-8"))
-        for path in sorted(SENTENCES.glob("*.yaml"))
+        path.stem: load_yaml_dict(path) for path in sorted(SENTENCES.glob("*.yaml"))
     }
 
 
 async def async_setup_voice_commands(hass: HomeAssistant) -> None:
     """Register each command once, with every locale's sentences."""
-    from homeassistant.components.conversation import (  # noqa: PLC0415
+    from homeassistant.components.conversation import (
         agent_manager,
     )
 
@@ -81,7 +81,9 @@ async def async_setup_voice_commands(hass: HomeAssistant) -> None:
         register(sentences, partial(_async_answer, hass, grammars, command))
 
 
-def _grammar(grammars: dict[str, dict[str, Any]], language: str | None) -> dict[str, Any]:
+def _grammar(
+    grammars: dict[str, dict[str, Any]], language: str | None
+) -> dict[str, Any]:
     matches = language_util.matches(language or FALLBACK_LANGUAGE, list(grammars))
     return grammars[matches[0] if matches else FALLBACK_LANGUAGE]
 
@@ -124,7 +126,7 @@ async def _async_page_path(
     The panel's own home dashboard's views first, then every dashboard by
     title or path; a word for "home" means the home dashboard itself.
     """
-    from homeassistant.components.lovelace.const import (  # noqa: PLC0415
+    from homeassistant.components.lovelace.const import (
         LOVELACE_DATA,
     )
 
@@ -164,7 +166,7 @@ async def _async_answer(
     result: Any,
 ) -> str:
     """Act on the panel that heard ``command`` and say what happened."""
-    replies = _grammar(grammars, user_input.language)["responses"]
+    replies: dict[str, str] = _grammar(grammars, user_input.language)["responses"]
     entry_id = _panel_entry_id(hass, user_input)
     if entry_id is None:
         return replies["not_a_panel"]
@@ -203,9 +205,14 @@ def async_alias_screen(hass: HomeAssistant, entity_id: str) -> None:
     """
     registry = er.async_get(hass)
     entry = registry.async_get(entity_id)
-    if entry is None or entry.options.get(DOMAIN, {}).get(OPTION_SCREEN_ALIAS):
+    if entry is None:
         return
-    grammar = _grammar(hass.data.get(DATA_GRAMMARS) or {FALLBACK_LANGUAGE: {}}, hass.config.language)
+    options: dict[str, Any] = dict(entry.options.get(DOMAIN) or {})
+    if options.get(OPTION_SCREEN_ALIAS):
+        return
+    grammar = _grammar(
+        hass.data.get(DATA_GRAMMARS) or {FALLBACK_LANGUAGE: {}}, hass.config.language
+    )
     aliases = list(entry.aliases) or [er.COMPUTED_NAME]
     known = {alias.casefold() for alias in aliases if isinstance(alias, str)}
     for name in [entry.original_name, *grammar.get("screen_names", ())]:
@@ -214,5 +221,5 @@ def async_alias_screen(hass: HomeAssistant, entity_id: str) -> None:
             known.add(name.casefold())
     registry.async_update_entity(entity_id, aliases=aliases)
     registry.async_update_entity_options(
-        entity_id, DOMAIN, {**entry.options.get(DOMAIN, {}), OPTION_SCREEN_ALIAS: True}
+        entity_id, DOMAIN, {**options, OPTION_SCREEN_ALIAS: True}
     )

@@ -1,0 +1,33 @@
+match:
+  - {text: "покажи сторінку камери", command: show_page, page: камери}
+  - {text: "покажіть мені вкладку енергія", command: show_page, page: енергія}
+  - {text: "покажи головну сторінку", command: show_page, page: головну}
+  - {text: "покажи мені кухонну панель", command: show_page, page: кухонну}
+  - {text: "перейди на сторінку вітальня", command: show_page, page: вітальня}
+  - {text: "перейдіть на головну сторінку", command: show_page, page: головну}
+  - {text: "покажи будь ласка сторінку камери", command: show_page, page: камери}
+  - {text: "перейди до сторінки вітальня", command: show_page, page: вітальня}
+  - {text: "перейдіть будь ласка до головної сторінки", command: show_page, page: головної}
+  - {text: "перейди до початкової сторінки", command: show_page, page: початкової}
+  - {text: "покажи налаштування андроїда", command: android_settings}
+  - {text: "покажіть мені налаштування андроїда", command: android_settings}
+  - {text: "покажи налаштування android", command: android_settings}
+  - {text: "перейди до налаштувань андроїда", command: android_settings}
+  - {text: "покажи лаунчер", command: launcher}
+  - {text: "покажи лаунчер андроїда", command: launcher}
+  - {text: "покажи android лаунчер", command: launcher}
+  - {text: "покажи головний екран андроїда", command: launcher}
+  - {text: "покажи робочий стіл андроїда", command: launcher}
+miss:
+  - "вимкни екран"
+  - "назад"
+  - "котра година"
+  - "яка погода"
+  - "відкрий ворота гаража"
+  - "встанови яскравість на 50 відсотків"
+  - "покажи камери"
+  - "онови"
+  - "онови сторінку"
+builtin:
+  screen_off: "вимкни екран"
+  screen_on: "увімкни екран"

@@ -1,0 +1,31 @@
+language: fr
+commands:
+  show_page:
+    sentences:
+      - "(affiche|montre) [moi] (la page|la vue|le tableau de bord|l'onglet) [(de|du|des|de la|de l')] {page}"
+      - "(affichez|montrez) [moi] (la page|la vue|le tableau de bord|l'onglet) [(de|du|des|de la|de l')] {page}"
+      - "(affiche|montre|affichez|montrez) [moi] (la page|la vue|le tableau de bord|l'onglet) d'{page}"
+      - "(va|allez|aller) (à|sur) (la page|la vue|l'onglet) [(de|du|des|de la|de l')] {page}"
+      - "(va|allez|aller) (à|sur) (la page|la vue|l'onglet) d'{page}"
+      - "(va|allez|aller) (au|sur le) tableau de bord [(de|du|des|de la|de l')] {page}"
+  android_settings:
+    sentences:
+      - "(affiche|montre|affichez|montrez) [moi] (les paramètres|les réglages) (android|d'android|de la tablette|du système)"
+      - "(va|allez) dans (les paramètres|les réglages) (android|d'android|de la tablette|du système)"
+  launcher:
+    sentences:
+      - "(affiche|montre|affichez|montrez) [moi] (le lanceur|le launcher) [(android|d'applications)]"
+      - "(affiche|montre|affichez|montrez) [moi] l'écran d'accueil (android|d'android)"
+      - "(va|allez|retourne|retournez) (à|sur) l'écran d'accueil (android|d'android)"
+home_pages: [accueil, principal, principale, démarrage]
+screen_names: [écran]
+responses:
+  show_page: "J'affiche {page}"
+  android_settings: "J'ouvre les paramètres Android"
+  launcher: "J'ouvre le lanceur"
+  page_unknown: "Ce panneau n'a pas de page {page}"
+  not_a_panel: "Demandez-le à un panneau"
+  panel_unavailable: "Le panneau n'est pas connecté"
+  panel_refused: "Le panneau n'a pas pu le faire"
+  panel_locked: "Le panneau est verrouillé sur son tableau de bord"
+  needs_update: "Mettez à jour l'application du panneau pour utiliser cette commande"

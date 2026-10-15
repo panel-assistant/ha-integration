@@ -14,7 +14,8 @@ import pytest
 from homeassistant.components import conversation
 from homeassistant.components.lovelace.const import LOVELACE_DATA
 from homeassistant.core import Context, HomeAssistant
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -28,10 +29,27 @@ from .test_transport_commands import Panel, _connect, _entity_id
 LANGUAGES = voice_grammar.grammar_languages()
 
 
+@pytest.mark.parametrize("builtin_language", LANGUAGES)
+def test_no_locale_takes_over_a_built_in_request(builtin_language: str) -> None:
+    """Every locale's triggers, as Core merges them, against one locale's built-ins."""
+    assert voice_grammar.stolen(builtin_language, tuple(LANGUAGES)) == []
+
+
 @pytest.mark.parametrize("language", LANGUAGES)
-def test_grammar_takes_over_no_built_in_request(language: str) -> None:
-    """Checked against every locale's built-in sentences at once."""
-    assert voice_grammar.report(language) == []
+def test_a_built_in_intent_claims_none_of_a_locales_sentences(language: str) -> None:
+    assert voice_grammar.claimed(language) == []
+
+
+def test_no_two_commands_accept_the_same_request() -> None:
+    assert voice_grammar.overlaps(tuple(LANGUAGES)) == []
+
+
+@pytest.mark.parametrize("language", LANGUAGES)
+def test_each_sample_reaches_its_command_and_the_screen_its_built_in(
+    language: str,
+) -> None:
+    assert voice_grammar.sample_errors(language, tuple(LANGUAGES)) == []
+    assert voice_grammar.builtin_errors(language) == []
 
 
 def test_every_locale_answers_with_the_same_replies() -> None:
@@ -43,7 +61,10 @@ def test_every_locale_answers_with_the_same_replies() -> None:
         assert set(grammar["responses"]) == set(english["responses"]), language
         for key, reply in english["responses"].items():
             placeholders = "{page}" in reply
-            assert ("{page}" in grammar["responses"][key]) == placeholders, (language, key)
+            assert ("{page}" in grammar["responses"][key]) == placeholders, (
+                language,
+                key,
+            )
         assert grammar["home_pages"], language
         assert grammar["screen_names"], language
 
@@ -118,7 +139,10 @@ async def test_show_a_page_navigates_the_panel_that_heard_it(
         hass_read_only_user,
         hass_read_only_access_token,
         language,
-        views=[{"title": "Overview", "path": "home"}, {"title": sample["page"], "path": "view-two"}],
+        views=[
+            {"title": "Overview", "path": "home"},
+            {"title": sample["page"], "path": "view-two"},
+        ],
     )
     said = _say(hass, sample["text"], language, device_id)
     command = await panel.command()
@@ -162,15 +186,24 @@ async def test_turn_off_the_screen_reaches_the_screen_through_its_alias(
         hass, hass_ws_client, hass_read_only_user, hass_read_only_access_token, language
     )
     screen = _entity_id(hass, entry, "screen")
-    assert voice_grammar.screen_alias(language) in er.async_get(hass).async_get(screen).aliases
+    assert (
+        voice_grammar.screen_alias(language)
+        in er.async_get(hass).async_get(screen).aliases
+    )
     said = _say(
-        hass, voice_grammar.load_samples(language)["builtin"]["screen_off"], language, device_id
+        hass,
+        voice_grammar.load_samples(language)["builtin"]["screen_off"],
+        language,
+        device_id,
     )
     sent = await panel.command()
     assert (sent["channel"], sent["value"]) == ("screen", {"on": False})
     await panel.answer(sent["command_id"], "applied")
     result = await said
-    assert result.response.response_type == conversation.intent.IntentResponseType.ACTION_DONE
+    assert (
+        result.response.response_type
+        == conversation.intent.IntentResponseType.ACTION_DONE
+    )
 
 
 async def test_an_owner_removed_alias_is_not_added_back(
@@ -200,7 +233,9 @@ async def test_said_away_from_a_panel_it_says_so(
         hass, hass_ws_client, hass_read_only_user, hass_read_only_access_token, "en"
     )
     result = await _say(hass, "show android settings", "en", None)
-    assert _speech(result) == voice_grammar.load_grammar("en")["responses"]["not_a_panel"]
+    assert (
+        _speech(result) == voice_grammar.load_grammar("en")["responses"]["not_a_panel"]
+    )
     await panel.nothing_sent()
 
 
@@ -241,7 +276,9 @@ async def test_an_older_panel_app_asks_for_an_update(
     hass_read_only_user: Any,
     hass_read_only_access_token: str,
 ) -> None:
-    older = [d for d in DESCRIPTORS if d["channel"] not in ("android_settings", "launcher")]
+    older = [
+        d for d in DESCRIPTORS if d["channel"] not in ("android_settings", "launcher")
+    ]
     _, panel, device_id = await _ready(
         hass,
         hass_ws_client,
@@ -251,7 +288,9 @@ async def test_an_older_panel_app_asks_for_an_update(
         channels=older,
     )
     result = await _say(hass, "show android settings", "en", device_id)
-    assert _speech(result) == voice_grammar.load_grammar("en")["responses"]["needs_update"]
+    assert (
+        _speech(result) == voice_grammar.load_grammar("en")["responses"]["needs_update"]
+    )
     await panel.nothing_sent()
 
 
@@ -268,8 +307,12 @@ async def test_kiosk_lock_keeps_the_panel_on_its_dashboard(
         hass, hass_ws_client, hass_read_only_user, hass_read_only_access_token, "en"
     )
     locked = {"channel": "kiosk_lock", "state": "known", "value": True}
-    assert (await _send(panel.client, _report(panel.token, "delta", [locked])))["success"]
+    assert (await _send(panel.client, _report(panel.token, "delta", [locked])))[
+        "success"
+    ]
     await hass.async_block_till_done()
     result = await _say(hass, "show the launcher", "en", device_id)
-    assert _speech(result) == voice_grammar.load_grammar("en")["responses"]["panel_locked"]
+    assert (
+        _speech(result) == voice_grammar.load_grammar("en")["responses"]["panel_locked"]
+    )
     await panel.nothing_sent()

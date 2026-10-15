@@ -30,12 +30,12 @@ from pathlib import Path
 from typing import Any
 
 import home_assistant_intents
+import yaml
 from hassil import Intents
 from hassil.expression import ListReference
 from hassil.fst import EPS, SPACE, Fst, intents_to_fst
 from hassil.intents import RangeSlotList, TextSlotList
 from hassil.sample import sample_expression
-import yaml
 
 SENTENCES = (
     Path(__file__).resolve().parents[1]
@@ -182,7 +182,7 @@ def _intersect(
         ):
             return text
         nexts = []
-        for llabel, lto, lto_in, llit in moves(left, ls, lin):
+        for llabel, lto, lto_in, _ in moves(left, ls, lin):
             if llabel is None:
                 nexts.append(((lto, lto_in, rs, rin, lit), text))
         for rlabel, rto, rto_in, _ in moves(right, rs, rin):
@@ -201,9 +201,7 @@ def _intersect(
                     char = SLOT
                 elif llabel is _WILD:
                     char = rlabel
-                elif rlabel is _WILD:
-                    char = llabel
-                elif llabel == rlabel:
+                elif rlabel is _WILD or llabel == rlabel:
                     char = llabel
                 else:
                     continue
@@ -356,7 +354,9 @@ def screen_alias(language: str) -> str:
     import json
 
     translations = SENTENCES.parent / "translations" / f"{language}.json"
-    return json.loads(translations.read_text("utf-8"))["entity"]["light"]["screen"]["name"]
+    return json.loads(translations.read_text("utf-8"))["entity"]["light"]["screen"][
+        "name"
+    ]
 
 
 def builtin_errors(language: str) -> list[str]:
@@ -383,7 +383,9 @@ def builtin_errors(language: str) -> list[str]:
             )
         }
         if want[key] not in got:
-            errors.append(f"built-in {key} {text!r}: got {sorted(got)}, want {want[key]}")
+            errors.append(
+                f"built-in {key} {text!r}: got {sorted(got)}, want {want[key]}"
+            )
     return errors
 
 
@@ -408,7 +410,9 @@ def sample_errors(language: str, languages: tuple[str, ...]) -> list[str]:
             if sample["page"] not in pages:
                 errors.append(f"{sample['text']!r}: page {sorted(pages)}")
     for text in samples["miss"]:
-        if commands := {r.intent.name for r in recognize_all(text, intents, slot_lists=wild)}:
+        if commands := {
+            r.intent.name for r in recognize_all(text, intents, slot_lists=wild)
+        }:
             errors.append(f"{text!r}: should match nothing, matched {sorted(commands)}")
     return errors
 
@@ -416,13 +420,19 @@ def sample_errors(language: str, languages: tuple[str, ...]) -> list[str]:
 def report(language: str) -> list[str]:
     """Every check for one locale's grammar, against every locale's built-ins."""
     languages = tuple(grammar_languages())
-    problems = [f"claimed by {c.builtin_intent}: {c.command} {c.example!r}" for c in claimed(language)]
+    problems = [
+        f"claimed by {c.builtin_intent}: {c.command} {c.example!r}"
+        for c in claimed(language)
+    ]
     for builtin_language in languages:
         problems += [
             f"steals {builtin_language} {c.builtin_intent}: {c.command} {c.example!r}"
             for c in stolen(builtin_language, languages)
         ]
-    problems += [f"overlap {c.builtin_intent}/{c.command}: {c.example!r}" for c in overlaps(languages)]
+    problems += [
+        f"overlap {c.builtin_intent}/{c.command}: {c.example!r}"
+        for c in overlaps(languages)
+    ]
     if language in SAMPLE_DRAFTS or (SAMPLES / f"{language}.yaml").exists():
         problems += sample_errors(language, languages)
         problems += builtin_errors(language)
