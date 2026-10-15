@@ -1219,6 +1219,94 @@ async def test_a_blob_typed_with_parameters_keeps_its_media_type(
     assert await response.read() == data
 
 
+async def test_a_browser_transfer_belongs_to_one_administrator_and_one_panel(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client: Any,
+    hass_client_no_auth: Any,
+    hass_admin_user: Any,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    session_panels: list[SessionPanel],
+    entry: MockConfigEntry,
+    live: SessionPanel,
+) -> None:
+    """Another administrator, another panel and the panel itself are refused."""
+    other_did = "e" * 64
+    other = MockConfigEntry(
+        domain=DOMAIN, title="Hall", data={CONF_ADDRESS: "127.0.0.1:1"}
+    )
+    other.add_to_hass(hass)
+    with patch(
+        "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+        AsyncMock(
+            return_value=dataclasses.replace(
+                HEALTH, panel_id="beta", discovery_id=other_did
+            )
+        ),
+    ):
+        await _load_entry(hass, other)
+    other_panel = await _connect_panel(
+        hass,
+        hass_ws_client,
+        hass_client,
+        session_panels,
+        other,
+        hass_read_only_user.id,
+        hass_read_only_access_token,
+        HELLO | {"did": other_did},
+    )
+    second_admin = await hass.auth.async_create_user(
+        "Second", group_ids=["system-admin"]
+    )
+    second_token = await hass.auth.async_create_refresh_token(
+        second_admin, "http://second/"
+    )
+    mine = await hass_ws_client(hass)
+    _, own = await _open_session(mine, entry.entry_id)
+    _, own_elsewhere = await _open_session(mine, other.entry_id)
+    theirs = await hass_ws_client(
+        hass, hass.auth.async_create_access_token(second_token)
+    )
+    _, their_view = await _open_session(theirs, entry.entry_id)
+    browser = await hass_client_no_auth()
+    panel_http = live.http
+
+    blobs = async_get_blobs(hass)
+    download, _ = blobs.download(
+        entry.entry_id, b"export", "application/zip", hass_admin_user.id
+    )
+    upload, _ = blobs.upload(entry.entry_id, 1024, hass_admin_user.id)
+    for view in (their_view, own_elsewhere):
+        assert (await browser.get(f"{view}blob/{download}")).status == 404
+        assert (await browser.put(f"{view}blob/{upload}", data=b"x")).status == 404
+    # The panel's own route never reaches a browser's transfer.
+    assert (await panel_http.get(f"/api/panel_assistant/blob/{download}")).status == 404
+    assert (
+        await panel_http.put(f"/api/panel_assistant/blob/{upload}", data=b"x")
+    ).status == 404
+    # Still there for the one browser it was minted for.
+    assert (await browser.get(f"{own}blob/{download}")).status == 200
+    assert (await browser.put(f"{own}blob/{upload}", data=b"app")).status == 200
+
+    live.answers["install.apk"] = _applied
+    other_panel.answers["install.apk"] = _applied
+    install = {
+        "kind": "manage",
+        "command_id": "i1",
+        "op": "install.apk",
+        "args": {"blob": {"url": f"blob/{upload}"}},
+    }
+    for ws, entry_id in ((theirs, entry.entry_id), (mine, other.entry_id)):
+        reply = await _ui(ws, entry_id, install)
+        assert reply["result"]["outcome"] == "refused", entry_id
+    assert not [
+        e for p in (live, other_panel) for e in p.events if e.get("op") == "install.apk"
+    ]
+    reply = await _ui(mine, entry.entry_id, install)
+    assert reply["result"]["outcome"] == "applied"
+
+
 async def _drained(hass: HomeAssistant) -> None:
     """Wait for Panel Assistant to hold no transfer at all."""
     for _ in range(500):
