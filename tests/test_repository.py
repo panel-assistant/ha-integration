@@ -668,6 +668,7 @@ def test_the_two_identity_modules_state_exactly_the_same_values() -> None:
         ".map(c => [c, m.accessibilityComponentsFor(c)])),"
         "home: m.HOME_COMPONENTS,"
         "homeSpellings: m.EQUIVALENT_HOME_COMPONENTS,"
+        "obsolete: m.OBSOLETE_ACCESSIBILITY_COMPONENTS,"
         "descriptorSchemas: m.INSTALL_DESCRIPTOR_SCHEMAS,"
         "feedSchemas: m.BUILD_FEED_SCHEMAS"
         "}));"
@@ -713,6 +714,12 @@ def test_the_two_identity_modules_state_exactly_the_same_values() -> None:
         )
     }
 
+    # Both installers drop the same retired service class from that list.
+    assert javascript["obsolete"] == {
+        launch: list(services)
+        for launch, services in app_identity.OBSOLETE_ACCESSIBILITY_COMPONENTS.items()
+    }
+
     # Every launcher names its own id, and the shorthand appears only where the
     # class lives in that id's package: the old app's, never a successor's.
     for package_id, components in javascript["launch"].items():
@@ -755,6 +762,7 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
         "devices: v.META_PORTAL_DEVICES, record: v.META_RESTORE_RECORD,"
         "shelly: [v.SHELLY_LAUNCHER, v.SHELLY_RESTORE_RECORD],"
         "homeQuery: p.HOME_QUERY, labels: h.APP_LABELS,"
+        "runtime: p.RUNTIME_GRANTS,"
         "outcomes: h.CHOOSER_OUTCOMES,"
         "claims: Object.fromEntries(Object.keys(a.HOME_COMPONENTS)"
         ".map(c => [c, h.buildHomeClaim(c)])),"
@@ -780,6 +788,8 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
         vendor_provisioning.SHELLY_RESTORE_RECORD,
     ]
     assert javascript["homeQuery"] == install_adb._HOME_QUERY
+    # Both installers grant the same runtime permissions for the same features.
+    assert javascript["runtime"] == [list(pair) for pair in adb_protocol.RUNTIME_GRANTS]
     # HOME, including the chooser's Always, is claimed by one program.
     assert javascript["labels"] == {
         package: list(labels) for package, labels in home_chooser.APP_LABELS.items()

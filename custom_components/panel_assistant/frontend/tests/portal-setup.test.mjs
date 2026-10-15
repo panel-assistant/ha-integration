@@ -5,7 +5,8 @@ import {mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync} from 'node
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createUsbTransactionPorts} from '../src/usb-transaction-ports.mjs';
-import {LEGACY_LAUNCH_COMPONENT} from '../src/app-identity.mjs';
+import {ACCESSIBILITY_COMPONENTS, LAUNCH_COMPONENTS, LEGACY_LAUNCH_COMPONENT,
+  SUCCESSOR_PACKAGE_ID} from '../src/app-identity.mjs';
 import {CHOOSER_DUMP} from '../src/home-chooser.mjs';
 import {META_CONTROL_CENTER, META_RESTORE_RECORD, META_SCREENSAVER_COMPONENTS,
   META_SCREENSAVER_DEFAULT_COMPONENT, META_VERIFIER_RECORD, SHELLY_LAUNCHER, SHELLY_RESTORE_RECORD} from '../src/vendor-provisioning.mjs';
@@ -30,10 +31,11 @@ appops() {
 pm() {
   if [ "$1" = path ]; then [ ! -f "$STATE/package.$2" ] || echo "package:/system/app/$2.apk"
   elif [ "$1" = list ]; then echo reqGlEsVersion=0x30002; [ ! -f "$STATE/microphone" ] || echo feature:android.hardware.microphone
+    [ ! -f "$STATE/camera" ] || echo feature:android.hardware.camera.any
   elif [ "$1" = grant ]; then echo "pm $*" >> "$STATE/calls"; echo true > "$STATE/permission.$3"; fi
 }
 dumpsys() {
-  for p in POST_NOTIFICATIONS RECORD_AUDIO; do
+  for p in POST_NOTIFICATIONS CAMERA RECORD_AUDIO; do
     g=false; [ ! -f "$STATE/permission.android.permission.$p" ] || g=true
     echo "      android.permission.$p: granted=$g, flags=[ USER_SET]"
   done
@@ -62,9 +64,11 @@ uiautomator() { if [ -f "$STATE/chooser.shown" ]; then cp "$STATE/chooser.xml" "
 const CHOOSER = readFileSync(new URL('../../../../tests/fixtures/portal_home_chooser.xml', import.meta.url), 'utf8')
   .replaceAll('Panel Assistant', 'ha-paneld');
 
-function panel({portal = false, shelly = false, microphone = true} = {}) {
+function panel({portal = false, shelly = false, microphone = true, camera = false,
+  launchComponent = LEGACY_LAUNCH_COMPONENT} = {}) {
   const state = mkdtempSync(join(tmpdir(), 'portal-setup-'));
   if (microphone) writeFileSync(join(state, 'microphone'), '');
+  if (camera) writeFileSync(join(state, 'camera'), '');
   if (shelly) {
     writeFileSync(join(state, 'prop.ro.product.device'), 'Jenna\n');
     writeFileSync(join(state, `package.${SHELLY_LAUNCHER}`), '');
@@ -80,7 +84,7 @@ function panel({portal = false, shelly = false, microphone = true} = {}) {
   const target = {model: 'Portal', serial: 'serial', primaryAbi: 'arm64-v8a', androidSdk: 33,
     rootMode: 'rootless', usbVendorId: 1, usbProductId: 2, usbSerial: 'usb'};
   const artifact = {apkSize: 1234, apkSha256: 'a'.repeat(64),
-    packageId: LEGACY_LAUNCH_COMPONENT.split('/')[0], launchComponent: LEGACY_LAUNCH_COMPONENT};
+    packageId: launchComponent.split('/')[0], launchComponent};
   const release = {kind: 'authenticated-apk-bytes', descriptor: artifact};
   const commands = [];
   const adb = {async createSocket(command) {
@@ -148,6 +152,35 @@ test('a panel without a microphone is not granted one, and a HOME Android refuse
     assert.equal(result.home, false);
     assert.equal(result.microphone, 'unsupported');
     assert.ok(!p.calls().some(call => call.includes('RECORD_AUDIO')));
+  } finally { p.cleanup(); }
+});
+
+test('a panel with a camera is granted it, as a network install grants it; one without is not', async () => {
+  const p = panel({camera: true});
+  try {
+    const result = await p.commission();
+    assert.equal(result.permissionsVerified, true);
+    assert.equal(result.camera, 'granted');
+    assert.equal(p.calls().filter(call => call.endsWith('android.permission.CAMERA')).length, 1);
+  } finally { p.cleanup(); }
+  const none = panel();
+  try {
+    const result = await none.commission();
+    assert.equal(result.camera, 'unsupported');
+    assert.ok(!none.calls().some(call => call.includes('CAMERA')));
+  } finally { none.cleanup(); }
+});
+
+test('a new-classes build replaces the successor service its own update retired, keeping other apps\' services', async () => {
+  const [retiredLaunch, launchComponent] = LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID];
+  const other = 'com.example.reader/.ReaderService';
+  const p = panel({launchComponent});
+  writeFileSync(join(p.state, 'enabled_accessibility_services'),
+    `${other}:${ACCESSIBILITY_COMPONENTS[retiredLaunch]}\n`);
+  try {
+    const result = await p.commission();
+    assert.equal(result.permissionsVerified, true);
+    assert.equal(p.read('enabled_accessibility_services'), `${other}:${ACCESSIBILITY_COMPONENTS[launchComponent]}`);
   } finally { p.cleanup(); }
 });
 

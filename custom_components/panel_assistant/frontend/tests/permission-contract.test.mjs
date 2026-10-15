@@ -20,7 +20,7 @@ const verified = (sdk = 33, services = expectedServices(other, LEGACY_PACKAGE_ID
   'WRITE_SETTINGS: allow; time=+1s', 'SYSTEM_ALERT_WINDOW: allow',
   'REQUEST_INSTALL_PACKAGES: allow', sdk >= 33
     ? '      android.permission.POST_NOTIFICATIONS: granted=true, flags=[ USER_SET|USER_FIXED]' : 'not_required',
-  'granted', 'granted', 'home:io.github.maxlyth.hapaneld/.DashboardActivity', 'device:generic']);
+  'granted', 'granted', 'granted', 'home:io.github.maxlyth.hapaneld/.DashboardActivity', 'device:generic']);
 
 test('permission observation is nonce-bound and rejects malformed accessibility lists', () => {
   for (const existing of ['', 'null', other, ACCESSIBILITY_SERVICE, `${other}:${ACCESSIBILITY_SERVICE}`]) {
@@ -40,9 +40,9 @@ test('permission observation is nonce-bound and rejects malformed accessibility 
 
 test('readback requires every grant and exact preservation; no generic completion claim', () => {
   assert.deepEqual(parsePermissionVerification(verified(), nonce, 33, other, LEGACY_PACKAGE_ID, launch(LEGACY_PACKAGE_ID)),
-    {permissionsVerified: true, notificationsRequired: true, microphone: 'granted', secureSettings: 'granted', home: true, device: 'generic'});
+    {permissionsVerified: true, notificationsRequired: true, camera: 'granted', microphone: 'granted', secureSettings: 'granted', home: true, device: 'generic'});
   assert.deepEqual(parsePermissionVerification(verified(32), nonce, 32, other, LEGACY_PACKAGE_ID, launch(LEGACY_PACKAGE_ID)),
-    {permissionsVerified: true, notificationsRequired: false, microphone: 'granted', secureSettings: 'granted', home: true, device: 'generic'});
+    {permissionsVerified: true, notificationsRequired: false, camera: 'granted', microphone: 'granted', secureSettings: 'granted', home: true, device: 'generic'});
   for (const invalid of [verified().replace(other + ':', ''), verified().replace('\n1\n', '\n0\n'),
     verified().replace('WRITE_SETTINGS: allow', 'WRITE_SETTINGS: default'),
     verified().replace('SYSTEM_ALERT_WINDOW: allow', 'SYSTEM_ALERT_WINDOW: deny'),

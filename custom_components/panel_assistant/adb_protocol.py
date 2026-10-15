@@ -38,7 +38,7 @@ from .app_identity import (
     ACCESSIBILITY_COMPONENTS,
     EQUIVALENT_ACCESSIBILITY_COMPONENTS,
     EQUIVALENT_HOME_COMPONENTS,
-    LAUNCH_COMPONENTS,
+    OBSOLETE_ACCESSIBILITY_COMPONENTS,
     SUCCESSOR_PACKAGE_ID,
     counterpart_of,
 )
@@ -597,13 +597,10 @@ def _parse_notification_grant(body: bytes, nonce: str) -> bool:
 _SERVICES_SETTING = "settings get secure enabled_accessibility_services"
 
 
-# The class removed by the successor's 0.9.10 in-place update; the old app's
-# separate package may still be installed during handover and is left alone.
-_OBSOLETE_ACCESSIBILITY_COMPONENTS = {
-    LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID][-1]: (
-        ACCESSIBILITY_COMPONENTS[LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID][0]],
-    ),
-}
+#: The runtime permissions the panel's features use, each granted only where
+#: Android lists the hardware feature; the browser installer's permission
+#: contract grants the same pairs (``RUNTIME_GRANTS``).
+RUNTIME_GRANTS = (("camera.any", "CAMERA"), ("microphone", "RECORD_AUDIO"))
 
 
 _SERVICE_COMPONENT = re.compile(
@@ -673,7 +670,7 @@ def _permission_grant_command(
     known = "|".join(
         f"*:{name}:*" for name in EQUIVALENT_ACCESSIBILITY_COMPONENTS[launch_component]
     )
-    obsolete = "|".join(_OBSOLETE_ACCESSIBILITY_COMPONENTS.get(launch_component, ()))
+    obsolete = "|".join(OBSOLETE_ACCESSIBILITY_COMPONENTS.get(launch_component, ()))
     quiet = ">/dev/null 2>&1"
     # Android 14 reports an unset operation as two lines, including its default.
     default_modes = "|".join(
@@ -685,10 +682,7 @@ def _permission_grant_command(
         f'case "$mode" in {default_modes}) mode="$operation: ${{mode##*: }}" ;; esac; '
     )
     runtime_grants = []
-    for feature, permission in (
-        ("camera.any", "CAMERA"),
-        ("microphone", "RECORD_AUDIO"),
-    ):
+    for feature, permission in RUNTIME_GRANTS:
         granted = (
             rf"[[:space:]]*android\.permission\.{permission}: granted=true"
             r"(, flags=\[[ A-Z0-9_|]*\])?[[:space:]]*"
@@ -778,7 +772,7 @@ def _expected_services(before: str, launch_component: str) -> str | None:
     ):
         return None
     known = EQUIVALENT_ACCESSIBILITY_COMPONENTS[launch_component]
-    obsolete = _OBSOLETE_ACCESSIBILITY_COMPONENTS.get(launch_component, ())
+    obsolete = OBSOLETE_ACCESSIBILITY_COMPONENTS.get(launch_component, ())
     services = [name for name in services if name not in obsolete]
     if any(name in known for name in services):
         return ":".join(services)

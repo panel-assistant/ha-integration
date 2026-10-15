@@ -97,6 +97,15 @@ export const EQUIVALENT_ACCESSIBILITY_COMPONENTS = Object.freeze({
   ]),
 });
 
+/**
+ * The service class the successor's 0.9.10 in-place update removed, by the
+ * launcher that replaced it, as app_identity.py lists it. Both installers drop
+ * it from the device-wide list; the old app's separate package is left alone.
+ */
+export const OBSOLETE_ACCESSIBILITY_COMPONENTS = Object.freeze({
+  [NEW_CLASSES_SUCCESSOR_LAUNCH]: Object.freeze([ACCESSIBILITY_COMPONENTS[OLD_CLASSES_SUCCESSOR_LAUNCH]]),
+});
+
 export function isAcceptedPackageId(packageId) {
   return ACCEPTED_PACKAGE_IDS.includes(packageId);
 }
