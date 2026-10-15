@@ -533,6 +533,70 @@ async def test_a_fresh_install_gets_the_usb_installers_grants_before_its_first_s
     assert _GRANT_WARNING not in caplog.text
 
 
+_SELF_UPDATE_LOST = "cannot install its own update with a tap"
+
+
+@pytest.mark.parametrize(
+    ("refused", "named", "self_update_lost"),
+    [
+        ("REQUEST_INSTALL_PACKAGES", "install packages", True),
+        ("WRITE_SETTINGS", "modify system settings", False),
+    ],
+)
+async def test_the_grant_warning_describes_only_the_missing_grants(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+    refused: str,
+    named: str,
+    self_update_lost: bool,
+) -> None:
+    (tmp_path / f"refuse.{refused}").touch()
+
+    await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
+
+    [warning] = [
+        r.getMessage() for r in caplog.records if _GRANT_WARNING in r.getMessage()
+    ]
+    assert f"missing: {named};" in warning
+    assert (_SELF_UPDATE_LOST in warning) is self_update_lost
+    others = {"install packages", "modify system settings", "display over other apps"}
+    assert not [other for other in others - {named} if other in warning]
+
+
+async def test_an_unreadable_grant_readback_says_the_missing_grants_are_unknown(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    fake = FakeDevice(
+        [
+            _identity_root_output(NONCES[0]),
+            _single_output(
+                "PACKAGE", NONCES[1], ["package:/data/app/ha-paneld/base.apk"], 0
+            ),
+            _notifications_output(NONCES[2], granted=True),
+            b"garbage\n",
+            _single_output("LAUNCH", NONCES[4], ["Status: ok"], 0),
+        ]
+    )
+    _install_fakes(monkeypatch, [fake])
+
+    await async_launch_installed_app(
+        target, signer, descriptor, expected_root_mode=AdbRootMode.ROOTLESS
+    )
+
+    [warning] = [
+        r.getMessage() for r in caplog.records if _GRANT_WARNING in r.getMessage()
+    ]
+    assert "cannot tell which permissions it lacks" in warning
+
+
 @pytest.mark.parametrize("identity", ["legacy", "successor"])
 async def test_the_new_app_is_made_a_device_admin_once_and_the_old_app_never(
     monkeypatch: pytest.MonkeyPatch,
@@ -1098,7 +1162,7 @@ async def test_a_refused_secure_settings_grant_is_reported_and_still_starts(
     fake = await _launch_on(monkeypatch, signer, target, successor_descriptor, tmp_path)
 
     assert _GRANT_WARNING in caplog.text
-    assert "full screen-off" in caplog.text
+    assert "the screen dims instead of switching off" in caplog.text
     assert any("am start" in command for command in fake.commands)
 
 

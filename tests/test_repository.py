@@ -831,7 +831,7 @@ def test_both_installers_send_the_same_display_sizing_program() -> None:
 
     source = INTEGRATION / "frontend" / "src"
     nonce = "0123456789abcdef0123456789abcdef"
-    cases = [(216, 1), (None, 0.9), (200, None)]
+    cases = [(216, 1), (None, 0.9), (200, None), (None, 1.1234567)]
     script = (
         "import * as d from "
         f"{json.dumps((source / 'display-provisioning.mjs').resolve().as_uri())};"

@@ -14,8 +14,9 @@ const DENSITY_FUNCTION = 'hp_density() { hp_w=$(wm density 2>/dev/null) || { ech
   'echo "${hp_w:-unknown}" ;; *"Physical density: "*) echo none ;; ' +
   '*) echo unknown ;; esac; }';
 
-// `1` and `0.9`, never `1.0`: the spelling the Python program writes.
-export const fontScaleText = value => String(Number(value));
+// `1` and `0.9`, never `1.0`, to six significant digits: Python's `f"{value:g}"`,
+// the spelling the Python program writes, within the 0.5 to 1.5 range.
+export const fontScaleText = value => String(Number(Number(value).toPrecision(6)));
 
 // What Home Assistant's setup handover says to apply, or null.
 export function displaySizing(value) {

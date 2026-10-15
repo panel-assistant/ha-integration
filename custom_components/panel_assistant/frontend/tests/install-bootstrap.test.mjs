@@ -32,6 +32,36 @@ test('the actual installer bootstrap refuses saved offline files before opening 
   assert.doesNotThrow(() => execFileSync(process.execPath, ['--input-type=module', '-e', script], { stdio: 'pipe' }));
 });
 
+for (const locale of ['en', 'de']) test(`a failed handoff from Home Assistant offers the way back it names (${locale})`, () => {
+  const main = new URL('../src/install-main.mjs', import.meta.url).href;
+  const script = `
+    import assert from 'node:assert/strict';
+    const elements = new Map();
+    const node = id => {
+      if (!elements.has(id)) elements.set(id, { hidden: false, dataset: {}, style: {}, textContent: '',
+        listeners: new Map(), addEventListener(type, fn) { this.listeners.set(type, fn); },
+        querySelector() { return node(id + ":child"); },
+        setAttribute() {}, replaceChildren() {} });
+      return elements.get(id);
+    };
+    globalThis.document = { documentElement: {}, getElementById: node,
+      querySelectorAll: selector => selector === '[data-screen-message]' ? [Object.assign(node('retry'), { dataset: { screenMessage: 'tryAgain' } })] : [],
+      createElement: () => ({ setAttribute() {} }) };
+    globalThis.location = { search: '?lang=${locale}' };
+    // Opened from Home Assistant, whose tab has since closed.
+    globalThis.window = { isSecureContext: true, opener: null,
+      location: { hash: '#ha_origin=http%3A%2F%2Fha.local%3A8123&nonce=${'0'.repeat(32)}&rc=' },
+      addEventListener() {} };
+    Object.defineProperty(globalThis, 'navigator', { value: { locks: {}, usb: { addEventListener() {} } }, configurable: true });
+    globalThis.indexedDB = {};
+    await import(${JSON.stringify(main)});
+    assert.equal(node('step-error').hidden, false);
+    assert.equal(node('error-text').textContent, ${JSON.stringify(FRONTEND_TRANSLATIONS[locale].installer.handoffFailure)});
+    assert.equal(node('retry').textContent, ${JSON.stringify(FRONTEND_TRANSLATIONS[locale].installer.backToHa)});
+  `;
+  execFileSync(process.execPath, ['--input-type=module', '-e', script], { stdio: 'pipe' });
+});
+
 function renderedJourney(scenario, locale = 'de', realCatalogue = false) {
   const target = realCatalogue ? FRONTEND_TRANSLATIONS[locale] : Object.fromEntries(Object.entries(FRONTEND_TRANSLATIONS.en).map(([group, values]) => [group, Object.fromEntries(Object.entries(values).map(([key, text]) => [key, text ? '★ ' + text : text]))]));
   const main = new URL('../src/install-main.mjs', import.meta.url).href;
