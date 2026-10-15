@@ -316,3 +316,37 @@ async def test_kiosk_lock_keeps_the_panel_on_its_dashboard(
         _speech(result) == voice_grammar.load_grammar("en")["responses"]["panel_locked"]
     )
     await panel.nothing_sent()
+
+
+async def test_a_page_is_found_on_the_account_default_dashboard(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+) -> None:
+    """A panel that reports no home dashboard shows its account's default."""
+    from homeassistant.components.frontend import storage
+    from homeassistant.components.lovelace.dashboard import LovelaceStorage
+
+    _, panel, device_id = await _ready(
+        hass, hass_ws_client, hass_read_only_user, hass_read_only_access_token, "en"
+    )
+    dashboard = LovelaceStorage(
+        hass,
+        {
+            "id": "panel_home",
+            "url_path": "panel-home",
+            "title": "Panel",
+            "mode": "storage",
+        },
+    )
+    hass.data[LOVELACE_DATA].dashboards["panel-home"] = dashboard
+    await dashboard.async_save({"views": [{"title": "Cameras", "path": "cams"}]})
+    user = await storage.async_user_store(hass, hass_read_only_user.id)
+    await user.async_set_item("core", {"default_panel": "panel-home"})
+
+    said = _say(hass, "show the cameras page", "en", device_id)
+    command = await panel.command()
+    assert (command["channel"], command["value"]) == ("navigate", "/panel-home/cams")
+    await panel.answer(command["command_id"], "applied")
+    await said

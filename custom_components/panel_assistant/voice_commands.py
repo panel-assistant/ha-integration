@@ -33,7 +33,7 @@ from homeassistant.util import language as language_util
 from homeassistant.util.hass_dict import HassKey
 from homeassistant.util.yaml import load_yaml_dict
 
-from .const import DOMAIN
+from .const import CONF_TRANSPORT_USER_ID, DOMAIN
 from .transport_protocol import ERR_PANEL_UNAVAILABLE, STATE_KNOWN
 from .transport_sessions import PanelSession, async_get_sessions, async_send_command
 
@@ -115,8 +115,37 @@ def _normalized(text: str) -> str:
     return re.sub(r"[\s_-]+", " ", text).strip().casefold()
 
 
+async def _async_home_dashboard(
+    hass: HomeAssistant, entry_id: str, session: PanelSession
+) -> str:
+    """The url path of the dashboard the panel shows as home.
+
+    The panel reports its own setting; blank means its account's default
+    dashboard, which the frontend keeps per user, then for the system.
+    """
+    reported = str(_known(session, "home_dashboard") or "").strip("/")
+    if reported:
+        return reported.split("/")[0]
+    entry = hass.config_entries.async_get_entry(entry_id)
+    user_id = entry.data.get(CONF_TRANSPORT_USER_ID) if entry is not None else None
+    try:
+        from homeassistant.components.frontend import storage
+
+        default = None
+        if user_id:
+            user = await storage.async_user_store(hass, user_id)
+            default = (user.data.get("core") or {}).get("default_panel")
+        if not default:
+            system = await storage.async_system_store(hass)
+            default = (system.data.get("core") or {}).get("default_panel")
+    except ImportError, AttributeError, HomeAssistantError:
+        default = None
+    return str(default or "lovelace")
+
+
 async def _async_page_path(
     hass: HomeAssistant,
+    entry_id: str,
     session: PanelSession,
     page: str,
     grammars: dict[str, dict[str, Any]],
@@ -131,10 +160,10 @@ async def _async_page_path(
     )
 
     wanted = _normalized(page)
-    home = "/" + str(_known(session, "home_dashboard") or "lovelace").strip("/")
+    home_url = await _async_home_dashboard(hass, entry_id, session)
+    home = f"/{home_url}"
     lovelace = hass.data.get(LOVELACE_DATA)
     dashboards = lovelace.dashboards if lovelace is not None else {}
-    home_url = home.strip("/").split("/")[0]
     home_dashboard = dashboards.get(None if home_url == "lovelace" else home_url)
     if home_dashboard is not None:
         try:
@@ -176,7 +205,7 @@ async def _async_answer(
     try:
         if command == "show_page":
             page = result.entities["page"].text.strip()
-            path = await _async_page_path(hass, session, page, grammars)
+            path = await _async_page_path(hass, entry_id, session, page, grammars)
             if path is None:
                 return replies["page_unknown"].format(page=page)
             await async_send_command(hass, session, "navigate", path)
