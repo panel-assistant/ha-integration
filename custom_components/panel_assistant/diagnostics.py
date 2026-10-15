@@ -27,7 +27,7 @@ _ENTRY_KEYS_TO_REDACT = {
     "previous_installation_identity",
 }
 _HEALTH_KEYS_TO_REDACT = {"panel_id", "discovery_id", "legacy_discovery_id"}
-_STATUS_KEYS_TO_REDACT = {"serial_number"}
+_STATUS_KEYS_TO_REDACT = {"serial_number", "network_macs"}
 
 
 async def async_get_config_entry_diagnostics(
