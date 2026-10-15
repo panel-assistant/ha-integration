@@ -1,15 +1,17 @@
 // Fixed, explicitly confirmed post-install grants for the authenticated APK.
 // Nothing here configures MQTT, networking, device ownership or app data.
-import { LEGACY_LAUNCH_COMPONENT, accessibilityComponentFor, accessibilityComponentsFor,
-  homeComponentsFor, isLaunchComponent } from './app-identity.mjs';
+import { LEGACY_LAUNCH_COMPONENT, OBSOLETE_ACCESSIBILITY_COMPONENTS, accessibilityComponentFor,
+  accessibilityComponentsFor, homeComponentsFor, isLaunchComponent } from './app-identity.mjs';
 import { CHOOSER_OUTCOMES, HOME_QUERY, buildHomeClaim } from './home-chooser.mjs';
 
 // What HOME resolves to now, as the network installer reads it.
 export { HOME_QUERY };
-// The microphone is granted only where Android lists one, as the network
-// installer grants it; a refusal is reported, never fatal.
-const microphoneListed = 'for hp_f in $hp_features; do case "$hp_f" in ' +
-  'feature:android.hardware.microphone|feature:android.hardware.microphone=*) hp_mic=1 ;; esac; done';
+// Each runtime permission is granted only where Android lists its hardware
+// feature, the same pairs the network installer grants (adb_protocol.py
+// RUNTIME_GRANTS); a refusal is reported, never fatal.
+export const RUNTIME_GRANTS = Object.freeze([['camera.any', 'CAMERA'], ['microphone', 'RECORD_AUDIO']]);
+const listed = feature => `hp_has=; for hp_f in $hp_features; do case "$hp_f" in ` +
+  `feature:android.hardware.${feature}|feature:android.hardware.${feature}=*) hp_has=1 ;; esac; done`;
 
 // The one component written into the device-wide accessibility list for the
 // installed build, and every spelling that already names it. The class lives in
@@ -59,8 +61,10 @@ export function expectedServices(existing, packageId, launchComponent) {
   checkBuild(packageId, launchComponent);
   const services = validateServices(existing);
   const known = accessibilityComponentsFor(launchComponent);
-  return services.some(service => known.includes(service))
-    ? existing : [...services, accessibilityComponentFor(launchComponent)].join(':');
+  const obsolete = OBSOLETE_ACCESSIBILITY_COMPONENTS[launchComponent] ?? [];
+  const kept = services.filter(service => !obsolete.includes(service));
+  return (kept.some(service => known.includes(service))
+    ? kept : [...kept, accessibilityComponentFor(launchComponent)]).join(':');
 }
 
 export function buildPermissionGrant(nonce, sdk, existing, packageId, launchComponent) {
@@ -68,7 +72,7 @@ export function buildPermissionGrant(nonce, sdk, existing, packageId, launchComp
   const PACKAGE = packageId;
   const expected = expectedServices(existing, packageId, launchComponent);
   // Validated component characters cannot escape single-quoted shell literals.
-  // The microphone and HOME come last and never decide the status: `:` ends
+  // Runtime permissions and HOME come last and never decide the status: `:` ends
   // the program successfully whatever they answered; the readback reports them.
   // The HOME claim prints the one line this program answers: what it did.
   // Check again immediately before the list write: unrelated services must not
@@ -84,8 +88,9 @@ current=$(settings get secure enabled_accessibility_services) || exit 1
 [ "$current" = '${existing}' ] || exit 1
 ${expected === existing ? ':' : `settings put secure enabled_accessibility_services '${expected}' || exit 1`}
 settings put secure accessibility_enabled 1 || exit 1
-hp_mic=; hp_features=$(pm list features 2>/dev/null) && ${microphoneListed}
-[ -z "$hp_mic" ] || pm grant ${PACKAGE} android.permission.RECORD_AUDIO >/dev/null 2>&1
+hp_features=$(pm list features 2>/dev/null) || hp_features=
+${RUNTIME_GRANTS.map(([feature, permission]) => `${listed(feature)}
+[ -z "$hp_has" ] || pm grant ${PACKAGE} android.permission.${permission} >/dev/null 2>&1`).join('\n')}
 pm grant ${PACKAGE} ${SECURE_SETTINGS} >/dev/null 2>&1
 ${buildHomeClaim(launchComponent)}
 echo "home_chooser:$hp_chooser"
@@ -111,7 +116,8 @@ appops get ${PACKAGE} WRITE_SETTINGS || exit 1
 appops get ${PACKAGE} SYSTEM_ALERT_WINDOW || exit 1
 appops get ${PACKAGE} REQUEST_INSTALL_PACKAGES || exit 1
 ${sdk >= 33 ? `dumpsys package ${PACKAGE} | grep 'android.permission.POST_NOTIFICATIONS: granted=' || exit 1` : "echo not_required"}
-hp_mic=; if hp_features=$(pm list features 2>/dev/null); then ${microphoneListed}; if [ -z "$hp_mic" ]; then echo unsupported; else hp_r=$(dumpsys package ${PACKAGE} 2>/dev/null | grep -F 'android.permission.RECORD_AUDIO: granted='); case "$hp_r" in '') echo unknown ;; *granted=false*) echo denied ;; *) echo granted ;; esac; fi; else echo unknown; fi
+hp_features=$(pm list features 2>/dev/null); hp_features_status=$?
+${RUNTIME_GRANTS.map(([feature, permission]) => `if [ "$hp_features_status" -eq 0 ]; then ${listed(feature)}; if [ -z "$hp_has" ]; then echo unsupported; else hp_r=$(dumpsys package ${PACKAGE} 2>/dev/null | grep -F 'android.permission.${permission}: granted='); case "$hp_r" in '') echo unknown ;; *granted=false*) echo denied ;; *) echo granted ;; esac; fi; else echo unknown; fi`).join('\n')}
 hp_s=$(dumpsys package ${PACKAGE} 2>/dev/null) && case "$hp_s" in *"${SECURE_SETTINGS}: granted=true"*) echo granted ;; *) echo missing ;; esac || echo unknown
 echo "home:$(${HOME_QUERY})"
 echo "device:$(getprop ro.product.device)"
@@ -121,22 +127,22 @@ echo "device:$(getprop ro.product.device)"
 export function parsePermissionVerification(body, nonce, sdk, existing, packageId, launchComponent) {
   checkSdk(sdk); checkBuild(packageId, launchComponent);
   const lines = frame(body, nonce, 'PERMISSIONS_VERIFY');
-  if (lines.length !== 10 || lines[0] !== expectedServices(existing, packageId, launchComponent) || lines[1] !== '1' ||
+  if (lines.length !== 11 || lines[0] !== expectedServices(existing, packageId, launchComponent) || lines[1] !== '1' ||
       !/^WRITE_SETTINGS: allow(?:; [\x20-\x7e]{1,1024})?$/.test(lines[2]) ||
       !/^SYSTEM_ALERT_WINDOW: allow(?:; [\x20-\x7e]{1,1024})?$/.test(lines[3]) ||
       !/^REQUEST_INSTALL_PACKAGES: allow(?:; [\x20-\x7e]{1,1024})?$/.test(lines[4]) ||
       (sdk >= 33 ? !/^\s*android\.permission\.POST_NOTIFICATIONS: granted=true, flags=\[[ A-Z0-9_|]*\]\s*$/.test(lines[5])
         : lines[5] !== 'not_required') ||
-      !['granted', 'denied', 'unknown', 'unsupported'].includes(lines[6]) ||
-      !['granted', 'missing', 'unknown'].includes(lines[7]) ||
-      !lines[8].startsWith('home:') || !lines[9].startsWith('device:')) fail();
-  const device = lines[9].slice(7);
-  // HOME, the microphone and secure settings are reported, never a reason to
+      [lines[6], lines[7]].some(line => !['granted', 'denied', 'unknown', 'unsupported'].includes(line)) ||
+      !['granted', 'missing', 'unknown'].includes(lines[8]) ||
+      !lines[9].startsWith('home:') || !lines[10].startsWith('device:')) fail();
+  const device = lines[10].slice(7);
+  // HOME, the camera, the microphone and secure settings are reported, never a reason to
   // fail the install: the app runs without them (without secure settings the
   // screen dims instead of switching off) and the person can choose HOME on
   // the panel.
   return Object.freeze({permissionsVerified: true, notificationsRequired: sdk >= 33,
-    microphone: lines[6], secureSettings: lines[7],
-    home: homeComponentsFor(launchComponent).includes(lines[8].slice(5)),
+    camera: lines[6], microphone: lines[7], secureSettings: lines[8],
+    home: homeComponentsFor(launchComponent).includes(lines[9].slice(5)),
     device: /^[A-Za-z0-9_.-]{1,64}$/.test(device) ? device : null});
 }

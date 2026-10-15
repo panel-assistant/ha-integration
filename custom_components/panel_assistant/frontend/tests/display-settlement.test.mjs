@@ -84,7 +84,7 @@ async function fixture({shelly = true, pending = true, hold = false, density = 2
     if (step === 'PERMISSIONS_VERIFY') return frame([
       `com.other/.Reader:${accessibilityComponentFor(launchComponent)}`, '1', 'WRITE_SETTINGS: allow',
       'SYSTEM_ALERT_WINDOW: allow', 'REQUEST_INSTALL_PACKAGES: allow', 'not_required',
-      'granted', 'granted', `home:${homeComponentFor(launchComponent)}`, 'device:generic']);
+      'granted', 'granted', 'granted', `home:${homeComponentFor(launchComponent)}`, 'device:generic']);
     if (step === 'VENDOR') return frame(['device:other']);
     if (step === 'SETASIDE') return frame(['absent']);
     throw new Error(`unexpected command ${step}`);

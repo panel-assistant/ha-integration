@@ -176,6 +176,19 @@ EQUIVALENT_ACCESSIBILITY_COMPONENTS: Mapping[str, tuple[str, ...]] = MappingProx
 )
 
 
+#: The service class the successor's 0.9.10 in-place update removed, by the
+#: launcher that replaced it. Both installers drop it from the device-wide list;
+#: the old app's separate package may still be installed during handover and is
+#: left alone.
+OBSOLETE_ACCESSIBILITY_COMPONENTS: Mapping[str, tuple[str, ...]] = MappingProxyType(
+    {
+        _NEW_CLASSES_SUCCESSOR_LAUNCH: (
+            ACCESSIBILITY_COMPONENTS[_OLD_CLASSES_SUCCESSOR_LAUNCH],
+        ),
+    }
+)
+
+
 def counterpart_of(package_id: str) -> str:
     """Return the other accepted id: the package handed over to, or from."""
     if package_id == LEGACY_PACKAGE_ID:
