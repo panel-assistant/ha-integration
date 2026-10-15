@@ -648,14 +648,11 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
         "panel_link_shared",
         "restart_required",
     }
-    # Which binding issue is raised depends on whether the panel already has an
-    # account, so that call passes a variable and the scan above sees no literal.
-    # The tuple it chooses from is the whole set, and each one still needs words.
-    issues = keys["issues"] | set(transport_binding.BINDING_ISSUES)
+    # The binding issue is raised under a constant, which the scan above misses.
+    issues = keys["issues"] | {transport_binding.ISSUE_PANEL_USER_MISMATCH}
     # Which old-app Repair is raised depends on why its removal stopped.
     issues |= set(old_app.OLD_APP_ISSUES)
     assert "panel_user_mismatch" in issues
-    assert "panel_awaiting_confirmation" in issues
     for key in keys["exceptions"]:
         assert str(ENGLISH["exceptions"].get(key, {}).get("message", "")).strip(), key
     for key in issues:

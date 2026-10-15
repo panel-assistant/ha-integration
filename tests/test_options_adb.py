@@ -14,7 +14,7 @@ from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.client import PanelAddress, PanelHealth
-from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
+from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.install_network import PinnedPanelTarget
 from custom_components.panel_assistant.provisioning import (
     InstallTargetProbe,
@@ -23,9 +23,6 @@ from custom_components.panel_assistant.provisioning import (
 from custom_components.panel_assistant.repairs_failure import (
     adb_authorization_issue_id,
     panel_failure_issue_id,
-)
-from custom_components.panel_assistant.transport_binding import (
-    async_record_binding_request,
 )
 
 
@@ -430,48 +427,3 @@ async def test_failed_update_repair_can_authorize_without_clearing_failure(
     assert "authorize_adb" not in back["menu_options"]
     authorize.assert_awaited_with(hass, entry)
     assert authorize.await_count == 2
-
-
-async def test_onboarding_never_binds_an_account_deactivated_while_shown(
-    hass: HomeAssistant, hass_admin_user: Any
-) -> None:
-    """The onboarding confirmation applies the one usable-account rule."""
-    did = "a" * 64
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        title="alpha",
-        data={CONF_ADDRESS: "192.168.1.23"},
-        unique_id=did,
-    )
-    entry.add_to_hass(hass)
-    user = await hass.auth.async_create_user("Panel account")
-    async_record_binding_request(hass, did, user.id)
-    health = PanelHealth(
-        version="0.9.8",
-        panel_id="alpha",
-        build="1",
-        config_hash="0123abcd",
-        discovery_id=did,
-        protocol=(5, 5),
-    )
-    client = "custom_components.panel_assistant.config_flow.HaPaneldClient"
-    with (
-        patch(
-            "custom_components.panel_assistant.config_flow.async_offer_ha_url",
-            new_callable=AsyncMock,
-        ),
-        patch(f"{client}.async_get_setup_complete", AsyncMock(return_value=True)),
-        patch(f"{client}.async_get_health", AsyncMock(return_value=health)),
-    ):
-        opened = await hass.config_entries.options.async_init(
-            entry.entry_id, context={"source": "onboarding"}
-        )
-        await hass.config_entries.options.async_configure(opened["flow_id"], {})
-        menu = await hass.config_entries.options.async_configure(opened["flow_id"])
-        assert menu["description_placeholders"]["user"] == "Panel account"
-        await hass.auth.async_deactivate_user(user)
-        result = await hass.config_entries.options.async_configure(
-            opened["flow_id"], {"next_step_id": "onboarding_bind"}
-        )
-    assert result["type"] is not FlowResultType.CREATE_ENTRY
-    assert CONF_TRANSPORT_USER_ID not in entry.data

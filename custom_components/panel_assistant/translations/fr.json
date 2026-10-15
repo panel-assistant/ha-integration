@@ -66,14 +66,6 @@
         "title": "Confirmer le panneau détecté",
         "description": "Home Assistant a trouvé une installation Panel Assistant à {address}. Envoyez le formulaire pour vérifier qu’il s’agit toujours du même panneau et l’ajouter sous le nom {panel_name}. Aucun réglage du panneau ne sera modifié."
       },
-      "confirm_user": {
-        "title": "Confirmer le compte de ce panneau",
-        "description": "Le panneau {panel} est connecté à Home Assistant en tant que {user} et demande à se connecter. Confirmer ce compte est tout ce que ce panneau attend encore de vous : il termine ensuite son installation tout seul. Toute personne connectée à Home Assistant peut demander à se connecter comme panneau : ne confirmez donc que si {user} est le compte que vous avez configuré pour ce panneau. Si vous passez cette étape, le panneau est quand même ajouté, mais il reste déconnecté jusqu'à ce que vous confirmiez le compte dans Paramètres, puis Réparations.",
-        "menu_options": {
-          "bind_user": "Oui, connecter ce panneau",
-          "skip_binding": "Pas maintenant"
-        }
-      },
       "authorize_adb": {
         "title": "Autoriser Home Assistant sur le panneau",
         "description": "La version sélectionnée comprend un descripteur d'installation vérifié. Sélectionnez une fois Valider pour créer ou charger une identité ADB persistante pour cette installation de Home Assistant et transmettre sa clé publique au panneau Android à l'adresse {address}. Sur le panneau, acceptez l'invite Android Autoriser le débogage, puis revenez ici et sélectionnez de nouveau Valider. Android peut décrire Home Assistant comme un ordinateur. Cette autorisation accorde un accès général au shell ADB tant que le débogage réseau reste activé ; révoquez-la dans les paramètres pour les développeurs du panneau. Aucun APK n'est téléchargé ni installé à cette étape."
@@ -713,25 +705,6 @@
       },
     "panel_user_mismatch": {
       "title": "Confirmer l'utilisateur Home Assistant de {panel}",
-      "fix_flow": {
-        "step": {
-          "confirm_bind": {
-            "title": "Confirmer l'utilisateur du panneau",
-            "description": "Le panneau {panel} demande à se connecter à Home Assistant en tant qu'utilisateur {user}. Ne confirmez que si {user} est le compte que vous avez configuré pour ce panneau. Après confirmation, le panneau devrait se connecter peu après. Toute personne connectée à Home Assistant peut demander à se connecter comme panneau : si vous ne reconnaissez pas cette demande, fermez cette boîte de dialogue et ignorez le problème."
-          },
-          "confirm_rebind": {
-            "title": "Changer l'utilisateur du panneau",
-            "description": "Le panneau {panel} est confirmé pour l'utilisateur {bound_user}, mais l'utilisateur {user} demande à se connecter en tant que ce panneau. Ne confirmez que si vous avez remplacé le compte de ce panneau par {user} : le panneau n'acceptera plus {bound_user} et devrait se connecter peu après. Sinon, quelqu'un d'autre essaie peut-être de prendre le contrôle du panneau : fermez cette boîte de dialogue et ignorez le problème."
-          }
-        },
-        "abort": {
-          "entry_removed": "Ce panneau n'est plus configuré dans Home Assistant.",
-          "user_unavailable": "L'utilisateur qui a demandé à se connecter n'existe plus ou est désactivé. Rien n'a été modifié."
-        }
-      }
-    },
-    "panel_awaiting_confirmation": {
-      "title": "Terminer la connexion de {panel}",
       "fix_flow": {
         "step": {
           "confirm_bind": {
@@ -1447,19 +1420,11 @@
       },
       "onboarding": {
         "title": "Terminer la configuration de ce panneau",
-        "description": "Ouvrez la page de configuration du panneau dans un navigateur qui peut accéder au panneau sur votre réseau local. Connectez-vous avec le compte Home Assistant actuellement utilisé dans ce navigateur, choisissez le tableau de bord d’accueil et terminez la configuration sur cette page. Gardez cette boîte de dialogue ouverte ; elle reviendra ici pour vous permettre de confirmer le compte. Si ce navigateur ne peut pas accéder au panneau, terminez la configuration plus tard depuis le réseau local du panneau. Si une autorisation pour le débogage Android est demandée, une personne doit toujours l’accorder sur le panneau."
+        "description": "Ouvrez la page de configuration du panneau dans un navigateur qui peut accéder au panneau sur votre réseau local. Connectez-vous avec le compte Home Assistant actuellement utilisé dans ce navigateur, choisissez le tableau de bord d’accueil et terminez la configuration sur cette page. Gardez cette boîte de dialogue ouverte ; elle se fermera d’elle-même une fois le panneau connecté. Si ce navigateur ne peut pas accéder au panneau, terminez la configuration plus tard depuis le réseau local du panneau. Si une autorisation pour le débogage Android est demandée, une personne doit toujours l’accorder sur le panneau."
       },
       "onboarding_wait": {
         "title": "En attente de la connexion du panneau",
-        "description": "Le panneau n’a pas encore terminé sa configuration ni demandé à se connecter avec un compte. Terminez la configuration sur sa page, puis cliquez sur Envoyer ici pour vérifier à nouveau. Le panneau reste non associé tant que vous n’avez pas confirmé son compte."
-      },
-      "onboarding_confirm": {
-        "title": "Confirmer le compte de ce panneau",
-        "description": "{panel} s’est connecté en tant que {user} et a demandé à se connecter. Confirmez uniquement s’il s’agit du compte que vous avez choisi pour ce panneau. Si vous passez cette étape, il restera non associé ; vous pourrez confirmer plus tard dans Réparations.",
-        "menu_options": {
-          "onboarding_bind": "Oui, connecter ce panneau",
-          "onboarding_skip": "Pas maintenant"
-        }
+        "description": "Le panneau n’a pas encore terminé sa configuration ni demandé à se connecter avec un compte. Terminez la configuration sur sa page, puis cliquez sur Envoyer ici pour vérifier à nouveau."
       },
       "authorize_adb": {
         "title": "Autoriser les mises à jour sur {panel}",
