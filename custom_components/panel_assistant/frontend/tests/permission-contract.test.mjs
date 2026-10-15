@@ -52,7 +52,9 @@ test('readback requires every grant and exact preservation; no generic completio
     verified().replace('\n      android.', '\nextra\n      android.'), verified().replace(/:0\n$/, ':1\n'),
     verified().replace('\ngranted\n', '\nmaybe\n'), verified().replace('\nhome:', '\nhome '),
     verified().replace('\ndevice:generic', ''), verified().replace('\ngranted\nhome:', '\nmaybe\nhome:'),
-    verified().replace('\ngranted\nhome:', '\nhome:')]) {
+    verified().replace('\ngranted\nhome:', '\nhome:'),
+    verified().replace('\ngranted\ngranted\ngranted\n', '\ngranted\nmaybe\ngranted\n'),
+    verified().replace('\ndevice:generic', '\ndevice:generic\nextra')]) {
     assert.throws(() => parsePermissionVerification(invalid, nonce, 33, other, LEGACY_PACKAGE_ID, launch(LEGACY_PACKAGE_ID)));
   }
   assert.throws(() => parsePermissionVerification(verified(), nonce, 101, other, LEGACY_PACKAGE_ID, launch(LEGACY_PACKAGE_ID)));

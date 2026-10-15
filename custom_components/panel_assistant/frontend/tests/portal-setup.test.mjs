@@ -31,7 +31,8 @@ appops() {
 pm() {
   if [ "$1" = path ]; then [ ! -f "$STATE/package.$2" ] || echo "package:/system/app/$2.apk"
   elif [ "$1" = list ]; then echo reqGlEsVersion=0x30002; [ ! -f "$STATE/microphone" ] || echo feature:android.hardware.microphone
-    [ ! -f "$STATE/camera" ] || echo feature:android.hardware.camera.any
+    [ ! -f "$STATE/camera" ] || echo "feature:android.hardware.camera.any$(cat "$STATE/camera")"
+    [ ! -f "$STATE/features.fail" ] || return 1
   elif [ "$1" = grant ]; then echo "pm $*" >> "$STATE/calls"; echo true > "$STATE/permission.$3"; fi
 }
 dumpsys() {
@@ -68,7 +69,8 @@ function panel({portal = false, shelly = false, microphone = true, camera = fals
   launchComponent = LEGACY_LAUNCH_COMPONENT} = {}) {
   const state = mkdtempSync(join(tmpdir(), 'portal-setup-'));
   if (microphone) writeFileSync(join(state, 'microphone'), '');
-  if (camera) writeFileSync(join(state, 'camera'), '');
+  // A version suffix, as `pm list features` prints some features.
+  if (camera) writeFileSync(join(state, 'camera'), camera === 'valued' ? '=1' : '');
   if (shelly) {
     writeFileSync(join(state, 'prop.ro.product.device'), 'Jenna\n');
     writeFileSync(join(state, `package.${SHELLY_LAUNCHER}`), '');
@@ -171,6 +173,28 @@ test('a panel with a camera is granted it, as a network install grants it; one w
   } finally { none.cleanup(); }
 });
 
+test('a camera listed with a version and no microphone gets the camera alone', async () => {
+  const p = panel({camera: 'valued', microphone: false});
+  try {
+    const result = await p.commission();
+    assert.equal(result.camera, 'granted');
+    assert.equal(result.microphone, 'unsupported');
+    assert.ok(!p.calls().some(call => call.includes('RECORD_AUDIO')));
+  } finally { p.cleanup(); }
+});
+
+test('a feature list Android fails to give grants neither permission and reads unknown, as the network install does', async () => {
+  const p = panel({camera: true});
+  writeFileSync(join(p.state, 'features.fail'), '');
+  try {
+    const result = await p.commission();
+    assert.equal(result.permissionsVerified, true);
+    assert.equal(result.camera, 'unknown');
+    assert.equal(result.microphone, 'unknown');
+    assert.ok(!p.calls().some(call => /CAMERA|RECORD_AUDIO/.test(call)), p.calls().join('\n'));
+  } finally { p.cleanup(); }
+});
+
 test('a new-classes build replaces the successor service its own update retired, keeping other apps\' services', async () => {
   const [retiredLaunch, launchComponent] = LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID];
   const other = 'com.example.reader/.ReaderService';
@@ -182,6 +206,14 @@ test('a new-classes build replaces the successor service its own update retired,
     assert.equal(result.permissionsVerified, true);
     assert.equal(p.read('enabled_accessibility_services'), `${other}:${ACCESSIBILITY_COMPONENTS[launchComponent]}`);
   } finally { p.cleanup(); }
+  // Listed beside the current service, the retired one still goes.
+  const both = panel({launchComponent});
+  writeFileSync(join(both.state, 'enabled_accessibility_services'),
+    `${other}:${ACCESSIBILITY_COMPONENTS[retiredLaunch]}:${ACCESSIBILITY_COMPONENTS[launchComponent]}\n`);
+  try {
+    await both.commission();
+    assert.equal(both.read('enabled_accessibility_services'), `${other}:${ACCESSIBILITY_COMPONENTS[launchComponent]}`);
+  } finally { both.cleanup(); }
 });
 
 test('a Portal gets Meta setup read back and recorded, and a retry changes nothing more', async () => {
