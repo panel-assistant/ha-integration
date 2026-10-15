@@ -23,10 +23,16 @@ from custom_components.panel_assistant.const import DOMAIN
 
 from . import voice_grammar
 from .test_native import DESCRIPTORS, _setup
+from .test_repository import TRANSLATED_LANGUAGES
 from .test_transport import WsClientFactory
 from .test_transport_commands import Panel, _connect, _entity_id
 
 LANGUAGES = voice_grammar.grammar_languages()
+
+
+def test_every_shipped_language_has_a_grammar() -> None:
+    """A missing locale fails here rather than leaving its checks uncollected."""
+    assert set(LANGUAGES) == {"en", *TRANSLATED_LANGUAGES}
 
 
 @pytest.mark.parametrize("builtin_language", LANGUAGES)
