@@ -67,7 +67,7 @@
     "connectBody": "Připojte panel k tomuto počítači kabelem USB a pak stiskněte Najít můj panel.",
     "connect": "Najít můj panel",
     "allowHeading": "Povolit tento počítač",
-    "allowBody": "Podívejte se na obrazovku panelu a klepněte na Povolit.",
+    "allowBody": "Na panelu zaškrtněte „Vždy povolit z tohoto počítače“ a klepněte na Povolit, aby ho Panel Assistant mohl později aktualizovat bez kabelu.",
     "checkingPanel": "Kontrola panelu…",
     "confirmHeading": "Připraveno k instalaci",
     "confirmBody": "Tímto nainstalujete aplikaci a nastavíte ji jako domovskou obrazovku panelu. Vašich ostatních aplikací se to nedotkne.",
@@ -143,6 +143,7 @@
     "setupAddress": "Adresa nastavení",
     "setupHandover": "Předání nastavení",
     "displaySizing": "Velikost zobrazení a textu",
+    "networkAdb": "ADB přes síť",
     "copiedDetail": "Odesláno {bytes} bajtů; čeká se na potvrzení panelu",
     "none": "žádné",
     "setupMissing": "nenalezeno; nastavení pokračuje na panelu"

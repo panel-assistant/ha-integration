@@ -67,7 +67,7 @@
     "connectBody": "Plug the panel into this computer with a USB cable, then press Find my panel.",
     "connect": "Find my panel",
     "allowHeading": "Allow this computer",
-    "allowBody": "Look at the panel’s screen and tap Allow.",
+    "allowBody": "On the panel, tick “Always allow from this computer” and tap Allow, so Panel Assistant can update it later without the cable.",
     "checkingPanel": "Checking your panel…",
     "confirmHeading": "Ready to install",
     "confirmBody": "This installs the app and makes it your panel’s home screen. Your other apps are not touched.",
@@ -143,6 +143,7 @@
     "setupAddress": "Setup address",
     "setupHandover": "Setup handover",
     "displaySizing": "Display and text size",
+    "networkAdb": "Network ADB",
     "copiedDetail": "{bytes} bytes sent; waiting for the panel to confirm",
     "none": "none",
     "setupMissing": "not found; setup continues on the panel"

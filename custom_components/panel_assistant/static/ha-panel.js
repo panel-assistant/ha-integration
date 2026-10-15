@@ -70,7 +70,7 @@ var e = Object.freeze({
 			connectBody: "Plug the panel into this computer with a USB cable, then press Find my panel.",
 			connect: "Find my panel",
 			allowHeading: "Allow this computer",
-			allowBody: "Look at the panel’s screen and tap Allow.",
+			allowBody: "On the panel, tick “Always allow from this computer” and tap Allow, so Panel Assistant can update it later without the cable.",
 			checkingPanel: "Checking your panel…",
 			confirmHeading: "Ready to install",
 			confirmBody: "This installs the app and makes it your panel’s home screen. Your other apps are not touched.",
@@ -146,6 +146,7 @@ var e = Object.freeze({
 			setupAddress: "Setup address",
 			setupHandover: "Setup handover",
 			displaySizing: "Display and text size",
+			networkAdb: "Network ADB",
 			copiedDetail: "{bytes} bytes sent; waiting for the panel to confirm",
 			none: "none",
 			setupMissing: "not found; setup continues on the panel"
@@ -220,7 +221,7 @@ var e = Object.freeze({
 			connectBody: "Připojte panel k tomuto počítači kabelem USB a pak stiskněte Najít můj panel.",
 			connect: "Najít můj panel",
 			allowHeading: "Povolit tento počítač",
-			allowBody: "Podívejte se na obrazovku panelu a klepněte na Povolit.",
+			allowBody: "Na panelu zaškrtněte „Vždy povolit z tohoto počítače“ a klepněte na Povolit, aby ho Panel Assistant mohl později aktualizovat bez kabelu.",
 			checkingPanel: "Kontrola panelu…",
 			confirmHeading: "Připraveno k instalaci",
 			confirmBody: "Tímto nainstalujete aplikaci a nastavíte ji jako domovskou obrazovku panelu. Vašich ostatních aplikací se to nedotkne.",
@@ -296,6 +297,7 @@ var e = Object.freeze({
 			setupAddress: "Adresa nastavení",
 			setupHandover: "Předání nastavení",
 			displaySizing: "Velikost zobrazení a textu",
+			networkAdb: "ADB přes síť",
 			copiedDetail: "Odesláno {bytes} bajtů; čeká se na potvrzení panelu",
 			none: "žádné",
 			setupMissing: "nenalezeno; nastavení pokračuje na panelu"
@@ -370,7 +372,7 @@ var e = Object.freeze({
 			connectBody: "Verbinde das Panel über ein USB-Kabel mit diesem Computer und drücke dann „Mein Panel finden“.",
 			connect: "Mein Panel finden",
 			allowHeading: "Diesen Computer zulassen",
-			allowBody: "Schau auf den Bildschirm des Panels und tippe auf „Zulassen“.",
+			allowBody: "Setze auf dem Panel das Häkchen bei „Von diesem Computer immer zulassen“ und tippe auf „Zulassen“, damit Panel Assistant es später ohne Kabel aktualisieren kann.",
 			checkingPanel: "Dein Panel wird geprüft…",
 			confirmHeading: "Bereit zur Installation",
 			confirmBody: "Die App wird installiert und als Startbildschirm deines Panels eingerichtet. Deine anderen Apps bleiben unberührt.",
@@ -446,6 +448,7 @@ var e = Object.freeze({
 			setupAddress: "Einrichtungsadresse",
 			setupHandover: "Übergabe an die Einrichtung",
 			displaySizing: "Anzeige- und Textgröße",
+			networkAdb: "ADB über das Netzwerk",
 			copiedDetail: "{bytes} Bytes gesendet; Bestätigung des Panels ausstehend",
 			none: "keine",
 			setupMissing: "nicht gefunden; Einrichtung wird auf dem Panel fortgesetzt"
@@ -520,7 +523,7 @@ var e = Object.freeze({
 			connectBody: "Conecta el panel a este ordenador con un cable USB y pulsa Buscar mi panel.",
 			connect: "Buscar mi panel",
 			allowHeading: "Autoriza este ordenador",
-			allowBody: "Mira la pantalla del panel y toca Permitir.",
+			allowBody: "En el panel, marca «Permitir siempre desde este ordenador» y toca Permitir, para que Panel Assistant pueda actualizarlo más adelante sin el cable.",
 			checkingPanel: "Comprobando tu panel…",
 			confirmHeading: "Listo para instalar",
 			confirmBody: "Esto instala la aplicación y la convierte en la pantalla de inicio de tu panel. Las demás aplicaciones no se modifican.",
@@ -596,6 +599,7 @@ var e = Object.freeze({
 			setupAddress: "Dirección de configuración",
 			setupHandover: "Transferencia a la configuración",
 			displaySizing: "Tamaño de pantalla y texto",
+			networkAdb: "ADB por red",
 			copiedDetail: "{bytes} bytes enviados; esperando la confirmación del panel",
 			none: "ninguno",
 			setupMissing: "no encontrada; la configuración continúa en el panel"
@@ -670,7 +674,7 @@ var e = Object.freeze({
 			connectBody: "Branchez le panneau à cet ordinateur avec un câble USB, puis appuyez sur « Trouver mon panneau ».",
 			connect: "Trouver mon panneau",
 			allowHeading: "Autoriser cet ordinateur",
-			allowBody: "Regardez l’écran du panneau et appuyez sur « Autoriser ».",
+			allowBody: "Sur le panneau, cochez « Toujours autoriser cet ordinateur » et appuyez sur « Autoriser », pour que Panel Assistant puisse le mettre à jour plus tard sans le câble.",
 			checkingPanel: "Vérification de votre panneau…",
 			confirmHeading: "Prêt à installer",
 			confirmBody: "L’application sera installée et deviendra l’écran d’accueil de votre panneau. Vos autres applications ne seront pas modifiées.",
@@ -746,6 +750,7 @@ var e = Object.freeze({
 			setupAddress: "Adresse de configuration",
 			setupHandover: "Passage à la configuration",
 			displaySizing: "Taille d’affichage et du texte",
+			networkAdb: "ADB réseau",
 			copiedDetail: "{bytes} octets envoyés ; en attente de confirmation du panneau",
 			none: "aucun",
 			setupMissing: "introuvable ; la configuration continue sur le panneau"
@@ -820,7 +825,7 @@ var e = Object.freeze({
 			connectBody: "Collega il pannello a questo computer con un cavo USB, poi premi Trova il mio pannello.",
 			connect: "Trova il mio pannello",
 			allowHeading: "Autorizza questo computer",
-			allowBody: "Guarda lo schermo del pannello e tocca Consenti.",
+			allowBody: "Sul pannello, seleziona «Consenti sempre da questo computer» e tocca Consenti, così Panel Assistant potrà aggiornarlo in seguito senza il cavo.",
 			checkingPanel: "Verifica del pannello…",
 			confirmHeading: "Pronto per l’installazione",
 			confirmBody: "Questa operazione installa l’app e la imposta come schermata iniziale del pannello. Le altre app non vengono modificate.",
@@ -896,6 +901,7 @@ var e = Object.freeze({
 			setupAddress: "Indirizzo di configurazione",
 			setupHandover: "Passaggio alla configurazione",
 			displaySizing: "Dimensioni di visualizzazione e del testo",
+			networkAdb: "ADB di rete",
 			copiedDetail: "{bytes} byte inviati; in attesa della conferma del pannello",
 			none: "nessuno",
 			setupMissing: "non trovato; la configurazione prosegue sul pannello"
@@ -970,7 +976,7 @@ var e = Object.freeze({
 			connectBody: "Sluit het paneel met een USB-kabel aan op deze computer en druk op Mijn paneel zoeken.",
 			connect: "Mijn paneel zoeken",
 			allowHeading: "Deze computer toestaan",
-			allowBody: "Kijk op het scherm van het paneel en tik op Toestaan.",
+			allowBody: "Vink op het paneel ‘Altijd toestaan vanaf deze computer’ aan en tik op Toestaan, zodat Panel Assistant het later zonder kabel kan bijwerken.",
 			checkingPanel: "Je paneel controleren…",
 			confirmHeading: "Klaar om te installeren",
 			confirmBody: "Hiermee installeer je de app en maak je die het startscherm van je paneel. Je andere apps worden niet aangeraakt.",
@@ -1046,6 +1052,7 @@ var e = Object.freeze({
 			setupAddress: "Configuratieadres",
 			setupHandover: "Configuratieoverdracht",
 			displaySizing: "Weergave- en tekstgrootte",
+			networkAdb: "ADB via netwerk",
 			copiedDetail: "{bytes} bytes verstuurd; wachten op bevestiging van het paneel",
 			none: "geen",
 			setupMissing: "niet gevonden; instellen gaat verder op het paneel"
@@ -1120,7 +1127,7 @@ var e = Object.freeze({
 			connectBody: "Podłącz panel do tego komputera kablem USB, a potem naciśnij Znajdź mój panel.",
 			connect: "Znajdź mój panel",
 			allowHeading: "Zezwól temu komputerowi",
-			allowBody: "Spójrz na ekran panelu i dotknij Zezwól.",
+			allowBody: "Na panelu zaznacz „Zawsze zezwalaj z tego komputera” i dotknij Zezwól, aby Panel Assistant mógł go później aktualizować bez kabla.",
 			checkingPanel: "Sprawdzanie panelu…",
 			confirmHeading: "Gotowe do instalacji",
 			confirmBody: "To zainstaluje aplikację i ustawi ją jako ekran główny panelu. Pozostałe aplikacje pozostaną nietknięte.",
@@ -1196,6 +1203,7 @@ var e = Object.freeze({
 			setupAddress: "Adres konfiguracji",
 			setupHandover: "Przekazanie konfiguracji",
 			displaySizing: "Rozmiar wyświetlania i tekstu",
+			networkAdb: "ADB przez sieć",
 			copiedDetail: "Wysłano {bytes} bajtów; oczekiwanie na potwierdzenie panelu",
 			none: "brak",
 			setupMissing: "nie znaleziono; konfiguracja trwa dalej na panelu"
@@ -1270,7 +1278,7 @@ var e = Object.freeze({
 			connectBody: "Conecte o painel a este computador com um cabo USB e pressione Encontrar meu painel.",
 			connect: "Encontrar meu painel",
 			allowHeading: "Permita este computador",
-			allowBody: "Olhe a tela do painel e toque em Permitir.",
+			allowBody: "No painel, marque “Sempre permitir a partir deste computador” e toque em Permitir, para que o Panel Assistant possa atualizá-lo depois sem o cabo.",
 			checkingPanel: "Verificando seu painel…",
 			confirmHeading: "Pronto para instalar",
 			confirmBody: "Isso instala o aplicativo e o torna a tela inicial do seu painel. Seus outros aplicativos não são alterados.",
@@ -1346,6 +1354,7 @@ var e = Object.freeze({
 			setupAddress: "Endereço de configuração",
 			setupHandover: "Transferência da configuração",
 			displaySizing: "Escala de exibição e tamanho do texto",
+			networkAdb: "ADB pela rede",
 			copiedDetail: "{bytes} bytes enviados; aguardando a confirmação do painel",
 			none: "nenhum",
 			setupMissing: "não encontrado; a configuração continua no painel"
@@ -1420,7 +1429,7 @@ var e = Object.freeze({
 			connectBody: "Під’єднайте панель до цього комп’ютера кабелем USB, а потім натисніть «Знайти мою панель».",
 			connect: "Знайти мою панель",
 			allowHeading: "Дозволити цей комп’ютер",
-			allowBody: "Подивіться на екран панелі та торкніться «Дозволити».",
+			allowBody: "На панелі позначте «Завжди дозволяти з цього комп’ютера» й торкніться «Дозволити», щоб Panel Assistant міг пізніше оновлювати її без кабелю.",
 			checkingPanel: "Перевірка панелі…",
 			confirmHeading: "Готово до встановлення",
 			confirmBody: "Це встановить програму й зробить її головним екраном панелі. Інші ваші програми не зачіпатимуться.",
@@ -1496,6 +1505,7 @@ var e = Object.freeze({
 			setupAddress: "Адреса налаштування",
 			setupHandover: "Передача до налаштування",
 			displaySizing: "Розмір відображення й тексту",
+			networkAdb: "ADB через мережу",
 			copiedDetail: "Надіслано {bytes} байт; очікується підтвердження від панелі",
 			none: "Немає",
 			setupMissing: "Не знайдено; налаштування триває на панелі"
@@ -1570,7 +1580,7 @@ var e = Object.freeze({
 			connectBody: "用 USB 数据线将面板连接到此电脑，然后点击“查找我的面板”。",
 			connect: "查找我的面板",
 			allowHeading: "允许此电脑连接",
-			allowBody: "请查看面板屏幕并点击“允许”。",
+			allowBody: "请在面板上勾选“始终允许使用这台计算机进行调试”并点击“允许”，这样 Panel Assistant 以后无需数据线也能更新面板。",
 			checkingPanel: "正在检查您的面板…",
 			confirmHeading: "可以开始安装",
 			confirmBody: "这会安装应用，并将其设为面板的主屏幕。您的其他应用不会受到影响。",
@@ -1646,6 +1656,7 @@ var e = Object.freeze({
 			setupAddress: "设置地址",
 			setupHandover: "设置交接",
 			displaySizing: "显示和文字大小",
+			networkAdb: "网络 ADB",
 			copiedDetail: "已发送 {bytes} 字节；正在等待面板确认",
 			none: "无",
 			setupMissing: "未找到；设置将在面板上继续"
@@ -1756,12 +1767,12 @@ function k() {
 		return null;
 	}
 }
-function te(e) {
+function A(e) {
 	try {
 		localStorage.setItem(y, e);
 	} catch {}
 }
-var ne = class extends HTMLElement {
+var te = class extends HTMLElement {
 	get #e() {
 		return i("sidebar", this.#t?.language);
 	}
@@ -2005,7 +2016,7 @@ var ne = class extends HTMLElement {
 		}
 	}
 	#C(e) {
-		this.#o?.some((t) => t.entry_id === e) && e !== this.#u && (this.#u = e, te(e), this.#O(), this.#w());
+		this.#o?.some((t) => t.entry_id === e) && e !== this.#u && (this.#u = e, A(e), this.#O(), this.#w());
 	}
 	#w() {
 		let e = this.#o?.find((e) => e.entry_id === this.#u), t = this.#d;
@@ -2119,10 +2130,10 @@ var ne = class extends HTMLElement {
 		y.hidden = !l, h && (y.textContent = l ? D(l.title, t) : ""), p.hidden = !p.getAttribute("src");
 	}
 };
-customElements.get("panel-assistant-sidebar") || customElements.define("panel-assistant-sidebar", ne);
+customElements.get("panel-assistant-sidebar") || customElements.define("panel-assistant-sidebar", te);
 //#endregion
 //#region src/display-provisioning.mjs
-function re(e) {
+function ne(e) {
 	if (typeof e != "object" || !e) return null;
 	let { density: t, font_scale: n } = e;
 	return !(t === null || Number.isInteger(t) && t >= 80 && t <= 640) || !(n === null || typeof n == "number" && n >= .5 && n <= 1.5) || t === null && n === null ? null : Object.freeze({
@@ -2132,38 +2143,38 @@ function re(e) {
 }
 //#endregion
 //#region src/app-identity.mjs
-var A = "io.github.maxlyth.hapaneld", j = "io.panelassistant.android";
-Object.freeze(["io.panelassistant.android.install.v1", "io.github.maxlyth.hapaneld.install.v1"]), Object.freeze(["io.panelassistant.android.buildfeed.v1", "io.github.maxlyth.hapaneld.buildfeed.v1"]), Object.freeze([A, j]);
-var M = "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity", N = "io.panelassistant.android/io.panelassistant.android.MainActivity", P = Object.freeze({
-	[A]: Object.freeze(["io.github.maxlyth.hapaneld/.MainActivity"]),
-	[j]: Object.freeze([M, N])
-})[A][0];
+var j = "io.github.maxlyth.hapaneld", M = "io.panelassistant.android";
+Object.freeze(["io.panelassistant.android.install.v1", "io.github.maxlyth.hapaneld.install.v1"]), Object.freeze(["io.panelassistant.android.buildfeed.v1", "io.github.maxlyth.hapaneld.buildfeed.v1"]), Object.freeze([j, M]);
+var N = "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity", P = "io.panelassistant.android/io.panelassistant.android.MainActivity", F = Object.freeze({
+	[j]: Object.freeze(["io.github.maxlyth.hapaneld/.MainActivity"]),
+	[M]: Object.freeze([N, P])
+})[j][0];
 Object.freeze({
-	[P]: "io.github.maxlyth.hapaneld/.DashboardActivity",
-	[M]: "io.panelassistant.android/io.github.maxlyth.hapaneld.DashboardActivity",
-	[N]: "io.panelassistant.android/io.panelassistant.android.DashboardActivity"
+	[F]: "io.github.maxlyth.hapaneld/.DashboardActivity",
+	[N]: "io.panelassistant.android/io.github.maxlyth.hapaneld.DashboardActivity",
+	[P]: "io.panelassistant.android/io.panelassistant.android.DashboardActivity"
 }), Object.freeze({
-	[P]: Object.freeze(["io.github.maxlyth.hapaneld/.DashboardActivity", "io.github.maxlyth.hapaneld/io.github.maxlyth.hapaneld.DashboardActivity"]),
-	[M]: Object.freeze(["io.panelassistant.android/io.github.maxlyth.hapaneld.DashboardActivity"]),
-	[N]: Object.freeze(["io.panelassistant.android/.DashboardActivity", "io.panelassistant.android/io.panelassistant.android.DashboardActivity"])
+	[F]: Object.freeze(["io.github.maxlyth.hapaneld/.DashboardActivity", "io.github.maxlyth.hapaneld/io.github.maxlyth.hapaneld.DashboardActivity"]),
+	[N]: Object.freeze(["io.panelassistant.android/io.github.maxlyth.hapaneld.DashboardActivity"]),
+	[P]: Object.freeze(["io.panelassistant.android/.DashboardActivity", "io.panelassistant.android/io.panelassistant.android.DashboardActivity"])
 });
-var ie = Object.freeze({
-	[P]: "io.github.maxlyth.hapaneld/.input.PanelAccessibilityService",
-	[M]: "io.panelassistant.android/io.github.maxlyth.hapaneld.input.PanelAccessibilityService",
-	[N]: "io.panelassistant.android/io.panelassistant.android.input.PanelAccessibilityService"
+var re = Object.freeze({
+	[F]: "io.github.maxlyth.hapaneld/.input.PanelAccessibilityService",
+	[N]: "io.panelassistant.android/io.github.maxlyth.hapaneld.input.PanelAccessibilityService",
+	[P]: "io.panelassistant.android/io.panelassistant.android.input.PanelAccessibilityService"
 });
 Object.freeze({
-	[P]: Object.freeze(["io.github.maxlyth.hapaneld/.input.PanelAccessibilityService", "io.github.maxlyth.hapaneld/io.github.maxlyth.hapaneld.input.PanelAccessibilityService"]),
-	[M]: Object.freeze(["io.panelassistant.android/io.github.maxlyth.hapaneld.input.PanelAccessibilityService"]),
-	[N]: Object.freeze(["io.panelassistant.android/.input.PanelAccessibilityService", "io.panelassistant.android/io.panelassistant.android.input.PanelAccessibilityService"])
-}), Object.freeze({ [N]: Object.freeze([ie[M]]) });
-var ae = 262144, oe = 2147483647, se = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/, ce = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-(?:rc|preview)[1-9][0-9]*$/, F = /^build-([1-9][0-9]{0,9})(-successor)?$/, I = (e, t) => typeof t == "string" && t.length <= 64 && e.exec(t)?.[0] === t, L = (e) => I(se, e), R = (e) => I(ce, e), z = (e) => L(e) || R(e);
-function le(e) {
-	if (!I(F, e)) return null;
-	let t = Number(F.exec(e)[1]);
-	return t <= oe ? t : null;
+	[F]: Object.freeze(["io.github.maxlyth.hapaneld/.input.PanelAccessibilityService", "io.github.maxlyth.hapaneld/io.github.maxlyth.hapaneld.input.PanelAccessibilityService"]),
+	[N]: Object.freeze(["io.panelassistant.android/io.github.maxlyth.hapaneld.input.PanelAccessibilityService"]),
+	[P]: Object.freeze(["io.panelassistant.android/.input.PanelAccessibilityService", "io.panelassistant.android/io.panelassistant.android.input.PanelAccessibilityService"])
+}), Object.freeze({ [P]: Object.freeze([re[N]]) });
+var ie = 262144, ae = 2147483647, oe = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/, se = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-(?:rc|preview)[1-9][0-9]*$/, I = /^build-([1-9][0-9]{0,9})(-successor)?$/, L = (e, t) => typeof t == "string" && t.length <= 64 && e.exec(t)?.[0] === t, R = (e) => L(oe, e), z = (e) => L(se, e), B = (e) => R(e) || z(e);
+function ce(e) {
+	if (!L(I, e)) return null;
+	let t = Number(I.exec(e)[1]);
+	return t <= ae ? t : null;
 }
-var B = (e) => le(e) !== null, ue = (e) => Array.from(new Uint8Array(e), (e) => e.toString(16).padStart(2, "0")).join(""), de = (e = crypto) => ue(e.getRandomValues(/* @__PURE__ */ new Uint8Array(16))), V = (e, t) => typeof t == "string" && e.exec(t)?.[0] === t, H = (e, t) => typeof e == "object" && !!e && !Array.isArray(e) && Object.keys(e).length === t.length && t.every((t) => Object.hasOwn(e, t)), U = "/api/panel_assistant/usb/release", fe = "/api/panel_assistant/usb/handover", pe = 35e3, me = /(?:[0-9]{1,3}\.){3}[0-9]{1,3}/, he = /[a-z_]{1,48}/, W = 67108864, ge = 18e5, G = [
+var V = (e) => ce(e) !== null, le = (e) => Array.from(new Uint8Array(e), (e) => e.toString(16).padStart(2, "0")).join(""), ue = (e = crypto) => le(e.getRandomValues(/* @__PURE__ */ new Uint8Array(16))), H = (e, t) => typeof t == "string" && e.exec(t)?.[0] === t, U = (e, t) => typeof e == "object" && !!e && !Array.isArray(e) && Object.keys(e).length === t.length && t.every((t) => Object.hasOwn(e, t)), W = "/api/panel_assistant/usb/release", de = "/api/panel_assistant/usb/handover", fe = "/api/panel_assistant/usb/adb_key", pe = 35e3, me = /(?:[0-9]{1,3}\.){3}[0-9]{1,3}/, he = /[a-z_]{1,48}/, G = 67108864, ge = 18e5, K = [
 	"id",
 	"tag",
 	"checksum",
@@ -2172,14 +2183,14 @@ var B = (e) => le(e) !== null, ue = (e) => Array.from(new Uint8Array(e), (e) => 
 	"descriptor_signature",
 	"apk_size",
 	"apk_sha256"
-], K = [
+], q = [
 	"id",
 	"tag",
 	"feed",
 	"feed_signature",
 	"apk_size",
 	"apk_sha256"
-], q = 8192, J = Math.ceil(ae / 3) * 4 + q, Y = class extends Error {
+], J = 8192, _e = Math.ceil(ie / 3) * 4 + J, Y = class extends Error {
 	constructor(e) {
 		super(e), this.name = "HandoffError", this.code = e;
 	}
@@ -2188,7 +2199,7 @@ function X(e, t = "invalid_response") {
 	if (!e) throw new Y(t);
 }
 function Z(e, t, n = !1) {
-	X(typeof e == "string" && e.length <= Math.ceil(t / 3) * 4 && V(/(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?/, e));
+	X(typeof e == "string" && e.length <= Math.ceil(t / 3) * 4 && H(/(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?/, e));
 	let r = atob(e);
 	return X(btoa(r) === e && r.length > 0 && (n ? r.length === t : r.length <= t)), Uint8Array.from(r, (e) => e.charCodeAt(0));
 }
@@ -2196,7 +2207,7 @@ async function Q(e, t, n, r = null) {
 	X(e.status === 200 && !e.redirected && e.body);
 	let i = e.headers.get("content-length");
 	if (i !== null) {
-		X(V(/0|[1-9][0-9]*/, i));
+		X(H(/0|[1-9][0-9]*/, i));
 		let e = Number(i);
 		X(Number.isSafeInteger(e) && e <= t && (r === null || e === r));
 	}
@@ -2217,11 +2228,11 @@ async function Q(e, t, n, r = null) {
 		n.removeEventListener("abort", o), o(), a.releaseLock();
 	}
 }
-function _e(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () => {}, windowObject: o = window, timeoutMs: s = 3e5 } = {}) {
+function ve(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () => {}, windowObject: o = window, timeoutMs: s = 3e5 } = {}) {
 	let c, l, u = new Promise((e, t) => {
 		c = e, l = t;
 	}), d = new AbortController(), f = !1, p, m, h, g, _ = !1, v = !1, y, b, x, S, C = !1, w = () => {
-		clearInterval(x), clearTimeout(S), y = void 0, o.removeEventListener("message", k);
+		clearInterval(x), clearTimeout(S), y = void 0, o.removeEventListener("message", A);
 	}, T = (e) => {
 		try {
 			a(e);
@@ -2240,7 +2251,7 @@ function _e(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 	async function ee() {
 		try {
 			T("preparing"), X(!f, "cancelled");
-			let t = await e.fetchWithAuth(U, {
+			let t = await e.fetchWithAuth(W, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(n === null ? {} : { release_candidate: n }),
@@ -2248,17 +2259,17 @@ function _e(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 				signal: d.signal
 			});
 			X(!f, "cancelled"), X(t.headers.get("content-type")?.split(";")[0].trim() === "application/json");
-			let r = await Q(t, J, d.signal), i;
+			let r = await Q(t, _e, d.signal), i;
 			try {
 				i = JSON.parse(await r.text());
 			} catch {
 				throw new Y("invalid_response");
 			}
-			let a = B(i?.tag);
-			X(a || r.size <= q), X(!f, "cancelled"), X(H(i, a ? K : G) && V(/[0-9a-f]{32}/, i.id) && typeof i.tag == "string" && i.tag.length <= 64 && (n === null ? z(i.tag) || B(i.tag) : i.tag === n) && V(/[0-9a-f]{64}/, i.apk_sha256) && Number.isSafeInteger(i.apk_size) && i.apk_size > 0 && i.apk_size <= W);
+			let a = V(i?.tag);
+			X(a || r.size <= J), X(!f, "cancelled"), X(U(i, a ? q : K) && H(/[0-9a-f]{32}/, i.id) && typeof i.tag == "string" && i.tag.length <= 64 && (n === null ? B(i.tag) || V(i.tag) : i.tag === n) && H(/[0-9a-f]{64}/, i.apk_sha256) && Number.isSafeInteger(i.apk_size) && i.apk_size > 0 && i.apk_size <= G);
 			let o = a ? {
 				tag: i.tag,
-				feed: Z(i.feed, ae),
+				feed: Z(i.feed, ie),
 				feedSignature: Z(i.feed_signature, 256, !0)
 			} : {
 				tag: i.tag,
@@ -2268,13 +2279,13 @@ function _e(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 				descriptorSignature: Z(i.descriptor_signature, 256, !0)
 			};
 			T("downloading"), X(!f, "cancelled");
-			let s = await e.fetchWithAuth(`${U}/${i.id}/apk`, {
+			let s = await e.fetchWithAuth(`${W}/${i.id}/apk`, {
 				method: "GET",
 				redirect: "error",
 				signal: d.signal
 			});
 			X(!f, "cancelled");
-			let c = await Q(s, W, d.signal, i.apk_size);
+			let c = await Q(s, G, d.signal, i.apk_size);
 			X(!f && !p.closed, "window_closed"), v = !0, b = i.apk_sha256, y = {
 				type: "ha-paneld/usb-bundle",
 				nonce: g,
@@ -2286,17 +2297,17 @@ function _e(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 		}
 	}
 	async function D(t) {
-		if (!f || !y || p.closed || !H(t, [
+		if (!f || !y || p.closed || !U(t, [
 			"type",
 			"nonce",
 			"requestId",
 			"tag",
 			"apkSha256"
-		]) || !V(/[0-9a-f]{32}/, t.requestId)) return;
+		]) || !H(/[0-9a-f]{32}/, t.requestId)) return;
 		let r = !1;
 		try {
 			X(t.tag === y.bundle.tag && t.apkSha256 === b);
-			let i = AbortSignal.timeout(Math.min(s, 1e4)), a = await e.fetchWithAuth(U, {
+			let i = AbortSignal.timeout(Math.min(s, 1e4)), a = await e.fetchWithAuth(W, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(n === null ? {} : { release_candidate: n }),
@@ -2304,8 +2315,8 @@ function _e(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 				signal: i
 			});
 			X(a.headers.get("content-type")?.split(";")[0].trim() === "application/json");
-			let o = JSON.parse(await (await Q(a, B(t.tag) ? J : q, i)).text());
-			X(H(o, B(t.tag) ? K : G) && V(/[0-9a-f]{32}/, o.id) && o.tag === t.tag && o.apk_sha256 === t.apkSha256 && o.apk_size === y.apk.size), r = !0;
+			let o = JSON.parse(await (await Q(a, V(t.tag) ? _e : J, i)).text());
+			X(U(o, V(t.tag) ? q : K) && H(/[0-9a-f]{32}/, o.id) && o.tag === t.tag && o.apk_sha256 === t.apkSha256 && o.apk_size === y.apk.size), r = !0;
 		} catch {}
 		if (y && !p.closed) try {
 			p.postMessage({
@@ -2319,11 +2330,11 @@ function _e(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 		} catch {}
 	}
 	async function O(t) {
-		if (C || !f || !y || p.closed || !H(t, [
+		if (C || !f || !y || p.closed || !U(t, [
 			"type",
 			"nonce",
 			"address"
-		]) || !V(me, t.address)) return;
+		]) || !H(me, t.address)) return;
 		C = !0;
 		let n = (e, t = {}) => {
 			try {
@@ -2337,14 +2348,14 @@ function _e(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 		n("ha-paneld/usb-handover-accepted");
 		let r, i = null, a;
 		try {
-			let n = await e.fetchWithAuth(fe, {
+			let n = await e.fetchWithAuth(de, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ address: t.address }),
 				redirect: "error",
 				signal: AbortSignal.timeout(pe)
 			}), o = await n.json().catch(() => null), s = n.status === 200 ? o?.outcome : o?.error;
-			r = V(he, s) ? s : `http_${n.status}`, n.status === 200 && (i = re(o?.display)), n.status === 200 && o?.registration === "added_to_another_home_assistant" && (a = o.registration);
+			r = H(he, s) ? s : `http_${n.status}`, n.status === 200 && (i = ne(o?.display)), n.status === 200 && o?.registration === "added_to_another_home_assistant" && (a = o.registration);
 		} catch {
 			r = "request_failed";
 		} finally {
@@ -2359,8 +2370,30 @@ function _e(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 			...a ? { registration: a } : {}
 		});
 	}
-	function k(e) {
+	async function k() {
+		let t = null;
+		try {
+			let n = await e.fetchWithAuth(fe, {
+				method: "GET",
+				redirect: "error",
+				signal: AbortSignal.timeout(Math.min(s, 1e4))
+			}), r = n.status === 200 ? await n.json() : null;
+			typeof r?.public_key == "string" && r.public_key.length <= 1024 && (t = r.public_key);
+		} catch {}
+		if (y && !p.closed) try {
+			p.postMessage({
+				type: "ha-paneld/usb-adb-key-result",
+				nonce: g,
+				key: t
+			}, h);
+		} catch {}
+	}
+	function A(e) {
 		if (e.source === p && e.origin === h) {
+			if (e.data?.type === "ha-paneld/usb-adb-key" && e.data.nonce === g && U(e.data, ["type", "nonce"])) {
+				f && k();
+				return;
+			}
 			if (e.data?.type === "ha-paneld/usb-admission" && e.data.nonce === g) {
 				D(e.data);
 				return;
@@ -2369,7 +2402,7 @@ function _e(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 				O(e.data);
 				return;
 			}
-			if (H(e.data, ["type", "nonce"]) && e.data.nonce === g) {
+			if (U(e.data, ["type", "nonce"]) && e.data.nonce === g) {
 				if (e.data.type === "ha-paneld/usb-ready") {
 					!_ && !f ? (_ = !0, ee()) : y && !p.closed && p.postMessage(y, h);
 					return;
@@ -2379,17 +2412,17 @@ function _e(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 		}
 	}
 	try {
-		X(e && typeof e.fetchWithAuth == "function" && (n === null || z(n) || B(n)) && Number.isSafeInteger(s) && s > 0 && s <= 3e5, "invalid_request");
+		X(e && typeof e.fetchWithAuth == "function" && (n === null || B(n) || V(n)) && Number.isSafeInteger(s) && s > 0 && s <= 3e5, "invalid_request");
 		let a = new URL(t);
 		X(!a.username && !a.password && !a.hash && (a.protocol === "https:" || a.protocol === "http:" && [
 			"localhost",
 			"127.0.0.1",
 			"[::1]"
-		].includes(a.hostname)), "invalid_destination"), a.searchParams.set("lang", r(i)), h = a.origin, g = de(o.crypto), a.hash = new URLSearchParams({
+		].includes(a.hostname)), "invalid_destination"), a.searchParams.set("lang", r(i)), h = a.origin, g = ue(o.crypto), a.hash = new URLSearchParams({
 			ha_origin: o.location.origin,
 			nonce: g,
 			rc: n ?? ""
-		}).toString(), o.addEventListener("message", k), p = o.open(a.href, "_blank"), X(p, "popup_blocked"), m = setTimeout(() => E("timeout"), s), T("waiting");
+		}).toString(), o.addEventListener("message", A), p = o.open(a.href, "_blank"), X(p, "popup_blocked"), m = setTimeout(() => E("timeout"), s), T("waiting");
 	} catch (e) {
 		E(e instanceof Y ? e.code : "invalid_request");
 	}
@@ -2402,28 +2435,28 @@ function _e(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 }
 //#endregion
 //#region src/release-catalog.mjs
-var ve = 30, ye = 500, be = 131072;
+var ye = 30, be = 500, xe = 131072;
 function $(e) {
 	if (!e) throw Error("Invalid release catalogue");
 }
-var xe = 128, Se = (e) => B(e.tag) && typeof e.prerelease == "boolean" && typeof e.name == "string" && e.name.length > 0 && e.name.length <= xe;
-function Ce(e) {
-	$(H(e, ["releases"]) && Array.isArray(e.releases) && e.releases.length <= 530);
+var Se = 128, Ce = (e) => V(e.tag) && typeof e.prerelease == "boolean" && typeof e.name == "string" && e.name.length > 0 && e.name.length <= Se;
+function we(e) {
+	$(U(e, ["releases"]) && Array.isArray(e.releases) && e.releases.length <= 530);
 	let t = /* @__PURE__ */ new Set(), n = 0, r = 0;
-	return Object.freeze(e.releases.map((e) => H(e, [
+	return Object.freeze(e.releases.map((e) => U(e, [
 		"tag",
 		"prerelease",
 		"name"
-	]) ? ($(Se(e) && !t.has(e.tag) && ++r <= ye), t.add(e.tag), Object.freeze({
+	]) ? ($(Ce(e) && !t.has(e.tag) && ++r <= be), t.add(e.tag), Object.freeze({
 		tag: e.tag,
 		prerelease: e.prerelease,
 		name: e.name
-	})) : ($(H(e, ["tag", "prerelease"]) && typeof e.prerelease == "boolean" && (e.prerelease ? R(e.tag) : L(e.tag)) && !t.has(e.tag) && ++n <= ve), t.add(e.tag), Object.freeze({
+	})) : ($(U(e, ["tag", "prerelease"]) && typeof e.prerelease == "boolean" && (e.prerelease ? z(e.tag) : R(e.tag)) && !t.has(e.tag) && ++n <= ye), t.add(e.tag), Object.freeze({
 		tag: e.tag,
 		prerelease: e.prerelease
 	}))));
 }
-async function we(e, { signal: t, timeoutMs: n = 15e3 } = {}) {
+async function Te(e, { signal: t, timeoutMs: n = 15e3 } = {}) {
 	let r = new AbortController(), i = () => r.abort();
 	t?.addEventListener("abort", i, { once: !0 }), t?.aborted && i();
 	let a = setTimeout(i, n), o, s = new Promise((e, t) => {
@@ -2438,8 +2471,8 @@ async function we(e, { signal: t, timeoutMs: n = 15e3 } = {}) {
 				signal: r.signal
 			});
 			$(t.headers.get("content-type")?.split(";")[0].trim() === "application/json");
-			let n = await Q(t, be, r.signal);
-			return Ce(JSON.parse(await n.text()));
+			let n = await Q(t, xe, r.signal);
+			return we(JSON.parse(await n.text()));
 		})()]);
 	} finally {
 		clearTimeout(a), t?.removeEventListener("abort", i), r.signal.removeEventListener("abort", o), r.abort();
@@ -2447,7 +2480,7 @@ async function we(e, { signal: t, timeoutMs: n = 15e3 } = {}) {
 }
 //#endregion
 //#region src/ha-install-panel.mjs
-var Te = class extends HTMLElement {
+var Ee = class extends HTMLElement {
 	#e;
 	get #t() {
 		return i("haInstall", this.#e?.language);
@@ -2503,7 +2536,7 @@ var Te = class extends HTMLElement {
 		let e = new AbortController();
 		this.#o = e;
 		try {
-			let t = await we(this.#e, { signal: e.signal });
+			let t = await Te(this.#e, { signal: e.signal });
 			if (this.#o !== e) return;
 			this.#c = t, this.#s = t.length ? "ready" : "empty";
 			let n = this.shadowRoot.querySelector("#release-choices");
@@ -2547,7 +2580,7 @@ var Te = class extends HTMLElement {
 		let e = this.shadowRoot.querySelector("#release input:checked")?.value;
 		if (!(e === "" ? this.#c[0] : this.#c.find((t) => t.tag === e)) || !this.isConnected) return;
 		this.#i?.cancel(), this.#i = void 0;
-		let t = _e(this.#e, this.#n?.config?.installer_url, {
+		let t = ve(this.#e, this.#n?.config?.installer_url, {
 			rcTag: e || null,
 			language: r(this.#e?.language),
 			onState: (e) => {
@@ -2561,5 +2594,5 @@ var Te = class extends HTMLElement {
 		});
 	}
 };
-customElements.get("panel-assistant-usb-install") || customElements.define("panel-assistant-usb-install", Te);
+customElements.get("panel-assistant-usb-install") || customElements.define("panel-assistant-usb-install", Ee);
 //#endregion

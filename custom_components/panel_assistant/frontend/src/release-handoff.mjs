@@ -175,6 +175,49 @@ export function requestSetupHandover({ windowObject = window, options, address,
   });
 }
 
+// Android's adbkey.pub layout: 524 bytes (64 modulus words, n0inv, modulus,
+// R^2, exponent), which is exactly 699 base64 characters and one pad, then one
+// space and a printable name.
+const KEY = /^([A-Za-z0-9+/]{699}=) ([\x21-\x7e]{1,64})$/;
+
+export function parsePanelAssistantKey(value) {
+  const match = typeof value === 'string' ? KEY.exec(value) : null;
+  if (!match) return null;
+  let raw;
+  try { raw = atob(match[1]); } catch { return null; }
+  if (new DataView(Uint8Array.from(raw, c => c.charCodeAt(0)).buffer).getUint32(0, true) !== 64) return null;
+  return value;
+}
+
+// Panel Assistant's public ADB key, from the Home Assistant window that opened
+// this page, for the installer to offer at the panel's USB prompt. Never
+// rejects: an older Home Assistant ignores the request, and null means connect
+// as before, with this browser's own key. The wait outlasts Home Assistant's
+// own 10-second fetch, which may be creating the key for the first time; it
+// runs while the person plugs the panel in, before Connect needs it.
+export function requestPanelAssistantKey({ windowObject = window, options, timeoutMs = 12000 } = {}) {
+  return new Promise(resolve => {
+    const source = windowObject.opener;
+    if (!options || !source || source.closed) { resolve(null); return; }
+    let timer;
+    const done = key => {
+      clearTimeout(timer);
+      windowObject.removeEventListener('message', receive);
+      resolve(key);
+    };
+    function receive(event) {
+      if (event.source !== source || event.origin !== options.origin ||
+          event.data?.nonce !== options.nonce || event.data.type !== 'ha-paneld/usb-adb-key-result') return;
+      done(parsePanelAssistantKey(event.data.key));
+    }
+    windowObject.addEventListener('message', receive);
+    timer = setTimeout(() => done(null), timeoutMs);
+    try {
+      source.postMessage({ type: 'ha-paneld/usb-adb-key', nonce: options.nonce }, options.origin);
+    } catch { done(null); }
+  });
+}
+
 // The order that matters: the handover lands before the panel's setup page is
 // opened, because the wizard decides its steps when it loads. The final app
 // acceptance must succeed even when the best-effort handover fails.

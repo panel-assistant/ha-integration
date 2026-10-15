@@ -8,7 +8,9 @@ import { createUsbTransactionPorts } from './usb-transaction-ports.mjs';
 import { createInstallController } from './install-controller.mjs';
 import { installProgress, errorView } from './install-view.mjs';
 import { frontendMessages, formatFrontendMessage, installerLocale } from './frontend-localization.mjs';
-import { handOverThenOpen, handoffOptions, receiveReleaseHandoff, requestSetupHandover } from './release-handoff.mjs';
+import { handOverThenOpen, handoffOptions, receiveReleaseHandoff, requestPanelAssistantKey,
+  requestSetupHandover } from './release-handoff.mjs';
+import { ensureNetworkAdb, panelAssistantKeyAuthenticator } from './panel-assistant-adb.mjs';
 import { readSetupUrl } from './panel-address.mjs';
 import { renderJourney } from './wizard-look.mjs';
 import { newNonce } from './shared.mjs';
@@ -48,7 +50,7 @@ const manager = window.isSecureContext && navigator.usb
   ? new AdbDaemonWebUsbDeviceManager(boundedUsb(navigator.usb)) : undefined;
 const supported = Boolean(manager && navigator.locks && globalThis.indexedDB);
 let release, raw, adb, sessionAdb, store, controller;
-let handoff, handoffSettings, incomingAuthenticate;
+let handoff, handoffSettings, incomingAuthenticate, panelAssistantKey;
 let anotherHomeAssistant = false;
 let busy = false, quarantined = false;
 let receipt = null;
@@ -191,9 +193,15 @@ connect.addEventListener('click', async () => {
       const connection = await device.connect();
       if (quarantined) { closeResources(); return; }
       ensureCurrent();
+      // The owner's Allow approves Panel Assistant's own key, so Panel
+      // Assistant can reach the panel over network ADB once the cable is out.
+      // Without it (an older Home Assistant), this browser's own key is offered.
+      const key = await panelAssistantKey;
+      support('networkAdb', key ? 'panelAssistantKey' : 'browserKey');
       const transport = await AdbDaemonTransport.authenticate({
         serial: device.serial, connection,
         credentialStore: new AdbWebCredentialStore('ha-paneld-usb-installer'),
+        ...(key ? { authenticators: [panelAssistantKeyAuthenticator(key)] } : {}),
         readTimeLimit: 10000,
       });
       adb = new Adb(transport);
@@ -306,6 +314,9 @@ async function installAll() {
         controller.completeSetup(display).catch(noteFailure)]);
       ensureCurrent();
       support('displaySizing', result);
+      // Last, because adbd restarts to listen on the network and this USB
+      // session ends with it: the install is finished by then.
+      support('networkAdb', await ensureNetworkAdb(sessionAdb, { beforeRestart: () => { finished = true; } }));
     },
     open: finish,
   });
@@ -350,6 +361,7 @@ if (!supported) {
     void handoff.completion.then(({ release: verified, authenticate }) => {
       if (quarantined) return;
       incomingAuthenticate = authenticate;
+      panelAssistantKey = requestPanelAssistantKey({ options });
       releaseReady(verified);
     }, () => {
       if (!quarantined) quarantine('handoffFailure', 'installer');

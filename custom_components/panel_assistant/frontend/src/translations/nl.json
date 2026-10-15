@@ -67,7 +67,7 @@
     "connectBody": "Sluit het paneel met een USB-kabel aan op deze computer en druk op Mijn paneel zoeken.",
     "connect": "Mijn paneel zoeken",
     "allowHeading": "Deze computer toestaan",
-    "allowBody": "Kijk op het scherm van het paneel en tik op Toestaan.",
+    "allowBody": "Vink op het paneel ‘Altijd toestaan vanaf deze computer’ aan en tik op Toestaan, zodat Panel Assistant het later zonder kabel kan bijwerken.",
     "checkingPanel": "Je paneel controleren…",
     "confirmHeading": "Klaar om te installeren",
     "confirmBody": "Hiermee installeer je de app en maak je die het startscherm van je paneel. Je andere apps worden niet aangeraakt.",
@@ -143,6 +143,7 @@
     "setupAddress": "Configuratieadres",
     "setupHandover": "Configuratieoverdracht",
     "displaySizing": "Weergave- en tekstgrootte",
+    "networkAdb": "ADB via netwerk",
     "copiedDetail": "{bytes} bytes verstuurd; wachten op bevestiging van het paneel",
     "none": "geen",
     "setupMissing": "niet gevonden; instellen gaat verder op het paneel"

@@ -67,7 +67,7 @@
     "connectBody": "Conecta el panel a este ordenador con un cable USB y pulsa Buscar mi panel.",
     "connect": "Buscar mi panel",
     "allowHeading": "Autoriza este ordenador",
-    "allowBody": "Mira la pantalla del panel y toca Permitir.",
+    "allowBody": "En el panel, marca «Permitir siempre desde este ordenador» y toca Permitir, para que Panel Assistant pueda actualizarlo más adelante sin el cable.",
     "checkingPanel": "Comprobando tu panel…",
     "confirmHeading": "Listo para instalar",
     "confirmBody": "Esto instala la aplicación y la convierte en la pantalla de inicio de tu panel. Las demás aplicaciones no se modifican.",
@@ -143,6 +143,7 @@
     "setupAddress": "Dirección de configuración",
     "setupHandover": "Transferencia a la configuración",
     "displaySizing": "Tamaño de pantalla y texto",
+    "networkAdb": "ADB por red",
     "copiedDetail": "{bytes} bytes enviados; esperando la confirmación del panel",
     "none": "ninguno",
     "setupMissing": "no encontrada; la configuración continúa en el panel"

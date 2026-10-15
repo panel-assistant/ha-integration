@@ -67,7 +67,7 @@
     "connectBody": "Branchez le panneau à cet ordinateur avec un câble USB, puis appuyez sur « Trouver mon panneau ».",
     "connect": "Trouver mon panneau",
     "allowHeading": "Autoriser cet ordinateur",
-    "allowBody": "Regardez l’écran du panneau et appuyez sur « Autoriser ».",
+    "allowBody": "Sur le panneau, cochez « Toujours autoriser cet ordinateur » et appuyez sur « Autoriser », pour que Panel Assistant puisse le mettre à jour plus tard sans le câble.",
     "checkingPanel": "Vérification de votre panneau…",
     "confirmHeading": "Prêt à installer",
     "confirmBody": "L’application sera installée et deviendra l’écran d’accueil de votre panneau. Vos autres applications ne seront pas modifiées.",
@@ -143,6 +143,7 @@
     "setupAddress": "Adresse de configuration",
     "setupHandover": "Passage à la configuration",
     "displaySizing": "Taille d’affichage et du texte",
+    "networkAdb": "ADB réseau",
     "copiedDetail": "{bytes} octets envoyés ; en attente de confirmation du panneau",
     "none": "aucun",
     "setupMissing": "introuvable ; la configuration continue sur le panneau"
