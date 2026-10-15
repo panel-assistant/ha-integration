@@ -66,6 +66,13 @@ INSTALL_PLAN_SCHEMAS: tuple[str, ...] = (
     "io.github.maxlyth.hapaneld.install-plan.v1",
 )
 
+#: The receiver that makes the app give up its device admin, which Android
+#: refuses to uninstall and the panel's shell cannot remove. Builds of either id
+#: that have it keep it under the new classes; one without it ignores the ask.
+RELEASE_DEVICE_ADMIN_RECEIVER = (
+    "io.panelassistant.android.platform.ReleaseDeviceAdminReceiver"
+)
+
 _OLD_CLASSES_SUCCESSOR_LAUNCH = (
     "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity"
 )

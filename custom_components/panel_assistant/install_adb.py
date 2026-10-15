@@ -96,6 +96,7 @@ from .app_identity import (
     HOME_COMPONENTS,
     LEGACY_LAUNCH_COMPONENT,
     LEGACY_PACKAGE_ID,
+    RELEASE_DEVICE_ADMIN_RECEIVER,
     SUCCESSOR_PACKAGE_ID,
     is_accepted_package_id,
     is_launch_component,
@@ -1382,13 +1383,34 @@ class MoveObservation:
 _LEGACY_COPY = "/data/local/tmp/panel-assistant-old-app.apk"
 
 
+def _uninstall(package: str, options: str = "") -> str:
+    """Uninstall the app, asking it first to give up a device admin that blocks it.
+
+    Android refuses to uninstall an active device admin, and the shell cannot
+    remove one, so only the app can, and only once asked. The admin goes once
+    Android has told the app it is disabled, so the uninstall is retried for up
+    to ten seconds. An app that cannot give it up stays installed, which the
+    observation reports.
+    """
+    uninstall = f"pm uninstall {options}{package}"
+    blocked = "*DELETE_FAILED_DEVICE_POLICY_MANAGER*"
+    return (
+        f'case "$({uninstall})" in {blocked}) '
+        "am broadcast --include-stopped-packages "
+        f"-n {package}/{RELEASE_DEVICE_ADMIN_RECEIVER}; "
+        "for n in 1 2 3 4 5 6 7 8 9 10; do "
+        f'case "$({uninstall})" in {blocked}) sleep 1 ;; *) break ;; esac; '
+        "done ;; esac"
+    )
+
+
 _MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
     MoveStep.OBSERVE: (),
     # A successor beside a running legacy app holds only a copy of that app's
     # state, so removing it loses nothing the legacy app does not still hold.
     MoveStep.REMOVE_SUCCESSOR: (
         f"am force-stop {SUCCESSOR_PACKAGE_ID}",
-        f"pm uninstall {SUCCESSOR_PACKAGE_ID}",
+        _uninstall(SUCCESSOR_PACKAGE_ID),
     ),
     # The old app's APK is kept beside its data until the new app is proven,
     # because setting the old app aside deletes the APK Android installed.
@@ -1403,7 +1425,7 @@ _MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
     ),
     MoveStep.SET_ASIDE_LEGACY: (
         f"am force-stop {LEGACY_PACKAGE_ID}",
-        f"pm uninstall -k --user 0 {LEGACY_PACKAGE_ID}",
+        _uninstall(LEGACY_PACKAGE_ID, "-k --user 0 "),
     ),
     # Only while HOME resolves to one launcher that is not the old app: never
     # the old app itself, which would leave the panel without one, nor a HOME
@@ -1411,7 +1433,7 @@ _MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
     # the uninstall, so a HOME that changed since the last observation counts.
     MoveStep.RETIRE_LEGACY: (
         f'case "$({_HOME_QUERY})" in {LEGACY_PACKAGE_ID}/*|android/*) ;; ?*/?*) '
-        f"am force-stop {LEGACY_PACKAGE_ID}; pm uninstall {LEGACY_PACKAGE_ID}; "
+        f"am force-stop {LEGACY_PACKAGE_ID}; {_uninstall(LEGACY_PACKAGE_ID)}; "
         f"rm -f {_LEGACY_COPY} ;; esac",
     ),
     # Reinstalling the kept APK returns the old app onto the data Android kept.
@@ -1433,11 +1455,11 @@ _MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
     MoveStep.REMOVE_APP: (
         f'case "$({_HOME_QUERY})" in {LEGACY_PACKAGE_ID}/*|{SUCCESSOR_PACKAGE_ID}/*'
         "|android/*|com.android.settings/*) ;; ?*/?*) "
-        f"am force-stop {LEGACY_PACKAGE_ID}; pm uninstall {LEGACY_PACKAGE_ID}; "
+        f"am force-stop {LEGACY_PACKAGE_ID}; {_uninstall(LEGACY_PACKAGE_ID)}; "
         f"rm -f {_LEGACY_COPY}; "
         f'case "$(pm list packages -u {LEGACY_PACKAGE_ID} 2>/dev/null)" in '
         f"*package:{LEGACY_PACKAGE_ID}*) ;; *) "
-        f"am force-stop {SUCCESSOR_PACKAGE_ID}; pm uninstall {SUCCESSOR_PACKAGE_ID} ;; "
+        f"am force-stop {SUCCESSOR_PACKAGE_ID}; {_uninstall(SUCCESSOR_PACKAGE_ID)} ;; "
         "esac ;; esac",
     ),
     # The vendor's launcher takes HOME from the panel's shell when the app

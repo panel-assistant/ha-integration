@@ -54,10 +54,14 @@ CHOOSER = "android/com.android.internal.app.ResolverActivity"
 APP_HOME = f"{SUCCESSOR_PACKAGE_ID}/.DashboardActivity"
 
 # One shell program stands in for each panel command. Package-manager state is
-# a directory: one empty file per package under installed/, aside/ and
-# fail_uninstall/, and one file each for HOME, firmware and the change log.
+# a directory: one empty file per package under installed/, aside/,
+# fail_uninstall/, admin/ (an active device admin), no_release/ (a build that
+# cannot give its admin up) and stopped/ (force-stopped, so only a broadcast
+# that includes stopped packages reaches it), and one file each for HOME,
+# firmware and the change log.
 _FAKE_PANEL = r"""#!/bin/sh
 s=$PANEL_STATE
+release=io.panelassistant.android.platform.ReleaseDeviceAdminReceiver
 case "${0##*/} $1 $2" in
 "cmd package resolve-activity")
     echo "priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true"
@@ -73,11 +77,17 @@ case "${0##*/} $1 $2" in
     if [ -e "$s/installed/$p" ] || [ -e "$s/aside/$p" ]; then echo "package:$p"; fi ;;
 "pm uninstall "*)
     for p; do :; done
+    if [ -e "$s/admin/$p" ]; then
+        echo "uninstall refused $p" >> "$s/events"
+        echo "Failure [DELETE_FAILED_DEVICE_POLICY_MANAGER]"; exit 1
+    fi
     if [ -e "$s/fail_uninstall/$p" ]; then
         rm "$s/fail_uninstall/$p"; echo "Failure [DELETE_FAILED_INTERNAL_ERROR]"; exit 1
     fi
     if [ -e "$s/installed/$p" ] || [ -e "$s/aside/$p" ]; then
         rm -f "$s/installed/$p" "$s/aside/$p"
+        # -k keeps the app's data: set aside, not gone.
+        [ "$2" != -k ] || touch "$s/aside/$p"
         echo "uninstall $p" >> "$s/events"
         case "$(cat "$s/home")" in
         "$p"/*) echo com.android.settings/.FallbackHome > "$s/home" ;;
@@ -107,11 +117,30 @@ case "${0##*/} $1 $2" in
     else
         echo "$2" > "$s/density"; echo "wm density $2" >> "$s/events"
     fi ;;
+"am force-stop"*) touch "$s/stopped/$2" ;;
+"am broadcast"*)
+    stopped=
+    while [ $# -gt 0 ]; do
+        [ "$1" != -n ] || c=$2
+        [ "$1" != --include-stopped-packages ] || stopped=1
+        shift
+    done
+    p=${c%%/*}
+    if [ -e "$s/stopped/$p" ] && [ -z "$stopped" ]; then
+        :
+    elif [ "${c#*/}" = "$release" ] && [ -e "$s/installed/$p" ] \
+        && [ ! -e "$s/no_release/$p" ] && [ -e "$s/admin/$p" ]; then
+        echo released > "$s/admin/$p"; echo "release admin $p" >> "$s/events"
+    fi ;;
+# Android lets go of a released admin only once it has told the app it is
+# disabled, which takes time: here, until the shell next sleeps.
+"sleep "*)
+    for f in "$s"/admin/*; do [ ! -s "$f" ] || rm "$f"; done ;;
 "am "*|"dumpsys "*) ;;
 *) exit 1 ;;
 esac
 """
-_LISTS = ("installed", "aside", "fail_uninstall")
+_LISTS = ("installed", "aside", "fail_uninstall", "admin", "no_release", "stopped")
 
 
 class FakePanel:
@@ -135,6 +164,7 @@ class FakePanel:
             "settings",
             "appops",
             "wm",
+            "sleep",
         ):
             (self.bin / command).symlink_to(program)
         self.state_path = directory / "state"
@@ -339,6 +369,80 @@ async def test_removal_hands_home_back_then_removes_both_ids(
     assert sorted(fake.read()["events"]) == sorted(
         [f"uninstall {SUCCESSOR_PACKAGE_ID}", f"uninstall {LEGACY_PACKAGE_ID}"]
     )
+
+
+@pytest.mark.parametrize("holder", [SUCCESSOR_PACKAGE_ID, LEGACY_PACKAGE_ID])
+async def test_an_app_holding_device_admin_gives_it_up_and_is_removed(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer], holder: str
+) -> None:
+    """Android refuses to uninstall an active device admin; the app is asked."""
+    fake, server = panel
+    fake.set(installed=[LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID], admin=[holder])
+    entry = _entry(hass, server)
+
+    result = await _remove(hass, entry)
+
+    assert result.get("errors") is None, (result.get("errors"), fake.read())
+    assert fake.installed == []
+    assert fake.read()["admin"] == []
+    events = fake.read()["events"]
+    assert events.count(f"release admin {holder}") == 1
+    assert events.index(f"release admin {holder}") < events.index(f"uninstall {holder}")
+
+
+async def test_an_app_that_cannot_give_up_device_admin_is_kept_and_reported(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
+) -> None:
+    """A build without the release stays installed after a bounded wait."""
+    fake, server = panel
+    fake.set(admin=[SUCCESSOR_PACKAGE_ID], no_release=[SUCCESSOR_PACKAGE_ID])
+    entry = _entry(hass, server)
+
+    result = await _remove(hass, entry)
+
+    assert result.get("errors") == {"base": "removal_remove_failed"}
+    assert fake.installed == [SUCCESSOR_PACKAGE_ID]
+    # The first refusal and ten retries, then the observation reports it.
+    assert (
+        fake.read()["events"].count(f"uninstall refused {SUCCESSOR_PACKAGE_ID}") == 11
+    )
+
+
+@pytest.mark.parametrize(
+    ("step", "holder"),
+    [
+        (install_adb.MoveStep.REMOVE_SUCCESSOR, SUCCESSOR_PACKAGE_ID),
+        (install_adb.MoveStep.SET_ASIDE_LEGACY, LEGACY_PACKAGE_ID),
+        (install_adb.MoveStep.RETIRE_LEGACY, LEGACY_PACKAGE_ID),
+    ],
+)
+async def test_repair_and_purge_uninstalls_ask_the_app_to_give_up_device_admin(
+    hass: HomeAssistant,
+    panel: tuple[FakePanel, TestServer],
+    step: install_adb.MoveStep,
+    holder: str,
+) -> None:
+    """Repair and the old-app purge uninstall through these steps."""
+    fake, server = panel
+    fake.set(
+        installed=[LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID],
+        admin=[holder],
+        home=VENDOR_HOME,
+    )
+    found = await panel_move.async_app_target(hass, _entry(hass, server))
+    assert found is not None
+
+    await install_adb.async_move_step(*found, step)
+
+    assert holder not in fake.read()["installed"]
+    # Setting the old app aside keeps its data; the other steps remove it.
+    assert (holder in fake.read()["aside"]) is (
+        step is install_adb.MoveStep.SET_ASIDE_LEGACY
+    )
+    assert fake.read()["admin"] == []
+    events = fake.read()["events"]
+    assert events.count(f"release admin {holder}") == 1
+    assert events.index(f"release admin {holder}") < events.index(f"uninstall {holder}")
 
 
 async def test_the_owner_can_forget_the_panel_once_its_app_is_gone(
