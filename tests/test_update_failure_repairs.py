@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from dataclasses import asdict, replace
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -292,8 +291,8 @@ async def test_recovered_update_accepts_newer_health_when_offer_advanced(
     # installing the one it took, so the offer no longer names that build.
     host = entity._offer.release
     assert host is not None
-    taken = host._candidates["v0.9.10", LEGACY_PACKAGE_ID]
-    host._candidates["v0.9.11", LEGACY_PACKAGE_ID] = replace(
+    taken = host._candidates["v0.9.10", SUCCESSOR_PACKAGE_ID]
+    host._candidates["v0.9.11", SUCCESSOR_PACKAGE_ID] = replace(
         taken, version="0.9.11", tag="v0.9.11"
     )
     assert entity.latest_version == "0.9.11"
@@ -319,6 +318,7 @@ async def test_recovered_update_accepts_newer_health_when_offer_advanced(
                     build="102",
                     config_hash="abcd",
                     protocol=(5, 5),
+                    package=SUCCESSOR_PACKAGE_ID,
                 ),
                 status=PanelStatus(warning_count=0, capability_count=0),
                 status_error=None,
@@ -346,7 +346,7 @@ async def test_recovered_update_accepts_newer_health_when_offer_advanced(
     entity._resume_running_operation()
     observer = entity._observer_task
     assert observer is not None
-    await asyncio.gather(observer, return_exceptions=True)
+    await observer
 
     assert entity.installed_version == "0.9.10"
     repairs.record.assert_not_awaited()

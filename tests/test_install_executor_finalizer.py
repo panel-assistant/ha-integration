@@ -13,7 +13,6 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
-from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -23,10 +22,7 @@ from homeassistant.helpers import issue_registry as ir
 from custom_components.panel_assistant import install_executor, install_jobs
 from custom_components.panel_assistant.adb_credentials import AdbCredential
 from custom_components.panel_assistant.adb_protocol import (
-    AdbInstallTarget,
     AdbRootMode,
-    InstallAdbError,
-    InstallAdbErrorCode,
 )
 from custom_components.panel_assistant.client import (
     CannotConnectError,
