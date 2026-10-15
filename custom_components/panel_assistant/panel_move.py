@@ -129,6 +129,19 @@ _HEALTH_WAIT_SECONDS = 120.0
 _SELF_MOVE_RETRY_SECONDS = 600.0
 _RESTORE_WAIT_SECONDS = 120.0
 _POLL_SECONDS = 3.0
+#: Steps whose every caller checks the observation for the step's result, so
+#: one whose reply was lost can be judged by observing the panel again.
+_OBSERVED_STEPS: Final = frozenset(
+    {
+        MoveStep.REMOVE_SUCCESSOR,
+        MoveStep.KEEP_LEGACY,
+        MoveStep.CLAIM_HOME,
+        MoveStep.SET_ASIDE_LEGACY,
+        MoveStep.RETIRE_LEGACY,
+        MoveStep.RESTORE_LEGACY,
+        MoveStep.RETURN_HOME,
+    }
+)
 
 # Abort reasons, each a translated message in the Repair.
 REASON_ENTRY_REMOVED = "entry_removed"
@@ -611,6 +624,14 @@ async def _async_step(
             raise MoveError(REASON_ADB_AUTHORIZATION) from err
         if err.code is InstallAdbErrorCode.TARGET_CHANGED:
             raise MoveError(REASON_PANEL_CHANGED) from err
+        if (
+            err.code is InstallAdbErrorCode.INSTALL_AMBIGUOUS
+            and step in _OBSERVED_STEPS
+        ):
+            # The reply was lost, not necessarily the change: look again, and
+            # the caller's check of the observation decides as for any reply.
+            await asyncio.sleep(_POLL_SECONDS)
+            return await _async_step(target, signer, MoveStep.OBSERVE)
         raise MoveError(REASON_MOVE_FAILED) from err
 
 
