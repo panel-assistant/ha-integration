@@ -257,6 +257,40 @@ async def test_changed_health_identity_invalidates_cached_adb_offer(
     route.adb_install.assert_not_awaited()
 
 
+async def test_an_identity_mismatch_refuses_the_adb_update(
+    route: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A device answering at the address but not as this panel gets no app."""
+    deliver = AsyncMock()
+    monkeypatch.setattr(route.entity._delivery, "async_deliver_adb", deliver)
+    route.entity.coordinator.identity_mismatch = True
+
+    with pytest.raises(HomeAssistantError) as caught:
+        await route.entity.async_install(None, False)
+
+    assert caught.value.translation_key == "update_unavailable"
+    deliver.assert_not_awaited()
+
+
+async def test_a_route_answer_for_a_changed_panel_is_not_adopted(
+    route: SimpleNamespace,
+) -> None:
+    """A route resolved for the panel as it was says nothing about it now."""
+    entity = route.entity
+
+    async def stale_answer() -> tuple[str, object, object]:
+        entity.coordinator.data = replace(
+            entity.coordinator.data, health=replace(_health(), build="1001")
+        )
+        return update_route.ROUTE_ADB, None, None
+
+    entity._async_install_route = stale_answer
+
+    await entity._async_refresh_route()
+
+    assert "update_unavailable_reason" not in (entity.extra_state_attributes or {})
+
+
 async def test_existing_keyless_shelly_offers_and_installs_from_ha(
     route: SimpleNamespace, monkeypatch: pytest.MonkeyPatch, hass: HomeAssistant
 ) -> None:

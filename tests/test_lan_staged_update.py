@@ -1627,6 +1627,39 @@ async def test_an_unavailable_adb_repair_keeps_a_successful_lan_dashboard_runnin
     )
 
 
+@pytest.mark.parametrize(
+    "credential_error", [AdbCredentialMissingError, AdbCredentialError]
+)
+async def test_an_unusable_adb_key_ends_the_permission_repair_quietly(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    signer: PythonRSASigner,  # noqa: F811
+    tmp_path: Path,
+    credential_error: type[AdbCredentialError],
+) -> None:
+    """Most panels never trusted this Home Assistant: no error after an update."""
+    panel = await _lan_grant_repair_panel(hass, monkeypatch, key, signer, tmp_path)
+    panel.key_load.side_effect = credential_error
+    repairs: list[asyncio.Task[Any]] = []
+    create_task = panel.entry.async_create_background_task
+
+    def owned_task(*args: Any, **kwargs: Any) -> asyncio.Task[Any]:
+        task = create_task(*args, **kwargs)
+        repairs.append(task)
+        return task
+
+    monkeypatch.setattr(panel.entry, "async_create_background_task", owned_task)
+
+    await panel.entity.async_install(None, False)
+    assert len(repairs) == 1
+    await asyncio.wait(repairs)
+
+    assert repairs[0].exception() is None, "the repair left an uncaught error"
+    panel.key_load.assert_awaited()
+
+
 async def test_shared_release_selects_compatible_stable_and_prerelease_candidates(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, trust: None, key: Any
 ) -> None:
