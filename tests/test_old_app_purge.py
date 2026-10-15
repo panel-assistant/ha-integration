@@ -960,4 +960,5 @@ async def test_a_vendor_launcher_taking_home_during_the_backup_lets_it_go(
 
     assert panel.events == ["OBSERVE", "backup", "RETIRE_LEGACY"]
     assert not panel.legacy
+    assert not (panel.home or "").startswith(f"{SUCCESSOR_PACKAGE_ID}/"), "HOME taken"
     assert _issue(hass, entry) is None
