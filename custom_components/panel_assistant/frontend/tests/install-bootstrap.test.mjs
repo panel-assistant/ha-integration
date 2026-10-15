@@ -244,8 +244,9 @@ function cableTimer(leg) {
       'job-store.mjs': 'export const openJobStore = async () => ({ close() {} });',
       'usb-transaction-ports.mjs': 'export function createUsbTransactionPorts() { return {}; }',
       'install-controller.mjs': 'export function createInstallController() { return { preview: async () => { globalThis.calls.preview++; return { receipt: null, adopt: false, discarded: null }; } }; }',
-      'release-handoff.mjs': 'export const handoffOptions = () => ({}); export const receiveReleaseHandoff = () => ({ cancel() {}, completion: Promise.resolve({ release: { descriptor: { versionName: "1.2.3", versionCode: 42 } }, authenticate: async () => ({}) }) }); export const requestSetupHandover = async () => {}; export const handOverThenOpen = async () => {};',
+      'release-handoff.mjs': 'export const requestPanelAssistantKey = async () => null; export const handoffOptions = () => ({}); export const receiveReleaseHandoff = () => ({ cancel() {}, completion: Promise.resolve({ release: { descriptor: { versionName: "1.2.3", versionCode: 42 } }, authenticate: async () => ({}) }) }); export const requestSetupHandover = async () => {}; export const handOverThenOpen = async () => {};',
       'panel-address.mjs': 'export const readSetupUrl = async () => null;',
+      'panel-assistant-adb.mjs': 'export const panelAssistantKeyAuthenticator = () => {}; export const ensureNetworkAdb = async () => "already_on";',
     };
     registerHooks({
       resolve(specifier, context, next) { if (Object.hasOwn(stubs, specifier)) return { url: 'stub:' + specifier, shortCircuit: true }; return next(specifier, context); },
