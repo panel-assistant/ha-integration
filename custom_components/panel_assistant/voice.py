@@ -701,22 +701,22 @@ def _follow_voice_switch(hass: HomeAssistant, entry: ConfigEntry) -> None:
                 entity.entity_id, disabled_by=er.RegistryEntryDisabler.CONFIG_ENTRY
             )
             registry.async_update_entity(entity.entity_id, disabled_by=None)
-            _add_satellite()
+            entry.async_create_task(hass, _add_satellite(), f"{DOMAIN}_voice_satellite")
 
-    @callback
-    def _add_satellite() -> None:
+    async def _add_satellite() -> None:
         from .assist_satellite import PanelAssistSatellite
 
+        # A satellite still registered was disabled moments ago and is leaving.
+        if (leaving := satellites(hass).get(entry.entry_id)) is not None:
+            await leaving.async_remove()
         for platform in entity_platform.async_get_platforms(hass, DOMAIN):
             if (
                 platform.domain == Platform.ASSIST_SATELLITE
                 and platform.config_entry is entry
                 and entry.entry_id not in satellites(hass)
             ):
-                entry.async_create_task(
-                    hass,
-                    platform.async_add_entities([PanelAssistSatellite(entry.entry_id)]),
-                    f"{DOMAIN}_voice_satellite",
+                await platform.async_add_entities(
+                    [PanelAssistSatellite(entry.entry_id)]
                 )
 
     async def _turn_voice_on() -> None:

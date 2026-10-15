@@ -26,6 +26,7 @@ from pytest_homeassistant_custom_component.common import (
     flush_store,
 )
 
+from custom_components.panel_assistant.assist_satellite import PanelAssistSatellite
 from custom_components.panel_assistant.client import HaPaneldError
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.device import panel_display_name
@@ -302,6 +303,37 @@ async def test_turning_voice_off_disables_the_satellite_and_on_enables_it(
             )
         )
     ]
+
+
+async def test_voice_back_on_while_the_satellite_is_still_leaving_brings_it_back(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+    pipeline: FakePipeline,
+) -> None:
+    """Voice turned on again before the disabled satellite has gone still ends up on."""
+    panel, entity_id = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    leave = asyncio.Event()
+    leaving = PanelAssistSatellite.async_will_remove_from_hass
+
+    async def _slow_leave(self: PanelAssistSatellite) -> None:
+        await leave.wait()
+        await leaving(self)
+
+    with patch.object(PanelAssistSatellite, "async_will_remove_from_hass", _slow_leave):
+        assert (await panel.configure(enabled=False))["success"]
+        assert (await panel.configure(enabled=True))["success"]
+        leave.set()
+        await hass.async_block_till_done()
+
+    assert er.async_get(hass).async_get(entity_id).disabled_by is None
+    assert hass.states.get(entity_id).state == "idle"
+    run_id, handler = await _run(panel, "hey_jarvis")
+    await panel.client.send_bytes(bytes([handler]))
+    assert (await _turn_events(panel, run_id))[-1] == {"kind": "end"}
 
 
 async def test_a_new_satellite_of_a_panel_with_voice_off_starts_disabled(
