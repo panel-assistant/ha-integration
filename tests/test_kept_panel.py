@@ -191,12 +191,6 @@ async def test_kept_panel_installs_into_its_original_entry(
             result = await hass.config_entries.flow.async_configure(
                 result["flow_id"], {}
             )
-            if route == "address":
-                assert result["step_id"] == "confirm_user"
-                assert entry.data[CONF_TRANSPORT_USER_ID] == "retained-panel-user"
-                result = await hass.config_entries.flow.async_configure(
-                    result["flow_id"], {"next_step_id": "bind_user"}
-                )
         assert result["type"] is FlowResultType.ABORT
         assert result["reason"] == "reinstall_successful"
         assert entry.data[CONF_TRANSPORT_USER_ID] == (

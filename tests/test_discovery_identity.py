@@ -199,7 +199,7 @@ async def test_reinstall_discovery_preserves_live_or_busy_original(
 
 @pytest.mark.parametrize("with_card", [False, True])
 async def test_manual_add_replaces_ignore_only_when_finished(hass, with_card):
-    """Explicit adoption supersedes Ignore, while abandoning the flow keeps it."""
+    """Explicit adoption supersedes Ignore and binds the account that asked."""
     with (
         patch.object(
             HaPaneldClient, "async_get_health", AsyncMock(return_value=DISCOVERY_HEALTH)
@@ -231,20 +231,8 @@ async def test_manual_add_replaces_ignore_only_when_finished(hass, with_card):
         found = await hass.config_entries.flow.async_configure(
             form["flow_id"], {CONF_ADDRESS: _NEW + ":9999"}
         )
-        confirm = await _connect_found(hass, found)
-        assert confirm["type"] is FlowResultType.MENU
-        assert confirm["step_id"] == "confirm_user"
         assert hass.config_entries.async_entries(DOMAIN) == [ignored]
-        hass.config_entries.flow.async_abort(confirm["flow_id"])
-        assert hass.config_entries.async_entries(DOMAIN) == [ignored]
-        form = await _start_step(hass, "add_panel")
-        found = await hass.config_entries.flow.async_configure(
-            form["flow_id"], {CONF_ADDRESS: _NEW + ":9999"}
-        )
-        confirm = await _connect_found(hass, found)
-        result = await hass.config_entries.flow.async_configure(
-            confirm["flow_id"], {"next_step_id": "bind_user"}
-        )
+        result = await _connect_found(hass, found)
         assert result["type"] is FlowResultType.CREATE_ENTRY
         assert hass.config_entries.async_get_entry(ignored.entry_id) is None
         entries = hass.config_entries.async_entries(DOMAIN)

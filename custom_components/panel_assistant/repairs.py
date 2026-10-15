@@ -78,9 +78,9 @@ from .repairs_proximity import (
 )
 from .repairs_restart import ISSUE_RESTART_REQUIRED, RestartRequiredFlow
 from .transport_binding import (
-    BINDING_ISSUES,
     ISSUE_DATA_ENTRY_ID,
     ISSUE_DATA_USER_ID,
+    ISSUE_PANEL_USER_MISMATCH,
     async_bind_user,
     async_confirmable_user,
     async_delete_binding_issue,
@@ -772,10 +772,9 @@ async def async_create_fix_flow(
         return PanelMigrationFlow(address, version)
     entry_id = values.get(ISSUE_DATA_ENTRY_ID)
     user_id = values.get(ISSUE_DATA_USER_ID)
-    # Both binding issues ask one question and are answered by one flow, which
-    # reads the entry itself to decide which confirmation to show.
+    # The flow reads the entry itself to decide which confirmation to show.
     if (
-        not any(issue_id.startswith(f"{asked}_") for asked in BINDING_ISSUES)
+        not issue_id.startswith(f"{ISSUE_PANEL_USER_MISMATCH}_")
         or not isinstance(entry_id, str)
         or not isinstance(user_id, str)
     ):

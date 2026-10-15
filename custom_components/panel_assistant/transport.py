@@ -66,6 +66,7 @@ from .ha_url import DATA_INSTANCE_ID, async_connection_urls
 from .lifecycle import DATA_LIFECYCLE
 from .transport_binding import (
     _may_ask_to_bind,
+    async_bind_user,
     async_delete_binding_issue,
     async_raise_binding_issue,
     async_record_binding_request,
@@ -340,19 +341,23 @@ def ws_hello(
         )
         return
     user_id = connection.user.id
-    if entry.data.get(CONF_TRANSPORT_USER_ID) != user_id:
-        if _may_ask_to_bind(hass, connection):
-            # The Add-panel continuation and Repairs consume the same
-            # authenticated, panel-originated request. Neither grants access.
-            if entry.data.get(CONF_TRANSPORT_USER_ID) is None:
-                async_record_binding_request(hass, did, user_id)
-            async_raise_binding_issue(hass, entry, user_id)
-        connection.send_error(
-            msg["id"],
-            ERR_PANEL_USER_MISMATCH,
-            "An administrator has not confirmed this user for this panel.",
-        )
-        return
+    bound_id = entry.data.get(CONF_TRANSPORT_USER_ID)
+    if bound_id != user_id:
+        may_ask = _may_ask_to_bind(hass, connection)
+        if bound_id is None and may_ask:
+            # A new panel is bound to the account it signs in as, so an install
+            # never stops to ask. Only another account asking for a bound panel
+            # goes to an administrator.
+            async_bind_user(hass, entry, user_id)
+        else:
+            if may_ask:
+                async_raise_binding_issue(hass, entry, user_id)
+            connection.send_error(
+                msg["id"],
+                ERR_PANEL_USER_MISMATCH,
+                "An administrator has not confirmed this user for this panel.",
+            )
+            return
     pending = hass.data[DOMAIN].get("address_proofs", {})
     if entry.entry_id in pending:
         pending[entry.entry_id].conflicted = True

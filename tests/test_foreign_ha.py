@@ -118,7 +118,7 @@ async def test_authenticated_local_binding_question_retires_foreign_warning(
 
     assert registry.async_get_issue(DOMAIN, foreign_ha_issue_id(entry.entry_id)) is None
     assert any(
-        issue.translation_key == "panel_awaiting_confirmation"
+        issue.translation_key == "panel_user_mismatch"
         for issue in registry.issues.values()
     )
 

@@ -66,14 +66,6 @@
         "title": "Potwierdź wykryty panel",
         "description": "Home Assistant znalazł instalację Panel Assistant pod adresem {address}. Zatwierdź, aby sprawdzić, czy to nadal ten sam panel, i dodać go jako {panel_name}. Żadne ustawienia panelu nie zostaną zmienione."
       },
-      "confirm_user": {
-        "title": "Potwierdź konto tego panelu",
-        "description": "Panel {panel} jest zalogowany w Home Assistant jako {user} i prosi o połączenie. Potwierdzenie tego konta to wszystko, czego ten panel jeszcze od ciebie potrzebuje: potem sam dokończy konfigurację. Każdy zalogowany w Home Assistant może poprosić o połączenie jako panel, więc potwierdź tylko wtedy, gdy {user} to konto utworzone przez ciebie dla tego panelu. Jeśli pominiesz ten krok, panel i tak zostanie dodany, ale pozostanie niepołączony, dopóki nie potwierdzisz konta w sekcji Ustawienia, a potem Naprawy.",
-        "menu_options": {
-          "bind_user": "Tak, połącz ten panel",
-          "skip_binding": "Nie teraz"
-        }
-      },
       "authorize_adb": {
         "title": "Autoryzuj Home Assistant na panelu",
         "description": "Wybrane wydanie zawiera zweryfikowany deskryptor instalacji. Wybierz „Zatwierdź” jeden raz, aby utworzyć lub wczytać trwałą tożsamość ADB dla tej instalacji Home Assistant i przekazać jej klucz publiczny panelowi Android pod adresem {address}. Na panelu zatwierdź monit systemu Android „Zezwolić na debugowanie”, a następnie wróć tutaj i ponownie wybierz „Zatwierdź”. Android może opisywać Home Assistant jako komputer. Zatwierdzenie daje ogólny dostęp do powłoki ADB, dopóki debugowanie sieciowe pozostaje włączone; możesz go cofnąć w opcjach programisty panelu. Na tym etapie żaden plik APK nie jest pobierany ani instalowany."
@@ -753,25 +745,6 @@
       },
     "panel_user_mismatch": {
       "title": "Potwierdź użytkownika Home Assistant dla {panel}",
-      "fix_flow": {
-        "step": {
-          "confirm_bind": {
-            "title": "Potwierdź użytkownika panelu",
-            "description": "Panel {panel} poprosił o połączenie z Home Assistant jako użytkownik {user}. Potwierdź tylko wtedy, gdy {user} to konto utworzone przez ciebie dla tego panelu. Po potwierdzeniu panel powinien wkrótce się połączyć. Każdy zalogowany w Home Assistant może poprosić o połączenie jako panel, więc jeśli nie rozpoznajesz tej prośby, zamknij to okno i zignoruj ten problem."
-          },
-          "confirm_rebind": {
-            "title": "Zmień użytkownika panelu",
-            "description": "Panel {panel} jest potwierdzony dla użytkownika {bound_user}, ale użytkownik {user} poprosił o połączenie jako ten panel. Potwierdź tylko wtedy, gdy konto tego panelu zostało zmienione przez ciebie na {user}: panel przestanie wtedy akceptować {bound_user} i powinien wkrótce się połączyć. Jeśli nie, ktoś inny może próbować przejąć panel, więc zamknij to okno i zignoruj ten problem."
-          }
-        },
-        "abort": {
-          "entry_removed": "Ten panel nie jest już skonfigurowany w Home Assistant.",
-          "user_unavailable": "Użytkownik, który poprosił o nawiązanie połączenia, już nie istnieje lub został dezaktywowany. Nie wprowadzono żadnych zmian."
-        }
-      }
-    },
-    "panel_awaiting_confirmation": {
-      "title": "Dokończ łączenie panelu {panel}",
       "fix_flow": {
         "step": {
           "confirm_bind": {
@@ -1487,19 +1460,11 @@
       },
       "onboarding": {
         "title": "Dokończ konfigurację tego panelu",
-        "description": "Otwórz stronę konfiguracji panelu w przeglądarce, która ma dostęp do panelu w sieci lokalnej. Zaloguj się na konto Home Assistant używane obecnie w tej przeglądarce, wybierz główny pulpit i dokończ tam konfigurację. Pozostaw to okno dialogowe otwarte; wróci ono tutaj do potwierdzenia konta. Jeśli ta przeglądarka nie ma dostępu do panelu, dokończ konfigurację później z sieci lokalnej panelu. Jeśli pojawi się prośba o zgodę na debugowanie systemu Android, ktoś nadal musi ją zatwierdzić przy panelu."
+        "description": "Otwórz stronę konfiguracji panelu w przeglądarce, która ma dostęp do panelu w sieci lokalnej. Zaloguj się na konto Home Assistant używane obecnie w tej przeglądarce, wybierz główny pulpit i dokończ tam konfigurację. Pozostaw to okno dialogowe otwarte; zamknie się samo, gdy panel się połączy. Jeśli ta przeglądarka nie ma dostępu do panelu, dokończ konfigurację później z sieci lokalnej panelu. Jeśli pojawi się prośba o zgodę na debugowanie systemu Android, ktoś nadal musi ją zatwierdzić przy panelu."
       },
       "onboarding_wait": {
         "title": "Oczekiwanie na połączenie panelu",
-        "description": "Panel nie zakończył jeszcze konfiguracji ani nie poprosił o połączenie z użyciem konta. Dokończ konfigurację na jego stronie, a następnie kliknij tutaj Prześlij, aby sprawdzić ponownie. Panel pozostanie niepowiązany, dopóki nie potwierdzisz jego konta."
-      },
-      "onboarding_confirm": {
-        "title": "Potwierdź konto tego panelu",
-        "description": "{panel} zalogował się jako {user} i poprosił o połączenie. Potwierdź tylko wtedy, gdy jest to konto wybrane dla tego panelu. Pominięcie pozostawi panel niepowiązany; możesz potwierdzić konto później w sekcji Naprawy.",
-        "menu_options": {
-          "onboarding_bind": "Tak, połącz ten panel",
-          "onboarding_skip": "Nie teraz"
-        }
+        "description": "Panel nie zakończył jeszcze konfiguracji ani nie poprosił o połączenie z użyciem konta. Dokończ konfigurację na jego stronie, a następnie kliknij tutaj Prześlij, aby sprawdzić ponownie."
       },
       "authorize_adb": {
         "title": "Zezwól na aktualizacje na {panel}",
