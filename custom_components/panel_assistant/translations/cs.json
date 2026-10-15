@@ -190,6 +190,12 @@
       },
       "reload": {
         "name": "Znovu načíst ovládací panel"
+      },
+      "android_settings": {
+        "name": "Nastavení systému Android"
+      },
+      "launcher": {
+        "name": "Spouštěč"
       }
     },
     "event": {

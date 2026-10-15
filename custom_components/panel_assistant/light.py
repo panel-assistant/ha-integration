@@ -21,6 +21,7 @@ from . import HaPaneldConfigEntry
 from .contract import catalogue_entry
 from .native import NativeEntity, async_setup_native_platform
 from .transport_sessions import PanelSession
+from .voice_commands import async_alias_screen
 
 
 async def async_setup_entry(
@@ -114,6 +115,8 @@ class NativeLight(NativeEntity, LightEntity, RestoreEntity):
     async def async_added_to_hass(self) -> None:
         """Restore whether this light was already seen taking a colour."""
         await super().async_added_to_hass()
+        if self.descriptor["channel"] == "screen":
+            async_alias_screen(self.hass, self.entity_id)
         last = await self.async_get_last_state()
         if (
             last is not None

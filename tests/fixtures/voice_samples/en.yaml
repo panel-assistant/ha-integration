@@ -9,8 +9,6 @@ match:
   - {text: "show me the android settings", command: android_settings}
   - {text: "show the launcher", command: launcher}
   - {text: "show the android home screen", command: launcher}
-  - {text: "reload the dashboard", command: reload}
-  - {text: "refresh the page", command: reload}
 miss:
   - "turn off the screen"
   - "go back"
@@ -18,6 +16,7 @@ miss:
   - "what time is it"
   - "open the garage door"
   - "set the brightness to 50 percent"
+  - "reload the dashboard"
 # Said through Home Assistant's built-in intents, with the screen's alias.
 builtin:
   screen_off: "turn off the screen"

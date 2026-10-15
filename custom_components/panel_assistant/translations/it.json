@@ -374,6 +374,12 @@
       },
       "reload": {
         "name": "Ricarica la plancia"
+      },
+      "android_settings": {
+        "name": "Impostazioni Android"
+      },
+      "launcher": {
+        "name": "Launcher"
       }
     },
     "event": {

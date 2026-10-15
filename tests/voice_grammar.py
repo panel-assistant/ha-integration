@@ -365,9 +365,10 @@ def builtin_errors(language: str) -> list[str]:
     from hassil.recognize import recognize_all
 
     intents = builtin_intents(language)
+    names = [screen_alias(language), *load_grammar(language).get("screen_names", ())]
     lists = {
         "name": TextSlotList.from_tuples(
-            [(screen_alias(language), screen_alias(language), {"domain": "light"})]
+            [(name, name, {"domain": "light"}) for name in names]
         ),
         "area": TextSlotList.from_strings(["Zorblat"]),
         "floor": TextSlotList.from_strings(["Zorblat"]),

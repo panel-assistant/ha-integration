@@ -1,7 +1,7 @@
 {
   "domain": "panel_assistant",
   "name": "Panel Assistant",
-  "after_dependencies": ["assist_pipeline", "intent"],
+  "after_dependencies": ["assist_pipeline", "conversation", "intent", "lovelace"],
   "codeowners": ["@maxlyth"],
   "config_flow": true,
   "dependencies": ["http", "media_source", "panel_custom", "stream", "websocket_api"],

@@ -190,6 +190,12 @@
       },
       "reload": {
         "name": "Recarregar dashboard"
+      },
+      "android_settings": {
+        "name": "Configurações do Android"
+      },
+      "launcher": {
+        "name": "Inicializador"
       }
     },
     "event": {

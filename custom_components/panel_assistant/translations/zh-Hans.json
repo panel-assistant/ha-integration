@@ -374,6 +374,12 @@
       },
       "reload": {
         "name": "重新加载仪表盘"
+      },
+      "android_settings": {
+        "name": "Android 设置"
+      },
+      "launcher": {
+        "name": "启动器"
       }
     },
     "event": {

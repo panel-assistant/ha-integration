@@ -62,6 +62,22 @@
       "attributes": []
     },
     {
+      "channel": "android_settings",
+      "family": null,
+      "platform": "button",
+      "translation_key": "android_settings",
+      "unique_suffix": "android_settings",
+      "attributes": []
+    },
+    {
+      "channel": "launcher",
+      "family": null,
+      "platform": "button",
+      "translation_key": "launcher",
+      "unique_suffix": "launcher",
+      "attributes": []
+    },
+    {
       "channel": "button",
       "family": null,
       "platform": "event",

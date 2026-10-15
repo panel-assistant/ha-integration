@@ -369,6 +369,12 @@
       },
       "reload": {
         "name": "Dashboard herladen"
+      },
+      "android_settings": {
+        "name": "Android-instellingen"
+      },
+      "launcher": {
+        "name": "Launcher"
       }
     },
     "camera": {

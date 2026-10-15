@@ -374,6 +374,12 @@
       },
       "reload": {
         "name": "Dashboard neu laden"
+      },
+      "android_settings": {
+        "name": "Android-Einstellungen"
+      },
+      "launcher": {
+        "name": "Launcher"
       }
     },
     "event": {

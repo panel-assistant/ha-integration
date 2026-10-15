@@ -80,6 +80,7 @@ from .voice import (
     async_setup_voice,
     satellite_known,
 )
+from .voice_commands import async_setup_voice_commands
 from .voice_stream import async_get_voice_stream, async_setup_voice_stream
 
 PLATFORMS = [Platform.SENSOR, Platform.UPDATE, *NATIVE_ONLY_PLATFORMS]
@@ -118,6 +119,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     await async_setup_voice_stream(hass)
     async_setup_transport(hass)
     async_setup_voice(hass)
+    await async_setup_voice_commands(hass)
     async_setup_embed(hass)
     async_register_browser_delivery(hass)
     async_get_blobs(hass)

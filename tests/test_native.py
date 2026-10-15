@@ -516,7 +516,7 @@ async def test_older_catalogue_ignores_usb_debugging_without_refusing_session(
         for key, value in contract._BY_CHANNEL.items()
         if key != "diag_usb_debugging"
     }
-    known = DESCRIPTORS[0]
+    known = next(d for d in DESCRIPTORS if d["channel"] == "auto_brightness")
     client = await hass_ws_client(hass, hass_read_only_access_token)
     with patch.dict(contract._BY_CHANNEL, earlier, clear=True):
         response = await _send(client, _hello([USB_DEBUGGING_DESCRIPTOR, known]))

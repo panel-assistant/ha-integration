@@ -369,6 +369,12 @@
       },
       "reload": {
         "name": "Перезавантажити панель приладів"
+      },
+      "android_settings": {
+        "name": "Налаштування Android"
+      },
+      "launcher": {
+        "name": "Лаунчер"
       }
     },
     "camera": {

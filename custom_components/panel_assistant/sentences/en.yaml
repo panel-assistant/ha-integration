@@ -14,22 +14,20 @@ commands:
     sentences:
       - "show [me] [the] [android] launcher"
       - "show [me] [the] android home screen"
-  reload:
-    sentences:
-      - "reload [the] (dashboard|page|screen)"
-      - "refresh [the] (dashboard|page|screen)"
 # {page} values that mean the panel's own home dashboard when no view or
 # dashboard has that name.
 home_pages: [home, main, start]
+# What people call the screen in this language, in the forms a sentence puts
+# it in; each becomes an alias of the screen light beside its translated name,
+# so the built-in on/off and brightness intents find it.
+screen_names: [screen]
 responses:
   show_page: "Showing {page}"
-  home_dashboard: "Showing the home dashboard"
   android_settings: "Opening Android settings"
   launcher: "Opening the launcher"
-  reload: "Reloading the dashboard"
-  reload_pending: "Confirm the reload on the panel"
   page_unknown: "This panel has no page called {page}"
   not_a_panel: "Ask a panel to do that"
   panel_unavailable: "The panel is not connected"
   panel_refused: "The panel could not do that"
+  panel_locked: "The panel is locked to its dashboard"
   needs_update: "Update the panel app to use this command"

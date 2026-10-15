@@ -374,6 +374,12 @@
       },
       "reload": {
         "name": "Recharger le tableau de bord"
+      },
+      "android_settings": {
+        "name": "Paramètres Android"
+      },
+      "launcher": {
+        "name": "Lanceur"
       }
     },
     "event": {

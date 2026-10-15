@@ -374,6 +374,12 @@
       },
       "reload": {
         "name": "Recargar Lovelace"
+      },
+      "android_settings": {
+        "name": "Ajustes de Android"
+      },
+      "launcher": {
+        "name": "Lanzador"
       }
     },
     "event": {

@@ -369,6 +369,12 @@
       },
       "reload": {
         "name": "Wczytaj panel ponownie"
+      },
+      "android_settings": {
+        "name": "Ustawienia systemu Android"
+      },
+      "launcher": {
+        "name": "Launcher"
       }
     },
     "camera": {
