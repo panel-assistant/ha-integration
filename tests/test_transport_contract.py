@@ -639,6 +639,7 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
         "move_to_new_app",
         "panel_app_too_old",
         "mqtt_panel_needs_090",
+        "old_app_needs_090",
         "panel_permissions",
         "panel_proximity_setup",
         "panel_migration_incomplete",

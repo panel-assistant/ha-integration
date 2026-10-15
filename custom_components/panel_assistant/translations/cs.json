@@ -99,7 +99,7 @@
       "installing": "Instalace Panel Assistant na adrese {address}. Nechte tento dialog otevřený; operace se dokončí sama.\n\nPokud ho zavřete, instalace bude pokračovat. Pro dokončení přidejte stejnou adresu znovu."
     },
     "error": {
-      "old_app_installed": "Na tomto panelu je stále nainstalovaná stará aplikace ha-paneld, ale neodpovídá. Otevřete ji na panelu nebo panel restartujte a pak jej znovu přidejte. Panel Assistant poté nabídne opravu, která jej převede na novou aplikaci.",
+      "old_app_installed": "Na tomto panelu stále běží stará aplikace ha-paneld. Panel Assistant 1.0 ji nedokáže převést na novou aplikaci a vedle ní nic neinstaluje. Nejprve nainstalujte Panel Assistant 0.9.0 (v HACS otevřete Panel Assistant, zvolte Redownload a vyberte verzi 0.9.0), přidejte panel a převeďte ho jeho opravou, poté nainstalujte 1.0.0.",
       "cannot_connect": "Nelze se připojit k platnému koncovému bodu kontroly stavu Panel Assistant.",
       "invalid_address": "Zadejte název hostitele nebo IP adresu bez schématu URL či cesty.",
       "invalid_install_address": "Zadejte pouze název hostitele nebo IP adresu panelu.",
@@ -131,6 +131,7 @@
       "release_selection_required": "Vyberte verzi ze seznamu."
     },
     "abort": {
+      "old_app_installed": "Na tomto panelu stále běží stará aplikace ha-paneld. Panel Assistant 1.0 ji nedokáže převést na novou aplikaci a vedle ní nic neinstaluje. Nejprve nainstalujte Panel Assistant 0.9.0 (v HACS otevřete Panel Assistant, zvolte Redownload a vyberte verzi 0.9.0), přidejte panel a převeďte ho jeho opravou, poté nainstalujte 1.0.0.",
       "already_configured": "Tento panel je již nastavený.",
       "reinstall_successful": "Aplikace byla znovu nainstalována. Tento panel si zachovává svou historii a nastavení v Home Assistant.",
       "reinstall_identity_mismatch": "Aplikace je nainstalovaná, ale nepodařilo se ji propojit se zachovaným panelem. Jeho historie a nastavení v Home Assistant byly zachovány. Před dalším pokusem zkontrolujte panel v Home Assistant.",
@@ -512,6 +513,7 @@
     }
   },
   "exceptions": {
+    "old_app_needs_090": {"message": "Na tomto panelu stále běží stará aplikace: nejprve nainstalujte Panel Assistant 0.9.0, jak vysvětluje jeho oprava"},
     "mqtt_panel_needs_090": {
       "message": "{panel} nebyl přesunut z MQTT: nejprve nainstalujte Panel Assistant 0.9.0, jak vysvětluje jeho Oprava"
     },
@@ -643,6 +645,10 @@
     "panel_app_too_old": {
       "title": "{panel} potřebuje aplikaci {required_version}",
       "description": "{panel} používá aplikaci {version}, která mluví starším protokolem než Panel Assistant 1.0, takže ji Home Assistant nevidí ani neovládá a její entity se zobrazují jako nedostupné. Nic se neztratilo: panel dál funguje samostatně a ponechává si nastavení i historii. Nainstalujte aktualizaci, kterou Panel Assistant pro tento panel nabízí, a panel se znovu připojí."
+    },
+    "old_app_needs_090": {
+      "title": "Na {panel} stále běží stará aplikace",
+      "description": "Na {panel} stále běží stará aplikace ha-paneld. Panel Assistant 1.0 už nedokáže převést panel na novou aplikaci, takže na {panel} nic neinstaluje ani neaktualizuje, dokud nebude převeden. Nejprve nainstalujte Panel Assistant 0.9.0 (v HACS otevřete Panel Assistant, zvolte Redownload a vyberte verzi 0.9.0), převeďte panel jeho opravou a poté nainstalujte 1.0.0. Panel mezitím na staré aplikaci dál funguje."
     },
     "mqtt_panel_needs_090": {
       "title": "{panel} nebyl přesunut z MQTT",

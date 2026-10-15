@@ -108,6 +108,7 @@ from .install_receipt import (
     InstallPhase,
     InstallResultCode,
 )
+from .panel_move import runs_old_app
 from .provisioning import (
     InstallTargetProbe,
     InstallTargetState,
@@ -412,6 +413,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return await self._async_create_panel_entry(
                 self._pending_address, self._pending_health
             )
+        if runs_old_app(self._pending_health):
+            return self.async_abort(reason="old_app_installed")
         try:
             state = await self._found_client().async_get_setup_state()
             needs_user = (
@@ -605,9 +608,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         ):
             return self.async_abort(reason="already_configured")
         if state == "migration_candidate":
-            # The old app is installed but not answering. Installing the new
-            # app beside it would start the panel's own move, which Panel
-            # Assistant's Repair replaces: the old app has to answer first.
+            # The old app is installed but not answering. This release cannot
+            # move it, and the new app is never installed beside it.
             errors["base"] = "old_app_installed"
             return self._show_add_panel_form(user_input, errors)
         if state in ("install_candidate", "installed") and (
@@ -1274,6 +1276,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
 
         Without ``confirm_account`` nobody is shown the form, so the entry is
         made unbound and the panel raises its own Repairs issue when it asks.
+        A new panel on the old app id is refused: this release cannot move it.
         """
         for existing in self.hass.config_entries.async_entries(DOMAIN):
             if (
@@ -1330,6 +1333,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._abort_if_unique_id_configured(
                     updates={CONF_ADDRESS: address.stored_value}, reload_on_update=False
                 )
+        if runs_old_app(health):
+            return self.async_abort(reason="old_app_installed")
         self._pending_address = address
         self._pending_health = health
         user = await self._async_asking_user() if confirm_account else None

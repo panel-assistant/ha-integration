@@ -301,16 +301,17 @@ async def test_an_older_panel_is_refused_and_told_it_needs_app_1_0_0_preview1(
         await hass.async_block_till_done()
 
 
-async def test_a_panel_on_the_old_app_id_is_offered_only_its_move(
+async def test_a_panel_on_the_old_app_id_gets_only_its_refusal(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
-    """The move installs the new app, so it alone asks for the install."""
+    """The refusal says what to install first, so it alone asks for the install."""
     entry = _entry(hass, hass_read_only_user.id)
 
     await _set_up(hass, entry, replace(OLDER_APP, package=None))
 
     assert entry.state is ConfigEntryState.LOADED
-    assert _issue(hass, f"move_to_new_app_{entry.entry_id}") is not None
+    assert _issue(hass, f"old_app_needs_090_{entry.entry_id}") is not None
+    assert _issue(hass, f"move_to_new_app_{entry.entry_id}") is None
     assert _issue(hass, f"panel_app_too_old_{entry.entry_id}") is None
 
 

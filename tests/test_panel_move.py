@@ -63,6 +63,7 @@ from custom_components.panel_assistant.panel_move import (
     async_restore_move_offer,
     claim_panel_operation,
     move_issue_id,
+    old_app_issue_id,
     release_panel_operation,
     verify_move_receipt,
 )
@@ -1206,9 +1207,12 @@ async def test_the_repair_follows_the_package_and_the_record(
     _attach(entry, panel)
     registry = ir.async_get(hass)
     issue = (DOMAIN, move_issue_id(entry.entry_id))
+    refusal = (DOMAIN, old_app_issue_id(entry.entry_id))
 
+    # The old app with no move of this entry's own is refused, never moved.
     async_evaluate_successor_move(hass, entry)
-    assert issue in registry.issues
+    assert refusal in registry.issues
+    assert issue not in registry.issues
 
     panel.running = SUCCESSOR_PACKAGE_ID
     entry.runtime_data.coordinator.data.health = await panel.health()
@@ -1217,10 +1221,12 @@ async def test_the_repair_follows_the_package_and_the_record(
     )
     async_evaluate_successor_move(hass, entry)
     assert issue in registry.issues
+    assert refusal not in registry.issues
 
     hass.config_entries.async_update_entry(entry, data={"address": "x"})
     async_evaluate_successor_move(hass, entry)
     assert issue not in registry.issues
+    assert refusal not in registry.issues
 
 
 def test_a_receipt_must_be_the_old_apps_whole_state() -> None:

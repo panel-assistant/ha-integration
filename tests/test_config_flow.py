@@ -28,6 +28,7 @@ from custom_components.panel_assistant.adb_protocol import (
     InstallAdbErrorCode,
 )
 from custom_components.panel_assistant.app_identity import (
+    LAUNCH_COMPONENTS,
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
 )
@@ -71,6 +72,7 @@ from custom_components.panel_assistant.provisioning import (
 from custom_components.panel_assistant.release import (
     ReleaseArtifact,
     ReleaseResolutionError,
+    release_apk_name,
 )
 from custom_components.panel_assistant.status import PanelStatus
 from custom_components.panel_assistant.transport_binding import (
@@ -635,15 +637,16 @@ ARTIFACT = InstallArtifact(
     release_tag=DESCRIPTOR.release_tag,
     version_name=DESCRIPTOR.version_name,
     version_code=DESCRIPTOR.version_code,
-    apk_name=DESCRIPTOR.apk_name,
+    # The new app, which is what the flows' panels report once installed.
+    apk_name=release_apk_name(DESCRIPTOR.release_tag, SUCCESSOR_PACKAGE_ID),
     apk_sha256=DESCRIPTOR.apk_sha256,
     apk_size=DESCRIPTOR.apk_size,
-    package_id=DESCRIPTOR.package_id,
+    package_id=SUCCESSOR_PACKAGE_ID,
     signer_certificate_sha256=DESCRIPTOR.signer_certificate_sha256,
     min_sdk=DESCRIPTOR.min_sdk,
     supported_abis=DESCRIPTOR.supported_abis,
     database_compatibility=DESCRIPTOR.database_compatibility,
-    launch_component=DESCRIPTOR.launch_component,
+    launch_component=LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID][0],
     protocol_min=5,
     protocol_max=5,
 )

@@ -25,6 +25,7 @@ from custom_components.panel_assistant.app_identity import (
 )
 from custom_components.panel_assistant.const import CONF_PRERELEASE_PANEL_BUILDS, DOMAIN
 from custom_components.panel_assistant.feed_coordinator import BuildFeedCoordinator
+from custom_components.panel_assistant.panel_move import CONF_SUCCESSOR_MOVE
 
 from . import test_build_feed as feed_http
 from . import test_lan_staged_update as lan
@@ -526,7 +527,15 @@ async def test_configured_feed_does_not_hide_an_installed_bridge_handover(
     client.async_get_successor_capability = AsyncMock(
         return_value=(SUCCESSOR_PACKAGE_ID, lan.VERSION, lan.CODE, False)
     )
-    lan._move_entry(hass, entity)
+    # Only a move already under way still reaches the old app; a fresh one is refused.
+    entry = lan._move_entry(hass, entity)
+    hass.config_entries.async_update_entry(
+        entry,
+        data={
+            **entry.data,
+            CONF_SUCCESSOR_MOVE: {"panel_id": entity.coordinator.data.health.panel_id},
+        },
+    )
     entity._handle_offer_refresh()
     await hass.async_block_till_done()
     assert entity.installed_version == f"{lan.VERSION} (bridge)"

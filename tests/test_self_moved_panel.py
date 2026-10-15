@@ -45,6 +45,7 @@ from custom_components.panel_assistant.panel_move import (
     MoveError,
     async_move_to_new_app,
     move_issue_id,
+    old_app_issue_id,
 )
 from custom_components.panel_assistant.transport_sessions import async_get_sessions
 
@@ -229,6 +230,7 @@ def _issues(hass: HomeAssistant, entry: MockConfigEntry) -> set[str]:
             ("address", f"panel_identity_mismatch_{entry.entry_id}"),
             ("confirmation", f"panel_identity_confirmation_{entry.entry_id}"),
             ("move", move_issue_id(entry.entry_id)),
+            ("old_app", old_app_issue_id(entry.entry_id)),
         )
         if registry.async_get_issue(DOMAIN, issue_id) is not None
     }
@@ -484,8 +486,8 @@ async def test_a_different_panel_at_the_address_is_still_refused(
 
     assert entry.unique_id == OLD_APP_DID
     assert _entity_unique_id(hass) == f"{OLD_APP_DID}_wifi"
-    # The move Repair it already had for the old app stays; the address one is new.
-    assert _issues(hass, entry) == {"address", "move"}
+    # The refusal it already had for the old app stays; the address one is new.
+    assert _issues(hass, entry) == {"address", "old_app"}
     assert network.targets == 0
 
 

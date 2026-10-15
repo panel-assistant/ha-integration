@@ -23,6 +23,7 @@ from custom_components.panel_assistant import (
 from custom_components.panel_assistant.app_identity import (
     LAUNCH_COMPONENTS,
     LEGACY_PACKAGE_ID,
+    SUCCESSOR_PACKAGE_ID,
 )
 from custom_components.panel_assistant.build_feed import (
     BuildDownloadError,
@@ -95,7 +96,7 @@ def _entity(
         async_stage_apk=AsyncMock(
             return_value=StagedApk(
                 token="token-1",
-                package=LEGACY_PACKAGE_ID,
+                package=SUCCESSOR_PACKAGE_ID,
                 version="0.9.10",
                 signer=_RELEASE_SIGNER_CERTIFICATE_SHA256,
             )
@@ -118,6 +119,7 @@ def _entity(
             panel_id="alpha",
             build="101",
             config_hash="abcd",
+            package=SUCCESSOR_PACKAGE_ID,
             protocol=(5, 5),
         ),
         status=PanelStatus(
@@ -149,8 +151,8 @@ def _entity(
         database_compatibility="hapaneld-db:v1:ha-paneld.db:11:14",
         min_sdk=26,
         published="2026-09-28T00:00:00Z",
-        package_id=LEGACY_PACKAGE_ID,
-        launch_component=LAUNCH_COMPONENTS[LEGACY_PACKAGE_ID][0],
+        package_id=SUCCESSOR_PACKAGE_ID,
+        launch_component=LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID][0],
         protocol_min=5,
         protocol_max=5,
     )
@@ -161,7 +163,7 @@ def _entity(
         coordinator._verified_apks[build.apk_sha256] = b"apk"
     host_artifact = replace(feed_release_artifact(build), tag="v0.9.10")
     host = StableReleaseCoordinator(hass)
-    host._candidates[host_artifact.tag, LEGACY_PACKAGE_ID] = host_artifact
+    host._candidates[host_artifact.tag, SUCCESSOR_PACKAGE_ID] = host_artifact
     entity = HaPaneldUpdateEntity(
         "entry-id",
         health,

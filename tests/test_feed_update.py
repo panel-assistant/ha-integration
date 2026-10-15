@@ -136,10 +136,10 @@ def _build(code: int, package_id: str = LEGACY_PACKAGE_ID) -> FeedBuild:
     )
 
 
-def _feed_data(*codes: int) -> BuildFeed:
+def _feed_data(*codes: int, package_id: str = LEGACY_PACKAGE_ID) -> BuildFeed:
     return BuildFeed(
         channel="maintainer",
-        builds=tuple(_build(code) for code in sorted(codes, reverse=True)),
+        builds=tuple(_build(code, package_id) for code in sorted(codes, reverse=True)),
     )
 
 
@@ -154,12 +154,15 @@ def _preview(**replacements: str) -> StagedApk:
     return StagedApk(**values)
 
 
-def _health(version: str, build: str = "1000") -> PanelHealth:
+def _health(
+    version: str, build: str = "1000", package: str | None = None
+) -> PanelHealth:
     return PanelHealth(
         version=version,
         panel_id="alpha",
         build=build,
         config_hash="1a2b3c4d",
+        package=package,
         protocol=(5, 5),
     )
 
@@ -171,7 +174,10 @@ def _entity(
     feed: BuildFeed | None = None,
     with_feed: bool = True,
     installed_code: int | None = 771,
+    package: str | None = None,
 ) -> tuple[HaPaneldUpdateEntity, SimpleNamespace]:
+    """A panel on the old app by default (no package); pass `package` for another."""
+    staged_package = LEGACY_PACKAGE_ID if package is None else package
     client = SimpleNamespace(
         async_start_panel_update=AsyncMock(),
         async_get_panel_install_status=AsyncMock(
@@ -190,13 +196,13 @@ def _entity(
             )
         ),
         async_backup_panel=AsyncMock(return_value=BACKUP),
-        async_stage_apk=AsyncMock(return_value=_preview()),
+        async_stage_apk=AsyncMock(return_value=_preview(package=staged_package)),
         async_commit_apk=AsyncMock(),
         async_discard_apk=AsyncMock(),
     )
     health = HaPaneldDataUpdateCoordinator(hass, client)  # type: ignore[arg-type]
     health.data = PanelSnapshot(
-        health=_health(version),
+        health=_health(version, package=package),
         status=PanelStatus(
             warning_count=0,
             capability_count=0,
@@ -211,7 +217,11 @@ def _entity(
     coordinator: BuildFeedCoordinator | None = None
     if with_feed:
         coordinator = BuildFeedCoordinator(hass, FEED_URL)
-        coordinator.data = feed if feed is not None else _feed_data(770, 771, 772)
+        coordinator.data = (
+            feed
+            if feed is not None
+            else _feed_data(770, 771, 772, package_id=staged_package)
+        )
         coordinator.reachable = True
         for package_id in (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID):
             newest = coordinator.data.newest(package_id)
@@ -308,8 +318,8 @@ async def test_unstarted_staged_commit_retry_rechecks_current_consent(
         options={CONF_PRERELEASE_PANEL_BUILDS: True},
     )
     entry.add_to_hass(hass)
-    entity, client = _entity(hass)
-    _restart_into(entity, client, 772)
+    entity, client = _entity(hass, package=SUCCESSOR_PACKAGE_ID)
+    _restart_into(entity, client, 772, package=SUCCESSOR_PACKAGE_ID)
     sent = []
 
     async def commit(token):
@@ -1979,7 +1989,7 @@ async def test_finished_staged_failure_preserves_the_panel_reason(
     MockConfigEntry(domain=DOMAIN, entry_id="entry-id", title="Test panel").add_to_hass(
         hass
     )
-    entity, client = _entity(hass)
+    entity, client = _entity(hass, package=SUCCESSOR_PACKAGE_ID)
     client.async_get_panel_install_status.return_value = PanelInstallStatus(
         running=False, component="APK", message=reason
     )

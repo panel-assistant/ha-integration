@@ -49,6 +49,7 @@ from .native import NativeEntity, async_setup_native_platform
 from .panel_move import (
     async_evaluate_successor_move,
     claim_panel_operation,
+    refuses_old_app,
     release_panel_operation,
 )
 from .release import ReleaseArtifact, is_feed_build_tag
@@ -703,6 +704,17 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         """Start one exact admitted offer, then follow the expected panel restart."""
         if self.coordinator.identity_mismatch:
             raise _update_error("update_unavailable", "The panel identity has changed")
+        entry = self.hass.config_entries.async_get_entry(self._entry_id)
+        if (
+            entry is not None
+            and self.coordinator.data is not None
+            and refuses_old_app(entry, self.coordinator.data.health)
+        ):
+            raise _update_error(
+                "old_app_needs_090",
+                "This panel still runs the old app: install Panel Assistant 0.9.0 "
+                "first, as its Repair explains",
+            )
         try:
             route, adb_target, adb_credential = await self._async_install_route()
         except HomeAssistantError as route_error:
