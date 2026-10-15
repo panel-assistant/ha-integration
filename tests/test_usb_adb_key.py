@@ -103,3 +103,17 @@ def test_the_installer_accepts_the_key_exactly_as_home_assistant_sends_it() -> N
         text=True,
     ).stdout
     assert json.loads(accepted) == key
+
+
+async def test_a_key_home_assistant_cannot_load_is_reported_not_raised(
+    hass: HomeAssistant, hass_client: Any
+) -> None:
+    client = await _endpoint(hass, hass_client)
+    with patch.object(
+        delivery,
+        "async_get_adb_credential",
+        side_effect=adb_credentials.AdbCredentialError,
+    ):
+        response = await client.get(URL)
+    assert response.status == 503
+    assert await response.json() == {"error": "browser_adb_key_unavailable"}

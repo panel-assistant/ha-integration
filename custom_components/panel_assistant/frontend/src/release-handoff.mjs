@@ -176,8 +176,8 @@ export function requestSetupHandover({ windowObject = window, options, address,
 }
 
 // Android's adbkey.pub layout: 524 bytes (64 modulus words, n0inv, modulus,
-// R^2, exponent), base64, then one space and a printable name.
-const KEY_BYTES = 524;
+// R^2, exponent), which is exactly 699 base64 characters and one pad, then one
+// space and a printable name.
 const KEY = /^([A-Za-z0-9+/]{699}=) ([\x21-\x7e]{1,64})$/;
 
 export function parsePanelAssistantKey(value) {
@@ -185,8 +185,7 @@ export function parsePanelAssistantKey(value) {
   if (!match) return null;
   let raw;
   try { raw = atob(match[1]); } catch { return null; }
-  if (raw.length !== KEY_BYTES || new DataView(Uint8Array.from(raw, c => c.charCodeAt(0)).buffer)
-    .getUint32(0, true) !== 64) return null;
+  if (new DataView(Uint8Array.from(raw, c => c.charCodeAt(0)).buffer).getUint32(0, true) !== 64) return null;
   return value;
 }
 

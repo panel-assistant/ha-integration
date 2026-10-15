@@ -69,9 +69,11 @@ test('a USB install offers Panel Assistant’s key at the panel’s prompt and t
   // restarts to turn it on and the USB session ends with it.
   assert.deepEqual(result.order.filter(step => step !== 'navigate'),
     ['authenticate', 'handover', 'completeSetup', 'networkAdb']);
-  // That ending is the install finishing, not the cable being pulled.
+  // That ending is the install finishing, not the cable being pulled: nothing
+  // says the session stopped.
   assert.equal(result.done, true);
   assert.equal(result.error, false);
+  assert.doesNotMatch(result.support, /Stopped/);
   assert.match(result.support, /turned_on/);
 });
 

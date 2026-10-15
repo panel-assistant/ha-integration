@@ -76,6 +76,24 @@ test('without a key from Home Assistant the installer is told so, and nothing is
     assert.deepEqual(f.posts.at(-1)[0], { type: 'ha-paneld/usb-adb-key-result', nonce: f.nonce, key: null });
     f.handle.cancel();
   }
+  for (const body of [{ public_key: ['x'] }, { public_key: 'x'.repeat(1025) }]) {
+    const f = await servingOpener(json(body));
+    f.send({ type: 'ha-paneld/usb-adb-key' });
+    await tick(); await tick();
+    assert.equal(f.posts.at(-1)[0].key, null, JSON.stringify(body).slice(0, 40));
+    f.handle.cancel();
+  }
+  const refused = await servingOpener(json({ public_key: KEY }, 503));
+  refused.send({ type: 'ha-paneld/usb-adb-key' });
+  await tick(); await tick();
+  assert.equal(refused.posts.at(-1)[0].key, null, 'a key in a refusal is not used');
+  refused.handle.cancel();
+  const strict = await servingOpener(json({ public_key: KEY }));
+  strict.send({ type: 'ha-paneld/usb-adb-key', extra: 1 });
+  strict.send({ type: 'ha-paneld/usb-adb-key', nonce: 'f'.repeat(32) });
+  await tick();
+  assert.equal(strict.calls.length, 2, 'only the exact request from this installer is answered');
+  strict.handle.cancel();
   const unverified = await servingOpener(json({ public_key: KEY }), { verify: false });
   unverified.send({ type: 'ha-paneld/usb-adb-key' });
   unverified.send({ type: 'ha-paneld/usb-adb-key' }, { origin: 'https://evil.example' });
@@ -106,11 +124,16 @@ test('the installer takes only a well-formed key from its own Home Assistant win
   const pending = requestPanelAssistantKey({ windowObject: w.windowObject, options: w.options });
   assert.deepEqual(w.sent, [[{ type: 'ha-paneld/usb-adb-key', nonce: w.options.nonce }, w.options.origin]]);
   w.reply({ type: 'ha-paneld/usb-adb-key-result', key: 'FORGED' }, { origin: 'https://evil.example' });
+  w.reply({ type: 'ha-paneld/usb-adb-key-result', key: 'FORGED' }, { source: {} });
+  w.reply({ type: 'ha-paneld/usb-adb-key-result', key: 'FORGED', nonce: 'd'.repeat(32) });
+  w.reply({ type: 'ha-paneld/usb-handover-result', key: 'FORGED' });
+  assert.equal(w.listeners.size, 1, 'nothing but its own answer ends the wait');
   w.reply({ type: 'ha-paneld/usb-adb-key-result', key: KEY });
   assert.equal(await pending, KEY);
   assert.equal(w.listeners.size, 0);
 
-  for (const key of [null, 'FORGED', KEY.replace(' ha-paneld', ''), KEY.replace('QAAAA', 'QQAAA'), `${KEY}\n`]) {
+  for (const key of [null, 'FORGED', KEY.replace(' ha-paneld', ''), KEY.replace('QAAAA', 'QQAAA'), `${KEY}\n`,
+    `x${KEY}`, KEY.split(' ')[0], `${KEY.split(' ')[0]} ${'n'.repeat(65)}`]) {
     const bad = installerWindow();
     const result = requestPanelAssistantKey({ windowObject: bad.windowObject, options: bad.options });
     bad.reply({ type: 'ha-paneld/usb-adb-key-result', key });
@@ -132,6 +155,9 @@ test('the panel’s first token is answered with Panel Assistant’s key and not
   assert.equal(reply.command, AdbCommand.Auth);
   assert.equal(reply.arg0, 3, 'an RSA public key, for the owner to approve');
   assert.equal(new TextDecoder().decode(reply.payload), `${KEY}\0`);
+  // Anything but a token is not this authenticator's to answer.
+  const other = new AdbAuthenticationProcessor([panelAssistantKeyAuthenticator(KEY)], store);
+  await assert.rejects(other.process({ command: AdbCommand.Auth, arg0: 2, arg1: 0, payload: new Uint8Array(20) }));
   // Another token after the key was offered gets nothing more from this side.
   await assert.rejects(processor.process({ command: AdbCommand.Auth, arg0: 1, arg1: 0, payload: new Uint8Array(20) }));
 });

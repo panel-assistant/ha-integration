@@ -2391,7 +2391,7 @@ function ve(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 	function A(e) {
 		if (e.source === p && e.origin === h) {
 			if (e.data?.type === "ha-paneld/usb-adb-key" && e.data.nonce === g && U(e.data, ["type", "nonce"])) {
-				f && y && !p.closed && k();
+				f && k();
 				return;
 			}
 			if (e.data?.type === "ha-paneld/usb-admission" && e.data.nonce === g) {

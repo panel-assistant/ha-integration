@@ -247,7 +247,7 @@ export function startReleaseHandoff(hass, installerUrl, {
     if (event.source !== child || event.origin !== targetOrigin) return;
     if (event.data?.type === 'ha-paneld/usb-adb-key' && event.data.nonce === nonce &&
         exactKeys(event.data, ['type', 'nonce'])) {
-      if (finished && delivered && !child.closed) void sendAdbKey();
+      if (finished) void sendAdbKey();
       return;
     }
     if (event.data?.type === 'ha-paneld/usb-admission' && event.data.nonce === nonce) {
