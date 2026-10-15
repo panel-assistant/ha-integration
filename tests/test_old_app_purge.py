@@ -98,6 +98,7 @@ class Panel:
         #: Where HOME points once the backup has been taken, if it moves.
         self.home_after_backup: str | None = None
         self.events: list[str] = []
+        self.offered_key = False
         self.targets = 0
 
     async def get_health(self) -> PanelHealth:
@@ -125,7 +126,8 @@ class Panel:
         self, _target: Any, _signer: Any, step: MoveStep, **_kwargs: Any
     ) -> MoveObservation:
         self.events.append(step.value)
-        assert _kwargs["authorize"] is False, "offered Panel Assistant's key"
+        # The purge's own errors are logged, not raised: record, then assert.
+        self.offered_key |= _kwargs["authorize"] is not False
         if step is MoveStep.RETIRE_LEGACY:
             assert self.home != LEGACY_PACKAGE_ID, "launcher stranded"
             assert "backup" in self.events, "removed before the backup"
@@ -466,6 +468,7 @@ async def test_a_removal_that_dropped_its_connection_is_observed_clean(
     entry = await _load(hass, hass_read_only_user.id)
     assert panel.events[-2:] == ["RETIRE_LEGACY", "OBSERVE"]
     assert _issue(hass, entry) is None
+    assert not panel.offered_key
 
 
 async def test_a_backup_that_fails_removes_nothing(
