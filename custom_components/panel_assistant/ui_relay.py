@@ -147,10 +147,12 @@ REQUEST_SCHEMA: Final = vol.All(
 
 
 def media_type(value: Any) -> str:
-    """Return a content type safe to send as a header, else bytes."""
-    if isinstance(value, str) and _MEDIA_TYPE.fullmatch(value.lower()):
-        return value.lower()
-    return "application/octet-stream"
+    """Return a content type safe to send as a header, else bytes.
+
+    Parameters such as a charset are dropped: the type before them is kept.
+    """
+    kind = value.split(";", 1)[0].strip().lower() if isinstance(value, str) else ""
+    return kind if _MEDIA_TYPE.fullmatch(kind) else "application/octet-stream"
 
 
 def content_type(path: str) -> str:

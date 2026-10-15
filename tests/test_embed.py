@@ -1085,6 +1085,37 @@ async def test_a_large_answer_is_reachable_once_at_its_blob(
     assert (await browser.get(url + reference["url"])).status == 404
 
 
+async def test_a_blob_typed_with_parameters_keeps_its_media_type(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    entry: MockConfigEntry,
+    live: SessionPanel,
+) -> None:
+    """A large text answer, typed with a charset, reaches the page as text."""
+    data = b"y" * 300_000
+
+    async def profile(event: dict[str, Any]) -> dict[str, Any]:
+        reference = await live.upload(event, data)
+        reference["type"] = "text/plain; charset=utf-8"
+        return {"outcome": "applied", "result": {"blob": reference}}
+
+    live.answers["profile.read"] = profile
+    ws = await hass_ws_client(hass)
+    _, url = await _open_session(ws, entry.entry_id)
+    reply = await _ui(
+        ws,
+        entry.entry_id,
+        {"kind": "manage", "command_id": "t1", "op": "profile.read"},
+    )
+    reference = reply["result"]["result"]["blob"]
+    assert reference["type"] == "text/plain"
+    response = await (await hass_client_no_auth()).get(url + reference["url"])
+    assert response.status == 200
+    assert response.content_type == "text/plain"
+    assert await response.read() == data
+
+
 async def test_an_upload_reaches_the_panel_as_its_own_download(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
