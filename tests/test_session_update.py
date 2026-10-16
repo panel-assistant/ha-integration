@@ -533,6 +533,8 @@ async def test_a_refused_stage_maps_like_its_http_status(
     with pytest.raises(HaPaneldError) as raised:
         await SessionCarrier(hass, entity._entry_id).async_stage_apk(APK)
     assert type(raised.value).__name__ == expected
+    # The app the panel never fetched is not kept in memory after the refusal.
+    assert not async_get_blobs(hass)._transfers
 
 
 async def test_a_build_without_the_names_is_refused_not_waited_for(
