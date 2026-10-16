@@ -115,6 +115,8 @@ MAX_COMMAND_DEADLINE_MS: Final = 60_000
 MANAGE_TIMEOUT: Final = 10.0
 MANAGE_SNAPSHOT: Final = "snapshot"
 MANAGE_SETTINGS: Final = "settings"
+# Asks the panel to read its Area from Home Assistant again; it carries no value.
+MANAGE_HA_AREA_REFRESH: Final = "ha_area.refresh"
 # Commands whose wait ended without a final outcome, remembered so a late one
 # is still recorded; and outcomes kept for diagnostics.
 MAX_LATE_COMMANDS: Final = 16
