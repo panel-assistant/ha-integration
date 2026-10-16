@@ -238,7 +238,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         )
 
     def _session_route(self) -> bool:
-        return session_route(self.hass, self._entry_id, self.coordinator, self._offer)
+        return session_route(self.hass, self._entry_id, self.coordinator)
 
     def _has_install_route(self) -> bool:
         if not self.coordinator.reachable:

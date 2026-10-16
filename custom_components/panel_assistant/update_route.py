@@ -79,7 +79,6 @@ def session_route(
     hass: HomeAssistant,
     entry_id: str,
     coordinator: HaPaneldDataUpdateCoordinator,
-    offer: UpdateOffer,
 ) -> bool:
     """Whether the panel's session can carry an update its address cannot.
 
@@ -101,7 +100,7 @@ async def async_install_route(
 ) -> tuple[str | None, AdbInstallTarget | None, AdbCredential | None]:
     """Choose from the panel's live install route, then authorized ADB."""
     snapshot: PanelSnapshot | None = coordinator.data
-    if snapshot is not None and session_route(hass, entry_id, coordinator, offer):
+    if snapshot is not None and session_route(hass, entry_id, coordinator):
         return ROUTE_SESSION, None, None
     if snapshot is None or not coordinator.reachable:
         return None, None, None

@@ -1452,7 +1452,7 @@
       "unknown": "Unexpected error",
       "panel_identity_changed": "The address no longer answers as this configured panel. Check the panel and its address before retrying.",
       "removal_unconfirmed": "Tick the box to confirm you have read the removal risks. Nothing was removed.",
-      "removal_busy": "An update or move is already changing this panel. Nothing was removed; try again when it has finished.",
+      "removal_busy": "Another operation is already changing this panel. Nothing was removed; try again when it has finished.",
       "removal_adb_unreachable": "Home Assistant could not reach the panel over the Android Debug Bridge (port 5555). Nothing was removed. Check that the panel is on and network debugging is still enabled, then try again.",
       "removal_adb_authorization": "The panel has not accepted this Home Assistant instance for the Android Debug Bridge. Nothing was removed. Choose Allow updates first, then try again.",
       "removal_panel_changed": "A different device now answers at this panel's address. Nothing was removed.",

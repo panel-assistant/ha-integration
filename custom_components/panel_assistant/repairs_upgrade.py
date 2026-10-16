@@ -80,9 +80,6 @@ def async_evaluate_old_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
     if not runs_old_app(health):
         ir.async_delete_issue(hass, DOMAIN, issue_id)
         return
-    if getattr(coordinator, "identity_mismatch", False):
-        # That health is not this entry's panel answering.
-        return
     ir.async_create_issue(
         hass,
         DOMAIN,
