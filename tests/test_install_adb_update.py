@@ -95,7 +95,9 @@ async def test_in_place_update_refuses_missing_package_before_push(
 ) -> None:
     apk = tmp_path / "release.apk"
     _write_private_apk(apk)
-    fake = FakeDevice([_preflight_output(NONCES[0])])
+    fake = FakeDevice(
+        [_preflight_output(NONCES[0]), _single_output("PACKAGE", NONCES[1], [], 1)]
+    )
     _install_update_fake(monkeypatch, fake)
     with pytest.raises(InstallAdbError) as caught:
         await async_update_installed_apk(
@@ -204,6 +206,38 @@ async def test_in_place_update_revalidates_identity_after_transfer(
     assert caught.value.code is InstallAdbErrorCode.TARGET_CHANGED
     assert all("pm install" not in command for command in fake.commands)
     assert all("rm -f" not in command for command in fake.commands)
+
+
+async def test_in_place_update_refuses_a_package_removed_during_transfer(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+) -> None:
+    apk = tmp_path / "release.apk"
+    _write_private_apk(apk)
+    installed = {"retained_lines": [f"package:{descriptor.package_id}"]}
+    fake = FakeDevice(
+        [
+            _preflight_output(NONCES[0], **installed),
+            _installed_package_output(NONCES[1]),
+            _single_output("PATH", NONCES[2], ["absent"], 0),
+            _remote_output(NONCES[3]),
+            _preflight_output(NONCES[4]),
+            _single_output("PACKAGE", NONCES[5], [], 1),
+            _identity_root_output(NONCES[6]),
+            _cleanup_output(NONCES[7]),
+        ]
+    )
+    _install_update_fake(monkeypatch, fake)
+    with pytest.raises(InstallAdbError) as caught:
+        await async_update_installed_apk(
+            target, signer, descriptor, apk, before_install=_allow_install
+        )
+    assert caught.value.code is InstallAdbErrorCode.INSTALLED_PACKAGE_MISSING
+    assert all("pm install" not in command for command in fake.commands)
+    assert "rm -f " + REMOTE_PATH in fake.commands[-1]
 
 
 async def test_in_place_update_refuses_root_mode_change_after_transfer(

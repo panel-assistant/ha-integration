@@ -1243,45 +1243,45 @@ async def test_consumption_rejects_noncanonical_entry_ids(
 
 
 @pytest.mark.parametrize(
-    ("source", "destination"),
+    ("source", "destination", "result_code"),
     [
-        (InstallPhase.APPROVED, InstallPhase.DOWNLOADING),
-        (InstallPhase.APPROVED, InstallPhase.CONSUMED),
-        (InstallPhase.HEALTHY_UNCLAIMED, InstallPhase.FAILED),
+        (InstallPhase.APPROVED, InstallPhase.DOWNLOADING, None),
+        (
+            InstallPhase.APPROVED,
+            InstallPhase.CONSUMED,
+            InstallResultCode.HEALTH_CHECK_FAILED,
+        ),
+        (
+            InstallPhase.HEALTHY_UNCLAIMED,
+            InstallPhase.FAILED,
+            InstallResultCode.HEALTH_CHECK_FAILED,
+        ),
+        (
+            InstallPhase.REVALIDATING,
+            InstallPhase.RECOVERY_REQUIRED,
+            InstallResultCode.AMBIGUOUS_MUTATION,
+        ),
+        (
+            InstallPhase.DOWNLOADING,
+            InstallPhase.RECOVERY_REQUIRED,
+            InstallResultCode.AMBIGUOUS_MUTATION,
+        ),
     ],
 )
 async def test_illegal_phase_skips_are_rejected(
-    hass: HomeAssistant, source: InstallPhase, destination: InstallPhase
+    hass: HomeAssistant,
+    source: InstallPhase,
+    destination: InstallPhase,
+    result_code: InstallResultCode | None,
 ) -> None:
-    """The explicit transition graph cannot be skipped."""
+    """The transition graph cannot be skipped, nor recovery entered before staging."""
     manager = InstallJobManager(hass, now=Clock())
-    receipt, _ = await create(manager)
-    if source == InstallPhase.APPROVED:
-        receipt = await manager.async_claim(receipt.job_id, receipt.revision)
-    if source == InstallPhase.HEALTHY_UNCLAIMED:
-        receipt = await transition_to_staging(manager, receipt.job_id)
-        for phase in (
-            InstallPhase.INSTALLING,
-            InstallPhase.INSTALLED,
-            InstallPhase.LAUNCHING,
-            InstallPhase.HEALTH_CHECK,
-        ):
-            receipt = await manager.async_transition(
-                receipt.job_id, receipt.revision, phase
-            )
-        receipt = await manager.async_transition(
-            receipt.job_id,
-            receipt.revision,
-            InstallPhase.HEALTHY_UNCLAIMED,
-            health_checked_at=Clock()(),
-        )
+    receipt = await receipt_at_phase(manager, source)
     with pytest.raises(InstallJobTransitionError):
         await manager.async_transition(
-            receipt.job_id,
-            receipt.revision,
-            destination,
-            result_code=InstallResultCode.HEALTH_CHECK_FAILED,
+            receipt.job_id, receipt.revision, destination, result_code=result_code
         )
+    assert await manager.async_get(receipt.job_id) == receipt
 
 
 async def test_terminal_outcome_requires_claim_and_cancellation_request(

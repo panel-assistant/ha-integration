@@ -696,11 +696,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 "update_busy", "The panel is busy with another operation"
             )
         try:
-            await self._async_install_claimed(version, backup)
+            await self._async_install_claimed(version)
         finally:
             release_panel_operation(self.hass, self._entry_id)
 
-    async def _async_install_claimed(self, version: str | None, backup: bool) -> None:
+    async def _async_install_claimed(self, version: str | None) -> None:
         """Start one exact admitted offer, then follow the expected panel restart."""
         if self.coordinator.identity_mismatch:
             raise _update_error("update_unavailable", "The panel identity has changed")
@@ -762,7 +762,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             feed = self._offer.feed.data
         failure_artifact: dict[str, object] | None = None
         if feed is not None:
-            build = await self._async_select_feed_build(feed, version, backup)
+            build = await self._async_select_feed_build(feed, version)
             target_version = build.label
             selected_artifact = feed_release_artifact(build)
             repair_artifact: ReleaseArtifact | None = selected_artifact
@@ -770,11 +770,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 self._offer.feed.verified_apk(build) if self._offer.feed else None
             )
             failure_artifact = asdict(selected_artifact)
-            if route == ROUTE_ADB and selected_artifact.descriptor is None:
-                raise _update_error(
-                    "update_unavailable",
-                    "The requested Panel Assistant update is unavailable",
-                )
         else:
             offer = self._offer.stable_target()
             if route == ROUTE_ADB:
@@ -787,7 +782,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     )
             if (
                 self.in_progress
-                or backup
                 or offer is None
                 or version not in (None, offer.target_version)
             ):
@@ -853,12 +847,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                         # Keep the signed pair selected for this transaction even
                         # if the shared release coordinator refreshes mid-install.
                         successor = self._offer.successor(release.tag)
-                        if (
-                            successor is None
-                            or successor.tag != release.tag
-                            or successor.descriptor is None
-                            or successor.descriptor.package_id != SUCCESSOR_PACKAGE_ID
-                        ):
+                        if successor is None or successor.descriptor is None:
                             raise _update_error(
                                 "release_pair_unavailable",
                                 "The matching new-app release is unavailable",
@@ -914,15 +903,14 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             )
             raise error from None
         except Exception as err:
-            if not _bridge_not_ready(err):
-                await async_record_update_failure(
-                    self.hass,
-                    self._entry_id,
-                    self._panel_name(),
-                    target_version,
-                    err,
-                    artifact=failure_artifact,
-                )
+            await async_record_update_failure(
+                self.hass,
+                self._entry_id,
+                self._panel_name(),
+                target_version,
+                err,
+                artifact=failure_artifact,
+            )
             raise
         else:
             owner = self.hass.config_entries.async_get_entry(self._entry_id)
@@ -1000,7 +988,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         _LOGGER.info("Updating %s to %s: %s", self.entity_id, tag, route)
 
     async def _async_select_feed_build(
-        self, feed: BuildFeed, version: str | None, backup: bool
+        self, feed: BuildFeed, version: str | None
     ) -> FeedBuild:
         """Resolve a valid signed-feed target before starting an update attempt."""
         package_id = self._offer.feed_package()
@@ -1010,11 +998,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             if version is not None
             else (newest.version_code if newest is not None else None)
         )
-        if self.in_progress or backup:
-            raise _update_error(
-                "update_unavailable",
-                "The requested Panel Assistant update is unavailable",
-            )
         build = feed.find(code, package_id) if code is not None else None
         if build is None and code is not None and self._offer.feed is not None:
             # The build may have been published since the last scheduled read.
@@ -1026,7 +1009,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 build = self._offer.feed.data.find(code, package_id)
         if (
             self.in_progress
-            or backup
             or build is None
             or (
                 build.version_name == self.coordinator.data.health.version

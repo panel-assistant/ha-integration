@@ -103,7 +103,6 @@ class BuildDelivery:
         *,
         apk: bytes | None = None,
         fallback: bool = False,
-        migration: bool = False,
     ) -> bool:
         """Back up, verify, upload and commit one signed build, then prove it.
 
@@ -117,7 +116,6 @@ class BuildDelivery:
             raise _update_error(
                 "update_unavailable", "The requested update is unavailable"
             )
-        client = self._coordinator.client
         carrier = self._carrier(hass)
         route = ROUTE_SESSION if self.session else ROUTE_STAGED
         snapshot: PanelSnapshot | None = self._coordinator.data
@@ -130,44 +128,13 @@ class BuildDelivery:
                 "update_unavailable",
                 "The requested Panel Assistant update is unavailable",
             )
-        running_package = LEGACY_PACKAGE_ID if migration else package_id
-        if not reports_package(snapshot.health.package, running_package):
+        if not reports_package(snapshot.health.package, package_id):
             raise _update_error(
                 "panel_changed_during_update",
                 "The panel changed while preparing the update",
             )
         before = (snapshot.health.build, snapshot.health.package)
-        installed_successor_code: int | None = None
-        if migration:
-            installed_successor_code = await self._offer.async_check_successor(
-                artifact, snapshot
-            )
         await self._async_backup_panel(hass)
-        if (
-            migration
-            and descriptor is not None
-            and installed_successor_code is not None
-            and installed_successor_code >= descriptor.version_code
-        ):
-            try:
-                await client.async_offer_installed_successor()
-            except UpdateApprovalRequiredError as err:
-                raise _update_error(
-                    "update_approval_required",
-                    "Approve this update on the panel, then try again",
-                ) from err
-            except UpdateBusyError as err:
-                raise _update_error(
-                    "update_busy", "The panel is busy with another operation"
-                ) from err
-            except HaPaneldError as err:
-                raise _update_error(
-                    "bridge_handover_refused", "The panel refused the app handover"
-                ) from err
-            self._record_route(ROUTE_STAGED, artifact.tag)
-            self._progress.enter("installing")
-            await self.async_wait_for_build(hass, artifact, before, minimum_code=True)
-            return True
         if apk is None:
             try:
                 apk = await async_download_build(
@@ -186,20 +153,14 @@ class BuildDelivery:
                 raise _verification_error(artifact) from err
         try:
             try:
-                staged = (
-                    await carrier.async_stage_apk(apk, migration_sha256=artifact.sha256)
-                    if migration
-                    else await carrier.async_stage_apk(apk)
-                )
+                staged = await carrier.async_stage_apk(apk)
             except StagingUnavailableError:
                 if fallback:
                     return False
                 raise
             health = self._coordinator.data.health if self._coordinator.data else None
-            panel_changed = (
-                health is None
-                or not reports_package(health.package, running_package)
-                or (migration and health.version != artifact.version)
+            panel_changed = health is None or not reports_package(
+                health.package, package_id
             )
             staged_mismatch = (
                 staged.package != package_id
@@ -413,7 +374,6 @@ class BuildDelivery:
         artifact: ReleaseArtifact,
         before: tuple[str, str | None],
         *,
-        minimum_code: bool = False,
         watch_refusal: bool = False,
     ) -> None:
         """Wait for exactly the committed build, then remember its number.
@@ -427,7 +387,6 @@ class BuildDelivery:
                 hass,
                 artifact,
                 before,
-                minimum_code=minimum_code,
                 watch_refusal=watch_refusal,
                 carrier=self._carrier(hass) if self.session else None,
             )

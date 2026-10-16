@@ -178,11 +178,7 @@ async def _async_restore_display_sizing(found: tuple[AdbInstallTarget, Any]) -> 
 
 
 def _app_left(observed: MoveObservation) -> bool:
-    return (
-        observed.legacy_installed
-        or observed.successor_installed
-        or observed.legacy_set_aside
-    )
+    return observed.legacy_installed or observed.successor_installed
 
 
 async def _async_step(

@@ -847,8 +847,6 @@ async def async_update_installed_apk(
             admitted = await _async_preflight_on_device(
                 device, target, descriptor, admit_installed_target=True
             )
-            if not admitted.target_installed:
-                raise InstallAdbError(InstallAdbErrorCode.INSTALLED_PACKAGE_MISSING)
             admitted_root_mode = admitted.root_mode
             nonce = token_hex(16)
             _parse_package_present(
@@ -887,8 +885,6 @@ async def async_update_installed_apk(
             )
             assert admitted_root_mode is not None
             _require_expected_root_mode(admitted.root_mode, admitted_root_mode)
-            if not admitted.target_installed:
-                raise InstallAdbError(InstallAdbErrorCode.INSTALLED_PACKAGE_MISSING)
             nonce = token_hex(16)
             _parse_package_present(
                 await _async_shell(
@@ -1616,7 +1612,7 @@ def _parse_move(body: bytes, nonce: str) -> MoveObservation:
         successor_unlaunched=bool(unlaunched) and SUCCESSOR_PACKAGE_ID in installed,
         successor_records=(
             frozenset(line.removeprefix("record:") for line in records)
-            if read and SUCCESSOR_PACKAGE_ID in installed
+            if read
             else None
         ),
         legacy_set_aside=bool(listed) and LEGACY_PACKAGE_ID not in installed,

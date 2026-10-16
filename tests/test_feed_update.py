@@ -780,8 +780,6 @@ async def test_install_refuses_a_missing_build_when_the_refresh_fails(
     [
         pytest.param("771", False, id="already-installed"),
         pytest.param("0.9.7-rc4 build 771", False, id="already-installed-label"),
-        pytest.param(None, True, id="backup-requested"),
-        pytest.param("772", True, id="backup-requested-specific"),
     ],
 )
 async def test_install_refuses_without_contacting_anything(
@@ -790,7 +788,7 @@ async def test_install_refuses_without_contacting_anything(
     version: str | None,
     backup: bool,
 ) -> None:
-    """The installed build and HA-side backups are never offered."""
+    """The installed build is never offered."""
     entity, client = _entity(hass)
     feed = entity._offer.feed
     assert feed is not None
