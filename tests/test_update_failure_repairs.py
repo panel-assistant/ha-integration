@@ -1396,7 +1396,8 @@ async def test_recovered_disappeared_operation_ends_unknown_without_repair(
 ) -> None:
     """A past running sample with no durable target is not a failed install."""
     entity, client = _entity(hass, recovered=True)
-    monkeypatch.setattr(update_progress, "_UPDATE_TIMEOUT_SECONDS", 0.02)
+    # Two passes fit on a loaded runner; the deadline is also how the wait ends.
+    monkeypatch.setattr(update_progress, "_UPDATE_TIMEOUT_SECONDS", 1.0)
     monkeypatch.setattr(update_progress, "_UPDATE_RECHECK_SECONDS", 0.01)
     refreshes = 0
 

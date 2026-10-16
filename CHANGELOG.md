@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **A panel follows an Area move at once.** Moving a panel to another Area in Home Assistant now reaches the panel within seconds, instead of at its next scheduled check up to six hours later. The panel still decides which Area it uses, so an Area chosen on the panel itself is kept. A panel needs this release's panel app; until it updates, it picks the move up at its scheduled check as before.
 - **The sidebar runs the version you installed.** After Panel Assistant was updated, a browser could keep the previous version's sidebar from its cache, and a panel's pages in it then never finished loading. The sidebar is now loaded afresh for each version, and a Home Assistant tab left open across the update reloads once when it next opens the sidebar.
 - **Removing a panel app that is a device admin.** Android refuses to uninstall an app that has been made a device admin in its settings, so removing the panel app, and the clean-up of an old panel app, failed on such a panel. Panel Assistant now asks the panel app to give up device admin first, then removes it.
 - **The missing-permission warning says what is missing.** When a panel refuses a permission at install, the warning in the log now names only the permissions it refused and what each one stops, including that a panel without the permission to install packages cannot install its own update with a tap.

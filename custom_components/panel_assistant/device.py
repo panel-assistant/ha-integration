@@ -21,7 +21,7 @@ from homeassistant.helpers.typing import UNDEFINED
 from .client import PanelHealth
 from .const import DOMAIN
 from .coordinator import HaPaneldDataUpdateCoordinator, PanelSnapshot
-from .transport_protocol import MANAGE_SETTINGS
+from .transport_protocol import MANAGE_HA_AREA_REFRESH, MANAGE_SETTINGS
 from .transport_sessions import async_get_sessions, async_manage, session_manages
 
 _LOGGER = logging.getLogger(__name__)
@@ -183,6 +183,43 @@ def async_refresh_panel_device(
         # Replace links registered by earlier versions as well.
         configuration_url=info.get("configuration_url", UNDEFINED),
     )
+
+
+@callback
+def async_follow_panel_area(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> Callable[[], None]:
+    """Ask the panel to read its Area again when Home Assistant moves its device.
+
+    The panel owns the Area rule (its own choice, Home Assistant's or a write-back),
+    so no value is sent. A panel that does not know the request refuses it and keeps
+    its slower scheduled read.
+    """
+    registry = dr.async_get(hass)
+
+    async def ask() -> None:
+        session = async_get_sessions(hass).get(entry.entry_id)
+        if not session_manages(session):
+            return
+        assert session is not None
+        try:
+            await async_manage(hass, session, MANAGE_HA_AREA_REFRESH)
+        except HomeAssistantError as err:
+            _LOGGER.debug(
+                "%s: the panel did not read its Area again: %s", entry.title, err
+            )
+
+    @callback
+    def registry_changed(event: Event[dr.EventDeviceRegistryUpdatedData]) -> None:
+        if event.data["action"] != "update" or "area_id" not in event.data["changes"]:
+            return
+        device = registry.async_get(event.data["device_id"])
+        if device is not None and (DOMAIN, entry.entry_id) in device.identifiers:
+            hass.async_create_background_task(
+                ask(), f"{DOMAIN} area read {entry.entry_id}"
+            )
+
+    return hass.bus.async_listen(dr.EVENT_DEVICE_REGISTRY_UPDATED, registry_changed)
 
 
 @callback
