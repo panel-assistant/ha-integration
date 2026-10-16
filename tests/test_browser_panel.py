@@ -53,7 +53,7 @@ async def test_real_panel_registration_and_admin_visibility(hass):
             "embed_iframe": False,
             "trust_external": False,
             "handle_safe_area": False,
-            "module_url": "/panel_assistant/usb/ha-panel.js",
+            "module_url": f"/panel_assistant/usb/ha-panel.js?v={INTEGRATION_BUILD}",
         },
     }
     hass.data[frontend.DATA_PANELS_CONFIG] = {}
@@ -65,6 +65,49 @@ async def test_real_panel_registration_and_admin_visibility(hass):
         result = connection.send_message.call_args.args[0]["result"]
         assert (browser_panel.PANEL_PATH in result) is is_admin
         assert (browser_panel.SIDEBAR_PANEL_PATH in result) is is_admin
+
+
+def _frontend_panels(hass) -> dict:
+    """The panels as the frontend asks for them over its WebSocket."""
+    hass.data[frontend.DATA_PANELS_CONFIG] = {}
+    connection = SimpleNamespace(
+        hass=hass, user=SimpleNamespace(is_admin=True), send_message=Mock()
+    )
+    frontend.websocket_get_panels(hass, connection, {"id": 1})
+    return connection.send_message.call_args.args[0]["result"]
+
+
+@pytest.mark.usefixtures("panel_http")
+async def test_updated_build_sends_browsers_to_a_new_module(
+    hass, hass_client_no_auth, monkeypatch
+):
+    """A browser that cached an older build's sidebar must not keep running it.
+
+    The module is served without a lifetime, so a browser reuses the copy it last
+    loaded for as long as its address stays the same; an older sidebar cannot
+    relay a panel's requests, and its cards never load.
+    """
+    addresses = []
+    for build in (721, 722):
+        monkeypatch.setattr(browser_panel, "INTEGRATION_BUILD", build)
+        hass.data.get("panel_assistant", {}).pop(browser_panel.DATA_BROWSER_PANEL, None)
+        for path in (browser_panel.PANEL_PATH, browser_panel.SIDEBAR_PANEL_PATH):
+            if path in hass.data.get(frontend.DATA_PANELS, {}):
+                frontend.async_remove_panel(hass, path)
+        await browser_panel.async_register_browser_panel(hass)
+        panels = _frontend_panels(hass)
+        urls = {
+            panels[path]["config"]["_panel_custom"]["module_url"]
+            for path in (browser_panel.PANEL_PATH, browser_panel.SIDEBAR_PANEL_PATH)
+        }
+        assert len(urls) == 1
+        addresses.append(urls.pop())
+    assert addresses[0] != addresses[1]
+    client = await hass_client_no_auth()
+    for address in addresses:
+        response = await client.get(address)
+        assert response.status == 200
+        assert await response.text() == "export const testModule = true;\n"
 
 
 @pytest.mark.usefixtures("panel_http")

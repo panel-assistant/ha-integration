@@ -72,6 +72,10 @@ async def async_register_browser_panel(hass: HomeAssistant) -> None:
     """Register once per HA lifetime, independently of configuration entries."""
     domain_data = hass.data.setdefault(DOMAIN, {})
     registration = domain_data.setdefault(DATA_BROWSER_PANEL, _Registration())
+    # The module's address names its build. The file is served without a lifetime,
+    # so a browser keeps the copy it last loaded (an older build's sidebar, which
+    # cannot relay a panel's requests) until the address changes.
+    module_url = f"{STATIC_URL}/ha-panel.js?v={INTEGRATION_BUILD}"
     async with registration.lock:
         if not registration.view_registered:
             hass.http.register_view(EmbedView(hass))
@@ -86,7 +90,7 @@ async def async_register_browser_panel(hass: HomeAssistant) -> None:
                 hass,
                 frontend_url_path=PANEL_PATH,
                 webcomponent_name="panel-assistant-usb-install",
-                module_url=f"{STATIC_URL}/ha-panel.js",
+                module_url=module_url,
                 sidebar_title=None,
                 embed_iframe=False,
                 require_admin=True,
@@ -105,7 +109,7 @@ async def async_register_browser_panel(hass: HomeAssistant) -> None:
                 hass,
                 frontend_url_path=SIDEBAR_PANEL_PATH,
                 webcomponent_name="panel-assistant-sidebar",
-                module_url=f"{STATIC_URL}/ha-panel.js",
+                module_url=module_url,
                 sidebar_title="Panel Assistant",
                 sidebar_icon="mdi:tablet-dashboard",
                 embed_iframe=False,

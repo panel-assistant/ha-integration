@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **The sidebar runs the version you installed.** After Panel Assistant was updated, a browser could keep the previous version's sidebar from its cache, and a panel's pages in it then never finished loading. The sidebar is now loaded afresh for each version, and a Home Assistant tab left open across the update reloads once when it next opens the sidebar.
 - **Removing a panel app that is a device admin.** Android refuses to uninstall an app that has been made a device admin in its settings, so removing the panel app, and the clean-up of an old panel app, failed on such a panel. Panel Assistant now asks the panel app to give up device admin first, then removes it.
 - **The missing-permission warning says what is missing.** When a panel refuses a permission at install, the warning in the log now names only the permissions it refused and what each one stops, including that a panel without the permission to install packages cannot install its own update with a tap.
 - **The USB installer's button matches its message.** When the USB installer cannot fetch the app from Home Assistant, its message tells you to go back to Home Assistant and start again, and its button now says Back to Home Assistant rather than Try again.

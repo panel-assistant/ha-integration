@@ -1,6 +1,17 @@
+//#region src/stale-module.mjs
+var e = ["panel-assistant-sidebar", "panel-assistant-usb-install"], t = "panel-assistant-module-reloaded";
+if (e.some((e) => customElements.get(e))) {
+	let e = null;
+	try {
+		e = sessionStorage.getItem(t), sessionStorage.setItem(t, import.meta.url);
+	} catch {
+		e = import.meta.url;
+	}
+	e !== import.meta.url && location.reload();
+}
 //#endregion
 //#region src/translations/index.mjs
-var e = Object.freeze({
+var n = Object.freeze({
 	en: {
 		sidebar: {
 			title: "Panel Assistant",
@@ -1662,23 +1673,23 @@ var e = Object.freeze({
 			setupMissing: "未找到；设置将在面板上继续"
 		}
 	}
-}), t = e.en, n = Object.keys(e);
-function r(e) {
+}), r = n.en, i = Object.keys(n);
+function a(e) {
 	if (typeof e != "string") return "en";
 	let t = e.trim().replaceAll("_", "-").toLowerCase();
 	if (t === "pt-br" || t.startsWith("pt-br-")) return "pt-BR";
 	if (t === "zh" || t === "zh-cn" || t.startsWith("zh-cn-") || t === "zh-sg" || t.startsWith("zh-sg-") || t === "zh-hans" || t.startsWith("zh-hans-")) return "zh-Hans";
-	let r = t.split("-")[0];
-	return n.includes(r) ? r : "en";
+	let n = t.split("-")[0];
+	return i.includes(n) ? n : "en";
 }
-function i(n, i, a = e) {
-	let o = t[n], s = a[r(i)]?.[n], c = (e) => [...e.matchAll(/\{([A-Za-z_]+)\}/g)].map((e) => e[1]).sort().join(",");
+function o(e, t, i = n) {
+	let o = r[e], s = i[a(t)]?.[e], c = (e) => [...e.matchAll(/\{([A-Za-z_]+)\}/g)].map((e) => e[1]).sort().join(",");
 	return Object.fromEntries(Object.entries(o).map(([e, t]) => {
 		let n = s?.[e];
 		return [e, typeof n == "string" && (n || !t) && c(n) === c(t) ? n : t];
 	}));
 }
-function a(e, t) {
+function s(e, t) {
 	return e.replace(/\{([A-Za-z_]+)\}/g, (e, n) => Object.hasOwn(t, n) ? String(t[n]) : e);
 }
 Object.freeze({
@@ -1691,26 +1702,26 @@ Object.freeze({
 		NAME_SVG: "62d6cba58c86fd2fe160822da9e8eeb09e1a2157738e63ffb2305c5a87208568"
 	}
 });
-var o = "/* Generated from tools/tokens/tokens.json by tools/tokens/tokens.py; do not edit.\n   Dark is the default. The light values apply when the viewing browser prefers light, unless\n   ?theme=dark pinned dark (`data-theme` on the document, `theme` on a Panel Assistant host), and\n   whenever ?theme=light pinned light. `:host` serves a shadow root, `:root` a page. */\n:root,:host{color-scheme:dark;\n  --bg:#111;--card:#181818;--card-head:#222;--input-bg:#1c1c1c;--input-bg2:#161616;--card-border:#242424;\n  --divider:#2a2a2a;--config-divider:#3a3a3a;--border:#333;--border2:#383838;--border-strong:#444;--text:#eee;\n  --text-bright:#fff;--text-soft:#ccc;--tab:#bbb;--dim:#888;--accent:#9af;--accent2:#9cf;--ok-dim:#8a8;\n  --icon:#7c8a99;--icon-dim:#6a7a8a;--hover:#1a1a1a;--knob:#eee;--disabled-bg:#222;--disabled-fg:#666;\n  --shadow:#000;--shimA:#141414;--shimB:#1f1f1f;--plot:#0d0d0d;--vtagrec-bg:#1f4d2e;--vtagrec-fg:#8fe0a8;\n  --setup-bg:#3a2f10;--setup-bd:#7a5a2a;--setup-fg:#f5c451;--setup-link:#ffd97a;--crit-bg:#3a1512;\n  --crit-fg:#ffb3a6;--crit-link:#ffc9bf;--info-bg:#12233a;--info-bd:#2a557a;--info-fg:#9cc4ee;\n  --info-link:#bcd9f5;--api-desc:#667;--api-error:#d9534f;--api-ok:#5ad18a;\n  --autobright-band:rgba(74,158,255,.15);--autobright-grid:#343a44;--autobright-label:#888;\n  --backup-plain-warn:#c88;--cap-degraded:#d9a528;--cap-none:#d04a3b;--cap-ok:#48c774;--cfglink:#4a6a8a;\n  --chart-bg:#0d0d0d;--chart-blocked:#f5a623;--chart-cpu:#4a9eff;--chart-expected:#f1bd52;--chart-gpu:#f5a623;\n  --chart-grid:#383838;--chart-interaction:#d04a3b;--chart-label:#888;--chart-observed:#4a9eff;\n  --chart-proposed:#b77cff;--chart-ram:#48c774;--chart-updates:#4a9eff;--edge-crit:#e05a48;\n  --edge-info:#3d7fd0;--fact-warn:#f5c451;--fg-bad:#d04a3b;--fg-faint:#666;--fg-muted:#888;--fg-ok:#48c774;\n  --fg-warn:#d9a528;--highlight:#4a9eff;--install-rule:#2a2a2a;--link:#9cf;--listbox-shadow:rgba(0,0,0,.28);\n  --log-error:#f07868;--log-info:#cfcfcf;--log-verbose:#777;--log-warn:#f5c451;--primary-text:#fff;\n  --pkg-active:#3fb950;--pkg-dialog-bg:#1a1a1a;--pkg-dialog-border:#333;--pkg-dialog-fg:#eee;\n  --pkg-divider:#222;--pkg-note:#9aa;--pkg-protected:#777;--primary:#2557a7;\n  --primary-glow:rgba(37,87,167,.55);--primary-glow-off:rgba(37,87,167,0);--profile-danger-border:#8b342f;\n  --profile-danger-fg:#ffb3a6;--profile-editor-active-line:rgba(127,153,204,.09);\n  --profile-editor-selection:rgba(77,121,195,.35);--profile-issue-error:#d05248;--profile-issue-info:#4284bb;\n  --profile-issue-warning:#c6952d;--profile-modal-backdrop:rgba(0,0,0,.66);\n  --profile-modal-shadow:rgba(0,0,0,.5);--profile-ok-fg:#9ee5ad;--pswitch-border:#2a3550;\n  --pswitch-border-hover:#4a6ba0;--screenshot-backdrop:rgba(0,0,0,.72);--screenshot-error:#e07868;\n  --screenshot-frame-bg:#000;--self-row-border:#2a2a2a;--shot-failed-fg:#a88;--sleep-allow:#9aafc2;\n  --sleep-allow-fg:#172533;--sleep-blocked-a:#a33b3b;--sleep-blocked-b:#5b2626;--sleep-detected:#c89a18;\n  --sleep-detected-fg:#17130a;--sleep-hold:#287dcc;--sleep-inhibited-stripe:#f1bd52;--sleep-interval-fg:#fff;\n  --sleep-loading-overlay:rgba(18,22,28,.76);--sleep-off:#68727f;--sleep-off-fg:#f4f6f8;\n  --sleep-policy-lane:rgba(74,158,255,.11);--status-bad:#d34b42;--status-ok:#45a65a;--status-warn:#c58a16;\n  --uninstall-select-bg:#1c1c1c;--uninstall-select-border:#444;--uninstall-select-fg:#eee;\n  --api-response-fg:#cdd;}\n@media (prefers-color-scheme: light){:root:not([data-theme=dark]),:host(:not([theme=dark])){color-scheme:light;\n  --bg:#f2f3f5;--card:#fff;--card-head:#e7ebef;--input-bg:#f6f7f9;--input-bg2:#fafbfc;--card-border:#d9dde3;\n  --divider:#e4e7ec;--config-divider:#e4e7ec;--border:#c9cfd7;--border2:#c4cad2;--border-strong:#b6bec8;\n  --text:#1b2430;--text-bright:#000;--text-soft:#2c3644;--tab:#4a5462;--dim:#6a7480;--accent:#1e56a8;\n  --accent2:#0b6a8e;--ok-dim:#3f7d49;--icon:#5b6b7a;--icon-dim:#74818f;--hover:#e9ecef;--knob:#fff;\n  --disabled-bg:#e2e5e9;--disabled-fg:#9aa3ad;--shadow:rgba(0,0,0,.18);--shimA:#e8eaee;--shimB:#f6f7f9;\n  --plot:#e8ecf0;--vtagrec-bg:#d9efe0;--vtagrec-fg:#1f6b3a;--setup-bg:#fcf4dc;--setup-bd:#e3cf94;\n  --setup-fg:#7a5a10;--setup-link:#8a6400;--crit-bg:#fceceb;--crit-fg:#a02c20;--crit-link:#7c1f16;\n  --info-bg:#e9f1fb;--info-bd:#b9d2ec;--info-fg:#26567e;--info-link:#1a4468;}}\n:root[data-theme=light],:host([theme=light]){color-scheme:light;\n  --bg:#f2f3f5;--card:#fff;--card-head:#e7ebef;--input-bg:#f6f7f9;--input-bg2:#fafbfc;--card-border:#d9dde3;\n  --divider:#e4e7ec;--config-divider:#e4e7ec;--border:#c9cfd7;--border2:#c4cad2;--border-strong:#b6bec8;\n  --text:#1b2430;--text-bright:#000;--text-soft:#2c3644;--tab:#4a5462;--dim:#6a7480;--accent:#1e56a8;\n  --accent2:#0b6a8e;--ok-dim:#3f7d49;--icon:#5b6b7a;--icon-dim:#74818f;--hover:#e9ecef;--knob:#fff;\n  --disabled-bg:#e2e5e9;--disabled-fg:#9aa3ad;--shadow:rgba(0,0,0,.18);--shimA:#e8eaee;--shimB:#f6f7f9;\n  --plot:#e8ecf0;--vtagrec-bg:#d9efe0;--vtagrec-fg:#1f6b3a;--setup-bg:#fcf4dc;--setup-bd:#e3cf94;\n  --setup-fg:#7a5a10;--setup-link:#8a6400;--crit-bg:#fceceb;--crit-fg:#a02c20;--crit-link:#7c1f16;\n  --info-bg:#e9f1fb;--info-bd:#b9d2ec;--info-fg:#26567e;--info-link:#1a4468;}\n", s = "/* Page header lock-up from the brand asset set (website src/brand): beside a mark H high the name is drawn\n   0.536 H tall (Sora 40 beside a 56 mark; name.svg is its 30-unit ink box), 0.18 H away, with its baseline\n   on the bottom edge of the house, 0.233 H above the mark's foot. The version caption fills that 0.233 H\n   under the name, so the header keeps the old logo's height (H = 2.1 x 1.3rem) and its first-paint size. */\n.logo{height:2.73rem;width:3.64rem;margin-right:.49rem;flex:none}\n.brand{display:flex;flex-direction:column;align-self:flex-end;flex:none;white-space:nowrap;color:var(--text)}\n.brand-name{display:block;height:1.4625rem;width:14.084rem;fill:currentColor}\n.brand-version{display:block;height:.636rem;font-size:11px;line-height:.636rem;color:var(--dim);font-weight:400}\n.card{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:14px 16px;margin:0 0 18px;break-inside:avoid;-webkit-column-break-inside:avoid;box-sizing:border-box;--single-column:0}\n/* Card title-bar: a subtly demarcated full-width header (slight tint + divider) separating the title\n   from content. Also the intended drag handle for card reordering + home for a collapse triangle. */\n.card h2{margin:-14px -16px 12px;padding:9px 16px;background:var(--card-head);border-bottom:1px solid var(--divider);border-radius:12px 12px 0 0}\n/* Native radio choices keep full release labels and compatibility reasons readable. */\n.choice-list{min-width:0;max-width:100%;max-height:240px;overflow-y:auto}\n.choice-list label{display:block;position:relative;margin:6px 0;color:var(--text)}\n.choice-list input[type=radio]{position:absolute;left:12px;top:14px;width:auto;min-width:0;margin:0;accent-color:var(--primary)}\n.choice-list span{display:block;padding:10px 12px 10px 38px;border:1px solid var(--border-strong);border-radius:8px;background:var(--input-bg);white-space:normal;word-wrap:break-word;overflow-wrap:break-word}\n.choice-list input:checked+span{border-color:var(--primary)}\n.choice-list input:focus+span{outline:2px solid var(--primary);outline-offset:-2px}\n.choice-list input:disabled+span{color:var(--disabled-fg)}\n/* Self-contained so it looks identical on <button> AND <a> (the \"Open in HA\" link) — anchors don't\n   inherit the button{} border/radius/colour, so spell them out + kill the link underline. */\n.pbtn{font-size:.8rem;padding:6px 12px;background:var(--input-bg);border:1px solid var(--border-strong);border-radius:8px;color:var(--text);cursor:pointer;text-decoration:none;display:inline-block;line-height:1.3;font-family:inherit}\n/* Button: bare <button> and .pbtn.primary are the primary action, .pbtn the quiet one; .on is a pressed quiet button. */\n.pbtn.primary,.pbtn.on{background:var(--primary);border-color:var(--primary);color:var(--primary-text)}\n.pbtn.danger{border-color:var(--profile-danger-border);color:var(--profile-danger-fg)}   /* a quiet button whose action cannot be taken back */\n.pbtn:disabled{opacity:.4;cursor:not-allowed}   /* capability missing (no a11y / no root) — shown but inert */\n/* Notice row: every advisory on these pages, one line the height of the old strip. Severity is the pill\n   word (Notice.kt / HaNotice in i18n.js), never a fill: the five that ask for attention carry one accent\n   dot, Unavailable and Resolved an outlined pill with none. Narrow widths wrap the action under the text. */\n.notice{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin:10px 0!important;color:var(--text);font-size:.92rem;overflow-wrap:anywhere}\n/* Pill: one word in an outlined capsule, the one badge on every page. A pill that asks for attention\n   carries the accent dot (.pill.dot; a notice row's pill unless it is Unavailable or Resolved); state is\n   the word, never a fill colour. */\n.pill,.notice-pill{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;white-space:nowrap;padding:0 10px;line-height:1.3;border-radius:999px;border:1px solid var(--border-strong);font-size:.82rem;font-weight:600;vertical-align:middle}\n.pill.dot::before,.notice-pill::before{content:\"\";width:7px;height:7px;border-radius:50%;background:var(--accent)}\n.card h2 .pill{float:right;color:var(--text)}   /* the title bar is accent-coloured; elsewhere a pill takes its context's colour */\n.notice[data-severity=unavailable] .notice-pill::before,.notice[data-severity=resolved] .notice-pill::before{display:none}\n.notice[data-severity=unavailable],.notice[data-severity=resolved]{color:var(--dim)}\n.notice-text{flex:1 1 18rem;min-width:0}\n.notice-title{font-weight:600}\n.notice-detail{color:var(--dim)}\n.notice a{color:var(--accent);font-weight:600}\n.notice-action{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}\n/* Guided setup (/setup) — one linear column, deliberately NOT the .cards masonry: a journey has an\n   order, and multi-column layout destroys it. Reuses the theme tokens and the .notice row so\n   the wizard inherits dark/light for free. */\n.wiz{max-width:520px;margin:0 auto;padding:4px 0 24px}\n.wiz-step .card{margin:0 0 14px}\n.wiz-step h2{text-transform:none;letter-spacing:0;font-size:1.15rem;color:var(--text)}\n/* The step heading is focused programmatically (tabindex=-1) so screen readers announce each new\n   step, but it is not keyboard-reachable, so its default focus ring is pure visual noise — it made the\n   title bar look like a selected text field on load. Suppress the ring; the announcement remains. */\n.wiz-step h2:focus{outline:none}\n.wiz-lead{color:var(--dim);margin:2px 0 14px}\n/* Wizard selects match the form's field metrics — browser-default select text read as tiny against the\n   1rem inputs on hardware review; proportionate, not dominant, not minuscule. */\n.wiz select{width:100%;font:inherit;font-size:1rem;min-height:42px;padding:8px 10px;margin:6px 0;background:var(--input-bg2);border:1px solid var(--border2);color:var(--text);border-radius:6px}\n/* The Custom dashboard-path input sits directly beneath the wizard's select and has to read as the\n   same control family; the generic input metrics are visibly smaller than .wiz select on hardware. */\n.wiz .hd-custom-input{font-size:1rem;min-height:42px;padding:8px 10px;margin:6px 0}\n.wiz .hd-custom-note{display:block;color:var(--dim);line-height:1.45}\n.wiz-fld{display:block;margin:14px 0}\n.wiz-fld>b{display:block;margin-bottom:5px;font-size:.92rem}\n.wiz-fld>small{display:block;color:var(--dim);margin-top:5px;line-height:1.45}\n.wiz-consequence{color:var(--dim);font-size:.88rem;line-height:1.5;margin:10px 0 0;border-left:3px solid var(--divider);padding-left:10px}\n/* Live entity-id preview and wizard banners can contain maximum-length entity IDs or opaque backend\n   values with no break opportunities. Keep those values inside the Setup card without changing the\n   wrapping policy of banners on the other management pages. */\n.wiz-preview,.wiz .notice{overflow-wrap:anywhere;word-break:break-word}\n/* Live entity-id preview: the consequence of the panel-id choice, shown rather than explained. */\n.wiz-preview{margin:8px 0 0;padding:8px 10px;background:var(--input-bg);border:1px solid var(--divider);border-radius:8px;font:.8rem/1.6 ui-monospace,Menlo,Consolas,monospace;color:var(--dim)}\n.wiz-preview b{color:var(--text);font-weight:600}\n/* The one forward affordance on every step: full width, labelled with its consequence. */\n.wiz button.wiz-primary{display:block;width:100%;min-height:46px;font-size:1rem;margin-top:16px}\n/* A pressed save must LOOK pressed: an unstyled disabled state read as \"nothing happened\" on hardware\n   review, and users re-clicked. */\n.wiz .wiz-secondary{display:block;box-sizing:border-box;width:100%;min-height:42px;margin-top:8px;font-size:.95rem}\n.wiz-dots{display:flex;gap:14px;justify-content:center;list-style:none;margin:4px 0 14px;padding:0;flex-wrap:wrap}\n.wiz-dots li{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--dim)}\n.wiz-dots li::before{content:\"\";flex:none;width:.55rem;height:.55rem;border-radius:50%;background:var(--dim);opacity:.35}\n.wiz-dots li.done::before{background:var(--ok-dim);opacity:1}\n.wiz-dots li.current{color:var(--text);font-weight:600}\n.wiz-dots li.current::before{background:var(--primary);opacity:1}\n/* Verification is a STATE of a dot, not its own step — users don't experience waiting as a stage. */\n.wiz-dots li.busy::before{background:var(--primary);opacity:1;animation:wiz-breathe 1.6s ease-in-out infinite}\n/* Async status line. The breathing dot is never the only signal — the TEXT changes as time passes, so\n   reduced-motion and screen-reader users get strictly more information than the dot conveys. */\n.wiz-status{display:flex;align-items:baseline;gap:8px;margin:14px 0 0;min-height:1.4em}\n.wiz-status::before{content:\"\";flex:none;width:.55rem;height:.55rem;border-radius:50%;background:var(--primary);animation:wiz-breathe 1.6s ease-in-out infinite;align-self:center}\n.wiz-status.ok::before{background:var(--ok-dim);animation:none}\n@keyframes wiz-breathe{0%,100%{opacity:.35}50%{opacity:1}}\n@media (prefers-reduced-motion:reduce){.wiz-dots li.busy::before,.wiz-status::before{animation:none;opacity:.85}}\n/* The area confirmation that shares the wizard's dashboard page. */\n/* Deterministic bring-up milestones (proof card): real signals, no spinner. */\n.wiz-milestones{margin:12px 0 0;border-left:3px solid var(--divider);padding-left:12px}\n.wiz-milestone{margin:4px 0;color:var(--dim);font-size:.88rem;line-height:1.5}\n.hd-area-label{display:block;margin:16px 0 5px;font-size:.92rem}\n.hd-area-note{display:block;color:var(--dim);margin-top:5px;line-height:1.45}\n/* Sign-in routes: the recommended one first and visually primary, both honest about the account. */\n.wiz-route{border:1px solid var(--divider);border-radius:10px;padding:12px 14px;margin:10px 0}\n.wiz-route.recommended{border-color:var(--primary)}\n.wiz-route .pill{margin-left:6px}\n.wiz-route p{margin:6px 0;color:var(--dim);font-size:.9rem;line-height:1.5}\n.wiz-escape{text-align:center;margin:6px 0 0}\n.wiz-escape a{color:var(--dim)}\n.wiz details{margin:10px 0 0}\n.wiz details summary{cursor:pointer;color:var(--accent)}\n.wiz details p{color:var(--dim);font-size:.9rem;line-height:1.55}\n@media (max-width:600px){.wiz{padding-left:2px;padding-right:2px}.wiz-dots{gap:10px}}\n", c = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"24 32 60 45\">\n<path d=\"M28,32 h52 a4,4 0 0 1 4,4 v37 a4,4 0 0 1 -4,4 h-52 a4,4 0 0 1 -4,-4 v-37 a4,4 0 0 1 4,-4 z\" fill=\"#607D8B\"/>\n<path d=\"M29,35 h50 a2,2 0 0 1 2,2 v35 a2,2 0 0 1 -2,2 h-50 a2,2 0 0 1 -2,-2 v-35 a2,2 0 0 1 2,-2 z\" fill=\"#10284A\" stroke=\"#CFD8DC\" stroke-width=\"1\"/>\n<g transform=\"translate(42.00,42.50) scale(0.1000)\">\n<path fill=\"#F2F4F9\" d=\"M240 224.813C240 233.063 233.25 239.813 225 239.813H15C6.75 239.813 0 233.063 0 224.813V134.813C0 126.563 4.77 115.043 10.61 109.203L109.39 10.423C115.22 4.59304 124.77 4.59304 130.6 10.423L229.39 109.213C235.22 115.043 240 126.573 240 134.823V224.823V224.813Z\"/>\n<path fill=\"#18BCF2\" d=\"M229.39 109.203L130.61 10.423C124.78 4.59304 115.23 4.59304 109.4 10.423L10.61 109.203C4.78 115.033 0 126.563 0 134.813V224.813C0 233.063 6.75 239.813 15 239.813H107.27L66.64 199.183C64.55 199.903 62.32 200.313 60 200.313C48.7 200.313 39.5 191.113 39.5 179.813C39.5 168.513 48.7 159.313 60 159.313C71.3 159.313 80.5 168.513 80.5 179.813C80.5 182.143 80.09 184.373 79.37 186.463L111 218.093V102.213C104.2 98.873 99.5 91.893 99.5 83.823C99.5 72.523 108.7 63.323 120 63.323C131.3 63.323 140.5 72.523 140.5 83.823C140.5 91.893 135.8 98.873 129 102.213V183.483L160.46 152.023C159.84 150.063 159.5 147.983 159.5 145.823C159.5 134.523 168.7 125.323 180 125.323C191.3 125.323 200.5 134.523 200.5 145.823C200.5 157.123 191.3 166.323 180 166.323C177.5 166.323 175.12 165.853 172.91 165.033L129 208.943V239.823H225C233.25 239.823 240 233.073 240 224.823V134.823C240 126.573 235.23 115.053 229.39 109.213V109.203Z\"/>\n</g>\n</svg>\n", l = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"288.90\" height=\"30\" viewBox=\"0 -30 288.90 30\">\n<path fill=\"currentColor\" d=\"M7.92 -9.56L7.92 -13.76L14 -13.76Q15.92 -13.76 17.18 -14.5Q18.44 -15.24 19.1 -16.54Q19.76 -17.84 19.76 -19.48Q19.76 -21.12 19.1 -22.42Q18.44 -23.72 17.18 -24.46Q15.92 -25.2 14 -25.2L7.92 -25.2L7.92 -29.4L13.44 -29.4Q17.08 -29.4 19.58 -28.22Q22.08 -27.04 23.38 -24.88Q24.68 -22.72 24.68 -19.8L24.68 -19.16Q24.68 -16.24 23.38 -14.08Q22.08 -11.92 19.58 -10.74Q17.08 -9.56 13.44 -9.56ZM3.92 0L3.92 -29.4L8.72 -29.4L8.72 0ZM40.64 0L40.64 -6.44L39.88 -6.44L39.88 -13.68Q39.88 -15.72 38.84 -16.74Q37.8 -17.76 35.76 -17.76Q34.64 -17.76 33.28 -17.72Q31.92 -17.68 30.6 -17.64Q29.28 -17.6 28.28 -17.52L28.28 -21.56Q29.2 -21.64 30.26 -21.7Q31.32 -21.76 32.46 -21.8Q33.6 -21.84 34.64 -21.84Q37.92 -21.84 40.08 -21Q42.24 -20.16 43.3 -18.34Q44.36 -16.52 44.36 -13.48L44.36 0ZM33.64 0.56Q31.28 0.56 29.52 -0.26Q27.76 -1.08 26.8 -2.66Q25.84 -4.24 25.84 -6.44Q25.84 -8.76 26.94 -10.28Q28.04 -11.8 30.08 -12.56Q32.12 -13.32 34.96 -13.32L40.36 -13.32L40.36 -10.24L34.84 -10.24Q32.72 -10.24 31.6 -9.22Q30.48 -8.2 30.48 -6.56Q30.48 -4.92 31.6 -3.94Q32.72 -2.96 34.84 -2.96Q36.08 -2.96 37.2 -3.42Q38.32 -3.88 39.06 -4.96Q39.8 -6.04 39.88 -8L41.08 -6.44Q40.88 -4.16 39.98 -2.62Q39.08 -1.08 37.5 -0.26Q35.92 0.56 33.64 0.56ZM49.35 0L49.35 -21.56L53.11 -21.56L53.11 -12.32L52.67 -12.32Q52.67 -15.52 53.53 -17.72Q54.39 -19.92 56.15 -21.06Q57.91 -22.2 60.51 -22.2L60.71 -22.2Q64.71 -22.2 66.67 -19.68Q68.63 -17.16 68.63 -12.32L68.63 0L63.91 0L63.91 -12.96Q63.91 -15.2 62.65 -16.56Q61.39 -17.92 59.15 -17.92Q56.87 -17.92 55.47 -16.52Q54.07 -15.12 54.07 -12.76L54.07 0ZM83.05 0.76Q80.25 0.76 78.17 -0.2Q76.09 -1.16 74.75 -2.76Q73.41 -4.36 72.75 -6.34Q72.09 -8.32 72.09 -10.4L72.09 -11.16Q72.09 -13.28 72.75 -15.26Q73.41 -17.24 74.75 -18.82Q76.09 -20.4 78.11 -21.34Q80.13 -22.28 82.81 -22.28Q86.29 -22.28 88.61 -20.76Q90.93 -19.24 92.09 -16.82Q93.25 -14.4 93.25 -11.6L93.25 -9.72L74.13 -9.72L74.13 -12.88L90.09 -12.88L88.77 -11.24Q88.77 -13.44 88.11 -15Q87.45 -16.56 86.13 -17.42Q84.81 -18.28 82.81 -18.28Q80.73 -18.28 79.33 -17.34Q77.93 -16.4 77.25 -14.72Q76.57 -13.04 76.57 -10.76Q76.57 -8.6 77.25 -6.9Q77.93 -5.2 79.37 -4.22Q80.81 -3.24 83.05 -3.24Q85.29 -3.24 86.73 -4.22Q88.17 -5.2 88.49 -6.52L92.85 -6.52Q92.41 -4.32 91.07 -2.68Q89.73 -1.04 87.69 -0.14Q85.65 0.76 83.05 0.76ZM97.03 0L97.03 -29.2L101.75 -29.2L101.75 0ZM94.19 -25.6L94.19 -29.2L101.75 -29.2L101.75 -25.6ZM111.97 0L122.21 -29.2L130.17 -29.2L140.73 0L135.77 0L126.53 -25.96L128.49 -25.04L123.65 -25.04L125.73 -25.96L116.77 0ZM118.61 -8.24L120.13 -12.4L132.37 -12.4L133.93 -8.24ZM150.93 0.68Q146.57 0.68 144.15 -1.18Q141.73 -3.04 141.61 -6.28L145.93 -6.28Q146.01 -5.08 147.17 -4.08Q148.33 -3.08 150.97 -3.08Q153.21 -3.08 154.49 -3.96Q155.77 -4.84 155.77 -6.16Q155.77 -7.36 154.81 -8.06Q153.85 -8.76 151.65 -8.96L149.53 -9.2Q146.21 -9.56 144.27 -11.14Q142.33 -12.72 142.33 -15.48Q142.33 -17.64 143.41 -19.12Q144.49 -20.6 146.39 -21.4Q148.29 -22.2 150.77 -22.2Q154.61 -22.2 156.97 -20.5Q159.33 -18.8 159.41 -15.52L155.09 -15.52Q155.05 -16.72 153.95 -17.58Q152.85 -18.44 150.77 -18.44Q148.77 -18.44 147.71 -17.64Q146.65 -16.84 146.65 -15.6Q146.65 -14.48 147.45 -13.84Q148.25 -13.2 150.05 -13L152.17 -12.8Q155.81 -12.4 157.95 -10.78Q160.09 -9.16 160.09 -6.28Q160.09 -4.2 158.93 -2.64Q157.77 -1.08 155.71 -0.2Q153.65 0.68 150.93 0.68ZM171.13 0.68Q166.77 0.68 164.35 -1.18Q161.93 -3.04 161.81 -6.28L166.13 -6.28Q166.21 -5.08 167.37 -4.08Q168.53 -3.08 171.17 -3.08Q173.41 -3.08 174.69 -3.96Q175.97 -4.84 175.97 -6.16Q175.97 -7.36 175.01 -8.06Q174.05 -8.76 171.85 -8.96L169.73 -9.2Q166.41 -9.56 164.47 -11.14Q162.53 -12.72 162.53 -15.48Q162.53 -17.64 163.61 -19.12Q164.69 -20.6 166.59 -21.4Q168.49 -22.2 170.97 -22.2Q174.81 -22.2 177.17 -20.5Q179.53 -18.8 179.61 -15.52L175.29 -15.52Q175.25 -16.72 174.15 -17.58Q173.05 -18.44 170.97 -18.44Q168.97 -18.44 167.91 -17.64Q166.85 -16.84 166.85 -15.6Q166.85 -14.48 167.65 -13.84Q168.45 -13.2 170.25 -13L172.37 -12.8Q176.01 -12.4 178.15 -10.78Q180.29 -9.16 180.29 -6.28Q180.29 -4.2 179.13 -2.64Q177.97 -1.08 175.91 -0.2Q173.85 0.68 171.13 0.68ZM184.93 0L184.93 -21.56L189.61 -21.56L189.61 0ZM181.77 -17.96L181.77 -21.56L189.61 -21.56L189.61 -17.96ZM186.45 -24.56Q185.01 -24.56 184.31 -25.32Q183.61 -26.08 183.61 -27.28Q183.61 -28.44 184.31 -29.22Q185.01 -30 186.45 -30Q187.93 -30 188.63 -29.22Q189.33 -28.44 189.33 -27.28Q189.33 -26.08 188.63 -25.32Q187.93 -24.56 186.45 -24.56ZM202.49 0.68Q198.13 0.68 195.71 -1.18Q193.29 -3.04 193.17 -6.28L197.49 -6.28Q197.57 -5.08 198.73 -4.08Q199.89 -3.08 202.53 -3.08Q204.77 -3.08 206.05 -3.96Q207.33 -4.84 207.33 -6.16Q207.33 -7.36 206.37 -8.06Q205.41 -8.76 203.21 -8.96L201.09 -9.2Q197.77 -9.56 195.83 -11.14Q193.89 -12.72 193.89 -15.48Q193.89 -17.64 194.97 -19.12Q196.05 -20.6 197.95 -21.4Q199.85 -22.2 202.33 -22.2Q206.17 -22.2 208.53 -20.5Q210.89 -18.8 210.97 -15.52L206.65 -15.52Q206.61 -16.72 205.51 -17.58Q204.41 -18.44 202.33 -18.44Q200.33 -18.44 199.27 -17.64Q198.21 -16.84 198.21 -15.6Q198.21 -14.48 199.01 -13.84Q199.81 -13.2 201.61 -13L203.73 -12.8Q207.37 -12.4 209.51 -10.78Q211.65 -9.16 211.65 -6.28Q211.65 -4.2 210.49 -2.64Q209.33 -1.08 207.27 -0.2Q205.21 0.68 202.49 0.68ZM224.09 0.28Q221.41 0.28 219.57 -0.46Q217.73 -1.2 216.77 -2.96Q215.81 -4.72 215.81 -7.72L215.85 -27.84L220.29 -27.84L220.29 -7.32Q220.29 -5.64 221.19 -4.74Q222.09 -3.84 223.73 -3.84L227.33 -3.84L227.33 0.28ZM212.25 -18.04L212.25 -21.56L227.33 -21.56L227.33 -18.04ZM243.81 0L243.81 -6.44L243.05 -6.44L243.05 -13.68Q243.05 -15.72 242.01 -16.74Q240.97 -17.76 238.93 -17.76Q237.81 -17.76 236.45 -17.72Q235.09 -17.68 233.77 -17.64Q232.45 -17.6 231.45 -17.52L231.45 -21.56Q232.37 -21.64 233.43 -21.7Q234.49 -21.76 235.63 -21.8Q236.77 -21.84 237.81 -21.84Q241.09 -21.84 243.25 -21Q245.41 -20.16 246.47 -18.34Q247.53 -16.52 247.53 -13.48L247.53 0ZM236.81 0.56Q234.45 0.56 232.69 -0.26Q230.93 -1.08 229.97 -2.66Q229.01 -4.24 229.01 -6.44Q229.01 -8.76 230.11 -10.28Q231.21 -11.8 233.25 -12.56Q235.29 -13.32 238.13 -13.32L243.53 -13.32L243.53 -10.24L238.01 -10.24Q235.89 -10.24 234.77 -9.22Q233.65 -8.2 233.65 -6.56Q233.65 -4.92 234.77 -3.94Q235.89 -2.96 238.01 -2.96Q239.25 -2.96 240.37 -3.42Q241.49 -3.88 242.23 -4.96Q242.97 -6.04 243.05 -8L244.25 -6.44Q244.05 -4.16 243.15 -2.62Q242.25 -1.08 240.67 -0.26Q239.09 0.56 236.81 0.56ZM252.52 0L252.52 -21.56L256.28 -21.56L256.28 -12.32L255.84 -12.32Q255.84 -15.52 256.7 -17.72Q257.56 -19.92 259.32 -21.06Q261.08 -22.2 263.68 -22.2L263.88 -22.2Q267.88 -22.2 269.84 -19.68Q271.8 -17.16 271.8 -12.32L271.8 0L267.08 0L267.08 -12.96Q267.08 -15.2 265.82 -16.56Q264.56 -17.92 262.32 -17.92Q260.04 -17.92 258.64 -16.52Q257.24 -15.12 257.24 -12.76L257.24 0ZM285.66 0.28Q282.98 0.28 281.14 -0.46Q279.3 -1.2 278.34 -2.96Q277.38 -4.72 277.38 -7.72L277.42 -27.84L281.86 -27.84L281.86 -7.32Q281.86 -5.64 282.76 -4.74Q283.66 -3.84 285.3 -3.84L288.9 -3.84L288.9 0.28ZM273.82 -18.04L273.82 -21.56L288.9 -21.56L288.9 -18.04Z\"/>\n</svg>\n", u = `data:image/svg+xml,${encodeURIComponent(c)}`;
-function d(e, t = "en") {
+var c = "/* Generated from tools/tokens/tokens.json by tools/tokens/tokens.py; do not edit.\n   Dark is the default. The light values apply when the viewing browser prefers light, unless\n   ?theme=dark pinned dark (`data-theme` on the document, `theme` on a Panel Assistant host), and\n   whenever ?theme=light pinned light. `:host` serves a shadow root, `:root` a page. */\n:root,:host{color-scheme:dark;\n  --bg:#111;--card:#181818;--card-head:#222;--input-bg:#1c1c1c;--input-bg2:#161616;--card-border:#242424;\n  --divider:#2a2a2a;--config-divider:#3a3a3a;--border:#333;--border2:#383838;--border-strong:#444;--text:#eee;\n  --text-bright:#fff;--text-soft:#ccc;--tab:#bbb;--dim:#888;--accent:#9af;--accent2:#9cf;--ok-dim:#8a8;\n  --icon:#7c8a99;--icon-dim:#6a7a8a;--hover:#1a1a1a;--knob:#eee;--disabled-bg:#222;--disabled-fg:#666;\n  --shadow:#000;--shimA:#141414;--shimB:#1f1f1f;--plot:#0d0d0d;--vtagrec-bg:#1f4d2e;--vtagrec-fg:#8fe0a8;\n  --setup-bg:#3a2f10;--setup-bd:#7a5a2a;--setup-fg:#f5c451;--setup-link:#ffd97a;--crit-bg:#3a1512;\n  --crit-fg:#ffb3a6;--crit-link:#ffc9bf;--info-bg:#12233a;--info-bd:#2a557a;--info-fg:#9cc4ee;\n  --info-link:#bcd9f5;--api-desc:#667;--api-error:#d9534f;--api-ok:#5ad18a;\n  --autobright-band:rgba(74,158,255,.15);--autobright-grid:#343a44;--autobright-label:#888;\n  --backup-plain-warn:#c88;--cap-degraded:#d9a528;--cap-none:#d04a3b;--cap-ok:#48c774;--cfglink:#4a6a8a;\n  --chart-bg:#0d0d0d;--chart-blocked:#f5a623;--chart-cpu:#4a9eff;--chart-expected:#f1bd52;--chart-gpu:#f5a623;\n  --chart-grid:#383838;--chart-interaction:#d04a3b;--chart-label:#888;--chart-observed:#4a9eff;\n  --chart-proposed:#b77cff;--chart-ram:#48c774;--chart-updates:#4a9eff;--edge-crit:#e05a48;\n  --edge-info:#3d7fd0;--fact-warn:#f5c451;--fg-bad:#d04a3b;--fg-faint:#666;--fg-muted:#888;--fg-ok:#48c774;\n  --fg-warn:#d9a528;--highlight:#4a9eff;--install-rule:#2a2a2a;--link:#9cf;--listbox-shadow:rgba(0,0,0,.28);\n  --log-error:#f07868;--log-info:#cfcfcf;--log-verbose:#777;--log-warn:#f5c451;--primary-text:#fff;\n  --pkg-active:#3fb950;--pkg-dialog-bg:#1a1a1a;--pkg-dialog-border:#333;--pkg-dialog-fg:#eee;\n  --pkg-divider:#222;--pkg-note:#9aa;--pkg-protected:#777;--primary:#2557a7;\n  --primary-glow:rgba(37,87,167,.55);--primary-glow-off:rgba(37,87,167,0);--profile-danger-border:#8b342f;\n  --profile-danger-fg:#ffb3a6;--profile-editor-active-line:rgba(127,153,204,.09);\n  --profile-editor-selection:rgba(77,121,195,.35);--profile-issue-error:#d05248;--profile-issue-info:#4284bb;\n  --profile-issue-warning:#c6952d;--profile-modal-backdrop:rgba(0,0,0,.66);\n  --profile-modal-shadow:rgba(0,0,0,.5);--profile-ok-fg:#9ee5ad;--pswitch-border:#2a3550;\n  --pswitch-border-hover:#4a6ba0;--screenshot-backdrop:rgba(0,0,0,.72);--screenshot-error:#e07868;\n  --screenshot-frame-bg:#000;--self-row-border:#2a2a2a;--shot-failed-fg:#a88;--sleep-allow:#9aafc2;\n  --sleep-allow-fg:#172533;--sleep-blocked-a:#a33b3b;--sleep-blocked-b:#5b2626;--sleep-detected:#c89a18;\n  --sleep-detected-fg:#17130a;--sleep-hold:#287dcc;--sleep-inhibited-stripe:#f1bd52;--sleep-interval-fg:#fff;\n  --sleep-loading-overlay:rgba(18,22,28,.76);--sleep-off:#68727f;--sleep-off-fg:#f4f6f8;\n  --sleep-policy-lane:rgba(74,158,255,.11);--status-bad:#d34b42;--status-ok:#45a65a;--status-warn:#c58a16;\n  --uninstall-select-bg:#1c1c1c;--uninstall-select-border:#444;--uninstall-select-fg:#eee;\n  --api-response-fg:#cdd;}\n@media (prefers-color-scheme: light){:root:not([data-theme=dark]),:host(:not([theme=dark])){color-scheme:light;\n  --bg:#f2f3f5;--card:#fff;--card-head:#e7ebef;--input-bg:#f6f7f9;--input-bg2:#fafbfc;--card-border:#d9dde3;\n  --divider:#e4e7ec;--config-divider:#e4e7ec;--border:#c9cfd7;--border2:#c4cad2;--border-strong:#b6bec8;\n  --text:#1b2430;--text-bright:#000;--text-soft:#2c3644;--tab:#4a5462;--dim:#6a7480;--accent:#1e56a8;\n  --accent2:#0b6a8e;--ok-dim:#3f7d49;--icon:#5b6b7a;--icon-dim:#74818f;--hover:#e9ecef;--knob:#fff;\n  --disabled-bg:#e2e5e9;--disabled-fg:#9aa3ad;--shadow:rgba(0,0,0,.18);--shimA:#e8eaee;--shimB:#f6f7f9;\n  --plot:#e8ecf0;--vtagrec-bg:#d9efe0;--vtagrec-fg:#1f6b3a;--setup-bg:#fcf4dc;--setup-bd:#e3cf94;\n  --setup-fg:#7a5a10;--setup-link:#8a6400;--crit-bg:#fceceb;--crit-fg:#a02c20;--crit-link:#7c1f16;\n  --info-bg:#e9f1fb;--info-bd:#b9d2ec;--info-fg:#26567e;--info-link:#1a4468;}}\n:root[data-theme=light],:host([theme=light]){color-scheme:light;\n  --bg:#f2f3f5;--card:#fff;--card-head:#e7ebef;--input-bg:#f6f7f9;--input-bg2:#fafbfc;--card-border:#d9dde3;\n  --divider:#e4e7ec;--config-divider:#e4e7ec;--border:#c9cfd7;--border2:#c4cad2;--border-strong:#b6bec8;\n  --text:#1b2430;--text-bright:#000;--text-soft:#2c3644;--tab:#4a5462;--dim:#6a7480;--accent:#1e56a8;\n  --accent2:#0b6a8e;--ok-dim:#3f7d49;--icon:#5b6b7a;--icon-dim:#74818f;--hover:#e9ecef;--knob:#fff;\n  --disabled-bg:#e2e5e9;--disabled-fg:#9aa3ad;--shadow:rgba(0,0,0,.18);--shimA:#e8eaee;--shimB:#f6f7f9;\n  --plot:#e8ecf0;--vtagrec-bg:#d9efe0;--vtagrec-fg:#1f6b3a;--setup-bg:#fcf4dc;--setup-bd:#e3cf94;\n  --setup-fg:#7a5a10;--setup-link:#8a6400;--crit-bg:#fceceb;--crit-fg:#a02c20;--crit-link:#7c1f16;\n  --info-bg:#e9f1fb;--info-bd:#b9d2ec;--info-fg:#26567e;--info-link:#1a4468;}\n", l = "/* Page header lock-up from the brand asset set (website src/brand): beside a mark H high the name is drawn\n   0.536 H tall (Sora 40 beside a 56 mark; name.svg is its 30-unit ink box), 0.18 H away, with its baseline\n   on the bottom edge of the house, 0.233 H above the mark's foot. The version caption fills that 0.233 H\n   under the name, so the header keeps the old logo's height (H = 2.1 x 1.3rem) and its first-paint size. */\n.logo{height:2.73rem;width:3.64rem;margin-right:.49rem;flex:none}\n.brand{display:flex;flex-direction:column;align-self:flex-end;flex:none;white-space:nowrap;color:var(--text)}\n.brand-name{display:block;height:1.4625rem;width:14.084rem;fill:currentColor}\n.brand-version{display:block;height:.636rem;font-size:11px;line-height:.636rem;color:var(--dim);font-weight:400}\n.card{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:14px 16px;margin:0 0 18px;break-inside:avoid;-webkit-column-break-inside:avoid;box-sizing:border-box;--single-column:0}\n/* Card title-bar: a subtly demarcated full-width header (slight tint + divider) separating the title\n   from content. Also the intended drag handle for card reordering + home for a collapse triangle. */\n.card h2{margin:-14px -16px 12px;padding:9px 16px;background:var(--card-head);border-bottom:1px solid var(--divider);border-radius:12px 12px 0 0}\n/* Native radio choices keep full release labels and compatibility reasons readable. */\n.choice-list{min-width:0;max-width:100%;max-height:240px;overflow-y:auto}\n.choice-list label{display:block;position:relative;margin:6px 0;color:var(--text)}\n.choice-list input[type=radio]{position:absolute;left:12px;top:14px;width:auto;min-width:0;margin:0;accent-color:var(--primary)}\n.choice-list span{display:block;padding:10px 12px 10px 38px;border:1px solid var(--border-strong);border-radius:8px;background:var(--input-bg);white-space:normal;word-wrap:break-word;overflow-wrap:break-word}\n.choice-list input:checked+span{border-color:var(--primary)}\n.choice-list input:focus+span{outline:2px solid var(--primary);outline-offset:-2px}\n.choice-list input:disabled+span{color:var(--disabled-fg)}\n/* Self-contained so it looks identical on <button> AND <a> (the \"Open in HA\" link) — anchors don't\n   inherit the button{} border/radius/colour, so spell them out + kill the link underline. */\n.pbtn{font-size:.8rem;padding:6px 12px;background:var(--input-bg);border:1px solid var(--border-strong);border-radius:8px;color:var(--text);cursor:pointer;text-decoration:none;display:inline-block;line-height:1.3;font-family:inherit}\n/* Button: bare <button> and .pbtn.primary are the primary action, .pbtn the quiet one; .on is a pressed quiet button. */\n.pbtn.primary,.pbtn.on{background:var(--primary);border-color:var(--primary);color:var(--primary-text)}\n.pbtn.danger{border-color:var(--profile-danger-border);color:var(--profile-danger-fg)}   /* a quiet button whose action cannot be taken back */\n.pbtn:disabled{opacity:.4;cursor:not-allowed}   /* capability missing (no a11y / no root) — shown but inert */\n/* Notice row: every advisory on these pages, one line the height of the old strip. Severity is the pill\n   word (Notice.kt / HaNotice in i18n.js), never a fill: the five that ask for attention carry one accent\n   dot, Unavailable and Resolved an outlined pill with none. Narrow widths wrap the action under the text. */\n.notice{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin:10px 0!important;color:var(--text);font-size:.92rem;overflow-wrap:anywhere}\n/* Pill: one word in an outlined capsule, the one badge on every page. A pill that asks for attention\n   carries the accent dot (.pill.dot; a notice row's pill unless it is Unavailable or Resolved); state is\n   the word, never a fill colour. */\n.pill,.notice-pill{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;white-space:nowrap;padding:0 10px;line-height:1.3;border-radius:999px;border:1px solid var(--border-strong);font-size:.82rem;font-weight:600;vertical-align:middle}\n.pill.dot::before,.notice-pill::before{content:\"\";width:7px;height:7px;border-radius:50%;background:var(--accent)}\n.card h2 .pill{float:right;color:var(--text)}   /* the title bar is accent-coloured; elsewhere a pill takes its context's colour */\n.notice[data-severity=unavailable] .notice-pill::before,.notice[data-severity=resolved] .notice-pill::before{display:none}\n.notice[data-severity=unavailable],.notice[data-severity=resolved]{color:var(--dim)}\n.notice-text{flex:1 1 18rem;min-width:0}\n.notice-title{font-weight:600}\n.notice-detail{color:var(--dim)}\n.notice a{color:var(--accent);font-weight:600}\n.notice-action{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}\n/* Guided setup (/setup) — one linear column, deliberately NOT the .cards masonry: a journey has an\n   order, and multi-column layout destroys it. Reuses the theme tokens and the .notice row so\n   the wizard inherits dark/light for free. */\n.wiz{max-width:520px;margin:0 auto;padding:4px 0 24px}\n.wiz-step .card{margin:0 0 14px}\n.wiz-step h2{text-transform:none;letter-spacing:0;font-size:1.15rem;color:var(--text)}\n/* The step heading is focused programmatically (tabindex=-1) so screen readers announce each new\n   step, but it is not keyboard-reachable, so its default focus ring is pure visual noise — it made the\n   title bar look like a selected text field on load. Suppress the ring; the announcement remains. */\n.wiz-step h2:focus{outline:none}\n.wiz-lead{color:var(--dim);margin:2px 0 14px}\n/* Wizard selects match the form's field metrics — browser-default select text read as tiny against the\n   1rem inputs on hardware review; proportionate, not dominant, not minuscule. */\n.wiz select{width:100%;font:inherit;font-size:1rem;min-height:42px;padding:8px 10px;margin:6px 0;background:var(--input-bg2);border:1px solid var(--border2);color:var(--text);border-radius:6px}\n/* The Custom dashboard-path input sits directly beneath the wizard's select and has to read as the\n   same control family; the generic input metrics are visibly smaller than .wiz select on hardware. */\n.wiz .hd-custom-input{font-size:1rem;min-height:42px;padding:8px 10px;margin:6px 0}\n.wiz .hd-custom-note{display:block;color:var(--dim);line-height:1.45}\n.wiz-fld{display:block;margin:14px 0}\n.wiz-fld>b{display:block;margin-bottom:5px;font-size:.92rem}\n.wiz-fld>small{display:block;color:var(--dim);margin-top:5px;line-height:1.45}\n.wiz-consequence{color:var(--dim);font-size:.88rem;line-height:1.5;margin:10px 0 0;border-left:3px solid var(--divider);padding-left:10px}\n/* Live entity-id preview and wizard banners can contain maximum-length entity IDs or opaque backend\n   values with no break opportunities. Keep those values inside the Setup card without changing the\n   wrapping policy of banners on the other management pages. */\n.wiz-preview,.wiz .notice{overflow-wrap:anywhere;word-break:break-word}\n/* Live entity-id preview: the consequence of the panel-id choice, shown rather than explained. */\n.wiz-preview{margin:8px 0 0;padding:8px 10px;background:var(--input-bg);border:1px solid var(--divider);border-radius:8px;font:.8rem/1.6 ui-monospace,Menlo,Consolas,monospace;color:var(--dim)}\n.wiz-preview b{color:var(--text);font-weight:600}\n/* The one forward affordance on every step: full width, labelled with its consequence. */\n.wiz button.wiz-primary{display:block;width:100%;min-height:46px;font-size:1rem;margin-top:16px}\n/* A pressed save must LOOK pressed: an unstyled disabled state read as \"nothing happened\" on hardware\n   review, and users re-clicked. */\n.wiz .wiz-secondary{display:block;box-sizing:border-box;width:100%;min-height:42px;margin-top:8px;font-size:.95rem}\n.wiz-dots{display:flex;gap:14px;justify-content:center;list-style:none;margin:4px 0 14px;padding:0;flex-wrap:wrap}\n.wiz-dots li{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--dim)}\n.wiz-dots li::before{content:\"\";flex:none;width:.55rem;height:.55rem;border-radius:50%;background:var(--dim);opacity:.35}\n.wiz-dots li.done::before{background:var(--ok-dim);opacity:1}\n.wiz-dots li.current{color:var(--text);font-weight:600}\n.wiz-dots li.current::before{background:var(--primary);opacity:1}\n/* Verification is a STATE of a dot, not its own step — users don't experience waiting as a stage. */\n.wiz-dots li.busy::before{background:var(--primary);opacity:1;animation:wiz-breathe 1.6s ease-in-out infinite}\n/* Async status line. The breathing dot is never the only signal — the TEXT changes as time passes, so\n   reduced-motion and screen-reader users get strictly more information than the dot conveys. */\n.wiz-status{display:flex;align-items:baseline;gap:8px;margin:14px 0 0;min-height:1.4em}\n.wiz-status::before{content:\"\";flex:none;width:.55rem;height:.55rem;border-radius:50%;background:var(--primary);animation:wiz-breathe 1.6s ease-in-out infinite;align-self:center}\n.wiz-status.ok::before{background:var(--ok-dim);animation:none}\n@keyframes wiz-breathe{0%,100%{opacity:.35}50%{opacity:1}}\n@media (prefers-reduced-motion:reduce){.wiz-dots li.busy::before,.wiz-status::before{animation:none;opacity:.85}}\n/* The area confirmation that shares the wizard's dashboard page. */\n/* Deterministic bring-up milestones (proof card): real signals, no spinner. */\n.wiz-milestones{margin:12px 0 0;border-left:3px solid var(--divider);padding-left:12px}\n.wiz-milestone{margin:4px 0;color:var(--dim);font-size:.88rem;line-height:1.5}\n.hd-area-label{display:block;margin:16px 0 5px;font-size:.92rem}\n.hd-area-note{display:block;color:var(--dim);margin-top:5px;line-height:1.45}\n/* Sign-in routes: the recommended one first and visually primary, both honest about the account. */\n.wiz-route{border:1px solid var(--divider);border-radius:10px;padding:12px 14px;margin:10px 0}\n.wiz-route.recommended{border-color:var(--primary)}\n.wiz-route .pill{margin-left:6px}\n.wiz-route p{margin:6px 0;color:var(--dim);font-size:.9rem;line-height:1.5}\n.wiz-escape{text-align:center;margin:6px 0 0}\n.wiz-escape a{color:var(--dim)}\n.wiz details{margin:10px 0 0}\n.wiz details summary{cursor:pointer;color:var(--accent)}\n.wiz details p{color:var(--dim);font-size:.9rem;line-height:1.55}\n@media (max-width:600px){.wiz{padding-left:2px;padding-right:2px}.wiz-dots{gap:10px}}\n", u = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"24 32 60 45\">\n<path d=\"M28,32 h52 a4,4 0 0 1 4,4 v37 a4,4 0 0 1 -4,4 h-52 a4,4 0 0 1 -4,-4 v-37 a4,4 0 0 1 4,-4 z\" fill=\"#607D8B\"/>\n<path d=\"M29,35 h50 a2,2 0 0 1 2,2 v35 a2,2 0 0 1 -2,2 h-50 a2,2 0 0 1 -2,-2 v-35 a2,2 0 0 1 2,-2 z\" fill=\"#10284A\" stroke=\"#CFD8DC\" stroke-width=\"1\"/>\n<g transform=\"translate(42.00,42.50) scale(0.1000)\">\n<path fill=\"#F2F4F9\" d=\"M240 224.813C240 233.063 233.25 239.813 225 239.813H15C6.75 239.813 0 233.063 0 224.813V134.813C0 126.563 4.77 115.043 10.61 109.203L109.39 10.423C115.22 4.59304 124.77 4.59304 130.6 10.423L229.39 109.213C235.22 115.043 240 126.573 240 134.823V224.823V224.813Z\"/>\n<path fill=\"#18BCF2\" d=\"M229.39 109.203L130.61 10.423C124.78 4.59304 115.23 4.59304 109.4 10.423L10.61 109.203C4.78 115.033 0 126.563 0 134.813V224.813C0 233.063 6.75 239.813 15 239.813H107.27L66.64 199.183C64.55 199.903 62.32 200.313 60 200.313C48.7 200.313 39.5 191.113 39.5 179.813C39.5 168.513 48.7 159.313 60 159.313C71.3 159.313 80.5 168.513 80.5 179.813C80.5 182.143 80.09 184.373 79.37 186.463L111 218.093V102.213C104.2 98.873 99.5 91.893 99.5 83.823C99.5 72.523 108.7 63.323 120 63.323C131.3 63.323 140.5 72.523 140.5 83.823C140.5 91.893 135.8 98.873 129 102.213V183.483L160.46 152.023C159.84 150.063 159.5 147.983 159.5 145.823C159.5 134.523 168.7 125.323 180 125.323C191.3 125.323 200.5 134.523 200.5 145.823C200.5 157.123 191.3 166.323 180 166.323C177.5 166.323 175.12 165.853 172.91 165.033L129 208.943V239.823H225C233.25 239.823 240 233.073 240 224.823V134.823C240 126.573 235.23 115.053 229.39 109.213V109.203Z\"/>\n</g>\n</svg>\n", d = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"288.90\" height=\"30\" viewBox=\"0 -30 288.90 30\">\n<path fill=\"currentColor\" d=\"M7.92 -9.56L7.92 -13.76L14 -13.76Q15.92 -13.76 17.18 -14.5Q18.44 -15.24 19.1 -16.54Q19.76 -17.84 19.76 -19.48Q19.76 -21.12 19.1 -22.42Q18.44 -23.72 17.18 -24.46Q15.92 -25.2 14 -25.2L7.92 -25.2L7.92 -29.4L13.44 -29.4Q17.08 -29.4 19.58 -28.22Q22.08 -27.04 23.38 -24.88Q24.68 -22.72 24.68 -19.8L24.68 -19.16Q24.68 -16.24 23.38 -14.08Q22.08 -11.92 19.58 -10.74Q17.08 -9.56 13.44 -9.56ZM3.92 0L3.92 -29.4L8.72 -29.4L8.72 0ZM40.64 0L40.64 -6.44L39.88 -6.44L39.88 -13.68Q39.88 -15.72 38.84 -16.74Q37.8 -17.76 35.76 -17.76Q34.64 -17.76 33.28 -17.72Q31.92 -17.68 30.6 -17.64Q29.28 -17.6 28.28 -17.52L28.28 -21.56Q29.2 -21.64 30.26 -21.7Q31.32 -21.76 32.46 -21.8Q33.6 -21.84 34.64 -21.84Q37.92 -21.84 40.08 -21Q42.24 -20.16 43.3 -18.34Q44.36 -16.52 44.36 -13.48L44.36 0ZM33.64 0.56Q31.28 0.56 29.52 -0.26Q27.76 -1.08 26.8 -2.66Q25.84 -4.24 25.84 -6.44Q25.84 -8.76 26.94 -10.28Q28.04 -11.8 30.08 -12.56Q32.12 -13.32 34.96 -13.32L40.36 -13.32L40.36 -10.24L34.84 -10.24Q32.72 -10.24 31.6 -9.22Q30.48 -8.2 30.48 -6.56Q30.48 -4.92 31.6 -3.94Q32.72 -2.96 34.84 -2.96Q36.08 -2.96 37.2 -3.42Q38.32 -3.88 39.06 -4.96Q39.8 -6.04 39.88 -8L41.08 -6.44Q40.88 -4.16 39.98 -2.62Q39.08 -1.08 37.5 -0.26Q35.92 0.56 33.64 0.56ZM49.35 0L49.35 -21.56L53.11 -21.56L53.11 -12.32L52.67 -12.32Q52.67 -15.52 53.53 -17.72Q54.39 -19.92 56.15 -21.06Q57.91 -22.2 60.51 -22.2L60.71 -22.2Q64.71 -22.2 66.67 -19.68Q68.63 -17.16 68.63 -12.32L68.63 0L63.91 0L63.91 -12.96Q63.91 -15.2 62.65 -16.56Q61.39 -17.92 59.15 -17.92Q56.87 -17.92 55.47 -16.52Q54.07 -15.12 54.07 -12.76L54.07 0ZM83.05 0.76Q80.25 0.76 78.17 -0.2Q76.09 -1.16 74.75 -2.76Q73.41 -4.36 72.75 -6.34Q72.09 -8.32 72.09 -10.4L72.09 -11.16Q72.09 -13.28 72.75 -15.26Q73.41 -17.24 74.75 -18.82Q76.09 -20.4 78.11 -21.34Q80.13 -22.28 82.81 -22.28Q86.29 -22.28 88.61 -20.76Q90.93 -19.24 92.09 -16.82Q93.25 -14.4 93.25 -11.6L93.25 -9.72L74.13 -9.72L74.13 -12.88L90.09 -12.88L88.77 -11.24Q88.77 -13.44 88.11 -15Q87.45 -16.56 86.13 -17.42Q84.81 -18.28 82.81 -18.28Q80.73 -18.28 79.33 -17.34Q77.93 -16.4 77.25 -14.72Q76.57 -13.04 76.57 -10.76Q76.57 -8.6 77.25 -6.9Q77.93 -5.2 79.37 -4.22Q80.81 -3.24 83.05 -3.24Q85.29 -3.24 86.73 -4.22Q88.17 -5.2 88.49 -6.52L92.85 -6.52Q92.41 -4.32 91.07 -2.68Q89.73 -1.04 87.69 -0.14Q85.65 0.76 83.05 0.76ZM97.03 0L97.03 -29.2L101.75 -29.2L101.75 0ZM94.19 -25.6L94.19 -29.2L101.75 -29.2L101.75 -25.6ZM111.97 0L122.21 -29.2L130.17 -29.2L140.73 0L135.77 0L126.53 -25.96L128.49 -25.04L123.65 -25.04L125.73 -25.96L116.77 0ZM118.61 -8.24L120.13 -12.4L132.37 -12.4L133.93 -8.24ZM150.93 0.68Q146.57 0.68 144.15 -1.18Q141.73 -3.04 141.61 -6.28L145.93 -6.28Q146.01 -5.08 147.17 -4.08Q148.33 -3.08 150.97 -3.08Q153.21 -3.08 154.49 -3.96Q155.77 -4.84 155.77 -6.16Q155.77 -7.36 154.81 -8.06Q153.85 -8.76 151.65 -8.96L149.53 -9.2Q146.21 -9.56 144.27 -11.14Q142.33 -12.72 142.33 -15.48Q142.33 -17.64 143.41 -19.12Q144.49 -20.6 146.39 -21.4Q148.29 -22.2 150.77 -22.2Q154.61 -22.2 156.97 -20.5Q159.33 -18.8 159.41 -15.52L155.09 -15.52Q155.05 -16.72 153.95 -17.58Q152.85 -18.44 150.77 -18.44Q148.77 -18.44 147.71 -17.64Q146.65 -16.84 146.65 -15.6Q146.65 -14.48 147.45 -13.84Q148.25 -13.2 150.05 -13L152.17 -12.8Q155.81 -12.4 157.95 -10.78Q160.09 -9.16 160.09 -6.28Q160.09 -4.2 158.93 -2.64Q157.77 -1.08 155.71 -0.2Q153.65 0.68 150.93 0.68ZM171.13 0.68Q166.77 0.68 164.35 -1.18Q161.93 -3.04 161.81 -6.28L166.13 -6.28Q166.21 -5.08 167.37 -4.08Q168.53 -3.08 171.17 -3.08Q173.41 -3.08 174.69 -3.96Q175.97 -4.84 175.97 -6.16Q175.97 -7.36 175.01 -8.06Q174.05 -8.76 171.85 -8.96L169.73 -9.2Q166.41 -9.56 164.47 -11.14Q162.53 -12.72 162.53 -15.48Q162.53 -17.64 163.61 -19.12Q164.69 -20.6 166.59 -21.4Q168.49 -22.2 170.97 -22.2Q174.81 -22.2 177.17 -20.5Q179.53 -18.8 179.61 -15.52L175.29 -15.52Q175.25 -16.72 174.15 -17.58Q173.05 -18.44 170.97 -18.44Q168.97 -18.44 167.91 -17.64Q166.85 -16.84 166.85 -15.6Q166.85 -14.48 167.65 -13.84Q168.45 -13.2 170.25 -13L172.37 -12.8Q176.01 -12.4 178.15 -10.78Q180.29 -9.16 180.29 -6.28Q180.29 -4.2 179.13 -2.64Q177.97 -1.08 175.91 -0.2Q173.85 0.68 171.13 0.68ZM184.93 0L184.93 -21.56L189.61 -21.56L189.61 0ZM181.77 -17.96L181.77 -21.56L189.61 -21.56L189.61 -17.96ZM186.45 -24.56Q185.01 -24.56 184.31 -25.32Q183.61 -26.08 183.61 -27.28Q183.61 -28.44 184.31 -29.22Q185.01 -30 186.45 -30Q187.93 -30 188.63 -29.22Q189.33 -28.44 189.33 -27.28Q189.33 -26.08 188.63 -25.32Q187.93 -24.56 186.45 -24.56ZM202.49 0.68Q198.13 0.68 195.71 -1.18Q193.29 -3.04 193.17 -6.28L197.49 -6.28Q197.57 -5.08 198.73 -4.08Q199.89 -3.08 202.53 -3.08Q204.77 -3.08 206.05 -3.96Q207.33 -4.84 207.33 -6.16Q207.33 -7.36 206.37 -8.06Q205.41 -8.76 203.21 -8.96L201.09 -9.2Q197.77 -9.56 195.83 -11.14Q193.89 -12.72 193.89 -15.48Q193.89 -17.64 194.97 -19.12Q196.05 -20.6 197.95 -21.4Q199.85 -22.2 202.33 -22.2Q206.17 -22.2 208.53 -20.5Q210.89 -18.8 210.97 -15.52L206.65 -15.52Q206.61 -16.72 205.51 -17.58Q204.41 -18.44 202.33 -18.44Q200.33 -18.44 199.27 -17.64Q198.21 -16.84 198.21 -15.6Q198.21 -14.48 199.01 -13.84Q199.81 -13.2 201.61 -13L203.73 -12.8Q207.37 -12.4 209.51 -10.78Q211.65 -9.16 211.65 -6.28Q211.65 -4.2 210.49 -2.64Q209.33 -1.08 207.27 -0.2Q205.21 0.68 202.49 0.68ZM224.09 0.28Q221.41 0.28 219.57 -0.46Q217.73 -1.2 216.77 -2.96Q215.81 -4.72 215.81 -7.72L215.85 -27.84L220.29 -27.84L220.29 -7.32Q220.29 -5.64 221.19 -4.74Q222.09 -3.84 223.73 -3.84L227.33 -3.84L227.33 0.28ZM212.25 -18.04L212.25 -21.56L227.33 -21.56L227.33 -18.04ZM243.81 0L243.81 -6.44L243.05 -6.44L243.05 -13.68Q243.05 -15.72 242.01 -16.74Q240.97 -17.76 238.93 -17.76Q237.81 -17.76 236.45 -17.72Q235.09 -17.68 233.77 -17.64Q232.45 -17.6 231.45 -17.52L231.45 -21.56Q232.37 -21.64 233.43 -21.7Q234.49 -21.76 235.63 -21.8Q236.77 -21.84 237.81 -21.84Q241.09 -21.84 243.25 -21Q245.41 -20.16 246.47 -18.34Q247.53 -16.52 247.53 -13.48L247.53 0ZM236.81 0.56Q234.45 0.56 232.69 -0.26Q230.93 -1.08 229.97 -2.66Q229.01 -4.24 229.01 -6.44Q229.01 -8.76 230.11 -10.28Q231.21 -11.8 233.25 -12.56Q235.29 -13.32 238.13 -13.32L243.53 -13.32L243.53 -10.24L238.01 -10.24Q235.89 -10.24 234.77 -9.22Q233.65 -8.2 233.65 -6.56Q233.65 -4.92 234.77 -3.94Q235.89 -2.96 238.01 -2.96Q239.25 -2.96 240.37 -3.42Q241.49 -3.88 242.23 -4.96Q242.97 -6.04 243.05 -8L244.25 -6.44Q244.05 -4.16 243.15 -2.62Q242.25 -1.08 240.67 -0.26Q239.09 0.56 236.81 0.56ZM252.52 0L252.52 -21.56L256.28 -21.56L256.28 -12.32L255.84 -12.32Q255.84 -15.52 256.7 -17.72Q257.56 -19.92 259.32 -21.06Q261.08 -22.2 263.68 -22.2L263.88 -22.2Q267.88 -22.2 269.84 -19.68Q271.8 -17.16 271.8 -12.32L271.8 0L267.08 0L267.08 -12.96Q267.08 -15.2 265.82 -16.56Q264.56 -17.92 262.32 -17.92Q260.04 -17.92 258.64 -16.52Q257.24 -15.12 257.24 -12.76L257.24 0ZM285.66 0.28Q282.98 0.28 281.14 -0.46Q279.3 -1.2 278.34 -2.96Q277.38 -4.72 277.38 -7.72L277.42 -27.84L281.86 -27.84L281.86 -7.32Q281.86 -5.64 282.76 -4.74Q283.66 -3.84 285.3 -3.84L288.9 -3.84L288.9 0.28ZM273.82 -18.04L273.82 -21.56L288.9 -21.56L288.9 -18.04Z\"/>\n</svg>\n", f = `data:image/svg+xml,${encodeURIComponent(u)}`;
+function p(e, t = "en") {
 	let n = e?.version, r = e?.build;
-	return typeof n != "string" || !/^[0-9A-Za-z.+-]{1,32}$/.test(n) || !Number.isSafeInteger(r) || r < 0 ? "" : a(i("sidebar", t).versionLabel, {
+	return typeof n != "string" || !/^[0-9A-Za-z.+-]{1,32}$/.test(n) || !Number.isSafeInteger(r) || r < 0 ? "" : s(o("sidebar", t).versionLabel, {
 		version: n,
 		build: r
 	});
 }
-var f = `<div class="wiz-brand"><img class="logo" src="${u}" alt=""><span class="brand">${l.replace(/<!--[^]*?-->\s*/g, "").trim().replace("<svg ", "<svg class=\"brand-name\" role=\"img\" aria-label=\"Panel Assistant\" ")}<small class="brand-version" id="brand-version"></small></span></div>`, p = Object.freeze(Object.values(i("journey", "en")));
-function m(e) {
-	return p.map((t, n) => n < e ? `<li class="done">${t}</li>` : n === e ? `<li class="current" aria-current="step">${t}</li>` : `<li>${t}</li>`).join("");
+var m = `<div class="wiz-brand"><img class="logo" src="${f}" alt=""><span class="brand">${d.replace(/<!--[^]*?-->\s*/g, "").trim().replace("<svg ", "<svg class=\"brand-name\" role=\"img\" aria-label=\"Panel Assistant\" ")}<small class="brand-version" id="brand-version"></small></span></div>`, h = Object.freeze(Object.values(o("journey", "en")));
+function g(e) {
+	return h.map((t, n) => n < e ? `<li class="done">${t}</li>` : n === e ? `<li class="current" aria-current="step">${t}</li>` : `<li>${t}</li>`).join("");
 }
-function h(e, t, n = document, r = "en") {
-	let a = Object.values(i("journey", r)).map((e, r) => {
+function _(e, t, n = document, r = "en") {
+	let i = Object.values(o("journey", r)).map((e, r) => {
 		let i = n.createElement("li");
 		return i.textContent = e, r < t && (i.className = "done"), r === t && (i.className = "current", i.setAttribute("aria-current", "step")), i;
 	});
-	e.replaceChildren(...a);
+	e.replaceChildren(...i);
 }
-var g = `${o}${s}
+var v = `${c}${l}
 :root,:host{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--text)}
 *,*::before,*::after{box-sizing:border-box}
 .wiz-brand{display:flex;margin:0 0 14px}
@@ -1721,27 +1732,27 @@ var g = `${o}${s}
 .bar>div{height:100%;width:0;background:var(--primary);transition:width .4s ease}
 @media (prefers-reduced-motion:reduce){.bar>div{transition:none}}
 [hidden]{display:none!important}
-`, _ = "https://github.com/panel-assistant/ha-integration", v = "M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12", y = "panel_assistant.sidebar.entry", b = "panel-assistant-ui", x = "/config/integrations/dashboard/add?domain=panel_assistant", S = "/config/integrations/integration/panel_assistant", C = /* @__PURE__ */ new Set([
+`, y = "https://github.com/panel-assistant/ha-integration", b = "M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12", x = "panel_assistant.sidebar.entry", S = "panel-assistant-ui", C = "/config/integrations/dashboard/add?domain=panel_assistant", w = "/config/integrations/integration/panel_assistant", T = /* @__PURE__ */ new Set([
 	"reachable",
 	"unreachable",
 	"not_loaded",
 	"restarting"
-]), w = /* @__PURE__ */ new Set([
+]), E = /* @__PURE__ */ new Set([
 	"update",
 	"settings",
 	"recovery",
 	"reboot"
-]), T = 5e3, E = /* @__PURE__ */ new Set([
+]), ee = 5e3, D = /* @__PURE__ */ new Set([
 	"current",
 	"added",
 	"updated",
 	"removed"
 ]);
-function ee(e) {
+function te(e) {
 	if (!e || !Array.isArray(e.panels) || e.panels.length > 200) throw Error("invalid panels");
 	let t = /* @__PURE__ */ new Set();
 	return e.panels.map((e) => {
-		if (!e || typeof e.entry_id != "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(e.entry_id) || t.has(e.entry_id) || typeof e.title != "string" || e.title.length > 256 || !C.has(e.state) || e.state === "restarting" && !w.has(e.reason) || e.device_id !== null && e.device_id !== void 0 && typeof e.device_id != "string") throw Error("invalid panel");
+		if (!e || typeof e.entry_id != "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(e.entry_id) || t.has(e.entry_id) || typeof e.title != "string" || e.title.length > 256 || !T.has(e.state) || e.state === "restarting" && !E.has(e.reason) || e.device_id !== null && e.device_id !== void 0 && typeof e.device_id != "string") throw Error("invalid panel");
 		return t.add(e.entry_id), {
 			entry_id: e.entry_id,
 			title: e.title,
@@ -1751,30 +1762,30 @@ function ee(e) {
 		};
 	});
 }
-function D(e) {
+function ne(e) {
 	return typeof e == "string" ? e.match(/^\/api\/panel_assistant\/embed\/([A-Za-z0-9_-]{43})\/$/)?.[1] ?? null : null;
 }
 function O(e, t = "en") {
-	return a(i("sidebar", t).opening, { panel: typeof e == "string" ? e : "" });
+	return s(o("sidebar", t).opening, { panel: typeof e == "string" ? e : "" });
 }
 function k(e) {
 	history.pushState(null, "", e), window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: !1 } }));
 }
-function A() {
+function re() {
 	try {
-		return localStorage.getItem(y);
+		return localStorage.getItem(x);
 	} catch {
 		return null;
 	}
 }
-function te(e) {
+function ie(e) {
 	try {
-		localStorage.setItem(y, e);
+		localStorage.setItem(x, e);
 	} catch {}
 }
-var ne = class extends HTMLElement {
+var ae = class extends HTMLElement {
 	get #e() {
-		return i("sidebar", this.#t?.language);
+		return o("sidebar", this.#t?.language);
 	}
 	#t;
 	#n;
@@ -1795,7 +1806,7 @@ var ne = class extends HTMLElement {
 	#_ = !1;
 	#v = (e) => this.#I(e);
 	constructor() {
-		super(), this.attachShadow({ mode: "open" }), this.shadowRoot.innerHTML = `<style>${o}${s}
+		super(), this.attachShadow({ mode: "open" }), this.shadowRoot.innerHTML = `<style>${c}${l}
       :host{display:block;height:100vh;height:100dvh;overflow:hidden;background:var(--primary-background-color,#fafafa);color:var(--primary-text-color,#212121)}
       [hidden]{display:none!important}
       .root{display:flex;flex-direction:column;height:100%;overflow:hidden}
@@ -1857,7 +1868,7 @@ var ne = class extends HTMLElement {
       [data-narrow] #backdrop:not([hidden]){display:block;position:fixed;inset:0;z-index:1}
     </style><div class="root" id="root"><header>
       <button id="menu" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"/></svg><span id="dot"></span></button>
-      <img id="icon" src="${u}" alt="">
+      <img id="icon" src="${f}" alt="">
       <h1 id="title" data-message="title"></h1><span id="version"></span>
       <label id="picker"><span data-message="choosePanel"></span><select id="panels"></select></label>
       <button id="overflow" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,16A2,2 0 0,1 14,18A2,2 0 0,1 12,20A2,2 0 0,1 10,18A2,2 0 0,1 12,16M12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10M12,4A2,2 0 0,1 14,6A2,2 0 0,1 12,8A2,2 0 0,1 10,6A2,2 0 0,1 12,4Z"/></svg></button>
@@ -1865,7 +1876,7 @@ var ne = class extends HTMLElement {
       <div id="more">
       <a id="device"><svg class="wide-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/></svg><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19,18H5V6H19M21,4H3C1.89,4 1,4.89 1,6V18A2,2 0 0,0 3,20H21A2,2 0 0,0 23,18V6C23,4.89 22.1,4 21,4Z"/></svg><span class="item-label" data-message="showDevice"></span></a>
       <div id="spacer"></div>
-      <a id="github" href="${_}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${v}"/></svg><span class="item-label" data-message="github"></span></a>
+      <a id="github" href="${y}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${b}"/></svg><span class="item-label" data-message="github"></span></a>
       <a id="add"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg><span id="add-label" class="item-label" data-message="addPanel"></span></a>
       <a id="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg><span class="item-label" data-message="integrationSettings"></span></a>
       </div>
@@ -1891,7 +1902,7 @@ var ne = class extends HTMLElement {
 			let t = a.getAttribute("href");
 			this.#b(!1), !(!t || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) && (e.preventDefault(), k(t));
 		});
-		for (let [t, n] of [["add", x], ["settings", S]]) {
+		for (let [t, n] of [["add", C], ["settings", w]]) {
 			let r = e.querySelector(`#${t}`);
 			r.setAttribute("href", n), r.addEventListener("click", (e) => {
 				this.#b(!1), !(e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) && (e.preventDefault(), k(n));
@@ -1918,7 +1929,7 @@ var ne = class extends HTMLElement {
 		return this.#n;
 	}
 	set panel(e) {
-		this.#n = e, this.shadowRoot.querySelector("#version").textContent = d(e?.config, this.#t?.language);
+		this.#n = e, this.shadowRoot.querySelector("#version").textContent = p(e?.config, this.#t?.language);
 	}
 	get route() {
 		return this.#r;
@@ -1965,7 +1976,7 @@ var ne = class extends HTMLElement {
 		this.#p = n, n.unsubscribe = Promise.resolve().then(() => e.subscribeMessage((e) => this.#S(n, e), { type: "persistent_notification/subscribe" })), n.unsubscribe.catch(() => {});
 	}
 	#S(e, t) {
-		if (this.#p === e && E.has(t?.type) && t.notifications && typeof t.notifications == "object") {
+		if (this.#p === e && D.has(t?.type) && t.notifications && typeof t.notifications == "object") {
 			if (t.type === "current") e.notifications = { ...t.notifications };
 			else if (t.type === "removed") for (let n of Object.keys(t.notifications)) delete e.notifications[n];
 			else e.notifications = {
@@ -1976,7 +1987,7 @@ var ne = class extends HTMLElement {
 		}
 	}
 	connectedCallback() {
-		window.addEventListener("message", this.#v), clearInterval(this.#f), this.#T(), this.#x(), this.#f = setInterval(() => this.#E(), T);
+		window.addEventListener("message", this.#v), clearInterval(this.#f), this.#T(), this.#x(), this.#f = setInterval(() => this.#E(), ee);
 	}
 	disconnectedCallback() {
 		window.removeEventListener("message", this.#v), clearInterval(this.#f), this.#f = null, this.#c++, this.#w(), this.#M(), this.#x();
@@ -2005,7 +2016,7 @@ var ne = class extends HTMLElement {
 				if (this.#o) return;
 				throw e;
 			}
-			t = ee(e);
+			t = te(e);
 		} catch {
 			if (e !== this.#c) return;
 			this.#o = null, this.#s = "failed", this.#M(), this.#L();
@@ -2013,18 +2024,18 @@ var ne = class extends HTMLElement {
 		}
 		if (e !== this.#c) return;
 		if (this.#o = t, this.#s = t.length ? "ready" : "empty", !t.some((e) => e.entry_id === this.#u)) {
-			let e = this.#r?.path?.slice(1), n = t.some((t) => t.entry_id === e) ? e : A();
+			let e = this.#r?.path?.slice(1), n = t.some((t) => t.entry_id === e) ? e : re();
 			this.#u = t.some((e) => e.entry_id === n) ? n : t[0]?.entry_id ?? null;
 		}
 		this.#O();
 		let n = this.#d;
 		this.#_ && n?.state === "open" && t.some((e) => e.entry_id === n.entryId && e.state === "reachable") && (this.#_ = !1, this.#P({
-			type: b,
+			type: S,
 			open: !0
 		}));
 	}
 	#D(e) {
-		this.#o?.some((t) => t.entry_id === e) && e !== this.#u && (this.#u = e, te(e), this.#M(), this.#O());
+		this.#o?.some((t) => t.entry_id === e) && e !== this.#u && (this.#u = e, ie(e), this.#M(), this.#O());
 	}
 	#O() {
 		let e = this.#o?.find((e) => e.entry_id === this.#u), t = this.#d;
@@ -2055,7 +2066,7 @@ var ne = class extends HTMLElement {
 	#A(e, t) {
 		if (this.#d === e && t) {
 			if (t.kind === "opened") {
-				let n = D(t.url);
+				let n = ne(t.url);
 				if (!n) {
 					this.#M(), this.#d = {
 						entryId: e.entryId,
@@ -2068,11 +2079,11 @@ var ne = class extends HTMLElement {
 				e.token = n, e.url = t.url, e.state = "open";
 				let r = this.shadowRoot.querySelector("#frame");
 				r.getAttribute("src") === t.url ? e.reopen && this.#P({
-					type: b,
+					type: S,
 					open: !0
 				}) : r.setAttribute("src", t.url), e.reopen = !1, this.#L();
 			} else t.kind === "closed" && (this.#P({
-				type: b,
+				type: S,
 				closed: !0
 			}), this.#M(), this.#d = {
 				entryId: e.entryId,
@@ -2085,7 +2096,7 @@ var ne = class extends HTMLElement {
 	#j() {
 		let e = this.#d;
 		this.isConnected && e && ["opening", "open"].includes(e.state) && (this.#F(!1), this.#P({
-			type: b,
+			type: S,
 			closed: !0
 		}), this.#k(e.entryId, e.token, e.url), this.#L());
 	}
@@ -2110,7 +2121,7 @@ var ne = class extends HTMLElement {
 		if (!t || e.source !== t || e.data?.type !== "panel-assistant-ui" || !n || typeof n != "object") return;
 		let i = this.#g, a = (e) => {
 			i === this.#g && this.#P({
-				type: b,
+				type: S,
 				frame: e
 			});
 		}, o = () => a({
@@ -2138,7 +2149,7 @@ var ne = class extends HTMLElement {
 				if (e?.closed === !0) {
 					if (this.#h.delete(n.command_id), i !== this.#g) return;
 					this.#_ = !0, this.#P({
-						type: b,
+						type: S,
 						closed: !0
 					});
 				} else a(e);
@@ -2150,7 +2161,7 @@ var ne = class extends HTMLElement {
 	}
 	#L() {
 		let e = this.shadowRoot, t = this.#t?.language;
-		this.isConnected && this.setAttribute?.("lang", r(t));
+		this.isConnected && this.setAttribute?.("lang", a(t));
 		let n = this.#e;
 		for (let t of e.querySelectorAll("[data-message]")) t.textContent = n[t.dataset.message];
 		for (let [t, r] of [
@@ -2161,22 +2172,22 @@ var ne = class extends HTMLElement {
 			["device", "device"],
 			["add", "addPanel"]
 		]) e.querySelector(`#${t}`).setAttribute("aria-label", n[r]), e.querySelector(`#${t}`).setAttribute("title", n[r]);
-		e.querySelector("#frame").setAttribute("title", n.frameTitle), e.querySelector("#version").textContent = d(this.#n?.config, t);
-		let o = e.querySelector("#panels"), s = this.#C() ? this.#o ?? [] : [], c = JSON.stringify([s, r(t)]);
+		e.querySelector("#frame").setAttribute("title", n.frameTitle), e.querySelector("#version").textContent = p(this.#n?.config, t);
+		let r = e.querySelector("#panels"), i = this.#C() ? this.#o ?? [] : [], c = JSON.stringify([i, a(t)]);
 		if (c !== this.#l) {
-			this.#l = c, o.replaceChildren();
-			for (let e of s) {
+			this.#l = c, r.replaceChildren();
+			for (let e of i) {
 				let n = document.createElement("option");
-				n.value = e.entry_id, n.textContent = e.state === "reachable" ? e.title : e.state === "restarting" ? `${e.title} · ${a(this.#e.restarting, { reason: i("sidebarReason", t)[e.reason] })}` : `${e.title} (${this.#e[e.state]})`, o.append(n);
+				n.value = e.entry_id, n.textContent = e.state === "reachable" ? e.title : e.state === "restarting" ? `${e.title} · ${s(this.#e.restarting, { reason: o("sidebarReason", t)[e.reason] })}` : `${e.title} (${this.#e[e.state]})`, r.append(n);
 			}
 		}
-		o.value = this.#u ?? "", e.querySelector("#picker").hidden = s.length === 0;
-		let l = s.find((e) => e.entry_id === this.#u), u = e.querySelector("#device");
+		r.value = this.#u ?? "", e.querySelector("#picker").hidden = i.length === 0;
+		let l = i.find((e) => e.entry_id === this.#u), u = e.querySelector("#device");
 		u.hidden = !l?.device_id, l?.device_id && u.setAttribute("href", `/config/devices/device/${encodeURIComponent(l.device_id)}`);
-		let f = this.#d, p = e.querySelector("#frame"), m = "", h = !1;
-		this.#C() ? this.#s === "loading" ? h = !0 : this.#s === "ready" ? f?.state === "closed" && f.entryId === l?.entry_id ? m = "closed" : l?.state === "restarting" ? m = "restarting" : l?.state === "unreachable" ? m = "unreachableBody" : l?.state === "not_loaded" ? m = "notLoadedBody" : f?.state === "failed" ? m = f.code === "not_loaded" ? "notLoadedBody" : "failed" : f?.state !== "open" && !p.getAttribute("src") && (h = !0) : m = this.#s : m = "admin";
+		let d = this.#d, f = e.querySelector("#frame"), m = "", h = !1;
+		this.#C() ? this.#s === "loading" ? h = !0 : this.#s === "ready" ? d?.state === "closed" && d.entryId === l?.entry_id ? m = "closed" : l?.state === "restarting" ? m = "restarting" : l?.state === "unreachable" ? m = "unreachableBody" : l?.state === "not_loaded" ? m = "notLoadedBody" : d?.state === "failed" ? m = d.code === "not_loaded" ? "notLoadedBody" : "failed" : d?.state !== "open" && !f.getAttribute("src") && (h = !0) : m = this.#s : m = "admin";
 		let g = e.querySelector("#status");
-		g.textContent = m === "restarting" ? a(this.#e.restarting, { reason: i("sidebarReason", t)[l.reason] }) : m ? this.#e[m] : "";
+		g.textContent = m === "restarting" ? s(this.#e.restarting, { reason: o("sidebarReason", t)[l.reason] }) : m ? this.#e[m] : "";
 		let _ = [
 			"unreachableBody",
 			"notLoadedBody",
@@ -2197,13 +2208,13 @@ var ne = class extends HTMLElement {
 		let v = e.querySelector("#loading");
 		v.hidden = !h;
 		let y = e.querySelector("#loading-text");
-		y.hidden = !l, h && (y.textContent = l ? O(l.title, t) : ""), p.hidden = !p.getAttribute("src");
+		y.hidden = !l, h && (y.textContent = l ? O(l.title, t) : ""), f.hidden = !f.getAttribute("src");
 	}
 };
-customElements.get("panel-assistant-sidebar") || customElements.define("panel-assistant-sidebar", ne);
+customElements.get("panel-assistant-sidebar") || customElements.define("panel-assistant-sidebar", ae);
 //#endregion
 //#region src/display-provisioning.mjs
-function re(e) {
+function oe(e) {
 	if (typeof e != "object" || !e) return null;
 	let { density: t, font_scale: n } = e;
 	return !(t === null || Number.isInteger(t) && t >= 80 && t <= 640) || !(n === null || typeof n == "number" && n >= .5 && n <= 1.5) || t === null && n === null ? null : Object.freeze({
@@ -2213,12 +2224,12 @@ function re(e) {
 }
 //#endregion
 //#region src/app-identity.mjs
-var j = "io.github.maxlyth.hapaneld", ie = "io.panelassistant.android";
-Object.freeze(["io.panelassistant.android.install.v1", "io.github.maxlyth.hapaneld.install.v1"]), Object.freeze(["io.panelassistant.android.buildfeed.v1", "io.github.maxlyth.hapaneld.buildfeed.v1"]), Object.freeze([j, ie]);
+var A = "io.github.maxlyth.hapaneld", j = "io.panelassistant.android";
+Object.freeze(["io.panelassistant.android.install.v1", "io.github.maxlyth.hapaneld.install.v1"]), Object.freeze(["io.panelassistant.android.buildfeed.v1", "io.github.maxlyth.hapaneld.buildfeed.v1"]), Object.freeze([A, j]);
 var M = "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity", N = "io.panelassistant.android/io.panelassistant.android.MainActivity", P = Object.freeze({
-	[j]: Object.freeze(["io.github.maxlyth.hapaneld/.MainActivity"]),
-	[ie]: Object.freeze([M, N])
-})[j][0];
+	[A]: Object.freeze(["io.github.maxlyth.hapaneld/.MainActivity"]),
+	[j]: Object.freeze([M, N])
+})[A][0];
 Object.freeze({
 	[P]: "io.github.maxlyth.hapaneld/.DashboardActivity",
 	[M]: "io.panelassistant.android/io.github.maxlyth.hapaneld.DashboardActivity",
@@ -2228,7 +2239,7 @@ Object.freeze({
 	[M]: Object.freeze(["io.panelassistant.android/io.github.maxlyth.hapaneld.DashboardActivity"]),
 	[N]: Object.freeze(["io.panelassistant.android/.DashboardActivity", "io.panelassistant.android/io.panelassistant.android.DashboardActivity"])
 });
-var ae = Object.freeze({
+var se = Object.freeze({
 	[P]: "io.github.maxlyth.hapaneld/.input.PanelAccessibilityService",
 	[M]: "io.panelassistant.android/io.github.maxlyth.hapaneld.input.PanelAccessibilityService",
 	[N]: "io.panelassistant.android/io.panelassistant.android.input.PanelAccessibilityService"
@@ -2237,14 +2248,14 @@ Object.freeze({
 	[P]: Object.freeze(["io.github.maxlyth.hapaneld/.input.PanelAccessibilityService", "io.github.maxlyth.hapaneld/io.github.maxlyth.hapaneld.input.PanelAccessibilityService"]),
 	[M]: Object.freeze(["io.panelassistant.android/io.github.maxlyth.hapaneld.input.PanelAccessibilityService"]),
 	[N]: Object.freeze(["io.panelassistant.android/.input.PanelAccessibilityService", "io.panelassistant.android/io.panelassistant.android.input.PanelAccessibilityService"])
-}), Object.freeze({ [N]: Object.freeze([ae[M]]) });
-var oe = 262144, se = 2147483647, ce = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/, le = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-(?:rc|preview)[1-9][0-9]*$/, F = /^build-([1-9][0-9]{0,9})(-successor)?$/, I = (e, t) => typeof t == "string" && t.length <= 64 && e.exec(t)?.[0] === t, L = (e) => I(ce, e), R = (e) => I(le, e), z = (e) => L(e) || R(e);
-function ue(e) {
-	if (!I(F, e)) return null;
-	let t = Number(F.exec(e)[1]);
-	return t <= se ? t : null;
+}), Object.freeze({ [N]: Object.freeze([se[M]]) });
+var F = 262144, ce = 2147483647, le = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/, ue = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-(?:rc|preview)[1-9][0-9]*$/, I = /^build-([1-9][0-9]{0,9})(-successor)?$/, L = (e, t) => typeof t == "string" && t.length <= 64 && e.exec(t)?.[0] === t, R = (e) => L(le, e), z = (e) => L(ue, e), B = (e) => R(e) || z(e);
+function de(e) {
+	if (!L(I, e)) return null;
+	let t = Number(I.exec(e)[1]);
+	return t <= ce ? t : null;
 }
-var B = (e) => ue(e) !== null, de = (e) => Array.from(new Uint8Array(e), (e) => e.toString(16).padStart(2, "0")).join(""), fe = (e = crypto) => de(e.getRandomValues(/* @__PURE__ */ new Uint8Array(16))), V = (e, t) => typeof t == "string" && e.exec(t)?.[0] === t, H = (e, t) => typeof e == "object" && !!e && !Array.isArray(e) && Object.keys(e).length === t.length && t.every((t) => Object.hasOwn(e, t)), U = "/api/panel_assistant/usb/release", pe = "/api/panel_assistant/usb/handover", me = "/api/panel_assistant/usb/adb_key", he = 35e3, ge = /(?:[0-9]{1,3}\.){3}[0-9]{1,3}/, _e = /[a-z_]{1,48}/, W = 67108864, ve = 18e5, G = [
+var V = (e) => de(e) !== null, fe = (e) => Array.from(new Uint8Array(e), (e) => e.toString(16).padStart(2, "0")).join(""), pe = (e = crypto) => fe(e.getRandomValues(/* @__PURE__ */ new Uint8Array(16))), H = (e, t) => typeof t == "string" && e.exec(t)?.[0] === t, U = (e, t) => typeof e == "object" && !!e && !Array.isArray(e) && Object.keys(e).length === t.length && t.every((t) => Object.hasOwn(e, t)), W = "/api/panel_assistant/usb/release", me = "/api/panel_assistant/usb/handover", he = "/api/panel_assistant/usb/adb_key", ge = 35e3, _e = /(?:[0-9]{1,3}\.){3}[0-9]{1,3}/, ve = /[a-z_]{1,48}/, G = 67108864, ye = 18e5, K = [
 	"id",
 	"tag",
 	"checksum",
@@ -2253,14 +2264,14 @@ var B = (e) => ue(e) !== null, de = (e) => Array.from(new Uint8Array(e), (e) => 
 	"descriptor_signature",
 	"apk_size",
 	"apk_sha256"
-], K = [
+], q = [
 	"id",
 	"tag",
 	"feed",
 	"feed_signature",
 	"apk_size",
 	"apk_sha256"
-], q = 8192, J = Math.ceil(oe / 3) * 4 + q, Y = class extends Error {
+], J = 8192, be = Math.ceil(F / 3) * 4 + J, Y = class extends Error {
 	constructor(e) {
 		super(e), this.name = "HandoffError", this.code = e;
 	}
@@ -2269,7 +2280,7 @@ function X(e, t = "invalid_response") {
 	if (!e) throw new Y(t);
 }
 function Z(e, t, n = !1) {
-	X(typeof e == "string" && e.length <= Math.ceil(t / 3) * 4 && V(/(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?/, e));
+	X(typeof e == "string" && e.length <= Math.ceil(t / 3) * 4 && H(/(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?/, e));
 	let r = atob(e);
 	return X(btoa(r) === e && r.length > 0 && (n ? r.length === t : r.length <= t)), Uint8Array.from(r, (e) => e.charCodeAt(0));
 }
@@ -2277,7 +2288,7 @@ async function Q(e, t, n, r = null) {
 	X(e.status === 200 && !e.redirected && e.body);
 	let i = e.headers.get("content-length");
 	if (i !== null) {
-		X(V(/0|[1-9][0-9]*/, i));
+		X(H(/0|[1-9][0-9]*/, i));
 		let e = Number(i);
 		X(Number.isSafeInteger(e) && e <= t && (r === null || e === r));
 	}
@@ -2298,14 +2309,14 @@ async function Q(e, t, n, r = null) {
 		n.removeEventListener("abort", o), o(), a.releaseLock();
 	}
 }
-function ye(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () => {}, windowObject: o = window, timeoutMs: s = 3e5 } = {}) {
+function xe(e, t, { rcTag: n = null, language: r = e?.language, onState: i = () => {}, windowObject: o = window, timeoutMs: s = 3e5 } = {}) {
 	let c, l, u = new Promise((e, t) => {
 		c = e, l = t;
 	}), d = new AbortController(), f = !1, p, m, h, g, _ = !1, v = !1, y, b, x, S, C = !1, w = () => {
-		clearInterval(x), clearTimeout(S), y = void 0, o.removeEventListener("message", A);
+		clearInterval(x), clearTimeout(S), y = void 0, o.removeEventListener("message", O);
 	}, T = (e) => {
 		try {
-			a(e);
+			i(e);
 		} catch {}
 	}, E = (e = null) => {
 		if (!f) {
@@ -2315,13 +2326,13 @@ function ye(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 			}
 			x = setInterval(() => {
 				p.closed && w();
-			}, 2e3), S = setTimeout(w, ve), c();
+			}, 2e3), S = setTimeout(w, ye), c();
 		}
 	};
 	async function ee() {
 		try {
 			T("preparing"), X(!f, "cancelled");
-			let t = await e.fetchWithAuth(U, {
+			let t = await e.fetchWithAuth(W, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(n === null ? {} : { release_candidate: n }),
@@ -2329,17 +2340,17 @@ function ye(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 				signal: d.signal
 			});
 			X(!f, "cancelled"), X(t.headers.get("content-type")?.split(";")[0].trim() === "application/json");
-			let r = await Q(t, J, d.signal), i;
+			let r = await Q(t, be, d.signal), i;
 			try {
 				i = JSON.parse(await r.text());
 			} catch {
 				throw new Y("invalid_response");
 			}
-			let a = B(i?.tag);
-			X(a || r.size <= q), X(!f, "cancelled"), X(H(i, a ? K : G) && V(/[0-9a-f]{32}/, i.id) && typeof i.tag == "string" && i.tag.length <= 64 && (n === null ? z(i.tag) || B(i.tag) : i.tag === n) && V(/[0-9a-f]{64}/, i.apk_sha256) && Number.isSafeInteger(i.apk_size) && i.apk_size > 0 && i.apk_size <= W);
+			let a = V(i?.tag);
+			X(a || r.size <= J), X(!f, "cancelled"), X(U(i, a ? q : K) && H(/[0-9a-f]{32}/, i.id) && typeof i.tag == "string" && i.tag.length <= 64 && (n === null ? B(i.tag) || V(i.tag) : i.tag === n) && H(/[0-9a-f]{64}/, i.apk_sha256) && Number.isSafeInteger(i.apk_size) && i.apk_size > 0 && i.apk_size <= G);
 			let o = a ? {
 				tag: i.tag,
-				feed: Z(i.feed, oe),
+				feed: Z(i.feed, F),
 				feedSignature: Z(i.feed_signature, 256, !0)
 			} : {
 				tag: i.tag,
@@ -2349,13 +2360,13 @@ function ye(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 				descriptorSignature: Z(i.descriptor_signature, 256, !0)
 			};
 			T("downloading"), X(!f, "cancelled");
-			let s = await e.fetchWithAuth(`${U}/${i.id}/apk`, {
+			let s = await e.fetchWithAuth(`${W}/${i.id}/apk`, {
 				method: "GET",
 				redirect: "error",
 				signal: d.signal
 			});
 			X(!f, "cancelled");
-			let c = await Q(s, W, d.signal, i.apk_size);
+			let c = await Q(s, G, d.signal, i.apk_size);
 			X(!f && !p.closed, "window_closed"), v = !0, b = i.apk_sha256, y = {
 				type: "ha-paneld/usb-bundle",
 				nonce: g,
@@ -2367,17 +2378,17 @@ function ye(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 		}
 	}
 	async function D(t) {
-		if (!f || !y || p.closed || !H(t, [
+		if (!f || !y || p.closed || !U(t, [
 			"type",
 			"nonce",
 			"requestId",
 			"tag",
 			"apkSha256"
-		]) || !V(/[0-9a-f]{32}/, t.requestId)) return;
+		]) || !H(/[0-9a-f]{32}/, t.requestId)) return;
 		let r = !1;
 		try {
 			X(t.tag === y.bundle.tag && t.apkSha256 === b);
-			let i = AbortSignal.timeout(Math.min(s, 1e4)), a = await e.fetchWithAuth(U, {
+			let i = AbortSignal.timeout(Math.min(s, 1e4)), a = await e.fetchWithAuth(W, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(n === null ? {} : { release_candidate: n }),
@@ -2385,8 +2396,8 @@ function ye(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 				signal: i
 			});
 			X(a.headers.get("content-type")?.split(";")[0].trim() === "application/json");
-			let o = JSON.parse(await (await Q(a, B(t.tag) ? J : q, i)).text());
-			X(H(o, B(t.tag) ? K : G) && V(/[0-9a-f]{32}/, o.id) && o.tag === t.tag && o.apk_sha256 === t.apkSha256 && o.apk_size === y.apk.size), r = !0;
+			let o = JSON.parse(await (await Q(a, V(t.tag) ? be : J, i)).text());
+			X(U(o, V(t.tag) ? q : K) && H(/[0-9a-f]{32}/, o.id) && o.tag === t.tag && o.apk_sha256 === t.apkSha256 && o.apk_size === y.apk.size), r = !0;
 		} catch {}
 		if (y && !p.closed) try {
 			p.postMessage({
@@ -2399,12 +2410,12 @@ function ye(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 			}, h);
 		} catch {}
 	}
-	async function O(t) {
-		if (C || !f || !y || p.closed || !H(t, [
+	async function te(t) {
+		if (C || !f || !y || p.closed || !U(t, [
 			"type",
 			"nonce",
 			"address"
-		]) || !V(ge, t.address)) return;
+		]) || !H(_e, t.address)) return;
 		C = !0;
 		let n = (e, t = {}) => {
 			try {
@@ -2418,14 +2429,14 @@ function ye(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 		n("ha-paneld/usb-handover-accepted");
 		let r, i = null, a;
 		try {
-			let n = await e.fetchWithAuth(pe, {
+			let n = await e.fetchWithAuth(me, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ address: t.address }),
 				redirect: "error",
-				signal: AbortSignal.timeout(he)
+				signal: AbortSignal.timeout(ge)
 			}), o = await n.json().catch(() => null), s = n.status === 200 ? o?.outcome : o?.error;
-			r = V(_e, s) ? s : `http_${n.status}`, n.status === 200 && (i = re(o?.display)), n.status === 200 && o?.registration === "added_to_another_home_assistant" && (a = o.registration);
+			r = H(ve, s) ? s : `http_${n.status}`, n.status === 200 && (i = oe(o?.display)), n.status === 200 && o?.registration === "added_to_another_home_assistant" && (a = o.registration);
 		} catch {
 			r = "request_failed";
 		} finally {
@@ -2440,10 +2451,10 @@ function ye(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 			...a ? { registration: a } : {}
 		});
 	}
-	async function k() {
+	async function ne() {
 		let t = null;
 		try {
-			let n = await e.fetchWithAuth(me, {
+			let n = await e.fetchWithAuth(he, {
 				method: "GET",
 				redirect: "error",
 				signal: AbortSignal.timeout(Math.min(s, 1e4))
@@ -2458,10 +2469,10 @@ function ye(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 			}, h);
 		} catch {}
 	}
-	function A(e) {
+	function O(e) {
 		if (e.source === p && e.origin === h) {
-			if (e.data?.type === "ha-paneld/usb-adb-key" && e.data.nonce === g && H(e.data, ["type", "nonce"])) {
-				f && k();
+			if (e.data?.type === "ha-paneld/usb-adb-key" && e.data.nonce === g && U(e.data, ["type", "nonce"])) {
+				f && ne();
 				return;
 			}
 			if (e.data?.type === "ha-paneld/usb-admission" && e.data.nonce === g) {
@@ -2469,10 +2480,10 @@ function ye(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 				return;
 			}
 			if (e.data?.type === "ha-paneld/usb-handover" && e.data.nonce === g) {
-				O(e.data);
+				te(e.data);
 				return;
 			}
-			if (H(e.data, ["type", "nonce"]) && e.data.nonce === g) {
+			if (U(e.data, ["type", "nonce"]) && e.data.nonce === g) {
 				if (e.data.type === "ha-paneld/usb-ready") {
 					!_ && !f ? (_ = !0, ee()) : y && !p.closed && p.postMessage(y, h);
 					return;
@@ -2482,17 +2493,17 @@ function ye(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 		}
 	}
 	try {
-		X(e && typeof e.fetchWithAuth == "function" && (n === null || z(n) || B(n)) && Number.isSafeInteger(s) && s > 0 && s <= 3e5, "invalid_request");
-		let a = new URL(t);
-		X(!a.username && !a.password && !a.hash && (a.protocol === "https:" || a.protocol === "http:" && [
+		X(e && typeof e.fetchWithAuth == "function" && (n === null || B(n) || V(n)) && Number.isSafeInteger(s) && s > 0 && s <= 3e5, "invalid_request");
+		let i = new URL(t);
+		X(!i.username && !i.password && !i.hash && (i.protocol === "https:" || i.protocol === "http:" && [
 			"localhost",
 			"127.0.0.1",
 			"[::1]"
-		].includes(a.hostname)), "invalid_destination"), a.searchParams.set("lang", r(i)), h = a.origin, g = fe(o.crypto), a.hash = new URLSearchParams({
+		].includes(i.hostname)), "invalid_destination"), i.searchParams.set("lang", a(r)), h = i.origin, g = pe(o.crypto), i.hash = new URLSearchParams({
 			ha_origin: o.location.origin,
 			nonce: g,
 			rc: n ?? ""
-		}).toString(), o.addEventListener("message", A), p = o.open(a.href, "_blank"), X(p, "popup_blocked"), m = setTimeout(() => E("timeout"), s), T("waiting");
+		}).toString(), o.addEventListener("message", O), p = o.open(i.href, "_blank"), X(p, "popup_blocked"), m = setTimeout(() => E("timeout"), s), T("waiting");
 	} catch (e) {
 		E(e instanceof Y ? e.code : "invalid_request");
 	}
@@ -2505,28 +2516,28 @@ function ye(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 }
 //#endregion
 //#region src/release-catalog.mjs
-var be = 30, xe = 500, Se = 131072;
+var Se = 30, Ce = 500, we = 131072;
 function $(e) {
 	if (!e) throw Error("Invalid release catalogue");
 }
-var Ce = 128, we = (e) => B(e.tag) && typeof e.prerelease == "boolean" && typeof e.name == "string" && e.name.length > 0 && e.name.length <= Ce;
-function Te(e) {
-	$(H(e, ["releases"]) && Array.isArray(e.releases) && e.releases.length <= 530);
+var Te = 128, Ee = (e) => V(e.tag) && typeof e.prerelease == "boolean" && typeof e.name == "string" && e.name.length > 0 && e.name.length <= Te;
+function De(e) {
+	$(U(e, ["releases"]) && Array.isArray(e.releases) && e.releases.length <= 530);
 	let t = /* @__PURE__ */ new Set(), n = 0, r = 0;
-	return Object.freeze(e.releases.map((e) => H(e, [
+	return Object.freeze(e.releases.map((e) => U(e, [
 		"tag",
 		"prerelease",
 		"name"
-	]) ? ($(we(e) && !t.has(e.tag) && ++r <= xe), t.add(e.tag), Object.freeze({
+	]) ? ($(Ee(e) && !t.has(e.tag) && ++r <= Ce), t.add(e.tag), Object.freeze({
 		tag: e.tag,
 		prerelease: e.prerelease,
 		name: e.name
-	})) : ($(H(e, ["tag", "prerelease"]) && typeof e.prerelease == "boolean" && (e.prerelease ? R(e.tag) : L(e.tag)) && !t.has(e.tag) && ++n <= be), t.add(e.tag), Object.freeze({
+	})) : ($(U(e, ["tag", "prerelease"]) && typeof e.prerelease == "boolean" && (e.prerelease ? z(e.tag) : R(e.tag)) && !t.has(e.tag) && ++n <= Se), t.add(e.tag), Object.freeze({
 		tag: e.tag,
 		prerelease: e.prerelease
 	}))));
 }
-async function Ee(e, { signal: t, timeoutMs: n = 15e3 } = {}) {
+async function Oe(e, { signal: t, timeoutMs: n = 15e3 } = {}) {
 	let r = new AbortController(), i = () => r.abort();
 	t?.addEventListener("abort", i, { once: !0 }), t?.aborted && i();
 	let a = setTimeout(i, n), o, s = new Promise((e, t) => {
@@ -2541,8 +2552,8 @@ async function Ee(e, { signal: t, timeoutMs: n = 15e3 } = {}) {
 				signal: r.signal
 			});
 			$(t.headers.get("content-type")?.split(";")[0].trim() === "application/json");
-			let n = await Q(t, Se, r.signal);
-			return Te(JSON.parse(await n.text()));
+			let n = await Q(t, we, r.signal);
+			return De(JSON.parse(await n.text()));
 		})()]);
 	} finally {
 		clearTimeout(a), t?.removeEventListener("abort", i), r.signal.removeEventListener("abort", o), r.abort();
@@ -2550,10 +2561,10 @@ async function Ee(e, { signal: t, timeoutMs: n = 15e3 } = {}) {
 }
 //#endregion
 //#region src/ha-install-panel.mjs
-var De = class extends HTMLElement {
+var ke = class extends HTMLElement {
 	#e;
 	get #t() {
-		return i("haInstall", this.#e?.language);
+		return o("haInstall", this.#e?.language);
 	}
 	#n;
 	#r;
@@ -2563,14 +2574,14 @@ var De = class extends HTMLElement {
 	#s = "loading";
 	#c = [];
 	constructor() {
-		super(), this.attachShadow({ mode: "open" }), this.shadowRoot.innerHTML = `<style>${g}
+		super(), this.attachShadow({ mode: "open" }), this.shadowRoot.innerHTML = `<style>${v}
       :host{display:block;min-height:100%;background:var(--bg);padding:24px 16px}
       #release{border:0;padding:0;margin:14px 0;min-width:0}
       #release legend{font-size:.92rem;font-weight:600;margin-bottom:5px}
       #release-choices{max-height:min(240px,40vh)}
     </style><main class="wiz">
-      ${f}
-      <ol id="journey" class="wiz-dots">${m(0)}</ol>
+      ${m}
+      <ol id="journey" class="wiz-dots">${g(0)}</ol>
       <section class="wiz-step"><div class="card">
         <h2 data-message="title"></h2>
         <p class="wiz-lead" data-message="introduction"></p>
@@ -2606,7 +2617,7 @@ var De = class extends HTMLElement {
 		let e = new AbortController();
 		this.#o = e;
 		try {
-			let t = await Ee(this.#e, { signal: e.signal });
+			let t = await Oe(this.#e, { signal: e.signal });
 			if (this.#o !== e) return;
 			this.#c = t, this.#s = t.length ? "ready" : "empty";
 			let n = this.shadowRoot.querySelector("#release-choices");
@@ -2625,34 +2636,34 @@ var De = class extends HTMLElement {
 	}
 	#u() {
 		let e = this.shadowRoot, t = this.#e?.language;
-		this.isConnected && this.setAttribute?.("lang", r(t));
+		this.isConnected && this.setAttribute?.("lang", a(t));
 		for (let t of e.querySelectorAll("[data-message]")) t.textContent = this.#t[t.dataset.message];
-		e.querySelector("#brand-version").textContent = d(this.#n?.config, t);
+		e.querySelector("#brand-version").textContent = p(this.#n?.config, t);
 		let n = e.querySelector("#journey");
-		n.setAttribute("aria-label", i("installer", t).progress), h(n, 0, document, t);
-		let a = e.querySelector("#release-choices").children;
-		if (a.length) {
-			a[0].querySelector("span").textContent = this.#t.choose;
+		n.setAttribute("aria-label", o("installer", t).progress), _(n, 0, document, t);
+		let r = e.querySelector("#release-choices").children;
+		if (r.length) {
+			r[0].querySelector("span").textContent = this.#t.choose;
 			for (let [e, t] of this.#c.entries()) {
 				let n = t.name ? this.#t.devBuild : t.prerelease ? this.#t.testing : "";
-				a[e + 1].querySelector("span").textContent = `${t.name ?? t.tag.replace(/^v/, "")}${n ? ` (${n})` : ""}`;
+				r[e + 1].querySelector("span").textContent = `${t.name ?? t.tag.replace(/^v/, "")}${n ? ` (${n})` : ""}`;
 			}
 		}
-		let o = this.#e?.user?.is_admin === !0, s = typeof this.#n?.config?.installer_url == "string" && this.#n.config.installer_url.length > 0, c = this.shadowRoot.querySelector("#release input:checked")?.value, l = c === "" ? this.#c[0] : this.#c.find((e) => e.tag === c);
-		this.shadowRoot.querySelector("#start").disabled = !o || !s || !!this.#r || !l, this.shadowRoot.querySelector("#cancel").disabled = !this.#r, this.shadowRoot.querySelector("#release").disabled = !!this.#r || this.#s !== "ready";
+		let i = this.#e?.user?.is_admin === !0, s = typeof this.#n?.config?.installer_url == "string" && this.#n.config.installer_url.length > 0, c = this.shadowRoot.querySelector("#release input:checked")?.value, l = c === "" ? this.#c[0] : this.#c.find((e) => e.tag === c);
+		this.shadowRoot.querySelector("#start").disabled = !i || !s || !!this.#r || !l, this.shadowRoot.querySelector("#cancel").disabled = !this.#r, this.shadowRoot.querySelector("#release").disabled = !!this.#r || this.#s !== "ready";
 		let u = this.shadowRoot.querySelector("#catalog-status");
-		u.textContent = o && s && this.#s !== "ready" ? this.#t[this.#s] : "", u.hidden = !u.textContent, this.shadowRoot.querySelector("#retry").hidden = !o || !s || !["catalogError", "empty"].includes(this.#s), this.shadowRoot.querySelector("#cancel").hidden = !this.#r;
-		let f = o ? s ? this.#a : "unavailable" : "admin", p = this.shadowRoot.querySelector("#status");
-		p.textContent = Object.hasOwn(this.#t, f) ? this.#t[f] : this.#t.failed, p.hidden = !p.textContent;
+		u.textContent = i && s && this.#s !== "ready" ? this.#t[this.#s] : "", u.hidden = !u.textContent, this.shadowRoot.querySelector("#retry").hidden = !i || !s || !["catalogError", "empty"].includes(this.#s), this.shadowRoot.querySelector("#cancel").hidden = !this.#r;
+		let d = i ? s ? this.#a : "unavailable" : "admin", f = this.shadowRoot.querySelector("#status");
+		f.textContent = Object.hasOwn(this.#t, d) ? this.#t[d] : this.#t.failed, f.hidden = !f.textContent;
 	}
 	#d() {
 		if (this.#r || this.#e?.user?.is_admin !== !0) return;
 		let e = this.shadowRoot.querySelector("#release input:checked")?.value;
 		if (!(e === "" ? this.#c[0] : this.#c.find((t) => t.tag === e)) || !this.isConnected) return;
 		this.#i?.cancel(), this.#i = void 0;
-		let t = ye(this.#e, this.#n?.config?.installer_url, {
+		let t = xe(this.#e, this.#n?.config?.installer_url, {
 			rcTag: e || null,
-			language: r(this.#e?.language),
+			language: a(this.#e?.language),
 			onState: (e) => {
 				this.#a = e, this.#u();
 			}
@@ -2664,5 +2675,5 @@ var De = class extends HTMLElement {
 		});
 	}
 };
-customElements.get("panel-assistant-usb-install") || customElements.define("panel-assistant-usb-install", De);
+customElements.get("panel-assistant-usb-install") || customElements.define("panel-assistant-usb-install", ke);
 //#endregion
