@@ -355,7 +355,6 @@ class UpdateProgress:
         artifact: ReleaseArtifact,
         before: tuple[str, str | None],
         *,
-        minimum_code: bool = False,
         watch_refusal: bool = False,
         carrier: UpdateCarrier | None = None,
     ) -> tuple[int, tuple[str, str]] | None:
@@ -393,7 +392,7 @@ class UpdateProgress:
                 )
                 and health is not None
                 and (health.build, health.package) != before
-                and (minimum_code or health.version == artifact.version)
+                and health.version == artifact.version
                 and (
                     reports_package(health.package, package_id)
                     or (build is None and health.package == SUCCESSOR_PACKAGE_ID)
@@ -411,11 +410,7 @@ class UpdateProgress:
                 if (
                     build is not None
                     and code is not None
-                    and not (
-                        code >= build.version_code
-                        if minimum_code
-                        else code == build.version_code
-                    )
+                    and code != build.version_code
                 ):
                     code = None
                 if build is None or code is not None:

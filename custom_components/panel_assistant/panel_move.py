@@ -292,7 +292,7 @@ async def async_restore_move_offer(hass: HomeAssistant, entry: ConfigEntry) -> N
     marker = await hass.async_add_executor_job(
         _read_adoption, _adoption_path(hass, entry.entry_id)
     )
-    if marker is not None and entry.unique_id == marker["new_did"]:
+    if marker is not None:
         await hass.async_add_executor_job(
             _settle_record, hass, entry.entry_id, marker["new_did"], _adoption_path
         )
@@ -303,10 +303,9 @@ async def async_restore_move_offer(hass: HomeAssistant, entry: ConfigEntry) -> N
     if isinstance(adopted, str):
         # The move finished. Once its identity is on disk the record goes;
         # an entry that came back with the old identity adopts it again.
-        if entry.unique_id == adopted:
-            await hass.async_add_executor_job(
-                _settle_record, hass, entry.entry_id, adopted, _record_path
-            )
+        await hass.async_add_executor_job(
+            _settle_record, hass, entry.entry_id, adopted, _record_path
+        )
         return
     if record is not None and not isinstance(entry.data.get(CONF_SUCCESSOR_MOVE), dict):
         hass.config_entries.async_update_entry(

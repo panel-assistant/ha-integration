@@ -260,16 +260,6 @@ _FAILURE_CODES_BY_PHASE: Mapping[InstallPhase, frozenset[InstallResultCode]] = {
         }
     ),
 }
-_RECOVERY_SOURCE_PHASES = frozenset(
-    {
-        InstallPhase.STAGING,
-        InstallPhase.INSTALLING,
-        InstallPhase.INSTALLED,
-        InstallPhase.LAUNCHING,
-        InstallPhase.HEALTH_CHECK,
-        InstallPhase.HEALTHY_UNCLAIMED,
-    }
-)
 _RESTART_AMBIGUOUS_PHASES = frozenset(
     {
         InstallPhase.STAGING,

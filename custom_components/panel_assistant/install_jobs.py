@@ -35,7 +35,6 @@ from .install_network import (
 from .install_receipt import (
     _CANCELLABLE_PHASES,
     _CLEANUP_BARRIER_CANCEL_POLARITY,
-    _FAILURE_CODES_BY_PHASE,
     _HEX_32,
     _MAX_ATTEMPTS,
     _MAX_EXECUTOR_GENERATION,
@@ -43,7 +42,6 @@ from .install_receipt import (
     _NEXT_PHASE,
     _PREFLIGHT_ROOT_MODES,
     _RECOVERY_CODES,
-    _RECOVERY_SOURCE_PHASES,
     _RESTART_AMBIGUOUS_PHASES,
     _SUBCODE,
     _TERMINAL_PHASES,
@@ -1167,18 +1165,10 @@ class InstallJobManager:
                 ):
                     raise InstallJobTransitionError
             elif phase == InstallPhase.FAILED:
-                if (
-                    result_code
-                    not in _FAILURE_CODES_BY_PHASE.get(current.phase, frozenset())
-                    or parsed_entry_id is not None
-                ):
+                if parsed_entry_id is not None:
                     raise InstallJobTransitionError
             elif phase == InstallPhase.RECOVERY_REQUIRED:
-                if (
-                    current.phase not in _RECOVERY_SOURCE_PHASES
-                    or result_code not in _RECOVERY_CODES
-                    or parsed_entry_id is not None
-                ):
+                if result_code not in _RECOVERY_CODES or parsed_entry_id is not None:
                     raise InstallJobTransitionError
             elif phase == InstallPhase.CONSUMED:
                 if (

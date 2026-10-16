@@ -253,6 +253,33 @@ async def test_update_entity_starts_only_the_current_panel_offer(
     assert entity.in_progress is False
 
 
+async def test_panel_update_that_starts_while_the_route_is_chosen_is_not_repeated(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Core admits the press before the route is read; work found then still wins."""
+    entity, client = _entity(hass)
+    client.async_start_panel_update.side_effect = UpdateBusyError
+    failure = AsyncMock()
+    monkeypatch.setattr(panel_update, "async_record_update_failure", failure)
+    choose_route = entity._async_install_route
+
+    async def route_while_the_panel_starts_updating() -> str:
+        route = await choose_route()
+        entity._update_coordinator.data = PanelUpdateSnapshot(
+            operation=PanelInstallStatus(running=True, component="ha-paneld"),
+            error=None,
+        )
+        return route
+
+    entity._async_install_route = route_while_the_panel_starts_updating
+    with pytest.raises(HomeAssistantError):
+        await entity.async_install(None, backup=False)
+
+    client.async_start_panel_update.assert_not_awaited()
+    failure.assert_not_awaited()
+    assert entity.in_progress is True
+
+
 async def test_panel_refusal_after_unstarted_call_is_not_retried(
     hass: HomeAssistant,
 ) -> None:

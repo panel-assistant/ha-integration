@@ -428,9 +428,9 @@ async def test_existing_protected_panel_requires_explicit_authorization(
     assert issue is not None
     assert issue.translation_placeholders == {"panel": "Kitchen display"}
     assert issue.data == {"entry_id": entry.entry_id}
-    assert (
-        "ADB authorization"
-        in route.entity.extra_state_attributes["update_unavailable_reason"]
+    # A missing ADB authorization is a problem for the owner, never a bridge waiting.
+    assert "ADB authorization" in (
+        route.entity.extra_state_attributes.get("update_unavailable_reason") or ""
     )
     with pytest.raises(HomeAssistantError) as caught:
         await route.entity.async_install(None, False)
