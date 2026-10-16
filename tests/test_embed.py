@@ -195,6 +195,9 @@ class SessionPanel:
         self.token = token
         self.http = http
         self.events: list[dict[str, Any]] = []
+        # Home Assistant's answers to what this panel sent (its command_result calls).
+        self.results: list[dict[str, Any]] = []
+        self.acknowledged = asyncio.Event()
         self.answers: dict[str, Answer] = {"page.info": self.page}
         self.arrived = asyncio.Event()
         self.task: asyncio.Task[None] | None = None
@@ -216,6 +219,10 @@ class SessionPanel:
     async def run(self) -> None:
         while True:
             message = await self.ws.receive_json()
+            if message.get("type") == "result":
+                self.results.append(message)
+                self.acknowledged.set()
+                continue
             if message.get("type") != "event":
                 continue
             event = message["event"]
@@ -1068,6 +1075,40 @@ async def test_a_relayed_request_waits_through_its_approval(
         "outcome": "applied",
         "result": {"ok": True},
     }
+
+
+async def test_a_late_approval_answer_after_the_browser_stopped_waiting_is_accepted(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    entry: MockConfigEntry,
+    live: SessionPanel,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The panel's interim and final answers are taken after the wait ended."""
+    monkeypatch.setattr(ui_relay, "ANSWER_GRACE_SECONDS", 0)
+    gone = asyncio.Event()
+
+    async def reboot(event: dict[str, Any]) -> dict[str, Any]:
+        await gone.wait()
+        await live.send_result(event, outcome="pending_approval", interim=True)
+        return {"outcome": "applied", "result": {"ok": True}}
+
+    live.answers["device.reboot"] = reboot
+    ws = await hass_ws_client(hass)
+    reply = await _ui(
+        ws,
+        entry.entry_id,
+        {"kind": "manage", "command_id": "r1", "op": "device.reboot", "deadline_ms": 1},
+    )
+    assert reply["success"] is False
+    answered = len(live.results)
+    gone.set()
+    async with asyncio.timeout(5):
+        while len(live.results) < answered + 2:
+            live.acknowledged.clear()
+            await live.acknowledged.wait()
+    # Both late answers were acknowledged; neither raised in Home Assistant.
+    assert [r["success"] for r in live.results[answered:]] == [True, True]
 
 
 async def test_without_a_session_that_serves_the_sidebar_the_request_rejects(

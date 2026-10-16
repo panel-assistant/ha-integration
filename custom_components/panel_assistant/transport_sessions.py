@@ -630,6 +630,8 @@ async def async_deliver(
             ) from None
         result = future.result()
     finally:
+        # The wait is over: a late interim answer has no timeout left to extend.
+        command.on_interim = None
         if not future.done():
             _stop_waiting(session, command_id)
 
