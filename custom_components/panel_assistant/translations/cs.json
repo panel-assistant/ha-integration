@@ -66,14 +66,6 @@
         "title": "Potvrdit nalezený panel",
         "description": "Home Assistant našel instalaci Panel Assistant na adrese {address}. Volbou Odeslat ověříte, že jde stále o tentýž panel, a přidáte jej jako {panel_name}. Žádné nastavení panelu se nezmění."
       },
-      "confirm_user": {
-        "title": "Potvrdit účet tohoto panelu",
-        "description": "Panel {panel} je přihlášený k Home Assistant jako {user} a žádá o připojení. Potvrzení tohoto účtu je vše, co od vás panel ještě potřebuje: pak sám dokončí své nastavení. O připojení jako panel může požádat kdokoli přihlášený k Home Assistant, proto potvrďte jen tehdy, pokud je {user} účet, který jste pro tento panel nastavili. Pokud tento krok přeskočíte, panel se přesto přidá, ale zůstane nepřipojený, dokud účet nepotvrdíte v Nastavení, kde otevřete Opravy.",
-        "menu_options": {
-          "bind_user": "Ano, připojit tento panel",
-          "skip_binding": "Teď ne"
-        }
-      },
       "authorize_adb": {
         "title": "Autorizovat Home Assistant na panelu",
         "description": "Vybrané vydání obsahuje ověřený popis instalace. Jednou zvolte Odeslat: tím vytvoříte nebo načtete trvalou identitu ADB pro tuto instalaci Home Assistant a nabídnete její veřejný klíč panelu Android na adrese {address}. Na panelu schvalte výzvu Android k povolení ladění, pak se sem vraťte a znovu zvolte Odeslat. Android může Home Assistant označovat jako počítač. Schválení uděluje obecný přístup k shellu ADB, dokud zůstává zapnuté síťové ladění; odeberte jej v nastavení pro vývojáře na panelu. V tomto kroku se žádný APK nestahuje ani neinstaluje."
@@ -198,6 +190,12 @@
       },
       "reload": {
         "name": "Znovu načíst ovládací panel"
+      },
+      "android_settings": {
+        "name": "Nastavení systému Android"
+      },
+      "launcher": {
+        "name": "Spouštěč"
       }
     },
     "event": {
@@ -742,6 +740,10 @@
       "title": "Hlasový asistent na panelu {panel} neposlouchá.",
       "description": "Hlasový asistent na panelu {panel} neposlouchá, protože jeho mikrofon při kontrole panelem neposkytl žádný zvuk. Pro novou kontrolu hlasového asistenta vypněte a zapněte na stránce Konfigurace panelu, nebo tam vyberte jiný zdroj zvuku. Panel nahlásil: {detail}"
     },
+    "volume_number_removed": {
+      "title": "Panel {panel} už nemá samostatné číslo hlasitosti",
+      "description": "Panel {panel} má přehrávač médií, který zobrazuje a nastavuje jeho hlasitost, proto Panel Assistant odstranil jeho samostatné číslo hlasitosti {entity}. Tyto automatizace nebo skripty ho stále používají: {users}. Upravte je tak, aby nastavovaly hlasitost akcí `media_player.volume_set` na přehrávači médií panelu. Až budou upravené, můžete tuto zprávu ignorovat."
+    },
     "restart_required": {
       "title": "Pro dokončení aktualizace Panel Assistant restartujte systém Home Assistant",
       "fix_flow": {
@@ -755,25 +757,6 @@
     },
     "panel_user_mismatch": {
       "title": "Potvrdit uživatele systému Home Assistant pro panel {panel}",
-      "fix_flow": {
-        "step": {
-          "confirm_bind": {
-            "title": "Potvrdit uživatele panelu",
-            "description": "Panel {panel} požádal o připojení k systému Home Assistant jako uživatel {user}. Potvrďte to pouze tehdy, pokud je {user} účet, který jste pro tento panel nastavili. Po potvrzení by se panel měl brzy připojit. O připojení jako panel může požádat kdokoli přihlášený do systému Home Assistant. Pokud tedy tento požadavek nepoznáváte, zavřete toto dialogové okno a problém ignorujte."
-          },
-          "confirm_rebind": {
-            "title": "Změnit uživatele panelu",
-            "description": "Panel {panel} je potvrzený pro uživatele {bound_user}, ale uživatel {user} požádal o připojení jako tento panel. Potvrďte to pouze tehdy, pokud jste účet tohoto panelu změnili na {user}: panel poté přestane přijímat uživatele {bound_user} a měl by se brzy připojit. Pokud jste účet nezměnili, někdo jiný se možná pokouší panel převzít. Zavřete proto toto dialogové okno a problém ignorujte."
-          }
-        },
-        "abort": {
-          "entry_removed": "Tento panel už není nastavený v systému Home Assistant.",
-          "user_unavailable": "Uživatel, který požádal o připojení, už neexistuje nebo je deaktivovaný. Nic se nezměnilo."
-        }
-      }
-    },
-    "panel_awaiting_confirmation": {
-      "title": "Dokončit připojení panelu {panel}",
       "fix_flow": {
         "step": {
           "confirm_bind": {
@@ -1489,19 +1472,11 @@
       },
       "onboarding": {
         "title": "Dokončit nastavení tohoto panelu",
-        "description": "Otevřete stránku nastavení panelu v prohlížeči, který se k panelu dostane ve vaší místní síti. Přihlaste se účtem Home Assistant, který právě používáte v tomto prohlížeči, vyberte domovský ovládací panel a dokončete tam nastavení. Toto dialogové okno nechte otevřené; proces se sem vrátí k potvrzení účtu. Pokud se tento prohlížeč k panelu nedostane, dokončete nastavení později z místní sítě panelu. Pokud bude požadováno povolení ladění systému Android, musí ho stále potvrdit někdo přímo u panelu."
+        "description": "Otevřete stránku nastavení panelu v prohlížeči, který se k panelu dostane ve vaší místní síti. Přihlaste se účtem Home Assistant, který právě používáte v tomto prohlížeči, vyberte domovský ovládací panel a dokončete tam nastavení. Toto dialogové okno nechte otevřené; samo se zavře, jakmile se panel připojí. Pokud se tento prohlížeč k panelu nedostane, dokončete nastavení později z místní sítě panelu. Pokud bude požadováno povolení ladění systému Android, musí ho stále potvrdit někdo přímo u panelu."
       },
       "onboarding_wait": {
         "title": "Čekání na připojení panelu",
-        "description": "Panel ještě nedokončil nastavení nebo nepožádal o připojení pod účtem. Dokončete jeho stránku nastavení a pak zde zvolte Odeslat pro novou kontrolu. Panel zůstane nepropojený, dokud nepotvrdíte jeho účet."
-      },
-      "onboarding_confirm": {
-        "title": "Potvrdit účet tohoto panelu",
-        "description": "Panel {panel} se přihlásil jako {user} a požádal o připojení. Potvrďte to pouze tehdy, pokud jde o účet, který jste pro tento panel vybrali. Při přeskočení zůstane panel nepropojený; účet můžete potvrdit později v Opravách.",
-        "menu_options": {
-          "onboarding_bind": "Ano, připojit tento panel",
-          "onboarding_skip": "Teď ne"
-        }
+        "description": "Panel ještě nedokončil nastavení nebo nepožádal o připojení pod účtem. Dokončete jeho stránku nastavení a pak zde zvolte Odeslat pro novou kontrolu."
       },
       "authorize_adb": {
         "title": "Povolit aktualizace na {panel}",

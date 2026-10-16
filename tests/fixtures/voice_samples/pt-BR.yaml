@@ -1,0 +1,36 @@
+match:
+  - {text: "mostre a página de câmeras", command: show_page, page: câmeras}
+  - {text: "me mostra o dashboard de energia", command: show_page, page: energia}
+  - {text: "mostra pra mim a visualização da sala", command: show_page, page: sala}
+  - {text: "mostre a página inicial", command: show_page, page: inicial}
+  - {text: "vá para a página da cozinha", command: show_page, page: cozinha}
+  - {text: "vai pra aba principal", command: show_page, page: principal}
+  - {text: "exiba a página de câmeras", command: show_page, page: câmeras}
+  - {text: "me leva pra página da cozinha", command: show_page, page: cozinha}
+  - {text: "vai para o dashboard de energia", command: show_page, page: energia}
+  - {text: "mostre as configurações do android", command: android_settings}
+  - {text: "me mostra configurações do android", command: android_settings}
+  - {text: "vá para as configurações do android", command: android_settings}
+  - {text: "exiba as configurações do android", command: android_settings}
+  - {text: "mostre o launcher", command: launcher}
+  - {text: "mostra a tela inicial do android", command: launcher}
+  - {text: "vá para a tela inicial do android", command: launcher}
+  - {text: "exiba o launcher", command: launcher}
+  - {text: "acessa o dashboard energia", command: show_page, page: energia}
+  - {text: "troca pro dashboard energia", command: show_page, page: energia}
+  - {text: "acesse as configurações do Android", command: android_settings}
+  - {text: "mostre o inicializador", command: launcher}
+  - {text: "vá para o launcher", command: launcher}
+  - {text: "vai pro inicializador do Android", command: launcher}
+miss:
+  - "desligue a tela"
+  - "volte"
+  - "que horas são"
+  - "como está o tempo"
+  - "defina o brilho para 50 por cento"
+  - "mostre câmeras"
+  - "recarregue"
+  - "atualize a tela"
+builtin:
+  screen_off: "desligue a tela"
+  screen_on: "ligue a tela"

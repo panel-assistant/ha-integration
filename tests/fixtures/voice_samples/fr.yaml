@@ -1,0 +1,42 @@
+match:
+  - {text: "affiche la page caméras", command: show_page, page: caméras}
+  - {text: "affiche la page des caméras", command: show_page, page: caméras}
+  - {text: "montre moi le tableau de bord énergie", command: show_page, page: énergie}
+  - {text: "va à la vue salon", command: show_page, page: salon}
+  - {text: "va à la page de la cuisine", command: show_page, page: cuisine}
+  - {text: "allez sur l'onglet cuisine", command: show_page, page: cuisine}
+  - {text: "va au tableau de bord accueil", command: show_page, page: accueil}
+  - {text: "va au tableau de bord du salon", command: show_page, page: salon}
+  - {text: "affichez la page accueil", command: show_page, page: accueil}
+  - {text: "affiche la page d'accueil", command: show_page, page: accueil}
+  - {text: "va sur la page d'accueil", command: show_page, page: accueil}
+  - {text: "rends-toi sur la page cuisine", command: show_page, page: cuisine}
+  - {text: "rendez-vous sur le tableau de bord salon", command: show_page, page: salon}
+  - {text: "affiche les paramètres android", command: android_settings}
+  - {text: "accède aux paramètres du système", command: android_settings}
+  - {text: "accédez aux réglages android", command: android_settings}
+  - {text: "montre moi les réglages d'android", command: android_settings}
+  - {text: "affiche les paramètres de la tablette", command: android_settings}
+  - {text: "montre les réglages du système", command: android_settings}
+  - {text: "va dans les paramètres android", command: android_settings}
+  - {text: "affiche le lanceur", command: launcher}
+  - {text: "montre le launcher", command: launcher}
+  - {text: "affiche le lanceur d'applications", command: launcher}
+  - {text: "montre l'écran d'accueil android", command: launcher}
+  - {text: "retourne à l'écran d'accueil android", command: launcher}
+  - {text: "va sur l'écran d'accueil d'android", command: launcher}
+  - {text: "reviens à l'écran d'accueil android", command: launcher}
+  - {text: "revenez sur l'écran d'accueil d'android", command: launcher}
+  - {text: "retourne au lanceur android", command: launcher}
+  - {text: "retournez au lanceur", command: launcher}
+miss:
+  - "éteins l'écran"
+  - "reviens en arrière"
+  - "quelle heure est il"
+  - "quel temps fait il"
+  - "règle la luminosité à 50 pour cent"
+  - "affiche la météo"
+  - "recharge le tableau de bord"
+builtin:
+  screen_off: "éteins l'écran"
+  screen_on: "allume l'écran"

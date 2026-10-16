@@ -66,14 +66,6 @@
         "title": "确认发现的面板",
         "description": "Home Assistant 在 {address} 找到了 Panel Assistant 安装。提交以验证它仍是同一面板，并将其添加为 {panel_name}。不会更改任何面板设置。"
       },
-      "confirm_user": {
-        "title": "确认此面板的账户",
-        "description": "面板 {panel} 已以 {user} 的身份登录 Home Assistant，正在请求连接。确认该账户是此面板还需要你做的唯一一件事：之后它会自行完成设置。任何已登录 Home Assistant 的人都可以请求以面板身份连接，因此仅当 {user} 是你为此面板设置的账户时才确认。如果你跳过此步骤，面板仍会被添加，但会保持未连接状态，直到你在“设置”中的“修复”里确认该账户。",
-        "menu_options": {
-          "bind_user": "是，连接此面板",
-          "skip_binding": "暂不"
-        }
-      },
       "authorize_adb": {
         "title": "在面板上授权 Home Assistant",
         "description": "所选版本包含经过验证的安装描述文件。选择一次“提交”，为此 Home Assistant 安装创建或加载一个持久的 ADB 身份，并将其公钥提供给位于 {address} 的 Android 面板。在面板上批准 Android 的“允许调试”提示，然后返回此处再次选择“提交”。Android 可能会将 Home Assistant 描述为一台计算机。只要网络调试仍处于启用状态，此授权就会授予一般性的 ADB shell 访问权限；可在面板的开发者设置中撤销授权。此步骤不会下载或安装 APK。"
@@ -382,6 +374,12 @@
       },
       "reload": {
         "name": "重新加载仪表盘"
+      },
+      "android_settings": {
+        "name": "Android 设置"
+      },
+      "launcher": {
+        "name": "启动器"
       }
     },
     "event": {
@@ -700,6 +698,10 @@
       "title": "{panel} 上的语音助手未在聆听。",
       "description": "{panel} 上的语音助手未在聆听，因为面板检查时其麦克风没有提供任何音频。要重新检查，请在面板的 Configure 页面中关闭再打开语音助手，或在那里选择其他音频源。面板报告：{detail}"
     },
+    "volume_number_removed": {
+      "title": "{panel} 不再有单独的音量数值实体",
+      "description": "{panel} 有一个媒体播放器，可显示和设置其音量，因此 Panel Assistant 已删除其单独的音量数值实体 {entity}。以下自动化或脚本仍在使用它：{users}。请将它们改为在面板的媒体播放器上使用 `media_player.volume_set` 动作设置音量。修改完成后，可以忽略此消息。"
+    },
       "restart_required": {
         "title": "重启 Home Assistant 以完成 Panel Assistant 的更新",
         "fix_flow": {
@@ -713,25 +715,6 @@
       },
     "panel_user_mismatch": {
       "title": "确认 {panel} 的 Home Assistant 用户",
-      "fix_flow": {
-        "step": {
-          "confirm_bind": {
-            "title": "确认面板用户",
-            "description": "面板 {panel} 请求以用户 {user} 的身份连接到 Home Assistant。仅当 {user} 是你为此面板设置的账户时才确认。确认后，面板应该很快就会连接。任何已登录 Home Assistant 的人都可以请求以面板身份连接，因此如果你不认识此请求，请关闭此对话框并忽略该问题。"
-          },
-          "confirm_rebind": {
-            "title": "更改面板用户",
-            "description": "面板 {panel} 已确认用于用户 {bound_user}，但用户 {user} 请求以此面板的身份连接。仅当你已将此面板的账户更改为 {user} 时才确认：之后面板将不再接受 {bound_user}，并且应该很快就会连接。如果你没有更改，可能有其他人试图接管此面板，请关闭此对话框并忽略该问题。"
-          }
-        },
-        "abort": {
-          "entry_removed": "此面板已不再在 Home Assistant 中设置。",
-          "user_unavailable": "请求连接的用户已不存在或已停用。未做任何更改。"
-        }
-      }
-    },
-    "panel_awaiting_confirmation": {
-      "title": "完成 {panel} 的连接",
       "fix_flow": {
         "step": {
           "confirm_bind": {
@@ -1447,19 +1430,11 @@
       },
       "onboarding": {
         "title": "完成此面板的设置",
-        "description": "请在能通过本地网络访问面板的浏览器中打开面板的设置页面。使用该浏览器当前登录的 Home Assistant 账户登录，选择主仪表板，并在该页面完成设置。保持此对话框打开；完成后会返回这里确认账户。如果此浏览器无法访问面板，请稍后在面板所在的本地网络中完成设置。如果系统要求批准 Android 调试，仍需有人在面板上操作。"
+        "description": "请在能通过本地网络访问面板的浏览器中打开面板的设置页面。使用该浏览器当前登录的 Home Assistant 账户登录，选择主仪表板，并在该页面完成设置。保持此对话框打开；面板连接后，此对话框会自动关闭。如果此浏览器无法访问面板，请稍后在面板所在的本地网络中完成设置。如果系统要求批准 Android 调试，仍需有人在面板上操作。"
       },
       "onboarding_wait": {
         "title": "等待面板连接",
-        "description": "面板尚未完成设置，也尚未请求以账户身份连接。请完成面板设置页面上的操作，然后在此处点击“提交”再次检查。确认账户之前，面板将保持未绑定状态。"
-      },
-      "onboarding_confirm": {
-        "title": "确认此面板的账户",
-        "description": "{panel} 已以 {user} 的身份登录并请求连接。仅当这是你为此面板选择的账户时才确认。跳过后面板将保持未绑定；你可以稍后在“修复”中确认。",
-        "menu_options": {
-          "onboarding_bind": "是，连接此面板",
-          "onboarding_skip": "暂不"
-        }
+        "description": "面板尚未完成设置，也尚未请求以账户身份连接。请完成面板设置页面上的操作，然后在此处点击“提交”再次检查。"
       },
       "authorize_adb": {
         "title": "允许更新 {panel}",

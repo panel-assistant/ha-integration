@@ -1,0 +1,36 @@
+match:
+  - {text: "ukaž stránku kamery", command: show_page, page: kamery}
+  - {text: "zobraz mi nástěnku energie", command: show_page, page: energie}
+  - {text: "ukažte zobrazení obývák", command: show_page, page: obývák}
+  - {text: "přejdi na stránku obývák", command: show_page, page: obývák}
+  - {text: "ukaž domovskou stránku", command: show_page, page: domovskou}
+  - {text: "jdi na hlavní stránku", command: show_page, page: hlavní}
+  - {text: "zobraz výchozí nástěnku", command: show_page, page: výchozí}
+  - {text: "zobraz stránku hlavní", command: show_page, page: hlavní}
+  - {text: "zobraz dashboard kamery", command: show_page, page: kamery}
+  - {text: "ukaž přehled energie", command: show_page, page: energie}
+  - {text: "přejdi na přehled obývák", command: show_page, page: obývák}
+  - {text: "přejděte na dashboard energie", command: show_page, page: energie}
+  - {text: "zobraz nastavení androidu", command: android_settings}
+  - {text: "přejdi do nastavení androidu", command: android_settings}
+  - {text: "ukaž mi nastavení systému android", command: android_settings}
+  - {text: "ukaž nastavení systému", command: android_settings}
+  - {text: "zobraz systémová nastavení", command: android_settings}
+  - {text: "ukaž launcher", command: launcher}
+  - {text: "ukaž spouštěč", command: launcher}
+  - {text: "zobraz domovskou obrazovku androidu", command: launcher}
+  - {text: "ukaž plochu androidu", command: launcher}
+  - {text: "přejdi na domovskou obrazovku androidu", command: launcher}
+  - {text: "přejděte na plochu androidu", command: launcher}
+miss:
+  - "vypni obrazovku"
+  - "zpět"
+  - "jaké je počasí"
+  - "kolik je hodin"
+  - "otevři garážová vrata"
+  - "nastav jas na 50 procent"
+  - "ukaž kamery"
+  - "obnov stránku"
+builtin:
+  screen_off: "vypni obrazovku"
+  screen_on: "zapni obrazovku"

@@ -66,14 +66,6 @@
         "title": "Confirmar o painel descoberto",
         "description": "O Home Assistant encontrou uma instalação de Panel Assistant em {address}. Selecione Enviar para verificar se ainda é o mesmo painel e adicioná-lo como {panel_name}. Nenhuma configuração do painel será alterada."
       },
-      "confirm_user": {
-        "title": "Confirmar a conta deste painel",
-        "description": "O painel {panel} está autenticado no Home Assistant como {user} e está solicitando uma conexão. Confirmar essa conta é a única coisa que este painel ainda precisa de você: depois, ele conclui sua configuração sozinho. Qualquer pessoa autenticada no Home Assistant pode solicitar uma conexão como painel, portanto confirme apenas se {user} for a conta que você configurou para este painel. Se você pular esta etapa, o painel ainda será adicionado, mas ficará sem conexão até você confirmar a conta em Configurações e depois em Reparos.",
-        "menu_options": {
-          "bind_user": "Sim, conectar este painel",
-          "skip_binding": "Agora não"
-        }
-      },
       "authorize_adb": {
         "title": "Autorizar o Home Assistant no painel",
         "description": "A versão selecionada inclui um descritor de instalação verificado. Selecione Enviar uma vez para criar ou carregar uma identidade ADB persistente para esta instalação do Home Assistant e oferecer sua chave pública ao painel Android em {address}. No painel, aprove a solicitação Permitir depuração do Android, volte aqui e selecione Enviar novamente. O Android pode descrever o Home Assistant como um computador. A aprovação concede acesso geral ao shell ADB enquanto a depuração pela rede permanecer habilitada; revogue esse acesso nas configurações de desenvolvedor do painel. Nenhum APK é baixado ou instalado nesta etapa."
@@ -198,6 +190,12 @@
       },
       "reload": {
         "name": "Recarregar dashboard"
+      },
+      "android_settings": {
+        "name": "Configurações do Android"
+      },
+      "launcher": {
+        "name": "Inicializador"
       }
     },
     "event": {
@@ -742,6 +740,10 @@
       "title": "O assistente de voz em {panel} não está ouvindo.",
       "description": "O assistente de voz em {panel} não está ouvindo porque o microfone não forneceu áudio quando o painel o verificou. Para verificar novamente, desabilite e habilite o assistente de voz na página Configurar do painel ou escolha outra fonte de áudio nessa página. O painel informou: {detail}"
     },
+    "volume_number_removed": {
+      "title": "{panel} não tem mais um número de volume separado",
+      "description": "{panel} tem um reprodutor de mídia que mostra e ajusta o volume, então o Panel Assistant removeu o número de volume separado {entity}. Estas automações ou scripts ainda o usam: {users}. Altere-os para ajustar o volume com a ação `media_player.volume_set` no reprodutor de mídia do painel. Depois de alterá-los, você pode ignorar esta mensagem."
+    },
     "restart_required": {
       "title": "Reiniciar o Home Assistant para concluir a atualização do Panel Assistant",
       "fix_flow": {
@@ -755,25 +757,6 @@
     },
     "panel_user_mismatch": {
       "title": "Confirmar o usuário do Home Assistant para {panel}",
-      "fix_flow": {
-        "step": {
-          "confirm_bind": {
-            "title": "Confirmar o usuário do painel",
-            "description": "O painel {panel} pediu para se conectar ao Home Assistant como o usuário {user}. Confirme somente se {user} for a conta que você configurou para este painel. Se você confirmar, o painel deverá se conectar pouco depois. Qualquer pessoa conectada ao Home Assistant pode pedir para se conectar como um painel; se você não reconhecer esta solicitação, feche esta caixa de diálogo e ignore o problema."
-          },
-          "confirm_rebind": {
-            "title": "Alterar o usuário do painel",
-            "description": "O painel {panel} está confirmado para o usuário {bound_user}, mas o usuário {user} pediu para se conectar como ele. Confirme somente se você alterou a conta deste painel para {user}: o painel deixará de aceitar {bound_user} e deverá se conectar pouco depois. Se você não fez essa alteração, outra pessoa pode estar tentando assumir o controle do painel; feche esta caixa de diálogo e ignore o problema."
-          }
-        },
-        "abort": {
-          "entry_removed": "Este painel não está mais configurado no Home Assistant.",
-          "user_unavailable": "O usuário que pediu para se conectar não existe mais ou está desativado. Nada foi alterado."
-        }
-      }
-    },
-    "panel_awaiting_confirmation": {
-      "title": "Concluir a conexão de {panel}",
       "fix_flow": {
         "step": {
           "confirm_bind": {
@@ -1489,19 +1472,11 @@
       },
       "onboarding": {
         "title": "Conclua a configuração deste painel",
-        "description": "Abra a página de configuração do painel em um navegador que consiga acessar o painel na sua rede local. Entre com a conta do Home Assistant usada atualmente nesse navegador, escolha o dashboard inicial e conclua a configuração nessa página. Mantenha esta janela aberta; o processo voltará aqui para confirmar a conta. Se este navegador não conseguir acessar o painel, conclua mais tarde a partir da rede local do painel. A aprovação da depuração do Android, se solicitada, ainda exige uma pessoa junto ao painel."
+        "description": "Abra a página de configuração do painel em um navegador que consiga acessar o painel na sua rede local. Entre com a conta do Home Assistant usada atualmente nesse navegador, escolha o dashboard inicial e conclua a configuração nessa página. Mantenha esta janela aberta; ela fecha sozinha assim que o painel se conectar. Se este navegador não conseguir acessar o painel, conclua mais tarde a partir da rede local do painel. A aprovação da depuração do Android, se solicitada, ainda exige uma pessoa junto ao painel."
       },
       "onboarding_wait": {
         "title": "Aguardando a conexão do painel",
-        "description": "O painel ainda não concluiu a configuração nem solicitou conexão com uma conta. Conclua a página de configuração dele e selecione Enviar aqui para verificar novamente. O painel continua sem vínculo até que você confirme a conta."
-      },
-      "onboarding_confirm": {
-        "title": "Confirme a conta deste painel",
-        "description": "{panel} entrou como {user} e solicitou conexão. Confirme apenas se esta for a conta que você escolheu para este painel. Se pular esta etapa, ele continuará sem vínculo; você pode confirmar mais tarde em Reparos.",
-        "menu_options": {
-          "onboarding_bind": "Sim, conectar este painel",
-          "onboarding_skip": "Agora não"
-        }
+        "description": "O painel ainda não concluiu a configuração nem solicitou conexão com uma conta. Conclua a página de configuração dele e selecione Enviar aqui para verificar novamente."
       },
       "authorize_adb": {
         "title": "Permitir atualizações em {panel}",

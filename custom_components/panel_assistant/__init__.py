@@ -27,6 +27,7 @@ from .client import HaPaneldClient, PanelHealth, normalize_address
 from .const import CONF_AUTHORITY, DOMAIN
 from .coordinator import HaPaneldDataUpdateCoordinator
 from .device import (
+    async_follow_panel_name,
     async_refresh_panel_device,
     panel_device_info,
     panel_reported_name,
@@ -81,6 +82,7 @@ from .voice import (
     async_setup_voice,
     satellite_known,
 )
+from .voice_commands import async_setup_voice_commands
 from .voice_stream import async_get_voice_stream, async_setup_voice_stream
 
 PLATFORMS = [Platform.SENSOR, Platform.UPDATE, *NATIVE_ONLY_PLATFORMS]
@@ -119,6 +121,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     await async_setup_voice_stream(hass)
     async_setup_transport(hass)
     async_setup_voice(hass)
+    await async_setup_voice_commands(hass)
     async_setup_embed(hass)
     async_setup_ui_relay(hass)
     async_register_browser_delivery(hass)
@@ -297,6 +300,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
 
     refresh_card()
     entry.async_on_unload(coordinator.async_add_listener(refresh_card))
+    entry.async_on_unload(async_follow_panel_name(hass, entry, coordinator))
 
     def clear_foreign_ha_warning() -> None:
         if coordinator.connected:

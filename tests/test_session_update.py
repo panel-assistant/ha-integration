@@ -11,6 +11,7 @@ import asyncio
 import hashlib
 import json
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -27,7 +28,10 @@ from custom_components.panel_assistant import (
     update_staging,
 )
 from custom_components.panel_assistant import update as panel_update
-from custom_components.panel_assistant.app_identity import SUCCESSOR_PACKAGE_ID
+from custom_components.panel_assistant.app_identity import (
+    LEGACY_PACKAGE_ID,
+    SUCCESSOR_PACKAGE_ID,
+)
 from custom_components.panel_assistant.blob import BlobTransferError, async_get_blobs
 from custom_components.panel_assistant.client import (
     CannotConnectError,
@@ -367,6 +371,36 @@ async def test_an_unreachable_panel_updates_over_its_session(
     assert not async_get_blobs(hass)._transfers
     for name in _HTTP_UPDATE_CALLS:
         getattr(HaPaneldClient, name).assert_not_awaited()
+
+
+async def test_a_bridge_release_is_never_sent_over_the_session(
+    hass: HomeAssistant,
+    offline: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    key: Any,  # noqa: F811
+) -> None:
+    """The move to the new app hands over through the panel's address only."""
+    entity, panel = offline
+    entry = hass.config_entries.async_get_entry(entity._entry_id)
+    assert entry is not None
+    hass.config_entries.async_update_entry(
+        entry, data={**entry.data, "successor_move": {"panel_id": "alpha"}}
+    )
+    snapshot = entity.coordinator.data
+    assert snapshot is not None
+    entity.coordinator.data = replace(
+        snapshot, health=replace(snapshot.health, package=LEGACY_PACKAGE_ID)
+    )
+    github = _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=b"bridge")
+    monkeypatch.setattr(feed_coordinator, "async_get_clientsession", lambda _h: github)
+    monkeypatch.setattr(update_staging, "async_get_clientsession", lambda _h: github)
+    await entity._offer.release.async_refresh()
+    assert entity._offer.host_release().descriptor is None
+
+    error = await _refused(entity)
+
+    assert error.translation_key == "update_unavailable"
+    assert "install.apk" not in panel.ops
 
 
 async def test_a_panel_that_cannot_install_itself_gets_no_session_route(

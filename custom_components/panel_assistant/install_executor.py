@@ -992,13 +992,13 @@ class InstallExecutor:
                         # address the installer already knew. Best-effort: an
                         # install that worked must not be failed by a
                         # convenience that did not.
-                        outcome = await async_offer_ha_url(self._hass, panel)
+                        setup_state = await async_offer_ha_url(self._hass, panel)
                         # A rootless panel gets its recommended display and
                         # text size at setup, and only then: a reinstall over
                         # a set-up panel keeps the size its owner chose. A
                         # completed refusal is optional; an interrupted
                         # command cannot become acceptance.
-                        if outcome != "setup_complete":
+                        if setup_state != "setup_complete":
                             try:
                                 await self._async_offer_display_sizing(
                                     receipt, execution, panel

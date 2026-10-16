@@ -1,0 +1,29 @@
+language: es
+commands:
+  show_page:
+    sentences:
+      - "(muestra|muéstrame|enseña|enséñame|muestre|muéstreme) (la página|la vista|el panel|la pestaña) [(de|del|de la|de los|de las)] {page}"
+      - "(ve|vaya|ir|llévame|lléveme) a (la página|la vista|la pestaña) [(de|del|de la|de los|de las)] {page}"
+      - "(ve|vaya|ir|llévame|lléveme) al panel [(de|del|de la|de los|de las)] {page}"
+  android_settings:
+    sentences:
+      - "(muestra|muéstrame|enseña|enséñame|muestre|muéstreme) (los ajustes|la configuración) (de android|de la tableta|del sistema)"
+      - "(ve|vaya) a (los ajustes|la configuración) (de android|de la tableta|del sistema)"
+      - "(entra|entre) [directamente] en (los ajustes|la configuración) (de android|de la tableta|del sistema)"
+  launcher:
+    sentences:
+      - "(muestra|muéstrame|enseña|enséñame|muestre|muéstreme) (el lanzador|el launcher) [(de android|de aplicaciones)]"
+      - "(muestra|muéstrame|enseña|enséñame|muestre|muéstreme) la pantalla de inicio de android"
+      - "(ve|vaya|vuelve|vuelva|llévame|lléveme) a la pantalla de inicio de android"
+home_pages: [inicio, principal]
+screen_names: [pantalla]
+responses:
+  show_page: "Mostrando {page}"
+  android_settings: "Abriendo los ajustes de Android"
+  launcher: "Abriendo el lanzador"
+  page_unknown: "Esta pantalla no tiene ninguna página llamada {page}"
+  not_a_panel: "Pídeselo a una pantalla"
+  panel_unavailable: "La pantalla no está conectada"
+  panel_refused: "La pantalla no ha podido hacerlo"
+  panel_locked: "La pantalla está bloqueada en su panel de control y no puede abrir eso"
+  needs_update: "Actualiza la aplicación de la pantalla para usar este comando"

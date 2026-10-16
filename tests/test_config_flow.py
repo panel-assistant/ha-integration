@@ -76,6 +76,7 @@ from custom_components.panel_assistant.release import (
 )
 from custom_components.panel_assistant.status import PanelStatus
 from custom_components.panel_assistant.transport_binding import (
+    async_bind_user,
     async_binding_request,
     async_record_binding_request,
 )
@@ -2197,11 +2198,11 @@ async def test_fresh_install_continues_into_panel_setup_after_entry_creation(
     assert next_flow["context"]["source"] == "onboarding"
 
 
-async def test_fresh_install_confirms_only_the_panels_requested_account(
+async def test_fresh_install_finishes_once_the_panel_has_connected(
     hass: HomeAssistant,
     hass_admin_user: Any,
 ) -> None:
-    """Browser sign-in alone never binds; the named account needs admin consent."""
+    """Nothing is asked: the dialog waits for the panel and then closes."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="alpha",
@@ -2210,50 +2211,61 @@ async def test_fresh_install_confirms_only_the_panels_requested_account(
     )
     entry.add_to_hass(hass)
     signed_in = await hass.auth.async_create_user("Current administrator")
-    other = await hass.auth.async_create_user("Other account")
-    async_record_binding_request(hass, DISCOVERY_ID, signed_in.id)
-    with (
-        patch(
-            "custom_components.panel_assistant.config_flow.async_offer_ha_url",
-            new_callable=AsyncMock,
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_setup_complete",
-            AsyncMock(return_value=True),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
-            AsyncMock(return_value=DISCOVERY_HEALTH),
-        ),
+    with patch(
+        "custom_components.panel_assistant.config_flow.async_offer_ha_url",
+        new_callable=AsyncMock,
     ):
         opened = await hass.config_entries.options.async_init(
             entry.entry_id, context={"source": "onboarding"}
         )
         assert opened["type"] is FlowResultType.EXTERNAL_STEP
         assert opened["url"] == "http://192.168.1.23:8888/setup"
-        assert CONF_TRANSPORT_USER_ID not in entry.data
         done = await hass.config_entries.options.async_configure(opened["flow_id"], {})
         assert done["type"] is FlowResultType.EXTERNAL_STEP_DONE
-        menu = await hass.config_entries.options.async_configure(opened["flow_id"])
-        assert menu["type"] is FlowResultType.MENU
-        assert menu["description_placeholders"] == {
-            "panel": "alpha",
-            "user": "Current administrator",
-        }
-        # A different account cannot be smuggled in under the displayed name.
-        async_record_binding_request(hass, DISCOVERY_ID, other.id)
-        changed = await hass.config_entries.options.async_configure(
-            opened["flow_id"], {"next_step_id": "onboarding_bind"}
+        waiting = await hass.config_entries.options.async_configure(opened["flow_id"])
+        assert waiting["type"] is FlowResultType.FORM
+        assert waiting["step_id"] == "onboarding_wait"
+        # The panel's own hello binds the account it signed in as.
+        async_bind_user(hass, entry, signed_in.id)
+        finished = await hass.config_entries.options.async_configure(
+            opened["flow_id"], {}
         )
-        assert changed["type"] is FlowResultType.MENU
-        assert changed["description_placeholders"]["user"] == "Other account"
-        assert CONF_TRANSPORT_USER_ID not in entry.data
-        confirmed = await hass.config_entries.options.async_configure(
-            opened["flow_id"], {"next_step_id": "onboarding_bind"}
-        )
-    assert confirmed["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.data.get(CONF_TRANSPORT_USER_ID) == other.id
+    assert finished["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.data.get(CONF_TRANSPORT_USER_ID) == signed_in.id
     assert entry.options == {}
+
+
+async def test_fresh_install_dialog_moves_on_by_itself_when_the_panel_connects(
+    hass: HomeAssistant,
+    hass_admin_user: Any,
+) -> None:
+    """The administrator need not press anything once the panel has signed in."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="alpha",
+        data={CONF_ADDRESS: "192.168.1.23"},
+        unique_id=DISCOVERY_ID,
+    )
+    entry.add_to_hass(hass)
+    signed_in = await hass.auth.async_create_user("Current administrator")
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow.async_offer_ha_url",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow._SETUP_POLL_SECONDS", 0.01
+        ),
+    ):
+        opened = await hass.config_entries.options.async_init(
+            entry.entry_id, context={"source": "onboarding"}
+        )
+        async_bind_user(hass, entry, signed_in.id)
+        watcher = hass.config_entries.options._progress[opened["flow_id"]]._setup_watch
+        async with asyncio.timeout(5):
+            await watcher
+        finished = await hass.config_entries.options.async_configure(opened["flow_id"])
+    assert finished["type"] is FlowResultType.CREATE_ENTRY
 
 
 async def test_abandoned_fresh_install_can_resume_from_its_entry_options(
@@ -2600,54 +2612,23 @@ async def _choose(
         )
 
 
-async def test_a_panel_that_asked_to_connect_is_confirmed_in_the_flow(
+async def test_a_panel_that_asked_to_connect_is_added_bound_to_it(
     hass: HomeAssistant,
     hass_admin_user: Any,
 ) -> None:
-    """The panel's account is confirmed while the administrator adding it is here.
-
-    This is the whole point of the step: the panel has already asked and been
-    refused for want of a confirmation, so asking for it now makes onboarding one
-    consent instead of a Repairs item nobody knows to look for.
-    """
+    """A panel that signed in before it was added is bound with nothing asked."""
     user = await hass.auth.async_create_user("Panel account")
     async_record_binding_request(hass, DISCOVERY_ID, user.id)
 
-    menu = await _discover_panel(hass, DISCOVERY_HEALTH)
-
-    assert menu["type"] is FlowResultType.MENU
-    assert menu["step_id"] == "confirm_user"
-    assert menu["description_placeholders"] == {
-        "panel": "alpha",
-        "user": "Panel account",
-    }
-    assert not hass.config_entries.async_entries(DOMAIN)
-
-    result = await _choose(hass, DISCOVERY_HEALTH, menu, "bind_user")
+    result = await _discover_panel(hass, DISCOVERY_HEALTH)
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"] == {
         CONF_ADDRESS: "192.168.1.23",
         CONF_TRANSPORT_USER_ID: user.id,
     }
-    # The request is answered, so a later flow does not offer a decision that has
-    # already been taken.
+    # The request is answered, so a later flow does not bind it again.
     assert async_binding_request(hass, DISCOVERY_ID) is None
-
-
-async def test_an_administrator_who_declines_still_gets_the_panel(
-    hass: HomeAssistant,
-    hass_admin_user: Any,
-) -> None:
-    """Declining adds the panel unbound; it never silently binds the account."""
-    user = await hass.auth.async_create_user("Panel account")
-    async_record_binding_request(hass, DISCOVERY_ID, user.id)
-    menu = await _discover_panel(hass, DISCOVERY_HEALTH)
-
-    result = await _choose(hass, DISCOVERY_HEALTH, menu, "skip_binding")
-
-    assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["data"] == {CONF_ADDRESS: "192.168.1.23"}
 
 
 async def test_a_panel_nobody_asked_about_is_added_with_nothing_extra(
@@ -2664,48 +2645,16 @@ async def test_a_panel_nobody_asked_about_is_added_with_nothing_extra(
     assert result["data"] == {CONF_ADDRESS: "192.168.1.23"}
 
 
-async def test_confirming_binds_only_the_account_the_menu_showed(
-    hass: HomeAssistant,
-    hass_admin_user: Any,
-) -> None:
-    """The account bound is the one the menu named, never whoever asked most recently.
-
-    This is the sharp edge of the whole step. An administrator reads one account name
-    and submits; if a request that arrived in between could be bound instead, the
-    consent would be for an account nobody was shown, which is the property the
-    Repairs flow exists to protect.
-    """
-    shown = await hass.auth.async_create_user("Panel account")
-    other = await hass.auth.async_create_user("Someone else")
-    async_record_binding_request(hass, DISCOVERY_ID, shown.id)
-    menu = await _discover_panel(hass, DISCOVERY_HEALTH)
-    assert menu["description_placeholders"] == {
-        "panel": "alpha",
-        "user": "Panel account",
-    }
-
-    # Someone else asks while the menu is open, so the request no longer names the
-    # account the administrator is looking at.
-    async_record_binding_request(hass, DISCOVERY_ID, other.id)
-    result = await _choose(hass, DISCOVERY_HEALTH, menu, "bind_user")
-
-    assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["data"] == {CONF_ADDRESS: "192.168.1.23"}
-    assert result["data"].get(CONF_TRANSPORT_USER_ID) != other.id
-
-
 async def test_an_account_that_is_no_longer_usable_is_not_bound(
     hass: HomeAssistant,
     hass_admin_user: Any,
 ) -> None:
-    """A deactivation while the menu is open is not confirmed by that submission."""
+    """A request from an account deactivated since it asked binds nothing."""
     user = await hass.auth.async_create_user("Panel account")
     async_record_binding_request(hass, DISCOVERY_ID, user.id)
-    menu = await _discover_panel(hass, DISCOVERY_HEALTH)
-    assert menu["step_id"] == "confirm_user"
-
     await hass.auth.async_deactivate_user(user)
-    result = await _choose(hass, DISCOVERY_HEALTH, menu, "bind_user")
+
+    result = await _discover_panel(hass, DISCOVERY_HEALTH)
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"] == {CONF_ADDRESS: "192.168.1.23"}

@@ -1,0 +1,33 @@
+# Voice commands a panel answers itself. Every locale's sentences are
+# registered as one trigger set, so they must not take over a request
+# Home Assistant's built-in intents understand (tests/test_voice_commands.py).
+language: en
+commands:
+  show_page:
+    sentences:
+      - "show [me] [the] {page} (page|view|dashboard|tab)"
+      - "go to [the] {page} (page|view|dashboard|tab)"
+  android_settings:
+    sentences:
+      - "show [me] [the] android settings"
+  launcher:
+    sentences:
+      - "show [me] [the] [android] launcher"
+      - "show [me] [the] android home screen"
+# {page} values that mean the panel's own home dashboard when no view or
+# dashboard has that name.
+home_pages: [home, main, start]
+# What people call the screen in this language, in the forms a sentence puts
+# it in; each becomes an alias of the screen light beside its translated name,
+# so the built-in on/off and brightness intents find it.
+screen_names: [screen]
+responses:
+  show_page: "Showing {page}"
+  android_settings: "Opening Android settings"
+  launcher: "Opening the launcher"
+  page_unknown: "This panel has no page called {page}"
+  not_a_panel: "Ask a panel to do that"
+  panel_unavailable: "The panel is not connected"
+  panel_refused: "The panel could not do that"
+  panel_locked: "The panel is locked to its dashboard"
+  needs_update: "Update the panel app to use this command"

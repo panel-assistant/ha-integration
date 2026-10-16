@@ -1,0 +1,31 @@
+language: cs
+commands:
+  show_page:
+    sentences:
+      - "(ukaž|ukažte|zobraz|zobrazte|ukaz) [mi] (stránku|zobrazení|nástěnku|kartu|panel|přehled|dashboard) {page}"
+      - "(přejdi|přejděte|jdi|běž) na (stránku|zobrazení|nástěnku|kartu|panel|přehled|dashboard) {page}"
+      - "(ukaž|ukažte|zobraz|zobrazte|ukaz) [mi] {page} (stránku|nástěnku)"
+      - "(přejdi|přejděte|jdi|běž) na {page} (stránku|nástěnku)"
+  android_settings:
+    sentences:
+      - "(ukaž|ukažte|zobraz|zobrazte) [mi] nastavení (androidu|systému [android])"
+      - "(přejdi|přejděte|jdi|běž) do nastavení (androidu|systému [android])"
+      - "(ukaž|ukažte|zobraz|zobrazte) [mi] systémová nastavení"
+  launcher:
+    sentences:
+      - "(ukaž|ukažte|zobraz|zobrazte) [mi] (launcher|spouštěč) [androidu]"
+      - "(ukaž|ukažte|zobraz|zobrazte) [mi] domovskou obrazovku androidu"
+      - "(ukaž|ukažte|zobraz|zobrazte) [mi] plochu androidu"
+      - "(přejdi|přejděte|jdi|běž) na (domovskou obrazovku|plochu) androidu"
+home_pages: [domovská, domovskou, hlavní, úvodní, výchozí, start]
+screen_names: [obrazovka, obrazovku, obrazovky]
+responses:
+  show_page: "Zobrazuji {page}"
+  android_settings: "Otevírám nastavení Androidu"
+  launcher: "Otevírám launcher"
+  page_unknown: "Tento panel nemá stránku {page}"
+  not_a_panel: "Požádejte o to panel"
+  panel_unavailable: "Panel není připojen"
+  panel_refused: "Panel to nemohl udělat"
+  panel_locked: "Panel je zamčený na nástěnce a nastavení ani launcher neotevře"
+  needs_update: "Pro tento příkaz aktualizujte aplikaci panelu"

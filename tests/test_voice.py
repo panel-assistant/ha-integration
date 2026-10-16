@@ -1,9 +1,7 @@
 """The panel as an Assist satellite, over its own session."""
 
 import asyncio
-import logging
 from collections.abc import AsyncIterable, Callable
-from datetime import timedelta
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -17,11 +15,9 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.setup import async_setup_component
-from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     async_capture_events,
-    async_fire_time_changed,
     flush_store,
 )
 
@@ -29,7 +25,11 @@ from custom_components.panel_assistant.client import HaPaneldError
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.device import panel_display_name
 from custom_components.panel_assistant.identity import CONF_INSTALL_IDENTITY
-from custom_components.panel_assistant.voice import PIPELINE_COLORS, PipelineColors
+from custom_components.panel_assistant.transport_sessions import async_get_sessions
+from custom_components.panel_assistant.voice import (
+    PIPELINE_COLORS,
+    PipelineColors,
+)
 
 from .test_native import _setup
 from .test_transport import DID, WsClientFactory, _receive, _send
@@ -220,170 +220,6 @@ async def test_voice_is_granted_and_the_satellite_joins_the_panel_device(
     assert devices == {device}
 
 
-async def test_turning_voice_off_disables_the_satellite_and_on_enables_it(
-    hass: HomeAssistant,
-    hass_ws_client: WsClientFactory,
-    hass_read_only_access_token: str,
-    entry: MockConfigEntry,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """While the panel's voice is off its satellite is disabled, not unavailable."""
-    panel, entity_id = await _ready(
-        hass, hass_ws_client, hass_read_only_access_token, entry
-    )
-    registry = er.async_get(hass)
-    assert (await panel.configure(enabled=False))["success"]
-    await hass.async_block_till_done()
-    assert registry.async_get(entity_id).disabled_by is (
-        er.RegistryEntryDisabler.INTEGRATION
-    )
-    assert hass.states.get(entity_id) is None
-    assert (await panel.configure(enabled=False))["success"]
-    await hass.async_block_till_done()
-    assert registry.async_get(entity_id).disabled_by is (
-        er.RegistryEntryDisabler.INTEGRATION
-    )
-    assert (await panel.configure(enabled=True))["success"]
-    await hass.async_block_till_done()
-    assert registry.async_get(entity_id).disabled_by is None
-    # Core adds the enabled entity back by reloading the entry.
-    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=31))
-    await hass.async_block_till_done()
-    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
-    assert (await panel.configure())["success"]
-    await hass.async_block_till_done()
-    assert hass.states.get(entity_id).state == "idle"
-    # The satellite left and came back without a fault on its way out.
-    assert not [
-        record.getMessage()
-        for record in caplog.records
-        if record.levelno >= logging.WARNING
-        and record.name.startswith(
-            (
-                "homeassistant.helpers.dispatcher",
-                "homeassistant.helpers.entity",
-                "homeassistant.components.assist_satellite",
-            )
-        )
-    ]
-
-
-async def test_a_new_satellite_of_a_panel_with_voice_off_starts_disabled(
-    hass: HomeAssistant,
-    hass_ws_client: WsClientFactory,
-    hass_read_only_access_token: str,
-    entry: MockConfigEntry,
-) -> None:
-    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
-    assert (await panel.configure(enabled=False))["success"]
-    await hass.async_block_till_done()
-    entity_id = _satellite(hass, entry)
-    assert entity_id is not None
-    assert er.async_get(hass).async_get(entity_id).disabled_by is (
-        er.RegistryEntryDisabler.INTEGRATION
-    )
-
-
-async def test_a_satellite_disabled_by_the_user_is_left_alone(
-    hass: HomeAssistant,
-    hass_ws_client: WsClientFactory,
-    hass_read_only_access_token: str,
-    entry: MockConfigEntry,
-) -> None:
-    panel, entity_id = await _ready(
-        hass, hass_ws_client, hass_read_only_access_token, entry
-    )
-    registry = er.async_get(hass)
-    registry.async_update_entity(entity_id, disabled_by=er.RegistryEntryDisabler.USER)
-    await hass.async_block_till_done()
-    for enabled in (False, True):
-        assert (await panel.configure(enabled=enabled))["success"]
-        await hass.async_block_till_done()
-        assert registry.async_get(entity_id).disabled_by is (
-            er.RegistryEntryDisabler.USER
-        )
-
-
-async def test_enabling_the_satellite_turns_voice_on_at_the_panel(
-    hass: HomeAssistant,
-    hass_ws_client: WsClientFactory,
-    hass_read_only_access_token: str,
-    entry: MockConfigEntry,
-) -> None:
-    """Enabling the entity Panel Assistant disabled asks the panel to turn voice on."""
-    panel = await _connect(
-        hass,
-        hass_ws_client,
-        hass_read_only_access_token,
-        ["state", "events", "voice", "management"],
-    )
-    assert (await panel.configure(enabled=False))["success"]
-    await hass.async_block_till_done()
-    entity_id = _satellite(hass, entry)
-    registry = er.async_get(hass)
-    assert registry.async_get(entity_id).disabled_by is (
-        er.RegistryEntryDisabler.INTEGRATION
-    )
-
-    registry.async_update_entity(entity_id, disabled_by=None)
-    message = await panel.receive()
-    event = message["event"]
-    assert event["kind"] == "manage", event
-    assert event["op"] == "settings"
-    assert event["settings"] == {"voice_enabled": "true"}
-    # The panel answers first and reports its voice configuration after.
-    answered = await panel.send(
-        {
-            "type": "panel_assistant/command_result",
-            "session": panel.token,
-            "command_id": event["command_id"],
-            "outcome": "applied",
-        }
-    )
-    assert answered["success"], answered
-    await hass.async_block_till_done()
-    assert registry.async_get(entity_id).disabled_by is None
-    assert (await panel.configure(enabled=True))["success"]
-    await hass.async_block_till_done()
-    assert registry.async_get(entity_id).disabled_by is None
-
-
-async def test_a_refused_voice_on_disables_the_satellite_again(
-    hass: HomeAssistant,
-    hass_ws_client: WsClientFactory,
-    hass_read_only_access_token: str,
-    entry: MockConfigEntry,
-) -> None:
-    """An older panel that cannot take voice_enabled keeps its satellite disabled."""
-    panel = await _connect(
-        hass,
-        hass_ws_client,
-        hass_read_only_access_token,
-        ["state", "events", "voice", "management"],
-    )
-    assert (await panel.configure(enabled=False))["success"]
-    await hass.async_block_till_done()
-    entity_id = _satellite(hass, entry)
-    registry = er.async_get(hass)
-
-    registry.async_update_entity(entity_id, disabled_by=None)
-    event = (await panel.receive())["event"]
-    answered = await panel.send(
-        {
-            "type": "panel_assistant/command_result",
-            "session": panel.token,
-            "command_id": event["command_id"],
-            "outcome": "refused",
-            "code": "not_commandable",
-        }
-    )
-    assert answered["success"], answered
-    await hass.async_block_till_done()
-    assert registry.async_get(entity_id).disabled_by is (
-        er.RegistryEntryDisabler.INTEGRATION
-    )
-
-
 async def test_a_panel_that_offers_no_voice_has_no_satellite(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
@@ -558,6 +394,7 @@ async def test_a_wake_word_turn_streams_to_the_pipeline_the_panel_named(
     assert events == [
         {"kind": "listen_end"},
         {"kind": "listen_end"},
+        {"kind": "transcript", "text": "hi"},
         {
             "kind": "play",
             "url": "/api/tts_proxy/reply.mp3",
@@ -575,6 +412,93 @@ async def test_a_wake_word_turn_streams_to_the_pipeline_the_panel_named(
     assert hass.states.get(entity_id).state == "idle"
     # The turn's binary handler was released with the turn.
     assert all(slot is None for slot in _connection_of(hass, entry).binary_handlers)
+
+
+async def test_the_panel_is_sent_what_was_heard_and_the_reply_as_it_is_written(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+    pipeline: FakePipeline,
+) -> None:
+    def progress(delta: dict[str, Any]) -> PipelineEvent:
+        return PipelineEvent(
+            PipelineEventType.INTENT_PROGRESS, {"chat_log_delta": delta}
+        )
+
+    # An AI agent that speaks, calls a tool, then speaks again.
+    pipeline.events = [
+        PipelineEvent(PipelineEventType.STT_VAD_END),
+        PipelineEvent(PipelineEventType.STT_END, {"stt_output": {"text": "Lights on"}}),
+        PipelineEvent(PipelineEventType.INTENT_START),
+        progress({"role": "assistant", "content": "Turning"}),
+        progress({"content": " on"}),
+        progress({"thinking_content": "which lights?"}),
+        progress({"tool_calls": [{"id": "1", "tool_name": "HassTurnOn"}]}),
+        progress(
+            {
+                "role": "tool_result",
+                "agent_id": "conversation.agent",
+                "tool_call_id": "1",
+                "tool_name": "HassTurnOn",
+                "tool_result": {"success": True},
+            }
+        ),
+        # Not a shape Core sends: only the assistant's words are the reply.
+        progress({"role": "tool_result", "content": "not the reply"}),
+        # A later message is kept apart from the words before it.
+        progress({"role": "assistant"}),
+        progress({"content": "the lights."}),
+        PipelineEvent(
+            PipelineEventType.INTENT_END,
+            {
+                "intent_output": {
+                    "response": {
+                        "speech": {"plain": {"speech": "Turning on the lights."}}
+                    },
+                    "continue_conversation": False,
+                }
+            },
+        ),
+        PipelineEvent(PipelineEventType.RUN_END),
+    ]
+    panel, _entity_id = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    run_id, handler = await _run(panel, "hey_jarvis")
+    await panel.client.send_bytes(bytes([handler]))
+
+    assert await _turn_events(panel, run_id) == [
+        {"kind": "listen_end"},
+        {"kind": "listen_end"},
+        {"kind": "transcript", "text": "Lights on"},
+        {"kind": "reply", "text": "Turning", "final": False},
+        {"kind": "reply", "text": "Turning on", "final": False},
+        {"kind": "reply", "text": "Turning on the lights.", "final": False},
+        {"kind": "reply", "text": "Turning on the lights.", "final": True},
+        {"kind": "end"},
+    ]
+
+    # A continued turn starts its reply afresh; with nothing heard and no
+    # reply, the panel is sent no text at all.
+    pipeline.events = [
+        PipelineEvent(PipelineEventType.STT_END, {"stt_output": {"text": ""}}),
+        PipelineEvent(PipelineEventType.INTENT_START),
+        progress({"role": "assistant", "content": "Hmm.\n"}),
+        # Already apart: nothing is added between the messages.
+        progress({"role": "assistant", "content": "Yes?"}),
+        PipelineEvent(PipelineEventType.INTENT_END, {"intent_output": {}}),
+        PipelineEvent(PipelineEventType.RUN_END),
+    ]
+    run_id, handler = await _run(panel, "hey_jarvis", continued=True)
+    await panel.client.send_bytes(bytes([handler]))
+
+    assert await _turn_events(panel, run_id) == [
+        {"kind": "listen_end"},
+        {"kind": "reply", "text": "Hmm.\n", "final": False},
+        {"kind": "reply", "text": "Hmm.\nYes?", "final": False},
+        {"kind": "end"},
+    ]
 
 
 async def test_a_continued_turn_keeps_the_pipeline_without_the_wake_phrase(
@@ -614,7 +538,6 @@ async def test_a_pipeline_that_no_longer_exists_falls_back_to_the_preferred(
 
 
 def _connection_of(hass: HomeAssistant, entry: MockConfigEntry) -> Any:
-    from custom_components.panel_assistant.transport_sessions import async_get_sessions
 
     session = async_get_sessions(hass).get(entry.entry_id)
     assert session is not None

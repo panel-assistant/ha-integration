@@ -66,14 +66,6 @@
         "title": "Confirmar panel detectado",
         "description": "Home Assistant encontró una instalación de Panel Assistant en {address}. Envía el formulario para verificar que sigue siendo el mismo panel y añadirlo como {panel_name}. No se cambiará ninguna configuración del panel."
       },
-      "confirm_user": {
-        "title": "Confirmar la cuenta de este panel",
-        "description": "El panel {panel} tiene la sesión iniciada en Home Assistant como {user} y está pidiendo conectarse. Confirmar esa cuenta es lo único que este panel todavía necesita de ti: después termina de configurarse por su cuenta. Cualquier persona con sesión iniciada en Home Assistant puede pedir conectarse como panel, así que confirma solo si {user} es la cuenta que configuraste para este panel. Si te lo saltas, el panel se añade igualmente, pero seguirá sin conectarse hasta que confirmes la cuenta en Ajustes y luego Reparaciones.",
-        "menu_options": {
-          "bind_user": "Sí, conectar este panel",
-          "skip_binding": "Ahora no"
-        }
-      },
       "authorize_adb": {
         "title": "Autorizar Home Assistant en el panel",
         "description": "La versión seleccionada incluye un descriptor de instalación verificado. Selecciona Enviar una vez para crear o cargar una identidad ADB persistente para esta instalación de Home Assistant y presentar su clave pública al panel Android en {address}. En el panel, acepta el aviso Permitir depuración de Android; después vuelve aquí y selecciona Enviar de nuevo. Android puede describir Home Assistant como un ordenador. La autorización concede acceso general al shell de ADB mientras la depuración por red permanezca activada; revócala desde los ajustes de desarrollador del panel. En este paso no se descarga ni se instala ningún APK."
@@ -382,6 +374,12 @@
       },
       "reload": {
         "name": "Recargar Lovelace"
+      },
+      "android_settings": {
+        "name": "Ajustes de Android"
+      },
+      "launcher": {
+        "name": "Lanzador"
       }
     },
     "event": {
@@ -700,6 +698,10 @@
       "title": "El asistente de voz de {panel} no está escuchando.",
       "description": "El asistente de voz de {panel} no está escuchando porque su micrófono no entregó audio cuando el panel lo comprobó. Para comprobarlo de nuevo, desactiva y vuelve a activar el asistente de voz en la página Configure del panel, o elige allí otra fuente de audio. El panel informó: {detail}"
     },
+    "volume_number_removed": {
+      "title": "{panel} ya no tiene un número de volumen separado",
+      "description": "{panel} tiene un reproductor multimedia que muestra y ajusta su volumen, así que Panel Assistant eliminó su número de volumen separado {entity}. Estas automatizaciones o scripts todavía lo usan: {users}. Cámbialos para que ajusten el volumen con la acción `media_player.volume_set` en el reproductor multimedia del panel. Cuando estén cambiados, puedes ignorar este mensaje."
+    },
       "restart_required": {
         "title": "Reinicia Home Assistant para terminar de actualizar Panel Assistant",
         "fix_flow": {
@@ -713,25 +715,6 @@
       },
     "panel_user_mismatch": {
       "title": "Confirmar el usuario de Home Assistant para {panel}",
-      "fix_flow": {
-        "step": {
-          "confirm_bind": {
-            "title": "Confirmar el usuario del panel",
-            "description": "El panel {panel} ha pedido conectarse a Home Assistant como el usuario {user}. Confirma solo si {user} es la cuenta que configuraste para este panel. Si confirmas, el panel debería conectarse poco después. Cualquier persona con sesión iniciada en Home Assistant puede pedir conectarse como panel, así que si no reconoces esta solicitud, cierra este cuadro de diálogo e ignora el problema."
-          },
-          "confirm_rebind": {
-            "title": "Cambiar el usuario del panel",
-            "description": "El panel {panel} está confirmado para el usuario {bound_user}, pero el usuario {user} ha pedido conectarse como este panel. Confirma solo si cambiaste la cuenta de este panel a {user}: el panel dejará de aceptar a {bound_user} y debería conectarse poco después. Si no lo hiciste, puede que otra persona esté intentando apropiarse del panel, así que cierra este cuadro de diálogo e ignora el problema."
-          }
-        },
-        "abort": {
-          "entry_removed": "Este panel ya no está configurado en Home Assistant.",
-          "user_unavailable": "El usuario que pidió conectarse ya no existe o está desactivado. No se ha cambiado nada."
-        }
-      }
-    },
-    "panel_awaiting_confirmation": {
-      "title": "Terminar de conectar {panel}",
       "fix_flow": {
         "step": {
           "confirm_bind": {
@@ -1447,19 +1430,11 @@
       },
       "onboarding": {
         "title": "Terminar de configurar este panel",
-        "description": "Abre la página de configuración del panel desde un navegador que pueda acceder al panel en tu red local. Inicia sesión con la cuenta de Home Assistant que está abierta actualmente en ese navegador, elige el panel de control principal y termina allí la configuración. Mantén abierto este cuadro de diálogo; volverá aquí para confirmar la cuenta. Si este navegador no puede acceder al panel, termina la configuración más tarde desde la red local del panel. Si se solicita autorización para la depuración de Android, una persona deberá concederla en el panel."
+        "description": "Abre la página de configuración del panel desde un navegador que pueda acceder al panel en tu red local. Inicia sesión con la cuenta de Home Assistant que está abierta actualmente en ese navegador, elige el panel de control principal y termina allí la configuración. Mantén abierto este cuadro de diálogo; se cerrará solo cuando el panel se haya conectado. Si este navegador no puede acceder al panel, termina la configuración más tarde desde la red local del panel. Si se solicita autorización para la depuración de Android, una persona deberá concederla en el panel."
       },
       "onboarding_wait": {
         "title": "Esperando a que se conecte el panel",
-        "description": "El panel aún no ha terminado la configuración ni ha solicitado conectarse como una cuenta. Completa su página de configuración y después pulsa Enviar aquí para comprobarlo de nuevo. El panel seguirá sin vincularse hasta que confirmes su cuenta."
-      },
-      "onboarding_confirm": {
-        "title": "Confirmar la cuenta de este panel",
-        "description": "{panel} ha iniciado sesión como {user} y ha solicitado conectarse. Confirma solo si es la cuenta que elegiste para este panel. Si omites este paso, quedará sin vincular; podrás confirmarlo más tarde en Reparaciones.",
-        "menu_options": {
-          "onboarding_bind": "Sí, conectar este panel",
-          "onboarding_skip": "Ahora no"
-        }
+        "description": "El panel aún no ha terminado la configuración ni ha solicitado conectarse como una cuenta. Completa su página de configuración y después pulsa Enviar aquí para comprobarlo de nuevo."
       },
       "authorize_adb": {
         "title": "Permitir actualizaciones en {panel}",

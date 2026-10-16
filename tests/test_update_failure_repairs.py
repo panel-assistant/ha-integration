@@ -287,6 +287,15 @@ async def test_recovered_update_accepts_newer_health_when_offer_advanced(
     repairs: SimpleNamespace,
 ) -> None:
     entity, client = _entity(hass, recovered=True)
+    # Home Assistant learned of a newer release while the panel was still
+    # installing the one it took, so the offer no longer names that build.
+    host = entity._offer.release
+    assert host is not None
+    taken = host._candidates["v0.9.10", SUCCESSOR_PACKAGE_ID]
+    host._candidates["v0.9.11", SUCCESSOR_PACKAGE_ID] = replace(
+        taken, version="0.9.11", tag="v0.9.11"
+    )
+    assert entity.latest_version == "0.9.11"
     snapshot = entity.coordinator.data
     entity.coordinator.data = PanelSnapshot(
         health=snapshot.health,
@@ -309,40 +318,42 @@ async def test_recovered_update_accepts_newer_health_when_offer_advanced(
                     build="102",
                     config_hash="abcd",
                     protocol=(5, 5),
+                    package=SUCCESSOR_PACKAGE_ID,
                 ),
                 status=PanelStatus(warning_count=0, capability_count=0),
                 status_error=None,
             )
 
     entity.coordinator.async_request_refresh = AsyncMock(side_effect=refresh_health)
-    statuses = iter(
-        [
-            PanelInstallStatus(running=True, component="ha-paneld"),
-            PanelInstallStatus(running=False, component="ha-paneld"),
-        ]
-    )
+    statuses = [
+        PanelInstallStatus(running=True, component="ha-paneld"),
+        PanelInstallStatus(running=False, component="ha-paneld"),
+    ]
 
     async def refresh_status() -> None:
         entity._update_coordinator.data = PanelUpdateSnapshot(
-            operation=next(statuses), error=None
+            operation=statuses.pop(0) if len(statuses) > 1 else statuses[0],
+            error=None,
         )
 
     entity._update_coordinator.async_request_refresh = AsyncMock(
         side_effect=refresh_status
     )
     monkeypatch.setattr(update_progress, "_TERMINAL_STATUS_GRACE_SECONDS", 0)
+    # Bound a wait for a build that never arrives, so a wrong target fails fast.
+    monkeypatch.setattr(update_progress, "_UPDATE_TIMEOUT_SECONDS", 1)
     monkeypatch.setattr(panel_update.asyncio, "sleep", AsyncMock())
     entity._resume_running_operation()
     observer = entity._observer_task
     assert observer is not None
     await observer
 
-    assert refreshes == 2
     assert entity.installed_version == "0.9.10"
     repairs.record.assert_not_awaited()
     repairs.clear.assert_awaited_once_with(
         hass, "entry-id", "0.9.10", None, verified_success=True
     )
+    assert refreshes == 2
     client.async_start_panel_update.assert_not_awaited()
 
 

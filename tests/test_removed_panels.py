@@ -2,10 +2,12 @@
 
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import patch
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.storage import Store
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant import removed_panels
@@ -61,6 +63,21 @@ async def test_a_removed_entry_is_remembered_until_the_panel_is_added_again(
     assert await hass.config_entries.async_unload(again.entry_id)
     await hass.async_block_till_done()
     assert await _hello_error(hass, hass_ws_client, token) == "unknown_panel"
+
+
+async def test_a_panel_added_again_loads_when_the_removed_list_cannot_be_saved(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    await _set_up(hass, _entry(hass, hass_read_only_user.id), CURRENT)
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    await hass.config_entries.async_remove(entry.entry_id)
+    await hass.async_block_till_done()
+    again = _entry(hass, hass_read_only_user.id)
+
+    with patch.object(Store, "async_save", side_effect=OSError):
+        await _set_up(hass, again, CURRENT)
+
+    assert again.state is ConfigEntryState.LOADED
 
 
 async def test_a_removed_identity_two_loaded_entries_report_is_not_called_removed(

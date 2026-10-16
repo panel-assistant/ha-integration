@@ -35,6 +35,10 @@ from custom_components.panel_assistant import (
     panel_move,
     vendor_provisioning,
 )
+from custom_components.panel_assistant.adb_protocol import (
+    InstallAdbError,
+    InstallAdbErrorCode,
+)
 from custom_components.panel_assistant.app_identity import (
     LEGACY_PACKAGE_ID,
     SUCCESSOR_PACKAGE_ID,
@@ -718,6 +722,22 @@ async def test_a_dropped_connection_during_the_uninstall_is_finished_by_a_retry(
     assert fake.hand_back_requests == 2
 
 
+async def test_a_panel_with_neither_app_left_is_reported_removed(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
+) -> None:
+    """An app already gone, by hand or by a run whose answer was lost, is done."""
+    fake, server = panel
+    fake.set(installed=[])
+    entry = _entry(hass, server)
+
+    result = await _remove(hass, entry)
+
+    assert result.get("errors") is None, (result.get("errors"), fake.read())
+    assert result["step_id"] == "remove_app_done"
+    assert fake.hand_back_requests == 0
+    assert fake.read()["events"] == []
+
+
 async def test_a_silent_app_that_still_holds_home_is_not_removed(
     hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
 ) -> None:
@@ -757,6 +777,130 @@ async def test_an_unauthorized_panel_is_sent_to_authorize_adb_first(
     assert result.get("errors") == {"base": "removal_adb_authorization"}
     assert fake.installed == [SUCCESSOR_PACKAGE_ID]
     assert fake.hand_back_requests == 0
+
+
+@pytest.mark.parametrize(
+    ("seam", "code", "error"),
+    [
+        (
+            "_async_connect",
+            InstallAdbErrorCode.AUTHORIZATION_REQUIRED,
+            "removal_adb_authorization",
+        ),
+        (
+            "_parse_identity_root",
+            InstallAdbErrorCode.TARGET_CHANGED,
+            "removal_panel_changed",
+        ),
+    ],
+)
+async def test_adb_lost_after_the_form_opened_is_reported_as_its_cause(
+    hass: HomeAssistant,
+    panel: tuple[FakePanel, TestServer],
+    seam: str,
+    code: InstallAdbErrorCode,
+    error: str,
+) -> None:
+    """Authorization revoked, or another panel at the address, mid-removal."""
+    fake, server = panel
+    entry = _entry(hass, server)
+    form = await _open_form(hass, entry)
+
+    with patch.object(install_adb, seam, side_effect=InstallAdbError(code)):
+        result = await hass.config_entries.options.async_configure(
+            form["flow_id"], {"confirmed": True}
+        )
+
+    assert result.get("errors") == {"base": error}
+    assert fake.installed == [SUCCESSOR_PACKAGE_ID]
+    assert fake.hand_back_requests == 0
+
+
+@pytest.mark.parametrize(
+    ("answer", "error"),
+    [
+        ("no-replacement-home", "removal_no_replacement_home"),
+        ("ownership-unreadable", "removal_ownership_unreadable"),
+        ("package-state-unknown", "removal_package_state_unknown"),
+        (404, "removal_hand_back_unsupported"),
+    ],
+)
+async def test_a_refusal_on_a_shelly_panel_is_not_overridden(
+    hass: HomeAssistant,
+    panel: tuple[FakePanel, TestServer],
+    answer: str | int,
+    error: str,
+) -> None:
+    """Only an unconfirmed hand-back makes Stargate HOME over ADB."""
+    fake, server = panel
+    fake.hand_back = answer
+    fake.set(installed=[SUCCESSOR_PACKAGE_ID, vendor_provisioning.SHELLY_LAUNCHER])
+    entry = _entry(hass, server)
+
+    result = await _remove(hass, entry)
+
+    assert result.get("errors") == {"base": error}
+    assert SUCCESSOR_PACKAGE_ID in fake.installed
+    assert fake.read()["home"] == APP_HOME
+    assert fake.read()["events"] == []
+
+
+@pytest.mark.parametrize("home", ["", CHOOSER])
+async def test_a_silent_app_on_a_panel_without_home_is_not_removed(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer], home: str
+) -> None:
+    fake, server = panel
+    fake.hand_back = 503
+    fake.set(home=home)
+    entry = _entry(hass, server)
+
+    result = await _remove(hass, entry)
+
+    assert result.get("errors") == {"base": "removal_app_unreachable"}
+    assert fake.installed == [SUCCESSOR_PACKAGE_ID]
+    assert fake.read()["events"] == []
+
+
+async def test_an_old_app_left_without_the_new_app_is_reported_until_removed(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
+) -> None:
+    fake, server = panel
+    fake.set(
+        installed=[LEGACY_PACKAGE_ID],
+        fail_uninstall=[LEGACY_PACKAGE_ID],
+        home=VENDOR_HOME,
+    )
+    entry = _entry(hass, server)
+    form = await _open_form(hass, entry)
+
+    first = await hass.config_entries.options.async_configure(
+        form["flow_id"], {"confirmed": True}
+    )
+    assert first.get("errors") == {"base": "removal_remove_failed"}
+    assert fake.installed == [LEGACY_PACKAGE_ID]
+
+    retry = await hass.config_entries.options.async_configure(
+        form["flow_id"], {"confirmed": True}
+    )
+    assert retry["step_id"] == "remove_app_done"
+    assert fake.installed == []
+
+
+@pytest.mark.parametrize("command", ["appops set", "wm density"])
+async def test_a_restore_that_fails_still_removes_the_app(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer], command: str
+) -> None:
+    """The vendor setup and the display size are put back best effort."""
+    fake, server = panel
+    fake.drop_after = command
+    entry = _entry(hass, server)
+
+    result = await _remove(hass, entry)
+
+    assert fake.drop_after is None  # the restore command ran and dropped
+    assert result.get("errors") is None, (result.get("errors"), fake.read())
+    assert result["step_id"] == "remove_app_done"
+    assert fake.installed == []
 
 
 async def test_removal_gives_a_portal_its_meta_values_back_before_the_uninstall(

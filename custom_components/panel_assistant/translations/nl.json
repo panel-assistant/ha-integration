@@ -66,14 +66,6 @@
         "title": "Bevestig het gevonden paneel",
         "description": "Home Assistant heeft een Panel Assistant-installatie gevonden op {address}. Klik op ‘Verzenden’ om te controleren of het nog steeds hetzelfde paneel is en het toe te voegen als {panel_name}. De instellingen van het paneel blijven ongewijzigd."
       },
-      "confirm_user": {
-        "title": "Bevestig het account van dit paneel",
-        "description": "Het paneel {panel} is aangemeld bij Home Assistant als {user} en vraagt om verbinding te maken. Het enige wat dit paneel nog van je nodig heeft, is dat je dat account bevestigt: daarna rondt het de installatie zelfstandig af. Iedereen die is aangemeld bij Home Assistant kan vragen om als paneel verbinding te maken, dus bevestig dit alleen als {user} het account is dat je voor dit paneel hebt aangemaakt. Als je dit overslaat, wordt het paneel wel toegevoegd, maar blijft het niet verbonden totdat je het account bevestigt onder Instellingen en daarna Reparaties.",
-        "menu_options": {
-          "bind_user": "Ja, verbind dit paneel",
-          "skip_binding": "Nu even niet"
-        }
-      },
       "authorize_adb": {
         "title": "Geef Home Assistant toestemming op het paneel",
         "description": "De geselecteerde release bevat een geverifieerde installatiebeschrijving. Klik één keer op ‘Verzenden’ om een permanente ADB-identiteit voor deze Home Assistant-installatie aan te maken of te laden en de openbare sleutel ervan aan te bieden aan het Android-paneel op {address}. Keur op het paneel de Android-vraag ‘Foutopsporing toestaan’ goed, kom dan hier terug en klik nogmaals op ‘Verzenden’. Android kan Home Assistant als een computer beschrijven. Goedkeuring geeft algemene ADB-shelltoegang zolang foutopsporing via het netwerk ingeschakeld blijft; je kunt dit intrekken via de ontwikkelaarsopties van het paneel. Er wordt in deze stap geen APK gedownload of geïnstalleerd."
@@ -377,6 +369,12 @@
       },
       "reload": {
         "name": "Dashboard herladen"
+      },
+      "android_settings": {
+        "name": "Android-instellingen"
+      },
+      "launcher": {
+        "name": "Launcher"
       }
     },
     "camera": {
@@ -740,6 +738,10 @@
       "title": "De spraakassistent op {panel} luistert niet.",
       "description": "De spraakassistent op {panel} luistert niet, omdat de microfoon geen geluid leverde toen het paneel hem controleerde. Zet de spraakassistent uit en weer aan op de Configure-pagina van het paneel, of kies daar een andere audiobron, om opnieuw te controleren. Het paneel meldde: {detail}"
     },
+    "volume_number_removed": {
+      "title": "{panel} heeft geen apart volumegetal meer",
+      "description": "{panel} heeft een mediaspeler die het volume toont en instelt, dus Panel Assistant heeft het aparte volumegetal {entity} verwijderd. Deze automatiseringen of scripts gebruiken het nog: {users}. Pas ze aan zodat ze het volume instellen met de actie `media_player.volume_set` op de mediaspeler van het paneel. Zodra ze zijn aangepast, kun je deze melding negeren."
+    },
       "restart_required": {
         "title": "Herstart Home Assistant om de update van Panel Assistant af te ronden",
         "fix_flow": {
@@ -753,25 +755,6 @@
       },
     "panel_user_mismatch": {
       "title": "Bevestig de Home Assistant-gebruiker voor {panel}",
-      "fix_flow": {
-        "step": {
-          "confirm_bind": {
-            "title": "Bevestig de gebruiker van het paneel",
-            "description": "Het paneel {panel} heeft gevraagd om verbinding te maken met Home Assistant als de gebruiker {user}. Bevestig dit alleen als {user} het account is dat je voor dit paneel hebt aangemaakt. Na je bevestiging zou het paneel kort daarna verbinding moeten maken. Iedereen die is aangemeld bij Home Assistant kan vragen om als paneel verbinding te maken, dus als je dit verzoek niet herkent, sluit je dit dialoogvenster en negeer je de melding."
-          },
-          "confirm_rebind": {
-            "title": "De gebruiker van het paneel wijzigen",
-            "description": "Het paneel {panel} is bevestigd voor de gebruiker {bound_user}, maar de gebruiker {user} heeft gevraagd om als dit paneel verbinding te maken. Bevestig dit alleen als je het account van dit paneel hebt gewijzigd in {user}: het paneel accepteert {bound_user} dan niet meer en zou kort daarna verbinding moeten maken. Als je dat niet hebt gedaan, probeert iemand anders mogelijk het paneel over te nemen, dus sluit dit dialoogvenster en negeer de melding."
-          }
-        },
-        "abort": {
-          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.",
-          "user_unavailable": "De gebruiker die om verbinding vroeg, bestaat niet meer of is gedeactiveerd. Er is niets veranderd."
-        }
-      }
-    },
-    "panel_awaiting_confirmation": {
-      "title": "Maak de verbinding met {panel} af",
       "fix_flow": {
         "step": {
           "confirm_bind": {
@@ -1487,19 +1470,11 @@
       },
       "onboarding": {
         "title": "Rond de installatie van dit paneel af",
-        "description": "Open de installatiepagina van het paneel in een browser die het paneel op je lokale netwerk kan bereiken. Meld je aan met het Home Assistant-account dat momenteel in die browser is aangemeld, kies het hoofddashboard en rond de installatie daar af. Laat dit dialoogvenster open; daarna kom je hier terug om het account te bevestigen. Als deze browser het paneel niet kan bereiken, rond de installatie dan later af vanaf het lokale netwerk van het paneel. Als toestemming voor Android-foutopsporing wordt gevraagd, moet iemand die nog steeds bij het paneel geven."
+        "description": "Open de installatiepagina van het paneel in een browser die het paneel op je lokale netwerk kan bereiken. Meld je aan met het Home Assistant-account dat momenteel in die browser is aangemeld, kies het hoofddashboard en rond de installatie daar af. Laat dit dialoogvenster open; het sluit vanzelf zodra het paneel verbonden is. Als deze browser het paneel niet kan bereiken, rond de installatie dan later af vanaf het lokale netwerk van het paneel. Als toestemming voor Android-foutopsporing wordt gevraagd, moet iemand die nog steeds bij het paneel geven."
       },
       "onboarding_wait": {
         "title": "Wachten tot het paneel verbinding maakt",
-        "description": "Het paneel heeft de installatie nog niet afgerond en nog geen accountverbinding aangevraagd. Rond de installatie op de installatiepagina af en klik hier op Verzenden om opnieuw te controleren. Het paneel blijft ongekoppeld totdat je het account bevestigt."
-      },
-      "onboarding_confirm": {
-        "title": "Bevestig het account van dit paneel",
-        "description": "{panel} is aangemeld als {user} en heeft gevraagd om verbinding te maken. Bevestig alleen als dit het account is dat je voor dit paneel hebt gekozen. Als je overslaat, blijft het ongekoppeld; je kunt het later bevestigen onder Reparaties.",
-        "menu_options": {
-          "onboarding_bind": "Ja, dit paneel verbinden",
-          "onboarding_skip": "Niet nu"
-        }
+        "description": "Het paneel heeft de installatie nog niet afgerond en nog geen accountverbinding aangevraagd. Rond de installatie op de installatiepagina af en klik hier op Verzenden om opnieuw te controleren."
       },
       "authorize_adb": {
         "title": "Updates op {panel} toestaan",

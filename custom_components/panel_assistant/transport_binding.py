@@ -1,9 +1,10 @@
 """Which Home Assistant account may hold a panel's session.
 
-A panel's identity is public on the LAN, so ``hello`` never binds a panel to the
-account that sends it. Only an administrator binds one, by confirming the
-Repairs issue that an unconfirmed ``hello`` raises, or the add-panel flow that
-offers the account a panel asked as before it had an entry.
+A new panel is bound to the first live account it signs in as, so neither
+install route asks the owner anything (maintainer, 2026-10-15: home networks
+are trusted, and the question only slowed the first install). Another account
+asking for a panel that is already bound goes to an administrator, through the
+Repairs issue that ``hello`` raises.
 """
 
 from __future__ import annotations
@@ -26,54 +27,43 @@ from .transport_protocol import (
 from .transport_sessions import async_get_sessions
 
 # The account a panel asked to connect as before it had a config entry at all,
-# kept only so the add-panel flow can offer the same confirmation the Repairs
-# issue does, while the administrator adding the panel is still present.
+# kept so that adding the panel binds that account at once, rather than leaving
+# the panel to wait for its next retry.
 DATA_BINDING_REQUESTS: Final = "binding_requests"
 
-# The Repairs issues an unconfirmed hello raises, one per entry, chosen by what
-# the administrator is actually being asked. A panel with no account yet is
-# unfinished onboarding. A panel whose account is already confirmed is someone
-# asking to take it over, which must never read as routine. The wire code the
-# panel renders stays one code for both.
-ISSUE_PANEL_AWAITING_CONFIRMATION: Final = "panel_awaiting_confirmation"
+# The Repairs issue raised when another account asks for a bound panel: someone
+# asking to take it over, which must never read as routine.
 ISSUE_PANEL_USER_MISMATCH: Final = ERR_PANEL_USER_MISMATCH
 ISSUE_DATA_ENTRY_ID: Final = "entry_id"
 ISSUE_DATA_USER_ID: Final = "user_id"
 
 
 # ---------------------------------------------------------------------------
-# Binding. A panel's user is bound only on an administrator's confirmation.
+# Binding. A new panel binds its own account; a change of account is confirmed.
 
 # A panel that asks before it has a config entry is remembered for this long, so
-# that the add-panel flow can name the account it asked as. Long enough to cover
+# that adding it binds the account it asked as. Long enough to cover
 # setting a panel up and then adding it, short enough that an account which
-# asked in some earlier session is not offered as though it were asking now.
+# asked in some earlier session is not bound as though it were asking now.
 BINDING_REQUEST_TTL: Final = timedelta(minutes=30)
 MAX_BINDING_REQUESTS: Final = 16
-BINDING_ISSUES: Final = (ISSUE_PANEL_AWAITING_CONFIRMATION, ISSUE_PANEL_USER_MISMATCH)
 
 
-def binding_issue_id(issue: str, entry_id: str) -> str:
-    """Return one of the two Repairs issue IDs that ask about an entry's user."""
-    return f"{issue}_{entry_id}"
-
-
-def _binding_issue_for(entry: ConfigEntry) -> str:
-    """Return the issue describing what this entry's administrator is asked."""
-    if entry.data.get(CONF_TRANSPORT_USER_ID) is None:
-        return ISSUE_PANEL_AWAITING_CONFIRMATION
-    return ISSUE_PANEL_USER_MISMATCH
+def binding_issue_id(entry_id: str) -> str:
+    """Return the Repairs issue ID that asks about an entry's user."""
+    return f"{ISSUE_PANEL_USER_MISMATCH}_{entry_id}"
 
 
 @callback
 def _may_ask_to_bind(hass: HomeAssistant, connection: ActiveConnection) -> bool:
-    """Return whether this connection may ask to be bound at all.
+    """Return whether this connection's account may be bound at all.
 
     A removed user's socket survives its removal, but its refresh token does
-    not. Such a connection may not even ask.
+    not. Such a connection, and Home Assistant's own accounts, may not even ask.
     """
     return (
-        connection.refresh_token_id is not None
+        not connection.user.system_generated
+        and connection.refresh_token_id is not None
         and hass.auth.async_get_refresh_token(connection.refresh_token_id) is not None
     )
 
@@ -135,19 +125,12 @@ def async_raise_binding_issue(
     from .foreign_ha import async_clear_foreign_ha_issue
 
     async_clear_foreign_ha_issue(hass, entry.entry_id)
-    asked = _binding_issue_for(entry)
-    issue_id = binding_issue_id(asked, entry.entry_id)
+    issue_id = binding_issue_id(entry.entry_id)
     issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
     if issue is not None and (issue.data or {}).get(ISSUE_DATA_USER_ID) != user_id:
         # Replacing an issue keeps its dismissal, and any signed-in user may
         # dismiss one. A request from someone new must be seen again.
         ir.async_delete_issue(hass, DOMAIN, issue_id)
-    for other in BINDING_ISSUES:
-        # An entry that has gained or lost an account is being asked a different
-        # question, so the question it was asked before goes rather than lingering
-        # beside this one. This also retires an issue raised before the split.
-        if other != asked:
-            ir.async_delete_issue(hass, DOMAIN, binding_issue_id(other, entry.entry_id))
     ir.async_create_issue(
         hass,
         DOMAIN,
@@ -156,7 +139,7 @@ def async_raise_binding_issue(
         is_fixable=True,
         is_persistent=False,
         severity=ir.IssueSeverity.WARNING,
-        translation_key=asked,
+        translation_key=ISSUE_PANEL_USER_MISMATCH,
         translation_placeholders={"panel": entry.title},
     )
 
@@ -165,20 +148,18 @@ def async_raise_binding_issue(
 def async_delete_binding_issue(
     hass: HomeAssistant, entry_id: str, user_id: str | None = None
 ) -> None:
-    """Delete an entry's binding issues, or only one that proposes this user."""
-    registry = ir.async_get(hass)
-    for asked in BINDING_ISSUES:
-        issue_id = binding_issue_id(asked, entry_id)
-        issue = registry.async_get_issue(DOMAIN, issue_id)
-        if issue is None:
-            continue
-        if user_id is None or (issue.data or {}).get(ISSUE_DATA_USER_ID) == user_id:
-            ir.async_delete_issue(hass, DOMAIN, issue_id)
+    """Delete an entry's binding issue, or only one that proposes this user."""
+    issue_id = binding_issue_id(entry_id)
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    if issue is None:
+        return
+    if user_id is None or (issue.data or {}).get(ISSUE_DATA_USER_ID) == user_id:
+        ir.async_delete_issue(hass, DOMAIN, issue_id)
 
 
 @callback
 def async_bind_user(hass: HomeAssistant, entry: ConfigEntry, user_id: str) -> None:
-    """Bind an entry to a user. Only an administrator's confirmation calls this."""
+    """Bind an entry to a user, ending another user's session on it."""
     sessions = async_get_sessions(hass)
     session = sessions.get(entry.entry_id)
     if session is not None and session.user_id != user_id:
@@ -188,3 +169,12 @@ def async_bind_user(hass: HomeAssistant, entry: ConfigEntry, user_id: str) -> No
             entry, data={**entry.data, CONF_TRANSPORT_USER_ID: user_id}
         )
     async_delete_binding_issue(hass, entry.entry_id, user_id)
+
+
+@callback
+def async_unbind_user(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Forget an entry's account, so the panel's next hello binds its own."""
+    if CONF_TRANSPORT_USER_ID in entry.data:
+        data = dict(entry.data)
+        del data[CONF_TRANSPORT_USER_ID]
+        hass.config_entries.async_update_entry(entry, data=data)

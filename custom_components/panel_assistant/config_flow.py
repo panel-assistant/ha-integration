@@ -9,7 +9,6 @@ from dataclasses import replace
 from typing import Any, Self
 
 import voluptuous as vol
-from homeassistant.auth.models import User
 from homeassistant.config_entries import (
     SOURCE_IGNORE,
     SOURCE_USER,
@@ -125,10 +124,10 @@ from .repairs_update_route import help_parameters
 from .status import PanelStatus
 from .transport import _panel_did
 from .transport_binding import (
-    async_bind_user,
     async_binding_request,
     async_confirmable_user,
     async_discard_binding_request,
+    async_unbind_user,
 )
 from .update_policy import prereleases_allowed
 
@@ -198,7 +197,6 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     _install_releases: list[dict[str, Any]] | None = None
     _setup_watch: asyncio.Task[None] | None = None
     _release_catalog_error: str | None = None
-    _pending_bind_user_id: str | None = None
     _migration_targets: list[MigrationTarget] | None = None
     _migration_target: MigrationTarget | None = None
 
@@ -276,9 +274,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             ).async_get_health()
         except InvalidAddressError, CannotConnectError, InvalidResponseError:
             return self.async_abort(reason="not_panel")
-        return await self._async_create_panel_entry(
-            address, health, confirm_account=False
-        )
+        return await self._async_create_panel_entry(address, health)
 
     async def async_step_zeroconf(
         self, discovery_info: ZeroconfServiceInfo
@@ -1151,6 +1147,9 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 and retained.data.get(CONF_ADDRESS) == receipt.target.address
                 and accept_health(self.hass, retained, result.health)
             ):
+                # A reinstall is the owner's own install: the panel binds the
+                # account it signs in as next, as a new panel does.
+                async_unbind_user(self.hass, retained)
                 await executor.async_consume_finalization(
                     receipt.job_id, self.flow_id, retained.entry_id
                 )
@@ -1269,14 +1268,11 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         self,
         address: PanelAddress,
         health: PanelHealth,
-        *,
-        confirm_account: bool = True,
     ) -> ConfigFlowResult:
-        """Create an entry, confirming the panel's account first when one asked.
+        """Create an entry, bound to the account the panel already asked as.
 
-        Without ``confirm_account`` nobody is shown the form, so the entry is
-        made unbound and the panel raises its own Repairs issue when it asks.
-        A new panel on the old app id is refused: this release cannot move it.
+        A panel that has not asked yet is bound when it does. A new panel on
+        the old app id is refused: this release cannot move it.
         """
         for existing in self.hass.config_entries.async_entries(DOMAIN):
             if (
@@ -1303,12 +1299,6 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                     return self.async_abort(reason="already_configured")
                 if not accepted:
                     return self.async_abort(reason="reinstall_identity_mismatch")
-                self._pending_address = address
-                self._pending_health = health
-                user = await self._async_asking_user() if confirm_account else None
-                if user is not None:
-                    self._pending_bind_user_id = user.id
-                    return await self.async_step_confirm_user()
                 return self._async_finish_panel_entry(address, health)
         # A panel that reports its identity is known by it. Adding a known panel
         # again, at the address it has moved to, repairs its entry's stored
@@ -1335,80 +1325,21 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 )
         if runs_old_app(health):
             return self.async_abort(reason="old_app_installed")
-        self._pending_address = address
-        self._pending_health = health
-        user = await self._async_asking_user() if confirm_account else None
-        if user is None:
-            # Nobody has asked to connect as this panel yet, which is the whole
-            # of what could be confirmed here. The panel raises its own Repairs
-            # issue when it asks, as it always has.
-            return self._async_finish_panel_entry(address, health)
-        self._pending_bind_user_id = user.id
-        return await self.async_step_confirm_user()
+        return self._async_finish_panel_entry(
+            address, health, await self._async_asking_user_id(health)
+        )
 
-    async def _async_asking_user(self) -> User | None:
-        """Return the account this panel asked to connect as, if one may be shown.
+    async def _async_asking_user_id(self, health: PanelHealth) -> str | None:
+        """Return the account this panel asked to connect as, if it may be bound.
 
         The account comes from the panel's own ``hello``, refused because no entry
-        existed yet, so this is the same request the Repairs issue carries and the
-        same administrator decision. An account that has since gone, been
-        deactivated or turned out to be Home Assistant's own is not offered.
+        existed yet. An account that has since gone, been deactivated or turned
+        out to be Home Assistant's own is not bound.
         """
-        if self._pending_health is None:
-            return None
-        return await async_confirmable_user(
-            self.hass,
-            async_binding_request(self.hass, self._pending_health.discovery_id),
+        user = await async_confirmable_user(
+            self.hass, async_binding_request(self.hass, health.discovery_id)
         )
-
-    async def async_step_confirm_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Offer the panel's own account for confirmation, and take either answer."""
-        if self._pending_address is None or self._pending_health is None:
-            return self.async_abort(reason="unknown")
-        user = await self._async_asking_user()
-        if user is None or user.id != self._pending_bind_user_id:
-            # The account changed or stopped being one an administrator may
-            # confirm while this form was open. Add the panel rather than bind
-            # something the administrator was never shown.
-            return self._async_finish_panel_entry(
-                self._pending_address, self._pending_health
-            )
-        return self.async_show_menu(
-            step_id="confirm_user",
-            menu_options=["bind_user", "skip_binding"],
-            description_placeholders={
-                "panel": self.context.get("title_placeholders", {}).get("name")
-                or self._pending_health.panel_id,
-                "user": user.name or "",
-            },
-        )
-
-    async def async_step_bind_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Create the panel already confirmed for the account that asked."""
-        if self._pending_address is None or self._pending_health is None:
-            return self.async_abort(reason="unknown")
-        # Checked again here: the account may have gone while the menu was open,
-        # and this is the submission that binds it.
-        user = await self._async_asking_user()
-        if user is None or user.id != self._pending_bind_user_id:
-            return await self.async_step_confirm_user()
-        return self._async_finish_panel_entry(
-            self._pending_address, self._pending_health, user.id
-        )
-
-    async def async_step_skip_binding(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Add the panel without confirming the account that asked."""
-        if self._pending_address is None or self._pending_health is None:
-            return self.async_abort(reason="unknown")
-        return self._async_finish_panel_entry(
-            self._pending_address, self._pending_health
-        )
+        return None if user is None else user.id
 
     def _async_finish_panel_entry(
         self,
@@ -1416,7 +1347,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         health: PanelHealth,
         user_id: str | None = None,
     ) -> ConfigFlowResult:
-        """Create the entry, bound to a confirmed account or to none."""
+        """Create the entry, bound to the panel's account or to none yet."""
         async_discard_binding_request(self.hass, health.discovery_id)
         retained = self._pending_reinstall_entry
         if self._pending_job_id is not None and retained is not None:
@@ -1427,8 +1358,6 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 or not accept_health(self.hass, retained, health)
             ):
                 return self.async_abort(reason="reinstall_identity_mismatch")
-            if user_id is not None:
-                async_bind_user(self.hass, retained, user_id)
             return self.async_abort(reason="reinstall_successful")
         data: dict[str, Any] = {CONF_ADDRESS: address.stored_value}
         if health.installation_identity:
@@ -1635,7 +1564,6 @@ class HaPaneldOptionsFlow(OptionsFlow):
     """Complete setup, configure panel updates, authorise ADB or remove the app."""
 
     _setup_watch: asyncio.Task[None] | None = None
-    _pending_bind_user_id: str | None = None
     _removal_risks_url: str | None = None
 
     def _current_panel_health(self) -> PanelHealth | None:
@@ -1705,12 +1633,16 @@ class HaPaneldOptionsFlow(OptionsFlow):
             return form
         return self.async_create_entry(data=dict(entry.options))
 
+    def _onboarded(self) -> bool:
+        """Return whether the panel has signed in, which binds its account."""
+        return CONF_TRANSPORT_USER_ID in self.config_entry.data
+
     async def async_step_onboarding(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Let the panel's own browser wizard obtain its own HA credentials."""
         if user_input is not None:
-            return self.async_external_step_done(next_step_id="onboarding_confirm")
+            return self.async_external_step_done(next_step_id="onboarding_wait")
         client = self._onboarding_client()
         await async_offer_ha_url(self.hass, client)
         if self._setup_watch is None or self._setup_watch.done():
@@ -1721,21 +1653,11 @@ class HaPaneldOptionsFlow(OptionsFlow):
         return self.async_external_step(step_id="onboarding", url=client.setup_url)
 
     async def _async_watch_onboarding(self) -> None:
-        """Return to Add once setup and a verified panel request exist."""
-        client = self._onboarding_client()
+        """Finish once the panel has signed in and connected."""
         deadline = asyncio.get_running_loop().time() + _SETUP_WATCH_SECONDS
         while asyncio.get_running_loop().time() < deadline:
             await asyncio.sleep(_SETUP_POLL_SECONDS)
-            try:
-                if not await client.async_get_setup_complete():
-                    continue
-                health = await client.async_get_health()
-            except HaPaneldError:
-                continue
-            did = health.discovery_id
-            if did is None or did != _panel_did(self.config_entry):
-                continue
-            if async_binding_request(self.hass, did) is None:
+            if not self._onboarded():
                 continue
             with contextlib.suppress(UnknownFlow):
                 await self.hass.config_entries.options.async_configure(
@@ -1743,61 +1665,15 @@ class HaPaneldOptionsFlow(OptionsFlow):
                 )
             return
 
-    async def _onboarding_user(self) -> User | None:
-        """Resolve only a live request for this entry's verified panel."""
-        try:
-            if not await self._onboarding_client().async_get_setup_complete():
-                return None
-            health = await self._onboarding_client().async_get_health()
-        except HaPaneldError:
-            return None
-        did = health.discovery_id
-        if did is None or did != _panel_did(self.config_entry):
-            return None
-        return await async_confirmable_user(
-            self.hass, async_binding_request(self.hass, did)
-        )
-
-    async def async_step_onboarding_confirm(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Name the requesting account before administrator confirmation."""
-        user = await self._onboarding_user()
-        if user is None:
-            return self.async_show_form(
-                step_id="onboarding_wait", data_schema=vol.Schema({})
-            )
-        self._pending_bind_user_id = user.id
-        return self.async_show_menu(
-            step_id="onboarding_confirm",
-            menu_options=["onboarding_bind", "onboarding_skip"],
-            description_placeholders={
-                "panel": self.config_entry.title,
-                "user": user.name or "",
-            },
-        )
-
     async def async_step_onboarding_wait(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        return await self.async_step_onboarding_confirm()
-
-    async def async_step_onboarding_bind(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Bind only the active account the administrator just saw."""
-        user = await self._onboarding_user()
-        if user is None or user.id != self._pending_bind_user_id:
-            return await self.async_step_onboarding_confirm()
-        async_bind_user(self.hass, self.config_entry, user.id)
-        async_discard_binding_request(self.hass, _panel_did(self.config_entry))
-        return self.async_create_entry(data=dict(self.config_entry.options))
-
-    async def async_step_onboarding_skip(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Leave the entry unbound; Repairs remains available later."""
-        return self.async_create_entry(data=dict(self.config_entry.options))
+        """Finish once the panel has connected; otherwise wait to be asked again."""
+        if self._onboarded():
+            return self.async_create_entry(data=dict(self.config_entry.options))
+        return self.async_show_form(
+            step_id="onboarding_wait", data_schema=vol.Schema({})
+        )
 
     def async_remove(self) -> None:
         if self._setup_watch is not None and not self._setup_watch.done():

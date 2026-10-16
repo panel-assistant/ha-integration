@@ -1,6 +1,7 @@
 """Configured-panel update projection tests."""
 
 import asyncio
+from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, call
 
@@ -147,8 +148,13 @@ def test_update_entity_hides_a_release_older_than_running_health(
 async def test_panel_without_an_install_route_offers_nothing(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A newer signed build is not actionable when the app cannot install it."""
+    """A newer signed build is not actionable when the app cannot install it.
+
+    The stand-in panel refuses any start, so a request that reaches it fails
+    as a refusal at once instead of waiting for a restart that never comes.
+    """
     entity, client = _entity(hass, install_capability="none")
+    client.async_start_panel_update.side_effect = UpdateRejectedError
     monkeypatch.setattr(
         update_route,
         "async_get_durable_adb_credential",
@@ -178,6 +184,38 @@ async def test_older_api_panel_keeps_its_existing_update_route(
     await entity._async_refresh_route()
     assert entity.latest_version == "0.9.10"
     client.async_get_legacy_install_capability.assert_awaited()
+
+
+async def test_changed_health_invalidates_a_cached_legacy_api_route(
+    hass: HomeAssistant,
+) -> None:
+    """An older panel's proven route counts only for the panel it was proven on."""
+    entity, _ = _entity(hass, install_capability=None)
+    entity.coordinator.async_request_refresh = AsyncMock()
+    await entity._async_refresh_route()
+    assert entity.latest_version == "0.9.10"
+
+    data = entity.coordinator.data
+    entity.coordinator.data = replace(data, health=replace(data.health, build="1001"))
+
+    assert entity.latest_version == entity.installed_version
+
+
+def test_unparseable_versions_are_never_newer(hass: HomeAssistant) -> None:
+    entity, _ = _entity(hass)
+
+    assert not entity.version_is_newer("garbage", "0.9.9")
+    assert not entity.version_is_newer("0.9.10", "garbage")
+
+
+def test_a_lower_build_of_the_same_release_is_never_newer(
+    hass: HomeAssistant,
+) -> None:
+    entity, _ = _entity(hass)
+
+    assert not entity.version_is_newer("1.0.0 build 100", "1.0.0 build 200")
+    assert not entity.version_is_newer("1.0.0 build 200", "1.0.0 build 200")
+    assert entity.version_is_newer("1.0.0 build 200", "1.0.0 build 100")
 
 
 @pytest.mark.parametrize("first_connect_refused", [False, True])
@@ -297,8 +335,13 @@ async def test_matching_update_health_requires_ready_home_proof(
 async def test_update_entity_rejects_versions_outside_the_current_offer(
     hass: HomeAssistant, version: str
 ) -> None:
-    """HA cannot turn the update service into a version or downgrade control surface."""
+    """HA cannot turn the update service into a version or downgrade control surface.
+
+    The stand-in panel refuses any start, so installing the offered build in
+    place of the requested one fails as a refusal at once instead of waiting.
+    """
     entity, client = _entity(hass)
+    client.async_start_panel_update.side_effect = UpdateRejectedError
 
     with pytest.raises(HomeAssistantError, match="unavailable") as error:
         await entity.async_install(version, backup=False)
@@ -500,6 +543,23 @@ def test_update_entity_restores_a_panel_owned_operation_after_reload(
     )
 
     assert entity.in_progress is True
+
+
+async def test_another_components_running_install_is_not_resumed_as_this_update(
+    hass: HomeAssistant,
+) -> None:
+    """A Companion install found after reload is not this update."""
+    entity, _ = _entity(
+        hass, operation=PanelInstallStatus(running=True, component="companion")
+    )
+    entity.coordinator.async_request_refresh = AsyncMock()
+    entity._update_coordinator.async_request_refresh = AsyncMock()
+
+    entity._handle_update_coordinator_update()
+    try:
+        assert entity.in_progress is False
+    finally:
+        entity._cancel_observer()
 
 
 async def test_reload_observer_latches_through_transient_and_terminal_status(

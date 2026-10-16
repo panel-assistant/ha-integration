@@ -1,0 +1,40 @@
+match:
+  - {text: "pokaż stronę kamery", command: show_page, page: kamery}
+  - {text: "pokaż mi pulpit energia", command: show_page, page: energia}
+  - {text: "wyświetl widok salon", command: show_page, page: salon}
+  - {text: "przejdź do widoku salon", command: show_page, page: salon}
+  - {text: "przejdź do strony głównej", command: show_page, page: głównej}
+  - {text: "pokaż stronę główną", command: show_page, page: główną}
+  - {text: "przejdź na stronę główną", command: show_page, page: główną}
+  - {text: "przejdź na widok salon", command: show_page, page: salon}
+  - {text: "pokaż pulpit główny", command: show_page, page: główny}
+  - {text: "przejdź do pulpitu głównego", command: show_page, page: głównego}
+  - {text: "pokaż widok domowy", command: show_page, page: domowy}
+  - {text: "pokaż stronę o nazwie kamery", command: show_page, page: kamery}
+  - {text: "przełącz na widok o nazwie salon", command: show_page, page: salon}
+  - {text: "przełącz się na kartę o nazwie energia", command: show_page, page: energia}
+  - {text: "przejdź do strony o nazwie salon", command: show_page, page: salon}
+  - {text: "pokaż ustawienia androida", command: android_settings}
+  - {text: "przejdź do ustawień systemu android", command: android_settings}
+  - {text: "wyświetl mi ustawienia systemu android", command: android_settings}
+  - {text: "pokaż ustawienia systemu", command: android_settings}
+  - {text: "pokaż ustawienia systemowe", command: android_settings}
+  - {text: "pokaż launcher", command: launcher}
+  - {text: "pokaż launchera", command: launcher}
+  - {text: "przejdź do launchera", command: launcher}
+  - {text: "pokaż ekran domowy androida", command: launcher}
+  - {text: "przejdź na ekran główny androida", command: launcher}
+  - {text: "pokaż ekran główny androida", command: launcher}
+  - {text: "pokaż ekran startowy androida", command: launcher}
+miss:
+  - "wyłącz ekran"
+  - "wróć"
+  - "pokaż pogodę"
+  - "która jest godzina"
+  - "otwórz bramę garażową"
+  - "ustaw jasność na 50 procent"
+  - "pokaż kamery"
+  - "odśwież pulpit"
+builtin:
+  screen_off: "wyłącz ekran"
+  screen_on: "włącz ekran"
