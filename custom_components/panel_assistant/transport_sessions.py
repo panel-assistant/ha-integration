@@ -37,6 +37,7 @@ from .transport_protocol import (
     ERR_PANEL_UNAVAILABLE,
     MANAGE_SNAPSHOT,
     MANAGE_TIMEOUT,
+    MAX_COMMAND_DEADLINE_MS,
     MAX_LATE_COMMANDS,
     MAX_RECENT_OUTCOMES,
     OUTCOME_APPLIED,
@@ -605,7 +606,8 @@ async def async_deliver(
                 "command_id": command_id,
                 "session": session.token,
                 **fields,
-                "deadline_ms": deadline_ms,
+                # How long the panel may take to start it; the wait may be longer.
+                "deadline_ms": min(deadline_ms, MAX_COMMAND_DEADLINE_MS),
             },
         )
     )

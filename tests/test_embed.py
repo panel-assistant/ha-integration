@@ -30,7 +30,7 @@ from pytest_homeassistant_custom_component.common import (
     async_fire_time_changed,
 )
 
-from custom_components.panel_assistant import embed, ui_relay
+from custom_components.panel_assistant import embed, transport_protocol, ui_relay
 from custom_components.panel_assistant.blob import (
     BLOB_LIFETIME_SECONDS,
     async_get_blobs,
@@ -223,6 +223,10 @@ class SessionPanel:
                 continue
             self.events.append(event)
             self.arrived.set()
+            if not 1 <= event.get("deadline_ms", 10_000) <= 60_000:
+                # As the app does: a deadline outside section 5's range is refused.
+                await self.send_result(event, outcome="refused", code="invalid_value")
+                continue
             answer = self.answers.get(event.get("op") or event.get("channel", ""))
             fields = (
                 await answer(event)
@@ -903,7 +907,7 @@ async def test_a_bundle_gets_two_minutes_and_a_failed_one_is_not_asked_again_at_
         assert (await browser.get(url + name)).status == 404
     asked = [e for e in live.events if e["op"] == "bundle"]
     assert len(asked) == 1
-    assert asked[0]["deadline_ms"] == ui_relay.MAX_DEADLINE_MS
+    assert asked[0]["deadline_ms"] == transport_protocol.MAX_COMMAND_DEADLINE_MS
     # After the pause the panel is asked again, and its answer serves the frame.
     live.answers["bundle"] = _bundle(live, {"info.js": b"js"})
     with patch.object(
@@ -1375,7 +1379,8 @@ async def test_a_long_relayed_request_keeps_its_slot_until_the_panel_answers(
     """The browser stops waiting; the panel still uploads, then answers."""
     ws = await hass_ws_client(hass)
     await _open_session(ws, entry.entry_id)
-    # A long operation's deadline reaches the panel as the page set it.
+    # A long operation keeps its two-minute wait here, while the panel is given the
+    # longest start deadline it accepts (it refuses one past 60 s).
     live.answers["config.import"] = _applied
     reply = await _ui(
         ws,
@@ -1388,7 +1393,7 @@ async def test_a_long_relayed_request_keeps_its_slot_until_the_panel_answers(
         },
     )
     assert reply["result"]["outcome"] == "applied"
-    assert (await live.event("config.import"))["deadline_ms"] == 120_000
+    assert (await live.event("config.import"))["deadline_ms"] == 60_000
 
     monkeypatch.setattr(ui_relay, "ANSWER_GRACE_SECONDS", 0)
     go = asyncio.Event()

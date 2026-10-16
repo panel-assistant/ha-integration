@@ -107,6 +107,9 @@ COMMAND_ERRORS: Final = OUTCOME_CODES | {ERR_PANEL_UNAVAILABLE, ERR_APPROVAL_PEN
 COMMAND_TIMEOUT: Final = 30.0
 # How long the panel may hold a command before it answers that it expired.
 COMMAND_DEADLINE_MS: Final = 10_000
+# The longest deadline a command or manage event may carry (section 5); a panel
+# refuses a longer one. A caller may still wait longer for the answer.
+MAX_COMMAND_DEADLINE_MS: Final = 60_000
 # How long a management read waits for its answer. Shorter than a command's
 # wait, so a coordinator poll every 30 s never stacks on a slow panel.
 MANAGE_TIMEOUT: Final = 10.0
