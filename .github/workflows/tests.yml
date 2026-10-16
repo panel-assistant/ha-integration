@@ -46,8 +46,8 @@ jobs:
     needs: gate
     if: needs.gate.outputs.run == 'true'
     # Blacksmith trial (2026-10-16): push and dispatch runs use Blacksmith while the Actions variable
-    # CI_RUNNER is blacksmith; pull requests and schedules stay GitHub-hosted. Unset it to end the trial.
-    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && vars.CI_RUNNER == 'blacksmith' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
+    # CI_RUNNER is blacksmith; pull requests, schedules and Dependabot stay GitHub-hosted. Unset it to end the trial.
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.actor != 'dependabot[bot]' && vars.CI_RUNNER == 'blacksmith' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
     strategy:
       fail-fast: false
       matrix:
