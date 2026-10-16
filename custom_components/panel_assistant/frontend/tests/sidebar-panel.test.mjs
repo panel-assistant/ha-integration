@@ -748,9 +748,9 @@ test('the shared card follows Home Assistant light or dark, and each failure nam
 function frameWindow() {
   return { posted: [], postMessage(message, origin) { this.posted.push([message, origin]); } };
 }
-function fromWindow(source, data) {
+function fromWindow(source, data, origin = 'http://ha.example') {
   const event = new Event('message');
-  Object.assign(event, { source, data });
+  Object.assign(event, { source, data, origin });
   window.dispatchEvent(event);
 }
 
@@ -789,6 +789,27 @@ test('the relay answers its own frame only and ignores every other source', asyn
   fromWindow(target, { type: RELAY_TYPE, frame: { ...request, command_id: 'r2' } }); await tick();
   relayed[1].reject(Object.assign(Error('no session'), { code: 'panel_unavailable' })); await tick();
   assert.deepEqual(target.posted[1][0], { type: RELAY_TYPE, frame: { command_id: 'r2', outcome: 'failed', code: 'failed' } });
+});
+
+// The browser names no source for what a page posts while it is being left, and a page posts its unsubscribes
+// then: those must still end the subscriptions, or the panel holds them until it refuses new ones.
+test('a page that is being left still ends its subscriptions, and nothing else is taken from it', async () => {
+  const hass = fakeHass();
+  const { subs, relayed, target } = await relaying(hass);
+  fromWindow(target, { type: RELAY_TYPE, frame: { kind: 'manage', command_id: 's1', op: 'subscribe', args: { family: 'perf' } } }); await tick();
+  fromWindow(target, { type: RELAY_TYPE, frame: { kind: 'manage', command_id: 's2', op: 'subscribe', args: { family: 'health' } } }); await tick();
+  const unsubscribe = id => ({ type: RELAY_TYPE, frame: { kind: 'manage', command_id: `u${id}`, op: 'unsubscribe', args: { subscription: id } } });
+  const posted = target.posted.length;
+
+  fromWindow(null, unsubscribe('s1')); await tick();
+  assert.equal(subs[1].unsubscribed, 1);
+  assert.equal(target.posted.length, posted, 'the answer would reach the next page, which never asked');
+
+  fromWindow(null, unsubscribe('s2'), 'http://elsewhere.example');
+  fromWindow(null, { type: RELAY_TYPE, frame: { kind: 'manage', command_id: 'r9', op: 'perf', args: {} } });
+  await tick();
+  assert.equal(subs[2].unsubscribed, 0, 'another origin ends nothing');
+  assert.equal(relayed.length, 0, 'a gone page sends no request');
 });
 
 test('a reconnect that reloads the frame posts no open signal, and supersedes an earlier close', async () => {

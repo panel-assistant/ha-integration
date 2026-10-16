@@ -2118,46 +2118,48 @@ var ae = class extends HTMLElement {
 	}
 	#I(e) {
 		let t = this.shadowRoot.querySelector("#frame").contentWindow, n = e.data?.frame, r = this.#d;
-		if (!t || e.source !== t || e.data?.type !== "panel-assistant-ui" || !n || typeof n != "object") return;
-		let i = this.#g, a = (e) => {
-			i === this.#g && this.#P({
+		if (!t || e.data?.type !== "panel-assistant-ui" || !n || typeof n != "object") return;
+		let i = e.source === null && e.origin === location.origin && n.op === "unsubscribe";
+		if (e.source !== t && !i) return;
+		let a = this.#g, o = (e) => {
+			!i && a === this.#g && this.#P({
 				type: S,
 				frame: e
 			});
-		}, o = () => a({
+		}, s = () => o({
 			command_id: n.command_id,
 			outcome: "failed",
 			code: "failed"
 		});
 		if (r?.state !== "open") {
-			o();
+			s();
 			return;
 		}
-		let s = {
+		let c = {
 			type: "panel_assistant/ui",
 			entry_id: r.entryId,
 			request: n
-		}, c = this.#t.connection;
+		}, l = this.#t.connection;
 		if (n.op === "unsubscribe") {
 			let e = this.#h.get(n.args?.subscription);
-			this.#h.delete(n.args?.subscription), e?.then((e) => e()).catch(() => {}), a({
+			this.#h.delete(n.args?.subscription), e?.then((e) => e()).catch(() => {}), o({
 				command_id: n.command_id,
 				outcome: "applied"
 			});
 		} else if (n.op === "subscribe") {
-			let e = Promise.resolve().then(() => c.subscribeMessage((e) => {
+			let e = Promise.resolve().then(() => l.subscribeMessage((e) => {
 				if (e?.closed === !0) {
-					if (this.#h.delete(n.command_id), i !== this.#g) return;
+					if (this.#h.delete(n.command_id), a !== this.#g) return;
 					this.#_ = !0, this.#P({
 						type: S,
 						closed: !0
 					});
-				} else a(e);
-			}, s, { resubscribe: !1 }));
+				} else o(e);
+			}, c, { resubscribe: !1 }));
 			this.#h.set(n.command_id, e), e.catch(() => {
-				this.#h.get(n.command_id) === e && this.#h.delete(n.command_id), o();
+				this.#h.get(n.command_id) === e && this.#h.delete(n.command_id), s();
 			});
-		} else Promise.resolve().then(() => this.#t.callWS(s)).then(a, o);
+		} else Promise.resolve().then(() => this.#t.callWS(c)).then(o, s);
 	}
 	#L() {
 		let e = this.shadowRoot, t = this.#t?.language;

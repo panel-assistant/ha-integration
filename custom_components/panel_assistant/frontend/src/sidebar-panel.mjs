@@ -481,9 +481,15 @@ export class PanelAssistantSidebar extends HTMLElement {
     const source = this.shadowRoot.querySelector('#frame').contentWindow;
     const request = event.data?.frame;
     const session = this.#session;
-    if (!source || event.source !== source || event.data?.type !== RELAY_TYPE || !request || typeof request !== 'object') return;
+    if (!source || event.data?.type !== RELAY_TYPE || !request || typeof request !== 'object') return;
+    // A page the frame is leaving ends its subscriptions as it goes, and by the time they arrive the browser
+    // names no source for them. Only those are taken from a gone page of this origin: they can end nothing but
+    // this sidebar's own subscriptions, and left unread they would hold the panel's subscriptions until the
+    // panel refuses new ones.
+    const leaving = event.source === null && event.origin === location.origin && request.op === 'unsubscribe';
+    if (event.source !== source && !leaving) return;
     const generation = this.#relayGeneration;
-    const post = frame => { if (generation === this.#relayGeneration) this.#postToFrame({ type: RELAY_TYPE, frame }); };
+    const post = frame => { if (!leaving && generation === this.#relayGeneration) this.#postToFrame({ type: RELAY_TYPE, frame }); };
     const failed = () => post({ command_id: request.command_id, outcome: 'failed', code: 'failed' });
     if (session?.state !== 'open') { failed(); return; }
     const message = { type: 'panel_assistant/ui', entry_id: session.entryId, request };
