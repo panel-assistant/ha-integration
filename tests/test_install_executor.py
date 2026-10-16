@@ -969,6 +969,8 @@ async def test_pin_drift_during_health_check_never_reports_healthy(
 
     completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
 
+    # Whatever answers at the moved address is never asked or told anything.
+    assert "health" not in harness.events
     assert completed.phase is InstallPhase.RECOVERY_REQUIRED
     assert completed.result_code is InstallResultCode.VERIFICATION_REQUIRED
     assert completed.result_subcode == "network:pinned_target_removed"
