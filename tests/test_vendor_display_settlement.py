@@ -93,7 +93,8 @@ def _run(state: Path, mode: str) -> tuple[list[str], list[str]]:
         check=True,
         text=True,
         capture_output=True,
-        timeout=5,
+        # The fake clock bounds every loop; only a real hang reaches this.
+        timeout=60,
         env={"PATH": os.environ["PATH"], "STATE": str(state), "MODE": mode},
     ).stdout.splitlines()
     assert output[0] == f"HAPANELD_VENDOR_DISPLAY_SETTLEMENT_BEGIN:{_NONCE}"

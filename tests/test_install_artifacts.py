@@ -664,7 +664,8 @@ async def test_overall_timeout_cleans_partial(
             fake_hass,
             FakeSession([_FakeResponse(content=content)]),
         ),
-        timeout=1,
+        # Only a hang reaches this bound; a loaded runner can take over 1 s to clean up.
+        timeout=30,
     )
 
     assert content.started.is_set()
