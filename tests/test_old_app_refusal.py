@@ -103,19 +103,6 @@ async def test_a_configured_old_app_panel_gets_the_refusal_not_the_move(
     assert _issues(hass, entry.entry_id) == set()
 
 
-async def test_a_move_already_started_is_still_finished(
-    hass: HomeAssistant, hass_read_only_user: Any
-) -> None:
-    """A panel caught half-way through a move keeps its move, not the refusal."""
-    entry = _entry(
-        hass, hass_read_only_user.id, data={"successor_move": {"panel_id": "alpha"}}
-    )
-
-    await _set_up(hass, entry, replace(CURRENT, package=LEGACY_PACKAGE_ID))
-
-    assert _issues(hass, entry.entry_id) == {f"move_to_new_app_{entry.entry_id}"}
-
-
 async def test_updating_an_old_app_panel_installs_nothing(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
@@ -146,16 +133,12 @@ async def test_updating_an_old_app_panel_installs_nothing(
 async def test_adding_a_moving_panel_again_still_repairs_its_address(
     hass: HomeAssistant,
 ) -> None:
-    """A panel whose move already started is the owner's, not a new old app."""
+    """A panel the owner already has is moved to its new address, not refused."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="alpha",
         unique_id=DISCOVERY_ID,
-        data={
-            CONF_ADDRESS: "192.168.1.50",
-            "installation_identity": True,
-            "successor_move": {"panel_id": "alpha"},
-        },
+        data={CONF_ADDRESS: "192.168.1.50", "installation_identity": True},
     )
     entry.add_to_hass(hass)
     with patch(

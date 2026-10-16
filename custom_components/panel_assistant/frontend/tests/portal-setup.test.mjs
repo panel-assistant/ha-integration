@@ -5,8 +5,8 @@ import {mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync} from 'node
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createUsbTransactionPorts} from '../src/usb-transaction-ports.mjs';
-import {ACCESSIBILITY_COMPONENTS, LAUNCH_COMPONENTS, LEGACY_LAUNCH_COMPONENT,
-  SUCCESSOR_PACKAGE_ID} from '../src/app-identity.mjs';
+import {ACCESSIBILITY_COMPONENTS, LAUNCH_COMPONENTS, PACKAGE_ID,
+  homeComponentFor} from '../src/app-identity.mjs';
 import {CHOOSER_DUMP} from '../src/home-chooser.mjs';
 import {META_CONTROL_CENTER, META_RESTORE_RECORD, META_SCREENSAVER_COMPONENTS,
   META_SCREENSAVER_DEFAULT_COMPONENT, META_VERIFIER_RECORD, SHELLY_LAUNCHER, SHELLY_RESTORE_RECORD} from '../src/vendor-provisioning.mjs';
@@ -61,12 +61,15 @@ input() {
 uiautomator() { if [ -f "$STATE/chooser.shown" ]; then cp "$STATE/chooser.xml" "$2"; fi; }
 `;
 // The chooser a Portal showed on 2026-10-11 after set-home-activity, Always at
-// [772,601][862,646]; the build under test is labelled ha-paneld.
+// [772,601][862,646]; the build under test, whose classes are still in the old
+// package, is labelled ha-paneld as builds up to 0.9.11 are.
 const CHOOSER = readFileSync(new URL('../../../../tests/fixtures/portal_home_chooser.xml', import.meta.url), 'utf8')
   .replaceAll('Panel Assistant', 'ha-paneld');
+const OLD_CLASSES = LAUNCH_COMPONENTS[PACKAGE_ID][0];
+const HOME = homeComponentFor(OLD_CLASSES);
 
 function panel({portal = false, shelly = false, microphone = true, camera = false,
-  launchComponent = LEGACY_LAUNCH_COMPONENT} = {}) {
+  launchComponent = OLD_CLASSES} = {}) {
   const state = mkdtempSync(join(tmpdir(), 'portal-setup-'));
   if (microphone) writeFileSync(join(state, 'microphone'), '');
   // A version suffix, as `pm list features` prints some features.
@@ -139,8 +142,8 @@ test('every USB install makes the app HOME and grants the microphone, with no Me
     assert.equal(result.home, true);
     assert.equal(result.microphone, 'granted');
     assert.equal(result.vendor, undefined);
-    assert.equal(p.read('home'), 'io.github.maxlyth.hapaneld/.DashboardActivity');
-    assert.ok(p.calls().includes('pm grant io.github.maxlyth.hapaneld android.permission.RECORD_AUDIO'));
+    assert.equal(p.read('home'), HOME);
+    assert.ok(p.calls().includes('pm grant io.panelassistant.android android.permission.RECORD_AUDIO'));
     assert.ok(!p.calls().some(call => /screensaver|alohaapps|stargate/.test(call)));
   } finally { p.cleanup(); }
 });
@@ -196,7 +199,7 @@ test('a feature list Android fails to give grants neither permission and reads u
 });
 
 test('a new-classes build replaces the successor service its own update retired, keeping other apps\' services', async () => {
-  const [retiredLaunch, launchComponent] = LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID];
+  const [retiredLaunch, launchComponent] = LAUNCH_COMPONENTS[PACKAGE_ID];
   const other = 'com.example.reader/.ReaderService';
   const p = panel({launchComponent});
   writeFileSync(join(p.state, 'enabled_accessibility_services'),
@@ -248,7 +251,7 @@ function chooserPanel(chooser = CHOOSER) {
   writeFileSync(join(p.state, 'refuse.home'), '');
   writeFileSync(join(p.state, 'chooser.xml'), chooser);
   writeFileSync(join(p.state, 'chooser.tap'), '817 623\n');
-  writeFileSync(join(p.state, 'chooser.home'), 'io.github.maxlyth.hapaneld/.DashboardActivity\n');
+  writeFileSync(join(p.state, 'chooser.home'), `${HOME}\n`);
   return p;
 }
 
@@ -258,7 +261,7 @@ test('a chooser offering the app has its Always pressed, once', async () => {
     const result = await p.commission();
     assert.equal(result.home, true);
     assert.equal(result.homeChooser, 'tapped');
-    assert.equal(p.read('home'), 'io.github.maxlyth.hapaneld/.DashboardActivity');
+    assert.equal(p.read('home'), HOME);
     const calls = p.calls();
     assert.ok(calls.indexOf('input keyevent 3') < calls.indexOf('input tap 817 623'));
     assert.ok(!calls.includes('input keyevent 4'));

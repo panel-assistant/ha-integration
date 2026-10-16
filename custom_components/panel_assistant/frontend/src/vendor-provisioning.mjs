@@ -1,4 +1,4 @@
-import { LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID } from './app-identity.mjs';
+import { PACKAGE_ID } from './app-identity.mjs';
 
 // Panel Assistant's custom support on the USB install path, sent exactly as
 // vendor_provisioning.py sends it; that module lists the panels that use it and
@@ -266,7 +266,7 @@ hp_settle_vendor_display() {
 `.trim();
 
 export function buildVendorDisplaySettlement(nonce, packageId) {
-  if (!/^[a-f0-9]{32}$/.test(nonce) || ![LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID].includes(packageId)) fail();
+  if (!/^[a-f0-9]{32}$/.test(nonce) || packageId !== PACKAGE_ID) fail();
   return [
     `echo HAPANELD_VENDOR_DISPLAY_SETTLEMENT_BEGIN:${nonce}`,
     DISPLAY_SETTLEMENT_PROGRAM.replaceAll('__HOME_PACKAGE__', packageId),

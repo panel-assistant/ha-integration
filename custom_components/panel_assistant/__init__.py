@@ -54,11 +54,6 @@ from .install_executor import (
 )
 from .lifecycle import async_setup_lifecycle
 from .native import CONF_NATIVE_ENTITIES, NATIVE_ONLY_PLATFORMS
-from .panel_move import (
-    async_evaluate_successor_move,
-    async_recover_moved_identity,
-    async_restore_move_offer,
-)
 from .removed_panels import (
     async_forget_removed_panel,
     async_load_removed_panels,
@@ -68,6 +63,7 @@ from .repairs_microphone import async_delete_microphone_issue
 from .repairs_restart import async_setup_restart_check
 from .repairs_upgrade import (
     async_evaluate_app_too_old,
+    async_evaluate_old_app,
     async_raise_needs_090,
     needs_090,
     needs_090_issue_id,
@@ -216,9 +212,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     from .identity import reconcile_identity
 
     await _async_resume_install_jobs(hass)
-    # A finished move may have left its new identity saved in the entity
-    # registry only; adopt it before anything compares identities.
-    await async_recover_moved_identity(hass, entry)
     address = normalize_address(entry.data[CONF_ADDRESS])
     client = HaPaneldClient(async_get_clientsession(hass), address)
     coordinator = HaPaneldDataUpdateCoordinator(hass, client, entry.entry_id)
@@ -315,15 +308,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     if satellite_known(hass, entry):
         await async_load_voice(hass, entry, platforms)
     runtime_data.voice_setup = async_follow_voice(hass, entry, platforms)
-    # A panel still on the old app id is offered the move to the new app.
-    await async_restore_move_offer(hass, entry)
-    async_evaluate_successor_move(hass, entry)
+    # A panel still on the old app id is told to install 0.9.0 first.
+    async_evaluate_old_app(hass, entry)
     entry.async_on_unload(
-        coordinator.async_add_listener(
-            lambda: async_evaluate_successor_move(hass, entry)
-        )
+        coordinator.async_add_listener(lambda: async_evaluate_old_app(hass, entry))
     )
-    # After the move offer, which stands in for this when both apply.
+    # After the old-app refusal, which stands in for this when both apply.
     async_evaluate_app_too_old(hass, entry)
     entry.async_on_unload(
         coordinator.async_add_listener(lambda: async_evaluate_app_too_old(hass, entry))

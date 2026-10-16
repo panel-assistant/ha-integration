@@ -18,7 +18,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.panel_assistant.app_identity import SUCCESSOR_PACKAGE_ID
+from custom_components.panel_assistant.app_identity import PACKAGE_ID
 from custom_components.panel_assistant.client import CannotConnectError, PanelHealth
 from custom_components.panel_assistant.const import (
     CONF_CUTOVER,
@@ -28,9 +28,7 @@ from custom_components.panel_assistant.const import (
 
 from .test_transport import DID, HEALTH, STATUS, WsClientFactory, _hello, _send
 
-CURRENT = replace(
-    HEALTH, version="1.0.0", package=SUCCESSOR_PACKAGE_ID, protocol=(5, 5)
-)
+CURRENT = replace(HEALTH, version="1.0.0", package=PACKAGE_ID, protocol=(5, 5))
 # A 0.9.11 app, already on the new app id: its health line carries no protocol.
 OLDER_APP = replace(CURRENT, version="0.9.11", protocol=None)
 

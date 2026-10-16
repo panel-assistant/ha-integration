@@ -87,7 +87,7 @@ async def test_retry_keeps_selected_stable_when_newer_default_exists(
         release_tag="v0.9.8",
         version_name="0.9.8",
         version_code=ARTIFACT.version_code + 1,
-        apk_name="ha-paneld-v0.9.8-manual-setup-required.apk",
+        apk_name="panel-assistant-v0.9.8-manual-setup-required.apk",
         apk_sha256="c" * 64,
     )
     newer_default = replace(
@@ -213,8 +213,8 @@ async def test_retry_keeps_the_exact_signed_feed_build(hass: HomeAssistant) -> N
         database_compatibility="hapaneld-db:v1:ha-paneld.db:1:1",
         min_sdk=26,
         published="2026-09-28T00:00:00Z",
-        package_id="io.github.maxlyth.hapaneld",
-        launch_component=LAUNCH_COMPONENTS["io.github.maxlyth.hapaneld"][0],
+        package_id="io.panelassistant.android",
+        launch_component=LAUNCH_COMPONENTS["io.panelassistant.android"][0],
         protocol_min=5,
         protocol_max=5,
     )
@@ -273,7 +273,7 @@ async def test_retry_preserves_explicit_consent_and_rechecks_running_pa_channel(
         RELEASE.descriptor,
         release_tag="v0.9.7-rc3",
         version_name="0.9.7-rc3",
-        apk_name="ha-paneld-v0.9.7-rc3-manual-setup-required.apk",
+        apk_name="panel-assistant-v0.9.7-rc3-manual-setup-required.apk",
     )
     release = replace(
         RELEASE,

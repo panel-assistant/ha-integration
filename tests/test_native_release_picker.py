@@ -257,7 +257,7 @@ async def test_network_setup_offers_and_installs_a_feed_build(
         result = await flow.async_step_choose_version({"release_candidate": "stable"})
     assert result["step_id"] == "confirm_install_candidate"
     assert flow._pending_release is not None
-    assert flow._pending_release.tag == "build-772"
+    assert flow._pending_release.tag == "build-772-successor"
     assert flow._pending_rc_tag is None
     mocks["credential"].assert_not_awaited()
     manager.async_create_or_join.assert_not_awaited()

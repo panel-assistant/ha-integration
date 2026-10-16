@@ -118,6 +118,11 @@ class _PanelDevice(FakeDevice):
             )
 
 
+#: The HOME activity of the build under test, whose classes are in the old
+#: namespace.
+_DASHBOARD = "io.panelassistant.android/io.github.maxlyth.hapaneld.DashboardActivity"
+
+
 def _portal(state: Path, *, components: str = _META_COMPONENTS) -> None:
     """A Portal as Meta ships it: both dreams set, the swipe-up bar allowed."""
     (state / "prop.ro.product.device").write_text("omni\n")
@@ -167,14 +172,9 @@ async def test_any_panel_is_given_the_app_as_home_and_no_meta_setup(
     fake = await _launch(monkeypatch, signer, target, descriptor, tmp_path)
 
     calls = _calls(tmp_path)
-    assert (
-        "cmd package set-home-activity io.github.maxlyth.hapaneld/.DashboardActivity"
-        in calls
-    )
-    assert _value(tmp_path, "home") == "io.github.maxlyth.hapaneld/.DashboardActivity"
-    assert (
-        "pm grant io.github.maxlyth.hapaneld android.permission.RECORD_AUDIO" in calls
-    )
+    assert f"cmd package set-home-activity {_DASHBOARD}" in calls
+    assert _value(tmp_path, "home") == _DASHBOARD
+    assert "pm grant io.panelassistant.android android.permission.RECORD_AUDIO" in calls
     assert not any("HAPANELD_VENDOR" in command for command in fake.commands)
     assert not any("screensaver" in call or _CONTROL_CENTER in call for call in calls)
     assert _HOME_WARNING not in caplog.text
@@ -195,11 +195,11 @@ async def test_a_portal_gets_the_four_steps_read_back_and_recorded(
 
     fake = await _launch(monkeypatch, signer, target, descriptor, tmp_path)
 
-    assert _value(tmp_path, "home") == "io.github.maxlyth.hapaneld/.DashboardActivity"
+    assert _value(tmp_path, "home") == _DASHBOARD
     assert (
         _value(
             tmp_path,
-            "permission.io.github.maxlyth.hapaneld.android.permission.RECORD_AUDIO",
+            "permission.io.panelassistant.android.android.permission.RECORD_AUDIO",
         )
         == "true"
     )
@@ -267,10 +267,8 @@ async def test_an_update_that_dropped_home_has_it_claimed_again(
         target, signer, descriptor, expected_root_mode=AdbRootMode.ROOTLESS
     )
 
-    assert _calls(tmp_path)[0] == (
-        "cmd package set-home-activity io.github.maxlyth.hapaneld/.DashboardActivity"
-    )
-    assert _value(tmp_path, "home") == "io.github.maxlyth.hapaneld/.DashboardActivity"
+    assert _calls(tmp_path)[0] == f"cmd package set-home-activity {_DASHBOARD}"
+    assert _value(tmp_path, "home") == _DASHBOARD
 
 
 async def test_a_home_android_does_not_keep_is_reported_and_the_app_still_starts(
@@ -540,7 +538,6 @@ async def test_hand_back_that_cannot_restore_the_bar_reports_it_and_keeps_the_re
     assert (tmp_path / "restore-record").exists()
 
 
-_DASHBOARD = "io.github.maxlyth.hapaneld/.DashboardActivity"
 #: The chooser a Portal showed on 2026-10-11 after set-home-activity, Always
 #: at [772,601][862,646]; the build under test is labelled ha-paneld.
 _CHOOSER = (
@@ -931,6 +928,6 @@ async def test_an_unreadable_vendor_probe_is_reported_and_runs_no_vendor_setup(
     assert [
         record.levelno
         for record in caplog.records
-        if "did not grant io.github.maxlyth.hapaneld every permission it needs"
+        if "did not grant io.panelassistant.android every permission it needs"
         in record.getMessage()
     ] == [logging.WARNING]

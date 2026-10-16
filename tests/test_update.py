@@ -13,7 +13,7 @@ from homeassistant.exceptions import HomeAssistantError
 from custom_components.panel_assistant import update as panel_update
 from custom_components.panel_assistant import update_progress, update_route
 from custom_components.panel_assistant.adb_credentials import AdbCredentialError
-from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
+from custom_components.panel_assistant.app_identity import PACKAGE_ID
 from custom_components.panel_assistant.client import (
     CannotConnectError,
     PanelHealth,
@@ -41,6 +41,7 @@ HEALTH = PanelHealth(
     panel_id="alpha",
     build="1000",
     config_hash="1a2b3c4d",
+    package=PACKAGE_ID,
     protocol=(5, 5),
 )
 
@@ -93,6 +94,7 @@ def _entity(
             panel_id=HEALTH.panel_id,
             build=HEALTH.build,
             config_hash=HEALTH.config_hash,
+            package=HEALTH.package,
             protocol=(5, 5),
         ),
         status=PanelStatus(
@@ -110,12 +112,12 @@ def _entity(
         "app.apk",
         "https://github.com/app.apk",
         "a" * 64,
-        descriptor=SimpleNamespace(package_id=LEGACY_PACKAGE_ID, version_code=1100),
+        descriptor=SimpleNamespace(package_id=PACKAGE_ID, version_code=1100),
         protocol_min=5,
         protocol_max=5,
     )
     host = StableReleaseCoordinator(hass)
-    host._candidates[artifact.tag, LEGACY_PACKAGE_ID] = artifact
+    host._candidates[artifact.tag, PACKAGE_ID] = artifact
     entity = HaPaneldUpdateEntity("entry-id", health, updates, release=host)
     # These tests exercise the admitted panel-download route and its observer;
     # signed LAN staging and backup execution are exercised in the LAN suite.
@@ -315,7 +317,7 @@ async def test_matching_update_health_requires_ready_home_proof(
             panel_id="alpha",
             build="1001",
             config_hash="1a2b3c4d",
-            package="io.panelassistant.android",
+            package=PACKAGE_ID,
             protocol=(5, 5),
         ),
         status=PanelStatus(warning_count=0, capability_count=0),
@@ -427,7 +429,7 @@ async def test_unstarted_panel_download_retry_rechecks_current_consent(
     entry.add_to_hass(hass)
     entity, client = _entity(hass)
     artifact = replace(
-        entity._offer.release.artifact_for(LEGACY_PACKAGE_ID),
+        entity._offer.release.artifact_for(PACKAGE_ID),
         tag="v0.9.10-rc1",
         version="0.9.10-rc1",
     )

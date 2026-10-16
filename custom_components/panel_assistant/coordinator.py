@@ -27,7 +27,6 @@ from .address import (
     async_raise_address_issue,
     session_candidates,
 )
-from .app_identity import LEGACY_PACKAGE_ID
 from .client import (
     CannotConnectError,
     HaPaneldClient,
@@ -416,7 +415,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         feed = async_get_feed_coordinator(self.hass)
         current = (
             feed.verified_newest(
-                health.package or LEGACY_PACKAGE_ID,
+                health.package,
                 allow_prerelease=prereleases_allowed(self._entry()),
             )
             if feed is not None and feed.last_update_success and feed.data is not None

@@ -62,14 +62,6 @@ def _update_error(translation_key: str, fallback: str) -> HomeAssistantError:
     )
 
 
-def _bridge_not_ready(error: Exception | None) -> bool:
-    """The bridge cannot hand over yet: not a fault, and nothing for the owner to do."""
-    return (
-        isinstance(error, HomeAssistantError)
-        and error.translation_key == "bridge_not_ready"
-    )
-
-
 def _verification_error(artifact: ReleaseArtifact) -> HomeAssistantError:
     """Name what failed to verify: a feed build, or a GitHub release."""
     if is_feed_build_tag(artifact.tag):

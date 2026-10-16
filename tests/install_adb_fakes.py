@@ -55,17 +55,19 @@ def descriptor() -> InstallDescriptor:
         release_tag="v0.9.7",
         version_name="0.9.7",
         version_code=678,
-        apk_name="ha-paneld-v0.9.7-manual-setup-required.apk",
+        apk_name="panel-assistant-v0.9.7-manual-setup-required.apk",
         apk_size=len(APK_BYTES),
         apk_sha256=APK_SHA256,
-        package_id="io.github.maxlyth.hapaneld",
+        package_id="io.panelassistant.android",
         signer_certificate_sha256=(
             "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
         ),
         min_sdk=26,
         supported_abis=("arm64-v8a", "armeabi-v7a"),
         database_compatibility="hapaneld-db:v1:ha-paneld.db:1:14",
-        launch_component="io.github.maxlyth.hapaneld/.MainActivity",
+        launch_component=(
+            "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity"
+        ),
     )
 
 
@@ -250,7 +252,7 @@ _ACCESSIBILITY_SERVICES = {
 
 
 def _permissions_output(
-    nonce: str, package_id: str = "io.github.maxlyth.hapaneld"
+    nonce: str, package_id: str = "io.panelassistant.android"
 ) -> bytes:
     """A fresh panel's readback after every grant took."""
     return _single_output(

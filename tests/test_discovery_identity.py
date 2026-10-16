@@ -23,7 +23,7 @@ from custom_components.panel_assistant.identity import (
     CONF_INSTALL_IDENTITY,
     CONF_LEGACY_DID,
 )
-from custom_components.panel_assistant.panel_move import (
+from custom_components.panel_assistant.panel_operations import (
     claim_panel_operation,
     release_panel_operation,
 )

@@ -11,7 +11,7 @@ aJpQsDUJoX42xsRvA1hkRCpnWdEs1Bwfyv0ztlOxj7MxeFrFxWc3mnUyGhsn6rCT
 O+ygQ2m7FHp3D5t1+wFIendluEzUC+y9MpUHmoyq/lFrVuA8EOiy1U+z7Lr1vBWf
 LQIDAQAB`;
 import {
-  BUILD_FEED_SCHEMAS, INSTALL_DESCRIPTOR_SCHEMAS, isAcceptedPackageId, isLaunchComponent,
+  BUILD_FEED_SCHEMAS, INSTALL_DESCRIPTOR_SCHEMAS, PACKAGE_ID, isLaunchComponent,
 } from './app-identity.mjs';
 
 const SIGNER = 'ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339';
@@ -92,7 +92,7 @@ export function parseUnauthenticatedDescriptor(body, { tag, apkSha256 }) {
     requireValid(record(d));
     requireValid(JSON.stringify(Object.keys(d).sort()) === JSON.stringify(FIELDS));
     requireValid(INSTALL_DESCRIPTOR_SCHEMAS.includes(d.schema) && descriptorIdentityValid(d, tag, apkSha256) &&
-      d.apkSha256 === apkSha256 && isAcceptedPackageId(d.packageId) &&
+      d.apkSha256 === apkSha256 && d.packageId === PACKAGE_ID &&
       d.signerCertificateSha256 === SIGNER &&
       isLaunchComponent(d.packageId, d.launchComponent));
     requireValid(integer(d.apkSize, 64 * 1024 * 1024) &&
@@ -127,7 +127,7 @@ function feedBuild(entry) {
     entry.signerCertificateSha256 === SIGNER &&
     supportedAbis(entry.supportedAbis));
   // Authentic metadata can describe a build this reader cannot install.
-  if (!isAcceptedPackageId(entry.packageId) ||
+  if (entry.packageId !== PACKAGE_ID ||
       !isLaunchComponent(entry.packageId, entry.launchComponent)) return null;
   return entry;
 }
@@ -181,7 +181,7 @@ async function verifyGithubBundle(bundle, expectedRcTag, verificationKey) {
   const hash = line.slice(0, 64);
   requireValid(fullMatch(HASH, hash));
   // The signed checksum names the one APK the signed descriptor names: its
-  // apkName is already bound to this tag, either identity's asset name.
+  // apkName is already bound to this tag, this app's asset name.
   const authenticated = parseUnauthenticatedDescriptor(descriptor, { tag, apkSha256: hash });
   requireValid(line === `${hash}  ${authenticated.apkName}\n`);
   return authenticated;

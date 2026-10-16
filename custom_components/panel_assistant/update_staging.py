@@ -24,7 +24,7 @@ from .adb_protocol import (
     InstallOutcome,
     LaunchOutcome,
 )
-from .app_identity import LEGACY_PACKAGE_ID, reports_package
+from .app_identity import reports_package
 from .build_feed import BuildDownloadError, BuildFeedError, async_download_build
 from .client import (
     CannotConnectError,
@@ -120,14 +120,15 @@ class BuildDelivery:
         route = ROUTE_SESSION if self.session else ROUTE_STAGED
         snapshot: PanelSnapshot | None = self._coordinator.data
         descriptor = artifact.descriptor
-        package_id = descriptor.package_id if descriptor else LEGACY_PACKAGE_ID
-        if snapshot is None:
+        if snapshot is None or descriptor is None:
             # Nothing has been read from the panel, so there is no build to
-            # replace and none to prove the replacement against.
+            # replace and none to prove the replacement against; a release
+            # without its signed descriptor names no app to prove.
             raise _update_error(
                 "update_unavailable",
                 "The requested Panel Assistant update is unavailable",
             )
+        package_id = descriptor.package_id
         if not reports_package(snapshot.health.package, package_id):
             raise _update_error(
                 "panel_changed_during_update",

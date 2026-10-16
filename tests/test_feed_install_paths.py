@@ -20,7 +20,7 @@ from custom_components.panel_assistant import (
 from custom_components.panel_assistant.app_identity import (
     LAUNCH_COMPONENTS,
     LEGACY_PACKAGE_ID,
-    SUCCESSOR_PACKAGE_ID,
+    PACKAGE_ID,
 )
 from custom_components.panel_assistant.build_feed import (
     BuildFeed,
@@ -47,9 +47,7 @@ FEED_URL = URL("https://builds.example/maintainer.json")
 SHA = hashlib.sha256(b"772").hexdigest()
 
 
-def _build(
-    code: int = 772, sha: str = SHA, package_id: str = LEGACY_PACKAGE_ID
-) -> FeedBuild:
+def _build(code: int = 772, sha: str = SHA, package_id: str = PACKAGE_ID) -> FeedBuild:
     return FeedBuild(
         version_code=code,
         version_name="0.9.7-rc4",
@@ -86,18 +84,37 @@ def test_identity_rule_binds_each_kind_of_artifact() -> None:
         "v0.9.7-rc3",
         "0.9.7-rc3",
         707,
-        "ha-paneld-v0.9.7-rc3-manual-setup-required.apk",
+        "panel-assistant-v0.9.7-rc3-manual-setup-required.apk",
         SHA,
     )
-    assert artifact_identity_matches("build-772", "0.9.7-rc4", 772, f"{SHA}.apk", SHA)
+    # A receipt an earlier release stored about the old app still reads back.
+    assert artifact_identity_matches(
+        "v0.9.7-rc3",
+        "0.9.7-rc3",
+        707,
+        "ha-paneld-v0.9.7-rc3-manual-setup-required.apk",
+        SHA,
+        LEGACY_PACKAGE_ID,
+    )
+    assert artifact_identity_matches(
+        "build-772-successor", "0.9.7-rc4", 772, f"{SHA}.apk", SHA
+    )
     for tag, name, code, apk in (
-        ("build-772", "0.9.7-rc4", 771, f"{SHA}.apk"),  # code is not the tag's
-        ("build-772", "0.9.7-rc4", 772, "other.apk"),  # not content-addressed
-        ("build-772", "bad name!", 772, f"{SHA}.apk"),
-        ("build-0772", "0.9.7-rc4", 772, f"{SHA}.apk"),
+        ("build-772-successor", "0.9.7-rc4", 771, f"{SHA}.apk"),  # not the tag's
+        ("build-772-successor", "0.9.7-rc4", 772, "other.apk"),  # not addressed
+        ("build-772-successor", "bad name!", 772, f"{SHA}.apk"),
+        ("build-0772-successor", "0.9.7-rc4", 772, f"{SHA}.apk"),
+        ("build-772", "0.9.7-rc4", 772, f"{SHA}.apk"),  # the old app's tag
         (
             "v0.9.7-rc3",
             "0.9.7-rc4",
+            707,
+            "panel-assistant-v0.9.7-rc3-manual-setup-required.apk",
+        ),
+        # The old app's name does not bind an artifact of the app.
+        (
+            "v0.9.7-rc3",
+            "0.9.7-rc3",
             707,
             "ha-paneld-v0.9.7-rc3-manual-setup-required.apk",
         ),
@@ -119,17 +136,14 @@ async def test_both_paths_list_newest_compatible_versions_first(
         "async_resolve_update_candidates",
         AsyncMock(
             return_value=[
-                (
-                    SimpleNamespace(
-                        artifact=SimpleNamespace(
-                            tag=choice["tag"],
-                            version=choice["tag"][1:],
-                            protocol_min=5,
-                            protocol_max=5,
-                            descriptor=SimpleNamespace(version_code=770),
-                        )
-                    ),
-                    None,
+                SimpleNamespace(
+                    artifact=SimpleNamespace(
+                        tag=choice["tag"],
+                        version=choice["tag"][1:],
+                        protocol_min=5,
+                        protocol_max=5,
+                        descriptor=SimpleNamespace(version_code=770),
+                    )
                 )
                 for choice in github
             ]
@@ -137,30 +151,34 @@ async def test_both_paths_list_newest_compatible_versions_first(
     ):
         choices = await release_catalog.async_list_install_choices(hass)
     assert choices == [
-        {"tag": "build-772", "prerelease": True, "name": "0.9.7-rc4 build 772"},
+        {
+            "tag": "build-772-successor",
+            "prerelease": True,
+            "name": "0.9.7-rc4 build 772",
+        },
     ]
 
 
-async def test_catalog_resolves_each_app_at_the_same_build_number(
+async def test_catalog_resolves_only_the_apps_build_tag(
     hass: HomeAssistant,
 ) -> None:
-    successor = _build(
-        772, hashlib.sha256(b"successor").hexdigest(), SUCCESSOR_PACKAGE_ID
-    )
-    _install_feed(hass, _build(772), successor)
+    """A bare build tag names an old-app build, which is never resolved."""
+    _install_feed(hass, _build(772))
     with patch.object(
         release_catalog, "async_resolve_update_candidates", AsyncMock(return_value=[])
     ):
         choices = await release_catalog.async_list_install_choices(hass)
-        assert [choice["tag"] for choice in choices] == ["build-772"]
+        assert [choice["tag"] for choice in choices] == ["build-772-successor"]
         assert (
             await release_catalog.async_resolve_install_choice(hass, None)
         ).tag == choices[0]["tag"]
     artifact = await release_catalog.async_resolve_install_choice(
         hass, "build-772-successor"
     )
-    assert artifact.descriptor.package_id == SUCCESSOR_PACKAGE_ID
-    assert artifact.sha256 == successor.apk_sha256
+    assert artifact.descriptor.package_id == PACKAGE_ID
+    assert artifact.sha256 == SHA
+    with pytest.raises(ReleaseResolutionError):
+        await release_catalog.async_resolve_install_choice(hass, "build-772")
 
 
 async def test_github_outage_still_offers_feed_builds_but_not_nothing(
@@ -172,7 +190,7 @@ async def test_github_outage_still_offers_feed_builds_but_not_nothing(
             await release_catalog.async_list_install_choices(hass)
         _install_feed(hass, _build())
         choices = await release_catalog.async_list_install_choices(hass)
-    assert [choice["tag"] for choice in choices] == ["build-772"]
+    assert [choice["tag"] for choice in choices] == ["build-772-successor"]
 
 
 async def test_without_a_feed_the_list_is_github_only(hass: HomeAssistant) -> None:
@@ -182,17 +200,14 @@ async def test_without_a_feed_the_list_is_github_only(hass: HomeAssistant) -> No
         "async_resolve_update_candidates",
         AsyncMock(
             return_value=[
-                (
-                    SimpleNamespace(
-                        artifact=SimpleNamespace(
-                            tag=choice["tag"],
-                            version=choice["tag"][1:],
-                            protocol_min=5,
-                            protocol_max=5,
-                            descriptor=SimpleNamespace(version_code=770),
-                        )
-                    ),
-                    None,
+                SimpleNamespace(
+                    artifact=SimpleNamespace(
+                        tag=choice["tag"],
+                        version=choice["tag"][1:],
+                        protocol_min=5,
+                        protocol_max=5,
+                        descriptor=SimpleNamespace(version_code=770),
+                    )
                 )
                 for choice in github
             ]
@@ -203,15 +218,17 @@ async def test_without_a_feed_the_list_is_github_only(hass: HomeAssistant) -> No
 
 async def test_one_resolver_names_the_exact_feed_build(hass: HomeAssistant) -> None:
     coordinator = _install_feed(hass, _build())
-    artifact = await release_catalog.async_resolve_install_choice(hass, "build-772")
-    assert artifact.tag == "build-772"
+    artifact = await release_catalog.async_resolve_install_choice(
+        hass, "build-772-successor"
+    )
+    assert artifact.tag == "build-772-successor"
     assert artifact.apk_name == f"{SHA}.apk"
     assert artifact.apk_url == str(FEED_URL.join(URL(f"apks/{SHA}.apk")))
     assert artifact.descriptor is not None
     assert artifact.descriptor.version_code == 772
     coordinator.async_refresh.assert_awaited()  # a fresh read, not a stale list
     with pytest.raises(ReleaseResolutionError):
-        await release_catalog.async_resolve_install_choice(hass, "build-999")
+        await release_catalog.async_resolve_install_choice(hass, "build-999-successor")
     with pytest.raises(ReleaseResolutionError):
         await release_catalog.async_resolve_install_choice(hass, "latest")
 
@@ -221,12 +238,12 @@ async def test_browser_bundle_carries_the_exact_signed_feed(
 ) -> None:
     _install_feed(hass, _build())
     bundle = await release_catalog.async_resolve_install_bundle_choice(
-        hass, "build-772"
+        hass, "build-772-successor"
     )
     assert isinstance(bundle, FeedInstallBundle)
     assert bundle.feed == b"feed\n"
     assert bundle.feed_signature == b"s" * 256
-    assert bundle.artifact.tag == "build-772"
+    assert bundle.artifact.tag == "build-772-successor"
 
 
 # --- the network path accepts it end to end ----------------------------------------
@@ -234,29 +251,26 @@ async def test_browser_bundle_carries_the_exact_signed_feed(
 
 def test_install_plan_refuses_a_feed_build_when_another_was_chosen() -> None:
     release = feed_release_artifact(_build())
-    artifact = _build_artifact(release, "build-772")
-    assert artifact.release_tag == "build-772"
+    artifact = _build_artifact(release, "build-772-successor")
+    assert artifact.release_tag == "build-772-successor"
     assert artifact.version_code == 772
     # With no choice the recommended signed build is admitted (first install).
-    assert _build_artifact(release, None).release_tag == "build-772"
-    for expected in ("build-771", "v0.9.7-rc3"):
+    assert _build_artifact(release, None).release_tag == "build-772-successor"
+    for expected in ("build-771-successor", "build-772", "v0.9.7-rc3"):
         with pytest.raises(InstallPlanError):
             _build_artifact(release, expected)
 
 
 def test_successor_choice_keeps_its_identity_through_plan_and_receipt() -> None:
-    successor = _build(
-        772, hashlib.sha256(b"successor").hexdigest(), SUCCESSOR_PACKAGE_ID
-    )
-    artifact = _build_artifact(feed_release_artifact(successor), "build-772-successor")
-    assert artifact.package_id == SUCCESSOR_PACKAGE_ID
+    artifact = _build_artifact(feed_release_artifact(_build()), "build-772-successor")
+    assert artifact.package_id == PACKAGE_ID
     assert install_jobs._parse_artifact(asdict(artifact)) == artifact
     with pytest.raises(install_jobs.InstallJobStoreError):
         install_jobs._parse_artifact(asdict(artifact) | {"release_tag": "build-772"})
 
 
 def test_a_feed_build_survives_the_durable_receipt() -> None:
-    artifact = _build_artifact(feed_release_artifact(_build()), "build-772")
+    artifact = _build_artifact(feed_release_artifact(_build()), "build-772-successor")
     parsed = install_jobs._parse_artifact(asdict(artifact))
     assert parsed == artifact
     tampered = asdict(artifact) | {"version_code": 771}
@@ -285,7 +299,7 @@ def test_custody_fetches_only_content_addressed_apks_from_the_feed_host(
 
 
 def test_executor_rebuilds_a_feed_url_and_never_guesses_one() -> None:
-    artifact = _build_artifact(feed_release_artifact(_build()), "build-772")
+    artifact = _build_artifact(feed_release_artifact(_build()), "build-772-successor")
     receipt = SimpleNamespace(artifact=artifact)
     assert install_executor._apk_url(receipt, FEED_URL) == (  # type: ignore[arg-type]
         f"https://builds.example/apks/{SHA}.apk"

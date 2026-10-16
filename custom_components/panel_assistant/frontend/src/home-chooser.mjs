@@ -4,14 +4,14 @@
 // the chooser's Always button, but only when its title names this app. The
 // program leaves what it did in hp_chooser. A test compares this text with the
 // Python one by value.
-import { homeComponentFor, homeComponentsFor } from './app-identity.mjs';
+import { PACKAGE_ID, homeComponentFor, homeComponentsFor } from './app-identity.mjs';
 
 export const HOME_QUERY = 'cmd package resolve-activity --brief ' +
   '-a android.intent.action.MAIN -c android.intent.category.HOME 2>/dev/null | tail -n 1';
-// The app's untranslated app_name by application id.
+// The app's untranslated app_name by application id. Builds up to 0.9.11
+// carry the old label, so both name this app.
 export const APP_LABELS = Object.freeze({
-  'io.github.maxlyth.hapaneld': Object.freeze(['ha-paneld']),
-  'io.panelassistant.android': Object.freeze(['Panel Assistant', 'ha-paneld']),
+  [PACKAGE_ID]: Object.freeze(['Panel Assistant', 'ha-paneld']),
 });
 export const CHOOSER_DUMP = '/data/local/tmp/panel-assistant-home-chooser.xml';
 export const CHOOSER_OUTCOMES = Object.freeze(['kept', 'set', 'tapped', 'other_app', 'no_button', 'other_home']);

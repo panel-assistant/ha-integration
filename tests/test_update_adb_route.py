@@ -34,7 +34,7 @@ from custom_components.panel_assistant.adb_credentials import (
 from custom_components.panel_assistant.adb_protocol import InstallOutcome, LaunchOutcome
 from custom_components.panel_assistant.app_identity import (
     LAUNCH_COMPONENTS,
-    SUCCESSOR_PACKAGE_ID,
+    PACKAGE_ID,
 )
 from custom_components.panel_assistant.build_feed import BuildFeed, FeedBuild
 from custom_components.panel_assistant.client import PanelHealth, normalize_address
@@ -74,7 +74,7 @@ def _backup() -> bytes:
 def _health(
     *,
     panel_id: str = "panel-a",
-    package: str = SUCCESSOR_PACKAGE_ID,
+    package: str = PACKAGE_ID,
     discovery_id: str | None = None,
 ) -> PanelHealth:
     return PanelHealth(
@@ -124,8 +124,8 @@ def route(
         commit="0" * 40,
         database_compatibility="hapaneld-db:v1:ha-paneld.db:11:14",
         min_sdk=26,
-        package_id=SUCCESSOR_PACKAGE_ID,
-        launch_component=LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID][0],
+        package_id=PACKAGE_ID,
+        launch_component=LAUNCH_COMPONENTS[PACKAGE_ID][0],
         published="2026-09-11T10:00:00Z",
         protocol_min=5,
         protocol_max=5,
@@ -637,7 +637,7 @@ async def test_adb_transaction_uses_current_consent_until_command_submission(
     monkeypatch.setattr(hass, "async_add_executor_job", executor)
     build = route.entity._offer.feed.data.builds[0]
     identity = {"model": "model-a", "serial": "serial-a", "sdk": 30}
-    installed = {"successor_retained_lines": [f"package:{SUCCESSOR_PACKAGE_ID}"]}
+    installed = {"successor_retained_lines": [f"package:{PACKAGE_ID}"]}
     remote = {"size": build.apk_size, "sha256": build.apk_sha256}
     outputs = [
         _preflight_output(NONCES[0], **identity, **installed),

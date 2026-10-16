@@ -30,7 +30,7 @@ _RC_API = (
     f"https://api.github.com/repos/panel-assistant/android/releases/tags/{_RC_TAG}"
 )
 _RC_ROOT = f"https://github.com/panel-assistant/android/releases/download/{_RC_TAG}"
-_RC_APK = f"{_RC_ROOT}/ha-paneld-{_RC_TAG}-manual-setup-required.apk"
+_RC_APK = f"{_RC_ROOT}/panel-assistant-{_RC_TAG}-manual-setup-required.apk"
 _RC_DESCRIPTOR = f"{_RC_ROOT}/ha-paneld-{_RC_TAG}-install.json"
 _STABLE_REQUESTS = [
     str(release._LATEST_RELEASE_URL),

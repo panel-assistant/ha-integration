@@ -1,14 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createUsbTransactionPorts} from '../src/usb-transaction-ports.mjs';
-import {LEGACY_LAUNCH_COMPONENT, LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID,
+import {LAUNCH_COMPONENTS, PACKAGE_ID,
   accessibilityComponentFor, homeComponentFor} from '../src/app-identity.mjs';
 
-// App 0.9.10: the new app with its classes moved into its own package.
-const MOVED = 'io.panelassistant.android/io.panelassistant.android.MainActivity';
+// Up to app 0.9.9 the classes stay in the old package; app 0.9.10 moved them
+// into the app's own.
+const [OLD_CLASSES, MOVED] = LAUNCH_COMPONENTS[PACKAGE_ID];
 
 function fixture({badTarget = false, badApk = false, badRead = false, failGrant = false,
-  badVerify = false, rootMode = 'rootless', sdk = 33, launchComponent = LEGACY_LAUNCH_COMPONENT} = {}) {
+  badVerify = false, rootMode = 'rootless', sdk = 33, launchComponent = OLD_CLASSES} = {}) {
   const target = {model: 'Test panel', serial: 'serial', primaryAbi: 'arm64-v8a', androidSdk: sdk,
     rootMode, usbVendorId: 1, usbProductId: 2, usbSerial: 'usb'};
   const artifact = {apkSize: 1234, apkSha256: 'a'.repeat(64),
@@ -108,7 +109,7 @@ test('the launch step grants notifications before the first start from Android 1
     await f.ports.launch({...f.receipt, phase: 'launching'}, f.release);
     const launch = f.commands.find(command => command.includes('HAPANELD_LAUNCH_BEGIN:'));
     assert.ok(launch, 'the launch command ran');
-    const grant = launch.indexOf(`pm grant ${LEGACY_PACKAGE_ID} android.permission.POST_NOTIFICATIONS`);
+    const grant = launch.indexOf(`pm grant ${PACKAGE_ID} android.permission.POST_NOTIFICATIONS`);
     const start = launch.indexOf('am start -W');
     assert.ok(start > 0);
     if (sdk >= 33) assert.ok(grant > 0 && grant < start, `sdk ${sdk}: grant precedes the first start`);
@@ -124,7 +125,7 @@ test('a build whose classes moved package is started and granted by its own clas
     {permissionsVerified: true, notificationsRequired: true, camera: 'granted', microphone: 'granted', secureSettings: 'granted', home: true, homeChooser: 'kept',
       device: 'generic'});
   const launch = f.commands.find(command => command.includes('HAPANELD_LAUNCH_BEGIN:'));
-  assert.ok(launch.includes(`am start -W -n ${MOVED} -p ${SUCCESSOR_PACKAGE_ID};`));
+  assert.ok(launch.includes(`am start -W -n ${MOVED} -p ${PACKAGE_ID};`));
   const grant = f.commands.find(command => command.includes('HAPANELD_PERMISSIONS_GRANT_BEGIN:'));
   assert.ok(grant.includes("settings put secure enabled_accessibility_services 'com.other/.Reader:"
     + "io.panelassistant.android/io.panelassistant.android.input.PanelAccessibilityService'"));

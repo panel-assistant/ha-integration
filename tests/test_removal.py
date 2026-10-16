@@ -32,7 +32,7 @@ from yarl import URL
 from custom_components.panel_assistant import (
     display_provisioning,
     install_adb,
-    panel_move,
+    removal,
     vendor_provisioning,
 )
 from custom_components.panel_assistant.adb_protocol import (
@@ -41,11 +41,12 @@ from custom_components.panel_assistant.adb_protocol import (
 )
 from custom_components.panel_assistant.app_identity import (
     LEGACY_PACKAGE_ID,
-    SUCCESSOR_PACKAGE_ID,
+    PACKAGE_ID,
 )
 from custom_components.panel_assistant.client import PanelAddress
 from custom_components.panel_assistant.const import DOMAIN, help_url
 from custom_components.panel_assistant.install_network import PinnedPanelTarget
+from custom_components.panel_assistant.panel_operations import claim_panel_operation
 from custom_components.panel_assistant.provisioning import (
     InstallTargetProbe,
     InstallTargetState,
@@ -55,7 +56,7 @@ from custom_components.panel_assistant.status import PanelDevice, PanelStatus
 VENDOR_HOME = "com.eWeLinkControlPanel/.HomeActivity"
 FALLBACK_HOME = "com.android.settings/.FallbackHome"
 CHOOSER = "android/com.android.internal.app.ResolverActivity"
-APP_HOME = f"{SUCCESSOR_PACKAGE_ID}/.DashboardActivity"
+APP_HOME = f"{PACKAGE_ID}/.DashboardActivity"
 
 # One shell program stands in for each panel command. Package-manager state is
 # a directory: one empty file per package under installed/, aside/,
@@ -175,7 +176,7 @@ class FakePanel:
         for name in _LISTS:
             (self.state_path / name).mkdir(parents=True)
         (self.state_path / "events").touch()
-        self.set(installed=[SUCCESSOR_PACKAGE_ID], home=APP_HOME, firmware="1.11.0")
+        self.set(installed=[PACKAGE_ID], home=APP_HOME, firmware="1.11.0")
         #: How the app answers hand-back-home: "hand", "approval", a 409
         #: code, "unconfirmed" (200 without a launcher) or an HTTP status.
         self.hand_back: str | int = "hand"
@@ -229,7 +230,7 @@ class FakePanel:
         if not self.adb_authorized:
             return InstallTargetProbe(state=InstallTargetState.ADB_UNAUTHORIZED)
         installed = self.read()["installed"]
-        if SUCCESSOR_PACKAGE_ID in installed:
+        if PACKAGE_ID in installed:
             state = InstallTargetState.INSTALLED
         elif LEGACY_PACKAGE_ID in installed:
             state = InstallTargetState.MIGRATION_CANDIDATE
@@ -247,7 +248,7 @@ class FakePanel:
 
     async def hand_back_home(self, _request: web.Request) -> web.Response:
         self.hand_back_requests += 1
-        if SUCCESSOR_PACKAGE_ID not in self.read()["installed"]:
+        if PACKAGE_ID not in self.read()["installed"]:
             # Nothing serves the app's port once it is uninstalled.
             raise ConnectionResetError
         mode = self.hand_back
@@ -301,16 +302,14 @@ async def panel(
         pinned=PanelAddress(host="192.168.1.30", port=8888),
     )
     with (
-        patch.object(panel_move, "async_get_adb_credential", AsyncMock()),
+        patch.object(removal, "async_get_adb_credential", AsyncMock()),
         patch.object(
-            panel_move,
+            removal,
             "async_get_durable_adb_credential",
             AsyncMock(return_value=SimpleNamespace(signer=object())),
         ),
-        patch.object(
-            panel_move, "async_pin_install_target", AsyncMock(return_value=pin)
-        ),
-        patch.object(panel_move, "async_probe_install_target", fake.probe),
+        patch.object(removal, "async_pin_install_target", AsyncMock(return_value=pin)),
+        patch.object(removal, "async_probe_install_target", fake.probe),
         patch.object(install_adb, "_async_connect", AsyncMock(return_value=object())),
         patch.object(install_adb, "_async_close", AsyncMock()),
         patch.object(install_adb, "_parse_identity_root", lambda *_args: None),
@@ -359,7 +358,7 @@ async def test_removal_hands_home_back_then_removes_both_ids(
     hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
 ) -> None:
     fake, server = panel
-    fake.set(installed=[LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID])
+    fake.set(installed=[LEGACY_PACKAGE_ID, PACKAGE_ID])
     entry = _entry(hass, server)
 
     result = await _remove(hass, entry)
@@ -371,17 +370,17 @@ async def test_removal_hands_home_back_then_removes_both_ids(
     assert fake.read()["home"] == VENDOR_HOME
     assert fake.hand_back_requests == 1
     assert sorted(fake.read()["events"]) == sorted(
-        [f"uninstall {SUCCESSOR_PACKAGE_ID}", f"uninstall {LEGACY_PACKAGE_ID}"]
+        [f"uninstall {PACKAGE_ID}", f"uninstall {LEGACY_PACKAGE_ID}"]
     )
 
 
-@pytest.mark.parametrize("holder", [SUCCESSOR_PACKAGE_ID, LEGACY_PACKAGE_ID])
+@pytest.mark.parametrize("holder", [PACKAGE_ID, LEGACY_PACKAGE_ID])
 async def test_an_app_holding_device_admin_gives_it_up_and_is_removed(
     hass: HomeAssistant, panel: tuple[FakePanel, TestServer], holder: str
 ) -> None:
     """Android refuses to uninstall an active device admin; the app is asked."""
     fake, server = panel
-    fake.set(installed=[LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID], admin=[holder])
+    fake.set(installed=[LEGACY_PACKAGE_ID, PACKAGE_ID], admin=[holder])
     entry = _entry(hass, server)
 
     result = await _remove(hass, entry)
@@ -399,54 +398,15 @@ async def test_an_app_that_cannot_give_up_device_admin_is_kept_and_reported(
 ) -> None:
     """A build without the release stays installed after a bounded wait."""
     fake, server = panel
-    fake.set(admin=[SUCCESSOR_PACKAGE_ID], no_release=[SUCCESSOR_PACKAGE_ID])
+    fake.set(admin=[PACKAGE_ID], no_release=[PACKAGE_ID])
     entry = _entry(hass, server)
 
     result = await _remove(hass, entry)
 
     assert result.get("errors") == {"base": "removal_remove_failed"}
-    assert fake.installed == [SUCCESSOR_PACKAGE_ID]
+    assert fake.installed == [PACKAGE_ID]
     # The first refusal and ten retries, then the observation reports it.
-    assert (
-        fake.read()["events"].count(f"uninstall refused {SUCCESSOR_PACKAGE_ID}") == 11
-    )
-
-
-@pytest.mark.parametrize(
-    ("step", "holder"),
-    [
-        (install_adb.MoveStep.REMOVE_SUCCESSOR, SUCCESSOR_PACKAGE_ID),
-        (install_adb.MoveStep.SET_ASIDE_LEGACY, LEGACY_PACKAGE_ID),
-        (install_adb.MoveStep.RETIRE_LEGACY, LEGACY_PACKAGE_ID),
-    ],
-)
-async def test_repair_and_purge_uninstalls_ask_the_app_to_give_up_device_admin(
-    hass: HomeAssistant,
-    panel: tuple[FakePanel, TestServer],
-    step: install_adb.MoveStep,
-    holder: str,
-) -> None:
-    """Repair and the old-app purge uninstall through these steps."""
-    fake, server = panel
-    fake.set(
-        installed=[LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID],
-        admin=[holder],
-        home=VENDOR_HOME,
-    )
-    found = await panel_move.async_app_target(hass, _entry(hass, server))
-    assert found is not None
-
-    await install_adb.async_move_step(*found, step)
-
-    assert holder not in fake.read()["installed"]
-    # Setting the old app aside keeps its data; the other steps remove it.
-    assert (holder in fake.read()["aside"]) is (
-        step is install_adb.MoveStep.SET_ASIDE_LEGACY
-    )
-    assert fake.read()["admin"] == []
-    events = fake.read()["events"]
-    assert events.count(f"release admin {holder}") == 1
-    assert events.index(f"release admin {holder}") < events.index(f"uninstall {holder}")
+    assert fake.read()["events"].count(f"uninstall refused {PACKAGE_ID}") == 11
 
 
 async def test_the_owner_can_forget_the_panel_once_its_app_is_gone(
@@ -494,7 +454,7 @@ async def test_nothing_is_removed_until_the_owner_confirms(
     )
 
     assert result.get("errors") == {"base": "removal_unconfirmed"}
-    assert fake.installed == [SUCCESSOR_PACKAGE_ID]
+    assert fake.installed == [PACKAGE_ID]
     assert fake.hand_back_requests == 0
 
 
@@ -524,7 +484,7 @@ async def test_the_risks_link_names_the_panel_make_model_and_firmware(
     # Nothing that names this panel travels to the public site.
     assert "Lounge" not in str(link)
     assert "Test" not in str(link)
-    assert fake.installed == [SUCCESSOR_PACKAGE_ID]
+    assert fake.installed == [PACKAGE_ID]
 
 
 @pytest.mark.parametrize(
@@ -572,7 +532,7 @@ async def test_hardened_approval_stops_with_nothing_removed_and_a_retry_finishes
     )
 
     assert result.get("errors") == {"base": "removal_approval_required"}
-    assert fake.installed == [SUCCESSOR_PACKAGE_ID]
+    assert fake.installed == [PACKAGE_ID]
     assert fake.read()["home"] == APP_HOME
 
     fake.hand_back = "hand"  # approved on the panel; the same request again
@@ -609,7 +569,7 @@ async def test_a_refused_hand_back_removes_nothing(
     result = await _remove(hass, entry)
 
     assert result.get("errors") == {"base": error}
-    assert fake.installed == [SUCCESSOR_PACKAGE_ID]
+    assert fake.installed == [PACKAGE_ID]
     assert fake.read()["events"] == []
 
 
@@ -626,7 +586,7 @@ async def test_the_uninstall_waits_for_another_launcher_on_the_panel_itself(
     result = await _remove(hass, entry)
 
     assert result.get("errors") == {"base": "removal_home_not_handed"}
-    assert fake.installed == [SUCCESSOR_PACKAGE_ID]
+    assert fake.installed == [PACKAGE_ID]
 
 
 async def test_a_run_cut_short_after_one_uninstall_is_finished_by_a_retry(
@@ -634,7 +594,7 @@ async def test_a_run_cut_short_after_one_uninstall_is_finished_by_a_retry(
 ) -> None:
     fake, server = panel
     fake.set(
-        installed=[LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID],
+        installed=[LEGACY_PACKAGE_ID, PACKAGE_ID],
         fail_uninstall=[LEGACY_PACKAGE_ID],
     )
     entry = _entry(hass, server)
@@ -646,7 +606,7 @@ async def test_a_run_cut_short_after_one_uninstall_is_finished_by_a_retry(
 
     assert first.get("errors") == {"base": "removal_remove_failed"}
     # The new app stays while the old one is left, so the retry can reach it.
-    assert fake.installed == [LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID]
+    assert fake.installed == [LEGACY_PACKAGE_ID, PACKAGE_ID]
     assert fake.read()["home"] == VENDOR_HOME
 
     retry = await hass.config_entries.options.async_configure(
@@ -655,32 +615,6 @@ async def test_a_run_cut_short_after_one_uninstall_is_finished_by_a_retry(
     assert retry["step_id"] == "remove_app_done"
     assert fake.installed == []
     assert fake.read()["home"] == VENDOR_HOME
-
-
-async def test_an_old_app_set_aside_mid_move_is_finished_by_a_retry(
-    hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
-) -> None:
-    """Only the old app's kept data is left beside the new app."""
-    fake, server = panel
-    fake.set(
-        installed=[SUCCESSOR_PACKAGE_ID],
-        aside=[LEGACY_PACKAGE_ID],
-        fail_uninstall=[LEGACY_PACKAGE_ID],
-    )
-    entry = _entry(hass, server)
-    form = await _open_form(hass, entry)
-
-    first = await hass.config_entries.options.async_configure(
-        form["flow_id"], {"confirmed": True}
-    )
-    assert first.get("errors") == {"base": "removal_remove_failed"}
-    assert fake.installed == [LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID]
-
-    retry = await hass.config_entries.options.async_configure(
-        form["flow_id"], {"confirmed": True}
-    )
-    assert retry["step_id"] == "remove_app_done"
-    assert fake.installed == []
 
 
 async def test_a_connection_lost_after_the_uninstall_still_ends_removed(
@@ -704,7 +638,7 @@ async def test_a_dropped_connection_during_the_uninstall_is_finished_by_a_retry(
     """An uninstall that did not run before the drop is reported; a retry runs it."""
     fake, server = panel
     fake.drop_after = "pm uninstall"
-    fake.set(fail_uninstall=[SUCCESSOR_PACKAGE_ID])
+    fake.set(fail_uninstall=[PACKAGE_ID])
     entry = _entry(hass, server)
     form = await _open_form(hass, entry)
 
@@ -748,7 +682,7 @@ async def test_a_silent_app_that_still_holds_home_is_not_removed(
     result = await _remove(hass, entry)
 
     assert result.get("errors") == {"base": "removal_app_unreachable"}
-    assert fake.installed == [SUCCESSOR_PACKAGE_ID]
+    assert fake.installed == [PACKAGE_ID]
 
 
 async def test_a_panel_busy_with_an_update_is_left_alone(
@@ -756,12 +690,12 @@ async def test_a_panel_busy_with_an_update_is_left_alone(
 ) -> None:
     fake, server = panel
     entry = _entry(hass, server)
-    assert panel_move.claim_panel_operation(hass, entry.entry_id)
+    assert claim_panel_operation(hass, entry.entry_id)
 
     result = await _remove(hass, entry)
 
     assert result.get("errors") == {"base": "removal_busy"}
-    assert fake.installed == [SUCCESSOR_PACKAGE_ID]
+    assert fake.installed == [PACKAGE_ID]
     assert fake.hand_back_requests == 0
 
 
@@ -775,7 +709,7 @@ async def test_an_unauthorized_panel_is_sent_to_authorize_adb_first(
     result = await _remove(hass, entry)
 
     assert result.get("errors") == {"base": "removal_adb_authorization"}
-    assert fake.installed == [SUCCESSOR_PACKAGE_ID]
+    assert fake.installed == [PACKAGE_ID]
     assert fake.hand_back_requests == 0
 
 
@@ -812,7 +746,7 @@ async def test_adb_lost_after_the_form_opened_is_reported_as_its_cause(
         )
 
     assert result.get("errors") == {"base": error}
-    assert fake.installed == [SUCCESSOR_PACKAGE_ID]
+    assert fake.installed == [PACKAGE_ID]
     assert fake.hand_back_requests == 0
 
 
@@ -834,13 +768,13 @@ async def test_a_refusal_on_a_shelly_panel_is_not_overridden(
     """Only an unconfirmed hand-back makes Stargate HOME over ADB."""
     fake, server = panel
     fake.hand_back = answer
-    fake.set(installed=[SUCCESSOR_PACKAGE_ID, vendor_provisioning.SHELLY_LAUNCHER])
+    fake.set(installed=[PACKAGE_ID, vendor_provisioning.SHELLY_LAUNCHER])
     entry = _entry(hass, server)
 
     result = await _remove(hass, entry)
 
     assert result.get("errors") == {"base": error}
-    assert SUCCESSOR_PACKAGE_ID in fake.installed
+    assert PACKAGE_ID in fake.installed
     assert fake.read()["home"] == APP_HOME
     assert fake.read()["events"] == []
 
@@ -857,7 +791,7 @@ async def test_a_silent_app_on_a_panel_without_home_is_not_removed(
     result = await _remove(hass, entry)
 
     assert result.get("errors") == {"base": "removal_app_unreachable"}
-    assert fake.installed == [SUCCESSOR_PACKAGE_ID]
+    assert fake.installed == [PACKAGE_ID]
     assert fake.read()["events"] == []
 
 
@@ -923,7 +857,7 @@ async def test_removal_gives_a_portal_its_meta_values_back_before_the_uninstall(
     monkeypatch.setattr(vendor_provisioning, "META_VERIFIER_RECORD", str(verifier))
     verifier.write_text("package_verifier_enable=1\n")
     (fake.state_path / "setting.package_verifier_enable").write_text("0\n")
-    fake.set(installed=[SUCCESSOR_PACKAGE_ID, control_center])
+    fake.set(installed=[PACKAGE_ID, control_center])
     for name in ("screensaver_components", "screensaver_default_component"):
         (fake.state_path / f"setting.{name}").write_text("\n")
     (fake.state_path / f"appop.{control_center}.SYSTEM_ALERT_WINDOW").write_text(
@@ -941,7 +875,7 @@ async def test_removal_gives_a_portal_its_meta_values_back_before_the_uninstall(
         "settings delete screensaver_default_component",
         f"appops set {control_center} allow",
         "settings put package_verifier_enable",
-        f"uninstall {SUCCESSOR_PACKAGE_ID}",
+        f"uninstall {PACKAGE_ID}",
     ]
     assert (fake.state_path / "setting.screensaver_components").read_text() == (
         "meta/.Dream\n"
@@ -972,7 +906,7 @@ async def test_removal_gives_shelly_home_its_overlay_and_the_panel_its_size_back
     monkeypatch.setattr(display_provisioning, "DISPLAY_RESTORE_RECORD", str(display))
     shelly.write_text("stargate_overlay=allow\n")
     display.write_text("density=none\nfont_scale=null\n")
-    fake.set(installed=[SUCCESSOR_PACKAGE_ID, launcher])
+    fake.set(installed=[PACKAGE_ID, launcher])
     (fake.state_path / f"appop.{launcher}.SYSTEM_ALERT_WINDOW").write_text("deny\n")
     (fake.state_path / "density").write_text("216\n")
     entry = _entry(hass, server)
@@ -988,7 +922,7 @@ async def test_removal_gives_shelly_home_its_overlay_and_the_panel_its_size_back
         f"appops set {launcher} allow",
         "wm density reset",
         "settings delete font_scale",
-        f"uninstall {SUCCESSOR_PACKAGE_ID}",
+        f"uninstall {PACKAGE_ID}",
     ]
     assert not (fake.state_path / "density").exists()
     assert not shelly.exists()
@@ -1020,7 +954,7 @@ async def test_an_unhanded_home_without_shelly_changes_nothing(
     result = await _remove(hass, entry)
 
     assert result.get("errors") == {"base": "removal_home_not_handed"}
-    assert fake.installed == [SUCCESSOR_PACKAGE_ID]
+    assert fake.installed == [PACKAGE_ID]
     assert fake.read()["home"] == APP_HOME
     assert fake.read()["events"] == []
     assert record.exists()

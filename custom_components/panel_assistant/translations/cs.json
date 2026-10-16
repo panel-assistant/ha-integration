@@ -515,9 +515,6 @@
     "mqtt_panel_needs_090": {
       "message": "{panel} nebyl přesunut z MQTT: nejprve nainstalujte Panel Assistant 0.9.0, jak vysvětluje jeho Oprava"
     },
-    "move_with_repair": {
-      "message": "Převeďte tento panel na novou aplikaci pomocí jeho opravy v Nastavení."
-    },
     "health_update_failed": {
       "message": "Nelze přečíst stav panelu"
     },
@@ -536,26 +533,8 @@
     "update_refused_by_panel": {
       "message": "{panel} odmítl aktualizaci: {reason}"
     },
-    "bridge_not_ready": {
-      "message": "Panel zatím nelze převést na novou aplikaci. Panel Assistant převod znovu nabídne, jakmile to bude možné."
-    },
-    "release_pair_unavailable": {
-      "message": "Odpovídající vydání nové aplikace není dostupné. Zkuste to později."
-    },
     "panel_changed_during_update": {
       "message": "Panel se během aktualizace změnil. Obnovte zobrazení a zkuste to znovu."
-    },
-    "bridge_details_changed": {
-      "message": "Podrobnosti předání panelu se změnily. Obnovte zobrazení a zkuste to znovu."
-    },
-    "bridge_capability_unavailable": {
-      "message": "Nelze ověřit připravenost panelu k předání. Zkontrolujte připojení panelu a zkuste to znovu."
-    },
-    "successor_untrusted": {
-      "message": "Nainstalovaná nová aplikace není důvěryhodná pro předání. Zkontrolujte kartu Instalace na panelu."
-    },
-    "bridge_handover_refused": {
-      "message": "Panel odmítl předání mezi aplikacemi. Zkontrolujte kartu Instalace na panelu."
     },
     "release_download_failed": {
       "message": "Vydání aplikace se nepodařilo stáhnout. Zkontrolujte připojení a zkuste to znovu."
@@ -652,45 +631,6 @@
       "title": "{panel} nebyl přesunut z MQTT",
       "description": "Panel Assistant 1.0 už nedokáže přesunout {panel} z MQTT na vlastní připojení a jeho připojení by teď vytvořilo druhou sadu entit a rozdělilo jeho historii. Nejprve nainstalujte Panel Assistant 0.9.0 (v HACS otevřete Panel Assistant, zvolte Redownload a vyberte verzi 0.9.0), nechte panel přesunout a poté nainstalujte 1.0.0. Pokud raději začnete znovu, smažte zařízení tohoto panelu v Nastavení, Zařízení a služby, MQTT, potom tuto položku znovu načtěte nebo ji odeberte a panel přidejte znovu; vzniknou nové entity a historie se nezachová."
     },
-    "move_to_new_app": {
-      "title": "Převést {panel} na novou aplikaci",
-      "fix_flow": {
-        "step": {
-          "confirm_move": {
-            "title": "Převést {panel} na novou aplikaci",
-            "description": "Na panelu {panel} stále běží stará aplikace ha-paneld. Panel Assistant jej přes vaši síť převede na novou aplikaci a zachová jeho nastavení: nejprve zde panel zálohuje, nainstaluje novou aplikaci a poté odstraní starou. Během převodu panel jednou restartuje svou aplikaci. Pokud panel zobrazí dotaz „Povolit ladění USB?“, klepněte na Povolit a zaškrtněte „Vždy povolit z tohoto počítače“, pokud je tato možnost k dispozici. Na panelu nemusíte získávat oprávnění root ani zadávat žádné příkazy. Převod zahájíte výběrem Odeslat."
-          }
-        },
-        "progress": {
-          "moving": "Přesun {panel} do nové aplikace. Nechte panel zapnutý."
-        },
-        "abort": {
-          "entry_removed": "Tento panel byl ze systému Home Assistant odstraněn.",
-          "already_moved": "Na panelu {panel} už běží nová aplikace. Nebylo třeba nic převádět.",
-          "release_unavailable": "Panel Assistant nyní nemohl získat vydání nové aplikace. Zkontrolujte, že systém Home Assistant má přístup k internetu, a zkuste to znovu.",
-          "adb_authorization": "Panel {panel} dosud nepovolil připojení aplikaci Panel Assistant. Podívejte se na panel: pokud zobrazuje dotaz „Povolit ladění USB?“, klepněte na Povolit, zaškrtněte „Vždy povolit z tohoto počítače“ a poté znovu otevřete tuto opravu.",
-          "adb_unreachable": "Panel Assistant se nemohl připojit k panelu {panel} a převést jej. Zkontrolujte, že je panel zapnutý a ve stejné síti jako systém Home Assistant a že je v nastavení aplikace na panelu zapnuté síťové ladění. Poté znovu otevřete tuto opravu.",
-          "backup_failed": "Panel Assistant nemohl vytvořit úplnou zálohu {panel}, takže se nic nezměnilo. Zkuste to později znovu.",
-          "new_app_is_home": "Panel {panel} je uprostřed dřívějšího převodu, který toto vydání zatím nemůže dokončit. Nic se nezměnilo. Opraví to pozdější vydání aplikace Panel Assistant.",
-          "move_failed": "Převod panelu {panel} nebyl dokončen. Jeho nastavení je zálohované v systému Home Assistant a obrazovka panelu zůstává funkční. Znovu otevřete tuto opravu a pokračujte tam, kde se převod zastavil.",
-          "panel_changed": "Zařízení odpovídající na adrese panelu {panel} není panel, který zná Panel Assistant, proto se nic nezměnilo. Pokud byl panel vyměněn nebo resetován, odstraňte jej ze systému Home Assistant a znovu jej přidejte.",
-          "busy": "Na panelu {panel} právě probíhá aktualizace nebo jiný převod. Zkuste to znovu po dokončení.",
-          "restore_approval": "Panel {panel} před obnovením svého nastavení žádá o schválení na obrazovce. Schvalte jej na panelu a poté znovu otevřete tuto opravu."
-        }
-      }
-    },
-    "remove_old_app_adb": {
-      "title": "Na panelu {panel} je stále stará aplikace",
-      "description": "Na panelu {panel} běží nová aplikace Panel Assistant, ale vedle ní je stále nainstalovaná stará aplikace ha-paneld. Panel Assistant ji automaticky odstraní přes ADB, ale nyní se nemůže připojit k rozhraní Android Debug Bridge panelu. Zkontrolujte, že je zapnuté síťové ladění a že panel povolil připojení systému Home Assistant. Panel Assistant to sám zkusí znovu."
-    },
-    "remove_old_app_unproven": {
-      "title": "Na panelu {panel} je stále stará aplikace",
-      "description": "Na panelu {panel} je vedle nové aplikace Panel Assistant nainstalovaná stará aplikace ha-paneld. Panel Assistant odstraní starou aplikaci až poté, co se prokáže, že panel řídí nová aplikace: musí odpovídat jako tento panel a být jeho domovskou obrazovkou. To se nepodařilo prokázat, proto obě aplikace zůstaly beze změny. Panel Assistant to sám znovu zkontroluje."
-    },
-    "remove_old_app_failed": {
-      "title": "Na panelu {panel} je stále stará aplikace",
-      "description": "Na panelu {panel} běží nová aplikace Panel Assistant, ale vedle ní je stále nainstalovaná stará aplikace ha-paneld. Panel Assistant se pokusil panel zálohovat a odstranit starou aplikaci, ale tento postup nebyl dokončen. Nic jiného se na panelu nezměnilo. Panel Assistant to sám zkusí znovu."
-    },
     "panel_permissions": {
       "title": "Oprávnění na panelu {panel} vyžadují pozornost.",
       "fix_flow": {
@@ -781,20 +721,6 @@
     "merged_panel_identity": {
       "title": "Oddělit sloučené panely: {panels}",
       "description": "Panely {panels} hlásí stejnou identitu zařízení, takže Home Assistant nemůže bezpečně určit, ke kterému záznamu patří nativní připojení nebo entita. Jejich nativní připojení je odmítnuto a žádné entity se nepřesouvají. Aktualizujte aplikaci Panel Assistant na všech dotčených panelech, aby měl každý vlastní identitu. Potom odstraňte sloučené zařízení a nechte panely znovu se zaregistrovat."
-    },
-    "panel_migration_incomplete": {
-      "title": "Panel na adrese {address} nedokončil převod na novou aplikaci",
-      "fix_flow": {
-        "step": {
-          "confirm_migration": {
-            "title": "Znovu zkontrolovat panel",
-            "description": "Panel Assistant nainstaloval na panel na adrese {address} verzi {version} a panel sám převádí svá nastavení do nové aplikace. Tento převod nebyl dokončen, když systém Home Assistant přestal čekat. Panel po celou dobu funguje a pokračuje tam, kde skončil, takže zde na něm nic neměníte. Výběrem Odeslat jej znovu zkontrolujete."
-          }
-        },
-        "abort": {
-          "migration_unfinished": "Nová aplikace zatím neodpověděla. Panel pokračuje sám, proto tento problém otevřete znovu později."
-        }
-      }
     },
     "installer_failure": {
       "title": "Instalace nebo aktualizace na panelu {panel} selhala",

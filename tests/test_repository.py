@@ -663,11 +663,9 @@ def test_the_two_identity_modules_state_exactly_the_same_values() -> None:
     script = (
         f"import * as m from {json.dumps(module.as_uri())};"
         "console.log(JSON.stringify({"
-        "accepted: m.ACCEPTED_PACKAGE_IDS,"
         "legacy: m.LEGACY_PACKAGE_ID,"
-        "successor: m.SUCCESSOR_PACKAGE_ID,"
+        "packageId: m.PACKAGE_ID,"
         "launch: m.LAUNCH_COMPONENTS,"
-        "legacyLaunch: m.LEGACY_LAUNCH_COMPONENT,"
         "accessibility: Object.fromEntries(Object.values(m.LAUNCH_COMPONENTS).flat()"
         ".map(c => [c, m.accessibilityComponentFor(c)])),"
         "equivalent: Object.fromEntries(Object.values(m.LAUNCH_COMPONENTS).flat()"
@@ -688,16 +686,12 @@ def test_the_two_identity_modules_state_exactly_the_same_values() -> None:
         ).stdout
     )
 
-    # The order is load-bearing: it fixes the PACKAGE{i}/RETAINED{i}/RESIDUE{i}
-    # frame indices that both sides build and parse.
-    assert javascript["accepted"] == list(app_identity.ACCEPTED_PACKAGE_IDS)
     assert javascript["legacy"] == app_identity.LEGACY_PACKAGE_ID
-    assert javascript["successor"] == app_identity.SUCCESSOR_PACKAGE_ID
+    assert javascript["packageId"] == app_identity.PACKAGE_ID
     assert javascript["launch"] == {
         package_id: list(components)
         for package_id, components in app_identity.LAUNCH_COMPONENTS.items()
     }
-    assert javascript["legacyLaunch"] == app_identity.LEGACY_LAUNCH_COMPONENT
     # Both installers verify the same signed documents and write the same schema.
     assert javascript["descriptorSchemas"] == list(
         app_identity.INSTALL_DESCRIPTOR_SCHEMAS
@@ -726,14 +720,40 @@ def test_the_two_identity_modules_state_exactly_the_same_values() -> None:
         for launch, services in app_identity.OBSOLETE_ACCESSIBILITY_COMPONENTS.items()
     }
 
-    # Every launcher names its own id, and the shorthand appears only where the
-    # class lives in that id's package: the old app's, never a successor's.
+    # Every launcher names its own id, and spells its class out in full.
     for package_id, components in javascript["launch"].items():
         for component in components:
             assert component.startswith(f"{package_id}/")
-            assert component.startswith(f"{package_id}/.") == (
-                package_id == app_identity.LEGACY_PACKAGE_ID
-            )
+            assert not component.startswith(f"{package_id}/.")
+
+
+def test_both_preflights_probe_the_same_app_ids_in_the_same_order() -> None:
+    """Both still probe the old app, so a panel holding it is refused by either.
+
+    The order fixes the PACKAGE{i}/RETAINED{i}/RESIDUE{i} frame indices each
+    side builds and parses.
+    """
+    from custom_components.panel_assistant import adb_protocol
+
+    module = (INTEGRATION / "frontend" / "src" / "preflight.mjs").resolve()
+    script = (
+        f"import * as m from {json.dumps(module.as_uri())};"
+        "console.log(JSON.stringify(m.RESIDUE_PROBES"
+        ".map(({ packageId, path }) => [packageId, path])));"
+    )
+    javascript = json.loads(
+        subprocess.run(
+            ["node", "--input-type=module", "-e", script],
+            capture_output=True,
+            check=True,
+            text=True,
+        ).stdout
+    )
+    assert javascript == [list(probe) for probe in adb_protocol._RESIDUE_PROBES]
+    assert adb_protocol.PROBED_PACKAGE_IDS == (
+        app_identity.LEGACY_PACKAGE_ID,
+        app_identity.PACKAGE_ID,
+    )
 
 
 def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way() -> (
@@ -775,8 +795,7 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
         "grants: Object.fromEntries(Object.keys(a.HOME_COMPONENTS).map(c => [c,"
         " p.buildPermissionGrant('0123456789abcdef0123456789abcdef', 34, '',"
         " c.split('/')[0], c)])),"
-        "admins: Object.fromEntries(a.ACCEPTED_PACKAGE_IDS"
-        ".map(i => [i, p.buildDeviceAdminClaim(i)]))}));"
+        "admin: p.buildDeviceAdminClaim(a.PACKAGE_ID)}));"
     )
     javascript = json.loads(
         subprocess.run(
@@ -810,15 +829,11 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
         assert claim in adb_protocol._permission_grant_command(
             "0" * 32, launch.partition("/")[0], launch
         )
-    # Both make the new app a device admin with the same text, and only the new app.
-    assert javascript["admins"] == {
-        package_id: adb_protocol.device_admin_claim_command(package_id)
-        for package_id in app_identity.ACCEPTED_PACKAGE_IDS
-    }
-    assert javascript["admins"][app_identity.LEGACY_PACKAGE_ID] == ":"
+    # Both make the app a device admin with the same text.
+    admin = javascript["admin"]
+    assert admin == adb_protocol.device_admin_claim_command(app_identity.PACKAGE_ID)
     for launch, grant in javascript["grants"].items():
         package_id = launch.partition("/")[0]
-        admin = javascript["admins"][package_id]
         assert admin in grant
         assert admin in adb_protocol._permission_grant_command(
             "0" * 32, package_id, launch

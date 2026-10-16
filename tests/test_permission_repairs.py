@@ -15,7 +15,7 @@ from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant import update_staging
-from custom_components.panel_assistant.app_identity import SUCCESSOR_PACKAGE_ID
+from custom_components.panel_assistant.app_identity import PACKAGE_ID
 from custom_components.panel_assistant.build_feed import BuildDownloadError
 from custom_components.panel_assistant.client import (
     CannotConnectError,
@@ -58,7 +58,7 @@ HEALTH = PanelHealth(
     build="100",
     config_hash="abcd1234",
     discovery_id="a" * 64,
-    package=SUCCESSOR_PACKAGE_ID,
+    package=PACKAGE_ID,
     protocol=(5, 5),
 )
 
@@ -360,12 +360,12 @@ async def test_successful_panel_update_keeps_its_dashboard_and_permission_warnin
         "app.apk",
         "https://github.com/app.apk",
         "a" * 64,
-        descriptor=SimpleNamespace(package_id=SUCCESSOR_PACKAGE_ID, version_code=101),
+        descriptor=SimpleNamespace(package_id=PACKAGE_ID, version_code=101),
         protocol_min=5,
         protocol_max=5,
     )
     release = StableReleaseCoordinator(hass)
-    release._candidates[artifact.tag, SUCCESSOR_PACKAGE_ID] = artifact
+    release._candidates[artifact.tag, PACKAGE_ID] = artifact
     # The authenticated PA offer owns admission. A failed host download still
     # exercises the production panel-download route and its success observer.
     monkeypatch.setattr(

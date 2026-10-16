@@ -1,6 +1,6 @@
 // Fixed, explicitly confirmed post-install grants for the authenticated APK.
 // Nothing here configures MQTT, networking, device ownership or app data.
-import { DEVICE_ADMIN_RECEIVER, LEGACY_LAUNCH_COMPONENT, OBSOLETE_ACCESSIBILITY_COMPONENTS, SUCCESSOR_PACKAGE_ID,
+import { DEVICE_ADMIN_RECEIVER, OBSOLETE_ACCESSIBILITY_COMPONENTS,
   accessibilityComponentFor, accessibilityComponentsFor, homeComponentsFor, isLaunchComponent } from './app-identity.mjs';
 import { CHOOSER_OUTCOMES, HOME_QUERY, buildHomeClaim } from './home-chooser.mjs';
 
@@ -13,17 +13,12 @@ export const RUNTIME_GRANTS = Object.freeze([['camera.any', 'CAMERA'], ['microph
 const listed = feature => `hp_has=; for hp_f in $hp_features; do case "$hp_f" in ` +
   `feature:android.hardware.${feature}|feature:android.hardware.${feature}=*) hp_has=1 ;; esac; done`;
 
-// The one component written into the device-wide accessibility list for the
-// installed build, and every spelling that already names it. The class lives in
-// whichever package the build's launcher names, so it follows the launcher.
-export const ACCESSIBILITY_SERVICE = accessibilityComponentFor(LEGACY_LAUNCH_COMPONENT);
 // Lets full screen-off lift a firmware's keep-screen-on-while-plugged-in
 // setting (the Shelly X2i); granted after every install like the network path.
 const SECURE_SETTINGS = 'android.permission.WRITE_SECURE_SETTINGS';
-// Makes the new app a device admin, which only locks the screen, unless Android
+// Makes the app a device admin, which only locks the screen, unless Android
 // already lists it: the network installer's device_admin_claim_command, as text.
 export function buildDeviceAdminClaim(packageId) {
-  if (packageId !== SUCCESSOR_PACKAGE_ID) return ':';
   const listed = `${packageId}/${DEVICE_ADMIN_RECEIVER.slice(packageId.length)}:`;
   return `case "$(dumpsys device_policy 2>/dev/null)" in *"${listed}"*) ;; ` +
     `*) dpm set-active-admin ${packageId}/${DEVICE_ADMIN_RECEIVER} >/dev/null 2>&1 ;; esac`;

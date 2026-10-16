@@ -23,7 +23,7 @@ from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.panel_assistant.app_identity import SUCCESSOR_PACKAGE_ID
+from custom_components.panel_assistant.app_identity import PACKAGE_ID
 from custom_components.panel_assistant.client import (
     CannotConnectError,
     PanelHealth,
@@ -44,7 +44,7 @@ HEALTH = PanelHealth(
     build="1000",
     config_hash="1a2b3c4d",
     protocol=(5, 5),
-    package=SUCCESSOR_PACKAGE_ID,
+    package=PACKAGE_ID,
 )
 
 

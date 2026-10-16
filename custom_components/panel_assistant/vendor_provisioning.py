@@ -53,7 +53,7 @@ import re
 from dataclasses import dataclass
 from typing import ClassVar, Final
 
-from .app_identity import ACCEPTED_PACKAGE_IDS
+from .app_identity import PACKAGE_ID
 
 #: Meta's device codenames for the Portals with a screen: ``omni`` is the
 #: Android 10 (2nd gen) image, ``aloha`` the Android 9 (1st gen) one. The app's
@@ -606,10 +606,7 @@ hp_settle_vendor_display() {
 
 def vendor_display_settlement_command(nonce: str, package_id: str) -> str:
     """Finish Shelly's pending display restart while setup still owns ADB."""
-    if (
-        not re.fullmatch(r"[a-f0-9]{32}", nonce)
-        or package_id not in ACCEPTED_PACKAGE_IDS
-    ):
+    if not re.fullmatch(r"[a-f0-9]{32}", nonce) or package_id != PACKAGE_ID:
         raise VendorResponseError
     return "\n".join(
         (

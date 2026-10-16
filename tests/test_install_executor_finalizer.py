@@ -4,8 +4,9 @@ Covers what happens once an install has proved itself healthy: the finalizer
 lease has exactly one owner and is released once, a verified receipt is
 consumed once, concurrent, cancelled or interrupted finalizers never leak or
 double-release the lease, the final proof applies the installed-app rule, a
-restart settles a healthy receipt when its entry loads, the handover to the
-successor app, and the first-setup steps a freshly installed panel receives.
+restart settles a healthy receipt when its entry loads, the wait for the
+installed app's own identity, and the first-setup steps a freshly installed panel
+receives.
 """
 
 from __future__ import annotations
@@ -17,7 +18,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import issue_registry as ir
 
 from custom_components.panel_assistant import install_executor, install_jobs
 from custom_components.panel_assistant.adb_credentials import AdbCredential
@@ -25,11 +25,9 @@ from custom_components.panel_assistant.adb_protocol import (
     AdbRootMode,
 )
 from custom_components.panel_assistant.client import (
-    CannotConnectError,
     PanelHealth,
     PanelSetupState,
 )
-from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.install_executor import (
     FinalizationOutcome,
     InstallExecutor,
@@ -101,7 +99,7 @@ class FinalProof:
     """The read-only final proof, with the health read optionally held open."""
 
     monkeypatch: pytest.MonkeyPatch
-    package: str | None = None
+    package: str | None = "io.panelassistant.android"
     version: str | None = None
     hold_health: bool = False
     home_ui_state: str = "setup"
@@ -382,9 +380,9 @@ async def test_removal_mid_verification_releases_only_when_verification_exits(
 @pytest.mark.parametrize(
     ("package", "version", "expected"),
     [
-        (None, None, FinalizationOutcome.VERIFIED),
-        (None, "9.9.9", FinalizationOutcome.RECOVERY_REQUIRED),
-        ("io.panelassistant.android", None, FinalizationOutcome.RECOVERY_REQUIRED),
+        ("io.panelassistant.android", None, FinalizationOutcome.VERIFIED),
+        ("io.panelassistant.android", "9.9.9", FinalizationOutcome.RECOVERY_REQUIRED),
+        ("io.github.maxlyth.hapaneld", None, FinalizationOutcome.RECOVERY_REQUIRED),
     ],
     ids=["installed-app", "other-version", "other-package"],
 )
@@ -431,8 +429,8 @@ async def test_final_proof_rejects_home_chooser_after_matching_health(
 @pytest.mark.parametrize(
     ("package", "expected_phase"),
     [
-        (None, InstallPhase.CONSUMED),
-        ("io.panelassistant.android", InstallPhase.RECOVERY_REQUIRED),
+        ("io.panelassistant.android", InstallPhase.CONSUMED),
+        ("io.github.maxlyth.hapaneld", InstallPhase.RECOVERY_REQUIRED),
     ],
     ids=["installed-app", "other-package"],
 )
@@ -545,7 +543,7 @@ async def test_consumption_failure_never_raises_and_still_releases(
     assert "private-receipt-detail" not in caplog.text
 
 
-SUCCESSOR_PACKAGE_ID = "io.panelassistant.android"
+PACKAGE_ID = "io.panelassistant.android"
 SUCCESSOR_LAUNCH_COMPONENT = (
     "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity"
 )
@@ -559,7 +557,7 @@ def successor_artifact() -> InstallArtifact:
     """
     return replace(
         artifact(),
-        package_id=SUCCESSOR_PACKAGE_ID,
+        package_id=PACKAGE_ID,
         launch_component=SUCCESSOR_LAUNCH_COMPONENT,
     )
 
@@ -578,96 +576,6 @@ async def create_successor_job(manager: InstallJobManager) -> InstallJobReceipt:
     return receipt
 
 
-async def test_the_handover_wait_ends_on_the_successor_not_the_first_reply(
-    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Both apps are built from one tree, so the version alone proves nothing.
-
-    Mid-handover the old app is still answering on 8888, and it answers with the
-    very version being installed. Only its reported package tells the two apart.
-    """
-    manager = InstallJobManager(hass)
-    receipt = await create_successor_job(manager)
-    harness = Harness(monkeypatch)
-    sleep = AsyncMock()
-    monkeypatch.setattr(install_executor.asyncio, "sleep", sleep)
-    # Four answers from the old app, then nothing at all while the port changes
-    # hands, then the successor.
-    replies: list[Exception | str] = [
-        *["io.github.maxlyth.hapaneld"] * 4,
-        CannotConnectError(),
-        CannotConnectError(),
-        SUCCESSOR_PACKAGE_ID,
-    ]
-    harness.health_packages = replies
-
-    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
-
-    assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
-    assert completed.result_code is None
-    assert harness.health_calls == len(replies)
-    assert sleep.await_count == len(replies) - 1
-    assert (
-        ir.async_get(hass).async_get_issue(
-            DOMAIN, f"panel_migration_incomplete_{receipt.job_id}"
-        )
-        is None
-    )
-
-
-async def test_a_handover_that_never_finishes_is_reported_and_not_healthy(
-    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The old app answering for the whole budget is never a successful install."""
-    manager = InstallJobManager(hass)
-    receipt = await create_successor_job(manager)
-    harness = Harness(monkeypatch)
-    sleep = AsyncMock()
-    monkeypatch.setattr(install_executor.asyncio, "sleep", sleep)
-    harness.health_packages = ["io.github.maxlyth.hapaneld"]
-
-    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
-
-    assert completed.phase is InstallPhase.RECOVERY_REQUIRED
-    assert completed.result_code is InstallResultCode.VERIFICATION_REQUIRED
-    assert harness.health_calls == install_executor._HANDOVER_HEALTH_ATTEMPTS
-    # The panel carries on by itself, so this is reported rather than retried.
-    issue = ir.async_get(hass).async_get_issue(
-        DOMAIN, f"panel_migration_incomplete_{receipt.job_id}"
-    )
-    assert issue is not None
-    assert issue.is_fixable
-    assert issue.translation_placeholders == {
-        "address": "192.168.250.23",
-        "version": "0.1.0",
-    }
-
-
-async def test_a_legacy_install_keeps_the_budget_and_failure_it_had(
-    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Nothing hands over, so another app's reply is wrong, not 'not yet'."""
-    manager = InstallJobManager(hass)
-    receipt = await create_job(manager)
-    harness = Harness(monkeypatch)
-    sleep = AsyncMock()
-    monkeypatch.setattr(install_executor.asyncio, "sleep", sleep)
-    harness.expected_version = "9.9.9"
-
-    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
-
-    assert completed.phase is InstallPhase.RECOVERY_REQUIRED
-    assert completed.result_code is InstallResultCode.VERIFICATION_REQUIRED
-    assert harness.health_calls == 1
-    assert sleep.await_count == 0
-    assert (
-        ir.async_get(hass).async_get_issue(
-            DOMAIN, f"panel_migration_incomplete_{receipt.job_id}"
-        )
-        is None
-    )
-
-
 async def test_the_successor_is_launched_by_its_own_exact_component(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -675,78 +583,36 @@ async def test_the_successor_is_launched_by_its_own_exact_component(
     manager = InstallJobManager(hass)
     receipt = await create_successor_job(manager)
     harness = Harness(monkeypatch)
-    harness.health_packages = [SUCCESSOR_PACKAGE_ID]
+    harness.health_packages = [PACKAGE_ID]
 
     completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
 
     assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
     _target, _signer, descriptor, _root = harness.launch_arguments[-1]
-    assert descriptor.package_id == SUCCESSOR_PACKAGE_ID
+    assert descriptor.package_id == PACKAGE_ID
     assert descriptor.launch_component == SUCCESSOR_LAUNCH_COMPONENT
     for _target, _signer, preflighted in harness.preflight_arguments:
-        assert preflighted.package_id == SUCCESSOR_PACKAGE_ID
+        assert preflighted.package_id == PACKAGE_ID
 
 
 async def test_a_reply_without_a_package_is_never_taken_for_the_successor(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The successor always reports its own id, so silence is the other app."""
+    """The app always reports its own id, so silence is the old app."""
     manager = InstallJobManager(hass)
     receipt = await create_successor_job(manager)
     harness = Harness(monkeypatch)
     sleep = AsyncMock()
     monkeypatch.setattr(install_executor.asyncio, "sleep", sleep)
-    # A healthy panel at the right version naming no package: a build older
-    # than the migration, which cannot be the app just installed.
+    # A healthy panel at the right version naming no package: an old-app
+    # build, which cannot be the app just installed.
     harness.health_packages = [None]
 
     completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
 
     assert completed.phase is InstallPhase.RECOVERY_REQUIRED
     assert completed.result_code is InstallResultCode.VERIFICATION_REQUIRED
-    assert harness.health_calls == install_executor._HANDOVER_HEALTH_ATTEMPTS
-
-
-async def test_a_legacy_install_still_accepts_a_build_that_names_no_package(
-    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Every build older than the migration reports none; they still install."""
-    manager = InstallJobManager(hass)
-    receipt = await create_job(manager)
-    harness = Harness(monkeypatch)
-    harness.health_packages = [None]
-
-    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
-
-    assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
-    assert harness.health_calls == 1
-
-
-async def test_a_panel_that_answered_nothing_is_not_told_it_is_part_migrated(
-    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A handover is reported only when one was actually seen in progress.
-
-    A panel that fell off the network answers nothing at all. Telling its owner
-    it has not finished moving to its new app sends them looking for a handover
-    that never started.
-    """
-    manager = InstallJobManager(hass)
-    receipt = await create_successor_job(manager)
-    harness = Harness(monkeypatch)
-    harness.health_error = CannotConnectError()
-    monkeypatch.setattr(install_executor.asyncio, "sleep", AsyncMock())
-
-    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
-
-    assert completed.phase is InstallPhase.RECOVERY_REQUIRED
-    assert completed.result_code is InstallResultCode.VERIFICATION_REQUIRED
-    assert (
-        ir.async_get(hass).async_get_issue(
-            DOMAIN, f"panel_migration_incomplete_{receipt.job_id}"
-        )
-        is None
-    )
+    assert harness.health_calls == install_executor._HEALTH_ATTEMPTS
 
 
 async def test_a_freshly_installed_panel_is_told_where_home_assistant_is(
@@ -851,12 +717,12 @@ async def test_a_panel_holding_the_app_at_other_bytes_is_still_refused(
 @pytest.mark.parametrize(
     ("installed_package", "reported_package", "expected"),
     [
-        (SUCCESSOR_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, True),
-        (SUCCESSOR_PACKAGE_ID, "io.github.maxlyth.hapaneld", False),
-        (SUCCESSOR_PACKAGE_ID, None, False),
+        (PACKAGE_ID, PACKAGE_ID, True),
+        (PACKAGE_ID, "io.github.maxlyth.hapaneld", False),
+        (PACKAGE_ID, None, False),
         ("io.github.maxlyth.hapaneld", None, True),
         ("io.github.maxlyth.hapaneld", "io.github.maxlyth.hapaneld", True),
-        ("io.github.maxlyth.hapaneld", SUCCESSOR_PACKAGE_ID, False),
+        ("io.github.maxlyth.hapaneld", PACKAGE_ID, False),
     ],
 )
 def test_one_installed_app_rule_takes_the_whole_health_line(

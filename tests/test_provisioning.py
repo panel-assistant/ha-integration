@@ -59,7 +59,7 @@ def _retained_output(
     segments = ""
     for index, (package_id, kept) in enumerate(
         zip(
-            provisioning.ACCEPTED_PACKAGE_IDS,
+            provisioning.PROBED_PACKAGE_IDS,
             (retained, successor_retained),
             strict=True,
         )

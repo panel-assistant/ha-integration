@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_track_time_interval
 
-from .app_identity import LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, reports_package
+from .app_identity import PACKAGE_ID, reports_package
 from .build_feed import parse_build_request
 from .client import (
     CannotConnectError,
@@ -144,12 +144,6 @@ class UpdateProgress:
     @callback
     def _redraw(self, _now: datetime) -> None:
         self._write_state()
-
-    def next_delivery(self) -> None:
-        """The bridge's successor: its own steps, on the same bar."""
-        if self.attempt is not None:
-            self.attempt.stage = None
-            self.attempt.restart_projected = False
 
     def enter(self, stage: str, *, write: bool = True) -> None:
         """Advance the update stage; stages never go back within a delivery."""
@@ -370,7 +364,7 @@ class UpdateProgress:
         session = carrier is not None
         panel: UpdateCarrier = carrier if carrier is not None else coordinator.client
         build = artifact.descriptor
-        package_id = build.package_id if build else LEGACY_PACKAGE_ID
+        package_id = build.package_id if build else PACKAGE_ID
         loop = asyncio.get_running_loop()
         deadline = (
             loop.time()
@@ -393,10 +387,7 @@ class UpdateProgress:
                 and health is not None
                 and (health.build, health.package) != before
                 and health.version == artifact.version
-                and (
-                    reports_package(health.package, package_id)
-                    or (build is None and health.package == SUCCESSOR_PACKAGE_ID)
-                )
+                and reports_package(health.package, package_id)
             ):
                 code = health.version_code
                 if build is not None and code is None and not session:

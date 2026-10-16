@@ -515,7 +515,6 @@
     "mqtt_panel_needs_090": {
       "message": "{panel} 尚未从 MQTT 迁移：请先安装 Panel Assistant 0.9.0，如其修复所述"
     },
-    "move_with_repair": {"message": "请在“设置”中通过此面板的修复将其迁移到新应用。"},
     "health_update_failed": {
       "message": "无法读取面板健康状态"
     },
@@ -524,13 +523,7 @@
     "update_approval_required": { "message": "请在面板上批准此更新，然后重试" },
     "update_rejected": { "message": "{panel} 拒绝了更新请求。请检查面板的“安装”选项卡，然后重试。" },
     "update_refused_by_panel": { "message": "{panel} 拒绝了更新：{reason}" },
-    "bridge_not_ready": { "message": "面板暂时无法切换到新应用。一旦可以切换，Panel Assistant 会再次提供切换。" },
-    "release_pair_unavailable": { "message": "对应的新应用版本暂不可用。请稍后重试。" },
     "panel_changed_during_update": { "message": "更新期间面板状态发生变化。请刷新页面后重试。" },
-    "bridge_details_changed": { "message": "面板的移交信息发生变化。请刷新页面后重试。" },
-    "bridge_capability_unavailable": { "message": "无法检查面板是否已准备好移交。请检查面板连接后重试。" },
-    "successor_untrusted": { "message": "已安装的新应用不受信任，无法用于移交。请查看面板的“安装”选项卡。" },
-    "bridge_handover_refused": { "message": "面板拒绝移交给新应用。请查看面板的“安装”选项卡。" },
     "release_download_failed": { "message": "无法下载应用版本。请检查连接后重试。" },
     "staged_app_mismatch": { "message": "已暂存的应用与签名版本信息不符，因此未安装任何内容。" },
     "update_not_accepted": { "message": "面板未接受更新请求" },
@@ -609,45 +602,6 @@
     "mqtt_panel_needs_090": {
       "title": "{panel} 尚未从 MQTT 迁移",
       "description": "Panel Assistant 1.0 无法再将 {panel} 从 MQTT 迁移到它自己的连接，现在连接它会创建第二组实体并拆分其历史记录。请先安装 Panel Assistant 0.9.0（在 HACS 中打开 Panel Assistant，选择 Redownload，然后选择 0.9.0 版本），让它迁移面板，再安装 1.0.0。如果你想重新开始，请在“设置”、“设备与服务”、MQTT 中删除此面板的设备，然后重新加载此条目，或将其移除并重新添加面板；这会创建新实体，且不保留历史记录。"
-    },
-    "move_to_new_app": {
-      "title": "将 {panel} 迁移到新应用",
-      "fix_flow": {
-        "step": {
-          "confirm_move": {
-            "title": "将 {panel} 迁移到新应用",
-            "description": "{panel} 仍在运行旧版 ha-paneld 应用。Panel Assistant 会通过你的网络将其迁移到新应用，并保留其设置：先在这里备份面板，然后安装新应用，再移除旧应用。迁移期间面板应用会重启一次。如果面板显示“允许 USB 调试吗？”，请点按“允许”，如有“一律允许使用这台计算机进行调试”选项请勾选。你无需 root 面板，也无需输入任何命令。选择“提交”即可迁移。"
-          }
-        },
-        "progress": {
-          "moving": "正在将 {panel} 迁移到新应用。请保持面板开机。"
-        },
-        "abort": {
-          "entry_removed": "此面板已从 Home Assistant 中移除。",
-          "already_moved": "{panel} 已在运行新应用，无需迁移。",
-          "release_unavailable": "Panel Assistant 暂时无法获取新应用的发布版本。请检查 Home Assistant 能否访问互联网，然后重试。",
-          "adb_authorization": "{panel} 尚未允许 Panel Assistant 连接。请查看面板：如果显示“允许 USB 调试吗？”，请勾选“一律允许使用这台计算机进行调试”并点按“允许”，然后重新打开此修复。",
-          "adb_unreachable": "Panel Assistant 无法连接到 {panel} 进行迁移。请确认面板已开机、与 Home Assistant 位于同一网络，并且已在面板应用的设置中开启网络调试，然后重新打开此修复。",
-          "backup_failed": "Panel Assistant 无法为 {panel} 创建完整备份，因此未做任何更改。请稍后重试。",
-          "new_app_is_home": "{panel} 停留在之前一次未完成的迁移中，此版本暂时无法完成。未做任何更改。Panel Assistant 的后续版本会修复此问题。",
-          "move_failed": "{panel} 的迁移未完成。其设置已备份在 Home Assistant 中，面板仍保持可用的界面。重新打开此修复即可从中断处继续。",
-          "panel_changed": "在 {panel} 地址上响应的设备不是 Panel Assistant 所知的面板，因此未做任何更改。如果面板已被更换或重置，请将其从 Home Assistant 中移除后重新添加。",
-          "busy": "{panel} 正在进行更新或另一次迁移。请在其完成后重试。",
-          "restore_approval": "{panel} 需要在其屏幕上确认后才能恢复设置。请在面板上确认，然后重新打开此修复。"
-        }
-      }
-    },
-    "remove_old_app_adb": {
-      "title": "旧应用仍在 {panel} 上",
-      "description": "{panel} 正在运行新的 Panel Assistant 应用，但旧的 ha-paneld 应用仍安装在旁边。Panel Assistant 会通过 ADB 自动将其移除，但目前无法连接到面板的 Android Debug Bridge。请确认已开启网络调试，并且面板已允许 Home Assistant 连接。Panel Assistant 会自行重试。"
-    },
-    "remove_old_app_unproven": {
-      "title": "旧应用仍在 {panel} 上",
-      "description": "{panel} 上的新 Panel Assistant 应用旁边安装着旧的 ha-paneld 应用。只有在证明新应用正在运行面板后，Panel Assistant 才会移除旧应用：新应用必须以此面板的身份应答，并且是它的主屏幕。此项无法证明，因此两个应用均保持原样。Panel Assistant 会自行再次检查。"
-    },
-    "remove_old_app_failed": {
-      "title": "旧应用仍在 {panel} 上",
-      "description": "{panel} 正在运行新的 Panel Assistant 应用，但旧的 ha-paneld 应用仍安装在旁边。Panel Assistant 尝试备份面板并移除旧应用，但未能完成。面板上的其他内容均未更改。Panel Assistant 会自行重试。"
     },
     "panel_permissions": {
       "title": "{panel} 的权限需要处理。",
@@ -739,20 +693,6 @@
     "merged_panel_identity": {
       "title": "分离已合并的面板：{panels}",
       "description": "面板 {panels} 报告了相同的设备标识，因此 Home Assistant 无法安全地确定原生连接或实体属于哪个条目。它们的原生连接已被拒绝，也不会移动任何实体。请在所有受影响的面板上更新 Panel Assistant 应用，使每个面板都拥有不同的标识，然后删除合并后的设备，让面板重新注册。"
-    },
-    "panel_migration_incomplete": {
-      "title": "{address} 的面板尚未完成向新应用的迁移",
-      "fix_flow": {
-        "step": {
-          "confirm_migration": {
-            "title": "再次检查面板",
-            "description": "Panel Assistant 已在 {address} 的面板上安装版本 {version}，面板会自行把设置迁移到新应用。Home Assistant 停止等待时，该迁移尚未完成。面板全程继续正常工作，并会从中断处接着完成迁移，因此这里不会对它做任何更改。选择“提交”以再次查看。"
-          }
-        },
-        "abort": {
-          "migration_unfinished": "新应用尚未响应。面板会自行继续操作，请稍后重新打开此问题。"
-        }
-      }
     },
     "installer_failure": {
       "title": "{panel} 安装或更新失败",

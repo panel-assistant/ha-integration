@@ -107,7 +107,6 @@ from .install_receipt import (
     InstallPhase,
     InstallResultCode,
 )
-from .panel_move import runs_old_app
 from .provisioning import (
     InstallTargetProbe,
     InstallTargetState,
@@ -121,6 +120,7 @@ from .release_catalog import async_list_install_choices, async_resolve_install_c
 from .removal import RemovalError, async_read_firmware, async_remove_app
 from .repairs_failure import async_clear_adb_authorization
 from .repairs_update_route import help_parameters
+from .repairs_upgrade import runs_old_app
 from .status import PanelStatus
 from .transport import _panel_did
 from .transport_binding import (
@@ -612,12 +612,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             _install_candidate_placeholders(probe) is None
         ):
             state = "retained_or_ambiguous"
-        if state in (
-            "adb_unauthorized",
-            "install_candidate",
-            "installed",
-            "migration_candidate",
-        ):
+        if state in ("adb_unauthorized", "install_candidate", "installed"):
             self._pending_probe = probe if state != "adb_unauthorized" else None
             self._pending_probe_state = state
             return await self.async_step_choose_version()
@@ -856,10 +851,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 {"base": "install_candidate_changed"}
             )
 
-        if probe.state in {
-            InstallTargetState.INSTALLED,
-            InstallTargetState.MIGRATION_CANDIDATE,
-        }:
+        if probe.state is InstallTargetState.INSTALLED:
             adb_target = probe.adb_target(target.pinned)
             assert adb_target is not None
             try:
@@ -1420,11 +1412,9 @@ def _same_install_target(
         in {
             InstallTargetState.INSTALL_CANDIDATE,
             InstallTargetState.INSTALLED,
-            InstallTargetState.MIGRATION_CANDIDATE,
         }
         and not (
-            expected.state
-            in {InstallTargetState.INSTALLED, InstallTargetState.MIGRATION_CANDIDATE}
+            expected.state is InstallTargetState.INSTALLED
             and observed.state is InstallTargetState.INSTALL_CANDIDATE
         )
         and _install_candidate_placeholders(observed) is not None

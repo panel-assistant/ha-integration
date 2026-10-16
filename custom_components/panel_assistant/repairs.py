@@ -17,7 +17,6 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .app_identity import SUCCESSOR_PACKAGE_ID
 from .client import (
     CannotConnectError,
     HaPaneldClient,
@@ -39,12 +38,6 @@ from .identity import (
 from .install_executor import async_get_install_executor
 from .install_jobs import async_get_install_job_manager
 from .install_receipt import InstallPhase
-from .panel_move import ISSUE_DATA_ENTRY_ID as SUCCESSOR_MOVE_ENTRY_ID
-from .panel_move import (
-    ISSUE_MOVE_TO_NEW_APP,
-    SuccessorMoveFlow,
-    move_issue_id,
-)
 from .release import ReleaseResolutionError
 from .release_catalog import async_resolve_install_choice
 from .repairs_failure import (
@@ -59,11 +52,6 @@ from .repairs_failure import (
     async_retry_install_job,
     async_support_report,
     update_failure_entry_id,
-)
-from .repairs_migration import (
-    ISSUE_DATA_ADDRESS,
-    ISSUE_DATA_VERSION,
-    ISSUE_PANEL_MIGRATION_INCOMPLETE,
 )
 from .repairs_permission import (
     ISSUE_PANEL_PERMISSIONS,
@@ -88,7 +76,6 @@ from .transport_binding import (
 
 ABORT_ENTRY_REMOVED = "entry_removed"
 ABORT_USER_UNAVAILABLE = "user_unavailable"
-ABORT_MIGRATION_UNFINISHED = "migration_unfinished"
 _NOT_SHOWN = object()
 
 
@@ -301,62 +288,6 @@ class PanelUserBindingFlow(RepairsFlow):
             step_id=step_id,
             data_schema=vol.Schema({}),
             description_placeholders=placeholders,
-        )
-
-
-class PanelMigrationFlow(RepairsFlow):
-    """Ask the panel, once, whether its new app has taken over yet.
-
-    This flow reads and never writes. The handover is the panel's own and is
-    re-entrant, so the useful thing a person can do here is check again: either
-    the new app answers for itself, and the issue goes, or it does not yet, and
-    they are told that rather than being offered a button that changes nothing.
-    """
-
-    def __init__(self, address: str, version: str) -> None:
-        """Remember the panel address and the version this job installed."""
-        self._address = address
-        self._version = version
-
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> RepairsFlowResult:
-        """Show one confirmation that re-reads the panel when submitted.
-
-        The manager starts this step with the issue's own data, never with an
-        administrator's submission, so the form is always shown first.
-        """
-        return await self.async_step_confirm_migration()
-
-    async def async_step_confirm_migration(
-        self, user_input: dict[str, Any] | None = None
-    ) -> RepairsFlowResult:
-        """Re-read the panel and finish only when the new app answers."""
-        if user_input is not None:
-            if await self._async_successor_answered():
-                return self.async_create_entry(data={})
-            return self.async_abort(reason=ABORT_MIGRATION_UNFINISHED)
-        return self.async_show_form(
-            step_id="confirm_migration",
-            data_schema=vol.Schema({}),
-            description_placeholders={
-                "address": self._address,
-                "version": self._version,
-            },
-        )
-
-    async def _async_successor_answered(self) -> bool:
-        try:
-            address = normalize_address(self._address)
-        except InvalidAddressError:
-            return False
-        client = HaPaneldClient(async_get_clientsession(self.hass), address)
-        try:
-            health = await client.async_get_health()
-        except CannotConnectError, InvalidResponseError:
-            return False
-        return (
-            health.package == SUCCESSOR_PACKAGE_ID and health.version == self._version
         )
 
 
@@ -759,17 +690,6 @@ async def async_create_fix_flow(
         return PanelIdentityFlow(values)
     if issue_id.startswith(f"{ISSUE_INSTALLER_FAILURE}_"):
         return InstallerFailureFlow()
-    if issue_id.startswith(f"{ISSUE_MOVE_TO_NEW_APP}_"):
-        entry_id = values.get(SUCCESSOR_MOVE_ENTRY_ID)
-        if not isinstance(entry_id, str) or issue_id != move_issue_id(entry_id):
-            raise UnknownStep
-        return SuccessorMoveFlow(entry_id)
-    if issue_id.startswith(f"{ISSUE_PANEL_MIGRATION_INCOMPLETE}_"):
-        address = values.get(ISSUE_DATA_ADDRESS)
-        version = values.get(ISSUE_DATA_VERSION)
-        if not isinstance(address, str) or not isinstance(version, str):
-            raise UnknownStep
-        return PanelMigrationFlow(address, version)
     entry_id = values.get(ISSUE_DATA_ENTRY_ID)
     user_id = values.get(ISSUE_DATA_USER_ID)
     # The flow reads the entry itself to decide which confirmation to show.

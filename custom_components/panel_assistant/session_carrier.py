@@ -49,9 +49,7 @@ class UpdateCarrier(Protocol):
     async def async_backup_panel(self) -> bytes:
         """Return the panel's own settings backup."""
 
-    async def async_stage_apk(
-        self, apk: bytes, *, migration_sha256: str | None = None
-    ) -> StagedApk:
+    async def async_stage_apk(self, apk: bytes) -> StagedApk:
         """Hand the panel app bytes to inspect before anything installs."""
 
     async def async_commit_apk(self, token: str) -> None:
@@ -157,13 +155,8 @@ class SessionCarrier:
         finally:
             blobs.discard(token)
 
-    async def async_stage_apk(
-        self, apk: bytes, *, migration_sha256: str | None = None
-    ) -> StagedApk:
+    async def async_stage_apk(self, apk: bytes) -> StagedApk:
         """Offer the exact verified bytes for the panel to fetch and inspect."""
-        if migration_sha256 is not None:
-            # The app-id move hands over through the panel's own address only.
-            raise StagingUnavailableError
         blobs = async_get_blobs(self._hass)
         token, reference = blobs.download(self._entry_id, apk, APK_TYPE)
         try:

@@ -10,14 +10,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from .app_identity import LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, reports_package
+from .app_identity import PACKAGE_ID, reports_package
 from .build_feed import BuildFeed, FeedBuild, build_label, feed_release_artifact
-from .client import (
-    HaPaneldError,
-    NotABridgeError,
-    _version_key,
-    is_newer_stable_version,
-)
+from .client import _version_key, is_newer_stable_version
 from .coordinator import HaPaneldDataUpdateCoordinator, PanelSnapshot
 from .feed_coordinator import (
     BuildFeedCoordinator,
@@ -94,7 +89,10 @@ class UpdateOffer:
             _FIRST_LAN_UPDATE_VERSION, snapshot.health.version
         ):
             return None
-        package_id = snapshot.health.package or LEGACY_PACKAGE_ID
+        if not reports_package(snapshot.health.package, PACKAGE_ID):
+            # A panel still on the old app is offered nothing (repairs_upgrade).
+            return None
+        package_id = PACKAGE_ID
         installed_key = _version_key(snapshot.health.version)
         if installed_key is None:
             return None
@@ -126,19 +124,11 @@ class UpdateOffer:
             candidate_key = _version_key(artifact.version)
             if candidate_key is None:
                 continue
-            if (
-                candidate_key > installed_key
-                or (
-                    artifact.version == snapshot.health.version
-                    and code is not None
-                    and installed_code is not None
-                    and code > installed_code
-                )
-                # An installed bridge still owes its one-way handover.
-                or (
-                    artifact.descriptor is None
-                    and artifact.version == snapshot.health.version
-                )
+            if candidate_key > installed_key or (
+                artifact.version == snapshot.health.version
+                and code is not None
+                and installed_code is not None
+                and code > installed_code
             ):
                 eligible.append(artifact)
         return max(
@@ -155,18 +145,6 @@ class UpdateOffer:
         artifact = self.host_release()
         return artifact if artifact is not None and artifact.descriptor else None
 
-    def successor(self, tag: str) -> ReleaseArtifact | None:
-        """The new app released with this bridge, for the handover."""
-        return (
-            self.release.artifact_for(
-                SUCCESSOR_PACKAGE_ID,
-                allow_prerelease=self._allow_prerelease(),
-                tag=tag,
-            )
-            if self.release
-            else None
-        )
-
     def label(self, artifact: ReleaseArtifact) -> str:
         """Keep same-version rebuilds distinguishable in Home Assistant."""
         if artifact.descriptor is not None and (
@@ -175,60 +153,6 @@ class UpdateOffer:
         ):
             return build_label(artifact.version, artifact.descriptor.version_code)
         return artifact.version
-
-    def bridge_handover_due(self) -> bool:
-        snapshot: PanelSnapshot | None = self._coordinator.data
-        release = self.host_release()
-        return bool(
-            snapshot is not None
-            and self.feed_mode() is None
-            and release is not None
-            and release.descriptor is None
-            and snapshot.health.version == release.version
-            and snapshot.health.installation_identity
-            and reports_package(snapshot.health.package, LEGACY_PACKAGE_ID)
-        )
-
-    async def async_check_successor(
-        self, artifact: ReleaseArtifact, snapshot: PanelSnapshot
-    ) -> int | None:
-        """Use the panel's handover answer for both offer and install admission."""
-        descriptor = artifact.descriptor
-        if descriptor is None or descriptor.package_id != SUCCESSOR_PACKAGE_ID:
-            raise _update_error(
-                "release_pair_unavailable",
-                "The matching new-app release is unavailable",
-            )
-        if (
-            not snapshot.health.installation_identity
-            or snapshot.health.version != artifact.version
-        ):
-            raise _update_error(
-                "bridge_details_changed", "The panel's handover details changed"
-            )
-        try:
-            capability = await self._coordinator.client.async_get_successor_capability()
-        except NotABridgeError as err:
-            raise _update_error(
-                "bridge_not_ready",
-                "The panel cannot move to the new app yet; "
-                "it is offered again once it can",
-            ) from err
-        except HaPaneldError as err:
-            raise _update_error(
-                "bridge_capability_unavailable",
-                "The panel's handover capability could not be checked",
-            ) from err
-        if capability[3]:
-            raise _update_error(
-                "successor_untrusted",
-                "The installed new app is not trusted for handover",
-            )
-        if capability[:2] != (descriptor.package_id, artifact.version):
-            raise _update_error(
-                "bridge_details_changed", "The panel's handover details changed"
-            )
-        return capability[2]
 
     def stable_target(self) -> PanelCachedUpdate | None:
         """Project only the host's authenticated compatible release."""
@@ -271,8 +195,8 @@ class UpdateOffer:
         )
 
     def feed_package(self) -> str | None:
-        """Choose the package the panel actually runs, including old reports."""
+        """Choose the package the panel actually runs."""
         snapshot: PanelSnapshot | None = self._coordinator.data
         if snapshot is None:
             return None
-        return snapshot.health.package or LEGACY_PACKAGE_ID
+        return snapshot.health.package

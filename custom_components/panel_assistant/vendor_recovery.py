@@ -289,7 +289,7 @@ class VendorRecovery:
             _LOGGER.debug("Shelly dashboard recovery could not be armed")
 
     async def _recover(self, witness: _Witness) -> None:
-        from .panel_move import claim_panel_operation, release_panel_operation
+        from .panel_operations import claim_panel_operation, release_panel_operation
 
         coordinator = self._coordinator
         hass, context = coordinator.hass, witness.context

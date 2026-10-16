@@ -1,12 +1,16 @@
 /** Fixed read-only inventory. A clean result is not permission to install. */
 export const MAX_PREFLIGHT_BYTES = 32 * 1024;
-import { ACCEPTED_PACKAGE_IDS } from './app-identity.mjs';
+import { LEGACY_PACKAGE_ID, PACKAGE_ID } from './app-identity.mjs';
 import { fullMatch } from './shared.mjs';
 import { decodeLines, frameProgram, readSections } from './shell-session.mjs';
 
 const BASES = ['/data/user/0', '/data/data', '/data/user_de/0'];
-// Either accepted application's data makes a target unclean.
-export const RESIDUE_PROBES = Object.freeze(ACCEPTED_PACKAGE_IDS.flatMap(
+// The old app's id is probed so a panel still holding it, or its data, is
+// refused rather than given the new app beside it. Frozen, in this order: it
+// fixes the PACKAGE{i}/RETAINED{i}/RESIDUE{i} frame both installers read.
+const PROBED_PACKAGE_IDS = Object.freeze([LEGACY_PACKAGE_ID, PACKAGE_ID]);
+// Either probed application's data makes a target unclean.
+export const RESIDUE_PROBES = Object.freeze(PROBED_PACKAGE_IDS.flatMap(
   packageId => BASES.map(base => Object.freeze({ packageId, path: `${base}/${packageId}` }))));
 // Identity and root observation, shared verbatim by the USB posture program.
 export const IDENTITY_SECTIONS = Object.freeze([
@@ -19,7 +23,7 @@ export const IDENTITY_SECTIONS = Object.freeze([
     'else echo abnormal; fi; fi'],
 ]);
 const SECTIONS = [...IDENTITY_SECTIONS, ['LIVE', 'pm path android'],
-  ...ACCEPTED_PACKAGE_IDS.flatMap((packageId, i) => [
+  ...PROBED_PACKAGE_IDS.flatMap((packageId, i) => [
     [`PACKAGE${i}`, `pm path ${packageId}`],
     [`RETAINED${i}`, `pm list packages -u ${packageId}`]]),
   ...BASES.map((path, i) => [`BASE${i}`,
@@ -38,9 +42,9 @@ function checkNonce(nonce) {
   if (!fullMatch(/^[0-9a-f]{32}$/, nonce)) fail('invalid_request');
 }
 
-/** Existing panels and identity migrations must be orchestrated by PA. */
+/** Existing panels, the old app's among them, must be orchestrated by PA. */
 export function classifyTarget(targetPackageId, installed, residue) {
-  if (!ACCEPTED_PACKAGE_IDS.includes(targetPackageId)) fail('invalid_request');
+  if (targetPackageId !== PACKAGE_ID) fail('invalid_request');
   if (installed.length || residue.size) fail('target_not_clean');
   return false;
 }
@@ -100,9 +104,9 @@ export function parsePreflight(body, nonce, descriptor) {
 
   // Existing or retained package wins before root evaluation or any later su proof.
   if (s.LIVE.status !== 0 || !s.LIVE.values.length || !s.LIVE.values.every(isPackagePath)) fail();
-  // Either accepted id means this is an existing panel, managed through PA.
+  // Either probed id means this is an existing panel, managed through PA.
   const installed = [];
-  ACCEPTED_PACKAGE_IDS.forEach((packageId, i) => {
+  PROBED_PACKAGE_IDS.forEach((packageId, i) => {
     const path = s[`PACKAGE${i}`], retained = s[`RETAINED${i}`];
     if (retained.values.includes(`package:${packageId}`) || path.values.some(isPackagePath)) {
       installed.push(packageId);

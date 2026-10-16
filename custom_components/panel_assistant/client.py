@@ -100,10 +100,6 @@ class CannotConnectError(HaPaneldError):
     """Raised when a panel cannot be reached."""
 
 
-class NotABridgeError(HaPaneldError):
-    """Raised when the panel explicitly refuses successor handover."""
-
-
 class InvalidResponseError(HaPaneldError):
     """Raised when a panel does not return the health contract."""
 
@@ -173,8 +169,8 @@ class PanelHealth:
     discovery_id: str | None = None
     legacy_discovery_id: str | None = None
     installation_identity: bool = False
-    # The application id the panel is actually running. Absent from builds made
-    # before the identity migration, so never assumed.
+    # The application id the panel is actually running. Absent from old-app
+    # builds made before the move to the new id, so never assumed.
     package: str | None = None
     # The build number beside the version name. Absent from older builds.
     version_code: int | None = None
@@ -613,8 +609,6 @@ class HaPaneldClient:
                 headers={"Cache-Control": "no-cache"},
                 timeout=ClientTimeout(total=DEFAULT_TIMEOUT_SECONDS),
             ) as response:
-                if response.status == 404 and url.path == "/api/v1/successor":
-                    raise NotABridgeError
                 if response.status != 200:
                     raise CannotConnectError
                 if url == self.health_url:
@@ -981,67 +975,9 @@ class HaPaneldClient:
             raise HandBackRefusedError("not-handed")
         return handed_to
 
-    async def async_get_successor_capability(self) -> tuple[str, str, int | None, bool]:
-        """Read the bridge's explicit LAN handover capability, never infer it."""
-        body = await self._async_get_bounded(
-            self.address.base_url.with_path("/api/v1/successor"),
-            MAX_INSTALL_RESPONSE_BYTES,
-        )
-        try:
-            document = json.loads(body)
-        except (ValueError, UnicodeError) as err:
-            raise InvalidResponseError from err
-        if (
-            not isinstance(document, dict)
-            or not isinstance(document.get("package"), str)
-            or not isinstance(document.get("version"), str)
-            or (
-                "installed_version_code" in document
-                and (
-                    type(document["installed_version_code"]) is not int
-                    or not 0 < document["installed_version_code"] <= MAX_ANDROID_INTEGER
-                )
-            )
-            or (
-                "installed_untrusted" in document
-                and type(document["installed_untrusted"]) is not bool
-            )
-        ):
-            raise InvalidResponseError
-        return (
-            document["package"],
-            document["version"],
-            document.get("installed_version_code"),
-            document.get("installed_untrusted", False),
-        )
-
-    async def async_offer_installed_successor(self) -> None:
-        """Resume a bridge handover using only the already installed successor."""
-        status, body = await self._async_post_bounded(
-            self.address.base_url.with_path("/api/v1/successor/offer").with_query(
-                installed_only="1"
-            ),
-            {},
-            MAX_INSTALL_RESPONSE_BYTES,
-        )
-        if status == 202:
-            parse_update_approval_response(body)
-        if status != 200:
-            raise UpdateRejectedError if 400 <= status < 500 else CannotConnectError
-        try:
-            result = json.loads(body)
-        except (ValueError, UnicodeError) as err:
-            raise InvalidResponseError from err
-        if not isinstance(result, dict) or result.get("outcome") != "Launched":
-            raise UpdateRejectedError
-
-    async def async_stage_apk(
-        self, apk: bytes, *, migration_sha256: str | None = None
-    ) -> StagedApk:
+    async def async_stage_apk(self, apk: bytes) -> StagedApk:
         """Upload app bytes for the panel to inspect before anything installs."""
         url = self.address.base_url.with_path(APK_STAGE_PATH)
-        if migration_sha256 is not None:
-            url = url.with_query(migration="successor", sha256=migration_sha256)
         status, body = await self._async_post_bounded(
             url,
             apk,

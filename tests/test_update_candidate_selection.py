@@ -20,12 +20,10 @@ from yarl import URL
 from custom_components.panel_assistant import feed_coordinator, release, update_policy
 from custom_components.panel_assistant.app_identity import (
     LAUNCH_COMPONENTS,
-    LEGACY_PACKAGE_ID,
-    SUCCESSOR_PACKAGE_ID,
+    PACKAGE_ID,
 )
 from custom_components.panel_assistant.const import CONF_PRERELEASE_PANEL_BUILDS, DOMAIN
 from custom_components.panel_assistant.feed_coordinator import BuildFeedCoordinator
-from custom_components.panel_assistant.panel_move import CONF_SUCCESSOR_MOVE
 
 from . import test_build_feed as feed_http
 from . import test_lan_staged_update as lan
@@ -55,7 +53,7 @@ def _public_pool(
     responses: dict[str, lan._Response] = {}
     documents = []
     apks = {}
-    fixture = lan._GitHub(key, package_id=SUCCESSOR_PACKAGE_ID)
+    fixture = lan._GitHub(key, package_id=PACKAGE_ID)
     for version, code, protocol_range in candidates:
         tag = f"v{version}"
         root = f"https://github.com/panel-assistant/android/releases/download/{tag}"
@@ -70,9 +68,7 @@ def _public_pool(
                 "ASSET_HOST_URL": f"https://release-assets.githubusercontent.com/{tag}",
             }.items():
                 scoped.setattr(lan, name, value)
-            fixture = lan._GitHub(
-                key, apk=apk, signed_apk=apk, package_id=SUCCESSOR_PACKAGE_ID
-            )
+            fixture = lan._GitHub(key, apk=apk, signed_apk=apk, package_id=PACKAGE_ID)
         document = json.loads(fixture._responses[str(release._LATEST_RELEASE_URL)].body)
         document["prerelease"] = "-" in version
         protocol_url = f"{root}/ha-paneld-{tag}-protocol.json"
@@ -121,7 +117,7 @@ def _add_feed(
     candidates: list[Candidate],
     *,
     broken: str | None = None,
-    package_id: str = SUCCESSOR_PACKAGE_ID,
+    package_id: str = PACKAGE_ID,
 ) -> dict[tuple[str, int], bytes]:
     entries = []
     ranges = []
@@ -186,9 +182,7 @@ async def _panel(
         options={CONF_PRERELEASE_PANEL_BUILDS: prerelease},
     )
     entry.add_to_hass(hass)
-    entity, client = await lan._entity(
-        hass, monkeypatch, github, package=SUCCESSOR_PACKAGE_ID
-    )
+    entity, client = await lan._entity(hass, monkeypatch, github, package=PACKAGE_ID)
     snapshot = entity.coordinator.data
     entity.coordinator.data = replace(
         snapshot,
@@ -363,7 +357,7 @@ async def test_public_release_keeps_name_order_on_a_renumbered_line(
 
 def _restart_for_install(entity: Any, client: Any, version: str, code: int) -> None:
     client.async_stage_apk.return_value = lan._preview(
-        package=SUCCESSOR_PACKAGE_ID, version=version
+        package=PACKAGE_ID, version=version
     )
     client.async_get_version_code.return_value = (version, code)
 
@@ -502,63 +496,6 @@ async def test_equal_rank_sources_preserve_the_verified_feed_artifact(
     client.async_commit_apk.assert_awaited_once_with("tok-1")
 
 
-async def test_configured_feed_does_not_hide_an_installed_bridge_handover(
-    hass: HomeAssistant,
-    monkeypatch: pytest.MonkeyPatch,
-    trust: None,
-    key: Any,
-) -> None:
-    github = lan._GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=b"signed bridge")
-    _add_feed(
-        github, key, [(lan.VERSION, lan.CODE, (5, 5))], package_id=LEGACY_PACKAGE_ID
-    )
-    entity, client = await lan._entity(
-        hass, monkeypatch, github, package=LEGACY_PACKAGE_ID
-    )
-    snapshot = entity.coordinator.data
-    entity.coordinator.data = replace(
-        snapshot,
-        health=replace(snapshot.health, version=lan.VERSION, version_code=lan.CODE),
-    )
-    entity._installed_code = lan.CODE
-    entity._code_key = (lan.VERSION, snapshot.health.build)
-    entity._offer.feed = BuildFeedCoordinator(hass, feed_http.FEED_URL)
-    await entity._offer.feed.async_refresh()
-    client.async_get_successor_capability = AsyncMock(
-        return_value=(SUCCESSOR_PACKAGE_ID, lan.VERSION, lan.CODE, False)
-    )
-    # Only a move already under way still reaches the old app; a fresh one is refused.
-    entry = lan._move_entry(hass, entity)
-    hass.config_entries.async_update_entry(
-        entry,
-        data={
-            **entry.data,
-            CONF_SUCCESSOR_MOVE: {"panel_id": entity.coordinator.data.health.panel_id},
-        },
-    )
-    entity._handle_offer_refresh()
-    await hass.async_block_till_done()
-    assert entity.installed_version == f"{lan.VERSION} (bridge)"
-    assert entity.latest_version == lan.VERSION
-    assert entity.state == "on"
-    with pytest.raises(HomeAssistantError) as caught:
-        await entity.async_install(None, False)
-    assert caught.value.translation_key == "move_with_repair"
-    assert lan._move_repair(hass) is not None
-    client.async_stage_apk.assert_not_awaited()
-    client.async_commit_apk.assert_not_awaited()
-    client.async_start_panel_update.assert_not_awaited()
-    client.async_offer_installed_successor.assert_not_awaited()
-    snapshot = entity.coordinator.data
-    entity.coordinator.data = replace(
-        snapshot, health=replace(snapshot.health, package=SUCCESSOR_PACKAGE_ID)
-    )
-    entity._handle_offer_refresh()
-    await hass.async_block_till_done()
-    assert entity.state == "off"
-    assert "(bridge)" not in entity.installed_version
-
-
 @pytest.mark.parametrize("verification", ["cached", "in-flight"])
 async def test_withdrawn_feed_candidate_cannot_return_verified_bytes(
     hass: HomeAssistant,
@@ -575,7 +512,7 @@ async def test_withdrawn_feed_candidate_cannot_return_verified_bytes(
     coordinator = BuildFeedCoordinator(hass, feed_http.FEED_URL)
     await coordinator.async_refresh()
     assert coordinator.last_update_success
-    build = coordinator.data.find(demanded[1], SUCCESSOR_PACKAGE_ID)
+    build = coordinator.data.find(demanded[1], PACKAGE_ID)
     assert build is not None
     assert coordinator.verified_apk(build) is None
     target_apk = apks[demanded[:2]]

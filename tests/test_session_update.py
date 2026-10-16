@@ -11,7 +11,6 @@ import asyncio
 import hashlib
 import json
 from collections.abc import Callable
-from dataclasses import replace
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -29,8 +28,7 @@ from custom_components.panel_assistant import (
 )
 from custom_components.panel_assistant import update as panel_update
 from custom_components.panel_assistant.app_identity import (
-    LEGACY_PACKAGE_ID,
-    SUCCESSOR_PACKAGE_ID,
+    PACKAGE_ID,
 )
 from custom_components.panel_assistant.blob import BlobTransferError, async_get_blobs
 from custom_components.panel_assistant.client import (
@@ -38,7 +36,6 @@ from custom_components.panel_assistant.client import (
     HaPaneldClient,
     HaPaneldError,
     InvalidResponseError,
-    StagingUnavailableError,
     UpdateBusyError,
     parse_health_response,
 )
@@ -82,7 +79,7 @@ NEW = (VERSION, "2000", 780)
 def _health(version: str, build: str, code: int) -> str:
     return (
         f"ha-paneld {version} panel=alpha build={build} cfg=1a2b3c4d did={DID}"
-        f" identity=install vc={code} proto=5-5 pkg={SUCCESSOR_PACKAGE_ID}\n"
+        f" identity=install vc={code} proto=5-5 pkg={PACKAGE_ID}\n"
     )
 
 
@@ -215,7 +212,7 @@ class FakePanel:
                 {
                     "ok": True,
                     "token": "tok-1",
-                    "package": SUCCESSOR_PACKAGE_ID,
+                    "package": PACKAGE_ID,
                     "version": VERSION,
                     "signer": SIGNER,
                 },
@@ -245,7 +242,7 @@ async def _session_panel(
     token: str,
 ) -> tuple[HaPaneldUpdateEntity, FakePanel]:
     """A loaded panel on 0.9.9 that only its session reaches, and its update."""
-    github = _GitHub(signing_key, package_id=SUCCESSOR_PACKAGE_ID)
+    github = _GitHub(signing_key, package_id=PACKAGE_ID)
     monkeypatch.setattr(feed_coordinator, "async_get_clientsession", lambda _h: github)
     monkeypatch.setattr(update_staging, "async_get_clientsession", lambda _h: github)
     entry = await _load(hass, user.id)
@@ -373,36 +370,6 @@ async def test_an_unreachable_panel_updates_over_its_session(
         getattr(HaPaneldClient, name).assert_not_awaited()
 
 
-async def test_a_bridge_release_is_never_sent_over_the_session(
-    hass: HomeAssistant,
-    offline: Any,
-    monkeypatch: pytest.MonkeyPatch,
-    key: Any,  # noqa: F811
-) -> None:
-    """The move to the new app hands over through the panel's address only."""
-    entity, panel = offline
-    entry = hass.config_entries.async_get_entry(entity._entry_id)
-    assert entry is not None
-    hass.config_entries.async_update_entry(
-        entry, data={**entry.data, "successor_move": {"panel_id": "alpha"}}
-    )
-    snapshot = entity.coordinator.data
-    assert snapshot is not None
-    entity.coordinator.data = replace(
-        snapshot, health=replace(snapshot.health, package=LEGACY_PACKAGE_ID)
-    )
-    github = _GitHub(key, package_id=SUCCESSOR_PACKAGE_ID, bridge=b"bridge")
-    monkeypatch.setattr(feed_coordinator, "async_get_clientsession", lambda _h: github)
-    monkeypatch.setattr(update_staging, "async_get_clientsession", lambda _h: github)
-    await entity._offer.release.async_refresh()
-    assert entity._offer.host_release().descriptor is None
-
-    error = await _refused(entity)
-
-    assert error.translation_key == "update_unavailable"
-    assert "install.apk" not in panel.ops
-
-
 async def test_a_panel_that_cannot_install_itself_gets_no_session_route(
     hass: HomeAssistant, offline: Any
 ) -> None:
@@ -431,18 +398,6 @@ async def test_an_oversize_status_is_refused_before_parsing(
         await SessionCarrier(hass, entity._entry_id).async_get_status(home_proof=True)
 
 
-async def test_the_app_id_move_is_not_staged_over_the_session(
-    hass: HomeAssistant, offline: Any
-) -> None:
-    entity, panel = offline
-
-    with pytest.raises(StagingUnavailableError):
-        await SessionCarrier(hass, entity._entry_id).async_stage_apk(
-            APK, migration_sha256="0" * 64
-        )
-    assert "install.apk" not in panel.ops
-
-
 async def test_a_reachable_managed_panel_still_updates_over_http(
     hass: HomeAssistant, offline: Any
 ) -> None:
@@ -456,9 +411,7 @@ async def test_a_reachable_managed_panel_still_updates_over_http(
 
     client = MagicMock()
     client.async_backup_panel = AsyncMock(return_value=_backup())
-    client.async_stage_apk = AsyncMock(
-        return_value=_preview(package=SUCCESSOR_PACKAGE_ID)
-    )
+    client.async_stage_apk = AsyncMock(return_value=_preview(package=PACKAGE_ID))
     client.async_commit_apk = AsyncMock(side_effect=commit)
     client.async_get_status = AsyncMock(
         return_value=PanelStatus(warning_count=0, capability_count=0, home_ui=_HOME)

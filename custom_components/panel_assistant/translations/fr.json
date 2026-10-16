@@ -515,7 +515,6 @@
     "mqtt_panel_needs_090": {
       "message": "{panel} n'a jamais quitté MQTT : installez d'abord Panel Assistant 0.9.0, comme l'explique sa réparation"
     },
-    "move_with_repair": {"message": "Passez ce panneau à la nouvelle app avec sa réparation dans les Paramètres."},
     "health_update_failed": {
       "message": "Impossible de lire l'état du panneau"
     },
@@ -524,13 +523,7 @@
     "update_approval_required": { "message": "Approuvez cette mise à jour sur le panneau, puis réessayez" },
     "update_rejected": { "message": "{panel} a refusé la demande de mise à jour. Vérifiez l'onglet Installer du panneau, puis réessayez." },
     "update_refused_by_panel": { "message": "{panel} a refusé la mise à jour : {reason}" },
-    "bridge_not_ready": { "message": "Le panneau ne peut pas encore passer à la nouvelle application. Panel Assistant proposera de nouveau le passage dès que possible." },
-    "release_pair_unavailable": { "message": "La version correspondante de la nouvelle application n'est pas disponible. Réessayez plus tard." },
     "panel_changed_during_update": { "message": "Le panneau a changé pendant la mise à jour. Actualisez la page, puis réessayez." },
-    "bridge_details_changed": { "message": "Les données de transfert du panneau ont changé. Actualisez la page, puis réessayez." },
-    "bridge_capability_unavailable": { "message": "Impossible de vérifier si le panneau est prêt pour le transfert. Vérifiez sa connexion, puis réessayez." },
-    "successor_untrusted": { "message": "La nouvelle application installée n'est pas approuvée pour le transfert. Consultez l'onglet Installer du panneau." },
-    "bridge_handover_refused": { "message": "Le panneau a refusé le transfert vers l'application. Consultez l'onglet Installer du panneau." },
     "release_download_failed": { "message": "Impossible de télécharger la version de l'application. Vérifiez la connexion, puis réessayez." },
     "staged_app_mismatch": { "message": "L'application préparée ne correspondait pas aux données de la version signée. Rien n'a été installé." },
     "update_not_accepted": { "message": "Le panneau n'a pas accepté la demande de mise à jour" },
@@ -609,45 +602,6 @@
     "mqtt_panel_needs_090": {
       "title": "{panel} n'a jamais quitté MQTT",
       "description": "Panel Assistant 1.0 ne peut plus faire passer {panel} de MQTT à sa propre connexion, et le connecter maintenant créerait un second jeu d'entités et scinderait son historique. Installez d'abord Panel Assistant 0.9.0 (dans HACS, ouvrez Panel Assistant, choisissez Redownload, puis la version 0.9.0), laissez-le faire passer le panneau, puis installez 1.0.0. Si vous préférez repartir de zéro, supprimez l'appareil de ce panneau dans Paramètres, Appareils et services, MQTT, puis rechargez cette entrée ou supprimez-la et ajoutez de nouveau le panneau ; cela crée de nouvelles entités et ne conserve aucun historique."
-    },
-    "move_to_new_app": {
-      "title": "Passer {panel} à la nouvelle app",
-      "fix_flow": {
-        "step": {
-          "confirm_move": {
-            "title": "Passer {panel} à la nouvelle app",
-            "description": "{panel} utilise encore l’ancienne app ha-paneld. Panel Assistant le passe à la nouvelle app via votre réseau en conservant ses réglages : il sauvegarde d’abord le panneau ici, installe la nouvelle app, puis supprime l’ancienne. L’app du panneau redémarre une fois pendant l’opération. Si le panneau affiche « Autoriser le débogage USB ? », appuyez sur « Autoriser » en cochant « Toujours autoriser cet ordinateur » si cette option est proposée. Vous n’avez pas besoin de rooter le panneau ni de saisir de commandes. Sélectionnez « Valider » pour le passer à la nouvelle app."
-          }
-        },
-        "progress": {
-          "moving": "Migration de {panel} vers la nouvelle application. Laissez le panneau allumé."
-        },
-        "abort": {
-          "entry_removed": "Ce panneau a été supprimé de Home Assistant.",
-          "already_moved": "{panel} utilise déjà la nouvelle app. Il n’y avait rien à faire.",
-          "release_unavailable": "Panel Assistant n’a pas pu obtenir la version de la nouvelle app pour le moment. Vérifiez que Home Assistant accède à Internet, puis réessayez.",
-          "adb_authorization": "{panel} n’a pas encore autorisé Panel Assistant à se connecter. Regardez le panneau : s’il affiche « Autoriser le débogage USB ? », appuyez sur « Autoriser » en cochant « Toujours autoriser cet ordinateur », puis rouvrez cette réparation.",
-          "adb_unreachable": "Panel Assistant n’a pas pu se connecter à {panel} pour le passer à la nouvelle app. Vérifiez que le panneau est allumé, sur le même réseau que Home Assistant, et que le débogage réseau est activé dans les réglages de l’app du panneau, puis rouvrez cette réparation.",
-          "backup_failed": "Panel Assistant n’a pas pu effectuer une sauvegarde complète de {panel}. Rien n’a donc été modifié. Réessayez plus tard.",
-          "new_app_is_home": "{panel} est resté à mi-chemin d’un passage précédent que cette version ne peut pas encore terminer. Rien n’a été modifié. Une version ultérieure de Panel Assistant le réparera.",
-          "move_failed": "Le passage de {panel} n’est pas allé jusqu’au bout. Ses réglages sont sauvegardés dans Home Assistant et le panneau garde un écran qui fonctionne. Rouvrez cette réparation pour reprendre là où il s’est arrêté.",
-          "panel_changed": "L’appareil qui répond à l’adresse de {panel} n’est pas le panneau que connaît Panel Assistant ; rien n’a donc été modifié. Si le panneau a été remplacé ou réinitialisé, supprimez-le de Home Assistant puis ajoutez-le à nouveau.",
-          "busy": "{panel} est occupé par une mise à jour ou un autre passage. Réessayez une fois l’opération terminée.",
-          "restore_approval": "{panel} demande une approbation sur son écran avant de pouvoir restaurer ses réglages. Approuvez-la sur le panneau, puis rouvrez cette réparation."
-        }
-      }
-    },
-    "remove_old_app_adb": {
-      "title": "L'ancienne application est toujours sur {panel}",
-      "description": "{panel} utilise la nouvelle application Panel Assistant, mais l'ancienne application ha-paneld est toujours installée à côté. Panel Assistant la supprime automatiquement via ADB, mais ne peut pas se connecter à l'Android Debug Bridge du panneau pour le moment. Vérifiez que le débogage réseau est activé et que le panneau a autorisé Home Assistant à se connecter. Panel Assistant réessaiera de lui-même."
-    },
-    "remove_old_app_unproven": {
-      "title": "L'ancienne application est toujours sur {panel}",
-      "description": "{panel} a l'ancienne application ha-paneld installée à côté de la nouvelle application Panel Assistant. Panel Assistant ne supprime l'ancienne application qu'une fois prouvé que la nouvelle fait fonctionner le panneau : elle doit répondre en tant que ce panneau et être son écran d'accueil. Cela n'a pas pu être prouvé, les deux applications ont donc été laissées telles quelles. Panel Assistant vérifiera à nouveau de lui-même."
-    },
-    "remove_old_app_failed": {
-      "title": "L'ancienne application est toujours sur {panel}",
-      "description": "{panel} utilise la nouvelle application Panel Assistant, mais l'ancienne application ha-paneld est toujours installée à côté. Panel Assistant a tenté de sauvegarder le panneau et de supprimer l'ancienne application, sans y parvenir. Rien d'autre n'a été modifié sur le panneau. Panel Assistant réessaiera de lui-même."
     },
     "panel_permissions": {
       "title": "Les autorisations de {panel} nécessitent votre attention.",
@@ -739,20 +693,6 @@
     "merged_panel_identity": {
       "title": "Séparer les panneaux fusionnés : {panels}",
       "description": "Les panneaux {panels} signalent la même identité d’appareil. Home Assistant ne peut donc pas déterminer de manière sûre à quelle entrée appartient une connexion native ou une entité. Leur connexion native est refusée et aucune entité n’est déplacée. Mettez à jour l’application Panel Assistant sur chaque panneau concerné pour que chacun ait une identité distincte. Supprimez ensuite l’appareil fusionné et laissez les panneaux s’enregistrer à nouveau."
-    },
-    "panel_migration_incomplete": {
-      "title": "Le panneau à {address} n'a pas terminé son passage à sa nouvelle application",
-      "fix_flow": {
-        "step": {
-          "confirm_migration": {
-            "title": "Vérifier à nouveau le panneau",
-            "description": "Panel Assistant a installé la version {version} sur le panneau à {address}, et le panneau transfère lui-même ses réglages vers la nouvelle application. Ce transfert n'était pas terminé lorsque Home Assistant a cessé d'attendre. Le panneau continue de fonctionner pendant toute l'opération et reprend là où il s'était arrêté ; rien n'est modifié ici. Sélectionne Envoyer pour regarder à nouveau."
-          }
-        },
-        "abort": {
-          "migration_unfinished": "La nouvelle application n’a pas encore répondu. Le panneau poursuit l’opération seul ; rouvrez donc ce problème plus tard."
-        }
-      }
     },
     "installer_failure": {
       "title": "Échec de l'installation ou de la mise à jour sur {panel}",

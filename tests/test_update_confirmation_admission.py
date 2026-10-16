@@ -8,6 +8,7 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.panel_assistant import update as panel_update
+from custom_components.panel_assistant.app_identity import PACKAGE_ID
 from custom_components.panel_assistant.client import PanelInstallStatus, UpdateBusyError
 from custom_components.panel_assistant.update_coordinator import PanelUpdateSnapshot
 
@@ -19,7 +20,7 @@ async def test_pending_apk_confirmation_blocks_duplicate_install(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, caller: str
 ) -> None:
     """Reloaded panel work prevents a second backup, upload and failure Repair."""
-    entity, client = _entity(hass)
+    entity, client = _entity(hass, package=PACKAGE_ID)
     entity._update_coordinator.data = PanelUpdateSnapshot(
         operation=PanelInstallStatus(
             running=True, component="APK", awaiting_confirmation=True
@@ -59,7 +60,7 @@ def test_other_apk_status_does_not_claim_an_update(
     hass: HomeAssistant, running: bool, awaiting_confirmation: bool
 ) -> None:
     """An unrelated APK operation or a finished prompt does not latch progress."""
-    entity, _ = _entity(hass)
+    entity, _ = _entity(hass, package=PACKAGE_ID)
     entity._update_coordinator.data = PanelUpdateSnapshot(
         operation=PanelInstallStatus(
             running=running,

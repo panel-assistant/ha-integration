@@ -21,7 +21,8 @@ from homeassistant.util.ulid import bytes_to_ulid, ulid_to_bytes_or_none
 from .app_identity import (
     INSTALL_DESCRIPTOR_SCHEMAS,
     INSTALL_PLAN_SCHEMAS,
-    is_accepted_package_id,
+    LEGACY_LAUNCH_COMPONENT,
+    LEGACY_PACKAGE_ID,
     is_launch_component,
 )
 from .client import InvalidAddressError, normalize_address
@@ -525,13 +526,17 @@ def _parse_artifact(value: object) -> InstallArtifact:
     signer = _safe_text(value["signer_certificate_sha256"], 64)
     abis = value["supported_abis"]
     database = _safe_text(value["database_compatibility"], 128)
-    # A receipt stored by an earlier release names the legacy package, so the
-    # stored id is read back and re-checked rather than replaced by a constant.
+    # A receipt stored by an earlier release may name the old app and its one
+    # launcher, so the stored id is read back and re-checked rather than
+    # replaced by a constant; one bad record would close the whole store.
     package_id = value["package_id"]
     if (
         value["descriptor_schema"] not in INSTALL_DESCRIPTOR_SCHEMAS
-        or not is_accepted_package_id(package_id)
-        or not is_launch_component(package_id, value["launch_component"])
+        or (
+            not is_launch_component(package_id, value["launch_component"])
+            and (package_id, value["launch_component"])
+            != (LEGACY_PACKAGE_ID, LEGACY_LAUNCH_COMPONENT)
+        )
         or signer != _RELEASE_SIGNER_CERTIFICATE_SHA256
         or not isinstance(abis, (list, tuple))
         or tuple(abis) != _SUPPORTED_ABIS

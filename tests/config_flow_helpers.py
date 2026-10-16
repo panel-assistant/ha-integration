@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
-from custom_components.panel_assistant.app_identity import SUCCESSOR_PACKAGE_ID
+from custom_components.panel_assistant.app_identity import PACKAGE_ID
 from custom_components.panel_assistant.client import (
     PanelAddress,
     PanelHealth,
@@ -37,7 +37,7 @@ HEALTH = PanelHealth(
     build="1000",
     config_hash="1a2b3c4d",
     protocol=(5, 5),
-    package=SUCCESSOR_PACKAGE_ID,
+    package=PACKAGE_ID,
 )
 BETA_HEALTH = replace(HEALTH, version="0.9.0", panel_id="beta", build="1001")
 DISCOVERY_ID = "a" * 64
@@ -47,17 +47,17 @@ DESCRIPTOR = InstallDescriptor(
     release_tag="v0.9.7",
     version_name="0.9.7",
     version_code=907,
-    apk_name="ha-paneld-v0.9.7-manual-setup-required.apk",
+    apk_name="panel-assistant-v0.9.7-manual-setup-required.apk",
     apk_size=1234,
     apk_sha256="a" * 64,
-    package_id="io.github.maxlyth.hapaneld",
+    package_id="io.panelassistant.android",
     signer_certificate_sha256=(
         "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
     ),
     min_sdk=26,
     supported_abis=("arm64-v8a", "armeabi-v7a"),
     database_compatibility="hapaneld-db:v1:ha-paneld.db:1:1",
-    launch_component="io.github.maxlyth.hapaneld/.MainActivity",
+    launch_component="io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity",
 )
 RELEASE = ReleaseArtifact(
     tag="v0.9.7",

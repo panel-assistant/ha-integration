@@ -11,6 +11,7 @@ from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.panel_assistant import update as panel_update
 from custom_components.panel_assistant import update_progress
+from custom_components.panel_assistant.app_identity import PACKAGE_ID
 from custom_components.panel_assistant.client import PanelInstallStatus
 from custom_components.panel_assistant.status import PanelStatus
 from custom_components.panel_assistant.update_coordinator import PanelUpdateSnapshot
@@ -55,7 +56,11 @@ def _waiting_update(
     installed_code: int | None = None,
 ) -> SimpleNamespace:
     """Drive real Install with controllable operation and accepted health reads."""
-    entity, client = feed_entity(hass) if route == "staged" else download_entity(hass)
+    entity, client = (
+        feed_entity(hass, package=PACKAGE_ID)
+        if route == "staged"
+        else download_entity(hass)
+    )
     record = AsyncMock()
     monkeypatch.setattr(panel_update, "async_record_update_failure", record)
 

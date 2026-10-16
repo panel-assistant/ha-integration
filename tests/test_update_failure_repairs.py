@@ -23,7 +23,7 @@ from custom_components.panel_assistant import (
 from custom_components.panel_assistant.app_identity import (
     LAUNCH_COMPONENTS,
     LEGACY_PACKAGE_ID,
-    SUCCESSOR_PACKAGE_ID,
+    PACKAGE_ID,
 )
 from custom_components.panel_assistant.build_feed import (
     BuildDownloadError,
@@ -96,7 +96,7 @@ def _entity(
         async_stage_apk=AsyncMock(
             return_value=StagedApk(
                 token="token-1",
-                package=SUCCESSOR_PACKAGE_ID,
+                package=PACKAGE_ID,
                 version="0.9.10",
                 signer=_RELEASE_SIGNER_CERTIFICATE_SHA256,
             )
@@ -119,7 +119,7 @@ def _entity(
             panel_id="alpha",
             build="101",
             config_hash="abcd",
-            package=SUCCESSOR_PACKAGE_ID,
+            package=PACKAGE_ID,
             protocol=(5, 5),
         ),
         status=PanelStatus(
@@ -151,8 +151,8 @@ def _entity(
         database_compatibility="hapaneld-db:v1:ha-paneld.db:11:14",
         min_sdk=26,
         published="2026-09-28T00:00:00Z",
-        package_id=SUCCESSOR_PACKAGE_ID,
-        launch_component=LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID][0],
+        package_id=PACKAGE_ID,
+        launch_component=LAUNCH_COMPONENTS[PACKAGE_ID][0],
         protocol_min=5,
         protocol_max=5,
     )
@@ -163,7 +163,7 @@ def _entity(
         coordinator._verified_apks[build.apk_sha256] = b"apk"
     host_artifact = replace(feed_release_artifact(build), tag="v0.9.10")
     host = StableReleaseCoordinator(hass)
-    host._candidates[host_artifact.tag, SUCCESSOR_PACKAGE_ID] = host_artifact
+    host._candidates[host_artifact.tag, PACKAGE_ID] = host_artifact
     entity = HaPaneldUpdateEntity(
         "entry-id",
         health,
@@ -291,8 +291,8 @@ async def test_recovered_update_accepts_newer_health_when_offer_advanced(
     # installing the one it took, so the offer no longer names that build.
     host = entity._offer.release
     assert host is not None
-    taken = host._candidates["v0.9.10", SUCCESSOR_PACKAGE_ID]
-    host._candidates["v0.9.11", SUCCESSOR_PACKAGE_ID] = replace(
+    taken = host._candidates["v0.9.10", PACKAGE_ID]
+    host._candidates["v0.9.11", PACKAGE_ID] = replace(
         taken, version="0.9.11", tag="v0.9.11"
     )
     assert entity.latest_version == "0.9.11"
@@ -318,7 +318,7 @@ async def test_recovered_update_accepts_newer_health_when_offer_advanced(
                     build="102",
                     config_hash="abcd",
                     protocol=(5, 5),
-                    package=SUCCESSOR_PACKAGE_ID,
+                    package=PACKAGE_ID,
                 ),
                 status=PanelStatus(warning_count=0, capability_count=0),
                 status_error=None,
@@ -696,23 +696,23 @@ async def test_accepted_health_poll_clears_repair_when_failed_build_is_reached(
             ("0.9.10", 102),
             True,
             True,
-            LEGACY_PACKAGE_ID,
+            PACKAGE_ID,
             None,
             True,
             id="current",
         ),
         pytest.param(
-            103, ("0.9.10", 103), True, True, LEGACY_PACKAGE_ID, None, True, id="newer"
+            103, ("0.9.10", 103), True, True, PACKAGE_ID, None, True, id="newer"
         ),
         pytest.param(
-            101, ("0.9.10", 101), True, True, LEGACY_PACKAGE_ID, None, False, id="below"
+            101, ("0.9.10", 101), True, True, PACKAGE_ID, None, False, id="below"
         ),
         pytest.param(
             None,
             ("0.9.10", 101),
             True,
             True,
-            LEGACY_PACKAGE_ID,
+            PACKAGE_ID,
             None,
             False,
             id="fallback-diag-below",
@@ -722,7 +722,7 @@ async def test_accepted_health_poll_clears_repair_when_failed_build_is_reached(
             ("0.9.9", 102),
             True,
             True,
-            LEGACY_PACKAGE_ID,
+            PACKAGE_ID,
             None,
             False,
             id="fallback-diag-name-mismatch",
@@ -732,7 +732,7 @@ async def test_accepted_health_poll_clears_repair_when_failed_build_is_reached(
             None,
             True,
             True,
-            LEGACY_PACKAGE_ID,
+            PACKAGE_ID,
             None,
             False,
             id="diag-unavailable",
@@ -742,7 +742,7 @@ async def test_accepted_health_poll_clears_repair_when_failed_build_is_reached(
             ("0.9.10", 102),
             False,
             True,
-            LEGACY_PACKAGE_ID,
+            PACKAGE_ID,
             None,
             False,
             id="unverified",
@@ -752,7 +752,7 @@ async def test_accepted_health_poll_clears_repair_when_failed_build_is_reached(
             ("0.9.10", 102),
             True,
             False,
-            LEGACY_PACKAGE_ID,
+            PACKAGE_ID,
             None,
             False,
             id="stale-feed",
@@ -762,20 +762,20 @@ async def test_accepted_health_poll_clears_repair_when_failed_build_is_reached(
             ("0.9.10", 102),
             True,
             True,
-            "io.panelassistant.android",
+            LEGACY_PACKAGE_ID,
             None,
             False,
             id="other-package",
         ),
         pytest.param(
-            None, None, True, True, LEGACY_PACKAGE_ID, None, False, id="unknown-code"
+            None, None, True, True, PACKAGE_ID, None, False, id="unknown-code"
         ),
         pytest.param(
             102,
             ("0.9.10", 102),
             True,
             True,
-            LEGACY_PACKAGE_ID,
+            PACKAGE_ID,
             ("0.9.10", 102),
             False,
             id="fresh-failure-no-advance",
@@ -819,8 +819,8 @@ async def test_older_targetless_repair_clears_only_at_verified_current_feed_buil
         database_compatibility="hapaneld-db:v1:ha-paneld.db:11:14",
         min_sdk=26,
         published="2026-09-28T00:00:00Z",
-        package_id=LEGACY_PACKAGE_ID,
-        launch_component=LAUNCH_COMPONENTS[LEGACY_PACKAGE_ID][0],
+        package_id=PACKAGE_ID,
+        launch_component=LAUNCH_COMPONENTS[PACKAGE_ID][0],
         protocol_min=5,
         protocol_max=5,
     )
@@ -892,8 +892,8 @@ async def test_stable_pa_clears_repair_at_prerelease_feed_build_for_opted_in_pan
         database_compatibility="hapaneld-db:v1:ha-paneld.db:11:14",
         min_sdk=26,
         published="2026-09-28T00:00:00Z",
-        package_id=LEGACY_PACKAGE_ID,
-        launch_component=LAUNCH_COMPONENTS[LEGACY_PACKAGE_ID][0],
+        package_id=PACKAGE_ID,
+        launch_component=LAUNCH_COMPONENTS[PACKAGE_ID][0],
         protocol_min=5,
         protocol_max=5,
     )
@@ -912,7 +912,7 @@ async def test_stable_pa_clears_repair_at_prerelease_feed_build_for_opted_in_pan
                 panel_id="alpha",
                 build="installed",
                 config_hash="abcd",
-                package=LEGACY_PACKAGE_ID,
+                package=PACKAGE_ID,
                 protocol=(5, 5),
             )
         ),

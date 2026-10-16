@@ -34,14 +34,13 @@ from adb_shell.exceptions import (
 from adb_shell.transport.tcp_transport_async import TcpTransportAsync
 
 from .app_identity import (
-    ACCEPTED_PACKAGE_IDS,
     ACCESSIBILITY_COMPONENTS,
     DEVICE_ADMIN_RECEIVER,
     EQUIVALENT_ACCESSIBILITY_COMPONENTS,
     EQUIVALENT_HOME_COMPONENTS,
+    LEGACY_PACKAGE_ID,
     OBSOLETE_ACCESSIBILITY_COMPONENTS,
-    SUCCESSOR_PACKAGE_ID,
-    counterpart_of,
+    PACKAGE_ID,
 )
 from .client import PanelAddress
 from .home_chooser import CHOOSER_OUTCOMES, home_claim_command
@@ -106,12 +105,17 @@ _ABI_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{1,64}$", flags=re.ASCII)
 _ROOT_DATA_BASES = ("/data/user/0", "/data/data", "/data/user_de/0")
 
 
-# Residue is probed per accepted application id: during the identity migration
-# a panel may hold the data directory of either package, and only the data of
-# the package being installed makes the target unclean.
+# The app ids preflight and the read-only probe look for, old app first. The
+# old app's id is probed so a panel still holding it, or its data, is refused
+# rather than given the new app beside it. The order fixes the frame indices
+# both installers build and parse.
+PROBED_PACKAGE_IDS: tuple[str, ...] = (LEGACY_PACKAGE_ID, PACKAGE_ID)
+
+# Residue is probed per probed id: only the data of the package being
+# installed, once it is installed, is not residue.
 _RESIDUE_PROBES: tuple[tuple[str, str], ...] = tuple(
     (package_id, f"{base}/{package_id}")
-    for package_id in ACCEPTED_PACKAGE_IDS
+    for package_id in PROBED_PACKAGE_IDS
     for base in _ROOT_DATA_BASES
 )
 
@@ -222,10 +226,6 @@ class AdbPreflight:
     primary_abi: str
     android_sdk: int
     root_mode: AdbRootMode
-    # True when the panel already runs the legacy package and the successor is
-    # being installed beside it. The panel migrates itself afterwards; this
-    # integration only records that the handover window is expected.
-    migration_candidate: bool = False
     # True when the panel already holds exactly the package being installed and
     # nothing else. Only a caller that asked to admit that case ever sees it,
     # and it is not permission to install: whether the panel runs these exact
@@ -341,7 +341,7 @@ def _preflight_command(nonce: str) -> str:
         ("LIVE", f"pm path {_PACKAGE_MANAGER_LIVENESS_PACKAGE}"),
         *(
             section
-            for index, package_id in enumerate(ACCEPTED_PACKAGE_IDS)
+            for index, package_id in enumerate(PROBED_PACKAGE_IDS)
             for section in (
                 (f"PACKAGE{index}", f"pm path {package_id}"),
                 (f"RETAINED{index}", f"pm list packages -u {package_id}"),
@@ -646,16 +646,13 @@ def _secure_settings_grant_command(package_id: str) -> str:
 
 
 def device_admin_claim_command(package_id: str) -> str:
-    """Make the new app a device admin unless Android already lists it as one.
+    """Make the app a device admin unless Android already lists it as one.
 
     The admin only locks the screen, the screen-off's fallback where Android's
     screen timeout does not take. It is asked for only when missing, so an
-    update does not reset it, and never for the old app id, whose builds may not
-    give it up before an uninstall. Android lists an admin by its short name.
-    The browser installer's permission contract sends the same text.
+    update does not reset it. Android lists an admin by its short name. The
+    browser installer's permission contract sends the same text.
     """
-    if package_id != SUCCESSOR_PACKAGE_ID:
-        return ":"
     listed = f"{package_id}/{DEVICE_ADMIN_RECEIVER.removeprefix(package_id)}:"
     return (
         f'case "$(dumpsys device_policy 2>/dev/null)" in *"{listed}"*) ;; '
@@ -1043,10 +1040,11 @@ def _classify_target_packages(
     residue: frozenset[str],
     *,
     admit_installed_target: bool = False,
-) -> tuple[bool, bool]:
-    """Decide whether this panel may receive this package, and how.
+) -> bool:
+    """Decide whether this panel may receive this package; True when it holds it.
 
-    A clean target holds neither accepted package.
+    A clean target holds neither app id, and no data of either: a panel
+    still holding the old app is refused, never given the new app beside it.
 
     A panel that already holds the package being installed is refused, because
     this integration never replaces an installed panel app from the
@@ -1058,33 +1056,17 @@ def _classify_target_packages(
     separate observation the caller must still make, and nothing else may be
     present: another package, or another package's data, is unclean either way.
     Data belonging to the installed target is its own, not residue.
-
-    The other admitted exception is the identity migration. A panel running the
-    legacy package and not the successor may receive the successor beside it,
-    because the successor is a different package to Android and the panel
-    performs the handover itself. Residue belonging to that legacy package is
-    expected there; legacy residue with no legacy package to migrate from is
-    still an unclean target.
     """
     if target_package_id in installed:
         if not admit_installed_target or any(
             package_id != target_package_id for package_id in (*installed, *residue)
         ):
             raise InstallAdbError(InstallAdbErrorCode.TARGET_NOT_CLEAN)
-        return False, True
-    if target_package_id in residue:
-        # Data with no application to own it. Never an installed target.
+        return True
+    # Anything else present, installed or left behind as data, is refused.
+    if installed or residue:
         raise InstallAdbError(InstallAdbErrorCode.TARGET_NOT_CLEAN)
-    counterpart = counterpart_of(target_package_id)
-    migration_candidate = (
-        target_package_id == SUCCESSOR_PACKAGE_ID and counterpart in installed
-    )
-    # Anything else present is refused. Once a migration is admitted, the only
-    # package left that can be installed or have left data behind is that
-    # counterpart, so this one check covers both.
-    if not migration_candidate and (installed or residue):
-        raise InstallAdbError(InstallAdbErrorCode.TARGET_NOT_CLEAN)
-    return migration_candidate, False
+    return False
 
 
 def _parse_preflight(
@@ -1104,7 +1086,7 @@ def _parse_preflight(
         "LIVE",
         *(
             name
-            for index in range(len(ACCEPTED_PACKAGE_IDS))
+            for index in range(len(PROBED_PACKAGE_IDS))
             for name in (f"PACKAGE{index}", f"RETAINED{index}")
         ),
     )
@@ -1131,11 +1113,9 @@ def _parse_preflight(
     ):
         raise _MalformedAdbResponse
 
-    # Each accepted application id is observed on its own. Reading them apart is
-    # what lets an old package on a panel that has no new package be a migration
-    # candidate instead of an unclean target.
+    # Each app id is observed on its own, so a refusal names what is there.
     installed: list[str] = []
-    for index, package_id in enumerate(ACCEPTED_PACKAGE_IDS):
+    for index, package_id in enumerate(PROBED_PACKAGE_IDS):
         package_lines, package_status = sections[f"PACKAGE{index}"]
         retained_lines, retained_status = sections[f"RETAINED{index}"]
         present = any(
@@ -1167,7 +1147,7 @@ def _parse_preflight(
         if lines == ["present"]:
             residue.add(_RESIDUE_PROBES[index][0])
 
-    migration_candidate, target_installed = _classify_target_packages(
+    target_installed = _classify_target_packages(
         descriptor.package_id,
         tuple(installed),
         frozenset(residue),
@@ -1189,7 +1169,6 @@ def _parse_preflight(
         primary_abi=observed.primary_abi,
         android_sdk=observed.android_sdk,
         root_mode=root_mode,
-        migration_candidate=migration_candidate,
         target_installed=target_installed,
     )
 

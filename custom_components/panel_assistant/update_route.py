@@ -46,7 +46,7 @@ from .repairs_failure import async_clear_adb_authorization
 from .repairs_upgrade import speaks_this_protocol
 from .transport_sessions import async_get_sessions, session_manages
 from .update_errors import UPDATE_LOGGER as _LOGGER
-from .update_errors import _update_error, adb_authorization_error
+from .update_errors import adb_authorization_error
 from .update_offer import UpdateOffer
 
 # Which way the last update reached the panel, shown on the entity.
@@ -83,14 +83,12 @@ def session_route(
 ) -> bool:
     """Whether the panel's session can carry an update its address cannot.
 
-    Only a panel that installs for itself, and never the move to the new app,
-    which hands over through the panel's own address.
+    Only a panel that installs for itself.
     """
     return (
         not coordinator.reachable
         and session_manages(async_get_sessions(hass).get(entry_id))
         and api_capability(coordinator.data) == "api"
-        and not offer.bridge_handover_due()
     )
 
 
@@ -107,20 +105,6 @@ async def async_install_route(
         return ROUTE_SESSION, None, None
     if snapshot is None or not coordinator.reachable:
         return None, None, None
-    if offer.bridge_handover_due():
-        bridge = offer.host_release()
-        successor = offer.successor(bridge.tag) if bridge is not None else None
-        if (
-            bridge is None
-            or successor is None
-            or successor.tag != bridge.tag
-            or successor.descriptor is None
-        ):
-            raise _update_error(
-                "release_pair_unavailable",
-                "The matching new-app release is unavailable",
-            )
-        await offer.async_check_successor(successor, snapshot)
     capability = api_capability(coordinator.data)
     if capability is None:
         try:
@@ -203,10 +187,7 @@ async def async_probe_adb_target(
         raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE)
     if probe.state is InstallTargetState.ADB_UNAUTHORIZED:
         raise InstallAdbError(InstallAdbErrorCode.AUTHORIZATION_REQUIRED)
-    if probe.state not in {
-        InstallTargetState.INSTALLED,
-        InstallTargetState.MIGRATION_CANDIDATE,
-    }:
+    if probe.state is not InstallTargetState.INSTALLED:
         return None
     return probe.adb_target(pinned.pinned)
 

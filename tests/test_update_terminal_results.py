@@ -11,6 +11,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant import update as panel_update
 from custom_components.panel_assistant import update_progress
+from custom_components.panel_assistant.app_identity import PACKAGE_ID
 from custom_components.panel_assistant.client import PanelInstallStatus
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.coordinator import PanelSnapshot
@@ -98,7 +99,11 @@ async def test_nonfailure_result_keeps_verifying_the_committed_target(
     route: str,
     result: str,
 ) -> None:
-    entity, client = feed_entity(hass) if route == "staged" else download_entity(hass)
+    entity, client = (
+        feed_entity(hass, package=PACKAGE_ID)
+        if route == "staged"
+        else download_entity(hass)
+    )
     component = "APK" if route == "staged" else "ha-paneld"
     status = PanelInstallStatus(
         running=result == "running",
@@ -130,7 +135,7 @@ async def test_nonfailure_result_keeps_verifying_the_committed_target(
         if update_clock.seconds < 2:
             return
         if route == "staged":
-            _restart_into(entity, client, 772)
+            _restart_into(entity, client, 772, package=PACKAGE_ID)
             await entity.coordinator.async_request_refresh()
         else:
             snapshot = entity.coordinator.data

@@ -23,7 +23,6 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import HaPaneldConfigEntry
 from .adb_credentials import AdbCredential
 from .adb_protocol import AdbInstallTarget
-from .app_identity import LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, reports_package
 from .build_feed import (
     BuildFeed,
     FeedBuild,
@@ -46,12 +45,7 @@ from .feed_coordinator import (
     async_get_stable_release_coordinator,
 )
 from .native import NativeEntity, async_setup_native_platform
-from .panel_move import (
-    async_evaluate_successor_move,
-    claim_panel_operation,
-    refuses_old_app,
-    release_panel_operation,
-)
+from .panel_operations import claim_panel_operation, release_panel_operation
 from .release import ReleaseArtifact, is_feed_build_tag
 from .repairs_failure import (
     async_clear_update_failure_if_installed,
@@ -59,10 +53,10 @@ from .repairs_failure import (
     async_refresh_update_failure_name,
 )
 from .repairs_update_route import async_reconcile_update_route_issue
+from .repairs_upgrade import runs_old_app
 from .status import PanelCachedUpdate
 from .update_coordinator import PanelUpdateCoordinator
 from .update_errors import (
-    _bridge_not_ready,
     _update_error,
     refusal_error,
     route_unavailable_reason,
@@ -250,10 +244,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         if not self.coordinator.reachable:
             return self._session_route()
         if api_capability(self.coordinator.data) == "api":
-            return (
-                not self._offer.bridge_handover_due()
-                or self._legacy_api_ready_key == self._route_key()
-            )
+            return True
         if (
             api_capability(self.coordinator.data) is None
             and self._legacy_api_ready_key is not None
@@ -274,11 +265,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             and self._offer.feed is not None
             and self._offer.feed.verified_apk(build) is None
         )
-        if (
-            api_capability(self.coordinator.data) == "api"
-            and not self._offer.bridge_handover_due()
-            and not needs_verification
-        ):
+        if api_capability(self.coordinator.data) == "api" and not needs_verification:
             self._adb_ready_key = None
             self._legacy_api_ready_key = None
             self._route_checked_key = None
@@ -367,9 +354,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self._adb_ready_key = key if route == ROUTE_ADB else None
             self._legacy_api_ready_key = key if route == ROUTE_PANEL else None
             attributes = dict(self._attr_extra_state_attributes)
-            # A bridge that cannot hand over yet has nothing newer to install and
-            # loses nothing, so it reads as up to date rather than as a problem.
-            if not self._has_install_route() and not _bridge_not_ready(error):
+            if not self._has_install_route():
                 attributes[ROUTE_UNAVAILABLE_ATTRIBUTE] = route_unavailable_reason(
                     error, has_adb_artifact=self._offer.adb_artifact() is not None
                 )
@@ -599,15 +584,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             return None
         version = snapshot.health.version
         artifact = self._offer.host_release()
-        release = artifact
-        if (
-            release is not None
-            and release.descriptor is None
-            and release.version == version
-        ):
-            # Core hides equal versions before asking version_is_newer. Name
-            # the installed bridge so its unfinished handover stays visible.
-            return f"{version} (bridge)"
         code = snapshot.health.version_code or self._installed_code
         if code is not None and (
             (
@@ -654,12 +630,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         versionCode first.
         """
         release = self._offer.host_release()
-        if (
-            release is not None
-            and release.descriptor is None
-            and installed_version == f"{release.version} (bridge)"
-        ):
-            return latest_version == release.version
         latest_name = latest_version.partition(" build ")[0]
         installed_name = installed_version.partition(" build ")[0]
         latest_key = _version_key(latest_name)
@@ -690,7 +660,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
     async def async_install(
         self, version: str | None, backup: bool, **_kwargs: object
     ) -> None:
-        """Install while no move to the new app runs on the same panel."""
+        """Install while no other app-changing operation runs on the same panel."""
         if not claim_panel_operation(self.hass, self._entry_id):
             raise _update_error(
                 "update_busy", "The panel is busy with another operation"
@@ -708,7 +678,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         if (
             entry is not None
             and self.coordinator.data is not None
-            and refuses_old_app(entry, self.coordinator.data.health)
+            and runs_old_app(self.coordinator.data.health)
         ):
             raise _update_error(
                 "old_app_needs_090",
@@ -827,13 +797,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     )
                     return
                 if route == ROUTE_SESSION:
-                    # Neither the move to the new app nor the panel's own
-                    # download is carried by its session.
-                    if (
-                        release is None
-                        or release.tag != offer.tag
-                        or release.descriptor is None
-                    ):
+                    # The panel's own download is not carried by its session.
+                    if release is None or release.tag != offer.tag:
                         raise _update_error(
                             "update_unavailable",
                             "The requested Panel Assistant update is unavailable",
@@ -843,49 +808,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 # authenticate it. Only a panel that cannot take an upload at all
                 # downloads the release itself, and verifies it itself.
                 elif release is not None and release.tag == offer.tag:
-                    if release.descriptor is None:
-                        # Keep the signed pair selected for this transaction even
-                        # if the shared release coordinator refreshes mid-install.
-                        successor = self._offer.successor(release.tag)
-                        if successor is None or successor.descriptor is None:
-                            raise _update_error(
-                                "release_pair_unavailable",
-                                "The matching new-app release is unavailable",
-                            )
-                        repair_artifact = successor
-                        bridge_delivered = False
-                        if (
-                            self.coordinator.data.health.version != release.version
-                            or not self.coordinator.data.health.installation_identity
-                        ):
-                            await self._delivery.async_deliver_build(self.hass, release)
-                            bridge_delivered = True
-                            self._progress.next_delivery()
-                        if reports_package(
-                            self.coordinator.data.health.package, SUCCESSOR_PACKAGE_ID
-                        ):
-                            # A connected bridge may already have completed its
-                            # own handover. Prove that result without reinstalling.
-                            self._progress.enter("installing")
-                            await self._delivery.async_wait_for_build(
-                                self.hass, successor, ("", LEGACY_PACKAGE_ID)
-                            )
-                        else:
-                            # Panel Assistant moves the panel to the new app
-                            # itself, through its Repair; the panel's own
-                            # handover is never started, so it cannot race it.
-                            entry = self.hass.config_entries.async_get_entry(
-                                self._entry_id
-                            )
-                            if entry is not None:
-                                async_evaluate_successor_move(self.hass, entry)
-                            if not bridge_delivered:
-                                raise _update_error(
-                                    "move_with_repair",
-                                    "Move this panel to the new app with its "
-                                    "Repair in Settings",
-                                )
-                    elif not await self._delivery.async_deliver_build(
+                    if not await self._delivery.async_deliver_build(
                         self.hass, release, fallback=True
                     ):
                         await self._async_start_panel_download(offer, release)

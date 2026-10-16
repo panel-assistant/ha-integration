@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from custom_components.panel_assistant.app_identity import SUCCESSOR_PACKAGE_ID
+from custom_components.panel_assistant.app_identity import PACKAGE_ID
 from custom_components.panel_assistant.vendor_provisioning import (
     VendorResponseError,
     parse_vendor_display_settlement,
@@ -87,7 +87,7 @@ dumpsys() {
 
 
 def _run(state: Path, mode: str) -> tuple[list[str], list[str]]:
-    program = vendor_display_settlement_command(_NONCE, SUCCESSOR_PACKAGE_ID)
+    program = vendor_display_settlement_command(_NONCE, PACKAGE_ID)
     output = subprocess.run(
         ["/bin/sh", "-c", _STAND_IN + program.replace('"/proc/', '"$STATE/proc/')],
         check=True,
@@ -192,7 +192,7 @@ def test_browser_and_network_run_the_same_settlement_program() -> None:
     script = (
         f"import {{buildVendorDisplaySettlement}} from {json.dumps(module.as_uri())}; "
         "console.log(JSON.stringify(buildVendorDisplaySettlement("
-        f"'{_NONCE}', '{SUCCESSOR_PACKAGE_ID}')));"
+        f"'{_NONCE}', '{PACKAGE_ID}')));"
     )
     result = subprocess.run(
         ["node", "--input-type=module", "-e", script],
@@ -201,7 +201,7 @@ def test_browser_and_network_run_the_same_settlement_program() -> None:
         check=True,
     )
     assert json.loads(result.stdout) == vendor_display_settlement_command(
-        _NONCE, SUCCESSOR_PACKAGE_ID
+        _NONCE, PACKAGE_ID
     )
 
 

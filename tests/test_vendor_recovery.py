@@ -30,7 +30,7 @@ from custom_components.panel_assistant.client import (
 )
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.coordinator import HaPaneldDataUpdateCoordinator
-from custom_components.panel_assistant.panel_move import (
+from custom_components.panel_assistant.panel_operations import (
     claim_panel_operation,
     release_panel_operation,
 )

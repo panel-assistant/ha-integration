@@ -416,6 +416,59 @@ async def test_restart_finishes_registry_save_that_lagged_identity_commit(
     assert registry.async_get(old.entity_id).unique_id == f"{OTHER_DID}_relay1"
 
 
+async def test_setup_refuses_a_registry_split_across_two_identities(
+    hass, hass_read_only_user
+):
+    """Entities under two identities are never loaded as one panel's.
+
+    Neither stored rekey explains the split, so setup stops before any entity
+    or session is created, and nothing in the registry is rewritten.
+    """
+    third = "c" * 64
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="alpha",
+        unique_id=DID,
+        data={
+            CONF_ADDRESS: STORED,
+            "installation_identity": True,
+            "transport_user_id": hass_read_only_user.id,
+        },
+    )
+    entry.add_to_hass(hass)
+    registry = er.async_get(hass)
+    own = registry.async_get_or_create(
+        "switch", DOMAIN, f"{DID}_relay1", config_entry=entry
+    )
+    stray = registry.async_get_or_create(
+        "switch", DOMAIN, f"{third}_relay2", config_entry=entry
+    )
+    with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=_health(DID)),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=STATUS),
+        ),
+        patch(
+            "custom_components.panel_assistant.async_resume_loaded_install_jobs",
+            AsyncMock(return_value=()),
+        ),
+        patch(
+            "custom_components.panel_assistant._async_reconcile_install_receipt",
+            AsyncMock(),
+        ),
+    ):
+        assert not await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+    assert entry.state is config_entries.ConfigEntryState.SETUP_RETRY
+    assert registry.async_get(own.entity_id).unique_id == f"{DID}_relay1"
+    assert registry.async_get(stray.entity_id).unique_id == f"{third}_relay2"
+    assert len(er.async_entries_for_config_entry(registry, entry.entry_id)) == 2
+
+
 @pytest.mark.parametrize(
     "extra",
     [

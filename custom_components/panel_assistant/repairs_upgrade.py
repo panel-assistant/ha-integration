@@ -11,6 +11,11 @@ release: Panel Assistant 0.9.0 was the last that could. Setting its entry up
 would create a second set of entities beside the MQTT ones and split their
 history, so setup refuses it and says to install 0.9.0 first
 (``mqtt_panel_needs_090``).
+
+A panel still on the old ha-paneld app id is refused the same way: this
+release installs nothing beside the old app and moves no panel off it, which
+0.9.0 was the last release to do. Setup and the update entity refuse it, and an
+existing entry is told to install 0.9.0 first (``old_app_needs_090``).
 """
 
 from __future__ import annotations
@@ -23,6 +28,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import issue_registry as ir
 
+from .app_identity import LEGACY_PACKAGE_ID, reports_package
 from .client import PanelHealth
 from .const import (
     CONF_CUTOVER,
@@ -30,12 +36,12 @@ from .const import (
     REQUIRED_APP_VERSION,
 )
 from .device import panel_display_name
-from .panel_move import move_issue_id, runs_old_app
 from .transport_sessions import async_get_sessions
 from .update_policy import overlaps
 
 ISSUE_PANEL_APP_TOO_OLD: Final = "panel_app_too_old"
 ISSUE_MQTT_PANEL_NEEDS_090: Final = "mqtt_panel_needs_090"
+ISSUE_OLD_APP_NEEDS_090: Final = "old_app_needs_090"
 # The device registry's name for MQTT, and how the app named its MQTT device.
 _MQTT_DOMAIN: Final = "mqtt"
 _CUTOVER_COMPLETE: Final = "complete"
@@ -49,6 +55,44 @@ def app_too_old_issue_id(entry_id: str) -> str:
 def needs_090_issue_id(entry_id: str) -> str:
     """Return the Repairs issue ID saying one entry was never moved off MQTT."""
     return f"{ISSUE_MQTT_PANEL_NEEDS_090}_{entry_id}"
+
+
+def old_app_issue_id(entry_id: str) -> str:
+    """Return the Repair saying this entry's panel must move with 0.9.0 first."""
+    return f"{ISSUE_OLD_APP_NEEDS_090}_{entry_id}"
+
+
+def runs_old_app(health: PanelHealth | None) -> bool:
+    """Return whether the panel's health says it still runs the old app id."""
+    return health is not None and reports_package(health.package, LEGACY_PACKAGE_ID)
+
+
+@callback
+def async_evaluate_old_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Refuse a panel on the old app id, and withdraw the refusal after."""
+    coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
+    snapshot = getattr(coordinator, "data", None)
+    health = snapshot.health if snapshot is not None else None
+    if health is None:
+        # An offline panel keeps whatever it was last told.
+        return
+    issue_id = old_app_issue_id(entry.entry_id)
+    if not runs_old_app(health):
+        ir.async_delete_issue(hass, DOMAIN, issue_id)
+        return
+    if getattr(coordinator, "identity_mismatch", False):
+        # That health is not this entry's panel answering.
+        return
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        issue_id,
+        is_fixable=False,
+        is_persistent=False,
+        severity=ir.IssueSeverity.ERROR,
+        translation_key=ISSUE_OLD_APP_NEEDS_090,
+        translation_placeholders={"panel": panel_display_name(hass, entry)},
+    )
 
 
 def speaks_this_protocol(health: PanelHealth) -> bool:
@@ -73,12 +117,7 @@ def async_evaluate_app_too_old(hass: HomeAssistant, entry: ConfigEntry) -> None:
     if coordinator is None or coordinator.data is None:
         return
     health: PanelHealth = coordinator.data.health
-    if (
-        speaks_this_protocol(health)
-        or runs_old_app(health)
-        or ir.async_get(hass).async_get_issue(DOMAIN, move_issue_id(entry.entry_id))
-        is not None
-    ):
+    if speaks_this_protocol(health) or runs_old_app(health):
         ir.async_delete_issue(hass, DOMAIN, issue_id)
         return
     ir.async_create_issue(

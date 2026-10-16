@@ -6,7 +6,6 @@ import logging
 import re
 from copy import deepcopy
 from hashlib import sha256
-from ipaddress import ip_address
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS
@@ -15,7 +14,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 
-from .client import PanelHealth, is_valid_discovery_id, normalize_address
+from .client import PanelHealth, is_valid_discovery_id
 from .const import CONF_CUTOVER, DOMAIN
 
 CONF_INSTALL_IDENTITY = "installation_identity"
@@ -65,36 +64,6 @@ def migration_candidate(entry: ConfigEntry, health: PanelHealth) -> bool:
     )
 
 
-def self_moved(entry: ConfigEntry, health: PanelHealth) -> bool:
-    """The panel answers from the new app under a new identity linked to this entry.
-
-    A move can finish on the panel without this integration seeing it finish:
-    the move Repair's last ADB step can drop after the old app is already gone.
-    The entry then still names the old app's installation identity while the
-    panel answers with the new one. The panel links the two through its legacy
-    identity, which is stable across apps and which this entry holds either as
-    its own identity or as the one it replaced.
-    An entry still on its original identity is the first hop, which
-    ``migration_candidate`` already owns.
-
-    This identifies the case; it admits nothing. The new identity is adopted
-    only after the installed app is proved over ADB (``panel_move``).
-    """
-    from .app_identity import SUCCESSOR_PACKAGE_ID, reports_package
-
-    linked = {entry.unique_id, entry.data.get(CONF_PREVIOUS_IDENTITY)} - {None}
-    return (
-        is_installation(entry)
-        and entry.unique_id is not None
-        and health.installation_identity
-        and health.discovery_id is not None
-        and health.discovery_id != entry.unique_id
-        and health.legacy_discovery_id is not None
-        and health.legacy_discovery_id in linked
-        and reports_package(health.package, SUCCESSOR_PACKAGE_ID)
-    )
-
-
 def reinstalled(hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth) -> bool:
     """The panel answers under a new identity linked to this entry alone.
 
@@ -102,9 +71,7 @@ def reinstalled(hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth) ->
     legacy identity the device reports beside it, which this entry recorded
     while it accepted the panel's own identity. The link is followed unless
     another entry holds it too (two panels from one factory image share it,
-    since it comes from the Android ID) or already owns the new identity. A
-    move of this integration's own that stopped part way is left to that move,
-    which alone can settle its record and any copy of the old app it kept.
+    since it comes from the Android ID) or already owns the new identity.
     """
     return _linked_reinstall(hass, entry, health) and not _link_holders(
         hass, entry, health.legacy_discovery_id
@@ -115,14 +82,11 @@ def _linked_reinstall(
     hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth
 ) -> bool:
     """A reinstall this entry's link points to, whoever else holds the link."""
-    from .panel_move import CONF_SUCCESSOR_MOVE
-
     did = health.discovery_id
     link = health.legacy_discovery_id
     return (
         is_installation(entry)
         and entry.unique_id is not None
-        and not isinstance(entry.data.get(CONF_SUCCESSOR_MOVE), dict)
         and health.installation_identity
         and did is not None
         and did != entry.unique_id
@@ -260,9 +224,8 @@ def adopt_moved_identity(
 ) -> bool:
     """Rekey an entry to a new identity of the panel it already holds.
 
-    The caller has the evidence: either this integration moved the panel to
-    the new app itself and proved the result, or the panel was reinstalled
-    and its link to this entry alone is the one ``reinstalled`` follows.
+    The caller has the evidence: the panel was reinstalled and its link to
+    this entry alone is the one ``reinstalled`` follows.
     """
     if (
         entry.unique_id is None
@@ -425,27 +388,6 @@ def _withdraw_authority(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 
 @callback
-def _hold_self_moved(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Hold a panel already on the new app, without blaming its address.
-
-    Authority is withdrawn exactly as for any changed identity, so nothing binds
-    to the new identity on the panel's word alone. What differs is what the
-    owner is told and what happens next: this is the panel they already have,
-    on the new app, so the address Repair would be both wrong and unfixable.
-    Panel Assistant proves the installed app over ADB and adopts the identity
-    itself; the move Repair is the owner's fallback when it cannot reach the
-    panel over ADB, and it now finishes an already-moved panel too.
-    """
-    from .panel_move import async_offer_move, async_schedule_self_move_adoption
-
-    ir.async_delete_issue(hass, DOMAIN, f"panel_identity_mismatch_{entry.entry_id}")
-    async_offer_move(hass, entry)
-    _withdraw_authority(hass, entry)
-    async_schedule_self_move_adoption(hass, entry)
-    return False
-
-
-@callback
 def accept_health(hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth) -> bool:
     """Reject a different panel before status or session state can change."""
     did = health.discovery_id
@@ -471,10 +413,6 @@ def accept_health(hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth) 
             "address": entry.data[CONF_ADDRESS],
         } and confirm_identity(hass, entry, health):
             return True
-        if pending.get("did") == did and self_moved(entry, health):
-            # Core stopped part way through adopting this panel's move; the
-            # adoption is proved again and finishes the rekey.
-            return _hold_self_moved(hass, entry)
         return _reject_health(hass, entry)
     if entry.unique_id is None:
         if did is None:
@@ -520,8 +458,6 @@ def accept_health(hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth) 
     if reinstalled(hass, entry, health):
         assert did is not None
         return _adopt_reinstalled(hass, entry, did)
-    if self_moved(entry, health):
-        return _hold_self_moved(hass, entry)
     if _linked_reinstall(hass, entry, health):
         return _reject_health(
             hass, entry, _link_holders(hass, entry, health.legacy_discovery_id)
@@ -570,11 +506,11 @@ def _answers_as_itself(entry: ConfigEntry) -> bool:
 @callback
 def _adopt_reinstalled(hass: HomeAssistant, entry: ConfigEntry, did: str) -> bool:
     """Take the reinstalled panel's identity, unless an update holds the panel."""
-    from .panel_move import claim_panel_operation, release_panel_operation
+    from .panel_operations import claim_panel_operation, release_panel_operation
 
     if not claim_panel_operation(hass, entry.entry_id):
-        # An update or a move is installing the panel and proves the result
-        # itself; the next poll adopts what it finds.
+        # An update or a removal is changing the panel's app and proves the
+        # result itself; the next poll adopts what it finds.
         _withdraw_authority(hass, entry)
         return False
     try:
@@ -587,34 +523,3 @@ def _adopt_reinstalled(hass: HomeAssistant, entry: ConfigEntry, did: str) -> boo
         entry.title,
     )
     return True
-
-
-def legacy_peer_matches(entry: ConfigEntry, remote: str | None) -> bool:
-    """Legacy identities cannot move an entry to another endpoint."""
-    if not isinstance(remote, str):
-        return False
-    address = normalize_address(entry.data[CONF_ADDRESS])
-    expected = address.host
-    try:
-        ip_address(expected)
-    except ValueError:
-        coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
-        client = getattr(coordinator, "client", None)
-        peer = getattr(client, "health_peer", None)
-        snapshot = getattr(coordinator, "data", None)
-        health = getattr(snapshot, "health", None)
-        if (
-            not isinstance(peer, tuple)
-            or peer[0] != str(address.base_url.with_path("/api/v1/health"))
-            or getattr(health, "discovery_id", None) != entry.unique_id
-        ):
-            return False
-        expected = peer[1]
-    try:
-        actual_ip = ip_address(remote)
-        expected_ip = ip_address(expected)
-        return (getattr(actual_ip, "ipv4_mapped", None) or actual_ip) == (
-            getattr(expected_ip, "ipv4_mapped", None) or expected_ip
-        )
-    except ValueError:
-        return False

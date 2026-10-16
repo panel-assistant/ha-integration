@@ -183,7 +183,7 @@ async def test_happy_path_stops_unclaimed_and_binds_every_operation(
         apk_name=receipt.artifact.apk_name,
         apk_url=(
             "https://github.com/panel-assistant/android/releases/download/"
-            "v0.1.0/ha-paneld-v0.1.0-manual-setup-required.apk"
+            "v0.1.0/panel-assistant-v0.1.0-manual-setup-required.apk"
         ),
         sha256=APK_SHA256,
         descriptor=expected_descriptor,
@@ -1986,6 +1986,8 @@ async def test_version_mismatch_never_becomes_healthy_or_creates_entry(
     manager = InstallJobManager(hass)
     receipt = await create_job(manager)
     Harness(monkeypatch, expected_version="9.9.9")
+    # Another version is waited out for the whole health budget.
+    monkeypatch.setattr(install_executor, "_HEALTH_RETRY_SECONDS", 0)
     add_entry = AsyncMock()
     monkeypatch.setattr(hass.config_entries, "async_add", add_entry)
 

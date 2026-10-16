@@ -31,18 +31,19 @@ from custom_components.panel_assistant.adb_protocol import (
     InstallOutcome,
     LaunchOutcome,
 )
-from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
+from custom_components.panel_assistant.app_identity import (
+    LEGACY_PACKAGE_ID,
+    PACKAGE_ID,
+)
 from custom_components.panel_assistant.client import PanelAddress
 from custom_components.panel_assistant.display_provisioning import DisplaySizing
 from custom_components.panel_assistant.install_adb import (
     DefiniteCleanupReason,
-    MoveStep,
     async_apply_display_sizing,
     async_cleanup_staged_apk,
     async_install_staged_apk,
     async_installed_artifact_size,
     async_launch_installed_app,
-    async_move_step,
     async_preflight_install,
     async_restore_display_sizing,
     async_restore_vendor_setup,
@@ -310,7 +311,8 @@ async def test_su_never_wraps_mutation_commands(
                     NONCES[5],
                     [
                         "Starting: Intent { "
-                        "cmp=io.github.maxlyth.hapaneld/.MainActivity }"
+                        "cmp=io.panelassistant.android/"
+                        "io.github.maxlyth.hapaneld.MainActivity }"
                     ],
                     0,
                 ),
@@ -384,7 +386,7 @@ async def test_su_posture_barrier_reproves_capability_before_package_query(
             target,
             signer,
             expected_root_mode=AdbRootMode.ROOT_SU,
-            package_id=LEGACY_PACKAGE_ID,
+            package_id=PACKAGE_ID,
         )
     assert caught.value.code is InstallAdbErrorCode.ROOT_STATE_AMBIGUOUS
     assert len(fake.commands) == 2
@@ -636,7 +638,7 @@ async def test_installed_target_verification_is_fresh_and_read_only(
             target,
             signer,
             expected_root_mode=AdbRootMode.ROOTLESS,
-            package_id=LEGACY_PACKAGE_ID,
+            package_id=PACKAGE_ID,
         )
         is None
     )
@@ -650,12 +652,31 @@ async def test_installed_target_verification_is_fresh_and_read_only(
     assert "HAPANELD_POSTURE_BEGIN" in fake.commands[0]
     assert "id -u" in fake.commands[0]
     assert "command -v su" in fake.commands[0]
-    assert "pm path io.github.maxlyth.hapaneld" in commands
-    assert "pm path io.github.maxlyth.hapaneld" in fake.commands[1]
+    assert "pm path io.panelassistant.android" in commands
+    assert "pm path io.panelassistant.android" in fake.commands[1]
     assert "pm install" not in commands
     assert "am start" not in commands
     assert "rm -f" not in commands
     assert "chmod" not in commands
+
+
+async def test_installed_target_verification_refuses_the_old_app_before_contact(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+) -> None:
+    """Only the app is ever proved installed; the old id is not a target."""
+    _install_fakes(monkeypatch, [])
+
+    with pytest.raises(InstallAdbError) as caught:
+        await async_verify_installed_target(
+            target,
+            signer,
+            expected_root_mode=AdbRootMode.ROOTLESS,
+            package_id=LEGACY_PACKAGE_ID,
+        )
+
+    assert caught.value.code is InstallAdbErrorCode.INVALID_REQUEST
 
 
 @pytest.mark.parametrize(
@@ -681,7 +702,7 @@ async def test_installed_target_verification_rejects_each_identity_axis_drift(
             target,
             signer,
             expected_root_mode=AdbRootMode.ROOTLESS,
-            package_id=LEGACY_PACKAGE_ID,
+            package_id=PACKAGE_ID,
         )
 
     assert caught.value.code is InstallAdbErrorCode.TARGET_CHANGED
@@ -721,7 +742,7 @@ async def test_installed_target_verification_distinguishes_missing_from_malforme
             target,
             signer,
             expected_root_mode=AdbRootMode.ROOTLESS,
-            package_id=LEGACY_PACKAGE_ID,
+            package_id=PACKAGE_ID,
         )
 
     assert caught.value.code is expected
@@ -760,7 +781,7 @@ async def test_installed_target_verification_connection_errors_are_privacy_safe(
             target,
             signer,
             expected_root_mode=AdbRootMode.ROOTLESS,
-            package_id=LEGACY_PACKAGE_ID,
+            package_id=PACKAGE_ID,
         )
 
     assert caught.value.code is expected
@@ -793,7 +814,7 @@ async def test_installed_target_verification_cancellation_closes_without_mutatio
             target,
             signer,
             expected_root_mode=AdbRootMode.ROOTLESS,
-            package_id=LEGACY_PACKAGE_ID,
+            package_id=PACKAGE_ID,
         )
     )
     await shell_started.wait()
@@ -835,13 +856,13 @@ async def test_installed_target_verification_accepts_matching_root_adbd_posture(
         target,
         signer,
         expected_root_mode=AdbRootMode.ROOT_ADBD,
-        package_id=LEGACY_PACKAGE_ID,
+        package_id=PACKAGE_ID,
     )
 
     assert len(fake.commands) == 2
     assert "HAPANELD_POSTURE_BEGIN" in fake.commands[0]
     assert all(path not in fake.commands[0] for path in adb_protocol._RESIDUE_PATHS)
-    assert "pm path io.github.maxlyth.hapaneld" in fake.commands[1]
+    assert "pm path io.panelassistant.android" in fake.commands[1]
 
 
 @pytest.mark.parametrize(
@@ -882,7 +903,7 @@ async def test_installed_target_root_drift_or_ambiguity_blocks_package_proof(
             target,
             signer,
             expected_root_mode=expected_root_mode,
-            package_id=LEGACY_PACKAGE_ID,
+            package_id=PACKAGE_ID,
         )
 
     assert caught.value.code is expected_error
@@ -913,7 +934,7 @@ async def test_invalid_expected_root_mode_fails_before_panel_contact(
                 target,
                 signer,
                 expected_root_mode=invalid_root_mode,  # type: ignore[arg-type]
-                package_id=LEGACY_PACKAGE_ID,
+                package_id=PACKAGE_ID,
             )
         elif operation == "stage":
             await async_stage_apk(
@@ -1845,6 +1866,61 @@ async def test_install_uses_no_replacement_or_grant_flags(
     assert fake.shell_kwargs[-1]["read_timeout_s"] == 180.0
 
 
+async def test_an_install_refused_at_the_last_check_sends_no_install(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+) -> None:
+    """Consent re-checked right before the install command can still stop it."""
+    fake = FakeDevice([_preflight_output(NONCES[0]), _remote_output(NONCES[1])])
+    _install_fakes(monkeypatch, [fake])
+
+    class Revoked(Exception):
+        pass
+
+    async def revoked() -> None:
+        raise Revoked
+
+    with pytest.raises(Revoked):
+        await async_install_staged_apk(
+            target,
+            signer,
+            descriptor,
+            JOB_ID,
+            expected_root_mode=AdbRootMode.ROOTLESS,
+            before_install=revoked,
+        )
+
+    assert len(fake.commands) == 2
+    assert all("pm install" not in command for command in fake.commands)
+    assert fake.closed is True
+
+
+async def test_a_program_run_without_consent_never_offers_the_key(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+) -> None:
+    """Only an owner-started step may ask the panel to trust Home Assistant.
+
+    Putting back a panel's display sizing runs on a key the panel already
+    trusts; a panel that would prompt for it is refused before anything runs.
+    """
+    # Answers it would read if it went on, so going on is caught by its result.
+    fake = FakeDevice(
+        [_identity_root_output(NONCES[0]), b"unexpected"], prompt_for_authorization=True
+    )
+    _install_fakes(monkeypatch, [fake])
+
+    with pytest.raises(InstallAdbError) as caught:
+        await async_restore_display_sizing(target, signer)
+
+    assert caught.value.code is InstallAdbErrorCode.AUTHORIZATION_REQUIRED
+    assert fake.commands == []
+    assert fake.closed is True
+
+
 async def test_api26_uses_legacy_nonreplacement_default_without_unknown_flag(
     monkeypatch: pytest.MonkeyPatch,
     signer: PythonRSASigner,
@@ -2112,8 +2188,9 @@ async def test_launch_uses_exact_descriptor_package_and_component_once(
     assert "HAPANELD_LAUNCH_BEGIN" in fake.commands[4]
     assert fake.commands.count(fake.commands[-1]) == 1
     assert (
-        "am start -W -n io.github.maxlyth.hapaneld/.MainActivity "
-        "-p io.github.maxlyth.hapaneld"
+        "am start -W -n "
+        "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity "
+        "-p io.panelassistant.android"
     ) in fake.commands[-1]
 
 
@@ -2493,10 +2570,10 @@ async def test_cancellation_during_connect_drains_close_before_propagating(
 
 @pytest.fixture
 def successor_descriptor(descriptor: InstallDescriptor) -> InstallDescriptor:
-    """The same release under the new application id.
+    """The release of a build whose classes are still in the old namespace.
 
-    The launch component is fully qualified: the classes stay in the legacy
-    namespace, which does not move with the application id, so the successor's
+    The launch component is fully qualified: the classes stay in the old
+    namespace, which does not move with the application id, so the app's
     `<id>/.MainActivity` shorthand would name a class that does not exist.
     """
     return replace(
@@ -2512,158 +2589,89 @@ _LEGACY_PATH = "package:/data/app/io.github.maxlyth.hapaneld-1/base.apk"
 _SUCCESSOR_PATH = "package:/data/app/io.panelassistant.android-1/base.apk"
 
 
-async def test_a_clean_panel_admits_either_identity_and_expects_no_handover(
-    monkeypatch: pytest.MonkeyPatch,
-    signer: PythonRSASigner,
-    target: AdbInstallTarget,
-    descriptor: InstallDescriptor,
-    successor_descriptor: InstallDescriptor,
-) -> None:
-    """Neither package present is a clean target, whichever one is installed."""
-    for installed in (descriptor, successor_descriptor):
-        fake = FakeDevice([_preflight_output(NONCES[0])])
-        _install_fakes(monkeypatch, [fake])
-
-        preflight = await async_preflight_install(target, signer, installed)
-
-        assert preflight.migration_candidate is False
-        assert preflight.root_mode is AdbRootMode.ROOTLESS
-
-
-async def test_the_old_package_alone_admits_the_successor_beside_it(
+async def test_a_clean_panel_admits_the_app(
     monkeypatch: pytest.MonkeyPatch,
     signer: PythonRSASigner,
     target: AdbInstallTarget,
     successor_descriptor: InstallDescriptor,
 ) -> None:
-    """A panel running the old app takes the successor and hands over itself."""
+    """Neither app id present is a clean target."""
+    fake = FakeDevice([_preflight_output(NONCES[0])])
+    _install_fakes(monkeypatch, [fake])
+
+    preflight = await async_preflight_install(target, signer, successor_descriptor)
+
+    assert preflight.target_installed is False
+    assert preflight.root_mode is AdbRootMode.ROOTLESS
+
+
+@pytest.mark.parametrize(
+    ("package_lines", "retained_lines"),
+    [
+        ([_LEGACY_PATH], ["package:io.github.maxlyth.hapaneld"]),
+        ([], ["package:io.github.maxlyth.hapaneld"]),
+    ],
+    ids=["installed", "retained"],
+)
+async def test_the_old_package_alone_refuses_the_new_app_beside_it(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    successor_descriptor: InstallDescriptor,
+    package_lines: list[str],
+    retained_lines: list[str],
+) -> None:
+    """A panel still holding the old app is never given the new app beside it."""
     fake = FakeDevice(
         [
             _preflight_output(
-                NONCES[0],
-                package_lines=[_LEGACY_PATH],
-                retained_lines=["package:io.github.maxlyth.hapaneld"],
+                NONCES[0], package_lines=package_lines, retained_lines=retained_lines
             )
         ]
     )
     _install_fakes(monkeypatch, [fake])
 
-    preflight = await async_preflight_install(target, signer, successor_descriptor)
+    with pytest.raises(InstallAdbError) as caught:
+        await async_preflight_install(target, signer, successor_descriptor)
 
-    assert preflight.migration_candidate is True
+    assert caught.value.code is InstallAdbErrorCode.TARGET_NOT_CLEAN
     # Nothing is done to the old package here: this observation is read-only.
     assert fake.commands == [adb_protocol._preflight_command(NONCES[0])]
 
 
-async def test_the_old_package_alone_never_admits_the_old_build_again(
-    monkeypatch: pytest.MonkeyPatch,
-    signer: PythonRSASigner,
-    target: AdbInstallTarget,
-    descriptor: InstallDescriptor,
-) -> None:
-    """Migration is one direction: it never excuses replacing the old app."""
-    fake = FakeDevice([_preflight_output(NONCES[0], package_lines=[_LEGACY_PATH])])
-    _install_fakes(monkeypatch, [fake])
-
-    with pytest.raises(InstallAdbError) as caught:
-        await async_preflight_install(target, signer, descriptor)
-
-    assert caught.value.code is InstallAdbErrorCode.TARGET_NOT_CLEAN
-
-
-async def test_both_packages_present_is_not_a_clean_target_for_either(
-    monkeypatch: pytest.MonkeyPatch,
-    signer: PythonRSASigner,
-    target: AdbInstallTarget,
-    descriptor: InstallDescriptor,
-    successor_descriptor: InstallDescriptor,
-) -> None:
-    """A part-migrated panel finishes its own handover; nothing installs onto it."""
-    for installed in (descriptor, successor_descriptor):
-        fake = FakeDevice(
-            [
-                _preflight_output(
-                    NONCES[0],
-                    package_lines=[_LEGACY_PATH],
-                    successor_package_lines=[_SUCCESSOR_PATH],
-                )
-            ]
-        )
-        _install_fakes(monkeypatch, [fake])
-
-        with pytest.raises(InstallAdbError) as caught:
-            await async_preflight_install(target, signer, installed)
-
-        assert caught.value.code is InstallAdbErrorCode.TARGET_NOT_CLEAN
-
-
-async def test_the_new_package_alone_is_not_a_clean_target_for_either(
-    monkeypatch: pytest.MonkeyPatch,
-    signer: PythonRSASigner,
-    target: AdbInstallTarget,
-    descriptor: InstallDescriptor,
-    successor_descriptor: InstallDescriptor,
-) -> None:
-    """A migrated panel is an installed panel, not a fresh-install candidate."""
-    for installed in (descriptor, successor_descriptor):
-        fake = FakeDevice(
-            [_preflight_output(NONCES[0], successor_package_lines=[_SUCCESSOR_PATH])]
-        )
-        _install_fakes(monkeypatch, [fake])
-
-        with pytest.raises(InstallAdbError) as caught:
-            await async_preflight_install(target, signer, installed)
-
-        assert caught.value.code is InstallAdbErrorCode.TARGET_NOT_CLEAN
-
-
-@pytest.mark.parametrize("residue_index", [0, 1, 2])
-async def test_the_old_app_s_own_data_is_what_a_handover_migrates(
+async def test_both_packages_present_is_not_a_clean_target(
     monkeypatch: pytest.MonkeyPatch,
     signer: PythonRSASigner,
     target: AdbInstallTarget,
     successor_descriptor: InstallDescriptor,
-    residue_index: int,
 ) -> None:
-    """Legacy residue is expected beside a legacy package, under root too."""
-    assert adb_protocol._RESIDUE_PROBES[residue_index][0] == (
-        "io.github.maxlyth.hapaneld"
-    )
+    """A panel holding both apps is an existing panel; nothing installs onto it."""
     fake = FakeDevice(
         [
             _preflight_output(
                 NONCES[0],
-                su_lines=["present"],
                 package_lines=[_LEGACY_PATH],
-                residue_index=residue_index,
-            ),
-            _su_output(NONCES[1], residue_index=residue_index),
+                successor_package_lines=[_SUCCESSOR_PATH],
+            )
         ]
     )
     _install_fakes(monkeypatch, [fake])
 
-    preflight = await async_preflight_install(target, signer, successor_descriptor)
+    with pytest.raises(InstallAdbError) as caught:
+        await async_preflight_install(target, signer, successor_descriptor)
 
-    assert preflight.migration_candidate is True
-    assert preflight.root_mode is AdbRootMode.ROOT_SU
+    assert caught.value.code is InstallAdbErrorCode.TARGET_NOT_CLEAN
 
 
-@pytest.mark.parametrize("residue_index", [3, 4, 5])
-async def test_the_successor_s_own_residue_is_never_a_handover(
+async def test_the_new_package_alone_is_not_a_clean_target(
     monkeypatch: pytest.MonkeyPatch,
     signer: PythonRSASigner,
     target: AdbInstallTarget,
     successor_descriptor: InstallDescriptor,
-    residue_index: int,
 ) -> None:
-    """Data belonging to the package being installed still refuses the target."""
-    assert adb_protocol._RESIDUE_PROBES[residue_index][0] == "io.panelassistant.android"
+    """A panel with the app is an installed panel, not a fresh-install candidate."""
     fake = FakeDevice(
-        [
-            _preflight_output(
-                NONCES[0], package_lines=[_LEGACY_PATH], residue_index=residue_index
-            )
-        ]
+        [_preflight_output(NONCES[0], successor_package_lines=[_SUCCESSOR_PATH])]
     )
     _install_fakes(monkeypatch, [fake])
 
@@ -2681,7 +2689,7 @@ async def test_root_still_refuses_old_data_with_no_old_package(
     successor_descriptor: InstallDescriptor,
     residue_index: int,
 ) -> None:
-    """There is nothing to hand over from, so this is residue like any other."""
+    """The old app's data with no app is residue like any other."""
     fake = FakeDevice(
         [
             _preflight_output(
@@ -2697,39 +2705,14 @@ async def test_root_still_refuses_old_data_with_no_old_package(
     assert caught.value.code is InstallAdbErrorCode.TARGET_NOT_CLEAN
 
 
-async def test_root_refuses_successor_residue_even_while_migrating(
-    monkeypatch: pytest.MonkeyPatch,
-    signer: PythonRSASigner,
-    target: AdbInstallTarget,
-    successor_descriptor: InstallDescriptor,
-) -> None:
-    """Root sees data the shell cannot, and judges it by the same rule."""
-    fake = FakeDevice(
-        [
-            _preflight_output(
-                NONCES[0], su_lines=["present"], package_lines=[_LEGACY_PATH]
-            ),
-            _su_output(NONCES[1], residue_index=3),
-        ]
-    )
-    _install_fakes(monkeypatch, [fake])
-
-    with pytest.raises(InstallAdbError) as caught:
-        await async_preflight_install(target, signer, successor_descriptor)
-
-    assert caught.value.code is InstallAdbErrorCode.TARGET_NOT_CLEAN
-
-
 async def test_each_identity_is_launched_by_its_own_exact_component(
     monkeypatch: pytest.MonkeyPatch,
     signer: PythonRSASigner,
     target: AdbInstallTarget,
-    descriptor: InstallDescriptor,
     successor_descriptor: InstallDescriptor,
 ) -> None:
     """The `/.Class` shorthand names nothing under the new application id."""
     for installed, component in (
-        (descriptor, "io.github.maxlyth.hapaneld/.MainActivity"),
         (
             successor_descriptor,
             "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity",
@@ -2768,7 +2751,7 @@ async def test_each_identity_is_launched_by_its_own_exact_component(
         assert _ACCESSIBILITY_SERVICES[installed.package_id] in fake.commands[-2]
 
 
-_INSTALLED_APK_PATH = "/data/app/~~aBc==/io.github.maxlyth.hapaneld-xY9==/base.apk"
+_INSTALLED_APK_PATH = "/data/app/~~aBc==/io.panelassistant.android-xY9==/base.apk"
 
 
 def _installed_artifact_output(
@@ -2813,7 +2796,7 @@ async def test_an_installed_apk_is_measured_and_hashed_without_being_touched(
 
     assert size == len(APK_BYTES)
     assert len(fake.commands) == 3
-    assert "pm path io.github.maxlyth.hapaneld" in fake.commands[1]
+    assert "pm path io.panelassistant.android" in fake.commands[1]
     assert _INSTALLED_APK_PATH in fake.commands[2]
     # An installed application's APK belongs to the system: it is read, never
     # prepared, so nothing in this observation writes to the panel.
@@ -2921,8 +2904,8 @@ async def test_a_panel_holding_the_target_is_reported_only_when_asked(
     """
     response = _preflight_output(
         NONCES[0],
-        package_lines=[f"package:{_INSTALLED_APK_PATH}"],
-        residue_index=0,
+        successor_package_lines=[f"package:{_INSTALLED_APK_PATH}"],
+        residue_index=len(adb_protocol._ROOT_DATA_BASES),
     )
     _install_fakes(monkeypatch, [FakeDevice([response])])
     with pytest.raises(InstallAdbError) as caught:
@@ -2935,19 +2918,14 @@ async def test_a_panel_holding_the_target_is_reported_only_when_asked(
     )
 
     assert observed.target_installed is True
-    assert observed.migration_candidate is False
 
 
 @pytest.mark.parametrize(
     "changes",
     [
-        {
-            "successor_package_lines": [
-                "package:/data/app/io.panelassistant.android/base.apk"
-            ]
-        },
-        {"successor_retained_lines": ["package:io.panelassistant.android"]},
-        {"residue_index": 3},
+        {"package_lines": ["package:/data/app/io.github.maxlyth.hapaneld/base.apk"]},
+        {"retained_lines": ["package:io.github.maxlyth.hapaneld"]},
+        {"residue_index": 0},
     ],
     ids=["other_package", "other_package_retained", "other_packages_data"],
 )
@@ -2966,7 +2944,7 @@ async def test_anything_beside_the_installed_target_is_still_unclean(
                 [
                     _preflight_output(
                         NONCES[0],
-                        package_lines=[f"package:{_INSTALLED_APK_PATH}"],
+                        successor_package_lines=[f"package:{_INSTALLED_APK_PATH}"],
                         **changes,
                     )
                 ]
@@ -2990,7 +2968,16 @@ async def test_data_with_no_application_to_own_it_is_never_an_installed_target(
 ) -> None:
     """Leftover data is an unclean panel, however the caller asks."""
     _install_fakes(
-        monkeypatch, [FakeDevice([_preflight_output(NONCES[0], residue_index=0)])]
+        monkeypatch,
+        [
+            FakeDevice(
+                [
+                    _preflight_output(
+                        NONCES[0], residue_index=len(adb_protocol._ROOT_DATA_BASES)
+                    )
+                ]
+            )
+        ],
     )
 
     with pytest.raises(InstallAdbError) as caught:
@@ -3046,56 +3033,3 @@ async def test_a_display_restore_answer_in_no_known_shape_is_an_unreachable_pane
         await async_restore_display_sizing(target, signer)
 
     assert caught.value.code is InstallAdbErrorCode.TARGET_UNREACHABLE
-
-
-@pytest.mark.parametrize(("old_app_back", "copy_removals"), [(False, 0), (True, 1)])
-async def test_restoring_the_old_app_drops_its_copy_only_once_it_is_back(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    signer: PythonRSASigner,
-    target: AdbInstallTarget,
-    old_app_back: bool,
-    copy_removals: int,
-) -> None:
-    """Run the real restore program in ``sh`` over stand-ins for the panel's tools.
-
-    The kept copy is the only way back onto the data Android kept, so it goes
-    only when the package manager shows the old app installed again.
-    """
-    tools, log = tmp_path / "bin", tmp_path / "rm.log"
-    tools.mkdir()
-    back = (
-        f"echo package:/data/app/{LEGACY_PACKAGE_ID}/base.apk" if old_app_back else ":"
-    )
-    scripts = {
-        "pm": f'#!/bin/sh\n[ "$*" = "path {LEGACY_PACKAGE_ID}" ] && {back}\nexit 0\n',
-        "rm": f'#!/bin/sh\necho "$*" >> {log}\n',
-        **{name: "#!/bin/sh\nexit 1\n" for name in ("su", "cmd", "dumpsys", "getprop")},
-    }
-    for name, script in scripts.items():
-        (tools / name).write_text(script)
-        (tools / name).chmod(0o755)
-
-    async def panel_shell(_device: Any, command: str, **_kwargs: Any) -> bytes:
-        process = await asyncio.create_subprocess_exec(
-            "sh",
-            "-c",
-            command,
-            stdout=asyncio.subprocess.PIPE,
-            env={**os.environ, "PATH": f"{tools}:{os.environ['PATH']}"},
-        )
-        stdout, _ = await process.communicate()
-        return stdout
-
-    _install_fakes(monkeypatch, [FakeDevice([])])
-    monkeypatch.setattr(install_adb, "token_hex", lambda _length: NONCES[0])
-    monkeypatch.setattr(install_adb, "_parse_identity_root", lambda *_args: None)
-    monkeypatch.setattr(install_adb, "_async_shell", panel_shell)
-
-    await async_move_step(target, signer, MoveStep.RESTORE_LEGACY)
-
-    removals = log.read_text().splitlines() if log.exists() else []
-    assert (
-        removals.count("-f /data/local/tmp/panel-assistant-old-app.apk")
-        == copy_removals
-    )

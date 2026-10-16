@@ -4,7 +4,7 @@ import { decodeLines, readSections } from '../src/shell-session.mjs';
 import { inspectSessionTarget } from '../src/session-target.mjs';
 import { createUsbTransactionPorts } from '../src/usb-transaction-ports.mjs';
 import { RESIDUE_PROBES, parsePreflight } from '../src/preflight.mjs';
-import { ACCEPTED_PACKAGE_IDS } from '../src/app-identity.mjs';
+import { LAUNCH_COMPONENTS, LEGACY_PACKAGE_ID, PACKAGE_ID } from '../src/app-identity.mjs';
 
 const fail = () => { throw new Error('bad'); };
 const nonce = 'a'.repeat(32);
@@ -90,8 +90,8 @@ test('session target reads identity and the root ladder from posture', async () 
 test('posture refuses a changed target through the transaction ports', async () => {
   const target = { model: 'Test panel', serial: 'serial', primaryAbi: 'arm64-v8a', androidSdk: 33,
     rootMode: 'rootless', usbVendorId: 1, usbProductId: 2, usbSerial: 'usb' };
-  const artifact = { apkSize: 1, apkSha256: 'a'.repeat(64), packageId: ACCEPTED_PACKAGE_IDS[0],
-    launchComponent: `${ACCEPTED_PACKAGE_IDS[0]}/.Main` };
+  const artifact = { apkSize: 1, apkSha256: 'a'.repeat(64), packageId: PACKAGE_ID,
+    launchComponent: LAUNCH_COMPONENTS[PACKAGE_ID][1] };
   const release = { kind: 'authenticated-apk-bytes', descriptor: artifact };
   for (const [change, root] of [[{ SERIAL: 'other' }, LADDER[0][0]], [{}, LADDER[1][0]]]) {
     const ports = createUsbTransactionPorts({ adb: fakeAdb({ ...IDENTITY, ...change, ...root }), usbDevice,
@@ -110,7 +110,8 @@ function preflightBody(root, unreadable = false) {
   const lines = [`HAPANELD_PREFLIGHT_BEGIN:${nonce}`,
     ...Object.entries({ ...IDENTITY, ...root }).flatMap(([name, value]) => section(name, [value])),
     ...section('LIVE', ['package:/system/framework/framework-res.apk'])];
-  ACCEPTED_PACKAGE_IDS.forEach((_, i) => lines.push(...section(`PACKAGE${i}`, [], 1),
+  // The old app's sections first, then this app's.
+  [LEGACY_PACKAGE_ID, PACKAGE_ID].forEach((_, i) => lines.push(...section(`PACKAGE${i}`, [], 1),
     ...section(`RETAINED${i}`, [])));
   for (let i = 0; i < 3; i++) lines.push(...section(`BASE${i}`, [unreadable && i === 1 ? 'unreadable' : 'readable']));
   RESIDUE_PROBES.forEach((_, i) => lines.push(...section(`RESIDUE${i}`, ['absent'])));
@@ -119,7 +120,7 @@ function preflightBody(root, unreadable = false) {
 }
 
 test('preflight root ladder and admission', () => {
-  const descriptor = { minSdk: 24, supportedAbis: ['arm64-v8a', 'armeabi-v7a'], packageId: ACCEPTED_PACKAGE_IDS[0] };
+  const descriptor = { minSdk: 24, supportedAbis: ['arm64-v8a', 'armeabi-v7a'], packageId: PACKAGE_ID };
   for (const [root, expected] of LADDER) {
     if (['rootless', 'root_adbd', 'root_su'].includes(expected)) {
       const result = parsePreflight(preflightBody(root), nonce, descriptor);

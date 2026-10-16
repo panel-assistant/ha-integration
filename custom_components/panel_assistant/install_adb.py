@@ -93,15 +93,9 @@ from .adb_protocol import (
     _validate_filesync_maxdata,
 )
 from .app_identity import (
-    EQUIVALENT_HOME_COMPONENTS,
-    HOME_COMPONENTS,
-    LAUNCH_COMPONENTS,
-    LEGACY_LAUNCH_COMPONENT,
     LEGACY_PACKAGE_ID,
+    PACKAGE_ID,
     RELEASE_DEVICE_ADMIN_RECEIVER,
-    SUCCESSOR_PACKAGE_ID,
-    is_accepted_package_id,
-    is_launch_component,
 )
 from .client import PanelAddress
 from .display_provisioning import (
@@ -114,7 +108,6 @@ from .display_provisioning import (
     parse_display_sizing,
 )
 from .home_chooser import HOME_QUERY as _HOME_QUERY
-from .home_chooser import home_claim_command
 from .install_network import is_allowed_install_address
 from .release import (
     _MAX_APK_BYTES,
@@ -365,15 +358,13 @@ async def _async_prove_su(
                     raise InstallAdbError(InstallAdbErrorCode.ROOT_STATE_AMBIGUOUS)
             # Root can see data directories the unprivileged shell cannot, so
             # this is the authoritative residue reading. It is judged against
-            # the same rule, including the legacy residue a migration expects.
+            # the same rule.
             for index in range(len(_RESIDUE_PATHS)):
                 values, status = sections[f"RESIDUE{index}"]
                 if status != 0 or values not in (["absent"], ["present"]):
                     raise _MalformedAdbResponse
                 owner = _RESIDUE_PROBES[index][0]
-                expected = (
-                    admitted.migration_candidate and owner == LEGACY_PACKAGE_ID
-                ) or (admitted.target_installed and owner == target_package_id)
+                expected = admitted.target_installed and owner == target_package_id
                 if values == ["present"] and not expected:
                     raise InstallAdbError(InstallAdbErrorCode.TARGET_NOT_CLEAN)
         return
@@ -555,9 +546,7 @@ async def async_verify_installed_target(
     package_id: str,
 ) -> None:
     """Re-prove the exact target and installed package without mutation."""
-    if not isinstance(target, AdbInstallTarget) or not is_accepted_package_id(
-        package_id
-    ):
+    if not isinstance(target, AdbInstallTarget) or package_id != PACKAGE_ID:
         raise InstallAdbError(InstallAdbErrorCode.INVALID_REQUEST)
     _validate_target(target)
     _validate_expected_root_mode(expected_root_mode)
@@ -1342,56 +1331,32 @@ async def async_cleanup_staged_apk(
 
 
 class MoveStep(StrEnum):
-    """One package-manager step of moving a panel from the legacy app id."""
+    """One package-manager step of removing the app from a panel (``removal``)."""
 
     OBSERVE = "OBSERVE"
-    REMOVE_SUCCESSOR = "REMOVE_SUCCESSOR"
-    CLAIM_HOME = "CLAIM_HOME"
-    KEEP_LEGACY = "KEEP_LEGACY"
-    SET_ASIDE_LEGACY = "SET_ASIDE_LEGACY"
-    RETIRE_LEGACY = "RETIRE_LEGACY"
-    RESET_SUCCESSOR = "RESET_SUCCESSOR"
-    RESTORE_LEGACY = "RESTORE_LEGACY"
-    RETURN_HOME = "RETURN_HOME"
-    START_LEGACY = "START_LEGACY"
     REMOVE_APP = "REMOVE_APP"
     VENDOR_HOME = "VENDOR_HOME"
 
 
 @dataclass(frozen=True, slots=True)
 class MoveObservation:
-    """What the panel reports after a move step, read in the same shell."""
+    """What the panel reports after a step, read in the same shell."""
 
     legacy_installed: bool
     successor_installed: bool
     #: The package HOME resolves to now, or None when nothing single answers.
     home: str | None
-    #: The new app is installed and has never run: Android still marks it not
-    #: launched, which no start of any of its components leaves set.
-    successor_unlaunched: bool = False
-    #: Read through the panel's root: the new app's own migration records,
-    #: or None when they could not be read. A new app that has run only while
-    #: waiting for the old app's handover holds no state of its own; one that
-    #: finished, or started on its own, records ``complete``.
-    successor_records: frozenset[str] | None = None
-    #: The old app is set aside: not installed for the panel's user, so the
-    #: new app starts as an ordinary app, while Android keeps its data.
-    legacy_set_aside: bool = False
-    #: SHA-256 of the copy of the old app's APK kept on the panel, which
-    #: reinstalls it onto its kept data, or None when there is no copy.
-    legacy_copy: str | None = None
-    #: SHA-256 of the old app's installed APK, read beside a kept copy: only
-    #: a copy with this digest is a whole copy of the app it will reinstall.
-    legacy_apk: str | None = None
     #: The vendor's own firmware number (``ro.build.display.id``), or None
     #: when the panel reports none a help page could match.
     firmware: str | None = None
 
 
+#: The old app's APK that Panel Assistant 0.9.0's move kept on a panel while
+#: it moved; removal deletes any copy left behind.
 _LEGACY_COPY = "/data/local/tmp/panel-assistant-old-app.apk"
 
 
-def _uninstall(package: str, options: str = "") -> str:
+def _uninstall(package: str) -> str:
     """Uninstall the app, asking it first to give up a device admin that blocks it.
 
     Android refuses to uninstall an active device admin, and the shell cannot
@@ -1400,7 +1365,7 @@ def _uninstall(package: str, options: str = "") -> str:
     to ten seconds. An app that cannot give it up stays installed, which the
     observation reports.
     """
-    uninstall = f"pm uninstall {options}{package}"
+    uninstall = f"pm uninstall {package}"
     blocked = "*DELETE_FAILED_DEVICE_POLICY_MANAGER*"
     return (
         f'case "$({uninstall})" in {blocked}) '
@@ -1414,144 +1379,42 @@ def _uninstall(package: str, options: str = "") -> str:
 
 _MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
     MoveStep.OBSERVE: (),
-    # A successor beside a running legacy app holds only a copy of that app's
-    # state, so removing it loses nothing the legacy app does not still hold.
-    MoveStep.REMOVE_SUCCESSOR: (
-        f"am force-stop {SUCCESSOR_PACKAGE_ID}",
-        _uninstall(SUCCESSOR_PACKAGE_ID),
-    ),
-    # The old app's APK is kept beside its data until the new app is proven,
-    # because setting the old app aside deletes the APK Android installed.
-    # An earlier copy is never reused, and a copy that did not finish never
-    # takes the copy's name; the observation then compares it with the APK.
-    MoveStep.KEEP_LEGACY: (
-        f"{{ rm -f {_LEGACY_COPY} {_LEGACY_COPY}.part; "
-        f"p=$(pm path {LEGACY_PACKAGE_ID}); p=${{p#package:}}; "
-        f'[ -n "$p" ] && cp "$p" {_LEGACY_COPY}.part '
-        f"&& chmod 644 {_LEGACY_COPY}.part "
-        f"&& mv {_LEGACY_COPY}.part {_LEGACY_COPY}; rm -f {_LEGACY_COPY}.part; }}",
-    ),
-    MoveStep.SET_ASIDE_LEGACY: (
-        f"am force-stop {LEGACY_PACKAGE_ID}",
-        _uninstall(LEGACY_PACKAGE_ID, "-k --user 0 "),
-    ),
-    # Only while HOME resolves to one launcher that is not the old app: never
-    # the old app itself, which would leave the panel without one, nor a HOME
-    # that cannot be read, nor the system chooser. Read in the same shell as
-    # the uninstall, so a HOME that changed since the last observation counts.
-    # Android forgets the preferred HOME when an app answering HOME goes, so a
-    # HOME that was the new app's dashboard is claimed back for it.
-    MoveStep.RETIRE_LEGACY: (
-        f'hp_home=$({_HOME_QUERY}); case "$hp_home" in '
-        f"{LEGACY_PACKAGE_ID}/*|android/*) ;; ?*/?*) "
-        f"am force-stop {LEGACY_PACKAGE_ID}; {_uninstall(LEGACY_PACKAGE_ID)}; "
-        f'rm -f {_LEGACY_COPY}; case "$hp_home" in '
-        + " ".join(
-            f"{'|'.join(EQUIVALENT_HOME_COMPONENTS[launch])}) "
-            f"{home_claim_command(launch)} ;;"
-            for launch in LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID]
-        )
-        + " esac ;; esac",
-    ),
-    # Reinstalling the kept APK returns the old app onto the data Android kept.
-    MoveStep.RESTORE_LEGACY: (
-        f"{{ [ -f {_LEGACY_COPY} ] && pm install -r {_LEGACY_COPY}; "
-        f'case "$(pm path {LEGACY_PACKAGE_ID})" in '
-        f"package:*) rm -f {_LEGACY_COPY} ;; esac; }}",
-    ),
-    MoveStep.RETURN_HOME: (
-        f"cmd package set-home-activity {HOME_COMPONENTS[LEGACY_LAUNCH_COMPONENT]}",
-    ),
-    MoveStep.START_LEGACY: (f"am start -n {HOME_COMPONENTS[LEGACY_LAUNCH_COMPONENT]}",),
     # Removes the app under both ids, only while HOME resolves to one launcher
     # that is neither of them: never the system chooser, an empty answer, or
     # Settings' FallbackHome, each of which would leave the panel without a
-    # home screen. Read in the same shell as the uninstall, as for retiring.
-    # The old id goes first, and the new app only once nothing of the old one
-    # is listed: the new app is what a retry reaches the panel through.
+    # home screen. Read in the same shell as the uninstall, so a HOME that
+    # changed since the last observation counts. A stray old app goes first,
+    # and the new app only once nothing of the old one is listed: the new app
+    # is what a retry reaches the panel through.
     MoveStep.REMOVE_APP: (
-        f'case "$({_HOME_QUERY})" in {LEGACY_PACKAGE_ID}/*|{SUCCESSOR_PACKAGE_ID}/*'
+        f'case "$({_HOME_QUERY})" in {LEGACY_PACKAGE_ID}/*|{PACKAGE_ID}/*'
         "|android/*|com.android.settings/*) ;; ?*/?*) "
         f"am force-stop {LEGACY_PACKAGE_ID}; {_uninstall(LEGACY_PACKAGE_ID)}; "
         f"rm -f {_LEGACY_COPY}; "
         f'case "$(pm list packages -u {LEGACY_PACKAGE_ID} 2>/dev/null)" in '
         f"*package:{LEGACY_PACKAGE_ID}*) ;; *) "
-        f"am force-stop {SUCCESSOR_PACKAGE_ID}; {_uninstall(SUCCESSOR_PACKAGE_ID)} ;; "
+        f"am force-stop {PACKAGE_ID}; {_uninstall(PACKAGE_ID)} ;; "
         "esac ;; esac",
     ),
     # The vendor's launcher takes HOME from the panel's shell when the app
     # cannot hand it back (vendor_provisioning names the panels).
     MoveStep.VENDOR_HOME: (VENDOR_HOME_COMMAND,),
-    # A successor that first starts with no legacy app and no migration record
-    # beside it runs as an ordinary app; clearing it makes that start certain.
-    MoveStep.RESET_SUCCESSOR: (
-        f"am force-stop {SUCCESSOR_PACKAGE_ID}",
-        f"pm clear {SUCCESSOR_PACKAGE_ID}",
-    ),
 }
 
 
-_SUCCESSOR_RECORDS_DIRECTORY = (
-    f"/data/data/{SUCCESSOR_PACKAGE_ID}/no_backup/identity-migration"
-)
-
-
-# The app's data is private to it, so only root can read its records. The
-# script goes to su on standard input, which both su styles on the panels
-# accept, and each root route is tried without waiting on a prompt; none
-# answering leaves the records unknown rather than empty.
-_SUCCESSOR_RECORDS_COMMAND = (
-    "for p in 'su 0' 'su root'; do "
-    "r=$(printf '%s\\n' '"
-    # Only a directory that exists and can be listed counts as read: an
-    # absent or unlistable one is unknown, never an empty set of records.
-    f"[ -d {_SUCCESSOR_RECORDS_DIRECTORY} ] || exit 3; "
-    f"ls {_SUCCESSOR_RECORDS_DIRECTORY} >/dev/null 2>&1 || exit 3; "
-    f"for f in {_SUCCESSOR_RECORDS_DIRECTORY}/*; do "
-    '[ -e "$f" ] && echo "record:${f##*/}"; done; echo records:read'
-    "' | timeout 3 $p sh 2>/dev/null) && "
-    'case "$r" in *records:read*) echo "$r"; break ;; esac; done'
-)
-
-
-def _move_command(
-    nonce: str, step: MoveStep, successor_launch: str | None = None
-) -> str:
+def _move_command(nonce: str, step: MoveStep) -> str:
     quiet = ">/dev/null 2>&1"
-    actions: tuple[str, ...]
-    if step is MoveStep.CLAIM_HOME:
-        # HOME goes to the dashboard of the exact build the move installed,
-        # whichever package its classes live in.
-        assert successor_launch is not None
-        actions = (
-            f"cmd package set-home-activity {HOME_COMPONENTS[successor_launch]}",
-        )
-    else:
-        actions = _MOVE_ACTIONS[step]
     return "; ".join(
         (
             f"echo HAPANELD_MOVE_BEGIN:{nonce}",
-            *(f"{action} {quiet}" for action in actions),
+            *(f"{action} {quiet}" for action in _MOVE_ACTIONS[step]),
             # No pipe into grep: toybox grep on some panels reports an error
             # on an empty pipe, which would corrupt the frame.
             *(
                 f'case "$(pm path {package} 2>/dev/null)" in '
                 f"package:*) echo installed:{package} ;; esac"
-                for package in (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID)
+                for package in (LEGACY_PACKAGE_ID, PACKAGE_ID)
             ),
-            # Listed with uninstalled packages: installed, or set aside with
-            # its data kept.
-            f"for l in $(pm list packages -u {LEGACY_PACKAGE_ID} 2>/dev/null); do "
-            f'[ "$l" = package:{LEGACY_PACKAGE_ID} ] '
-            f"&& echo listed:{LEGACY_PACKAGE_ID}; done",
-            f"[ -f {_LEGACY_COPY} ] && set -- $(sha256sum {_LEGACY_COPY} 2>/dev/null)"
-            ' && [ -n "$1" ] && echo "copy:$1"',
-            f"[ -f {_LEGACY_COPY} ] && p=$(pm path {LEGACY_PACKAGE_ID} 2>/dev/null) "
-            '&& set -- $(sha256sum "${p#package:}" 2>/dev/null) && [ -n "$1" ] '
-            '&& echo "apk:$1"',
-            f'case "$(dumpsys package {SUCCESSOR_PACKAGE_ID} 2>/dev/null)" in '
-            f"*notLaunched=true*) echo unlaunched:{SUCCESSOR_PACKAGE_ID} ;; esac",
-            _SUCCESSOR_RECORDS_COMMAND,
             f'echo "home:$({_HOME_QUERY})"',
             'echo "firmware:$(getprop ro.build.display.id 2>/dev/null)"',
             f"echo HAPANELD_MOVE_END:{nonce}:0",
@@ -1567,57 +1430,24 @@ def _parse_move(body: bytes, nonce: str) -> MoveObservation:
         for line in lines
         if line.startswith("installed:")
     }
-    unlaunched = [
-        line for line in lines if line == f"unlaunched:{SUCCESSOR_PACKAGE_ID}"
-    ]
-    read = [line for line in lines if line == "records:read"]
-    records = [line for line in lines if line.startswith("record:")]
-    listed = [line for line in lines if line == f"listed:{LEGACY_PACKAGE_ID}"]
-    copies = [line.removeprefix("copy:") for line in lines if line.startswith("copy:")]
-    apks = [line.removeprefix("apk:") for line in lines if line.startswith("apk:")]
     firmwares = [
         line.removeprefix("firmware:") for line in lines if line.startswith("firmware:")
     ]
     if (
         status_code != 0
         or len(homes) != 1
-        or not installed <= {LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID}
-        or len(unlaunched) > 1
-        or len(read) > 1
-        or (records and not read)
-        or len(listed) > 1
-        or len(copies) > 1
-        or len(apks) > 1
+        or not installed <= {LEGACY_PACKAGE_ID, PACKAGE_ID}
         or len(firmwares) > 1
-        or any(not _SHA256_PATTERN.match(digest) for digest in (*copies, *apks))
-        or len(homes)
-        + len(installed)
-        + len(unlaunched)
-        + len(read)
-        + len(records)
-        + len(listed)
-        + len(copies)
-        + len(apks)
-        + len(firmwares)
-        != len(lines)
+        or len(homes) + len(installed) + len(firmwares) != len(lines)
     ):
         raise _MalformedAdbResponse
     home = homes[0].removeprefix("home:").strip()
     package, slash, _activity = home.partition("/")
     return MoveObservation(
         legacy_installed=LEGACY_PACKAGE_ID in installed,
-        successor_installed=SUCCESSOR_PACKAGE_ID in installed,
+        successor_installed=PACKAGE_ID in installed,
         # The system chooser and an empty answer are not a HOME.
         home=package if slash and package and package != "android" else None,
-        successor_unlaunched=bool(unlaunched) and SUCCESSOR_PACKAGE_ID in installed,
-        successor_records=(
-            frozenset(line.removeprefix("record:") for line in records)
-            if read
-            else None
-        ),
-        legacy_set_aside=bool(listed) and LEGACY_PACKAGE_ID not in installed,
-        legacy_copy=copies[0] if copies else None,
-        legacy_apk=apks[0] if apks and LEGACY_PACKAGE_ID in installed else None,
         firmware=_firmware(firmwares[0]) if firmwares else None,
     )
 
@@ -1629,30 +1459,17 @@ def _firmware(value: str) -> str | None:
 
 
 async def async_move_step(
-    target: AdbInstallTarget,
-    signer: PythonRSASigner,
-    step: MoveStep,
-    *,
-    authorize: bool = True,
-    successor_launch: str | None = None,
+    target: AdbInstallTarget, signer: PythonRSASigner, step: MoveStep
 ) -> MoveObservation:
-    """Run one move step on the pinned panel and observe its result.
-
-    Only a step the owner started may offer Panel Assistant's key to the panel.
-    Claiming HOME names the launcher of the new-app build the move installed.
-    """
+    """Run one removal step on the pinned panel and observe its result."""
     _validate_target(target)
-    if (step is MoveStep.CLAIM_HOME) != is_launch_component(
-        SUCCESSOR_PACKAGE_ID, successor_launch
-    ):
-        raise InstallAdbError(InstallAdbErrorCode.INVALID_REQUEST)
     device: AdbDeviceAsync | None = None
     mutation_started = False
     try:
         async with asyncio.timeout(_INSTALL_TIMEOUT_SECONDS):
-            device = await _async_connect(target, signer, authorize=authorize)
+            device = await _async_connect(target, signer)
             # Every connection proves the device at the address is the one the
-            # move started on before any command can change it.
+            # removal started on before any command can change it.
             nonce = token_hex(16)
             _parse_identity_root(
                 await _async_shell(
@@ -1664,18 +1481,11 @@ async def async_move_step(
                 target,
             )
             mutation_started = step is not MoveStep.OBSERVE
-            if step is MoveStep.START_LEGACY:
-                # Setting the old app aside drops its app-op and accessibility
-                # grants, so they are repaired, as for an install, before it
-                # starts again.
-                await _async_repair_app_permissions(
-                    device, target, LEGACY_PACKAGE_ID, LEGACY_LAUNCH_COMPONENT
-                )
             nonce = token_hex(16)
             return _parse_move(
                 await _async_shell(
                     device,
-                    _move_command(nonce, step, successor_launch),
+                    _move_command(nonce, step),
                     read_timeout=_INSTALL_READ_TIMEOUT_SECONDS,
                     transport_timeout=_INSTALL_TIMEOUT_SECONDS,
                 ),

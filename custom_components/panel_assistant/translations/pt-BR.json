@@ -515,9 +515,6 @@
     "mqtt_panel_needs_090": {
       "message": "{panel} nunca saiu do MQTT: instale primeiro o Panel Assistant 0.9.0, como a reparação explica"
     },
-    "move_with_repair": {
-      "message": "Transfira este painel para o novo aplicativo pelo reparo dele em Configurações."
-    },
     "health_update_failed": {
       "message": "Não foi possível ler o estado de funcionamento do painel"
     },
@@ -536,26 +533,8 @@
     "update_refused_by_panel": {
       "message": "{panel} recusou a atualização: {reason}"
     },
-    "bridge_not_ready": {
-      "message": "O painel ainda não pode ser transferido para o novo aplicativo. O Panel Assistant oferecerá a transferência novamente quando ela for possível."
-    },
-    "release_pair_unavailable": {
-      "message": "A versão correspondente do novo aplicativo está indisponível. Tente novamente mais tarde."
-    },
     "panel_changed_during_update": {
       "message": "O painel mudou durante a atualização. Atualize a página e tente novamente."
-    },
-    "bridge_details_changed": {
-      "message": "Os detalhes da transferência do painel mudaram. Atualize a página e tente novamente."
-    },
-    "bridge_capability_unavailable": {
-      "message": "Não foi possível verificar se o painel está pronto para a transferência. Verifique a conexão do painel e tente novamente."
-    },
-    "successor_untrusted": {
-      "message": "O novo aplicativo instalado não é confiável para a transferência. Verifique a aba Instalar do painel."
-    },
-    "bridge_handover_refused": {
-      "message": "O painel recusou a transferência entre aplicativos. Verifique a aba Instalar do painel."
     },
     "release_download_failed": {
       "message": "Não foi possível baixar a versão do aplicativo. Verifique a conexão e tente novamente."
@@ -652,45 +631,6 @@
       "title": "{panel} nunca saiu do MQTT",
       "description": "O Panel Assistant 1.0 não consegue mais mover {panel} do MQTT para a conexão própria, e conectá-lo agora criaria um segundo conjunto de entidades e dividiria o histórico. Instale primeiro o Panel Assistant 0.9.0 (no HACS abra Panel Assistant, escolha Redownload e selecione a versão 0.9.0), deixe que ele mova o painel e depois instale 1.0.0. Se preferir começar do zero, exclua o dispositivo deste painel em Configurações, Dispositivos e serviços, MQTT, depois recarregue esta entrada ou remova-a e adicione o painel de novo; isso cria novas entidades e não mantém histórico."
     },
-    "move_to_new_app": {
-      "title": "Migrar {panel} para o novo aplicativo",
-      "fix_flow": {
-        "step": {
-          "confirm_move": {
-            "title": "Migrar {panel} para o novo aplicativo",
-            "description": "{panel} ainda executa o antigo aplicativo ha-paneld. O Panel Assistant faz a migração para o novo aplicativo pela sua rede e mantém as configurações: primeiro faz uma cópia de segurança do painel aqui, instala o novo aplicativo e depois remove o antigo. O painel reinicia o aplicativo uma vez durante a migração. Se o painel mostrar \"Permitir depuração USB?\", toque em Permitir e marque \"Sempre permitir deste computador\", se essa opção aparecer. Você não precisa obter acesso root no painel nem digitar comandos. Selecione Enviar para fazer a migração."
-          }
-        },
-        "progress": {
-          "moving": "Migrando {panel} para o novo aplicativo. Mantenha o painel ligado."
-        },
-        "abort": {
-          "entry_removed": "Este painel foi removido do Home Assistant.",
-          "already_moved": "{panel} já executa o novo aplicativo. Nenhuma migração foi necessária.",
-          "release_unavailable": "O Panel Assistant não conseguiu obter a versão do novo aplicativo agora. Verifique se o Home Assistant consegue acessar a internet e tente novamente.",
-          "adb_authorization": "{panel} ainda não permitiu que o Panel Assistant se conecte. Olhe para o painel: se ele mostrar \"Permitir depuração USB?\", toque em Permitir e marque \"Sempre permitir deste computador\". Depois, abra este reparo novamente.",
-          "adb_unreachable": "O Panel Assistant não conseguiu se conectar a {panel} para fazer a migração. Verifique se o painel está ligado e na mesma rede que o Home Assistant e se a depuração pela rede está habilitada nas configurações do aplicativo do painel. Depois, abra este reparo novamente.",
-          "backup_failed": "O Panel Assistant não conseguiu fazer um backup completo de {panel}, então nada foi alterado. Tente novamente mais tarde.",
-          "new_app_is_home": "{panel} está no meio de uma migração anterior que esta versão ainda não consegue concluir. Nada foi alterado. Uma versão posterior do Panel Assistant corrigirá isso.",
-          "move_failed": "A migração de {panel} não foi concluída. Há uma cópia de segurança das configurações no Home Assistant, e a tela do painel continua funcionando. Abra este reparo novamente para continuar de onde parou.",
-          "panel_changed": "O dispositivo que responde no endereço de {panel} não é o painel conhecido pelo Panel Assistant, por isso nada foi alterado. Se o painel foi substituído ou redefinido, remova-o do Home Assistant e adicione-o novamente.",
-          "busy": "{panel} está ocupado com uma atualização ou outra migração. Tente novamente quando ela terminar.",
-          "restore_approval": "{panel} pede aprovação na tela antes que suas configurações possam ser restauradas. Aprove no painel e abra este reparo novamente."
-        }
-      }
-    },
-    "remove_old_app_adb": {
-      "title": "O aplicativo antigo ainda está em {panel}",
-      "description": "{panel} executa o novo aplicativo Panel Assistant, mas o antigo aplicativo ha-paneld ainda está instalado junto dele. O Panel Assistant o remove automaticamente via ADB, mas não consegue se conectar ao Android Debug Bridge do painel agora. Verifique se a depuração pela rede está habilitada e se o painel permitiu que o Home Assistant se conecte. O Panel Assistant tenta novamente por conta própria."
-    },
-    "remove_old_app_unproven": {
-      "title": "O aplicativo antigo ainda está em {panel}",
-      "description": "{panel} tem o antigo aplicativo ha-paneld instalado junto do novo aplicativo Panel Assistant. O Panel Assistant só remove o aplicativo antigo depois de comprovar que o novo aplicativo controla o painel: ele deve responder como este painel e ser sua tela inicial. Isso não pôde ser comprovado, por isso os dois aplicativos foram mantidos como estão. O Panel Assistant verifica novamente por conta própria."
-    },
-    "remove_old_app_failed": {
-      "title": "O aplicativo antigo ainda está em {panel}",
-      "description": "{panel} executa o novo aplicativo Panel Assistant, mas o antigo aplicativo ha-paneld ainda está instalado junto dele. O Panel Assistant tentou fazer uma cópia de segurança do painel e remover o aplicativo antigo, mas não concluiu a operação. Nada mais no painel foi alterado. O Panel Assistant tenta novamente por conta própria."
-    },
     "panel_permissions": {
       "title": "As permissões em {panel} precisam de atenção.",
       "fix_flow": {
@@ -781,20 +721,6 @@
     "merged_panel_identity": {
       "title": "Separar os painéis mesclados: {panels}",
       "description": "Os painéis {panels} informam a mesma identidade de dispositivo, então o Home Assistant não pode determinar com segurança a qual entrada pertence uma conexão nativa ou uma entidade. A conexão nativa deles é recusada e nenhuma entidade é movida. Atualize o aplicativo Panel Assistant em todos os painéis afetados para que cada um tenha uma identidade distinta. Depois, exclua o dispositivo mesclado e deixe os painéis se registrarem novamente."
-    },
-    "panel_migration_incomplete": {
-      "title": "O painel em {address} ainda não concluiu a migração para o novo aplicativo",
-      "fix_flow": {
-        "step": {
-          "confirm_migration": {
-            "title": "Verificar o painel novamente",
-            "description": "O Panel Assistant instalou a versão {version} no painel em {address}, e o painel migra suas configurações para o novo aplicativo por conta própria. Essa migração ainda não havia terminado quando o Home Assistant parou de esperar. O painel continua funcionando durante todo o processo e retoma de onde parou, por isso nada aqui o altera. Selecione Enviar para verificar novamente."
-          }
-        },
-        "abort": {
-          "migration_unfinished": "O novo aplicativo ainda não respondeu. O painel continua sozinho, então abra este problema novamente mais tarde."
-        }
-      }
     },
     "installer_failure": {
       "title": "A instalação ou atualização falhou em {panel}",

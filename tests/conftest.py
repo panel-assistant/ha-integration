@@ -72,7 +72,7 @@ def _no_stable_release_from_github(
         "test_lan_staged_update.py",
         "test_session_update.py",
     ) and request.node.name != (
-        "test_coordinator_routes_by_package_and_clears_old_bridge"
+        "test_coordinator_routes_by_package_and_ignores_the_old_app"
     ):
         monkeypatch.setattr(
             feed_coordinator.StableReleaseCoordinator,

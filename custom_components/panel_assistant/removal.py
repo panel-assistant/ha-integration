@@ -21,9 +21,14 @@ from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from . import adb_protocol, install_adb, panel_move, vendor_provisioning
-from .adb_protocol import AdbInstallTarget
-from .app_identity import LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID
+from . import adb_protocol, install_adb, vendor_provisioning
+from .adb_credentials import (
+    AdbCredentialError,
+    async_get_adb_credential,
+    async_get_durable_adb_credential,
+)
+from .adb_protocol import AdbInstallTarget, InstallAdbError, InstallAdbErrorCode
+from .app_identity import LEGACY_PACKAGE_ID, PACKAGE_ID
 from .client import (
     HandBackRefusedError,
     HaPaneldClient,
@@ -31,7 +36,10 @@ from .client import (
     UpdateApprovalRequiredError,
     normalize_address,
 )
-from .install_adb import MoveObservation, MoveStep
+from .install_adb import MoveObservation, MoveStep, async_move_step
+from .install_network import InstallNetworkError, async_pin_install_target
+from .panel_operations import claim_panel_operation, release_panel_operation
+from .provisioning import InstallTargetState, async_probe_install_target
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,13 +63,9 @@ _HAND_BACK_REASONS: Final = {
     "package-state-unknown": REASON_PACKAGE_STATE_UNKNOWN,
     "unsupported": REASON_UNSUPPORTED,
 }
-_MOVE_REASONS: Final = {
-    panel_move.REASON_ADB_AUTHORIZATION: REASON_ADB_AUTHORIZATION,
-    panel_move.REASON_PANEL_CHANGED: REASON_PANEL_CHANGED,
-}
 #: Packages HOME may resolve to that are not a home screen an owner can use.
 _NOT_A_LAUNCHER: Final = frozenset(
-    {LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, "com.android.settings"}
+    {LEGACY_PACKAGE_ID, PACKAGE_ID, "com.android.settings"}
 )
 
 
@@ -76,31 +80,61 @@ class RemovalError(Exception):
 async def async_read_firmware(hass: HomeAssistant, entry: ConfigEntry) -> str | None:
     """Read the panel's firmware number for the risks page, or None."""
     try:
-        found = await panel_move.async_app_target(hass, entry)
+        found = await async_app_target(hass, entry)
         if found is None:
             return None
         return (await _async_step(found, MoveStep.OBSERVE)).firmware
-    except panel_move.MoveError, RemovalError:
+    except RemovalError:
         return None
 
 
 async def async_remove_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Remove the app from the entry's panel; return once neither id is left."""
-    if not panel_move.claim_panel_operation(hass, entry.entry_id):
+    if not claim_panel_operation(hass, entry.entry_id):
         raise RemovalError(REASON_BUSY)
     try:
         await _async_remove_app(hass, entry)
     finally:
-        panel_move.release_panel_operation(hass, entry.entry_id)
+        release_panel_operation(hass, entry.entry_id)
+
+
+async def async_app_target(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> tuple[AdbInstallTarget, Any] | None:
+    """Reach the panel over ADB; None when Android holds neither app id.
+
+    A panel holding only the old app is reached too, so its stray app can go.
+    """
+    try:
+        await async_get_adb_credential(hass)
+        credential = await async_get_durable_adb_credential(hass)
+        # An entry whose app is already gone may not have loaded, so the stored
+        # address stands in for the running client's.
+        client = getattr(getattr(entry, "runtime_data", None), "client", None)
+        address = (
+            client.address
+            if client is not None
+            else normalize_address(entry.data[CONF_ADDRESS])
+        )
+        pinned = await async_pin_install_target(hass, address)
+    except (AdbCredentialError, InstallNetworkError, HaPaneldError) as err:
+        raise RemovalError(REASON_ADB_UNREACHABLE) from err
+    probe = await async_probe_install_target(pinned.pinned, credential.signer)
+    if probe.state is InstallTargetState.ADB_UNAUTHORIZED:
+        raise RemovalError(REASON_ADB_AUTHORIZATION)
+    if probe.state is InstallTargetState.INSTALL_CANDIDATE:
+        return None
+    adb_target = probe.adb_target(pinned.pinned)
+    if adb_target is None or probe.state not in {
+        InstallTargetState.INSTALLED,
+        InstallTargetState.MIGRATION_CANDIDATE,
+    }:
+        raise RemovalError(REASON_ADB_UNREACHABLE)
+    return adb_target, credential.signer
 
 
 async def _async_remove_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    try:
-        found = await panel_move.async_app_target(hass, entry)
-    except panel_move.MoveError as err:
-        raise RemovalError(
-            _MOVE_REASONS.get(err.reason, REASON_ADB_UNREACHABLE)
-        ) from err
+    found = await async_app_target(hass, entry)
     if found is None:
         return
     observed = await _async_step(found, MoveStep.OBSERVE)
@@ -186,11 +220,13 @@ async def _async_step(
 ) -> MoveObservation:
     target, signer = found
     try:
-        return await panel_move._async_step(target, signer, step)
-    except panel_move.MoveError as err:
-        raise RemovalError(
-            _MOVE_REASONS.get(err.reason, REASON_ADB_UNREACHABLE)
-        ) from err
+        return await async_move_step(target, signer, step)
+    except InstallAdbError as err:
+        if err.code is InstallAdbErrorCode.AUTHORIZATION_REQUIRED:
+            raise RemovalError(REASON_ADB_AUTHORIZATION) from err
+        if err.code is InstallAdbErrorCode.TARGET_CHANGED:
+            raise RemovalError(REASON_PANEL_CHANGED) from err
+        raise RemovalError(REASON_ADB_UNREACHABLE) from err
 
 
 def _client(hass: HomeAssistant, entry: ConfigEntry) -> HaPaneldClient:

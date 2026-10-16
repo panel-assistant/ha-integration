@@ -23,6 +23,7 @@ from adb_shell.exceptions import (
 from .adb_protocol import (
     _ADB_BANNER,
     ADB_PORT,
+    PROBED_PACKAGE_IDS,
     AdbInstallTarget,
     _async_close,
     _BoundedTcpTransportAsync,
@@ -33,7 +34,7 @@ from .adb_protocol import (
     _parse_identity,
     _UnsafeAdbPacket,
 )
-from .app_identity import ACCEPTED_PACKAGE_IDS, LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID
+from .app_identity import LEGACY_PACKAGE_ID, PACKAGE_ID
 from .client import PanelAddress
 
 _CONNECT_TIMEOUT_SECONDS = 5.0
@@ -53,9 +54,10 @@ class InstallTargetState(StrEnum):
     INCOMPATIBLE = "incompatible"
     INSTALL_CANDIDATE = "install_candidate"
     INSTALLED = "installed"
-    # The panel runs the legacy package and not the successor. The successor is
-    # a different package to Android, so it installs beside it and the panel
-    # performs the handover itself; this is not a clean target and not a refusal.
+    # The panel holds the old app id and not the new one. This release installs
+    # nothing beside the old app: setup and a retried install refuse it, and
+    # removal reaches it only to remove that stray app. The name is the one
+    # 0.9.0 gave the state when it still moved such a panel.
     MIGRATION_CANDIDATE = "migration_candidate"
     RETAINED_OR_AMBIGUOUS = "retained_or_ambiguous"
 
@@ -124,13 +126,13 @@ def _parse_status_marker(line: str, prefix: str, nonce: str) -> int | None:
 def _parse_package_presence(
     output: str, nonce: str
 ) -> dict[str, _PackagePresence] | None:
-    """Classify each accepted package only from a complete nonce-bound frame.
+    """Classify each probed package only from a complete nonce-bound frame.
 
-    Every accepted application id is read in its own segment. Reading them apart
-    is what lets the caller tell a clean panel from one that is still running
-    the legacy package and can be migrated.
+    Every probed application id is read in its own segment. Reading them apart
+    is what lets the caller tell a clean panel from one that still holds the
+    old app, which is refused rather than given the new app beside it.
     """
-    count = len(ACCEPTED_PACKAGE_IDS)
+    count = len(PROBED_PACKAGE_IDS)
     begin = f"HAPANELD_PKG_BEGIN:{nonce}"
     live_prefix = "HAPANELD_PKG_LIVE"
     end = f"HAPANELD_PKG_END:{nonce}"
@@ -191,7 +193,7 @@ def _parse_package_presence(
     if segment != count + 3 or live_status != 0 or not live_path:
         return None
     presence: dict[str, _PackagePresence] = {}
-    for index, package_id in enumerate(ACCEPTED_PACKAGE_IDS):
+    for index, package_id in enumerate(PROBED_PACKAGE_IDS):
         if target_path[index]:
             if target_status[index] != 0:
                 return None
@@ -206,8 +208,8 @@ def _parse_package_presence(
 def _parse_retained_package_data(
     output: str, nonce: str
 ) -> dict[str, _RetainedPackageData] | None:
-    """Classify retained data per accepted id from the uninstalled-package list."""
-    count = len(ACCEPTED_PACKAGE_IDS)
+    """Classify retained data per probed id from the uninstalled-package list."""
+    count = len(PROBED_PACKAGE_IDS)
     begin = f"HAPANELD_DATA_BEGIN:{nonce}"
     live_prefix = "HAPANELD_DATA_LIVE"
     end = f"HAPANELD_DATA_END:{nonce}"
@@ -253,7 +255,7 @@ def _parse_retained_package_data(
         if line.startswith("HAPANELD_DATA_"):
             return None
         if 1 <= segment <= count:
-            if line == f"package:{ACCEPTED_PACKAGE_IDS[segment - 1]}":
+            if line == f"package:{PROBED_PACKAGE_IDS[segment - 1]}":
                 retained[segment - 1] = True
             elif line:
                 return None
@@ -277,7 +279,7 @@ def _parse_retained_package_data(
             if retained[index]
             else _RetainedPackageData.ABSENT
         )
-        for index, package_id in enumerate(ACCEPTED_PACKAGE_IDS)
+        for index, package_id in enumerate(PROBED_PACKAGE_IDS)
     }
 
 
@@ -285,7 +287,7 @@ def _package_presence_command(nonce: str) -> str:
     """Build the static read-only installed-package observation."""
     targets = "".join(
         f"pm path {package_id}; echo HAPANELD_PKG_TARGET{index}:{nonce}:$?; "
-        for index, package_id in enumerate(ACCEPTED_PACKAGE_IDS)
+        for index, package_id in enumerate(PROBED_PACKAGE_IDS)
     )
     return (
         f"echo HAPANELD_PKG_BEGIN:{nonce}; "
@@ -301,7 +303,7 @@ def _retained_package_data_command(nonce: str) -> str:
     targets = "".join(
         f"pm list packages -u {package_id}; "
         f"echo HAPANELD_DATA_TARGET{index}:{nonce}:$?; "
-        for index, package_id in enumerate(ACCEPTED_PACKAGE_IDS)
+        for index, package_id in enumerate(PROBED_PACKAGE_IDS)
     )
     return (
         f"echo HAPANELD_DATA_BEGIN:{nonce}; "
@@ -391,12 +393,12 @@ async def async_probe_install_target(
         if presence is None:
             # An unreadable frame is never admission.
             state = InstallTargetState.RETAINED_OR_AMBIGUOUS
-        elif presence[SUCCESSOR_PACKAGE_ID] is _PackagePresence.PRESENT:
+        elif presence[PACKAGE_ID] is _PackagePresence.PRESENT:
             state = InstallTargetState.INSTALLED
             facts = await _async_target_facts(device)
         elif presence[LEGACY_PACKAGE_ID] is _PackagePresence.PRESENT:
-            # A legacy panel with no successor can take the successor beside it.
-            # Its own data is what the handover migrates, so it is not residue.
+            # Only the old app: never a clean target, and its data is its own,
+            # so no residue probe is needed to refuse it.
             facts = await _async_target_facts(device)
             if (
                 facts.android_sdk < _MIN_ANDROID_SDK

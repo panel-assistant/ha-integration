@@ -28,6 +28,7 @@ from custom_components.panel_assistant.adb_protocol import (
     InstallOutcome,
     LaunchOutcome,
 )
+from custom_components.panel_assistant.app_identity import PACKAGE_ID
 from custom_components.panel_assistant.client import (
     CannotConnectError,
     PanelAddress,
@@ -87,17 +88,19 @@ def artifact() -> InstallArtifact:
         release_tag="v0.1.0",
         version_name="0.1.0",
         version_code=100,
-        apk_name="ha-paneld-v0.1.0-manual-setup-required.apk",
+        apk_name="panel-assistant-v0.1.0-manual-setup-required.apk",
         apk_sha256=APK_SHA256,
         apk_size=12_345,
-        package_id="io.github.maxlyth.hapaneld",
+        package_id="io.panelassistant.android",
         signer_certificate_sha256=(
             "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
         ),
         min_sdk=26,
         supported_abis=("arm64-v8a", "armeabi-v7a"),
         database_compatibility="hapaneld-db:v1:ha-paneld.db:1:14",
-        launch_component="io.github.maxlyth.hapaneld/.MainActivity",
+        launch_component=(
+            "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity"
+        ),
         protocol_min=5,
         protocol_max=5,
     )
@@ -199,6 +202,7 @@ class Harness:
         self.home_proof_calls = 0
         # Scripted `pkg=` answers, consumed in order; the last one repeats. A
         # string is that reply's reported package, an exception is raised.
+        # With none scripted the panel reports the app's id, as the app does.
         self.health_packages: list[Exception | str | None] = []
         # What the installed panel says about its own setup at the end of the
         # install, and every Home Assistant address it was then handed. Setup
@@ -287,7 +291,7 @@ class Harness:
                 harness.health_calls += 1
                 if harness.health_error is not None:
                     raise harness.health_error
-                package: Exception | str | None = None
+                package: Exception | str | None = PACKAGE_ID
                 if harness.health_packages:
                     index = min(
                         harness.health_calls - 1, len(harness.health_packages) - 1

@@ -30,7 +30,7 @@ from custom_components.panel_assistant.adb_protocol import (
 from custom_components.panel_assistant.app_identity import (
     LAUNCH_COMPONENTS,
     LEGACY_PACKAGE_ID,
-    SUCCESSOR_PACKAGE_ID,
+    PACKAGE_ID,
 )
 from custom_components.panel_assistant.browser_delivery import (
     DATA_BROWSER_DELIVERY,
@@ -639,15 +639,15 @@ ARTIFACT = InstallArtifact(
     version_name=DESCRIPTOR.version_name,
     version_code=DESCRIPTOR.version_code,
     # The new app, which is what the flows' panels report once installed.
-    apk_name=release_apk_name(DESCRIPTOR.release_tag, SUCCESSOR_PACKAGE_ID),
+    apk_name=release_apk_name(DESCRIPTOR.release_tag, PACKAGE_ID),
     apk_sha256=DESCRIPTOR.apk_sha256,
     apk_size=DESCRIPTOR.apk_size,
-    package_id=SUCCESSOR_PACKAGE_ID,
+    package_id=PACKAGE_ID,
     signer_certificate_sha256=DESCRIPTOR.signer_certificate_sha256,
     min_sdk=DESCRIPTOR.min_sdk,
     supported_abis=DESCRIPTOR.supported_abis,
     database_compatibility=DESCRIPTOR.database_compatibility,
-    launch_component=LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID][0],
+    launch_component=LAUNCH_COMPONENTS[PACKAGE_ID][0],
     protocol_min=5,
     protocol_max=5,
 )
@@ -662,7 +662,7 @@ CREDENTIAL = AdbCredential(signer=object(), generation_id="b" * 64)
 
 
 def _rc_release(tag: str = "v0.9.7-rc3") -> ReleaseArtifact:
-    apk = f"ha-paneld-{tag}-manual-setup-required.apk"
+    apk = f"panel-assistant-{tag}-manual-setup-required.apk"
     return replace(
         RELEASE,
         tag=tag,
@@ -872,7 +872,7 @@ async def test_active_job_resumes_with_its_own_release(
             ARTIFACT,
             release_tag=active_tag,
             version_name=active_tag[1:],
-            apk_name=f"ha-paneld-{active_tag}-manual-setup-required.apk",
+            apk_name=f"panel-assistant-{active_tag}-manual-setup-required.apk",
         ),
     )
     manager = _manager_for(receipt)
@@ -1887,11 +1887,11 @@ async def test_final_verification_retry_and_recovery_boundaries(
 @pytest.mark.parametrize(
     ("receipt_package", "observed_package", "creates"),
     [
-        (SUCCESSOR_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, True),
-        (SUCCESSOR_PACKAGE_ID, LEGACY_PACKAGE_ID, False),
-        (SUCCESSOR_PACKAGE_ID, None, False),
+        (PACKAGE_ID, PACKAGE_ID, True),
+        (PACKAGE_ID, LEGACY_PACKAGE_ID, False),
+        (PACKAGE_ID, None, False),
         (LEGACY_PACKAGE_ID, None, True),
-        (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, False),
+        (LEGACY_PACKAGE_ID, PACKAGE_ID, False),
     ],
     ids=[
         "successor",

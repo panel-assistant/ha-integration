@@ -150,7 +150,6 @@ def _build_target(
     if probe.state not in {
         InstallTargetState.INSTALL_CANDIDATE,
         InstallTargetState.INSTALLED,
-        InstallTargetState.MIGRATION_CANDIDATE,
     }:
         raise InstallPlanError(InstallPlanErrorCode.PROBE_NOT_INSTALL_CANDIDATE)
 

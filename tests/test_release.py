@@ -20,8 +20,9 @@ from custom_components.panel_assistant import (
     release,
 )
 from custom_components.panel_assistant.app_identity import (
+    LAUNCH_COMPONENTS,
     LEGACY_PACKAGE_ID,
-    SUCCESSOR_PACKAGE_ID,
+    PACKAGE_ID,
 )
 from custom_components.panel_assistant.client import is_valid_panel_version
 from custom_components.panel_assistant.release import (
@@ -33,7 +34,7 @@ from .http_fakes import FakeContent, FakeResponse, FakeSession
 
 _TAG = "v1.2.3"
 _VERSION = "1.2.3"
-_APK_NAME = f"ha-paneld-{_TAG}-manual-setup-required.apk"
+_APK_NAME = f"panel-assistant-{_TAG}-manual-setup-required.apk"
 _APK_URL = (
     f"https://github.com/panel-assistant/android/releases/download/{_TAG}/{_APK_NAME}"
 )
@@ -45,6 +46,7 @@ _DESCRIPTOR_SIGNATURE_URL = f"{_DESCRIPTOR_URL}.sig"
 _SHA256 = "0123456789abcdef" * 4
 _CHECKSUM = f"{_SHA256}  {_APK_NAME}\n".encode()
 _RELEASE_SIGNER = "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
+_LAUNCH = LAUNCH_COMPONENTS[PACKAGE_ID][0]
 
 
 def _descriptor_document(**replacements: Any) -> dict[str, Any]:
@@ -56,12 +58,12 @@ def _descriptor_document(**replacements: Any) -> dict[str, Any]:
         "apkName": _APK_NAME,
         "apkSize": 12_345,
         "apkSha256": _SHA256,
-        "packageId": "io.github.maxlyth.hapaneld",
+        "packageId": PACKAGE_ID,
         "signerCertificateSha256": _RELEASE_SIGNER,
         "minSdk": 26,
         "supportedAbis": ["arm64-v8a", "armeabi-v7a"],
         "databaseCompatibility": "hapaneld-db:v1:ha-paneld.db:11:14",
-        "launchComponent": "io.github.maxlyth.hapaneld/.MainActivity",
+        "launchComponent": _LAUNCH,
     }
     document.update(replacements)
     return document
@@ -143,7 +145,7 @@ def _release_document(
 
 def _required_assets_for_tag(tag: str) -> list[dict[str, str]]:
     """Return a self-consistent required triplet for tag-validation tests."""
-    apk_name = f"ha-paneld-{tag}-manual-setup-required.apk"
+    apk_name = f"panel-assistant-{tag}-manual-setup-required.apk"
     root = f"https://github.com/panel-assistant/android/releases/download/{tag}"
     return [
         {
@@ -159,7 +161,7 @@ def _rc_session(signing_key: rsa.RSAPrivateKey) -> FakeSession:
     tag = "v0.9.7-rc3"
     root = f"https://github.com/panel-assistant/android/releases/download/{tag}"
     api = f"https://api.github.com/repos/panel-assistant/android/releases/tags/{tag}"
-    apk = f"ha-paneld-{tag}-manual-setup-required.apk"
+    apk = f"panel-assistant-{tag}-manual-setup-required.apk"
     descriptor_name = f"ha-paneld-{tag}-install.json"
     checksum = f"{_SHA256}  {apk}\n".encode("ascii")
     descriptor = _canonical_descriptor(
@@ -321,7 +323,9 @@ async def test_rc_failures_do_not_fall_back_or_bypass_proof(
         "https://api.github.com/repos/panel-assistant/android/releases/tags/v0.9.7-rc3"
     )
     root = "https://github.com/panel-assistant/android/releases/download/v0.9.7-rc3"
-    checksum_sig = root + "/ha-paneld-v0.9.7-rc3-manual-setup-required.apk.sha256.sig"
+    checksum_sig = (
+        root + "/panel-assistant-v0.9.7-rc3-manual-setup-required.apk.sha256.sig"
+    )
     descriptor_url = root + "/ha-paneld-v0.9.7-rc3-install.json"
     if fault == "missing":
         session.responses[api].status = 404
@@ -461,12 +465,12 @@ async def test_resolves_cross_bound_signed_install_descriptor_without_apk_downlo
         apk_name=_APK_NAME,
         apk_size=12_345,
         apk_sha256=_SHA256,
-        package_id="io.github.maxlyth.hapaneld",
+        package_id=PACKAGE_ID,
         signer_certificate_sha256=_RELEASE_SIGNER,
         min_sdk=26,
         supported_abis=("arm64-v8a", "armeabi-v7a"),
         database_compatibility="hapaneld-db:v1:ha-paneld.db:11:14",
-        launch_component="io.github.maxlyth.hapaneld/.MainActivity",
+        launch_component=_LAUNCH,
     )
     requested_urls = [url for url, _kwargs in session.requests]
     assert requested_urls == [
@@ -888,7 +892,10 @@ async def test_rejects_signed_noncanonical_or_malformed_descriptor(
             "databaseCompatibility",
             f"hapaneld-db:v1:ha-paneld.db:1:{2**31}",
         ),
-        ("launchComponent", "io.github.maxlyth.hapaneld/.DashboardActivity"),
+        (
+            "launchComponent",
+            "io.panelassistant.android/io.github.maxlyth.hapaneld.DashboardActivity",
+        ),
     ],
 )
 async def test_rejects_signed_descriptor_outside_closed_contract(
@@ -1371,12 +1378,10 @@ async def test_maps_bounded_transport_failures(error: Exception) -> None:
         await async_resolve_stable_release(session)  # type: ignore[arg-type]
 
 
-_SUCCESSOR_APK_NAME = f"panel-assistant-{_TAG}-manual-setup-required.apk"
-_SUCCESSOR_APK_URL = (
-    "https://github.com/panel-assistant/android/releases/download/"
-    f"{_TAG}/{_SUCCESSOR_APK_NAME}"
-)
-_SUCCESSOR_CHECKSUM = f"{_SHA256}  {_SUCCESSOR_APK_NAME}\n".encode()
+_OLD_APK_NAME = f"ha-paneld-{_TAG}-manual-setup-required.apk"
+_OLD_APK_URL = f"https://github.com/panel-assistant/android/releases/download/{_TAG}/{_OLD_APK_NAME}"
+_OLD_SHA256 = hashlib.sha256(b"old app APK").hexdigest()
+_OLD_CHECKSUM = f"{_OLD_SHA256}  {_OLD_APK_NAME}\n".encode()
 
 
 def _asset_triplet(name: str) -> list[dict[str, str]]:
@@ -1387,19 +1392,35 @@ def _asset_triplet(name: str) -> list[dict[str, str]]:
     ]
 
 
+def _serve_old_app_proof(session: FakeSession, signing_key: rsa.RSAPrivateKey) -> None:
+    """Give the old app's APK a valid proof, so only the name rule can refuse it."""
+    session.responses[f"{_OLD_APK_URL}.sha256"] = FakeResponse(
+        200, _OLD_CHECKSUM, URL(f"{_OLD_APK_URL}.sha256")
+    )
+    session.responses[f"{_OLD_APK_URL}.sha256.sig"] = FakeResponse(
+        200, _signature(signing_key, _OLD_CHECKSUM), URL(f"{_OLD_APK_URL}.sha256.sig")
+    )
+
+
 def test_the_release_name_of_each_identity_is_its_own() -> None:
-    """The old name is frozen: shipped updaters resolve a release's first APK."""
+    """The old name is frozen, and each name binds only to its own app."""
     assert (
-        release.release_apk_name(_TAG, "io.github.maxlyth.hapaneld")
+        release.release_apk_name(_TAG, LEGACY_PACKAGE_ID)
         == f"ha-paneld-{_TAG}-manual-setup-required.apk"
     )
-    assert (
-        release.release_apk_name(_TAG, "io.panelassistant.android")
-        == _SUCCESSOR_APK_NAME
+    assert release.release_apk_name(_TAG, PACKAGE_ID) == _APK_NAME
+    assert release.artifact_identity_matches(_TAG, _VERSION, 701, _APK_NAME, _SHA256)
+    # A receipt an earlier release stored about the old app still reads ...
+    assert release.artifact_identity_matches(
+        _TAG, _VERSION, 701, _OLD_APK_NAME, _SHA256, LEGACY_PACKAGE_ID
     )
-    # The rule binding a tag to a file name accepts either, and nothing else.
-    for name in (_APK_NAME, _SUCCESSOR_APK_NAME):
-        assert release.artifact_identity_matches(_TAG, _VERSION, 701, name, _SHA256)
+    # ... but its name never stands in for the app's, nor the app's for its.
+    assert not release.artifact_identity_matches(
+        _TAG, _VERSION, 701, _OLD_APK_NAME, _SHA256
+    )
+    assert not release.artifact_identity_matches(
+        _TAG, _VERSION, 701, _APK_NAME, _SHA256, LEGACY_PACKAGE_ID
+    )
     for name in (
         f"other-{_TAG}-manual-setup-required.apk",
         f"ha-paneld-{_TAG}.apk",
@@ -1411,122 +1432,65 @@ def test_the_release_name_of_each_identity_is_its_own() -> None:
 async def test_a_release_carrying_both_apks_resolves_the_successor(
     monkeypatch: pytest.MonkeyPatch, signing_key: rsa.RSAPrivateKey
 ) -> None:
-    """A panel this integration installs onto ends up running the successor."""
+    """A release that also carries the old app's APK resolves to the app's."""
     _install_test_key(monkeypatch, signing_key)
     document = _release_document()
-    document["assets"] = [*document["assets"], *_asset_triplet(_SUCCESSOR_APK_NAME)]
-    session = FakeSession(
-        {
-            str(release._LATEST_RELEASE_URL): _metadata_response(document),
-            f"{_SUCCESSOR_APK_URL}.sha256": FakeResponse(
-                200, _SUCCESSOR_CHECKSUM, URL(f"{_SUCCESSOR_APK_URL}.sha256")
-            ),
-            f"{_SUCCESSOR_APK_URL}.sha256.sig": FakeResponse(
-                200,
-                _signature(signing_key, _SUCCESSOR_CHECKSUM),
-                URL(f"{_SUCCESSOR_APK_URL}.sha256.sig"),
-            ),
-        }
-    )
-
-    artifact = await async_resolve_stable_release(session)  # type: ignore[arg-type]
-
-    assert artifact.apk_name == _SUCCESSOR_APK_NAME
-    assert artifact.apk_url == _SUCCESSOR_APK_URL
-    # The other identity's checksum and signature were never even fetched.
-    requested = [url for url, _kwargs in session.requests]
-    assert _CHECKSUM_URL not in requested and _SIGNATURE_URL not in requested
-
-
-async def test_a_release_carrying_one_apk_resolves_exactly_as_before(
-    monkeypatch: pytest.MonkeyPatch, signing_key: rsa.RSAPrivateKey
-) -> None:
-    """A 0.9.7 or rc1 release has no successor asset and is unaffected."""
-    _install_test_key(monkeypatch, signing_key)
+    document["assets"] = [*_asset_triplet(_OLD_APK_NAME), *document["assets"]]
     session = _successful_session(signing_key)
+    session.responses[str(release._LATEST_RELEASE_URL)] = _metadata_response(document)
+    _serve_old_app_proof(session, signing_key)
 
     artifact = await async_resolve_stable_release(session)  # type: ignore[arg-type]
 
     assert artifact.apk_name == _APK_NAME
     assert artifact.apk_url == _APK_URL
+    # The old app's checksum and signature were never even fetched.
+    requested = [url for url, _kwargs in session.requests]
+    assert not any(url.startswith(_OLD_APK_URL) for url in requested)
+
+
+async def test_a_release_carrying_only_the_old_apps_apk_is_not_resolved(
+    monkeypatch: pytest.MonkeyPatch, signing_key: rsa.RSAPrivateKey
+) -> None:
+    """A 0.9.7 or rc1 release has only the old app's APK, which nothing installs."""
+    _install_test_key(monkeypatch, signing_key)
+    document = _release_document(assets=_asset_triplet(_OLD_APK_NAME))
+    session = FakeSession(
+        {str(release._LATEST_RELEASE_URL): _metadata_response(document)}
+    )
+    _serve_old_app_proof(session, signing_key)
+
+    with pytest.raises(ReleaseResolutionError):
+        await async_resolve_stable_release(session)  # type: ignore[arg-type]
 
 
 async def test_a_successor_apk_without_its_own_proof_is_not_resolved(
     monkeypatch: pytest.MonkeyPatch, signing_key: rsa.RSAPrivateKey
 ) -> None:
-    """One identity's checksum can never stand in for the other's."""
+    """The old app's complete proof can never stand in for the app's."""
     _install_test_key(monkeypatch, signing_key)
-    document = _release_document()
-    document["assets"] = [
-        *document["assets"],
-        {"name": _SUCCESSOR_APK_NAME, "browser_download_url": _SUCCESSOR_APK_URL},
-    ]
+    document = _release_document(
+        assets=[
+            *_asset_triplet(_OLD_APK_NAME),
+            {"name": _APK_NAME, "browser_download_url": _APK_URL},
+        ]
+    )
     session = _successful_session(signing_key)
     session.responses[str(release._LATEST_RELEASE_URL)] = _metadata_response(document)
+    _serve_old_app_proof(session, signing_key)
 
-    # The successor triplet is incomplete, so the complete legacy one resolves.
-    artifact = await async_resolve_stable_release(session)  # type: ignore[arg-type]
-
-    assert artifact.apk_name == _APK_NAME
+    with pytest.raises(ReleaseResolutionError):
+        await async_resolve_stable_release(session)  # type: ignore[arg-type]
 
 
 def _dual_release_session(signing_key: rsa.RSAPrivateKey) -> FakeSession:
-    """Serve two APK proofs and the successor's descriptor from one release."""
-    successor_sha = hashlib.sha256(b"successor APK").hexdigest()
-    successor_checksum = f"{successor_sha}  {_SUCCESSOR_APK_NAME}\n".encode()
-    descriptor = _canonical_descriptor(
-        _descriptor_document(
-            apkName=_SUCCESSOR_APK_NAME,
-            apkSha256=successor_sha,
-            packageId=SUCCESSOR_PACKAGE_ID,
-            launchComponent=(
-                "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity"
-            ),
-        )
-    )
+    """Serve both apps' APK proofs and the app's descriptor from one release."""
     document = _release_document(include_descriptor=True)
-    document["assets"] = [*document["assets"], *_asset_triplet(_SUCCESSOR_APK_NAME)]
-    return FakeSession(
-        {
-            str(release._LATEST_RELEASE_URL): _metadata_response(document),
-            _CHECKSUM_URL: FakeResponse(200, _CHECKSUM, URL(_CHECKSUM_URL)),
-            _SIGNATURE_URL: FakeResponse(
-                200, _signature(signing_key, _CHECKSUM), URL(_SIGNATURE_URL)
-            ),
-            f"{_SUCCESSOR_APK_URL}.sha256": FakeResponse(
-                200, successor_checksum, URL(f"{_SUCCESSOR_APK_URL}.sha256")
-            ),
-            f"{_SUCCESSOR_APK_URL}.sha256.sig": FakeResponse(
-                200,
-                _signature(signing_key, successor_checksum),
-                URL(f"{_SUCCESSOR_APK_URL}.sha256.sig"),
-            ),
-            _DESCRIPTOR_URL: FakeResponse(200, descriptor, URL(_DESCRIPTOR_URL)),
-            _DESCRIPTOR_SIGNATURE_URL: FakeResponse(
-                200, _signature(signing_key, descriptor), URL(_DESCRIPTOR_SIGNATURE_URL)
-            ),
-        }
-    )
-
-
-async def test_successor_bundle_retains_independently_signed_legacy_bridge(
-    monkeypatch: pytest.MonkeyPatch, signing_key: rsa.RSAPrivateKey
-) -> None:
-    """Both identities authenticate without inventing a bridge descriptor."""
-    _install_test_key(monkeypatch, signing_key)
-    session = _dual_release_session(signing_key)
-
-    bundle, bridge = await release.async_resolve_stable_bundle_and_bridge(session)  # type: ignore[arg-type]
-
-    assert bundle.artifact.descriptor is not None
-    assert bundle.artifact.descriptor.package_id == SUCCESSOR_PACKAGE_ID
-    assert bridge is not None
-    assert bridge.tag == bundle.artifact.tag
-    assert bridge.apk_name == _APK_NAME
-    assert bridge.apk_url == _APK_URL
-    assert bridge.sha256 == _SHA256
-    assert bridge.descriptor is None
-    assert _CHECKSUM_URL in [url for url, _ in session.requests]
+    document["assets"] = [*_asset_triplet(_OLD_APK_NAME), *document["assets"]]
+    session = _successful_session(signing_key, descriptor=_canonical_descriptor())
+    session.responses[str(release._LATEST_RELEASE_URL)] = _metadata_response(document)
+    _serve_old_app_proof(session, signing_key)
+    return session
 
 
 async def test_signed_successor_descriptor_cannot_claim_legacy_package(
@@ -1545,57 +1509,13 @@ async def test_signed_successor_descriptor_cannot_claim_legacy_package(
     )
 
     with pytest.raises(ReleaseResolutionError):
-        await release.async_resolve_stable_bundle_and_bridge(session)  # type: ignore[arg-type]
+        await release.async_resolve_install_bundle(session)  # type: ignore[arg-type]
 
 
-@pytest.mark.parametrize(
-    "fault", ["missing", "bad-asset-url", "bad-signature", "wrong-record"]
-)
-async def test_bad_optional_bridge_does_not_discard_successor(
-    monkeypatch: pytest.MonkeyPatch,
-    signing_key: rsa.RSAPrivateKey,
-    fault: str,
-) -> None:
-    """Bridge proof failures leave the descriptor-bound successor available."""
-    _install_test_key(monkeypatch, signing_key)
-    session = _dual_release_session(signing_key)
-    if fault == "missing":
-        document = _release_document(include_descriptor=True)
-        document["assets"] = _asset_triplet(_SUCCESSOR_APK_NAME) + [
-            asset
-            for asset in document["assets"]
-            if asset["name"] in {_DESCRIPTOR_NAME, f"{_DESCRIPTOR_NAME}.sig"}
-        ]
-        session.responses[str(release._LATEST_RELEASE_URL)] = _metadata_response(
-            document
-        )
-    elif fault == "bad-asset-url":
-        document = _release_document(include_descriptor=True)
-        document["assets"] = [*document["assets"], *_asset_triplet(_SUCCESSOR_APK_NAME)]
-        document["assets"][0]["browser_download_url"] = "https://elsewhere/bridge.apk"
-        session.responses[str(release._LATEST_RELEASE_URL)] = _metadata_response(
-            document
-        )
-    elif fault == "bad-signature":
-        session.responses[_SIGNATURE_URL].content = FakeContent(b"x" * 256)
-    else:
-        wrong = f"{_SHA256}  other.apk\n".encode()
-        session.responses[_CHECKSUM_URL] = FakeResponse(200, wrong, URL(_CHECKSUM_URL))
-        session.responses[_SIGNATURE_URL] = FakeResponse(
-            200, _signature(signing_key, wrong), URL(_SIGNATURE_URL)
-        )
-
-    bundle, bridge = await release.async_resolve_stable_bundle_and_bridge(session)  # type: ignore[arg-type]
-
-    assert bundle.artifact.descriptor is not None
-    assert bundle.artifact.descriptor.package_id == SUCCESSOR_PACKAGE_ID
-    assert bridge is None
-
-
-async def test_coordinator_routes_by_package_and_clears_old_bridge(
+async def test_coordinator_routes_by_package_and_ignores_the_old_app(
     hass: Any, monkeypatch: pytest.MonkeyPatch, signing_key: rsa.RSAPrivateKey
 ) -> None:
-    """A refresh replaces the signed pair together; a failed refresh keeps it."""
+    """Only the new app's signed APK is a candidate; a failed refresh keeps it."""
     _install_test_key(monkeypatch, signing_key)
 
     def coordinator_session() -> FakeSession:
@@ -1603,11 +1523,7 @@ async def test_coordinator_routes_by_package_and_clears_old_bridge(
         records = sorted(
             [
                 {"apkSha256": _SHA256, "protocolMin": 5, "protocolMax": 5},
-                {
-                    "apkSha256": hashlib.sha256(b"successor APK").hexdigest(),
-                    "protocolMin": 5,
-                    "protocolMax": 5,
-                },
+                {"apkSha256": _OLD_SHA256, "protocolMin": 5, "protocolMax": 5},
             ],
             key=lambda record: record["apkSha256"],
         )
@@ -1630,51 +1546,47 @@ async def test_coordinator_routes_by_package_and_clears_old_bridge(
     )
     coordinator = feed_coordinator.StableReleaseCoordinator(hass)
     await coordinator.async_refresh()
-
-    successor = coordinator.artifact_for(SUCCESSOR_PACKAGE_ID)
-    bridge = coordinator.artifact_for(LEGACY_PACKAGE_ID)
+    successor = coordinator.artifact_for(PACKAGE_ID)
     assert successor is coordinator.data
     assert successor is not None and successor.descriptor is not None
-    assert bridge is not None and bridge.descriptor is None
+    # The old app's APK in the same release is no candidate for any panel.
+    assert coordinator.artifact_for(LEGACY_PACKAGE_ID) is None
     assert coordinator.artifact_for("other.app") is None
 
+    # Its proof failing changes nothing for the new app.
+    old_signature_url = f"{_OLD_APK_URL}.sha256.sig"
+    session.responses[old_signature_url] = FakeResponse(
+        200, b"x" * 256, URL(old_signature_url)
+    )
+    await coordinator.async_refresh()
+
+    assert coordinator.data == successor
+
+    session = coordinator_session()
+    await coordinator.async_refresh()
+    successor = coordinator.data
     session.responses[_SIGNATURE_URL] = FakeResponse(
         200, b"x" * 256, URL(_SIGNATURE_URL)
     )
     await coordinator.async_refresh()
 
-    assert coordinator.data == successor
-    assert coordinator.artifact_for(LEGACY_PACKAGE_ID) is None
-
-    session = coordinator_session()
-    await coordinator.async_refresh()
-    successor = coordinator.data
-    bridge = coordinator.artifact_for(LEGACY_PACKAGE_ID)
-    assert bridge is not None
-    successor_signature_url = f"{_SUCCESSOR_APK_URL}.sha256.sig"
-    session.responses[successor_signature_url] = FakeResponse(
-        200, b"x" * 256, URL(successor_signature_url)
-    )
-    await coordinator.async_refresh()
-
     # One unauthenticated candidate is withdrawn rather than remaining offered.
     assert coordinator.data is None
-    assert coordinator.artifact_for(LEGACY_PACKAGE_ID) is None
 
     session = coordinator_session()
     await coordinator.async_refresh()
     successor = coordinator.data
-    bridge = coordinator.artifact_for(LEGACY_PACKAGE_ID)
+    assert successor is not None
     session.responses[str(release._LATEST_RELEASE_URL)] = FakeResponse(
         503,
         b"unavailable",
         release._LATEST_RELEASE_URL,
     )
     await coordinator.async_refresh()
-    # A catalogue transport failure keeps the prior authenticated pair together.
+    # A catalogue transport failure keeps the prior authenticated release.
     assert coordinator.last_update_success is False
     assert coordinator.data is successor
-    assert coordinator.artifact_for(LEGACY_PACKAGE_ID) is bridge
+    assert coordinator.artifact_for(PACKAGE_ID) is successor
 
 
 _IDENTITY_CORPUS = json.loads(
@@ -1718,7 +1630,10 @@ def test_the_shared_corpus_classifies_every_release_identity(
         case["versionCode"] if kind == "build" else None
     )
     if kind == "build":
-        assert release.feed_build_tag(case["versionCode"]) == tag
+        # A bare build tag names an old-app build; the app's carry the suffix.
+        assert release.feed_build_package(tag) == LEGACY_PACKAGE_ID
+        assert release.feed_build_package(f"{tag}-successor") == PACKAGE_ID
+        assert release.feed_build_tag(case["versionCode"]) == f"{tag}-successor"
 
 
 @pytest.mark.parametrize(
@@ -1733,10 +1648,8 @@ def test_the_shared_corpus_names_both_identities_apk_assets(
     updater or installer finds a build it cannot drive; this integration does.
     """
     assert release.release_apk_name(case["tag"], LEGACY_PACKAGE_ID) == case["legacy"]
-    assert (
-        release.release_apk_name(case["tag"], SUCCESSOR_PACKAGE_ID) == case["successor"]
-    )
-    assert release.release_apk_names(case["tag"], SUCCESSOR_PACKAGE_ID) == (
+    assert release.release_apk_name(case["tag"], PACKAGE_ID) == case["successor"]
+    assert release.release_apk_names(case["tag"], PACKAGE_ID) == (
         case["successorUnlisted"],
         case["successor"],
     )
@@ -1744,8 +1657,14 @@ def test_the_shared_corpus_names_both_identities_apk_assets(
         case["legacy"],
     )
     version = case["tag"].removeprefix("v")
-    for name in (case["legacy"], case["successor"], case["successorUnlisted"]):
+    for name in (case["successor"], case["successorUnlisted"]):
         assert release.artifact_identity_matches(case["tag"], version, 1, name, _SHA256)
+    assert release.artifact_identity_matches(
+        case["tag"], version, 1, case["legacy"], _SHA256, LEGACY_PACKAGE_ID
+    )
+    assert not release.artifact_identity_matches(
+        case["tag"], version, 1, case["legacy"], _SHA256
+    )
     assert not release.artifact_identity_matches(
         case["tag"], version, 1, "ha-paneld.apk", _SHA256
     )
@@ -1810,53 +1729,20 @@ def _serve_protocol_metadata(
     )
 
 
-async def test_signed_protocol_metadata_binds_exact_release_and_bridge_hashes(
-    monkeypatch: pytest.MonkeyPatch, signing_key: rsa.RSAPrivateKey
-) -> None:
-    """The two independently signed APK hashes receive their own proven ranges."""
-    _install_test_key(monkeypatch, signing_key)
-    session = _dual_release_session(signing_key)
-    successor_sha = hashlib.sha256(b"successor APK").hexdigest()
-    records = sorted(
-        [
-            {"apkSha256": _SHA256, "protocolMin": 1, "protocolMax": 3},
-            {"apkSha256": successor_sha, "protocolMin": 3, "protocolMax": 4},
-        ],
-        key=lambda record: record["apkSha256"],
-    )
-    body = _canonical_descriptor(_protocol_document(*records))
-    descriptor_body = session.responses[_DESCRIPTOR_URL].body
-    _serve_protocol_metadata(session, signing_key, body)
-
-    bundle, bridge = await release.async_resolve_stable_bundle_and_bridge(session)  # type: ignore[arg-type]
-
-    assert (bundle.artifact.protocol_min, bundle.artifact.protocol_max) == (3, 4)
-    assert bridge is not None
-    assert (bridge.protocol_min, bridge.protocol_max) == (1, 3)
-    assert bundle.artifact.sha256 == successor_sha
-    assert bridge.sha256 == _SHA256
-    assert bundle.metadata.descriptor_bytes == descriptor_body
-    assert bundle.artifact.descriptor is not None
-    assert bridge.descriptor is None
-    assert all(not url.endswith(".apk") for url, _ in session.requests)
-
-
-@pytest.mark.parametrize("omit", ["selected", "bridge"])
 async def test_protocol_companion_requires_exact_hash_for_each_resolved_identity(
-    monkeypatch: pytest.MonkeyPatch, signing_key: rsa.RSAPrivateKey, omit: str
+    monkeypatch: pytest.MonkeyPatch, signing_key: rsa.RSAPrivateKey
 ) -> None:
     """A signed range for the other APK cannot authorize this exact identity."""
     _install_test_key(monkeypatch, signing_key)
     session = _dual_release_session(signing_key)
-    sha = (
-        _SHA256 if omit == "selected" else hashlib.sha256(b"successor APK").hexdigest()
-    )
     body = _canonical_descriptor(
-        _protocol_document({"apkSha256": sha, "protocolMin": 5, "protocolMax": 5})
+        _protocol_document(
+            {"apkSha256": _OLD_SHA256, "protocolMin": 5, "protocolMax": 5}
+        )
     )
     _serve_protocol_metadata(session, signing_key, body)
     with pytest.raises(ReleaseResolutionError):
-        await release.async_resolve_stable_bundle_and_bridge(session)  # type: ignore[arg-type]
+        await release.async_resolve_install_bundle(session)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(

@@ -12,7 +12,6 @@ import pytest
 import voluptuous as vol
 
 from custom_components.panel_assistant import (
-    old_app,
     release,
     transport,
     transport_binding,
@@ -624,13 +623,11 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
         "adb_update_authorization",
         "no_update_route",
         "merged_panel_identity",
-        "move_to_new_app",
         "panel_app_too_old",
         "mqtt_panel_needs_090",
         "old_app_needs_090",
         "panel_permissions",
         "panel_proximity_setup",
-        "panel_migration_incomplete",
         "panel_identity_confirmation",
         "panel_identity_mismatch",
         "panel_link_shared",
@@ -639,8 +636,6 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
     }
     # The binding issue is raised under a constant, which the scan above misses.
     issues = keys["issues"] | {transport_binding.ISSUE_PANEL_USER_MISMATCH}
-    # Which old-app Repair is raised depends on why its removal stopped.
-    issues |= set(old_app.OLD_APP_ISSUES)
     assert "panel_user_mismatch" in issues
     for key in keys["exceptions"]:
         assert str(ENGLISH["exceptions"].get(key, {}).get("message", "")).strip(), key

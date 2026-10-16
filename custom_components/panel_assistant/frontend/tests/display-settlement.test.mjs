@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import {createInstallController} from '../src/install-controller.mjs';
 import {createUsbTransactionPorts} from '../src/usb-transaction-ports.mjs';
 import {handOverThenOpen} from '../src/release-handoff.mjs';
-import {SUCCESSOR_PACKAGE_ID, accessibilityComponentFor, homeComponentFor} from '../src/app-identity.mjs';
+import {PACKAGE_ID, accessibilityComponentFor, homeComponentFor} from '../src/app-identity.mjs';
 
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const target = {model: 'Test panel', serial: 'serial', primaryAbi: 'arm64-v8a', androidSdk: 32,
   rootMode: 'rootless', usbVendorId: 1, usbProductId: 2, usbSerial: 'usb'};
-const launchComponent = `${SUCCESSOR_PACKAGE_ID}/${SUCCESSOR_PACKAGE_ID}.MainActivity`;
+const launchComponent = `${PACKAGE_ID}/${PACKAGE_ID}.MainActivity`;
 const artifact = {apkSize: 1234, apkSha256: 'a'.repeat(64), versionName: '1.2.3',
-  packageId: SUCCESSOR_PACKAGE_ID, launchComponent};
+  packageId: PACKAGE_ID, launchComponent};
 
 async function fixture({shelly = true, pending = true, hold = false, density = 216, ambiguous = false, unhealthy = false, homeState = 'ready', malformedStatus = false} = {}) {
   let receipt = {id: 'b'.repeat(32), phase: 'healthy', target, artifact};

@@ -42,8 +42,9 @@ from custom_components.panel_assistant.adb_credentials import AdbCredentialError
 from custom_components.panel_assistant.adb_protocol import InstallOutcome
 from custom_components.panel_assistant.app_identity import (
     LAUNCH_COMPONENTS,
+    LEGACY_LAUNCH_COMPONENT,
     LEGACY_PACKAGE_ID,
-    SUCCESSOR_PACKAGE_ID,
+    PACKAGE_ID,
 )
 from custom_components.panel_assistant.build_feed import (
     BuildDownloadError,
@@ -117,7 +118,7 @@ APK = b"apk-bytes"
 FETCH = "custom_components.panel_assistant.feed_coordinator.async_fetch_build_feed"
 
 
-def _build(code: int, package_id: str = LEGACY_PACKAGE_ID) -> FeedBuild:
+def _build(code: int, package_id: str = PACKAGE_ID) -> FeedBuild:
     sha = hashlib.sha256(str(code).encode()).hexdigest()
     return FeedBuild(
         version_code=code,
@@ -129,14 +130,23 @@ def _build(code: int, package_id: str = LEGACY_PACKAGE_ID) -> FeedBuild:
         database_compatibility="hapaneld-db:v1:ha-paneld.db:11:14",
         min_sdk=26,
         package_id=package_id,
-        launch_component=LAUNCH_COMPONENTS[package_id][0],
+        launch_component=(
+            LEGACY_LAUNCH_COMPONENT
+            if package_id == LEGACY_PACKAGE_ID
+            else LAUNCH_COMPONENTS[package_id][0]
+        ),
         published="2026-09-11T10:00:00Z",
         protocol_min=5,
         protocol_max=5,
     )
 
 
-def _feed_data(*codes: int, package_id: str = LEGACY_PACKAGE_ID) -> BuildFeed:
+def _old_app_build(code: int) -> FeedBuild:
+    """A build of the old app, which this release never installs."""
+    return _build(code, LEGACY_PACKAGE_ID)
+
+
+def _feed_data(*codes: int, package_id: str = PACKAGE_ID) -> BuildFeed:
     return BuildFeed(
         channel="maintainer",
         builds=tuple(_build(code, package_id) for code in sorted(codes, reverse=True)),
@@ -146,7 +156,7 @@ def _feed_data(*codes: int, package_id: str = LEGACY_PACKAGE_ID) -> BuildFeed:
 def _preview(**replacements: str) -> StagedApk:
     values = {
         "token": "tok-1",
-        "package": LEGACY_PACKAGE_ID,
+        "package": PACKAGE_ID,
         "version": NAME,
         "signer": _RELEASE_SIGNER_CERTIFICATE_SHA256,
     }
@@ -155,7 +165,7 @@ def _preview(**replacements: str) -> StagedApk:
 
 
 def _health(
-    version: str, build: str = "1000", package: str | None = None
+    version: str, build: str = "1000", package: str | None = PACKAGE_ID
 ) -> PanelHealth:
     return PanelHealth(
         version=version,
@@ -174,9 +184,9 @@ def _entity(
     feed: BuildFeed | None = None,
     with_feed: bool = True,
     installed_code: int | None = 771,
-    package: str | None = None,
+    package: str | None = PACKAGE_ID,
 ) -> tuple[HaPaneldUpdateEntity, SimpleNamespace]:
-    """A panel on the old app by default (no package); pass `package` for another."""
+    """A panel on the app by default; pass `package` for another report."""
     staged_package = LEGACY_PACKAGE_ID if package is None else package
     client = SimpleNamespace(
         async_start_panel_update=AsyncMock(),
@@ -223,7 +233,7 @@ def _entity(
             else _feed_data(770, 771, 772, package_id=staged_package)
         )
         coordinator.reachable = True
-        for package_id in (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID):
+        for package_id in (LEGACY_PACKAGE_ID, PACKAGE_ID):
             newest = coordinator.data.newest(package_id)
             if newest is not None:
                 coordinator._verified_apks[newest.apk_sha256] = APK
@@ -270,7 +280,7 @@ def _restart_into(
     client: SimpleNamespace,
     code: int,
     calls: list[Any] | None = None,
-    package: str | None = None,
+    package: str | None = PACKAGE_ID,
 ) -> None:
     """Make the next health refresh show a restarted app reporting `code`."""
 
@@ -318,8 +328,8 @@ async def test_unstarted_staged_commit_retry_rechecks_current_consent(
         options={CONF_PRERELEASE_PANEL_BUILDS: True},
     )
     entry.add_to_hass(hass)
-    entity, client = _entity(hass, package=SUCCESSOR_PACKAGE_ID)
-    _restart_into(entity, client, 772, package=SUCCESSOR_PACKAGE_ID)
+    entity, client = _entity(hass, package=PACKAGE_ID)
+    _restart_into(entity, client, 772, package=PACKAGE_ID)
     sent = []
 
     async def commit(token):
@@ -447,39 +457,16 @@ async def test_feed_offer_is_withheld_when_no_install_route_works(
 # --- install -----------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    "package,expected_code",
-    [(None, 773), (SUCCESSOR_PACKAGE_ID, 772)],
-)
 async def test_update_install_selects_the_installed_app_before_backup(
-    hass: HomeAssistant,
-    delivery: SimpleNamespace,
-    package: str | None,
-    expected_code: int,
+    hass: HomeAssistant, delivery: SimpleNamespace
 ) -> None:
-    """Each panel takes its signed APK even when the other app shares a code."""
-    feed = BuildFeed(
-        "maintainer", (_build(773), _build(772), _build(772, SUCCESSOR_PACKAGE_ID))
-    )
+    """The panel takes the app's signed APK, never a newer old-app build."""
+    package, expected_code = PACKAGE_ID, 772
+    feed = BuildFeed("maintainer", (_old_app_build(773), _build(772)))
     entity, client = _entity(hass, feed=feed)
-    health = entity.coordinator.data.health
-    entity.coordinator.data = PanelSnapshot(
-        health=PanelHealth(
-            version=health.version,
-            panel_id=health.panel_id,
-            build=health.build,
-            config_hash=health.config_hash,
-            package=package,
-            protocol=(5, 5),
-        ),
-        status=PanelStatus(
-            warning_count=0, capability_count=0, install_capability="api"
-        ),
-        status_error=None,
-    )
-    client.async_stage_apk.return_value = _preview(package=package or LEGACY_PACKAGE_ID)
-    expected_apk = f"apk-for-{expected_code}-{package or LEGACY_PACKAGE_ID}".encode()
+    expected_apk = f"apk-for-{expected_code}-{package}".encode()
     assert entity._offer.feed is not None
+    assert entity._offer.feed.verified_apk(_old_app_build(773)) is not None
     selected_build = entity._offer.feed.verified_newest(package)
     assert selected_build is not None
     verified_build = replace(
@@ -531,7 +518,7 @@ async def test_rootless_panel_uses_its_existing_authorized_adb_route(
     pinned = PinnedPanelTarget(client.address, client.address)
     credential = SimpleNamespace(signer=object(), generation_id="held-key")
     probe = InstallTargetProbe(
-        state=InstallTargetState.MIGRATION_CANDIDATE,
+        state=InstallTargetState.INSTALLED,
         serial="serial-a",
         model="model-a",
         primary_abi="arm64-v8a",
@@ -606,7 +593,7 @@ async def test_same_number_from_another_app_does_not_verify_the_install(
     hass: HomeAssistant, delivery: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A restarted legacy app cannot prove a successor installation."""
-    feed = BuildFeed("maintainer", (_build(772, SUCCESSOR_PACKAGE_ID),))
+    feed = BuildFeed("maintainer", (_build(772, PACKAGE_ID),))
     entity, client = _entity(hass, feed=feed)
     health = entity.coordinator.data.health
     entity.coordinator.data = PanelSnapshot(
@@ -615,7 +602,7 @@ async def test_same_number_from_another_app_does_not_verify_the_install(
             panel_id=health.panel_id,
             build=health.build,
             config_hash=health.config_hash,
-            package=SUCCESSOR_PACKAGE_ID,
+            package=PACKAGE_ID,
             protocol=(5, 5),
         ),
         status=PanelStatus(
@@ -623,7 +610,7 @@ async def test_same_number_from_another_app_does_not_verify_the_install(
         ),
         status_error=None,
     )
-    client.async_stage_apk.return_value = _preview(package=SUCCESSOR_PACKAGE_ID)
+    client.async_stage_apk.return_value = _preview(package=PACKAGE_ID)
     _restart_into(entity, client, 772, package=LEGACY_PACKAGE_ID)
     monkeypatch.setattr(update_progress, "_RESTART_HEALTH_GRACE_SECONDS", 0.01)
 
@@ -847,7 +834,7 @@ async def test_identity_change_during_upload_refuses_commit(
                 panel_id=health.panel_id,
                 build=health.build,
                 config_hash=health.config_hash,
-                package=SUCCESSOR_PACKAGE_ID,
+                package=LEGACY_PACKAGE_ID,
                 protocol=(5, 5),
             ),
             status=snapshot.status,
@@ -865,16 +852,12 @@ async def test_identity_change_during_upload_refuses_commit(
     client.async_commit_apk.assert_not_awaited()
 
 
-@pytest.mark.parametrize("package", [None, SUCCESSOR_PACKAGE_ID])
+@pytest.mark.parametrize("package", [None, LEGACY_PACKAGE_ID])
 async def test_a_build_for_another_app_id_is_refused_before_backup(
     hass: HomeAssistant, delivery: SimpleNamespace, package: str | None
 ) -> None:
-    """A legacy build is never installed beside a panel running the successor."""
+    """A panel still on the old app is never given the app beside it."""
     feed = _feed_data(772)
-    if package is None:
-        feed = replace(
-            feed, builds=(replace(feed.builds[0], package_id=SUCCESSOR_PACKAGE_ID),)
-        )
     entity, client = _entity(hass, feed=feed)
     health = entity.coordinator.data.health
     entity.coordinator.data = PanelSnapshot(
@@ -892,6 +875,8 @@ async def test_a_build_for_another_app_id_is_refused_before_backup(
         status_error=None,
     )
 
+    # Nothing is offered to it either.
+    assert entity.latest_version == entity.installed_version
     with pytest.raises(HomeAssistantError) as error:
         await entity.async_install(None, False)
 
@@ -902,18 +887,13 @@ async def test_a_build_for_another_app_id_is_refused_before_backup(
     client.async_commit_apk.assert_not_awaited()
 
 
-@pytest.mark.parametrize("package", [None, SUCCESSOR_PACKAGE_ID])
+@pytest.mark.parametrize("package", [None, LEGACY_PACKAGE_ID])
 async def test_delivery_refuses_an_identity_change_before_backup(
     hass: HomeAssistant, delivery: SimpleNamespace, package: str | None
 ) -> None:
-    """The shared delivery seam refuses a selection from before a handover."""
+    """The shared delivery seam refuses a panel that no longer reports the app."""
     entity, client = _entity(hass)
-    selected = feed_release_artifact(
-        _build(
-            772,
-            package_id=SUCCESSOR_PACKAGE_ID if package is None else LEGACY_PACKAGE_ID,
-        )
-    )
+    selected = feed_release_artifact(_build(772))
     snapshot = entity.coordinator.data
     entity.coordinator.data = replace(
         snapshot, health=replace(snapshot.health, package=package)
@@ -1643,7 +1623,7 @@ async def test_feed_channel_follows_loaded_pa_and_entry_opt_in(
         ),
     ):
         await entity._offer.feed.async_refresh()
-    assert entity.latest_version == feed.find(expected_code, LEGACY_PACKAGE_ID).label
+    assert entity.latest_version == feed.find(expected_code, PACKAGE_ID).label
 
 
 async def test_prerelease_channel_includes_newer_final_promotion(
@@ -1656,12 +1636,11 @@ async def test_prerelease_channel_includes_newer_final_promotion(
     assert entity.version_is_newer("0.9.7", "0.9.7-rc4")
 
 
-async def test_shared_feed_keeps_both_channels_for_both_app_identities(
+async def test_shared_feed_keeps_both_channels_for_the_app(
     hass: HomeAssistant,
 ) -> None:
     builds = tuple(
-        replace(_build(code, package), version_name=name)
-        for package in (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID)
+        replace(_build(code), version_name=name)
         for code, name in ((773, "0.9.11-rc1"), (772, "0.9.10"))
     )
     coordinator = BuildFeedCoordinator(hass, FEED_URL)
@@ -1674,20 +1653,19 @@ async def test_shared_feed_keeps_both_channels_for_both_app_identities(
         ),
     ):
         await coordinator.async_refresh()
-    for package in (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID):
-        stable = coordinator.verified_newest(package, allow_prerelease=False)
-        testing = coordinator.verified_newest(package, allow_prerelease=True)
-        assert stable is not None and stable.version_code == 772
-        assert testing is not None and testing.version_code == 773
-    # Each exact byte hash is fetched once even when both policy choices share it.
+    stable = coordinator.verified_newest(PACKAGE_ID, allow_prerelease=False)
+    testing = coordinator.verified_newest(PACKAGE_ID, allow_prerelease=True)
+    assert stable is not None and stable.version_code == 772
+    assert testing is not None and testing.version_code == 773
+    # Each exact byte hash is fetched once.
     assert download.await_count == 2
 
 
 async def test_feed_coordinator_verifies_the_highest_code_of_a_renumbered_line(
     hass: HomeAssistant,
 ) -> None:
-    renumbered = replace(_build(1168, SUCCESSOR_PACKAGE_ID), version_name="1.0.0-rc1")
-    renamed = replace(_build(1199, SUCCESSOR_PACKAGE_ID), version_name="0.9.11-rc1")
+    renumbered = replace(_build(1168, PACKAGE_ID), version_name="1.0.0-rc1")
+    renamed = replace(_build(1199, PACKAGE_ID), version_name="0.9.11-rc1")
     coordinator = BuildFeedCoordinator(hass, FEED_URL)
     download = AsyncMock(return_value=APK)
     with (
@@ -1701,10 +1679,7 @@ async def test_feed_coordinator_verifies_the_highest_code_of_a_renumbered_line(
         ),
     ):
         await coordinator.async_refresh()
-    assert (
-        coordinator.verified_newest(SUCCESSOR_PACKAGE_ID, allow_prerelease=True)
-        == renamed
-    )
+    assert coordinator.verified_newest(PACKAGE_ID, allow_prerelease=True) == renamed
     assert [
         call.args[1].descriptor.version_code for call in download.await_args_list
     ] == [1199]
@@ -1991,7 +1966,7 @@ async def test_finished_staged_failure_preserves_the_panel_reason(
     MockConfigEntry(domain=DOMAIN, entry_id="entry-id", title="Test panel").add_to_hass(
         hass
     )
-    entity, client = _entity(hass, package=SUCCESSOR_PACKAGE_ID)
+    entity, client = _entity(hass, package=PACKAGE_ID)
     client.async_get_panel_install_status.return_value = PanelInstallStatus(
         running=False, component="APK", message=reason
     )

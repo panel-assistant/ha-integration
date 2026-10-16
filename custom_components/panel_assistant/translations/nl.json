@@ -515,7 +515,6 @@
     "mqtt_panel_needs_090": {
       "message": "{panel} is nooit van MQTT verhuisd: installeer eerst Panel Assistant 0.9.0, zoals de reparatie uitlegt"
     },
-    "move_with_repair": {"message": "Verhuis dit paneel naar de nieuwe app met de reparatie ervan in Instellingen."},
     "health_update_failed": {
       "message": "Kan de status van het paneel niet uitlezen"
     },
@@ -534,26 +533,8 @@
     "update_refused_by_panel": {
       "message": "{panel} heeft de update geweigerd: {reason}"
     },
-    "bridge_not_ready": {
-      "message": "Het paneel kan nog niet naar de nieuwe app overstappen. Panel Assistant biedt de overstap opnieuw aan zodra het kan."
-    },
-    "release_pair_unavailable": {
-      "message": "De bijbehorende release van de nieuwe app is niet beschikbaar. Probeer het later opnieuw."
-    },
     "panel_changed_during_update": {
       "message": "Het paneel is tijdens de update gewijzigd. Vernieuw de pagina en probeer het opnieuw."
-    },
-    "bridge_details_changed": {
-      "message": "De overdrachtsgegevens van het paneel zijn gewijzigd. Vernieuw de pagina en probeer het opnieuw."
-    },
-    "bridge_capability_unavailable": {
-      "message": "Kan niet controleren of het paneel klaar is voor de overdracht. Controleer de verbinding met het paneel en probeer het opnieuw."
-    },
-    "successor_untrusted": {
-      "message": "De geïnstalleerde nieuwe app wordt niet vertrouwd voor de overdracht. Controleer het tabblad Installeren op het paneel."
-    },
-    "bridge_handover_refused": {
-      "message": "Het paneel heeft de overdracht aan de app geweigerd. Controleer het tabblad Installeren op het paneel."
     },
     "release_download_failed": {
       "message": "De app-release kon niet worden gedownload. Controleer de verbinding en probeer het opnieuw."
@@ -650,45 +631,6 @@
       "title": "{panel} is nooit van MQTT verhuisd",
       "description": "Panel Assistant 1.0 kan {panel} niet meer van MQTT naar de eigen verbinding verhuizen, en nu verbinden zou een tweede set entiteiten aanmaken en de geschiedenis splitsen. Installeer eerst Panel Assistant 0.9.0 (open in HACS Panel Assistant, kies Redownload en selecteer versie 0.9.0), laat het paneel verhuizen en installeer daarna 1.0.0. Wil je liever opnieuw beginnen, verwijder dan het apparaat van dit paneel onder Instellingen, Apparaten en diensten, MQTT, laad vervolgens deze configuratie opnieuw of verwijder haar en voeg het paneel opnieuw toe; dat maakt nieuwe entiteiten aan en bewaart geen geschiedenis."
     },
-    "move_to_new_app": {
-      "title": "{panel} verhuizen naar de nieuwe app",
-      "fix_flow": {
-        "step": {
-          "confirm_move": {
-            "title": "{panel} verhuizen naar de nieuwe app",
-            "description": "Op {panel} draait nog de oude ha-paneld-app. Panel Assistant verhuist het via je netwerk naar de nieuwe app en behoudt de instellingen: eerst wordt hier een back-up van het paneel gemaakt, dan wordt de nieuwe app geïnstalleerd en daarna de oude verwijderd. De app van het paneel start tijdens de verhuizing één keer opnieuw. Als het paneel ‘USB-foutopsporing toestaan?’ toont, tik dan op ‘Toestaan’ en vink ‘Altijd toestaan vanaf deze computer’ aan als dat wordt aangeboden. Je hoeft het paneel niet te rooten en geen opdrachten te typen. Kies ‘Verzenden’ om het te verhuizen."
-          }
-        },
-        "progress": {
-          "moving": "{panel} wordt naar de nieuwe app overgezet. Houd het paneel ingeschakeld."
-        },
-        "abort": {
-          "entry_removed": "Dit paneel is uit Home Assistant verwijderd.",
-          "already_moved": "Op {panel} draait de nieuwe app al. Er hoefde niets te worden verhuisd.",
-          "release_unavailable": "Panel Assistant kon de release van de nieuwe app nu niet ophalen. Controleer of Home Assistant het internet kan bereiken en probeer het dan opnieuw.",
-          "adb_authorization": "{panel} heeft Panel Assistant nog geen toestemming gegeven om verbinding te maken. Kijk op het paneel: als het ‘USB-foutopsporing toestaan?’ toont, tik dan op ‘Toestaan’, vink ‘Altijd toestaan vanaf deze computer’ aan en open deze reparatie opnieuw.",
-          "adb_unreachable": "Panel Assistant kon geen verbinding maken met {panel} om het te verhuizen. Zorg dat het paneel aan staat en in hetzelfde netwerk zit als Home Assistant, en dat netwerkfoutopsporing aan staat in de instellingen van de paneel-app; open deze reparatie daarna opnieuw.",
-          "backup_failed": "Panel Assistant kon geen volledige back-up van {panel} maken. Daarom is er niets gewijzigd. Probeer het later opnieuw.",
-          "new_app_is_home": "{panel} zit halverwege een eerdere verhuizing die deze versie nog niet kan afmaken. Er is niets gewijzigd. Een latere versie van Panel Assistant herstelt dit.",
-          "move_failed": "De verhuizing van {panel} is niet afgerond. De instellingen zijn in Home Assistant geback-upt en het paneel houdt een werkend scherm. Open deze reparatie opnieuw om verder te gaan waar het stopte.",
-          "panel_changed": "Het apparaat dat op het adres van {panel} antwoordt, is niet het paneel dat Panel Assistant kent, dus er is niets gewijzigd. Als het paneel is vervangen of gereset, verwijder het dan uit Home Assistant en voeg het opnieuw toe.",
-          "busy": "{panel} is bezig met een update of een andere verhuizing. Probeer het opnieuw zodra die klaar is.",
-          "restore_approval": "{panel} vraagt op het scherm om goedkeuring voordat de instellingen kunnen worden hersteld. Keur het goed op het paneel en open deze reparatie daarna opnieuw."
-        }
-      }
-    },
-    "remove_old_app_adb": {
-      "title": "De oude app staat nog op {panel}",
-      "description": "{panel} draait de nieuwe Panel Assistant-app, maar de oude ha-paneld-app is er nog naast geïnstalleerd. Panel Assistant verwijdert die automatisch via ADB, maar kan nu geen verbinding maken met de Android Debug Bridge van het paneel. Controleer of netwerkfoutopsporing aan staat en of het paneel Home Assistant toestemming heeft gegeven om te verbinden. Panel Assistant probeert het zelf opnieuw."
-    },
-    "remove_old_app_unproven": {
-      "title": "De oude app staat nog op {panel}",
-      "description": "Op {panel} staat de oude ha-paneld-app naast de nieuwe Panel Assistant-app. Panel Assistant verwijdert de oude app pas als bewezen is dat de nieuwe app het paneel draait: die moet antwoorden als dit paneel en het startscherm zijn. Dat kon niet worden bewezen, dus beide apps zijn gelaten zoals ze waren. Panel Assistant controleert het zelf opnieuw."
-    },
-    "remove_old_app_failed": {
-      "title": "De oude app staat nog op {panel}",
-      "description": "{panel} draait de nieuwe Panel Assistant-app, maar de oude ha-paneld-app is er nog naast geïnstalleerd. Panel Assistant probeerde een back-up van het paneel te maken en de oude app te verwijderen, maar dat is niet gelukt. Verder is er niets aan het paneel veranderd. Panel Assistant probeert het zelf opnieuw."
-    },
     "panel_permissions": {
       "title": "De machtigingen op {panel} vragen aandacht.",
       "fix_flow": {
@@ -779,20 +721,6 @@
     "merged_panel_identity": {
       "title": "Maak de samengevoegde panelen weer apart: {panels}",
       "description": "De panelen {panels} melden dezelfde apparaatidentiteit. Home Assistant kan daardoor niet veilig bepalen bij welke vermelding een native verbinding of entiteit hoort. Hun native verbinding wordt geweigerd en er worden geen entiteiten verplaatst. Werk de Panel Assistant-app op alle betrokken panelen bij zodat elk paneel een eigen identiteit heeft. Verwijder daarna het samengevoegde apparaat en laat de panelen zich opnieuw registreren."
-    },
-    "panel_migration_incomplete": {
-      "title": "Het paneel op {address} is nog niet helemaal overgestapt naar de nieuwe app",
-      "fix_flow": {
-        "step": {
-          "confirm_migration": {
-            "title": "Kijk nog eens naar het paneel",
-            "description": "Panel Assistant heeft versie {version} geïnstalleerd op het paneel op {address}, en het paneel zet zijn instellingen vanzelf over naar de nieuwe app. Die overzetting was nog niet voltooid toen Home Assistant stopte met wachten. Het paneel blijft de hele tijd werken en gaat verder waar het gebleven was, dus hier verandert niets aan. Klik op ‘Verzenden’ om nog eens te kijken."
-          }
-        },
-        "abort": {
-          "migration_unfinished": "De nieuwe app heeft nog niet geantwoord. Het paneel gaat zelf verder, dus open dit probleem later opnieuw."
-        }
-      }
     },
     "installer_failure": {
       "title": "Installatie of update mislukt op {panel}",

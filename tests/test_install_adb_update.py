@@ -2,7 +2,7 @@
 
 Covers ``async_update_installed_apk`` end to end against the fake panel: it
 re-checks the installed identity before pushing, refuses a missing package,
-retained data alone, bad local bytes, a second accepted package or an occupied
+retained data alone, bad local bytes, the old app beside it or an occupied
 staging path, revalidates identity and root mode after the transfer, cleans a
 bad or finished stage, and classifies package-manager and transport outcomes.
 """
@@ -57,7 +57,7 @@ async def test_in_place_update_rechecks_installed_identity_and_cleans_its_stage(
 ) -> None:
     apk = tmp_path / "release.apk"
     _write_private_apk(apk)
-    installed = {"retained_lines": [f"package:{descriptor.package_id}"]}
+    installed = {"successor_retained_lines": [f"package:{descriptor.package_id}"]}
     fake = FakeDevice(
         [
             _preflight_output(NONCES[0], **installed),
@@ -120,7 +120,7 @@ async def test_in_place_update_refuses_only_retained_data_before_push(
     fake = FakeDevice(
         [
             _preflight_output(
-                NONCES[0], retained_lines=[f"package:{descriptor.package_id}"]
+                NONCES[0], successor_retained_lines=[f"package:{descriptor.package_id}"]
             ),
             _single_output("PACKAGE", NONCES[1], [], 1),
         ]
@@ -164,8 +164,8 @@ async def test_in_place_update_refuses_a_second_accepted_package(
         [
             _preflight_output(
                 NONCES[0],
-                retained_lines=[f"package:{descriptor.package_id}"],
-                successor_retained_lines=["package:io.panelassistant.android"],
+                retained_lines=["package:io.github.maxlyth.hapaneld"],
+                successor_retained_lines=[f"package:{descriptor.package_id}"],
             )
         ]
     )
@@ -187,7 +187,7 @@ async def test_in_place_update_revalidates_identity_after_transfer(
 ) -> None:
     apk = tmp_path / "release.apk"
     _write_private_apk(apk)
-    installed = {"retained_lines": [f"package:{descriptor.package_id}"]}
+    installed = {"successor_retained_lines": [f"package:{descriptor.package_id}"]}
     fake = FakeDevice(
         [
             _preflight_output(NONCES[0], **installed),
@@ -217,7 +217,7 @@ async def test_in_place_update_refuses_a_package_removed_during_transfer(
 ) -> None:
     apk = tmp_path / "release.apk"
     _write_private_apk(apk)
-    installed = {"retained_lines": [f"package:{descriptor.package_id}"]}
+    installed = {"successor_retained_lines": [f"package:{descriptor.package_id}"]}
     fake = FakeDevice(
         [
             _preflight_output(NONCES[0], **installed),
@@ -249,7 +249,7 @@ async def test_in_place_update_refuses_root_mode_change_after_transfer(
 ) -> None:
     apk = tmp_path / "release.apk"
     _write_private_apk(apk)
-    installed = {"retained_lines": [f"package:{descriptor.package_id}"]}
+    installed = {"successor_retained_lines": [f"package:{descriptor.package_id}"]}
     fake = FakeDevice(
         [
             _preflight_output(NONCES[0], **installed),
@@ -278,7 +278,7 @@ async def test_in_place_update_cleans_bad_stage_before_install(
 ) -> None:
     apk = tmp_path / "release.apk"
     _write_private_apk(apk)
-    installed = {"retained_lines": [f"package:{descriptor.package_id}"]}
+    installed = {"successor_retained_lines": [f"package:{descriptor.package_id}"]}
     fake = FakeDevice(
         [
             _preflight_output(NONCES[0], **installed),
@@ -337,7 +337,7 @@ async def test_in_place_update_classifies_package_manager_and_transport_outcomes
 ) -> None:
     apk = tmp_path / "release.apk"
     _write_private_apk(apk)
-    installed = {"retained_lines": [f"package:{descriptor.package_id}"]}
+    installed = {"successor_retained_lines": [f"package:{descriptor.package_id}"]}
     outputs: list[bytes | BaseException] = [
         _preflight_output(NONCES[0], **installed),
         _installed_package_output(NONCES[1]),
@@ -382,7 +382,7 @@ async def test_in_place_update_refuses_an_occupied_staging_path_before_push(
     fake = FakeDevice(
         [
             _preflight_output(
-                NONCES[0], retained_lines=[f"package:{descriptor.package_id}"]
+                NONCES[0], successor_retained_lines=[f"package:{descriptor.package_id}"]
             ),
             _installed_package_output(NONCES[1]),
             _single_output("PATH", NONCES[2], ["present"], 0),

@@ -362,6 +362,8 @@ async def test_shelly_incomplete_settlement_or_changed_custody_never_accepts_set
     harness = ShellySettlementHarness(monkeypatch)
     harness.settlement_fault = fault
     harness.settlement_release.set()
+    # A reply from another version is waited out for the whole health budget.
+    monkeypatch.setattr(install_executor, "_HEALTH_RETRY_SECONDS", 0)
 
     completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
 
