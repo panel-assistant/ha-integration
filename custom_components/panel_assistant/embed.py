@@ -394,6 +394,21 @@ def _respond(status: int, **fields: Any) -> web.Response:
     return response
 
 
+# A page asked for while the panel's session is down (it restarts with every app
+# update) asks again shortly, so an open sidebar shows the panel once it is back
+# instead of staying blank until another panel is chosen.
+RETRY_SECONDS: Final = 3
+
+
+def _retry() -> web.Response:
+    return _respond(
+        503,
+        body=f'<!doctype html><meta http-equiv="refresh" content="{RETRY_SECONDS}">',
+        content_type="text/html",
+        headers={"Retry-After": str(RETRY_SECONDS)},
+    )
+
+
 def _rebase(page: bytes, prefix: str) -> bytes:
     """Point the page's base element at the embed view, so its URLs stay inside."""
     at = page.find(BASE_ELEMENT, 0, BASE_WINDOW)
@@ -481,7 +496,7 @@ class EmbedView(HomeAssistantView):
     ) -> web.Response:
         panel = live_ui_session(self.hass, entry.entry_id)
         if panel is None:
-            return _respond(503)
+            return _retry()
         args: dict[str, Any] = {"embed": session.embed_header}
         for key in ("lang", "ha_lang"):
             if (value := request.query.get(key)) and _valid_language(value):
@@ -497,7 +512,7 @@ class EmbedView(HomeAssistantView):
                 {"user": session.user_id, "connection": session.relay_id},
             )
         except HomeAssistantError:
-            return _respond(503)
+            return _retry()
         if data is None and isinstance(outcome.result, str):
             data = outcome.result.encode()
         if data is None or (outcome.outcome != OUTCOME_APPLIED and not outcome.status):
