@@ -168,48 +168,215 @@
         }
       },
       "diag_boot": {
-        "name": "Zeitpunkt des letzten Systemstarts"
+        "name": "Zeitpunkt des letzten Systemstarts",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Grund",
+            "state": {
+              "waiting": "Warten auf den ersten Messwert",
+              "not_shared": "Vom Panel nicht freigegeben",
+              "not_readable": "Das Panel kann den Wert nicht lesen",
+              "not_on_wifi": "Nicht über Wi-Fi verbunden",
+              "turned_off": "Ausgeschaltet",
+              "not_ready": "Nicht bereit"
+            }
+          }
+        }
       },
       "diag_cpu": {
-        "name": "CPU-Auslastung"
+        "name": "CPU-Auslastung",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Grund",
+            "state": {
+              "waiting": "Warten auf den ersten Messwert",
+              "not_shared": "Vom Panel nicht freigegeben",
+              "not_readable": "Das Panel kann den Wert nicht lesen",
+              "not_on_wifi": "Nicht über Wi-Fi verbunden",
+              "turned_off": "Ausgeschaltet",
+              "not_ready": "Nicht bereit"
+            }
+          }
+        }
       },
       "diag_ip": {
-        "name": "IP-Adresse"
+        "name": "IP-Adresse",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Grund",
+            "state": {
+              "waiting": "Warten auf den ersten Messwert",
+              "not_shared": "Vom Panel nicht freigegeben",
+              "not_readable": "Das Panel kann den Wert nicht lesen",
+              "not_on_wifi": "Nicht über Wi-Fi verbunden",
+              "turned_off": "Ausgeschaltet",
+              "not_ready": "Nicht bereit"
+            }
+          }
+        }
       },
       "diag_memory": {
-        "name": "Arbeitsspeicherauslastung"
+        "name": "Arbeitsspeicherauslastung",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Grund",
+            "state": {
+              "waiting": "Warten auf den ersten Messwert",
+              "not_shared": "Vom Panel nicht freigegeben",
+              "not_readable": "Das Panel kann den Wert nicht lesen",
+              "not_on_wifi": "Nicht über Wi-Fi verbunden",
+              "turned_off": "Ausgeschaltet",
+              "not_ready": "Nicht bereit"
+            }
+          }
+        }
       },
       "diag_soc_temp": {
-        "name": "SoC-Temperatur"
+        "name": "SoC-Temperatur",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Grund",
+            "state": {
+              "waiting": "Warten auf den ersten Messwert",
+              "not_shared": "Vom Panel nicht freigegeben",
+              "not_readable": "Das Panel kann den Wert nicht lesen",
+              "not_on_wifi": "Nicht über Wi-Fi verbunden",
+              "turned_off": "Ausgeschaltet",
+              "not_ready": "Nicht bereit"
+            }
+          }
+        }
       },
       "diag_wifi_outages_24h": {
         "name": "Wi-Fi-Ausfälle (24 h)",
         "state_attributes": {
           "is_lower_bound": {
             "name": "Untergrenze"
+          },
+          "unknown_reason": {
+            "name": "Grund",
+            "state": {
+              "waiting": "Warten auf den ersten Messwert",
+              "not_shared": "Vom Panel nicht freigegeben",
+              "not_readable": "Das Panel kann den Wert nicht lesen",
+              "not_on_wifi": "Nicht über Wi-Fi verbunden",
+              "turned_off": "Ausgeschaltet",
+              "not_ready": "Nicht bereit"
+            }
           }
         }
       },
       "diag_wifi_rssi": {
-        "name": "Wi-Fi-Signalstärke"
+        "name": "Wi-Fi-Signalstärke",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Grund",
+            "state": {
+              "waiting": "Warten auf den ersten Messwert",
+              "not_shared": "Vom Panel nicht freigegeben",
+              "not_readable": "Das Panel kann den Wert nicht lesen",
+              "not_on_wifi": "Nicht über Wi-Fi verbunden",
+              "turned_off": "Ausgeschaltet",
+              "not_ready": "Nicht bereit"
+            }
+          }
+        }
       },
       "diag_wifi_ssid": {
-        "name": "Wi-Fi-Netzwerk"
+        "name": "Wi-Fi-Netzwerk",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Grund",
+            "state": {
+              "waiting": "Warten auf den ersten Messwert",
+              "not_shared": "Vom Panel nicht freigegeben",
+              "not_readable": "Das Panel kann den Wert nicht lesen",
+              "not_on_wifi": "Nicht über Wi-Fi verbunden",
+              "turned_off": "Ausgeschaltet",
+              "not_ready": "Nicht bereit"
+            }
+          }
+        }
       },
       "humidity": {
-        "name": "Luftfeuchtigkeit"
+        "name": "Luftfeuchtigkeit",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Grund",
+            "state": {
+              "waiting": "Warten auf den ersten Messwert",
+              "not_shared": "Vom Panel nicht freigegeben",
+              "not_readable": "Das Panel kann den Wert nicht lesen",
+              "not_on_wifi": "Nicht über Wi-Fi verbunden",
+              "turned_off": "Ausgeschaltet",
+              "not_ready": "Nicht bereit"
+            }
+          }
+        }
       },
       "illuminance": {
-        "name": "Beleuchtungsstärke"
+        "name": "Beleuchtungsstärke",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Grund",
+            "state": {
+              "waiting": "Warten auf den ersten Messwert",
+              "not_shared": "Vom Panel nicht freigegeben",
+              "not_readable": "Das Panel kann den Wert nicht lesen",
+              "not_on_wifi": "Nicht über Wi-Fi verbunden",
+              "turned_off": "Ausgeschaltet",
+              "not_ready": "Nicht bereit"
+            }
+          }
+        }
       },
       "proximity_level": {
-        "name": "Annäherungsstufe"
+        "name": "Annäherungsstufe",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Grund",
+            "state": {
+              "waiting": "Warten auf den ersten Messwert",
+              "not_shared": "Vom Panel nicht freigegeben",
+              "not_readable": "Das Panel kann den Wert nicht lesen",
+              "not_on_wifi": "Nicht über Wi-Fi verbunden",
+              "turned_off": "Ausgeschaltet",
+              "not_ready": "Nicht bereit"
+            }
+          }
+        }
       },
       "room_humidity": {
-        "name": "Raumluftfeuchtigkeit"
+        "name": "Raumluftfeuchtigkeit",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Grund",
+            "state": {
+              "waiting": "Warten auf den ersten Messwert",
+              "not_shared": "Vom Panel nicht freigegeben",
+              "not_readable": "Das Panel kann den Wert nicht lesen",
+              "not_on_wifi": "Nicht über Wi-Fi verbunden",
+              "turned_off": "Ausgeschaltet",
+              "not_ready": "Nicht bereit"
+            }
+          }
+        }
       },
       "room_temp": {
-        "name": "Raumtemperatur"
+        "name": "Raumtemperatur",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Grund",
+            "state": {
+              "waiting": "Warten auf den ersten Messwert",
+              "not_shared": "Vom Panel nicht freigegeben",
+              "not_readable": "Das Panel kann den Wert nicht lesen",
+              "not_on_wifi": "Nicht über Wi-Fi verbunden",
+              "turned_off": "Ausgeschaltet",
+              "not_ready": "Nicht bereit"
+            }
+          }
+        }
       },
       "storage_health": {
         "name": "Speicherzustand",
@@ -271,11 +438,35 @@
           },
           "wal_bytes": {
             "name": "Größe des Schreibvorabprotokolls"
+          },
+          "unknown_reason": {
+            "name": "Grund",
+            "state": {
+              "waiting": "Warten auf den ersten Messwert",
+              "not_shared": "Vom Panel nicht freigegeben",
+              "not_readable": "Das Panel kann den Wert nicht lesen",
+              "not_on_wifi": "Nicht über Wi-Fi verbunden",
+              "turned_off": "Ausgeschaltet",
+              "not_ready": "Nicht bereit"
+            }
           }
         }
       },
       "temperature": {
-        "name": "Temperatur"
+        "name": "Temperatur",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Grund",
+            "state": {
+              "waiting": "Warten auf den ersten Messwert",
+              "not_shared": "Vom Panel nicht freigegeben",
+              "not_readable": "Das Panel kann den Wert nicht lesen",
+              "not_on_wifi": "Nicht über Wi-Fi verbunden",
+              "turned_off": "Ausgeschaltet",
+              "not_ready": "Nicht bereit"
+            }
+          }
+        }
       },
       "zigbee_gateway_health": {
         "name": "Zustand des Zigbee-Gateways",
@@ -323,6 +514,17 @@
           },
           "role": {
             "name": "Rolle"
+          },
+          "unknown_reason": {
+            "name": "Grund",
+            "state": {
+              "waiting": "Warten auf den ersten Messwert",
+              "not_shared": "Vom Panel nicht freigegeben",
+              "not_readable": "Das Panel kann den Wert nicht lesen",
+              "not_on_wifi": "Nicht über Wi-Fi verbunden",
+              "turned_off": "Ausgeschaltet",
+              "not_ready": "Nicht bereit"
+            }
           }
         }
       }
@@ -358,14 +560,51 @@
           },
           "source_count": {
             "name": "Quellen"
+          },
+          "unknown_reason": {
+            "name": "Grund",
+            "state": {
+              "waiting": "Warten auf den ersten Messwert",
+              "not_shared": "Vom Panel nicht freigegeben",
+              "not_readable": "Das Panel kann den Wert nicht lesen",
+              "not_on_wifi": "Nicht über Wi-Fi verbunden",
+              "turned_off": "Ausgeschaltet",
+              "not_ready": "Nicht bereit"
+            }
           }
         }
       },
       "usb_debugging": {
-        "name": "USB-Debugging"
+        "name": "USB-Debugging",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Grund",
+            "state": {
+              "waiting": "Warten auf den ersten Messwert",
+              "not_shared": "Vom Panel nicht freigegeben",
+              "not_readable": "Das Panel kann den Wert nicht lesen",
+              "not_on_wifi": "Nicht über Wi-Fi verbunden",
+              "turned_off": "Ausgeschaltet",
+              "not_ready": "Nicht bereit"
+            }
+          }
+        }
       },
       "proximity": {
-        "name": "Nähe"
+        "name": "Nähe",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Grund",
+            "state": {
+              "waiting": "Warten auf den ersten Messwert",
+              "not_shared": "Vom Panel nicht freigegeben",
+              "not_readable": "Das Panel kann den Wert nicht lesen",
+              "not_on_wifi": "Nicht über Wi-Fi verbunden",
+              "turned_off": "Ausgeschaltet",
+              "not_ready": "Nicht bereit"
+            }
+          }
+        }
       }
     },
     "button": {

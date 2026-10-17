@@ -570,6 +570,7 @@ def ws_report_state(
             attributes=attributes,
             refresh=observation["refresh"],
             received_at=now,
+            reason=observation.get("reason"),
         )
     session.rejected_observations += len(rejected)
     if accepted:

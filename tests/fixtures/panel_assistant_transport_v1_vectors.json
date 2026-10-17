@@ -556,7 +556,7 @@
       "valid": false
     },
     {
-      "name": "report_state_unknown_state",
+      "name": "report_state_unknown_state_without_reason",
       "message": {
         "type": "panel_assistant/report_state",
         "session": "abcDEF_-123",
@@ -565,6 +565,38 @@
           {
             "channel": "relay1",
             "state": "unknown"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "report_state_unknown_state_with_reason",
+      "message": {
+        "type": "panel_assistant/report_state",
+        "session": "abcDEF_-123",
+        "sync": "delta",
+        "observations": [
+          {
+            "channel": "illuminance",
+            "state": "unknown",
+            "reason": "waiting"
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "report_state_reason_without_unknown_state",
+      "message": {
+        "type": "panel_assistant/report_state",
+        "session": "abcDEF_-123",
+        "sync": "delta",
+        "observations": [
+          {
+            "channel": "illuminance",
+            "state": "unavailable",
+            "reason": "waiting"
           }
         ]
       },

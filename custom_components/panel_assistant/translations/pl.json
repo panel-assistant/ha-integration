@@ -168,48 +168,215 @@
         "name": "Wersja Panel Assistant"
       },
       "diag_boot": {
-        "name": "Czas ostatniego uruchomienia"
+        "name": "Czas ostatniego uruchomienia",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Powód",
+            "state": {
+              "waiting": "Oczekiwanie na pierwszy odczyt",
+              "not_shared": "Panel tego nie udostępnia",
+              "not_readable": "Panel nie może tego odczytać",
+              "not_on_wifi": "Brak połączenia przez Wi-Fi",
+              "turned_off": "Wyłączone",
+              "not_ready": "Niegotowe"
+            }
+          }
+        }
       },
       "diag_cpu": {
-        "name": "Użycie CPU"
+        "name": "Użycie CPU",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Powód",
+            "state": {
+              "waiting": "Oczekiwanie na pierwszy odczyt",
+              "not_shared": "Panel tego nie udostępnia",
+              "not_readable": "Panel nie może tego odczytać",
+              "not_on_wifi": "Brak połączenia przez Wi-Fi",
+              "turned_off": "Wyłączone",
+              "not_ready": "Niegotowe"
+            }
+          }
+        }
       },
       "diag_ip": {
-        "name": "Adres IP"
+        "name": "Adres IP",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Powód",
+            "state": {
+              "waiting": "Oczekiwanie na pierwszy odczyt",
+              "not_shared": "Panel tego nie udostępnia",
+              "not_readable": "Panel nie może tego odczytać",
+              "not_on_wifi": "Brak połączenia przez Wi-Fi",
+              "turned_off": "Wyłączone",
+              "not_ready": "Niegotowe"
+            }
+          }
+        }
       },
       "diag_memory": {
-        "name": "Użycie pamięci"
+        "name": "Użycie pamięci",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Powód",
+            "state": {
+              "waiting": "Oczekiwanie na pierwszy odczyt",
+              "not_shared": "Panel tego nie udostępnia",
+              "not_readable": "Panel nie może tego odczytać",
+              "not_on_wifi": "Brak połączenia przez Wi-Fi",
+              "turned_off": "Wyłączone",
+              "not_ready": "Niegotowe"
+            }
+          }
+        }
       },
       "diag_soc_temp": {
-        "name": "Temperatura SoC"
+        "name": "Temperatura SoC",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Powód",
+            "state": {
+              "waiting": "Oczekiwanie na pierwszy odczyt",
+              "not_shared": "Panel tego nie udostępnia",
+              "not_readable": "Panel nie może tego odczytać",
+              "not_on_wifi": "Brak połączenia przez Wi-Fi",
+              "turned_off": "Wyłączone",
+              "not_ready": "Niegotowe"
+            }
+          }
+        }
       },
       "diag_wifi_outages_24h": {
         "name": "Przerwy w połączeniu Wi-Fi (24 h)",
         "state_attributes": {
           "is_lower_bound": {
             "name": "Dolna granica"
+          },
+          "unknown_reason": {
+            "name": "Powód",
+            "state": {
+              "waiting": "Oczekiwanie na pierwszy odczyt",
+              "not_shared": "Panel tego nie udostępnia",
+              "not_readable": "Panel nie może tego odczytać",
+              "not_on_wifi": "Brak połączenia przez Wi-Fi",
+              "turned_off": "Wyłączone",
+              "not_ready": "Niegotowe"
+            }
           }
         }
       },
       "diag_wifi_rssi": {
-        "name": "Siła sygnału Wi-Fi"
+        "name": "Siła sygnału Wi-Fi",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Powód",
+            "state": {
+              "waiting": "Oczekiwanie na pierwszy odczyt",
+              "not_shared": "Panel tego nie udostępnia",
+              "not_readable": "Panel nie może tego odczytać",
+              "not_on_wifi": "Brak połączenia przez Wi-Fi",
+              "turned_off": "Wyłączone",
+              "not_ready": "Niegotowe"
+            }
+          }
+        }
       },
       "diag_wifi_ssid": {
-        "name": "Sieć Wi-Fi"
+        "name": "Sieć Wi-Fi",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Powód",
+            "state": {
+              "waiting": "Oczekiwanie na pierwszy odczyt",
+              "not_shared": "Panel tego nie udostępnia",
+              "not_readable": "Panel nie może tego odczytać",
+              "not_on_wifi": "Brak połączenia przez Wi-Fi",
+              "turned_off": "Wyłączone",
+              "not_ready": "Niegotowe"
+            }
+          }
+        }
       },
       "humidity": {
-        "name": "Wilgotność"
+        "name": "Wilgotność",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Powód",
+            "state": {
+              "waiting": "Oczekiwanie na pierwszy odczyt",
+              "not_shared": "Panel tego nie udostępnia",
+              "not_readable": "Panel nie może tego odczytać",
+              "not_on_wifi": "Brak połączenia przez Wi-Fi",
+              "turned_off": "Wyłączone",
+              "not_ready": "Niegotowe"
+            }
+          }
+        }
       },
       "illuminance": {
-        "name": "Natężenie oświetlenia"
+        "name": "Natężenie oświetlenia",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Powód",
+            "state": {
+              "waiting": "Oczekiwanie na pierwszy odczyt",
+              "not_shared": "Panel tego nie udostępnia",
+              "not_readable": "Panel nie może tego odczytać",
+              "not_on_wifi": "Brak połączenia przez Wi-Fi",
+              "turned_off": "Wyłączone",
+              "not_ready": "Niegotowe"
+            }
+          }
+        }
       },
       "proximity_level": {
-        "name": "Poziom zbliżenia"
+        "name": "Poziom zbliżenia",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Powód",
+            "state": {
+              "waiting": "Oczekiwanie na pierwszy odczyt",
+              "not_shared": "Panel tego nie udostępnia",
+              "not_readable": "Panel nie może tego odczytać",
+              "not_on_wifi": "Brak połączenia przez Wi-Fi",
+              "turned_off": "Wyłączone",
+              "not_ready": "Niegotowe"
+            }
+          }
+        }
       },
       "room_humidity": {
-        "name": "Wilgotność w pomieszczeniu"
+        "name": "Wilgotność w pomieszczeniu",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Powód",
+            "state": {
+              "waiting": "Oczekiwanie na pierwszy odczyt",
+              "not_shared": "Panel tego nie udostępnia",
+              "not_readable": "Panel nie może tego odczytać",
+              "not_on_wifi": "Brak połączenia przez Wi-Fi",
+              "turned_off": "Wyłączone",
+              "not_ready": "Niegotowe"
+            }
+          }
+        }
       },
       "room_temp": {
-        "name": "Temperatura w pomieszczeniu"
+        "name": "Temperatura w pomieszczeniu",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Powód",
+            "state": {
+              "waiting": "Oczekiwanie na pierwszy odczyt",
+              "not_shared": "Panel tego nie udostępnia",
+              "not_readable": "Panel nie może tego odczytać",
+              "not_on_wifi": "Brak połączenia przez Wi-Fi",
+              "turned_off": "Wyłączone",
+              "not_ready": "Niegotowe"
+            }
+          }
+        }
       },
       "storage_health": {
         "name": "Stan pamięci masowej",
@@ -271,11 +438,35 @@
           },
           "wal_bytes": {
             "name": "Rozmiar dziennika zapisu z wyprzedzeniem"
+          },
+          "unknown_reason": {
+            "name": "Powód",
+            "state": {
+              "waiting": "Oczekiwanie na pierwszy odczyt",
+              "not_shared": "Panel tego nie udostępnia",
+              "not_readable": "Panel nie może tego odczytać",
+              "not_on_wifi": "Brak połączenia przez Wi-Fi",
+              "turned_off": "Wyłączone",
+              "not_ready": "Niegotowe"
+            }
           }
         }
       },
       "temperature": {
-        "name": "Temperatura"
+        "name": "Temperatura",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Powód",
+            "state": {
+              "waiting": "Oczekiwanie na pierwszy odczyt",
+              "not_shared": "Panel tego nie udostępnia",
+              "not_readable": "Panel nie może tego odczytać",
+              "not_on_wifi": "Brak połączenia przez Wi-Fi",
+              "turned_off": "Wyłączone",
+              "not_ready": "Niegotowe"
+            }
+          }
+        }
       },
       "zigbee_gateway_health": {
         "name": "Stan bramki Zigbee",
@@ -323,6 +514,17 @@
           },
           "role": {
             "name": "Rola"
+          },
+          "unknown_reason": {
+            "name": "Powód",
+            "state": {
+              "waiting": "Oczekiwanie na pierwszy odczyt",
+              "not_shared": "Panel tego nie udostępnia",
+              "not_readable": "Panel nie może tego odczytać",
+              "not_on_wifi": "Brak połączenia przez Wi-Fi",
+              "turned_off": "Wyłączone",
+              "not_ready": "Niegotowe"
+            }
           }
         }
       }
@@ -353,14 +555,51 @@
           },
           "source_count": {
             "name": "Źródła"
+          },
+          "unknown_reason": {
+            "name": "Powód",
+            "state": {
+              "waiting": "Oczekiwanie na pierwszy odczyt",
+              "not_shared": "Panel tego nie udostępnia",
+              "not_readable": "Panel nie może tego odczytać",
+              "not_on_wifi": "Brak połączenia przez Wi-Fi",
+              "turned_off": "Wyłączone",
+              "not_ready": "Niegotowe"
+            }
           }
         }
       },
       "usb_debugging": {
-        "name": "Debugowanie USB"
+        "name": "Debugowanie USB",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Powód",
+            "state": {
+              "waiting": "Oczekiwanie na pierwszy odczyt",
+              "not_shared": "Panel tego nie udostępnia",
+              "not_readable": "Panel nie może tego odczytać",
+              "not_on_wifi": "Brak połączenia przez Wi-Fi",
+              "turned_off": "Wyłączone",
+              "not_ready": "Niegotowe"
+            }
+          }
+        }
       },
       "proximity": {
-        "name": "Zbliżenie"
+        "name": "Zbliżenie",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Powód",
+            "state": {
+              "waiting": "Oczekiwanie na pierwszy odczyt",
+              "not_shared": "Panel tego nie udostępnia",
+              "not_readable": "Panel nie może tego odczytać",
+              "not_on_wifi": "Brak połączenia przez Wi-Fi",
+              "turned_off": "Wyłączone",
+              "not_ready": "Niegotowe"
+            }
+          }
+        }
       }
     },
     "button": {

@@ -168,48 +168,215 @@
         "name": "Panel Assistant-versie"
       },
       "diag_boot": {
-        "name": "Laatste opstarttijd"
+        "name": "Laatste opstarttijd",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reden",
+            "state": {
+              "waiting": "Wacht op de eerste meting",
+              "not_shared": "Niet gedeeld door het paneel",
+              "not_readable": "Het paneel kan dit niet uitlezen",
+              "not_on_wifi": "Niet verbonden via Wi-Fi",
+              "turned_off": "Uitgeschakeld",
+              "not_ready": "Niet gereed"
+            }
+          }
+        }
       },
       "diag_cpu": {
-        "name": "CPU-gebruik"
+        "name": "CPU-gebruik",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reden",
+            "state": {
+              "waiting": "Wacht op de eerste meting",
+              "not_shared": "Niet gedeeld door het paneel",
+              "not_readable": "Het paneel kan dit niet uitlezen",
+              "not_on_wifi": "Niet verbonden via Wi-Fi",
+              "turned_off": "Uitgeschakeld",
+              "not_ready": "Niet gereed"
+            }
+          }
+        }
       },
       "diag_ip": {
-        "name": "IP-adres"
+        "name": "IP-adres",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reden",
+            "state": {
+              "waiting": "Wacht op de eerste meting",
+              "not_shared": "Niet gedeeld door het paneel",
+              "not_readable": "Het paneel kan dit niet uitlezen",
+              "not_on_wifi": "Niet verbonden via Wi-Fi",
+              "turned_off": "Uitgeschakeld",
+              "not_ready": "Niet gereed"
+            }
+          }
+        }
       },
       "diag_memory": {
-        "name": "Geheugengebruik"
+        "name": "Geheugengebruik",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reden",
+            "state": {
+              "waiting": "Wacht op de eerste meting",
+              "not_shared": "Niet gedeeld door het paneel",
+              "not_readable": "Het paneel kan dit niet uitlezen",
+              "not_on_wifi": "Niet verbonden via Wi-Fi",
+              "turned_off": "Uitgeschakeld",
+              "not_ready": "Niet gereed"
+            }
+          }
+        }
       },
       "diag_soc_temp": {
-        "name": "SoC-temperatuur"
+        "name": "SoC-temperatuur",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reden",
+            "state": {
+              "waiting": "Wacht op de eerste meting",
+              "not_shared": "Niet gedeeld door het paneel",
+              "not_readable": "Het paneel kan dit niet uitlezen",
+              "not_on_wifi": "Niet verbonden via Wi-Fi",
+              "turned_off": "Uitgeschakeld",
+              "not_ready": "Niet gereed"
+            }
+          }
+        }
       },
       "diag_wifi_outages_24h": {
         "name": "Wi-Fi-uitval (24 u)",
         "state_attributes": {
           "is_lower_bound": {
             "name": "Ondergrens"
+          },
+          "unknown_reason": {
+            "name": "Reden",
+            "state": {
+              "waiting": "Wacht op de eerste meting",
+              "not_shared": "Niet gedeeld door het paneel",
+              "not_readable": "Het paneel kan dit niet uitlezen",
+              "not_on_wifi": "Niet verbonden via Wi-Fi",
+              "turned_off": "Uitgeschakeld",
+              "not_ready": "Niet gereed"
+            }
           }
         }
       },
       "diag_wifi_rssi": {
-        "name": "Wi-Fi-signaalsterkte"
+        "name": "Wi-Fi-signaalsterkte",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reden",
+            "state": {
+              "waiting": "Wacht op de eerste meting",
+              "not_shared": "Niet gedeeld door het paneel",
+              "not_readable": "Het paneel kan dit niet uitlezen",
+              "not_on_wifi": "Niet verbonden via Wi-Fi",
+              "turned_off": "Uitgeschakeld",
+              "not_ready": "Niet gereed"
+            }
+          }
+        }
       },
       "diag_wifi_ssid": {
-        "name": "Wi-Fi-netwerk"
+        "name": "Wi-Fi-netwerk",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reden",
+            "state": {
+              "waiting": "Wacht op de eerste meting",
+              "not_shared": "Niet gedeeld door het paneel",
+              "not_readable": "Het paneel kan dit niet uitlezen",
+              "not_on_wifi": "Niet verbonden via Wi-Fi",
+              "turned_off": "Uitgeschakeld",
+              "not_ready": "Niet gereed"
+            }
+          }
+        }
       },
       "humidity": {
-        "name": "Luchtvochtigheid"
+        "name": "Luchtvochtigheid",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reden",
+            "state": {
+              "waiting": "Wacht op de eerste meting",
+              "not_shared": "Niet gedeeld door het paneel",
+              "not_readable": "Het paneel kan dit niet uitlezen",
+              "not_on_wifi": "Niet verbonden via Wi-Fi",
+              "turned_off": "Uitgeschakeld",
+              "not_ready": "Niet gereed"
+            }
+          }
+        }
       },
       "illuminance": {
-        "name": "Verlichtingssterkte"
+        "name": "Verlichtingssterkte",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reden",
+            "state": {
+              "waiting": "Wacht op de eerste meting",
+              "not_shared": "Niet gedeeld door het paneel",
+              "not_readable": "Het paneel kan dit niet uitlezen",
+              "not_on_wifi": "Niet verbonden via Wi-Fi",
+              "turned_off": "Uitgeschakeld",
+              "not_ready": "Niet gereed"
+            }
+          }
+        }
       },
       "proximity_level": {
-        "name": "Nabijheidsniveau"
+        "name": "Nabijheidsniveau",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reden",
+            "state": {
+              "waiting": "Wacht op de eerste meting",
+              "not_shared": "Niet gedeeld door het paneel",
+              "not_readable": "Het paneel kan dit niet uitlezen",
+              "not_on_wifi": "Niet verbonden via Wi-Fi",
+              "turned_off": "Uitgeschakeld",
+              "not_ready": "Niet gereed"
+            }
+          }
+        }
       },
       "room_humidity": {
-        "name": "Luchtvochtigheid in de ruimte"
+        "name": "Luchtvochtigheid in de ruimte",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reden",
+            "state": {
+              "waiting": "Wacht op de eerste meting",
+              "not_shared": "Niet gedeeld door het paneel",
+              "not_readable": "Het paneel kan dit niet uitlezen",
+              "not_on_wifi": "Niet verbonden via Wi-Fi",
+              "turned_off": "Uitgeschakeld",
+              "not_ready": "Niet gereed"
+            }
+          }
+        }
       },
       "room_temp": {
-        "name": "Temperatuur in de ruimte"
+        "name": "Temperatuur in de ruimte",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reden",
+            "state": {
+              "waiting": "Wacht op de eerste meting",
+              "not_shared": "Niet gedeeld door het paneel",
+              "not_readable": "Het paneel kan dit niet uitlezen",
+              "not_on_wifi": "Niet verbonden via Wi-Fi",
+              "turned_off": "Uitgeschakeld",
+              "not_ready": "Niet gereed"
+            }
+          }
+        }
       },
       "storage_health": {
         "name": "Opslagconditie",
@@ -271,11 +438,35 @@
           },
           "wal_bytes": {
             "name": "Grootte van het voorafschrijflogboek"
+          },
+          "unknown_reason": {
+            "name": "Reden",
+            "state": {
+              "waiting": "Wacht op de eerste meting",
+              "not_shared": "Niet gedeeld door het paneel",
+              "not_readable": "Het paneel kan dit niet uitlezen",
+              "not_on_wifi": "Niet verbonden via Wi-Fi",
+              "turned_off": "Uitgeschakeld",
+              "not_ready": "Niet gereed"
+            }
           }
         }
       },
       "temperature": {
-        "name": "Temperatuur"
+        "name": "Temperatuur",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reden",
+            "state": {
+              "waiting": "Wacht op de eerste meting",
+              "not_shared": "Niet gedeeld door het paneel",
+              "not_readable": "Het paneel kan dit niet uitlezen",
+              "not_on_wifi": "Niet verbonden via Wi-Fi",
+              "turned_off": "Uitgeschakeld",
+              "not_ready": "Niet gereed"
+            }
+          }
+        }
       },
       "zigbee_gateway_health": {
         "name": "Status Zigbee-gateway",
@@ -323,6 +514,17 @@
           },
           "role": {
             "name": "Rol"
+          },
+          "unknown_reason": {
+            "name": "Reden",
+            "state": {
+              "waiting": "Wacht op de eerste meting",
+              "not_shared": "Niet gedeeld door het paneel",
+              "not_readable": "Het paneel kan dit niet uitlezen",
+              "not_on_wifi": "Niet verbonden via Wi-Fi",
+              "turned_off": "Uitgeschakeld",
+              "not_ready": "Niet gereed"
+            }
           }
         }
       }
@@ -353,14 +555,51 @@
           },
           "source_count": {
             "name": "Bronnen"
+          },
+          "unknown_reason": {
+            "name": "Reden",
+            "state": {
+              "waiting": "Wacht op de eerste meting",
+              "not_shared": "Niet gedeeld door het paneel",
+              "not_readable": "Het paneel kan dit niet uitlezen",
+              "not_on_wifi": "Niet verbonden via Wi-Fi",
+              "turned_off": "Uitgeschakeld",
+              "not_ready": "Niet gereed"
+            }
           }
         }
       },
       "usb_debugging": {
-        "name": "USB-foutopsporing"
+        "name": "USB-foutopsporing",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reden",
+            "state": {
+              "waiting": "Wacht op de eerste meting",
+              "not_shared": "Niet gedeeld door het paneel",
+              "not_readable": "Het paneel kan dit niet uitlezen",
+              "not_on_wifi": "Niet verbonden via Wi-Fi",
+              "turned_off": "Uitgeschakeld",
+              "not_ready": "Niet gereed"
+            }
+          }
+        }
       },
       "proximity": {
-        "name": "Nabijheid"
+        "name": "Nabijheid",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reden",
+            "state": {
+              "waiting": "Wacht op de eerste meting",
+              "not_shared": "Niet gedeeld door het paneel",
+              "not_readable": "Het paneel kan dit niet uitlezen",
+              "not_on_wifi": "Niet verbonden via Wi-Fi",
+              "turned_off": "Uitgeschakeld",
+              "not_ready": "Niet gereed"
+            }
+          }
+        }
       }
     },
     "button": {

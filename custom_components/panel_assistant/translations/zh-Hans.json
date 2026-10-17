@@ -168,48 +168,215 @@
         }
       },
       "diag_boot": {
-        "name": "上次启动时间"
+        "name": "上次启动时间",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "diag_cpu": {
-        "name": "CPU 使用率"
+        "name": "CPU 使用率",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "diag_ip": {
-        "name": "IP 地址"
+        "name": "IP 地址",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "diag_memory": {
-        "name": "内存使用量"
+        "name": "内存使用量",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "diag_soc_temp": {
-        "name": "SoC 温度"
+        "name": "SoC 温度",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "diag_wifi_outages_24h": {
         "name": "Wi-Fi 中断次数（24 小时）",
         "state_attributes": {
           "is_lower_bound": {
             "name": "下限"
+          },
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
           }
         }
       },
       "diag_wifi_rssi": {
-        "name": "Wi-Fi 信号强度"
+        "name": "Wi-Fi 信号强度",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "diag_wifi_ssid": {
-        "name": "Wi-Fi 网络"
+        "name": "Wi-Fi 网络",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "humidity": {
-        "name": "湿度"
+        "name": "湿度",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "illuminance": {
-        "name": "照度"
+        "name": "照度",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "proximity_level": {
-        "name": "接近程度"
+        "name": "接近程度",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "room_humidity": {
-        "name": "室内湿度"
+        "name": "室内湿度",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "room_temp": {
-        "name": "室内温度"
+        "name": "室内温度",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "storage_health": {
         "name": "存储健康状况",
@@ -271,11 +438,35 @@
           },
           "wal_bytes": {
             "name": "预写日志大小"
+          },
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
           }
         }
       },
       "temperature": {
-        "name": "温度"
+        "name": "温度",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "zigbee_gateway_health": {
         "name": "Zigbee 网关健康状况",
@@ -323,6 +514,17 @@
           },
           "role": {
             "name": "角色"
+          },
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
           }
         }
       }
@@ -358,14 +560,51 @@
           },
           "source_count": {
             "name": "来源数"
+          },
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
           }
         }
       },
       "usb_debugging": {
-        "name": "USB 调试"
+        "name": "USB 调试",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "proximity": {
-        "name": "接近"
+        "name": "接近",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       }
     },
     "button": {

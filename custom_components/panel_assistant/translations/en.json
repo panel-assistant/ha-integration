@@ -174,14 +174,51 @@
           },
           "source_count": {
             "name": "Sources"
+          },
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
           }
         }
       },
       "usb_debugging": {
-        "name": "USB debugging"
+        "name": "USB debugging",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "proximity": {
-        "name": "Proximity"
+        "name": "Proximity",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       }
     },
     "button": {
@@ -272,51 +309,218 @@
     },
     "sensor": {
       "diag_boot": {
-        "name": "Last boot time"
+        "name": "Last boot time",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "diag_cpu": {
-        "name": "CPU usage"
+        "name": "CPU usage",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "diag_ip": {
-        "name": "IP address"
+        "name": "IP address",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "diag_memory": {
-        "name": "Memory usage"
+        "name": "Memory usage",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "diag_soc_temp": {
-        "name": "SoC temperature"
+        "name": "SoC temperature",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "diag_wifi_outages_24h": {
         "name": "Wi-Fi outages (24 h)",
         "state_attributes": {
           "is_lower_bound": {
             "name": "Lower bound"
+          },
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
           }
         }
       },
       "diag_wifi_rssi": {
-        "name": "Wi-Fi signal strength"
+        "name": "Wi-Fi signal strength",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "diag_wifi_ssid": {
-        "name": "Wi-Fi network"
+        "name": "Wi-Fi network",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "humidity": {
-        "name": "Humidity"
+        "name": "Humidity",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "illuminance": {
-        "name": "Illuminance"
+        "name": "Illuminance",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "panel_assistant_version": {
         "name": "Panel Assistant version"
       },
       "proximity_level": {
-        "name": "Proximity level"
+        "name": "Proximity level",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "room_humidity": {
-        "name": "Room humidity"
+        "name": "Room humidity",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "room_temp": {
-        "name": "Room temperature"
+        "name": "Room temperature",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "status": {
         "name": "Status",
@@ -390,11 +594,35 @@
           },
           "wal_bytes": {
             "name": "Write-ahead log size"
+          },
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
           }
         }
       },
       "temperature": {
-        "name": "Temperature"
+        "name": "Temperature",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "zigbee_gateway_health": {
         "name": "Zigbee gateway health",
@@ -442,6 +670,17 @@
           },
           "role": {
             "name": "Role"
+          },
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
           }
         }
       }

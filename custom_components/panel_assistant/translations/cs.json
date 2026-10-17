@@ -174,14 +174,51 @@
           },
           "source_count": {
             "name": "Zdroje"
+          },
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
           }
         }
       },
       "usb_debugging": {
-        "name": "Ladění USB"
+        "name": "Ladění USB",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "proximity": {
-        "name": "Přiblížení"
+        "name": "Přiblížení",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       }
     },
     "button": {
@@ -272,51 +309,218 @@
     },
     "sensor": {
       "diag_boot": {
-        "name": "Čas posledního spuštění"
+        "name": "Čas posledního spuštění",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "diag_cpu": {
-        "name": "Využití CPU"
+        "name": "Využití CPU",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "diag_ip": {
-        "name": "IP adresa"
+        "name": "IP adresa",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "diag_memory": {
-        "name": "Využití paměti"
+        "name": "Využití paměti",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "diag_soc_temp": {
-        "name": "Teplota SoC"
+        "name": "Teplota SoC",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "diag_wifi_outages_24h": {
         "name": "Výpadky Wi-Fi (24 h)",
         "state_attributes": {
           "is_lower_bound": {
             "name": "Dolní mez"
+          },
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
           }
         }
       },
       "diag_wifi_rssi": {
-        "name": "Síla signálu Wi-Fi"
+        "name": "Síla signálu Wi-Fi",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "diag_wifi_ssid": {
-        "name": "Síť Wi-Fi"
+        "name": "Síť Wi-Fi",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "humidity": {
-        "name": "Vlhkost"
+        "name": "Vlhkost",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "illuminance": {
-        "name": "Osvětlenost"
+        "name": "Osvětlenost",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "panel_assistant_version": {
         "name": "Verze Panel Assistant"
       },
       "proximity_level": {
-        "name": "Úroveň přiblížení"
+        "name": "Úroveň přiblížení",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "room_humidity": {
-        "name": "Vlhkost v místnosti"
+        "name": "Vlhkost v místnosti",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "room_temp": {
-        "name": "Teplota v místnosti"
+        "name": "Teplota v místnosti",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "status": {
         "name": "Stav",
@@ -390,11 +594,35 @@
           },
           "wal_bytes": {
             "name": "Velikost protokolu předběžného zápisu"
+          },
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
           }
         }
       },
       "temperature": {
-        "name": "Teplota"
+        "name": "Teplota",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "zigbee_gateway_health": {
         "name": "Stav brány Zigbee",
@@ -442,6 +670,17 @@
           },
           "role": {
             "name": "Role"
+          },
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
           }
         }
       }

@@ -31,7 +31,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
 from .contract import catalogue_entry
-from .transport_protocol import STATE_KNOWN
+from .transport_protocol import STATE_KNOWN, STATE_UNKNOWN
 from .transport_sessions import (
     Observation,
     PanelSession,
@@ -73,6 +73,10 @@ SHOWN_BY: Final = {"volume": "media"}
 
 # Platforms whose channels are never reported, only described.
 _UNREPORTED: Final = frozenset({Platform.BUTTON, Platform.EVENT})
+# Platforms shown as unknown, with the panel's reason, while there is no reading.
+_NO_READING: Final = frozenset({Platform.SENSOR, Platform.BINARY_SENSOR})
+# The attribute naming that reason; every sensor and binary sensor translates it.
+UNKNOWN_REASON: Final = "unknown_reason"
 
 
 def native_unique_id(did: str, unique_suffix: str) -> str:
@@ -167,6 +171,17 @@ class NativeEntity(Entity):
         return observation
 
     @property
+    def no_reading_reason(self) -> str | None:
+        """Return why the panel has no reading for this sensor, or None."""
+        session = self.session
+        if session is None or self.platform_name not in _NO_READING:
+            return None
+        observation = session.observations.get(self._channel)
+        if observation is None or observation.state != STATE_UNKNOWN:
+            return None
+        return observation.reason
+
+    @property
     def reported_value(self) -> Any:
         """Return the latest known value, or None."""
         observation = self.observation
@@ -177,7 +192,11 @@ class NativeEntity(Entity):
         """Available while a synced session describes and reports the channel."""
         if self.session is None or not session_available(self.hass, self._entry_id):
             return False
-        return self.platform_name in _UNREPORTED or self.observation is not None
+        return (
+            self.platform_name in _UNREPORTED
+            or self.observation is not None
+            or self.no_reading_reason is not None
+        )
 
     @property
     def platform_name(self) -> str:
@@ -188,6 +207,8 @@ class NativeEntity(Entity):
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return the reported attributes, whose keys are translation codes."""
+        if (reason := self.no_reading_reason) is not None:
+            return {UNKNOWN_REASON: reason}
         observation = self.observation
         if observation is None:
             return None

@@ -168,48 +168,215 @@
         }
       },
       "diag_boot": {
-        "name": "Heure du dernier démarrage"
+        "name": "Heure du dernier démarrage",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Raison",
+            "state": {
+              "waiting": "En attente de la première mesure",
+              "not_shared": "Non partagé par le panneau",
+              "not_readable": "Le panneau ne peut pas le lire",
+              "not_on_wifi": "Non connecté en Wi-Fi",
+              "turned_off": "Désactivé",
+              "not_ready": "Pas prêt"
+            }
+          }
+        }
       },
       "diag_cpu": {
-        "name": "Utilisation du CPU"
+        "name": "Utilisation du CPU",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Raison",
+            "state": {
+              "waiting": "En attente de la première mesure",
+              "not_shared": "Non partagé par le panneau",
+              "not_readable": "Le panneau ne peut pas le lire",
+              "not_on_wifi": "Non connecté en Wi-Fi",
+              "turned_off": "Désactivé",
+              "not_ready": "Pas prêt"
+            }
+          }
+        }
       },
       "diag_ip": {
-        "name": "Adresse IP"
+        "name": "Adresse IP",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Raison",
+            "state": {
+              "waiting": "En attente de la première mesure",
+              "not_shared": "Non partagé par le panneau",
+              "not_readable": "Le panneau ne peut pas le lire",
+              "not_on_wifi": "Non connecté en Wi-Fi",
+              "turned_off": "Désactivé",
+              "not_ready": "Pas prêt"
+            }
+          }
+        }
       },
       "diag_memory": {
-        "name": "Utilisation de la mémoire"
+        "name": "Utilisation de la mémoire",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Raison",
+            "state": {
+              "waiting": "En attente de la première mesure",
+              "not_shared": "Non partagé par le panneau",
+              "not_readable": "Le panneau ne peut pas le lire",
+              "not_on_wifi": "Non connecté en Wi-Fi",
+              "turned_off": "Désactivé",
+              "not_ready": "Pas prêt"
+            }
+          }
+        }
       },
       "diag_soc_temp": {
-        "name": "Température du SoC"
+        "name": "Température du SoC",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Raison",
+            "state": {
+              "waiting": "En attente de la première mesure",
+              "not_shared": "Non partagé par le panneau",
+              "not_readable": "Le panneau ne peut pas le lire",
+              "not_on_wifi": "Non connecté en Wi-Fi",
+              "turned_off": "Désactivé",
+              "not_ready": "Pas prêt"
+            }
+          }
+        }
       },
       "diag_wifi_outages_24h": {
         "name": "Coupures Wi-Fi (24 h)",
         "state_attributes": {
           "is_lower_bound": {
             "name": "Borne inférieure"
+          },
+          "unknown_reason": {
+            "name": "Raison",
+            "state": {
+              "waiting": "En attente de la première mesure",
+              "not_shared": "Non partagé par le panneau",
+              "not_readable": "Le panneau ne peut pas le lire",
+              "not_on_wifi": "Non connecté en Wi-Fi",
+              "turned_off": "Désactivé",
+              "not_ready": "Pas prêt"
+            }
           }
         }
       },
       "diag_wifi_rssi": {
-        "name": "Puissance du signal Wi-Fi"
+        "name": "Puissance du signal Wi-Fi",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Raison",
+            "state": {
+              "waiting": "En attente de la première mesure",
+              "not_shared": "Non partagé par le panneau",
+              "not_readable": "Le panneau ne peut pas le lire",
+              "not_on_wifi": "Non connecté en Wi-Fi",
+              "turned_off": "Désactivé",
+              "not_ready": "Pas prêt"
+            }
+          }
+        }
       },
       "diag_wifi_ssid": {
-        "name": "Réseau Wi-Fi"
+        "name": "Réseau Wi-Fi",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Raison",
+            "state": {
+              "waiting": "En attente de la première mesure",
+              "not_shared": "Non partagé par le panneau",
+              "not_readable": "Le panneau ne peut pas le lire",
+              "not_on_wifi": "Non connecté en Wi-Fi",
+              "turned_off": "Désactivé",
+              "not_ready": "Pas prêt"
+            }
+          }
+        }
       },
       "humidity": {
-        "name": "Humidité"
+        "name": "Humidité",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Raison",
+            "state": {
+              "waiting": "En attente de la première mesure",
+              "not_shared": "Non partagé par le panneau",
+              "not_readable": "Le panneau ne peut pas le lire",
+              "not_on_wifi": "Non connecté en Wi-Fi",
+              "turned_off": "Désactivé",
+              "not_ready": "Pas prêt"
+            }
+          }
+        }
       },
       "illuminance": {
-        "name": "Éclairement"
+        "name": "Éclairement",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Raison",
+            "state": {
+              "waiting": "En attente de la première mesure",
+              "not_shared": "Non partagé par le panneau",
+              "not_readable": "Le panneau ne peut pas le lire",
+              "not_on_wifi": "Non connecté en Wi-Fi",
+              "turned_off": "Désactivé",
+              "not_ready": "Pas prêt"
+            }
+          }
+        }
       },
       "proximity_level": {
-        "name": "Niveau de proximité"
+        "name": "Niveau de proximité",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Raison",
+            "state": {
+              "waiting": "En attente de la première mesure",
+              "not_shared": "Non partagé par le panneau",
+              "not_readable": "Le panneau ne peut pas le lire",
+              "not_on_wifi": "Non connecté en Wi-Fi",
+              "turned_off": "Désactivé",
+              "not_ready": "Pas prêt"
+            }
+          }
+        }
       },
       "room_humidity": {
-        "name": "Humidité de la pièce"
+        "name": "Humidité de la pièce",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Raison",
+            "state": {
+              "waiting": "En attente de la première mesure",
+              "not_shared": "Non partagé par le panneau",
+              "not_readable": "Le panneau ne peut pas le lire",
+              "not_on_wifi": "Non connecté en Wi-Fi",
+              "turned_off": "Désactivé",
+              "not_ready": "Pas prêt"
+            }
+          }
+        }
       },
       "room_temp": {
-        "name": "Température de la pièce"
+        "name": "Température de la pièce",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Raison",
+            "state": {
+              "waiting": "En attente de la première mesure",
+              "not_shared": "Non partagé par le panneau",
+              "not_readable": "Le panneau ne peut pas le lire",
+              "not_on_wifi": "Non connecté en Wi-Fi",
+              "turned_off": "Désactivé",
+              "not_ready": "Pas prêt"
+            }
+          }
+        }
       },
       "storage_health": {
         "name": "État du stockage",
@@ -271,11 +438,35 @@
           },
           "wal_bytes": {
             "name": "Taille du journal de préécriture"
+          },
+          "unknown_reason": {
+            "name": "Raison",
+            "state": {
+              "waiting": "En attente de la première mesure",
+              "not_shared": "Non partagé par le panneau",
+              "not_readable": "Le panneau ne peut pas le lire",
+              "not_on_wifi": "Non connecté en Wi-Fi",
+              "turned_off": "Désactivé",
+              "not_ready": "Pas prêt"
+            }
           }
         }
       },
       "temperature": {
-        "name": "Température"
+        "name": "Température",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Raison",
+            "state": {
+              "waiting": "En attente de la première mesure",
+              "not_shared": "Non partagé par le panneau",
+              "not_readable": "Le panneau ne peut pas le lire",
+              "not_on_wifi": "Non connecté en Wi-Fi",
+              "turned_off": "Désactivé",
+              "not_ready": "Pas prêt"
+            }
+          }
+        }
       },
       "zigbee_gateway_health": {
         "name": "État de la passerelle Zigbee",
@@ -323,6 +514,17 @@
           },
           "role": {
             "name": "Rôle"
+          },
+          "unknown_reason": {
+            "name": "Raison",
+            "state": {
+              "waiting": "En attente de la première mesure",
+              "not_shared": "Non partagé par le panneau",
+              "not_readable": "Le panneau ne peut pas le lire",
+              "not_on_wifi": "Non connecté en Wi-Fi",
+              "turned_off": "Désactivé",
+              "not_ready": "Pas prêt"
+            }
           }
         }
       }
@@ -358,14 +560,51 @@
           },
           "source_count": {
             "name": "Sources"
+          },
+          "unknown_reason": {
+            "name": "Raison",
+            "state": {
+              "waiting": "En attente de la première mesure",
+              "not_shared": "Non partagé par le panneau",
+              "not_readable": "Le panneau ne peut pas le lire",
+              "not_on_wifi": "Non connecté en Wi-Fi",
+              "turned_off": "Désactivé",
+              "not_ready": "Pas prêt"
+            }
           }
         }
       },
       "usb_debugging": {
-        "name": "Débogage USB"
+        "name": "Débogage USB",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Raison",
+            "state": {
+              "waiting": "En attente de la première mesure",
+              "not_shared": "Non partagé par le panneau",
+              "not_readable": "Le panneau ne peut pas le lire",
+              "not_on_wifi": "Non connecté en Wi-Fi",
+              "turned_off": "Désactivé",
+              "not_ready": "Pas prêt"
+            }
+          }
+        }
       },
       "proximity": {
-        "name": "Proximité"
+        "name": "Proximité",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Raison",
+            "state": {
+              "waiting": "En attente de la première mesure",
+              "not_shared": "Non partagé par le panneau",
+              "not_readable": "Le panneau ne peut pas le lire",
+              "not_on_wifi": "Non connecté en Wi-Fi",
+              "turned_off": "Désactivé",
+              "not_ready": "Pas prêt"
+            }
+          }
+        }
       }
     },
     "button": {

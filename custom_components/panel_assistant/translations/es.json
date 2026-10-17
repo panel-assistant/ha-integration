@@ -168,48 +168,215 @@
         }
       },
       "diag_boot": {
-        "name": "Hora del último arranque"
+        "name": "Hora del último arranque",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Motivo",
+            "state": {
+              "waiting": "Esperando la primera lectura",
+              "not_shared": "El panel no lo comparte",
+              "not_readable": "El panel no puede leerlo",
+              "not_on_wifi": "No conectado por Wi-Fi",
+              "turned_off": "Desactivado",
+              "not_ready": "No está listo"
+            }
+          }
+        }
       },
       "diag_cpu": {
-        "name": "Uso de CPU"
+        "name": "Uso de CPU",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Motivo",
+            "state": {
+              "waiting": "Esperando la primera lectura",
+              "not_shared": "El panel no lo comparte",
+              "not_readable": "El panel no puede leerlo",
+              "not_on_wifi": "No conectado por Wi-Fi",
+              "turned_off": "Desactivado",
+              "not_ready": "No está listo"
+            }
+          }
+        }
       },
       "diag_ip": {
-        "name": "Dirección IP"
+        "name": "Dirección IP",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Motivo",
+            "state": {
+              "waiting": "Esperando la primera lectura",
+              "not_shared": "El panel no lo comparte",
+              "not_readable": "El panel no puede leerlo",
+              "not_on_wifi": "No conectado por Wi-Fi",
+              "turned_off": "Desactivado",
+              "not_ready": "No está listo"
+            }
+          }
+        }
       },
       "diag_memory": {
-        "name": "Uso de memoria"
+        "name": "Uso de memoria",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Motivo",
+            "state": {
+              "waiting": "Esperando la primera lectura",
+              "not_shared": "El panel no lo comparte",
+              "not_readable": "El panel no puede leerlo",
+              "not_on_wifi": "No conectado por Wi-Fi",
+              "turned_off": "Desactivado",
+              "not_ready": "No está listo"
+            }
+          }
+        }
       },
       "diag_soc_temp": {
-        "name": "Temperatura del SoC"
+        "name": "Temperatura del SoC",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Motivo",
+            "state": {
+              "waiting": "Esperando la primera lectura",
+              "not_shared": "El panel no lo comparte",
+              "not_readable": "El panel no puede leerlo",
+              "not_on_wifi": "No conectado por Wi-Fi",
+              "turned_off": "Desactivado",
+              "not_ready": "No está listo"
+            }
+          }
+        }
       },
       "diag_wifi_outages_24h": {
         "name": "Interrupciones de Wi-Fi (24 h)",
         "state_attributes": {
           "is_lower_bound": {
             "name": "Límite inferior"
+          },
+          "unknown_reason": {
+            "name": "Motivo",
+            "state": {
+              "waiting": "Esperando la primera lectura",
+              "not_shared": "El panel no lo comparte",
+              "not_readable": "El panel no puede leerlo",
+              "not_on_wifi": "No conectado por Wi-Fi",
+              "turned_off": "Desactivado",
+              "not_ready": "No está listo"
+            }
           }
         }
       },
       "diag_wifi_rssi": {
-        "name": "Intensidad de la señal Wi-Fi"
+        "name": "Intensidad de la señal Wi-Fi",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Motivo",
+            "state": {
+              "waiting": "Esperando la primera lectura",
+              "not_shared": "El panel no lo comparte",
+              "not_readable": "El panel no puede leerlo",
+              "not_on_wifi": "No conectado por Wi-Fi",
+              "turned_off": "Desactivado",
+              "not_ready": "No está listo"
+            }
+          }
+        }
       },
       "diag_wifi_ssid": {
-        "name": "Red Wi-Fi"
+        "name": "Red Wi-Fi",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Motivo",
+            "state": {
+              "waiting": "Esperando la primera lectura",
+              "not_shared": "El panel no lo comparte",
+              "not_readable": "El panel no puede leerlo",
+              "not_on_wifi": "No conectado por Wi-Fi",
+              "turned_off": "Desactivado",
+              "not_ready": "No está listo"
+            }
+          }
+        }
       },
       "humidity": {
-        "name": "Humedad"
+        "name": "Humedad",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Motivo",
+            "state": {
+              "waiting": "Esperando la primera lectura",
+              "not_shared": "El panel no lo comparte",
+              "not_readable": "El panel no puede leerlo",
+              "not_on_wifi": "No conectado por Wi-Fi",
+              "turned_off": "Desactivado",
+              "not_ready": "No está listo"
+            }
+          }
+        }
       },
       "illuminance": {
-        "name": "Iluminancia"
+        "name": "Iluminancia",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Motivo",
+            "state": {
+              "waiting": "Esperando la primera lectura",
+              "not_shared": "El panel no lo comparte",
+              "not_readable": "El panel no puede leerlo",
+              "not_on_wifi": "No conectado por Wi-Fi",
+              "turned_off": "Desactivado",
+              "not_ready": "No está listo"
+            }
+          }
+        }
       },
       "proximity_level": {
-        "name": "Nivel de proximidad"
+        "name": "Nivel de proximidad",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Motivo",
+            "state": {
+              "waiting": "Esperando la primera lectura",
+              "not_shared": "El panel no lo comparte",
+              "not_readable": "El panel no puede leerlo",
+              "not_on_wifi": "No conectado por Wi-Fi",
+              "turned_off": "Desactivado",
+              "not_ready": "No está listo"
+            }
+          }
+        }
       },
       "room_humidity": {
-        "name": "Humedad de la habitación"
+        "name": "Humedad de la habitación",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Motivo",
+            "state": {
+              "waiting": "Esperando la primera lectura",
+              "not_shared": "El panel no lo comparte",
+              "not_readable": "El panel no puede leerlo",
+              "not_on_wifi": "No conectado por Wi-Fi",
+              "turned_off": "Desactivado",
+              "not_ready": "No está listo"
+            }
+          }
+        }
       },
       "room_temp": {
-        "name": "Temperatura de la habitación"
+        "name": "Temperatura de la habitación",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Motivo",
+            "state": {
+              "waiting": "Esperando la primera lectura",
+              "not_shared": "El panel no lo comparte",
+              "not_readable": "El panel no puede leerlo",
+              "not_on_wifi": "No conectado por Wi-Fi",
+              "turned_off": "Desactivado",
+              "not_ready": "No está listo"
+            }
+          }
+        }
       },
       "storage_health": {
         "name": "Estado del almacenamiento",
@@ -271,11 +438,35 @@
           },
           "wal_bytes": {
             "name": "Tamaño del registro de escritura anticipada"
+          },
+          "unknown_reason": {
+            "name": "Motivo",
+            "state": {
+              "waiting": "Esperando la primera lectura",
+              "not_shared": "El panel no lo comparte",
+              "not_readable": "El panel no puede leerlo",
+              "not_on_wifi": "No conectado por Wi-Fi",
+              "turned_off": "Desactivado",
+              "not_ready": "No está listo"
+            }
           }
         }
       },
       "temperature": {
-        "name": "Temperatura"
+        "name": "Temperatura",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Motivo",
+            "state": {
+              "waiting": "Esperando la primera lectura",
+              "not_shared": "El panel no lo comparte",
+              "not_readable": "El panel no puede leerlo",
+              "not_on_wifi": "No conectado por Wi-Fi",
+              "turned_off": "Desactivado",
+              "not_ready": "No está listo"
+            }
+          }
+        }
       },
       "zigbee_gateway_health": {
         "name": "Estado de la pasarela Zigbee",
@@ -323,6 +514,17 @@
           },
           "role": {
             "name": "Rol"
+          },
+          "unknown_reason": {
+            "name": "Motivo",
+            "state": {
+              "waiting": "Esperando la primera lectura",
+              "not_shared": "El panel no lo comparte",
+              "not_readable": "El panel no puede leerlo",
+              "not_on_wifi": "No conectado por Wi-Fi",
+              "turned_off": "Desactivado",
+              "not_ready": "No está listo"
+            }
           }
         }
       }
@@ -358,14 +560,51 @@
           },
           "source_count": {
             "name": "Fuentes"
+          },
+          "unknown_reason": {
+            "name": "Motivo",
+            "state": {
+              "waiting": "Esperando la primera lectura",
+              "not_shared": "El panel no lo comparte",
+              "not_readable": "El panel no puede leerlo",
+              "not_on_wifi": "No conectado por Wi-Fi",
+              "turned_off": "Desactivado",
+              "not_ready": "No está listo"
+            }
           }
         }
       },
       "usb_debugging": {
-        "name": "Depuración USB"
+        "name": "Depuración USB",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Motivo",
+            "state": {
+              "waiting": "Esperando la primera lectura",
+              "not_shared": "El panel no lo comparte",
+              "not_readable": "El panel no puede leerlo",
+              "not_on_wifi": "No conectado por Wi-Fi",
+              "turned_off": "Desactivado",
+              "not_ready": "No está listo"
+            }
+          }
+        }
       },
       "proximity": {
-        "name": "Proximidad"
+        "name": "Proximidad",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Motivo",
+            "state": {
+              "waiting": "Esperando la primera lectura",
+              "not_shared": "El panel no lo comparte",
+              "not_readable": "El panel no puede leerlo",
+              "not_on_wifi": "No conectado por Wi-Fi",
+              "turned_off": "Desactivado",
+              "not_ready": "No está listo"
+            }
+          }
+        }
       }
     },
     "button": {

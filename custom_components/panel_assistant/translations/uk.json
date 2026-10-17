@@ -168,48 +168,215 @@
         "name": "Версія Panel Assistant"
       },
       "diag_boot": {
-        "name": "Час останнього завантаження"
+        "name": "Час останнього завантаження",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Причина",
+            "state": {
+              "waiting": "Очікування першого вимірювання",
+              "not_shared": "Панель не надає цих даних",
+              "not_readable": "Панель не може це зчитати",
+              "not_on_wifi": "Не підключено через Wi-Fi",
+              "turned_off": "Вимкнено",
+              "not_ready": "Не готово"
+            }
+          }
+        }
       },
       "diag_cpu": {
-        "name": "Використання CPU"
+        "name": "Використання CPU",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Причина",
+            "state": {
+              "waiting": "Очікування першого вимірювання",
+              "not_shared": "Панель не надає цих даних",
+              "not_readable": "Панель не може це зчитати",
+              "not_on_wifi": "Не підключено через Wi-Fi",
+              "turned_off": "Вимкнено",
+              "not_ready": "Не готово"
+            }
+          }
+        }
       },
       "diag_ip": {
-        "name": "IP-адреса"
+        "name": "IP-адреса",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Причина",
+            "state": {
+              "waiting": "Очікування першого вимірювання",
+              "not_shared": "Панель не надає цих даних",
+              "not_readable": "Панель не може це зчитати",
+              "not_on_wifi": "Не підключено через Wi-Fi",
+              "turned_off": "Вимкнено",
+              "not_ready": "Не готово"
+            }
+          }
+        }
       },
       "diag_memory": {
-        "name": "Використання пам’яті"
+        "name": "Використання пам’яті",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Причина",
+            "state": {
+              "waiting": "Очікування першого вимірювання",
+              "not_shared": "Панель не надає цих даних",
+              "not_readable": "Панель не може це зчитати",
+              "not_on_wifi": "Не підключено через Wi-Fi",
+              "turned_off": "Вимкнено",
+              "not_ready": "Не готово"
+            }
+          }
+        }
       },
       "diag_soc_temp": {
-        "name": "Температура SoC"
+        "name": "Температура SoC",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Причина",
+            "state": {
+              "waiting": "Очікування першого вимірювання",
+              "not_shared": "Панель не надає цих даних",
+              "not_readable": "Панель не може це зчитати",
+              "not_on_wifi": "Не підключено через Wi-Fi",
+              "turned_off": "Вимкнено",
+              "not_ready": "Не готово"
+            }
+          }
+        }
       },
       "diag_wifi_outages_24h": {
         "name": "Перебої Wi-Fi (24 год)",
         "state_attributes": {
           "is_lower_bound": {
             "name": "Нижня межа"
+          },
+          "unknown_reason": {
+            "name": "Причина",
+            "state": {
+              "waiting": "Очікування першого вимірювання",
+              "not_shared": "Панель не надає цих даних",
+              "not_readable": "Панель не може це зчитати",
+              "not_on_wifi": "Не підключено через Wi-Fi",
+              "turned_off": "Вимкнено",
+              "not_ready": "Не готово"
+            }
           }
         }
       },
       "diag_wifi_rssi": {
-        "name": "Потужність сигналу Wi-Fi"
+        "name": "Потужність сигналу Wi-Fi",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Причина",
+            "state": {
+              "waiting": "Очікування першого вимірювання",
+              "not_shared": "Панель не надає цих даних",
+              "not_readable": "Панель не може це зчитати",
+              "not_on_wifi": "Не підключено через Wi-Fi",
+              "turned_off": "Вимкнено",
+              "not_ready": "Не готово"
+            }
+          }
+        }
       },
       "diag_wifi_ssid": {
-        "name": "Мережа Wi-Fi"
+        "name": "Мережа Wi-Fi",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Причина",
+            "state": {
+              "waiting": "Очікування першого вимірювання",
+              "not_shared": "Панель не надає цих даних",
+              "not_readable": "Панель не може це зчитати",
+              "not_on_wifi": "Не підключено через Wi-Fi",
+              "turned_off": "Вимкнено",
+              "not_ready": "Не готово"
+            }
+          }
+        }
       },
       "humidity": {
-        "name": "Вологість"
+        "name": "Вологість",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Причина",
+            "state": {
+              "waiting": "Очікування першого вимірювання",
+              "not_shared": "Панель не надає цих даних",
+              "not_readable": "Панель не може це зчитати",
+              "not_on_wifi": "Не підключено через Wi-Fi",
+              "turned_off": "Вимкнено",
+              "not_ready": "Не готово"
+            }
+          }
+        }
       },
       "illuminance": {
-        "name": "Освітленість"
+        "name": "Освітленість",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Причина",
+            "state": {
+              "waiting": "Очікування першого вимірювання",
+              "not_shared": "Панель не надає цих даних",
+              "not_readable": "Панель не може це зчитати",
+              "not_on_wifi": "Не підключено через Wi-Fi",
+              "turned_off": "Вимкнено",
+              "not_ready": "Не готово"
+            }
+          }
+        }
       },
       "proximity_level": {
-        "name": "Рівень наближення"
+        "name": "Рівень наближення",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Причина",
+            "state": {
+              "waiting": "Очікування першого вимірювання",
+              "not_shared": "Панель не надає цих даних",
+              "not_readable": "Панель не може це зчитати",
+              "not_on_wifi": "Не підключено через Wi-Fi",
+              "turned_off": "Вимкнено",
+              "not_ready": "Не готово"
+            }
+          }
+        }
       },
       "room_humidity": {
-        "name": "Вологість у кімнаті"
+        "name": "Вологість у кімнаті",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Причина",
+            "state": {
+              "waiting": "Очікування першого вимірювання",
+              "not_shared": "Панель не надає цих даних",
+              "not_readable": "Панель не може це зчитати",
+              "not_on_wifi": "Не підключено через Wi-Fi",
+              "turned_off": "Вимкнено",
+              "not_ready": "Не готово"
+            }
+          }
+        }
       },
       "room_temp": {
-        "name": "Температура в кімнаті"
+        "name": "Температура в кімнаті",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Причина",
+            "state": {
+              "waiting": "Очікування першого вимірювання",
+              "not_shared": "Панель не надає цих даних",
+              "not_readable": "Панель не може це зчитати",
+              "not_on_wifi": "Не підключено через Wi-Fi",
+              "turned_off": "Вимкнено",
+              "not_ready": "Не готово"
+            }
+          }
+        }
       },
       "storage_health": {
         "name": "Стан сховища",
@@ -271,11 +438,35 @@
           },
           "wal_bytes": {
             "name": "Розмір журналу випереджального запису"
+          },
+          "unknown_reason": {
+            "name": "Причина",
+            "state": {
+              "waiting": "Очікування першого вимірювання",
+              "not_shared": "Панель не надає цих даних",
+              "not_readable": "Панель не може це зчитати",
+              "not_on_wifi": "Не підключено через Wi-Fi",
+              "turned_off": "Вимкнено",
+              "not_ready": "Не готово"
+            }
           }
         }
       },
       "temperature": {
-        "name": "Температура"
+        "name": "Температура",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Причина",
+            "state": {
+              "waiting": "Очікування першого вимірювання",
+              "not_shared": "Панель не надає цих даних",
+              "not_readable": "Панель не може це зчитати",
+              "not_on_wifi": "Не підключено через Wi-Fi",
+              "turned_off": "Вимкнено",
+              "not_ready": "Не готово"
+            }
+          }
+        }
       },
       "zigbee_gateway_health": {
         "name": "Стан шлюзу Zigbee",
@@ -323,6 +514,17 @@
           },
           "role": {
             "name": "Роль"
+          },
+          "unknown_reason": {
+            "name": "Причина",
+            "state": {
+              "waiting": "Очікування першого вимірювання",
+              "not_shared": "Панель не надає цих даних",
+              "not_readable": "Панель не може це зчитати",
+              "not_on_wifi": "Не підключено через Wi-Fi",
+              "turned_off": "Вимкнено",
+              "not_ready": "Не готово"
+            }
           }
         }
       }
@@ -353,14 +555,51 @@
           },
           "source_count": {
             "name": "Джерела"
+          },
+          "unknown_reason": {
+            "name": "Причина",
+            "state": {
+              "waiting": "Очікування першого вимірювання",
+              "not_shared": "Панель не надає цих даних",
+              "not_readable": "Панель не може це зчитати",
+              "not_on_wifi": "Не підключено через Wi-Fi",
+              "turned_off": "Вимкнено",
+              "not_ready": "Не готово"
+            }
           }
         }
       },
       "usb_debugging": {
-        "name": "Налагодження USB"
+        "name": "Налагодження USB",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Причина",
+            "state": {
+              "waiting": "Очікування першого вимірювання",
+              "not_shared": "Панель не надає цих даних",
+              "not_readable": "Панель не може це зчитати",
+              "not_on_wifi": "Не підключено через Wi-Fi",
+              "turned_off": "Вимкнено",
+              "not_ready": "Не готово"
+            }
+          }
+        }
       },
       "proximity": {
-        "name": "Наближення"
+        "name": "Наближення",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Причина",
+            "state": {
+              "waiting": "Очікування першого вимірювання",
+              "not_shared": "Панель не надає цих даних",
+              "not_readable": "Панель не може це зчитати",
+              "not_on_wifi": "Не підключено через Wi-Fi",
+              "turned_off": "Вимкнено",
+              "not_ready": "Не готово"
+            }
+          }
+        }
       }
     },
     "button": {

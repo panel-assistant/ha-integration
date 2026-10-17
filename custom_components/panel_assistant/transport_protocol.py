@@ -55,6 +55,9 @@ CAPABILITY_UI_SUBSCRIBE: Final = "ui_subscribe"
 # A panel that offers this uploads its page bundle on request, so the sidebar
 # shows it with no route to the panel's address (see ``ui_relay.py``).
 CAPABILITY_UI_BUNDLE: Final = "ui_bundle"
+# A panel that offers this may send a sensor with no reading as state
+# ``unknown`` with a ``reason`` code; without the grant it sends ``unavailable``.
+CAPABILITY_UNKNOWN_STATE: Final = "unknown_state"
 # Never granted here: ``rest_retired`` lets a panel close its REST routes, and
 # Panel Assistant still calls some of them.
 KNOWN_CAPABILITIES: Final = frozenset(
@@ -69,6 +72,7 @@ KNOWN_CAPABILITIES: Final = frozenset(
         CAPABILITY_MANAGEMENT,
         CAPABILITY_UI_SUBSCRIBE,
         CAPABILITY_UI_BUNDLE,
+        CAPABILITY_UNKNOWN_STATE,
     }
 )
 # Session end reasons sent in a ``session_closed`` event.
@@ -163,6 +167,8 @@ SYNC_DELTA: Final = "delta"
 SYNC_FULL_END: Final = "full_end"
 STATE_KNOWN: Final = "known"
 STATE_UNAVAILABLE: Final = "unavailable"
+# A sensor the panel serves but has no reading for, with a ``reason`` code.
+STATE_UNKNOWN: Final = "unknown"
 
 _CHANNEL_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,47}$")
 _CODE_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
@@ -413,6 +419,8 @@ HELLO_SCHEMA: Final = vol.Schema(
 def _observation_consistent(observation: dict[str, Any]) -> dict[str, Any]:
     if observation["state"] == STATE_KNOWN and "value" not in observation:
         raise vol.Invalid("a known observation needs a value")
+    if (observation["state"] == STATE_UNKNOWN) != ("reason" in observation):
+        raise vol.Invalid("an unknown observation, and only one, carries a reason")
     return observation
 
 
@@ -420,8 +428,10 @@ OBSERVATION_SCHEMA: Final = vol.All(
     vol.Schema(
         {
             vol.Required("channel"): _channel,
-            # "unknown" is never sent: it would change meaning, so it fails.
-            vol.Required("state"): vol.In((STATE_KNOWN, STATE_UNAVAILABLE)),
+            vol.Required("state"): vol.In(
+                (STATE_KNOWN, STATE_UNAVAILABLE, STATE_UNKNOWN)
+            ),
+            vol.Optional("reason"): _code,
             vol.Optional("value"): object,
             vol.Optional("attributes"): object,
             vol.Optional("refresh", default=False): _strict_bool,

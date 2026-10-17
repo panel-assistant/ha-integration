@@ -87,6 +87,8 @@ class Observation:
     attributes: dict[str, Any]
     refresh: bool
     received_at: datetime
+    # Why an ``unknown`` observation has no value; None for every other state.
+    reason: str | None = None
 
 
 @dataclass(slots=True)

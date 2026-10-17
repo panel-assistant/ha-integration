@@ -131,7 +131,8 @@
           "management",
           "ui_subscribe",
           "ui_bundle",
-          "rest_retired"
+          "rest_retired",
+          "unknown_state"
         ],
         "unsupported": [
           "camera_snapshot",
@@ -161,7 +162,7 @@
           "family": "relay",
           "force_update": false
         }],
-        "contract_digest": "6f1323498d65ea4d46cd1b810107d5a93474326045e0bcb4a20672eeb94ff05f",
+        "contract_digest": "36a0c4c8b3135c74f89d16444ba61cacaa0d7ab3752b4b1fe42a7166b8032f61",
         "id": 1,
         "type": "panel_assistant/hello",
         "did": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
@@ -171,11 +172,18 @@
       "name": "report_state",
       "message": {
         "session": "fixture-session",
-        "observations": [{
-          "channel": "relay1",
-          "state": "known",
-          "value": true
-        }],
+        "observations": [
+          {
+            "channel": "relay1",
+            "state": "known",
+            "value": true
+          },
+          {
+            "channel": "illuminance",
+            "state": "unknown",
+            "reason": "waiting"
+          }
+        ],
         "id": 2,
         "type": "panel_assistant/report_state",
         "sync": "delta"
@@ -215,7 +223,7 @@
       }
     }
   ],
-  "sourceRevision": "a77c8f291aba4833bdf07e5456bf69102e6816d6",
+  "sourceRevision": "0a3afceff878174712254d28e5761df9e3566916",
   "channelDescriptors": [
     {
       "entity_category": null,
