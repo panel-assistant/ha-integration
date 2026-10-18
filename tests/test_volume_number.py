@@ -213,8 +213,8 @@ async def test_removal_waits_for_start_so_a_device_action_is_still_named(
     hass_read_only_access_token: str,
 ) -> None:
     """A panel may say hello before automations load on the upgrade restart."""
-    device = dr.async_get(hass).async_get_device(
-        identifiers={(DOMAIN, native.entry_id)}
+    device = dr.async_get(hass).async_get_device_by_identifier(
+        (DOMAIN, native.entry_id), native.entry_id
     )
     assert device is not None
     registry = er.async_get(hass)
