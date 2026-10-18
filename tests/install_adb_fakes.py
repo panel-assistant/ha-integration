@@ -9,12 +9,14 @@ sent.
 from __future__ import annotations
 
 import hashlib
+import re
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 from typing import Any
 
 import pytest
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
+from adb_shell.exceptions import AdbConnectionError, AdbTimeoutError
 
 from custom_components.panel_assistant import adb_protocol, app_identity, install_adb
 from custom_components.panel_assistant.adb_protocol import AdbInstallTarget
@@ -279,13 +281,14 @@ def _remote_output(
     size: int = len(APK_BYTES),
     sha256: str = APK_SHA256,
     mode: str = "81a4",
+    path: str = REMOTE_PATH,
 ) -> bytes:
     prefix = "ARTIFACT"
     lines = [f"HAPANELD_{prefix}_BEGIN:{nonce}"]
     lines.extend(_section(prefix, "CHMOD", nonce, [], 0))
     lines.extend(_section(prefix, "MODE", nonce, [mode], 0))
     lines.extend(_section(prefix, "SIZE", nonce, [str(size)], 0))
-    lines.extend(_section(prefix, "SHA", nonce, [f"{sha256}  {REMOTE_PATH}"], 0))
+    lines.extend(_section(prefix, "SHA", nonce, [f"{sha256}  {path}"], 0))
     lines.append(f"HAPANELD_{prefix}_END:{nonce}")
     return ("\n".join(lines) + "\n").encode()
 
@@ -393,3 +396,101 @@ def _install_update_fake(monkeypatch: pytest.MonkeyPatch, fake: FakeDevice) -> N
     _install_fakes(monkeypatch, [fake])
     nonces = iter((JOB_ID, *NONCES))
     monkeypatch.setattr(install_adb, "token_hex", lambda _length: next(nonces))
+
+
+_COMMAND_FRAME = re.compile(r"HAPANELD_([A-Z]+)_BEGIN:([0-9a-f]{32})")
+_STAGE_PATH = re.compile(r"/data/local/tmp/ha-paneld-install-[0-9a-f]{32}\.apk")
+
+
+class FakePanel:
+    """One panel whose files outlive every ADB connection made to it.
+
+    Each connection answers the framed commands from the panel's state, so
+    what a later job finds in the staging slot is what an earlier job left
+    there. ``stall_next_push`` stops the next copy part-way, as a slow link
+    does, and, unless ``drop_link_on_stall`` is cleared, leaves the panel unreachable
+    until ``reachable`` is set again.
+    """
+
+    def __init__(self) -> None:
+        self.files: dict[str, bytes] = {}
+        self.installed: bytes | None = None
+        self.reachable = True
+        self.stall_next_push = False
+        self.drop_link_on_stall = True
+        self.commands: list[str] = []
+
+    def install(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            adb_protocol, "AdbDeviceAsync", lambda *_args, **_kwargs: _Link(self)
+        )
+
+    def answer(self, command: str) -> bytes:
+        self.commands.append(command)
+        frame = _COMMAND_FRAME.search(command)
+        assert frame is not None, command
+        prefix, nonce = frame.groups()
+        path_match = _STAGE_PATH.search(command)
+        path = path_match.group(0) if path_match else ""
+        if prefix == "PREFLIGHT":
+            return _preflight_output(nonce)
+        if prefix == "POSTURE":
+            return _identity_root_output(nonce)
+        if prefix == "PATH":
+            state = "present" if path in self.files else "absent"
+            return _single_output("PATH", nonce, [state], 0)
+        if prefix == "CLEANUP":
+            self.files.pop(path, None)
+            return _cleanup_output(nonce)
+        if prefix == "ARTIFACT":
+            body = self.files[path]
+            return _remote_output(
+                nonce,
+                size=len(body),
+                sha256=hashlib.sha256(body).hexdigest(),
+                path=path,
+            )
+        if prefix == "INSTALL":
+            self.installed = self.files[path]
+            return _single_output("INSTALL", nonce, ["Success"], 0)
+        raise AssertionError(f"unexpected command {command}")
+
+
+def _read_source(local_path: str) -> bytes:
+    """Read the caller's open APK through its ``/proc/self/fd`` path."""
+    return Path(local_path).read_bytes()
+
+
+class _Link:
+    """One ADB connection to a ``FakePanel``."""
+
+    _maxdata = 64 * 1024
+
+    def __init__(self, panel: FakePanel) -> None:
+        self._panel = panel
+
+    async def connect(self, **_kwargs: Any) -> bool:
+        if not self._panel.reachable:
+            raise AdbConnectionError("no route to the panel")
+        return True
+
+    async def streaming_shell(
+        self, command: str, **_kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        if not self._panel.reachable:
+            raise AdbConnectionError("connection lost")
+        yield self._panel.answer(command)
+
+    async def push(self, local_path: str, device_path: str, **_kwargs: Any) -> None:
+        if not self._panel.reachable:
+            raise AdbConnectionError("connection lost")
+        body = _read_source(local_path)
+        if self._panel.stall_next_push:
+            self._panel.stall_next_push = False
+            self._panel.files[device_path] = body[: len(body) // 2]
+            self._panel.reachable = not self._panel.drop_link_on_stall
+            raise AdbTimeoutError("no reply while copying")
+        self._panel.files[device_path] = body
+
+    async def close(self) -> None:
+        return None

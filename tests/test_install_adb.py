@@ -1454,19 +1454,27 @@ def test_open_verified_apk_rejects_oversize_before_a_second_read(
     assert read_calls == 1
 
 
-async def test_preexisting_fixed_staging_path_is_refused_before_filesync(
+async def test_a_slot_file_that_will_not_go_is_refused_before_filesync(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     signer: PythonRSASigner,
     target: AdbInstallTarget,
     descriptor: InstallDescriptor,
 ) -> None:
+    """A leftover is removed first; one that stays is refused, never written over."""
     apk = tmp_path / "artifact.apk"
     _write_private_apk(apk)
+    still_there = _cleanup_output(NONCES[2]).replace(
+        b"\nabsent\nHAPANELD_CLEANUP_STATE_END",
+        b"\npresent\nHAPANELD_CLEANUP_STATE_END",
+    )
     fake = FakeDevice(
         [
             _preflight_output(NONCES[0]),
             _single_output("PATH", NONCES[1], ["present"], 0),
+            still_there,
+            # Answers a copy that must never be made.
+            _remote_output(NONCES[3]),
         ]
     )
     _install_fakes(monkeypatch, [fake])
@@ -1481,16 +1489,18 @@ async def test_preexisting_fixed_staging_path_is_refused_before_filesync(
             expected_root_mode=AdbRootMode.ROOTLESS,
         )
     assert caught.value.code is InstallAdbErrorCode.STAGING_PATH_OCCUPIED
+    assert f"rm -f {REMOTE_PATH}" in fake.commands[2]
     assert fake.pushes == []
 
 
-async def test_interrupted_filesync_is_an_ambiguous_staging_mutation(
+async def test_interrupted_filesync_is_a_retryable_interrupted_stage(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     signer: PythonRSASigner,
     target: AdbInstallTarget,
     descriptor: InstallDescriptor,
 ) -> None:
+    """A copy that stops is reported as interrupted even when the panel stays away."""
     apk = tmp_path / "artifact.apk"
     _write_private_apk(apk)
     fake = FakeDevice(
@@ -1500,7 +1510,8 @@ async def test_interrupted_filesync_is_an_ambiguous_staging_mutation(
         ],
         push_error=AdbConnectionError("EOF during push"),
     )
-    _install_fakes(monkeypatch, [fake])
+    unreachable = FakeDevice([], connect_error=AdbConnectionError("no route"))
+    _install_fakes(monkeypatch, [fake, unreachable])
 
     with pytest.raises(InstallAdbError) as caught:
         await async_stage_apk(
@@ -1511,8 +1522,9 @@ async def test_interrupted_filesync_is_an_ambiguous_staging_mutation(
             apk,
             expected_root_mode=AdbRootMode.ROOTLESS,
         )
-    assert caught.value.code is InstallAdbErrorCode.STAGE_AMBIGUOUS
+    assert caught.value.code is InstallAdbErrorCode.STAGE_INTERRUPTED
     assert len(fake.pushes) == 1
+    assert unreachable.connect_kwargs is not None
 
 
 async def test_local_hash_mismatch_never_connects_or_pushes(
@@ -1749,6 +1761,7 @@ async def test_cancellation_before_stage_task_starts_opens_no_apk(
         _remote_output(NONCES[2], sha256="f" * 64),
         _remote_output(NONCES[2], mode="81ed"),
     ],
+    ids=["size", "sha256", "mode"],
 )
 async def test_remote_size_hash_or_mode_mismatch_never_reports_staged(
     monkeypatch: pytest.MonkeyPatch,
@@ -1767,7 +1780,8 @@ async def test_remote_size_hash_or_mode_mismatch_never_reports_staged(
             remote,
         ]
     )
-    _install_fakes(monkeypatch, [fake])
+    cleanup = FakeDevice([_identity_root_output(NONCES[3]), _cleanup_output(NONCES[4])])
+    _install_fakes(monkeypatch, [fake, cleanup])
 
     with pytest.raises(InstallAdbError) as caught:
         await async_stage_apk(
@@ -1780,6 +1794,11 @@ async def test_remote_size_hash_or_mode_mismatch_never_reports_staged(
         )
     assert caught.value.code is InstallAdbErrorCode.STAGE_VERIFICATION_FAILED
     assert len(fake.pushes) == 1
+    # The wrong bytes are removed over a fresh connection, after the panel's
+    # identity is proved again, before reporting.
+    assert len(cleanup.commands) == 2
+    assert "HAPANELD_POSTURE_BEGIN" in cleanup.commands[0]
+    assert f"rm -f {REMOTE_PATH}" in cleanup.commands[1]
 
 
 @pytest.mark.parametrize(

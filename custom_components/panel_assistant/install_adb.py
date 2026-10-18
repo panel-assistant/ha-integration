@@ -674,6 +674,48 @@ async def _async_installed_artifact_size_on_device(
     return size
 
 
+async def _async_clear_interrupted_stage(
+    target: AdbInstallTarget,
+    signer: PythonRSASigner,
+    root_mode: AdbRootMode,
+    remote_path: str,
+    *,
+    device: AdbDeviceAsync | None = None,
+) -> None:
+    """Try once to remove this integration's own stage before any install ran.
+
+    Best effort: a link that stalled usually stays down, and the next stage
+    removes the file anyway. Without ``device`` a fresh connection is made and
+    closed here.
+    """
+    connection = device
+    try:
+        async with asyncio.timeout(_CLEANUP_TIMEOUT_SECONDS):
+            if connection is None:
+                connection = await _async_connect(target, signer)
+            await _async_require_identity_root(connection, target, root_mode)
+            nonce = token_hex(16)
+            _parse_cleanup(
+                await _async_shell(
+                    connection,
+                    _cleanup_command(nonce, remote_path),
+                    read_timeout=_READ_TIMEOUT_SECONDS,
+                ),
+                nonce,
+            )
+    except (
+        InstallAdbError,
+        TimeoutError,
+        _MalformedAdbResponse,
+        _UnsafeAdbPacket,
+        *_ADB_EXCEPTIONS,
+    ):
+        _LOGGER.warning("Could not clear an interrupted ADB stage")
+    finally:
+        if device is None:
+            await _async_close(connection)
+
+
 async def async_stage_apk(
     target: AdbInstallTarget,
     signer: PythonRSASigner,
@@ -708,7 +750,28 @@ async def async_stage_apk(
                 nonce,
             )
             if occupied:
-                raise InstallAdbError(InstallAdbErrorCode.STAGING_PATH_OCCUPIED)
+                # Only this integration writes its staging slot, and nothing in
+                # it is installed before its size and hash are checked, so an
+                # earlier attempt's leftover is removed rather than refused:
+                # refusing it locked the panel out of every later install.
+                _LOGGER.warning(
+                    "Removing a staged APK an earlier install left on %s",
+                    target.address.host,
+                )
+                nonce = token_hex(16)
+                try:
+                    _parse_cleanup(
+                        await _async_shell(
+                            device,
+                            _cleanup_command(nonce, remote_path),
+                            read_timeout=_READ_TIMEOUT_SECONDS,
+                        ),
+                        nonce,
+                    )
+                except _MalformedAdbResponse:
+                    raise InstallAdbError(
+                        InstallAdbErrorCode.STAGING_PATH_OCCUPIED
+                    ) from None
             _validate_filesync_maxdata(device)
             mutation_started = True
             await device.push(
@@ -732,6 +795,12 @@ async def async_stage_apk(
                 apk_sha256=descriptor.apk_sha256,
             )
     except InstallAdbError:
+        if mutation_started:
+            await _async_close(device)
+            device = None
+            await _async_clear_interrupted_stage(
+                target, signer, expected_root_mode, remote_path
+            )
         raise
     except (
         TimeoutError,
@@ -739,12 +808,17 @@ async def async_stage_apk(
         _UnsafeAdbPacket,
         *_ADB_EXCEPTIONS,
     ):
-        code = (
-            InstallAdbErrorCode.STAGE_AMBIGUOUS
-            if mutation_started
-            else InstallAdbErrorCode.TARGET_UNREACHABLE
+        if not mutation_started:
+            raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE) from None
+        # The copy stopped. Nothing was installed, so this is a connection
+        # failure the owner can retry; the stalled link is dropped and the
+        # panel asked once more to remove the partial file.
+        await _async_close(device)
+        device = None
+        await _async_clear_interrupted_stage(
+            target, signer, expected_root_mode, remote_path
         )
-        raise InstallAdbError(code) from None
+        raise InstallAdbError(InstallAdbErrorCode.STAGE_INTERRUPTED) from None
     finally:
         try:
             await _async_close(device)
@@ -930,29 +1004,10 @@ async def async_update_installed_apk(
             # Before package mutation, the random path is ours to remove. Once
             # pm install starts, an unknown outcome may still be reading it.
             if stage_started and not install_started and device is not None:
-                try:
-                    assert admitted_root_mode is not None
-                    async with asyncio.timeout(_CLEANUP_TIMEOUT_SECONDS):
-                        await _async_require_identity_root(
-                            device, target, admitted_root_mode
-                        )
-                        nonce = token_hex(16)
-                        _parse_cleanup(
-                            await _async_shell(
-                                device,
-                                _cleanup_command(nonce, remote_path),
-                                read_timeout=_READ_TIMEOUT_SECONDS,
-                            ),
-                            nonce,
-                        )
-                except (
-                    InstallAdbError,
-                    TimeoutError,
-                    _MalformedAdbResponse,
-                    _UnsafeAdbPacket,
-                    *_ADB_EXCEPTIONS,
-                ):
-                    _LOGGER.warning("Could not clear an interrupted ADB update stage")
+                assert admitted_root_mode is not None
+                await _async_clear_interrupted_stage(
+                    target, signer, admitted_root_mode, remote_path, device=device
+                )
             await _async_close(device)
         finally:
             os.close(file_descriptor)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
@@ -13,7 +13,11 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from homeassistant.core import HomeAssistant
 
-from custom_components.panel_assistant import install_executor, install_jobs
+from custom_components.panel_assistant import (
+    install_adb,
+    install_executor,
+    install_jobs,
+)
 from custom_components.panel_assistant.adb_protocol import (
     AdbInstallTarget,
     AdbRootMode,
@@ -42,6 +46,9 @@ from custom_components.panel_assistant.install_executor import (
     async_get_install_executor,
 )
 from custom_components.panel_assistant.install_jobs import (
+    InstallArtifact as InstallJobArtifact,
+)
+from custom_components.panel_assistant.install_jobs import (
     InstallJobManager,
     InstallJobReceipt,
     InstallJobRevisionError,
@@ -58,6 +65,7 @@ from custom_components.panel_assistant.install_network import (
 )
 from custom_components.panel_assistant.release import InstallDescriptor, ReleaseArtifact
 
+from .install_adb_fakes import FakePanel
 from .install_executor_harness import (  # noqa: F401 - the store fixture is autouse
     APK_SHA256,
     CREDENTIAL_ID,
@@ -1407,9 +1415,9 @@ async def test_resumed_artifact_failure_keeps_its_internal_code_and_source_stage
         ),
         (
             "stage",
-            InstallAdbErrorCode.STAGE_AMBIGUOUS,
-            InstallPhase.RECOVERY_REQUIRED,
-            InstallResultCode.AMBIGUOUS_MUTATION,
+            InstallAdbErrorCode.STAGE_INTERRUPTED,
+            InstallPhase.FAILED,
+            InstallResultCode.TRANSPORT_FAILED,
             InstallPhase.STAGING,
         ),
         (
@@ -1688,23 +1696,15 @@ async def test_incomplete_remote_cleanup_quarantines_instead_of_launching(
     assert completed.result_code is result
 
 
-@pytest.mark.parametrize(
-    "stage_error",
-    [
-        InstallAdbError(InstallAdbErrorCode.STAGE_AMBIGUOUS),
-        InstallAdbError(InstallAdbErrorCode.STAGE_VERIFICATION_FAILED),
-    ],
-)
-async def test_ambiguous_stage_is_quarantined_without_remote_cleanup(
+async def test_unverified_stage_is_quarantined_without_remote_cleanup(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
-    stage_error: InstallAdbError,
 ) -> None:
-    """A push that might have started is never followed by an unsafe rm guess."""
+    """A complete copy with the wrong bytes is not retried by the executor."""
     manager = InstallJobManager(hass)
     receipt = await create_job(manager)
     harness = Harness(monkeypatch)
-    harness.stage_error = stage_error
+    harness.stage_error = InstallAdbError(InstallAdbErrorCode.STAGE_VERIFICATION_FAILED)
 
     completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
 
@@ -1732,39 +1732,77 @@ async def test_definite_pre_push_stage_refusal_cleans_local_and_fails(
     assert completed.result_code is InstallResultCode.ARTIFACT_REJECTED
 
 
-async def test_repeated_jobs_share_one_non_overwriting_device_local_stage_slot(
-    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """An ambiguous stage can leave at most one path and blocks its replacement."""
-    manager = InstallJobManager(hass)
-    first_receipt = await create_job(manager)
+def _stage_on(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> tuple[Harness, FakePanel, InstallJobArtifact, bytes]:
+    """Run the real ADB staging, install and cleanup against one fake panel."""
+    body = bytes(range(256)) * 48
+    selected = replace(
+        artifact(), apk_sha256=sha256(body).hexdigest(), apk_size=len(body)
+    )
     harness = Harness(monkeypatch)
-    harness.stage_error = InstallAdbError(InstallAdbErrorCode.STAGE_AMBIGUOUS)
+    harness.local_apk = (tmp_path, body)
+    for name in (
+        "async_stage_apk",
+        "async_install_staged_apk",
+        "async_cleanup_staged_apk",
+    ):
+        monkeypatch.setattr(install_executor, name, getattr(install_adb, name))
+    panel = FakePanel()
+    panel.install(monkeypatch)
+    return harness, panel, selected, body
 
+
+_SLOT = (
+    f"/data/local/tmp/ha-paneld-install-{install_executor._REMOTE_STAGING_SLOT_ID}.apk"
+)
+
+
+async def test_a_copy_that_stalls_does_not_lock_the_panel_out_of_a_retry(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A copy that stops part-way is a retryable failure, and the retry installs.
+
+    The link stays down after the stall, so the partial copy is still on the
+    panel when the owner tries again with the same address.
+    """
+    _harness, panel, selected, body = _stage_on(monkeypatch, tmp_path)
+    manager = InstallJobManager(hass)
+    panel.stall_next_push = True
+
+    first_receipt = await create_job(manager, selected)
     first = await InstallExecutor(hass, manager).async_wait(first_receipt.job_id)
-    second_receipt = await create_job(manager)
-    harness.stage_error = InstallAdbError(InstallAdbErrorCode.STAGING_PATH_OCCUPIED)
+
+    assert first.phase is InstallPhase.FAILED
+    assert first.result_code is InstallResultCode.TRANSPORT_FAILED
+    assert panel.installed is None
+    assert 0 < len(panel.files[_SLOT]) < len(body)
+
+    panel.reachable = True
+    second_receipt = await create_job(manager, selected)
     second = await InstallExecutor(hass, manager).async_wait(second_receipt.job_id)
 
-    assert first_receipt.job_id != second_receipt.job_id
-    assert install_executor._execution_id(
-        first_receipt
-    ) != install_executor._execution_id(second_receipt)
-    assert [arguments[3] for arguments in harness.stage_arguments] == [
-        install_executor._REMOTE_STAGING_SLOT_ID,
-        install_executor._REMOTE_STAGING_SLOT_ID,
-    ]
-    assert all(
-        arguments[3] != install_executor._execution_id(receipt)
-        for arguments, receipt in zip(
-            harness.stage_arguments, (first_receipt, second_receipt), strict=True
-        )
-    )
-    assert not any(event.startswith("remote_cleanup:") for event in harness.events)
-    assert first.phase is InstallPhase.RECOVERY_REQUIRED
-    assert first.result_code is InstallResultCode.AMBIGUOUS_MUTATION
-    assert second.phase is InstallPhase.FAILED
-    assert second.result_code is InstallResultCode.ARTIFACT_REJECTED
+    assert second.phase is InstallPhase.HEALTHY_UNCLAIMED
+    assert panel.installed == body
+    assert panel.files == {}
+
+
+async def test_a_stalled_copy_is_removed_when_the_panel_still_answers(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """After a stall the panel is asked once more, and its partial copy goes."""
+    _harness, panel, _selected, _body = _stage_on(monkeypatch, tmp_path)
+    manager = InstallJobManager(hass)
+    panel.stall_next_push = True
+    panel.drop_link_on_stall = False
+
+    receipt = await create_job(manager, _selected)
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert completed.phase is InstallPhase.FAILED
+    assert completed.result_code is InstallResultCode.TRANSPORT_FAILED
+    assert panel.installed is None
+    assert panel.files == {}
 
 
 async def test_mismatched_staged_receipt_purges_local_but_never_guesses_remote(
