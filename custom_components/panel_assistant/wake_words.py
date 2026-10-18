@@ -62,7 +62,7 @@ MAX_MANIFEST_BYTES: Final = 16 * 1024
 MAX_MODEL_BYTES: Final = 2 * 1024 * 1024
 WAKE_WORD_ID: Final = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 # Earlier copies a newer model of the same name may replace on a panel.
-MAX_EARLIER: Final = 8
+MAX_EARLIER: Final = 32
 ISSUE_PREFIX: Final = "wake_word"
 ISSUE_KEPT: Final = "wake_word_kept"
 ISSUE_REFUSED: Final = "wake_word_refused"
@@ -101,9 +101,9 @@ class SharedWakeWords:
         # Entries converging now, and those asked again meanwhile.
         self._running: set[str] = set()
         self._again: set[str] = set()
-        # Per entry, the session tried and the models it did not take: each
+        # Per entry, the session tried and the (id, SHA-256) it sent: each
         # session gets one attempt per model.
-        self._tried: dict[str, tuple[PanelSession, set[str]]] = {}
+        self._tried: dict[str, tuple[PanelSession, set[tuple[str, str]]]] = {}
 
     async def _async_words(self) -> dict[str, SharedWakeWord]:
         async with self._load_lock:
@@ -125,15 +125,18 @@ class SharedWakeWords:
                         self._words[word.id] = word
             return self._words
 
-    def _model_path(self, wake_word_id: str) -> Path:
-        return self._models / f"{wake_word_id}.tflite"
+    def _model_path(self, sha256: str) -> Path:
+        # Named by content: a file and the index entry that names it can never
+        # disagree, whatever a crash or a later import of the id leaves behind.
+        return self._models / f"{sha256}.tflite"
 
     async def async_record(
         self, source_entry_id: str, args: dict[str, Any], result: Any
     ) -> None:
         """Keep a model one panel installed from the sidebar, then share it.
 
-        The panel it was imported on already holds it, so it is not asked.
+        The panel it was imported on already holds it, so it is not asked; a
+        report it sent while this was being kept is judged again here.
         """
         wake_word_id = result.get("id") if isinstance(result, dict) else None
         phrase = result.get("wake_word") if isinstance(result, dict) else None
@@ -167,7 +170,7 @@ class SharedWakeWords:
                 )
             )[-MAX_EARLIER:]
         await self._hass.async_add_executor_job(
-            _write_atomically, self._model_path(wake_word_id), model
+            _write_atomically, self._model_path(sha256), model
         )
         words[wake_word_id] = SharedWakeWord(
             wake_word_id, phrase, manifest, sha256, earlier
@@ -186,7 +189,14 @@ class SharedWakeWords:
                 ]
             }
         )
+        await self._hass.async_add_executor_job(
+            _remove_unnamed, self._models, {word.sha256 for word in words.values()}
+        )
         _LOGGER.info("Wake word %s is now installed on every panel", wake_word_id)
+        # The source's report of the new copy can arrive before the index named it.
+        ir.async_delete_issue(
+            self._hass, DOMAIN, issue_id(source_entry_id, wake_word_id)
+        )
         for entry in self._hass.config_entries.async_entries(DOMAIN):
             if entry.entry_id != source_entry_id:
                 self.converge(entry.entry_id)
@@ -225,7 +235,8 @@ class SharedWakeWords:
             tried = set()
             self._tried[entry_id] = (session, tried)
         reported = {word.id: word.sha256 for word in voice.wake_words}
-        for word in words.values():
+        # A copy: a model recorded while this awaits a panel must not break it.
+        for word in list(words.values()):
             if word.id in reported:
                 held = reported[word.id]
                 if held == word.sha256:
@@ -240,9 +251,9 @@ class SharedWakeWords:
                 if held not in word.earlier:
                     self._raise(entry_id, word, ISSUE_KEPT)
                     continue
-            if word.sha256 in tried:
+            if (word.id, word.sha256) in tried:
                 continue
-            tried.add(word.sha256)
+            tried.add((word.id, word.sha256))
             if not await self._async_send(session, word):
                 return
 
@@ -251,7 +262,7 @@ class SharedWakeWords:
         entry_id = session.entry_id
         try:
             model = await self._hass.async_add_executor_job(
-                self._model_path(word.id).read_bytes
+                self._model_path(word.sha256).read_bytes
             )
         except OSError:
             _LOGGER.warning("The shared wake word %s could not be read", word.id)
@@ -333,6 +344,12 @@ class SharedWakeWords:
             translation_placeholders=placeholders,
             data={"entry_id": entry_id},
         )
+
+
+def _remove_unnamed(directory: Path, named: set[str]) -> None:
+    for path in directory.glob("*.tflite"):
+        if path.stem not in named:
+            path.unlink(missing_ok=True)
 
 
 def _write_atomically(path: Path, data: bytes) -> None:

@@ -354,3 +354,101 @@ async def test_a_panel_app_too_old_for_shared_wake_words_gets_a_warning_not_a_re
         is None
     )
     assert "cannot take shared wake words until its app is updated" in caplog.text
+
+
+async def test_a_wake_word_imported_while_a_panel_installs_another_reaches_it_too(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    entry: MockConfigEntry,  # noqa: F811
+    panels: tuple[SessionPanel, SessionPanel, MockConfigEntry],
+) -> None:
+    kitchen, hall, _ = panels
+    admin = await hass_ws_client(hass)
+    second = b"\x01another model"
+
+    async def install_while_another_is_imported(
+        event: dict[str, Any],
+    ) -> dict[str, Any]:
+        if event["args"]["name"] == "hey_pickle":
+            # The administrator imports a second wake word while this one installs.
+            async def other(_: dict[str, Any]) -> dict[str, Any]:
+                return {
+                    "outcome": "applied",
+                    "result": {"id": "hey_radish", "wake_word": "Hey Radish"},
+                }
+
+            kitchen.answers["voice.wake_words.set"] = other
+            await _ui(
+                admin,
+                entry.entry_id,
+                {
+                    "kind": "manage",
+                    "command_id": "w2",
+                    "op": "voice.wake_words.set",
+                    "args": {
+                        "name": "hey_radish",
+                        "manifest": MANIFEST,
+                        "model": base64.b64encode(second).decode(),
+                    },
+                },
+            )
+            await hass.async_block_till_done(wait_background_tasks=False)
+            await asyncio.sleep(0.2)
+        return {"outcome": "applied", "result": {"id": event["args"]["name"]}}
+
+    hall.answers["voice.wake_words.import"] = install_while_another_is_imported
+    await _import_in_sidebar(hass, hass_ws_client, kitchen, entry.entry_id)
+    names = [e["args"]["name"] for e in await _until_imports(hall, 2)]
+    assert sorted(names) == ["hey_pickle", "hey_radish"]
+
+
+async def test_the_panel_imported_on_reporting_the_new_copy_early_gets_no_repair(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    entry: MockConfigEntry,  # noqa: F811
+    panels: tuple[SessionPanel, SessionPanel, MockConfigEntry],
+) -> None:
+    kitchen, hall, _ = panels
+    hall.answers["voice.wake_words.import"] = _installed
+    await _import_in_sidebar(hass, hass_ws_client, kitchen, entry.entry_id)
+    await _report(kitchen, _word(MODEL))
+    newer = b"\x01a retrained model"
+
+    async def installed_and_reported_first(event: dict[str, Any]) -> dict[str, Any]:
+        # The app reports its new wake words before it answers the import.
+        await kitchen.ws.send_json_auto_id(
+            {
+                "type": "panel_assistant/voice_configuration",
+                "session": kitchen.token,
+                "enabled": True,
+                "wake_words": [BUNDLED, _word(newer)],
+                "active": ["okay_nabu"],
+            }
+        )
+        await asyncio.sleep(0.2)
+        return await _installed(event)
+
+    kitchen.answers["voice.wake_words.set"] = installed_and_reported_first
+    admin = await hass_ws_client(hass)
+    reply = await _ui(
+        admin,
+        entry.entry_id,
+        {
+            "kind": "manage",
+            "command_id": "w2",
+            "op": "voice.wake_words.set",
+            "args": {
+                "name": "hey_pickle",
+                "manifest": MANIFEST,
+                "model": base64.b64encode(newer).decode(),
+            },
+        },
+    )
+    assert reply["result"]["outcome"] == "applied"
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert (
+        ir.async_get(hass).async_get_issue(
+            DOMAIN, f"wake_word_{entry.entry_id}_hey_pickle"
+        )
+        is None
+    )

@@ -483,6 +483,7 @@ async def _async_relay(
         request["op"] == OP_RELAYED_IMPORT
         and outcome.outcome == OUTCOME_APPLIED
         and "model" in args
+        and "download" not in args
     ):
         # A wake word imported here goes to every panel (wake_words.py).
         hass.async_create_background_task(
