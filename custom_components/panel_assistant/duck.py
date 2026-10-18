@@ -68,12 +68,15 @@ class _Ducked:
     level: float | None
     lowered: float | None
     holders: set[str] = field(default_factory=set)
-    # The call that lowered it; setting it back waits for that call to land.
-    lowering: asyncio.Task[None] | None = None
+    # The newest call to the player; each call waits for the one before it to
+    # land, so a late restore can never overtake a later duck.
+    last: asyncio.Task[None] | None = None
 
 
 # Every ducked player, shared by the panels in an area: a player goes back
-# only when the last conversation holding it ends.
+# only when the last conversation holding it ends, and its record stays
+# until that restore has landed, so a conversation starting meanwhile takes
+# the same record (and the level from before the first duck) back.
 _DATA_DUCKED: HassKey[dict[str, _Ducked]] = HassKey(f"{DOMAIN}_ducked_players")
 
 
@@ -101,7 +104,10 @@ class RoomDuck:
                     if held is None:
                         continue
                     ducked[entity_id] = held
-                    held.lowering = self._call(entity_id, held.lowered, mute=True)
+                    self._call(entity_id, held, held.lowered, mute=True)
+                elif not held.holders:
+                    # Its restore has not landed: lower it again after that.
+                    self._call(entity_id, held, held.lowered, mute=True)
                 held.holders.add(self._entry_id)
                 self._held.add(entity_id)
         if self._held:
@@ -127,10 +133,8 @@ class RoomDuck:
             if held is None:
                 continue
             held.holders.discard(self._entry_id)
-            if held.holders:
-                continue
-            del ducked[entity_id]
-            self._call(entity_id, held.level, mute=False, restoring=held)
+            # Skipped when it runs if a conversation holds the player again.
+            self._call(entity_id, held, held.level, mute=False, restoring=True)
         self._held.clear()
 
     @callback
@@ -203,13 +207,14 @@ class RoomDuck:
     def _call(
         self,
         entity_id: str,
+        held: _Ducked,
         level: float | None,
         *,
         mute: bool,
-        restoring: _Ducked | None = None,
-    ) -> asyncio.Task[None]:
-        return self._hass.async_create_task(
-            self._async_call(entity_id, level, mute, restoring),
+        restoring: bool = False,
+    ) -> None:
+        held.last = self._hass.async_create_task(
+            self._async_call(entity_id, held, held.last, level, mute, restoring),
             f"{DOMAIN}_duck_{entity_id}",
             eager_start=True,
         )
@@ -217,33 +222,45 @@ class RoomDuck:
     async def _async_call(
         self,
         entity_id: str,
+        held: _Ducked,
+        previous: asyncio.Task[None] | None,
         level: float | None,
         mute: bool,
-        restoring: _Ducked | None,
+        restoring: bool,
     ) -> None:
-        if restoring is not None:
-            if restoring.lowering is not None:
-                # Its own failure was logged when it ran.
-                await asyncio.wait([restoring.lowering])
-            if restoring.level is not None and not self._untouched(
-                entity_id, restoring
+        if previous is not None:
+            # Its own failure was logged when it ran.
+            await asyncio.wait([previous])
+        try:
+            if restoring and (
+                held.holders
+                or (held.level is not None and not self._untouched(entity_id, held))
             ):
                 return
-        data: dict[str, Any] = {ATTR_ENTITY_ID: entity_id}
-        if level is None:
-            service, data[ATTR_MEDIA_VOLUME_MUTED] = SERVICE_VOLUME_MUTE, mute
-        else:
-            service, data[ATTR_MEDIA_VOLUME_LEVEL] = SERVICE_VOLUME_SET, level
-        try:
-            await self._hass.services.async_call(
-                Platform.MEDIA_PLAYER,
-                service,
-                data,
-                blocking=True,
-                context=Context(),
-            )
-        except (HomeAssistantError, vol.Invalid) as err:
-            _LOGGER.warning("Could not change the volume of %s: %s", entity_id, err)
+            data: dict[str, Any] = {ATTR_ENTITY_ID: entity_id}
+            if level is None:
+                service, data[ATTR_MEDIA_VOLUME_MUTED] = SERVICE_VOLUME_MUTE, mute
+            else:
+                service, data[ATTR_MEDIA_VOLUME_LEVEL] = SERVICE_VOLUME_SET, level
+            try:
+                await self._hass.services.async_call(
+                    Platform.MEDIA_PLAYER,
+                    service,
+                    data,
+                    blocking=True,
+                    context=Context(),
+                )
+            except (HomeAssistantError, vol.Invalid) as err:
+                _LOGGER.warning("Could not change the volume of %s: %s", entity_id, err)
+        finally:
+            # The last call to a player nobody holds closes its record.
+            ducked = self._hass.data.get(_DATA_DUCKED, {})
+            if (
+                not held.holders
+                and held.last is asyncio.current_task()
+                and ducked.get(entity_id) is held
+            ):
+                del ducked[entity_id]
 
 
 def _lower(state: State) -> _Ducked | None:
