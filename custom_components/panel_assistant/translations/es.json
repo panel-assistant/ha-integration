@@ -126,6 +126,7 @@
       "old_app_installed": "Este panel todavía ejecuta la antigua app ha-paneld. Panel Assistant 1.0 no puede moverlo a la nueva app y no instala nada a su lado. Instala primero Panel Assistant 0.9.0 (en HACS abre Panel Assistant, elige Redownload y selecciona la versión 0.9.0), añade el panel y muévelo con su reparación, y después instala 1.0.0.",
       "already_configured": "Este panel ya está configurado.",
       "reinstall_successful": "La aplicación se ha vuelto a instalar. Este panel conserva su historial y sus ajustes en Home Assistant.",
+      "usb_installed": "Panel Assistant está instalado y el panel se ha añadido a Home Assistant. Termina la configuración del panel en la ventana del instalador.",
       "reinstall_identity_mismatch": "La aplicación está instalada, pero no se ha podido vincular al panel conservado. Se han conservado su historial y sus ajustes en Home Assistant. Revisa el panel en Home Assistant antes de volver a intentarlo.",
       "not_panel": "No es un panel en el que Panel Assistant pueda instalar.",
       "invalid_discovery": "El panel detectado no pudo demostrar que fuera la misma instalación sana de Panel Assistant. No se cambió ninguna entrada de Home Assistant ni configuración del panel.",
@@ -1609,11 +1610,8 @@
       },
       "onboarding": {
         "title": "Terminar de configurar este panel",
-        "description": "Abre la página de configuración del panel desde un navegador que pueda acceder al panel en tu red local. Inicia sesión con la cuenta de Home Assistant que está abierta actualmente en ese navegador, elige el panel de control principal y termina allí la configuración. Mantén abierto este cuadro de diálogo; se cerrará solo cuando el panel se haya conectado. Si este navegador no puede acceder al panel, termina la configuración más tarde desde la red local del panel. Si se solicita autorización para la depuración de Android, una persona deberá concederla en el panel."
-      },
-      "onboarding_wait": {
-        "title": "Esperando a que se conecte el panel",
-        "description": "El panel aún no ha terminado la configuración ni ha solicitado conectarse como una cuenta. Completa su página de configuración y después pulsa Enviar aquí para comprobarlo de nuevo."
+        "description": "Abre la [página de configuración del panel]({setup_url}). Se abre en una pestaña nueva, desde un dispositivo de la misma red que el panel. Completa allí los pasos, vuelve aquí y pulsa Listo.",
+        "submit": "Listo"
       },
       "authorize_adb": {
         "title": "Permitir actualizaciones en {panel}",
@@ -1674,11 +1672,13 @@
       "removal_home_not_handed": "El panel no confirmó que otro lanzador tomara su pantalla de inicio, así que Panel Assistant no se ha quitado. Instala un lanzador o vuelve a activar el del fabricante y vuelve a intentarlo.",
       "removal_hand_back_unsupported": "La aplicación Panel Assistant de este panel es demasiado antigua para devolver su pantalla de inicio. No se eliminó nada. Actualízala primero y después vuelve a intentarlo.",
       "removal_app_unreachable": "Panel Assistant no respondió y sigue siendo la pantalla de inicio del panel, así que quitarlo ahora dejaría el panel sin pantalla de inicio. No se ha quitado nada. Inicia Panel Assistant en el panel y vuelve a intentarlo.",
-      "removal_remove_failed": "El panel ya ha recuperado su pantalla de inicio, pero Panel Assistant no se pudo quitar por completo. Vuelve a intentarlo: un nuevo intento termina lo que falta."
+      "removal_remove_failed": "El panel ya ha recuperado su pantalla de inicio, pero Panel Assistant no se pudo quitar por completo. Vuelve a intentarlo: un nuevo intento termina lo que falta.",
+      "panel_not_connected": "El panel aún no se ha conectado. Completa los pasos en su página de configuración y pulsa Listo de nuevo."
     },
     "abort": {
       "removed_entry_deleted": "Se ha quitado Panel Assistant y se ha eliminado el panel de Home Assistant.",
-      "removed_entry_kept": "Se ha quitado Panel Assistant. El panel se queda en Home Assistant hasta que lo elimines."
+      "removed_entry_kept": "Se ha quitado Panel Assistant. El panel se queda en Home Assistant hasta que lo elimines.",
+      "panel_connected": "El panel está configurado y conectado a Home Assistant."
     }
   }
 }

@@ -54,6 +54,7 @@
     "downloading": "Getting the app ready…",
     "verifying": "Getting the app ready…",
     "verified": "Continue in the new window.",
+    "installed": "Panel Assistant is installed. Finish the panel's setup in the installer window, then close this tab.",
     "cancelled": "Cancelled.",
     "popup_blocked": "Your browser blocked the new window. Allow pop-ups for this page, then press Continue.",
     "invalid_request": "Choose a version first.",

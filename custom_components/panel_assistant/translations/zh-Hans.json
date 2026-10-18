@@ -126,6 +126,7 @@
       "old_app_installed": "此面板仍在运行旧版 ha-paneld 应用。Panel Assistant 1.0 无法将其迁移到新应用，也不会在旁边安装任何内容。请先安装 Panel Assistant 0.9.0（在 HACS 中打开 Panel Assistant，选择 Redownload，然后选择 0.9.0 版本），添加面板并通过其修复完成迁移，再安装 1.0.0。",
       "already_configured": "此面板已配置。",
       "reinstall_successful": "应用已重新安装。此面板在 Home Assistant 中的历史记录和设置会保留。",
+      "usb_installed": "Panel Assistant 已安装，面板已添加到 Home Assistant。请在安装程序窗口中完成面板的设置。",
       "reinstall_identity_mismatch": "应用已安装，但无法关联到保留的面板。该面板在 Home Assistant 中的历史记录和设置已保留。请先在 Home Assistant 中检查此面板，再重试。",
       "not_panel": "这不是 Panel Assistant 可以在其上进行安装的面板。",
       "invalid_discovery": "发现的面板无法证明它是同一健康的 Panel Assistant 安装。未更改 Home Assistant 条目或面板设置。",
@@ -1609,11 +1610,8 @@
       },
       "onboarding": {
         "title": "完成此面板的设置",
-        "description": "请在能通过本地网络访问面板的浏览器中打开面板的设置页面。使用该浏览器当前登录的 Home Assistant 账户登录，选择主仪表板，并在该页面完成设置。保持此对话框打开；面板连接后，此对话框会自动关闭。如果此浏览器无法访问面板，请稍后在面板所在的本地网络中完成设置。如果系统要求批准 Android 调试，仍需有人在面板上操作。"
-      },
-      "onboarding_wait": {
-        "title": "等待面板连接",
-        "description": "面板尚未完成设置，也尚未请求以账户身份连接。请完成面板设置页面上的操作，然后在此处点击“提交”再次检查。"
+        "description": "打开[面板的设置页面]({setup_url})。它会在新标签页中打开，请在与面板处于同一网络的设备上操作。在那里完成各个步骤，然后返回这里并点击“完成”。",
+        "submit": "完成"
       },
       "authorize_adb": {
         "title": "允许更新 {panel}",
@@ -1674,11 +1672,13 @@
       "removal_home_not_handed": "面板没有确认其他启动器已接管主屏幕，因此未移除 Panel Assistant。请安装一个启动器或重新启用厂商启动器，然后重试。",
       "removal_hand_back_unsupported": "此面板上的 Panel Assistant 应用版本过旧，无法交还主屏幕。未移除任何内容。请先更新应用，然后重试。",
       "removal_app_unreachable": "Panel Assistant 没有响应，而它仍是面板的主屏幕，现在移除会让面板没有主屏幕。未移除任何内容。请在面板上启动 Panel Assistant，然后重试。",
-      "removal_remove_failed": "面板已经拿回主屏幕，但 Panel Assistant 未能完全移除。请重试：重试会完成剩余部分。"
+      "removal_remove_failed": "面板已经拿回主屏幕，但 Panel Assistant 未能完全移除。请重试：重试会完成剩余部分。",
+      "panel_not_connected": "面板尚未连接。请在其设置页面完成各个步骤，然后再次点击“完成”。"
     },
     "abort": {
       "removed_entry_deleted": "已移除 Panel Assistant，并已从 Home Assistant 删除该面板。",
-      "removed_entry_kept": "已移除 Panel Assistant。在你删除之前，面板会保留在 Home Assistant 中。"
+      "removed_entry_kept": "已移除 Panel Assistant。在你删除之前，面板会保留在 Home Assistant 中。",
+      "panel_connected": "面板已设置完成，并已连接到 Home Assistant。"
     }
   }
 }

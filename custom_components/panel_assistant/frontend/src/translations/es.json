@@ -54,6 +54,7 @@
     "downloading": "Preparando la aplicación…",
     "verifying": "Preparando la aplicación…",
     "verified": "Continúa en la nueva ventana.",
+    "installed": "Panel Assistant está instalado. Termina la configuración del panel en la ventana del instalador y después cierra esta pestaña.",
     "cancelled": "Cancelado.",
     "popup_blocked": "Tu navegador bloqueó la nueva ventana. Permite las ventanas emergentes para esta página y pulsa Continuar.",
     "invalid_request": "Elige primero una versión.",

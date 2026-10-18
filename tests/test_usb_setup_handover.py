@@ -192,6 +192,67 @@ async def test_a_panel_whose_app_does_not_answer_is_reported_not_added(
     assert hass.config_entries.async_entries(DOMAIN) == []
 
 
+_FLOWS = "/api/config/config_entries/flow"
+
+
+async def _open_usb_dialog(endpoint: Any, *, press: bool = True) -> str:
+    """Open Add integration > Install using USB as the dialog does, by REST."""
+    menu = await (await endpoint.post(_FLOWS, json={"handler": DOMAIN})).json()
+    flow_id = menu["flow_id"]
+    form = await (
+        await endpoint.post(f"{_FLOWS}/{flow_id}", json={"next_step_id": "install_usb"})
+    ).json()
+    assert form["type"] == "form"
+    if press:
+        opened = await (await endpoint.post(f"{_FLOWS}/{flow_id}", json={})).json()
+        assert opened["type"] == "external"
+    return flow_id
+
+
+@pytest.mark.parametrize("added_by_hand", [False, True], ids=["new", "already_added"])
+async def test_the_usb_installer_dialog_finishes_when_the_panel_is_added(
+    endpoint: Any, hass: HomeAssistant, added_by_hand: bool
+) -> None:
+    """The first tab must not keep an untitled "visit a website" dialog.
+
+    The dialog refetches its flow when Home Assistant reports it progressed, as
+    the GET here does; a panel the install found already added ends it too.
+    """
+    assert await async_setup_component(hass, "config", {})
+    if added_by_hand:
+        MockConfigEntry(
+            domain=DOMAIN, data={"address": "192.168.1.20"}, unique_id="d" * 64
+        ).add_to_hass(hass)
+    waiting = await _open_usb_dialog(endpoint)
+    not_pressed = await _open_usb_dialog(endpoint, press=False)
+    panel = _Panel(PanelSetupState(complete=False, accepts_handover=True))
+
+    _status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+
+    assert body["registration"] == ("already_configured" if added_by_hand else "added")
+    finished = await (await endpoint.get(f"{_FLOWS}/{waiting}")).json()
+    assert (finished["type"], finished["reason"]) == ("abort", "usb_installed")
+    # A dialog whose installer was never opened has nothing to finish.
+    untouched = await (await endpoint.get(f"{_FLOWS}/{not_pressed}")).json()
+    assert (untouched["type"], untouched["step_id"]) == ("form", "install_usb")
+
+
+async def test_the_usb_dialog_keeps_waiting_when_the_panel_was_not_added(
+    endpoint: Any, hass: HomeAssistant, panel_health: AsyncMock
+) -> None:
+    """Its text would say the panel was added, so it must stay where it is."""
+    assert await async_setup_component(hass, "config", {})
+    waiting = await _open_usb_dialog(endpoint)
+    panel_health.side_effect = CannotConnectError
+    panel = _Panel(PanelSetupState(complete=False, accepts_handover=True))
+
+    _status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+
+    assert body["registration"] == "not_panel"
+    still = await (await endpoint.get(f"{_FLOWS}/{waiting}")).json()
+    assert still["type"] == "external"
+
+
 @pytest.mark.parametrize(
     "address",
     [

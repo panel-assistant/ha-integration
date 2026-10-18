@@ -54,6 +54,7 @@
     "downloading": "App voorbereiden…",
     "verifying": "App voorbereiden…",
     "verified": "Ga verder in het nieuwe venster.",
+    "installed": "Panel Assistant is geïnstalleerd. Rond de installatie van het paneel af in het installatievenster en sluit dan dit tabblad.",
     "cancelled": "Geannuleerd.",
     "popup_blocked": "De browser heeft het nieuwe venster geblokkeerd. Sta pop-ups toe voor deze pagina en druk op Doorgaan.",
     "invalid_request": "Kies eerst een versie.",

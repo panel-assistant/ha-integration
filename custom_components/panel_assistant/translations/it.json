@@ -126,6 +126,7 @@
       "old_app_installed": "Questo pannello esegue ancora la vecchia app ha-paneld. Panel Assistant 1.0 non può spostarlo sulla nuova app e non installa nulla accanto. Installa prima Panel Assistant 0.9.0 (in HACS apri Panel Assistant, scegli Redownload e seleziona la versione 0.9.0), aggiungi il pannello e spostalo con la sua riparazione, poi installa 1.0.0.",
       "already_configured": "Questo pannello è già configurato.",
       "reinstall_successful": "L’app è stata reinstallata. Questo pannello conserva la cronologia e le impostazioni in Home Assistant.",
+      "usb_installed": "Panel Assistant è installato e il pannello è stato aggiunto a Home Assistant. Completa la configurazione del pannello nella finestra dell'installer.",
       "reinstall_identity_mismatch": "L’app è installata, ma non è stato possibile collegarla al pannello conservato. La cronologia e le impostazioni in Home Assistant sono state conservate. Controlla il pannello in Home Assistant prima di riprovare.",
       "not_panel": "Non è un pannello su cui Panel Assistant può installare.",
       "invalid_discovery": "Il pannello rilevato non ha dimostrato di essere la stessa installazione sana di Panel Assistant. Non sono stati modificati né una voce di Home Assistant né impostazioni del pannello.",
@@ -1609,11 +1610,8 @@
       },
       "onboarding": {
         "title": "Completa la configurazione di questo pannello",
-        "description": "Apri la pagina di configurazione del pannello da un browser che possa raggiungerlo sulla tua rete locale. Accedi con l’account Home Assistant attualmente in uso in quel browser, scegli la dashboard principale e completa lì la configurazione. Tieni aperta questa finestra di dialogo: si chiuderà da sola quando il pannello si sarà collegato. Se questo browser non riesce a raggiungere il pannello, completa la configurazione più tardi dalla rete locale del pannello. Se viene richiesta l’autorizzazione per il debug Android, una persona deve comunque concederla sul pannello."
-      },
-      "onboarding_wait": {
-        "title": "In attesa che il pannello si connetta",
-        "description": "Il pannello non ha ancora completato la configurazione né richiesto il collegamento di un account. Completa la sua pagina di configurazione, poi premi Invia qui per verificare di nuovo."
+        "description": "Apri la [pagina di configurazione del pannello]({setup_url}). Si apre in una nuova scheda, da un dispositivo sulla stessa rete del pannello. Completa lì i passaggi, poi torna qui e premi Fatto.",
+        "submit": "Fatto"
       },
       "authorize_adb": {
         "title": "Consenti aggiornamenti su {panel}",
@@ -1674,11 +1672,13 @@
       "removal_home_not_handed": "Il pannello non ha confermato che un altro launcher abbia preso la schermata iniziale, quindi Panel Assistant non è stato rimosso. Installa un launcher o riattiva quello del produttore, quindi riprova.",
       "removal_hand_back_unsupported": "L’app Panel Assistant su questo pannello è troppo vecchia per restituire la schermata iniziale. Non è stato rimosso nulla. Aggiornala prima, quindi riprova.",
       "removal_app_unreachable": "Panel Assistant non ha risposto ed è ancora la schermata iniziale del pannello, quindi rimuoverlo ora lascerebbe il pannello senza schermata iniziale. Non è stato rimosso nulla. Avvia Panel Assistant sul pannello, quindi riprova.",
-      "removal_remove_failed": "Il pannello ha già riavuto la sua schermata iniziale, ma Panel Assistant non è stato rimosso completamente. Riprova: un nuovo tentativo completa ciò che resta."
+      "removal_remove_failed": "Il pannello ha già riavuto la sua schermata iniziale, ma Panel Assistant non è stato rimosso completamente. Riprova: un nuovo tentativo completa ciò che resta.",
+      "panel_not_connected": "Il pannello non si è ancora connesso. Completa i passaggi nella sua pagina di configurazione, poi premi di nuovo Fatto."
     },
     "abort": {
       "removed_entry_deleted": "Panel Assistant è stato rimosso e il pannello è stato eliminato da Home Assistant.",
-      "removed_entry_kept": "Panel Assistant è stato rimosso. Il pannello resta in Home Assistant finché non lo elimini."
+      "removed_entry_kept": "Panel Assistant è stato rimosso. Il pannello resta in Home Assistant finché non lo elimini.",
+      "panel_connected": "Il pannello è configurato e connesso a Home Assistant."
     }
   }
 }

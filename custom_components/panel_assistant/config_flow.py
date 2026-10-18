@@ -20,7 +20,13 @@ from homeassistant.config_entries import (
 )
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.data_entry_flow import FlowHandler, FlowResult, UnknownFlow
+from homeassistant.data_entry_flow import (
+    AbortFlow,
+    FlowHandler,
+    FlowResult,
+    FlowResultType,
+    UnknownFlow,
+)
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.http import current_request
 from homeassistant.helpers.selector import (
@@ -199,6 +205,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     _release_catalog_error: str | None = None
     _migration_targets: list[MigrationTarget] | None = None
     _migration_target: MigrationTarget | None = None
+    _usb_installer_url = ""
 
     def is_matching(self, other_flow: Self) -> bool:
         """Enrich the pending card when the app follows its vendor announcement."""
@@ -253,9 +260,23 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         # URL, so the address is the one this browser used to reach Home Assistant.
         request = current_request.get()
         origin = str(request.url.origin()) if request is not None else ""
+        self._usb_installer_url = f"{origin}/{PANEL_PATH}"
+        return await self.async_step_usb_installer()
+
+    async def async_step_usb_installer(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Wait on the installer window until the USB install adds its panel."""
+        if user_input is not None:
+            return self.async_external_step_done(next_step_id="usb_installed")
         return self.async_external_step(
-            step_id="install_usb", url=f"{origin}/{PANEL_PATH}"
+            step_id="usb_installer", url=self._usb_installer_url
         )
+
+    async def async_step_usb_installed(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        return self.async_abort(reason="usb_installed")
 
     async def async_step_usb_install(
         self, discovery_info: dict[str, Any]
@@ -274,7 +295,26 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             ).async_get_health()
         except InvalidAddressError, CannotConnectError, InvalidResponseError:
             return self.async_abort(reason="not_panel")
-        return await self._async_create_panel_entry(address, health)
+        try:
+            result = await self._async_create_panel_entry(address, health)
+        except AbortFlow as abort:
+            if abort.reason == "already_configured":
+                await self._async_finish_usb_installers()
+            raise
+        if result["type"] is FlowResultType.CREATE_ENTRY or (
+            result.get("reason") == "already_configured"
+        ):
+            await self._async_finish_usb_installers()
+        return result
+
+    async def _async_finish_usb_installers(self) -> None:
+        """End every Add dialog still waiting on the USB installer window."""
+        for flow in self.hass.config_entries.flow.async_progress_by_handler(DOMAIN):
+            if flow["step_id"] == "usb_installer":
+                with contextlib.suppress(UnknownFlow):
+                    await self.hass.config_entries.flow.async_configure(
+                        flow["flow_id"], {}
+                    )
 
     async def async_step_zeroconf(
         self, discovery_info: ZeroconfServiceInfo
@@ -1553,7 +1593,6 @@ CONF_REMOVAL_CONFIRMED = "confirmed"
 class HaPaneldOptionsFlow(OptionsFlow):
     """Complete setup, configure panel updates, authorise ADB or remove the app."""
 
-    _setup_watch: asyncio.Task[None] | None = None
     _removal_risks_url: str | None = None
 
     def _current_panel_health(self) -> PanelHealth | None:
@@ -1630,45 +1669,26 @@ class HaPaneldOptionsFlow(OptionsFlow):
     async def async_step_onboarding(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Let the panel's own browser wizard obtain its own HA credentials."""
-        if user_input is not None:
-            return self.async_external_step_done(next_step_id="onboarding_wait")
+        """Send the owner to the panel's own setup page, then confirm it connected.
+
+        A form, not an external step: Home Assistant's options dialog shows an
+        external step with no title or text at all. A form never moves on by
+        itself, so the owner says when they are done.
+        """
         client = self._onboarding_client()
-        await async_offer_ha_url(self.hass, client)
-        if self._setup_watch is None or self._setup_watch.done():
-            self._setup_watch = self.hass.async_create_background_task(
-                self._async_watch_onboarding(),
-                f"{DOMAIN} watch install onboarding {self.flow_id}",
-            )
-        return self.async_external_step(step_id="onboarding", url=client.setup_url)
-
-    async def _async_watch_onboarding(self) -> None:
-        """Finish once the panel has signed in and connected."""
-        deadline = asyncio.get_running_loop().time() + _SETUP_WATCH_SECONDS
-        while asyncio.get_running_loop().time() < deadline:
-            await asyncio.sleep(_SETUP_POLL_SECONDS)
-            if not self._onboarded():
-                continue
-            with contextlib.suppress(UnknownFlow):
-                await self.hass.config_entries.options.async_configure(
-                    flow_id=self.flow_id, user_input={}
-                )
-            return
-
-    async def async_step_onboarding_wait(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Finish once the panel has connected; otherwise wait to be asked again."""
-        if self._onboarded():
-            return self.async_create_entry(data=dict(self.config_entry.options))
+        errors: dict[str, str] = {}
+        if user_input is None:
+            await async_offer_ha_url(self.hass, client)
+        elif self._onboarded():
+            return self.async_abort(reason="panel_connected")
+        else:
+            errors["base"] = "panel_not_connected"
         return self.async_show_form(
-            step_id="onboarding_wait", data_schema=vol.Schema({})
+            step_id="onboarding",
+            data_schema=vol.Schema({}),
+            description_placeholders={"setup_url": client.setup_url},
+            errors=errors,
         )
-
-    def async_remove(self) -> None:
-        if self._setup_watch is not None and not self._setup_watch.done():
-            self._setup_watch.cancel()
-        super().async_remove()
 
     async def async_step_remove_app(
         self, user_input: dict[str, Any] | None = None

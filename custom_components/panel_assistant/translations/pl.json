@@ -126,6 +126,7 @@
       "old_app_installed": "Na tym panelu nadal działa stara aplikacja ha-paneld. Panel Assistant 1.0 nie może przenieść go do nowej aplikacji i niczego obok niej nie instaluje. Najpierw zainstaluj Panel Assistant 0.9.0 (w HACS otwórz Panel Assistant, wybierz Redownload i wersję 0.9.0), dodaj panel i przenieś go za pomocą jego naprawy, a potem zainstaluj 1.0.0.",
       "already_configured": "Ten panel został już skonfigurowany.",
       "reinstall_successful": "Aplikacja została zainstalowana ponownie. Ten panel zachowuje swoją historię i ustawienia w Home Assistant.",
+      "usb_installed": "Panel Assistant jest zainstalowany, a panel został dodany do Home Assistant. Dokończ konfigurację panelu w oknie instalatora.",
       "reinstall_identity_mismatch": "Aplikacja jest zainstalowana, ale nie udało się jej powiązać z zachowanym panelem. Jego historia i ustawienia w Home Assistant zostały zachowane. Sprawdź panel w Home Assistant, zanim spróbujesz ponownie.",
       "not_panel": "To nie jest panel, na którym Panel Assistant może instalować.",
       "invalid_discovery": "Wykryty panel nie okazał się tą samą, prawidłowo działającą instalacją Panel Assistant. Nie zmieniono żadnego wpisu Home Assistant ani ustawienia panelu.",
@@ -1637,11 +1638,8 @@
       },
       "onboarding": {
         "title": "Dokończ konfigurację tego panelu",
-        "description": "Otwórz stronę konfiguracji panelu w przeglądarce, która ma dostęp do panelu w sieci lokalnej. Zaloguj się na konto Home Assistant używane obecnie w tej przeglądarce, wybierz główny pulpit i dokończ tam konfigurację. Pozostaw to okno dialogowe otwarte; zamknie się samo, gdy panel się połączy. Jeśli ta przeglądarka nie ma dostępu do panelu, dokończ konfigurację później z sieci lokalnej panelu. Jeśli pojawi się prośba o zgodę na debugowanie systemu Android, ktoś nadal musi ją zatwierdzić przy panelu."
-      },
-      "onboarding_wait": {
-        "title": "Oczekiwanie na połączenie panelu",
-        "description": "Panel nie zakończył jeszcze konfiguracji ani nie poprosił o połączenie z użyciem konta. Dokończ konfigurację na jego stronie, a następnie kliknij tutaj Prześlij, aby sprawdzić ponownie."
+        "description": "Otwórz [stronę konfiguracji panelu]({setup_url}). Otworzy się w nowej karcie, na urządzeniu w tej samej sieci co panel. Dokończ tam kroki, wróć tutaj i kliknij Gotowe.",
+        "submit": "Gotowe"
       },
       "authorize_adb": {
         "title": "Zezwól na aktualizacje na {panel}",
@@ -1702,11 +1700,13 @@
       "removal_home_not_handed": "Panel nie potwierdził, że inny launcher przejął ekran główny, więc Panel Assistant nie został usunięty. Zainstaluj launcher lub ponownie włącz launcher producenta i spróbuj ponownie.",
       "removal_hand_back_unsupported": "Aplikacja Panel Assistant na tym panelu jest zbyt stara, aby przekazać jego ekran główny z powrotem. Niczego nie usunięto. Najpierw ją zaktualizuj, a następnie spróbuj ponownie.",
       "removal_app_unreachable": "Panel Assistant nie odpowiedział i nadal jest ekranem głównym panelu, więc usunięcie go teraz zostawiłoby panel bez ekranu głównego. Nic nie zostało usunięte. Uruchom Panel Assistant na panelu i spróbuj ponownie.",
-      "removal_remove_failed": "Panel odzyskał już ekran główny, ale Panel Assistant nie dał się usunąć całkowicie. Spróbuj ponownie: kolejna próba dokończy resztę."
+      "removal_remove_failed": "Panel odzyskał już ekran główny, ale Panel Assistant nie dał się usunąć całkowicie. Spróbuj ponownie: kolejna próba dokończy resztę.",
+      "panel_not_connected": "Panel jeszcze się nie połączył. Dokończ kroki na jego stronie konfiguracji, a następnie ponownie kliknij Gotowe."
     },
     "abort": {
       "removed_entry_deleted": "Panel Assistant został usunięty, a panel skasowany z Home Assistant.",
-      "removed_entry_kept": "Panel Assistant został usunięty. Panel pozostaje w Home Assistant, dopóki go nie skasujesz."
+      "removed_entry_kept": "Panel Assistant został usunięty. Panel pozostaje w Home Assistant, dopóki go nie skasujesz.",
+      "panel_connected": "Panel jest skonfigurowany i połączony z Home Assistant."
     }
   }
 }

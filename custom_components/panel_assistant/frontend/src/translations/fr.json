@@ -54,6 +54,7 @@
     "downloading": "Préparation de l’application…",
     "verifying": "Préparation de l’application…",
     "verified": "Continuez dans la nouvelle fenêtre.",
+    "installed": "Panel Assistant est installé. Terminez la configuration du panneau dans la fenêtre de l'installateur, puis fermez cet onglet.",
     "cancelled": "Annulé.",
     "popup_blocked": "Votre navigateur a bloqué la nouvelle fenêtre. Autorisez les fenêtres contextuelles pour cette page, puis appuyez sur « Continuer ».",
     "invalid_request": "Choisissez d’abord une version.",
