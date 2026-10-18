@@ -30,6 +30,7 @@ Pairs with the 1.0.0-preview1 panel app, which Panel Assistant offers to every p
 - **USB debugging state on the device page.** Each panel now reports whether USB debugging is on, as a diagnostic entity, so you can see whether a panel can still be reached for updates.
 - **A fuller device card.** The panel's device shows its firmware, Android release and serial number, and a device another integration made for the same hardware, such as the Shelly integration's for a Shelly Wall Display, shows as linked on the device page.
 - **A warning for a panel that uses another Home Assistant.** When you add a panel that is connected to a different Home Assistant, Panel Assistant tells you instead of adding it silently.
+- **The room goes quiet while you talk to a panel.** When a panel starts listening, Panel Assistant turns down every other media player playing in the panel's Home Assistant area to a third of its volume, and mutes one that can only mute, such as some TVs. They stay down through any follow-up question and go back to exactly their volume when the conversation ends, unless someone changed a player's volume in the meantime. The panel's own player still pauses for the conversation.
 
 ### Changed
 
