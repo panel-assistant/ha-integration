@@ -127,7 +127,8 @@ var n = Object.freeze({
 			installErrorNotClean: "This panel already has the app. Update it from Home Assistant instead.",
 			installErrorIncompatible: "This panel can’t run this version of the app.",
 			installErrorConnection: "The connection to the panel dropped. Keep it plugged in and press Try again.",
-			installErrorHealth: "The app is installed but hasn’t started yet. Wait a moment, then try again."
+			installErrorHealth: "The app is installed but hasn’t started yet. Wait a moment, then try again.",
+			installErrorPermissions: "The app is installed, but its permissions couldn’t be confirmed. Trying again is safe: keep the panel plugged in and press Try again."
 		},
 		journey: {
 			version: "Version",
@@ -144,6 +145,7 @@ var n = Object.freeze({
 		support: {
 			stopped: "Stopped",
 			cause: "Cause",
+			failedCheck: "Failed check",
 			error: "Error",
 			release: "Release",
 			panel: "Panel",
@@ -278,7 +280,8 @@ var n = Object.freeze({
 			installErrorNotClean: "Tento panel už aplikaci má. Aktualizujte ji z Home Assistant.",
 			installErrorIncompatible: "Tento panel nedokáže spustit tuto verzi aplikace.",
 			installErrorConnection: "Spojení s panelem se přerušilo. Nechte ho připojený a stiskněte Zkusit znovu.",
-			installErrorHealth: "Aplikace je nainstalovaná, ale ještě se nespustila. Chvíli počkejte a pak to zkuste znovu."
+			installErrorHealth: "Aplikace je nainstalovaná, ale ještě se nespustila. Chvíli počkejte a pak to zkuste znovu.",
+			installErrorPermissions: "Aplikace je nainstalovaná, ale její oprávnění se nepodařilo ověřit. Zkusit to znovu je bezpečné: nechte panel připojený a stiskněte Zkusit znovu."
 		},
 		journey: {
 			version: "Verze",
@@ -295,6 +298,7 @@ var n = Object.freeze({
 		support: {
 			stopped: "Zastaveno",
 			cause: "Příčina",
+			failedCheck: "Neúspěšná kontrola",
 			error: "Chyba",
 			release: "Vydání",
 			panel: "Panel",
@@ -429,7 +433,8 @@ var n = Object.freeze({
 			installErrorNotClean: "Die App ist bereits auf diesem Panel. Aktualisiere sie über Home Assistant.",
 			installErrorIncompatible: "Dieses Panel kann diese Version der App nicht ausführen.",
 			installErrorConnection: "Die Verbindung zum Panel wurde unterbrochen. Lass es angeschlossen und drücke „Erneut versuchen“.",
-			installErrorHealth: "Die App ist installiert, aber noch nicht gestartet. Warte einen Moment und versuche es dann erneut."
+			installErrorHealth: "Die App ist installiert, aber noch nicht gestartet. Warte einen Moment und versuche es dann erneut.",
+			installErrorPermissions: "Die App ist installiert, aber ihre Berechtigungen konnten nicht bestätigt werden. Ein erneuter Versuch ist sicher: Lass das Panel angeschlossen und drücke „Erneut versuchen“."
 		},
 		journey: {
 			version: "Version",
@@ -446,6 +451,7 @@ var n = Object.freeze({
 		support: {
 			stopped: "Gestoppt",
 			cause: "Ursache",
+			failedCheck: "Fehlgeschlagene Prüfung",
 			error: "Fehler",
 			release: "Version",
 			panel: "Panel",
@@ -580,7 +586,8 @@ var n = Object.freeze({
 			installErrorNotClean: "Este panel ya tiene la aplicación. Actualízala desde Home Assistant.",
 			installErrorIncompatible: "Este panel no puede ejecutar esta versión de la aplicación.",
 			installErrorConnection: "Se perdió la conexión con el panel. Mantenlo conectado y pulsa Volver a intentar.",
-			installErrorHealth: "La aplicación está instalada, pero aún no ha iniciado. Espera un momento y vuelve a intentarlo."
+			installErrorHealth: "La aplicación está instalada, pero aún no ha iniciado. Espera un momento y vuelve a intentarlo.",
+			installErrorPermissions: "La aplicación está instalada, pero no se pudieron confirmar sus permisos. Volver a intentarlo es seguro: mantén el panel conectado y pulsa Volver a intentar."
 		},
 		journey: {
 			version: "Versión",
@@ -597,6 +604,7 @@ var n = Object.freeze({
 		support: {
 			stopped: "Detenido",
 			cause: "Causa",
+			failedCheck: "Comprobación fallida",
 			error: "Error",
 			release: "Versión",
 			panel: "Panel",
@@ -731,7 +739,8 @@ var n = Object.freeze({
 			installErrorNotClean: "L’application est déjà sur ce panneau. Mettez-la plutôt à jour depuis Home Assistant.",
 			installErrorIncompatible: "Ce panneau ne peut pas exécuter cette version de l’application.",
 			installErrorConnection: "La connexion au panneau a été interrompue. Gardez-le branché et appuyez sur « Réessayer ».",
-			installErrorHealth: "L’application est installée mais n’a pas encore démarré. Patientez un moment, puis réessayez."
+			installErrorHealth: "L’application est installée mais n’a pas encore démarré. Patientez un moment, puis réessayez.",
+			installErrorPermissions: "L’application est installée, mais ses autorisations n’ont pas pu être confirmées. Vous pouvez réessayer sans risque : gardez le panneau branché et appuyez sur « Réessayer »."
 		},
 		journey: {
 			version: "Version",
@@ -748,6 +757,7 @@ var n = Object.freeze({
 		support: {
 			stopped: "Arrêté",
 			cause: "Cause",
+			failedCheck: "Vérification échouée",
 			error: "Erreur",
 			release: "Version",
 			panel: "Panneau",
@@ -882,7 +892,8 @@ var n = Object.freeze({
 			installErrorNotClean: "L’app è già presente su questo pannello. Aggiornala da Home Assistant.",
 			installErrorIncompatible: "Questo pannello non può eseguire questa versione dell’app.",
 			installErrorConnection: "La connessione al pannello si è interrotta. Lascialo collegato e premi Riprova.",
-			installErrorHealth: "L’app è installata ma non si è ancora avviata. Attendi un momento, poi riprova."
+			installErrorHealth: "L’app è installata ma non si è ancora avviata. Attendi un momento, poi riprova.",
+			installErrorPermissions: "L’app è installata, ma non è stato possibile confermarne le autorizzazioni. Riprovare è sicuro: lascia il pannello collegato e premi Riprova."
 		},
 		journey: {
 			version: "Versione",
@@ -899,6 +910,7 @@ var n = Object.freeze({
 		support: {
 			stopped: "Interrotto",
 			cause: "Causa",
+			failedCheck: "Controllo non riuscito",
 			error: "Errore",
 			release: "Versione pubblicata",
 			panel: "Pannello",
@@ -1033,7 +1045,8 @@ var n = Object.freeze({
 			installErrorNotClean: "De app staat al op dit paneel. Werk de app in plaats daarvan bij vanuit Home Assistant.",
 			installErrorIncompatible: "Dit paneel kan deze versie van de app niet uitvoeren.",
 			installErrorConnection: "De verbinding met het paneel is verbroken. Laat het aangesloten en druk op Opnieuw proberen.",
-			installErrorHealth: "De app is geïnstalleerd, maar nog niet gestart. Wacht even en probeer het opnieuw."
+			installErrorHealth: "De app is geïnstalleerd, maar nog niet gestart. Wacht even en probeer het opnieuw.",
+			installErrorPermissions: "De app is geïnstalleerd, maar de machtigingen konden niet worden bevestigd. Opnieuw proberen is veilig: laat het paneel aangesloten en druk op Opnieuw proberen."
 		},
 		journey: {
 			version: "Versie",
@@ -1050,6 +1063,7 @@ var n = Object.freeze({
 		support: {
 			stopped: "Gestopt",
 			cause: "Oorzaak",
+			failedCheck: "Mislukte controle",
 			error: "Fout",
 			release: "Uitgave",
 			panel: "Paneel",
@@ -1184,7 +1198,8 @@ var n = Object.freeze({
 			installErrorNotClean: "Ten panel ma już aplikację. Zamiast instalować, zaktualizuj ją z Home Assistant.",
 			installErrorIncompatible: "Ten panel nie może uruchomić tej wersji aplikacji.",
 			installErrorConnection: "Połączenie z panelem zostało przerwane. Zostaw go podłączonego i naciśnij Spróbuj ponownie.",
-			installErrorHealth: "Aplikacja jest zainstalowana, ale jeszcze się nie uruchomiła. Poczekaj chwilę, a potem spróbuj ponownie."
+			installErrorHealth: "Aplikacja jest zainstalowana, ale jeszcze się nie uruchomiła. Poczekaj chwilę, a potem spróbuj ponownie.",
+			installErrorPermissions: "Aplikacja jest zainstalowana, ale nie udało się potwierdzić jej uprawnień. Ponowna próba jest bezpieczna: zostaw panel podłączony i naciśnij Spróbuj ponownie."
 		},
 		journey: {
 			version: "Wersja",
@@ -1201,6 +1216,7 @@ var n = Object.freeze({
 		support: {
 			stopped: "Zatrzymano",
 			cause: "Przyczyna",
+			failedCheck: "Nieudane sprawdzenie",
 			error: "Błąd",
 			release: "Wydanie",
 			panel: "Panel",
@@ -1335,7 +1351,8 @@ var n = Object.freeze({
 			installErrorNotClean: "Este painel já tem o aplicativo. Atualize-o pelo Home Assistant.",
 			installErrorIncompatible: "Este painel não consegue executar esta versão do aplicativo.",
 			installErrorConnection: "A conexão com o painel caiu. Mantenha-o conectado e pressione Tentar novamente.",
-			installErrorHealth: "O aplicativo está instalado, mas ainda não iniciou. Aguarde um momento e tente novamente."
+			installErrorHealth: "O aplicativo está instalado, mas ainda não iniciou. Aguarde um momento e tente novamente.",
+			installErrorPermissions: "O aplicativo está instalado, mas não foi possível confirmar as permissões dele. Tentar de novo é seguro: mantenha o painel conectado e pressione Tentar novamente."
 		},
 		journey: {
 			version: "Versão",
@@ -1352,6 +1369,7 @@ var n = Object.freeze({
 		support: {
 			stopped: "Interrompido",
 			cause: "Causa",
+			failedCheck: "Verificação com falha",
 			error: "Erro",
 			release: "Versão",
 			panel: "Painel",
@@ -1486,7 +1504,8 @@ var n = Object.freeze({
 			installErrorNotClean: "На цій панелі вже є програма. Натомість оновіть її з Home Assistant.",
 			installErrorIncompatible: "Ця панель не може запускати цю версію програми.",
 			installErrorConnection: "З’єднання з панеллю перервалося. Залиште її під’єднаною та натисніть «Спробувати ще раз».",
-			installErrorHealth: "Програму встановлено, але вона ще не запустилася. Зачекайте трохи й повторіть спробу."
+			installErrorHealth: "Програму встановлено, але вона ще не запустилася. Зачекайте трохи й повторіть спробу.",
+			installErrorPermissions: "Програму встановлено, але її дозволи не вдалося підтвердити. Повторна спроба безпечна: залиште панель під’єднаною та натисніть «Спробувати ще раз»."
 		},
 		journey: {
 			version: "Версія",
@@ -1503,6 +1522,7 @@ var n = Object.freeze({
 		support: {
 			stopped: "Зупинено",
 			cause: "Причина",
+			failedCheck: "Невдала перевірка",
 			error: "Помилка",
 			release: "Випуск",
 			panel: "Панель",
@@ -1637,7 +1657,8 @@ var n = Object.freeze({
 			installErrorNotClean: "此面板上已有该应用。请通过 Home Assistant 更新。",
 			installErrorIncompatible: "此面板无法运行此版本的应用。",
 			installErrorConnection: "与面板的连接已中断。请保持面板连接，然后点击“重试”。",
-			installErrorHealth: "应用已安装，但尚未启动。请稍候再重试。"
+			installErrorHealth: "应用已安装，但尚未启动。请稍候再重试。",
+			installErrorPermissions: "应用已安装，但无法确认其权限。可以放心重试：请保持面板连接，然后点击“重试”。"
 		},
 		journey: {
 			version: "版本",
@@ -1654,6 +1675,7 @@ var n = Object.freeze({
 		support: {
 			stopped: "已停止",
 			cause: "原因",
+			failedCheck: "检查未通过",
 			error: "错误",
 			release: "发行版本",
 			panel: "面板",

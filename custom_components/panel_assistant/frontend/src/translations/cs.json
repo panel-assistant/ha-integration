@@ -113,7 +113,8 @@
     "installErrorNotClean": "Tento panel už aplikaci má. Aktualizujte ji z Home Assistant.",
     "installErrorIncompatible": "Tento panel nedokáže spustit tuto verzi aplikace.",
     "installErrorConnection": "Spojení s panelem se přerušilo. Nechte ho připojený a stiskněte Zkusit znovu.",
-    "installErrorHealth": "Aplikace je nainstalovaná, ale ještě se nespustila. Chvíli počkejte a pak to zkuste znovu."
+    "installErrorHealth": "Aplikace je nainstalovaná, ale ještě se nespustila. Chvíli počkejte a pak to zkuste znovu.",
+    "installErrorPermissions": "Aplikace je nainstalovaná, ale její oprávnění se nepodařilo ověřit. Zkusit to znovu je bezpečné: nechte panel připojený a stiskněte Zkusit znovu."
   },
   "journey": {
     "version": "Verze",
@@ -130,6 +131,7 @@
   "support": {
     "stopped": "Zastaveno",
     "cause": "Příčina",
+    "failedCheck": "Neúspěšná kontrola",
     "error": "Chyba",
     "release": "Vydání",
     "panel": "Panel",

@@ -113,7 +113,8 @@
     "installErrorNotClean": "Este panel ya tiene la aplicación. Actualízala desde Home Assistant.",
     "installErrorIncompatible": "Este panel no puede ejecutar esta versión de la aplicación.",
     "installErrorConnection": "Se perdió la conexión con el panel. Mantenlo conectado y pulsa Volver a intentar.",
-    "installErrorHealth": "La aplicación está instalada, pero aún no ha iniciado. Espera un momento y vuelve a intentarlo."
+    "installErrorHealth": "La aplicación está instalada, pero aún no ha iniciado. Espera un momento y vuelve a intentarlo.",
+    "installErrorPermissions": "La aplicación está instalada, pero no se pudieron confirmar sus permisos. Volver a intentarlo es seguro: mantén el panel conectado y pulsa Volver a intentar."
   },
   "journey": {
     "version": "Versión",
@@ -130,6 +131,7 @@
   "support": {
     "stopped": "Detenido",
     "cause": "Causa",
+    "failedCheck": "Comprobación fallida",
     "error": "Error",
     "release": "Versión",
     "panel": "Panel",

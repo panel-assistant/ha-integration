@@ -113,7 +113,8 @@
     "installErrorNotClean": "Ten panel ma już aplikację. Zamiast instalować, zaktualizuj ją z Home Assistant.",
     "installErrorIncompatible": "Ten panel nie może uruchomić tej wersji aplikacji.",
     "installErrorConnection": "Połączenie z panelem zostało przerwane. Zostaw go podłączonego i naciśnij Spróbuj ponownie.",
-    "installErrorHealth": "Aplikacja jest zainstalowana, ale jeszcze się nie uruchomiła. Poczekaj chwilę, a potem spróbuj ponownie."
+    "installErrorHealth": "Aplikacja jest zainstalowana, ale jeszcze się nie uruchomiła. Poczekaj chwilę, a potem spróbuj ponownie.",
+    "installErrorPermissions": "Aplikacja jest zainstalowana, ale nie udało się potwierdzić jej uprawnień. Ponowna próba jest bezpieczna: zostaw panel podłączony i naciśnij Spróbuj ponownie."
   },
   "journey": {
     "version": "Wersja",
@@ -130,6 +131,7 @@
   "support": {
     "stopped": "Zatrzymano",
     "cause": "Przyczyna",
+    "failedCheck": "Nieudane sprawdzenie",
     "error": "Błąd",
     "release": "Wydanie",
     "panel": "Panel",

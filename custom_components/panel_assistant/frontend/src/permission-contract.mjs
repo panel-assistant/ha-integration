@@ -23,28 +23,44 @@ export function buildDeviceAdminClaim(packageId) {
   return `case "$(dumpsys device_policy 2>/dev/null)" in *"${listed}"*) ;; ` +
     `*) dpm set-active-admin ${packageId}/${DEVICE_ADMIN_RECEIVER} >/dev/null 2>&1 ;; esac`;
 }
-const fail = () => { throw new Error('permissions_unverified'); };
+// Every refusal carries the same code; `detail` names the check that refused,
+// for "Details for support" only, so the next failure names its cause.
+const fail = detail => { throw Object.assign(new Error('permissions_unverified'), { detail }); };
+// A panel line as support sees it: bounded, already printable ASCII.
+const shown = line => line === undefined ? 'missing' : JSON.stringify(line.length > 80 ? `${line.slice(0, 80)}…` : line);
 const checkBuild = (packageId, launchComponent) => {
-  if (!isLaunchComponent(packageId, launchComponent)) fail();
+  if (!isLaunchComponent(packageId, launchComponent)) fail('unknown app build');
 };
-const checkNonce = nonce => { if (!/^[a-f0-9]{32}$/.test(nonce)) fail(); };
-const checkSdk = sdk => { if (!Number.isInteger(sdk) || sdk < 1 || sdk > 100) fail(); };
+const checkNonce = nonce => { if (!/^[a-f0-9]{32}$/.test(nonce)) fail('invalid nonce'); };
+const checkSdk = sdk => { if (!Number.isInteger(sdk) || sdk < 1 || sdk > 100) fail('invalid Android version'); };
 
 function validateServices(value) {
-  if (typeof value !== 'string' || value.length > 4096) fail();
+  // Other apps' services are named only by count.
+  const unreadable = () => fail(`accessibility services unreadable (${String(value).split(':').length} entries)`);
+  if (typeof value !== 'string' || value.length > 4096) unreadable();
   if (value === '' || value === 'null') return [];
   const services = value.split(':');
   if (services.length > 64 || new Set(services).size !== services.length ||
-      services.some(service => !/^[A-Za-z][A-Za-z0-9_.]*\/[A-Za-z.][A-Za-z0-9_.$]*$/.test(service))) fail();
+      services.some(service => !/^[A-Za-z][A-Za-z0-9_.]*\/[A-Za-z.][A-Za-z0-9_.$]*$/.test(service))) unreadable();
   return services;
 }
 
 function frame(body, nonce, kind) {
   checkNonce(nonce);
-  if (typeof body !== 'string' || body.length > 16384 || /[^\x20-\x7e\r\n\t]/.test(body)) fail();
+  const step = kind.slice('PERMISSIONS_'.length).toLowerCase();
+  if (typeof body !== 'string' || body.length > 16384 || /[^\x20-\x7e\r\n\t]/.test(body)) {
+    fail(`${step}: reply too long or not plain text`);
+  }
   const lines = body.replaceAll('\r\n', '\n').split('\n');
-  if (lines.shift() !== `HAPANELD_${kind}_BEGIN:${nonce}` || lines.pop() !== '' ||
-      lines.pop() !== `HAPANELD_${kind}_END:${nonce}:0` || lines.some(line => line.includes('HAPANELD_'))) fail();
+  if (lines.shift() !== `HAPANELD_${kind}_BEGIN:${nonce}`) fail(`${step}: no start marker`);
+  if (lines.pop() !== '') fail(`${step}: reply cut short`);
+  const end = lines.pop(), ending = `HAPANELD_${kind}_END:${nonce}:`;
+  if (end !== `${ending}0`) {
+    fail(end?.startsWith(ending) ? `${step}: a command failed (status ${shown(end.slice(ending.length))})`
+      : `${step}: no end marker`);
+  }
+  const marker = lines.findIndex(line => line.includes('HAPANELD_'));
+  if (marker >= 0) fail(`${step} line ${marker + 1}: unexpected marker`);
   return lines;
 }
 
@@ -55,7 +71,7 @@ export function buildPermissionRead(nonce) {
 
 export function parsePermissionRead(body, nonce) {
   const lines = frame(body, nonce, 'PERMISSIONS_READ');
-  if (lines.length !== 1) fail();
+  if (lines.length !== 1) fail(`read: ${lines.length} lines, expected 1`);
   validateServices(lines[0]);
   return lines[0];
 }
@@ -105,7 +121,9 @@ echo "home_chooser:$hp_chooser"
 // What the HOME claim did, or null when its line could not be read; never fatal.
 export function parsePermissionGrant(body, nonce) {
   const lines = frame(body, nonce, 'PERMISSIONS_GRANT');
-  if (lines.length > 1 || (lines.length === 1 && !lines[0].startsWith('home_chooser:'))) fail();
+  if (lines.length > 1 || (lines.length === 1 && !lines[0].startsWith('home_chooser:'))) {
+    fail(`grant line 1: ${shown(lines[0])}${lines.length > 1 ? ` and ${lines.length - 1} more` : ''}`);
+  }
   const chooser = lines.length ? lines[0].slice(13) : null;
   return CHOOSER_OUTCOMES.includes(chooser) ? chooser : null;
 }
@@ -131,15 +149,34 @@ echo "device:$(getprop ro.product.device)"
 export function parsePermissionVerification(body, nonce, sdk, existing, packageId, launchComponent) {
   checkSdk(sdk); checkBuild(packageId, launchComponent);
   const lines = frame(body, nonce, 'PERMISSIONS_VERIFY');
-  if (lines.length !== 11 || lines[0] !== expectedServices(existing, packageId, launchComponent) || lines[1] !== '1' ||
-      !/^WRITE_SETTINGS: allow(?:; [\x20-\x7e]{1,1024})?$/.test(lines[2]) ||
-      !/^SYSTEM_ALERT_WINDOW: allow(?:; [\x20-\x7e]{1,1024})?$/.test(lines[3]) ||
-      !/^REQUEST_INSTALL_PACKAGES: allow(?:; [\x20-\x7e]{1,1024})?$/.test(lines[4]) ||
-      (sdk >= 33 ? !/^\s*android\.permission\.POST_NOTIFICATIONS: granted=true, flags=\[[ A-Z0-9_|]*\]\s*$/.test(lines[5])
-        : lines[5] !== 'not_required') ||
-      [lines[6], lines[7]].some(line => !['granted', 'denied', 'unknown', 'unsupported'].includes(line)) ||
-      !['granted', 'missing', 'unknown'].includes(lines[8]) ||
-      !lines[9].startsWith('home:') || !lines[10].startsWith('device:')) fail();
+  const services = expectedServices(existing, packageId, launchComponent);
+  const allowed = op => line => new RegExp(`^${op}: allow(?:; [\\x20-\\x7e]{1,1024})?$`).test(line);
+  const reading = values => line => values.includes(line);
+  // One check per line the verification program prints, in its order.
+  const checks = [
+    ['accessibility services', line => line === services],
+    ['accessibility enabled', line => line === '1'],
+    ['WRITE_SETTINGS', allowed('WRITE_SETTINGS')],
+    ['SYSTEM_ALERT_WINDOW', allowed('SYSTEM_ALERT_WINDOW')],
+    ['REQUEST_INSTALL_PACKAGES', allowed('REQUEST_INSTALL_PACKAGES')],
+    ['notifications', sdk >= 33
+      ? line => /^\s*android\.permission\.POST_NOTIFICATIONS: granted=true, flags=\[[ A-Z0-9_|]*\]\s*$/.test(line)
+      : line => line === 'not_required'],
+    ['camera', reading(['granted', 'denied', 'unknown', 'unsupported'])],
+    ['microphone', reading(['granted', 'denied', 'unknown', 'unsupported'])],
+    ['secure settings', reading(['granted', 'missing', 'unknown'])],
+    ['home', line => line?.startsWith('home:')],
+    ['device', line => line?.startsWith('device:')],
+  ];
+  checks.forEach(([name, ok], index) => {
+    if (ok(lines[index])) return;
+    // Other apps' services are named only by count.
+    const seen = index === 0 && lines[0] !== undefined
+      ? `${lines[0] === '' || lines[0] === 'null' ? 0 : lines[0].split(':').length} entries${lines[0] === existing ? ', unchanged' : ''}`
+      : shown(lines[index]);
+    fail(`verify line ${index + 1} (${name}): ${seen}`);
+  });
+  if (lines.length !== checks.length) fail(`verify: ${lines.length} lines, expected ${checks.length}`);
   const device = lines[10].slice(7);
   // HOME, the camera, the microphone and secure settings are reported, never a reason to
   // fail the install: the app runs without them (without secure settings the

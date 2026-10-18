@@ -113,7 +113,8 @@
     "installErrorNotClean": "Este painel já tem o aplicativo. Atualize-o pelo Home Assistant.",
     "installErrorIncompatible": "Este painel não consegue executar esta versão do aplicativo.",
     "installErrorConnection": "A conexão com o painel caiu. Mantenha-o conectado e pressione Tentar novamente.",
-    "installErrorHealth": "O aplicativo está instalado, mas ainda não iniciou. Aguarde um momento e tente novamente."
+    "installErrorHealth": "O aplicativo está instalado, mas ainda não iniciou. Aguarde um momento e tente novamente.",
+    "installErrorPermissions": "O aplicativo está instalado, mas não foi possível confirmar as permissões dele. Tentar de novo é seguro: mantenha o painel conectado e pressione Tentar novamente."
   },
   "journey": {
     "version": "Versão",
@@ -130,6 +131,7 @@
   "support": {
     "stopped": "Interrompido",
     "cause": "Causa",
+    "failedCheck": "Verificação com falha",
     "error": "Erro",
     "release": "Versão",
     "panel": "Painel",

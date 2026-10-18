@@ -113,7 +113,8 @@
     "installErrorNotClean": "L’application est déjà sur ce panneau. Mettez-la plutôt à jour depuis Home Assistant.",
     "installErrorIncompatible": "Ce panneau ne peut pas exécuter cette version de l’application.",
     "installErrorConnection": "La connexion au panneau a été interrompue. Gardez-le branché et appuyez sur « Réessayer ».",
-    "installErrorHealth": "L’application est installée mais n’a pas encore démarré. Patientez un moment, puis réessayez."
+    "installErrorHealth": "L’application est installée mais n’a pas encore démarré. Patientez un moment, puis réessayez.",
+    "installErrorPermissions": "L’application est installée, mais ses autorisations n’ont pas pu être confirmées. Vous pouvez réessayer sans risque : gardez le panneau branché et appuyez sur « Réessayer »."
   },
   "journey": {
     "version": "Version",
@@ -130,6 +131,7 @@
   "support": {
     "stopped": "Arrêté",
     "cause": "Cause",
+    "failedCheck": "Vérification échouée",
     "error": "Erreur",
     "release": "Version",
     "panel": "Panneau",
