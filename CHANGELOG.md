@@ -63,6 +63,7 @@ Pairs with the 1.0.0-preview1 panel app, which Panel Assistant offers to every p
 - **Both installers write the same text size.** A custom panel profile whose recommended text size has more than six significant digits is now written the same way by the USB and network installers, and the USB installer no longer reports that size as unreadable after applying it.
 - **Panel sensors and details are shown accurately.** A sensor the panel hides becomes unavailable straight away, and a sensor with no reading shows as unknown together with the panel's reason, instead of a stale value.
 - **Repairs use the name you gave a panel.** A panel renamed under **Settings, Devices & services, Devices** was still named by the name it was added under, often its network hostname, in Repairs and in some setup dialogs. They now use the device's name, as the rest of Home Assistant does.
+- **Reboot no longer reports an error when it works.** Pressing a panel's Reboot could show "The panel is not connected to Panel Assistant, so the command was not sent" although the panel restarted, because it went down before it could answer. A panel that drops its connection after taking the reboot now counts as rebooting.
 
 ## 0.9.0 - 2026-10-08
 

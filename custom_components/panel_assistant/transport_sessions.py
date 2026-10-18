@@ -510,9 +510,20 @@ async def async_send_command(
         raise HomeAssistantError(
             translation_domain=DOMAIN, translation_key=ERR_NOT_COMMANDABLE
         )
-    result = await async_deliver(
-        hass, session, channel, {"channel": channel, "value": value}, COMMAND_TIMEOUT
-    )
+    try:
+        result = await async_deliver(
+            hass,
+            session,
+            channel,
+            {"channel": channel, "value": value},
+            COMMAND_TIMEOUT,
+        )
+    except HomeAssistantError:
+        # A reboot that works takes the panel down before it can answer, so a
+        # session that ends after the command was sent is the reboot happening.
+        if channel == "reboot" and session.closed_at is not None:
+            return
+        raise
     if result.outcome in OUTCOMES_WITH_CODE:
         raise _command_error(result.code)
 
