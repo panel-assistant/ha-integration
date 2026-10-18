@@ -54,6 +54,7 @@
     "downloading": "Příprava aplikace…",
     "verifying": "Příprava aplikace…",
     "verified": "Pokračujte v novém okně.",
+    "installed": "Panel Assistant je nainstalován. Dokončete nastavení panelu v okně instalátoru a pak tuto kartu zavřete.",
     "cancelled": "Zrušeno.",
     "popup_blocked": "Prohlížeč zablokoval nové okno. Povolte pro tuto stránku vyskakovací okna a pak stiskněte Pokračovat.",
     "invalid_request": "Nejprve vyberte verzi.",

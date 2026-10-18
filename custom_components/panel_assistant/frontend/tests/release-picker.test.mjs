@@ -260,3 +260,82 @@ test('the brand caption names the running integration build, and nothing when th
   assert.equal(element('brand-version').textContent, '1.0.0-rc1 build 485');
   panel.disconnectedCallback();
 });
+
+test('the page says the install is finished once the installer hands the panel over', async () => {
+  const metadata = {
+    id: 'a'.repeat(32), tag: 'v1.2.3', checksum: btoa('checksum'),
+    checksum_signature: btoa('s'.repeat(256)), descriptor: btoa('{}'),
+    descriptor_signature: btoa('d'.repeat(256)), apk_size: 3, apk_sha256: 'b'.repeat(64),
+  };
+  const json = value => new Response(JSON.stringify(value), { headers: { 'Content-Type': 'application/json' } });
+  const answers = [response([stable]), json(metadata), new Response('apk'), json({ outcome: 'handed_over', registration: 'added' })];
+  const f = fixture(async () => answers.shift());
+  await tick();
+  const listeners = new Set();
+  const child = { closed: false, postMessage() {} };
+  let opened;
+  globalThis.window = {
+    crypto: webcrypto, location: { origin: 'http://ha.example' },
+    addEventListener: (_, fn) => listeners.add(fn), removeEventListener: (_, fn) => listeners.delete(fn),
+    open(url) { opened = new URL(url); return child; },
+  };
+  f.element('start').listeners.click();
+  const nonce = new URLSearchParams(opened.hash.slice(1)).get('nonce');
+  const send = data => { for (const listener of listeners) listener({ source: child, origin: 'https://installer.example', data: { nonce, ...data } }); };
+  send({ type: 'ha-paneld/usb-ready' });
+  await tick(); await tick();
+  send({ type: 'ha-paneld/usb-verified' });
+  await tick(); await tick();
+  assert.equal(f.element('status').textContent, HA_INSTALL_MESSAGES.verified);
+
+  send({ type: 'ha-paneld/usb-handover', address: '192.168.1.20' });
+  await tick(); await tick(); await tick();
+
+  assert.notEqual(f.element('status').textContent, HA_INSTALL_MESSAGES.failed);
+  assert.equal(f.element('status').textContent, HA_INSTALL_MESSAGES.installed);
+  assert.equal(f.element('status').hidden, false);
+  assert.equal(f.element('start').hidden, true);
+  assert.equal(f.element('release').hidden, true);
+  f.panel.disconnectedCallback();
+});
+
+test('a replaced install\'s late handover answer does not report the new one finished', async () => {
+  const metadata = {
+    id: 'a'.repeat(32), tag: 'v1.2.3', checksum: btoa('checksum'),
+    checksum_signature: btoa('s'.repeat(256)), descriptor: btoa('{}'),
+    descriptor_signature: btoa('d'.repeat(256)), apk_size: 3, apk_sha256: 'b'.repeat(64),
+  };
+  const json = value => new Response(JSON.stringify(value), { headers: { 'Content-Type': 'application/json' } });
+  let answerHandover;
+  const handover = new Promise(resolve => { answerHandover = resolve; });
+  const answers = [response([stable]), json(metadata), new Response('apk'), handover];
+  const f = fixture(async () => answers.shift() ?? new Promise(() => {}));
+  await tick();
+  const listeners = new Set();
+  const child = { closed: false, postMessage() {} };
+  let opened;
+  globalThis.window = {
+    crypto: webcrypto, location: { origin: 'http://ha.example' },
+    addEventListener: (_, fn) => listeners.add(fn), removeEventListener: (_, fn) => listeners.delete(fn),
+    open(url) { opened = new URL(url); return child; },
+  };
+  f.element('start').listeners.click();
+  const nonce = new URLSearchParams(opened.hash.slice(1)).get('nonce');
+  const send = data => { for (const listener of listeners) listener({ source: child, origin: 'https://installer.example', data: { nonce, ...data } }); };
+  send({ type: 'ha-paneld/usb-ready' });
+  await tick(); await tick();
+  send({ type: 'ha-paneld/usb-verified' });
+  await tick(); await tick();
+  send({ type: 'ha-paneld/usb-handover', address: '192.168.1.20' });
+  await tick();
+
+  f.element('start').listeners.click();
+  assert.equal(f.element('status').textContent, HA_INSTALL_MESSAGES.waiting);
+  answerHandover(json({ outcome: 'handed_over', registration: 'added' }));
+  await tick(); await tick(); await tick();
+
+  assert.equal(f.element('status').textContent, HA_INSTALL_MESSAGES.waiting);
+  assert.equal(f.element('start').hidden, false);
+  f.element('cancel').listeners.click();
+  f.panel.disconnectedCallback();
+});

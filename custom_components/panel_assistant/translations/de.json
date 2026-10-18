@@ -126,6 +126,7 @@
       "old_app_installed": "Auf diesem Panel läuft noch die alte ha-paneld-App. Panel Assistant 1.0 kann es nicht in die neue App umziehen und installiert nichts daneben. Installiere zuerst Panel Assistant 0.9.0 (öffne in HACS Panel Assistant, wähle Redownload und dann Version 0.9.0), füge das Panel hinzu, zieh es mit seiner Reparatur um und installiere danach 1.0.0.",
       "already_configured": "Dieses Panel ist bereits konfiguriert.",
       "reinstall_successful": "Die App wurde erneut installiert. Der Verlauf und die Einstellungen dieses Panels in Home Assistant bleiben erhalten.",
+      "usb_installed": "Panel Assistant ist installiert und das Panel wurde zu Home Assistant hinzugefügt. Schließe die Einrichtung des Panels im Installationsfenster ab.",
       "reinstall_identity_mismatch": "Die App ist installiert, konnte aber nicht mit dem beibehaltenen Panel verknüpft werden. Sein Verlauf und seine Einstellungen in Home Assistant wurden beibehalten. Prüfe das Panel in Home Assistant, bevor du es erneut versuchst.",
       "not_panel": "Kein Panel, auf dem Panel Assistant installieren kann.",
       "invalid_discovery": "Das gefundene Panel konnte nicht als dieselbe fehlerfreie Panel Assistant-Installation bestätigt werden. Es wurden weder ein Home Assistant-Eintrag noch Panel-Einstellungen geändert.",
@@ -1609,11 +1610,8 @@
       },
       "onboarding": {
         "title": "Einrichtung dieses Panels abschließen",
-        "description": "Öffne die Einrichtungsseite des Panels in einem Browser, der das Panel in deinem lokalen Netzwerk erreichen kann. Melde dich mit dem Home Assistant-Konto an, das derzeit in diesem Browser angemeldet ist, wähle das Home-Dashboard und schließe dort die Einrichtung ab. Lass diesen Dialog geöffnet; er schließt sich von selbst, sobald sich das Panel verbunden hat. Wenn dieser Browser das Panel nicht erreichen kann, schließe die Einrichtung später aus dem lokalen Netzwerk des Panels ab. Eine eventuell angeforderte Freigabe für Android-Debugging muss weiterhin jemand direkt am Panel erteilen."
-      },
-      "onboarding_wait": {
-        "title": "Warten auf die Verbindung des Panels",
-        "description": "Das Panel hat die Einrichtung noch nicht abgeschlossen und noch keine Kontoverbindung angefordert. Schließe die Einrichtung auf seiner Einrichtungsseite ab und klicke dann hier auf Absenden, um erneut zu prüfen."
+        "description": "Öffne die [Einrichtungsseite des Panels]({setup_url}). Sie öffnet sich in einem neuen Tab; öffne sie auf einem Gerät im selben Netzwerk wie das Panel. Schließe dort die Schritte ab, komm dann zurück und wähle „Fertig“.",
+        "submit": "Fertig"
       },
       "authorize_adb": {
         "title": "Updates auf {panel} erlauben",
@@ -1674,11 +1672,13 @@
       "removal_home_not_handed": "Das Panel hat nicht bestätigt, dass ein anderer Launcher den Startbildschirm übernommen hat, daher wurde Panel Assistant nicht entfernt. Installiere einen Launcher oder schalte den des Herstellers wieder ein und versuche es erneut.",
       "removal_hand_back_unsupported": "Die Panel Assistant-App auf diesem Panel ist zu alt, um den Startbildschirm zurückzugeben. Es wurde nichts entfernt. Aktualisiere sie zuerst und versuche es dann erneut.",
       "removal_app_unreachable": "Panel Assistant hat nicht geantwortet und ist noch der Startbildschirm des Panels; es jetzt zu entfernen, würde das Panel ohne Startbildschirm lassen. Es wurde nichts entfernt. Starte Panel Assistant auf dem Panel und versuche es erneut.",
-      "removal_remove_failed": "Das Panel hat seinen Startbildschirm bereits zurück, aber Panel Assistant konnte nicht vollständig entfernt werden. Versuche es erneut: Ein neuer Versuch erledigt den Rest."
+      "removal_remove_failed": "Das Panel hat seinen Startbildschirm bereits zurück, aber Panel Assistant konnte nicht vollständig entfernt werden. Versuche es erneut: Ein neuer Versuch erledigt den Rest.",
+      "panel_not_connected": "Das Panel hat sich noch nicht verbunden. Schließe die Schritte auf seiner Einrichtungsseite ab und wähle dann erneut „Fertig“."
     },
     "abort": {
       "removed_entry_deleted": "Panel Assistant wurde entfernt und das Panel aus Home Assistant gelöscht.",
-      "removed_entry_kept": "Panel Assistant wurde entfernt. Das Panel bleibt in Home Assistant, bis du es löschst."
+      "removed_entry_kept": "Panel Assistant wurde entfernt. Das Panel bleibt in Home Assistant, bis du es löschst.",
+      "panel_connected": "Das Panel ist eingerichtet und mit Home Assistant verbunden."
     }
   }
 }

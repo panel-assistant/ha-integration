@@ -68,6 +68,7 @@ var n = Object.freeze({
 			downloading: "Getting the app ready…",
 			verifying: "Getting the app ready…",
 			verified: "Continue in the new window.",
+			installed: "Panel Assistant is installed. Finish the panel's setup in the installer window, then close this tab.",
 			cancelled: "Cancelled.",
 			popup_blocked: "Your browser blocked the new window. Allow pop-ups for this page, then press Continue.",
 			invalid_request: "Choose a version first.",
@@ -221,6 +222,7 @@ var n = Object.freeze({
 			downloading: "Příprava aplikace…",
 			verifying: "Příprava aplikace…",
 			verified: "Pokračujte v novém okně.",
+			installed: "Panel Assistant je nainstalován. Dokončete nastavení panelu v okně instalátoru a pak tuto kartu zavřete.",
 			cancelled: "Zrušeno.",
 			popup_blocked: "Prohlížeč zablokoval nové okno. Povolte pro tuto stránku vyskakovací okna a pak stiskněte Pokračovat.",
 			invalid_request: "Nejprve vyberte verzi.",
@@ -374,6 +376,7 @@ var n = Object.freeze({
 			downloading: "Die App wird vorbereitet…",
 			verifying: "Die App wird vorbereitet…",
 			verified: "Fahre im neuen Fenster fort.",
+			installed: "Panel Assistant ist installiert. Schließe die Einrichtung des Panels im Installationsfenster ab und schließe dann diesen Tab.",
 			cancelled: "Abgebrochen.",
 			popup_blocked: "Dein Browser hat das neue Fenster blockiert. Erlaube Pop-ups für diese Seite und drücke dann „Weiter“.",
 			invalid_request: "Wähle zuerst eine Version.",
@@ -527,6 +530,7 @@ var n = Object.freeze({
 			downloading: "Preparando la aplicación…",
 			verifying: "Preparando la aplicación…",
 			verified: "Continúa en la nueva ventana.",
+			installed: "Panel Assistant está instalado. Termina la configuración del panel en la ventana del instalador y después cierra esta pestaña.",
 			cancelled: "Cancelado.",
 			popup_blocked: "Tu navegador bloqueó la nueva ventana. Permite las ventanas emergentes para esta página y pulsa Continuar.",
 			invalid_request: "Elige primero una versión.",
@@ -680,6 +684,7 @@ var n = Object.freeze({
 			downloading: "Préparation de l’application…",
 			verifying: "Préparation de l’application…",
 			verified: "Continuez dans la nouvelle fenêtre.",
+			installed: "Panel Assistant est installé. Terminez la configuration du panneau dans la fenêtre de l'installateur, puis fermez cet onglet.",
 			cancelled: "Annulé.",
 			popup_blocked: "Votre navigateur a bloqué la nouvelle fenêtre. Autorisez les fenêtres contextuelles pour cette page, puis appuyez sur « Continuer ».",
 			invalid_request: "Choisissez d’abord une version.",
@@ -833,6 +838,7 @@ var n = Object.freeze({
 			downloading: "Preparazione dell’app…",
 			verifying: "Preparazione dell’app…",
 			verified: "Continua nella nuova finestra.",
+			installed: "Panel Assistant è installato. Completa la configurazione del pannello nella finestra dell'installer, poi chiudi questa scheda.",
 			cancelled: "Annullato.",
 			popup_blocked: "Il browser ha bloccato la nuova finestra. Consenti i popup per questa pagina, poi premi Continua.",
 			invalid_request: "Scegli prima una versione.",
@@ -986,6 +992,7 @@ var n = Object.freeze({
 			downloading: "App voorbereiden…",
 			verifying: "App voorbereiden…",
 			verified: "Ga verder in het nieuwe venster.",
+			installed: "Panel Assistant is geïnstalleerd. Rond de installatie van het paneel af in het installatievenster en sluit dan dit tabblad.",
 			cancelled: "Geannuleerd.",
 			popup_blocked: "De browser heeft het nieuwe venster geblokkeerd. Sta pop-ups toe voor deze pagina en druk op Doorgaan.",
 			invalid_request: "Kies eerst een versie.",
@@ -1139,6 +1146,7 @@ var n = Object.freeze({
 			downloading: "Przygotowywanie aplikacji…",
 			verifying: "Przygotowywanie aplikacji…",
 			verified: "Kontynuuj w nowym oknie.",
+			installed: "Panel Assistant jest zainstalowany. Dokończ konfigurację panelu w oknie instalatora, a następnie zamknij tę kartę.",
 			cancelled: "Anulowano.",
 			popup_blocked: "Przeglądarka zablokowała nowe okno. Zezwól na wyskakujące okna dla tej strony, a potem naciśnij Kontynuuj.",
 			invalid_request: "Najpierw wybierz wersję.",
@@ -1292,6 +1300,7 @@ var n = Object.freeze({
 			downloading: "Preparando o aplicativo…",
 			verifying: "Preparando o aplicativo…",
 			verified: "Continue na nova janela.",
+			installed: "O Panel Assistant está instalado. Conclua a configuração do painel na janela do instalador e depois feche esta guia.",
 			cancelled: "Cancelado.",
 			popup_blocked: "Seu navegador bloqueou a nova janela. Permita pop-ups nesta página e pressione Continuar.",
 			invalid_request: "Escolha uma versão primeiro.",
@@ -1445,6 +1454,7 @@ var n = Object.freeze({
 			downloading: "Підготовка програми…",
 			verifying: "Підготовка програми…",
 			verified: "Продовжуйте в новому вікні.",
+			installed: "Panel Assistant установлено. Завершіть налаштування панелі у вікні інсталятора, а потім закрийте цю вкладку.",
 			cancelled: "Скасовано.",
 			popup_blocked: "Браузер заблокував нове вікно. Дозвольте спливні вікна для цієї сторінки та натисніть «Продовжити».",
 			invalid_request: "Спочатку виберіть версію.",
@@ -1598,6 +1608,7 @@ var n = Object.freeze({
 			downloading: "正在准备应用…",
 			verifying: "正在准备应用…",
 			verified: "请在新窗口中继续。",
+			installed: "Panel Assistant 已安装。请在安装程序窗口中完成面板的设置，然后关闭此标签页。",
 			cancelled: "已取消。",
 			popup_blocked: "浏览器阻止了新窗口。请允许此页面弹出窗口，然后点击“继续”。",
 			invalid_request: "请先选择版本。",
@@ -2466,7 +2477,7 @@ function ye(e, t, { rcTag: n = null, language: r = e?.language, onState: i = () 
 				font_scale: i.fontScale
 			} } : {},
 			...a ? { registration: a } : {}
-		});
+		}), T("installed");
 	}
 	async function A() {
 		let t = null;
@@ -2666,26 +2677,26 @@ var De = class extends HTMLElement {
 				r[e + 1].querySelector("span").textContent = `${t.name ?? t.tag.replace(/^v/, "")}${n ? ` (${n})` : ""}`;
 			}
 		}
-		let i = this.#e?.user?.is_admin === !0, s = typeof this.#n?.config?.installer_url == "string" && this.#n.config.installer_url.length > 0, c = this.shadowRoot.querySelector("#release input:checked")?.value, l = c === "" ? this.#c[0] : this.#c.find((e) => e.tag === c);
-		this.shadowRoot.querySelector("#start").disabled = !i || !s || !!this.#r || !l, this.shadowRoot.querySelector("#cancel").disabled = !this.#r, this.shadowRoot.querySelector("#release").disabled = !!this.#r || this.#s !== "ready";
-		let u = this.shadowRoot.querySelector("#catalog-status");
-		u.textContent = i && s && this.#s !== "ready" ? this.#t[this.#s] : "", u.hidden = !u.textContent, this.shadowRoot.querySelector("#retry").hidden = !i || !s || !["catalogError", "empty"].includes(this.#s), this.shadowRoot.querySelector("#cancel").hidden = !this.#r;
-		let d = i ? s ? this.#a : "unavailable" : "admin", f = this.shadowRoot.querySelector("#status");
-		f.textContent = Object.hasOwn(this.#t, d) ? this.#t[d] : this.#t.failed, f.hidden = !f.textContent;
+		let i = this.#e?.user?.is_admin === !0, s = typeof this.#n?.config?.installer_url == "string" && this.#n.config.installer_url.length > 0, c = this.shadowRoot.querySelector("#release input:checked")?.value, l = c === "" ? this.#c[0] : this.#c.find((e) => e.tag === c), u = this.#a === "installed";
+		this.shadowRoot.querySelector("#start").hidden = u, this.shadowRoot.querySelector("#release").hidden = u, this.shadowRoot.querySelector("#start").disabled = !i || !s || !!this.#r || !l, this.shadowRoot.querySelector("#cancel").disabled = !this.#r, this.shadowRoot.querySelector("#release").disabled = !!this.#r || this.#s !== "ready";
+		let d = this.shadowRoot.querySelector("#catalog-status");
+		d.textContent = i && s && this.#s !== "ready" ? this.#t[this.#s] : "", d.hidden = !d.textContent, this.shadowRoot.querySelector("#retry").hidden = !i || !s || !["catalogError", "empty"].includes(this.#s), this.shadowRoot.querySelector("#cancel").hidden = !this.#r;
+		let f = i ? s ? this.#a : "unavailable" : "admin", m = this.shadowRoot.querySelector("#status");
+		m.textContent = Object.hasOwn(this.#t, f) ? this.#t[f] : this.#t.failed, m.hidden = !m.textContent;
 	}
 	#d() {
 		if (this.#r || this.#e?.user?.is_admin !== !0) return;
 		let e = this.shadowRoot.querySelector("#release input:checked")?.value;
 		if (!(e === "" ? this.#c[0] : this.#c.find((t) => t.tag === e)) || !this.isConnected) return;
 		this.#i?.cancel(), this.#i = void 0;
-		let t = ye(this.#e, this.#n?.config?.installer_url, {
+		let t;
+		t = ye(this.#e, this.#n?.config?.installer_url, {
 			rcTag: e || null,
 			language: a(this.#e?.language),
 			onState: (e) => {
-				this.#a = e, this.#u();
+				t && t !== this.#r && t !== this.#i || (this.#a = e, this.#u());
 			}
-		});
-		this.#r = t, this.#u(), t.completion.then(() => {
+		}), this.#r = t, this.#u(), t.completion.then(() => {
 			this.#r === t && (this.#i = t);
 		}, () => {}).finally(() => {
 			this.#r === t && (this.#r = void 0), this.#u();

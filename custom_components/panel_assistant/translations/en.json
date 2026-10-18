@@ -126,6 +126,7 @@
       "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Install Panel Assistant 0.9.0 first (in HACS open Panel Assistant, choose Redownload, and pick version 0.9.0), add the panel and move it with its Repair, then install 1.0.0.",
       "already_configured": "This panel is already configured.",
       "reinstall_successful": "The app was installed again. This panel keeps its Home Assistant history and settings.",
+      "usb_installed": "Panel Assistant is installed and the panel has been added to Home Assistant. Finish the panel's setup in the installer window.",
       "reinstall_identity_mismatch": "The app is installed, but it could not be linked to the kept panel. Its Home Assistant history and settings have been kept. Check the panel in Home Assistant before trying again.",
       "not_panel": "Not a panel Panel Assistant can install on.",
       "invalid_discovery": "The discovered panel did not prove to be the same healthy Panel Assistant installation. No Home Assistant entry or panel setting was changed.",
@@ -1637,11 +1638,8 @@
       },
       "onboarding": {
         "title": "Finish setting up this panel",
-        "description": "Open the panel's setup page from a browser that can reach the panel on your local network. Sign in with the Home Assistant account currently in that browser, choose the home dashboard, and finish setup there. Keep this dialog open; it closes by itself once the panel has connected. If this browser cannot reach the panel, finish later from the panel's local network. Android debugging approval, if requested, still needs a person at the panel."
-      },
-      "onboarding_wait": {
-        "title": "Waiting for the panel to connect",
-        "description": "The panel has not yet finished setup or asked to connect as an account. Complete its setup page, then submit here to check again."
+        "description": "Open the [panel's setup page]({setup_url}) from a device on the same network as the panel; it opens in a new tab. Finish the steps there, then come back and select Done.",
+        "submit": "Done"
       },
       "authorize_adb": {
         "title": "Allow updates on {panel}",
@@ -1702,11 +1700,13 @@
       "removal_home_not_handed": "The panel did not confirm that another launcher took its home screen, so Panel Assistant was not removed. Install a launcher, or turn the vendor one back on, then try again.",
       "removal_hand_back_unsupported": "The Panel Assistant app on this panel is too old to hand its home screen back. Nothing was removed. Update it first, then try again.",
       "removal_app_unreachable": "Panel Assistant did not answer, and it is still the panel's home screen, so removing it now would leave the panel with no home screen. Nothing was removed. Start Panel Assistant on the panel, then try again.",
-      "removal_remove_failed": "The panel already has its home screen back, but Panel Assistant could not be removed completely. Try again: a retry finishes what is left."
+      "removal_remove_failed": "The panel already has its home screen back, but Panel Assistant could not be removed completely. Try again: a retry finishes what is left.",
+      "panel_not_connected": "The panel hasn't connected yet. Finish the steps on its setup page, then select Done again."
     },
     "abort": {
       "removed_entry_deleted": "Panel Assistant was removed and the panel was deleted from Home Assistant.",
-      "removed_entry_kept": "Panel Assistant was removed. The panel stays in Home Assistant until you delete it."
+      "removed_entry_kept": "Panel Assistant was removed. The panel stays in Home Assistant until you delete it.",
+      "panel_connected": "The panel is set up and connected to Home Assistant."
     }
   }
 }

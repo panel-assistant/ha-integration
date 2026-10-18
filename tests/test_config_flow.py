@@ -2217,7 +2217,7 @@ async def test_fresh_install_finishes_once_the_panel_has_connected(
     hass: HomeAssistant,
     hass_admin_user: Any,
 ) -> None:
-    """Nothing is asked: the dialog waits for the panel and then closes."""
+    """The owner says when setup is done; the dialog closes once it connected."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="alpha",
@@ -2229,58 +2229,62 @@ async def test_fresh_install_finishes_once_the_panel_has_connected(
     with patch(
         "custom_components.panel_assistant.config_flow.async_offer_ha_url",
         new_callable=AsyncMock,
-    ):
+    ) as handover:
         opened = await hass.config_entries.options.async_init(
             entry.entry_id, context={"source": "onboarding"}
         )
-        assert opened["type"] is FlowResultType.EXTERNAL_STEP
-        assert opened["url"] == "http://192.168.1.23:8888/setup"
-        done = await hass.config_entries.options.async_configure(opened["flow_id"], {})
-        assert done["type"] is FlowResultType.EXTERNAL_STEP_DONE
-        waiting = await hass.config_entries.options.async_configure(opened["flow_id"])
-        assert waiting["type"] is FlowResultType.FORM
-        assert waiting["step_id"] == "onboarding_wait"
+        assert opened["type"] is FlowResultType.FORM
+        assert opened["step_id"] == "onboarding"
+        assert opened["description_placeholders"] == {
+            "setup_url": "http://192.168.1.23:8888/setup"
+        }
+        early = await hass.config_entries.options.async_configure(opened["flow_id"], {})
+        assert early["type"] is FlowResultType.FORM
+        assert early["errors"] == {"base": "panel_not_connected"}
         # The panel's own hello binds the account it signed in as.
         async_bind_user(hass, entry, signed_in.id)
         finished = await hass.config_entries.options.async_configure(
             opened["flow_id"], {}
         )
-    assert finished["type"] is FlowResultType.CREATE_ENTRY
+    handover.assert_awaited_once()
+    assert finished["type"] is FlowResultType.ABORT
+    assert finished["reason"] == "panel_connected"
     assert entry.data.get(CONF_TRANSPORT_USER_ID) == signed_in.id
     assert entry.options == {}
 
 
-async def test_fresh_install_dialog_moves_on_by_itself_when_the_panel_connects(
-    hass: HomeAssistant,
-    hass_admin_user: Any,
+async def test_continue_setup_dialog_has_text_and_a_link_to_the_setup_page(
+    hass: HomeAssistant, hass_client: Any
 ) -> None:
-    """The administrator need not press anything once the panel has signed in."""
+    """Home Assistant's options dialog shows an external step with no text.
+
+    Driven through the REST API the Configure dialog uses: what comes back must
+    be a step the dialog renders with its title, text and the setup link.
+    """
     entry = MockConfigEntry(
-        domain=DOMAIN,
-        title="alpha",
-        data={CONF_ADDRESS: "192.168.1.23"},
-        unique_id=DISCOVERY_ID,
+        domain=DOMAIN, title="alpha", data={CONF_ADDRESS: "192.168.1.23"}
     )
     entry.add_to_hass(hass)
-    signed_in = await hass.auth.async_create_user("Current administrator")
-    with (
-        patch(
-            "custom_components.panel_assistant.config_flow.async_offer_ha_url",
-            new_callable=AsyncMock,
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow._SETUP_POLL_SECONDS", 0.01
-        ),
+    assert await async_setup_component(hass, "config", {})
+    client = await hass_client()
+    flows = "/api/config/config_entries/options/flow"
+    menu = await (await client.post(flows, json={"handler": entry.entry_id})).json()
+    assert menu["type"] == "menu"
+    with patch(
+        "custom_components.panel_assistant.config_flow.async_offer_ha_url",
+        new_callable=AsyncMock,
     ):
-        opened = await hass.config_entries.options.async_init(
-            entry.entry_id, context={"source": "onboarding"}
-        )
-        async_bind_user(hass, entry, signed_in.id)
-        watcher = hass.config_entries.options._progress[opened["flow_id"]]._setup_watch
-        async with asyncio.timeout(5):
-            await watcher
-        finished = await hass.config_entries.options.async_configure(opened["flow_id"])
-    assert finished["type"] is FlowResultType.CREATE_ENTRY
+        step = await (
+            await client.post(
+                f"{flows}/{menu['flow_id']}", json={"next_step_id": "onboarding"}
+            )
+        ).json()
+
+    assert step["type"] == "form"
+    assert step["step_id"] == "onboarding"
+    assert step["description_placeholders"]["setup_url"] == (
+        "http://192.168.1.23:8888/setup"
+    )
 
 
 async def test_abandoned_fresh_install_can_resume_from_its_entry_options(
@@ -2306,8 +2310,10 @@ async def test_abandoned_fresh_install_can_resume_from_its_entry_options(
         opened = await hass.config_entries.options.async_configure(
             menu["flow_id"], {"next_step_id": "onboarding"}
         )
-    assert opened["type"] is FlowResultType.EXTERNAL_STEP
-    assert opened["url"] == "http://192.168.1.23:8888/setup"
+    assert opened["type"] is FlowResultType.FORM
+    assert opened["description_placeholders"] == {
+        "setup_url": "http://192.168.1.23:8888/setup"
+    }
     handover.assert_awaited_once()
 
 

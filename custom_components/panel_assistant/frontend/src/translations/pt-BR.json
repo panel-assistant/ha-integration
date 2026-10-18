@@ -54,6 +54,7 @@
     "downloading": "Preparando o aplicativo…",
     "verifying": "Preparando o aplicativo…",
     "verified": "Continue na nova janela.",
+    "installed": "O Panel Assistant está instalado. Conclua a configuração do painel na janela do instalador e depois feche esta guia.",
     "cancelled": "Cancelado.",
     "popup_blocked": "Seu navegador bloqueou a nova janela. Permita pop-ups nesta página e pressione Continuar.",
     "invalid_request": "Escolha uma versão primeiro.",

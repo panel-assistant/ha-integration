@@ -126,6 +126,7 @@
       "old_app_installed": "Na tomto panelu stále běží stará aplikace ha-paneld. Panel Assistant 1.0 ji nedokáže převést na novou aplikaci a vedle ní nic neinstaluje. Nejprve nainstalujte Panel Assistant 0.9.0 (v HACS otevřete Panel Assistant, zvolte Redownload a vyberte verzi 0.9.0), přidejte panel a převeďte ho jeho opravou, poté nainstalujte 1.0.0.",
       "already_configured": "Tento panel je již nastavený.",
       "reinstall_successful": "Aplikace byla znovu nainstalována. Tento panel si zachovává svou historii a nastavení v Home Assistant.",
+      "usb_installed": "Panel Assistant je nainstalován a panel byl přidán do Home Assistant. Dokončete nastavení panelu v okně instalátoru.",
       "reinstall_identity_mismatch": "Aplikace je nainstalovaná, ale nepodařilo se ji propojit se zachovaným panelem. Jeho historie a nastavení v Home Assistant byly zachovány. Před dalším pokusem zkontrolujte panel v Home Assistant.",
       "not_panel": "Toto není panel, na který může Panel Assistant instalovat.",
       "invalid_discovery": "Nepodařilo se prokázat, že nalezený panel je tatáž funkční instalace Panel Assistant. Žádný záznam v Home Assistant ani nastavení panelu se nezměnilo.",
@@ -1637,11 +1638,8 @@
       },
       "onboarding": {
         "title": "Dokončit nastavení tohoto panelu",
-        "description": "Otevřete stránku nastavení panelu v prohlížeči, který se k panelu dostane ve vaší místní síti. Přihlaste se účtem Home Assistant, který právě používáte v tomto prohlížeči, vyberte domovský ovládací panel a dokončete tam nastavení. Toto dialogové okno nechte otevřené; samo se zavře, jakmile se panel připojí. Pokud se tento prohlížeč k panelu nedostane, dokončete nastavení později z místní sítě panelu. Pokud bude požadováno povolení ladění systému Android, musí ho stále potvrdit někdo přímo u panelu."
-      },
-      "onboarding_wait": {
-        "title": "Čekání na připojení panelu",
-        "description": "Panel ještě nedokončil nastavení nebo nepožádal o připojení pod účtem. Dokončete jeho stránku nastavení a pak zde zvolte Odeslat pro novou kontrolu."
+        "description": "Otevřete [stránku nastavení panelu]({setup_url}). Otevře se na nové kartě; otevřete ji ze zařízení ve stejné síti jako panel. Dokončete tam jednotlivé kroky, vraťte se a zvolte Hotovo.",
+        "submit": "Hotovo"
       },
       "authorize_adb": {
         "title": "Povolit aktualizace na {panel}",
@@ -1702,11 +1700,13 @@
       "removal_home_not_handed": "Panel nepotvrdil, že jeho domovskou obrazovku převzal jiný spouštěč, takže Panel Assistant nebyl odebrán. Nainstalujte spouštěč nebo znovu zapněte ten od výrobce a pak to zkuste znovu.",
       "removal_hand_back_unsupported": "Aplikace Panel Assistant na tomto panelu je příliš stará, aby předala domovskou obrazovku zpět. Nic nebylo odstraněno. Nejdřív ji aktualizujte a potom to zkuste znovu.",
       "removal_app_unreachable": "Panel Assistant neodpověděl a stále slouží jako domovská obrazovka panelu, takže jeho odebrání by nyní nechalo panel bez domovské obrazovky. Nic nebylo odebráno. Spusťte na panelu Panel Assistant a pak to zkuste znovu.",
-      "removal_remove_failed": "Panel už má svou domovskou obrazovku zpět, ale Panel Assistant se nepodařilo úplně odebrat. Zkuste to znovu: další pokus dokončí zbývající kroky."
+      "removal_remove_failed": "Panel už má svou domovskou obrazovku zpět, ale Panel Assistant se nepodařilo úplně odebrat. Zkuste to znovu: další pokus dokončí zbývající kroky.",
+      "panel_not_connected": "Panel se ještě nepřipojil. Dokončete kroky na jeho stránce nastavení a pak znovu zvolte Hotovo."
     },
     "abort": {
       "removed_entry_deleted": "Panel Assistant byl odebrán a panel byl smazán z Home Assistant.",
-      "removed_entry_kept": "Panel Assistant byl odebrán. Panel zůstane v Home Assistant, dokud ho nesmažete."
+      "removed_entry_kept": "Panel Assistant byl odebrán. Panel zůstane v Home Assistant, dokud ho nesmažete.",
+      "panel_connected": "Panel je nastaven a připojen k Home Assistant."
     }
   }
 }

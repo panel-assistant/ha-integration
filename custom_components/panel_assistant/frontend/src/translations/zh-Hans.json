@@ -54,6 +54,7 @@
     "downloading": "正在准备应用…",
     "verifying": "正在准备应用…",
     "verified": "请在新窗口中继续。",
+    "installed": "Panel Assistant 已安装。请在安装程序窗口中完成面板的设置，然后关闭此标签页。",
     "cancelled": "已取消。",
     "popup_blocked": "浏览器阻止了新窗口。请允许此页面弹出窗口，然后点击“继续”。",
     "invalid_request": "请先选择版本。",

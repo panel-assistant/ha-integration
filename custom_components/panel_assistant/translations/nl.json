@@ -126,6 +126,7 @@
       "old_app_installed": "Op dit paneel draait nog de oude ha-paneld-app. Panel Assistant 1.0 kan het niet naar de nieuwe app verhuizen en installeert er niets naast. Installeer eerst Panel Assistant 0.9.0 (open in HACS Panel Assistant, kies Redownload en selecteer versie 0.9.0), voeg het paneel toe en verhuis het met de reparatie ervan, en installeer daarna 1.0.0.",
       "already_configured": "Dit paneel is al ingesteld.",
       "reinstall_successful": "De app is opnieuw geïnstalleerd. Dit paneel behoudt zijn geschiedenis en instellingen in Home Assistant.",
+      "usb_installed": "Panel Assistant is geïnstalleerd en het paneel is toegevoegd aan Home Assistant. Rond de installatie van het paneel af in het installatievenster.",
       "reinstall_identity_mismatch": "De app is geïnstalleerd, maar kon niet aan het bewaarde paneel worden gekoppeld. De geschiedenis en instellingen in Home Assistant zijn bewaard gebleven. Controleer het paneel in Home Assistant voordat je het opnieuw probeert.",
       "not_panel": "Geen paneel waarop Panel Assistant kan installeren.",
       "invalid_discovery": "Er kon niet worden aangetoond dat het gevonden paneel dezelfde werkende Panel Assistant-installatie was. Er is geen Home Assistant-item of paneelinstelling gewijzigd.",
@@ -1637,11 +1638,8 @@
       },
       "onboarding": {
         "title": "Rond de installatie van dit paneel af",
-        "description": "Open de installatiepagina van het paneel in een browser die het paneel op je lokale netwerk kan bereiken. Meld je aan met het Home Assistant-account dat momenteel in die browser is aangemeld, kies het hoofddashboard en rond de installatie daar af. Laat dit dialoogvenster open; het sluit vanzelf zodra het paneel verbonden is. Als deze browser het paneel niet kan bereiken, rond de installatie dan later af vanaf het lokale netwerk van het paneel. Als toestemming voor Android-foutopsporing wordt gevraagd, moet iemand die nog steeds bij het paneel geven."
-      },
-      "onboarding_wait": {
-        "title": "Wachten tot het paneel verbinding maakt",
-        "description": "Het paneel heeft de installatie nog niet afgerond en nog geen accountverbinding aangevraagd. Rond de installatie op de installatiepagina af en klik hier op Verzenden om opnieuw te controleren."
+        "description": "Open de [installatiepagina van het paneel]({setup_url}). Die opent in een nieuw tabblad; open die vanaf een apparaat op hetzelfde netwerk als het paneel. Rond daar de stappen af, kom dan terug en klik op Klaar.",
+        "submit": "Klaar"
       },
       "authorize_adb": {
         "title": "Updates op {panel} toestaan",
@@ -1702,11 +1700,13 @@
       "removal_home_not_handed": "Het paneel bevestigde niet dat een andere launcher het startscherm heeft overgenomen, dus Panel Assistant is niet weggehaald. Installeer een launcher of zet die van de fabrikant weer aan, en probeer het opnieuw.",
       "removal_hand_back_unsupported": "De Panel Assistant-app op dit paneel is te oud om het startscherm terug te geven. Er is niets verwijderd. Werk de app eerst bij en probeer het daarna opnieuw.",
       "removal_app_unreachable": "Panel Assistant antwoordde niet en is nog het startscherm van het paneel; nu weghalen zou het paneel zonder startscherm laten. Er is niets weggehaald. Start Panel Assistant op het paneel en probeer het opnieuw.",
-      "removal_remove_failed": "Het paneel heeft zijn startscherm al terug, maar Panel Assistant kon niet volledig worden weggehaald. Probeer het opnieuw: een nieuwe poging maakt de rest af."
+      "removal_remove_failed": "Het paneel heeft zijn startscherm al terug, maar Panel Assistant kon niet volledig worden weggehaald. Probeer het opnieuw: een nieuwe poging maakt de rest af.",
+      "panel_not_connected": "Het paneel heeft nog geen verbinding gemaakt. Rond de stappen op de installatiepagina af en klik dan opnieuw op Klaar."
     },
     "abort": {
       "removed_entry_deleted": "Panel Assistant is weggehaald en het paneel is uit Home Assistant gewist.",
-      "removed_entry_kept": "Panel Assistant is weggehaald. Het paneel blijft in Home Assistant tot je het wist."
+      "removed_entry_kept": "Panel Assistant is weggehaald. Het paneel blijft in Home Assistant tot je het wist.",
+      "panel_connected": "Het paneel is ingesteld en verbonden met Home Assistant."
     }
   }
 }

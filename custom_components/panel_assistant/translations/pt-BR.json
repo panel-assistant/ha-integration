@@ -126,6 +126,7 @@
       "old_app_installed": "Este painel ainda executa o aplicativo ha-paneld antigo. O Panel Assistant 1.0 não consegue migrá-lo para o novo aplicativo e não instala nada ao lado dele. Instale primeiro o Panel Assistant 0.9.0 (no HACS abra Panel Assistant, escolha Redownload e selecione a versão 0.9.0), adicione o painel e migre-o com o reparo dele, depois instale 1.0.0.",
       "already_configured": "Este painel já está configurado.",
       "reinstall_successful": "O aplicativo foi instalado novamente. Este painel mantém seu histórico e suas configurações no Home Assistant.",
+      "usb_installed": "O Panel Assistant está instalado e o painel foi adicionado ao Home Assistant. Conclua a configuração do painel na janela do instalador.",
       "reinstall_identity_mismatch": "O aplicativo está instalado, mas não foi possível vinculá-lo ao painel mantido. Seu histórico e suas configurações no Home Assistant foram mantidos. Verifique o painel no Home Assistant antes de tentar novamente.",
       "not_panel": "Não é um painel no qual o Panel Assistant possa instalar o aplicativo.",
       "invalid_discovery": "Não foi comprovado que o painel descoberto é a mesma instalação de Panel Assistant em bom funcionamento. Nenhuma entrada do Home Assistant nem configuração do painel foi alterada.",
@@ -1637,11 +1638,8 @@
       },
       "onboarding": {
         "title": "Conclua a configuração deste painel",
-        "description": "Abra a página de configuração do painel em um navegador que consiga acessar o painel na sua rede local. Entre com a conta do Home Assistant usada atualmente nesse navegador, escolha o dashboard inicial e conclua a configuração nessa página. Mantenha esta janela aberta; ela fecha sozinha assim que o painel se conectar. Se este navegador não conseguir acessar o painel, conclua mais tarde a partir da rede local do painel. A aprovação da depuração do Android, se solicitada, ainda exige uma pessoa junto ao painel."
-      },
-      "onboarding_wait": {
-        "title": "Aguardando a conexão do painel",
-        "description": "O painel ainda não concluiu a configuração nem solicitou conexão com uma conta. Conclua a página de configuração dele e selecione Enviar aqui para verificar novamente."
+        "description": "Abra a [página de configuração do painel]({setup_url}). Ela abre em uma nova guia; abra-a em um dispositivo na mesma rede que o painel. Conclua as etapas lá, volte aqui e selecione Concluído.",
+        "submit": "Concluído"
       },
       "authorize_adb": {
         "title": "Permitir atualizações em {panel}",
@@ -1702,11 +1700,13 @@
       "removal_home_not_handed": "O painel não confirmou que outro inicializador assumiu sua tela inicial, por isso o Panel Assistant não foi removido. Instale um inicializador ou reative o do fabricante e tente novamente.",
       "removal_hand_back_unsupported": "O aplicativo Panel Assistant neste painel é antigo demais para devolver a tela inicial. Nada foi removido. Atualize-o primeiro e depois tente novamente.",
       "removal_app_unreachable": "O Panel Assistant não respondeu e ainda é a tela inicial do painel, então removê-lo agora deixaria o painel sem tela inicial. Nada foi removido. Inicie o Panel Assistant no painel e tente novamente.",
-      "removal_remove_failed": "O painel já recuperou sua tela inicial, mas não foi possível remover completamente o Panel Assistant. Tente novamente: uma nova tentativa conclui o que falta."
+      "removal_remove_failed": "O painel já recuperou sua tela inicial, mas não foi possível remover completamente o Panel Assistant. Tente novamente: uma nova tentativa conclui o que falta.",
+      "panel_not_connected": "O painel ainda não se conectou. Conclua as etapas na página de configuração dele e selecione Concluído novamente."
     },
     "abort": {
       "removed_entry_deleted": "O Panel Assistant foi removido e o painel foi excluído do Home Assistant.",
-      "removed_entry_kept": "O Panel Assistant foi removido. O painel permanece no Home Assistant até que você o exclua."
+      "removed_entry_kept": "O Panel Assistant foi removido. O painel permanece no Home Assistant até que você o exclua.",
+      "panel_connected": "O painel está configurado e conectado ao Home Assistant."
     }
   }
 }

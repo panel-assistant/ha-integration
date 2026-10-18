@@ -227,6 +227,9 @@ export function startReleaseHandoff(hass, installerUrl, {
     reply('ha-paneld/usb-handover-result',
       { outcome, ...(display ? { display: { density: display.density, font_scale: display.fontScale } } : {}),
         ...(registration ? { registration } : {}) });
+    // The installer asks only after the app is installed; it opens the panel's
+    // setup next, so this window has nothing left to do.
+    state('installed');
   }
   // Panel Assistant's public ADB key, which the installer offers at the
   // panel's USB prompt so that approval lets Panel Assistant in afterwards.
