@@ -142,7 +142,7 @@
       "install_verification_required": "Panel se změnil, ale Home Assistant nedokázal ověřit nainstalovaný balíček nebo odstranit jeho konkrétní připravený soubor. Neopakujte automatickou instalaci, aplikaci neodinstalovávejte ani neresetujte. Postupujte podle kroků na adrese [{recovery_address}]({recovery_url}) a zkontrolujte panel.",
       "install_failed": "Instalátor se zastavil s nerozpoznaným výsledkem. Nebyl vytvořen žádný záznam v Home Assistant. Neopakujte automatickou instalaci, dokud nezkontrolujete panel podle popisu na [{recovery_address}]({recovery_url}).",
       "install_worker_stopped": "Instalátor se zastavil a tuto úlohu v aktuálním procesu Home Assistant znovu neprovede. Restartujte Home Assistant, znovu otevřete nastavení a zadejte stejnou adresu panelu, abyste pokračovali nebo získali výsledek obnovy. Žádný záznam nebyl vytvořen.",
-      "install_recovery_required": "Home Assistant nemůže prokázat, že je bezpečné automaticky pokračovat. Žádný záznam nebyl vytvořen. Neopakujte automatickou instalaci, aplikaci neodinstalovávejte ani neresetujte, dokud nepostupujete podle kroků na adrese [{recovery_address}]({recovery_url}).",
+      "install_recovery_required": "Home Assistant nemůže prokázat, že je bezpečné automaticky pokračovat. Žádný záznam nebyl vytvořen. Neopakujte automatickou instalaci, aplikaci neodinstalovávejte ani neresetujte, dokud nebudete postupovat podle kroků na adrese [{recovery_address}]({recovery_url}).",
       "install_receipt_error": "Home Assistant nedokázal bezpečně přečíst trvale uložené potvrzení o instalaci. Žádný záznam nebyl vytvořen.",
       "unknown": "Postup nastavení ztratil rozpracovaný stav panelu. Spusťte nastavení znovu."
     },
