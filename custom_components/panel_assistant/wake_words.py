@@ -256,6 +256,9 @@ class SharedWakeWords:
         except OSError:
             _LOGGER.warning("The shared wake word %s could not be read", word.id)
             return True
+        _LOGGER.debug(
+            "Installing the shared wake word %s on panel %s", word.id, entry_id
+        )
         blobs = async_get_blobs(self._hass)
         token, reference = blobs.download(entry_id, model, MODEL_TYPE)
         try:
