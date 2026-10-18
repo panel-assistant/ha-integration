@@ -90,6 +90,11 @@ class FakePipeline:
 
     async def __call__(self, hass: HomeAssistant, **kwargs: Any) -> None:
         self.calls.append(kwargs)
+        callback: Callable[[PipelineEvent], None] = kwargs["event_callback"]
+        # As in Core, listening starts before any audio is read.
+        events = list(self.events)
+        if events and events[0].type is PipelineEventType.STT_START:
+            callback(events.pop(0))
         stream: AsyncIterable[bytes] = kwargs["stt_stream"]
         try:
             async for chunk in stream:
@@ -97,8 +102,7 @@ class FakePipeline:
         except asyncio.CancelledError:
             self.cancelled = True
             raise
-        callback: Callable[[PipelineEvent], None] = kwargs["event_callback"]
-        for event in self.events:
+        for event in events:
             callback(event)
 
 

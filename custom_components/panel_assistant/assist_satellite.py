@@ -22,6 +22,7 @@ from homeassistant.components.assist_satellite import (
     AssistSatelliteEntityFeature,
     AssistSatelliteWakeWord,
 )
+from homeassistant.components.assist_satellite.entity import AssistSatelliteState
 from homeassistant.components.intent import (
     TimerEventType,
     TimerInfo,
@@ -42,6 +43,7 @@ from . import HaPaneldConfigEntry
 from .browser_panel import STATIC_URL
 from .client import HaPaneldError
 from .const import DOMAIN
+from .duck import RoomDuck
 from .transport_protocol import CAPABILITY_VOICE, MANAGE_SETTINGS
 from .transport_sessions import (
     PanelSession,
@@ -116,6 +118,8 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         # The colours last sent, and the session they were sent on.
         self._colors_sent: tuple[str, dict[str, str]] | None = None
         self._unregister_timers: Callable[[], None] | None = None
+        # The players this panel turns down while it holds a conversation.
+        self._duck: RoomDuck
 
     @property
     def _session(self) -> PanelSession | None:
@@ -139,6 +143,7 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         """Follow the panel's session."""
         await super().async_added_to_hass()
         satellites(self.hass)[self._entry_id] = self
+        self._duck = RoomDuck(self.hass, self._entry_id)
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass, signal_session_changed(self._entry_id), self._session_changed
@@ -153,6 +158,7 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         if satellites(self.hass).get(self._entry_id) is self:
             del satellites(self.hass)[self._entry_id]
         self._fail_announcements()
+        self._duck.release()
         await super().async_will_remove_from_hass()
 
     @callback
@@ -334,6 +340,7 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         self._run = run
         self._reply_streamed = False
         self._continue_conversation = False
+        cancelled = False
         try:
             await self.async_accept_pipeline_from_satellite(
                 run.stream(),
@@ -343,6 +350,9 @@ class PanelAssistSatellite(AssistSatelliteEntity):
                     else voice.phrase(run.wake_word_id)
                 ),
             )
+        except asyncio.CancelledError:
+            cancelled = True
+            raise
         finally:
             if self._run is run:
                 self._run = None
@@ -350,6 +360,9 @@ class PanelAssistSatellite(AssistSatelliteEntity):
                 self._reply = None
                 await reply
             run.send({"kind": "end"})
+            # A turn that speaks ends when its reply has played.
+            if cancelled or self.state != AssistSatelliteState.RESPONDING:
+                self._duck.end(follow_up=self._continue_conversation and not cancelled)
 
     @callback
     def on_pipeline_event(self, event: PipelineEvent) -> None:
@@ -358,7 +371,11 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         if run is None:
             return
         data = event.data or {}
-        if event.type in (PipelineEventType.STT_VAD_END, PipelineEventType.STT_END):
+        if event.type is PipelineEventType.STT_START:
+            # After Core's duplicate-wake check, so only the panel that won
+            # the wake word turns the room down.
+            self._duck.duck(self.entity_id)
+        elif event.type in (PipelineEventType.STT_VAD_END, PipelineEventType.STT_END):
             run.send({"kind": "listen_end"})
             if event.type is PipelineEventType.STT_END and (
                 text := (data.get("stt_output") or {}).get("text")
@@ -448,6 +465,12 @@ class PanelAssistSatellite(AssistSatelliteEntity):
             or not await voice_stream.async_play_reply(listener, source)
         ):
             run.send(play)
+
+    @callback
+    def tts_response_finished(self) -> None:
+        """The turn's reply has played: hold the room for a follow-up, or let go."""
+        self._duck.end(follow_up=self._continue_conversation)
+        super().tts_response_finished()
 
     @callback
     def async_played(self, announce_id: str | None) -> None:
