@@ -8,6 +8,8 @@ panel's HTTP client, so what the panel would receive is what is asserted.
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -34,14 +36,18 @@ _CLIENT = "custom_components.panel_assistant.client.HaPaneldClient"
 class _Panel:
     """Record which panel was contacted and what it was posted."""
 
-    def __init__(self, state: PanelSetupState | Exception) -> None:
+    def __init__(self, state: PanelSetupState | Exception, refusals: int = 0) -> None:
         self.state = state
+        self.refusals = refusals
         self.hosts: list[str] = []
         self.posted: list[str | None] = []
         self.post_error: Exception | None = None
 
     async def get_state(self, client: HaPaneldClient) -> PanelSetupState:
         self.hosts.append(f"{client.address.host}:{client.address.port}")
+        if len(self.hosts) <= self.refusals:
+            # The app is installed and starting, but not listening yet.
+            raise CannotConnectError
         if isinstance(self.state, Exception):
             raise self.state
         return self.state
@@ -74,6 +80,13 @@ def panel_health() -> Any:
         ),
     ):
         yield health
+
+
+@pytest.fixture(autouse=True)
+def quick_answer_wait(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Wait for a starting app in milliseconds rather than seconds."""
+    monkeypatch.setattr(delivery, "_ANSWER_WAIT", 0.2, raising=False)
+    monkeypatch.setattr(delivery, "_ANSWER_RETRY", 0.01, raising=False)
 
 
 @pytest.fixture
@@ -323,11 +336,52 @@ async def test_a_panel_that_refuses_is_reported_not_raised(endpoint: Any) -> Non
     assert body["outcome"] == "handover_refused"
 
 
-async def test_an_unreachable_panel_is_reported_not_raised(endpoint: Any) -> None:
+async def test_an_unreachable_panel_is_reported_not_raised(
+    endpoint: Any, hass: HomeAssistant, panel_health: AsyncMock, caplog: Any
+) -> None:
+    """A panel that never answers leaves one line saying so in the log."""
+    panel_health.side_effect = CannotConnectError
     panel = _Panel(CannotConnectError())
-    status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+    with caplog.at_level(logging.INFO, logger=delivery.__name__):
+        status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
     assert status == 200
     assert body["outcome"] == "setup_state_unreadable"
+    assert body["registration"] == "not_panel"
+    assert hass.config_entries.async_entries(DOMAIN) == []
+    lines = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == delivery.__name__ and record.levelno == logging.INFO
+    ]
+    assert len(lines) == 1
+    assert "192.168.1.20" in lines[0]
+    assert "setup_state_unreadable" in lines[0]
+    assert "not_panel" in lines[0]
+
+
+async def test_a_panel_that_answers_late_still_gets_its_handover_and_entry(
+    endpoint: Any, hass: HomeAssistant, caplog: Any
+) -> None:
+    """The installer relays the handover while the app it started is coming up.
+
+    Its first reads are refused; the handover keeps asking, then gives the panel
+    Home Assistant's address and adds it, as the network install does.
+    """
+    panel = _Panel(PanelSetupState(complete=False, accepts_handover=True), refusals=3)
+    with caplog.at_level(logging.INFO, logger=delivery.__name__):
+        status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+    assert status == 200
+    assert body["outcome"] == "handed_over"
+    assert body["registration"] == "added"
+    assert panel.posted == ["http://192.168.1.5:8123"]
+    assert [
+        entry.data["address"] for entry in hass.config_entries.async_entries(DOMAIN)
+    ] == ["192.168.1.20"]
+    assert any(
+        "handed_over" in record.getMessage() and "added" in record.getMessage()
+        for record in caplog.records
+        if record.name == delivery.__name__ and record.levelno == logging.INFO
+    )
 
 
 async def test_only_an_admin_may_hand_over(
@@ -471,3 +525,62 @@ async def test_the_handover_leaves_display_size_alone_once_setup_is_complete(
     assert status == 200
     assert body["outcome"] == "setup_complete"
     assert body["display"] is None
+
+
+async def test_a_slow_entry_setup_never_holds_the_handover_past_its_deadline(
+    endpoint: Any,
+    hass: HomeAssistant,
+    caplog: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The admin's window gives up on the request, and the display size with it.
+
+    Adding the panel waits for its entry to set up, which can take longer than
+    the window waits. The handover answers in time with the display size, says
+    the panel is still being added, and the panel is added all the same.
+    """
+    monkeypatch.setattr(delivery, "_HANDOVER_TIMEOUT", 0.5)
+    setup_done = asyncio.Event()
+
+    async def _slow_setup(*_args: Any) -> bool:
+        await asyncio.sleep(1.0)
+        setup_done.set()
+        return True
+
+    panel = _Panel(PanelSetupState(complete=False, accepts_handover=True), refusals=2)
+    recommends = AsyncMock(
+        return_value={
+            "recommended": {"density": 216, "font_scale": 1.0},
+            "privileged_sizing": False,
+        }
+    )
+    loop = asyncio.get_running_loop()
+    with (
+        caplog.at_level(logging.INFO, logger=delivery.__name__),
+        patch("custom_components.panel_assistant.async_setup_entry", _slow_setup),
+        patch(f"{_CLIENT}.async_get_display", recommends),
+    ):
+        started = loop.time()
+        status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+        answered = loop.time() - started
+        assert status == 200
+        assert answered < 0.9
+        assert body == {
+            "outcome": "handed_over",
+            "registration": "in_progress",
+            "display": {"density": 216, "font_scale": 1.0},
+        }
+        await asyncio.wait_for(setup_done.wait(), 5)
+        await hass.async_block_till_done()
+
+    assert [e.data["address"] for e in hass.config_entries.async_entries(DOMAIN)] == [
+        "192.168.1.20"
+    ]
+    lines = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == delivery.__name__ and record.levelno == logging.INFO
+    ]
+    assert len(lines) == 2
+    assert "registration: in_progress" in lines[0]
+    assert "finished: added" in lines[1]

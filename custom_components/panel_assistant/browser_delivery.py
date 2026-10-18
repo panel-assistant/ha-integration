@@ -44,7 +44,17 @@ _DOWNLOAD_TIMEOUT = 60.0
 _CHUNK_SIZE = 64 * 1024
 _HEADERS = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
 _ID = re.compile(r"[0-9a-f]{32}")
+# The whole handover answers within this, because the admin's window gives up
+# on the request at 35 s and would lose the display size the installer needs.
 _HANDOVER_TIMEOUT = 30.0
+# The installer relays the handover as soon as it has started the app, which
+# may not be answering on its port yet. Keep asking for this long: the last
+# read, the address post and the sizing read after it take up to 5 s each.
+_ANSWER_WAIT = 10.0
+_ANSWER_RETRY = 1.0
+# Adding the panel may go on after the handover has answered; this bounds only
+# a registration that never ends.
+_REGISTRATION_TIMEOUT = 30.0
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -294,7 +304,7 @@ async def _async_register_usb_panel(hass: HomeAssistant, address: PanelAddress) 
     and the person can still add the panel; the answer is for support logs.
     """
     try:
-        async with asyncio.timeout(_HANDOVER_TIMEOUT):
+        async with asyncio.timeout(_REGISTRATION_TIMEOUT):
             result = await hass.config_entries.flow.async_init(
                 DOMAIN,
                 context={"source": SOURCE_USB_INSTALL},
@@ -342,8 +352,20 @@ class BrowserSetupHandoverView(HomeAssistantView):
                 client = HaPaneldClient(
                     async_get_clientsession(self.service.hass), address
                 )
-                async with asyncio.timeout(_HANDOVER_TIMEOUT):
-                    outcome = await async_offer_ha_url(self.service.hass, client)
+                loop = asyncio.get_running_loop()
+                started = loop.time()
+                deadline = started + _HANDOVER_TIMEOUT
+                attempts = 0
+                async with asyncio.timeout_at(deadline):
+                    while True:
+                        attempts += 1
+                        outcome = await async_offer_ha_url(self.service.hass, client)
+                        if (
+                            outcome != "setup_state_unreadable"
+                            or loop.time() - started >= _ANSWER_WAIT
+                        ):
+                            break
+                        await asyncio.sleep(_ANSWER_RETRY)
                     # The installer still holds USB: it applies the display and
                     # text size the panel's profile recommends before it opens
                     # the panel's setup, as the network installer does over ADB.
@@ -353,8 +375,39 @@ class BrowserSetupHandoverView(HomeAssistantView):
                         if outcome == "setup_complete"
                         else await async_read_recommended_sizing(client)
                     )
-                registration = await _async_register_usb_panel(
-                    self.service.hass, address
+                # Adding the panel sets its entry up before the flow returns,
+                # which can outlast the handover's answer. It is not stopped
+                # then, since that would leave a half-added panel: the answer
+                # says it is still going, and the log says how it ended.
+                registering = self.service.hass.async_create_task(
+                    _async_register_usb_panel(self.service.hass, address),
+                    "panel_assistant USB install registration",
+                )
+                await asyncio.wait(
+                    {registering}, timeout=max(0.0, deadline - loop.time())
+                )
+                if registering.done():
+                    registration = registering.result()
+                else:
+                    registration = "in_progress"
+
+                    def _log_late(task: asyncio.Task[str]) -> None:
+                        if not task.cancelled():
+                            _LOGGER.info(
+                                "USB install registration of %s finished: %s",
+                                address.host,
+                                task.result(),
+                            )
+
+                    registering.add_done_callback(_log_late)
+                _LOGGER.info(
+                    "USB install handover to %s: %s after %d read(s) in %.1f s; "
+                    "registration: %s",
+                    address.host,
+                    outcome,
+                    attempts,
+                    loop.time() - started,
+                    registration,
                 )
                 return web.json_response(
                     {
