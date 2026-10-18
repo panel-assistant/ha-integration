@@ -1187,7 +1187,7 @@ async def test_signed_confirmation_rejects_every_target_identity_drift(
     manager.async_create_or_join.assert_not_awaited()
 
 
-@pytest.mark.parametrize("authorize_first", [False, True], ids=["trusted", "authorize"])
+@pytest.mark.parametrize("authorize_first", [False, True], ids=["open", "known_key"])
 async def test_failed_install_with_identical_bytes_is_adopted(
     hass: HomeAssistant, authorize_first: bool
 ) -> None:
@@ -1248,11 +1248,6 @@ async def test_failed_install_with_identical_bytes_is_adopted(
             form["flow_id"], {CONF_ADDRESS: "panel.local"}
         )
         preview = await _choose_version(hass, choose, rc.tag)
-        if authorize_first:
-            assert preview["step_id"] == "authorize_adb"
-            preview = await hass.config_entries.flow.async_configure(
-                preview["flow_id"], {}
-            )
         assert preview["step_id"] == "confirm_install_rc"
         result = await hass.config_entries.flow.async_configure(preview["flow_id"], {})
 
@@ -2452,13 +2447,211 @@ async def test_a_silent_old_app_is_not_given_a_different_package(
     assert not hass.config_entries.async_entries(DOMAIN)
 
 
+class _PanelThatAsks:
+    """A panel whose Android asks a person before it trusts Home Assistant.
+
+    The key is offered on one connection, which the panel answers only when
+    the person taps (``taps``: True for Allow, False for no Allow in time).
+    With "Always allow" ticked (``remembers``) later connections are trusted.
+    """
+
+    def __init__(self, *, trusted: bool = False, remembers: bool = True) -> None:
+        self.trusted = trusted
+        self.remembers = remembers
+        self.taps: asyncio.Queue[bool] = asyncio.Queue()
+        self.offers: list[float] = []
+        self.cancelled = False
+
+    async def probe(
+        self,
+        _address: object,
+        signer: object | None = None,
+        *,
+        authorize: bool = False,
+        approval_seconds: float = 5.0,
+    ) -> InstallTargetProbe:
+        if signer is not CREDENTIAL.signer:
+            return InstallTargetProbe(state=InstallTargetState.ADB_UNAUTHORIZED)
+        if self.trusted:
+            return CANDIDATE
+        if not authorize:
+            return InstallTargetProbe(state=InstallTargetState.ADB_UNAUTHORIZED)
+        self.offers.append(approval_seconds)
+        try:
+            allowed = await self.taps.get()
+        except asyncio.CancelledError:
+            self.cancelled = True
+            raise
+        if not allowed:
+            return InstallTargetProbe(state=InstallTargetState.ADB_UNAUTHORIZED)
+        self.trusted = self.remembers
+        return CANDIDATE
+
+
+@contextlib.contextmanager
+def _network_install(panel: _PanelThatAsks, manager: SimpleNamespace) -> Iterator[None]:
+    """Fake only the panel, the release and the job store around the flow."""
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
+            AsyncMock(return_value=manager),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+            AsyncMock(side_effect=CannotConnectError),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_probe_install_target",
+            panel.probe,
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_resolve_install_choice",
+            AsyncMock(return_value=RELEASE),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_adb_signer",
+            AsyncMock(return_value=CREDENTIAL.signer),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_adb_credential",
+            AsyncMock(return_value=CREDENTIAL),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_durable_adb_credential",
+            AsyncMock(return_value=CREDENTIAL),
+        ),
+        patch.object(
+            HaPaneldConfigFlow,
+            "_async_show_install_progress",
+            AsyncMock(
+                return_value={"type": FlowResultType.ABORT, "reason": "installing"}
+            ),
+        ),
+    ):
+        yield
+
+
+async def _to_version_choice(hass: HomeAssistant) -> dict[str, Any]:
+    form = await _start_step(hass, "add_panel")
+    return await hass.config_entries.flow.async_configure(
+        form["flow_id"], {CONF_ADDRESS: "panel.local"}
+    )
+
+
+async def _after_the_wait(hass: HomeAssistant, flow_id: str) -> dict[str, Any]:
+    """Let a finished wait advance the flow, as the dialog does on its own."""
+    await hass.async_block_till_done()
+    result = await hass.config_entries.flow.async_configure(flow_id)
+    if result["type"] is FlowResultType.SHOW_PROGRESS_DONE:
+        result = await hass.config_entries.flow.async_configure(flow_id)
+    return result
+
+
+async def test_a_panel_that_asks_installs_after_its_allow_and_one_install_press(
+    hass: HomeAssistant,
+) -> None:
+    """After the version, the person taps Allow on the panel and presses Install."""
+    panel = _PanelThatAsks()
+    manager = _manager_for(_receipt(InstallPhase.APPROVED))
+    with _network_install(panel, manager):
+        waiting = await _choose_version(hass, await _to_version_choice(hass))
+        assert waiting["type"] is FlowResultType.SHOW_PROGRESS
+        assert waiting["step_id"] == "authorize_adb"
+        assert waiting["progress_action"] == "authorize_adb"
+        panel.taps.put_nowait(True)
+        confirm = await _after_the_wait(hass, waiting["flow_id"])
+        assert confirm["type"] is FlowResultType.FORM
+        assert confirm["step_id"] == "confirm_install_candidate"
+        manager.async_create_or_join.assert_not_awaited()
+        result = await hass.config_entries.flow.async_configure(confirm["flow_id"], {})
+
+    assert result == {"type": FlowResultType.ABORT, "reason": "installing"}
+    manager.async_create_or_join.assert_awaited_once()
+    assert len(panel.offers) == 1
+    # A person walks to the panel: the offer waits far past an ADB answer.
+    assert panel.offers[0] >= 60
+
+
+async def test_a_panel_that_already_trusts_home_assistant_asks_only_to_install(
+    hass: HomeAssistant,
+) -> None:
+    """A panel that asks for unknown keys but knows this one shows no Allow step."""
+    panel = _PanelThatAsks(trusted=True)
+    manager = _manager_for(_receipt(InstallPhase.APPROVED))
+    with _network_install(panel, manager):
+        confirm = await _choose_version(hass, await _to_version_choice(hass))
+        assert confirm["type"] is FlowResultType.FORM
+        assert confirm["step_id"] == "confirm_install_candidate"
+        await hass.config_entries.flow.async_configure(confirm["flow_id"], {})
+
+    manager.async_create_or_join.assert_awaited_once()
+    assert panel.offers == []
+
+
+async def test_a_missed_allow_asks_the_panel_again_from_one_submit(
+    hass: HomeAssistant,
+) -> None:
+    """No Allow in time says so, and Submit offers the key once more."""
+    panel = _PanelThatAsks()
+    manager = _manager_for(_receipt(InstallPhase.APPROVED))
+    with _network_install(panel, manager):
+        waiting = await _choose_version(hass, await _to_version_choice(hass))
+        panel.taps.put_nowait(False)
+        retry = await _after_the_wait(hass, waiting["flow_id"])
+        assert retry["type"] is FlowResultType.FORM
+        assert retry["step_id"] == "authorize_adb"
+        assert retry["errors"] == {"base": "adb_still_unauthorized"}
+        waiting = await hass.config_entries.flow.async_configure(retry["flow_id"], {})
+        assert waiting["type"] is FlowResultType.SHOW_PROGRESS
+        panel.taps.put_nowait(True)
+        confirm = await _after_the_wait(hass, waiting["flow_id"])
+
+    assert confirm["step_id"] == "confirm_install_candidate"
+    assert len(panel.offers) == 2
+    manager.async_create_or_join.assert_not_awaited()
+
+
+async def test_an_allow_the_panel_does_not_remember_is_not_ready_to_install(
+    hass: HomeAssistant,
+) -> None:
+    """The install opens its own connection, which a one-time Allow does not cover."""
+    panel = _PanelThatAsks(remembers=False)
+    manager = _manager_for(_receipt(InstallPhase.APPROVED))
+    with _network_install(panel, manager):
+        waiting = await _choose_version(hass, await _to_version_choice(hass))
+        panel.taps.put_nowait(True)
+        retry = await _after_the_wait(hass, waiting["flow_id"])
+
+    assert retry["type"] is FlowResultType.FORM
+    assert retry["step_id"] == "authorize_adb"
+    assert retry["errors"] == {"base": "adb_still_unauthorized"}
+    manager.async_create_or_join.assert_not_awaited()
+
+
+async def test_closing_the_dialog_stops_waiting_for_the_allow(
+    hass: HomeAssistant,
+) -> None:
+    """Nobody is left holding the panel's connection open after the dialog goes."""
+    panel = _PanelThatAsks()
+    manager = _manager_for(_receipt(InstallPhase.APPROVED))
+    with _network_install(panel, manager):
+        waiting = await _choose_version(hass, await _to_version_choice(hass))
+        await asyncio.sleep(0)
+        assert len(panel.offers) == 1
+        hass.config_entries.flow.async_abort(waiting["flow_id"])
+        await hass.async_block_till_done()
+
+    assert panel.cancelled is True
+    manager.async_create_or_join.assert_not_awaited()
+
+
 async def test_the_authorization_retry_also_names_every_state_it_can_see(
     hass: HomeAssistant,
 ) -> None:
     """The second state map is a separate copy, so it needs its own proof.
 
-    Reaching it means the first probe said the key was not trusted and the
-    retry, now holding Home Assistant's key, saw something else. That map reads
+    Reaching it means the first probe, holding no key, was refused and the
+    check with Home Assistant's key saw something else. That map reads
     the state as a bare string too, so the same omission is possible there and
     invisible in the same way.
     """
@@ -2467,6 +2660,8 @@ async def test_the_authorization_retry_also_names_every_state_it_can_see(
             InstallTargetState.INSTALL_CANDIDATE,
             InstallTargetState.INSTALLED,
             InstallTargetState.MIGRATION_CANDIDATE,
+            # Still untrusted waits for the panel's Allow, tested on its own.
+            InstallTargetState.ADB_UNAUTHORIZED,
         }:
             continue
         probe_mock = AsyncMock(
@@ -2494,14 +2689,11 @@ async def test_the_authorization_retry_also_names_every_state_it_can_see(
             ),
         ):
             form = await _start_step(hass, "add_panel")
-            authorize = await _choose_version(
+            result = await _choose_version(
                 hass,
                 await hass.config_entries.flow.async_configure(
                     form["flow_id"], {CONF_ADDRESS: "panel.local"}
                 ),
-            )
-            result = await hass.config_entries.flow.async_configure(
-                authorize["flow_id"], {}
             )
 
         assert result["step_id"] == "authorize_adb", state.value

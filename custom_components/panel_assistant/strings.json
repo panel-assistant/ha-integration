@@ -67,8 +67,8 @@
         "description": "Home Assistant found a Panel Assistant installation at {address}. Submit to verify it is still the same panel and add it as {panel_name}. No panel settings will change."
       },
       "authorize_adb": {
-        "title": "Authorize Home Assistant on the panel",
-        "description": "The selected release includes a verified installation descriptor. Select Submit once to create or load a persistent ADB identity for this Home Assistant installation and offer its public key to the Android panel at {address}. On the panel, approve Android's Allow debugging prompt, then return here and select Submit again. Android may describe Home Assistant as a computer. Approval grants general ADB shell access while network debugging remains enabled; revoke it from the panel's developer settings. No APK is downloaded or installed at this step."
+        "title": "Allow Home Assistant on the panel",
+        "description": "Look at the screen of the panel at {address}: tick **Always allow from this computer**, then tap **Allow**. Android may call Home Assistant a computer.\n\nSelect Submit to ask the panel again."
       },
       "confirm_install_candidate": {
         "title": "Install Panel Assistant {version}?",
@@ -88,6 +88,7 @@
       }
     },
     "progress": {
+      "authorize_adb": "Look at the screen of the panel at {address}: tick **Always allow from this computer**, then tap **Allow**. Android may call Home Assistant a computer.\n\nThis carries on by itself once the panel allows it.",
       "installing": "Installing Panel Assistant on {address}. Keep this dialog open; it finishes on its own.\n\nIf you close it, the install keeps running. Add the same address again to finish."
     },
     "error": {
@@ -102,8 +103,7 @@
       "install_target_changed": "The hostname no longer resolves to the same pinned panel address. No ADB key or installation was sent. Check the address and start again.",
       "adb_unreachable": "The panel answered, but nothing answered on its Android Debug Bridge port (5555). On the panel, turn on Android Debug Bridge and allow it over the network, then try again. If you can plug the panel into the computer you are browsing on, install over USB instead.",
       "panel_unreachable": "Nothing answered at that address. Check that the address is right and the panel is switched on and on your network, then try again. If you can plug the panel into the computer you are browsing on, install over USB instead.",
-      "adb_unauthorized": "The panel still requires ADB authorization. Approve the prompt on the panel, then try again.",
-      "adb_still_unauthorized": "The panel has not accepted this Home Assistant instance yet. Approve the ADB prompt on the panel, then try again.",
+      "adb_still_unauthorized": "The panel has not accepted this Home Assistant instance yet, or did not remember it.",
       "adb_credential_error": "Home Assistant could not safely load or persist its ADB credential. No panel change was attempted. Check the Home Assistant storage and logs before retrying.",
       "installed_without_health": "The Panel Assistant package is installed but its health endpoint did not respond. This flow will not overwrite or repair it. Do not retry automatic installation; open Panel Assistant on the panel, or follow the steps at {recovery_address}. After restoring a healthy installation, start again to connect it.",
       "retained_or_ambiguous": "The panel may contain a retained Panel Assistant package record or its package state could not be proven absent. No panel change was made. Retry once if the connection was unstable; otherwise follow the steps at {recovery_address}. Do not uninstall or reset the app without a verified backup.",

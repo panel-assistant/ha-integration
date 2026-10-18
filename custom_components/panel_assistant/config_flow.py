@@ -162,6 +162,8 @@ _CONF_RELEASE_CANDIDATE = "release_candidate"
 # value as unfilled, so a required selector offering "" can never be submitted.
 _STABLE_CHOICE = "stable"
 _SETUP_POLL_SECONDS = 3
+# Long enough to walk to the panel and answer Android's Allow prompt.
+_ADB_APPROVAL_SECONDS = 120.0
 _HOST_PROBE_SECONDS = 3
 _SETUP_WATCH_SECONDS = 60 * 60
 
@@ -191,6 +193,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     _pending_install_target: PinnedPanelTarget | None = None
     _pending_job_id: str | None = None
     _progress_waiter: asyncio.Task[InstallJobReceipt] | None = None
+    _authorization_task: asyncio.Task[InstallTargetProbe] | None = None
+    _authorization_errors: dict[str, str] | None = None
     _install_executor: InstallExecutor | None = None
     _finalizer_job_id: str | None = None
     _flow_removed = False
@@ -501,6 +505,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         self._pending_rc_tag = None
         self._pending_install_target = None
         self._pending_job_id = None
+        self._authorization_errors = None
 
     async def async_step_add_panel(
         self, user_input: dict[str, Any] | None = None
@@ -730,13 +735,13 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         if self._pending_release.descriptor is None:
             return self._show_release_preview_only()
         if self._pending_probe_state == "adb_unauthorized":
-            return self._show_authorize_adb()
+            return await self._async_authorize_adb()
         return self._show_install_candidate_preview()
 
     async def async_step_authorize_adb(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Wait for explicit approval of Home Assistant's ADB key on the panel."""
+        """Wait for the panel's Allow, or ask it again after a wait that failed."""
         if (
             self._pending_address is None
             or self._pending_install_target is None
@@ -744,46 +749,103 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             or self._pending_release.descriptor is None
         ):
             return self.async_abort(reason="unknown")
+        task = self._authorization_task
+        if task is not None:
+            if not task.done():
+                return self._show_authorization_progress(task)
+            self._authorization_task = None
+            try:
+                self._authorization_errors = self._accept_authorized_probe(
+                    task.result()
+                )
+            except InstallNetworkError as err:
+                self._authorization_errors = {"base": _install_network_error(err)}
+            except Exception:
+                _LOGGER.exception("Unexpected exception while waiting for ADB Allow")
+                self._authorization_errors = {"base": "unknown"}
+            return self.async_show_progress_done(
+                next_step_id="authorize_adb"
+                if self._authorization_errors
+                else "confirm_install_candidate"
+            )
         if user_input is None:
-            return self._show_authorize_adb()
+            return self._show_authorize_adb(self._authorization_errors)
+        return await self._async_authorize_adb()
 
+    async def _async_authorize_adb(self) -> ConfigFlowResult:
+        """Use a key the panel already trusts, or offer it and wait for Allow."""
+        assert self._pending_install_target is not None
+        self._authorization_errors = None
         try:
             target = await async_revalidate_install_target(
                 self.hass, self._pending_install_target
             )
             signer = await async_get_adb_signer(self.hass)
-            probe = await async_probe_install_target(
-                target.pinned, signer, authorize=True
-            )
+            probe = await async_probe_install_target(target.pinned, signer)
         except InstallNetworkError as err:
             return self._show_authorize_adb({"base": _install_network_error(err)})
         except AdbCredentialError:
             return self._show_authorize_adb({"base": "adb_credential_error"})
         except Exception:
-            _LOGGER.exception("Unexpected exception while retrying ADB authorization")
+            _LOGGER.exception("Unexpected exception while authorizing ADB")
             return self._show_authorize_adb({"base": "unknown"})
-
-        state = probe.state.value
-        if state == "adb_unauthorized":
-            return self._show_authorize_adb({"base": "adb_still_unauthorized"})
-        if state == "migration_candidate":
-            return self._show_authorize_adb({"base": "old_app_installed"})
-        if state in ("install_candidate", "installed"):
-            placeholders = _install_candidate_placeholders(probe)
-            if placeholders is None:
-                return self.async_abort(reason="unknown")
-            self._pending_probe = probe
-            self._pending_probe_state = state
+        if probe.state is not InstallTargetState.ADB_UNAUTHORIZED:
+            if errors := self._accept_authorized_probe(probe):
+                return self._show_authorize_adb(errors)
             return self._show_install_candidate_preview()
 
-        return self._show_authorize_adb(
-            {
-                "base": {
-                    "adb_unreachable": "adb_unreachable",
-                    "retained_or_ambiguous": "retained_or_ambiguous",
-                    "incompatible": "incompatible",
-                }.get(state, "unknown")
-            }
+        async def wait_for_allow() -> InstallTargetProbe:
+            offered = await async_probe_install_target(
+                target.pinned,
+                signer,
+                authorize=True,
+                approval_seconds=_ADB_APPROVAL_SECONDS,
+            )
+            if offered.state in (
+                InstallTargetState.ADB_UNAUTHORIZED,
+                InstallTargetState.ADB_UNREACHABLE,
+            ):
+                return offered
+            # Android allows the connection that offered the key; the install
+            # opens its own, which works only if the panel remembered the key.
+            return await async_probe_install_target(target.pinned, signer)
+
+        task = self.hass.async_create_task(
+            wait_for_allow(), "wait for the panel to allow Home Assistant"
+        )
+        self._authorization_task = task
+        return self._show_authorization_progress(task)
+
+    def _accept_authorized_probe(
+        self, probe: InstallTargetProbe
+    ) -> dict[str, str] | None:
+        """Keep a classified installable panel, or name what stops it."""
+        state = probe.state.value
+        if state in ("install_candidate", "installed") and (
+            _install_candidate_placeholders(probe) is not None
+        ):
+            self._pending_probe = probe
+            self._pending_probe_state = state
+            return None
+        return {
+            "base": {
+                "adb_unauthorized": "adb_still_unauthorized",
+                "migration_candidate": "old_app_installed",
+                "adb_unreachable": "adb_unreachable",
+                "incompatible": "incompatible",
+            }.get(state, "retained_or_ambiguous")
+        }
+
+    def _show_authorization_progress(
+        self, task: asyncio.Task[InstallTargetProbe]
+    ) -> ConfigFlowResult:
+        """Show the wait for Allow on the panel."""
+        assert self._pending_address is not None
+        return self.async_show_progress(
+            step_id="authorize_adb",
+            progress_action="authorize_adb",
+            description_placeholders={"address": self._pending_address.stored_value},
+            progress_task=task,
         )
 
     def _show_authorize_adb(
