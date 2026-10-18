@@ -184,7 +184,7 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
         ],
         # Core buckets dhcp hostname matchers by first character.
         "dhcp": [{"hostname": f"{c}*"} for c in string.ascii_lowercase + string.digits],
-        "documentation": "https://github.com/panel-assistant/ha-integration",
+        "documentation": "https://panel-assistant.io/go/install-integration",
         "domain": "panel_assistant",
         "integration_type": "device",
         "iot_class": "local_polling",

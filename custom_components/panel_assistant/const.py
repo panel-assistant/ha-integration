@@ -33,6 +33,15 @@ def help_url(topic: str, **parameters: str) -> str:
     return str(URL(_HELP_REDIRECT + topic).with_query(query))
 
 
+# Every install failure names one page: as a link where Home Assistant renders
+# markdown (an abort), as a readable address where it shows plain text (a form
+# error).
+INSTALL_RECOVERY_PLACEHOLDERS = {
+    "recovery_url": help_url("install-recovery"),
+    "recovery_address": _HELP_REDIRECT.removeprefix("https://") + "install-recovery",
+}
+
+
 # One definition of where the panel app is published. The repository moved to
 # the organisation in 2026, and GitHub redirects the old path indefinitely, but
 # nothing here relies on that redirect.

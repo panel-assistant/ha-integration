@@ -49,7 +49,7 @@
     { "hostname": "8*" },
     { "hostname": "9*" }
   ],
-  "documentation": "https://github.com/panel-assistant/ha-integration",
+  "documentation": "https://panel-assistant.io/go/install-integration",
   "integration_type": "device",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/panel-assistant/ha-integration/issues",

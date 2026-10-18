@@ -25,6 +25,7 @@ from custom_components.panel_assistant.config_flow import (
 )
 from custom_components.panel_assistant.const import (
     DOMAIN,
+    INSTALL_RECOVERY_PLACEHOLDERS,
     help_url,
 )
 from custom_components.panel_assistant.install_network import (
@@ -48,6 +49,7 @@ from .config_flow_helpers import (
     _probe,
     _start_step,
 )
+from .install_recovery_text import assert_names_recovery_page
 
 # Bind the shared autouse fixtures here so pytest applies them to this module.
 install_release_catalog = config_flow_helpers.install_release_catalog
@@ -82,6 +84,7 @@ async def test_install_rejects_invalid_address_before_network_calls(
     assert result["step_id"] == "add_panel"
     assert result["errors"] == {"base": "invalid_address"}
     assert result["description_placeholders"] == {
+        **INSTALL_RECOVERY_PLACEHOLDERS,
         "panel_access_url": help_url("panel-access"),
         "panel_help_url": help_url("panel-unreachable"),
     }
@@ -508,6 +511,7 @@ async def test_install_candidate_readiness_is_non_mutating_until_confirmation(
         assert confirm["type"] is FlowResultType.FORM
         assert confirm["step_id"] == "confirm_install_candidate"
         assert confirm["description_placeholders"] == {
+            **INSTALL_RECOVERY_PLACEHOLDERS,
             "address": "panel.local",
             "model": "WF1589T",
             "serial": "serial-123",
@@ -614,6 +618,7 @@ async def test_install_candidate_without_identity_fails_closed(
         )
 
     assert result["errors"] == {"base": "retained_or_ambiguous"}
+    await assert_names_recovery_page(hass, "config.error.retained_or_ambiguous", result)
     release_mock.assert_not_awaited()
     assert not hass.config_entries.async_entries(DOMAIN)
 
@@ -686,7 +691,10 @@ async def test_install_unauthorized_requires_physical_approval_without_creating_
 
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "authorize_adb"
-    assert result["description_placeholders"] == {"address": "panel.local"}
+    assert result["description_placeholders"] == {
+        "address": "panel.local",
+        **INSTALL_RECOVERY_PLACEHOLDERS,
+    }
     assert result["errors"] is None
     signer_mock.assert_not_awaited()
     probe_mock.assert_awaited_once()
@@ -897,6 +905,7 @@ async def test_install_authorization_approval_reaches_release_preview(
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "confirm_install_candidate"
     assert result["description_placeholders"] == {
+        **INSTALL_RECOVERY_PLACEHOLDERS,
         "address": "panel.local",
         "model": "WF1589T",
         "serial": "serial-123",
