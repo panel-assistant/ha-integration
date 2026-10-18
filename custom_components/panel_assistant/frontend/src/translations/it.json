@@ -40,7 +40,8 @@
     "loading": "Caricamento delle versioni…",
     "catalogError": "Non è stato possibile caricare l’elenco delle versioni.",
     "empty": "Non ci sono ancora versioni disponibili. Riprova più tardi.",
-    "choose": "Segui il canale di Panel Assistant (consigliato)",
+    "choose": "Versione consigliata",
+    "otherVersions": "Scegli un’altra versione",
     "testing": "versione di prova",
     "devBuild": "build di sviluppo",
     "retry": "Riprova",
@@ -54,6 +55,7 @@
     "downloading": "Preparazione dell’app…",
     "verifying": "Preparazione dell’app…",
     "verified": "Continua nella nuova finestra.",
+    "installed": "Panel Assistant è installato. Completa la configurazione del pannello nella finestra dell'installer, poi chiudi questa scheda.",
     "cancelled": "Annullato.",
     "popup_blocked": "Il browser ha bloccato la nuova finestra. Consenti i popup per questa pagina, poi premi Continua.",
     "invalid_request": "Scegli prima una versione.",
@@ -65,9 +67,11 @@
     "preparingSlow": "La preparazione dell’app è ancora in corso. Tieni aperta la scheda di Home Assistant.",
     "connectHeading": "Collega il tuo pannello",
     "connectBody": "Collega il pannello a questo computer con un cavo USB, poi premi Trova il mio pannello.",
+    "usbDebugging": "Il debug USB deve essere attivo nelle impostazioni sviluppatore del pannello.",
+    "usbDebuggingHelp": "Come attivarlo",
     "connect": "Trova il mio pannello",
     "allowHeading": "Autorizza questo computer",
-    "allowBody": "Guarda lo schermo del pannello e tocca Consenti.",
+    "allowBody": "Sul pannello, seleziona «Consenti sempre da questo computer» e tocca Consenti, così Panel Assistant potrà aggiornarlo in seguito senza il cavo.",
     "checkingPanel": "Verifica del pannello…",
     "confirmHeading": "Pronto per l’installazione",
     "confirmBody": "Questa operazione installa l’app e la imposta come schermata iniziale del pannello. Le altre app non vengono modificate.",
@@ -101,7 +105,8 @@
     "pageClosed": "La pagina è stata chiusa.",
     "progress": "Avanzamento",
     "installProgress": "Avanzamento dell’installazione",
-    "licenses": "Licenze di terze parti"
+    "licenses": "Licenze di terze parti",
+    "doneAnotherHomeAssistant": "Su questo pannello è attivo l'accesso a un altro Home Assistant. Cambia Home Assistant ed esegui l'accesso sul pannello per collegarlo qui."
   },
   "errors": {
     "installErrorGeneric": "Si è verificato un problema. Lascia il pannello collegato e premi Riprova.",
@@ -112,7 +117,8 @@
     "installErrorNotClean": "L’app è già presente su questo pannello. Aggiornala da Home Assistant.",
     "installErrorIncompatible": "Questo pannello non può eseguire questa versione dell’app.",
     "installErrorConnection": "La connessione al pannello si è interrotta. Lascialo collegato e premi Riprova.",
-    "installErrorHealth": "L’app è installata ma non si è ancora avviata. Attendi un momento, poi riprova."
+    "installErrorHealth": "L’app è installata ma non si è ancora avviata. Attendi un momento, poi riprova.",
+    "installErrorPermissions": "L’app è installata, ma non è stato possibile confermarne le autorizzazioni. Riprovare è sicuro: lascia il pannello collegato e premi Riprova."
   },
   "journey": {
     "version": "Versione",
@@ -129,6 +135,7 @@
   "support": {
     "stopped": "Interrotto",
     "cause": "Causa",
+    "failedCheck": "Controllo non riuscito",
     "error": "Errore",
     "release": "Versione pubblicata",
     "panel": "Pannello",
@@ -141,7 +148,8 @@
     "permissions": "Autorizzazioni",
     "setupAddress": "Indirizzo di configurazione",
     "setupHandover": "Passaggio alla configurazione",
-    "displaySizing": "Dimensione dello schermo e del testo",
+    "displaySizing": "Dimensioni di visualizzazione e del testo",
+    "networkAdb": "ADB di rete",
     "copiedDetail": "{bytes} byte inviati; in attesa della conferma del pannello",
     "none": "nessuno",
     "setupMissing": "non trovato; la configurazione prosegue sul pannello"

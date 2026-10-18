@@ -5,13 +5,13 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-import unicodedata
 from dataclasses import replace
-from typing import Any
+from typing import Any, Self
 
 import voluptuous as vol
-from homeassistant.auth.models import User
 from homeassistant.config_entries import (
+    SOURCE_IGNORE,
+    SOURCE_USER,
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
@@ -20,7 +20,13 @@ from homeassistant.config_entries import (
 )
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.data_entry_flow import FlowHandler, FlowResult, UnknownFlow
+from homeassistant.data_entry_flow import (
+    AbortFlow,
+    FlowHandler,
+    FlowResult,
+    FlowResultType,
+    UnknownFlow,
+)
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.http import current_request
 from homeassistant.helpers.selector import (
@@ -41,6 +47,7 @@ from .adb_credentials import (
     async_get_adb_signer,
     async_get_durable_adb_credential,
 )
+from .adb_protocol import InstallAdbError, same_physical_target
 from .browser_delivery import async_register_browser_delivery
 from .browser_panel import PANEL_PATH, async_register_browser_panel
 from .client import (
@@ -59,31 +66,39 @@ from .const import (
     CONF_TRANSPORT_USER_ID,
     DEFAULT_PORT,
     DOMAIN,
+    INSTALL_RECOVERY_PLACEHOLDERS,
+    SOURCE_USB_INSTALL,
     help_url,
 )
-from .failure_repair import async_clear_adb_authorization
-from .ha_url import async_offer_ha_url
-from .identity import CONF_INSTALL_IDENTITY, accept_health, is_installation
-from .install_adb import (
-    ADB_PORT,
-    InstallAdbError,
-    async_installed_artifact_size,
-    async_preflight_install,
-    same_physical_target,
+from .device import panel_display_name
+from .discovery import (
+    CONFIRMED,
+    MigrationTarget,
+    _apply_discovery_title,
+    _entry_holds_its_address,
+    address_schema,
+    async_confirm_discovery,
+    async_confirm_migration,
+    async_dhcp,
+    async_find_migration_targets,
+    async_ignore,
+    async_integration_discovery,
+    async_offer_migration_targets,
+    async_zeroconf,
+    close_offers,
+    closes_when_done,
+    markdown_literal,
 )
+from .foreign_ha import async_connected_to_other_ha, async_raise_foreign_ha_issue
+from .ha_url import async_offer_ha_url
+from .identity import CONF_INSTALL_IDENTITY, accept_health, is_installation, reinstalled
+from .install_adb import async_installed_artifact_size, async_preflight_install
 from .install_executor import (
     FinalizationOutcome,
     InstallExecutor,
     async_get_install_executor,
 )
-from .install_jobs import (
-    InstallJobConflictError,
-    InstallJobError,
-    InstallJobReceipt,
-    InstallPhase,
-    InstallResultCode,
-    async_get_install_job_manager,
-)
+from .install_jobs import async_get_install_job_manager
 from .install_network import (
     InstallNetworkError,
     InstallNetworkErrorCode,
@@ -93,18 +108,12 @@ from .install_network import (
     async_revalidate_install_target,
 )
 from .install_plan import InstallPlanError, build_install_plan
-from .migration_targets import (
-    ADB_SERVICE_TYPE,
-    VENDOR_SERVICE_TYPES,
-    MigrationTarget,
-    adb_candidate,
-    address_schema,
-    async_check_migration_target,
-    async_find_migration_targets,
-    async_offer_migration_targets,
-    ignored_card_data,
-    offer_blocked,
-    vendor_candidate,
+from .install_receipt import (
+    InstallJobConflictError,
+    InstallJobError,
+    InstallJobReceipt,
+    InstallPhase,
+    InstallResultCode,
 )
 from .provisioning import (
     InstallTargetProbe,
@@ -117,16 +126,18 @@ from .release import (
 )
 from .release_catalog import async_list_install_choices, async_resolve_install_choice
 from .removal import RemovalError, async_read_firmware, async_remove_app
+from .repairs_failure import async_clear_adb_authorization
+from .repairs_update_route import help_parameters
+from .repairs_upgrade import runs_old_app
 from .status import PanelStatus
-from .transport import (
-    _panel_did,
-    async_bind_user,
+from .transport import _panel_did
+from .transport_binding import (
     async_binding_request,
     async_confirmable_user,
     async_discard_binding_request,
+    async_unbind_user,
 )
 from .update_policy import prereleases_allowed
-from .update_route_repair import help_parameters
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -157,8 +168,9 @@ _CONF_RELEASE_CANDIDATE = "release_candidate"
 # The recommended stable release's option value. The frontend treats an empty
 # value as unfilled, so a required selector offering "" can never be submitted.
 _STABLE_CHOICE = "stable"
-_DATA_DISCOVERY_NAMES = "discovery_names"
 _SETUP_POLL_SECONDS = 3
+# Long enough to walk to the panel and answer Android's Allow prompt.
+_ADB_APPROVAL_SECONDS = 120.0
 _HOST_PROBE_SECONDS = 3
 _SETUP_WATCH_SECONDS = 60 * 60
 
@@ -176,11 +188,11 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         """Return the flow that chooses who owns a panel's commands."""
         return HaPaneldOptionsFlow()
 
+    _pending_reinstall_entry: ConfigEntry | None = None
     _pending_address: PanelAddress | None = None
     _pending_health: PanelHealth | None = None
     _pending_discovery_id: str | None = None
     _pending_friendly_name: str | None = None
-    _discovery_title: str | None = None
     _pending_probe: InstallTargetProbe | None = None
     _pending_probe_state: str | None = None
     _pending_release: ReleaseArtifact | None = None
@@ -188,15 +200,34 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     _pending_install_target: PinnedPanelTarget | None = None
     _pending_job_id: str | None = None
     _progress_waiter: asyncio.Task[InstallJobReceipt] | None = None
+    _authorization_task: asyncio.Task[InstallTargetProbe] | None = None
+    _authorization_errors: dict[str, str] | None = None
     _install_executor: InstallExecutor | None = None
     _finalizer_job_id: str | None = None
     _flow_removed = False
+    _steps_running = 0
     _install_releases: list[dict[str, Any]] | None = None
     _setup_watch: asyncio.Task[None] | None = None
     _release_catalog_error: str | None = None
-    _pending_bind_user_id: str | None = None
     _migration_targets: list[MigrationTarget] | None = None
     _migration_target: MigrationTarget | None = None
+    _usb_installer_url = ""
+
+    def is_matching(self, other_flow: Self) -> bool:
+        """Enrich the pending card when the app follows its vendor announcement."""
+        if (
+            self._pending_discovery_id is None
+            or self._pending_discovery_id != other_flow.unique_id
+            or other_flow._pending_health is None
+        ):
+            return False
+        if (
+            self._pending_friendly_name is not None
+            and CONFIRMED not in other_flow.context.get("title_placeholders", {})
+        ):
+            other_flow._pending_friendly_name = self._pending_friendly_name
+            _apply_discovery_title(other_flow)
+        return True
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -229,15 +260,31 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         """Open browser-owned USB installation without creating an entry."""
         if user_input is None:
             return self.async_show_form(
-                step_id="install_usb", data_schema=vol.Schema({})
+                step_id="install_usb",
+                data_schema=vol.Schema({}),
+                description_placeholders={"panel_access_url": help_url("panel-access")},
             )
         # The dialog opens the installer window itself, and only for an absolute
         # URL, so the address is the one this browser used to reach Home Assistant.
         request = current_request.get()
         origin = str(request.url.origin()) if request is not None else ""
+        self._usb_installer_url = f"{origin}/{PANEL_PATH}"
+        return await self.async_step_usb_installer()
+
+    async def async_step_usb_installer(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Wait on the installer window until the USB install adds its panel."""
+        if user_input is not None:
+            return self.async_external_step_done(next_step_id="usb_installed")
         return self.async_external_step(
-            step_id="install_usb", url=f"{origin}/{PANEL_PATH}"
+            step_id="usb_installer", url=self._usb_installer_url
         )
+
+    async def async_step_usb_installed(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        return self.async_abort(reason="usb_installed")
 
     async def async_step_usb_install(
         self, discovery_info: dict[str, Any]
@@ -256,343 +303,83 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             ).async_get_health()
         except InvalidAddressError, CannotConnectError, InvalidResponseError:
             return self.async_abort(reason="not_panel")
-        return await self._async_create_panel_entry(
-            address, health, confirm_account=False
-        )
+        try:
+            result = await self._async_create_panel_entry(address, health)
+        except AbortFlow as abort:
+            if abort.reason == "already_configured":
+                await self._async_finish_usb_installers()
+            raise
+        if result["type"] is FlowResultType.CREATE_ENTRY or (
+            result.get("reason") == "already_configured"
+        ):
+            await self._async_finish_usb_installers()
+        return result
+
+    async def _async_finish_usb_installers(self) -> None:
+        """End every Add dialog still waiting on the USB installer window."""
+        for flow in self.hass.config_entries.flow.async_progress_by_handler(DOMAIN):
+            if flow["step_id"] == "usb_installer":
+                with contextlib.suppress(UnknownFlow):
+                    await self.hass.config_entries.flow.async_configure(
+                        flow["flow_id"], {}
+                    )
 
     async def async_step_zeroconf(
         self, discovery_info: ZeroconfServiceInfo
     ) -> ConfigFlowResult:
-        """Offer a verified local mDNS discovery for explicit confirmation."""
-        if discovery_info.type == ADB_SERVICE_TYPE:
-            return await self._async_discovered_adb(discovery_info)
-        if discovery_info.type in VENDOR_SERVICE_TYPES:
-            return await self._async_discovered_vendor(discovery_info)
-        discovery_id = discovery_info.properties.get("did")
-        if (
-            discovery_info.port != DEFAULT_PORT
-            or not isinstance(discovery_id, str)
-            or not is_valid_discovery_id(discovery_id)
-        ):
-            return self.async_abort(reason="invalid_discovery")
-        return await self._async_discovered_app(
-            discovery_info, discovery_id, discovery_info.properties.get("name")
-        )
-
-    async def _async_discovered_app(
-        self,
-        discovery_info: ZeroconfServiceInfo,
-        discovery_id: str,
-        advertised_name: object,
-    ) -> ConfigFlowResult:
-        """Offer, or move to its new address, the panel with this discovery id."""
-        # An IPv6 literal must be bracketed before a port can follow it; bare, its
-        # colons read as a port and every IPv6-only panel was refused here.
-        advertised = discovery_info.ip_address
-        host = f"[{advertised}]" if advertised.version == 6 else str(advertised)
-        try:
-            address = normalize_address(host)
-        except InvalidAddressError:
-            return self.async_abort(reason="invalid_discovery")
-
-        await self.async_set_unique_id(discovery_id)
-        for existing in self.hass.config_entries.async_entries(DOMAIN):
-            if (
-                existing.data.get(CONF_ADDRESS) == address.stored_value
-                and existing.unique_id == discovery_id
-            ):
-                return self.async_abort(reason="already_configured")
-
-        try:
-            health = await HaPaneldClient(
-                async_get_clientsession(self.hass), address
-            ).async_get_health()
-        except CannotConnectError, InvalidResponseError:
-            return self.async_abort(reason="invalid_discovery")
-        except Exception:
-            _LOGGER.exception(
-                "Unexpected exception while verifying discovered ha-paneld"
-            )
-            return self.async_abort(reason="unknown")
-        if health.discovery_id != discovery_id:
-            return self.async_abort(reason="invalid_discovery")
-        for existing in self.hass.config_entries.async_entries(DOMAIN):
-            if existing.data.get(CONF_ADDRESS) == address.stored_value:
-                accept_health(self.hass, existing, health)
-                return self.async_abort(reason="already_configured")
-        known = self.hass.config_entries.async_entry_for_domain_unique_id(
-            DOMAIN, discovery_id
-        )
-        if known is not None and not is_installation(known):
-            return self.async_abort(reason="already_configured")
-        # A known panel advertising from a new address has moved, when its
-        # stored address has stopped answering and it is not connected. Its
-        # health has just answered as it at the new address, so the stored one
-        # is replaced; the running entry polls the new address without a
-        # reload, which would end the panel's session for nothing. The identity
-        # and the health line are both public on the LAN, so an advertisement
-        # never redirects a panel whose stored address still answers, nor one
-        # holding a session: that session is the credentialed authority on
-        # where the panel is, repairs the address itself, and reports when it
-        # cannot. One failed poll is then never enough to move a live panel.
-        if self._entry_holds_its_address():
-            self._abort_if_unique_id_configured()
-        self._abort_if_unique_id_configured(
-            updates={CONF_ADDRESS: address.stored_value}, reload_on_update=False
-        )
-
-        self._pending_address = address
-        self._pending_health = health
-        self._pending_discovery_id = discovery_id
-        self._pending_friendly_name = _presentation_safe_name(advertised_name)
-        # Without a title placeholder the card for every discovered panel falls back
-        # to the bare integration name, so a fleet is a list of indistinguishable
-        # duplicates. Prefer the human name the panel advertises, and fall back to the
-        # panel id only when there is no usable name or the name is already taken.
-        self._apply_discovery_title()
-        return self._show_discovery_confirmation()
+        return await async_zeroconf(self, discovery_info)
 
     async def async_step_dhcp(
         self, discovery_info: DhcpServiceInfo
     ) -> ConfigFlowResult:
-        """Any device on the network is the cue to offer panels other apps know.
-
-        Without an entry nothing else runs this integration's code, and Core
-        matches dhcp hostnames by their first character, hence the manifest's
-        one matcher per character.
-        """
-        async_offer_migration_targets(self.hass)
-        return self.async_abort(reason="not_panel")
-
-    async def _async_discovered_adb(
-        self, discovery_info: ZeroconfServiceInfo
-    ) -> ConfigFlowResult:
-        """Offer an Android device whose network ADB Android itself advertises."""
-        advertised = discovery_info.ip_address
-        host = f"[{advertised}]" if advertised.version == 6 else str(advertised)
-        serial = discovery_info.name.removesuffix(f".{ADB_SERVICE_TYPE}")
-        candidate = (
-            adb_candidate(self.hass, host, serial.removeprefix("adb-"))
-            if discovery_info.port == ADB_PORT
-            else None
-        )
-        if candidate is None:
-            return self.async_abort(reason="not_panel")
-        try:
-            await HaPaneldClient(
-                async_get_clientsession(self.hass), normalize_address(host)
-            ).async_get_health()
-        except CannotConnectError, InvalidResponseError:
-            return await self.async_step_integration_discovery(candidate)
-        # The app already answers here; its own advertisement offers it.
-        return self.async_abort(reason="not_panel")
-
-    async def _async_discovered_vendor(
-        self, discovery_info: ZeroconfServiceInfo
-    ) -> ConfigFlowResult:
-        """A panel found by its vendor's own announcement (profile `vendor_mdns`).
-
-        The app's health line names the panel when the app answers, and the
-        panel is then handled as if it had announced itself; a panel whose app
-        does not answer is offered for installation like a network ADB device.
-        """
-        advertised = discovery_info.ip_address
-        host = f"[{advertised}]" if advertised.version == 6 else str(advertised)
-        try:
-            health = await HaPaneldClient(
-                async_get_clientsession(self.hass), normalize_address(host)
-            ).async_get_health()
-        except InvalidAddressError:
-            return self.async_abort(reason="invalid_discovery")
-        except CannotConnectError, InvalidResponseError:
-            instance = discovery_info.name.removesuffix(f".{discovery_info.type}")
-            candidate = vendor_candidate(
-                self.hass, host, instance, VENDOR_SERVICE_TYPES[discovery_info.type]
-            )
-            if candidate is None:
-                return self.async_abort(reason="not_panel")
-            return await self.async_step_integration_discovery(candidate)
-        if health.discovery_id is None:
-            return self.async_abort(reason="invalid_discovery")
-        return await self._async_discovered_app(
-            discovery_info, health.discovery_id, None
-        )
+        return await async_dhcp(self, discovery_info)
 
     async def async_step_integration_discovery(
         self, discovery_info: dict[str, Any]
     ) -> ConfigFlowResult:
-        """Offer a panel another integration knows, unless ignored or added."""
-        await self.async_set_unique_id(discovery_info["key"])
-        self._abort_if_unique_id_configured()
-        # The registries and the ADB announcement can name one device twice.
-        if offer_blocked(self.hass, discovery_info["address"], self.flow_id):
-            return self.async_abort(reason="already_configured")
-        target = await async_check_migration_target(discovery_info)
-        if target is None:
-            return self.async_abort(reason="not_panel")
-        # Again after the probe: the other route may have shown its card while
-        # this one waited. Nothing awaits between here and publishing ours.
-        if offer_blocked(self.hass, discovery_info["address"], self.flow_id):
-            return self.async_abort(reason="already_configured")
-        self._migration_target = target
-        self.context["title_placeholders"] = {
-            "name": target.name,
-            "address": target.address,
-        }
-        return await self.async_step_confirm_migration()
+        return await async_integration_discovery(self, discovery_info)
 
     async def async_step_ignore(self, user_input: dict[str, Any]) -> ConfigFlowResult:
-        """Ignore as Core does, keeping the card's address for the other route."""
-        data = ignored_card_data(self.hass, user_input["unique_id"])
-        await self.async_set_unique_id(user_input["unique_id"], raise_on_progress=False)
-        return self.async_create_entry(title=user_input["title"], data=data)
+        return await async_ignore(self, user_input)
 
     async def async_step_confirm_migration(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Take the discovered address into the ordinary add-panel path."""
-        target = self._migration_target
-        assert target is not None
-        if user_input is not None:
-            return await self.async_step_add_panel({CONF_ADDRESS: target.address})
-        return self.async_show_form(
-            step_id="confirm_migration",
-            data_schema=vol.Schema({}),
-            description_placeholders={
-                "name": _markdown_literal(target.name),
-                "source": target.source,
-                "address": target.address,
-            },
-        )
+        return await async_confirm_migration(self, user_input)
 
     async def async_step_confirm_discovery(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Re-verify the discovered panel before creating its first entry."""
-        if self._pending_address is None or self._pending_discovery_id is None:
-            return self.async_abort(reason="unknown")
-        if user_input is not None:
-            try:
-                health = await HaPaneldClient(
-                    async_get_clientsession(self.hass), self._pending_address
-                ).async_get_health()
-            except CannotConnectError, InvalidResponseError:
-                return self._show_discovery_confirmation({"base": "cannot_connect"})
-            except Exception:
-                _LOGGER.exception(
-                    "Unexpected exception while re-verifying discovered ha-paneld"
-                )
-                return self._show_discovery_confirmation({"base": "unknown"})
-            if health.discovery_id != self._pending_discovery_id:
-                return self.async_abort(reason="invalid_discovery")
-            # Adoption counts as Home Assistant starting this panel just as much
-            # as installing it does, so a panel adopted mid-setup is handed the
-            # address too rather than being asked for one Home Assistant knows.
-            await async_offer_ha_url(
-                self.hass,
-                HaPaneldClient(
-                    async_get_clientsession(self.hass), self._pending_address
-                ),
-            )
-            return await self._async_create_panel_entry(self._pending_address, health)
-
-        return self._show_discovery_confirmation()
-
-    def _apply_discovery_title(self) -> None:
-        """Title this flow, disambiguating both sides of a friendly-name clash."""
-        assert self._pending_health is not None
-        panel_id = self._pending_health.panel_id
-        friendly = self._pending_friendly_name
-        announced = self._announced_discovery_names()
-        announced[self.flow_id] = (friendly, panel_id)
-
-        if friendly is None:
-            self._set_discovery_title(panel_id)
-            return
-
-        clashing = {
-            flow_id: other_panel_id
-            for flow_id, (other_friendly, other_panel_id) in announced.items()
-            if flow_id != self.flow_id and other_friendly == friendly
-        }
-        taken = bool(clashing) or any(
-            entry.title == friendly for entry in self._async_current_entries()
-        )
-        # A clash is symmetric. Qualifying only the newcomer would leave two cards
-        # that still cannot be told apart, so qualify the ones already showing it.
-        for flow in self.hass.config_entries.flow.async_progress_by_handler(DOMAIN):
-            other_panel_id = clashing.get(flow["flow_id"])
-            if other_panel_id is not None:
-                flow["context"]["title_placeholders"] = {
-                    "name": _qualified_name(friendly, other_panel_id)
-                }
-        self._set_discovery_title(
-            _qualified_name(friendly, panel_id) if taken else friendly
-        )
-
-    def _set_discovery_title(self, display: str) -> None:
-        """Record the rendered title for the card, the form and the created entry."""
-        self.context["title_placeholders"] = {"name": display}
-        self._discovery_title = display
-
-    def _announced_discovery_names(self) -> dict[str, tuple[str | None, str]]:
-        """Names claimed by live discovery flows, pruned of any that finished.
-
-        `ConfigFlowContext` is a closed TypedDict, so this cannot ride along in the
-        flow context. Keying on flow id makes the store self-pruning.
-        """
-        store: dict[str, tuple[str | None, str]] = self.hass.data.setdefault(
-            DOMAIN, {}
-        ).setdefault(_DATA_DISCOVERY_NAMES, {})
-        live = {
-            flow["flow_id"]
-            for flow in self.hass.config_entries.flow.async_progress_by_handler(DOMAIN)
-        }
-        for flow_id in [f for f in store if f not in live and f != self.flow_id]:
-            del store[flow_id]
-        return store
-
-    def _show_discovery_confirmation(
-        self, errors: dict[str, str] | None = None
-    ) -> ConfigFlowResult:
-        """Show only verified, presentation-safe discovery details."""
-        assert self._pending_address is not None
-        assert self._pending_health is not None
-        return self.async_show_form(
-            step_id="confirm_discovery",
-            data_schema=vol.Schema({}),
-            description_placeholders={
-                "address": self._pending_address.stored_value,
-                "panel_name": _markdown_literal(
-                    self._discovery_title or self._pending_health.panel_id
-                ),
-            },
-            errors=errors,
-        )
+        return await async_confirm_discovery(self, user_input)
 
     def _show_add_panel_form(
         self,
         user_input: dict[str, Any] | None,
         errors: dict[str, str],
     ) -> ConfigFlowResult:
-        """Ask only for the panel's address; what happens next depends on the panel."""
-        schema = address_schema(self._migration_targets) or _DATA_SCHEMA
+        """Ask only for the panel's address; what happens next depends on the panel.
+
+        Panels Home Assistant knows through other apps are offered in a picker,
+        which has its own step so that its text describes it only when shown.
+        """
+        picker = address_schema(self._migration_targets)
         return self.async_show_form(
-            step_id="add_panel",
-            data_schema=self.add_suggested_values_to_schema(schema, user_input),
+            step_id="add_panel" if picker is None else "add_known_panel",
+            data_schema=self.add_suggested_values_to_schema(
+                picker or _DATA_SCHEMA, user_input
+            ),
             errors=errors,
             description_placeholders={
                 "panel_access_url": help_url("panel-access"),
                 "panel_help_url": help_url("panel-unreachable"),
+                **INSTALL_RECOVERY_PLACEHOLDERS,
             },
         )
 
-    def _show_choose_version(
-        self, errors: dict[str, str] | None = None
-    ) -> ConfigFlowResult:
-        """Offer the newest stable release first, then published test releases."""
+    def _version_options(self) -> list[SelectOptionDict]:
+        """The newest stable release first, then published test releases."""
         releases = self._install_releases or []
-        options: list[SelectOptionDict] = [
+        return [
             SelectOptionDict(
                 value=(
                     _STABLE_CHOICE
@@ -609,6 +396,12 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             )
             for index, release in enumerate(releases)
         ]
+
+    def _show_choose_version(
+        self, errors: dict[str, str] | None = None
+    ) -> ConfigFlowResult:
+        """Offer the releases to choose from."""
+        options = self._version_options()
         # With nothing to choose, an empty form still submits, which reloads.
         schema = (
             vol.Schema(
@@ -657,15 +450,38 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         """
         assert self._pending_address is not None
         assert self._pending_health is not None
+        known = (
+            self.hass.config_entries.async_entry_for_domain_unique_id(
+                DOMAIN, self._pending_health.discovery_id
+            )
+            if self._pending_health.discovery_id is not None
+            else None
+        )
+        if self._pending_job_id is None and (
+            (known is not None and known.source != SOURCE_IGNORE)
+            or any(
+                reinstalled(self.hass, entry, self._pending_health)
+                and not _entry_holds_its_address(self, entry)
+                for entry in self.hass.config_entries.async_entries(DOMAIN)
+            )
+        ):
+            return await self._async_create_panel_entry(
+                self._pending_address, self._pending_health
+            )
+        if runs_old_app(self._pending_health):
+            return self.async_abort(reason="old_app_installed")
         try:
-            complete = await self._found_client().async_get_setup_complete()
+            state = await self._found_client().async_get_setup_state()
+            needs_user = (
+                state.needs_user if state.needs_user is not None else not state.complete
+            )
         except HaPaneldError:
-            complete = True
+            needs_user = False
         return self.async_show_menu(
-            step_id="found_panel" if complete else "found_unconfigured",
+            step_id="found_unconfigured" if needs_user else "found_panel",
             menu_options=(
                 ["connect_found", "add_panel"]
-                if complete
+                if not needs_user
                 else ["panel_setup", "connect_found", "add_panel"]
             ),
             description_placeholders={
@@ -733,6 +549,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
 
     def _reset_pending_panel(self) -> None:
         """Forget everything learned about a previously entered address."""
+        self._pending_reinstall_entry = None
         self._pending_address = None
         self._pending_health = None
         self._pending_probe = None
@@ -741,6 +558,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         self._pending_rc_tag = None
         self._pending_install_target = None
         self._pending_job_id = None
+        self._authorization_errors = None
 
     async def async_step_add_panel(
         self, user_input: dict[str, Any] | None = None
@@ -759,9 +577,24 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         self._reset_pending_panel()
         try:
             address = normalize_address(user_input[CONF_ADDRESS])
-            self._async_abort_entries_match({CONF_ADDRESS: address.stored_value})
+            self._pending_reinstall_entry = next(
+                (
+                    entry
+                    for entry in self.hass.config_entries.async_entries(DOMAIN)
+                    if entry.data.get(CONF_ADDRESS) == address.stored_value
+                ),
+                None,
+            )
         except InvalidAddressError:
             return self._show_add_panel_form(user_input, {"base": "invalid_address"})
+        placeholders = self.context.get("title_placeholders", {})
+        if "address" in placeholders:
+            # A card's form can name another panel; the card then answers for
+            # that address, so the panel it first named is not closed through it.
+            self.context["title_placeholders"] = {
+                **placeholders,
+                "address": address.stored_value,
+            }
 
         if address.port != DEFAULT_PORT:
             # Installation only uses the standard port, so another port can only
@@ -810,6 +643,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             )
             return self._show_add_panel_form(user_input, {"base": "unknown"})
         else:
+            if self._address_is_configured(address.stored_value):
+                return await self._async_create_panel_entry(address, health)
             self._pending_health = health
             return await self._async_show_found_panel()
 
@@ -823,22 +658,21 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return self._show_add_panel_form(user_input, {"base": "unknown"})
 
         state = probe.state.value
+        if self._address_is_configured(address.stored_value) and state not in (
+            "install_candidate",
+            "adb_unauthorized",
+        ):
+            return self.async_abort(reason="already_configured")
         if state == "migration_candidate":
-            # The old app is installed but not answering. Installing the new
-            # app beside it would start the panel's own move, which Panel
-            # Assistant's Repair replaces: the old app has to answer first.
+            # The old app is installed but not answering. This release cannot
+            # move it, and the new app is never installed beside it.
             errors["base"] = "old_app_installed"
             return self._show_add_panel_form(user_input, errors)
         if state in ("install_candidate", "installed") and (
             _install_candidate_placeholders(probe) is None
         ):
             state = "retained_or_ambiguous"
-        if state in (
-            "adb_unauthorized",
-            "install_candidate",
-            "installed",
-            "migration_candidate",
-        ):
+        if state in ("adb_unauthorized", "install_candidate", "installed"):
             self._pending_probe = probe if state != "adb_unauthorized" else None
             self._pending_probe_state = state
             return await self.async_step_choose_version()
@@ -854,6 +688,12 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 "incompatible": "incompatible",
             }.get(state, "unknown")
         return self._show_add_panel_form(user_input, errors)
+
+    async def async_step_add_known_panel(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """The address step, shown with a picker of panels known to other apps."""
+        return await self.async_step_add_panel(user_input)
 
     async def _async_check_running_panel(
         self, address: PanelAddress, user_input: dict[str, Any]
@@ -920,15 +760,16 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             or self._pending_probe_state is None
         ):
             return self.async_abort(reason="unknown")
-        if user_input is None:
+        if user_input is None or self._release_catalog_error:
+            # A submit after an error is "try again": load the list afresh.
             if self._install_releases is None or self._release_catalog_error:
                 await self._async_load_install_releases()
-            return self._show_choose_version()
-        if self._release_catalog_error:
-            # The person saw no versions, so this submit is "try again": load the
-            # list afresh and let them choose from what is now offered.
-            await self._async_load_install_releases()
-            return self._show_choose_version()
+            options = self._version_options()
+            # One release on offer is nothing to choose; a test version still
+            # gets its own warning on the install question.
+            if len(options) != 1:
+                return self._show_choose_version()
+            user_input = {_CONF_RELEASE_CANDIDATE: options[0]["value"]}
 
         tag = user_input.get(_CONF_RELEASE_CANDIDATE, "")
         if tag == _STABLE_CHOICE:
@@ -954,13 +795,13 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         if self._pending_release.descriptor is None:
             return self._show_release_preview_only()
         if self._pending_probe_state == "adb_unauthorized":
-            return self._show_authorize_adb()
+            return await self._async_authorize_adb()
         return self._show_install_candidate_preview()
 
     async def async_step_authorize_adb(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Wait for explicit approval of Home Assistant's ADB key on the panel."""
+        """Wait for the panel's Allow, or ask it again after a wait that failed."""
         if (
             self._pending_address is None
             or self._pending_install_target is None
@@ -968,46 +809,117 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             or self._pending_release.descriptor is None
         ):
             return self.async_abort(reason="unknown")
+        task = self._authorization_task
+        if task is not None:
+            if not task.done():
+                return self._show_authorization_progress(task)
+            self._authorization_task = None
+            try:
+                self._authorization_errors = self._accept_authorized_probe(
+                    task.result()
+                )
+            except InstallNetworkError as err:
+                self._authorization_errors = {"base": _install_network_error(err)}
+            except Exception:
+                _LOGGER.exception("Unexpected exception while waiting for ADB Allow")
+                self._authorization_errors = {"base": "unknown"}
+            return self.async_show_progress_done(next_step_id="authorize_adb_done")
         if user_input is None:
-            return self._show_authorize_adb()
+            return self._show_authorize_adb(self._authorization_errors)
+        return await self._async_authorize_adb()
 
+    async def async_step_authorize_adb_done(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show where the wait ended; input carried here is never a press.
+
+        Core passes the input that ended a progress step on to its next step,
+        so neither the Install press nor another Allow may be taken from it.
+        """
+        if (
+            self._pending_address is None
+            or self._pending_release is None
+            or self._pending_release.descriptor is None
+        ):
+            return self.async_abort(reason="unknown")
+        if self._pending_probe is None:
+            return self._show_authorize_adb(self._authorization_errors)
+        return self._show_install_candidate_preview()
+
+    async def _async_authorize_adb(self) -> ConfigFlowResult:
+        """Use a key the panel already trusts, or offer it and wait for Allow."""
+        assert self._pending_install_target is not None
+        self._authorization_errors = None
         try:
             target = await async_revalidate_install_target(
                 self.hass, self._pending_install_target
             )
             signer = await async_get_adb_signer(self.hass)
-            probe = await async_probe_install_target(
-                target.pinned, signer, authorize=True
-            )
+            probe = await async_probe_install_target(target.pinned, signer)
         except InstallNetworkError as err:
             return self._show_authorize_adb({"base": _install_network_error(err)})
         except AdbCredentialError:
             return self._show_authorize_adb({"base": "adb_credential_error"})
         except Exception:
-            _LOGGER.exception("Unexpected exception while retrying ADB authorization")
+            _LOGGER.exception("Unexpected exception while authorizing ADB")
             return self._show_authorize_adb({"base": "unknown"})
-
-        state = probe.state.value
-        if state == "adb_unauthorized":
-            return self._show_authorize_adb({"base": "adb_still_unauthorized"})
-        if state == "migration_candidate":
-            return self._show_authorize_adb({"base": "old_app_installed"})
-        if state in ("install_candidate", "installed"):
-            placeholders = _install_candidate_placeholders(probe)
-            if placeholders is None:
-                return self.async_abort(reason="unknown")
-            self._pending_probe = probe
-            self._pending_probe_state = state
+        if probe.state is not InstallTargetState.ADB_UNAUTHORIZED:
+            if errors := self._accept_authorized_probe(probe):
+                return self._show_authorize_adb(errors)
             return self._show_install_candidate_preview()
 
-        return self._show_authorize_adb(
-            {
-                "base": {
-                    "adb_unreachable": "adb_unreachable",
-                    "retained_or_ambiguous": "retained_or_ambiguous",
-                    "incompatible": "incompatible",
-                }.get(state, "unknown")
-            }
+        async def wait_for_allow() -> InstallTargetProbe:
+            offered = await async_probe_install_target(
+                target.pinned,
+                signer,
+                authorize=True,
+                approval_seconds=_ADB_APPROVAL_SECONDS,
+            )
+            if offered.state in (
+                InstallTargetState.ADB_UNAUTHORIZED,
+                InstallTargetState.ADB_UNREACHABLE,
+            ):
+                return offered
+            # Android allows the connection that offered the key; the install
+            # opens its own, which works only if the panel remembered the key.
+            return await async_probe_install_target(target.pinned, signer)
+
+        task = self.hass.async_create_task(
+            wait_for_allow(), "wait for the panel to allow Home Assistant"
+        )
+        self._authorization_task = task
+        return self._show_authorization_progress(task)
+
+    def _accept_authorized_probe(
+        self, probe: InstallTargetProbe
+    ) -> dict[str, str] | None:
+        """Keep a classified installable panel, or name what stops it."""
+        state = probe.state.value
+        if state in ("install_candidate", "installed") and (
+            _install_candidate_placeholders(probe) is not None
+        ):
+            self._pending_probe = probe
+            self._pending_probe_state = state
+            return None
+        return {
+            "base": {
+                "adb_unauthorized": "adb_still_unauthorized",
+                "migration_candidate": "old_app_installed",
+                "adb_unreachable": "adb_unreachable",
+                "incompatible": "incompatible",
+            }.get(state, "retained_or_ambiguous")
+        }
+
+    def _show_authorization_progress(
+        self, task: asyncio.Task[InstallTargetProbe]
+    ) -> ConfigFlowResult:
+        """Show the wait for Allow on the panel."""
+        assert self._pending_address is not None
+        return self.async_show_progress(
+            step_id="authorize_adb",
+            progress_action="authorize_adb",
+            description_placeholders={"address": self._pending_address.stored_value},
+            progress_task=task,
         )
 
     def _show_authorize_adb(
@@ -1020,7 +932,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             description_placeholders={
                 "address": self._pending_address.stored_value
                 if self._pending_address is not None
-                else ""
+                else "",
+                **INSTALL_RECOVERY_PLACEHOLDERS,
             },
             errors=errors,
         )
@@ -1041,11 +954,16 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is None:
             return self._show_install_candidate_preview()
 
-        # Entry identity is the normalized endpoint. This guard deliberately runs
-        # before DNS, credentials, ADB, release, or durable job work.
-        self._async_abort_entries_match(
-            {CONF_ADDRESS: self._pending_address.stored_value}
-        )
+        # A kept entry may reinstall only after the clean-package probe.
+        if self._address_is_configured(self._pending_address.stored_value) and (
+            self._pending_reinstall_entry is None
+            or self.hass.config_entries.async_get_entry(
+                self._pending_reinstall_entry.entry_id
+            )
+            is not self._pending_reinstall_entry
+            or self._pending_probe.state is not InstallTargetState.INSTALL_CANDIDATE
+        ):
+            return self.async_abort(reason="already_configured")
         try:
             target = await async_revalidate_install_target(
                 self.hass, self._pending_install_target
@@ -1072,10 +990,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 {"base": "install_candidate_changed"}
             )
 
-        if probe.state in {
-            InstallTargetState.INSTALLED,
-            InstallTargetState.MIGRATION_CANDIDATE,
-        }:
+        if probe.state is InstallTargetState.INSTALLED:
             adb_target = probe.adb_target(target.pinned)
             assert adb_target is not None
             try:
@@ -1154,6 +1069,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 "version": self._pending_release.version,
                 "tag": self._pending_release.tag,
                 "sha256": self._pending_release.sha256,
+                **INSTALL_RECOVERY_PLACEHOLDERS,
             }
         )
         return self.async_show_form(
@@ -1215,7 +1131,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="install_receipt_error")
         except Exception:
             _LOGGER.exception("Unexpected exception while starting installation")
-            return self.async_abort(reason="install_failed")
+            return self.async_abort(
+                reason="install_failed",
+                description_placeholders=INSTALL_RECOVERY_PLACEHOLDERS,
+            )
 
         if worker is None:
             try:
@@ -1225,7 +1144,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 return self.async_abort(reason="install_receipt_error")
             except Exception:
                 _LOGGER.exception("Unexpected exception while refreshing install job")
-                return self.async_abort(reason="install_failed")
+                return self.async_abort(
+                    reason="install_failed",
+                    description_placeholders=INSTALL_RECOVERY_PLACEHOLDERS,
+                )
             if (
                 refreshed.phase is InstallPhase.HEALTHY_UNCLAIMED
                 or refreshed.is_terminal
@@ -1290,14 +1212,20 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="install_receipt_error")
         except Exception:
             _LOGGER.exception("Unexpected exception while loading install result")
-            return self.async_abort(reason="install_failed")
+            return self.async_abort(
+                reason="install_failed",
+                description_placeholders=INSTALL_RECOVERY_PLACEHOLDERS,
+            )
 
         if receipt.phase in {
             InstallPhase.CANCELLED,
             InstallPhase.FAILED,
             InstallPhase.RECOVERY_REQUIRED,
         }:
-            return self.async_abort(reason=_install_terminal_abort_reason(receipt))
+            return self.async_abort(
+                reason=_install_terminal_abort_reason(receipt),
+                description_placeholders=INSTALL_RECOVERY_PLACEHOLDERS,
+            )
         if receipt.phase is InstallPhase.CONSUMED:
             return self.async_abort(reason="already_configured")
         if receipt.phase is not InstallPhase.HEALTHY_UNCLAIMED:
@@ -1315,8 +1243,14 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         """
         if self._flow_removed:
             return self.async_abort(reason="install_worker_stopped")
-        if self._address_is_configured(receipt.target.address):
-            return self.async_abort(reason="already_configured")
+        retained = next(
+            (
+                entry
+                for entry in self.hass.config_entries.async_entries(DOMAIN)
+                if entry.data.get(CONF_ADDRESS) == receipt.target.address
+            ),
+            None,
+        )
         executor = self._install_executor
         if executor is None:
             try:
@@ -1344,12 +1278,43 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 receipt, "install_finalization_retry"
             )
         if outcome is FinalizationOutcome.RECOVERY_REQUIRED:
-            return self.async_abort(reason="install_recovery_required")
+            return self.async_abort(
+                reason="install_recovery_required",
+                description_placeholders=INSTALL_RECOVERY_PLACEHOLDERS,
+            )
         if outcome is not FinalizationOutcome.VERIFIED or result.health is None:
             return self.async_abort(reason="install_receipt_error")
         if self._address_is_configured(receipt.target.address):
+            # Reuse only the entry that existed before verification, and only
+            # when the ordinary identity authority accepts the installed panel.
+            if (
+                retained is not None
+                and self.hass.config_entries.async_get_entry(retained.entry_id)
+                is retained
+                and retained.data.get(CONF_ADDRESS) == receipt.target.address
+                and accept_health(self.hass, retained, result.health)
+            ):
+                # A reinstall is the owner's own install: the panel binds the
+                # account it signs in as next, as a new panel does.
+                async_unbind_user(self.hass, retained)
+                await executor.async_consume_finalization(
+                    receipt.job_id, self.flow_id, retained.entry_id
+                )
+                close_offers(
+                    self.hass, receipt.target.address, self.flow_id, pressed=True
+                )
+                self._finalizer_job_id = None
+                self._pending_reinstall_entry = retained
+                self._pending_address = normalize_address(receipt.target.address)
+                self._pending_health = result.health
+                return await self.async_step_panel_setup()
             executor.release_finalizer(receipt.job_id, self.flow_id)
-            return self.async_abort(reason="already_configured")
+            self._finalizer_job_id = None
+            return self.async_abort(
+                reason="reinstall_identity_mismatch"
+                if retained is not None
+                else "already_configured"
+            )
 
         # The lease stays held through ConfigEntries' actual add.
         # async_on_create_entry hands HA's generated entry id to the executor,
@@ -1379,10 +1344,16 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     async def async_on_create_entry(self, result: ConfigFlowResult) -> ConfigFlowResult:
-        """Hand the executor HA's actual entry id for the healthy receipt."""
+        """Close the panel's other cards; hand the executor HA's entry id."""
         job_id = self._finalizer_job_id
         executor = self._install_executor
         entry = result.get("result")
+        if isinstance(entry, ConfigEntry):
+            # Added by hand, over USB or from one card: a card another channel
+            # raised for this address must not stay beside the entry.
+            address = entry.data.get(CONF_ADDRESS)
+            if isinstance(address, str):
+                close_offers(self.hass, address, self.flow_id, pressed=True)
         if job_id is not None and executor is not None:
             if isinstance(entry, ConfigEntry):
                 # Never raises: the entry exists, and a receipt that cannot be
@@ -1394,6 +1365,16 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 executor.release_finalizer(job_id, self.flow_id)
             self._finalizer_job_id = None
         result = await super().async_on_create_entry(result)
+        if isinstance(entry, ConfigEntry) and isinstance(
+            address := entry.data.get(CONF_ADDRESS), str
+        ):
+            client = HaPaneldClient(
+                async_get_clientsession(self.hass), normalize_address(address)
+            )
+            if await async_connected_to_other_ha(
+                self.hass, client
+            ) and async_raise_foreign_ha_issue(self.hass, entry):
+                result["description"] = "another_home_assistant"
         if job_id is not None and isinstance(entry, ConfigEntry):
             # Human sign-in must never retain the install finalizer lease. Core
             # supports continuing into options only after adding the entry.
@@ -1423,22 +1404,6 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             )
         super().async_remove()
 
-    def _entry_holds_its_address(self) -> bool:
-        """Return whether an advertisement must leave this panel's address alone.
-
-        It must while the stored address still answers, or while the panel is
-        connected, whose own session then moves the address if it has moved.
-        """
-        if self.unique_id is None:
-            return False
-        entry = self.hass.config_entries.async_entry_for_domain_unique_id(
-            DOMAIN, self.unique_id
-        )
-        coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
-        return coordinator is not None and (
-            bool(coordinator.reachable) or coordinator.connected
-        )
-
     def _address_is_configured(self, address: str) -> bool:
         """Check the existing endpoint identity without contacting the panel."""
         return any(
@@ -1450,18 +1415,38 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         self,
         address: PanelAddress,
         health: PanelHealth,
-        *,
-        confirm_account: bool = True,
     ) -> ConfigFlowResult:
-        """Create an entry, confirming the panel's account first when one asked.
+        """Create an entry, bound to the account the panel already asked as.
 
-        Without ``confirm_account`` nobody is shown the form, so the entry is
-        made unbound and the panel raises its own Repairs issue when it asks.
+        A panel that has not asked yet is bound when it does. A new panel on
+        the old app id is refused: this release cannot move it.
         """
         for existing in self.hass.config_entries.async_entries(DOMAIN):
-            if existing.data.get(CONF_ADDRESS) == address.stored_value:
-                accept_health(self.hass, existing, health)
+            if (
+                reinstalled(self.hass, existing, health)
+                and not (
+                    self._pending_job_id is not None
+                    and existing is self._pending_reinstall_entry
+                )
+                and not _entry_holds_its_address(self, existing)
+            ):
+                if accept_health(self.hass, existing, health):
+                    self.hass.config_entries.async_update_entry(
+                        existing,
+                        data={**existing.data, CONF_ADDRESS: address.stored_value},
+                    )
+                # A busy operation owns adoption; it must never create a duplicate.
                 return self.async_abort(reason="already_configured")
+            if existing.data.get(CONF_ADDRESS) == address.stored_value:
+                accepted = accept_health(self.hass, existing, health)
+                if (
+                    existing is not self._pending_reinstall_entry
+                    or self._pending_job_id is None
+                ):
+                    return self.async_abort(reason="already_configured")
+                if not accepted:
+                    return self.async_abort(reason="reinstall_identity_mismatch")
+                return self._async_finish_panel_entry(address, health)
         # A panel that reports its identity is known by it. Adding a known panel
         # again, at the address it has moved to, repairs its entry's stored
         # address rather than creating a second entry for one panel: health at
@@ -1473,85 +1458,35 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             known = self.hass.config_entries.async_entry_for_domain_unique_id(
                 DOMAIN, health.discovery_id
             )
-            if known is not None and not is_installation(known):
+            replace_ignore = (
+                known is not None
+                and known.source == SOURCE_IGNORE
+                and self.source in {SOURCE_USER, SOURCE_USB_INSTALL}
+            )
+            if known is not None and not is_installation(known) and not replace_ignore:
                 return self.async_abort(reason="already_configured")
             await self.async_set_unique_id(health.discovery_id, raise_on_progress=False)
-            self._abort_if_unique_id_configured(
-                updates={CONF_ADDRESS: address.stored_value}, reload_on_update=False
-            )
-        self._pending_address = address
-        self._pending_health = health
-        user = await self._async_asking_user() if confirm_account else None
-        if user is None:
-            # Nobody has asked to connect as this panel yet, which is the whole
-            # of what could be confirmed here. The panel raises its own Repairs
-            # issue when it asks, as it always has.
-            return self._async_finish_panel_entry(address, health)
-        self._pending_bind_user_id = user.id
-        return await self.async_step_confirm_user()
+            if not replace_ignore:
+                self._abort_if_unique_id_configured(
+                    updates={CONF_ADDRESS: address.stored_value}, reload_on_update=False
+                )
+        if runs_old_app(health):
+            return self.async_abort(reason="old_app_installed")
+        return self._async_finish_panel_entry(
+            address, health, await self._async_asking_user_id(health)
+        )
 
-    async def _async_asking_user(self) -> User | None:
-        """Return the account this panel asked to connect as, if one may be shown.
+    async def _async_asking_user_id(self, health: PanelHealth) -> str | None:
+        """Return the account this panel asked to connect as, if it may be bound.
 
         The account comes from the panel's own ``hello``, refused because no entry
-        existed yet, so this is the same request the Repairs issue carries and the
-        same administrator decision. An account that has since gone, been
-        deactivated or turned out to be Home Assistant's own is not offered.
+        existed yet. An account that has since gone, been deactivated or turned
+        out to be Home Assistant's own is not bound.
         """
-        if self._pending_health is None:
-            return None
-        return await async_confirmable_user(
-            self.hass,
-            async_binding_request(self.hass, self._pending_health.discovery_id),
+        user = await async_confirmable_user(
+            self.hass, async_binding_request(self.hass, health.discovery_id)
         )
-
-    async def async_step_confirm_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Offer the panel's own account for confirmation, and take either answer."""
-        if self._pending_address is None or self._pending_health is None:
-            return self.async_abort(reason="unknown")
-        user = await self._async_asking_user()
-        if user is None or user.id != self._pending_bind_user_id:
-            # The account changed or stopped being one an administrator may
-            # confirm while this form was open. Add the panel rather than bind
-            # something the administrator was never shown.
-            return self._async_finish_panel_entry(
-                self._pending_address, self._pending_health
-            )
-        return self.async_show_menu(
-            step_id="confirm_user",
-            menu_options=["bind_user", "skip_binding"],
-            description_placeholders={
-                "panel": self._discovery_title or self._pending_health.panel_id,
-                "user": user.name or "",
-            },
-        )
-
-    async def async_step_bind_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Create the panel already confirmed for the account that asked."""
-        if self._pending_address is None or self._pending_health is None:
-            return self.async_abort(reason="unknown")
-        # Checked again here: the account may have gone while the menu was open,
-        # and this is the submission that binds it.
-        user = await self._async_asking_user()
-        if user is None or user.id != self._pending_bind_user_id:
-            return await self.async_step_confirm_user()
-        return self._async_finish_panel_entry(
-            self._pending_address, self._pending_health, user.id
-        )
-
-    async def async_step_skip_binding(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Add the panel without confirming the account that asked."""
-        if self._pending_address is None or self._pending_health is None:
-            return self.async_abort(reason="unknown")
-        return self._async_finish_panel_entry(
-            self._pending_address, self._pending_health
-        )
+        return None if user is None else user.id
 
     def _async_finish_panel_entry(
         self,
@@ -1559,53 +1494,49 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         health: PanelHealth,
         user_id: str | None = None,
     ) -> ConfigFlowResult:
-        """Create the entry, bound to a confirmed account or to none."""
+        """Create the entry, bound to the panel's account or to none yet."""
         async_discard_binding_request(self.hass, health.discovery_id)
+        retained = self._pending_reinstall_entry
+        if self._pending_job_id is not None and retained is not None:
+            if (
+                self.hass.config_entries.async_get_entry(retained.entry_id)
+                is not retained
+                or retained.data.get(CONF_ADDRESS) != address.stored_value
+                or not accept_health(self.hass, retained, health)
+            ):
+                return self.async_abort(reason="reinstall_identity_mismatch")
+            return self.async_abort(reason="reinstall_successful")
         data: dict[str, Any] = {CONF_ADDRESS: address.stored_value}
         if health.installation_identity:
             data[CONF_INSTALL_IDENTITY] = True
         if user_id is not None:
             data[CONF_TRANSPORT_USER_ID] = user_id
+        known = (
+            self.hass.config_entries.async_entry_for_domain_unique_id(
+                DOMAIN, self.unique_id
+            )
+            if self.unique_id is not None
+            else None
+        )
+        if known is not None and known.source == SOURCE_IGNORE:
+            # Core skips async_on_create_entry when it replaces Ignore. The
+            # explicit flow is committing now, so its other cards can close.
+            close_offers(self.hass, address.stored_value, self.flow_id, pressed=True)
         # A discovered panel keeps the name its card promised. A manually added one
         # has no advertisement to read, so it stays on the panel id.
         return self.async_create_entry(
-            title=self._discovery_title or health.panel_id,
+            title=self.context.get("title_placeholders", {}).get("name")
+            or health.panel_id,
             data=data,
         )
 
 
+for _name, _step in list(vars(HaPaneldConfigFlow).items()):
+    if _name.startswith("async_step_"):
+        setattr(HaPaneldConfigFlow, _name, closes_when_done(_step))
+
+
 _FRIENDLY_NAME_MAX_LENGTH = 64
-
-
-def _qualified_name(friendly: str, panel_id: str) -> str:
-    """Show the panel id only when the friendly name alone is ambiguous."""
-    return f"{friendly} ({panel_id})"
-
-
-def _presentation_safe_name(value: object) -> str | None:
-    """Accept an mDNS-advertised name only as bounded, printable, single-line text.
-
-    The TXT record is writable by anything on the LAN, so it is presentation input
-    and never an identity. Identity stays with the verified discovery id.
-    """
-    if not isinstance(value, str):
-        return None
-    name = value.strip()
-    if not name or len(name) > _FRIENDLY_NAME_MAX_LENGTH:
-        return None
-    if any(unicodedata.category(character).startswith("C") for character in name):
-        return None
-    if any(character.isspace() and character != " " for character in name):
-        return None
-    return name
-
-
-def _markdown_literal(value: str) -> str:
-    """Keep interpolated device text literal in HA's Markdown descriptions."""
-    return "".join(
-        f"&#{ord(character)};" if character in "\\`*_{}[]()<>!&:./@" else character
-        for character in value
-    )
 
 
 def _install_candidate_placeholders(
@@ -1620,9 +1551,9 @@ def _install_candidate_placeholders(
     ):
         return None
     return {
-        "model": _markdown_literal(probe.model),
-        "serial": _markdown_literal(probe.serial),
-        "abi": _markdown_literal(probe.primary_abi),
+        "model": markdown_literal(probe.model),
+        "serial": markdown_literal(probe.serial),
+        "abi": markdown_literal(probe.primary_abi),
         "sdk": str(probe.android_sdk),
     }
 
@@ -1636,11 +1567,9 @@ def _same_install_target(
         in {
             InstallTargetState.INSTALL_CANDIDATE,
             InstallTargetState.INSTALLED,
-            InstallTargetState.MIGRATION_CANDIDATE,
         }
         and not (
-            expected.state
-            in {InstallTargetState.INSTALLED, InstallTargetState.MIGRATION_CANDIDATE}
+            expected.state is InstallTargetState.INSTALLED
             and observed.state is InstallTargetState.INSTALL_CANDIDATE
         )
         and _install_candidate_placeholders(observed) is not None
@@ -1717,7 +1646,7 @@ async def async_authorize_adb_form[ResultT: FlowResult[Any, Any]](
     return flow.async_show_form(
         step_id="authorize_adb",
         data_schema=vol.Schema({}),
-        description_placeholders={"panel": panel},
+        description_placeholders={"panel": panel, **INSTALL_RECOVERY_PLACEHOLDERS},
         errors={"base": error} if error else None,
     )
 
@@ -1772,15 +1701,13 @@ async def async_authorize_existing_panel_adb(
     }.get(probe.state, "panel_identity_changed")
 
 
-#: The removal form's one field: the owner has read the risks and confirms.
-CONF_REMOVAL_CONFIRMED = "confirmed"
+#: The removal form's one field: also forget the panel once its app is gone.
+CONF_REMOVAL_DELETE_ENTRY = "delete_entry"
 
 
 class HaPaneldOptionsFlow(OptionsFlow):
     """Complete setup, configure panel updates, authorise ADB or remove the app."""
 
-    _setup_watch: asyncio.Task[None] | None = None
-    _pending_bind_user_id: str | None = None
     _removal_risks_url: str | None = None
 
     def _current_panel_health(self) -> PanelHealth | None:
@@ -1850,120 +1777,52 @@ class HaPaneldOptionsFlow(OptionsFlow):
             return form
         return self.async_create_entry(data=dict(entry.options))
 
+    def _onboarded(self) -> bool:
+        """Return whether the panel has signed in, which binds its account."""
+        return CONF_TRANSPORT_USER_ID in self.config_entry.data
+
     async def async_step_onboarding(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Let the panel's own browser wizard obtain its own HA credentials."""
-        if user_input is not None:
-            return self.async_external_step_done(next_step_id="onboarding_confirm")
+        """Send the owner to the panel's own setup page, then confirm it connected.
+
+        A form, not an external step: Home Assistant's options dialog shows an
+        external step with no title or text at all. A form never moves on by
+        itself, so the owner says when they are done.
+        """
         client = self._onboarding_client()
-        await async_offer_ha_url(self.hass, client)
-        if self._setup_watch is None or self._setup_watch.done():
-            self._setup_watch = self.hass.async_create_background_task(
-                self._async_watch_onboarding(),
-                f"{DOMAIN} watch install onboarding {self.flow_id}",
-            )
-        return self.async_external_step(step_id="onboarding", url=client.setup_url)
-
-    async def _async_watch_onboarding(self) -> None:
-        """Return to Add once setup and a verified panel request exist."""
-        client = self._onboarding_client()
-        deadline = asyncio.get_running_loop().time() + _SETUP_WATCH_SECONDS
-        while asyncio.get_running_loop().time() < deadline:
-            await asyncio.sleep(_SETUP_POLL_SECONDS)
-            try:
-                if not await client.async_get_setup_complete():
-                    continue
-                health = await client.async_get_health()
-            except HaPaneldError:
-                continue
-            did = health.discovery_id
-            if did is None or did != _panel_did(self.config_entry):
-                continue
-            if async_binding_request(self.hass, did) is None:
-                continue
-            with contextlib.suppress(UnknownFlow):
-                await self.hass.config_entries.options.async_configure(
-                    flow_id=self.flow_id, user_input={}
-                )
-            return
-
-    async def _onboarding_user(self) -> User | None:
-        """Resolve only a live request for this entry's verified panel."""
-        try:
-            if not await self._onboarding_client().async_get_setup_complete():
-                return None
-            health = await self._onboarding_client().async_get_health()
-        except HaPaneldError:
-            return None
-        did = health.discovery_id
-        if did is None or did != _panel_did(self.config_entry):
-            return None
-        return await async_confirmable_user(
-            self.hass, async_binding_request(self.hass, did)
+        errors: dict[str, str] = {}
+        if user_input is None:
+            await async_offer_ha_url(self.hass, client)
+        elif self._onboarded():
+            return self.async_abort(reason="panel_connected")
+        else:
+            errors["base"] = "panel_not_connected"
+        return self.async_show_form(
+            step_id="onboarding",
+            data_schema=vol.Schema({}),
+            description_placeholders={"setup_url": client.setup_url},
+            errors=errors,
         )
-
-    async def async_step_onboarding_confirm(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Name the requesting account before administrator confirmation."""
-        user = await self._onboarding_user()
-        if user is None:
-            return self.async_show_form(
-                step_id="onboarding_wait", data_schema=vol.Schema({})
-            )
-        self._pending_bind_user_id = user.id
-        return self.async_show_menu(
-            step_id="onboarding_confirm",
-            menu_options=["onboarding_bind", "onboarding_skip"],
-            description_placeholders={
-                "panel": self.config_entry.title,
-                "user": user.name or "",
-            },
-        )
-
-    async def async_step_onboarding_wait(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        return await self.async_step_onboarding_confirm()
-
-    async def async_step_onboarding_bind(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Bind only the active account the administrator just saw."""
-        user = await self._onboarding_user()
-        if user is None or user.id != self._pending_bind_user_id:
-            return await self.async_step_onboarding_confirm()
-        async_bind_user(self.hass, self.config_entry, user.id)
-        async_discard_binding_request(self.hass, _panel_did(self.config_entry))
-        return self.async_create_entry(data=dict(self.config_entry.options))
-
-    async def async_step_onboarding_skip(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Leave the entry unbound; Repairs remains available later."""
-        return self.async_create_entry(data=dict(self.config_entry.options))
-
-    def async_remove(self) -> None:
-        if self._setup_watch is not None and not self._setup_watch.done():
-            self._setup_watch.cancel()
-        super().async_remove()
 
     async def async_step_remove_app(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Remove the app once the owner has seen the risks and confirmed."""
+        """Remove the app on the one Submit under the risks link."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            if not user_input.get(CONF_REMOVAL_CONFIRMED):
-                errors["base"] = "removal_unconfirmed"
+            try:
+                await async_remove_app(self.hass, self.config_entry)
+            except RemovalError as err:
+                errors["base"] = f"removal_{err.reason}"
             else:
-                try:
-                    await async_remove_app(self.hass, self.config_entry)
-                except RemovalError as err:
-                    errors["base"] = f"removal_{err.reason}"
-                else:
-                    return await self.async_step_remove_app_done()
+                if not user_input.get(CONF_REMOVAL_DELETE_ENTRY):
+                    return self.async_abort(reason="removed_entry_kept")
+                # Forget the panel once this flow, which belongs to it, has closed.
+                self.hass.async_create_task(
+                    self.hass.config_entries.async_remove(self.config_entry.entry_id)
+                )
+                return self.async_abort(reason="removed_entry_deleted")
         if self._removal_risks_url is None:
             coordinator = getattr(
                 getattr(self.config_entry, "runtime_data", None), "coordinator", None
@@ -1978,36 +1837,20 @@ class HaPaneldOptionsFlow(OptionsFlow):
             self._removal_risks_url = help_url("removal-risks", **parameters)
         return self.async_show_form(
             step_id="remove_app",
-            data_schema=vol.Schema(
-                {vol.Required(CONF_REMOVAL_CONFIRMED, default=False): BooleanSelector()}
+            # A retry after a refusal keeps the owner's choice to delete.
+            data_schema=self.add_suggested_values_to_schema(
+                vol.Schema(
+                    {
+                        vol.Required(
+                            CONF_REMOVAL_DELETE_ENTRY, default=False
+                        ): BooleanSelector()
+                    }
+                ),
+                user_input,
             ),
             description_placeholders={
-                "panel": self.config_entry.title,
+                "panel": panel_display_name(self.hass, self.config_entry),
                 "risks_url": self._removal_risks_url,
             },
             errors=errors,
         )
-
-    async def async_step_remove_app_done(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Offer to forget the panel now that its app is gone."""
-        return self.async_show_menu(
-            step_id="remove_app_done",
-            menu_options=["remove_app_delete_entry", "remove_app_keep_entry"],
-            description_placeholders={"panel": self.config_entry.title},
-        )
-
-    async def async_step_remove_app_delete_entry(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Forget the panel, whose app is gone, once this flow has closed."""
-        self.hass.async_create_task(
-            self.hass.config_entries.async_remove(self.config_entry.entry_id)
-        )
-        return self.async_abort(reason="removed_entry_deleted")
-
-    async def async_step_remove_app_keep_entry(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        return self.async_abort(reason="removed_entry_kept")

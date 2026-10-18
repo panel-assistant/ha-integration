@@ -9,6 +9,7 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
@@ -17,7 +18,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.panel_assistant.app_identity import SUCCESSOR_PACKAGE_ID
+from custom_components.panel_assistant.app_identity import PACKAGE_ID
 from custom_components.panel_assistant.client import CannotConnectError, PanelHealth
 from custom_components.panel_assistant.const import (
     CONF_CUTOVER,
@@ -27,9 +28,7 @@ from custom_components.panel_assistant.const import (
 
 from .test_transport import DID, HEALTH, STATUS, WsClientFactory, _hello, _send
 
-CURRENT = replace(
-    HEALTH, version="1.0.0", package=SUCCESSOR_PACKAGE_ID, protocol=(5, 5)
-)
+CURRENT = replace(HEALTH, version="1.0.0", package=PACKAGE_ID, protocol=(5, 5))
 # A 0.9.11 app, already on the new app id: its health line carries no protocol.
 OLDER_APP = replace(CURRENT, version="0.9.11", protocol=None)
 
@@ -58,6 +57,10 @@ def _panel(health: PanelHealth | Exception) -> Iterator[AsyncMock]:
         patch(
             "custom_components.panel_assistant.async_get_install_executor",
             AsyncMock(return_value=executor),
+        ),
+        patch(
+            "custom_components.panel_assistant.update_route.async_pin_adb_target",
+            AsyncMock(return_value=None),
         ),
     ):
         yield get_health
@@ -121,13 +124,19 @@ async def test_a_native_entry_sets_up_on_protocol_5_without_its_authority(
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
 ) -> None:
-    """Whatever authority it stored, the entry is native; the hello is granted."""
-    entry = _entry(hass, hass_read_only_user.id, options={"authority": "shadow"})
+    """Whatever authority or channel record it stored, the entry is native."""
+    entry = _entry(
+        hass,
+        hass_read_only_user.id,
+        options={"authority": "shadow"},
+        data={"supported_channels": {"did": DID, "channels": ["relay1"]}},
+    )
 
     await _set_up(hass, entry, CURRENT)
 
     assert entry.state is ConfigEntryState.LOADED
     assert "authority" not in entry.options
+    assert "supported_channels" not in entry.data
     assert (entry.version, entry.minor_version) == (1, 2)
     assert ir.async_get(hass).issues == {}
     response = await _hello_response(hass, hass_ws_client, hass_read_only_access_token)
@@ -223,17 +232,19 @@ async def test_a_completed_move_or_an_unknown_panel_id_sets_up(
     assert ir.async_get(hass).issues == {}
 
 
-async def test_a_protocol_4_panel_is_refused_and_told_it_needs_app_1_0_0(
+@pytest.mark.parametrize("protocol", [None, (4, 4)])
+async def test_an_older_panel_is_refused_and_told_it_needs_app_1_0_0_preview1(
     hass: HomeAssistant,
     hass_read_only_user: Any,
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
+    protocol: tuple[int, int] | None,
 ) -> None:
     """Refused at hello; its health raises the Repair; protocol 5 clears it."""
     entry = _entry(hass, hass_read_only_user.id)
     issue_id = f"panel_app_too_old_{entry.entry_id}"
 
-    await _set_up(hass, entry, OLDER_APP)
+    await _set_up(hass, entry, replace(OLDER_APP, protocol=protocol))
 
     assert entry.state is ConfigEntryState.LOADED
     issue = _issue(hass, issue_id)
@@ -241,7 +252,7 @@ async def test_a_protocol_4_panel_is_refused_and_told_it_needs_app_1_0_0(
     assert issue.translation_placeholders == {
         "panel": "alpha",
         "version": "0.9.11",
-        "required_version": "1.0.0",
+        "required_version": "1.0.0-preview1",
     }
     response = await _hello_response(
         hass,
@@ -262,14 +273,17 @@ async def test_a_protocol_4_panel_is_refused_and_told_it_needs_app_1_0_0(
     # An outage says nothing about the app.
     with _panel(CannotConnectError()):
         await coordinator.async_refresh()
+        await hass.async_block_till_done()
     assert not coordinator.last_update_success
     assert _issue(hass, issue_id) is not None
 
     with _panel(CURRENT):
         await coordinator.async_refresh()
+        await hass.async_block_till_done()
     assert _issue(hass, issue_id) is None
     with _panel(OLDER_APP):
         await coordinator.async_refresh()
+        await hass.async_block_till_done()
     assert _issue(hass, issue_id) is not None
 
     # Updated: the panel says hello on protocol 5 before the next poll.
@@ -278,17 +292,24 @@ async def test_a_protocol_4_panel_is_refused_and_told_it_needs_app_1_0_0(
     await hass.async_block_till_done()
     assert _issue(hass, issue_id) is None
 
+    # End the entry while its simulated panel still answers, before the
+    # WebSocket fixture closes and dispatches its final session change.
+    with _panel(CURRENT):
+        assert await hass.config_entries.async_unload(entry.entry_id)
+        await hass.async_block_till_done()
 
-async def test_a_panel_on_the_old_app_id_is_offered_only_its_move(
+
+async def test_a_panel_on_the_old_app_id_gets_only_its_refusal(
     hass: HomeAssistant, hass_read_only_user: Any
 ) -> None:
-    """The move installs the new app, so it alone asks for the install."""
+    """The refusal says what to install first, so it alone asks for the install."""
     entry = _entry(hass, hass_read_only_user.id)
 
     await _set_up(hass, entry, replace(OLDER_APP, package=None))
 
     assert entry.state is ConfigEntryState.LOADED
-    assert _issue(hass, f"move_to_new_app_{entry.entry_id}") is not None
+    assert _issue(hass, f"old_app_needs_090_{entry.entry_id}") is not None
+    assert _issue(hass, f"move_to_new_app_{entry.entry_id}") is None
     assert _issue(hass, f"panel_app_too_old_{entry.entry_id}") is None
 
 

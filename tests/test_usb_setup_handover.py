@@ -8,6 +8,8 @@ panel's HTTP client, so what the panel would receive is what is asserted.
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -17,6 +19,7 @@ from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant import browser_delivery as delivery
+from custom_components.panel_assistant.app_identity import PACKAGE_ID
 from custom_components.panel_assistant.client import (
     CannotConnectError,
     HaPaneldClient,
@@ -33,14 +36,18 @@ _CLIENT = "custom_components.panel_assistant.client.HaPaneldClient"
 class _Panel:
     """Record which panel was contacted and what it was posted."""
 
-    def __init__(self, state: PanelSetupState | Exception) -> None:
+    def __init__(self, state: PanelSetupState | Exception, refusals: int = 0) -> None:
         self.state = state
+        self.refusals = refusals
         self.hosts: list[str] = []
         self.posted: list[str | None] = []
         self.post_error: Exception | None = None
 
     async def get_state(self, client: HaPaneldClient) -> PanelSetupState:
         self.hosts.append(f"{client.address.host}:{client.address.port}")
+        if len(self.hosts) <= self.refusals:
+            # The app is installed and starting, but not listening yet.
+            raise CannotConnectError
         if isinstance(self.state, Exception):
             raise self.state
         return self.state
@@ -57,6 +64,7 @@ _HEALTH = PanelHealth(
     build="1220",
     config_hash="1a2b3c4d",
     discovery_id="d" * 64,
+    package=PACKAGE_ID,
 )
 
 
@@ -72,6 +80,13 @@ def panel_health() -> Any:
         ),
     ):
         yield health
+
+
+@pytest.fixture(autouse=True)
+def quick_answer_wait(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Wait for a starting app in milliseconds rather than seconds."""
+    monkeypatch.setattr(delivery, "_ANSWER_WAIT", 0.2, raising=False)
+    monkeypatch.setattr(delivery, "_ANSWER_RETRY", 0.01, raising=False)
 
 
 @pytest.fixture
@@ -190,6 +205,67 @@ async def test_a_panel_whose_app_does_not_answer_is_reported_not_added(
     assert hass.config_entries.async_entries(DOMAIN) == []
 
 
+_FLOWS = "/api/config/config_entries/flow"
+
+
+async def _open_usb_dialog(endpoint: Any, *, press: bool = True) -> str:
+    """Open Add integration > Install using USB as the dialog does, by REST."""
+    menu = await (await endpoint.post(_FLOWS, json={"handler": DOMAIN})).json()
+    flow_id = menu["flow_id"]
+    form = await (
+        await endpoint.post(f"{_FLOWS}/{flow_id}", json={"next_step_id": "install_usb"})
+    ).json()
+    assert form["type"] == "form"
+    if press:
+        opened = await (await endpoint.post(f"{_FLOWS}/{flow_id}", json={})).json()
+        assert opened["type"] == "external"
+    return flow_id
+
+
+@pytest.mark.parametrize("added_by_hand", [False, True], ids=["new", "already_added"])
+async def test_the_usb_installer_dialog_finishes_when_the_panel_is_added(
+    endpoint: Any, hass: HomeAssistant, added_by_hand: bool
+) -> None:
+    """The first tab must not keep an untitled "visit a website" dialog.
+
+    The dialog refetches its flow when Home Assistant reports it progressed, as
+    the GET here does; a panel the install found already added ends it too.
+    """
+    assert await async_setup_component(hass, "config", {})
+    if added_by_hand:
+        MockConfigEntry(
+            domain=DOMAIN, data={"address": "192.168.1.20"}, unique_id="d" * 64
+        ).add_to_hass(hass)
+    waiting = await _open_usb_dialog(endpoint)
+    not_pressed = await _open_usb_dialog(endpoint, press=False)
+    panel = _Panel(PanelSetupState(complete=False, accepts_handover=True))
+
+    _status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+
+    assert body["registration"] == ("already_configured" if added_by_hand else "added")
+    finished = await (await endpoint.get(f"{_FLOWS}/{waiting}")).json()
+    assert (finished["type"], finished["reason"]) == ("abort", "usb_installed")
+    # A dialog whose installer was never opened has nothing to finish.
+    untouched = await (await endpoint.get(f"{_FLOWS}/{not_pressed}")).json()
+    assert (untouched["type"], untouched["step_id"]) == ("form", "install_usb")
+
+
+async def test_the_usb_dialog_keeps_waiting_when_the_panel_was_not_added(
+    endpoint: Any, hass: HomeAssistant, panel_health: AsyncMock
+) -> None:
+    """Its text would say the panel was added, so it must stay where it is."""
+    assert await async_setup_component(hass, "config", {})
+    waiting = await _open_usb_dialog(endpoint)
+    panel_health.side_effect = CannotConnectError
+    panel = _Panel(PanelSetupState(complete=False, accepts_handover=True))
+
+    _status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+
+    assert body["registration"] == "not_panel"
+    still = await (await endpoint.get(f"{_FLOWS}/{waiting}")).json()
+    assert still["type"] == "external"
+
+
 @pytest.mark.parametrize(
     "address",
     [
@@ -231,7 +307,7 @@ async def test_only_the_address_is_accepted(endpoint: Any, body: Any) -> None:
 async def test_without_a_panel_facing_url_the_marker_still_goes(
     endpoint: Any, hass: HomeAssistant
 ) -> None:
-    """The owner then types only the address; the MQTT step stays skipped."""
+    """The owner then types only the address; the setup step stays skipped."""
     panel = _Panel(PanelSetupState(complete=False, accepts_handover=True))
     with patch(
         "custom_components.panel_assistant.ha_url.async_panel_facing_url",
@@ -260,11 +336,52 @@ async def test_a_panel_that_refuses_is_reported_not_raised(endpoint: Any) -> Non
     assert body["outcome"] == "handover_refused"
 
 
-async def test_an_unreachable_panel_is_reported_not_raised(endpoint: Any) -> None:
+async def test_an_unreachable_panel_is_reported_not_raised(
+    endpoint: Any, hass: HomeAssistant, panel_health: AsyncMock, caplog: Any
+) -> None:
+    """A panel that never answers leaves one line saying so in the log."""
+    panel_health.side_effect = CannotConnectError
     panel = _Panel(CannotConnectError())
-    status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+    with caplog.at_level(logging.INFO, logger=delivery.__name__):
+        status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
     assert status == 200
     assert body["outcome"] == "setup_state_unreadable"
+    assert body["registration"] == "not_panel"
+    assert hass.config_entries.async_entries(DOMAIN) == []
+    lines = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == delivery.__name__ and record.levelno == logging.INFO
+    ]
+    assert len(lines) == 1
+    assert "192.168.1.20" in lines[0]
+    assert "setup_state_unreadable" in lines[0]
+    assert "not_panel" in lines[0]
+
+
+async def test_a_panel_that_answers_late_still_gets_its_handover_and_entry(
+    endpoint: Any, hass: HomeAssistant, caplog: Any
+) -> None:
+    """The installer relays the handover while the app it started is coming up.
+
+    Its first reads are refused; the handover keeps asking, then gives the panel
+    Home Assistant's address and adds it, as the network install does.
+    """
+    panel = _Panel(PanelSetupState(complete=False, accepts_handover=True), refusals=3)
+    with caplog.at_level(logging.INFO, logger=delivery.__name__):
+        status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+    assert status == 200
+    assert body["outcome"] == "handed_over"
+    assert body["registration"] == "added"
+    assert panel.posted == ["http://192.168.1.5:8123"]
+    assert [
+        entry.data["address"] for entry in hass.config_entries.async_entries(DOMAIN)
+    ] == ["192.168.1.20"]
+    assert any(
+        "handed_over" in record.getMessage() and "added" in record.getMessage()
+        for record in caplog.records
+        if record.name == delivery.__name__ and record.levelno == logging.INFO
+    )
 
 
 async def test_only_an_admin_may_hand_over(
@@ -343,3 +460,127 @@ async def test_the_handover_tells_the_installer_what_display_size_to_apply(
 
     assert status == 200
     assert body["display"] == expected
+
+
+@pytest.mark.parametrize("with_card", [False, True])
+async def test_usb_registration_replaces_an_ignored_discovery(
+    hass, endpoint, with_card
+):
+    """An explicit USB install supersedes Ignore only when registration finishes."""
+    from homeassistant import config_entries
+    from homeassistant.data_entry_flow import FlowResultType
+
+    from .config_flow_helpers import _zeroconf_info
+
+    if with_card:
+        card = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=_zeroconf_info(discovery_id=_HEALTH.discovery_id, host="192.168.1.20"),
+        )
+        assert card["type"] is FlowResultType.FORM
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_IGNORE},
+        data={"unique_id": _HEALTH.discovery_id, "title": "Ignored panel"},
+    )
+    ignored = result["result"]
+    panel = _Panel(PanelSetupState(complete=False, accepts_handover=True))
+    with patch(
+        "custom_components.panel_assistant.browser_delivery.async_read_recommended_sizing",
+        AsyncMock(return_value=None),
+    ):
+        status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+    assert status == 200
+    assert body["registration"] == "added"
+    entries = hass.config_entries.async_entries(DOMAIN)
+    assert len(entries) == 1
+    assert entries[0].source != config_entries.SOURCE_IGNORE
+    assert entries[0].unique_id == _HEALTH.discovery_id
+    assert hass.config_entries.async_get_entry(ignored.entry_id) is None
+    with patch(
+        "custom_components.panel_assistant.browser_delivery.async_read_recommended_sizing",
+        AsyncMock(return_value=None),
+    ):
+        _, again = await _post(endpoint, panel, {"address": "192.168.1.20"})
+    assert again["registration"] == "already_configured"
+    assert hass.config_entries.async_entries(DOMAIN) == entries
+
+
+async def test_the_handover_leaves_display_size_alone_once_setup_is_complete(
+    endpoint: Any,
+) -> None:
+    """A repeat USB install must not undo an owner's later display change."""
+    panel = _Panel(PanelSetupState(complete=True, accepts_handover=True))
+    recommends = AsyncMock(
+        return_value={
+            "recommended": {"density": 200, "font_scale": 0.9},
+            "privileged_sizing": False,
+        }
+    )
+
+    with patch(f"{_CLIENT}.async_get_display", recommends):
+        status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+
+    assert status == 200
+    assert body["outcome"] == "setup_complete"
+    assert body["display"] is None
+
+
+async def test_a_slow_entry_setup_never_holds_the_handover_past_its_deadline(
+    endpoint: Any,
+    hass: HomeAssistant,
+    caplog: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The admin's window gives up on the request, and the display size with it.
+
+    Adding the panel waits for its entry to set up, which can take longer than
+    the window waits. The handover answers in time with the display size, says
+    the panel is still being added, and the panel is added all the same.
+    """
+    monkeypatch.setattr(delivery, "_HANDOVER_TIMEOUT", 0.5)
+    setup_done = asyncio.Event()
+
+    async def _slow_setup(*_args: Any) -> bool:
+        await asyncio.sleep(1.0)
+        setup_done.set()
+        return True
+
+    panel = _Panel(PanelSetupState(complete=False, accepts_handover=True), refusals=2)
+    recommends = AsyncMock(
+        return_value={
+            "recommended": {"density": 216, "font_scale": 1.0},
+            "privileged_sizing": False,
+        }
+    )
+    loop = asyncio.get_running_loop()
+    with (
+        caplog.at_level(logging.INFO, logger=delivery.__name__),
+        patch("custom_components.panel_assistant.async_setup_entry", _slow_setup),
+        patch(f"{_CLIENT}.async_get_display", recommends),
+    ):
+        started = loop.time()
+        status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+        answered = loop.time() - started
+        assert status == 200
+        assert answered < 0.9
+        assert body == {
+            "outcome": "handed_over",
+            "registration": "in_progress",
+            "display": {"density": 216, "font_scale": 1.0},
+        }
+        await asyncio.wait_for(setup_done.wait(), 5)
+        await hass.async_block_till_done()
+
+    assert [e.data["address"] for e in hass.config_entries.async_entries(DOMAIN)] == [
+        "192.168.1.20"
+    ]
+    lines = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == delivery.__name__ and record.levelno == logging.INFO
+    ]
+    assert len(lines) == 2
+    assert "registration: in_progress" in lines[0]
+    assert "finished: added" in lines[1]

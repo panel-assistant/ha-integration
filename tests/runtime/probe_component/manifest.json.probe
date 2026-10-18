@@ -3,7 +3,7 @@
   "name": "ha-paneld runtime probe",
   "codeowners": [],
   "dependencies": [],
-  "documentation": "https://github.com/panel-assistant/ha-integration",
+  "documentation": "https://panel-assistant.io/go/install-integration",
   "iot_class": "local_push",
   "version": "0.0.0"
 }

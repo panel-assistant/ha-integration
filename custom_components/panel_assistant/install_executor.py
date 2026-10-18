@@ -14,7 +14,6 @@ import asyncio
 import logging
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from enum import StrEnum
 from functools import partial
 from hashlib import sha256
@@ -29,7 +28,17 @@ from .adb_credentials import (
     AdbCredentialError,
     async_get_durable_adb_credential,
 )
-from .app_identity import LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, reports_package
+from .adb_protocol import (
+    AdbInstallTarget,
+    AdbPreflight,
+    AdbRootMode,
+    InstallAdbError,
+    InstallAdbErrorCode,
+    InstallOutcome,
+    LaunchOutcome,
+    same_physical_target,
+)
+from .app_identity import reports_package
 from .client import (
     CannotConnectError,
     HaPaneldClient,
@@ -42,14 +51,7 @@ from .display_provisioning import async_read_recommended_sizing
 from .feed_coordinator import async_get_feed_coordinator
 from .ha_url import async_offer_ha_url
 from .install_adb import (
-    AdbInstallTarget,
-    AdbPreflight,
-    AdbRootMode,
     DefiniteCleanupReason,
-    InstallAdbError,
-    InstallAdbErrorCode,
-    InstallOutcome,
-    LaunchOutcome,
     StagedApk,
     async_apply_display_sizing,
     async_cleanup_staged_apk,
@@ -57,9 +59,9 @@ from .install_adb import (
     async_installed_artifact_size,
     async_launch_installed_app,
     async_preflight_install,
+    async_settle_vendor_display,
     async_stage_apk,
     async_verify_installed_target,
-    same_physical_target,
 )
 from .install_artifacts import (
     ArtifactCustodyError,
@@ -72,16 +74,7 @@ from .install_artifacts import (
     InstallArtifact as CustodiedArtifact,
 )
 from .install_jobs import (
-    InstallArtifact,
-    InstallJobCleanupRequiredError,
-    InstallJobError,
     InstallJobManager,
-    InstallJobReceipt,
-    InstallJobRevisionError,
-    InstallJobStoreError,
-    InstallJobTransitionError,
-    InstallPhase,
-    InstallResultCode,
     async_get_install_job_manager,
 )
 from .install_network import (
@@ -90,9 +83,18 @@ from .install_network import (
     PinnedPanelTarget,
     async_revalidate_install_target,
 )
-from .migration_repair import (
-    async_delete_panel_migration_incomplete,
-    async_raise_panel_migration_incomplete,
+from .install_receipt import (
+    _RESTART_AMBIGUOUS_PHASES,
+    InstallArtifact,
+    InstallJobCleanupRequiredError,
+    InstallJobError,
+    InstallJobReceipt,
+    InstallJobRevisionError,
+    InstallJobStoreError,
+    InstallJobTransitionError,
+    InstallPhase,
+    InstallResultCode,
+    _now_timestamp,
 )
 from .release import InstallDescriptor, ReleaseArtifact, is_feed_build_tag
 from .status import home_ui_allows
@@ -102,23 +104,21 @@ _LOGGER = logging.getLogger(__name__)
 _EXECUTOR_DATA_KEY = f"{DOMAIN}.install_executor"
 _EXECUTOR_LOCK_DATA_KEY = f"{DOMAIN}.install_executor_lock"
 _EXECUTION_ID_DOMAIN = b"ha-paneld-install-execution-v1\0"
-# The path is device-local, so one fixed slot bounds ambiguous remote residue
-# without creating a cross-panel collision. Stage proves the slot absent in the
-# same ADB connection before writing; a later job refuses rather than overwrites.
+# The path is device-local, so one fixed slot bounds remote residue to one file
+# without creating a cross-panel collision. Stage removes a file an earlier
+# attempt left there in the same ADB connection before writing, so a copy that
+# stopped part-way never blocks the next install.
 _REMOTE_STAGING_SLOT_ID = sha256(
     b"ha-paneld-device-local-staging-slot-v1\0"
 ).hexdigest()[:32]
 _RELEASE_DOWNLOAD_ROOT = ANDROID_RELEASE_DOWNLOAD_ROOT
 _REMOTE_STAGING_PREFIX = "/data/local/tmp/ha-paneld-install-"
-_HEALTH_ATTEMPTS = 12
+# The installed app restarts and may take a while to answer on 8888, so the wait
+# is long, about three minutes, and ends on the installed app's own identity
+# rather than on the first reply. A healthy install leaves on its first answer,
+# so the long budget costs nothing when the panel is quick.
+_HEALTH_ATTEMPTS = 90
 _HEALTH_RETRY_SECONDS = 2.0
-# Installing the successor beside the legacy package starts a handover the panel
-# performs itself: the legacy app keeps answering on 8888 until it quiesces, and
-# for part of that window nothing answers at all. The successor is therefore
-# given a longer budget, and the wait ends on the successor's own identity
-# rather than on the first reply. A clean install leaves this loop on its first
-# healthy answer, so the longer budget costs nothing when nothing is migrating.
-_HANDOVER_HEALTH_ATTEMPTS = 90
 _FINALIZER_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$", flags=re.ASCII)
 
 _SAFE_RESUME_PHASES = frozenset(
@@ -133,10 +133,6 @@ _SAFE_RESUME_PHASES = frozenset(
         InstallPhase.HEALTH_CHECK,
     }
 )
-_RESTART_AMBIGUOUS_PHASES = frozenset(
-    {InstallPhase.STAGING, InstallPhase.INSTALLING, InstallPhase.LAUNCHING}
-)
-
 _AMBIGUOUS_ADB_ERRORS = frozenset(
     {
         InstallAdbErrorCode.STAGE_AMBIGUOUS,
@@ -192,12 +188,10 @@ def health_is_installed_app(
     phase, flow finalization and entry recovery must never disagree about what
     counts as installed.
 
-    The version alone stops being enough during the identity migration: both
-    packages are built from one tree, so the legacy app answering mid-handover
-    can carry the very version being installed. The successor always reports
-    its own application id, so a successor install requires that id and never
-    accepts a reply that omits it. Builds older than the migration do not report
-    a package at all, which is why a legacy install still accepts its absence.
+    The version alone is not enough: the old app is built from the same tree
+    and can carry the very version being installed. The app always reports its
+    own application id, so an install requires that id and never accepts a
+    reply that omits it.
     """
     return health.version == installed.version_name and reports_package(
         health.package, installed.package_id
@@ -546,8 +540,7 @@ class InstallExecutor:
                 adb_target,
                 credential.signer,
                 expected_root_mode=AdbRootMode(stored_root_mode),
-                # The package this receipt installed, which on a migrating
-                # panel is not the package that panel was running before.
+                # The package this receipt installed.
                 package_id=receipt.artifact.package_id,
             )
         except InstallAdbError as err:
@@ -958,31 +951,12 @@ class InstallExecutor:
                     if health is None or not health_is_installed_app(
                         health, receipt.artifact
                     ):
-                        # Only report a handover actually seen in progress:
-                        # the old app answered for itself throughout the wait.
-                        # A panel that answered nothing at all has failed an
-                        # install, and telling its owner it is part-migrated
-                        # would send them looking for the wrong thing.
-                        if (
-                            receipt.artifact.package_id == SUCCESSOR_PACKAGE_ID
-                            and health is not None
-                            and health.package == LEGACY_PACKAGE_ID
-                        ):
-                            async_raise_panel_migration_incomplete(
-                                self._hass,
-                                receipt.job_id,
-                                execution.pinned.pinned.stored_value,
-                                receipt.artifact.version_name,
-                            )
                         receipt = await self._async_recovery(
                             receipt,
                             InstallResultCode.VERIFICATION_REQUIRED,
                             health_subcode or "health:identity_mismatch",
                         )
                     else:
-                        async_delete_panel_migration_incomplete(
-                            self._hass, receipt.job_id
-                        )
                         # The panel Home Assistant just installed is up and
                         # answering, and its setup wizard has not been touched.
                         # This is the earliest honest moment to tell it where
@@ -990,13 +964,46 @@ class InstallExecutor:
                         # address the installer already knew. Best-effort: an
                         # install that worked must not be failed by a
                         # convenience that did not.
-                        await async_offer_ha_url(self._hass, panel)
-                        # The same moment, and the same best-effort rule: a
-                        # rootless panel gets the display and text size its
-                        # profile recommends, once, at setup.
-                        await self._async_offer_display_sizing(
+                        setup_state = await async_offer_ha_url(self._hass, panel)
+                        # A rootless panel gets its recommended display and
+                        # text size at setup, and only then: a reinstall over
+                        # a set-up panel keeps the size its owner chose. A
+                        # completed refusal is optional; an interrupted
+                        # command cannot become acceptance.
+                        if setup_state != "setup_complete":
+                            try:
+                                await self._async_offer_display_sizing(
+                                    receipt, execution, panel
+                                )
+                            except _CancellationObserved as err:
+                                receipt = err.receipt
+                                continue
+                            except (
+                                AdbCredentialError,
+                                InstallAdbError,
+                                InstallNetworkError,
+                            ) as err:
+                                # A lost shell may still be writing display state.
+                                # A later vendor resume cannot settle a write whose
+                                # completion is unknown, so retain recovery instead
+                                # of launching the app ahead of that command.
+                                receipt = await self._async_recovery(
+                                    receipt,
+                                    InstallResultCode.VERIFICATION_REQUIRED,
+                                    _result_subcode(err),
+                                )
+                                continue
+                        # Display changes can leave a vendor shutdown pending.
+                        # Even equal sizing must settle a restart left by an
+                        # earlier attempt before this health becomes final.
+                        receipt = await self._async_settle_display_and_launch(
                             receipt, execution, panel
                         )
+                        if (
+                            receipt.phase is not InstallPhase.HEALTH_CHECK
+                            or receipt.cancel_requested
+                        ):
+                            continue
                         receipt = await self._async_transition(
                             receipt,
                             InstallPhase.HEALTHY_UNCLAIMED,
@@ -1104,23 +1111,14 @@ class InstallExecutor:
         execution: _FrozenExecution,
         panel: HaPaneldClient,
     ) -> None:
-        """Apply the panel's recommended sizing over ADB; never fails an install."""
+        """Offer sizing; a completed refusal is optional, lost custody is not."""
         sizing = await async_read_recommended_sizing(panel)
         if sizing is None:
             return
-        try:
-            credential = await self._async_current_credential(receipt)
-            result = await async_apply_display_sizing(
-                execution.adb_target, credential.signer, sizing
-            )
-        except (AdbCredentialError, InstallAdbError) as err:
-            _LOGGER.warning(
-                "Could not set the recommended display and text size on panel=%s "
-                "(%s); set them on the panel if its text looks too large or small",
-                receipt.target.address,
-                _result_subcode(err),
-            )
-            return
+        credential, receipt = await self._async_mutation_authority(receipt, execution)
+        result = await async_apply_display_sizing(
+            execution.adb_target, credential.signer, sizing
+        )
         if not result.converged:
             _LOGGER.warning(
                 "The panel did not take the recommended display and text size "
@@ -1129,6 +1127,80 @@ class InstallExecutor:
                 result.density,
                 result.font_scale,
             )
+
+    async def _async_settle_display_and_launch(
+        self,
+        receipt: InstallJobReceipt,
+        execution: _FrozenExecution,
+        panel: HaPaneldClient,
+    ) -> InstallJobReceipt:
+        """Only settled native display state may precede final app acceptance."""
+        try:
+            credential, receipt = await self._async_mutation_authority(
+                receipt, execution
+            )
+            settlement = await async_settle_vendor_display(
+                execution.adb_target,
+                credential.signer,
+                execution.descriptor,
+                expected_root_mode=_root_mode(receipt),
+            )
+            if settlement == "skipped":
+                return receipt
+            if settlement != "settled":
+                return await self._async_recovery(
+                    receipt,
+                    InstallResultCode.VERIFICATION_REQUIRED,
+                    "display_settlement:unexpected_outcome",
+                )
+            credential, receipt = await self._async_mutation_authority(
+                receipt, execution
+            )
+            if (
+                await async_installed_artifact_size(
+                    execution.adb_target,
+                    credential.signer,
+                    execution.descriptor,
+                    expected_root_mode=_root_mode(receipt),
+                )
+                != receipt.artifact.apk_size
+            ):
+                return await self._async_recovery(
+                    receipt,
+                    InstallResultCode.VERIFICATION_REQUIRED,
+                    "display_settlement:artifact_changed",
+                )
+            credential, receipt = await self._async_mutation_authority(
+                receipt, execution
+            )
+            outcome = await async_launch_installed_app(
+                execution.adb_target,
+                credential.signer,
+                execution.descriptor,
+                expected_root_mode=_root_mode(receipt),
+            )
+            if outcome is not LaunchOutcome.STARTED:
+                return await self._async_recovery(
+                    receipt,
+                    InstallResultCode.VERIFICATION_REQUIRED,
+                    "display_settlement:launch_refused",
+                )
+        except _CancellationObserved as err:
+            return err.receipt
+        except (AdbCredentialError, InstallAdbError, InstallNetworkError) as err:
+            return await self._async_recovery(
+                receipt,
+                InstallResultCode.VERIFICATION_REQUIRED,
+                _result_subcode(err),
+            )
+        health, subcode = await self._async_health(execution, panel)
+        if health is None or not health_is_installed_app(health, receipt.artifact):
+            return await self._async_recovery(
+                receipt,
+                InstallResultCode.VERIFICATION_REQUIRED,
+                subcode or "health:identity_mismatch",
+            )
+        return receipt
 
     async def _async_current_credential(
         self, receipt: InstallJobReceipt
@@ -1344,11 +1416,7 @@ class InstallExecutor:
         self, execution: _FrozenExecution, client: HaPaneldClient
     ) -> tuple[PanelHealth | None, str | None]:
         artifact = execution.descriptor
-        # Only a successor install can meet a handover, and only then does an
-        # answer from another app mean "not yet" rather than "the wrong app". A
-        # legacy install keeps exactly the budget and the failure it had.
-        handover = artifact.package_id == SUCCESSOR_PACKAGE_ID
-        attempts = _HANDOVER_HEALTH_ATTEMPTS if handover else _HEALTH_ATTEMPTS
+        attempts = _HEALTH_ATTEMPTS
         failure_subcode = "health:unavailable"
         for attempt in range(attempts):
             last = attempt + 1 >= attempts
@@ -1363,9 +1431,8 @@ class InstallExecutor:
                     if isinstance(err, InvalidResponseError)
                     else "health:cannot_connect"
                 )
-                # Nothing is answering on 8888. During a handover that is the
-                # legacy app having released the port before the successor
-                # bound it, so it is a reason to wait rather than to fail.
+                # Nothing is answering on 8888 yet: the installed app is still
+                # starting, a reason to wait rather than to fail.
                 if not last:
                     await asyncio.sleep(_HEALTH_RETRY_SECONDS)
                 continue
@@ -1381,10 +1448,9 @@ class InstallExecutor:
                 if not last:
                     await asyncio.sleep(_HEALTH_RETRY_SECONDS)
                 continue
-            if not handover or last:
+            if last:
                 return health, None
-            # Something healthy answered, but it is not the app just installed:
-            # on a migrating panel the legacy app still owns the port.
+            # Something healthy answered, but not yet as the app just installed.
             await asyncio.sleep(_HEALTH_RETRY_SECONDS)
         return None, failure_subcode
 
@@ -1529,10 +1595,6 @@ class InstallExecutor:
             result_code=result,
             result_subcode=subcode,
         )
-
-
-def _now_timestamp() -> str:
-    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def _execution_id(receipt: InstallJobReceipt) -> str:

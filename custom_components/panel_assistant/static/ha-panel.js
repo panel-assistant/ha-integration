@@ -1,6 +1,17 @@
+//#region src/stale-module.mjs
+var e = ["panel-assistant-sidebar", "panel-assistant-usb-install"], t = "panel-assistant-module-reloaded";
+if (e.some((e) => customElements.get(e))) {
+	let e = null;
+	try {
+		e = sessionStorage.getItem(t), sessionStorage.setItem(t, import.meta.url);
+	} catch {
+		e = import.meta.url;
+	}
+	e !== import.meta.url && location.reload();
+}
 //#endregion
 //#region src/translations/index.mjs
-var e = Object.freeze({
+var n = Object.freeze({
 	en: {
 		sidebar: {
 			title: "Panel Assistant",
@@ -43,7 +54,8 @@ var e = Object.freeze({
 			loading: "Loading versions…",
 			catalogError: "The list of versions couldn’t be loaded.",
 			empty: "No versions are available yet. Try again later.",
-			choose: "Follow Panel Assistant’s channel (recommended)",
+			choose: "Recommended version",
+			otherVersions: "Choose another version",
 			testing: "test version",
 			devBuild: "dev build",
 			retry: "Try again",
@@ -57,6 +69,7 @@ var e = Object.freeze({
 			downloading: "Getting the app ready…",
 			verifying: "Getting the app ready…",
 			verified: "Continue in the new window.",
+			installed: "Panel Assistant is installed. Finish the panel's setup in the installer window, then close this tab.",
 			cancelled: "Cancelled.",
 			popup_blocked: "Your browser blocked the new window. Allow pop-ups for this page, then press Continue.",
 			invalid_request: "Choose a version first.",
@@ -68,9 +81,11 @@ var e = Object.freeze({
 			preparingSlow: "Still getting the app ready. Keep the Home Assistant tab open.",
 			connectHeading: "Connect your panel",
 			connectBody: "Plug the panel into this computer with a USB cable, then press Find my panel.",
+			usbDebugging: "USB debugging must be on in the panel’s developer options.",
+			usbDebuggingHelp: "How to turn it on",
 			connect: "Find my panel",
 			allowHeading: "Allow this computer",
-			allowBody: "Look at the panel’s screen and tap Allow.",
+			allowBody: "On the panel, tick “Always allow from this computer” and tap Allow, so Panel Assistant can update it later without the cable.",
 			checkingPanel: "Checking your panel…",
 			confirmHeading: "Ready to install",
 			confirmBody: "This installs the app and makes it your panel’s home screen. Your other apps are not touched.",
@@ -104,7 +119,8 @@ var e = Object.freeze({
 			pageClosed: "The page was closed.",
 			progress: "Progress",
 			installProgress: "Installation progress",
-			licenses: "Third-party licenses"
+			licenses: "Third-party licenses",
+			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
 		},
 		errors: {
 			installErrorGeneric: "Something went wrong. Keep the panel plugged in and press Try again.",
@@ -115,7 +131,8 @@ var e = Object.freeze({
 			installErrorNotClean: "This panel already has the app. Update it from Home Assistant instead.",
 			installErrorIncompatible: "This panel can’t run this version of the app.",
 			installErrorConnection: "The connection to the panel dropped. Keep it plugged in and press Try again.",
-			installErrorHealth: "The app is installed but hasn’t started yet. Wait a moment, then try again."
+			installErrorHealth: "The app is installed but hasn’t started yet. Wait a moment, then try again.",
+			installErrorPermissions: "The app is installed, but its permissions couldn’t be confirmed. Trying again is safe: keep the panel plugged in and press Try again."
 		},
 		journey: {
 			version: "Version",
@@ -132,6 +149,7 @@ var e = Object.freeze({
 		support: {
 			stopped: "Stopped",
 			cause: "Cause",
+			failedCheck: "Failed check",
 			error: "Error",
 			release: "Release",
 			panel: "Panel",
@@ -145,6 +163,7 @@ var e = Object.freeze({
 			setupAddress: "Setup address",
 			setupHandover: "Setup handover",
 			displaySizing: "Display and text size",
+			networkAdb: "Network ADB",
 			copiedDetail: "{bytes} bytes sent; waiting for the panel to confirm",
 			none: "none",
 			setupMissing: "not found; setup continues on the panel"
@@ -192,7 +211,8 @@ var e = Object.freeze({
 			loading: "Načítání verzí…",
 			catalogError: "Seznam verzí se nepodařilo načíst.",
 			empty: "Zatím nejsou dostupné žádné verze. Zkuste to znovu později.",
-			choose: "Podle kanálu Panel Assistant (doporučeno)",
+			choose: "Doporučená verze",
+			otherVersions: "Vybrat jinou verzi",
 			testing: "testovací verze",
 			devBuild: "vývojové sestavení",
 			retry: "Zkusit znovu",
@@ -206,6 +226,7 @@ var e = Object.freeze({
 			downloading: "Příprava aplikace…",
 			verifying: "Příprava aplikace…",
 			verified: "Pokračujte v novém okně.",
+			installed: "Panel Assistant je nainstalován. Dokončete nastavení panelu v okně instalátoru a pak tuto kartu zavřete.",
 			cancelled: "Zrušeno.",
 			popup_blocked: "Prohlížeč zablokoval nové okno. Povolte pro tuto stránku vyskakovací okna a pak stiskněte Pokračovat.",
 			invalid_request: "Nejprve vyberte verzi.",
@@ -217,9 +238,11 @@ var e = Object.freeze({
 			preparingSlow: "Aplikace se stále připravuje. Nechte kartu Home Assistant otevřenou.",
 			connectHeading: "Připojte svůj panel",
 			connectBody: "Připojte panel k tomuto počítači kabelem USB a pak stiskněte Najít můj panel.",
+			usbDebugging: "Ladění přes USB musí být zapnuté v nastavení pro vývojáře na panelu.",
+			usbDebuggingHelp: "Jak to zapnout",
 			connect: "Najít můj panel",
 			allowHeading: "Povolit tento počítač",
-			allowBody: "Podívejte se na obrazovku panelu a klepněte na Povolit.",
+			allowBody: "Na panelu zaškrtněte „Vždy povolit z tohoto počítače“ a klepněte na Povolit, aby ho Panel Assistant mohl později aktualizovat bez kabelu.",
 			checkingPanel: "Kontrola panelu…",
 			confirmHeading: "Připraveno k instalaci",
 			confirmBody: "Tímto nainstalujete aplikaci a nastavíte ji jako domovskou obrazovku panelu. Vašich ostatních aplikací se to nedotkne.",
@@ -253,7 +276,8 @@ var e = Object.freeze({
 			pageClosed: "Stránka byla zavřena.",
 			progress: "Průběh",
 			installProgress: "Průběh instalace",
-			licenses: "Licence třetích stran"
+			licenses: "Licence třetích stran",
+			doneAnotherHomeAssistant: "Tento panel je přihlášen k jiné instanci Home Assistant. Chcete-li jej připojit sem, změňte na panelu instanci Home Assistant a přihlaste se."
 		},
 		errors: {
 			installErrorGeneric: "Něco se pokazilo. Nechte panel připojený a stiskněte Zkusit znovu.",
@@ -264,7 +288,8 @@ var e = Object.freeze({
 			installErrorNotClean: "Tento panel už aplikaci má. Aktualizujte ji z Home Assistant.",
 			installErrorIncompatible: "Tento panel nedokáže spustit tuto verzi aplikace.",
 			installErrorConnection: "Spojení s panelem se přerušilo. Nechte ho připojený a stiskněte Zkusit znovu.",
-			installErrorHealth: "Aplikace je nainstalovaná, ale ještě se nespustila. Chvíli počkejte a pak to zkuste znovu."
+			installErrorHealth: "Aplikace je nainstalovaná, ale ještě se nespustila. Chvíli počkejte a pak to zkuste znovu.",
+			installErrorPermissions: "Aplikace je nainstalovaná, ale její oprávnění se nepodařilo ověřit. Zkusit to znovu je bezpečné: nechte panel připojený a stiskněte Zkusit znovu."
 		},
 		journey: {
 			version: "Verze",
@@ -281,6 +306,7 @@ var e = Object.freeze({
 		support: {
 			stopped: "Zastaveno",
 			cause: "Příčina",
+			failedCheck: "Neúspěšná kontrola",
 			error: "Chyba",
 			release: "Vydání",
 			panel: "Panel",
@@ -294,6 +320,7 @@ var e = Object.freeze({
 			setupAddress: "Adresa nastavení",
 			setupHandover: "Předání nastavení",
 			displaySizing: "Velikost zobrazení a textu",
+			networkAdb: "ADB přes síť",
 			copiedDetail: "Odesláno {bytes} bajtů; čeká se na potvrzení panelu",
 			none: "žádné",
 			setupMissing: "nenalezeno; nastavení pokračuje na panelu"
@@ -341,7 +368,8 @@ var e = Object.freeze({
 			loading: "Versionen werden geladen…",
 			catalogError: "Die Versionsliste konnte nicht geladen werden.",
 			empty: "Es sind noch keine Versionen verfügbar. Versuche es später erneut.",
-			choose: "Dem Kanal von Panel Assistant folgen (empfohlen)",
+			choose: "Empfohlene Version",
+			otherVersions: "Andere Version wählen",
 			testing: "Testversion",
 			devBuild: "Entwicklungsbuild",
 			retry: "Erneut versuchen",
@@ -355,6 +383,7 @@ var e = Object.freeze({
 			downloading: "Die App wird vorbereitet…",
 			verifying: "Die App wird vorbereitet…",
 			verified: "Fahre im neuen Fenster fort.",
+			installed: "Panel Assistant ist installiert. Schließe die Einrichtung des Panels im Installationsfenster ab und schließe dann diesen Tab.",
 			cancelled: "Abgebrochen.",
 			popup_blocked: "Dein Browser hat das neue Fenster blockiert. Erlaube Pop-ups für diese Seite und drücke dann „Weiter“.",
 			invalid_request: "Wähle zuerst eine Version.",
@@ -366,9 +395,11 @@ var e = Object.freeze({
 			preparingSlow: "Die App wird noch vorbereitet. Lass den Home Assistant-Tab geöffnet.",
 			connectHeading: "Dein Panel verbinden",
 			connectBody: "Verbinde das Panel über ein USB-Kabel mit diesem Computer und drücke dann „Mein Panel finden“.",
+			usbDebugging: "USB-Debugging muss in den Entwicklereinstellungen des Panels aktiviert sein.",
+			usbDebuggingHelp: "So schaltest du es ein",
 			connect: "Mein Panel finden",
 			allowHeading: "Diesen Computer zulassen",
-			allowBody: "Schau auf den Bildschirm des Panels und tippe auf „Zulassen“.",
+			allowBody: "Setze auf dem Panel das Häkchen bei „Von diesem Computer immer zulassen“ und tippe auf „Zulassen“, damit Panel Assistant es später ohne Kabel aktualisieren kann.",
 			checkingPanel: "Dein Panel wird geprüft…",
 			confirmHeading: "Bereit zur Installation",
 			confirmBody: "Die App wird installiert und als Startbildschirm deines Panels eingerichtet. Deine anderen Apps bleiben unberührt.",
@@ -402,7 +433,8 @@ var e = Object.freeze({
 			pageClosed: "Die Seite wurde geschlossen.",
 			progress: "Fortschritt",
 			installProgress: "Installationsfortschritt",
-			licenses: "Lizenzen von Drittanbietern"
+			licenses: "Lizenzen von Drittanbietern",
+			doneAnotherHomeAssistant: "Dieses Panel ist bei einem anderen Home Assistant angemeldet. Ändere Home Assistant und melde dich auf dem Panel an, um es hier zu verbinden."
 		},
 		errors: {
 			installErrorGeneric: "Etwas ist schiefgegangen. Lass das Panel angeschlossen und drücke „Erneut versuchen“.",
@@ -413,7 +445,8 @@ var e = Object.freeze({
 			installErrorNotClean: "Die App ist bereits auf diesem Panel. Aktualisiere sie über Home Assistant.",
 			installErrorIncompatible: "Dieses Panel kann diese Version der App nicht ausführen.",
 			installErrorConnection: "Die Verbindung zum Panel wurde unterbrochen. Lass es angeschlossen und drücke „Erneut versuchen“.",
-			installErrorHealth: "Die App ist installiert, aber noch nicht gestartet. Warte einen Moment und versuche es dann erneut."
+			installErrorHealth: "Die App ist installiert, aber noch nicht gestartet. Warte einen Moment und versuche es dann erneut.",
+			installErrorPermissions: "Die App ist installiert, aber ihre Berechtigungen konnten nicht bestätigt werden. Ein erneuter Versuch ist sicher: Lass das Panel angeschlossen und drücke „Erneut versuchen“."
 		},
 		journey: {
 			version: "Version",
@@ -430,6 +463,7 @@ var e = Object.freeze({
 		support: {
 			stopped: "Gestoppt",
 			cause: "Ursache",
+			failedCheck: "Fehlgeschlagene Prüfung",
 			error: "Fehler",
 			release: "Version",
 			panel: "Panel",
@@ -443,6 +477,7 @@ var e = Object.freeze({
 			setupAddress: "Einrichtungsadresse",
 			setupHandover: "Übergabe an die Einrichtung",
 			displaySizing: "Anzeige- und Textgröße",
+			networkAdb: "ADB über das Netzwerk",
 			copiedDetail: "{bytes} Bytes gesendet; Bestätigung des Panels ausstehend",
 			none: "keine",
 			setupMissing: "nicht gefunden; Einrichtung wird auf dem Panel fortgesetzt"
@@ -490,7 +525,8 @@ var e = Object.freeze({
 			loading: "Cargando versiones…",
 			catalogError: "No se pudo cargar la lista de versiones.",
 			empty: "Aún no hay versiones disponibles. Vuelve a intentarlo más tarde.",
-			choose: "Seguir el canal de Panel Assistant (recomendado)",
+			choose: "Versión recomendada",
+			otherVersions: "Elegir otra versión",
 			testing: "versión de prueba",
 			devBuild: "compilación de desarrollo",
 			retry: "Volver a intentar",
@@ -504,6 +540,7 @@ var e = Object.freeze({
 			downloading: "Preparando la aplicación…",
 			verifying: "Preparando la aplicación…",
 			verified: "Continúa en la nueva ventana.",
+			installed: "Panel Assistant está instalado. Termina la configuración del panel en la ventana del instalador y después cierra esta pestaña.",
 			cancelled: "Cancelado.",
 			popup_blocked: "Tu navegador bloqueó la nueva ventana. Permite las ventanas emergentes para esta página y pulsa Continuar.",
 			invalid_request: "Elige primero una versión.",
@@ -515,9 +552,11 @@ var e = Object.freeze({
 			preparingSlow: "La aplicación aún se está preparando. Mantén abierta la pestaña de Home Assistant.",
 			connectHeading: "Conecta tu panel",
 			connectBody: "Conecta el panel a este ordenador con un cable USB y pulsa Buscar mi panel.",
+			usbDebugging: "La depuración por USB debe estar activada en los ajustes de desarrollador del panel.",
+			usbDebuggingHelp: "Cómo activarla",
 			connect: "Buscar mi panel",
 			allowHeading: "Autoriza este ordenador",
-			allowBody: "Mira la pantalla del panel y toca Permitir.",
+			allowBody: "En el panel, marca «Permitir siempre desde este ordenador» y toca Permitir, para que Panel Assistant pueda actualizarlo más adelante sin el cable.",
 			checkingPanel: "Comprobando tu panel…",
 			confirmHeading: "Listo para instalar",
 			confirmBody: "Esto instala la aplicación y la convierte en la pantalla de inicio de tu panel. Las demás aplicaciones no se modifican.",
@@ -551,7 +590,8 @@ var e = Object.freeze({
 			pageClosed: "La página se cerró.",
 			progress: "Progreso",
 			installProgress: "Progreso de la instalación",
-			licenses: "Licencias de terceros"
+			licenses: "Licencias de terceros",
+			doneAnotherHomeAssistant: "Este panel tiene la sesión iniciada en otro Home Assistant. Cambia de Home Assistant e inicia sesión en el panel para conectarlo aquí."
 		},
 		errors: {
 			installErrorGeneric: "Algo salió mal. Mantén el panel conectado y pulsa Volver a intentar.",
@@ -562,7 +602,8 @@ var e = Object.freeze({
 			installErrorNotClean: "Este panel ya tiene la aplicación. Actualízala desde Home Assistant.",
 			installErrorIncompatible: "Este panel no puede ejecutar esta versión de la aplicación.",
 			installErrorConnection: "Se perdió la conexión con el panel. Mantenlo conectado y pulsa Volver a intentar.",
-			installErrorHealth: "La aplicación está instalada, pero aún no ha iniciado. Espera un momento y vuelve a intentarlo."
+			installErrorHealth: "La aplicación está instalada, pero aún no ha iniciado. Espera un momento y vuelve a intentarlo.",
+			installErrorPermissions: "La aplicación está instalada, pero no se pudieron confirmar sus permisos. Volver a intentarlo es seguro: mantén el panel conectado y pulsa Volver a intentar."
 		},
 		journey: {
 			version: "Versión",
@@ -579,6 +620,7 @@ var e = Object.freeze({
 		support: {
 			stopped: "Detenido",
 			cause: "Causa",
+			failedCheck: "Comprobación fallida",
 			error: "Error",
 			release: "Versión",
 			panel: "Panel",
@@ -592,6 +634,7 @@ var e = Object.freeze({
 			setupAddress: "Dirección de configuración",
 			setupHandover: "Transferencia a la configuración",
 			displaySizing: "Tamaño de pantalla y texto",
+			networkAdb: "ADB por red",
 			copiedDetail: "{bytes} bytes enviados; esperando la confirmación del panel",
 			none: "ninguno",
 			setupMissing: "no encontrada; la configuración continúa en el panel"
@@ -639,7 +682,8 @@ var e = Object.freeze({
 			loading: "Chargement des versions…",
 			catalogError: "Impossible de charger la liste des versions.",
 			empty: "Aucune version n’est encore disponible. Réessayez plus tard.",
-			choose: "Suivre le canal de Panel Assistant (recommandé)",
+			choose: "Version recommandée",
+			otherVersions: "Choisir une autre version",
 			testing: "version de test",
 			devBuild: "build de développement",
 			retry: "Réessayer",
@@ -653,6 +697,7 @@ var e = Object.freeze({
 			downloading: "Préparation de l’application…",
 			verifying: "Préparation de l’application…",
 			verified: "Continuez dans la nouvelle fenêtre.",
+			installed: "Panel Assistant est installé. Terminez la configuration du panneau dans la fenêtre de l'installateur, puis fermez cet onglet.",
 			cancelled: "Annulé.",
 			popup_blocked: "Votre navigateur a bloqué la nouvelle fenêtre. Autorisez les fenêtres contextuelles pour cette page, puis appuyez sur « Continuer ».",
 			invalid_request: "Choisissez d’abord une version.",
@@ -664,9 +709,11 @@ var e = Object.freeze({
 			preparingSlow: "La préparation de l’application se poursuit. Gardez l’onglet Home Assistant ouvert.",
 			connectHeading: "Connecter votre panneau",
 			connectBody: "Branchez le panneau à cet ordinateur avec un câble USB, puis appuyez sur « Trouver mon panneau ».",
+			usbDebugging: "Le débogage USB doit être activé dans les paramètres pour les développeurs du panneau.",
+			usbDebuggingHelp: "Comment l’activer",
 			connect: "Trouver mon panneau",
 			allowHeading: "Autoriser cet ordinateur",
-			allowBody: "Regardez l’écran du panneau et appuyez sur « Autoriser ».",
+			allowBody: "Sur le panneau, cochez « Toujours autoriser cet ordinateur » et appuyez sur « Autoriser », pour que Panel Assistant puisse le mettre à jour plus tard sans le câble.",
 			checkingPanel: "Vérification de votre panneau…",
 			confirmHeading: "Prêt à installer",
 			confirmBody: "L’application sera installée et deviendra l’écran d’accueil de votre panneau. Vos autres applications ne seront pas modifiées.",
@@ -700,7 +747,8 @@ var e = Object.freeze({
 			pageClosed: "La page a été fermée.",
 			progress: "Progression",
 			installProgress: "Progression de l’installation",
-			licenses: "Licences tierces"
+			licenses: "Licences tierces",
+			doneAnotherHomeAssistant: "Ce panneau a une session ouverte sur un autre Home Assistant. Changez de Home Assistant et connectez-vous sur le panneau pour le connecter ici."
 		},
 		errors: {
 			installErrorGeneric: "Une erreur s’est produite. Gardez le panneau branché et appuyez sur « Réessayer ».",
@@ -711,7 +759,8 @@ var e = Object.freeze({
 			installErrorNotClean: "L’application est déjà sur ce panneau. Mettez-la plutôt à jour depuis Home Assistant.",
 			installErrorIncompatible: "Ce panneau ne peut pas exécuter cette version de l’application.",
 			installErrorConnection: "La connexion au panneau a été interrompue. Gardez-le branché et appuyez sur « Réessayer ».",
-			installErrorHealth: "L’application est installée mais n’a pas encore démarré. Patientez un moment, puis réessayez."
+			installErrorHealth: "L’application est installée mais n’a pas encore démarré. Patientez un moment, puis réessayez.",
+			installErrorPermissions: "L’application est installée, mais ses autorisations n’ont pas pu être confirmées. Vous pouvez réessayer sans risque : gardez le panneau branché et appuyez sur « Réessayer »."
 		},
 		journey: {
 			version: "Version",
@@ -728,6 +777,7 @@ var e = Object.freeze({
 		support: {
 			stopped: "Arrêté",
 			cause: "Cause",
+			failedCheck: "Vérification échouée",
 			error: "Erreur",
 			release: "Version",
 			panel: "Panneau",
@@ -741,6 +791,7 @@ var e = Object.freeze({
 			setupAddress: "Adresse de configuration",
 			setupHandover: "Passage à la configuration",
 			displaySizing: "Taille d’affichage et du texte",
+			networkAdb: "ADB réseau",
 			copiedDetail: "{bytes} octets envoyés ; en attente de confirmation du panneau",
 			none: "aucun",
 			setupMissing: "introuvable ; la configuration continue sur le panneau"
@@ -788,7 +839,8 @@ var e = Object.freeze({
 			loading: "Caricamento delle versioni…",
 			catalogError: "Non è stato possibile caricare l’elenco delle versioni.",
 			empty: "Non ci sono ancora versioni disponibili. Riprova più tardi.",
-			choose: "Segui il canale di Panel Assistant (consigliato)",
+			choose: "Versione consigliata",
+			otherVersions: "Scegli un’altra versione",
 			testing: "versione di prova",
 			devBuild: "build di sviluppo",
 			retry: "Riprova",
@@ -802,6 +854,7 @@ var e = Object.freeze({
 			downloading: "Preparazione dell’app…",
 			verifying: "Preparazione dell’app…",
 			verified: "Continua nella nuova finestra.",
+			installed: "Panel Assistant è installato. Completa la configurazione del pannello nella finestra dell'installer, poi chiudi questa scheda.",
 			cancelled: "Annullato.",
 			popup_blocked: "Il browser ha bloccato la nuova finestra. Consenti i popup per questa pagina, poi premi Continua.",
 			invalid_request: "Scegli prima una versione.",
@@ -813,9 +866,11 @@ var e = Object.freeze({
 			preparingSlow: "La preparazione dell’app è ancora in corso. Tieni aperta la scheda di Home Assistant.",
 			connectHeading: "Collega il tuo pannello",
 			connectBody: "Collega il pannello a questo computer con un cavo USB, poi premi Trova il mio pannello.",
+			usbDebugging: "Il debug USB deve essere attivo nelle impostazioni sviluppatore del pannello.",
+			usbDebuggingHelp: "Come attivarlo",
 			connect: "Trova il mio pannello",
 			allowHeading: "Autorizza questo computer",
-			allowBody: "Guarda lo schermo del pannello e tocca Consenti.",
+			allowBody: "Sul pannello, seleziona «Consenti sempre da questo computer» e tocca Consenti, così Panel Assistant potrà aggiornarlo in seguito senza il cavo.",
 			checkingPanel: "Verifica del pannello…",
 			confirmHeading: "Pronto per l’installazione",
 			confirmBody: "Questa operazione installa l’app e la imposta come schermata iniziale del pannello. Le altre app non vengono modificate.",
@@ -849,7 +904,8 @@ var e = Object.freeze({
 			pageClosed: "La pagina è stata chiusa.",
 			progress: "Avanzamento",
 			installProgress: "Avanzamento dell’installazione",
-			licenses: "Licenze di terze parti"
+			licenses: "Licenze di terze parti",
+			doneAnotherHomeAssistant: "Su questo pannello è attivo l'accesso a un altro Home Assistant. Cambia Home Assistant ed esegui l'accesso sul pannello per collegarlo qui."
 		},
 		errors: {
 			installErrorGeneric: "Si è verificato un problema. Lascia il pannello collegato e premi Riprova.",
@@ -860,7 +916,8 @@ var e = Object.freeze({
 			installErrorNotClean: "L’app è già presente su questo pannello. Aggiornala da Home Assistant.",
 			installErrorIncompatible: "Questo pannello non può eseguire questa versione dell’app.",
 			installErrorConnection: "La connessione al pannello si è interrotta. Lascialo collegato e premi Riprova.",
-			installErrorHealth: "L’app è installata ma non si è ancora avviata. Attendi un momento, poi riprova."
+			installErrorHealth: "L’app è installata ma non si è ancora avviata. Attendi un momento, poi riprova.",
+			installErrorPermissions: "L’app è installata, ma non è stato possibile confermarne le autorizzazioni. Riprovare è sicuro: lascia il pannello collegato e premi Riprova."
 		},
 		journey: {
 			version: "Versione",
@@ -877,6 +934,7 @@ var e = Object.freeze({
 		support: {
 			stopped: "Interrotto",
 			cause: "Causa",
+			failedCheck: "Controllo non riuscito",
 			error: "Errore",
 			release: "Versione pubblicata",
 			panel: "Pannello",
@@ -889,7 +947,8 @@ var e = Object.freeze({
 			permissions: "Autorizzazioni",
 			setupAddress: "Indirizzo di configurazione",
 			setupHandover: "Passaggio alla configurazione",
-			displaySizing: "Dimensione dello schermo e del testo",
+			displaySizing: "Dimensioni di visualizzazione e del testo",
+			networkAdb: "ADB di rete",
 			copiedDetail: "{bytes} byte inviati; in attesa della conferma del pannello",
 			none: "nessuno",
 			setupMissing: "non trovato; la configurazione prosegue sul pannello"
@@ -937,7 +996,8 @@ var e = Object.freeze({
 			loading: "Versies laden…",
 			catalogError: "De lijst met versies kon niet worden geladen.",
 			empty: "Er zijn nog geen versies beschikbaar. Probeer het later opnieuw.",
-			choose: "Kanaal van Panel Assistant volgen (aanbevolen)",
+			choose: "Aanbevolen versie",
+			otherVersions: "Een andere versie kiezen",
 			testing: "testversie",
 			devBuild: "ontwikkelbuild",
 			retry: "Opnieuw proberen",
@@ -951,6 +1011,7 @@ var e = Object.freeze({
 			downloading: "App voorbereiden…",
 			verifying: "App voorbereiden…",
 			verified: "Ga verder in het nieuwe venster.",
+			installed: "Panel Assistant is geïnstalleerd. Rond de installatie van het paneel af in het installatievenster en sluit dan dit tabblad.",
 			cancelled: "Geannuleerd.",
 			popup_blocked: "De browser heeft het nieuwe venster geblokkeerd. Sta pop-ups toe voor deze pagina en druk op Doorgaan.",
 			invalid_request: "Kies eerst een versie.",
@@ -962,9 +1023,11 @@ var e = Object.freeze({
 			preparingSlow: "De app wordt nog voorbereid. Houd het Home Assistant-tabblad open.",
 			connectHeading: "Je paneel verbinden",
 			connectBody: "Sluit het paneel met een USB-kabel aan op deze computer en druk op Mijn paneel zoeken.",
+			usbDebugging: "USB-foutopsporing moet aan staan in de ontwikkelaarsopties van het paneel.",
+			usbDebuggingHelp: "Zo zet je het aan",
 			connect: "Mijn paneel zoeken",
 			allowHeading: "Deze computer toestaan",
-			allowBody: "Kijk op het scherm van het paneel en tik op Toestaan.",
+			allowBody: "Vink op het paneel ‘Altijd toestaan vanaf deze computer’ aan en tik op Toestaan, zodat Panel Assistant het later zonder kabel kan bijwerken.",
 			checkingPanel: "Je paneel controleren…",
 			confirmHeading: "Klaar om te installeren",
 			confirmBody: "Hiermee installeer je de app en maak je die het startscherm van je paneel. Je andere apps worden niet aangeraakt.",
@@ -998,7 +1061,8 @@ var e = Object.freeze({
 			pageClosed: "De pagina is gesloten.",
 			progress: "Voortgang",
 			installProgress: "Installatievoortgang",
-			licenses: "Licenties van derden"
+			licenses: "Licenties van derden",
+			doneAnotherHomeAssistant: "Dit paneel is aangemeld bij een andere Home Assistant. Wijzig op het paneel Home Assistant en meld je aan om het hier te verbinden."
 		},
 		errors: {
 			installErrorGeneric: "Er ging iets mis. Laat het paneel aangesloten en druk op Opnieuw proberen.",
@@ -1009,7 +1073,8 @@ var e = Object.freeze({
 			installErrorNotClean: "De app staat al op dit paneel. Werk de app in plaats daarvan bij vanuit Home Assistant.",
 			installErrorIncompatible: "Dit paneel kan deze versie van de app niet uitvoeren.",
 			installErrorConnection: "De verbinding met het paneel is verbroken. Laat het aangesloten en druk op Opnieuw proberen.",
-			installErrorHealth: "De app is geïnstalleerd, maar nog niet gestart. Wacht even en probeer het opnieuw."
+			installErrorHealth: "De app is geïnstalleerd, maar nog niet gestart. Wacht even en probeer het opnieuw.",
+			installErrorPermissions: "De app is geïnstalleerd, maar de machtigingen konden niet worden bevestigd. Opnieuw proberen is veilig: laat het paneel aangesloten en druk op Opnieuw proberen."
 		},
 		journey: {
 			version: "Versie",
@@ -1026,6 +1091,7 @@ var e = Object.freeze({
 		support: {
 			stopped: "Gestopt",
 			cause: "Oorzaak",
+			failedCheck: "Mislukte controle",
 			error: "Fout",
 			release: "Uitgave",
 			panel: "Paneel",
@@ -1039,6 +1105,7 @@ var e = Object.freeze({
 			setupAddress: "Configuratieadres",
 			setupHandover: "Configuratieoverdracht",
 			displaySizing: "Weergave- en tekstgrootte",
+			networkAdb: "ADB via netwerk",
 			copiedDetail: "{bytes} bytes verstuurd; wachten op bevestiging van het paneel",
 			none: "geen",
 			setupMissing: "niet gevonden; instellen gaat verder op het paneel"
@@ -1086,7 +1153,8 @@ var e = Object.freeze({
 			loading: "Wczytywanie wersji…",
 			catalogError: "Nie udało się wczytać listy wersji.",
 			empty: "Nie ma jeszcze dostępnych wersji. Spróbuj ponownie później.",
-			choose: "Używaj kanału Panel Assistant (zalecane)",
+			choose: "Zalecana wersja",
+			otherVersions: "Wybierz inną wersję",
 			testing: "wersja testowa",
 			devBuild: "kompilacja deweloperska",
 			retry: "Spróbuj ponownie",
@@ -1100,6 +1168,7 @@ var e = Object.freeze({
 			downloading: "Przygotowywanie aplikacji…",
 			verifying: "Przygotowywanie aplikacji…",
 			verified: "Kontynuuj w nowym oknie.",
+			installed: "Panel Assistant jest zainstalowany. Dokończ konfigurację panelu w oknie instalatora, a następnie zamknij tę kartę.",
 			cancelled: "Anulowano.",
 			popup_blocked: "Przeglądarka zablokowała nowe okno. Zezwól na wyskakujące okna dla tej strony, a potem naciśnij Kontynuuj.",
 			invalid_request: "Najpierw wybierz wersję.",
@@ -1111,9 +1180,11 @@ var e = Object.freeze({
 			preparingSlow: "Aplikacja nadal jest przygotowywana. Zostaw otwartą kartę Home Assistant.",
 			connectHeading: "Podłącz swój panel",
 			connectBody: "Podłącz panel do tego komputera kablem USB, a potem naciśnij Znajdź mój panel.",
+			usbDebugging: "Debugowanie USB musi być włączone w opcjach programisty panelu.",
+			usbDebuggingHelp: "Jak je włączyć",
 			connect: "Znajdź mój panel",
 			allowHeading: "Zezwól temu komputerowi",
-			allowBody: "Spójrz na ekran panelu i dotknij Zezwól.",
+			allowBody: "Na panelu zaznacz „Zawsze zezwalaj z tego komputera” i dotknij Zezwól, aby Panel Assistant mógł go później aktualizować bez kabla.",
 			checkingPanel: "Sprawdzanie panelu…",
 			confirmHeading: "Gotowe do instalacji",
 			confirmBody: "To zainstaluje aplikację i ustawi ją jako ekran główny panelu. Pozostałe aplikacje pozostaną nietknięte.",
@@ -1147,7 +1218,8 @@ var e = Object.freeze({
 			pageClosed: "Strona została zamknięta.",
 			progress: "Postęp",
 			installProgress: "Postęp instalacji",
-			licenses: "Licencje innych podmiotów"
+			licenses: "Licencje innych podmiotów",
+			doneAnotherHomeAssistant: "Ten panel jest zalogowany do innej instancji Home Assistant. Zmień na panelu instancję Home Assistant i zaloguj się, aby połączyć go tutaj."
 		},
 		errors: {
 			installErrorGeneric: "Coś poszło nie tak. Zostaw panel podłączony i naciśnij Spróbuj ponownie.",
@@ -1158,7 +1230,8 @@ var e = Object.freeze({
 			installErrorNotClean: "Ten panel ma już aplikację. Zamiast instalować, zaktualizuj ją z Home Assistant.",
 			installErrorIncompatible: "Ten panel nie może uruchomić tej wersji aplikacji.",
 			installErrorConnection: "Połączenie z panelem zostało przerwane. Zostaw go podłączonego i naciśnij Spróbuj ponownie.",
-			installErrorHealth: "Aplikacja jest zainstalowana, ale jeszcze się nie uruchomiła. Poczekaj chwilę, a potem spróbuj ponownie."
+			installErrorHealth: "Aplikacja jest zainstalowana, ale jeszcze się nie uruchomiła. Poczekaj chwilę, a potem spróbuj ponownie.",
+			installErrorPermissions: "Aplikacja jest zainstalowana, ale nie udało się potwierdzić jej uprawnień. Ponowna próba jest bezpieczna: zostaw panel podłączony i naciśnij Spróbuj ponownie."
 		},
 		journey: {
 			version: "Wersja",
@@ -1175,6 +1248,7 @@ var e = Object.freeze({
 		support: {
 			stopped: "Zatrzymano",
 			cause: "Przyczyna",
+			failedCheck: "Nieudane sprawdzenie",
 			error: "Błąd",
 			release: "Wydanie",
 			panel: "Panel",
@@ -1188,6 +1262,7 @@ var e = Object.freeze({
 			setupAddress: "Adres konfiguracji",
 			setupHandover: "Przekazanie konfiguracji",
 			displaySizing: "Rozmiar wyświetlania i tekstu",
+			networkAdb: "ADB przez sieć",
 			copiedDetail: "Wysłano {bytes} bajtów; oczekiwanie na potwierdzenie panelu",
 			none: "brak",
 			setupMissing: "nie znaleziono; konfiguracja trwa dalej na panelu"
@@ -1235,7 +1310,8 @@ var e = Object.freeze({
 			loading: "Carregando versões…",
 			catalogError: "Não foi possível carregar a lista de versões.",
 			empty: "Ainda não há versões disponíveis. Tente novamente mais tarde.",
-			choose: "Seguir o canal do Panel Assistant (recomendado)",
+			choose: "Versão recomendada",
+			otherVersions: "Escolher outra versão",
 			testing: "versão de teste",
 			devBuild: "compilação de desenvolvimento",
 			retry: "Tentar novamente",
@@ -1249,6 +1325,7 @@ var e = Object.freeze({
 			downloading: "Preparando o aplicativo…",
 			verifying: "Preparando o aplicativo…",
 			verified: "Continue na nova janela.",
+			installed: "O Panel Assistant está instalado. Conclua a configuração do painel na janela do instalador e depois feche esta guia.",
 			cancelled: "Cancelado.",
 			popup_blocked: "Seu navegador bloqueou a nova janela. Permita pop-ups nesta página e pressione Continuar.",
 			invalid_request: "Escolha uma versão primeiro.",
@@ -1260,9 +1337,11 @@ var e = Object.freeze({
 			preparingSlow: "Ainda estamos preparando o aplicativo. Mantenha a aba do Home Assistant aberta.",
 			connectHeading: "Conecte seu painel",
 			connectBody: "Conecte o painel a este computador com um cabo USB e pressione Encontrar meu painel.",
+			usbDebugging: "A depuração USB deve estar ativada nas configurações de desenvolvedor do painel.",
+			usbDebuggingHelp: "Como ativar",
 			connect: "Encontrar meu painel",
 			allowHeading: "Permita este computador",
-			allowBody: "Olhe a tela do painel e toque em Permitir.",
+			allowBody: "No painel, marque “Sempre permitir a partir deste computador” e toque em Permitir, para que o Panel Assistant possa atualizá-lo depois sem o cabo.",
 			checkingPanel: "Verificando seu painel…",
 			confirmHeading: "Pronto para instalar",
 			confirmBody: "Isso instala o aplicativo e o torna a tela inicial do seu painel. Seus outros aplicativos não são alterados.",
@@ -1296,7 +1375,8 @@ var e = Object.freeze({
 			pageClosed: "A página foi fechada.",
 			progress: "Progresso",
 			installProgress: "Progresso da instalação",
-			licenses: "Licenças de terceiros"
+			licenses: "Licenças de terceiros",
+			doneAnotherHomeAssistant: "Este painel está atualmente com sessão iniciada em outro Home Assistant. Troque o Home Assistant e faça login no painel para conectá-lo aqui."
 		},
 		errors: {
 			installErrorGeneric: "Algo deu errado. Mantenha o painel conectado e pressione Tentar novamente.",
@@ -1307,7 +1387,8 @@ var e = Object.freeze({
 			installErrorNotClean: "Este painel já tem o aplicativo. Atualize-o pelo Home Assistant.",
 			installErrorIncompatible: "Este painel não consegue executar esta versão do aplicativo.",
 			installErrorConnection: "A conexão com o painel caiu. Mantenha-o conectado e pressione Tentar novamente.",
-			installErrorHealth: "O aplicativo está instalado, mas ainda não iniciou. Aguarde um momento e tente novamente."
+			installErrorHealth: "O aplicativo está instalado, mas ainda não iniciou. Aguarde um momento e tente novamente.",
+			installErrorPermissions: "O aplicativo está instalado, mas não foi possível confirmar as permissões dele. Tentar de novo é seguro: mantenha o painel conectado e pressione Tentar novamente."
 		},
 		journey: {
 			version: "Versão",
@@ -1324,6 +1405,7 @@ var e = Object.freeze({
 		support: {
 			stopped: "Interrompido",
 			cause: "Causa",
+			failedCheck: "Verificação com falha",
 			error: "Erro",
 			release: "Versão",
 			panel: "Painel",
@@ -1336,7 +1418,8 @@ var e = Object.freeze({
 			permissions: "Permissões",
 			setupAddress: "Endereço de configuração",
 			setupHandover: "Transferência da configuração",
-			displaySizing: "Tamanho da tela e do texto",
+			displaySizing: "Escala de exibição e tamanho do texto",
+			networkAdb: "ADB pela rede",
 			copiedDetail: "{bytes} bytes enviados; aguardando a confirmação do painel",
 			none: "nenhum",
 			setupMissing: "não encontrado; a configuração continua no painel"
@@ -1384,7 +1467,8 @@ var e = Object.freeze({
 			loading: "Завантаження версій…",
 			catalogError: "Не вдалося завантажити список версій.",
 			empty: "Поки що немає доступних версій. Спробуйте ще раз пізніше.",
-			choose: "Дотримуватися каналу Panel Assistant (рекомендовано)",
+			choose: "Рекомендована версія",
+			otherVersions: "Обрати іншу версію",
 			testing: "Тестова версія",
 			devBuild: "Збірка для розробки",
 			retry: "Спробувати ще раз",
@@ -1398,6 +1482,7 @@ var e = Object.freeze({
 			downloading: "Підготовка програми…",
 			verifying: "Підготовка програми…",
 			verified: "Продовжуйте в новому вікні.",
+			installed: "Panel Assistant установлено. Завершіть налаштування панелі у вікні інсталятора, а потім закрийте цю вкладку.",
 			cancelled: "Скасовано.",
 			popup_blocked: "Браузер заблокував нове вікно. Дозвольте спливні вікна для цієї сторінки та натисніть «Продовжити».",
 			invalid_request: "Спочатку виберіть версію.",
@@ -1409,9 +1494,11 @@ var e = Object.freeze({
 			preparingSlow: "Підготовка програми ще триває. Залиште вкладку Home Assistant відкритою.",
 			connectHeading: "Під’єднайте панель",
 			connectBody: "Під’єднайте панель до цього комп’ютера кабелем USB, а потім натисніть «Знайти мою панель».",
+			usbDebugging: "Налагодження USB має бути ввімкнено в налаштуваннях розробника на панелі.",
+			usbDebuggingHelp: "Як це ввімкнути",
 			connect: "Знайти мою панель",
 			allowHeading: "Дозволити цей комп’ютер",
-			allowBody: "Подивіться на екран панелі та торкніться «Дозволити».",
+			allowBody: "На панелі позначте «Завжди дозволяти з цього комп’ютера» й торкніться «Дозволити», щоб Panel Assistant міг пізніше оновлювати її без кабелю.",
 			checkingPanel: "Перевірка панелі…",
 			confirmHeading: "Готово до встановлення",
 			confirmBody: "Це встановить програму й зробить її головним екраном панелі. Інші ваші програми не зачіпатимуться.",
@@ -1445,7 +1532,8 @@ var e = Object.freeze({
 			pageClosed: "Сторінку було закрито.",
 			progress: "Перебіг",
 			installProgress: "Перебіг встановлення",
-			licenses: "Ліцензії сторонніх компонентів"
+			licenses: "Ліцензії сторонніх компонентів",
+			doneAnotherHomeAssistant: "На цій панелі виконано вхід в інший екземпляр Home Assistant. Змініть на панелі екземпляр Home Assistant і увійдіть, щоб підключити її тут."
 		},
 		errors: {
 			installErrorGeneric: "Щось пішло не так. Залиште панель під’єднаною та натисніть «Спробувати ще раз».",
@@ -1456,7 +1544,8 @@ var e = Object.freeze({
 			installErrorNotClean: "На цій панелі вже є програма. Натомість оновіть її з Home Assistant.",
 			installErrorIncompatible: "Ця панель не може запускати цю версію програми.",
 			installErrorConnection: "З’єднання з панеллю перервалося. Залиште її під’єднаною та натисніть «Спробувати ще раз».",
-			installErrorHealth: "Програму встановлено, але вона ще не запустилася. Зачекайте трохи й повторіть спробу."
+			installErrorHealth: "Програму встановлено, але вона ще не запустилася. Зачекайте трохи й повторіть спробу.",
+			installErrorPermissions: "Програму встановлено, але її дозволи не вдалося підтвердити. Повторна спроба безпечна: залиште панель під’єднаною та натисніть «Спробувати ще раз»."
 		},
 		journey: {
 			version: "Версія",
@@ -1473,6 +1562,7 @@ var e = Object.freeze({
 		support: {
 			stopped: "Зупинено",
 			cause: "Причина",
+			failedCheck: "Невдала перевірка",
 			error: "Помилка",
 			release: "Випуск",
 			panel: "Панель",
@@ -1486,6 +1576,7 @@ var e = Object.freeze({
 			setupAddress: "Адреса налаштування",
 			setupHandover: "Передача до налаштування",
 			displaySizing: "Розмір відображення й тексту",
+			networkAdb: "ADB через мережу",
 			copiedDetail: "Надіслано {bytes} байт; очікується підтвердження від панелі",
 			none: "Немає",
 			setupMissing: "Не знайдено; налаштування триває на панелі"
@@ -1533,7 +1624,8 @@ var e = Object.freeze({
 			loading: "正在加载版本…",
 			catalogError: "无法加载版本列表。",
 			empty: "目前没有可用版本。请稍后重试。",
-			choose: "跟随 Panel Assistant 的发布渠道（推荐）",
+			choose: "推荐版本",
+			otherVersions: "选择其他版本",
 			testing: "测试版本",
 			devBuild: "开发构建",
 			retry: "重试",
@@ -1547,6 +1639,7 @@ var e = Object.freeze({
 			downloading: "正在准备应用…",
 			verifying: "正在准备应用…",
 			verified: "请在新窗口中继续。",
+			installed: "Panel Assistant 已安装。请在安装程序窗口中完成面板的设置，然后关闭此标签页。",
 			cancelled: "已取消。",
 			popup_blocked: "浏览器阻止了新窗口。请允许此页面弹出窗口，然后点击“继续”。",
 			invalid_request: "请先选择版本。",
@@ -1558,9 +1651,11 @@ var e = Object.freeze({
 			preparingSlow: "仍在准备应用。请保持 Home Assistant 标签页打开。",
 			connectHeading: "连接您的面板",
 			connectBody: "用 USB 数据线将面板连接到此电脑，然后点击“查找我的面板”。",
+			usbDebugging: "必须在面板的开发者选项中开启 USB 调试。",
+			usbDebuggingHelp: "如何开启",
 			connect: "查找我的面板",
 			allowHeading: "允许此电脑连接",
-			allowBody: "请查看面板屏幕并点击“允许”。",
+			allowBody: "请在面板上勾选“始终允许使用这台计算机进行调试”并点击“允许”，这样 Panel Assistant 以后无需数据线也能更新面板。",
 			checkingPanel: "正在检查您的面板…",
 			confirmHeading: "可以开始安装",
 			confirmBody: "这会安装应用，并将其设为面板的主屏幕。您的其他应用不会受到影响。",
@@ -1594,7 +1689,8 @@ var e = Object.freeze({
 			pageClosed: "页面已关闭。",
 			progress: "进度",
 			installProgress: "安装进度",
-			licenses: "第三方许可"
+			licenses: "第三方许可",
+			doneAnotherHomeAssistant: "此面板当前已登录另一个 Home Assistant。请在面板上更改 Home Assistant 并登录，以将其连接到此处。"
 		},
 		errors: {
 			installErrorGeneric: "发生了错误。请保持面板连接，然后点击“重试”。",
@@ -1605,7 +1701,8 @@ var e = Object.freeze({
 			installErrorNotClean: "此面板上已有该应用。请通过 Home Assistant 更新。",
 			installErrorIncompatible: "此面板无法运行此版本的应用。",
 			installErrorConnection: "与面板的连接已中断。请保持面板连接，然后点击“重试”。",
-			installErrorHealth: "应用已安装，但尚未启动。请稍候再重试。"
+			installErrorHealth: "应用已安装，但尚未启动。请稍候再重试。",
+			installErrorPermissions: "应用已安装，但无法确认其权限。可以放心重试：请保持面板连接，然后点击“重试”。"
 		},
 		journey: {
 			version: "版本",
@@ -1622,6 +1719,7 @@ var e = Object.freeze({
 		support: {
 			stopped: "已停止",
 			cause: "原因",
+			failedCheck: "检查未通过",
 			error: "错误",
 			release: "发行版本",
 			panel: "面板",
@@ -1635,89 +1733,95 @@ var e = Object.freeze({
 			setupAddress: "设置地址",
 			setupHandover: "设置交接",
 			displaySizing: "显示和文字大小",
+			networkAdb: "网络 ADB",
 			copiedDetail: "已发送 {bytes} 字节；正在等待面板确认",
 			none: "无",
 			setupMissing: "未找到；设置将在面板上继续"
 		}
 	}
-}), t = e.en, n = Object.keys(e);
-function r(e) {
+}), r = n.en, i = Object.keys(n);
+function a(e) {
 	if (typeof e != "string") return "en";
 	let t = e.trim().replaceAll("_", "-").toLowerCase();
 	if (t === "pt-br" || t.startsWith("pt-br-")) return "pt-BR";
 	if (t === "zh" || t === "zh-cn" || t.startsWith("zh-cn-") || t === "zh-sg" || t.startsWith("zh-sg-") || t === "zh-hans" || t.startsWith("zh-hans-")) return "zh-Hans";
-	let r = t.split("-")[0];
-	return n.includes(r) ? r : "en";
+	let n = t.split("-")[0];
+	return i.includes(n) ? n : "en";
 }
-function i(n, i, a = e) {
-	let o = t[n], s = a[r(i)]?.[n], c = (e) => [...e.matchAll(/\{([A-Za-z_]+)\}/g)].map((e) => e[1]).sort().join(",");
+function o(e, t, i = n) {
+	let o = r[e], s = i[a(t)]?.[e], c = (e) => [...e.matchAll(/\{([A-Za-z_]+)\}/g)].map((e) => e[1]).sort().join(",");
 	return Object.fromEntries(Object.entries(o).map(([e, t]) => {
 		let n = s?.[e];
 		return [e, typeof n == "string" && (n || !t) && c(n) === c(t) ? n : t];
 	}));
 }
-function a(e, t) {
+function s(e, t) {
 	return e.replace(/\{([A-Za-z_]+)\}/g, (e, n) => Object.hasOwn(t, n) ? String(t[n]) : e);
 }
 Object.freeze({
 	repository: "panel-assistant/android",
-	commit: "cad04e73a3c678dd06778bec760f69004eb2ed25",
+	commit: "2a51f70906efbabf25f184a4a79a8fbcd9e9bd9e",
 	sha256: {
 		TOKENS_CSS: "cbee8463fdcdfb4d409182a1a02a7d5586d01be06f90a6bca1d8abbf271d4209",
-		COMPONENTS_CSS: "6650dc59a27479223213672647bcecc44d24b9cb575277fa66cd57a0b97ab8c3",
+		COMPONENTS_CSS: "9e0bd741a29e9dd0143b70a1e0ed000e84507a336505fc1e4c3cb63a51e0c207",
 		ICON_SVG: "7c67447903573a39586503128cf5cab60989f86ba3fdaa45070a1211990278d7",
-		NAME_SVG: "3e25307d4f06895e68701d4cd7bf843810793fe0b4fe7a2ffec3f4329080b6c4"
+		NAME_SVG: "62d6cba58c86fd2fe160822da9e8eeb09e1a2157738e63ffb2305c5a87208568"
 	}
 });
-var o = "/* Generated from tools/tokens/tokens.json by tools/tokens/tokens.py; do not edit.\n   Dark is the default. The light values apply when the viewing browser prefers light, unless\n   ?theme=dark pinned dark (`data-theme` on the document, `theme` on a Panel Assistant host), and\n   whenever ?theme=light pinned light. `:host` serves a shadow root, `:root` a page. */\n:root,:host{color-scheme:dark;\n  --bg:#111;--card:#181818;--card-head:#222;--input-bg:#1c1c1c;--input-bg2:#161616;--card-border:#242424;\n  --divider:#2a2a2a;--config-divider:#3a3a3a;--border:#333;--border2:#383838;--border-strong:#444;--text:#eee;\n  --text-bright:#fff;--text-soft:#ccc;--tab:#bbb;--dim:#888;--accent:#9af;--accent2:#9cf;--ok-dim:#8a8;\n  --icon:#7c8a99;--icon-dim:#6a7a8a;--hover:#1a1a1a;--knob:#eee;--disabled-bg:#222;--disabled-fg:#666;\n  --shadow:#000;--shimA:#141414;--shimB:#1f1f1f;--plot:#0d0d0d;--vtagrec-bg:#1f4d2e;--vtagrec-fg:#8fe0a8;\n  --setup-bg:#3a2f10;--setup-bd:#7a5a2a;--setup-fg:#f5c451;--setup-link:#ffd97a;--crit-bg:#3a1512;\n  --crit-fg:#ffb3a6;--crit-link:#ffc9bf;--info-bg:#12233a;--info-bd:#2a557a;--info-fg:#9cc4ee;\n  --info-link:#bcd9f5;--api-desc:#667;--api-error:#d9534f;--api-ok:#5ad18a;\n  --autobright-band:rgba(74,158,255,.15);--autobright-grid:#343a44;--autobright-label:#888;\n  --backup-plain-warn:#c88;--cap-degraded:#d9a528;--cap-none:#d04a3b;--cap-ok:#48c774;--cfglink:#4a6a8a;\n  --chart-bg:#0d0d0d;--chart-blocked:#f5a623;--chart-cpu:#4a9eff;--chart-expected:#f1bd52;--chart-gpu:#f5a623;\n  --chart-grid:#383838;--chart-interaction:#d04a3b;--chart-label:#888;--chart-observed:#4a9eff;\n  --chart-proposed:#b77cff;--chart-ram:#48c774;--chart-updates:#4a9eff;--edge-crit:#e05a48;\n  --edge-info:#3d7fd0;--fact-warn:#f5c451;--fg-bad:#d04a3b;--fg-faint:#666;--fg-muted:#888;--fg-ok:#48c774;\n  --fg-warn:#d9a528;--highlight:#4a9eff;--install-rule:#2a2a2a;--link:#9cf;--listbox-shadow:rgba(0,0,0,.28);\n  --log-error:#f07868;--log-info:#cfcfcf;--log-verbose:#777;--log-warn:#f5c451;--primary-text:#fff;\n  --pkg-active:#3fb950;--pkg-dialog-bg:#1a1a1a;--pkg-dialog-border:#333;--pkg-dialog-fg:#eee;\n  --pkg-divider:#222;--pkg-note:#9aa;--pkg-protected:#777;--primary:#2557a7;\n  --primary-glow:rgba(37,87,167,.55);--primary-glow-off:rgba(37,87,167,0);--profile-danger-border:#8b342f;\n  --profile-danger-fg:#ffb3a6;--profile-editor-active-line:rgba(127,153,204,.09);\n  --profile-editor-selection:rgba(77,121,195,.35);--profile-issue-error:#d05248;--profile-issue-info:#4284bb;\n  --profile-issue-warning:#c6952d;--profile-modal-backdrop:rgba(0,0,0,.66);\n  --profile-modal-shadow:rgba(0,0,0,.5);--profile-ok-fg:#9ee5ad;--pswitch-border:#2a3550;\n  --pswitch-border-hover:#4a6ba0;--screenshot-backdrop:rgba(0,0,0,.72);--screenshot-error:#e07868;\n  --screenshot-frame-bg:#000;--self-row-border:#2a2a2a;--shot-failed-fg:#a88;--sleep-allow:#9aafc2;\n  --sleep-allow-fg:#172533;--sleep-blocked-a:#a33b3b;--sleep-blocked-b:#5b2626;--sleep-detected:#c89a18;\n  --sleep-detected-fg:#17130a;--sleep-hold:#287dcc;--sleep-inhibited-stripe:#f1bd52;--sleep-interval-fg:#fff;\n  --sleep-loading-overlay:rgba(18,22,28,.76);--sleep-off:#68727f;--sleep-off-fg:#f4f6f8;\n  --sleep-policy-lane:rgba(74,158,255,.11);--status-bad:#d34b42;--status-ok:#45a65a;--status-warn:#c58a16;\n  --uninstall-select-bg:#1c1c1c;--uninstall-select-border:#444;--uninstall-select-fg:#eee;\n  --api-response-fg:#cdd;}\n@media (prefers-color-scheme: light){:root:not([data-theme=dark]),:host(:not([theme=dark])){color-scheme:light;\n  --bg:#f2f3f5;--card:#fff;--card-head:#e7ebef;--input-bg:#f6f7f9;--input-bg2:#fafbfc;--card-border:#d9dde3;\n  --divider:#e4e7ec;--config-divider:#e4e7ec;--border:#c9cfd7;--border2:#c4cad2;--border-strong:#b6bec8;\n  --text:#1b2430;--text-bright:#000;--text-soft:#2c3644;--tab:#4a5462;--dim:#6a7480;--accent:#1e56a8;\n  --accent2:#0b6a8e;--ok-dim:#3f7d49;--icon:#5b6b7a;--icon-dim:#74818f;--hover:#e9ecef;--knob:#fff;\n  --disabled-bg:#e2e5e9;--disabled-fg:#9aa3ad;--shadow:rgba(0,0,0,.18);--shimA:#e8eaee;--shimB:#f6f7f9;\n  --plot:#e8ecf0;--vtagrec-bg:#d9efe0;--vtagrec-fg:#1f6b3a;--setup-bg:#fcf4dc;--setup-bd:#e3cf94;\n  --setup-fg:#7a5a10;--setup-link:#8a6400;--crit-bg:#fceceb;--crit-fg:#a02c20;--crit-link:#7c1f16;\n  --info-bg:#e9f1fb;--info-bd:#b9d2ec;--info-fg:#26567e;--info-link:#1a4468;}}\n:root[data-theme=light],:host([theme=light]){color-scheme:light;\n  --bg:#f2f3f5;--card:#fff;--card-head:#e7ebef;--input-bg:#f6f7f9;--input-bg2:#fafbfc;--card-border:#d9dde3;\n  --divider:#e4e7ec;--config-divider:#e4e7ec;--border:#c9cfd7;--border2:#c4cad2;--border-strong:#b6bec8;\n  --text:#1b2430;--text-bright:#000;--text-soft:#2c3644;--tab:#4a5462;--dim:#6a7480;--accent:#1e56a8;\n  --accent2:#0b6a8e;--ok-dim:#3f7d49;--icon:#5b6b7a;--icon-dim:#74818f;--hover:#e9ecef;--knob:#fff;\n  --disabled-bg:#e2e5e9;--disabled-fg:#9aa3ad;--shadow:rgba(0,0,0,.18);--shimA:#e8eaee;--shimB:#f6f7f9;\n  --plot:#e8ecf0;--vtagrec-bg:#d9efe0;--vtagrec-fg:#1f6b3a;--setup-bg:#fcf4dc;--setup-bd:#e3cf94;\n  --setup-fg:#7a5a10;--setup-link:#8a6400;--crit-bg:#fceceb;--crit-fg:#a02c20;--crit-link:#7c1f16;\n  --info-bg:#e9f1fb;--info-bd:#b9d2ec;--info-fg:#26567e;--info-link:#1a4468;}\n", s = "/* Page header lock-up from the brand asset set (website src/brand): beside a mark H high the name is drawn\n   0.536 H tall (Sora 40 beside a 56 mark; name.svg is its 30-unit ink box), 0.18 H away, with its baseline\n   on the bottom edge of the house, 0.233 H above the mark's foot. The version caption fills that 0.233 H\n   under the name, so the header keeps the old logo's height (H = 2.1 x 1.3rem) and its first-paint size. */\n.logo{height:2.73rem;width:3.64rem;margin-right:.49rem;flex:none}\n.brand{display:flex;flex-direction:column;align-self:flex-end;flex:none;white-space:nowrap;color:var(--text)}\n.brand-name{display:block;height:1.4625rem;width:14.084rem;fill:currentColor}\n.brand-version{display:block;height:.636rem;font-size:11px;line-height:.636rem;color:var(--dim);font-weight:400}\n.card{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:14px 16px;margin:0 0 18px;break-inside:avoid;-webkit-column-break-inside:avoid;box-sizing:border-box;--single-column:0}\n/* Card title-bar: a subtly demarcated full-width header (slight tint + divider) separating the title\n   from content. Also the intended drag handle for card reordering + home for a collapse triangle. */\n.card h2{margin:-14px -16px 12px;padding:9px 16px;background:var(--card-head);border-bottom:1px solid var(--divider);border-radius:12px 12px 0 0}\n/* Self-contained so it looks identical on <button> AND <a> (the \"Open in HA\" link) — anchors don't\n   inherit the button{} border/radius/colour, so spell them out + kill the link underline. */\n.pbtn{font-size:.8rem;padding:6px 12px;background:var(--input-bg);border:1px solid var(--border-strong);border-radius:8px;color:var(--text);cursor:pointer;text-decoration:none;display:inline-block;line-height:1.3;font-family:inherit}\n/* Button: bare <button> and .pbtn.primary are the primary action, .pbtn the quiet one; .on is a pressed quiet button. */\n.pbtn.primary,.pbtn.on{background:var(--primary);border-color:var(--primary);color:var(--primary-text)}\n.pbtn.danger{border-color:var(--profile-danger-border);color:var(--profile-danger-fg)}   /* a quiet button whose action cannot be taken back */\n.pbtn:disabled{opacity:.4;cursor:not-allowed}   /* capability missing (no a11y / no root) — shown but inert */\n/* Notice row: every advisory on these pages, one line the height of the old strip. Severity is the pill\n   word (Notice.kt / HaNotice in i18n.js), never a fill: the five that ask for attention carry one accent\n   dot, Unavailable and Resolved an outlined pill with none. Narrow widths wrap the action under the text. */\n.notice{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin:10px 0!important;color:var(--text);font-size:.92rem;overflow-wrap:anywhere}\n/* Pill: one word in an outlined capsule, the one badge on every page. A pill that asks for attention\n   carries the accent dot (.pill.dot; a notice row's pill unless it is Unavailable or Resolved); state is\n   the word, never a fill colour. */\n.pill,.notice-pill{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;white-space:nowrap;padding:0 10px;line-height:1.3;border-radius:999px;border:1px solid var(--border-strong);font-size:.82rem;font-weight:600;vertical-align:middle}\n.pill.dot::before,.notice-pill::before{content:\"\";width:7px;height:7px;border-radius:50%;background:var(--accent)}\n.card h2 .pill{float:right;color:var(--text)}   /* the title bar is accent-coloured; elsewhere a pill takes its context's colour */\n.notice[data-severity=unavailable] .notice-pill::before,.notice[data-severity=resolved] .notice-pill::before{display:none}\n.notice[data-severity=unavailable],.notice[data-severity=resolved]{color:var(--dim)}\n.notice-text{flex:1 1 18rem;min-width:0}\n.notice-title{font-weight:600}\n.notice-detail{color:var(--dim)}\n.notice a{color:var(--accent);font-weight:600}\n.notice-action{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}\n/* Guided setup (/setup) — one linear column, deliberately NOT the .cards masonry: a journey has an\n   order, and multi-column layout destroys it. Reuses the theme tokens and the .notice row so\n   the wizard inherits dark/light for free. */\n.wiz{max-width:520px;margin:0 auto;padding:4px 0 24px}\n.wiz-step .card{margin:0 0 14px}\n.wiz-step h2{text-transform:none;letter-spacing:0;font-size:1.15rem;color:var(--text)}\n/* The step heading is focused programmatically (tabindex=-1) so screen readers announce each new\n   step, but it is not keyboard-reachable, so its default focus ring is pure visual noise — it made the\n   title bar look like a selected text field on load. Suppress the ring; the announcement remains. */\n.wiz-step h2:focus{outline:none}\n.wiz-lead{color:var(--dim);margin:2px 0 14px}\n/* Wizard selects match the form's field metrics — browser-default select text read as tiny against the\n   1rem inputs on hardware review; proportionate, not dominant, not minuscule. */\n.wiz select{width:100%;font:inherit;font-size:1rem;min-height:42px;padding:8px 10px;margin:6px 0;background:var(--input-bg2);border:1px solid var(--border2);color:var(--text);border-radius:6px}\n/* The Custom dashboard-path input sits directly beneath the wizard's select and has to read as the\n   same control family; the generic input metrics are visibly smaller than .wiz select on hardware. */\n.wiz .hd-custom-input{font-size:1rem;min-height:42px;padding:8px 10px;margin:6px 0}\n.wiz .hd-custom-note{display:block;color:var(--dim);line-height:1.45}\n.wiz-fld{display:block;margin:14px 0}\n.wiz-fld>b{display:block;margin-bottom:5px;font-size:.92rem}\n.wiz-fld>small{display:block;color:var(--dim);margin-top:5px;line-height:1.45}\n.wiz-consequence{color:var(--dim);font-size:.88rem;line-height:1.5;margin:10px 0 0;border-left:3px solid var(--divider);padding-left:10px}\n/* Live entity-id preview and wizard banners can contain maximum-length entity IDs or opaque backend\n   values with no break opportunities. Keep those values inside the Setup card without changing the\n   wrapping policy of banners on the other management pages. */\n.wiz-preview,.wiz .notice{overflow-wrap:anywhere;word-break:break-word}\n/* Live entity-id preview: the consequence of the panel-id choice, shown rather than explained. */\n.wiz-preview{margin:8px 0 0;padding:8px 10px;background:var(--input-bg);border:1px solid var(--divider);border-radius:8px;font:.8rem/1.6 ui-monospace,Menlo,Consolas,monospace;color:var(--dim)}\n.wiz-preview b{color:var(--text);font-weight:600}\n/* The one forward affordance on every step: full width, labelled with its consequence. */\n.wiz button.wiz-primary{display:block;width:100%;min-height:46px;font-size:1rem;margin-top:16px}\n/* A pressed save must LOOK pressed: an unstyled disabled state read as \"nothing happened\" on hardware\n   review, and users re-clicked. */\n.wiz .wiz-secondary{display:block;width:100%;min-height:42px;margin-top:8px;font-size:.95rem}\n.wiz-dots{display:flex;gap:14px;justify-content:center;list-style:none;margin:4px 0 14px;padding:0;flex-wrap:wrap}\n.wiz-dots li{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--dim)}\n.wiz-dots li::before{content:\"\";flex:none;width:.55rem;height:.55rem;border-radius:50%;background:var(--dim);opacity:.35}\n.wiz-dots li.done::before{background:var(--ok-dim);opacity:1}\n.wiz-dots li.current{color:var(--text);font-weight:600}\n.wiz-dots li.current::before{background:var(--primary);opacity:1}\n/* Verification is a STATE of a dot, not its own step — users don't experience waiting as a stage. */\n.wiz-dots li.busy::before{background:var(--primary);opacity:1;animation:wiz-breathe 1.6s ease-in-out infinite}\n/* Async status line. The breathing dot is never the only signal — the TEXT changes as time passes, so\n   reduced-motion and screen-reader users get strictly more information than the dot conveys. */\n.wiz-status{display:flex;align-items:baseline;gap:8px;margin:14px 0 0;min-height:1.4em}\n.wiz-status::before{content:\"\";flex:none;width:.55rem;height:.55rem;border-radius:50%;background:var(--primary);animation:wiz-breathe 1.6s ease-in-out infinite;align-self:center}\n.wiz-status.ok::before{background:var(--ok-dim);animation:none}\n@keyframes wiz-breathe{0%,100%{opacity:.35}50%{opacity:1}}\n@media (prefers-reduced-motion:reduce){.wiz-dots li.busy::before,.wiz-status::before{animation:none;opacity:.85}}\n/* The area confirmation that shares the wizard's dashboard page. */\n/* Deterministic bring-up milestones (proof card): real signals, no spinner. */\n.wiz-milestones{margin:12px 0 0;border-left:3px solid var(--divider);padding-left:12px}\n.wiz-milestone{margin:4px 0;color:var(--dim);font-size:.88rem;line-height:1.5}\n.hd-area-label{display:block;margin:16px 0 5px;font-size:.92rem}\n.hd-area-note{display:block;color:var(--dim);margin-top:5px;line-height:1.45}\n/* Sign-in routes: the recommended one first and visually primary, both honest about the account. */\n.wiz-route{border:1px solid var(--divider);border-radius:10px;padding:12px 14px;margin:10px 0}\n.wiz-route.recommended{border-color:var(--primary)}\n.wiz-route .pill{margin-left:6px}\n.wiz-route p{margin:6px 0;color:var(--dim);font-size:.9rem;line-height:1.5}\n.wiz-escape{text-align:center;margin:6px 0 0}\n.wiz-escape a{color:var(--dim)}\n.wiz details{margin:10px 0 0}\n.wiz details summary{cursor:pointer;color:var(--accent)}\n.wiz details p{color:var(--dim);font-size:.9rem;line-height:1.55}\n@media (max-width:600px){.wiz{padding-left:2px;padding-right:2px}.wiz-dots{gap:10px}}\n", c = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"24 32 60 45\">\n<path d=\"M28,32 h52 a4,4 0 0 1 4,4 v37 a4,4 0 0 1 -4,4 h-52 a4,4 0 0 1 -4,-4 v-37 a4,4 0 0 1 4,-4 z\" fill=\"#607D8B\"/>\n<path d=\"M29,35 h50 a2,2 0 0 1 2,2 v35 a2,2 0 0 1 -2,2 h-50 a2,2 0 0 1 -2,-2 v-35 a2,2 0 0 1 2,-2 z\" fill=\"#10284A\" stroke=\"#CFD8DC\" stroke-width=\"1\"/>\n<g transform=\"translate(42.00,42.50) scale(0.1000)\">\n<path fill=\"#F2F4F9\" d=\"M240 224.813C240 233.063 233.25 239.813 225 239.813H15C6.75 239.813 0 233.063 0 224.813V134.813C0 126.563 4.77 115.043 10.61 109.203L109.39 10.423C115.22 4.59304 124.77 4.59304 130.6 10.423L229.39 109.213C235.22 115.043 240 126.573 240 134.823V224.823V224.813Z\"/>\n<path fill=\"#18BCF2\" d=\"M229.39 109.203L130.61 10.423C124.78 4.59304 115.23 4.59304 109.4 10.423L10.61 109.203C4.78 115.033 0 126.563 0 134.813V224.813C0 233.063 6.75 239.813 15 239.813H107.27L66.64 199.183C64.55 199.903 62.32 200.313 60 200.313C48.7 200.313 39.5 191.113 39.5 179.813C39.5 168.513 48.7 159.313 60 159.313C71.3 159.313 80.5 168.513 80.5 179.813C80.5 182.143 80.09 184.373 79.37 186.463L111 218.093V102.213C104.2 98.873 99.5 91.893 99.5 83.823C99.5 72.523 108.7 63.323 120 63.323C131.3 63.323 140.5 72.523 140.5 83.823C140.5 91.893 135.8 98.873 129 102.213V183.483L160.46 152.023C159.84 150.063 159.5 147.983 159.5 145.823C159.5 134.523 168.7 125.323 180 125.323C191.3 125.323 200.5 134.523 200.5 145.823C200.5 157.123 191.3 166.323 180 166.323C177.5 166.323 175.12 165.853 172.91 165.033L129 208.943V239.823H225C233.25 239.823 240 233.073 240 224.823V134.823C240 126.573 235.23 115.053 229.39 109.213V109.203Z\"/>\n</g>\n</svg>\n", l = "<!-- \"Panel Assistant\" in Sora, weight 500, at 40 px with -1.5 px letter-spacing, outlined so that no\n     renderer needs the font. Baseline at y = 0; the width is the ink width. Source font: google/fonts\n     ofl/sora/Sora[wght].ttf at commit 69109d1f48319d1d474a8d2f70018efc2346a3a7 (SIL Open Font Licence 1.1),\n     SHA-256 84ff7096ae3ec6c8be47d906d1a0ba4de7f2ce78c615275c77301964a316e16c, instanced and laid out with\n     fontkit 2.0.4 (kern and liga features; Sora applies no kerning to this string). -->\n<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"288.9\" height=\"30\" viewBox=\"0 -30 288.9 30\">\n<path fill=\"currentColor\" d=\"M7.92 -9.56L7.92 -13.76L14 -13.76Q15.92 -13.76 17.18 -14.5Q18.44 -15.24 19.1 -16.54Q19.76 -17.84 19.76 -19.48Q19.76 -21.12 19.1 -22.42Q18.44 -23.72 17.18 -24.46Q15.92 -25.2 14 -25.2L7.92 -25.2L7.92 -29.4L13.44 -29.4Q17.08 -29.4 19.58 -28.22Q22.08 -27.04 23.38 -24.88Q24.68 -22.72 24.68 -19.8L24.68 -19.16Q24.68 -16.24 23.38 -14.08Q22.08 -11.92 19.58 -10.74Q17.08 -9.56 13.44 -9.56ZM3.92 0L3.92 -29.4L8.72 -29.4L8.72 0ZM40.64 0L40.64 -6.44L39.88 -6.44L39.88 -13.68Q39.88 -15.72 38.84 -16.74Q37.8 -17.76 35.76 -17.76Q34.64 -17.76 33.28 -17.72Q31.92 -17.68 30.6 -17.64Q29.28 -17.6 28.28 -17.52L28.28 -21.56Q29.2 -21.64 30.26 -21.7Q31.32 -21.76 32.46 -21.8Q33.6 -21.84 34.64 -21.84Q37.92 -21.84 40.08 -21Q42.24 -20.16 43.3 -18.34Q44.36 -16.52 44.36 -13.48L44.36 0ZM33.64 0.56Q31.28 0.56 29.52 -0.26Q27.76 -1.08 26.8 -2.66Q25.84 -4.24 25.84 -6.44Q25.84 -8.76 26.94 -10.28Q28.04 -11.8 30.08 -12.56Q32.12 -13.32 34.96 -13.32L40.36 -13.32L40.36 -10.24L34.84 -10.24Q32.72 -10.24 31.6 -9.22Q30.48 -8.2 30.48 -6.56Q30.48 -4.92 31.6 -3.94Q32.72 -2.96 34.84 -2.96Q36.08 -2.96 37.2 -3.42Q38.32 -3.88 39.06 -4.96Q39.8 -6.04 39.88 -8L41.08 -6.44Q40.88 -4.16 39.98 -2.62Q39.08 -1.08 37.5 -0.26Q35.92 0.56 33.64 0.56ZM49.35 0L49.35 -21.56L53.11 -21.56L53.11 -12.32L52.67 -12.32Q52.67 -15.52 53.53 -17.72Q54.39 -19.92 56.15 -21.06Q57.91 -22.2 60.51 -22.2L60.71 -22.2Q64.71 -22.2 66.67 -19.68Q68.63 -17.16 68.63 -12.32L68.63 0L63.91 0L63.91 -12.96Q63.91 -15.2 62.65 -16.56Q61.39 -17.92 59.15 -17.92Q56.87 -17.92 55.47 -16.52Q54.07 -15.12 54.07 -12.76L54.07 0ZM83.05 0.76Q80.25 0.76 78.17 -0.2Q76.09 -1.16 74.75 -2.76Q73.41 -4.36 72.75 -6.34Q72.09 -8.32 72.09 -10.4L72.09 -11.16Q72.09 -13.28 72.75 -15.26Q73.41 -17.24 74.75 -18.82Q76.09 -20.4 78.11 -21.34Q80.13 -22.28 82.81 -22.28Q86.29 -22.28 88.61 -20.76Q90.93 -19.24 92.09 -16.82Q93.25 -14.4 93.25 -11.6L93.25 -9.72L74.13 -9.72L74.13 -12.88L90.09 -12.88L88.77 -11.24Q88.77 -13.44 88.11 -15Q87.45 -16.56 86.13 -17.42Q84.81 -18.28 82.81 -18.28Q80.73 -18.28 79.33 -17.34Q77.93 -16.4 77.25 -14.72Q76.57 -13.04 76.57 -10.76Q76.57 -8.6 77.25 -6.9Q77.93 -5.2 79.37 -4.22Q80.81 -3.24 83.05 -3.24Q85.29 -3.24 86.73 -4.22Q88.17 -5.2 88.49 -6.52L92.85 -6.52Q92.41 -4.32 91.07 -2.68Q89.73 -1.04 87.69 -0.14Q85.65 0.76 83.05 0.76ZM97.03 0L97.03 -29.2L101.75 -29.2L101.75 0ZM94.19 -25.6L94.19 -29.2L101.75 -29.2L101.75 -25.6ZM111.97 0L122.21 -29.2L130.17 -29.2L140.73 0L135.77 0L126.53 -25.96L128.49 -25.04L123.65 -25.04L125.73 -25.96L116.77 0ZM118.61 -8.24L120.13 -12.4L132.37 -12.4L133.93 -8.24ZM150.93 0.68Q146.57 0.68 144.15 -1.18Q141.73 -3.04 141.61 -6.28L145.93 -6.28Q146.01 -5.08 147.17 -4.08Q148.33 -3.08 150.97 -3.08Q153.21 -3.08 154.49 -3.96Q155.77 -4.84 155.77 -6.16Q155.77 -7.36 154.81 -8.06Q153.85 -8.76 151.65 -8.96L149.53 -9.2Q146.21 -9.56 144.27 -11.14Q142.33 -12.72 142.33 -15.48Q142.33 -17.64 143.41 -19.12Q144.49 -20.6 146.39 -21.4Q148.29 -22.2 150.77 -22.2Q154.61 -22.2 156.97 -20.5Q159.33 -18.8 159.41 -15.52L155.09 -15.52Q155.05 -16.72 153.95 -17.58Q152.85 -18.44 150.77 -18.44Q148.77 -18.44 147.71 -17.64Q146.65 -16.84 146.65 -15.6Q146.65 -14.48 147.45 -13.84Q148.25 -13.2 150.05 -13L152.17 -12.8Q155.81 -12.4 157.95 -10.78Q160.09 -9.16 160.09 -6.28Q160.09 -4.2 158.93 -2.64Q157.77 -1.08 155.71 -0.2Q153.65 0.68 150.93 0.68ZM171.13 0.68Q166.77 0.68 164.35 -1.18Q161.93 -3.04 161.81 -6.28L166.13 -6.28Q166.21 -5.08 167.37 -4.08Q168.53 -3.08 171.17 -3.08Q173.41 -3.08 174.69 -3.96Q175.97 -4.84 175.97 -6.16Q175.97 -7.36 175.01 -8.06Q174.05 -8.76 171.85 -8.96L169.73 -9.2Q166.41 -9.56 164.47 -11.14Q162.53 -12.72 162.53 -15.48Q162.53 -17.64 163.61 -19.12Q164.69 -20.6 166.59 -21.4Q168.49 -22.2 170.97 -22.2Q174.81 -22.2 177.17 -20.5Q179.53 -18.8 179.61 -15.52L175.29 -15.52Q175.25 -16.72 174.15 -17.58Q173.05 -18.44 170.97 -18.44Q168.97 -18.44 167.91 -17.64Q166.85 -16.84 166.85 -15.6Q166.85 -14.48 167.65 -13.84Q168.45 -13.2 170.25 -13L172.37 -12.8Q176.01 -12.4 178.15 -10.78Q180.29 -9.16 180.29 -6.28Q180.29 -4.2 179.13 -2.64Q177.97 -1.08 175.91 -0.2Q173.85 0.68 171.13 0.68ZM184.93 0L184.93 -21.56L189.61 -21.56L189.61 0ZM181.77 -17.96L181.77 -21.56L189.61 -21.56L189.61 -17.96ZM186.45 -24.56Q185.01 -24.56 184.31 -25.32Q183.61 -26.08 183.61 -27.28Q183.61 -28.44 184.31 -29.22Q185.01 -30 186.45 -30Q187.93 -30 188.63 -29.22Q189.33 -28.44 189.33 -27.28Q189.33 -26.08 188.63 -25.32Q187.93 -24.56 186.45 -24.56ZM202.49 0.68Q198.13 0.68 195.71 -1.18Q193.29 -3.04 193.17 -6.28L197.49 -6.28Q197.57 -5.08 198.73 -4.08Q199.89 -3.08 202.53 -3.08Q204.77 -3.08 206.05 -3.96Q207.33 -4.84 207.33 -6.16Q207.33 -7.36 206.37 -8.06Q205.41 -8.76 203.21 -8.96L201.09 -9.2Q197.77 -9.56 195.83 -11.14Q193.89 -12.72 193.89 -15.48Q193.89 -17.64 194.97 -19.12Q196.05 -20.6 197.95 -21.4Q199.85 -22.2 202.33 -22.2Q206.17 -22.2 208.53 -20.5Q210.89 -18.8 210.97 -15.52L206.65 -15.52Q206.61 -16.72 205.51 -17.58Q204.41 -18.44 202.33 -18.44Q200.33 -18.44 199.27 -17.64Q198.21 -16.84 198.21 -15.6Q198.21 -14.48 199.01 -13.84Q199.81 -13.2 201.61 -13L203.73 -12.8Q207.37 -12.4 209.51 -10.78Q211.65 -9.16 211.65 -6.28Q211.65 -4.2 210.49 -2.64Q209.33 -1.08 207.27 -0.2Q205.21 0.68 202.49 0.68ZM224.09 0.28Q221.41 0.28 219.57 -0.46Q217.73 -1.2 216.77 -2.96Q215.81 -4.72 215.81 -7.72L215.85 -27.84L220.29 -27.84L220.29 -7.32Q220.29 -5.64 221.19 -4.74Q222.09 -3.84 223.73 -3.84L227.33 -3.84L227.33 0.28ZM212.25 -18.04L212.25 -21.56L227.33 -21.56L227.33 -18.04ZM243.81 0L243.81 -6.44L243.05 -6.44L243.05 -13.68Q243.05 -15.72 242.01 -16.74Q240.97 -17.76 238.93 -17.76Q237.81 -17.76 236.45 -17.72Q235.09 -17.68 233.77 -17.64Q232.45 -17.6 231.45 -17.52L231.45 -21.56Q232.37 -21.64 233.43 -21.7Q234.49 -21.76 235.63 -21.8Q236.77 -21.84 237.81 -21.84Q241.09 -21.84 243.25 -21Q245.41 -20.16 246.47 -18.34Q247.53 -16.52 247.53 -13.48L247.53 0ZM236.81 0.56Q234.45 0.56 232.69 -0.26Q230.93 -1.08 229.97 -2.66Q229.01 -4.24 229.01 -6.44Q229.01 -8.76 230.11 -10.28Q231.21 -11.8 233.25 -12.56Q235.29 -13.32 238.13 -13.32L243.53 -13.32L243.53 -10.24L238.01 -10.24Q235.89 -10.24 234.77 -9.22Q233.65 -8.2 233.65 -6.56Q233.65 -4.92 234.77 -3.94Q235.89 -2.96 238.01 -2.96Q239.25 -2.96 240.37 -3.42Q241.49 -3.88 242.23 -4.96Q242.97 -6.04 243.05 -8L244.25 -6.44Q244.05 -4.16 243.15 -2.62Q242.25 -1.08 240.67 -0.26Q239.09 0.56 236.81 0.56ZM252.52 0L252.52 -21.56L256.28 -21.56L256.28 -12.32L255.84 -12.32Q255.84 -15.52 256.7 -17.72Q257.56 -19.92 259.32 -21.06Q261.08 -22.2 263.68 -22.2L263.88 -22.2Q267.88 -22.2 269.84 -19.68Q271.8 -17.16 271.8 -12.32L271.8 0L267.08 0L267.08 -12.96Q267.08 -15.2 265.82 -16.56Q264.56 -17.92 262.32 -17.92Q260.04 -17.92 258.64 -16.52Q257.24 -15.12 257.24 -12.76L257.24 0ZM285.66 0.28Q282.98 0.28 281.14 -0.46Q279.3 -1.2 278.34 -2.96Q277.38 -4.72 277.38 -7.72L277.42 -27.84L281.86 -27.84L281.86 -7.32Q281.86 -5.64 282.76 -4.74Q283.66 -3.84 285.3 -3.84L288.9 -3.84L288.9 0.28ZM273.82 -18.04L273.82 -21.56L288.9 -21.56L288.9 -18.04Z\"/>\n</svg>\n", u = `data:image/svg+xml,${encodeURIComponent(c)}`;
-function d(e, t = "en") {
+var c = "/* Generated from tools/tokens/tokens.json by tools/tokens/tokens.py; do not edit.\n   Dark is the default. The light values apply when the viewing browser prefers light, unless\n   ?theme=dark pinned dark (`data-theme` on the document, `theme` on a Panel Assistant host), and\n   whenever ?theme=light pinned light. `:host` serves a shadow root, `:root` a page. */\n:root,:host{color-scheme:dark;\n  --bg:#111;--card:#181818;--card-head:#222;--input-bg:#1c1c1c;--input-bg2:#161616;--card-border:#242424;\n  --divider:#2a2a2a;--config-divider:#3a3a3a;--border:#333;--border2:#383838;--border-strong:#444;--text:#eee;\n  --text-bright:#fff;--text-soft:#ccc;--tab:#bbb;--dim:#888;--accent:#9af;--accent2:#9cf;--ok-dim:#8a8;\n  --icon:#7c8a99;--icon-dim:#6a7a8a;--hover:#1a1a1a;--knob:#eee;--disabled-bg:#222;--disabled-fg:#666;\n  --shadow:#000;--shimA:#141414;--shimB:#1f1f1f;--plot:#0d0d0d;--vtagrec-bg:#1f4d2e;--vtagrec-fg:#8fe0a8;\n  --setup-bg:#3a2f10;--setup-bd:#7a5a2a;--setup-fg:#f5c451;--setup-link:#ffd97a;--crit-bg:#3a1512;\n  --crit-fg:#ffb3a6;--crit-link:#ffc9bf;--info-bg:#12233a;--info-bd:#2a557a;--info-fg:#9cc4ee;\n  --info-link:#bcd9f5;--api-desc:#667;--api-error:#d9534f;--api-ok:#5ad18a;\n  --autobright-band:rgba(74,158,255,.15);--autobright-grid:#343a44;--autobright-label:#888;\n  --backup-plain-warn:#c88;--cap-degraded:#d9a528;--cap-none:#d04a3b;--cap-ok:#48c774;--cfglink:#4a6a8a;\n  --chart-bg:#0d0d0d;--chart-blocked:#f5a623;--chart-cpu:#4a9eff;--chart-expected:#f1bd52;--chart-gpu:#f5a623;\n  --chart-grid:#383838;--chart-interaction:#d04a3b;--chart-label:#888;--chart-observed:#4a9eff;\n  --chart-proposed:#b77cff;--chart-ram:#48c774;--chart-updates:#4a9eff;--edge-crit:#e05a48;\n  --edge-info:#3d7fd0;--fact-warn:#f5c451;--fg-bad:#d04a3b;--fg-faint:#666;--fg-muted:#888;--fg-ok:#48c774;\n  --fg-warn:#d9a528;--highlight:#4a9eff;--install-rule:#2a2a2a;--link:#9cf;--listbox-shadow:rgba(0,0,0,.28);\n  --log-error:#f07868;--log-info:#cfcfcf;--log-verbose:#777;--log-warn:#f5c451;--primary-text:#fff;\n  --pkg-active:#3fb950;--pkg-dialog-bg:#1a1a1a;--pkg-dialog-border:#333;--pkg-dialog-fg:#eee;\n  --pkg-divider:#222;--pkg-note:#9aa;--pkg-protected:#777;--primary:#2557a7;\n  --primary-glow:rgba(37,87,167,.55);--primary-glow-off:rgba(37,87,167,0);--profile-danger-border:#8b342f;\n  --profile-danger-fg:#ffb3a6;--profile-editor-active-line:rgba(127,153,204,.09);\n  --profile-editor-selection:rgba(77,121,195,.35);--profile-issue-error:#d05248;--profile-issue-info:#4284bb;\n  --profile-issue-warning:#c6952d;--profile-modal-backdrop:rgba(0,0,0,.66);\n  --profile-modal-shadow:rgba(0,0,0,.5);--profile-ok-fg:#9ee5ad;--pswitch-border:#2a3550;\n  --pswitch-border-hover:#4a6ba0;--screenshot-backdrop:rgba(0,0,0,.72);--screenshot-error:#e07868;\n  --screenshot-frame-bg:#000;--self-row-border:#2a2a2a;--shot-failed-fg:#a88;--sleep-allow:#9aafc2;\n  --sleep-allow-fg:#172533;--sleep-blocked-a:#a33b3b;--sleep-blocked-b:#5b2626;--sleep-detected:#c89a18;\n  --sleep-detected-fg:#17130a;--sleep-hold:#287dcc;--sleep-inhibited-stripe:#f1bd52;--sleep-interval-fg:#fff;\n  --sleep-loading-overlay:rgba(18,22,28,.76);--sleep-off:#68727f;--sleep-off-fg:#f4f6f8;\n  --sleep-policy-lane:rgba(74,158,255,.11);--status-bad:#d34b42;--status-ok:#45a65a;--status-warn:#c58a16;\n  --uninstall-select-bg:#1c1c1c;--uninstall-select-border:#444;--uninstall-select-fg:#eee;\n  --api-response-fg:#cdd;}\n@media (prefers-color-scheme: light){:root:not([data-theme=dark]),:host(:not([theme=dark])){color-scheme:light;\n  --bg:#f2f3f5;--card:#fff;--card-head:#e7ebef;--input-bg:#f6f7f9;--input-bg2:#fafbfc;--card-border:#d9dde3;\n  --divider:#e4e7ec;--config-divider:#e4e7ec;--border:#c9cfd7;--border2:#c4cad2;--border-strong:#b6bec8;\n  --text:#1b2430;--text-bright:#000;--text-soft:#2c3644;--tab:#4a5462;--dim:#6a7480;--accent:#1e56a8;\n  --accent2:#0b6a8e;--ok-dim:#3f7d49;--icon:#5b6b7a;--icon-dim:#74818f;--hover:#e9ecef;--knob:#fff;\n  --disabled-bg:#e2e5e9;--disabled-fg:#9aa3ad;--shadow:rgba(0,0,0,.18);--shimA:#e8eaee;--shimB:#f6f7f9;\n  --plot:#e8ecf0;--vtagrec-bg:#d9efe0;--vtagrec-fg:#1f6b3a;--setup-bg:#fcf4dc;--setup-bd:#e3cf94;\n  --setup-fg:#7a5a10;--setup-link:#8a6400;--crit-bg:#fceceb;--crit-fg:#a02c20;--crit-link:#7c1f16;\n  --info-bg:#e9f1fb;--info-bd:#b9d2ec;--info-fg:#26567e;--info-link:#1a4468;}}\n:root[data-theme=light],:host([theme=light]){color-scheme:light;\n  --bg:#f2f3f5;--card:#fff;--card-head:#e7ebef;--input-bg:#f6f7f9;--input-bg2:#fafbfc;--card-border:#d9dde3;\n  --divider:#e4e7ec;--config-divider:#e4e7ec;--border:#c9cfd7;--border2:#c4cad2;--border-strong:#b6bec8;\n  --text:#1b2430;--text-bright:#000;--text-soft:#2c3644;--tab:#4a5462;--dim:#6a7480;--accent:#1e56a8;\n  --accent2:#0b6a8e;--ok-dim:#3f7d49;--icon:#5b6b7a;--icon-dim:#74818f;--hover:#e9ecef;--knob:#fff;\n  --disabled-bg:#e2e5e9;--disabled-fg:#9aa3ad;--shadow:rgba(0,0,0,.18);--shimA:#e8eaee;--shimB:#f6f7f9;\n  --plot:#e8ecf0;--vtagrec-bg:#d9efe0;--vtagrec-fg:#1f6b3a;--setup-bg:#fcf4dc;--setup-bd:#e3cf94;\n  --setup-fg:#7a5a10;--setup-link:#8a6400;--crit-bg:#fceceb;--crit-fg:#a02c20;--crit-link:#7c1f16;\n  --info-bg:#e9f1fb;--info-bd:#b9d2ec;--info-fg:#26567e;--info-link:#1a4468;}\n", l = "/* Page header lock-up from the brand asset set (website src/brand): beside a mark H high the name is drawn\n   0.536 H tall (Sora 40 beside a 56 mark; name.svg is its 30-unit ink box), 0.18 H away, with its baseline\n   on the bottom edge of the house, 0.233 H above the mark's foot. The version caption fills that 0.233 H\n   under the name, so the header keeps the old logo's height (H = 2.1 x 1.3rem) and its first-paint size. */\n.logo{height:2.73rem;width:3.64rem;margin-right:.49rem;flex:none}\n.brand{display:flex;flex-direction:column;align-self:flex-end;flex:none;white-space:nowrap;color:var(--text)}\n.brand-name{display:block;height:1.4625rem;width:14.084rem;fill:currentColor}\n.brand-version{display:block;height:.636rem;font-size:11px;line-height:.636rem;color:var(--dim);font-weight:400}\n.card{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:14px 16px;margin:0 0 18px;break-inside:avoid;-webkit-column-break-inside:avoid;box-sizing:border-box;--single-column:0}\n/* Card title-bar: a subtly demarcated full-width header (slight tint + divider) separating the title\n   from content. Also the intended drag handle for card reordering + home for a collapse triangle. */\n.card h2{margin:-14px -16px 12px;padding:9px 16px;background:var(--card-head);border-bottom:1px solid var(--divider);border-radius:12px 12px 0 0}\n/* Native radio choices keep full release labels and compatibility reasons readable. */\n.choice-list{min-width:0;max-width:100%;max-height:240px;overflow-y:auto}\n.choice-list label{display:block;position:relative;margin:6px 0;color:var(--text)}\n.choice-list input[type=radio]{position:absolute;left:12px;top:14px;width:auto;min-width:0;margin:0;accent-color:var(--primary)}\n.choice-list span{display:block;padding:10px 12px 10px 38px;border:1px solid var(--border-strong);border-radius:8px;background:var(--input-bg);white-space:normal;word-wrap:break-word;overflow-wrap:break-word}\n.choice-list input:checked+span{border-color:var(--primary)}\n.choice-list input:focus+span{outline:2px solid var(--primary);outline-offset:-2px}\n.choice-list input:disabled+span{color:var(--disabled-fg)}\n/* Self-contained so it looks identical on <button> AND <a> (the \"Open in HA\" link) — anchors don't\n   inherit the button{} border/radius/colour, so spell them out + kill the link underline. */\n.pbtn{font-size:.8rem;padding:6px 12px;background:var(--input-bg);border:1px solid var(--border-strong);border-radius:8px;color:var(--text);cursor:pointer;text-decoration:none;display:inline-block;line-height:1.3;font-family:inherit}\n/* Button: bare <button> and .pbtn.primary are the primary action, .pbtn the quiet one; .on is a pressed quiet button. */\n.pbtn.primary,.pbtn.on{background:var(--primary);border-color:var(--primary);color:var(--primary-text)}\n.pbtn.danger{border-color:var(--profile-danger-border);color:var(--profile-danger-fg)}   /* a quiet button whose action cannot be taken back */\n.pbtn:disabled{opacity:.4;cursor:not-allowed}   /* capability missing (no a11y / no root) — shown but inert */\n/* Notice row: every advisory on these pages, one line the height of the old strip. Severity is the pill\n   word (Notice.kt / HaNotice in i18n.js), never a fill: the five that ask for attention carry one accent\n   dot, Unavailable and Resolved an outlined pill with none. Narrow widths wrap the action under the text. */\n.notice{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin:10px 0!important;color:var(--text);font-size:.92rem;overflow-wrap:anywhere}\n/* Pill: one word in an outlined capsule, the one badge on every page. A pill that asks for attention\n   carries the accent dot (.pill.dot; a notice row's pill unless it is Unavailable or Resolved); state is\n   the word, never a fill colour. */\n.pill,.notice-pill{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;white-space:nowrap;padding:0 10px;line-height:1.3;border-radius:999px;border:1px solid var(--border-strong);font-size:.82rem;font-weight:600;vertical-align:middle}\n.pill.dot::before,.notice-pill::before{content:\"\";width:7px;height:7px;border-radius:50%;background:var(--accent)}\n.card h2 .pill{float:right;color:var(--text)}   /* the title bar is accent-coloured; elsewhere a pill takes its context's colour */\n.notice[data-severity=unavailable] .notice-pill::before,.notice[data-severity=resolved] .notice-pill::before{display:none}\n.notice[data-severity=unavailable],.notice[data-severity=resolved]{color:var(--dim)}\n.notice-text{flex:1 1 18rem;min-width:0}\n.notice-title{font-weight:600}\n.notice-detail{color:var(--dim)}\n.notice a{color:var(--accent);font-weight:600}\n.notice-action{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}\n/* Guided setup (/setup) — one linear column, deliberately NOT the .cards masonry: a journey has an\n   order, and multi-column layout destroys it. Reuses the theme tokens and the .notice row so\n   the wizard inherits dark/light for free. */\n.wiz{max-width:520px;margin:0 auto;padding:4px 0 24px}\n.wiz-step .card{margin:0 0 14px}\n.wiz-step h2{text-transform:none;letter-spacing:0;font-size:1.15rem;color:var(--text)}\n/* The step heading is focused programmatically (tabindex=-1) so screen readers announce each new\n   step, but it is not keyboard-reachable, so its default focus ring is pure visual noise — it made the\n   title bar look like a selected text field on load. Suppress the ring; the announcement remains. */\n.wiz-step h2:focus{outline:none}\n.wiz-lead{color:var(--dim);margin:2px 0 14px}\n/* Wizard selects match the form's field metrics — browser-default select text read as tiny against the\n   1rem inputs on hardware review; proportionate, not dominant, not minuscule. */\n.wiz select{width:100%;font:inherit;font-size:1rem;min-height:42px;padding:8px 10px;margin:6px 0;background:var(--input-bg2);border:1px solid var(--border2);color:var(--text);border-radius:6px}\n/* The Custom dashboard-path input sits directly beneath the wizard's select and has to read as the\n   same control family; the generic input metrics are visibly smaller than .wiz select on hardware. */\n.wiz .hd-custom-input{font-size:1rem;min-height:42px;padding:8px 10px;margin:6px 0}\n.wiz .hd-custom-note{display:block;color:var(--dim);line-height:1.45}\n.wiz-fld{display:block;margin:14px 0}\n.wiz-fld>b{display:block;margin-bottom:5px;font-size:.92rem}\n.wiz-fld>small{display:block;color:var(--dim);margin-top:5px;line-height:1.45}\n.wiz-consequence{color:var(--dim);font-size:.88rem;line-height:1.5;margin:10px 0 0;border-left:3px solid var(--divider);padding-left:10px}\n/* Live entity-id preview and wizard banners can contain maximum-length entity IDs or opaque backend\n   values with no break opportunities. Keep those values inside the Setup card without changing the\n   wrapping policy of banners on the other management pages. */\n.wiz-preview,.wiz .notice{overflow-wrap:anywhere;word-break:break-word}\n/* Live entity-id preview: the consequence of the panel-id choice, shown rather than explained. */\n.wiz-preview{margin:8px 0 0;padding:8px 10px;background:var(--input-bg);border:1px solid var(--divider);border-radius:8px;font:.8rem/1.6 ui-monospace,Menlo,Consolas,monospace;color:var(--dim)}\n.wiz-preview b{color:var(--text);font-weight:600}\n/* The one forward affordance on every step: full width, labelled with its consequence. */\n.wiz button.wiz-primary{display:block;width:100%;min-height:46px;font-size:1rem;margin-top:16px}\n/* A pressed save must LOOK pressed: an unstyled disabled state read as \"nothing happened\" on hardware\n   review, and users re-clicked. */\n.wiz .wiz-secondary{display:block;box-sizing:border-box;width:100%;min-height:42px;margin-top:8px;font-size:.95rem}\n.wiz-dots{display:flex;gap:14px;justify-content:center;list-style:none;margin:4px 0 14px;padding:0;flex-wrap:wrap}\n.wiz-dots li{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--dim)}\n.wiz-dots li::before{content:\"\";flex:none;width:.55rem;height:.55rem;border-radius:50%;background:var(--dim);opacity:.35}\n.wiz-dots li.done::before{background:var(--ok-dim);opacity:1}\n.wiz-dots li.current{color:var(--text);font-weight:600}\n.wiz-dots li.current::before{background:var(--primary);opacity:1}\n/* Verification is a STATE of a dot, not its own step — users don't experience waiting as a stage. */\n.wiz-dots li.busy::before{background:var(--primary);opacity:1;animation:wiz-breathe 1.6s ease-in-out infinite}\n/* Async status line. The breathing dot is never the only signal — the TEXT changes as time passes, so\n   reduced-motion and screen-reader users get strictly more information than the dot conveys. */\n.wiz-status{display:flex;align-items:baseline;gap:8px;margin:14px 0 0;min-height:1.4em}\n.wiz-status::before{content:\"\";flex:none;width:.55rem;height:.55rem;border-radius:50%;background:var(--primary);animation:wiz-breathe 1.6s ease-in-out infinite;align-self:center}\n.wiz-status.ok::before{background:var(--ok-dim);animation:none}\n@keyframes wiz-breathe{0%,100%{opacity:.35}50%{opacity:1}}\n@media (prefers-reduced-motion:reduce){.wiz-dots li.busy::before,.wiz-status::before{animation:none;opacity:.85}}\n/* The area confirmation that shares the wizard's dashboard page. */\n/* Deterministic bring-up milestones (proof card): real signals, no spinner. */\n.wiz-milestones{margin:12px 0 0;border-left:3px solid var(--divider);padding-left:12px}\n.wiz-milestone{margin:4px 0;color:var(--dim);font-size:.88rem;line-height:1.5}\n.hd-area-label{display:block;margin:16px 0 5px;font-size:.92rem}\n.hd-area-note{display:block;color:var(--dim);margin-top:5px;line-height:1.45}\n/* Sign-in routes: the recommended one first and visually primary, both honest about the account. */\n.wiz-route{border:1px solid var(--divider);border-radius:10px;padding:12px 14px;margin:10px 0}\n.wiz-route.recommended{border-color:var(--primary)}\n.wiz-route .pill{margin-left:6px}\n.wiz-route p{margin:6px 0;color:var(--dim);font-size:.9rem;line-height:1.5}\n.wiz-escape{text-align:center;margin:6px 0 0}\n.wiz-escape a{color:var(--dim)}\n.wiz details{margin:10px 0 0}\n.wiz details summary{cursor:pointer;color:var(--accent)}\n.wiz details p{color:var(--dim);font-size:.9rem;line-height:1.55}\n@media (max-width:600px){.wiz{padding-left:2px;padding-right:2px}.wiz-dots{gap:10px}}\n", u = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"24 32 60 45\">\n<path d=\"M28,32 h52 a4,4 0 0 1 4,4 v37 a4,4 0 0 1 -4,4 h-52 a4,4 0 0 1 -4,-4 v-37 a4,4 0 0 1 4,-4 z\" fill=\"#607D8B\"/>\n<path d=\"M29,35 h50 a2,2 0 0 1 2,2 v35 a2,2 0 0 1 -2,2 h-50 a2,2 0 0 1 -2,-2 v-35 a2,2 0 0 1 2,-2 z\" fill=\"#10284A\" stroke=\"#CFD8DC\" stroke-width=\"1\"/>\n<g transform=\"translate(42.00,42.50) scale(0.1000)\">\n<path fill=\"#F2F4F9\" d=\"M240 224.813C240 233.063 233.25 239.813 225 239.813H15C6.75 239.813 0 233.063 0 224.813V134.813C0 126.563 4.77 115.043 10.61 109.203L109.39 10.423C115.22 4.59304 124.77 4.59304 130.6 10.423L229.39 109.213C235.22 115.043 240 126.573 240 134.823V224.823V224.813Z\"/>\n<path fill=\"#18BCF2\" d=\"M229.39 109.203L130.61 10.423C124.78 4.59304 115.23 4.59304 109.4 10.423L10.61 109.203C4.78 115.033 0 126.563 0 134.813V224.813C0 233.063 6.75 239.813 15 239.813H107.27L66.64 199.183C64.55 199.903 62.32 200.313 60 200.313C48.7 200.313 39.5 191.113 39.5 179.813C39.5 168.513 48.7 159.313 60 159.313C71.3 159.313 80.5 168.513 80.5 179.813C80.5 182.143 80.09 184.373 79.37 186.463L111 218.093V102.213C104.2 98.873 99.5 91.893 99.5 83.823C99.5 72.523 108.7 63.323 120 63.323C131.3 63.323 140.5 72.523 140.5 83.823C140.5 91.893 135.8 98.873 129 102.213V183.483L160.46 152.023C159.84 150.063 159.5 147.983 159.5 145.823C159.5 134.523 168.7 125.323 180 125.323C191.3 125.323 200.5 134.523 200.5 145.823C200.5 157.123 191.3 166.323 180 166.323C177.5 166.323 175.12 165.853 172.91 165.033L129 208.943V239.823H225C233.25 239.823 240 233.073 240 224.823V134.823C240 126.573 235.23 115.053 229.39 109.213V109.203Z\"/>\n</g>\n</svg>\n", d = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"288.90\" height=\"30\" viewBox=\"0 -30 288.90 30\">\n<path fill=\"currentColor\" d=\"M7.92 -9.56L7.92 -13.76L14 -13.76Q15.92 -13.76 17.18 -14.5Q18.44 -15.24 19.1 -16.54Q19.76 -17.84 19.76 -19.48Q19.76 -21.12 19.1 -22.42Q18.44 -23.72 17.18 -24.46Q15.92 -25.2 14 -25.2L7.92 -25.2L7.92 -29.4L13.44 -29.4Q17.08 -29.4 19.58 -28.22Q22.08 -27.04 23.38 -24.88Q24.68 -22.72 24.68 -19.8L24.68 -19.16Q24.68 -16.24 23.38 -14.08Q22.08 -11.92 19.58 -10.74Q17.08 -9.56 13.44 -9.56ZM3.92 0L3.92 -29.4L8.72 -29.4L8.72 0ZM40.64 0L40.64 -6.44L39.88 -6.44L39.88 -13.68Q39.88 -15.72 38.84 -16.74Q37.8 -17.76 35.76 -17.76Q34.64 -17.76 33.28 -17.72Q31.92 -17.68 30.6 -17.64Q29.28 -17.6 28.28 -17.52L28.28 -21.56Q29.2 -21.64 30.26 -21.7Q31.32 -21.76 32.46 -21.8Q33.6 -21.84 34.64 -21.84Q37.92 -21.84 40.08 -21Q42.24 -20.16 43.3 -18.34Q44.36 -16.52 44.36 -13.48L44.36 0ZM33.64 0.56Q31.28 0.56 29.52 -0.26Q27.76 -1.08 26.8 -2.66Q25.84 -4.24 25.84 -6.44Q25.84 -8.76 26.94 -10.28Q28.04 -11.8 30.08 -12.56Q32.12 -13.32 34.96 -13.32L40.36 -13.32L40.36 -10.24L34.84 -10.24Q32.72 -10.24 31.6 -9.22Q30.48 -8.2 30.48 -6.56Q30.48 -4.92 31.6 -3.94Q32.72 -2.96 34.84 -2.96Q36.08 -2.96 37.2 -3.42Q38.32 -3.88 39.06 -4.96Q39.8 -6.04 39.88 -8L41.08 -6.44Q40.88 -4.16 39.98 -2.62Q39.08 -1.08 37.5 -0.26Q35.92 0.56 33.64 0.56ZM49.35 0L49.35 -21.56L53.11 -21.56L53.11 -12.32L52.67 -12.32Q52.67 -15.52 53.53 -17.72Q54.39 -19.92 56.15 -21.06Q57.91 -22.2 60.51 -22.2L60.71 -22.2Q64.71 -22.2 66.67 -19.68Q68.63 -17.16 68.63 -12.32L68.63 0L63.91 0L63.91 -12.96Q63.91 -15.2 62.65 -16.56Q61.39 -17.92 59.15 -17.92Q56.87 -17.92 55.47 -16.52Q54.07 -15.12 54.07 -12.76L54.07 0ZM83.05 0.76Q80.25 0.76 78.17 -0.2Q76.09 -1.16 74.75 -2.76Q73.41 -4.36 72.75 -6.34Q72.09 -8.32 72.09 -10.4L72.09 -11.16Q72.09 -13.28 72.75 -15.26Q73.41 -17.24 74.75 -18.82Q76.09 -20.4 78.11 -21.34Q80.13 -22.28 82.81 -22.28Q86.29 -22.28 88.61 -20.76Q90.93 -19.24 92.09 -16.82Q93.25 -14.4 93.25 -11.6L93.25 -9.72L74.13 -9.72L74.13 -12.88L90.09 -12.88L88.77 -11.24Q88.77 -13.44 88.11 -15Q87.45 -16.56 86.13 -17.42Q84.81 -18.28 82.81 -18.28Q80.73 -18.28 79.33 -17.34Q77.93 -16.4 77.25 -14.72Q76.57 -13.04 76.57 -10.76Q76.57 -8.6 77.25 -6.9Q77.93 -5.2 79.37 -4.22Q80.81 -3.24 83.05 -3.24Q85.29 -3.24 86.73 -4.22Q88.17 -5.2 88.49 -6.52L92.85 -6.52Q92.41 -4.32 91.07 -2.68Q89.73 -1.04 87.69 -0.14Q85.65 0.76 83.05 0.76ZM97.03 0L97.03 -29.2L101.75 -29.2L101.75 0ZM94.19 -25.6L94.19 -29.2L101.75 -29.2L101.75 -25.6ZM111.97 0L122.21 -29.2L130.17 -29.2L140.73 0L135.77 0L126.53 -25.96L128.49 -25.04L123.65 -25.04L125.73 -25.96L116.77 0ZM118.61 -8.24L120.13 -12.4L132.37 -12.4L133.93 -8.24ZM150.93 0.68Q146.57 0.68 144.15 -1.18Q141.73 -3.04 141.61 -6.28L145.93 -6.28Q146.01 -5.08 147.17 -4.08Q148.33 -3.08 150.97 -3.08Q153.21 -3.08 154.49 -3.96Q155.77 -4.84 155.77 -6.16Q155.77 -7.36 154.81 -8.06Q153.85 -8.76 151.65 -8.96L149.53 -9.2Q146.21 -9.56 144.27 -11.14Q142.33 -12.72 142.33 -15.48Q142.33 -17.64 143.41 -19.12Q144.49 -20.6 146.39 -21.4Q148.29 -22.2 150.77 -22.2Q154.61 -22.2 156.97 -20.5Q159.33 -18.8 159.41 -15.52L155.09 -15.52Q155.05 -16.72 153.95 -17.58Q152.85 -18.44 150.77 -18.44Q148.77 -18.44 147.71 -17.64Q146.65 -16.84 146.65 -15.6Q146.65 -14.48 147.45 -13.84Q148.25 -13.2 150.05 -13L152.17 -12.8Q155.81 -12.4 157.95 -10.78Q160.09 -9.16 160.09 -6.28Q160.09 -4.2 158.93 -2.64Q157.77 -1.08 155.71 -0.2Q153.65 0.68 150.93 0.68ZM171.13 0.68Q166.77 0.68 164.35 -1.18Q161.93 -3.04 161.81 -6.28L166.13 -6.28Q166.21 -5.08 167.37 -4.08Q168.53 -3.08 171.17 -3.08Q173.41 -3.08 174.69 -3.96Q175.97 -4.84 175.97 -6.16Q175.97 -7.36 175.01 -8.06Q174.05 -8.76 171.85 -8.96L169.73 -9.2Q166.41 -9.56 164.47 -11.14Q162.53 -12.72 162.53 -15.48Q162.53 -17.64 163.61 -19.12Q164.69 -20.6 166.59 -21.4Q168.49 -22.2 170.97 -22.2Q174.81 -22.2 177.17 -20.5Q179.53 -18.8 179.61 -15.52L175.29 -15.52Q175.25 -16.72 174.15 -17.58Q173.05 -18.44 170.97 -18.44Q168.97 -18.44 167.91 -17.64Q166.85 -16.84 166.85 -15.6Q166.85 -14.48 167.65 -13.84Q168.45 -13.2 170.25 -13L172.37 -12.8Q176.01 -12.4 178.15 -10.78Q180.29 -9.16 180.29 -6.28Q180.29 -4.2 179.13 -2.64Q177.97 -1.08 175.91 -0.2Q173.85 0.68 171.13 0.68ZM184.93 0L184.93 -21.56L189.61 -21.56L189.61 0ZM181.77 -17.96L181.77 -21.56L189.61 -21.56L189.61 -17.96ZM186.45 -24.56Q185.01 -24.56 184.31 -25.32Q183.61 -26.08 183.61 -27.28Q183.61 -28.44 184.31 -29.22Q185.01 -30 186.45 -30Q187.93 -30 188.63 -29.22Q189.33 -28.44 189.33 -27.28Q189.33 -26.08 188.63 -25.32Q187.93 -24.56 186.45 -24.56ZM202.49 0.68Q198.13 0.68 195.71 -1.18Q193.29 -3.04 193.17 -6.28L197.49 -6.28Q197.57 -5.08 198.73 -4.08Q199.89 -3.08 202.53 -3.08Q204.77 -3.08 206.05 -3.96Q207.33 -4.84 207.33 -6.16Q207.33 -7.36 206.37 -8.06Q205.41 -8.76 203.21 -8.96L201.09 -9.2Q197.77 -9.56 195.83 -11.14Q193.89 -12.72 193.89 -15.48Q193.89 -17.64 194.97 -19.12Q196.05 -20.6 197.95 -21.4Q199.85 -22.2 202.33 -22.2Q206.17 -22.2 208.53 -20.5Q210.89 -18.8 210.97 -15.52L206.65 -15.52Q206.61 -16.72 205.51 -17.58Q204.41 -18.44 202.33 -18.44Q200.33 -18.44 199.27 -17.64Q198.21 -16.84 198.21 -15.6Q198.21 -14.48 199.01 -13.84Q199.81 -13.2 201.61 -13L203.73 -12.8Q207.37 -12.4 209.51 -10.78Q211.65 -9.16 211.65 -6.28Q211.65 -4.2 210.49 -2.64Q209.33 -1.08 207.27 -0.2Q205.21 0.68 202.49 0.68ZM224.09 0.28Q221.41 0.28 219.57 -0.46Q217.73 -1.2 216.77 -2.96Q215.81 -4.72 215.81 -7.72L215.85 -27.84L220.29 -27.84L220.29 -7.32Q220.29 -5.64 221.19 -4.74Q222.09 -3.84 223.73 -3.84L227.33 -3.84L227.33 0.28ZM212.25 -18.04L212.25 -21.56L227.33 -21.56L227.33 -18.04ZM243.81 0L243.81 -6.44L243.05 -6.44L243.05 -13.68Q243.05 -15.72 242.01 -16.74Q240.97 -17.76 238.93 -17.76Q237.81 -17.76 236.45 -17.72Q235.09 -17.68 233.77 -17.64Q232.45 -17.6 231.45 -17.52L231.45 -21.56Q232.37 -21.64 233.43 -21.7Q234.49 -21.76 235.63 -21.8Q236.77 -21.84 237.81 -21.84Q241.09 -21.84 243.25 -21Q245.41 -20.16 246.47 -18.34Q247.53 -16.52 247.53 -13.48L247.53 0ZM236.81 0.56Q234.45 0.56 232.69 -0.26Q230.93 -1.08 229.97 -2.66Q229.01 -4.24 229.01 -6.44Q229.01 -8.76 230.11 -10.28Q231.21 -11.8 233.25 -12.56Q235.29 -13.32 238.13 -13.32L243.53 -13.32L243.53 -10.24L238.01 -10.24Q235.89 -10.24 234.77 -9.22Q233.65 -8.2 233.65 -6.56Q233.65 -4.92 234.77 -3.94Q235.89 -2.96 238.01 -2.96Q239.25 -2.96 240.37 -3.42Q241.49 -3.88 242.23 -4.96Q242.97 -6.04 243.05 -8L244.25 -6.44Q244.05 -4.16 243.15 -2.62Q242.25 -1.08 240.67 -0.26Q239.09 0.56 236.81 0.56ZM252.52 0L252.52 -21.56L256.28 -21.56L256.28 -12.32L255.84 -12.32Q255.84 -15.52 256.7 -17.72Q257.56 -19.92 259.32 -21.06Q261.08 -22.2 263.68 -22.2L263.88 -22.2Q267.88 -22.2 269.84 -19.68Q271.8 -17.16 271.8 -12.32L271.8 0L267.08 0L267.08 -12.96Q267.08 -15.2 265.82 -16.56Q264.56 -17.92 262.32 -17.92Q260.04 -17.92 258.64 -16.52Q257.24 -15.12 257.24 -12.76L257.24 0ZM285.66 0.28Q282.98 0.28 281.14 -0.46Q279.3 -1.2 278.34 -2.96Q277.38 -4.72 277.38 -7.72L277.42 -27.84L281.86 -27.84L281.86 -7.32Q281.86 -5.64 282.76 -4.74Q283.66 -3.84 285.3 -3.84L288.9 -3.84L288.9 0.28ZM273.82 -18.04L273.82 -21.56L288.9 -21.56L288.9 -18.04Z\"/>\n</svg>\n", f = `data:image/svg+xml,${encodeURIComponent(u)}`;
+function p(e, t = "en") {
 	let n = e?.version, r = e?.build;
-	return typeof n != "string" || !/^[0-9A-Za-z.+-]{1,32}$/.test(n) || !Number.isSafeInteger(r) || r < 0 ? "" : a(i("sidebar", t).versionLabel, {
+	return typeof n != "string" || !/^[0-9A-Za-z.+-]{1,32}$/.test(n) || !Number.isSafeInteger(r) || r < 0 ? "" : s(o("sidebar", t).versionLabel, {
 		version: n,
 		build: r
 	});
 }
-var f = `<div class="wiz-brand"><img class="logo" src="${u}" alt=""><span class="brand">${l.replace(/<!--[^]*?-->\s*/g, "").trim().replace("<svg ", "<svg class=\"brand-name\" role=\"img\" aria-label=\"Panel Assistant\" ")}<small class="brand-version" id="brand-version"></small></span></div>`, p = Object.freeze(Object.values(i("journey", "en")));
-function m(e) {
-	return p.map((t, n) => n < e ? `<li class="done">${t}</li>` : n === e ? `<li class="current" aria-current="step">${t}</li>` : `<li>${t}</li>`).join("");
+var m = `<div class="wiz-brand"><img class="logo" src="${f}" alt=""><span class="brand">${d.replace(/<!--[^]*?-->\s*/g, "").trim().replace("<svg ", "<svg class=\"brand-name\" role=\"img\" aria-label=\"Panel Assistant\" ")}<small class="brand-version" id="brand-version"></small></span></div>`, h = Object.freeze(Object.values(o("journey", "en")));
+function g(e) {
+	return h.map((t, n) => n < e ? `<li class="done">${t}</li>` : n === e ? `<li class="current" aria-current="step">${t}</li>` : `<li>${t}</li>`).join("");
 }
-function h(e, t, n = document, r = "en") {
-	let a = Object.values(i("journey", r)).map((e, r) => {
+function _(e, t, n = document, r = "en") {
+	let i = Object.values(o("journey", r)).map((e, r) => {
 		let i = n.createElement("li");
 		return i.textContent = e, r < t && (i.className = "done"), r === t && (i.className = "current", i.setAttribute("aria-current", "step")), i;
 	});
-	e.replaceChildren(...a);
+	e.replaceChildren(...i);
 }
-var g = `${o}${s}
+var v = `${c}${l}
 :root,:host{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--text)}
 *,*::before,*::after{box-sizing:border-box}
 .wiz-brand{display:flex;margin:0 0 14px}
+.wiz-brand .brand{flex:0 1 auto;min-width:0}
+.wiz-brand .brand-name{max-width:100%;height:auto}
+/* The shared caption box (.636rem) is shorter than its 11px text, so the version touched the name's
+   foot. Drop the text clear of it without growing the lock-up: the name stays on the house's edge. */
+.wiz-brand .brand-version{margin:3px 0 -3px}
 .wiz a.wiz-primary{display:flex;align-items:center;justify-content:center;width:100%;min-height:46px;margin-top:16px;font-size:1rem}
 .bar{height:.5rem;border-radius:1rem;background:var(--divider);overflow:hidden;margin:1rem 0 .9rem}
 .bar>div{height:100%;width:0;background:var(--primary);transition:width .4s ease}
 @media (prefers-reduced-motion:reduce){.bar>div{transition:none}}
 [hidden]{display:none!important}
-`, _ = "https://github.com/panel-assistant/ha-integration", v = "M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12", y = "panel_assistant.sidebar.entry", b = "/config/integrations/dashboard/add?domain=panel_assistant", x = "/config/integrations/integration/panel_assistant", S = /* @__PURE__ */ new Set([
+`, y = "https://github.com/panel-assistant/ha-integration", b = "M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12", x = "panel_assistant.sidebar.entry", S = "panel-assistant-ui", C = "/config/integrations/dashboard/add?domain=panel_assistant", w = "/config/integrations/integration/panel_assistant", T = /* @__PURE__ */ new Set([
 	"reachable",
 	"unreachable",
 	"not_loaded",
 	"restarting"
-]), C = /* @__PURE__ */ new Set([
+]), E = /* @__PURE__ */ new Set([
 	"update",
 	"settings",
 	"recovery",
 	"reboot"
-]), w = 5e3, T = /* @__PURE__ */ new Set([
+]), D = 5e3, O = /* @__PURE__ */ new Set([
 	"current",
 	"added",
 	"updated",
 	"removed"
 ]);
-function E(e) {
+function k(e) {
 	if (!e || !Array.isArray(e.panels) || e.panels.length > 200) throw Error("invalid panels");
 	let t = /* @__PURE__ */ new Set();
 	return e.panels.map((e) => {
-		if (!e || typeof e.entry_id != "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(e.entry_id) || t.has(e.entry_id) || typeof e.title != "string" || e.title.length > 256 || !S.has(e.state) || e.state === "restarting" && !C.has(e.reason) || e.device_id !== null && e.device_id !== void 0 && typeof e.device_id != "string") throw Error("invalid panel");
+		if (!e || typeof e.entry_id != "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(e.entry_id) || t.has(e.entry_id) || typeof e.title != "string" || e.title.length > 256 || !T.has(e.state) || e.state === "restarting" && !E.has(e.reason) || e.device_id !== null && e.device_id !== void 0 && typeof e.device_id != "string") throw Error("invalid panel");
 		return t.add(e.entry_id), {
 			entry_id: e.entry_id,
 			title: e.title,
@@ -1727,30 +1831,30 @@ function E(e) {
 		};
 	});
 }
-function D(e) {
+function A(e) {
 	return typeof e == "string" ? e.match(/^\/api\/panel_assistant\/embed\/([A-Za-z0-9_-]{43})\/$/)?.[1] ?? null : null;
 }
-function O(e, t = "en") {
-	return a(i("sidebar", t).opening, { panel: typeof e == "string" ? e : "" });
+function j(e, t = "en") {
+	return s(o("sidebar", t).opening, { panel: typeof e == "string" ? e : "" });
 }
-function k(e) {
+function M(e) {
 	history.pushState(null, "", e), window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: !1 } }));
 }
-function A() {
+function ee() {
 	try {
-		return localStorage.getItem(y);
+		return localStorage.getItem(x);
 	} catch {
 		return null;
 	}
 }
-function ee(e) {
+function te(e) {
 	try {
-		localStorage.setItem(y, e);
+		localStorage.setItem(x, e);
 	} catch {}
 }
-var te = class extends HTMLElement {
+var ne = class extends HTMLElement {
 	get #e() {
-		return i("sidebar", this.#t?.language);
+		return o("sidebar", this.#t?.language);
 	}
 	#t;
 	#n;
@@ -1765,9 +1869,13 @@ var te = class extends HTMLElement {
 	#d = null;
 	#f = null;
 	#p = null;
-	#m = () => this.#D();
+	#m = () => this.#j();
+	#h = /* @__PURE__ */ new Map();
+	#g = 0;
+	#_ = !1;
+	#v = (e) => this.#I(e);
 	constructor() {
-		super(), this.attachShadow({ mode: "open" }), this.shadowRoot.innerHTML = `<style>${o}${s}
+		super(), this.attachShadow({ mode: "open" }), this.shadowRoot.innerHTML = `<style>${c}${l}
       :host{display:block;height:100vh;height:100dvh;overflow:hidden;background:var(--primary-background-color,#fafafa);color:var(--primary-text-color,#212121)}
       [hidden]{display:none!important}
       .root{display:flex;flex-direction:column;height:100%;overflow:hidden}
@@ -1829,7 +1937,7 @@ var te = class extends HTMLElement {
       [data-narrow] #backdrop:not([hidden]){display:block;position:fixed;inset:0;z-index:1}
     </style><div class="root" id="root"><header>
       <button id="menu" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"/></svg><span id="dot"></span></button>
-      <img id="icon" src="${u}" alt="">
+      <img id="icon" src="${f}" alt="">
       <h1 id="title" data-message="title"></h1><span id="version"></span>
       <label id="picker"><span data-message="choosePanel"></span><select id="panels"></select></label>
       <button id="overflow" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,16A2,2 0 0,1 14,18A2,2 0 0,1 12,20A2,2 0 0,1 10,18A2,2 0 0,1 12,16M12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10M12,4A2,2 0 0,1 14,6A2,2 0 0,1 12,8A2,2 0 0,1 10,6A2,2 0 0,1 12,4Z"/></svg></button>
@@ -1837,7 +1945,7 @@ var te = class extends HTMLElement {
       <div id="more">
       <a id="device"><svg class="wide-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/></svg><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19,18H5V6H19M21,4H3C1.89,4 1,4.89 1,6V18A2,2 0 0,0 3,20H21A2,2 0 0,0 23,18V6C23,4.89 22.1,4 21,4Z"/></svg><span class="item-label" data-message="showDevice"></span></a>
       <div id="spacer"></div>
-      <a id="github" href="${_}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${v}"/></svg><span class="item-label" data-message="github"></span></a>
+      <a id="github" href="${y}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${b}"/></svg><span class="item-label" data-message="github"></span></a>
       <a id="add"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg><span id="add-label" class="item-label" data-message="addPanel"></span></a>
       <a id="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg><span class="item-label" data-message="integrationSettings"></span></a>
       </div>
@@ -1851,25 +1959,25 @@ var te = class extends HTMLElement {
 			composed: !0
 		})));
 		let n = e.querySelector("#overflow");
-		n.setAttribute("aria-label", this.#e.more), n.setAttribute("title", this.#e.more), n.hidden = !0, e.querySelector("#backdrop").hidden = !0, e.querySelector("#dot").hidden = !0, n.addEventListener("click", () => this.#g(!this.#h())), e.querySelector("#backdrop").addEventListener("click", () => this.#g(!1)), e.querySelector("#root").addEventListener("keydown", (e) => {
-			e.key === "Escape" && this.#h() && (this.#g(!1), n.focus?.());
+		n.setAttribute("aria-label", this.#e.more), n.setAttribute("title", this.#e.more), n.hidden = !0, e.querySelector("#backdrop").hidden = !0, e.querySelector("#dot").hidden = !0, n.addEventListener("click", () => this.#b(!this.#y())), e.querySelector("#backdrop").addEventListener("click", () => this.#b(!1)), e.querySelector("#root").addEventListener("keydown", (e) => {
+			e.key === "Escape" && this.#y() && (this.#b(!1), n.focus?.());
 		}), e.querySelector("#frame").setAttribute("title", this.#e.frameTitle);
 		let r = e.querySelector("#settings");
 		r.setAttribute("aria-label", this.#e.integrationSettings), r.setAttribute("title", this.#e.integrationSettings);
 		let i = e.querySelector("#github");
-		i.setAttribute("aria-label", this.#e.github), i.setAttribute("title", this.#e.github), i.addEventListener("click", () => this.#g(!1));
+		i.setAttribute("aria-label", this.#e.github), i.setAttribute("title", this.#e.github), i.addEventListener("click", () => this.#b(!1));
 		let a = e.querySelector("#device");
 		a.setAttribute("aria-label", this.#e.device), a.setAttribute("title", this.#e.device), a.addEventListener("click", (e) => {
 			let t = a.getAttribute("href");
-			this.#g(!1), !(!t || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) && (e.preventDefault(), k(t));
+			this.#b(!1), !(!t || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) && (e.preventDefault(), M(t));
 		});
-		for (let [t, n] of [["add", b], ["settings", x]]) {
+		for (let [t, n] of [["add", C], ["settings", w]]) {
 			let r = e.querySelector(`#${t}`);
 			r.setAttribute("href", n), r.addEventListener("click", (e) => {
-				this.#g(!1), !(e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) && (e.preventDefault(), k(n));
+				this.#b(!1), !(e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) && (e.preventDefault(), M(n));
 			});
 		}
-		e.querySelector("#panels").addEventListener("change", (e) => this.#C(e.target.value)), this.#A();
+		e.querySelector("#panels").addEventListener("change", (e) => this.#D(e.target.value)), this.#L();
 	}
 	get hass() {
 		return this.#t;
@@ -1879,25 +1987,25 @@ var te = class extends HTMLElement {
 		this.#t = e;
 		let n = e?.themes?.darkMode;
 		if (typeof n == "boolean" && this.setAttribute?.("theme", n ? "dark" : "light"), this.isConnected) {
-			if (this.#_(), t?.connection !== e?.connection || t?.user?.id !== e?.user?.id || t?.user?.is_admin !== e?.user?.is_admin) {
-				this.#x();
+			if (this.#x(), t?.connection !== e?.connection || t?.user?.id !== e?.user?.id || t?.user?.is_admin !== e?.user?.is_admin) {
+				this.#T();
 				return;
 			}
-			(t?.language !== e?.language || !!t?.themes?.darkMode != !!e?.themes?.darkMode) && (this.#O(), this.#w());
+			(t?.language !== e?.language || !!t?.themes?.darkMode != !!e?.themes?.darkMode) && (this.#M(), this.#O());
 		}
 	}
 	get panel() {
 		return this.#n;
 	}
 	set panel(e) {
-		this.#n = e, this.shadowRoot.querySelector("#version").textContent = d(e?.config, this.#t?.language);
+		this.#n = e, this.shadowRoot.querySelector("#version").textContent = p(e?.config, this.#t?.language);
 	}
 	get route() {
 		return this.#r;
 	}
 	set route(e) {
 		let t = this.#r?.path;
-		this.#r = e, t !== e?.path && this.#C(e?.path?.slice(1));
+		this.#r = e, t !== e?.path && this.#D(e?.path?.slice(1));
 	}
 	get narrow() {
 		return this.#i;
@@ -1917,16 +2025,16 @@ var te = class extends HTMLElement {
 			let n = t.querySelector(`#${e}`);
 			this.#i ? n.setAttribute("role", "menuitem") : n.removeAttribute("role");
 		}
-		this.#i || this.#g(!1), this.#_();
+		this.#i || this.#b(!1), this.#x();
 	}
-	#h() {
+	#y() {
 		return this.shadowRoot.querySelector("#more").getAttribute("data-open") !== null;
 	}
-	#g(e) {
+	#b(e) {
 		let t = this.shadowRoot, n = t.querySelector("#more"), r = e && this.#i;
 		r ? n.setAttribute("data-open", "") : n.removeAttribute("data-open"), t.querySelector("#backdrop").hidden = !r, t.querySelector("#overflow").setAttribute("aria-expanded", String(r));
 	}
-	#_() {
+	#x() {
 		let e = this.isConnected && this.#i ? this.#t?.connection : void 0, t = this.#p;
 		if (t?.connection === e || (t && (this.#p = null, t.unsubscribe?.then((e) => e()).catch(() => {}), this.shadowRoot.querySelector("#dot").hidden = !0), !e?.subscribeMessage)) return;
 		let n = {
@@ -1934,10 +2042,10 @@ var te = class extends HTMLElement {
 			notifications: {},
 			unsubscribe: null
 		};
-		this.#p = n, n.unsubscribe = Promise.resolve().then(() => e.subscribeMessage((e) => this.#v(n, e), { type: "persistent_notification/subscribe" })), n.unsubscribe.catch(() => {});
+		this.#p = n, n.unsubscribe = Promise.resolve().then(() => e.subscribeMessage((e) => this.#S(n, e), { type: "persistent_notification/subscribe" })), n.unsubscribe.catch(() => {});
 	}
-	#v(e, t) {
-		if (this.#p === e && T.has(t?.type) && t.notifications && typeof t.notifications == "object") {
+	#S(e, t) {
+		if (this.#p === e && O.has(t?.type) && t.notifications && typeof t.notifications == "object") {
 			if (t.type === "current") e.notifications = { ...t.notifications };
 			else if (t.type === "removed") for (let n of Object.keys(t.notifications)) delete e.notifications[n];
 			else e.notifications = {
@@ -1948,24 +2056,24 @@ var te = class extends HTMLElement {
 		}
 	}
 	connectedCallback() {
-		clearInterval(this.#f), this.#x(), this.#_(), this.#f = setInterval(() => this.#S(), w);
+		window.addEventListener("message", this.#v), clearInterval(this.#f), this.#T(), this.#x(), this.#f = setInterval(() => this.#E(), D);
 	}
 	disconnectedCallback() {
-		clearInterval(this.#f), this.#f = null, this.#c++, this.#b(), this.#O(), this.#_();
+		window.removeEventListener("message", this.#v), clearInterval(this.#f), this.#f = null, this.#c++, this.#w(), this.#M(), this.#x();
 	}
-	#y() {
+	#C() {
 		return this.#t?.user?.is_admin === !0;
 	}
-	#b() {
+	#w() {
 		this.#a?.removeEventListener?.("ready", this.#m), this.#a = void 0;
 	}
-	#x() {
-		this.#b(), this.#O(), this.#o = null, this.#l = "", this.#s = "loading", this.#y() && this.#t.connection && (this.#a = this.#t.connection, this.#a.addEventListener("ready", this.#m)), this.#A(), this.#S();
+	#T() {
+		this.#w(), this.#M(), this.#o = null, this.#l = "", this.#s = "loading", this.#C() && this.#t.connection && (this.#a = this.#t.connection, this.#a.addEventListener("ready", this.#m)), this.#L(), this.#E();
 	}
-	async #S() {
+	async #E() {
 		let e = ++this.#c;
-		if (!this.#y()) {
-			this.#A();
+		if (!this.#C()) {
+			this.#L();
 			return;
 		}
 		let t;
@@ -1977,35 +2085,40 @@ var te = class extends HTMLElement {
 				if (this.#o) return;
 				throw e;
 			}
-			t = E(e);
+			t = k(e);
 		} catch {
 			if (e !== this.#c) return;
-			this.#o = null, this.#s = "failed", this.#O(), this.#A();
+			this.#o = null, this.#s = "failed", this.#M(), this.#L();
 			return;
 		}
-		if (e === this.#c) {
-			if (this.#o = t, this.#s = t.length ? "ready" : "empty", !t.some((e) => e.entry_id === this.#u)) {
-				let e = this.#r?.path?.slice(1), n = t.some((t) => t.entry_id === e) ? e : A();
-				this.#u = t.some((e) => e.entry_id === n) ? n : t[0]?.entry_id ?? null;
-			}
-			this.#w();
+		if (e !== this.#c) return;
+		if (this.#o = t, this.#s = t.length ? "ready" : "empty", !t.some((e) => e.entry_id === this.#u)) {
+			let e = this.#r?.path?.slice(1), n = t.some((t) => t.entry_id === e) ? e : ee();
+			this.#u = t.some((e) => e.entry_id === n) ? n : t[0]?.entry_id ?? null;
 		}
+		this.#O();
+		let n = this.#d;
+		this.#_ && n?.state === "open" && t.some((e) => e.entry_id === n.entryId && e.state === "reachable") && (this.#_ = !1, this.#P({
+			type: S,
+			open: !0
+		}));
 	}
-	#C(e) {
-		this.#o?.some((t) => t.entry_id === e) && e !== this.#u && (this.#u = e, ee(e), this.#O(), this.#w());
+	#D(e) {
+		this.#o?.some((t) => t.entry_id === e) && e !== this.#u && (this.#u = e, te(e), this.#M(), this.#O());
 	}
-	#w() {
+	#O() {
 		let e = this.#o?.find((e) => e.entry_id === this.#u), t = this.#d;
-		!e || e.state !== "reachable" ? t && (t.state !== "closed" || t.entryId !== e?.entry_id) && this.#O() : (!t || t.entryId !== e.entry_id || !["opening", "open"].includes(t.state)) && (this.#O(), this.#T(e.entry_id, null, null)), this.#A();
+		!e || e.state !== "reachable" ? t && (t.state !== "closed" || t.entryId !== e?.entry_id) && this.#M() : (!t || t.entryId !== e.entry_id || !["opening", "open"].includes(t.state)) && (this.#M(), this.#k(e.entry_id, null, null)), this.#L();
 	}
-	#T(e, t, n) {
+	#k(e, t, n) {
 		let r = this.#t, i = {
 			entryId: e,
 			token: t,
 			url: n,
 			state: "opening",
 			code: null,
-			unsubscribe: null
+			unsubscribe: null,
+			reopen: !!t
 		};
 		this.#d = i;
 		let a = {
@@ -2015,48 +2128,111 @@ var te = class extends HTMLElement {
 			theme: r.themes?.darkMode ? "dark" : "light",
 			...t ? { resume: t } : {}
 		};
-		i.unsubscribe = Promise.resolve().then(() => r.connection.subscribeMessage((e) => this.#E(i, e), a, { resubscribe: !1 })), i.unsubscribe.catch((e) => {
-			this.#d === i && (i.state = "failed", i.code = e?.code ?? null, this.#k(), this.#A());
+		i.unsubscribe = Promise.resolve().then(() => r.connection.subscribeMessage((e) => this.#A(i, e), a, { resubscribe: !1 })), i.unsubscribe.catch((e) => {
+			this.#d === i && (i.state = "failed", i.code = e?.code ?? null, this.#N(), this.#L());
 		});
 	}
-	#E(e, t) {
+	#A(e, t) {
 		if (this.#d === e && t) {
 			if (t.kind === "opened") {
-				let n = D(t.url);
+				let n = A(t.url);
 				if (!n) {
-					this.#O(), this.#d = {
+					this.#M(), this.#d = {
 						entryId: e.entryId,
 						state: "failed",
 						code: null,
 						unsubscribe: null
-					}, this.#A();
+					}, this.#L();
 					return;
 				}
 				e.token = n, e.url = t.url, e.state = "open";
 				let r = this.shadowRoot.querySelector("#frame");
-				r.getAttribute("src") !== t.url && r.setAttribute("src", t.url), this.#A();
-			} else t.kind === "closed" && (this.#O(), this.#d = {
+				r.getAttribute("src") === t.url ? e.reopen && this.#P({
+					type: S,
+					open: !0
+				}) : r.setAttribute("src", t.url), e.reopen = !1, this.#L();
+			} else t.kind === "closed" && (this.#P({
+				type: S,
+				closed: !0
+			}), this.#M(), this.#d = {
 				entryId: e.entryId,
 				state: "closed",
 				code: null,
 				unsubscribe: null
-			}, this.#A(), this.#S());
+			}, this.#L(), this.#E());
 		}
 	}
-	#D() {
+	#j() {
 		let e = this.#d;
-		this.isConnected && e && ["opening", "open"].includes(e.state) && (this.#T(e.entryId, e.token, e.url), this.#A());
+		this.isConnected && e && ["opening", "open"].includes(e.state) && (this.#F(!1), this.#P({
+			type: S,
+			closed: !0
+		}), this.#k(e.entryId, e.token, e.url), this.#L());
 	}
-	#O() {
+	#M() {
+		this.#F(!0);
 		let e = this.#d;
-		this.#d = null, e && (e.state = "ended", e.unsubscribe?.then((e) => e()).catch(() => {}), this.#k());
+		this.#d = null, e && (e.state = "ended", e.unsubscribe?.then((e) => e()).catch(() => {}), this.#N());
 	}
-	#k() {
+	#N() {
 		this.shadowRoot.querySelector("#frame").removeAttribute("src");
 	}
-	#A() {
+	#P(e) {
+		this.shadowRoot.querySelector("#frame").contentWindow?.postMessage(e, location.origin);
+	}
+	#F(e) {
+		this.#g++, this.#_ = !1;
+		let t = [...this.#h.values()];
+		if (this.#h.clear(), e) for (let e of t) e.then((e) => e()).catch(() => {});
+	}
+	#I(e) {
+		let t = this.shadowRoot.querySelector("#frame").contentWindow, n = e.data?.frame, r = this.#d;
+		if (!t || e.data?.type !== "panel-assistant-ui" || !n || typeof n != "object") return;
+		let i = e.source === null && e.origin === location.origin && n.op === "unsubscribe";
+		if (e.source !== t && !i) return;
+		let a = this.#g, o = (e) => {
+			!i && a === this.#g && this.#P({
+				type: S,
+				frame: e
+			});
+		}, s = () => o({
+			command_id: n.command_id,
+			outcome: "failed",
+			code: "failed"
+		});
+		if (r?.state !== "open") {
+			s();
+			return;
+		}
+		let c = {
+			type: "panel_assistant/ui",
+			entry_id: r.entryId,
+			request: n
+		}, l = this.#t.connection;
+		if (n.op === "unsubscribe") {
+			let e = this.#h.get(n.args?.subscription);
+			this.#h.delete(n.args?.subscription), e?.then((e) => e()).catch(() => {}), o({
+				command_id: n.command_id,
+				outcome: "applied"
+			});
+		} else if (n.op === "subscribe") {
+			let e = Promise.resolve().then(() => l.subscribeMessage((e) => {
+				if (e?.closed === !0) {
+					if (this.#h.delete(n.command_id), a !== this.#g) return;
+					this.#_ = !0, this.#P({
+						type: S,
+						closed: !0
+					});
+				} else o(e);
+			}, c, { resubscribe: !1 }));
+			this.#h.set(n.command_id, e), e.catch(() => {
+				this.#h.get(n.command_id) === e && this.#h.delete(n.command_id), s();
+			});
+		} else Promise.resolve().then(() => this.#t.callWS(c)).then(o, s);
+	}
+	#L() {
 		let e = this.shadowRoot, t = this.#t?.language;
-		this.isConnected && this.setAttribute?.("lang", r(t));
+		this.isConnected && this.setAttribute?.("lang", a(t));
 		let n = this.#e;
 		for (let t of e.querySelectorAll("[data-message]")) t.textContent = n[t.dataset.message];
 		for (let [t, r] of [
@@ -2067,22 +2243,22 @@ var te = class extends HTMLElement {
 			["device", "device"],
 			["add", "addPanel"]
 		]) e.querySelector(`#${t}`).setAttribute("aria-label", n[r]), e.querySelector(`#${t}`).setAttribute("title", n[r]);
-		e.querySelector("#frame").setAttribute("title", n.frameTitle), e.querySelector("#version").textContent = d(this.#n?.config, t);
-		let o = e.querySelector("#panels"), s = this.#y() ? this.#o ?? [] : [], c = JSON.stringify([s, r(t)]);
+		e.querySelector("#frame").setAttribute("title", n.frameTitle), e.querySelector("#version").textContent = p(this.#n?.config, t);
+		let r = e.querySelector("#panels"), i = this.#C() ? this.#o ?? [] : [], c = JSON.stringify([i, a(t)]);
 		if (c !== this.#l) {
-			this.#l = c, o.replaceChildren();
-			for (let e of s) {
+			this.#l = c, r.replaceChildren();
+			for (let e of i) {
 				let n = document.createElement("option");
-				n.value = e.entry_id, n.textContent = e.state === "reachable" ? e.title : e.state === "restarting" ? `${e.title} (${a(this.#e.restarting, { reason: i("sidebarReason", t)[e.reason] })})` : `${e.title} (${this.#e[e.state]})`, o.append(n);
+				n.value = e.entry_id, n.textContent = e.state === "reachable" ? e.title : e.state === "restarting" ? `${e.title} · ${s(this.#e.restarting, { reason: o("sidebarReason", t)[e.reason] })}` : `${e.title} (${this.#e[e.state]})`, r.append(n);
 			}
 		}
-		o.value = this.#u ?? "", e.querySelector("#picker").hidden = s.length === 0;
-		let l = s.find((e) => e.entry_id === this.#u), u = e.querySelector("#device");
+		r.value = this.#u ?? "", e.querySelector("#picker").hidden = i.length === 0;
+		let l = i.find((e) => e.entry_id === this.#u), u = e.querySelector("#device");
 		u.hidden = !l?.device_id, l?.device_id && u.setAttribute("href", `/config/devices/device/${encodeURIComponent(l.device_id)}`);
-		let f = this.#d, p = e.querySelector("#frame"), m = "", h = !1;
-		this.#y() ? this.#s === "loading" ? h = !0 : this.#s === "ready" ? f?.state === "closed" && f.entryId === l?.entry_id ? m = "closed" : l?.state === "restarting" ? m = "restarting" : l?.state === "unreachable" ? m = "unreachableBody" : l?.state === "not_loaded" ? m = "notLoadedBody" : f?.state === "failed" ? m = f.code === "not_loaded" ? "notLoadedBody" : "failed" : f?.state !== "open" && !p.getAttribute("src") && (h = !0) : m = this.#s : m = "admin";
+		let d = this.#d, f = e.querySelector("#frame"), m = "", h = !1;
+		this.#C() ? this.#s === "loading" ? h = !0 : this.#s === "ready" ? d?.state === "closed" && d.entryId === l?.entry_id ? m = "closed" : l?.state === "restarting" ? m = "restarting" : l?.state === "unreachable" ? m = "unreachableBody" : l?.state === "not_loaded" ? m = "notLoadedBody" : d?.state === "failed" ? m = d.code === "not_loaded" ? "notLoadedBody" : "failed" : d?.state !== "open" && !f.getAttribute("src") && (h = !0) : m = this.#s : m = "admin";
 		let g = e.querySelector("#status");
-		g.textContent = m === "restarting" ? a(this.#e.restarting, { reason: i("sidebarReason", t)[l.reason] }) : m ? this.#e[m] : "";
+		g.textContent = m === "restarting" ? s(this.#e.restarting, { reason: o("sidebarReason", t)[l.reason] }) : m ? this.#e[m] : "";
 		let _ = [
 			"unreachableBody",
 			"notLoadedBody",
@@ -2103,13 +2279,13 @@ var te = class extends HTMLElement {
 		let v = e.querySelector("#loading");
 		v.hidden = !h;
 		let y = e.querySelector("#loading-text");
-		y.hidden = !l, h && (y.textContent = l ? O(l.title, t) : ""), p.hidden = !p.getAttribute("src");
+		y.hidden = !l, h && (y.textContent = l ? j(l.title, t) : ""), f.hidden = !f.getAttribute("src");
 	}
 };
-customElements.get("panel-assistant-sidebar") || customElements.define("panel-assistant-sidebar", te);
+customElements.get("panel-assistant-sidebar") || customElements.define("panel-assistant-sidebar", ne);
 //#endregion
 //#region src/display-provisioning.mjs
-function ne(e) {
+function re(e) {
 	if (typeof e != "object" || !e) return null;
 	let { density: t, font_scale: n } = e;
 	return !(t === null || Number.isInteger(t) && t >= 80 && t <= 640) || !(n === null || typeof n == "number" && n >= .5 && n <= 1.5) || t === null && n === null ? null : Object.freeze({
@@ -2119,36 +2295,31 @@ function ne(e) {
 }
 //#endregion
 //#region src/app-identity.mjs
-var j = "io.github.maxlyth.hapaneld", re = "io.panelassistant.android";
-Object.freeze(["io.panelassistant.android.install.v1", "io.github.maxlyth.hapaneld.install.v1"]), Object.freeze(["io.panelassistant.android.buildfeed.v1", "io.github.maxlyth.hapaneld.buildfeed.v1"]), Object.freeze([j, re]);
-var M = "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity", N = "io.panelassistant.android/io.panelassistant.android.MainActivity", P = Object.freeze({
-	[j]: Object.freeze(["io.github.maxlyth.hapaneld/.MainActivity"]),
-	[re]: Object.freeze([M, N])
-})[j][0];
-Object.freeze({
-	[P]: "io.github.maxlyth.hapaneld/.DashboardActivity",
-	[M]: "io.panelassistant.android/io.github.maxlyth.hapaneld.DashboardActivity",
-	[N]: "io.panelassistant.android/io.panelassistant.android.DashboardActivity"
+var ie = "io.panelassistant.android";
+Object.freeze(["io.panelassistant.android.install.v1", "io.github.maxlyth.hapaneld.install.v1"]), Object.freeze(["io.panelassistant.android.buildfeed.v1", "io.github.maxlyth.hapaneld.buildfeed.v1"]);
+var N = "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity", P = "io.panelassistant.android/io.panelassistant.android.MainActivity";
+Object.freeze({ [ie]: Object.freeze([N, P]) }), Object.freeze({
+	[N]: "io.panelassistant.android/io.github.maxlyth.hapaneld.DashboardActivity",
+	[P]: "io.panelassistant.android/io.panelassistant.android.DashboardActivity"
 }), Object.freeze({
-	[P]: Object.freeze(["io.github.maxlyth.hapaneld/.DashboardActivity", "io.github.maxlyth.hapaneld/io.github.maxlyth.hapaneld.DashboardActivity"]),
-	[M]: Object.freeze(["io.panelassistant.android/io.github.maxlyth.hapaneld.DashboardActivity"]),
-	[N]: Object.freeze(["io.panelassistant.android/.DashboardActivity", "io.panelassistant.android/io.panelassistant.android.DashboardActivity"])
-}), Object.freeze({
-	[P]: "io.github.maxlyth.hapaneld/.input.PanelAccessibilityService",
-	[M]: "io.panelassistant.android/io.github.maxlyth.hapaneld.input.PanelAccessibilityService",
-	[N]: "io.panelassistant.android/io.panelassistant.android.input.PanelAccessibilityService"
-}), Object.freeze({
-	[P]: Object.freeze(["io.github.maxlyth.hapaneld/.input.PanelAccessibilityService", "io.github.maxlyth.hapaneld/io.github.maxlyth.hapaneld.input.PanelAccessibilityService"]),
-	[M]: Object.freeze(["io.panelassistant.android/io.github.maxlyth.hapaneld.input.PanelAccessibilityService"]),
-	[N]: Object.freeze(["io.panelassistant.android/.input.PanelAccessibilityService", "io.panelassistant.android/io.panelassistant.android.input.PanelAccessibilityService"])
+	[N]: Object.freeze(["io.panelassistant.android/io.github.maxlyth.hapaneld.DashboardActivity"]),
+	[P]: Object.freeze(["io.panelassistant.android/.DashboardActivity", "io.panelassistant.android/io.panelassistant.android.DashboardActivity"])
 });
-var F = 262144, ie = 2147483647, ae = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/, oe = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-(?:rc|preview)[1-9][0-9]*$/, I = /^build-([1-9][0-9]{0,9})(-successor)?$/, L = (e, t) => typeof t == "string" && t.length <= 64 && e.exec(t)?.[0] === t, R = (e) => L(ae, e), z = (e) => L(oe, e), B = (e) => R(e) || z(e);
-function se(e) {
-	if (!L(I, e)) return null;
-	let t = Number(I.exec(e)[1]);
-	return t <= ie ? t : null;
+var ae = Object.freeze({
+	[N]: "io.panelassistant.android/io.github.maxlyth.hapaneld.input.PanelAccessibilityService",
+	[P]: "io.panelassistant.android/io.panelassistant.android.input.PanelAccessibilityService"
+});
+Object.freeze({
+	[N]: Object.freeze(["io.panelassistant.android/io.github.maxlyth.hapaneld.input.PanelAccessibilityService"]),
+	[P]: Object.freeze(["io.panelassistant.android/.input.PanelAccessibilityService", "io.panelassistant.android/io.panelassistant.android.input.PanelAccessibilityService"])
+}), Object.freeze({ [P]: Object.freeze([ae[N]]) });
+var F = 262144, oe = 2147483647, se = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/, ce = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-(?:rc|preview)[1-9][0-9]*$/, le = /^build-([1-9][0-9]{0,9})(-successor)?$/, I = (e, t) => typeof t == "string" && t.length <= 64 && e.exec(t)?.[0] === t, L = (e) => I(se, e), R = (e) => I(ce, e), z = (e) => L(e) || R(e);
+function ue(e) {
+	if (!I(le, e)) return null;
+	let t = Number(le.exec(e)[1]);
+	return t <= oe ? t : null;
 }
-var V = (e) => se(e) !== null, ce = (e) => Array.from(new Uint8Array(e), (e) => e.toString(16).padStart(2, "0")).join(""), le = (e = crypto) => ce(e.getRandomValues(/* @__PURE__ */ new Uint8Array(16))), H = (e, t) => typeof t == "string" && e.exec(t)?.[0] === t, U = (e, t) => typeof e == "object" && !!e && !Array.isArray(e) && Object.keys(e).length === t.length && t.every((t) => Object.hasOwn(e, t)), W = "/api/panel_assistant/usb/release", ue = "/api/panel_assistant/usb/handover", de = 35e3, fe = /(?:[0-9]{1,3}\.){3}[0-9]{1,3}/, pe = /[a-z_]{1,48}/, G = 67108864, me = 18e5, K = [
+var B = (e) => ue(e) !== null, de = (e) => Array.from(new Uint8Array(e), (e) => e.toString(16).padStart(2, "0")).join(""), fe = (e = crypto) => de(e.getRandomValues(/* @__PURE__ */ new Uint8Array(16))), V = (e, t) => typeof t == "string" && e.exec(t)?.[0] === t, H = (e, t) => typeof e == "object" && !!e && !Array.isArray(e) && Object.keys(e).length === t.length && t.every((t) => Object.hasOwn(e, t)), U = "/api/panel_assistant/usb/release", pe = "/api/panel_assistant/usb/handover", me = "/api/panel_assistant/usb/adb_key", he = 35e3, ge = /(?:[0-9]{1,3}\.){3}[0-9]{1,3}/, _e = /[a-z_]{1,48}/, W = 67108864, ve = 18e5, G = [
 	"id",
 	"tag",
 	"checksum",
@@ -2157,14 +2328,14 @@ var V = (e) => se(e) !== null, ce = (e) => Array.from(new Uint8Array(e), (e) => 
 	"descriptor_signature",
 	"apk_size",
 	"apk_sha256"
-], q = [
+], K = [
 	"id",
 	"tag",
 	"feed",
 	"feed_signature",
 	"apk_size",
 	"apk_sha256"
-], J = 8192, he = Math.ceil(F / 3) * 4 + J, Y = class extends Error {
+], q = 8192, J = Math.ceil(F / 3) * 4 + q, Y = class extends Error {
 	constructor(e) {
 		super(e), this.name = "HandoffError", this.code = e;
 	}
@@ -2173,7 +2344,7 @@ function X(e, t = "invalid_response") {
 	if (!e) throw new Y(t);
 }
 function Z(e, t, n = !1) {
-	X(typeof e == "string" && e.length <= Math.ceil(t / 3) * 4 && H(/(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?/, e));
+	X(typeof e == "string" && e.length <= Math.ceil(t / 3) * 4 && V(/(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?/, e));
 	let r = atob(e);
 	return X(btoa(r) === e && r.length > 0 && (n ? r.length === t : r.length <= t)), Uint8Array.from(r, (e) => e.charCodeAt(0));
 }
@@ -2181,7 +2352,7 @@ async function Q(e, t, n, r = null) {
 	X(e.status === 200 && !e.redirected && e.body);
 	let i = e.headers.get("content-length");
 	if (i !== null) {
-		X(H(/0|[1-9][0-9]*/, i));
+		X(V(/0|[1-9][0-9]*/, i));
 		let e = Number(i);
 		X(Number.isSafeInteger(e) && e <= t && (r === null || e === r));
 	}
@@ -2202,14 +2373,14 @@ async function Q(e, t, n, r = null) {
 		n.removeEventListener("abort", o), o(), a.releaseLock();
 	}
 }
-function ge(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () => {}, windowObject: o = window, timeoutMs: s = 3e5 } = {}) {
+function ye(e, t, { rcTag: n = null, language: r = e?.language, onState: i = () => {}, windowObject: o = window, timeoutMs: s = 3e5 } = {}) {
 	let c, l, u = new Promise((e, t) => {
 		c = e, l = t;
 	}), d = new AbortController(), f = !1, p, m, h, g, _ = !1, v = !1, y, b, x, S, C = !1, w = () => {
-		clearInterval(x), clearTimeout(S), y = void 0, o.removeEventListener("message", A);
+		clearInterval(x), clearTimeout(S), y = void 0, o.removeEventListener("message", j);
 	}, T = (e) => {
 		try {
-			a(e);
+			i(e);
 		} catch {}
 	}, E = (e = null) => {
 		if (!f) {
@@ -2219,13 +2390,13 @@ function ge(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 			}
 			x = setInterval(() => {
 				p.closed && w();
-			}, 2e3), S = setTimeout(w, me), c();
+			}, 2e3), S = setTimeout(w, ve), c();
 		}
 	};
 	async function D() {
 		try {
 			T("preparing"), X(!f, "cancelled");
-			let t = await e.fetchWithAuth(W, {
+			let t = await e.fetchWithAuth(U, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(n === null ? {} : { release_candidate: n }),
@@ -2233,14 +2404,14 @@ function ge(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 				signal: d.signal
 			});
 			X(!f, "cancelled"), X(t.headers.get("content-type")?.split(";")[0].trim() === "application/json");
-			let r = await Q(t, he, d.signal), i;
+			let r = await Q(t, J, d.signal), i;
 			try {
 				i = JSON.parse(await r.text());
 			} catch {
 				throw new Y("invalid_response");
 			}
-			let a = V(i?.tag);
-			X(a || r.size <= J), X(!f, "cancelled"), X(U(i, a ? q : K) && H(/[0-9a-f]{32}/, i.id) && typeof i.tag == "string" && i.tag.length <= 64 && (n === null ? B(i.tag) || V(i.tag) : i.tag === n) && H(/[0-9a-f]{64}/, i.apk_sha256) && Number.isSafeInteger(i.apk_size) && i.apk_size > 0 && i.apk_size <= G);
+			let a = B(i?.tag);
+			X(a || r.size <= q), X(!f, "cancelled"), X(H(i, a ? K : G) && V(/[0-9a-f]{32}/, i.id) && typeof i.tag == "string" && i.tag.length <= 64 && (n === null ? z(i.tag) || B(i.tag) : i.tag === n) && V(/[0-9a-f]{64}/, i.apk_sha256) && Number.isSafeInteger(i.apk_size) && i.apk_size > 0 && i.apk_size <= W);
 			let o = a ? {
 				tag: i.tag,
 				feed: Z(i.feed, F),
@@ -2253,13 +2424,13 @@ function ge(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 				descriptorSignature: Z(i.descriptor_signature, 256, !0)
 			};
 			T("downloading"), X(!f, "cancelled");
-			let s = await e.fetchWithAuth(`${W}/${i.id}/apk`, {
+			let s = await e.fetchWithAuth(`${U}/${i.id}/apk`, {
 				method: "GET",
 				redirect: "error",
 				signal: d.signal
 			});
 			X(!f, "cancelled");
-			let c = await Q(s, G, d.signal, i.apk_size);
+			let c = await Q(s, W, d.signal, i.apk_size);
 			X(!f && !p.closed, "window_closed"), v = !0, b = i.apk_sha256, y = {
 				type: "ha-paneld/usb-bundle",
 				nonce: g,
@@ -2271,17 +2442,17 @@ function ge(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 		}
 	}
 	async function O(t) {
-		if (!f || !y || p.closed || !U(t, [
+		if (!f || !y || p.closed || !H(t, [
 			"type",
 			"nonce",
 			"requestId",
 			"tag",
 			"apkSha256"
-		]) || !H(/[0-9a-f]{32}/, t.requestId)) return;
+		]) || !V(/[0-9a-f]{32}/, t.requestId)) return;
 		let r = !1;
 		try {
 			X(t.tag === y.bundle.tag && t.apkSha256 === b);
-			let i = AbortSignal.timeout(Math.min(s, 1e4)), a = await e.fetchWithAuth(W, {
+			let i = AbortSignal.timeout(Math.min(s, 1e4)), a = await e.fetchWithAuth(U, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(n === null ? {} : { release_candidate: n }),
@@ -2289,8 +2460,8 @@ function ge(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 				signal: i
 			});
 			X(a.headers.get("content-type")?.split(";")[0].trim() === "application/json");
-			let o = JSON.parse(await (await Q(a, V(t.tag) ? he : J, i)).text());
-			X(U(o, V(t.tag) ? q : K) && H(/[0-9a-f]{32}/, o.id) && o.tag === t.tag && o.apk_sha256 === t.apkSha256 && o.apk_size === y.apk.size), r = !0;
+			let o = JSON.parse(await (await Q(a, B(t.tag) ? J : q, i)).text());
+			X(H(o, B(t.tag) ? K : G) && V(/[0-9a-f]{32}/, o.id) && o.tag === t.tag && o.apk_sha256 === t.apkSha256 && o.apk_size === y.apk.size), r = !0;
 		} catch {}
 		if (y && !p.closed) try {
 			p.postMessage({
@@ -2304,11 +2475,11 @@ function ge(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 		} catch {}
 	}
 	async function k(t) {
-		if (C || !f || !y || p.closed || !U(t, [
+		if (C || !f || !y || p.closed || !H(t, [
 			"type",
 			"nonce",
 			"address"
-		]) || !H(fe, t.address)) return;
+		]) || !V(ge, t.address)) return;
 		C = !0;
 		let n = (e, t = {}) => {
 			try {
@@ -2320,31 +2491,54 @@ function ge(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 			} catch {}
 		};
 		n("ha-paneld/usb-handover-accepted");
-		let r, i = null;
+		let r, i = null, a;
 		try {
-			let n = await e.fetchWithAuth(ue, {
+			let n = await e.fetchWithAuth(pe, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ address: t.address }),
 				redirect: "error",
-				signal: AbortSignal.timeout(de)
-			}), a = await n.json().catch(() => null), o = n.status === 200 ? a?.outcome : a?.error;
-			r = H(pe, o) ? o : `http_${n.status}`, n.status === 200 && (i = ne(a?.display));
+				signal: AbortSignal.timeout(he)
+			}), o = await n.json().catch(() => null), s = n.status === 200 ? o?.outcome : o?.error;
+			r = V(_e, s) ? s : `http_${n.status}`, n.status === 200 && (i = re(o?.display)), n.status === 200 && o?.registration === "added_to_another_home_assistant" && (a = o.registration);
 		} catch {
 			r = "request_failed";
 		} finally {
 			C = !1;
 		}
-		n("ha-paneld/usb-handover-result", i ? {
+		n("ha-paneld/usb-handover-result", {
 			outcome: r,
-			display: {
+			...i ? { display: {
 				density: i.density,
 				font_scale: i.fontScale
-			}
-		} : { outcome: r });
+			} } : {},
+			...a ? { registration: a } : {}
+		}), T("installed");
 	}
-	function A(e) {
+	async function A() {
+		let t = null;
+		try {
+			let n = await e.fetchWithAuth(me, {
+				method: "GET",
+				redirect: "error",
+				signal: AbortSignal.timeout(Math.min(s, 1e4))
+			}), r = n.status === 200 ? await n.json() : null;
+			typeof r?.public_key == "string" && r.public_key.length <= 1024 && (t = r.public_key);
+		} catch {}
+		if (y && !p.closed) try {
+			p.postMessage({
+				type: "ha-paneld/usb-adb-key-result",
+				nonce: g,
+				key: t
+			}, h);
+		} catch {}
+	}
+	function j(e) {
 		if (e.source === p && e.origin === h) {
+			if (e.data?.type === "ha-paneld/usb-adb-key" && e.data.nonce === g && H(e.data, ["type", "nonce"])) {
+				f && A();
+				return;
+			}
 			if (e.data?.type === "ha-paneld/usb-admission" && e.data.nonce === g) {
 				O(e.data);
 				return;
@@ -2353,7 +2547,7 @@ function ge(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 				k(e.data);
 				return;
 			}
-			if (U(e.data, ["type", "nonce"]) && e.data.nonce === g) {
+			if (H(e.data, ["type", "nonce"]) && e.data.nonce === g) {
 				if (e.data.type === "ha-paneld/usb-ready") {
 					!_ && !f ? (_ = !0, D()) : y && !p.closed && p.postMessage(y, h);
 					return;
@@ -2363,17 +2557,17 @@ function ge(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 		}
 	}
 	try {
-		X(e && typeof e.fetchWithAuth == "function" && (n === null || B(n) || V(n)) && Number.isSafeInteger(s) && s > 0 && s <= 3e5, "invalid_request");
-		let a = new URL(t);
-		X(!a.username && !a.password && !a.hash && (a.protocol === "https:" || a.protocol === "http:" && [
+		X(e && typeof e.fetchWithAuth == "function" && (n === null || z(n) || B(n)) && Number.isSafeInteger(s) && s > 0 && s <= 3e5, "invalid_request");
+		let i = new URL(t);
+		X(!i.username && !i.password && !i.hash && (i.protocol === "https:" || i.protocol === "http:" && [
 			"localhost",
 			"127.0.0.1",
 			"[::1]"
-		].includes(a.hostname)), "invalid_destination"), a.searchParams.set("lang", r(i)), h = a.origin, g = le(o.crypto), a.hash = new URLSearchParams({
+		].includes(i.hostname)), "invalid_destination"), i.searchParams.set("lang", a(r)), h = i.origin, g = fe(o.crypto), i.hash = new URLSearchParams({
 			ha_origin: o.location.origin,
 			nonce: g,
 			rc: n ?? ""
-		}).toString(), o.addEventListener("message", A), p = o.open(a.href, "_blank"), X(p, "popup_blocked"), m = setTimeout(() => E("timeout"), s), T("waiting");
+		}).toString(), o.addEventListener("message", j), p = o.open(i.href, "_blank"), X(p, "popup_blocked"), m = setTimeout(() => E("timeout"), s), T("waiting");
 	} catch (e) {
 		E(e instanceof Y ? e.code : "invalid_request");
 	}
@@ -2386,28 +2580,28 @@ function ge(e, t, { rcTag: n = null, language: i = e?.language, onState: a = () 
 }
 //#endregion
 //#region src/release-catalog.mjs
-var _e = 30, ve = 500, ye = 131072;
+var be = 30, xe = 500, Se = 131072;
 function $(e) {
 	if (!e) throw Error("Invalid release catalogue");
 }
-var be = 128, xe = (e) => V(e.tag) && typeof e.prerelease == "boolean" && typeof e.name == "string" && e.name.length > 0 && e.name.length <= be;
-function Se(e) {
-	$(U(e, ["releases"]) && Array.isArray(e.releases) && e.releases.length <= 530);
+var Ce = 128, we = (e) => B(e.tag) && typeof e.prerelease == "boolean" && typeof e.name == "string" && e.name.length > 0 && e.name.length <= Ce;
+function Te(e) {
+	$(H(e, ["releases"]) && Array.isArray(e.releases) && e.releases.length <= 530);
 	let t = /* @__PURE__ */ new Set(), n = 0, r = 0;
-	return Object.freeze(e.releases.map((e) => U(e, [
+	return Object.freeze(e.releases.map((e) => H(e, [
 		"tag",
 		"prerelease",
 		"name"
-	]) ? ($(xe(e) && !t.has(e.tag) && ++r <= ve), t.add(e.tag), Object.freeze({
+	]) ? ($(we(e) && !t.has(e.tag) && ++r <= xe), t.add(e.tag), Object.freeze({
 		tag: e.tag,
 		prerelease: e.prerelease,
 		name: e.name
-	})) : ($(U(e, ["tag", "prerelease"]) && typeof e.prerelease == "boolean" && (e.prerelease ? z(e.tag) : R(e.tag)) && !t.has(e.tag) && ++n <= _e), t.add(e.tag), Object.freeze({
+	})) : ($(H(e, ["tag", "prerelease"]) && typeof e.prerelease == "boolean" && (e.prerelease ? R(e.tag) : L(e.tag)) && !t.has(e.tag) && ++n <= be), t.add(e.tag), Object.freeze({
 		tag: e.tag,
 		prerelease: e.prerelease
 	}))));
 }
-async function Ce(e, { signal: t, timeoutMs: n = 15e3 } = {}) {
+async function Ee(e, { signal: t, timeoutMs: n = 15e3 } = {}) {
 	let r = new AbortController(), i = () => r.abort();
 	t?.addEventListener("abort", i, { once: !0 }), t?.aborted && i();
 	let a = setTimeout(i, n), o, s = new Promise((e, t) => {
@@ -2422,8 +2616,8 @@ async function Ce(e, { signal: t, timeoutMs: n = 15e3 } = {}) {
 				signal: r.signal
 			});
 			$(t.headers.get("content-type")?.split(";")[0].trim() === "application/json");
-			let n = await Q(t, ye, r.signal);
-			return Se(JSON.parse(await n.text()));
+			let n = await Q(t, Se, r.signal);
+			return Te(JSON.parse(await n.text()));
 		})()]);
 	} finally {
 		clearTimeout(a), t?.removeEventListener("abort", i), r.signal.removeEventListener("abort", o), r.abort();
@@ -2431,10 +2625,10 @@ async function Ce(e, { signal: t, timeoutMs: n = 15e3 } = {}) {
 }
 //#endregion
 //#region src/ha-install-panel.mjs
-var we = class extends HTMLElement {
+var De = class extends HTMLElement {
 	#e;
 	get #t() {
-		return i("haInstall", this.#e?.language);
+		return o("haInstall", this.#e?.language);
 	}
 	#n;
 	#r;
@@ -2444,17 +2638,19 @@ var we = class extends HTMLElement {
 	#s = "loading";
 	#c = [];
 	constructor() {
-		super(), this.attachShadow({ mode: "open" }), this.shadowRoot.innerHTML = `<style>${g}
+		super(), this.attachShadow({ mode: "open" }), this.shadowRoot.innerHTML = `<style>${v}
       :host{display:block;min-height:100%;background:var(--bg);padding:24px 16px}
-      #release{max-height:min(240px,40vh);overflow-y:auto}
+      #release{border:0;padding:0;margin:14px 0;min-width:0}
+      #release legend{font-size:.92rem;font-weight:600;margin-bottom:5px}
+      #release-choices{max-height:min(240px,40vh)}
     </style><main class="wiz">
-      ${f}
-      <ol id="journey" class="wiz-dots">${m(0)}</ol>
+      ${m}
+      <ol id="journey" class="wiz-dots">${g(0)}</ol>
       <section class="wiz-step"><div class="card">
         <h2 data-message="title"></h2>
         <p class="wiz-lead" data-message="introduction"></p>
-        <label class="wiz-fld" for="release"><b data-message="release"></b></label>
-        <select id="release" size="6" aria-describedby="catalog-status"></select>
+        <details id="versions"><summary data-message="otherVersions"></summary>
+        <fieldset id="release" aria-describedby="catalog-status"><legend data-message="release"></legend><div id="release-choices" class="choice-list"></div></fieldset></details>
         <p id="catalog-status" role="status" aria-live="polite"></p>
         <button id="retry" class="pbtn wiz-secondary" data-message="retry"></button>
         <button id="start" class="pbtn primary wiz-primary" data-message="start"></button>
@@ -2482,22 +2678,20 @@ var we = class extends HTMLElement {
 		this.#r?.cancel(), this.#i?.cancel(), this.#i = void 0, this.#o?.abort(), this.#o = void 0;
 	}
 	async #l() {
-		if (this.#o?.abort(), this.#o = void 0, this.#c = [], this.#s = "loading", this.shadowRoot.querySelector("#release").replaceChildren(), this.#u(), !this.isConnected || this.#e?.user?.is_admin !== !0 || !this.#n?.config?.installer_url) return;
+		if (this.#o?.abort(), this.#o = void 0, this.#c = [], this.#s = "loading", this.shadowRoot.querySelector("#release-choices").replaceChildren(), this.#u(), !this.isConnected || this.#e?.user?.is_admin !== !0 || !this.#n?.config?.installer_url) return;
 		let e = new AbortController();
 		this.#o = e;
 		try {
-			let t = await Ce(this.#e, { signal: e.signal });
+			let t = await Ee(this.#e, { signal: e.signal });
 			if (this.#o !== e) return;
 			this.#c = t, this.#s = t.length ? "ready" : "empty";
-			let n = this.shadowRoot.querySelector("#release"), r = document.createElement("option");
-			r.value = "", r.textContent = this.#t.choose, r.disabled = !1, n.append(r);
-			for (let e of t) {
-				let t = document.createElement("option");
-				t.value = e.tag;
-				let r = e.name ? this.#t.devBuild : e.prerelease ? this.#t.testing : "";
-				t.textContent = `${e.name ?? e.tag.replace(/^v/, "")}${r ? ` (${r})` : ""}`, n.append(t);
+			let n = this.shadowRoot.querySelector("#release-choices");
+			for (let [e, r] of [null, ...t].entries()) {
+				let t = document.createElement("label"), i = document.createElement("input");
+				i.type = "radio", i.name = "release", i.value = r?.tag ?? "", i.checked = e === 0;
+				let a = document.createElement("span");
+				t.append(i, a), n.append(t);
 			}
-			n.value = "";
 		} catch {
 			if (this.#o !== e) return;
 			this.#s = "catalogError";
@@ -2507,44 +2701,44 @@ var we = class extends HTMLElement {
 	}
 	#u() {
 		let e = this.shadowRoot, t = this.#e?.language;
-		this.isConnected && this.setAttribute?.("lang", r(t));
+		this.isConnected && this.setAttribute?.("lang", a(t));
 		for (let t of e.querySelectorAll("[data-message]")) t.textContent = this.#t[t.dataset.message];
-		e.querySelector("#brand-version").textContent = d(this.#n?.config, t);
+		e.querySelector("#brand-version").textContent = p(this.#n?.config, t);
 		let n = e.querySelector("#journey");
-		n.setAttribute("aria-label", i("installer", t).progress), h(n, 0, document, t);
-		let a = e.querySelector("#release").children;
-		if (a.length) {
-			a[0].textContent = this.#t.choose;
+		n.setAttribute("aria-label", o("installer", t).progress), _(n, 0, document, t);
+		let r = e.querySelector("#release-choices").children;
+		if (r.length) {
+			r[0].querySelector("span").textContent = this.#t.choose;
 			for (let [e, t] of this.#c.entries()) {
 				let n = t.name ? this.#t.devBuild : t.prerelease ? this.#t.testing : "";
-				a[e + 1].textContent = `${t.name ?? t.tag.replace(/^v/, "")}${n ? ` (${n})` : ""}`;
+				r[e + 1].querySelector("span").textContent = `${t.name ?? t.tag.replace(/^v/, "")}${n ? ` (${n})` : ""}`;
 			}
 		}
-		let o = this.#e?.user?.is_admin === !0, s = typeof this.#n?.config?.installer_url == "string" && this.#n.config.installer_url.length > 0, c = this.shadowRoot.querySelector("#release").value, l = c === "" ? this.#c[0] : this.#c.find((e) => e.tag === c);
-		this.shadowRoot.querySelector("#start").disabled = !o || !s || !!this.#r || !l, this.shadowRoot.querySelector("#cancel").disabled = !this.#r, this.shadowRoot.querySelector("#release").disabled = !!this.#r || this.#s !== "ready";
-		let u = this.shadowRoot.querySelector("#catalog-status");
-		u.textContent = o && s && this.#s !== "ready" ? this.#t[this.#s] : "", u.hidden = !u.textContent, this.shadowRoot.querySelector("#retry").hidden = !o || !s || !["catalogError", "empty"].includes(this.#s), this.shadowRoot.querySelector("#cancel").hidden = !this.#r;
-		let f = o ? s ? this.#a : "unavailable" : "admin", p = this.shadowRoot.querySelector("#status");
-		p.textContent = Object.hasOwn(this.#t, f) ? this.#t[f] : this.#t.failed, p.hidden = !p.textContent;
+		let i = this.#e?.user?.is_admin === !0, s = typeof this.#n?.config?.installer_url == "string" && this.#n.config.installer_url.length > 0, c = this.shadowRoot.querySelector("#release input:checked")?.value, l = c === "" ? this.#c[0] : this.#c.find((e) => e.tag === c), u = this.#a === "installed";
+		this.shadowRoot.querySelector("#start").hidden = u, this.shadowRoot.querySelector("#release").hidden = u, this.shadowRoot.querySelector("#start").disabled = !i || !s || !!this.#r || !l, this.shadowRoot.querySelector("#cancel").disabled = !this.#r, this.shadowRoot.querySelector("#release").disabled = !!this.#r || this.#s !== "ready";
+		let d = this.shadowRoot.querySelector("#catalog-status");
+		d.textContent = i && s && this.#s !== "ready" ? this.#t[this.#s] : "", d.hidden = !d.textContent, this.shadowRoot.querySelector("#retry").hidden = !i || !s || !["catalogError", "empty"].includes(this.#s), this.shadowRoot.querySelector("#cancel").hidden = !this.#r;
+		let f = i ? s ? this.#a : "unavailable" : "admin", m = this.shadowRoot.querySelector("#status");
+		m.textContent = Object.hasOwn(this.#t, f) ? this.#t[f] : this.#t.failed, m.hidden = !m.textContent;
 	}
 	#d() {
 		if (this.#r || this.#e?.user?.is_admin !== !0) return;
-		let e = this.shadowRoot.querySelector("#release").value;
+		let e = this.shadowRoot.querySelector("#release input:checked")?.value;
 		if (!(e === "" ? this.#c[0] : this.#c.find((t) => t.tag === e)) || !this.isConnected) return;
 		this.#i?.cancel(), this.#i = void 0;
-		let t = ge(this.#e, this.#n?.config?.installer_url, {
+		let t;
+		t = ye(this.#e, this.#n?.config?.installer_url, {
 			rcTag: e || null,
-			language: r(this.#e?.language),
+			language: a(this.#e?.language),
 			onState: (e) => {
-				this.#a = e, this.#u();
+				t && t !== this.#r && t !== this.#i || (this.#a = e, this.#u());
 			}
-		});
-		this.#r = t, this.#u(), t.completion.then(() => {
+		}), this.#r = t, this.#u(), t.completion.then(() => {
 			this.#r === t && (this.#i = t);
 		}, () => {}).finally(() => {
 			this.#r === t && (this.#r = void 0), this.#u();
 		});
 	}
 };
-customElements.get("panel-assistant-usb-install") || customElements.define("panel-assistant-usb-install", we);
+customElements.get("panel-assistant-usb-install") || customElements.define("panel-assistant-usb-install", De);
 //#endregion

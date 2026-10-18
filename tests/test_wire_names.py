@@ -120,7 +120,7 @@ async def test_a_release_under_either_name_installs_and_its_job_resumes(
     """Release, plan, durable job and a resumed worker, end to end."""
     _install_test_key(monkeypatch, signing_key)
 
-    bundle, _bridge = await release.async_resolve_stable_bundle_and_bridge(
+    bundle = await release.async_resolve_install_bundle(
         _release(signing_key, *schemas)  # type: ignore[arg-type]
     )
 
@@ -169,6 +169,6 @@ async def test_a_release_under_an_unknown_name_is_ineligible(
     _install_test_key(monkeypatch, signing_key)
 
     with pytest.raises(release.ReleaseResolutionError):
-        await release.async_resolve_stable_bundle_and_bridge(
+        await release.async_resolve_install_bundle(
             _release(signing_key, *schemas)  # type: ignore[arg-type]
         )

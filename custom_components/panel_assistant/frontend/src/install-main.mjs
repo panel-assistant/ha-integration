@@ -8,10 +8,10 @@ import { createUsbTransactionPorts } from './usb-transaction-ports.mjs';
 import { createInstallController } from './install-controller.mjs';
 import { installProgress, errorView } from './install-view.mjs';
 import { frontendMessages, formatFrontendMessage, installerLocale } from './frontend-localization.mjs';
-import { handOverThenOpen, handoffOptions, receiveReleaseHandoff, requestSetupHandover } from './release-handoff.mjs';
+import { handOverThenOpen, handoffOptions, receiveReleaseHandoff, requestPanelAssistantKey,
+  requestSetupHandover } from './release-handoff.mjs';
+import { ensureNetworkAdb, panelAssistantKeyAuthenticator } from './panel-assistant-adb.mjs';
 import { readSetupUrl } from './panel-address.mjs';
-import { applyDisplaySizing } from './display-provisioning.mjs';
-import { readShell } from './shell-session.mjs';
 import { renderJourney } from './wizard-look.mjs';
 import { newNonce } from './shared.mjs';
 
@@ -45,12 +45,16 @@ function translatePage() {
 window.addEventListener('languagechange', translatePage);
 window.addEventListener('popstate', translatePage);
 
-const STEPS = ['preparing', 'connect', 'allow', 'confirm', 'progress', 'done', 'error'];
+const STEPS = ['preparing', 'connect', 'checking', 'allow', 'confirm', 'progress', 'done', 'error'];
+// A panel that trusts this computer, or never asks, answers within a moment.
+// Only one still waiting after that is asking its owner to tap Allow.
+const ALLOW_PROMPT_MS = 1500;
 const manager = window.isSecureContext && navigator.usb
   ? new AdbDaemonWebUsbDeviceManager(boundedUsb(navigator.usb)) : undefined;
 const supported = Boolean(manager && navigator.locks && globalThis.indexedDB);
 let release, raw, adb, sessionAdb, store, controller;
-let handoff, handoffSettings, incomingAuthenticate;
+let handoff, handoffSettings, incomingAuthenticate, panelAssistantKey;
+let anotherHomeAssistant = false;
 let busy = false, quarantined = false;
 let receipt = null;
 let deadline;
@@ -60,7 +64,7 @@ void stopPromise.catch(() => {});
 
 // Where each screen sits in the whole journey. Version was chosen in Home
 // Assistant; Set up continues on the panel's own wizard. An error stays put.
-const JOURNEY_STOP = Object.freeze({ preparing: 1, connect: 1, allow: 1, confirm: 2, progress: 2, done: 3 });
+const JOURNEY_STOP = Object.freeze({ preparing: 1, connect: 1, checking: 1, allow: 1, confirm: 2, progress: 2, done: 3 });
 function show(step) {
   for (const name of STEPS) element(`step-${name}`).hidden = name !== step;
   if (Object.hasOwn(JOURNEY_STOP, step)) { journeyStop = JOURNEY_STOP[step]; renderJourney(element('journey'), journeyStop, document, language); }
@@ -117,6 +121,8 @@ function quarantine(key = 'installErrorConnection', group = 'errors') {
     handoff?.cancel();
     rejectStop(new Error('session_closed'));
     message('error-text', key, group);
+    // This error sends the person back to Home Assistant; the button says so.
+    if (key === 'handoffFailure') message('retry', 'backToHa');
     show('error');
   }
   closeResources();
@@ -153,6 +159,8 @@ function noteFailure(error) {
   if (!firstFailure && code && code !== 'session_closed') {
     firstFailure = code;
     support('cause', String(code));
+    // Which check refused, when the step names it (the permission parsers do).
+    if (typeof error.detail === 'string') support('failedCheck', error.detail);
     message('error-text', errorView(code), 'errors');
   }
   throw error;
@@ -179,7 +187,6 @@ window.addEventListener('pagehide', () => { if (!leaving) quarantine('pageClosed
 connect.addEventListener('click', async () => {
   if (busy || !release || quarantined) return;
   busy = true;
-  deadline = setTimeout(() => quarantine('connectionTimeout', 'installer'), 45000);
   try {
     // requestDevice is invoked directly within this user gesture, never on load.
     const chosen = manager.requestDevice();
@@ -189,21 +196,30 @@ connect.addEventListener('click', async () => {
       if (quarantined) { closeResources(); return; }
       if (!device) { quarantine('noSelection', 'installer'); return; }
       ensureCurrent();
-      show('allow');
+      show('checking');
       const connection = await device.connect();
       if (quarantined) { closeResources(); return; }
       ensureCurrent();
+      // The owner's Allow approves Panel Assistant's own key, so Panel
+      // Assistant can reach the panel over network ADB once the cable is out.
+      // Without it (an older Home Assistant), this browser's own key is offered.
+      const key = await panelAssistantKey;
+      support('networkAdb', key ? 'panelAssistantKey' : 'browserKey');
+      const asking = setTimeout(() => { if (!quarantined) show('allow'); }, ALLOW_PROMPT_MS);
       const transport = await AdbDaemonTransport.authenticate({
         serial: device.serial, connection,
         credentialStore: new AdbWebCredentialStore('ha-paneld-usb-installer'),
+        ...(key ? { authenticators: [panelAssistantKeyAuthenticator(key)] } : {}),
         readTimeLimit: 10000,
-      });
+      }).finally(() => clearTimeout(asking));
       adb = new Adb(transport);
+      // Bound a silent cable only once the panel has allowed this computer.
+      deadline = setTimeout(() => quarantine('connectionTimeout', 'installer'), 45000);
       if (quarantined) { closeResources(); return; }
       ensureCurrent();
       void adb.disconnected.then(() => quarantine('disconnected', 'installer'), fail);
       sessionAdb = guardedAdb(adb);
-      message('allow-text', 'checkingPanel');
+      show('checking');
       store = await openJobStore();
       if (quarantined) { closeResources(); return; }
       ensureCurrent();
@@ -292,21 +308,24 @@ async function installAll() {
   progress('stepOpening', 100);
   const url = await readSetupUrl(sessionAdb, newNonce);
   support('setupAddress', url, url ? null : { messageKey: 'setupMissing', group: 'support' });
-  // The install is done: losing USB from here on is not a failure.
-  finished = true;
+  let display = null;
   await handOverThenOpen(url, {
     handover: async address => {
-      let display = null;
       const outcome = await requestSetupHandover({ options: handoffSettings, address,
-        onDisplay: value => { display = value; } });
-      // USB is still held: the display and text size the panel's profile
-      // recommends go on now, before its setup opens at the new size.
-      if (display) {
-        support('displaySizing', await applyDisplaySizing({ adb: sessionAdb, newNonce, value: display, readShell }));
-      }
+        onDisplay: value => { display = value; },
+        onRegistration: () => { anotherHomeAssistant = true; } });
       return outcome;
     },
     support,
+    beforeOpen: async () => {
+      const result = await Promise.race([stopPromise,
+        controller.completeSetup(display).catch(noteFailure)]);
+      ensureCurrent();
+      support('displaySizing', result);
+      // Last, because adbd restarts to listen on the network and this USB
+      // session ends with it: the install is finished by then.
+      support('networkAdb', await ensureNetworkAdb(sessionAdb, { beforeRestart: () => { finished = true; } }));
+    },
     open: finish,
   });
 }
@@ -322,6 +341,10 @@ function finish(url) {
   message('done-text', 'doneOpening');
   link.href = url;
   link.hidden = false;
+  if (anotherHomeAssistant) {
+    message('done-text', 'doneAnotherHomeAssistant');
+    return;
+  }
   // Same tab, so the panel's own wizard simply takes over. The visible button
   // stays in case this computer cannot reach the panel's network.
   setTimeout(() => {
@@ -346,15 +369,14 @@ if (!supported) {
     void handoff.completion.then(({ release: verified, authenticate }) => {
       if (quarantined) return;
       incomingAuthenticate = authenticate;
+      panelAssistantKey = requestPanelAssistantKey({ options });
       releaseReady(verified);
     }, () => {
       if (!quarantined) quarantine('handoffFailure', 'installer');
     }).finally(() => { clearTimeout(slow); busy = false; });
   } catch { quarantine('handoffFailure', 'installer'); busy = false; }
-  message('retry', 'backToHa');
 } else {
   quarantine('handoffFailure', 'installer');
-  message('retry', 'backToHa');
 }
 
 translatePage();

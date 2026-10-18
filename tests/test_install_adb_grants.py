@@ -15,17 +15,17 @@ from typing import Any
 import pytest
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 
-from custom_components.panel_assistant import install_adb
-from custom_components.panel_assistant.app_identity import (
-    LAUNCH_COMPONENTS,
-    LEGACY_PACKAGE_ID,
-)
-from custom_components.panel_assistant.install_adb import (
+from custom_components.panel_assistant import adb_protocol, app_identity, install_adb
+from custom_components.panel_assistant.adb_protocol import (
     AdbInstallTarget,
     AdbRootMode,
     LaunchOutcome,
-    async_launch_installed_app,
 )
+from custom_components.panel_assistant.app_identity import (
+    LAUNCH_COMPONENTS,
+    PACKAGE_ID,
+)
+from custom_components.panel_assistant.install_adb import async_launch_installed_app
 from custom_components.panel_assistant.release import InstallDescriptor
 
 from .install_adb_fakes import (
@@ -112,7 +112,6 @@ pm() {
   if [ "$1" = path ]; then
     if [ -f "$STATE/package.$2" ]; then echo "package:/system/app/$2/$2.apk"; fi
   elif [ "$1" = list ] && [ "$2" = features ]; then
-    for f in "$STATE"/read_fail.android.hardware.*; do [ -e "$f" ] && return 2; done
     echo reqGlEsVersion=0x30002
     for f in "$STATE"/feature.android.hardware.*; do
       [ -f "$f" ] || continue
@@ -121,6 +120,10 @@ pm() {
         false) ;;
         *) return 2 ;;
       esac
+    done
+    # A read that fails part-way still prints what it read before it failed.
+    for f in "$STATE"/read_fail.android.hardware.*; do
+      if [ -e "$f" ]; then return 2; fi
     done
   elif [ "$1" = has-feature ]; then
     # Android 8.1, like the Sonoff PX30 panels: no has-feature, only its usage.
@@ -131,7 +134,23 @@ pm() {
     [ -f "$STATE/refuse.$3" ] || echo true > "$STATE/permission.$2.$3"
   fi
 }
+# Android lists each active admin by its short name, as a Meta Portal printed it.
+dpm() {
+  echo "dpm $*" >> "$STATE/calls"
+  if [ "$1" = set-active-admin ] &&
+      [ "${2#*/}" = io.panelassistant.android.platform.PanelDeviceAdminReceiver ]; then
+    touch "$STATE/admin.${2%%/*}"
+  fi
+}
 dumpsys() {
+  if [ "$1" = device_policy ]; then
+    echo "  Enabled Device Admins (User 0, provisioningState: 0):"
+    for admin in "$STATE"/admin.*; do
+      [ -e "$admin" ] || continue
+      echo "    ${admin##*/admin.}/.platform.PanelDeviceAdminReceiver:"
+    done
+    return 0
+  fi
   if [ -f "$STATE/unreadable.permissions" ]; then
     cat "$STATE/unreadable.permissions"
     return
@@ -223,7 +242,7 @@ async def test_launch_grants_notifications_before_the_first_start_from_android_1
     grants = [
         index
         for index, command in enumerate(fake.commands)
-        if "pm grant io.github.maxlyth.hapaneld android.permission.POST_NOTIFICATIONS"
+        if "pm grant io.panelassistant.android android.permission.POST_NOTIFICATIONS"
         in command
     ]
     starts = [
@@ -231,7 +250,7 @@ async def test_launch_grants_notifications_before_the_first_start_from_android_1
     ]
     assert grants == [2]
     assert starts == [4]
-    assert "dumpsys package io.github.maxlyth.hapaneld" in fake.commands[2]
+    assert "dumpsys package io.panelassistant.android" in fake.commands[2]
     assert "notification permission" not in caplog.text
 
 
@@ -305,7 +324,7 @@ async def test_a_refused_or_unreadable_grant_is_reported_and_never_stops_the_sta
     assert [
         record.levelno
         for record in caplog.records
-        if "did not grant io.github.maxlyth.hapaneld the notification permission"
+        if "did not grant io.panelassistant.android the notification permission"
         in record.getMessage()
     ] == [logging.WARNING]
 
@@ -354,8 +373,8 @@ def _run_notification_program(flags: str, calls: Path) -> list[str]:
             f" flags=[ {flags}]'; }}",
             f'pm() {{ echo "pm $*" >> {shlex.quote(str(calls))}; }}',
             f": > {shlex.quote(str(calls))}",
-            install_adb._notification_grant_command(
-                NONCES[0], "io.github.maxlyth.hapaneld"
+            adb_protocol._notification_grant_command(
+                NONCES[0], "io.panelassistant.android"
             ),
         )
     )
@@ -365,7 +384,7 @@ def _run_notification_program(flags: str, calls: Path) -> list[str]:
 
 def test_the_grant_program_grants_over_a_persons_denial(tmp_path: Path) -> None:
     calls = tmp_path / "calls"
-    grant = "pm grant io.github.maxlyth.hapaneld android.permission.POST_NOTIFICATIONS"
+    grant = "pm grant io.panelassistant.android android.permission.POST_NOTIFICATIONS"
     for flags in (
         "USER_SET|USER_SENSITIVE_WHEN_GRANTED",
         "USER_SET|USER_FIXED",
@@ -392,14 +411,20 @@ async def test_post_update_repair_removes_only_the_obsolete_service(
         successor_descriptor,
         launch_component=LAUNCH_COMPONENTS[successor_descriptor.package_id][-1],
     )
-    old = install_adb.ACCESSIBILITY_COMPONENTS[successor_descriptor.launch_component]
-    new = install_adb.ACCESSIBILITY_COMPONENTS[installed.launch_component]
+    old = app_identity.ACCESSIBILITY_COMPONENTS[successor_descriptor.launch_component]
+    # The class a moved-classes build declares, spelled out rather than read
+    # from the table the repair itself uses.
+    new = (
+        "io.panelassistant.android/"
+        "io.panelassistant.android.input.PanelAccessibilityService"
+    )
     if current == "short":
         new = installed.package_id + "/.input.PanelAccessibilityService"
     others = [
         "com.example.reader/.ReaderService",
         "org.other/org.other.a11y.Helper",
-        install_adb.ACCESSIBILITY_COMPONENTS[install_adb.LEGACY_LAUNCH_COMPONENT],
+        # The old app's service is another app's: it stays.
+        "io.github.maxlyth.hapaneld/.input.PanelAccessibilityService",
     ]
     _seed_granted_panel(tmp_path, installed.package_id, installed.launch_component)
     before = [others[0], old, *others[1:]] + ([new] if current else [])
@@ -437,7 +462,7 @@ async def test_refused_obsolete_service_cleanup_is_reported(
         successor_descriptor,
         launch_component=LAUNCH_COMPONENTS[successor_descriptor.package_id][-1],
     )
-    new = install_adb.ACCESSIBILITY_COMPONENTS[installed.launch_component]
+    new = app_identity.ACCESSIBILITY_COMPONENTS[installed.launch_component]
     before = _panel_value(tmp_path, "enabled_accessibility_services") + ":" + new
     (tmp_path / "enabled_accessibility_services").write_text(before + "\n")
     _install_fakes(
@@ -459,6 +484,23 @@ async def test_refused_obsolete_service_cleanup_is_reported(
     assert _GRANT_WARNING in caplog.text
 
 
+# The app's two class sets: builds up to 0.9.9 keep the classes in the old
+# namespace, later ones moved them. Each set's service is spelled out rather
+# than read from the table the grants themselves use.
+_CLASS_SETS = {
+    "successor": (
+        "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity",
+        "io.panelassistant.android/"
+        "io.github.maxlyth.hapaneld.input.PanelAccessibilityService",
+    ),
+    "new_classes": (
+        "io.panelassistant.android/io.panelassistant.android.MainActivity",
+        "io.panelassistant.android/"
+        "io.panelassistant.android.input.PanelAccessibilityService",
+    ),
+}
+
+
 async def _launch_on(
     monkeypatch: pytest.MonkeyPatch,
     signer: PythonRSASigner,  # noqa: F811
@@ -475,18 +517,18 @@ async def _launch_on(
     return fake
 
 
-@pytest.mark.parametrize("identity", ["legacy", "successor"])
+@pytest.mark.parametrize("identity", list(_CLASS_SETS))
 async def test_a_fresh_install_gets_the_usb_installers_grants_before_its_first_start(
     monkeypatch: pytest.MonkeyPatch,
     signer: PythonRSASigner,  # noqa: F811
     target: AdbInstallTarget,  # noqa: F811
     descriptor: InstallDescriptor,  # noqa: F811
-    successor_descriptor: InstallDescriptor,  # noqa: F811
     caplog: pytest.LogCaptureFixture,
     tmp_path: Path,
     identity: str,
 ) -> None:
-    installed = descriptor if identity == "legacy" else successor_descriptor
+    launch_component, service = _CLASS_SETS[identity]
+    installed = replace(descriptor, launch_component=launch_component)
     package_id = installed.package_id
 
     fake = await _launch_on(monkeypatch, signer, target, installed, tmp_path)
@@ -497,10 +539,7 @@ async def test_a_fresh_install_gets_the_usb_installers_grants_before_its_first_s
         _panel_value(tmp_path, f"appop.{package_id}.REQUEST_INSTALL_PACKAGES")
         == "allow"
     )
-    assert (
-        _panel_value(tmp_path, "enabled_accessibility_services")
-        == (_ACCESSIBILITY_SERVICES[package_id])
-    )
+    assert _panel_value(tmp_path, "enabled_accessibility_services") == service
     assert _panel_value(tmp_path, "accessibility_enabled") == "1"
     grants = [i for i, c in enumerate(fake.commands) if "appops set" in c]
     starts = [i for i, c in enumerate(fake.commands) if "am start" in c]
@@ -509,12 +548,100 @@ async def test_a_fresh_install_gets_the_usb_installers_grants_before_its_first_s
     assert _GRANT_WARNING not in caplog.text
 
 
+_SELF_UPDATE_LOST = "cannot install its own update with a tap"
+
+
+@pytest.mark.parametrize(
+    ("refused", "named", "self_update_lost"),
+    [
+        ("REQUEST_INSTALL_PACKAGES", "install packages", True),
+        ("WRITE_SETTINGS", "modify system settings", False),
+    ],
+)
+async def test_the_grant_warning_describes_only_the_missing_grants(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+    refused: str,
+    named: str,
+    self_update_lost: bool,
+) -> None:
+    (tmp_path / f"refuse.{refused}").touch()
+
+    await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
+
+    [warning] = [
+        r.getMessage() for r in caplog.records if _GRANT_WARNING in r.getMessage()
+    ]
+    assert f"missing: {named};" in warning
+    assert (_SELF_UPDATE_LOST in warning) is self_update_lost
+    others = {"install packages", "modify system settings", "display over other apps"}
+    assert not [other for other in others - {named} if other in warning]
+
+
+async def test_an_unreadable_grant_readback_says_the_missing_grants_are_unknown(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    fake = FakeDevice(
+        [
+            _identity_root_output(NONCES[0]),
+            _single_output(
+                "PACKAGE", NONCES[1], ["package:/data/app/ha-paneld/base.apk"], 0
+            ),
+            _notifications_output(NONCES[2], granted=True),
+            b"garbage\n",
+            _single_output("LAUNCH", NONCES[4], ["Status: ok"], 0),
+        ]
+    )
+    _install_fakes(monkeypatch, [fake])
+
+    await async_launch_installed_app(
+        target, signer, descriptor, expected_root_mode=AdbRootMode.ROOTLESS
+    )
+
+    [warning] = [
+        r.getMessage() for r in caplog.records if _GRANT_WARNING in r.getMessage()
+    ]
+    assert "cannot tell which permissions it lacks" in warning
+
+
+@pytest.mark.parametrize("identity", list(_CLASS_SETS))
+async def test_the_new_app_is_made_a_device_admin_once(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    identity: str,
+) -> None:
+    """The screen-off's lock fallback, asked for at install and kept by updates."""
+    installed = replace(descriptor, launch_component=_CLASS_SETS[identity][0])
+
+    await _launch_on(monkeypatch, signer, target, installed, tmp_path)
+    await _launch_on(monkeypatch, signer, target, installed, tmp_path)
+
+    calls = (tmp_path / "calls").read_text().splitlines()
+    admin_calls = [call for call in calls if call.startswith("dpm ")]
+    assert (tmp_path / f"admin.{installed.package_id}").exists()
+    assert admin_calls == [
+        f"dpm set-active-admin {installed.package_id}/"
+        f"{app_identity.DEVICE_ADMIN_RECEIVER}"
+    ]
+
+
 def _seed_granted_panel(
     state: Path, package_id: str, launch_component: str | None = None
 ) -> None:
     launch = launch_component or LAUNCH_COMPONENTS[package_id][0]
     (state / "home").write_text(
-        install_adb.EQUIVALENT_HOME_COMPONENTS[launch][0] + "\n"
+        app_identity.EQUIVALENT_HOME_COMPONENTS[launch][0] + "\n"
     )
     (state / "enabled_accessibility_services").write_text(
         f"com.example.reader/.ReaderService:{_ACCESSIBILITY_SERVICES[package_id]}\n"
@@ -532,6 +659,8 @@ def _seed_granted_panel(
         (state / f"permission.{package_id}.android.permission.{permission}").write_text(
             "true\n"
         )
+    if package_id == app_identity.PACKAGE_ID:
+        (state / f"admin.{package_id}").touch()
 
 
 @pytest.mark.parametrize(
@@ -608,17 +737,16 @@ async def test_an_update_preserves_every_existing_grant_without_writing(
     assert not (tmp_path / "calls").exists()
 
 
-@pytest.mark.parametrize("identity", ["legacy", "successor"])
+@pytest.mark.parametrize("identity", list(_CLASS_SETS))
 async def test_an_update_restores_hardware_permissions_without_enabling_features(
     monkeypatch: pytest.MonkeyPatch,
     signer: PythonRSASigner,  # noqa: F811
     target: AdbInstallTarget,  # noqa: F811
     descriptor: InstallDescriptor,  # noqa: F811
-    successor_descriptor: InstallDescriptor,  # noqa: F811
     tmp_path: Path,
     identity: str,
 ) -> None:
-    installed = descriptor if identity == "legacy" else successor_descriptor
+    installed = replace(descriptor, launch_component=_CLASS_SETS[identity][0])
     for feature in ("camera.any", "microphone"):
         (tmp_path / f"feature.android.hardware.{feature}").write_text("true\n")
     (tmp_path / "camera_enabled").write_text("0\n")
@@ -838,20 +966,26 @@ async def test_a_failed_list_recheck_prevents_rewriting_other_services(
     assert not (tmp_path / "calls").exists()
 
 
-@pytest.mark.parametrize("failed", [False, True])
+@pytest.mark.parametrize("unproved", ["unparsed", "failed", "oversized"])
 async def test_an_unproved_service_binding_leaves_both_secure_settings_untouched(
     monkeypatch: pytest.MonkeyPatch,
     signer: PythonRSASigner,  # noqa: F811
     target: AdbInstallTarget,  # noqa: F811
     descriptor: InstallDescriptor,  # noqa: F811
     tmp_path: Path,
-    failed: bool,
+    unproved: str,
 ) -> None:
     own = _ACCESSIBILITY_SERVICES[descriptor.package_id]
-    before = own if failed else f"unreadable:{own}"
+    # Every entry of an oversized list is a component, so only its length
+    # makes it unproved.
+    before = {
+        "unparsed": f"unreadable:{own}",
+        "failed": own,
+        "oversized": f"org.other/.{'H' * 4096}:{own}",
+    }[unproved]
     (tmp_path / "enabled_accessibility_services").write_text(before + "\n")
     (tmp_path / "accessibility_enabled").write_text("0\n")
-    if failed:
+    if unproved == "failed":
         (tmp_path / "read_fail.enabled_accessibility_services").touch()
 
     fake = await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
@@ -914,7 +1048,7 @@ async def test_a_readback_without_an_allowed_grant_is_reported_and_still_starts(
     assert [
         record.levelno
         for record in caplog.records
-        if f"did not grant io.github.maxlyth.hapaneld {_GRANT_WARNING}"
+        if f"did not grant io.panelassistant.android {_GRANT_WARNING}"
         in record.getMessage()
     ] == [logging.WARNING]
 
@@ -958,11 +1092,7 @@ async def test_a_service_list_that_is_not_components_is_reported(
 
 @pytest.mark.parametrize(
     "already",
-    [
-        None,
-        "io.github.maxlyth.hapaneld/"
-        "io.github.maxlyth.hapaneld.input.PanelAccessibilityService",
-    ],
+    [None, "io.panelassistant.android/.input.PanelAccessibilityService"],
 )
 async def test_a_rerun_writes_no_second_copy_of_the_service(
     monkeypatch: pytest.MonkeyPatch,
@@ -973,6 +1103,9 @@ async def test_a_rerun_writes_no_second_copy_of_the_service(
     tmp_path: Path,
     already: str | None,
 ) -> None:
+    # The shorthand is the other spelling Android reads back for a build whose
+    # classes moved to the app's own package.
+    descriptor = replace(descriptor, launch_component=_CLASS_SETS["new_classes"][0])
     if already is not None:
         (tmp_path / "enabled_accessibility_services").write_text(
             f"com.example.reader/.ReaderService:{already}\n"
@@ -986,9 +1119,7 @@ async def test_a_rerun_writes_no_second_copy_of_the_service(
 
     assert _panel_value(tmp_path, "enabled_accessibility_services") == services
     assert "enabled_accessibility_services" not in (tmp_path / "calls").read_text()
-    assert _panel_value(tmp_path, f"appop.{LEGACY_PACKAGE_ID}.WRITE_SETTINGS") == (
-        "allow"
-    )
+    assert _panel_value(tmp_path, f"appop.{PACKAGE_ID}.WRITE_SETTINGS") == "allow"
     assert _GRANT_WARNING not in caplog.text
 
 
@@ -1037,7 +1168,7 @@ async def test_a_refused_secure_settings_grant_is_reported_and_still_starts(
     fake = await _launch_on(monkeypatch, signer, target, successor_descriptor, tmp_path)
 
     assert _GRANT_WARNING in caplog.text
-    assert "full screen-off" in caplog.text
+    assert "the screen dims instead of switching off" in caplog.text
     assert any("am start" in command for command in fake.commands)
 
 
@@ -1062,3 +1193,25 @@ async def test_secure_settings_is_never_granted_without_proof_it_is_missing(
 
     calls = tmp_path / "calls"
     assert _SECURE not in (calls.read_text() if calls.exists() else "")
+
+
+async def test_the_grant_warning_names_the_missing_grant_and_the_panel(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "refuse.SYSTEM_ALERT_WINDOW").touch()
+
+    await _launch_on(monkeypatch, signer, target, descriptor, tmp_path)
+
+    messages = [
+        record.getMessage()
+        for record in caplog.records
+        if _GRANT_WARNING in record.getMessage()
+    ]
+    assert len(messages) == 1
+    assert "(missing: display over other apps; panel " in messages[0]
+    assert f"panel {target.address.stored_value})" in messages[0]

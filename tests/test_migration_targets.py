@@ -4,6 +4,7 @@ raised under Discovered with no Panel Assistant entry."""
 import asyncio
 import json
 from collections.abc import Iterator
+from dataclasses import replace
 from ipaddress import ip_address
 from pathlib import Path
 from types import SimpleNamespace
@@ -22,9 +23,20 @@ from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.panel_assistant.client import CannotConnectError, PanelHealth
+from custom_components.panel_assistant.app_identity import PACKAGE_ID
+from custom_components.panel_assistant.client import (
+    CannotConnectError,
+    PanelHealth,
+    PanelSetupState,
+    normalize_address,
+)
 from custom_components.panel_assistant.const import DOMAIN
-from custom_components.panel_assistant.migration_targets import VENDOR_SERVICE_TYPES
+from custom_components.panel_assistant.discovery import VENDOR_SERVICE_TYPES
+from custom_components.panel_assistant.install_network import PinnedPanelTarget
+from custom_components.panel_assistant.provisioning import (
+    InstallTargetProbe,
+    InstallTargetState,
+)
 
 HEALTH = PanelHealth(
     version="0.9.0",
@@ -32,6 +44,7 @@ HEALTH = PanelHealth(
     build="1000",
     config_hash="1a2b3c4d",
     protocol=(5, 5),
+    package=PACKAGE_ID,
 )
 
 
@@ -159,9 +172,11 @@ async def test_form_offers_known_panels_adb_open_first(
         }
     )
 
-    form = await _add_panel_form(hass)
+    with patch(HEALTH_CHECK, AsyncMock(return_value=HEALTH)):
+        form = await _add_panel_form(hass)
 
-    assert form["step_id"] == "add_panel"
+    # The picker has its own step, so its text describes it only when shown.
+    assert form["step_id"] == "add_known_panel"
     assert _offered(form) == [
         ("192.168.1.10", "✓ Entry tablet · Fully Kiosk · 192.168.1.10"),
         ("192.168.1.20", "✓ Kiosk · ESPHome · 192.168.1.20"),
@@ -309,14 +324,15 @@ async def test_ignored_panel_stays_ignored(
 async def test_added_panel_is_not_offered_again(
     hass: HomeAssistant, adb_open: SimpleNamespace
 ) -> None:
-    """A panel Panel Assistant already has is neither offered nor probed."""
+    """A configured address is not re-offered without a clean-package proof."""
     _companion(hass, "Wall screen", "192.168.1.30", "a")
     adb_open.open.add("192.168.1.30")
     MockConfigEntry(domain=DOMAIN, data={CONF_ADDRESS: "192.168.1.30"}).add_to_hass(
         hass
     )
 
-    await _network_device_seen(hass)
+    with patch(HEALTH_CHECK, AsyncMock(return_value=HEALTH)):
+        await _network_device_seen(hass)
 
     assert _discovered(hass) == {}
     assert adb_open.asked == []
@@ -516,7 +532,7 @@ async def test_network_adb_device_already_added_or_running_the_app_is_not_offere
     await _adb_advertised(hass, "192.168.1.52", serial="odd", port=5556)
 
     assert _cards(hass) == {}
-    assert adb_open.asked == []
+    assert adb_open.asked == ["192.168.1.50"]
 
 
 async def test_ignored_network_adb_device_stays_ignored_at_a_new_address(
@@ -729,3 +745,574 @@ def test_manifest_browses_each_vendor_service_by_its_profile_name() -> None:
     # Lower-cased, as Core compares the instance name; the app profile reads
     # platform.vendor_mdns: ShellyWallDisplay-*._shelly._tcp.
     assert {"type": "_shelly._tcp.local.", "name": "shellywalldisplay-*"} in matchers
+
+
+# One card per panel: the bench X2i was offered twice under Discovered, by the
+# Shelly registry card and by the app's own announcement (maintainer, 2026-10-11).
+PANEL = "192.168.1.70"
+APP_HEALTH = replace(HEALTH, panel_id="shelly_ha_panel", discovery_id="b" * 64)
+
+
+async def _app_announced(hass: HomeAssistant, host: str = PANEL) -> None:
+    """The app's own announcement, its health answering as the panel there."""
+    address = ip_address(host)
+    with patch(HEALTH_CHECK, AsyncMock(return_value=APP_HEALTH)):
+        await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=ZeroconfServiceInfo(
+                ip_address=address,
+                ip_addresses=[address],
+                port=8888,
+                hostname="shelly.local.",
+                type="_ha-paneld._tcp.local.",
+                name="shelly._ha-paneld._tcp.local.",
+                properties={"did": APP_HEALTH.discovery_id, "name": "Shelly HA Panel"},
+            ),
+        )
+        await hass.async_block_till_done()
+
+
+async def _by_vendor(hass: HomeAssistant, adb_open: SimpleNamespace) -> None:
+    """Stargate's announcement while the app is not answering."""
+    with patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)):
+        await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=_shelly_wall_display(PANEL),
+        )
+        await hass.async_block_till_done()
+
+
+async def _by_adb(hass: HomeAssistant, adb_open: SimpleNamespace) -> None:
+    """Android's network ADB announcement while the app is not answering."""
+    adb_open.open.add(PANEL)
+    await _adb_advertised(hass, PANEL)
+
+
+async def _by_registry(hass: HomeAssistant, adb_open: SimpleNamespace) -> None:
+    """The Shelly integration knowing the panel, raised by any dhcp event."""
+    if not hass.config_entries.async_entries("shelly"):
+        _host_entry(hass, "shelly", "ShellyWallDisplay-00A90B9D900A", PANEL)
+    adb_open.open.add(PANEL)
+    with patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)):
+        await _network_device_seen(hass)
+
+
+INSTALL_CHANNELS = pytest.mark.parametrize(
+    "offer", [_by_vendor, _by_adb, _by_registry], ids=["vendor", "adb", "registry"]
+)
+
+
+def _offers(hass: HomeAssistant) -> list[dict]:
+    """Every Panel Assistant card under Discovered, whatever step it shows."""
+    return [
+        flow
+        for flow in hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+        if flow["context"]["source"] != config_entries.SOURCE_USER
+    ]
+
+
+@INSTALL_CHANNELS
+async def test_app_announcing_a_panel_offered_for_installation_replaces_its_card(
+    hass: HomeAssistant, adb_open: SimpleNamespace, offer
+) -> None:
+    """The app's verified announcement is the best channel and takes over."""
+    await offer(hass, adb_open)
+    assert len(_offers(hass)) == 1
+
+    await _app_announced(hass)
+
+    [card] = _offers(hass)
+    assert card["context"]["unique_id"] == APP_HEALTH.discovery_id
+
+
+@INSTALL_CHANNELS
+async def test_install_announcement_of_a_panel_the_app_offers_adds_no_card(
+    hass: HomeAssistant, adb_open: SimpleNamespace, offer
+) -> None:
+    """A weaker channel arriving later, the app briefly silent, stands down."""
+    await _app_announced(hass)
+
+    await offer(hass, adb_open)
+
+    [card] = _offers(hass)
+    assert card["context"]["unique_id"] == APP_HEALTH.discovery_id
+
+
+async def _added_by_hand(hass: HomeAssistant) -> None:
+    """Someone typing the panel's address under Add panel, its app answering."""
+    form = await _add_panel_form(hass)
+    with (
+        patch(HEALTH_CHECK, AsyncMock(return_value=APP_HEALTH)),
+        patch("custom_components.panel_assistant.async_setup_entry", return_value=True),
+    ):
+        found = await hass.config_entries.flow.async_configure(
+            form["flow_id"], {CONF_ADDRESS: PANEL}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            found["flow_id"], {"next_step_id": "connect_found"}
+        )
+    await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+
+@INSTALL_CHANNELS
+async def test_adding_an_offered_panel_by_hand_closes_its_card(
+    hass: HomeAssistant, adb_open: SimpleNamespace, offer
+) -> None:
+    """A card never stays beside the entry for its panel."""
+    await offer(hass, adb_open)
+
+    await _added_by_hand(hass)
+
+    assert _offers(hass) == []
+
+
+@INSTALL_CHANNELS
+async def test_adding_a_panel_by_hand_closes_a_card_pressed_and_left(
+    hass: HomeAssistant, adb_open: SimpleNamespace, offer
+) -> None:
+    """A press that came back to a form, its dialog shut, does not stay listed."""
+    await offer(hass, adb_open)
+    [card] = _offers(hass)
+    with (
+        patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_pin_install_target",
+            AsyncMock(side_effect=RuntimeError),
+        ),
+    ):
+        form = await hass.config_entries.flow.async_configure(card["flow_id"], {})
+    assert (form["flow_id"], form["step_id"]) == (card["flow_id"], "add_panel")
+
+    await _added_by_hand(hass)
+
+    assert _offers(hass) == []
+
+
+@INSTALL_CHANNELS
+async def test_press_still_running_when_the_panel_is_added_says_so(
+    hass: HomeAssistant, adb_open: SimpleNamespace, offer
+) -> None:
+    """The person's press ends as already added, never as an unknown flow."""
+    await offer(hass, adb_open)
+    [card] = _offers(hass)
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def pin(*_args):
+        entered.set()
+        await release.wait()
+        raise RuntimeError
+
+    with (
+        patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_pin_install_target",
+            side_effect=pin,
+        ),
+    ):
+        pressed = asyncio.create_task(
+            hass.config_entries.flow.async_configure(card["flow_id"], {})
+        )
+        await entered.wait()
+    await _added_by_hand(hass)
+    release.set()
+
+    result = await pressed
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert _offers(hass) == []
+
+
+@INSTALL_CHANNELS
+async def test_moved_panel_announcing_where_it_was_offered_closes_that_card(
+    hass: HomeAssistant, adb_open: SimpleNamespace, offer
+) -> None:
+    """An added panel's new address is its own; the install card there goes."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id=APP_HEALTH.discovery_id,
+        # Only an identity the installation protocol set follows an announcement.
+        data={CONF_ADDRESS: "192.168.1.99", "installation_identity": True},
+    )
+    entry.add_to_hass(hass)
+    await offer(hass, adb_open)
+
+    await _app_announced(hass)
+
+    assert entry.data[CONF_ADDRESS] == PANEL
+    assert _offers(hass) == []
+
+
+@INSTALL_CHANNELS
+async def test_ignoring_the_install_card_covers_the_app_announcement(
+    hass: HomeAssistant, adb_open: SimpleNamespace, offer
+) -> None:
+    """An Ignore on one card covers the panel, whichever channel shows next."""
+    await offer(hass, adb_open)
+    [card] = _offers(hass)
+    await _ignore_card(hass, card)
+
+    await _app_announced(hass)
+
+    assert _offers(hass) == []
+
+
+@INSTALL_CHANNELS
+async def test_ignoring_the_app_card_covers_every_install_announcement(
+    hass: HomeAssistant, adb_open: SimpleNamespace, offer
+) -> None:
+    """The reverse: an Ignore on the app's card holds against install channels."""
+    await _app_announced(hass)
+    [card] = _offers(hass)
+    await _ignore_card(hass, card)
+
+    await offer(hass, adb_open)
+
+    assert _offers(hass) == []
+
+
+async def test_app_card_retitled_for_a_name_clash_still_covers_its_panel(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """A second panel announcing the same name qualifies both titles, nothing else."""
+    await _app_announced(hass)
+    other = ip_address("192.168.1.71")
+    with patch(
+        HEALTH_CHECK,
+        AsyncMock(
+            return_value=replace(APP_HEALTH, panel_id="other", discovery_id="c" * 64)
+        ),
+    ):
+        await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=ZeroconfServiceInfo(
+                ip_address=other,
+                ip_addresses=[other],
+                port=8888,
+                hostname="other.local.",
+                type="_ha-paneld._tcp.local.",
+                name="other._ha-paneld._tcp.local.",
+                properties={"did": "c" * 64, "name": "Shelly HA Panel"},
+            ),
+        )
+        await hass.async_block_till_done()
+
+    await _by_vendor(hass, adb_open)
+
+    assert sorted(
+        flow["context"]["title_placeholders"]["name"] for flow in _offers(hass)
+    ) == ["Shelly HA Panel (other)", "Shelly HA Panel (shelly_ha_panel)"]
+
+
+@INSTALL_CHANNELS
+async def test_install_started_from_a_card_survives_the_app_it_installs(
+    hass: HomeAssistant, adb_open: SimpleNamespace, offer
+) -> None:
+    """Only a card still waiting is closed; a person who pressed it keeps it.
+
+    The app announces twice: while the press is still being handled, when Core
+    still reports the card's step, and again once the install form is back.
+    """
+    await offer(hass, adb_open)
+    [card] = _offers(hass)
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def pin(*_args):
+        entered.set()
+        await release.wait()
+        raise RuntimeError
+
+    with (
+        patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_pin_install_target",
+            side_effect=pin,
+        ),
+    ):
+        pressed = asyncio.create_task(
+            hass.config_entries.flow.async_configure(card["flow_id"], {})
+        )
+        await entered.wait()
+        await _app_announced(hass)
+        assert [flow["flow_id"] for flow in _offers(hass)] == [card["flow_id"]]
+        release.set()
+        form = await pressed
+
+    # Held on the install form inside the card's own flow.
+    assert form["flow_id"] == card["flow_id"]
+    assert form["step_id"] == "add_panel"
+    await _app_announced(hass)
+    assert [flow["flow_id"] for flow in _offers(hass)] == [card["flow_id"]]
+
+
+# The registry card's probing flow does not outlive opening the add form here,
+# so only the two announcements reproduce the race; all three share the check.
+@pytest.mark.parametrize("offer", [_by_vendor, _by_adb], ids=["vendor", "adb"])
+async def test_card_whose_probe_outlasts_a_manual_add_is_not_shown(
+    hass: HomeAssistant, adb_open: SimpleNamespace, offer
+) -> None:
+    """A card still probing when the panel is added by hand stands down after."""
+    adb_open.gate = asyncio.Event()
+    offered = asyncio.create_task(offer(hass, adb_open))
+    for _ in range(500):
+        if PANEL in adb_open.asked:
+            break
+        await asyncio.sleep(0.01)
+    assert PANEL in adb_open.asked
+    form = await _add_panel_form(hass)
+    with (
+        patch(HEALTH_CHECK, AsyncMock(return_value=APP_HEALTH)),
+        patch("custom_components.panel_assistant.async_setup_entry", return_value=True),
+    ):
+        found = await hass.config_entries.flow.async_configure(
+            form["flow_id"], {CONF_ADDRESS: PANEL}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            found["flow_id"], {"next_step_id": "connect_found"}
+        )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+    adb_open.gate.set()
+    await offered
+    await hass.async_block_till_done()
+
+    assert _offers(hass) == []
+
+
+async def test_pressed_app_card_survives_a_reinstalled_app_announcing_there(
+    hass: HomeAssistant,
+) -> None:
+    """The person's press ends in the card's own answer, not a vanished flow."""
+    await _app_announced(hass)
+    [card] = _offers(hass)
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    reinstalled = replace(APP_HEALTH, discovery_id="c" * 64)
+
+    async def recheck(*_args):
+        entered.set()
+        await release.wait()
+        return reinstalled
+
+    with patch(HEALTH_CHECK, side_effect=recheck):
+        pressed = asyncio.create_task(
+            hass.config_entries.flow.async_configure(card["flow_id"], {})
+        )
+        await entered.wait()
+    address = ip_address(PANEL)
+    with patch(HEALTH_CHECK, AsyncMock(return_value=reinstalled)):
+        await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=ZeroconfServiceInfo(
+                ip_address=address,
+                ip_addresses=[address],
+                port=8888,
+                hostname="shelly.local.",
+                type="_ha-paneld._tcp.local.",
+                name="shelly._ha-paneld._tcp.local.",
+                properties={"did": "c" * 64, "name": "Shelly HA Panel"},
+            ),
+        )
+        await hass.async_block_till_done()
+    assert [flow["flow_id"] for flow in _offers(hass)] == [card["flow_id"]]
+    release.set()
+
+    result = await pressed
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "invalid_discovery"
+
+
+async def test_press_finding_the_app_after_the_panel_was_added_says_so(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """A press whose health answer lands after the add ends as already added."""
+    await _by_vendor(hass, adb_open)
+    [card] = _offers(hass)
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def health(*_args):
+        entered.set()
+        await release.wait()
+        return APP_HEALTH
+
+    with patch(HEALTH_CHECK, side_effect=health):
+        pressed = asyncio.create_task(
+            hass.config_entries.flow.async_configure(card["flow_id"], {})
+        )
+        await entered.wait()
+    await _added_by_hand(hass)
+    release.set()
+
+    result = await pressed
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+
+
+async def test_wizard_opened_from_a_card_when_the_panel_is_added_says_so(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """Any step a pressed card is running ends as already added, not vanished."""
+    await _by_vendor(hass, adb_open)
+    [card] = _offers(hass)
+    with (
+        patch(HEALTH_CHECK, AsyncMock(return_value=APP_HEALTH)),
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_setup_state",
+            AsyncMock(return_value=PanelSetupState(complete=False)),
+        ),
+    ):
+        menu = await hass.config_entries.flow.async_configure(card["flow_id"], {})
+    assert (menu["flow_id"], menu["step_id"]) == (card["flow_id"], "found_unconfigured")
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def offer_url(*_args):
+        entered.set()
+        await release.wait()
+
+    with patch(
+        "custom_components.panel_assistant.config_flow.async_offer_ha_url",
+        side_effect=offer_url,
+    ):
+        pressed = asyncio.create_task(
+            hass.config_entries.flow.async_configure(
+                card["flow_id"], {"next_step_id": "panel_setup"}
+            )
+        )
+        await entered.wait()
+        await _added_by_hand(hass)
+        release.set()
+        result = await pressed
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert _offers(hass) == []
+
+
+async def test_press_moving_on_to_another_step_when_the_panel_is_added_says_so(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """A press still probing, which then opens the next step, ends as added."""
+    await _by_vendor(hass, adb_open)
+    [card] = _offers(hass)
+    address = normalize_address(PANEL)
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def probe(*_args):
+        entered.set()
+        await release.wait()
+        return InstallTargetProbe(state=InstallTargetState("adb_unauthorized"))
+
+    with (
+        patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_pin_install_target",
+            AsyncMock(return_value=PinnedPanelTarget(original=address, pinned=address)),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_probe_install_target",
+            side_effect=probe,
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_list_install_choices",
+            AsyncMock(return_value=[{"tag": "v1.0.0", "prerelease": False}]),
+        ),
+    ):
+        pressed = asyncio.create_task(
+            hass.config_entries.flow.async_configure(card["flow_id"], {})
+        )
+        await entered.wait()
+        await _added_by_hand(hass)
+        release.set()
+        result = await pressed
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert _offers(hass) == []
+
+
+async def test_overlapping_runs_of_a_pressed_card_both_end_when_the_panel_is_added(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """Its dialog opened twice: the run still waiting ends as added, not vanished."""
+    await _by_vendor(hass, adb_open)
+    [card] = _offers(hass)
+    with (
+        patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_pin_install_target",
+            AsyncMock(side_effect=RuntimeError),
+        ),
+    ):
+        form = await hass.config_entries.flow.async_configure(card["flow_id"], {})
+    assert form["step_id"] == "add_panel"
+    entered = [asyncio.Event(), asyncio.Event()]
+    release = [asyncio.Event(), asyncio.Event()]
+    runs: list[int] = []
+
+    async def find(*_args):
+        run = len(runs)
+        runs.append(run)
+        if run < 2:  # the hand add's own form asks too
+            entered[run].set()
+            await release[run].wait()
+        return []
+
+    with patch(
+        "custom_components.panel_assistant.config_flow.async_find_migration_targets",
+        side_effect=find,
+    ):
+        # Opening the dialog shows its step again, so two runs overlap.
+        first = asyncio.create_task(
+            hass.config_entries.flow.async_configure(card["flow_id"])
+        )
+        await entered[0].wait()
+        second = asyncio.create_task(
+            hass.config_entries.flow.async_configure(card["flow_id"])
+        )
+        await entered[1].wait()
+        release[0].set()
+        assert (await first)["step_id"] == "add_panel"
+        await _added_by_hand(hass)
+        release[1].set()
+        result = await second
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert _offers(hass) == []
+
+
+async def test_card_retargeted_to_another_address_follows_that_address(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """A card whose form now names another panel answers for that one only."""
+    await _by_vendor(hass, adb_open)
+    [card] = _offers(hass)
+    with (
+        patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_pin_install_target",
+            AsyncMock(side_effect=RuntimeError),
+        ),
+    ):
+        await hass.config_entries.flow.async_configure(card["flow_id"], {})
+        form = await hass.config_entries.flow.async_configure(
+            card["flow_id"], {CONF_ADDRESS: "192.168.1.71"}
+        )
+    assert (form["flow_id"], form["step_id"]) == (card["flow_id"], "add_panel")
+
+    await _added_by_hand(hass)
+
+    # Adding the panel the card first named leaves the card for the other one.
+    assert [flow["flow_id"] for flow in _offers(hass)] == [card["flow_id"]]

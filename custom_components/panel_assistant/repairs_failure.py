@@ -1,0 +1,613 @@
+"""One private failure report and one Repairs issue for each panel."""
+
+from __future__ import annotations
+
+import asyncio
+import re
+import traceback
+from collections.abc import Callable
+from dataclasses import asdict, replace
+from datetime import UTC, datetime
+from hashlib import sha256
+from typing import TYPE_CHECKING, Any
+
+from homeassistant.const import CONF_ADDRESS
+from homeassistant.const import __version__ as ha_version
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.storage import Store
+
+from .build import INTEGRATION_BUILD
+from .build_feed import parse_build_request
+from .client import is_newer_stable_version, is_version_at_least
+from .const import DOMAIN, INTEGRATION_VERSION
+from .device import panel_display_name
+
+if TYPE_CHECKING:
+    from .install_receipt import InstallJobReceipt
+
+ISSUE_INSTALLER_FAILURE = "installer_failure"
+ISSUE_ADB_AUTHORIZATION = "adb_update_authorization"
+_STORE_KEY = f"{DOMAIN}.failure_repairs"
+_DATA_KEY = f"{DOMAIN}.failure_repair_store"
+_MAX_EVENTS = 16
+
+
+class RetrySafetyHold(Exception):
+    """The old receipt no longer authorizes a new mutation."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(reason)
+
+
+def panel_failure_issue_id(identity: str) -> str:
+    """Use physical install identity or the update entry, not a changeable address."""
+    return f"{ISSUE_INSTALLER_FAILURE}_{sha256(identity.encode()).hexdigest()[:24]}"
+
+
+def adb_authorization_issue_id(entry_id: str) -> str:
+    """Keep the authorization request attached to the configured panel."""
+    return f"{ISSUE_ADB_AUTHORIZATION}_{entry_id}"
+
+
+def async_request_adb_authorization(hass: HomeAssistant, entry_id: str) -> None:
+    """Ask for the physical approval by the panel's Home Assistant name."""
+    entry = hass.config_entries.async_get_entry(entry_id)
+    if entry is None:
+        return
+    failed = ir.async_get(hass).async_get_issue(
+        DOMAIN, panel_failure_issue_id(f"update:{entry_id}")
+    )
+    if failed is not None:
+        _issue(
+            hass,
+            panel_failure_issue_id(f"update:{entry_id}"),
+            panel_display_name(hass, entry),
+            "update",
+            "adb_authorization_required",
+            entry_id,
+        )
+        return
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        adb_authorization_issue_id(entry_id),
+        is_fixable=True,
+        is_persistent=True,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key=ISSUE_ADB_AUTHORIZATION,
+        translation_placeholders={"panel": panel_display_name(hass, entry)},
+        data={"entry_id": entry_id},
+    )
+
+
+def async_clear_adb_authorization(hass: HomeAssistant, entry_id: str) -> None:
+    """An admitted ADB route no longer needs an approval request."""
+    ir.async_delete_issue(hass, DOMAIN, adb_authorization_issue_id(entry_id))
+    issue_id = panel_failure_issue_id(f"update:{entry_id}")
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    entry = hass.config_entries.async_get_entry(entry_id)
+    if (
+        entry is not None
+        and issue is not None
+        and issue.translation_key == "installer_failure_adb_authorization"
+    ):
+        _issue(hass, issue_id, panel_display_name(hass, entry), "update", "")
+
+
+class _FailureStore:
+    """Serialize the small private history; the issue itself holds no report."""
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        self.store = Store[dict[str, Any]](
+            hass, 1, _STORE_KEY, private=True, atomic_writes=True
+        )
+        self.lock = asyncio.Lock()
+        self.records: dict[str, dict[str, Any]] | None = None
+
+    async def load(self) -> dict[str, dict[str, Any]]:
+        if self.records is None:
+            saved = await self.store.async_load()
+            self.records = saved if isinstance(saved, dict) else {}
+        return self.records
+
+    async def append(
+        self,
+        issue_id: str,
+        event: dict[str, Any],
+        after_save: Callable[[], None] | None = None,
+    ) -> None:
+        async with self.lock:
+            records = await self.load()
+            previous = records.get(issue_id, {})
+            events = previous.get("events", [])
+            if not isinstance(events, list):
+                events = []
+            updated = {
+                **records,
+                issue_id: {"events": [*events[-(_MAX_EVENTS - 1) :], event]},
+            }
+            await self.store.async_save(updated)
+            self.records = updated
+            if after_save is not None:
+                after_save()
+
+    async def clear(
+        self,
+        issue_id: str,
+        after_clear: Callable[[], None] | None = None,
+        when: Callable[[dict[str, Any]], bool] | None = None,
+    ) -> None:
+        async with self.lock:
+            records = await self.load()
+            if when is not None and not when(records.get(issue_id, {})):
+                return
+            if issue_id in records:
+                updated = {
+                    key: value for key, value in records.items() if key != issue_id
+                }
+                await self.store.async_save(updated)
+                self.records = updated
+            if after_clear is not None:
+                after_clear()
+
+
+def _failure_store(hass: HomeAssistant) -> _FailureStore:
+    store = hass.data.get(_DATA_KEY)
+    if isinstance(store, _FailureStore):
+        return store
+    store = _FailureStore(hass)
+    hass.data[_DATA_KEY] = store
+    return store
+
+
+_INSTALL_CAUSES = frozenset(
+    {
+        "authorization_failed",
+        "preflight_rejected",
+        "artifact_rejected",
+        "transport_failed",
+        "install_failed",
+        "launch_failed",
+        "health_check_failed",
+        "ambiguous_mutation",
+        "verification_required",
+    }
+)
+
+
+def _issue(
+    hass: HomeAssistant,
+    issue_id: str,
+    panel: str,
+    kind: str,
+    reason: str,
+    entry_id: str | None = None,
+) -> None:
+    if kind == "install" and reason in _INSTALL_CAUSES:
+        translation_key = f"{ISSUE_INSTALLER_FAILURE}_{reason}"
+    elif kind == "update" and reason == "adb_authorization_required":
+        translation_key = "installer_failure_adb_authorization"
+    elif kind == "update":
+        translation_key = f"{ISSUE_INSTALLER_FAILURE}_update"
+    elif kind == "retry_hold":
+        translation_key = f"{ISSUE_INSTALLER_FAILURE}_retry_hold"
+    else:
+        translation_key = ISSUE_INSTALLER_FAILURE
+    if translation_key == "installer_failure_adb_authorization" and entry_id:
+        ir.async_delete_issue(hass, DOMAIN, adb_authorization_issue_id(entry_id))
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        issue_id,
+        is_fixable=True,
+        is_persistent=True,
+        severity=ir.IssueSeverity.ERROR,
+        translation_key=translation_key,
+        translation_placeholders={"panel": panel},
+        data={"key": issue_id, **({"entry_id": entry_id} if entry_id else {})},
+    )
+
+
+def record_install_failure(hass: HomeAssistant, receipt: InstallJobReceipt) -> None:
+    """Record a verified terminal receipt without delaying its store commit."""
+    issue_id = panel_failure_issue_id(f"install:{receipt.target.adb_serial}")
+    reason = receipt.result_code.value if receipt.result_code else "install_failed"
+    event = {
+        "kind": "install",
+        "address": receipt.target.address,
+        "panel": receipt.target.address,
+        "reason": reason,
+        "job_id": receipt.job_id,
+        "receipt": asdict(receipt),
+    }
+    _issue(hass, issue_id, receipt.target.address, "install", reason)
+    hass.async_create_task(
+        _failure_store(hass).append(issue_id, event), eager_start=False
+    )
+
+
+def clear_install_failure(hass: HomeAssistant, receipt: InstallJobReceipt) -> None:
+    """A successful install makes its old error obsolete."""
+    issue_id = panel_failure_issue_id(f"install:{receipt.target.adb_serial}")
+    hass.async_create_task(
+        _failure_store(hass).clear(
+            issue_id, lambda: ir.async_delete_issue(hass, DOMAIN, issue_id)
+        ),
+        eager_start=False,
+    )
+
+
+async def async_record_update_failure(
+    hass: HomeAssistant,
+    entry_id: str,
+    panel_title: str,
+    target_version: str | None,
+    error: BaseException,
+    *,
+    artifact: dict[str, Any] | None = None,
+    observed_before: tuple[str, int | None] | None = None,
+) -> None:
+    """Retain the cause that Home Assistant's update toast otherwise loses."""
+    entry = hass.config_entries.async_get_entry(entry_id)
+    address = entry.data.get(CONF_ADDRESS) if entry else None
+    if entry is None or not isinstance(address, str):
+        return
+    issue_id = panel_failure_issue_id(f"update:{entry_id}")
+    panel = panel_display_name(hass, entry)
+    reason = str(error)
+    event: dict[str, Any] = {
+        "kind": "update",
+        "at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "address": address,
+        "panel": panel,
+        "reason": reason,
+        "entry_id": entry_id,
+        "target_version": target_version,
+        "exception": "".join(traceback.format_exception(error))[-12000:],
+    }
+    if artifact is not None:
+        event["artifact"] = artifact
+    if observed_before is not None:
+        event["observed_before"] = list(observed_before)
+    await _failure_store(hass).append(
+        issue_id,
+        event,
+        lambda: _issue(
+            hass,
+            issue_id,
+            panel,
+            "update",
+            getattr(error, "translation_key", None) or reason,
+            entry_id
+            if getattr(error, "translation_key", None) == "adb_authorization_required"
+            else None,
+        ),
+    )
+
+
+def async_refresh_update_failure_name(hass: HomeAssistant, entry_id: str) -> None:
+    """Refresh an existing Repair after its panel device name becomes known."""
+    entry = hass.config_entries.async_get_entry(entry_id)
+    if entry is None:
+        return
+    issue_id = panel_failure_issue_id(f"update:{entry_id}")
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    if issue is None:
+        return
+    kind = (
+        "retry_hold"
+        if issue.translation_key == "installer_failure_retry_hold"
+        else "update"
+    )
+    _issue(
+        hass,
+        issue_id,
+        panel_display_name(hass, entry),
+        kind,
+        "adb_authorization_required"
+        if issue.translation_key == "installer_failure_adb_authorization"
+        else "",
+        entry_id
+        if issue.translation_key == "installer_failure_adb_authorization"
+        else None,
+    )
+
+
+async def async_clear_update_failure_if_installed(
+    hass: HomeAssistant,
+    entry_id: str,
+    installed_version: str,
+    installed_code: int | None,
+    *,
+    verified_success: bool = False,
+    verified_current_code: int | None = None,
+) -> None:
+    """Resolve a saved failure only after this panel reaches its failed build."""
+    issue_id = panel_failure_issue_id(f"update:{entry_id}")
+    if ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None:
+        return
+
+    def reached(record: dict[str, Any]) -> bool:
+        events = record.get("events", [])
+        if not isinstance(events, list):
+            return False
+        previous = next(
+            (
+                event
+                for event in reversed(events)
+                if isinstance(event, dict) and event.get("kind") == "update"
+            ),
+            None,
+        )
+        target = previous.get("target_version") if previous is not None else None
+        if not isinstance(target, str):
+            if previous is None:
+                return verified_success
+            before = previous.get("observed_before")
+            if "observed_before" in previous:
+                if isinstance(before, list) and len(before) == 2:
+                    old_version, old_code = before
+                    if isinstance(old_version, str) and (
+                        is_newer_stable_version(installed_version, old_version)
+                        or (
+                            installed_version == old_version
+                            and isinstance(old_code, int)
+                            and installed_code is not None
+                            and installed_code > old_code
+                        )
+                    ):
+                        return True
+                return verified_success
+            return verified_success or (
+                verified_current_code is not None
+                and installed_code is not None
+                and installed_code >= verified_current_code
+            )
+        target_code = parse_build_request(target)
+        if target_code is not None:
+            return installed_code is not None and installed_code >= target_code
+        return is_version_at_least(installed_version, target) is True
+
+    await _failure_store(hass).clear(
+        issue_id,
+        lambda: ir.async_delete_issue(hass, DOMAIN, issue_id),
+        reached,
+    )
+
+
+async def async_failure_events(
+    hass: HomeAssistant, issue_id: str
+) -> list[dict[str, Any]]:
+    """Read only through the admin-gated fix flow, never through issue data."""
+    store = _failure_store(hass)
+    async with store.lock:
+        records = await store.load()
+        value = records.get(issue_id, {}).get("events", [])
+        if isinstance(value, list) and value:
+            return value
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    if issue is None:
+        return []
+    from .install_jobs import async_get_install_job_manager
+    from .install_receipt import InstallPhase
+
+    manager = await async_get_install_job_manager(hass)
+    receipts = await manager.async_list()
+    return [
+        {
+            "kind": "install",
+            "address": receipt.target.address,
+            "panel": receipt.target.address,
+            "reason": (
+                receipt.result_code.value if receipt.result_code else "install_failed"
+            ),
+            "job_id": receipt.job_id,
+            "receipt": asdict(receipt),
+        }
+        for receipt in receipts
+        if receipt.phase in {InstallPhase.FAILED, InstallPhase.RECOVERY_REQUIRED}
+        and panel_failure_issue_id(f"install:{receipt.target.adb_serial}") == issue_id
+    ]
+
+
+async def async_clear_failure(hass: HomeAssistant, issue_id: str) -> None:
+    """Clear the stored report when the owner clears the repair."""
+    await _failure_store(hass).clear(issue_id)
+
+
+async def async_delete_issue_and_report(hass: HomeAssistant, issue_id: str) -> None:
+    """Delete a Repair together with any failure report saved for it."""
+    await _failure_store(hass).clear(
+        issue_id, lambda: ir.async_delete_issue(hass, DOMAIN, issue_id)
+    )
+
+
+def update_failure_entry_id(issue_id: str, events: list[Any]) -> str | None:
+    """Return the entry an update failure Repair belongs to, if it is one."""
+    for event in events:
+        if not isinstance(event, dict):
+            continue
+        entry_id = event.get("entry_id")
+        if (
+            event.get("kind") == "update"
+            and isinstance(entry_id, str)
+            and panel_failure_issue_id(f"update:{entry_id}") == issue_id
+        ):
+            return entry_id
+    return None
+
+
+async def async_update_failure_entry_ids(hass: HomeAssistant) -> set[str]:
+    """Return every entry that a saved update failure report names."""
+    store = _failure_store(hass)
+    async with store.lock:
+        records = await store.load()
+    named = (
+        update_failure_entry_id(issue_id, record.get("events", []))
+        for issue_id, record in records.items()
+        if isinstance(record, dict) and isinstance(record.get("events"), list)
+    )
+    return {entry_id for entry_id in named if entry_id is not None}
+
+
+async def async_record_retry_hold(
+    hass: HomeAssistant, issue_id: str, previous: dict[str, Any], error: Exception
+) -> None:
+    """Keep the repair and show why its latest Retry could not proceed."""
+    reason = error.reason if isinstance(error, RetrySafetyHold) else "retry_failed"
+    entry_id = previous.get("entry_id")
+    entry = (
+        hass.config_entries.async_get_entry(entry_id)
+        if isinstance(entry_id, str)
+        else None
+    )
+    panel = (
+        panel_display_name(hass, entry)
+        if entry is not None
+        else str(previous.get("panel", "Panel"))
+    )
+    await _failure_store(hass).append(
+        issue_id,
+        {
+            "kind": "retry_hold",
+            "at": datetime.now(UTC).isoformat(timespec="seconds"),
+            "address": previous.get("address"),
+            "panel": panel,
+            "reason": reason,
+            "exception": "".join(traceback.format_exception(error))[-12000:],
+            "previous": previous.get("job_id") or previous.get("entry_id"),
+        },
+    )
+    _issue(hass, issue_id, panel, "retry_hold", reason)
+
+
+async def async_support_report(hass: HomeAssistant, issue_id: str) -> str:
+    """Produce a copyable, unredacted report for support."""
+    events = await async_failure_events(hass, issue_id)
+
+    def detail_lines(path: str, value: Any) -> list[str]:
+        if isinstance(value, dict) and value:
+            return [
+                line
+                for key, item in value.items()
+                for line in detail_lines(f"{path}.{key}" if path else str(key), item)
+            ]
+        if isinstance(value, list) and value:
+            return [
+                line
+                for index, item in enumerate(value)
+                for line in detail_lines(f"{path}[{index}]", item)
+            ]
+        scalar = "null" if value is None else str(value)
+        escaped = scalar.replace("\r", "\\r")
+        if "\n" in escaped:
+            return [f"{path}:", *(f"  {line}" for line in escaped.split("\n"))]
+        return [f"{path}: {escaped}"]
+
+    details = "\n".join(
+        detail_lines(
+            "",
+            {
+                "panel_assistant": {
+                    "version": INTEGRATION_VERSION,
+                    "build": INTEGRATION_BUILD,
+                },
+                "home_assistant": {"version": ha_version},
+                "repair": {"issue_id": issue_id},
+                "events": events,
+            },
+        )
+    )
+    longest_ticks = max((len(run) for run in re.findall(r"`+", details)), default=0)
+    fence = "`" * max(3, longest_ticks + 1)
+    return f"{fence}text\n{details}\n{fence}"
+
+
+async def async_retry_install_job(
+    hass: HomeAssistant, previous: InstallJobReceipt
+) -> InstallJobReceipt:
+    """Create a fresh job only if the previous physical target still matches."""
+    from .adb_credentials import async_get_durable_adb_credential
+    from .adb_protocol import same_physical_target
+    from .client import normalize_address
+    from .install_adb import async_installed_artifact_size, async_preflight_install
+    from .install_executor import _adb_target
+    from .install_jobs import async_get_install_job_manager
+    from .install_network import (
+        async_pin_install_target,
+        async_revalidate_install_target,
+    )
+    from .install_plan import _build_artifact, build_install_plan
+    from .install_receipt import InstallPhase
+    from .provisioning import InstallTargetState, async_probe_install_target
+    from .release_catalog import async_resolve_install_choice
+
+    if previous.phase not in {InstallPhase.FAILED, InstallPhase.RECOVERY_REQUIRED}:
+        raise RetrySafetyHold("retry_no_longer_needed")
+    try:
+        address = normalize_address(previous.target.address)
+        target = await async_pin_install_target(hass, address)
+        if target.pinned.stored_value != previous.target.pinned_address:
+            raise RetrySafetyHold("retry_target_changed")
+        target = await async_revalidate_install_target(hass, target)
+        credential = await async_get_durable_adb_credential(hass)
+        if credential.generation_id != previous.adb_credential_id:
+            raise RetrySafetyHold("retry_credential_changed")
+        probe = await async_probe_install_target(target.pinned, credential.signer)
+        # A panel holding only the old app is never given the new one beside it.
+        if probe.state not in {
+            InstallTargetState.INSTALL_CANDIDATE,
+            InstallTargetState.INSTALLED,
+        } or not same_physical_target(probe, _adb_target(previous)):
+            raise RetrySafetyHold("retry_target_changed")
+        rc_tag = previous.artifact.release_tag
+        release = await async_resolve_install_choice(hass, rc_tag)
+        if (
+            _build_artifact(
+                release, rc_tag, prerelease_opt_in=previous.artifact.prerelease_opt_in
+            )
+            != previous.artifact
+        ):
+            raise RetrySafetyHold("retry_release_changed")
+        if probe.state is InstallTargetState.INSTALLED:
+            assert release.descriptor is not None
+            adb_target = probe.adb_target(target.pinned)
+            assert adb_target is not None
+            observed = await async_preflight_install(
+                adb_target,
+                credential.signer,
+                release.descriptor,
+                admit_installed_target=True,
+            )
+            if not observed.target_installed:
+                raise RetrySafetyHold("retry_panel_ambiguous")
+            installed_bytes = await async_installed_artifact_size(
+                adb_target,
+                credential.signer,
+                release.descriptor,
+                expected_root_mode=observed.root_mode,
+            )
+            if installed_bytes is None:
+                raise RetrySafetyHold("retry_panel_ambiguous")
+            probe = replace(probe, installed_artifact_size=installed_bytes)
+        plan = build_install_plan(
+            target,
+            probe,
+            release,
+            credential.generation_id,
+            expected_rc_tag=rc_tag,
+            prerelease_opt_in=previous.artifact.prerelease_opt_in,
+        )
+        if plan.target != previous.target or plan.artifact != previous.artifact:
+            raise RetrySafetyHold("retry_target_changed")
+        manager = await async_get_install_job_manager(hass)
+        receipt, _created = await manager.async_create_or_join(
+            plan.target, plan.artifact, plan.plan_sha256, plan.adb_credential_id
+        )
+        return receipt
+    except RetrySafetyHold:
+        raise
+    except Exception as err:
+        raise RetrySafetyHold("retry_cannot_prove_safe") from err

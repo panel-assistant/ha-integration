@@ -18,7 +18,7 @@ from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.client import CannotConnectError, HaPaneldClient
-from custom_components.panel_assistant.transport import async_get_sessions
+from custom_components.panel_assistant.transport_sessions import async_get_sessions
 
 from .test_availability import STATUS_ENTITY, _load, _state
 from .test_transport import DID, HEALTH, HELLO, STATUS, WsClientFactory, _receive, _send

@@ -40,7 +40,8 @@
     "loading": "Carregando versões…",
     "catalogError": "Não foi possível carregar a lista de versões.",
     "empty": "Ainda não há versões disponíveis. Tente novamente mais tarde.",
-    "choose": "Seguir o canal do Panel Assistant (recomendado)",
+    "choose": "Versão recomendada",
+    "otherVersions": "Escolher outra versão",
     "testing": "versão de teste",
     "devBuild": "compilação de desenvolvimento",
     "retry": "Tentar novamente",
@@ -54,6 +55,7 @@
     "downloading": "Preparando o aplicativo…",
     "verifying": "Preparando o aplicativo…",
     "verified": "Continue na nova janela.",
+    "installed": "O Panel Assistant está instalado. Conclua a configuração do painel na janela do instalador e depois feche esta guia.",
     "cancelled": "Cancelado.",
     "popup_blocked": "Seu navegador bloqueou a nova janela. Permita pop-ups nesta página e pressione Continuar.",
     "invalid_request": "Escolha uma versão primeiro.",
@@ -65,9 +67,11 @@
     "preparingSlow": "Ainda estamos preparando o aplicativo. Mantenha a aba do Home Assistant aberta.",
     "connectHeading": "Conecte seu painel",
     "connectBody": "Conecte o painel a este computador com um cabo USB e pressione Encontrar meu painel.",
+    "usbDebugging": "A depuração USB deve estar ativada nas configurações de desenvolvedor do painel.",
+    "usbDebuggingHelp": "Como ativar",
     "connect": "Encontrar meu painel",
     "allowHeading": "Permita este computador",
-    "allowBody": "Olhe a tela do painel e toque em Permitir.",
+    "allowBody": "No painel, marque “Sempre permitir a partir deste computador” e toque em Permitir, para que o Panel Assistant possa atualizá-lo depois sem o cabo.",
     "checkingPanel": "Verificando seu painel…",
     "confirmHeading": "Pronto para instalar",
     "confirmBody": "Isso instala o aplicativo e o torna a tela inicial do seu painel. Seus outros aplicativos não são alterados.",
@@ -101,7 +105,8 @@
     "pageClosed": "A página foi fechada.",
     "progress": "Progresso",
     "installProgress": "Progresso da instalação",
-    "licenses": "Licenças de terceiros"
+    "licenses": "Licenças de terceiros",
+    "doneAnotherHomeAssistant": "Este painel está atualmente com sessão iniciada em outro Home Assistant. Troque o Home Assistant e faça login no painel para conectá-lo aqui."
   },
   "errors": {
     "installErrorGeneric": "Algo deu errado. Mantenha o painel conectado e pressione Tentar novamente.",
@@ -112,7 +117,8 @@
     "installErrorNotClean": "Este painel já tem o aplicativo. Atualize-o pelo Home Assistant.",
     "installErrorIncompatible": "Este painel não consegue executar esta versão do aplicativo.",
     "installErrorConnection": "A conexão com o painel caiu. Mantenha-o conectado e pressione Tentar novamente.",
-    "installErrorHealth": "O aplicativo está instalado, mas ainda não iniciou. Aguarde um momento e tente novamente."
+    "installErrorHealth": "O aplicativo está instalado, mas ainda não iniciou. Aguarde um momento e tente novamente.",
+    "installErrorPermissions": "O aplicativo está instalado, mas não foi possível confirmar as permissões dele. Tentar de novo é seguro: mantenha o painel conectado e pressione Tentar novamente."
   },
   "journey": {
     "version": "Versão",
@@ -129,6 +135,7 @@
   "support": {
     "stopped": "Interrompido",
     "cause": "Causa",
+    "failedCheck": "Verificação com falha",
     "error": "Erro",
     "release": "Versão",
     "panel": "Painel",
@@ -141,7 +148,8 @@
     "permissions": "Permissões",
     "setupAddress": "Endereço de configuração",
     "setupHandover": "Transferência da configuração",
-    "displaySizing": "Tamanho da tela e do texto",
+    "displaySizing": "Escala de exibição e tamanho do texto",
+    "networkAdb": "ADB pela rede",
     "copiedDetail": "{bytes} bytes enviados; aguardando a confirmação do painel",
     "none": "nenhum",
     "setupMissing": "não encontrado; a configuração continua no painel"

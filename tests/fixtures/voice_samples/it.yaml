@@ -1,0 +1,38 @@
+match:
+  - {text: "mostra la pagina delle telecamere", command: show_page, page: telecamere}
+  - {text: "mostrami la dashboard energia", command: show_page, page: energia}
+  - {text: "fammi vedere la vista del soggiorno", command: show_page, page: soggiorno}
+  - {text: "mostra la dashboard principale", command: show_page, page: principale}
+  - {text: "voglio vedere la scheda dei sensori", command: show_page, page: sensori}
+  - {text: "vai alla dashboard cucina", command: show_page, page: cucina}
+  - {text: "torna alla dashboard home", command: show_page, page: home}
+  - {text: "vai alla pagina di sicurezza", command: show_page, page: sicurezza}
+  - {text: "visualizza la pagina delle telecamere", command: show_page, page: telecamere}
+  - {text: "fammi vedere la dashboard delle luci", command: show_page, page: luci}
+  - {text: "mostra le impostazioni di android", command: android_settings}
+  - {text: "mostrami impostazioni android", command: android_settings}
+  - {text: "vai alle impostazioni di android", command: android_settings}
+  - {text: "voglio vedere le impostazioni di android", command: android_settings}
+  - {text: "visualizza le impostazioni di android", command: android_settings}
+  - {text: "mostra il launcher", command: launcher}
+  - {text: "mostrami la schermata home di android", command: launcher}
+  - {text: "vai alla schermata home di android", command: launcher}
+  - {text: "mostrami la home di android", command: launcher}
+  - {text: "torna alla schermata iniziale di android", command: launcher}
+  - {text: "mostrami la schermata principale di android", command: launcher}
+  - {text: "voglio vedere il launcher", command: launcher}
+  - {text: "vai al launcher", command: launcher}
+  - {text: "torna al launcher", command: launcher}
+miss:
+  - "spegni lo schermo"
+  - "torna indietro"
+  - "che ore sono"
+  - "che tempo fa"
+  - "imposta la luminosità al 50 percento"
+  - "mostra telecamere"
+  - "ricarica"
+  - "mostra le impostazioni"
+  - "ricarica la dashboard"
+builtin:
+  screen_off: "spegni lo schermo"
+  screen_on: "accendi lo schermo"

@@ -3,34 +3,42 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
+from collections.abc import Generator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
+from unittest.mock import patch
 
 import pytest
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 from homeassistant.core import HomeAssistant
 
-from custom_components.panel_assistant import install_executor
+from custom_components.panel_assistant import install_executor, install_jobs
 from custom_components.panel_assistant.adb_credentials import (
     AdbCredential,
     AdbCredentialError,
 )
+from custom_components.panel_assistant.adb_protocol import (
+    AdbInstallTarget,
+    AdbPreflight,
+    AdbRootMode,
+    InstallAdbError,
+    InstallAdbErrorCode,
+    InstallOutcome,
+    LaunchOutcome,
+)
+from custom_components.panel_assistant.app_identity import PACKAGE_ID
 from custom_components.panel_assistant.client import (
     CannotConnectError,
     PanelAddress,
     PanelHealth,
     PanelSetupState,
 )
+from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.install_adb import (
-    AdbInstallTarget,
-    AdbPreflight,
-    AdbRootMode,
     DefiniteCleanupReason,
-    InstallAdbError,
-    InstallAdbErrorCode,
-    InstallOutcome,
-    LaunchOutcome,
     StagedApk,
 )
 from custom_components.panel_assistant.install_artifacts import (
@@ -48,6 +56,7 @@ from custom_components.panel_assistant.install_jobs import (
     InstallJobReceipt,
     InstallPhase,
     InstallTarget,
+    install_plan_sha256,
 )
 from custom_components.panel_assistant.install_network import (
     InstallNetworkErrorCode,
@@ -80,17 +89,19 @@ def artifact() -> InstallArtifact:
         release_tag="v0.1.0",
         version_name="0.1.0",
         version_code=100,
-        apk_name="ha-paneld-v0.1.0-manual-setup-required.apk",
+        apk_name="panel-assistant-v0.1.0-manual-setup-required.apk",
         apk_sha256=APK_SHA256,
         apk_size=12_345,
-        package_id="io.github.maxlyth.hapaneld",
+        package_id="io.panelassistant.android",
         signer_certificate_sha256=(
             "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
         ),
         min_sdk=26,
         supported_abis=("arm64-v8a", "armeabi-v7a"),
         database_compatibility="hapaneld-db:v1:ha-paneld.db:1:14",
-        launch_component="io.github.maxlyth.hapaneld/.MainActivity",
+        launch_component=(
+            "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity"
+        ),
         protocol_min=5,
         protocol_max=5,
     )
@@ -173,6 +184,9 @@ class Harness:
             tuple[AdbInstallTarget, InstallDescriptor, AdbRootMode]
         ] = []
         self.download_error: ArtifactCustodyError | None = None
+        # When set, the download writes these bytes as the job's private file,
+        # so the real ADB staging code can open, hash and copy it.
+        self.local_apk: tuple[Path, bytes] | None = None
         self.download_mutation: str | None = None
         self.local_cleanup_error: ArtifactCustodyError | None = None
         self.local_cleanup_error_at: int | None = None
@@ -192,6 +206,7 @@ class Harness:
         self.home_proof_calls = 0
         # Scripted `pkg=` answers, consumed in order; the last one repeats. A
         # string is that reply's reported package, an exception is raised.
+        # With none scripted the panel reports the app's id, as the app does.
         self.health_packages: list[Exception | str | None] = []
         # What the installed panel says about its own setup at the end of the
         # install, and every Home Assistant address it was then handed. Setup
@@ -254,6 +269,11 @@ class Harness:
             "async_launch_installed_app",
             self.async_launch,
         )
+        self.monkeypatch.setattr(
+            install_executor,
+            "async_settle_vendor_display",
+            self.async_settle_display,
+        )
         harness = self
 
         class FakeClient:
@@ -275,7 +295,7 @@ class Harness:
                 harness.health_calls += 1
                 if harness.health_error is not None:
                     raise harness.health_error
-                package: Exception | str | None = None
+                package: Exception | str | None = PACKAGE_ID
                 if harness.health_packages:
                     index = min(
                         harness.health_calls - 1, len(harness.health_packages) - 1
@@ -336,7 +356,9 @@ class Harness:
             else CREDENTIAL_ID
         )
         credential = AdbCredential(
-            signer=cast(PythonRSASigner, object()),
+            # A real signer type, so the real ADB connect accepts it; the fake
+            # panels never ask it to sign.
+            signer=object.__new__(PythonRSASigner),
             generation_id=generation,
         )
         self.credentials.append(credential)
@@ -423,6 +445,17 @@ class Harness:
         self.download_arguments.append((release, job_id))
         if self.download_error is not None:
             raise self.download_error
+        if self.local_apk is not None:
+            directory, body = self.local_apk
+            path = directory / f"{job_id}.apk"
+            path.write_bytes(body)
+            path.chmod(0o600)
+            return CustodiedArtifact(
+                job_id=job_id,
+                path=str(path),
+                size=len(body),
+                sha256=hashlib.sha256(body).hexdigest(),
+            )
         return CustodiedArtifact(
             job_id="d" * 32 if self.download_mutation == "job_id" else job_id,
             path=(
@@ -541,6 +574,17 @@ class Harness:
             raise self.launch_error
         return self.launch_outcome
 
+    async def async_settle_display(
+        self,
+        target: AdbInstallTarget,
+        signer: PythonRSASigner,
+        descriptor: InstallDescriptor,
+        *,
+        expected_root_mode: AdbRootMode,
+    ) -> str:
+        self.events.append("display_settlement")
+        return "skipped"
+
 
 async def run_job(
     hass: HomeAssistant,
@@ -550,3 +594,105 @@ async def run_job(
     receipt = (await manager.async_list())[0]
     executor = InstallExecutor(hass, manager)
     return await executor.async_wait(receipt.job_id)
+
+
+_REAL_STORE_PRESENCE = install_jobs._store_presence
+_REAL_PARSE_STORE_DOCUMENT = install_jobs._parse_store_document
+_REAL_PARSE_DETAIL_STORE_DOCUMENT = install_jobs._parse_detail_store_document
+
+
+@pytest.fixture(autouse=True)
+def emulate_home_assistant_store_file(
+    hass_storage: dict[str, Any],
+) -> Generator[None]:
+    """Model the Store file hidden by HA's in-memory test storage manager."""
+
+    def _presence(path: str) -> tuple[bool, bool]:
+        exists, corrupt = _REAL_STORE_PRESENCE(path)
+        if exists or corrupt:
+            return exists, corrupt
+        key = Path(path).name
+        if key in {
+            f"{DOMAIN}.install_jobs",
+            f"{DOMAIN}.install_jobs.details",
+        }:
+            return key in hass_storage, False
+        return False, False
+
+    def _durable_reader(_path: str) -> dict[str, InstallJobReceipt]:
+        document = hass_storage.get(f"{DOMAIN}.install_jobs")
+        if document is None:
+            raise install_jobs.InstallJobStoreError
+        return _REAL_PARSE_STORE_DOCUMENT(
+            json.dumps(document, separators=(",", ":")).encode("utf-8")
+        )
+
+    def _detail_reader(_path: str) -> Any:
+        document = hass_storage.get(f"{DOMAIN}.install_jobs.details")
+        if document is None:
+            raise install_jobs.InstallJobStoreError
+        return _REAL_PARSE_DETAIL_STORE_DOCUMENT(
+            json.dumps(document, separators=(",", ":")).encode("utf-8")
+        )
+
+    with (
+        patch.object(install_jobs, "_store_presence", side_effect=_presence),
+        patch.object(install_jobs, "_read_durable_jobs", side_effect=_durable_reader),
+        patch.object(install_jobs, "_read_durable_details", side_effect=_detail_reader),
+    ):
+        yield
+
+
+async def create_job(
+    manager: InstallJobManager,
+    selected_artifact: InstallArtifact | None = None,
+) -> InstallJobReceipt:
+    """Create one durable approved receipt."""
+    selected_target = target()
+    selected_artifact = selected_artifact or artifact()
+    receipt, created = await manager.async_create_or_join(
+        selected_target,
+        selected_artifact,
+        install_plan_sha256(selected_target, selected_artifact, CREDENTIAL_ID),
+        CREDENTIAL_ID,
+    )
+    assert created
+    return receipt
+
+
+async def seed_phase(
+    hass: HomeAssistant, phase: InstallPhase
+) -> tuple[InstallJobReceipt, InstallJobManager]:
+    """Persist a phase, then return a new manager which has no memory claim."""
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    if phase is InstallPhase.APPROVED:
+        return receipt, InstallJobManager(hass)
+    receipt = await manager.async_claim(receipt.job_id, receipt.revision)
+    phases = (
+        InstallPhase.AUTHORIZING,
+        InstallPhase.PREFLIGHT,
+        InstallPhase.DOWNLOADING,
+        InstallPhase.ARTIFACT_READY,
+        InstallPhase.REVALIDATING,
+        InstallPhase.STAGING,
+        InstallPhase.INSTALLING,
+        InstallPhase.INSTALLED,
+        InstallPhase.LAUNCHING,
+        InstallPhase.HEALTH_CHECK,
+    )
+    for next_phase in phases:
+        transition_fields: dict[str, object] = {}
+        if next_phase is InstallPhase.ARTIFACT_READY:
+            transition_fields["actual_apk_bytes"] = artifact().apk_size
+        if next_phase is InstallPhase.DOWNLOADING:
+            transition_fields["preflight_root_mode"] = AdbRootMode.ROOTLESS.value
+        receipt = await manager.async_transition(
+            receipt.job_id,
+            receipt.revision,
+            next_phase,
+            **transition_fields,
+        )
+        if next_phase is phase:
+            return receipt, InstallJobManager(hass)
+    raise AssertionError

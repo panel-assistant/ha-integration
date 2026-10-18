@@ -14,8 +14,8 @@ from homeassistant.helpers.translation import async_get_translations
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.panel_assistant import update as panel_update
-from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
+from custom_components.panel_assistant import update_staging
+from custom_components.panel_assistant.app_identity import PACKAGE_ID
 from custom_components.panel_assistant.build_feed import BuildDownloadError
 from custom_components.panel_assistant.client import (
     CannotConnectError,
@@ -27,12 +27,12 @@ from custom_components.panel_assistant.client import (
 )
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.coordinator import HaPaneldDataUpdateCoordinator
-from custom_components.panel_assistant.failure_repair import (
+from custom_components.panel_assistant.feed_coordinator import StableReleaseCoordinator
+from custom_components.panel_assistant.release import ReleaseArtifact
+from custom_components.panel_assistant.repairs_failure import (
     async_clear_update_failure_if_installed,
     panel_failure_issue_id,
 )
-from custom_components.panel_assistant.feed_coordinator import StableReleaseCoordinator
-from custom_components.panel_assistant.release import ReleaseArtifact
 from custom_components.panel_assistant.status import parse_status_response
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity
 from custom_components.panel_assistant.update_coordinator import PanelUpdateCoordinator
@@ -58,6 +58,7 @@ HEALTH = PanelHealth(
     build="100",
     config_hash="abcd1234",
     discovery_id="a" * 64,
+    package=PACKAGE_ID,
     protocol=(5, 5),
 )
 
@@ -359,16 +360,16 @@ async def test_successful_panel_update_keeps_its_dashboard_and_permission_warnin
         "app.apk",
         "https://github.com/app.apk",
         "a" * 64,
-        descriptor=SimpleNamespace(package_id=LEGACY_PACKAGE_ID, version_code=101),
+        descriptor=SimpleNamespace(package_id=PACKAGE_ID, version_code=101),
         protocol_min=5,
         protocol_max=5,
     )
     release = StableReleaseCoordinator(hass)
-    release._candidates[artifact.tag, LEGACY_PACKAGE_ID] = artifact
+    release._candidates[artifact.tag, PACKAGE_ID] = artifact
     # The authenticated PA offer owns admission. A failed host download still
     # exercises the production panel-download route and its success observer.
     monkeypatch.setattr(
-        panel_update,
+        update_staging,
         "async_download_build",
         AsyncMock(side_effect=BuildDownloadError("host download unavailable")),
     )

@@ -1,32 +1,29 @@
-"""The sidebar's embedded panel interface: sessions and the proxy.
+"""The sidebar's embedded panel interface: sessions and the embed view.
 
 An administrator's sidebar opens an embed session over its WebSocket. The
-session's token names a path under which Home Assistant proxies the panel's own
-web interface, so the browser never needs to reach the panel and the panel never
-sees the browser's credential. The integration gives the panel no credential of
-its own either: a panel signs in to Home Assistant through its own setup, and
-everything before that runs over its REST API.
+session's token names a path under which Home Assistant serves the panel's own
+interface without opening any connection to the panel: its pages come over the
+panel's session, its scripts and styles from the bundle Panel Assistant keeps
+for its build, and its requests through the sidebar's relay (see
+``ui_relay.py``). The panel never sees the browser's credential, and the
+integration gives the panel no credential of its own either.
 
-Every proxied request is checked again, and a request that fails the check is
-answered 404 rather than 401: Core records each 401 as a failed login and
-notifies about it, which an expired frame would do for every one of its
-subresources.
+Every request is checked again, and a request that fails the check is answered
+404 rather than 401: Core records each 401 as a failed login and notifies
+about it, which an expired frame would do for every one of its subresources.
 """
 
 from __future__ import annotations
 
-import asyncio
-import logging
 import re
 import secrets
 import time
-from collections.abc import AsyncIterator, Callable
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Final
 
-import aiohttp
 import voluptuous as vol
-from aiohttp import hdrs, web
+from aiohttp import web
 from homeassistant.auth import EVENT_USER_REMOVED
 from homeassistant.components import websocket_api
 from homeassistant.components.websocket_api.connection import ActiveConnection
@@ -36,21 +33,22 @@ from homeassistant.components.websocket_api.decorators import (
 )
 from homeassistant.components.websocket_api.messages import event_message
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
-from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import Event, HomeAssistant, callback
-from homeassistant.exceptions import Unauthorized
+from homeassistant.exceptions import HomeAssistantError, Unauthorized
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.http import HomeAssistantView
-from yarl import URL
 
-from . import embed_proof
-from .client import PanelAddress, normalize_address
+from .blob import async_get_blobs, receive, send
 from .const import DOMAIN
 from .device import panel_display_name
-from .transport import PanelSession, async_get_sessions
-
-_LOGGER = logging.getLogger(__name__)
+from .transport_protocol import ERR_PANEL_UNAVAILABLE, OUTCOME_APPLIED
+from .ui_relay import (
+    BROWSER_BLOB,
+    async_get_bundles,
+    async_manage,
+    content_type,
+    live_ui_session,
+)
 
 DATA_EMBED: Final = "embed"
 EMBED_PREFIX: Final = "/api/panel_assistant/embed"
@@ -67,60 +65,32 @@ ERR_NOT_LOADED: Final = "not_loaded"
 
 MAX_PANELS: Final = 200
 RESUME_SECONDS: Final = 60
-RECHECK_SECONDS: Final = 30
-MAX_CONCURRENT: Final = 16
-MAX_LONG_LIVED: Final = 2
-MAX_REQUEST_BODY: Final = 256 * 1024 * 1024
-MAX_REWRITTEN_BODY: Final = 2 * 1024 * 1024
 BASE_WINDOW: Final = 4096
 BASE_ELEMENT: Final = b'<base href="/">'
-# Streams of logs and held captures run as long as they are open; only reaching
-# the panel is bounded.
-PROXY_TIMEOUT: Final = aiohttp.ClientTimeout(total=None, sock_connect=10)
 
-EMBED_HEADER: Final = "X-Panel-Assistant-Embed"
-# The API page is a developer page whose calls would escape the proxy.
+# The API page is a developer page whose calls would escape the embed view.
 ALWAYS_HIDDEN: Final = ("api",)
 _TOKEN = re.compile(r"[A-Za-z0-9_-]{43}")
 _LANGUAGE = re.compile(r"[A-Za-z]{1,8}(?:-[A-Za-z0-9]{1,8})*")
 _MAX_LANGUAGE = 35
-
-REQUEST_HEADERS: Final = (
-    hdrs.ACCEPT,
-    hdrs.CONTENT_TYPE,
-    hdrs.CONTENT_LENGTH,
-    hdrs.IF_NONE_MATCH,
-    hdrs.IF_MODIFIED_SINCE,
-    hdrs.LAST_EVENT_ID,
-    hdrs.USER_AGENT,
-)
-RESPONSE_HEADERS: Final = (
-    hdrs.CONTENT_TYPE,
-    hdrs.CONTENT_LENGTH,
-    hdrs.CONTENT_DISPOSITION,
-    hdrs.CONTENT_LANGUAGE,
-    hdrs.CACHE_CONTROL,
-    hdrs.ETAG,
-    hdrs.LAST_MODIFIED,
-    hdrs.VARY,
-    hdrs.RETRY_AFTER,
-    # A tap that ran but could not be captured still names its route; the
-    # panel page reads it to refresh the screenshot instead of calling the tap
-    # refused, which would invite a second tap.
-    "X-ha-paneld-Input-Route",
-)
-# Core's header middleware stamps these only after the handler returns, which is
-# too late for a response that has already started streaming.
+# The page each path names, answered by ``page.<name>`` over the session.
+PAGES: Final = {
+    "": "info",
+    "configure": "configure",
+    "setup": "setup",
+    "profiles": "profiles",
+    "install": "install",
+    "logs": "logs",
+    "entities": "entities",
+}
+# The bundle's files outside ``assets/``.
+BUNDLE_FILES: Final = frozenset({"info.js", "info.css", "icon.svg", "favicon.svg"})
 SECURITY_HEADERS: Final = {
     "Content-Security-Policy": "frame-ancestors 'self'",
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "SAMEORIGIN",
     "Referrer-Policy": "no-referrer",
 }
-# Aiohttp adds these unasked; only the allowlist may reach the panel.
-_SKIP_AUTO_HEADERS: Final = frozenset(
-    {hdrs.ACCEPT, hdrs.ACCEPT_ENCODING, hdrs.CONTENT_TYPE, hdrs.USER_AGENT}
-)
 
 
 @dataclass(slots=True, eq=False)
@@ -140,9 +110,8 @@ class EmbedSession:
     # When the subscription ended without the session ending: a reconnecting
     # sidebar may resume the token for a short while, so its frame stays loaded.
     detached_at: float | None = None
-    active: int = 0
-    long_lived: int = 0
-    upstream: set[aiohttp.ClientResponse] = field(default_factory=set)
+    # The relay connection its page requests name to the panel.
+    relay_id: str = field(default_factory=lambda: secrets.token_urlsafe(16))
 
     @property
     def url(self) -> str:
@@ -151,7 +120,7 @@ class EmbedSession:
 
     @property
     def embed_header(self) -> str:
-        """Return the panel's embedded-mode switch for this session."""
+        """Return the panel's embedded-mode switch for this session's pages."""
         parts = ["v=1"]
         if self.language is not None:
             parts.append(f"lang={self.language}")
@@ -238,8 +207,6 @@ class EmbedSessions:
         """End a session for good, and tell a sidebar still subscribed why."""
         if self._by_token.pop(session.token, None) is not session:
             return
-        for response in list(session.upstream):
-            response.close()
         connection = session.connection
         if connection is not None and session.subscription_id is not None:
             connection.subscriptions.pop(session.subscription_id, None)
@@ -394,6 +361,13 @@ def ws_embed_session(
         return
     if connection.refresh_token_id is None:
         raise Unauthorized
+    if live_ui_session(hass, entry.entry_id) is None:
+        # Without a session that serves the sidebar the frame would stay blank;
+        # refused, the sidebar shows why and asks again on its next refresh.
+        connection.send_error(
+            msg["id"], ERR_PANEL_UNAVAILABLE, "The panel cannot be reached now."
+        )
+        return
     session = async_get_embed_sessions(hass).open(
         connection,
         msg["id"],
@@ -411,88 +385,46 @@ def ws_embed_session(
 
 
 # ---------------------------------------------------------------------------
-# The proxy.
+# The embed view.
 
 
-def _host_header(address: PanelAddress) -> str:
-    """Return the panel's Host header, always with its port."""
-    host = f"[{address.host}]" if ":" in address.host else address.host
-    return f"{host}:{address.port}"
+def _respond(status: int, **fields: Any) -> web.Response:
+    response = web.Response(status=status, **fields)
+    response.headers.update(SECURITY_HEADERS)
+    return response
 
 
-def _not_found() -> web.Response:
-    return web.Response(status=404, headers=SECURITY_HEADERS)
+# A page asked for while the panel's session is down (it restarts with every app
+# update) asks again shortly, so an open sidebar shows the panel once it is back
+# instead of staying blank until another panel is chosen.
+RETRY_SECONDS: Final = 3
 
 
-def _plain(status: int, extra: dict[str, str] | None = None) -> web.Response:
-    return web.Response(status=status, headers={**SECURITY_HEADERS, **(extra or {})})
-
-
-class _BoundedBody:
-    """Stream the browser's body to the panel, stopping past the proxy's limit."""
-
-    def __init__(self, request: web.Request) -> None:
-        self._request = request
-        self.too_large = False
-
-    async def __aiter__(self) -> AsyncIterator[bytes]:
-        sent = 0
-        async for chunk in self._request.content.iter_any():
-            sent += len(chunk)
-            if sent > MAX_REQUEST_BODY:
-                # Aiohttp reports a failing body as a connection error, so the
-                # reason is kept here.
-                self.too_large = True
-                raise ValueError("request body too large")
-            yield chunk
-
-
-def _is_long_lived_request(request: web.Request, target: URL) -> bool:
-    accept = request.headers.get(hdrs.ACCEPT, "")
-    return "text/event-stream" in accept.lower() or (
-        target.path == "/api/v1/input" and target.query.get("capture") == "1"
+def _retry() -> web.Response:
+    return _respond(
+        503,
+        body=f'<!doctype html><meta http-equiv="refresh" content="{RETRY_SECONDS}">',
+        content_type="text/html",
+        headers={"Retry-After": str(RETRY_SECONDS)},
     )
 
 
-async def _read_bounded(result: aiohttp.ClientResponse, limit: int) -> bytes:
-    """Read a response until it ends or passes the limit, whichever is first."""
-    chunks: list[bytes] = []
-    size = 0
-    while size <= limit and (chunk := await result.content.readany()):
-        chunks.append(chunk)
-        size += len(chunk)
-    return b"".join(chunks)
-
-
-def _is_long_lived_response(result: aiohttp.ClientResponse) -> bool:
-    content_type = result.headers.get(hdrs.CONTENT_TYPE, "")
-    return (
-        content_type.partition(";")[0].strip().lower() == "text/event-stream"
-        or hdrs.CONTENT_DISPOSITION in result.headers
+def _rebase(page: bytes, prefix: str) -> bytes:
+    """Point the page's base element at the embed view, so its URLs stay inside."""
+    at = page.find(BASE_ELEMENT, 0, BASE_WINDOW)
+    if at < 0:
+        return page
+    return b"".join(
+        (page[:at], f'<base href="{prefix}/">'.encode(), page[at + len(BASE_ELEMENT) :])
     )
 
 
-def _rewrite_location(location: str, address: PanelAddress, prefix: str) -> str | None:
-    """Return a redirect that stays inside the proxy, or nothing."""
-    if location.startswith("/") and not location.startswith("//"):
-        return prefix + location
-    try:
-        url = URL(location)
-    except ValueError:
-        return None
-    if (
-        url.is_absolute()
-        and url.scheme == "http"
-        and url.host is not None
-        and url.host.lower() == address.host
-        and url.port == address.port
-    ):
-        return prefix + (url.raw_path_qs or "/")
-    return None
+class EmbedView(HomeAssistantView):
+    """Serve a panel's own interface to the administrator who opened it.
 
-
-class EmbedProxyView(HomeAssistantView):
-    """Serve a panel's own web interface to the administrator who opened it."""
+    Nothing here opens a connection to the panel: pages come over its session,
+    bundle files from the store, and blobs from the browser's own transfers.
+    """
 
     url = EMBED_PREFIX + "/{token}/{path:.*}"
     name = "api:panel_assistant:embed"
@@ -503,232 +435,94 @@ class EmbedProxyView(HomeAssistantView):
         """Initialize the view."""
         self.hass = hass
 
-    async def _handle(
-        self, request: web.Request, token: str, path: str
-    ) -> web.StreamResponse:
+    def _admit(self, token: str) -> tuple[EmbedSession, ConfigEntry] | None:
         if not _TOKEN.fullmatch(token):
-            return _not_found()
-        sessions = async_get_embed_sessions(self.hass)
-        admitted = sessions.admit(token)
-        prefix = f"{EMBED_PREFIX}/{token}"
-        if admitted is None or not request.raw_path.startswith(prefix + "/"):
-            return _not_found()
+            return None
+        return async_get_embed_sessions(self.hass).admit(token)
+
+    async def get(self, request: web.Request, token: str, path: str) -> web.Response:
+        """Serve a page, a bundle file or a download."""
+        if (admitted := self._admit(token)) is None:
+            return _respond(404)
         session, entry = admitted
-        raw_target = request.raw_path[len(prefix) :]
-        target = URL(raw_target, encoded=True)
-        long_lived = _is_long_lived_request(request, target)
-        if session.active >= MAX_CONCURRENT or (
-            long_lived and session.long_lived >= MAX_LONG_LIVED
-        ):
-            return _plain(429, {hdrs.RETRY_AFTER: "2"})
-        declared = request.content_length
-        if declared is not None and declared > MAX_REQUEST_BODY:
-            return _plain(413)
-
-        address = normalize_address(entry.data[CONF_ADDRESS])
-        headers: dict[str, str] = {hdrs.HOST: _host_header(address)}
-        for name in REQUEST_HEADERS:
-            if (value := request.headers.get(name)) is not None:
-                headers[name] = value
-        headers["Sec-Fetch-Site"] = "same-origin"
-        if session.language is not None:
-            headers[hdrs.ACCEPT_LANGUAGE] = session.language
-        headers[EMBED_HEADER] = session.embed_header
-
-        session.active += 1
-        if long_lived:
-            session.long_lived += 1
-        try:
-            return await self._forward(
-                request, session, address, raw_target, headers, prefix, long_lived
+        if (name := PAGES.get(path)) is not None:
+            return await self._page(request, session, entry, name)
+        if path in BUNDLE_FILES or path.startswith("assets/"):
+            panel = live_ui_session(self.hass, entry.entry_id)
+            data = (
+                None
+                if panel is None
+                else await async_get_bundles(self.hass).async_file(entry, panel, path)
             )
-        finally:
-            session.active -= 1
-            if long_lived:
-                session.long_lived -= 1
-
-    async def _forward(
-        self,
-        request: web.Request,
-        session: EmbedSession,
-        address: PanelAddress,
-        raw_target: str,
-        headers: dict[str, str],
-        prefix: str,
-        long_lived: bool,
-    ) -> web.StreamResponse:
-        url = URL(str(address.base_url) + raw_target, encoded=True)
-        body: _BoundedBody | bytes | None
-        if not request.body_exists:
-            body = None
-            proof = self._proof(session, request.method, raw_target, b"")
-        elif (
-            request.content_length is not None
-            and request.content_length <= embed_proof.MAX_PROVEN_BODY
-            and self._signing_key(session) is not None
-        ):
-            # Read whole, so the digest covers exactly the bytes that are sent.
-            body = await request.read()
-            proof = self._proof(session, request.method, raw_target, body)
-        else:
-            # A large body, one of unknown length, or any body while the panel
-            # holds no key, streams unproven exactly as it always has.
-            body = _BoundedBody(request)
-            proof = None
-        if proof is not None:
-            headers[embed_proof.PROOF_HEADER] = proof
-        try:
-            result = await async_get_clientsession(self.hass).request(
-                request.method,
-                url,
-                headers=headers,
-                data=body,
-                allow_redirects=False,
-                timeout=PROXY_TIMEOUT,
-                skip_auto_headers=_SKIP_AUTO_HEADERS,
-                auto_decompress=False,
+            if data is None:
+                return _respond(404)
+            return _respond(
+                200,
+                body=data,
+                content_type=content_type(path),
+                headers={"Cache-Control": "no-cache"},
             )
-        except aiohttp.ClientError, TimeoutError:
-            too_large = isinstance(body, _BoundedBody) and body.too_large
-            return _plain(413 if too_large else 502)
-        session.upstream.add(result)
-        counted = False
-        try:
-            out = {**SECURITY_HEADERS}
-            for name in RESPONSE_HEADERS:
-                if (value := result.headers.get(name)) is not None:
-                    out[name] = value
-            if (location := result.headers.get(hdrs.LOCATION)) is not None:
-                rewritten = _rewrite_location(location, address, prefix)
-                if rewritten is None:
-                    return _plain(502)
-                out[hdrs.LOCATION] = rewritten
-
-            if request.method == hdrs.METH_HEAD or result.status in (204, 304):
-                out.pop(hdrs.CONTENT_LENGTH, None)
-                return web.Response(status=result.status, headers=out)
-
-            content_type = result.headers.get(hdrs.CONTENT_TYPE, "")
-            if content_type.partition(";")[0].strip().lower() == "text/html":
-                prefix_bytes = await _read_bounded(result, MAX_REWRITTEN_BODY)
-                if len(prefix_bytes) <= MAX_REWRITTEN_BODY:
-                    page = prefix_bytes
-                    if (at := page.find(BASE_ELEMENT, 0, BASE_WINDOW)) >= 0:
-                        page = b"".join(
-                            (
-                                page[:at],
-                                f'<base href="{prefix}/">'.encode(),
-                                page[at + len(BASE_ELEMENT) :],
-                            )
-                        )
-                    out.pop(hdrs.CONTENT_LENGTH, None)
-                    return web.Response(status=result.status, headers=out, body=page)
-            else:
-                prefix_bytes = b""
-
-            if not long_lived and _is_long_lived_response(result):
-                if session.long_lived >= MAX_LONG_LIVED:
-                    return _plain(429, {hdrs.RETRY_AFTER: "2"})
-                session.long_lived += 1
-                counted = True
-            return await self._stream(
-                request, session, result, out, prefix_bytes, long_lived or counted
+        if (match := BROWSER_BLOB.fullmatch(path)) is not None and (
+            transfer := async_get_blobs(self.hass).claim(
+                match[1], session.user_id, upload=False, entry_id=entry.entry_id
             )
-        finally:
-            if counted:
-                session.long_lived -= 1
-            session.upstream.discard(result)
-            result.release()
+        ) is not None:
+            response = send(transfer)
+            response.headers.update(SECURITY_HEADERS)
+            return response
+        return _respond(404)
 
-    def _signing_key(
-        self, session: EmbedSession
-    ) -> tuple[PanelSession, str, bytes] | None:
-        """Return the panel's live session, key ID and key when it can sign."""
-        panel = async_get_sessions(self.hass).get(session.entry_id)
-        if (
-            panel is None
-            or panel.embed_key is None
-            or panel.embed_key_id is None
-            or panel.embed_counter >= embed_proof.MAX_COUNTER
-        ):
-            return None
-        return panel, panel.embed_key_id, panel.embed_key
-
-    def _proof(
-        self, session: EmbedSession, method: str, target: str, body: bytes
-    ) -> str | None:
-        """Sign one request with the panel's live session key, if it holds one.
-
-        Only a request this session has just admitted gets here, so the proof
-        names the administrator who opened it.
-        """
-        signing = self._signing_key(session)
-        if signing is None:
-            return None
-        panel, key_id, key = signing
-        panel.embed_counter += 1
-        return embed_proof.sign(
-            key,
-            did=panel.did,
-            key_id=key_id,
-            counter=panel.embed_counter,
-            user_id=session.user_id,
-            method=method,
-            target=target,
-            body=body,
-        )
-
-    async def _stream(
-        self,
-        request: web.Request,
-        session: EmbedSession,
-        result: aiohttp.ClientResponse,
-        headers: dict[str, str],
-        first: bytes,
-        long_lived: bool,
-    ) -> web.StreamResponse:
-        response = web.StreamResponse(status=result.status, headers=headers)
-        watcher = (
-            self.hass.async_create_background_task(
-                self._watch(session, result), f"{DOMAIN} embed stream check"
+    async def put(self, request: web.Request, token: str, path: str) -> web.Response:
+        """Receive one browser upload into the slot ``blob.upload`` opened."""
+        if (admitted := self._admit(token)) is None:
+            return _respond(404)
+        session, entry = admitted
+        if (match := BROWSER_BLOB.fullmatch(path)) is None or (
+            transfer := async_get_blobs(self.hass).claim(
+                match[1], session.user_id, upload=True, entry_id=entry.entry_id
             )
-            if long_lived
-            else None
-        )
-        try:
-            await response.prepare(request)
-            if first:
-                await response.write(first)
-            async for data in result.content.iter_any():
-                await response.write(data)
-        except aiohttp.ClientError, ConnectionError:
-            # Either side went away after the headers were sent, including a session
-            # end closing the panel's response: the browser sees a cut-off stream,
-            # and there is no status left to change.
-            pass
-        finally:
-            if watcher is not None:
-                watcher.cancel()
+        ) is None:
+            return _respond(404)
+        response = await receive(request, transfer)
+        response.headers.update(SECURITY_HEADERS)
         return response
 
-    async def _watch(
-        self, session: EmbedSession, result: aiohttp.ClientResponse
-    ) -> None:
-        """Close a long-lived response once its session no longer passes."""
-        sessions = async_get_embed_sessions(self.hass)
-        while True:
-            await asyncio.sleep(RECHECK_SECONDS)
-            admitted = sessions.admit(session.token)
-            if admitted is None or admitted[0] is not session:
-                result.close()
-                return
-
-    get = _handle
-    head = _handle
-    post = _handle
-    put = _handle
-    patch = _handle
-    delete = _handle
+    async def _page(
+        self,
+        request: web.Request,
+        session: EmbedSession,
+        entry: ConfigEntry,
+        name: str,
+    ) -> web.Response:
+        panel = live_ui_session(self.hass, entry.entry_id)
+        if panel is None:
+            return _retry()
+        args: dict[str, Any] = {"embed": session.embed_header}
+        for key in ("lang", "ha_lang"):
+            if (value := request.query.get(key)) and _valid_language(value):
+                args[key] = value
+        if (theme := request.query.get("theme")) in ("light", "dark"):
+            args["theme"] = theme
+        try:
+            outcome, data = await async_manage(
+                self.hass,
+                panel,
+                f"page.{name}",
+                args,
+                {"user": session.user_id, "connection": session.relay_id},
+            )
+        except HomeAssistantError:
+            return _retry()
+        if data is None and isinstance(outcome.result, str):
+            data = outcome.result.encode()
+        if data is None or (outcome.outcome != OUTCOME_APPLIED and not outcome.status):
+            return _respond(502)
+        return _respond(
+            outcome.status or 200,
+            body=_rebase(data, f"{EMBED_PREFIX}/{session.token}"),
+            content_type="text/html",
+            charset="utf-8",
+        )
 
 
 @callback

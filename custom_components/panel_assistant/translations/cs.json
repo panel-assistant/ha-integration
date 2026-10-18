@@ -17,10 +17,17 @@
       },
       "install_usb": {
         "title": "Nainstalovat přes USB",
-        "description": "Připojte panel k tomuto počítači, nikoli k serveru Home Assistant.",
+        "description": "Připojte panel k tomuto počítači, nikoli k serveru Home Assistant. Ladění přes USB musí být zapnuté v nastavení pro vývojáře na panelu; [průvodce přístupem k panelu pro konkrétní model]({panel_access_url}) ukazuje, jak na to.",
         "submit": "Otevřít instalátor USB"
       },
       "add_panel": {
+        "title": "Přidat panel",
+        "description": "Zadejte název hostitele nebo IP adresu panelu. Pokud Panel Assistant ještě není nainstalován, nejprve zapněte síťové ADB na portu 5555 podle [průvodce přístupem k panelu pro konkrétní model]({panel_access_url}). Přístup root není nutný. Pokud panel neodpovídá, [nápověda k připojení k panelu]({panel_help_url}) obsahuje postupy pro jednotlivé modely a další způsoby instalace.",
+        "data": {
+          "address": "Název hostitele nebo IP adresa panelu"
+        }
+      },
+      "add_known_panel": {
         "title": "Přidat panel",
         "description": "Vyberte panel, který Home Assistant již zná prostřednictvím jiné aplikace, nebo zadejte název hostitele či IP adresu panelu. Panely označené ✓ již odpovídají přes síťové ADB. Pokud Panel Assistant ještě není nainstalován, nejprve zapněte síťové ADB na portu 5555 podle [průvodce přístupem k panelu pro konkrétní model]({panel_access_url}). Přístup root není nutný. Pokud panel neodpovídá, [nápověda k připojení k panelu]({panel_help_url}) obsahuje postupy pro jednotlivé modely a další způsoby instalace.",
         "data": {
@@ -42,6 +49,9 @@
           "panel_setup": "Otevřít průvodce nastavením",
           "connect_found": "Přeskočit nastavení a připojit nyní",
           "add_panel": "Použít jinou adresu"
+        },
+        "menu_option_descriptions": {
+          "connect_found": "Připojí panel k Home Assistant, aniž byste museli nejdřív dokončit jeho vlastní nastavení."
         }
       },
       "panel_setup": {
@@ -50,7 +60,7 @@
       },
       "choose_version": {
         "title": "Vybrat verzi",
-        "description": "Panel Assistant na adrese {address} neodpovídá. Vyberte verzi, kterou má panel používat. Testovací verze mohou obsahovat chyby.",
+        "description": "Vyberte verzi, kterou nainstalovat na panel na adrese {address}. Testovací verze mohou obsahovat chyby.",
         "data": {
           "release_candidate": "Verze"
         }
@@ -63,25 +73,17 @@
         "title": "Potvrdit nalezený panel",
         "description": "Home Assistant našel instalaci Panel Assistant na adrese {address}. Volbou Odeslat ověříte, že jde stále o tentýž panel, a přidáte jej jako {panel_name}. Žádné nastavení panelu se nezmění."
       },
-      "confirm_user": {
-        "title": "Potvrdit účet tohoto panelu",
-        "description": "Panel {panel} je přihlášený k Home Assistant jako {user} a žádá o připojení. Potvrzení tohoto účtu je vše, co od vás panel ještě potřebuje: pak sám dokončí své nastavení. O připojení jako panel může požádat kdokoli přihlášený k Home Assistant, proto potvrďte jen tehdy, pokud je {user} účet, který jste pro tento panel nastavili. Pokud tento krok přeskočíte, panel se přesto přidá, ale zůstane nepřipojený, dokud účet nepotvrdíte v Nastavení, kde otevřete Opravy.",
-        "menu_options": {
-          "bind_user": "Ano, připojit tento panel",
-          "skip_binding": "Teď ne"
-        }
-      },
       "authorize_adb": {
-        "title": "Autorizovat Home Assistant na panelu",
-        "description": "Vybrané vydání obsahuje ověřený popis instalace. Jednou zvolte Odeslat: tím vytvoříte nebo načtete trvalou identitu ADB pro tuto instalaci Home Assistant a nabídnete její veřejný klíč panelu Android na adrese {address}. Na panelu schvalte výzvu Android k povolení ladění, pak se sem vraťte a znovu zvolte Odeslat. Android může Home Assistant označovat jako počítač. Schválení uděluje obecný přístup k shellu ADB, dokud zůstává zapnuté síťové ladění; odeberte jej v nastavení pro vývojáře na panelu. V tomto kroku se žádný APK nestahuje ani neinstaluje."
+        "title": "Povolit Home Assistant na panelu",
+        "description": "Podívejte se na obrazovku panelu na adrese {address}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač.\n\nVolbou Odeslat se panelu zeptáte znovu."
       },
       "confirm_install_candidate": {
         "title": "Nainstalovat Panel Assistant {version}?",
-        "description": "Připraveno k instalaci na {model} na adrese {address}.\n\nOstatní aplikace se nezmění."
+        "description": "Připraveno k instalaci na panelu na adrese {address}.\n\nOstatní aplikace se nezmění."
       },
       "confirm_install_rc": {
         "title": "Nainstalovat Panel Assistant {version}?",
-        "description": "Pouze pro testování: Panel Assistant {version} je kandidát na vydání, nikoli stabilní verze, a může obsahovat chyby.\n\nPřipraveno k instalaci na {model} na adrese {address}.\n\nOstatní aplikace se nezmění."
+        "description": "Pouze pro testování: Panel Assistant {version} je kandidát na vydání, nikoli stabilní verze, a může obsahovat chyby.\n\nPřipraveno k instalaci na panelu na adrese {address}.\n\nOstatní aplikace se nezmění."
       },
       "release_preview_only": {
         "title": "Vydání nelze nainstalovat automaticky",
@@ -93,10 +95,11 @@
       }
     },
     "progress": {
+      "authorize_adb": "Podívejte se na obrazovku panelu na adrese {address}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač.\n\nJakmile to panel povolí, bude se pokračovat samo.",
       "installing": "Instalace Panel Assistant na adrese {address}. Nechte tento dialog otevřený; operace se dokončí sama.\n\nPokud ho zavřete, instalace bude pokračovat. Pro dokončení přidejte stejnou adresu znovu."
     },
     "error": {
-      "old_app_installed": "Na tomto panelu je stále nainstalovaná stará aplikace ha-paneld, ale neodpovídá. Otevřete ji na panelu nebo panel restartujte a pak jej znovu přidejte. Panel Assistant poté nabídne opravu, která jej převede na novou aplikaci.",
+      "old_app_installed": "Na tomto panelu stále běží stará aplikace ha-paneld. Panel Assistant 1.0 ji nedokáže převést na novou aplikaci a vedle ní nic neinstaluje. Nejprve nainstalujte Panel Assistant 0.9.0 (v HACS otevřete Panel Assistant, zvolte Redownload a vyberte verzi 0.9.0), přidejte panel a převeďte ho jeho opravou, poté nainstalujte 1.0.0.",
       "cannot_connect": "Nelze se připojit k platnému koncovému bodu kontroly stavu Panel Assistant.",
       "invalid_address": "Zadejte název hostitele nebo IP adresu bez schématu URL či cesty.",
       "invalid_install_address": "Zadejte pouze název hostitele nebo IP adresu panelu.",
@@ -107,16 +110,15 @@
       "install_target_changed": "Název hostitele se již nepřekládá na tutéž zafixovanou adresu panelu. Nebyl odeslán žádný klíč ADB ani instalace. Zkontrolujte adresu a začněte znovu.",
       "adb_unreachable": "Panel odpověděl, ale na jeho portu Android Debug Bridge (5555) nic neodpovědělo. Na panelu zapněte Android Debug Bridge a povolte jej přes síť, pak to zkuste znovu. Pokud můžete panel připojit k počítači, na kterém prohlížíte tuto stránku, nainstalujte jej raději přes USB.",
       "panel_unreachable": "Na této adrese nic neodpovědělo. Zkontrolujte správnost adresy a zda je panel zapnutý a ve vaší síti, pak to zkuste znovu. Pokud můžete panel připojit k počítači, na kterém prohlížíte tuto stránku, nainstalujte jej raději přes USB.",
-      "adb_unauthorized": "Panel stále vyžaduje autorizaci ADB. Schvalte výzvu na panelu a zkuste to znovu.",
-      "adb_still_unauthorized": "Panel zatím nepřijal tuto instanci Home Assistant. Schvalte výzvu ADB na panelu a zkuste to znovu.",
+      "adb_still_unauthorized": "Panel zatím nepřijal tuto instanci Home Assistant, nebo si ji nezapamatoval.",
       "adb_credential_error": "Home Assistant nedokázal bezpečně načíst nebo trvale uložit svůj přihlašovací údaj ADB. Nebyl proveden žádný pokus o změnu panelu. Před dalším pokusem zkontrolujte úložiště a protokoly Home Assistant.",
-      "installed_without_health": "Balíček Panel Assistant je nainstalován, ale jeho koncový bod kontroly stavu neodpověděl. Tento postup jej nepřepíše ani neopraví. Neopakujte automatickou instalaci; otevřete Panel Assistant na panelu nebo postupujte podle průvodce bezpečností zprovoznění a obnovou, na který odkazuje dokumentace integrace. Po obnovení funkční instalace začněte znovu, abyste ji připojili.",
-      "retained_or_ambiguous": "Panel může obsahovat zachovaný záznam balíčku Panel Assistant nebo se nepodařilo prokázat nepřítomnost jeho balíčku. Na panelu nebyla provedena žádná změna. Pokud bylo připojení nestabilní, zkuste to jednou znovu; jinak postupujte podle průvodce bezpečností zprovoznění a obnovou, na který odkazuje dokumentace integrace. Bez ověřené zálohy aplikaci neodinstalovávejte ani neresetujte.",
+      "installed_without_health": "Balíček Panel Assistant je nainstalován, ale jeho koncový bod kontroly stavu neodpověděl. Tento postup jej nepřepíše ani neopraví. Neopakujte automatickou instalaci; otevřete Panel Assistant na panelu nebo postupujte podle kroků na adrese {recovery_address}. Po obnovení funkční instalace začněte znovu, abyste ji připojili.",
+      "retained_or_ambiguous": "Panel může obsahovat zachovaný záznam balíčku Panel Assistant nebo se nepodařilo prokázat nepřítomnost jeho balíčku. Na panelu nebyla provedena žádná změna. Pokud bylo připojení nestabilní, zkuste to jednou znovu; jinak postupujte podle kroků na adrese {recovery_address}. Bez ověřené zálohy aplikaci neodinstalovávejte ani neresetujte.",
       "incompatible": "Balíček Panel Assistant nebyl nalezen, ale Android SDK nebo architektura procesoru panelu nejsou podporovány. Žádný APK nebyl stažen ani nainstalován.",
       "cannot_resolve_release": "Byl nalezen kandidát pro instalaci, ale Home Assistant nedokázal dohledat a ověřit vybrané vydání Panel Assistant. Žádný APK nebyl stažen ani nainstalován. Zkontrolujte přístup k internetu a při testování kandidáta na vydání také to, zda je přesný tag zveřejněn s podepsanými soubory. Žádné jiné vydání jej nenahradí.",
       "invalid_release_candidate": "Vyberte verzi ze seznamu.",
       "install_candidate_changed": "Identita panelu nebo čistý stav balíčku se od náhledu změnily. Nebyla vytvořena žádná instalační úloha. Zkontrolujte panel a pak začněte znovu.",
-      "installed_artifact_mismatch": "Nainstalovaná aplikace se po bajtech neshoduje s vybraným vydáním, proto ji Home Assistant nepřepsal; vyberte její přesné vydání nebo postupujte podle průvodce bezpečností zprovoznění a obnovou.",
+      "installed_artifact_mismatch": "Nainstalovaná aplikace se po bajtech neshoduje s vybraným vydáním, proto ji Home Assistant nepřepsal; vyberte její přesné vydání nebo postupujte podle kroků na adrese {recovery_address}.",
       "install_plan_rejected": "Panel a podepsané vydání se nepodařilo spojit do bezpečného instalačního plánu. Nebyla vytvořena žádná instalační úloha.",
       "install_job_conflict": "Tuto identitu panelu již vlastní jiná instalační úloha. Žádná druhá úloha nebyla vytvořena.",
       "install_receipt_error": "Home Assistant nedokázal bezpečně načíst nebo trvale uložit záznam o instalaci. Nebyla autorizována žádná nová akce na panelu.",
@@ -128,25 +130,32 @@
       "release_selection_required": "Vyberte verzi ze seznamu."
     },
     "abort": {
+      "old_app_installed": "Na tomto panelu stále běží stará aplikace ha-paneld. Panel Assistant 1.0 ji nedokáže převést na novou aplikaci a vedle ní nic neinstaluje. Nejprve nainstalujte Panel Assistant 0.9.0 (v HACS otevřete Panel Assistant, zvolte Redownload a vyberte verzi 0.9.0), přidejte panel a převeďte ho jeho opravou, poté nainstalujte 1.0.0.",
       "already_configured": "Tento panel je již nastavený.",
+      "reinstall_successful": "Aplikace byla znovu nainstalována. Tento panel si zachovává svou historii a nastavení v Home Assistant.",
+      "usb_installed": "Panel Assistant je nainstalován a panel byl přidán do Home Assistant. Dokončete nastavení panelu v okně instalátoru.",
+      "reinstall_identity_mismatch": "Aplikace je nainstalovaná, ale nepodařilo se ji propojit se zachovaným panelem. Jeho historie a nastavení v Home Assistant byly zachovány. Před dalším pokusem zkontrolujte panel v Home Assistant.",
       "not_panel": "Toto není panel, na který může Panel Assistant instalovat.",
       "invalid_discovery": "Nepodařilo se prokázat, že nalezený panel je tatáž funkční instalace Panel Assistant. Žádný záznam v Home Assistant ani nastavení panelu se nezměnilo.",
       "install_cancelled": "Instalace byla zrušena před nainstalováním APK. Nebyl vytvořen žádný záznam v Home Assistant. Chcete-li to zkusit znovu, přidejte integraci Panel Assistant a zadejte stejnou adresu panelu.",
       "install_cancelled_after_staging_cleanup": "Instalace byla zrušena a připravený APK byl před instalací odstraněn. Nebyl vytvořen žádný záznam v Home Assistant. Chcete-li to zkusit znovu, přidejte integraci Panel Assistant a zadejte stejnou adresu panelu.",
       "install_authorization_failed": "Home Assistant nedokázal bezpečně načíst nebo ověřit svůj uložený přihlašovací údaj ADB. Žádný APK nebyl nainstalován. Zkontrolujte úložiště a protokoly Home Assistant, pak přidejte integraci Panel Assistant a zadejte stejnou adresu, abyste to zkusili znovu.",
-      "install_preflight_rejected": "Nepodařilo se znovu prokázat, že panel je čistý a kompatibilní cíl instalace. Žádný APK nebyl nainstalován. Před novým pokusem se stejnou adresou napravte stav panelu podle dokumentace integrace.",
+      "install_preflight_rejected": "Nepodařilo se znovu prokázat, že panel je čistý a kompatibilní cíl instalace. Žádný APK nebyl nainstalován. Zkontrolujte panel podle popisu na [{recovery_address}]({recovery_url}) a poté začněte znovu se stejnou adresou.",
       "install_artifact_rejected": "Home Assistant odmítl stažení vydání nebo jeho přípravu před instalací balíčku. Žádný APK nebyl nainstalován. Zkontrolujte přístup Home Assistant k internetu, jeho úložiště a protokoly, pak začněte znovu se stejnou adresou.",
       "install_transport_failed": "Home Assistant nedokázal dokončit připojení, stažení nebo přípravu před instalací. Žádný APK nebyl nainstalován. Zkontrolujte panel, síť, přístup Home Assistant k internetu a protokoly, pak začněte znovu se stejnou adresou.",
       "install_package_failed": "Android jednoznačně odmítl APK a Home Assistant odstranil jeho připravený soubor. Nebyla vytvořena žádná aplikace ani záznam v Home Assistant. Před novým pokusem zkontrolujte kompatibilitu panelu a volné úložiště.",
-      "install_launch_failed": "APK je nainstalován, ale Home Assistant nedokázal dokončit nebo ověřit spuštění. Neopakujte automatickou instalaci. Otevřete Panel Assistant na panelu nebo postupujte podle průvodce bezpečností zprovoznění a obnovou, na který odkazuje dokumentace integrace.",
-      "install_health_check_failed": "APK je nainstalován, ale Panel Assistant neprošel kontrolou stavu. Neopakujte automatickou instalaci. Otevřete Panel Assistant na panelu nebo postupujte podle průvodce bezpečností zprovoznění a obnovou, na který odkazuje dokumentace integrace.",
-      "install_ambiguous_mutation": "Příprava, instalace nebo spuštění přes ADB mohly změnit panel. Neopakujte automatickou instalaci, aplikaci neodinstalovávejte ani neresetujte. Postupujte podle průvodce bezpečností zprovoznění a obnovou, na který odkazuje dokumentace integrace.",
-      "install_verification_required": "Panel se změnil, ale Home Assistant nedokázal ověřit nainstalovaný balíček nebo odstranit jeho konkrétní připravený soubor. Neopakujte automatickou instalaci, aplikaci neodinstalovávejte ani neresetujte. Postupujte podle průvodce bezpečností zprovoznění a obnovou, na který odkazuje dokumentace integrace.",
-      "install_failed": "Instalátor se zastavil s nerozpoznaným výsledkem. Nebyl vytvořen žádný záznam v Home Assistant. Neopakujte automatickou instalaci, dokud nezkontrolujete panel a průvodce bezpečností zprovoznění a obnovou, na který odkazuje dokumentace integrace.",
+      "install_launch_failed": "APK je nainstalován, ale Home Assistant nedokázal dokončit nebo ověřit spuštění. Neopakujte automatickou instalaci. Otevřete Panel Assistant na panelu; pokud se nespustí, postupujte podle kroků na adrese [{recovery_address}]({recovery_url}).",
+      "install_health_check_failed": "APK je nainstalován, ale Panel Assistant neprošel kontrolou stavu. Neopakujte automatickou instalaci. Otevřete Panel Assistant na panelu; pokud se nespustí, postupujte podle kroků na adrese [{recovery_address}]({recovery_url}).",
+      "install_ambiguous_mutation": "Příprava, instalace nebo spuštění přes ADB mohly změnit panel. Neopakujte automatickou instalaci, aplikaci neodinstalovávejte ani neresetujte. Postupujte podle kroků na adrese [{recovery_address}]({recovery_url}) a zkontrolujte panel.",
+      "install_verification_required": "Panel se změnil, ale Home Assistant nedokázal ověřit nainstalovaný balíček nebo odstranit jeho konkrétní připravený soubor. Neopakujte automatickou instalaci, aplikaci neodinstalovávejte ani neresetujte. Postupujte podle kroků na adrese [{recovery_address}]({recovery_url}) a zkontrolujte panel.",
+      "install_failed": "Instalátor se zastavil s nerozpoznaným výsledkem. Nebyl vytvořen žádný záznam v Home Assistant. Neopakujte automatickou instalaci, dokud nezkontrolujete panel podle popisu na [{recovery_address}]({recovery_url}).",
       "install_worker_stopped": "Instalátor se zastavil a tuto úlohu v aktuálním procesu Home Assistant znovu neprovede. Restartujte Home Assistant, znovu otevřete nastavení a zadejte stejnou adresu panelu, abyste pokračovali nebo získali výsledek obnovy. Žádný záznam nebyl vytvořen.",
-      "install_recovery_required": "Home Assistant nemůže prokázat, že je bezpečné automaticky pokračovat. Žádný záznam nebyl vytvořen. Neopakujte automatickou instalaci, aplikaci neodinstalovávejte ani neresetujte, dokud nepostupujete podle průvodce bezpečností zprovoznění a obnovou, na který odkazuje dokumentace integrace.",
+      "install_recovery_required": "Home Assistant nemůže prokázat, že je bezpečné automaticky pokračovat. Žádný záznam nebyl vytvořen. Neopakujte automatickou instalaci, aplikaci neodinstalovávejte ani neresetujte, dokud nebudete postupovat podle kroků na adrese [{recovery_address}]({recovery_url}).",
       "install_receipt_error": "Home Assistant nedokázal bezpečně přečíst trvale uložené potvrzení o instalaci. Žádný záznam nebyl vytvořen.",
       "unknown": "Postup nastavení ztratil rozpracovaný stav panelu. Spusťte nastavení znovu."
+    },
+    "create_entry": {
+      "another_home_assistant": "Tento panel je přihlášen k jiné instanci Home Assistant. Byl sem přidán, ale jeho nastavení a přihlášení se nezměnily. Chcete-li jej připojit sem, změňte na panelu instanci Home Assistant a přihlaste se."
     }
   },
   "entity": {
@@ -173,11 +182,51 @@
           },
           "source_count": {
             "name": "Zdroje"
+          },
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
+      },
+      "usb_debugging": {
+        "name": "Ladění USB",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
           }
         }
       },
       "proximity": {
-        "name": "Přiblížení"
+        "name": "Přiblížení",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       }
     },
     "button": {
@@ -186,16 +235,17 @@
       },
       "reload": {
         "name": "Znovu načíst ovládací panel"
+      },
+      "android_settings": {
+        "name": "Nastavení systému Android"
+      },
+      "launcher": {
+        "name": "Spouštěč"
       }
     },
     "event": {
       "button": {
         "name": "Tlačítko"
-      }
-    },
-    "image": {
-      "camera_snapshot": {
-        "name": "Snímek z kamery"
       }
     },
     "light": {
@@ -267,51 +317,218 @@
     },
     "sensor": {
       "diag_boot": {
-        "name": "Čas posledního spuštění"
+        "name": "Čas posledního spuštění",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "diag_cpu": {
-        "name": "Využití CPU"
+        "name": "Využití CPU",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "diag_ip": {
-        "name": "IP adresa"
+        "name": "IP adresa",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "diag_memory": {
-        "name": "Využití paměti"
+        "name": "Využití paměti",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "diag_soc_temp": {
-        "name": "Teplota SoC"
+        "name": "Teplota SoC",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "diag_wifi_outages_24h": {
         "name": "Výpadky Wi-Fi (24 h)",
         "state_attributes": {
           "is_lower_bound": {
             "name": "Dolní mez"
+          },
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
           }
         }
       },
       "diag_wifi_rssi": {
-        "name": "Síla signálu Wi-Fi"
+        "name": "Síla signálu Wi-Fi",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "diag_wifi_ssid": {
-        "name": "Síť Wi-Fi"
+        "name": "Síť Wi-Fi",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "humidity": {
-        "name": "Vlhkost"
+        "name": "Vlhkost",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "illuminance": {
-        "name": "Osvětlenost"
+        "name": "Osvětlenost",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "panel_assistant_version": {
         "name": "Verze Panel Assistant"
       },
       "proximity_level": {
-        "name": "Úroveň přiblížení"
+        "name": "Úroveň přiblížení",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "room_humidity": {
-        "name": "Vlhkost v místnosti"
+        "name": "Vlhkost v místnosti",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "room_temp": {
-        "name": "Teplota v místnosti"
+        "name": "Teplota v místnosti",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "status": {
         "name": "Stav",
@@ -321,7 +538,8 @@
           "restarting_update": "Restartování (aktualizace)",
           "restarting_settings": "Restartování (nastavení)",
           "restarting_recovery": "Restartování (obnova)",
-          "restarting_reboot": "Restartování (restart)"
+          "restarting_reboot": "Restartování (restart)",
+          "another_home_assistant": "Přihlášen k jiné instanci Home Assistant"
         }
       },
       "storage_health": {
@@ -384,11 +602,35 @@
           },
           "wal_bytes": {
             "name": "Velikost protokolu předběžného zápisu"
+          },
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
           }
         }
       },
       "temperature": {
-        "name": "Teplota"
+        "name": "Teplota",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
+          }
+        }
       },
       "zigbee_gateway_health": {
         "name": "Stav brány Zigbee",
@@ -436,6 +678,17 @@
           },
           "role": {
             "name": "Role"
+          },
+          "unknown_reason": {
+            "name": "Důvod",
+            "state": {
+              "waiting": "Čeká se na první měření",
+              "not_shared": "Panel hodnotu nesdílí",
+              "not_readable": "Panel hodnotu nedokáže přečíst",
+              "not_on_wifi": "Nepřipojeno přes Wi-Fi",
+              "turned_off": "Vypnuto",
+              "not_ready": "Nepřipraveno"
+            }
           }
         }
       }
@@ -505,11 +758,9 @@
     }
   },
   "exceptions": {
+    "old_app_needs_090": {"message": "Na tomto panelu stále běží stará aplikace: nejprve nainstalujte Panel Assistant 0.9.0, jak vysvětluje jeho oprava"},
     "mqtt_panel_needs_090": {
       "message": "{panel} nebyl přesunut z MQTT: nejprve nainstalujte Panel Assistant 0.9.0, jak vysvětluje jeho Oprava"
-    },
-    "move_with_repair": {
-      "message": "Převeďte tento panel na novou aplikaci pomocí jeho opravy v Nastavení."
     },
     "health_update_failed": {
       "message": "Nelze přečíst stav panelu"
@@ -526,26 +777,11 @@
     "update_rejected": {
       "message": "{panel} odmítl požadavek na aktualizaci. Zkontrolujte jeho kartu Instalace a zkuste to znovu."
     },
-    "bridge_not_ready": {
-      "message": "Panel zatím nelze převést na novou aplikaci. Panel Assistant převod znovu nabídne, jakmile to bude možné."
-    },
-    "release_pair_unavailable": {
-      "message": "Odpovídající vydání nové aplikace není dostupné. Zkuste to později."
+    "update_refused_by_panel": {
+      "message": "{panel} odmítl aktualizaci: {reason}"
     },
     "panel_changed_during_update": {
       "message": "Panel se během aktualizace změnil. Obnovte zobrazení a zkuste to znovu."
-    },
-    "bridge_details_changed": {
-      "message": "Podrobnosti předání panelu se změnily. Obnovte zobrazení a zkuste to znovu."
-    },
-    "bridge_capability_unavailable": {
-      "message": "Nelze ověřit připravenost panelu k předání. Zkontrolujte připojení panelu a zkuste to znovu."
-    },
-    "successor_untrusted": {
-      "message": "Nainstalovaná nová aplikace není důvěryhodná pro předání. Zkontrolujte kartu Instalace na panelu."
-    },
-    "bridge_handover_refused": {
-      "message": "Panel odmítl předání mezi aplikacemi. Zkontrolujte kartu Instalace na panelu."
     },
     "release_download_failed": {
       "message": "Vydání aplikace se nepodařilo stáhnout. Zkontrolujte připojení a zkuste to znovu."
@@ -634,48 +870,13 @@
       "title": "{panel} potřebuje aplikaci {required_version}",
       "description": "{panel} používá aplikaci {version}, která mluví starším protokolem než Panel Assistant 1.0, takže ji Home Assistant nevidí ani neovládá a její entity se zobrazují jako nedostupné. Nic se neztratilo: panel dál funguje samostatně a ponechává si nastavení i historii. Nainstalujte aktualizaci, kterou Panel Assistant pro tento panel nabízí, a panel se znovu připojí."
     },
+    "old_app_needs_090": {
+      "title": "Na {panel} stále běží stará aplikace",
+      "description": "Na {panel} stále běží stará aplikace ha-paneld. Panel Assistant 1.0 už nedokáže převést panel na novou aplikaci, takže na {panel} nic neinstaluje ani neaktualizuje, dokud nebude převeden. Nejprve nainstalujte Panel Assistant 0.9.0 (v HACS otevřete Panel Assistant, zvolte Redownload a vyberte verzi 0.9.0), převeďte panel jeho opravou a poté nainstalujte 1.0.0. Panel mezitím na staré aplikaci dál funguje."
+    },
     "mqtt_panel_needs_090": {
       "title": "{panel} nebyl přesunut z MQTT",
       "description": "Panel Assistant 1.0 už nedokáže přesunout {panel} z MQTT na vlastní připojení a jeho připojení by teď vytvořilo druhou sadu entit a rozdělilo jeho historii. Nejprve nainstalujte Panel Assistant 0.9.0 (v HACS otevřete Panel Assistant, zvolte Redownload a vyberte verzi 0.9.0), nechte panel přesunout a poté nainstalujte 1.0.0. Pokud raději začnete znovu, smažte zařízení tohoto panelu v Nastavení, Zařízení a služby, MQTT, potom tuto položku znovu načtěte nebo ji odeberte a panel přidejte znovu; vzniknou nové entity a historie se nezachová."
-    },
-    "move_to_new_app": {
-      "title": "Převést {panel} na novou aplikaci",
-      "fix_flow": {
-        "step": {
-          "confirm_move": {
-            "title": "Převést {panel} na novou aplikaci",
-            "description": "Na panelu {panel} stále běží stará aplikace ha-paneld. Panel Assistant jej přes vaši síť převede na novou aplikaci a zachová jeho nastavení: nejprve zde panel zálohuje, nainstaluje novou aplikaci a poté odstraní starou. Během převodu panel jednou restartuje svou aplikaci. Pokud panel zobrazí dotaz „Povolit ladění USB?“, klepněte na Povolit a zaškrtněte „Vždy povolit z tohoto počítače“, pokud je tato možnost k dispozici. Na panelu nemusíte získávat oprávnění root ani zadávat žádné příkazy. Převod zahájíte výběrem Odeslat."
-          }
-        },
-        "progress": {
-          "moving": "Přesun {panel} do nové aplikace. Nechte panel zapnutý."
-        },
-        "abort": {
-          "entry_removed": "Tento panel byl ze systému Home Assistant odstraněn.",
-          "already_moved": "Na panelu {panel} už běží nová aplikace. Nebylo třeba nic převádět.",
-          "release_unavailable": "Panel Assistant nyní nemohl získat vydání nové aplikace. Zkontrolujte, že systém Home Assistant má přístup k internetu, a zkuste to znovu.",
-          "adb_authorization": "Panel {panel} dosud nepovolil připojení aplikaci Panel Assistant. Podívejte se na panel: pokud zobrazuje dotaz „Povolit ladění USB?“, klepněte na Povolit, zaškrtněte „Vždy povolit z tohoto počítače“ a poté znovu otevřete tuto opravu.",
-          "adb_unreachable": "Panel Assistant se nemohl připojit k panelu {panel} a převést jej. Zkontrolujte, že je panel zapnutý a ve stejné síti jako systém Home Assistant a že je v nastavení aplikace na panelu zapnuté síťové ladění. Poté znovu otevřete tuto opravu.",
-          "backup_failed": "Panel Assistant nemohl vytvořit úplnou zálohu {panel}, takže se nic nezměnilo. Zkuste to později znovu.",
-          "new_app_is_home": "Panel {panel} je uprostřed dřívějšího převodu, který toto vydání zatím nemůže dokončit. Nic se nezměnilo. Opraví to pozdější vydání aplikace Panel Assistant.",
-          "move_failed": "Převod panelu {panel} nebyl dokončen. Jeho nastavení je zálohované v systému Home Assistant a obrazovka panelu zůstává funkční. Znovu otevřete tuto opravu a pokračujte tam, kde se převod zastavil.",
-          "panel_changed": "Zařízení odpovídající na adrese panelu {panel} není panel, který zná Panel Assistant, proto se nic nezměnilo. Pokud byl panel vyměněn nebo resetován, odstraňte jej ze systému Home Assistant a znovu jej přidejte.",
-          "busy": "Na panelu {panel} právě probíhá aktualizace nebo jiný převod. Zkuste to znovu po dokončení.",
-          "restore_approval": "Panel {panel} před obnovením svého nastavení žádá o schválení na obrazovce. Schvalte jej na panelu a poté znovu otevřete tuto opravu."
-        }
-      }
-    },
-    "remove_old_app_adb": {
-      "title": "Na panelu {panel} je stále stará aplikace",
-      "description": "Na panelu {panel} běží nová aplikace Panel Assistant, ale vedle ní je stále nainstalovaná stará aplikace ha-paneld. Panel Assistant ji automaticky odstraní přes ADB, ale nyní se nemůže připojit k rozhraní Android Debug Bridge panelu. Zkontrolujte, že je zapnuté síťové ladění a že panel povolil připojení systému Home Assistant. Panel Assistant to sám zkusí znovu."
-    },
-    "remove_old_app_unproven": {
-      "title": "Na panelu {panel} je stále stará aplikace",
-      "description": "Na panelu {panel} je vedle nové aplikace Panel Assistant nainstalovaná stará aplikace ha-paneld. Panel Assistant odstraní starou aplikaci až poté, co se prokáže, že panel řídí nová aplikace: musí odpovídat jako tento panel a být jeho domovskou obrazovkou. To se nepodařilo prokázat, proto obě aplikace zůstaly beze změny. Panel Assistant to sám znovu zkontroluje."
-    },
-    "remove_old_app_failed": {
-      "title": "Na panelu {panel} je stále stará aplikace",
-      "description": "Na panelu {panel} běží nová aplikace Panel Assistant, ale vedle ní je stále nainstalovaná stará aplikace ha-paneld. Panel Assistant se pokusil panel zálohovat a odstranit starou aplikaci, ale tento postup nebyl dokončen. Nic jiného se na panelu nezměnilo. Panel Assistant to sám zkusí znovu."
     },
     "panel_permissions": {
       "title": "Oprávnění na panelu {panel} vyžadují pozornost.",
@@ -683,7 +884,7 @@
         "step": {
           "commission_permissions": {
             "title": "Zkontrolovat oprávnění na panelu {panel}",
-            "description": "Ovládací panel na zařízení {panel} zůstává dostupný. Na fyzickém panelu otevřete Nastavení systému Android → Aplikace → Panel Assistant. Povolte přístup ke kameře a mikrofonu, pokud jsou uvedeny, a oznámení. V části Zvláštní přístup aplikací povolte aplikaci Panel Assistant možnost Měnit systémová nastavení a Zobrazovat přes jiné aplikace. V části Usnadnění přístupu povolte službu Panel Assistant. Vraťte se sem a výběrem Odeslat znovu zkontrolujte oprávnění."
+            "description": "Dashboard na panelu {panel} zůstává dostupný. Na fyzickém panelu otevřete Nastavení systému Android → Aplikace → Panel Assistant. Povolte přístup ke kameře a mikrofonu, pokud jsou uvedeny, a také oznámení. V části Speciální přístup aplikací povolte pro Panel Assistant Úpravu nastavení systému a Zobrazení přes jiné aplikace. V části Přístupnost zapněte službu Panel Assistant. Pokud je navigační lišta nastavena na Odhalit přejetím nebo Vždy zapnuto a chybí oprávnění Zobrazení přes jiné aplikace, přejetí prstem nahoru od spodního okraje dashboardu místo toho otevře nastavení Zobrazení přes jiné aplikace: povolte ho, vraťte se zpět a znovu přejeďte prstem nahoru. Vraťte se sem a výběrem možnosti Odeslat oprávnění znovu zkontrolujte."
           }
         },
         "error": {
@@ -701,7 +902,7 @@
         "step": {
           "set_up_proximity": {
             "title": "Nastavení detekce přiblížení na panelu {panel}",
-            "description": "Dokud není nastaven snímač přiblížení, panel {panel} se nedá probudit mávnutím ruky. Nastavení trvá asi minutu a musíte při něm stát před panelem. Otevřete Panel Assistant na postranním panelu a vyberte {panel}. Na jeho stránce Konfigurovat v části Přítomnost a probuzení vyberte Nastavit detekci přiblížení na panelu a postupujte podle pokynů na obrazovce panelu. Nastavení můžete spustit i přímo na panelu tlačítkem Otevřít nastavení detekce přiblížení na jeho nástěnce. Až panel ohlásí, že je kalibrace uložena, vraťte se sem a vyberte Odeslat."
+            "description": "Dokud není nastaven jeho senzor přiblížení, {panel} se nemůže probudit mávnutím. Nastavení trvá asi minutu a vyžaduje vaši přítomnost před panelem. Otevřete Panel Assistant v postranním panelu a vyberte {panel}. Na jeho stránce Konfigurovat v části Přítomnost a probuzení vyberte Nastavit přiblížení na panelu a pak postupujte podle pokynů na obrazovce panelu. Nastavení můžete spustit také přímo na panelu pomocí Otevřít nastavení přiblížení na jeho nástěnce. Až panel oznámí, že je kalibrace uložena, vraťte se sem a vyberte Odeslat."
           }
         },
         "error": {
@@ -725,6 +926,10 @@
     "voice_microphone_no_audio_detail": {
       "title": "Hlasový asistent na panelu {panel} neposlouchá.",
       "description": "Hlasový asistent na panelu {panel} neposlouchá, protože jeho mikrofon při kontrole panelem neposkytl žádný zvuk. Pro novou kontrolu hlasového asistenta vypněte a zapněte na stránce Konfigurace panelu, nebo tam vyberte jiný zdroj zvuku. Panel nahlásil: {detail}"
+    },
+    "volume_number_removed": {
+      "title": "Panel {panel} už nemá samostatné číslo hlasitosti",
+      "description": "Panel {panel} má přehrávač médií, který zobrazuje a nastavuje jeho hlasitost, proto Panel Assistant odstranil jeho samostatné číslo hlasitosti {entity}. Tyto automatizace nebo skripty ho stále používají: {users}. Upravte je tak, aby nastavovaly hlasitost akcí `media_player.volume_set` na přehrávači médií panelu. Až budou upravené, můžete tuto zprávu ignorovat."
     },
     "restart_required": {
       "title": "Pro dokončení aktualizace Panel Assistant restartujte systém Home Assistant",
@@ -756,25 +961,6 @@
         }
       }
     },
-    "panel_awaiting_confirmation": {
-      "title": "Dokončit připojení panelu {panel}",
-      "fix_flow": {
-        "step": {
-          "confirm_bind": {
-            "title": "Potvrdit uživatele panelu",
-            "description": "Panel {panel} požádal o připojení k systému Home Assistant jako uživatel {user}. Potvrďte to pouze tehdy, pokud je {user} účet, který jste pro tento panel nastavili. Po potvrzení by se panel měl brzy připojit. O připojení jako panel může požádat kdokoli přihlášený do systému Home Assistant. Pokud tedy tento požadavek nepoznáváte, zavřete toto dialogové okno a problém ignorujte."
-          },
-          "confirm_rebind": {
-            "title": "Změnit uživatele panelu",
-            "description": "Panel {panel} je potvrzený pro uživatele {bound_user}, ale uživatel {user} požádal o připojení jako tento panel. Potvrďte to pouze tehdy, pokud jste účet tohoto panelu změnili na {user}: panel poté přestane přijímat uživatele {bound_user} a měl by se brzy připojit. Pokud jste účet nezměnili, někdo jiný se možná pokouší panel převzít. Zavřete proto toto dialogové okno a problém ignorujte."
-          }
-        },
-        "abort": {
-          "entry_removed": "Tento panel už není nastavený v systému Home Assistant.",
-          "user_unavailable": "Uživatel, který požádal o připojení, už neexistuje nebo je deaktivovaný. Nic se nezměnilo."
-        }
-      }
-    },
     "no_update_route": {
       "title": "Panel {panel} nemůže přijímat aktualizace aplikace",
       "description": "Panel Assistant nemůže na panelu {panel} instalovat aktualizace aplikace, proto aplikace zůstává na stávající verzi. Vše ostatní na panelu dál funguje, a proto lze tento problém snadno přehlédnout. Obvykle následuje po změně provedené na samotném panelu, například po aktualizaci firmwaru nebo resetu. Aktualizace obnovíte opětovným připojením panelu k Panel Assistant přes USB. Výběrem Další informace zobrazíte postup pro tento panel."
@@ -782,20 +968,6 @@
     "merged_panel_identity": {
       "title": "Oddělit sloučené panely: {panels}",
       "description": "Panely {panels} hlásí stejnou identitu zařízení, takže Home Assistant nemůže bezpečně určit, ke kterému záznamu patří nativní připojení nebo entita. Jejich nativní připojení je odmítnuto a žádné entity se nepřesouvají. Aktualizujte aplikaci Panel Assistant na všech dotčených panelech, aby měl každý vlastní identitu. Potom odstraňte sloučené zařízení a nechte panely znovu se zaregistrovat."
-    },
-    "panel_migration_incomplete": {
-      "title": "Panel na adrese {address} nedokončil převod na novou aplikaci",
-      "fix_flow": {
-        "step": {
-          "confirm_migration": {
-            "title": "Znovu zkontrolovat panel",
-            "description": "Panel Assistant nainstaloval na panel na adrese {address} verzi {version} a panel sám převádí svá nastavení do nové aplikace. Tento převod nebyl dokončen, když systém Home Assistant přestal čekat. Panel po celou dobu funguje a pokračuje tam, kde skončil, takže zde na něm nic neměníte. Výběrem Odeslat jej znovu zkontrolujete."
-          }
-        },
-        "abort": {
-          "migration_unfinished": "Nová aplikace zatím neodpověděla. Panel pokračuje sám, proto tento problém otevřete znovu později."
-        }
-      }
     },
     "installer_failure": {
       "title": "Instalace nebo aktualizace na panelu {panel} selhala",
@@ -1271,7 +1443,7 @@
           "adb_unreachable": "Panel odpověděl, ale na jeho portu Android Debug Bridge (5555) nic neodpovědělo. Na panelu zapněte Android Debug Bridge a povolte jej přes síť. Poté to zkuste znovu. Pokud můžete panel připojit k počítači, na kterém máte otevřený prohlížeč, proveďte místo toho instalaci přes USB.",
           "adb_still_unauthorized": "Panel dosud nepřijal tuto instanci systému Home Assistant. Schvalte výzvu ADB na panelu a zkuste to znovu.",
           "adb_credential_error": "Home Assistant nemohl bezpečně načíst nebo trvale uložit svůj přihlašovací údaj ADB. Nebyl proveden žádný pokus o změnu panelu. Před opakovaným pokusem zkontrolujte úložiště a protokoly systému Home Assistant.",
-          "retained_or_ambiguous": "Panel může obsahovat zachovaný záznam balíčku Panel Assistant nebo se nepodařilo prokázat, že neobsahuje žádný stav tohoto balíčku. Na panelu se nic nezměnilo. Pokud bylo připojení nestabilní, zkuste to jednou znovu; jinak postupujte podle průvodce bezpečným zprovozněním a obnovou, na který odkazuje dokumentace integrace. Bez ověřené zálohy aplikaci neodinstalovávejte ani neresetujte.",
+          "retained_or_ambiguous": "Panel může obsahovat zachovaný záznam balíčku Panel Assistant nebo se nepodařilo prokázat, že neobsahuje žádný stav tohoto balíčku. Na panelu se nic nezměnilo. Pokud bylo připojení nestabilní, zkuste to jednou znovu; jinak postupujte podle kroků na adrese {recovery_address}. Bez ověřené zálohy aplikaci neodinstalovávejte ani neresetujte.",
           "unknown": "Neočekávaná chyba",
           "panel_identity_changed": "Zařízení na této adrese už neodpovídá jako tento nakonfigurovaný panel. Před opakovaným pokusem zkontrolujte panel a jeho adresu."
         },
@@ -1319,6 +1491,9 @@
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
+        },
+        "abort": {
+          "entry_removed": "Tento panel byl odstraněn."
         }
       }
     },
@@ -1333,6 +1508,10 @@
     "panel_identity_mismatch": {
       "title": "Zkontrolovat adresu panelu {panel}",
       "description": "Zařízení na adrese {address} neodpovědělo jako panel {panel}, proto bylo jeho ovládání pozastaveno. Zkontrolujte, že tato adresa patří panelu. Pokud se panel přesunul, přidejte jej znovu pomocí jeho aktuální adresy."
+    },
+    "panel_link_shared": {
+      "title": "{panel} byl znovu nainstalován, ale sdílí propojení zařízení",
+      "description": "{panel} odpověděl na adrese {address} po přeinstalaci aplikace, ale {others} má stejné propojení zařízení, takže Home Assistant nedokáže určit, ke kterému nastavení tento panel patří, a pozastavil jeho ovládání. Adresa je v pořádku. Pokud se {others} už nepoužívá, smažte ho a {panel} se připojí sám; jinak přidejte {panel} znovu."
     },
     "panel_identity_confirmation": {
       "title": "Zachovat stávající nastavení panelu {panel}",
@@ -1406,7 +1585,7 @@
           "adb_unreachable": "Panel odpověděl, ale na jeho portu Android Debug Bridge (5555) nic neodpovědělo. Na panelu zapněte Android Debug Bridge a povolte jej po síti, pak to zkuste znovu. Pokud můžete panel připojit k počítači, na kterém právě používáte prohlížeč, nainstalujte aplikaci raději přes USB.",
           "adb_still_unauthorized": "Panel zatím nepřijal tuto instanci Home Assistant. Potvrďte na panelu žádost o přístup přes ADB a pak to zkuste znovu.",
           "adb_credential_error": "Home Assistant nemohl bezpečně načíst nebo trvale uložit svůj přístupový údaj ADB. Nebyl proveden žádný pokus o změnu panelu. Před dalším pokusem zkontrolujte úložiště a protokoly Home Assistant.",
-          "retained_or_ambiguous": "Panel může obsahovat zachovaný záznam o balíčku Panel Assistant nebo se nepodařilo prokázat, že nezůstal žádný stav tohoto balíčku. Na panelu nebyla provedena žádná změna. Pokud bylo spojení nestabilní, zkuste to ještě jednou; jinak postupujte podle průvodce bezpečným zprovozněním a obnovou, na který odkazuje dokumentace integrace. Bez ověřené zálohy aplikaci neodinstalovávejte ani ji neresetujte.",
+          "retained_or_ambiguous": "Panel může obsahovat zachovaný záznam o balíčku Panel Assistant nebo se nepodařilo prokázat, že nezůstal žádný stav tohoto balíčku. Na panelu nebyla provedena žádná změna. Pokud bylo připojení nestabilní, zkuste to jednou znovu; jinak postupujte podle kroků na adrese {recovery_address}. Bez ověřené zálohy aplikaci neodinstalovávejte ani ji neresetujte.",
           "unknown": "Neočekávaná chyba",
           "panel_identity_changed": "Na této adrese už neodpovídá nastavený panel. Před dalším pokusem zkontrolujte panel a jeho adresu."
         },
@@ -1435,7 +1614,7 @@
           "adb_unreachable": "Panel odpověděl, ale na jeho portu Android Debug Bridge (5555) nic neodpovědělo. Na panelu zapněte Android Debug Bridge a povolte jej po síti, pak to zkuste znovu. Pokud můžete panel připojit k počítači, na kterém právě používáte prohlížeč, nainstalujte aplikaci raději přes USB.",
           "adb_still_unauthorized": "Panel zatím nepřijal tuto instanci Home Assistant. Potvrďte na panelu žádost o přístup přes ADB a pak to zkuste znovu.",
           "adb_credential_error": "Home Assistant nemohl bezpečně načíst nebo trvale uložit svůj přístupový údaj ADB. Nebyl proveden žádný pokus o změnu panelu. Před dalším pokusem zkontrolujte úložiště a protokoly Home Assistant.",
-          "retained_or_ambiguous": "Panel může obsahovat zachovaný záznam o balíčku Panel Assistant nebo se nepodařilo prokázat, že nezůstal žádný stav tohoto balíčku. Na panelu nebyla provedena žádná změna. Pokud bylo spojení nestabilní, zkuste to ještě jednou; jinak postupujte podle průvodce bezpečným zprovozněním a obnovou, na který odkazuje dokumentace integrace. Bez ověřené zálohy aplikaci neodinstalovávejte ani ji neresetujte.",
+          "retained_or_ambiguous": "Panel může obsahovat zachovaný záznam o balíčku Panel Assistant nebo se nepodařilo prokázat, že nezůstal žádný stav tohoto balíčku. Na panelu nebyla provedena žádná změna. Pokud bylo připojení nestabilní, zkuste to jednou znovu; jinak postupujte podle kroků na adrese {recovery_address}. Bez ověřené zálohy aplikaci neodinstalovávejte ani ji neresetujte.",
           "unknown": "Neočekávaná chyba",
           "panel_identity_changed": "Na této adrese už neodpovídá nastavený panel. Před dalším pokusem zkontrolujte panel a jeho adresu."
         },
@@ -1443,35 +1622,31 @@
           "entry_removed": "Tento panel byl odebrán."
         }
       }
+    },
+    "another_home_assistant": {
+      "title": "{panel} je přihlášen k jiné instanci Home Assistant",
+      "description": "{panel} byl sem přidán, ale je přihlášen k jiné instanci Home Assistant. Jeho nastavení a přihlášení se nezměnily. Chcete-li jej připojit sem, změňte na panelu instanci Home Assistant a přihlaste se."
     }
   },
   "options": {
     "step": {
       "init": {
         "title": "Nastavení panelu",
-        "description": "Pokračujte v nastavení tohoto panelu nebo povolte přístup přes ADB pro aktualizace panelu. Pokud panel ještě není propojený, potvrďte jeho přihlášený účet a dokončete nastavení.",
+        "description": "Vyberte, co chcete s tímto panelem udělat.",
         "menu_options": {
           "onboarding": "Pokračovat v nastavení",
           "authorize_adb": "Povolit aktualizace",
           "updates": "Aktualizace panelu",
           "remove_app": "Odebrat Panel Assistant z tohoto panelu"
+        },
+        "menu_option_descriptions": {
+          "remove_app": "Vrátí domovskou obrazovku vlastnímu spouštěči panelu a poté aplikaci odinstaluje."
         }
       },
       "onboarding": {
         "title": "Dokončit nastavení tohoto panelu",
-        "description": "Otevřete stránku nastavení panelu v prohlížeči, který se k panelu dostane ve vaší místní síti. Přihlaste se účtem Home Assistant, který právě používáte v tomto prohlížeči, vyberte domovský ovládací panel a dokončete tam nastavení. Toto dialogové okno nechte otevřené; proces se sem vrátí k potvrzení účtu. Pokud se tento prohlížeč k panelu nedostane, dokončete nastavení později z místní sítě panelu. Pokud bude požadováno povolení ladění systému Android, musí ho stále potvrdit někdo přímo u panelu."
-      },
-      "onboarding_wait": {
-        "title": "Čekání na připojení panelu",
-        "description": "Panel ještě nedokončil nastavení nebo nepožádal o připojení pod účtem. Dokončete jeho stránku nastavení a pak zde zvolte Odeslat pro novou kontrolu. Panel zůstane nepropojený, dokud nepotvrdíte jeho účet."
-      },
-      "onboarding_confirm": {
-        "title": "Potvrdit účet tohoto panelu",
-        "description": "Panel {panel} se přihlásil jako {user} a požádal o připojení. Potvrďte to pouze tehdy, pokud jde o účet, který jste pro tento panel vybrali. Při přeskočení zůstane panel nepropojený; účet můžete potvrdit později v Opravách.",
-        "menu_options": {
-          "onboarding_bind": "Ano, připojit tento panel",
-          "onboarding_skip": "Teď ne"
-        }
+        "description": "Otevřete [stránku nastavení panelu]({setup_url}). Otevře se na nové kartě; otevřete ji ze zařízení ve stejné síti jako panel. Dokončete tam jednotlivé kroky, vraťte se a zvolte Hotovo.",
+        "submit": "Hotovo"
       },
       "authorize_adb": {
         "title": "Povolit aktualizace na {panel}",
@@ -1489,17 +1664,12 @@
       },
       "remove_app": {
         "title": "Odebrat Panel Assistant z panelu {panel}",
-        "description": "Tímto odeberete Panel Assistant z panelu {panel}. Nejprve Panel Assistant vrátí domovskou obrazovku panelu jeho vlastnímu spouštěči a znovu zapne aplikace výrobce, které vypnul; teprve potom se odinstaluje přes spojení Android Debug Bridge, které už Home Assistant má. Jeho nastavení na panelu budou smazána.\n\nNa některých panelech a verzích firmwaru po odebrání nezůstane žádná cesta zpět do nastavení systému Android nebo k ladění po síti, takže aplikaci nebude možné znovu nainstalovat bez otevření panelu. Než budete pokračovat, přečtěte si, [jak může odebrání ovlivnit tento panel]({risks_url}).",
+        "description": "Panel Assistant nejprve vrátí domovskou obrazovku panelu jeho vlastnímu spouštěči a znovu zapne aplikace výrobce, které vypnul; teprve potom se odinstaluje. Jeho nastavení na panelu budou smazána.\n\nNa některých panelech a verzích firmwaru po odebrání nezůstane žádná cesta zpět do nastavení systému Android nebo k ladění po síti, takže aplikaci nebude možné znovu nainstalovat bez otevření panelu. Před výběrem možnosti Odeslat si přečtěte [jak může odebrání ovlivnit tento panel]({risks_url}).",
         "data": {
-          "confirmed": "Přečetl(a) jsem si rizika odebrání pro tento panel a chci odebrat Panel Assistant"
-        }
-      },
-      "remove_app_done": {
-        "title": "Panel Assistant byl odebrán z panelu {panel}",
-        "description": "Panel si ponechá vlastní domovskou obrazovku. Má Home Assistant také zapomenout panel {panel}?",
-        "menu_options": {
-          "remove_app_delete_entry": "Smazat tento panel z Home Assistant",
-          "remove_app_keep_entry": "Zatím ho ponechat v Home Assistant"
+          "delete_entry": "Smazat tento panel také z Home Assistant"
+        },
+        "data_description": {
+          "delete_entry": "Nechte vypnuté, pokud chcete zachovat jeho entity a historii pro případ, že Panel Assistant nainstalujete znovu."
         }
       }
     },
@@ -1514,10 +1684,9 @@
       "adb_unreachable": "Panel odpověděl, ale na jeho portu Android Debug Bridge (5555) nic neodpovědělo. Na panelu zapněte Android Debug Bridge a povolte jej po síti, pak to zkuste znovu. Pokud můžete panel připojit k počítači, na kterém právě používáte prohlížeč, nainstalujte aplikaci raději přes USB.",
       "adb_still_unauthorized": "Panel zatím nepřijal tuto instanci Home Assistant. Potvrďte na panelu žádost o přístup přes ADB a pak to zkuste znovu.",
       "adb_credential_error": "Home Assistant nemohl bezpečně načíst nebo trvale uložit svůj přístupový údaj ADB. Nebyl proveden žádný pokus o změnu panelu. Před dalším pokusem zkontrolujte úložiště a protokoly Home Assistant.",
-      "retained_or_ambiguous": "Panel může obsahovat zachovaný záznam o balíčku Panel Assistant nebo se nepodařilo prokázat, že nezůstal žádný stav tohoto balíčku. Na panelu nebyla provedena žádná změna. Pokud bylo spojení nestabilní, zkuste to ještě jednou; jinak postupujte podle průvodce bezpečným zprovozněním a obnovou, na který odkazuje dokumentace integrace. Bez ověřené zálohy aplikaci neodinstalovávejte ani ji neresetujte.",
+      "retained_or_ambiguous": "Panel může obsahovat zachovaný záznam o balíčku Panel Assistant nebo se nepodařilo prokázat, že nezůstal žádný stav tohoto balíčku. Na panelu nebyla provedena žádná změna. Pokud bylo připojení nestabilní, zkuste to jednou znovu; jinak postupujte podle kroků na adrese {recovery_address}. Bez ověřené zálohy aplikaci neodinstalovávejte ani ji neresetujte.",
       "unknown": "Neočekávaná chyba",
       "panel_identity_changed": "Na této adrese už neodpovídá nastavený panel. Před dalším pokusem zkontrolujte panel a jeho adresu.",
-      "removal_unconfirmed": "Zaškrtnutím políčka potvrďte, že jste si přečetli rizika odebrání. Nic nebylo odebráno.",
       "removal_busy": "Tento panel už mění aktualizace nebo přesun. Nic nebylo odebráno; zkuste to znovu, až tato operace skončí.",
       "removal_adb_unreachable": "Home Assistant se nedokázal spojit s panelem přes Android Debug Bridge (port 5555). Nic nebylo odebráno. Zkontrolujte, že je panel zapnutý a ladění po síti je stále povolené, a pak to zkuste znovu.",
       "removal_adb_authorization": "Panel nepřijal tuto instanci Home Assistant pro Android Debug Bridge. Nic nebylo odstraněno. Nejdřív vyberte „Povolit aktualizace“ a potom to zkuste znovu.",
@@ -1529,11 +1698,13 @@
       "removal_home_not_handed": "Panel nepotvrdil, že jeho domovskou obrazovku převzal jiný spouštěč, takže Panel Assistant nebyl odebrán. Nainstalujte spouštěč nebo znovu zapněte ten od výrobce a pak to zkuste znovu.",
       "removal_hand_back_unsupported": "Aplikace Panel Assistant na tomto panelu je příliš stará, aby předala domovskou obrazovku zpět. Nic nebylo odstraněno. Nejdřív ji aktualizujte a potom to zkuste znovu.",
       "removal_app_unreachable": "Panel Assistant neodpověděl a stále slouží jako domovská obrazovka panelu, takže jeho odebrání by nyní nechalo panel bez domovské obrazovky. Nic nebylo odebráno. Spusťte na panelu Panel Assistant a pak to zkuste znovu.",
-      "removal_remove_failed": "Panel už má svou domovskou obrazovku zpět, ale Panel Assistant se nepodařilo úplně odebrat. Zkuste to znovu: další pokus dokončí zbývající kroky."
+      "removal_remove_failed": "Panel už má svou domovskou obrazovku zpět, ale Panel Assistant se nepodařilo úplně odebrat. Zkuste to znovu: další pokus dokončí zbývající kroky.",
+      "panel_not_connected": "Panel se ještě nepřipojil. Dokončete kroky na jeho stránce nastavení a pak znovu zvolte Hotovo."
     },
     "abort": {
       "removed_entry_deleted": "Panel Assistant byl odebrán a panel byl smazán z Home Assistant.",
-      "removed_entry_kept": "Panel Assistant byl odebrán. Panel zůstane v Home Assistant, dokud ho nesmažete."
+      "removed_entry_kept": "Panel Assistant byl odebrán. Panel zůstane v Home Assistant, dokud ho nesmažete.",
+      "panel_connected": "Panel je nastaven a připojen k Home Assistant."
     }
   }
 }

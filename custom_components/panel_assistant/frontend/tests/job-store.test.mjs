@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { openJobStore } from '../src/job-store.mjs';
 import { verifyReleaseBundle } from '../src/release-verifier.mjs';
+import { LEGACY_PACKAGE_ID } from '../src/app-identity.mjs';
+import { buildTag, bundle, document, release } from './signed-feed.mjs';
 
 // The smallest IndexedDB the job store needs: one object store, asynchronous
 // request callbacks and a completing transaction. It does not roll back.
@@ -51,13 +52,8 @@ function fakeIndexedDB() {
   } };
 }
 
-const fixture = name => new Uint8Array(readFileSync(new URL(`./fixtures/${name}`, import.meta.url)));
-const pem = new TextDecoder().decode(fixture('build-feed-golden.pub.pem'));
-const key = await crypto.subtle.importKey('spki',
-  Buffer.from(pem.replace(/-----[A-Z ]+-----|\s/g, ''), 'base64'),
-  { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
-const { descriptor } = await verifyReleaseBundle({ tag: 'build-772', feed: fixture('build-feed-golden.json'),
-  feedSignature: new Uint8Array(Buffer.from(new TextDecoder().decode(fixture('build-feed-golden.json.sig.b64')).trim(), 'base64')) }, { expectedRcTag: 'build-772' }, key);
+const { descriptor } = await verifyReleaseBundle(await bundle(await document()),
+  { expectedRcTag: buildTag(772) }, release.publicKey);
 const target = { model: 'Test panel', serial: 'serial', primaryAbi: 'arm64-v8a', androidSdk: 33,
   rootMode: 'rootless', usbVendorId: 1, usbProductId: 2, usbSerial: 'usb' };
 
@@ -67,7 +63,7 @@ test('the job store saves, reloads and advances a job for a feed build', async (
   try {
     const store = await openJobStore('feed-test');
     const receipt = await store.create(target, descriptor);
-    assert.equal(receipt.artifact.releaseTag, 'build-772');
+    assert.equal(receipt.artifact.releaseTag, buildTag(772));
     assert.equal(receipt.artifact.apkName, `${descriptor.apkSha256}.apk`);
     assert.equal(idb.rows.size, 1);
     assert.deepEqual(await store.load(receipt.deviceKey), receipt);
@@ -82,8 +78,9 @@ test('the job store refuses a feed descriptor whose identity does not match its 
   globalThis.indexedDB = fakeIndexedDB();
   try {
     const store = await openJobStore('feed-test');
-    for (const change of [{ versionCode: 771 }, { releaseTag: 'build-771' },
-      { apkName: 'ha-paneld-build-772-manual-setup-required.apk' }, { versionName: 'dev build' }]) {
+    for (const change of [{ versionCode: 771 }, { releaseTag: buildTag(771) }, { releaseTag: 'build-772' },
+      { apkName: 'panel-assistant-build-772-manual-setup-required.apk' }, { versionName: 'dev build' },
+      { packageId: LEGACY_PACKAGE_ID }]) {
       await assert.rejects(store.create(target, { ...descriptor, ...change }), { code: 'job_malformed' });
     }
   } finally { delete globalThis.indexedDB; }

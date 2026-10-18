@@ -17,10 +17,17 @@
       },
       "install_usb": {
         "title": "使用 USB 安装",
-        "description": "将面板连接到这台计算机，而不是 Home Assistant 服务器。",
+        "description": "将面板连接到这台计算机，而不是 Home Assistant 服务器。必须在面板的开发者选项中开启 USB 调试；[适用于具体型号的面板访问指南]({panel_access_url})介绍了方法。",
         "submit": "打开 USB 安装程序"
       },
       "add_panel": {
+        "title": "添加面板",
+        "description": "输入面板的主机名或 IP 地址。如果尚未安装 Panel Assistant，请先按照[适用于具体型号的面板访问指南]({panel_access_url})在端口 5555 上开启网络 ADB。不需要 root 权限。如果面板没有响应，[连接面板的帮助]({panel_help_url})提供各型号的步骤和其他安装方式。",
+        "data": {
+          "address": "面板主机名或 IP 地址"
+        }
+      },
+      "add_known_panel": {
         "title": "添加面板",
         "description": "选择 Home Assistant 已通过其他应用识别的面板，或输入面板的主机名或 IP 地址。标有 ✓ 的面板已可通过网络 ADB 响应。如果尚未安装 Panel Assistant，请先按照[适用于具体型号的面板访问指南]({panel_access_url})在端口 5555 上开启网络 ADB。不需要 root 权限。如果面板没有响应，[连接面板的帮助]({panel_help_url})提供各型号的步骤和其他安装方式。",
         "data": {
@@ -42,6 +49,9 @@
           "panel_setup": "打开设置向导",
           "connect_found": "跳过设置并立即连接",
           "add_panel": "使用其他地址"
+        },
+        "menu_option_descriptions": {
+          "connect_found": "无需先完成面板自身的设置，即可将其连接到 Home Assistant。"
         }
       },
       "panel_setup": {
@@ -50,7 +60,7 @@
       },
       "choose_version": {
         "title": "选择版本",
-        "description": "{address} 上的 Panel Assistant 未响应。请选择面板应运行的版本。测试版本可能包含错误。",
+        "description": "请选择要安装到 {address} 上面板的版本。测试版本可能包含错误。",
         "data": {
           "release_candidate": "版本"
         }
@@ -63,25 +73,17 @@
         "title": "确认发现的面板",
         "description": "Home Assistant 在 {address} 找到了 Panel Assistant 安装。提交以验证它仍是同一面板，并将其添加为 {panel_name}。不会更改任何面板设置。"
       },
-      "confirm_user": {
-        "title": "确认此面板的账户",
-        "description": "面板 {panel} 已以 {user} 的身份登录 Home Assistant，正在请求连接。确认该账户是此面板还需要你做的唯一一件事：之后它会自行完成设置。任何已登录 Home Assistant 的人都可以请求以面板身份连接，因此仅当 {user} 是你为此面板设置的账户时才确认。如果你跳过此步骤，面板仍会被添加，但会保持未连接状态，直到你在“设置”中的“修复”里确认该账户。",
-        "menu_options": {
-          "bind_user": "是，连接此面板",
-          "skip_binding": "暂不"
-        }
-      },
       "authorize_adb": {
-        "title": "在面板上授权 Home Assistant",
-        "description": "所选版本包含经过验证的安装描述文件。选择一次“提交”，为此 Home Assistant 安装创建或加载一个持久的 ADB 身份，并将其公钥提供给位于 {address} 的 Android 面板。在面板上批准 Android 的“允许调试”提示，然后返回此处再次选择“提交”。Android 可能会将 Home Assistant 描述为一台计算机。只要网络调试仍处于启用状态，此授权就会授予一般性的 ADB shell 访问权限；可在面板的开发者设置中撤销授权。此步骤不会下载或安装 APK。"
+        "title": "在面板上允许 Home Assistant",
+        "description": "请查看位于 {address} 的面板屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。\n\n选择“提交”可再次询问面板。"
       },
       "confirm_install_candidate": {
         "title": "安装 Panel Assistant {version}？",
-        "description": "已准备好在地址为 {address} 的 {model} 上安装。\n\n不会改动你的其他应用。"
+        "description": "已准备好在地址为 {address} 的面板上安装。\n\n不会改动你的其他应用。"
       },
       "confirm_install_rc": {
         "title": "安装 Panel Assistant {version}？",
-        "description": "仅供测试：Panel Assistant {version} 是候选发布版，并非稳定版，可能存在错误。\n\n已准备好在地址为 {address} 的 {model} 上安装。\n\n不会改动你的其他应用。"
+        "description": "仅供测试：Panel Assistant {version} 是候选发布版，并非稳定版，可能存在错误。\n\n已准备好在地址为 {address} 的面板上安装。\n\n不会改动你的其他应用。"
       },
       "release_preview_only": {
         "title": "无法自动安装此版本",
@@ -93,10 +95,11 @@
       }
     },
     "progress": {
+      "authorize_adb": "请查看位于 {address} 的面板屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。\n\n面板允许后，将自动继续。",
       "installing": "正在 {address} 上安装 Panel Assistant。请保持此对话框打开；操作会自动完成。\n\n如果关闭对话框，安装仍会继续。请再次添加同一地址以完成操作。"
     },
     "error": {
-      "old_app_installed": "此面板仍安装着旧版 ha-paneld 应用，但它没有响应。请在面板上打开它或重启面板，然后重新添加。之后 Panel Assistant 会提供一个修复，将其迁移到新应用。",
+      "old_app_installed": "此面板仍在运行旧版 ha-paneld 应用。Panel Assistant 1.0 无法将其迁移到新应用，也不会在旁边安装任何内容。请先安装 Panel Assistant 0.9.0（在 HACS 中打开 Panel Assistant，选择 Redownload，然后选择 0.9.0 版本），添加面板并通过其修复完成迁移，再安装 1.0.0。",
       "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
       "invalid_address": "请输入不含 URL 方案或路径的主机名或 IP 地址。",
       "invalid_install_address": "请只输入面板的主机名或 IP 地址。",
@@ -107,16 +110,15 @@
       "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥，也未执行安装。请检查地址并重新开始。",
       "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到你正在使用的这台计算机上，也可以改用 USB 安装。",
       "panel_unreachable": "该地址没有任何响应。请确认地址正确、面板已开机并连接到你的网络，然后再试一次。如果可以把面板插到你正在使用的这台计算机上，也可以改用 USB 安装。",
-      "adb_unauthorized": "面板仍需 ADB 授权。请在面板上批准提示，然后重试。",
-      "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
+      "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例，或没有记住它。",
       "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
-      "installed_without_health": "Panel Assistant 软件包已安装，但其健康检查端点未响应。此流程不会覆盖或修复该安装。请勿重试自动安装；请在面板上打开 Panel Assistant，或按照集成文档中链接的配置安全与恢复指南操作。恢复为正常运行的安装后，请重新开始以连接面板。",
-      "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照集成文档中链接的配置安全与恢复指南操作。在备份经过验证之前，请勿卸载或重置应用。",
+      "installed_without_health": "Panel Assistant 软件包已安装，但其健康检查端点未响应。此流程不会覆盖或修复该安装。请勿重试自动安装；请在面板上打开 Panel Assistant，或按照 {recovery_address} 中的步骤操作。恢复为正常运行的安装后，请重新开始以连接面板。",
+      "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照 {recovery_address} 中的步骤操作。在备份经过验证之前，请勿卸载或重置应用。",
       "incompatible": "未找到 Panel Assistant 软件包，但面板的 Android SDK 或处理器架构不受支持。未下载或安装 APK。",
       "cannot_resolve_release": "已找到安装候选面板，但 Home Assistant 无法解析并验证所选的 Panel Assistant 版本。未下载或安装 APK。请检查互联网连接；如果测试候选版本，请确认确切标签及其带签名的发布资源已发布。不会改用其他版本。",
       "invalid_release_candidate": "请从列表中选择一个版本。",
       "install_candidate_changed": "预览后，面板身份或软件包的安装及残留状态发生了变化。未创建安装任务。请检查面板后重新开始。",
-      "installed_artifact_mismatch": "已安装的应用与所选版本并非逐字节相同，因此 Home Assistant 没有覆盖它；请选择其确切版本，或按照配置安全与恢复指南操作。",
+      "installed_artifact_mismatch": "已安装的应用与所选版本并非逐字节相同，因此 Home Assistant 没有覆盖它；请选择其确切版本，或按照 {recovery_address} 中的步骤操作。",
       "install_plan_rejected": "无法将面板和签名版本绑定为安全的安装计划。未创建安装任务。",
       "install_job_conflict": "已有其他安装任务占用了此面板身份。未创建第二个任务。",
       "install_receipt_error": "Home Assistant 无法安全加载或持久保存安装回执。未授权任何新的面板操作。",
@@ -128,25 +130,32 @@
       "release_selection_required": "请从列表中选择一个版本。"
     },
     "abort": {
+      "old_app_installed": "此面板仍在运行旧版 ha-paneld 应用。Panel Assistant 1.0 无法将其迁移到新应用，也不会在旁边安装任何内容。请先安装 Panel Assistant 0.9.0（在 HACS 中打开 Panel Assistant，选择 Redownload，然后选择 0.9.0 版本），添加面板并通过其修复完成迁移，再安装 1.0.0。",
       "already_configured": "此面板已配置。",
+      "reinstall_successful": "应用已重新安装。此面板在 Home Assistant 中的历史记录和设置会保留。",
+      "usb_installed": "Panel Assistant 已安装，面板已添加到 Home Assistant。请在安装程序窗口中完成面板的设置。",
+      "reinstall_identity_mismatch": "应用已安装，但无法关联到保留的面板。该面板在 Home Assistant 中的历史记录和设置已保留。请先在 Home Assistant 中检查此面板，再重试。",
       "not_panel": "这不是 Panel Assistant 可以在其上进行安装的面板。",
       "invalid_discovery": "发现的面板无法证明它是同一健康的 Panel Assistant 安装。未更改 Home Assistant 条目或面板设置。",
       "install_cancelled": "安装流程已在 APK 安装前取消。未创建 Home Assistant 条目。要重试，请添加 Panel Assistant 集成并输入相同的面板地址。",
       "install_cancelled_after_staging_cleanup": "安装已取消，并在安装前移除了暂存的 APK。未创建 Home Assistant 条目。要重试，请添加 Panel Assistant 集成并输入相同的面板地址。",
       "install_authorization_failed": "Home Assistant 无法安全加载或验证其存储的 ADB 凭据。未安装 APK。请检查 Home Assistant 的存储和日志，然后添加 Panel Assistant 集成并输入相同地址以重试。",
-      "install_preflight_rejected": "无法再确认该面板不存在已安装的软件包或残留记录，且为兼容的安装目标。未安装 APK。请先按照集成文档中的说明修正面板状态，然后使用相同地址重新开始。",
+      "install_preflight_rejected": "无法再确认该面板不存在已安装的软件包或残留记录，且为兼容的安装目标。未安装 APK。请先按照 [{recovery_address}]({recovery_url}) 中的说明检查面板，然后使用相同地址重新开始。",
       "install_artifact_rejected": "Home Assistant 在安装软件包前拒绝了版本下载或暂存操作。未安装 APK。请检查 Home Assistant 的互联网连接、存储和日志，然后使用相同地址重新开始。",
       "install_transport_failed": "Home Assistant 无法完成安装前的连接、下载或暂存步骤。未安装 APK。请检查面板、网络以及 Home Assistant 的互联网连接和日志，然后使用相同地址重新开始。",
       "install_package_failed": "Android 明确拒绝了 APK，Home Assistant 已移除其暂存文件。未创建应用或 Home Assistant 条目。请检查面板兼容性和可用存储空间，然后重新开始。",
-      "install_launch_failed": "APK 已安装，但 Home Assistant 无法完成或验证启动步骤。请勿重试自动安装。请在面板上打开 Panel Assistant，或按照集成文档中链接的配置安全与恢复指南操作。",
-      "install_health_check_failed": "APK 已安装，但 Panel Assistant 未通过健康检查。请勿重试自动安装。请在面板上打开 Panel Assistant，或按照集成文档中链接的配置安全与恢复指南操作。",
-      "install_ambiguous_mutation": "ADB 暂存、安装或启动操作可能已经更改了面板。请勿重试自动安装、卸载或重置应用。请按照集成文档中链接的配置安全与恢复指南操作。",
-      "install_verification_required": "面板已经发生更改，但 Home Assistant 无法验证已安装的软件包或清理此次安装所暂存的确切文件。请勿重试自动安装、卸载或重置应用。请按照集成文档中链接的配置安全与恢复指南操作。",
-      "install_failed": "安装程序因无法识别的结果而停止。未创建 Home Assistant 条目。在检查面板并查阅集成文档中链接的配置安全与恢复指南之前，请勿重试自动安装。",
+      "install_launch_failed": "APK 已安装，但 Home Assistant 无法完成或验证启动步骤。请勿重试自动安装。请在面板上打开 Panel Assistant；如果无法启动，请按照 [{recovery_address}]({recovery_url}) 中的步骤操作。",
+      "install_health_check_failed": "APK 已安装，但 Panel Assistant 未通过健康检查。请勿重试自动安装。请在面板上打开 Panel Assistant；如果无法启动，请按照 [{recovery_address}]({recovery_url}) 中的步骤操作。",
+      "install_ambiguous_mutation": "ADB 暂存、安装或启动操作可能已经更改了面板。请勿重试自动安装、卸载或重置应用。请按照 [{recovery_address}]({recovery_url}) 中的步骤操作，以检查面板。",
+      "install_verification_required": "面板已经发生更改，但 Home Assistant 无法验证已安装的软件包或清理此次安装所暂存的确切文件。请勿重试自动安装、卸载或重置应用。请按照 [{recovery_address}]({recovery_url}) 中的步骤操作，以检查面板。",
+      "install_failed": "安装程序因无法识别的结果而停止。未创建 Home Assistant 条目。在按照 [{recovery_address}]({recovery_url}) 中的说明检查面板之前，请勿重试自动安装。",
       "install_worker_stopped": "安装程序已停止，在当前 Home Assistant 进程中不会重新运行此任务。请重启 Home Assistant，重新打开集成设置流程并输入相同的面板地址，以恢复任务或获取恢复结果。未创建条目。",
-      "install_recovery_required": "Home Assistant 无法确认可以安全地自动继续。未创建条目。在按照集成文档中链接的配置安全与恢复指南操作之前，请勿重试自动安装、卸载或重置应用。",
+      "install_recovery_required": "Home Assistant 无法确认可以安全地自动继续。未创建条目。在按照 [{recovery_address}]({recovery_url}) 中的步骤操作之前，请勿重试自动安装、卸载或重置应用。",
       "install_receipt_error": "Home Assistant 无法安全读取持久保存的安装回执。未创建条目。",
       "unknown": "设置流程丢失了待处理的面板状态。请重新开始设置。"
+    },
+    "create_entry": {
+      "another_home_assistant": "此面板当前已登录另一个 Home Assistant。它已添加到此处，但其设置和登录状态未更改。若要将其连接到此处，请在面板上更改 Home Assistant 并登录。"
     }
   },
   "entity": {
@@ -162,52 +171,220 @@
           "restarting_update": "正在重启（更新）",
           "restarting_settings": "正在重启（设置）",
           "restarting_recovery": "正在重启（恢复）",
-          "restarting_reboot": "正在重启（系统重启）"
+          "restarting_reboot": "正在重启（系统重启）",
+          "another_home_assistant": "已登录另一个 Home Assistant"
         }
       },
       "diag_boot": {
-        "name": "上次启动时间"
+        "name": "上次启动时间",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "diag_cpu": {
-        "name": "CPU 使用率"
+        "name": "CPU 使用率",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "diag_ip": {
-        "name": "IP 地址"
+        "name": "IP 地址",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "diag_memory": {
-        "name": "内存使用量"
+        "name": "内存使用量",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "diag_soc_temp": {
-        "name": "SoC 温度"
+        "name": "SoC 温度",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "diag_wifi_outages_24h": {
         "name": "Wi-Fi 中断次数（24 小时）",
         "state_attributes": {
           "is_lower_bound": {
             "name": "下限"
+          },
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
           }
         }
       },
       "diag_wifi_rssi": {
-        "name": "Wi-Fi 信号强度"
+        "name": "Wi-Fi 信号强度",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "diag_wifi_ssid": {
-        "name": "Wi-Fi 网络"
+        "name": "Wi-Fi 网络",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "humidity": {
-        "name": "湿度"
+        "name": "湿度",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "illuminance": {
-        "name": "照度"
+        "name": "照度",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "proximity_level": {
-        "name": "接近程度"
+        "name": "接近程度",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "room_humidity": {
-        "name": "室内湿度"
+        "name": "室内湿度",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "room_temp": {
-        "name": "室内温度"
+        "name": "室内温度",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "storage_health": {
         "name": "存储健康状况",
@@ -269,11 +446,35 @@
           },
           "wal_bytes": {
             "name": "预写日志大小"
+          },
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
           }
         }
       },
       "temperature": {
-        "name": "温度"
+        "name": "温度",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       },
       "zigbee_gateway_health": {
         "name": "Zigbee 网关健康状况",
@@ -321,6 +522,17 @@
           },
           "role": {
             "name": "角色"
+          },
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
           }
         }
       }
@@ -356,11 +568,51 @@
           },
           "source_count": {
             "name": "来源数"
+          },
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
+      },
+      "usb_debugging": {
+        "name": "USB 调试",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
           }
         }
       },
       "proximity": {
-        "name": "接近"
+        "name": "接近",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "原因",
+            "state": {
+              "waiting": "正在等待首次读数",
+              "not_shared": "面板未共享",
+              "not_readable": "面板无法读取",
+              "not_on_wifi": "未通过 Wi-Fi 连接",
+              "turned_off": "已关闭",
+              "not_ready": "未就绪"
+            }
+          }
+        }
       }
     },
     "button": {
@@ -369,16 +621,17 @@
       },
       "reload": {
         "name": "重新加载仪表盘"
+      },
+      "android_settings": {
+        "name": "Android 设置"
+      },
+      "launcher": {
+        "name": "启动器"
       }
     },
     "event": {
       "button": {
         "name": "按键"
-      }
-    },
-    "image": {
-      "camera_snapshot": {
-        "name": "摄像头快照"
       }
     },
     "light": {
@@ -505,10 +758,10 @@
     }
   },
   "exceptions": {
+    "old_app_needs_090": {"message": "此面板仍在运行旧应用：请先安装 Panel Assistant 0.9.0，如其修复所述"},
     "mqtt_panel_needs_090": {
       "message": "{panel} 尚未从 MQTT 迁移：请先安装 Panel Assistant 0.9.0，如其修复所述"
     },
-    "move_with_repair": {"message": "请在“设置”中通过此面板的修复将其迁移到新应用。"},
     "health_update_failed": {
       "message": "无法读取面板健康状态"
     },
@@ -516,13 +769,8 @@
     "update_busy": { "message": "面板正在执行其他操作" },
     "update_approval_required": { "message": "请在面板上批准此更新，然后重试" },
     "update_rejected": { "message": "{panel} 拒绝了更新请求。请检查面板的“安装”选项卡，然后重试。" },
-    "bridge_not_ready": { "message": "面板暂时无法切换到新应用。一旦可以切换，Panel Assistant 会再次提供切换。" },
-    "release_pair_unavailable": { "message": "对应的新应用版本暂不可用。请稍后重试。" },
+    "update_refused_by_panel": { "message": "{panel} 拒绝了更新：{reason}" },
     "panel_changed_during_update": { "message": "更新期间面板状态发生变化。请刷新页面后重试。" },
-    "bridge_details_changed": { "message": "面板的移交信息发生变化。请刷新页面后重试。" },
-    "bridge_capability_unavailable": { "message": "无法检查面板是否已准备好移交。请检查面板连接后重试。" },
-    "successor_untrusted": { "message": "已安装的新应用不受信任，无法用于移交。请查看面板的“安装”选项卡。" },
-    "bridge_handover_refused": { "message": "面板拒绝移交给新应用。请查看面板的“安装”选项卡。" },
     "release_download_failed": { "message": "无法下载应用版本。请检查连接后重试。" },
     "staged_app_mismatch": { "message": "已暂存的应用与签名版本信息不符，因此未安装任何内容。" },
     "update_not_accepted": { "message": "面板未接受更新请求" },
@@ -594,48 +842,13 @@
       "title": "{panel} 需要应用 {required_version}",
       "description": "{panel} 运行的应用 {version} 使用的协议比 Panel Assistant 1.0 更旧，因此 Home Assistant 无法看到或控制它，其实体会显示为不可用。不会丢失任何内容：面板仍会独立工作，并保留其设置和历史记录。请安装 Panel Assistant 为此面板提供的更新，它就会重新连接。"
     },
+    "old_app_needs_090": {
+      "title": "{panel} 仍在运行旧应用",
+      "description": "{panel} 仍在运行旧版 ha-paneld 应用。Panel Assistant 1.0 已无法将面板迁移到新应用，因此在迁移完成前不会在 {panel} 上安装或更新任何内容。请先安装 Panel Assistant 0.9.0（在 HACS 中打开 Panel Assistant，选择 Redownload，然后选择 0.9.0 版本），通过其修复迁移面板，再安装 1.0.0。在此期间，面板会继续使用旧应用正常工作。"
+    },
     "mqtt_panel_needs_090": {
       "title": "{panel} 尚未从 MQTT 迁移",
       "description": "Panel Assistant 1.0 无法再将 {panel} 从 MQTT 迁移到它自己的连接，现在连接它会创建第二组实体并拆分其历史记录。请先安装 Panel Assistant 0.9.0（在 HACS 中打开 Panel Assistant，选择 Redownload，然后选择 0.9.0 版本），让它迁移面板，再安装 1.0.0。如果你想重新开始，请在“设置”、“设备与服务”、MQTT 中删除此面板的设备，然后重新加载此条目，或将其移除并重新添加面板；这会创建新实体，且不保留历史记录。"
-    },
-    "move_to_new_app": {
-      "title": "将 {panel} 迁移到新应用",
-      "fix_flow": {
-        "step": {
-          "confirm_move": {
-            "title": "将 {panel} 迁移到新应用",
-            "description": "{panel} 仍在运行旧版 ha-paneld 应用。Panel Assistant 会通过你的网络将其迁移到新应用，并保留其设置：先在这里备份面板，然后安装新应用，再移除旧应用。迁移期间面板应用会重启一次。如果面板显示“允许 USB 调试吗？”，请点按“允许”，如有“一律允许使用这台计算机进行调试”选项请勾选。你无需 root 面板，也无需输入任何命令。选择“提交”即可迁移。"
-          }
-        },
-        "progress": {
-          "moving": "正在将 {panel} 迁移到新应用。请保持面板开机。"
-        },
-        "abort": {
-          "entry_removed": "此面板已从 Home Assistant 中移除。",
-          "already_moved": "{panel} 已在运行新应用，无需迁移。",
-          "release_unavailable": "Panel Assistant 暂时无法获取新应用的发布版本。请检查 Home Assistant 能否访问互联网，然后重试。",
-          "adb_authorization": "{panel} 尚未允许 Panel Assistant 连接。请查看面板：如果显示“允许 USB 调试吗？”，请勾选“一律允许使用这台计算机进行调试”并点按“允许”，然后重新打开此修复。",
-          "adb_unreachable": "Panel Assistant 无法连接到 {panel} 进行迁移。请确认面板已开机、与 Home Assistant 位于同一网络，并且已在面板应用的设置中开启网络调试，然后重新打开此修复。",
-          "backup_failed": "Panel Assistant 无法为 {panel} 创建完整备份，因此未做任何更改。请稍后重试。",
-          "new_app_is_home": "{panel} 停留在之前一次未完成的迁移中，此版本暂时无法完成。未做任何更改。Panel Assistant 的后续版本会修复此问题。",
-          "move_failed": "{panel} 的迁移未完成。其设置已备份在 Home Assistant 中，面板仍保持可用的界面。重新打开此修复即可从中断处继续。",
-          "panel_changed": "在 {panel} 地址上响应的设备不是 Panel Assistant 所知的面板，因此未做任何更改。如果面板已被更换或重置，请将其从 Home Assistant 中移除后重新添加。",
-          "busy": "{panel} 正在进行更新或另一次迁移。请在其完成后重试。",
-          "restore_approval": "{panel} 需要在其屏幕上确认后才能恢复设置。请在面板上确认，然后重新打开此修复。"
-        }
-      }
-    },
-    "remove_old_app_adb": {
-      "title": "旧应用仍在 {panel} 上",
-      "description": "{panel} 正在运行新的 Panel Assistant 应用，但旧的 ha-paneld 应用仍安装在旁边。Panel Assistant 会通过 ADB 自动将其移除，但目前无法连接到面板的 Android Debug Bridge。请确认已开启网络调试，并且面板已允许 Home Assistant 连接。Panel Assistant 会自行重试。"
-    },
-    "remove_old_app_unproven": {
-      "title": "旧应用仍在 {panel} 上",
-      "description": "{panel} 上的新 Panel Assistant 应用旁边安装着旧的 ha-paneld 应用。只有在证明新应用正在运行面板后，Panel Assistant 才会移除旧应用：新应用必须以此面板的身份应答，并且是它的主屏幕。此项无法证明，因此两个应用均保持原样。Panel Assistant 会自行再次检查。"
-    },
-    "remove_old_app_failed": {
-      "title": "旧应用仍在 {panel} 上",
-      "description": "{panel} 正在运行新的 Panel Assistant 应用，但旧的 ha-paneld 应用仍安装在旁边。Panel Assistant 尝试备份面板并移除旧应用，但未能完成。面板上的其他内容均未更改。Panel Assistant 会自行重试。"
     },
     "panel_permissions": {
       "title": "{panel} 的权限需要处理。",
@@ -643,7 +856,7 @@
         "step": {
           "commission_permissions": {
             "title": "检查 {panel} 的权限",
-            "description": "{panel} 的仪表盘仍可使用。在实体面板上打开 Android 设置 → 应用 → Panel Assistant。允许列表中显示的相机和麦克风权限，以及通知。在特殊应用权限中，允许 Panel Assistant 修改系统设置和显示在其他应用上层。在无障碍设置中启用 Panel Assistant 服务。返回此处并选择提交，再次检查权限。"
+            "description": "{panel} 上的仪表盘仍可使用。请在实体面板上打开 Android 设置 → 应用 → Panel Assistant。允许相机和麦克风访问权限（如有列出）以及通知权限。在“特殊应用权限”下，为 Panel Assistant 允许“修改系统设置”和“显示在其他应用的上层”。在“无障碍”下，启用 Panel Assistant 服务。当导航栏设为“滑动显示”或“始终显示”，且缺少“显示在其他应用的上层”权限时，从仪表盘底部向上滑动会改为打开“显示在其他应用的上层”设置：请允许该权限，返回，然后再次向上滑动。返回此处并选择“提交”以重新检查权限。"
           }
         },
         "error": {
@@ -686,6 +899,10 @@
       "title": "{panel} 上的语音助手未在聆听。",
       "description": "{panel} 上的语音助手未在聆听，因为面板检查时其麦克风没有提供任何音频。要重新检查，请在面板的 Configure 页面中关闭再打开语音助手，或在那里选择其他音频源。面板报告：{detail}"
     },
+    "volume_number_removed": {
+      "title": "{panel} 不再有单独的音量数值实体",
+      "description": "{panel} 有一个媒体播放器，可显示和设置其音量，因此 Panel Assistant 已删除其单独的音量数值实体 {entity}。以下自动化或脚本仍在使用它：{users}。请将它们改为在面板的媒体播放器上使用 `media_player.volume_set` 动作设置音量。修改完成后，可以忽略此消息。"
+    },
       "restart_required": {
         "title": "重启 Home Assistant 以完成 Panel Assistant 的更新",
         "fix_flow": {
@@ -716,25 +933,6 @@
         }
       }
     },
-    "panel_awaiting_confirmation": {
-      "title": "完成 {panel} 的连接",
-      "fix_flow": {
-        "step": {
-          "confirm_bind": {
-            "title": "确认面板用户",
-            "description": "面板 {panel} 请求以用户 {user} 的身份连接到 Home Assistant。仅当 {user} 是你为此面板设置的账户时才确认。确认后，面板应该很快就会连接。任何已登录 Home Assistant 的人都可以请求以面板身份连接，因此如果你不认识此请求，请关闭此对话框并忽略该问题。"
-          },
-          "confirm_rebind": {
-            "title": "更改面板用户",
-            "description": "面板 {panel} 已确认用于用户 {bound_user}，但用户 {user} 请求以此面板的身份连接。仅当你已将此面板的账户更改为 {user} 时才确认：之后面板将不再接受 {bound_user}，并且应该很快就会连接。如果你没有更改，可能有其他人试图接管此面板，请关闭此对话框并忽略该问题。"
-          }
-        },
-        "abort": {
-          "entry_removed": "此面板已不再在 Home Assistant 中设置。",
-          "user_unavailable": "请求连接的用户已不存在或已停用。未做任何更改。"
-        }
-      }
-    },
     "no_update_route": {
       "title": "{panel} 无法接收应用更新",
       "description": "Panel Assistant 无法在 {panel} 上安装应用更新，因此应用将保持当前版本。面板的其他功能一切照常，所以很容易被忽略。这通常发生在面板本身被更改之后，例如固件更新或重置。通过 USB 将面板重新连接到 Panel Assistant 即可恢复更新。选择“了解更多”查看此面板的操作步骤。"
@@ -742,20 +940,6 @@
     "merged_panel_identity": {
       "title": "分离已合并的面板：{panels}",
       "description": "面板 {panels} 报告了相同的设备标识，因此 Home Assistant 无法安全地确定原生连接或实体属于哪个条目。它们的原生连接已被拒绝，也不会移动任何实体。请在所有受影响的面板上更新 Panel Assistant 应用，使每个面板都拥有不同的标识，然后删除合并后的设备，让面板重新注册。"
-    },
-    "panel_migration_incomplete": {
-      "title": "{address} 的面板尚未完成向新应用的迁移",
-      "fix_flow": {
-        "step": {
-          "confirm_migration": {
-            "title": "再次检查面板",
-            "description": "Panel Assistant 已在 {address} 的面板上安装版本 {version}，面板会自行把设置迁移到新应用。Home Assistant 停止等待时，该迁移尚未完成。面板全程继续正常工作，并会从中断处接着完成迁移，因此这里不会对它做任何更改。选择“提交”以再次查看。"
-          }
-        },
-        "abort": {
-          "migration_unfinished": "新应用尚未响应。面板会自行继续操作，请稍后重新打开此问题。"
-        }
-      }
     },
     "installer_failure": {
       "title": "{panel} 安装或更新失败",
@@ -1231,7 +1415,7 @@
           "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到你正在使用的这台计算机上，也可以改用 USB 安装。",
           "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
           "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
-          "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照集成文档中链接的配置安全与恢复指南操作。在备份经过验证之前，请勿卸载或重置应用。",
+          "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照 {recovery_address} 中的步骤操作。在备份经过验证之前，请勿卸载或重置应用。",
           "unknown": "出现意外错误",
           "panel_identity_changed": "该地址不再回应为已配置的面板。请检查面板及其地址后重试。"
         },
@@ -1279,6 +1463,9 @@
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
+        },
+        "abort": {
+          "entry_removed": "此面板已被移除。"
         }
       }
     },
@@ -1293,6 +1480,10 @@
     "panel_identity_mismatch": {
       "title": "检查 {panel} 的地址",
       "description": "{address} 的响应与 {panel} 不符，因此已暂停此面板的控制功能。请检查此地址是否属于该面板。如果面板的地址已更改，请使用当前地址重新添加。"
+    },
+    "panel_link_shared": {
+      "title": "{panel} 已重新安装，但与其他设置共用设备关联",
+      "description": "{panel} 在重新安装应用后从 {address} 应答，但 {others} 也持有相同的设备关联，因此 Home Assistant 无法判断此面板属于哪个设置，已暂停其控制。地址没有问题。如果 {others} 已不再使用，请将其删除，{panel} 会自动重新加入；否则请重新添加 {panel}。"
     },
     "panel_identity_confirmation": {
       "title": "保留 {panel} 的现有设置",
@@ -1366,7 +1557,7 @@
           "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到你正在使用的这台计算机上，也可以改用 USB 安装。",
           "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
           "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
-          "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照集成文档中链接的配置安全与恢复指南操作。在备份经过验证之前，请勿卸载或重置应用。",
+          "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照 {recovery_address} 中的步骤操作。在备份经过验证之前，请勿卸载或重置应用。",
           "unknown": "出现意外错误",
           "panel_identity_changed": "该地址不再回应为已配置的面板。请检查面板及其地址后重试。"
         },
@@ -1395,7 +1586,7 @@
           "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到你正在使用的这台计算机上，也可以改用 USB 安装。",
           "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
           "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
-          "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照集成文档中链接的配置安全与恢复指南操作。在备份经过验证之前，请勿卸载或重置应用。",
+          "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照 {recovery_address} 中的步骤操作。在备份经过验证之前，请勿卸载或重置应用。",
           "unknown": "出现意外错误",
           "panel_identity_changed": "该地址不再回应为已配置的面板。请检查面板及其地址后重试。"
         },
@@ -1403,35 +1594,31 @@
           "entry_removed": "此面板已被移除。"
         }
       }
+    },
+    "another_home_assistant": {
+      "title": "{panel} 已登录另一个 Home Assistant",
+      "description": "{panel} 已添加到此处，但它当前已登录另一个 Home Assistant。其设置和登录状态未更改。若要将其连接到此处，请在面板上更改 Home Assistant 并登录。"
     }
   },
   "options": {
     "step": {
       "init": {
         "title": "面板设置",
-        "description": "继续配置此面板或授权 ADB 用于面板更新。如果面板尚未绑定，请确认已登录的账户以完成配置。",
+        "description": "选择要对此面板执行的操作。",
         "menu_options": {
           "onboarding": "继续设置",
           "authorize_adb": "允许更新",
           "updates": "面板更新",
           "remove_app": "从此面板移除 Panel Assistant"
+        },
+        "menu_option_descriptions": {
+          "remove_app": "把主屏幕交还给面板自带的启动器，然后卸载该应用。"
         }
       },
       "onboarding": {
         "title": "完成此面板的设置",
-        "description": "请在能通过本地网络访问面板的浏览器中打开面板的设置页面。使用该浏览器当前登录的 Home Assistant 账户登录，选择主仪表板，并在该页面完成设置。保持此对话框打开；完成后会返回这里确认账户。如果此浏览器无法访问面板，请稍后在面板所在的本地网络中完成设置。如果系统要求批准 Android 调试，仍需有人在面板上操作。"
-      },
-      "onboarding_wait": {
-        "title": "等待面板连接",
-        "description": "面板尚未完成设置，也尚未请求以账户身份连接。请完成面板设置页面上的操作，然后在此处点击“提交”再次检查。确认账户之前，面板将保持未绑定状态。"
-      },
-      "onboarding_confirm": {
-        "title": "确认此面板的账户",
-        "description": "{panel} 已以 {user} 的身份登录并请求连接。仅当这是你为此面板选择的账户时才确认。跳过后面板将保持未绑定；你可以稍后在“修复”中确认。",
-        "menu_options": {
-          "onboarding_bind": "是，连接此面板",
-          "onboarding_skip": "暂不"
-        }
+        "description": "打开[面板的设置页面]({setup_url})。它会在新标签页中打开，请在与面板处于同一网络的设备上操作。在那里完成各个步骤，然后返回这里并点击“完成”。",
+        "submit": "完成"
       },
       "authorize_adb": {
         "title": "允许更新 {panel}",
@@ -1449,17 +1636,12 @@
       },
       "remove_app": {
         "title": "从 {panel} 移除 Panel Assistant",
-        "description": "这会从 {panel} 移除 Panel Assistant。Panel Assistant 会先把主屏幕交还给面板自带的启动器，并重新启用它停用的厂商应用；之后才会通过 Home Assistant 已有的 Android Debug Bridge 连接将其卸载。它在面板上的设置会被删除。\n\n在某些面板和固件版本上，移除后将无法再回到 Android 设置或网络调试，因此不打开面板就无法再次安装该应用。继续之前，请阅读[移除可能对此面板造成的影响]({risks_url})。",
+        "description": "Panel Assistant 会先把主屏幕交还给面板自带的启动器，并重新启用它停用的厂商应用；之后才会将其卸载。它在面板上的设置会被删除。\n\n在某些面板和固件版本上，移除后将无法再回到 Android 设置或网络调试，因此不打开面板就无法再次安装该应用。选择“提交”之前，请阅读[移除可能对此面板造成的影响]({risks_url})。",
         "data": {
-          "confirmed": "我已阅读此面板的移除风险，并要移除 Panel Assistant"
-        }
-      },
-      "remove_app_done": {
-        "title": "已从 {panel} 移除 Panel Assistant",
-        "description": "面板保留其自带的主屏幕。是否也让 Home Assistant 忘记 {panel}？",
-        "menu_options": {
-          "remove_app_delete_entry": "从 Home Assistant 删除此面板",
-          "remove_app_keep_entry": "暂时保留在 Home Assistant 中"
+          "delete_entry": "同时从 Home Assistant 中删除此面板"
+        },
+        "data_description": {
+          "delete_entry": "保持关闭可保留其实体和历史记录，以便你再次安装 Panel Assistant 时使用。"
         }
       }
     },
@@ -1474,10 +1656,9 @@
       "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到你正在使用的这台计算机上，也可以改用 USB 安装。",
       "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
       "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
-      "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照集成文档中链接的配置安全与恢复指南操作。在备份经过验证之前，请勿卸载或重置应用。",
+      "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照 {recovery_address} 中的步骤操作。在备份经过验证之前，请勿卸载或重置应用。",
       "unknown": "出现意外错误",
       "panel_identity_changed": "该地址不再回应为已配置的面板。请检查面板及其地址后重试。",
-      "removal_unconfirmed": "请勾选复选框，确认你已阅读移除风险。未移除任何内容。",
       "removal_busy": "更新或迁移正在更改此面板。未移除任何内容；请在完成后重试。",
       "removal_adb_unreachable": "Home Assistant 无法通过 Android Debug Bridge（端口 5555）连接到面板。未移除任何内容。请确认面板已开启且网络调试仍处于启用状态，然后重试。",
       "removal_adb_authorization": "面板尚未接受此 Home Assistant 实例的 Android Debug Bridge 连接。未移除任何内容。请先选择“允许更新”，然后重试。",
@@ -1489,11 +1670,13 @@
       "removal_home_not_handed": "面板没有确认其他启动器已接管主屏幕，因此未移除 Panel Assistant。请安装一个启动器或重新启用厂商启动器，然后重试。",
       "removal_hand_back_unsupported": "此面板上的 Panel Assistant 应用版本过旧，无法交还主屏幕。未移除任何内容。请先更新应用，然后重试。",
       "removal_app_unreachable": "Panel Assistant 没有响应，而它仍是面板的主屏幕，现在移除会让面板没有主屏幕。未移除任何内容。请在面板上启动 Panel Assistant，然后重试。",
-      "removal_remove_failed": "面板已经拿回主屏幕，但 Panel Assistant 未能完全移除。请重试：重试会完成剩余部分。"
+      "removal_remove_failed": "面板已经拿回主屏幕，但 Panel Assistant 未能完全移除。请重试：重试会完成剩余部分。",
+      "panel_not_connected": "面板尚未连接。请在其设置页面完成各个步骤，然后再次点击“完成”。"
     },
     "abort": {
       "removed_entry_deleted": "已移除 Panel Assistant，并已从 Home Assistant 删除该面板。",
-      "removed_entry_kept": "已移除 Panel Assistant。在你删除之前，面板会保留在 Home Assistant 中。"
+      "removed_entry_kept": "已移除 Panel Assistant。在你删除之前，面板会保留在 Home Assistant 中。",
+      "panel_connected": "面板已设置完成，并已连接到 Home Assistant。"
     }
   }
 }

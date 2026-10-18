@@ -72,6 +72,12 @@ async def test_real_catalog_populates_selector_and_caches(
         assert client.requests == []
         form = await flow.async_step_add_panel({CONF_ADDRESS: "panel.local"})
         requests = list(client.requests)
+        if pa_version == "1.0.0":
+            # One recommended release is nothing to choose: straight to the question.
+            assert form["step_id"] == "confirm_install_candidate"
+            assert flow._pending_release.tag == "v1.2.3"
+            assert flow._pending_rc_tag is None
+            return
         again = await flow.async_step_choose_version()
     assert "release_candidate" not in address_form["data_schema"].schema
     assert form["step_id"] == "choose_version"
@@ -80,16 +86,10 @@ async def test_real_catalog_populates_selector_and_caches(
     assert any(url.endswith("-protocol.json") for url, _ in requests)
     assert not any(url.endswith(".apk") for url, _ in requests)
     selector = form["data_schema"].schema["release_candidate"]
-    assert selector.config["options"] == (
-        [
-            {"value": "stable", "label": "v1.2.3 (recommended)"},
-        ]
-        if pa_version == "1.0.0"
-        else [
-            {"value": "stable", "label": "v1.3.0-rc2 (recommended)"},
-            {"value": "v1.2.3", "label": "v1.2.3"},
-        ]
-    )
+    assert selector.config["options"] == [
+        {"value": "stable", "label": "v1.3.0-rc2 (recommended)"},
+        {"value": "v1.2.3", "label": "v1.2.3"},
+    ]
     assert form["errors"] is None
     assert again["errors"] is None
     assert form["data_schema"]({})["release_candidate"] == "stable"
@@ -208,7 +208,8 @@ async def test_empty_catalogue_retry_submits_in_the_ui_and_offers_a_fresh_choice
     manager = _manager_for(_receipt(InstallPhase.APPROVED))
     manager.async_find_active.return_value = None
     stable = {"tag": "v0.9.6", "prerelease": False}
-    catalog = AsyncMock(side_effect=[ReleaseResolutionError(), [stable]])
+    older = {"tag": "v0.9.5", "prerelease": False}
+    catalog = AsyncMock(side_effect=[ReleaseResolutionError(), [stable, older]])
     with ExitStack() as stack:
         mocks = _patch_clean_panel(stack, manager)
         stack.enter_context(patch(f"{_FLOW}.async_list_install_choices", catalog))
@@ -223,7 +224,7 @@ async def test_empty_catalogue_retry_submits_in_the_ui_and_offers_a_fresh_choice
     assert fresh["step_id"] == "choose_version"
     assert not fresh["errors"]
     options = fresh["data_schema"].schema["release_candidate"].config["options"]
-    assert [option["value"] for option in options] == ["stable"]
+    assert [option["value"] for option in options] == ["stable", "v0.9.5"]
     assert catalog.await_count == 2
     mocks["credential"].assert_not_awaited()
     manager.async_create_or_join.assert_not_awaited()
@@ -250,14 +251,11 @@ async def test_network_setup_offers_and_installs_a_feed_build(
         stack.enter_context(
             patch(f"{_CATALOG}.async_get_clientsession", return_value=client)
         )
-        form = await flow.async_step_add_panel({CONF_ADDRESS: "panel.local"})
-        assert form["data_schema"].schema["release_candidate"].config["options"] == [
-            {"value": "stable", "label": "0.9.7-rc4 build 772 (recommended)"},
-        ]
-        result = await flow.async_step_choose_version({"release_candidate": "stable"})
+        # The feed build is the one recommended choice, so no version step shows.
+        result = await flow.async_step_add_panel({CONF_ADDRESS: "panel.local"})
     assert result["step_id"] == "confirm_install_candidate"
     assert flow._pending_release is not None
-    assert flow._pending_release.tag == "build-772"
+    assert flow._pending_release.tag == "build-772-successor"
     assert flow._pending_rc_tag is None
     mocks["credential"].assert_not_awaited()
     manager.async_create_or_join.assert_not_awaited()
@@ -270,8 +268,8 @@ async def test_found_panel_offers_its_unfinished_setup_before_connecting(hass):
             f"{_FLOW}.HaPaneldClient.async_get_health", AsyncMock(return_value=HEALTH)
         ),
         patch(
-            f"{_FLOW}.HaPaneldClient.async_get_setup_complete",
-            AsyncMock(return_value=False),
+            f"{_FLOW}.HaPaneldClient.async_get_setup_state",
+            AsyncMock(return_value=PanelSetupState(complete=False)),
         ),
     ):
         form = await _start_step(hass, "add_panel")
@@ -292,6 +290,10 @@ async def test_setup_wizard_opens_and_the_flow_connects_when_setup_is_done(hass)
     with (
         patch(
             f"{_FLOW}.HaPaneldClient.async_get_health", AsyncMock(return_value=HEALTH)
+        ),
+        patch(
+            f"{_FLOW}.HaPaneldClient.async_get_setup_state",
+            AsyncMock(return_value=PanelSetupState(complete=False)),
         ),
         patch(f"{_FLOW}.HaPaneldClient.async_get_setup_complete", setup),
         patch(f"{_FLOW}._SETUP_POLL_SECONDS", 0),

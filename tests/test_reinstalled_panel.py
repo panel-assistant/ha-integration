@@ -23,21 +23,19 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.panel_assistant import panel_move
-from custom_components.panel_assistant.app_identity import SUCCESSOR_PACKAGE_ID
+from custom_components.panel_assistant import identity
+from custom_components.panel_assistant.app_identity import PACKAGE_ID
 from custom_components.panel_assistant.client import (
     CannotConnectError,
     HaPaneldClient,
     PanelHealth,
 )
 from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
-from custom_components.panel_assistant.panel_move import (
-    MoveError,
+from custom_components.panel_assistant.panel_operations import (
     claim_panel_operation,
-    move_issue_id,
     release_panel_operation,
 )
-from custom_components.panel_assistant.transport import async_get_sessions
+from custom_components.panel_assistant.transport_sessions import async_get_sessions
 
 from .test_transport import HEALTH, STATUS, WsClientFactory, _hello, _send
 
@@ -264,10 +262,10 @@ async def test_a_panel_that_moved_apps_before_rejoins_without_adb(
     """Most entries hold the device's link as the identity they replaced when
     their panel moved to the new app. A reinstall of one looks like that move
     too, and is followed on the recorded link, with no ADB proof to wait for."""
-    network.answers[STORED] = replace(_health(OLD), package=SUCCESSOR_PACKAGE_ID)
+    network.answers[STORED] = replace(_health(OLD), package=PACKAGE_ID)
     entry = _entry(hass, hass_read_only_user.id, previous_installation_identity=LINK)
     await _set_up(hass, entry)
-    network.answers[STORED] = replace(_health(NEW), package=SUCCESSOR_PACKAGE_ID)
+    network.answers[STORED] = replace(_health(NEW), package=PACKAGE_ID)
 
     await _poll(hass, entry)
 
@@ -287,7 +285,10 @@ async def test_a_different_device_at_the_address_is_not_adopted(
     await _poll(hass, entry)
 
     assert entry.unique_id == OLD and _wifi(hass) == f"{OLD}_wifi"
-    assert _address_issue(hass, entry)
+    issue = ir.async_get(hass).async_get_issue(
+        DOMAIN, f"panel_identity_mismatch_{entry.entry_id}"
+    )
+    assert issue is not None and issue.translation_key == "panel_identity_mismatch"
     assert not entry.runtime_data.coordinator.last_update_success
 
 
@@ -324,7 +325,43 @@ async def test_a_link_two_entries_hold_is_not_followed(
 
     assert entry.unique_id == OLD and _wifi(hass) == f"{OLD}_wifi"
     assert _wifi(hass, "beta") == f"{OTHER}_wifi"
+    issue = ir.async_get(hass).async_get_issue(
+        DOMAIN, f"panel_identity_mismatch_{entry.entry_id}"
+    )
+    assert issue is not None
+    assert issue.translation_key == "panel_link_shared"
+    assert issue.translation_placeholders is not None
+    assert issue.translation_placeholders["others"] == "beta"
+
+    await _poll(hass, entry)
+
+    assert entry.unique_id == OLD
+    assert (
+        ir.async_get(hass).async_get_issue(
+            DOMAIN, f"panel_identity_mismatch_{entry.entry_id}"
+        )
+        == issue
+    )
+
+
+async def test_removing_the_entry_that_shares_the_link_lets_the_panel_rejoin(
+    hass: HomeAssistant, hass_read_only_user: Any, network: Network
+) -> None:
+    """What the shared-link Repair advises works: once the entry not in use
+    is deleted, the reinstalled panel rejoins its entry on the next poll."""
+    entry = await _load(hass, network, hass_read_only_user.id)
+    beta = await _load(
+        hass, network, hass_read_only_user.id, OTHER, OTHER_ADDRESS, title="beta"
+    )
+    network.answers[STORED] = _health(NEW)
+    await _poll(hass, entry)
     assert _address_issue(hass, entry)
+
+    await hass.config_entries.async_remove(beta.entry_id)
+    await _poll(hass, entry)
+
+    assert _adopted(hass, entry)
+    assert not _address_issue(hass, entry)
 
 
 async def test_an_entry_left_behind_by_a_re_add_does_not_block_the_next_reinstall(
@@ -423,44 +460,6 @@ async def test_a_panel_busy_with_an_update_is_adopted_on_the_next_poll(
     assert _adopted(hass, entry)
 
 
-async def test_a_move_that_stopped_part_way_is_left_to_that_move(
-    hass: HomeAssistant, hass_read_only_user: Any, network: Network
-) -> None:
-    """Panel Assistant's own move installed the new app, then lost the panel
-    before restoring it. Only that move can finish: the panel is not taken on
-    the link, and the move Repair stays the way to finish it."""
-    entry = await _load(hass, network, hass_read_only_user.id)
-    record = {
-        "receipt": "receipt.zip",
-        "sha256": "0" * 64,
-        "panel_id": "alpha",
-        "config_hash": "1a2b3c4d",
-        "legacy_did": OLD,
-        "serial": "SERIAL",
-    }
-    await hass.async_add_executor_job(
-        panel_move._write_record, panel_move._record_path(hass, entry.entry_id), record
-    )
-    hass.config_entries.async_update_entry(
-        entry, data={**entry.data, "successor_move": {"panel_id": "alpha"}}
-    )
-    network.answers[STORED] = replace(_health(NEW), package=SUCCESSOR_PACKAGE_ID)
-
-    with patch.object(
-        panel_move,
-        "_async_target",
-        AsyncMock(side_effect=MoveError(panel_move.REASON_ADB_UNREACHABLE)),
-    ):
-        await _poll(hass, entry)
-        await hass.async_block_till_done(wait_background_tasks=True)
-
-    assert entry.unique_id == OLD and _wifi(hass) == f"{OLD}_wifi"
-    assert (
-        ir.async_get(hass).async_get_issue(DOMAIN, move_issue_id(entry.entry_id))
-        is not None
-    )
-
-
 @pytest.mark.parametrize("saved", ["registry", "entry"])
 async def test_a_restart_mid_adoption_finishes_it_whichever_save_landed(
     hass: HomeAssistant, hass_read_only_user: Any, network: Network, saved: str
@@ -490,3 +489,20 @@ async def test_a_restart_mid_adoption_finishes_it_whichever_save_landed(
 
     assert entry.state is ConfigEntryState.LOADED
     assert _adopted(hass, entry)
+
+
+async def test_an_identity_another_entry_holds_is_never_adopted(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    """Adoption rekeys an entry only to an identity no other entry holds.
+
+    The other entry has no entities yet, so nothing in the registry collides:
+    only the entry's own claim on the identity stops the rekey.
+    """
+    entry = _entry(hass, hass_read_only_user.id)
+    MockConfigEntry(domain=DOMAIN, title="beta", unique_id=NEW).add_to_hass(hass)
+
+    assert not identity.adopt_moved_identity(hass, entry, NEW, reload=False)
+
+    assert entry.unique_id == OLD
+    assert _wifi(hass) == f"{OLD}_wifi"

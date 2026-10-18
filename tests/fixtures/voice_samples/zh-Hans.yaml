@@ -1,0 +1,33 @@
+match:
+  - {text: "显示摄像头页面", command: show_page, page: 摄像头}
+  - {text: "请给我显示能源仪表盘", command: show_page, page: 能源}
+  - {text: "转到客厅视图", command: show_page, page: 客厅}
+  - {text: "跳转到主页面", command: show_page, page: 主}
+  - {text: "去厨房标签页", command: show_page, page: 厨房}
+  - {text: "给我看看监控页面", command: show_page, page: 监控}
+  - {text: "回到主页", command: show_page, page: 主}
+  - {text: "返回首页", command: show_page, page: 首}
+  - {text: "显示主页", command: show_page, page: 主}
+  - {text: "显示首页", command: show_page, page: 首}
+  - {text: "显示安卓设置", command: android_settings}
+  - {text: "请给我显示安卓设置", command: android_settings}
+  - {text: "显示安卓系统设置", command: android_settings}
+  - {text: "显示Android设置", command: android_settings}
+  - {text: "显示启动器", command: launcher}
+  - {text: "显示Android启动器", command: launcher}
+  - {text: "显示安卓主屏幕", command: launcher}
+  - {text: "回到桌面", command: launcher}
+  - {text: "返回安卓桌面", command: launcher}
+  - {text: "显示Android桌面", command: launcher}
+  - {text: "回到安卓主屏幕", command: launcher}
+miss:
+  - "关闭屏幕"
+  - "返回"
+  - "现在几点"
+  - "今天天气怎么样"
+  - "把亮度设置为50%"
+  - "显示摄像头"
+  - "刷新"
+  - "刷新页面"
+builtin:
+  screen_off: "关闭屏幕"

@@ -9,7 +9,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import HaPaneldConfigEntry
 from .native import NativeEntity, async_setup_native_platform
-from .transport import MAX_STRING_LENGTH
+from .transport_protocol import MAX_STRING_LENGTH
 
 
 async def async_setup_entry(

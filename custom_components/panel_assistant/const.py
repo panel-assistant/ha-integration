@@ -6,22 +6,20 @@ from pathlib import Path
 
 from yarl import URL
 
+from .build import INTEGRATION_BUILD
+
 DOMAIN = "panel_assistant"
 # One definition of this integration's public version: its own manifest.
 INTEGRATION_VERSION: str = json.loads(
     (Path(__file__).parent / "manifest.json").read_text(encoding="utf-8")
 )["version"]
-# The public version (manifest.json) only changes when something ships. This
-# build number tells builds apart in between: it counts the commits that have
-# changed this integration.
-INTEGRATION_BUILD = 542
 
 # The native transport range this running integration can serve. Protocol 5 is
 # the first without MQTT: an app that speaks only 4 or older is refused, told
-# that it needs app 1.0.0, the first release speaking 5, and offered it.
+# that it needs app 1.0.0-preview1, the first release speaking 5, and offered it.
 PROTOCOL_MIN = 5
 PROTOCOL_MAX = 5
-REQUIRED_APP_VERSION = "1.0.0"
+REQUIRED_APP_VERSION = "1.0.0-preview1"
 
 # Every outward link goes through the site's own redirect rather than a page
 # path, so pages can move. The version and build travel with it, so a later
@@ -33,6 +31,15 @@ def help_url(topic: str, **parameters: str) -> str:
     """Return the site redirect for one help topic, stamped with this version."""
     query = {"v": INTEGRATION_VERSION, "build": str(INTEGRATION_BUILD), **parameters}
     return str(URL(_HELP_REDIRECT + topic).with_query(query))
+
+
+# Every install failure names one page: as a link where Home Assistant renders
+# markdown (an abort), as a readable address where it shows plain text (a form
+# error).
+INSTALL_RECOVERY_PLACEHOLDERS = {
+    "recovery_url": help_url("install-recovery"),
+    "recovery_address": _HELP_REDIRECT.removeprefix("https://") + "install-recovery",
+}
 
 
 # One definition of where the panel app is published. The repository moved to
@@ -47,7 +54,7 @@ ANDROID_RELEASE_DOWNLOAD_ROOT = (
 DEFAULT_PORT = 8888
 DEFAULT_SCAN_INTERVAL = timedelta(seconds=30)
 DEFAULT_TIMEOUT_SECONDS = 5
-MAX_HEALTH_RESPONSE_BYTES = 512
+MAX_HEALTH_RESPONSE_BYTES = 1024
 MAX_STATUS_RESPONSE_BYTES = 64 * 1024
 MAX_INSTALL_RESPONSE_BYTES = 1024
 MAX_STATUS_WARNINGS = 32
@@ -91,9 +98,6 @@ CONF_PRERELEASE_PANEL_BUILDS = "prerelease_panel_builds"
 # when they moved a panel's entities off MQTT: which entities moved, and whether
 # the move completed. Only read now.
 CONF_CUTOVER = "cutover"
-# The entry data key holding the channels the entry's panel has described in a
-# hello, with the identity it described them under (see ``transport.py``).
-CONF_SUPPORTED_CHANNELS = "supported_channels"
 
 
 def update_unique_id(entry_id: str) -> str:

@@ -3,7 +3,7 @@
 import pytest
 from homeassistant.const import CONF_ADDRESS
 
-from custom_components.panel_assistant.transport import async_get_sessions
+from custom_components.panel_assistant.transport_sessions import async_get_sessions
 
 from .test_availability import STORED, _load
 from .test_transport import _hello, _send

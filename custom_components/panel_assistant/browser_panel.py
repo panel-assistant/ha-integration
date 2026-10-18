@@ -13,8 +13,9 @@ from homeassistant.components.http.server import StaticPathConfig
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import DOMAIN, INTEGRATION_BUILD, INTEGRATION_VERSION
-from .embed import EmbedProxyView
+from .build import INTEGRATION_BUILD
+from .const import DOMAIN, INTEGRATION_VERSION
+from .embed import EmbedView
 
 DATA_BROWSER_PANEL = "browser_panel"
 STATIC_PATH = Path(__file__).parent / "static"
@@ -61,7 +62,7 @@ class _Registration:
     """Retain successful registration steps across concurrent calls and retries."""
 
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
-    proxy_registered: bool = False
+    view_registered: bool = False
     static_registered: bool = False
     panel_registered: bool = False
     sidebar_registered: bool = False
@@ -71,10 +72,14 @@ async def async_register_browser_panel(hass: HomeAssistant) -> None:
     """Register once per HA lifetime, independently of configuration entries."""
     domain_data = hass.data.setdefault(DOMAIN, {})
     registration = domain_data.setdefault(DATA_BROWSER_PANEL, _Registration())
+    # The module's address names its build. The file is served without a lifetime,
+    # so a browser keeps the copy it last loaded (an older build's sidebar, which
+    # cannot relay a panel's requests) until the address changes.
+    module_url = f"{STATIC_URL}/ha-panel.js?v={INTEGRATION_BUILD}"
     async with registration.lock:
-        if not registration.proxy_registered:
-            hass.http.register_view(EmbedProxyView(hass))
-            registration.proxy_registered = True
+        if not registration.view_registered:
+            hass.http.register_view(EmbedView(hass))
+            registration.view_registered = True
         if not registration.static_registered:
             await hass.http.async_register_static_paths(
                 [StaticPathConfig(STATIC_URL, str(STATIC_PATH), cache_headers=False)]
@@ -85,7 +90,7 @@ async def async_register_browser_panel(hass: HomeAssistant) -> None:
                 hass,
                 frontend_url_path=PANEL_PATH,
                 webcomponent_name="panel-assistant-usb-install",
-                module_url=f"{STATIC_URL}/ha-panel.js",
+                module_url=module_url,
                 sidebar_title=None,
                 embed_iframe=False,
                 require_admin=True,
@@ -99,12 +104,12 @@ async def async_register_browser_panel(hass: HomeAssistant) -> None:
             registration.panel_registered = True
         if not registration.sidebar_registered:
             # Hiding the panel from non-administrators is not the gate: the
-            # embed commands and the proxy check the user themselves.
+            # embed commands and the embed view check the user themselves.
             await panel_custom.async_register_panel(
                 hass,
                 frontend_url_path=SIDEBAR_PANEL_PATH,
                 webcomponent_name="panel-assistant-sidebar",
-                module_url=f"{STATIC_URL}/ha-panel.js",
+                module_url=module_url,
                 sidebar_title="Panel Assistant",
                 sidebar_icon="mdi:tablet-dashboard",
                 embed_iframe=False,

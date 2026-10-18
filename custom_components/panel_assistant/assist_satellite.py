@@ -42,9 +42,8 @@ from . import HaPaneldConfigEntry
 from .browser_panel import STATIC_URL
 from .client import HaPaneldError
 from .const import DOMAIN
-from .transport import (
-    CAPABILITY_VOICE,
-    MANAGE_SETTINGS,
+from .transport_protocol import CAPABILITY_VOICE, MANAGE_SETTINGS
+from .transport_sessions import (
     PanelSession,
     async_get_sessions,
     async_manage,
@@ -110,6 +109,10 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         # sent on: one that ends first cannot finish it.
         self._announcements: dict[str, tuple[str, asyncio.Future[bool]]] = {}
         self._continue_conversation = False
+        # The reply as the conversation agent writes it, and whose words the
+        # latest chat log delta carries.
+        self._reply_text = ""
+        self._reply_role: str | None = None
         # The colours last sent, and the session they were sent on.
         self._colors_sent: tuple[str, dict[str, str]] | None = None
         self._unregister_timers: Callable[[], None] | None = None
@@ -357,10 +360,38 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         data = event.data or {}
         if event.type in (PipelineEventType.STT_VAD_END, PipelineEventType.STT_END):
             run.send({"kind": "listen_end"})
+            if event.type is PipelineEventType.STT_END and (
+                text := (data.get("stt_output") or {}).get("text")
+            ):
+                run.send({"kind": "transcript", "text": text})
+        elif event.type is PipelineEventType.INTENT_START:
+            self._reply_text = ""
+            self._reply_role = None
+        elif event.type is PipelineEventType.INTENT_PROGRESS:
+            # As Core's pipeline does: a delta naming a role starts that
+            # role's message, and only the assistant's words are the reply.
+            delta = data.get("chat_log_delta") or {}
+            if role := delta.get("role"):
+                self._reply_role = role
+                # A later assistant message, after a tool call, starts apart
+                # from the words before it.
+                text = self._reply_text
+                if role == "assistant" and text and not text[-1].isspace():
+                    self._reply_text += " "
+            if self._reply_role == "assistant" and (content := delta.get("content")):
+                self._reply_text += content
+                run.send({"kind": "reply", "text": self._reply_text, "final": False})
         elif event.type is PipelineEventType.INTENT_END:
+            intent_output = data.get("intent_output") or {}
             self._continue_conversation = bool(
-                (data.get("intent_output") or {}).get("continue_conversation")
+                intent_output.get("continue_conversation")
             )
+            speech = (
+                ((intent_output.get("response") or {}).get("speech") or {}).get("plain")
+                or {}
+            ).get("speech")
+            if speech:
+                run.send({"kind": "reply", "text": speech, "final": True})
         elif event.type is PipelineEventType.TTS_END:
             if tts_output := data.get("tts_output"):
                 play = {

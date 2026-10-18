@@ -5,46 +5,16 @@ import { ReleaseVerificationError, parseUnauthenticatedDescriptor,
   verifyReleaseBundle } from '../src/release-verifier.mjs';
 import { ApkVerificationError, verifyApkBundle } from '../src/apk-verifier.mjs';
 import { handoffOptions, receiveReleaseHandoff } from '../src/release-handoff.mjs';
-import { SUCCESSOR_PACKAGE_ID, LAUNCH_COMPONENTS } from '../src/app-identity.mjs';
+import { LEGACY_PACKAGE_ID, PACKAGE_ID } from '../src/app-identity.mjs';
+import { ALGORITHM, SIGNER, apkOf, buildTag, bundle, canonical, document, entry, release, serialise,
+  sha256 } from './signed-feed.mjs';
 
-const ALGORITHM = { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048,
-  publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' };
-const release = await crypto.subtle.generateKey(ALGORITHM, false, ['sign', 'verify']);
 const stranger = await crypto.subtle.generateKey(ALGORITHM, false, ['sign', 'verify']);
-const SIGNER = 'ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339';
 const encoder = new TextEncoder();
-const hex = bytes => Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, '0')).join('');
-const sha256 = async bytes => hex(await crypto.subtle.digest('SHA-256', bytes));
-// Python's json.dumps(sort_keys=True, separators=(",", ":")) + "\n"; the golden
-// fixture test below proves this helper produces the Python bytes.
-const canonical = value => Array.isArray(value) ? `[${value.map(canonical).join(',')}]`
-  : value !== null && typeof value === 'object'
-    ? `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`
-    : JSON.stringify(value);
-const apkOf = code => encoder.encode(`ha-paneld test build ${code}\n`);
-
-async function entry(code, overrides = {}) {
-  const sha = await sha256(apkOf(code));
-  return { apkPath: `apks/${sha}.apk`, apkSha256: sha, apkSize: apkOf(code).length,
-    commit: '0123456789abcdef0123456789abcdef01234567',
-    databaseCompatibility: 'hapaneld-db:v1:ha-paneld.db:11:14',
-    launchComponent: 'io.github.maxlyth.hapaneld/.MainActivity', minSdk: 26,
-    packageId: 'io.github.maxlyth.hapaneld', published: '2026-09-11T10:00:00Z',
-    signerCertificateSha256: SIGNER, supportedAbis: ['arm64-v8a', 'armeabi-v7a'],
-    versionCode: code, versionName: '0.9.7-rc4', ...overrides };
-}
-async function document({ builds, ...overrides } = {}) {
-  return { builds: builds ?? [await entry(772), await entry(771), await entry(770)],
-    channel: 'maintainer', schema: 'io.github.maxlyth.hapaneld.buildfeed.v1', ...overrides };
-}
-const serialise = value => encoder.encode(`${canonical(value)}\n`);
-async function sign(feed, key = release.privateKey) {
-  return new Uint8Array(await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, feed));
-}
-async function bundle(feed, { tag = 'build-772', key } = {}) {
-  const bytes = feed instanceof Uint8Array ? feed : serialise(feed);
-  return { tag, feed: bytes, feedSignature: await sign(bytes, key) };
-}
+const OLD_APP_LAUNCH = 'io.github.maxlyth.hapaneld/.MainActivity';
+// A build of the old app, as feeds up to 0.9.10 carried it.
+const oldApp = (code, overrides = {}) => entry(code, { packageId: LEGACY_PACKAGE_ID,
+  launchComponent: OLD_APP_LAUNCH, ...overrides });
 const verify = (value, tag = value.tag, key = release.publicKey) =>
   verifyReleaseBundle(value, { expectedRcTag: tag }, key);
 const refuses = promise => assert.rejects(promise, ReleaseVerificationError);
@@ -56,7 +26,7 @@ test('a signed feed build becomes the v1 install descriptor the installer alread
   assert.deepEqual({ ...result.descriptor }, {
     apkName: `${build.apkSha256}.apk`, apkSha256: build.apkSha256, apkSize: build.apkSize,
     databaseCompatibility: build.databaseCompatibility, launchComponent: build.launchComponent,
-    minSdk: 26, packageId: build.packageId, releaseTag: 'build-772',
+    minSdk: 26, packageId: PACKAGE_ID, releaseTag: 'build-772-successor',
     schema: 'io.panelassistant.android.install.v1', signerCertificateSha256: SIGNER,
     supportedAbis: ['arm64-v8a', 'armeabi-v7a'], versionCode: 772, versionName: '0.9.7-rc4',
   });
@@ -71,45 +41,68 @@ test('a feed signed under the new schema name is read like one under the old', a
 test('the tag number chooses exactly the build with that versionCode', async () => {
   const middle = await entry(771, { versionName: '0.9.7-rc3+dev.1' });
   const feed = await document({ builds: [await entry(772), middle, await entry(770)] });
-  const { descriptor } = await verify(await bundle(feed, { tag: 'build-771' }));
+  const { descriptor } = await verify(await bundle(feed, { tag: buildTag(771) }));
   assert.equal(descriptor.versionCode, 771);
   assert.equal(descriptor.apkSha256, middle.apkSha256);
   assert.equal(descriptor.versionName, '0.9.7-rc3+dev.1');
 });
 
-test('the signed feed selects the successor APK at a shared build number', async () => {
-  const successorApk = encoder.encode('successor APK');
-  const successor = await entry(772, {
-    packageId: SUCCESSOR_PACKAGE_ID,
-    launchComponent: LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID][0],
-    apkSha256: await sha256(successorApk), apkSize: successorApk.length,
-  });
-  successor.apkPath = `apks/${successor.apkSha256}.apk`;
-  const feed = await document({ builds: [await entry(772), successor] });
-  const signed = await bundle(feed, { tag: 'build-772-successor' });
+test('an old-app build at the same number is skipped, never chosen', async () => {
+  const oldApk = encoder.encode('old app APK');
+  const old = await oldApp(772, { apkSha256: await sha256(oldApk), apkSize: oldApk.length });
+  old.apkPath = `apks/${old.apkSha256}.apk`;
+  const current = await entry(772);
+  const feed = await document({ builds: [old, current] });
+  const signed = await bundle(feed);
   const { descriptor } = await verify(signed);
-  assert.equal(descriptor.packageId, SUCCESSOR_PACKAGE_ID);
-  assert.equal(descriptor.apkSha256, successor.apkSha256);
-  const verified = await verifyApkBundle(signed, new Blob([successorApk]),
+  assert.equal(descriptor.packageId, PACKAGE_ID);
+  assert.equal(descriptor.apkSha256, current.apkSha256);
+  const verified = await verifyApkBundle(signed, new Blob([apkOf(772)]),
     { expectedRcTag: signed.tag }, release.publicKey);
-  assert.equal(verified.descriptor.packageId, SUCCESSOR_PACKAGE_ID);
+  assert.equal(verified.descriptor.packageId, PACKAGE_ID);
+  // The bare tag names the old app's build, which this installer cannot drive.
+  await refuses(verify(await bundle(feed, { tag: 'build-772' })));
   await refuses(verify(await bundle(feed, { tag: 'build-772-successor-extra' })));
   await refuses(verify(await bundle(feed, { tag: 'build-772-unknown' })));
-  const mismatched = { ...descriptor, packageId: 'io.github.maxlyth.hapaneld' };
+  const mismatched = { ...descriptor, packageId: LEGACY_PACKAGE_ID };
   assert.throws(() => parseUnauthenticatedDescriptor(encoder.encode(`${canonical(mismatched)}\n`),
-    { tag: 'build-772-successor', apkSha256: successor.apkSha256 }));
+    { tag: 'build-772-successor', apkSha256: current.apkSha256 }));
+  // An old-app descriptor under its own bare tag is refused too.
+  const oldDescriptor = { ...descriptor, packageId: LEGACY_PACKAGE_ID, launchComponent: OLD_APP_LAUNCH,
+    releaseTag: 'build-772' };
+  assert.throws(() => parseUnauthenticatedDescriptor(encoder.encode(`${canonical(oldDescriptor)}\n`),
+    { tag: 'build-772', apkSha256: current.apkSha256 }));
+});
+
+// The Python feed parser drops a build it cannot drive before its duplicate
+// check, so such a build never refuses the feed it shares a number with.
+test('a build this installer cannot drive is skipped before the duplicate check', async () => {
+  const other = encoder.encode('other APK');
+  const otherSha = await sha256(other);
+  const undrivable = { apkSha256: otherSha, apkPath: `apks/${otherSha}.apk`, apkSize: other.length };
+  for (const extra of [
+    [await oldApp(772, undrivable), await oldApp(772, undrivable)],
+    [await entry(772, { ...undrivable, launchComponent: OLD_APP_LAUNCH })],
+  ]) {
+    const { descriptor } = await verify(await bundle(await document({ builds: [...extra, await entry(772)] })));
+    assert.equal(descriptor.packageId, PACKAGE_ID);
+    assert.equal(descriptor.apkSha256, (await entry(772)).apkSha256);
+  }
 });
 
 for (const [name, overrides] of [
   ['unsupported package', { packageId: 'io.github.other' }],
-  ['unsupported launch component', { launchComponent: 'io.github.maxlyth.hapaneld/.Other' }],
+  ['unsupported launch component', { launchComponent: 'io.panelassistant.android/.Other' }],
+  ['old-app build', { packageId: LEGACY_PACKAGE_ID, launchComponent: OLD_APP_LAUNCH }],
+  ['old-app launcher under the new id', { launchComponent: OLD_APP_LAUNCH }],
 ]) {
   test(`an authentic ${name} does not hide a supported build`, async () => {
     const feed = await document({ builds: [await entry(773, overrides), await entry(772)] });
     const signed = await bundle(feed);
     const verified = await verifyApkBundle(signed, new Blob([apkOf(772)]),
-      { expectedRcTag: 'build-772' }, release.publicKey);
+      { expectedRcTag: buildTag(772) }, release.publicKey);
     assert.equal(verified.descriptor.versionCode, 772);
+    await refuses(verify(await bundle(feed, { tag: buildTag(773) })));
     await refuses(verify(await bundle(feed, { tag: 'build-773' })));
     signed.feedSignature = new Uint8Array(256);
     await refuses(verify(signed));
@@ -124,13 +117,13 @@ for (const [name, overrides] of [
 
 test('the APK bytes must be exactly the signed size and SHA-256', async () => {
   const signed = await bundle(await document());
-  const verified = await verifyApkBundle(signed, new Blob([apkOf(772)]), { expectedRcTag: 'build-772' }, release.publicKey);
+  const verified = await verifyApkBundle(signed, new Blob([apkOf(772)]), { expectedRcTag: buildTag(772) }, release.publicKey);
   assert.equal(verified.kind, 'authenticated-apk-bytes');
-  assert.equal(verified.descriptor.releaseTag, 'build-772');
+  assert.equal(verified.descriptor.releaseTag, buildTag(772));
   const wrongHash = apkOf(772).slice(); wrongHash[0] ^= 1;
-  await assert.rejects(verifyApkBundle(signed, new Blob([wrongHash]), { expectedRcTag: 'build-772' }, release.publicKey),
+  await assert.rejects(verifyApkBundle(signed, new Blob([wrongHash]), { expectedRcTag: buildTag(772) }, release.publicKey),
     ApkVerificationError);
-  await assert.rejects(verifyApkBundle(signed, new Blob([apkOf(772), 'x']), { expectedRcTag: 'build-772' }, release.publicKey),
+  await assert.rejects(verifyApkBundle(signed, new Blob([apkOf(772), 'x']), { expectedRcTag: buildTag(772) }, release.publicKey),
     ApkVerificationError);
 });
 
@@ -201,44 +194,46 @@ test('refuses a valid signed feed larger than 256 KiB', async () => {
   for (let code = 1; code <= 490; code++) builds.push(await entry(code));
   const oversized = serialise(await document({ builds }));
   assert.ok(oversized.length > 256 * 1024);
-  await refuses(verify(await bundle(oversized, { tag: 'build-1' })));
+  await refuses(verify(await bundle(oversized, { tag: buildTag(1) })));
 });
 
 test('refuses a tag whose number no build carries', async () => {
-  await refuses(verify(await bundle(await document(), { tag: 'build-773' })));
-  await refuses(verify(await bundle(await document({ builds: [] }), { tag: 'build-772' })));
+  await refuses(verify(await bundle(await document(), { tag: buildTag(773) })));
+  await refuses(verify(await bundle(await document({ builds: [] }))));
 });
 
 test('a feed bundle needs its build tag named, and a build tag accepts only a feed', async () => {
   const signed = await bundle(await document());
   await refuses(verifyReleaseBundle(signed, {}, release.publicKey));
-  await refuses(verify(signed, 'build-771'));
-  await refuses(verify({ ...signed, tag: 'build-771' }, 'build-772'));
+  await refuses(verify(signed, buildTag(771)));
+  await refuses(verify({ ...signed, tag: buildTag(771) }, buildTag(772)));
   await refuses(verify({ ...signed, extra: new Uint8Array(1) }));
   await refuses(verify({ ...signed, feedSignature: signed.feedSignature.slice(1) }));
-  await refuses(verify(signed, 'build-2147483648'));
+  await refuses(verify(signed, 'build-2147483648-successor'));
   // GitHub signed files never satisfy a build tag.
-  await refuses(verify({ tag: 'build-772', checksum: new Uint8Array(1), checksumSignature: new Uint8Array(256),
-    descriptor: new Uint8Array(1), descriptorSignature: new Uint8Array(256) }, 'build-772'));
+  await refuses(verify({ tag: buildTag(772), checksum: new Uint8Array(1), checksumSignature: new Uint8Array(256),
+    descriptor: new Uint8Array(1), descriptorSignature: new Uint8Array(256) }, buildTag(772)));
   // Only a genuine public verification key replaces the embedded one.
-  await refuses(verifyReleaseBundle(signed, { expectedRcTag: 'build-772' }, release.privateKey));
+  await refuses(verifyReleaseBundle(signed, { expectedRcTag: buildTag(772) }, release.privateKey));
 });
 
 test('the descriptor rule binds a build tag to its versionCode and content-addressed name', async () => {
   const { descriptor } = await verify(await bundle(await document()));
   const encode = value => encoder.encode(`${canonical(value)}\n`);
-  const expected = { tag: 'build-772', apkSha256: descriptor.apkSha256 };
+  const expected = { tag: buildTag(772), apkSha256: descriptor.apkSha256 };
   assert.deepEqual(parseUnauthenticatedDescriptor(encode(descriptor), expected), descriptor);
-  for (const change of [{ versionCode: 771 }, { apkName: `ha-paneld-build-772-manual-setup-required.apk` },
-    { versionName: '0.9.7 rc4' }, { releaseTag: 'build-771' }]) {
+  for (const change of [{ versionCode: 771 }, { apkName: `panel-assistant-build-772-manual-setup-required.apk` },
+    { versionName: '0.9.7 rc4' }, { releaseTag: buildTag(771) }, { packageId: LEGACY_PACKAGE_ID }]) {
     assert.throws(() => parseUnauthenticatedDescriptor(encode({ ...descriptor, ...change }), expected));
   }
-  assert.throws(() => parseUnauthenticatedDescriptor(encode(descriptor), { ...expected, tag: 'build-771' }));
+  assert.throws(() => parseUnauthenticatedDescriptor(encode(descriptor), { ...expected, tag: buildTag(771) }));
+  assert.throws(() => parseUnauthenticatedDescriptor(encode(descriptor), { ...expected, tag: 'build-772' }));
 });
 
 test('the installer window accepts a build tag and exactly the feed bundle shape', async () => {
   const hash = rc => `#${new URLSearchParams({ ha_origin: 'https://ha.example', nonce: 'a'.repeat(32), rc })}`;
   assert.equal(handoffOptions(hash('build-772')).expectedRcTag, 'build-772');
+  assert.equal(handoffOptions(hash(buildTag(772))).expectedRcTag, buildTag(772));
   assert.equal(handoffOptions(hash('v1.2.3')).expectedRcTag, 'v1.2.3');
   for (const rc of ['build-0', 'build-0772', 'build-2147483648', 'build-772 ', 'v1.2.3-rc01']) {
     assert.throws(() => handoffOptions(hash(rc)), { message: 'handoff_invalid' });
@@ -248,7 +243,7 @@ test('the installer window accepts a build tag and exactly the feed bundle shape
     const listeners = new Set();
     const replies = [];
     const opener = { postMessage: data => replies.push(data.type) };
-    const handoff = receiveReleaseHandoff({ options: handoffOptions(hash('build-772')), verificationKey: key,
+    const handoff = receiveReleaseHandoff({ options: handoffOptions(hash(buildTag(772))), verificationKey: key,
       windowObject: { opener, isSecureContext: true, location: { hash: '' },
         addEventListener: (_, fn) => listeners.add(fn), removeEventListener: (_, fn) => listeners.delete(fn) } });
     for (const listener of listeners) {
@@ -260,10 +255,10 @@ test('the installer window accepts a build tag and exactly the feed bundle shape
   const accepted = await deliver({ bundle: signed, apk: new Blob([apkOf(772)]) });
   const { release: verified } = await accepted.handoff.completion;
   assert.equal(verified.kind, 'authenticated-apk-bytes');
-  assert.equal(verified.descriptor.releaseTag, 'build-772');
+  assert.equal(verified.descriptor.releaseTag, buildTag(772));
   assert.deepEqual(accepted.replies, ['ha-paneld/usb-ready', 'ha-paneld/usb-verified']);
   accepted.handoff.cancel();
-  const github = { tag: 'build-772', checksum: new Uint8Array(1), checksumSignature: new Uint8Array(256),
+  const github = { tag: buildTag(772), checksum: new Uint8Array(1), checksumSignature: new Uint8Array(256),
     descriptor: new Uint8Array(1), descriptorSignature: new Uint8Array(256) };
   for (const message of [{ bundle: github, apk: new Blob([apkOf(772)]) },
     { bundle: { ...signed, extra: new Uint8Array(1) }, apk: new Blob([apkOf(772)]) }]) {
@@ -286,17 +281,27 @@ const goldenKey = await crypto.subtle.importKey('spki',
   { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
 const goldenBundle = (tag, feed = golden.feed) => ({ tag, feed: feed.slice(), feedSignature: golden.signature.slice() });
 
-test('accepts the Python-signed golden feed and its APK bytes', async () => {
+test('the Python-signed golden feed still authenticates, and offers none of its old-app builds', async () => {
   const text = new TextDecoder().decode(golden.feed);
   assert.equal(`${canonical(JSON.parse(text))}\n`, text, 'the test serialiser matches Python byte for byte');
-  const verified = await verifyApkBundle(goldenBundle('build-772'), new Blob([golden.apk]),
-    { expectedRcTag: 'build-772' }, goldenKey);
-  assert.equal(verified.descriptor.versionCode, 772);
-  assert.equal(verified.descriptor.versionName, '0.9.7-rc4');
-  assert.equal(verified.descriptor.apkName, `${await sha256(golden.apk)}.apk`);
-  const { descriptor } = await verifyReleaseBundle(goldenBundle('build-770'), { expectedRcTag: 'build-770' }, goldenKey);
-  assert.equal(descriptor.versionName, '0.9.7-rc3+dev.1');
-  await refuses(verifyReleaseBundle(goldenBundle('build-772'), { expectedRcTag: 'build-772' }));
+  assert.equal(await crypto.subtle.verify(ALGORITHM, goldenKey, golden.signature, golden.feed), true);
+  const builds = JSON.parse(text).builds;
+  assert.ok(builds.length && builds.every(build => build.packageId === LEGACY_PACKAGE_ID));
+  for (const { versionCode } of builds) {
+    for (const tag of [`build-${versionCode}`, buildTag(versionCode)]) {
+      await refuses(verifyReleaseBundle(goldenBundle(tag), { expectedRcTag: tag }, goldenKey));
+    }
+  }
+  await assert.rejects(verifyApkBundle(goldenBundle('build-772'), new Blob([golden.apk]),
+    { expectedRcTag: 'build-772' }, goldenKey));
+});
+
+test('the golden feed\'s old-app builds are skipped, not malformed: one of this app beside them is offered', async () => {
+  const feed = JSON.parse(new TextDecoder().decode(golden.feed));
+  feed.builds.push(await entry(772));
+  const { descriptor } = await verify(await bundle(feed));
+  assert.equal(descriptor.packageId, PACKAGE_ID);
+  assert.equal(descriptor.versionCode, 772);
 });
 
 test('refuses a one-byte mutation of the golden feed', async () => {

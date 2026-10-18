@@ -6,8 +6,13 @@ how a newly added field goes missing from one card. Every platform calls this in
 
 from __future__ import annotations
 
+import asyncio
+import logging
+from collections.abc import Callable
+
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -15,13 +20,17 @@ from homeassistant.helpers.typing import UNDEFINED
 
 from .client import PanelHealth
 from .const import DOMAIN
-from .coordinator import PanelSnapshot
+from .coordinator import HaPaneldDataUpdateCoordinator, PanelSnapshot
+from .transport_protocol import MANAGE_HA_AREA_REFRESH, MANAGE_SETTINGS
+from .transport_sessions import async_get_sessions, async_manage, session_manages
 
-# The MQTT bridge registers `ha-paneld-<panel_id>` and `ha-paneld-aid-<android_id>`, and
-# Home Assistant merges a device on ANY matching identifier. Adopting either, or
-# publishing a MAC through `connections`, would make two config entries write the same
-# device and risk the MQTT bridge's authority. This integration keeps its own
-# config-entry-scoped identity.
+_LOGGER = logging.getLogger(__name__)
+
+# The card's identifier is this config entry's own. Its MAC connections are the panel's
+# hardware addresses: since Home Assistant 2026.8 a device belongs to one config entry,
+# so a device another integration registers with the same MAC (the Shelly integration's
+# for a Shelly Wall Display, Fully Kiosk's, ESPHome's) stays its own device and each
+# card lists the other as a linked device.
 
 
 def panel_display_name(hass: HomeAssistant, entry: ConfigEntry) -> str:
@@ -39,8 +48,13 @@ def panel_device_info(
     snapshot: PanelSnapshot | None,
     fallback_name: str | None = None,
     app_build: tuple[str, int] | None = None,
+    panel_url: str | None = None,
 ) -> DeviceInfo:
     """Return the fullest device card the panel's own reported facts support.
+
+    The card's link opens the panel in the sidebar, or, given `panel_url`
+    because the sidebar cannot show the panel now, the panel's own page, so
+    its owner can still reach the settings that would reconnect it.
 
     With no snapshot yet, because the stored address has not answered since
     the entry loaded, the card carries the entry's own name. A fact nobody has
@@ -63,7 +77,7 @@ def panel_device_info(
         identifiers={(DOMAIN, entry_id)},
         name=name,
         # Home Assistant turns this scheme into a same-window, same-origin link.
-        configuration_url=f"homeassistant://panel-assistant/{entry_id}",
+        configuration_url=panel_url or f"homeassistant://panel-assistant/{entry_id}",
     )
     software = _software_version(health, app_build)
     if software is not None:
@@ -81,6 +95,9 @@ def panel_device_info(
             info["hw_version"] = " · ".join(str(part) for part in parts if part)
         if hardware.get("serial_number"):
             info["serial_number"] = str(hardware["serial_number"])
+        macs = hardware.get("network_macs")
+        if isinstance(macs, list):
+            info["connections"] = {(dr.CONNECTION_NETWORK_MAC, mac) for mac in macs}
     if device is None:
         return info
 
@@ -161,6 +178,149 @@ def async_refresh_panel_device(
         sw_version=info.get("sw_version", UNDEFINED),
         hw_version=info.get("hw_version", UNDEFINED),
         serial_number=info.get("serial_number", UNDEFINED),
+        # Replaced, not merged, so an address the panel no longer has stops linking.
+        new_connections=info.get("connections", UNDEFINED),
         # Replace links registered by earlier versions as well.
         configuration_url=info.get("configuration_url", UNDEFINED),
     )
+
+
+@callback
+def async_follow_panel_area(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> Callable[[], None]:
+    """Ask the panel to read its Area again when Home Assistant moves its device.
+
+    The panel owns the Area rule (its own choice, Home Assistant's or a write-back),
+    so no value is sent. A panel that does not know the request refuses it and keeps
+    its slower scheduled read.
+    """
+    registry = dr.async_get(hass)
+
+    async def ask() -> None:
+        session = async_get_sessions(hass).get(entry.entry_id)
+        if not session_manages(session):
+            return
+        assert session is not None
+        try:
+            await async_manage(hass, session, MANAGE_HA_AREA_REFRESH)
+        except HomeAssistantError as err:
+            _LOGGER.debug(
+                "%s: the panel did not read its Area again: %s", entry.title, err
+            )
+
+    @callback
+    def registry_changed(event: Event[dr.EventDeviceRegistryUpdatedData]) -> None:
+        if event.data["action"] != "update" or "area_id" not in event.data["changes"]:
+            return
+        device = registry.async_get(event.data["device_id"])
+        if device is not None and (DOMAIN, entry.entry_id) in device.identifiers:
+            hass.async_create_background_task(
+                ask(), f"{DOMAIN} area read {entry.entry_id}"
+            )
+
+    return hass.bus.async_listen(dr.EVENT_DEVICE_REGISTRY_UPDATED, registry_changed)
+
+
+@callback
+def async_follow_panel_name(
+    hass: HomeAssistant, entry: ConfigEntry, coordinator: HaPaneldDataUpdateCoordinator
+) -> Callable[[], None]:
+    """Deliver explicit HA renames, including intent saved while disconnected.
+
+    The registry alias is the durable intent. Removing it withdraws pending
+    delivery; it never renames the panel to an invented fallback. A successful
+    setting response acknowledges app settings only, not a vendor UI rename.
+    """
+    registry = dr.async_get(hass)
+    task: asyncio.Task[None] | None = None
+    attempted: tuple[str, str] | None = None
+    closed = False
+
+    def desired_name() -> str | None:
+        device = registry.async_get_device_by_identifier(
+            (DOMAIN, entry.entry_id), entry.entry_id
+        )
+        name = device.name_by_user if device is not None else None
+        return name if name and name.strip() else None
+
+    async def deliver() -> None:
+        nonlocal attempted, task
+        try:
+            while not closed and not hass.is_stopping:
+                name = desired_name()
+                session = async_get_sessions(hass).get(entry.entry_id)
+                if (
+                    name is None
+                    or not session_manages(session)
+                    or coordinator.identity_mismatch
+                ):
+                    return
+                assert session is not None
+                key = (session.token, name)
+                if key == attempted:
+                    return
+                # Refusals are retried on reconnect or a new owner rename,
+                # never on each poll of a panel that cannot accept the setting.
+                attempted = key
+                try:
+                    await async_manage(
+                        hass, session, MANAGE_SETTINGS, settings={"friendly_name": name}
+                    )
+                except HomeAssistantError as err:
+                    _LOGGER.warning(
+                        "%s: the panel did not accept the Home Assistant name: %s",
+                        entry.title,
+                        err,
+                    )
+                # Read the registry again: changes made during delivery coalesce
+                # to the latest alias, without concurrent writes arriving late.
+        finally:
+            task = None
+
+    @callback
+    def changed() -> None:
+        nonlocal task, attempted
+        if closed:
+            return
+        if desired_name() is None:
+            attempted = None
+            return
+        if task is None or task.done():
+            task = hass.async_create_background_task(
+                deliver(),
+                f"{DOMAIN} deliver device name {entry.entry_id}",
+                # Session-open listeners run before the hello grant is sent.
+                eager_start=False,
+            )
+
+    @callback
+    def registry_changed(event: Event[dr.EventDeviceRegistryUpdatedData]) -> None:
+        if event.data["action"] != "update":
+            return
+        if "name_by_user" not in event.data["changes"]:
+            return
+        device = registry.async_get(event.data["device_id"])
+        if (
+            device is not None
+            and device.config_entry_id == entry.entry_id
+            and (DOMAIN, entry.entry_id) in device.identifiers
+        ):
+            changed()
+
+    unsubscribe_registry = hass.bus.async_listen(
+        dr.EVENT_DEVICE_REGISTRY_UPDATED, registry_changed
+    )
+    unsubscribe_coordinator = coordinator.async_add_listener(changed)
+
+    @callback
+    def close() -> None:
+        nonlocal closed
+        closed = True
+        unsubscribe_registry()
+        unsubscribe_coordinator()
+        if task is not None:
+            task.cancel()
+
+    changed()
+    return close

@@ -1,0 +1,30 @@
+language: pt-BR
+commands:
+  show_page:
+    sentences:
+      - "[me] (mostre|mostra|mostrar|exiba|exibe|exibir) [para mim|pra mim] (a página|a visualização|o dashboard|a dashboard|a aba) [de|do|da|dos|das] {page}"
+      - "(acesse|acessa) (a página|a visualização|o dashboard|a dashboard|a aba) [de|do|da|dos|das] {page}"
+      - "(vá|vai|ir|me leva|me leve|troque|troca) ((para a|pra|à) (página|visualização|dashboard|aba)|(para o|pro|ao) dashboard) [de|do|da|dos|das] {page}"
+  android_settings:
+    sentences:
+      - "[me] (mostre|mostra|mostrar|exiba|exibe|exibir) [para mim|pra mim] [as] configurações do Android"
+      - "(acesse|acessa) [as] configurações do Android"
+      - "(vá|vai|ir) (para as|pras|às) configurações do Android"
+  launcher:
+    sentences:
+      - "[me] (mostre|mostra|mostrar|exiba|exibe|exibir) [para mim|pra mim] o (launcher|inicializador) [do Android]"
+      - "(vá|vai) (para o|pro|ao) (launcher|inicializador) [do Android]"
+      - "[me] (mostre|mostra|mostrar|exiba|exibe|exibir) [para mim|pra mim] a tela inicial do Android"
+      - "(vá|vai|ir) (para a|pra|à) tela inicial do Android"
+home_pages: [inicial, principal, início, home]
+screen_names: [tela]
+responses:
+  show_page: "Mostrando {page}"
+  android_settings: "Abrindo as configurações do Android"
+  launcher: "Abrindo o launcher"
+  page_unknown: "Este painel não tem uma página chamada {page}"
+  not_a_panel: "Peça isso a um painel"
+  panel_unavailable: "O painel não está conectado"
+  panel_refused: "O painel não conseguiu fazer isso"
+  panel_locked: "O painel está restrito ao dashboard e não pode abrir o Android"
+  needs_update: "Atualize o app do painel para usar este comando"

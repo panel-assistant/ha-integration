@@ -5,7 +5,8 @@ import {mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync} from 'node
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createUsbTransactionPorts} from '../src/usb-transaction-ports.mjs';
-import {LEGACY_LAUNCH_COMPONENT} from '../src/app-identity.mjs';
+import {ACCESSIBILITY_COMPONENTS, LAUNCH_COMPONENTS, PACKAGE_ID,
+  homeComponentFor} from '../src/app-identity.mjs';
 import {CHOOSER_DUMP} from '../src/home-chooser.mjs';
 import {META_CONTROL_CENTER, META_RESTORE_RECORD, META_SCREENSAVER_COMPONENTS,
   META_SCREENSAVER_DEFAULT_COMPONENT, META_VERIFIER_RECORD, SHELLY_LAUNCHER, SHELLY_RESTORE_RECORD} from '../src/vendor-provisioning.mjs';
@@ -30,10 +31,12 @@ appops() {
 pm() {
   if [ "$1" = path ]; then [ ! -f "$STATE/package.$2" ] || echo "package:/system/app/$2.apk"
   elif [ "$1" = list ]; then echo reqGlEsVersion=0x30002; [ ! -f "$STATE/microphone" ] || echo feature:android.hardware.microphone
+    [ ! -f "$STATE/camera" ] || echo "feature:android.hardware.camera.any$(cat "$STATE/camera")"
+    [ ! -f "$STATE/features.fail" ] || return 1
   elif [ "$1" = grant ]; then echo "pm $*" >> "$STATE/calls"; echo true > "$STATE/permission.$3"; fi
 }
 dumpsys() {
-  for p in POST_NOTIFICATIONS RECORD_AUDIO; do
+  for p in POST_NOTIFICATIONS CAMERA RECORD_AUDIO; do
     g=false; [ ! -f "$STATE/permission.android.permission.$p" ] || g=true
     echo "      android.permission.$p: granted=$g, flags=[ USER_SET]"
   done
@@ -58,13 +61,19 @@ input() {
 uiautomator() { if [ -f "$STATE/chooser.shown" ]; then cp "$STATE/chooser.xml" "$2"; fi; }
 `;
 // The chooser a Portal showed on 2026-10-11 after set-home-activity, Always at
-// [772,601][862,646]; the build under test is labelled ha-paneld.
+// [772,601][862,646]; the build under test, whose classes are still in the old
+// package, is labelled ha-paneld as builds up to 0.9.11 are.
 const CHOOSER = readFileSync(new URL('../../../../tests/fixtures/portal_home_chooser.xml', import.meta.url), 'utf8')
   .replaceAll('Panel Assistant', 'ha-paneld');
+const OLD_CLASSES = LAUNCH_COMPONENTS[PACKAGE_ID][0];
+const HOME = homeComponentFor(OLD_CLASSES);
 
-function panel({portal = false, shelly = false, microphone = true} = {}) {
+function panel({portal = false, shelly = false, microphone = true, camera = false,
+  launchComponent = OLD_CLASSES} = {}) {
   const state = mkdtempSync(join(tmpdir(), 'portal-setup-'));
   if (microphone) writeFileSync(join(state, 'microphone'), '');
+  // A version suffix, as `pm list features` prints some features.
+  if (camera) writeFileSync(join(state, 'camera'), camera === 'valued' ? '=1' : '');
   if (shelly) {
     writeFileSync(join(state, 'prop.ro.product.device'), 'Jenna\n');
     writeFileSync(join(state, `package.${SHELLY_LAUNCHER}`), '');
@@ -80,7 +89,7 @@ function panel({portal = false, shelly = false, microphone = true} = {}) {
   const target = {model: 'Portal', serial: 'serial', primaryAbi: 'arm64-v8a', androidSdk: 33,
     rootMode: 'rootless', usbVendorId: 1, usbProductId: 2, usbSerial: 'usb'};
   const artifact = {apkSize: 1234, apkSha256: 'a'.repeat(64),
-    packageId: LEGACY_LAUNCH_COMPONENT.split('/')[0], launchComponent: LEGACY_LAUNCH_COMPONENT};
+    packageId: launchComponent.split('/')[0], launchComponent};
   const release = {kind: 'authenticated-apk-bytes', descriptor: artifact};
   const commands = [];
   const adb = {async createSocket(command) {
@@ -133,8 +142,8 @@ test('every USB install makes the app HOME and grants the microphone, with no Me
     assert.equal(result.home, true);
     assert.equal(result.microphone, 'granted');
     assert.equal(result.vendor, undefined);
-    assert.equal(p.read('home'), 'io.github.maxlyth.hapaneld/.DashboardActivity');
-    assert.ok(p.calls().includes('pm grant io.github.maxlyth.hapaneld android.permission.RECORD_AUDIO'));
+    assert.equal(p.read('home'), HOME);
+    assert.ok(p.calls().includes('pm grant io.panelassistant.android android.permission.RECORD_AUDIO'));
     assert.ok(!p.calls().some(call => /screensaver|alohaapps|stargate/.test(call)));
   } finally { p.cleanup(); }
 });
@@ -149,6 +158,65 @@ test('a panel without a microphone is not granted one, and a HOME Android refuse
     assert.equal(result.microphone, 'unsupported');
     assert.ok(!p.calls().some(call => call.includes('RECORD_AUDIO')));
   } finally { p.cleanup(); }
+});
+
+test('a panel with a camera is granted it, as a network install grants it; one without is not', async () => {
+  const p = panel({camera: true});
+  try {
+    const result = await p.commission();
+    assert.equal(result.permissionsVerified, true);
+    assert.equal(result.camera, 'granted');
+    assert.equal(p.calls().filter(call => call.endsWith('android.permission.CAMERA')).length, 1);
+  } finally { p.cleanup(); }
+  const none = panel();
+  try {
+    const result = await none.commission();
+    assert.equal(result.camera, 'unsupported');
+    assert.ok(!none.calls().some(call => call.includes('CAMERA')));
+  } finally { none.cleanup(); }
+});
+
+test('a camera listed with a version and no microphone gets the camera alone', async () => {
+  const p = panel({camera: 'valued', microphone: false});
+  try {
+    const result = await p.commission();
+    assert.equal(result.camera, 'granted');
+    assert.equal(result.microphone, 'unsupported');
+    assert.ok(!p.calls().some(call => call.includes('RECORD_AUDIO')));
+  } finally { p.cleanup(); }
+});
+
+test('a feature list Android fails to give grants neither permission and reads unknown, as the network install does', async () => {
+  const p = panel({camera: true});
+  writeFileSync(join(p.state, 'features.fail'), '');
+  try {
+    const result = await p.commission();
+    assert.equal(result.permissionsVerified, true);
+    assert.equal(result.camera, 'unknown');
+    assert.equal(result.microphone, 'unknown');
+    assert.ok(!p.calls().some(call => /CAMERA|RECORD_AUDIO/.test(call)), p.calls().join('\n'));
+  } finally { p.cleanup(); }
+});
+
+test('a new-classes build replaces the successor service its own update retired, keeping other apps\' services', async () => {
+  const [retiredLaunch, launchComponent] = LAUNCH_COMPONENTS[PACKAGE_ID];
+  const other = 'com.example.reader/.ReaderService';
+  const p = panel({launchComponent});
+  writeFileSync(join(p.state, 'enabled_accessibility_services'),
+    `${other}:${ACCESSIBILITY_COMPONENTS[retiredLaunch]}\n`);
+  try {
+    const result = await p.commission();
+    assert.equal(result.permissionsVerified, true);
+    assert.equal(p.read('enabled_accessibility_services'), `${other}:${ACCESSIBILITY_COMPONENTS[launchComponent]}`);
+  } finally { p.cleanup(); }
+  // Listed beside the current service, the retired one still goes.
+  const both = panel({launchComponent});
+  writeFileSync(join(both.state, 'enabled_accessibility_services'),
+    `${other}:${ACCESSIBILITY_COMPONENTS[retiredLaunch]}:${ACCESSIBILITY_COMPONENTS[launchComponent]}\n`);
+  try {
+    await both.commission();
+    assert.equal(both.read('enabled_accessibility_services'), `${other}:${ACCESSIBILITY_COMPONENTS[launchComponent]}`);
+  } finally { both.cleanup(); }
 });
 
 test('a Portal gets Meta setup read back and recorded, and a retry changes nothing more', async () => {
@@ -183,7 +251,7 @@ function chooserPanel(chooser = CHOOSER) {
   writeFileSync(join(p.state, 'refuse.home'), '');
   writeFileSync(join(p.state, 'chooser.xml'), chooser);
   writeFileSync(join(p.state, 'chooser.tap'), '817 623\n');
-  writeFileSync(join(p.state, 'chooser.home'), 'io.github.maxlyth.hapaneld/.DashboardActivity\n');
+  writeFileSync(join(p.state, 'chooser.home'), `${HOME}\n`);
   return p;
 }
 
@@ -193,7 +261,7 @@ test('a chooser offering the app has its Always pressed, once', async () => {
     const result = await p.commission();
     assert.equal(result.home, true);
     assert.equal(result.homeChooser, 'tapped');
-    assert.equal(p.read('home'), 'io.github.maxlyth.hapaneld/.DashboardActivity');
+    assert.equal(p.read('home'), HOME);
     const calls = p.calls();
     assert.ok(calls.indexOf('input keyevent 3') < calls.indexOf('input tap 817 623'));
     assert.ok(!calls.includes('input keyevent 4'));

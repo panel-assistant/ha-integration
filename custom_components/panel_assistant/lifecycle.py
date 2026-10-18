@@ -97,7 +97,7 @@ class CoreLifecycle:
 
     @callback
     def _broadcast(self) -> None:
-        from .transport import async_get_sessions
+        from .transport_sessions import async_get_sessions
 
         async_get_sessions(self.hass).broadcast_lifecycle(self.snapshot())
 

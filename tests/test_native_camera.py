@@ -2,10 +2,12 @@
 
 import asyncio
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.components.camera import CameraEntityFeature, async_get_image
+from homeassistant.components.stream import Stream
+from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
@@ -56,7 +58,7 @@ async def test_camera_off_is_available_and_refuses_media_then_fetches_fresh_stil
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
 ) -> None:
-    """Off is controllable; on resolves media from the verified panel client."""
+    """Off is controllable; on waits for new frames from the same live stream."""
     client = await hass_ws_client(hass, hass_read_only_access_token)
     camera, token = await _camera(hass, native, client)
     assert camera.available
@@ -69,20 +71,80 @@ async def test_camera_off_is_available_and_refuses_media_then_fetches_fresh_stil
     await _on(hass, client, token, True)
     assert await camera.stream_source() == "rtsp://panel.local:8554/live"
     assert camera.supported_features & CameraEntityFeature.STREAM
-    jpeg = b"\xff\xd8fresh\xff\xd9"
-    with patch.object(
-        native.runtime_data.client, "_async_get_bounded", return_value=jpeg
-    ) as fetch:
-        assert (await async_get_image(hass, camera.entity_id)).content == jpeg
-        assert (await async_get_image(hass, camera.entity_id)).content == jpeg
-    assert fetch.call_count == 2
-    assert (
-        str(fetch.call_args.args[0])
-        == "http://panel.local:8888/api/v1/camera/snapshot.jpg"
-    )
+    stream = await camera.async_create_stream()
+    stream.add_provider("hls")
+    endpoint = stream.endpoint_url("hls")
+    frames = iter((b"\xff\xd8first\xff\xd9", b"\xff\xd8next\xff\xd9"))
+
+    async def decode(
+        width: int | None = None,
+        height: int | None = None,
+        wait_for_next_keyframe: bool = False,
+    ) -> bytes:
+        if not wait_for_next_keyframe:
+            return b"cached"
+        if width is not None or height is not None:
+            return f"{width}x{height}".encode()
+        return next(frames)
+
+    with patch.object(stream, "async_get_image", side_effect=decode):
+        assert (await async_get_image(hass, camera.entity_id)).content == (
+            b"\xff\xd8first\xff\xd9"
+        )
+        assert (await async_get_image(hass, camera.entity_id)).content == (
+            b"\xff\xd8next\xff\xd9"
+        )
+        assert await camera.async_camera_image(320, 180) == b"320x180"
+    assert await camera.async_create_stream() is stream
+    assert stream.endpoint_url("hls") == endpoint
 
 
-@pytest.mark.parametrize("ending", ["off", "disconnect", "off_on", "unload"])
+async def test_snapshot_after_entry_address_update_replaces_source_and_revokes_old_hls(
+    hass: HomeAssistant,
+    native: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    hass_client_no_auth: Any,
+) -> None:
+    """An address edit changes snapshot origin without disturbing unchanged viewers."""
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    camera, token = await _camera(hass, native, client)
+    await _on(hass, client, token, True)
+    old_stream = await camera.async_create_stream()
+    old_stream.add_provider("hls")
+    old_endpoint = old_stream.endpoint_url("hls")
+
+    async def frame(stream: Stream, *args: Any, **kwargs: Any) -> bytes:
+        return stream.source.encode()
+
+    with patch.object(Stream, "async_get_image", new=frame):
+        assert (await async_get_image(hass, camera.entity_id)).content == (
+            b"rtsp://panel.local:8554/live"
+        )
+        assert await camera.async_create_stream() is old_stream
+        assert old_stream.endpoint_url("hls") == old_endpoint
+        with patch.object(
+            native.runtime_data.coordinator, "async_request_refresh", new=AsyncMock()
+        ):
+            hass.config_entries.async_update_entry(
+                native, data={**native.data, CONF_ADDRESS: "new-panel.local"}
+            )
+            await hass.async_block_till_done()
+        assert camera.available and camera.is_on
+        assert (await async_get_image(hass, camera.entity_id)).content == (
+            b"rtsp://new-panel.local:8554/live"
+        )
+    await hass.async_block_till_done()
+    assert old_stream.access_token is None
+    assert old_stream.outputs() == {}
+    http = await hass_client_no_auth()
+    assert (await http.get(old_endpoint)).status == 404
+
+
+@pytest.mark.parametrize(
+    "ending",
+    ["off", "disconnect", "off_on", "unload", "address", "reconnect", "unavailable"],
+)
 async def test_camera_discards_inflight_still_and_revokes_old_hls(
     hass: HomeAssistant,
     native: MockConfigEntry,
@@ -99,14 +161,12 @@ async def test_camera_discards_inflight_still_and_revokes_old_hls(
     assert stream.endpoint_url("hls")
     entered, finish = asyncio.Event(), asyncio.Event()
 
-    async def jpeg(*args: Any) -> bytes:
+    async def jpeg(*args: Any, **kwargs: Any) -> bytes:
         entered.set()
         await finish.wait()
         return b"\xff\xd8old\xff\xd9"
 
-    with patch.object(
-        native.runtime_data.client, "_async_get_bounded", side_effect=jpeg
-    ):
+    with patch.object(stream, "async_get_image", side_effect=jpeg):
         pending = asyncio.create_task(camera.async_camera_image())
         await entered.wait()
         if ending == "disconnect":
@@ -114,6 +174,27 @@ async def test_camera_discards_inflight_still_and_revokes_old_hls(
             await hass.async_block_till_done()
         elif ending == "unload":
             assert await hass.config_entries.async_unload(native.entry_id)
+        elif ending == "address":
+            from custom_components.panel_assistant.client import normalize_address
+
+            native.runtime_data.client.address = normalize_address("new-panel.local")
+            native.runtime_data.coordinator.async_update_listeners()
+            await hass.async_block_till_done()
+        elif ending == "reconnect":
+            replacement = await hass_ws_client(hass, hass_read_only_access_token)
+            _camera_entity, replacement_token = await _camera(hass, native, replacement)
+            await _on(hass, replacement, replacement_token, True)
+        elif ending == "unavailable":
+            response = await _send(
+                client,
+                _report(
+                    token,
+                    "delta",
+                    [{"channel": "camera_enabled", "state": "unavailable"}],
+                ),
+            )
+            assert response["success"]
+            await hass.async_block_till_done()
         else:
             await _on(hass, client, token, False)
             assert camera.available
@@ -122,9 +203,10 @@ async def test_camera_discards_inflight_still_and_revokes_old_hls(
                 await _on(hass, client, token, True)
         finish.set()
         assert await pending is None
-    assert stream.access_token is None
-    assert stream.outputs() == {}
-    if ending != "off_on":
+    if ending != "address":
+        assert stream.access_token is None
+        assert stream.outputs() == {}
+    if ending not in {"off_on", "address", "reconnect"}:
         assert await camera.async_create_stream() is None
     if ending == "disconnect":
         assert not camera.available
@@ -166,6 +248,82 @@ async def test_camera_replaces_only_its_own_legacy_native_switch(
     assert (registry.async_get(owned.entity_id) is None) == (legacy_owner == "self")
     assert registry.async_get(mqtt.entity_id) is not None
     assert registry.async_get(foreign.entity_id) is not None
+
+
+@pytest.mark.parametrize("legacy_owner", ["self", "other"])
+@pytest.mark.parametrize("advertised", ["camera", "unsupported", "omitted", "image"])
+async def test_hello_retires_only_this_panels_owned_snapshot_image(
+    hass: HomeAssistant,
+    native: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    legacy_owner: str,
+    advertised: str,
+) -> None:
+    """Removing the snapshot platform cannot erase another owner or identity."""
+    registry = er.async_get(hass)
+    other = MockConfigEntry(domain=DOMAIN, title="other")
+    other.add_to_hass(hass)
+    owned = registry.async_get_or_create(
+        "image",
+        DOMAIN,
+        f"{DID}_camera_snapshot",
+        config_entry=native if legacy_owner == "self" else other,
+    )
+    preserved = [
+        registry.async_get_or_create(
+            "image", "mqtt", f"{DID}_camera_snapshot", config_entry=native
+        ),
+        registry.async_get_or_create(
+            "image", DOMAIN, "foreign_camera_snapshot", config_entry=native
+        ),
+        registry.async_get_or_create(
+            "sensor", DOMAIN, f"{DID}_camera_snapshot", config_entry=native
+        ),
+    ]
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    descriptors = [CAMERA] if advertised == "camera" else []
+    if advertised == "image":
+        descriptors = [
+            CAMERA
+            | {
+                "channel": "camera_snapshot",
+                "platform": "image",
+                "translation_key": "camera_snapshot",
+                "unique_suffix": "camera_snapshot",
+            }
+        ]
+    message = _hello(descriptors)
+    if advertised == "unsupported":
+        message["unsupported"] = ["camera_snapshot"]
+    response = await _send(client, message)
+    assert response.get("success"), response
+    assert response["result"]["channels"]["unknown"] == (
+        ["camera_snapshot"] if advertised == "image" else []
+    )
+    if advertised == "image":
+        report = await _send(
+            client,
+            _report(
+                response["result"]["session"],
+                "full_begin",
+                [
+                    {
+                        "channel": "camera_snapshot",
+                        "state": "known",
+                        "value": {"url": "http://panel.local:8888/old-snapshot.jpg"},
+                    }
+                ],
+            ),
+        )
+        assert report.get("success"), report
+        assert report["result"]["rejected"] == [
+            {"channel": "camera_snapshot", "code": "unknown_channel"}
+        ]
+    await hass.async_block_till_done()
+    assert (registry.async_get(owned.entity_id) is None) == (legacy_owner == "self")
+    assert all(registry.async_get(item.entity_id) == item for item in preserved)
+    assert "image" not in native.runtime_data.platforms
 
 
 async def test_camera_off_during_webrtc_registration_releases_the_provider(
@@ -258,7 +416,7 @@ async def test_camera_rejects_still_and_stream_creation_from_an_old_owner(
         "homeassistant.components.camera.get_dynamic_camera_stream_settings",
         side_effect=settings,
     ):
-        pending = asyncio.create_task(camera.async_create_stream())
+        pending = asyncio.create_task(camera.async_camera_image())
         await entered.wait()
         try:
             await _on(hass, client, token, False)
@@ -268,14 +426,10 @@ async def test_camera_rejects_still_and_stream_creation_from_an_old_owner(
     await _on(hass, client, token, True)
     native.runtime_data.client.address = normalize_address("[2001:db8::2]:9999")
     assert await camera.stream_source() == "rtsp://[2001:db8::2]:8554/live"
-    with patch.object(
-        native.runtime_data.client, "_async_get_bounded", return_value=b"fresh"
-    ) as fetch:
+    stream = await camera.async_create_stream()
+    assert stream.source == "rtsp://[2001:db8::2]:8554/live"
+    with patch.object(stream, "async_get_image", return_value=b"fresh"):
         assert (await async_get_image(hass, camera.entity_id)).content == b"fresh"
-    assert (
-        str(fetch.call_args.args[0])
-        == "http://[2001:db8::2]:9999/api/v1/camera/snapshot.jpg"
-    )
 
 
 async def test_legacy_camera_switch_identity_and_customisation_survive_reconnect(

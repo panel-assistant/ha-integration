@@ -125,13 +125,17 @@
           "state",
           "commands",
           "approval",
-          "embed_proof",
           "voice",
           "media",
           "voice_stream_session",
-          "management"
+          "management",
+          "ui_subscribe",
+          "ui_bundle",
+          "rest_retired",
+          "unknown_state"
         ],
         "unsupported": [
+          "camera_snapshot",
           "companion_auto_update",
           "companion_update_channel",
           "humidity",
@@ -158,7 +162,7 @@
           "family": "relay",
           "force_update": false
         }],
-        "contract_digest": "15bf0d68a7edf0db83d1008f0c37c4f2804571314a3294e5049a67880da83d9c",
+        "contract_digest": "36a0c4c8b3135c74f89d16444ba61cacaa0d7ab3752b4b1fe42a7166b8032f61",
         "id": 1,
         "type": "panel_assistant/hello",
         "did": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
@@ -168,11 +172,18 @@
       "name": "report_state",
       "message": {
         "session": "fixture-session",
-        "observations": [{
-          "channel": "relay1",
-          "state": "known",
-          "value": true
-        }],
+        "observations": [
+          {
+            "channel": "relay1",
+            "state": "known",
+            "value": true
+          },
+          {
+            "channel": "illuminance",
+            "state": "unknown",
+            "reason": "waiting"
+          }
+        ],
         "id": 2,
         "type": "panel_assistant/report_state",
         "sync": "delta"
@@ -212,8 +223,26 @@
       }
     }
   ],
-  "sourceRevision": "f25202ffa87f36c0d28f7e70e1d82d81c4ac57f9",
+  "sourceRevision": "0a3afceff878174712254d28e5761df9e3566916",
   "channelDescriptors": [
+    {
+      "entity_category": null,
+      "unique_suffix": "android_settings",
+      "max": null,
+      "channel": "android_settings",
+      "index": null,
+      "platform": "button",
+      "unit": null,
+      "min": null,
+      "options": null,
+      "device_class": null,
+      "translation_key": "android_settings",
+      "step": null,
+      "enabled_default": false,
+      "state_class": null,
+      "family": null,
+      "force_update": false
+    },
     {
       "entity_category": "config",
       "unique_suffix": "auto_brightness",
@@ -372,24 +401,6 @@
       "force_update": false
     },
     {
-      "entity_category": null,
-      "unique_suffix": "camera_snapshot",
-      "max": null,
-      "channel": "camera_snapshot",
-      "index": null,
-      "platform": "image",
-      "unit": null,
-      "min": null,
-      "options": null,
-      "device_class": null,
-      "translation_key": "camera_snapshot",
-      "step": null,
-      "enabled_default": true,
-      "state_class": null,
-      "family": null,
-      "force_update": false
-    },
-    {
       "entity_category": "config",
       "unique_suffix": "cpu_governor",
       "max": null,
@@ -500,6 +511,24 @@
       "state_class": "measurement",
       "family": null,
       "force_update": true
+    },
+    {
+      "entity_category": "diagnostic",
+      "unique_suffix": "usb_debugging",
+      "max": null,
+      "channel": "diag_usb_debugging",
+      "index": null,
+      "platform": "binary_sensor",
+      "unit": null,
+      "min": null,
+      "options": null,
+      "device_class": null,
+      "translation_key": "usb_debugging",
+      "step": null,
+      "enabled_default": true,
+      "state_class": null,
+      "family": null,
+      "force_update": false
     },
     {
       "entity_category": "diagnostic",
@@ -621,6 +650,24 @@
       "options": null,
       "device_class": null,
       "translation_key": "kiosk_lock",
+      "step": null,
+      "enabled_default": false,
+      "state_class": null,
+      "family": null,
+      "force_update": false
+    },
+    {
+      "entity_category": null,
+      "unique_suffix": "launcher",
+      "max": null,
+      "channel": "launcher",
+      "index": null,
+      "platform": "button",
+      "unit": null,
+      "min": null,
+      "options": null,
+      "device_class": null,
+      "translation_key": "launcher",
       "step": null,
       "enabled_default": false,
       "state_class": null,

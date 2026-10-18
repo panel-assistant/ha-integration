@@ -40,7 +40,8 @@
     "loading": "Versionen werden geladen…",
     "catalogError": "Die Versionsliste konnte nicht geladen werden.",
     "empty": "Es sind noch keine Versionen verfügbar. Versuche es später erneut.",
-    "choose": "Dem Kanal von Panel Assistant folgen (empfohlen)",
+    "choose": "Empfohlene Version",
+    "otherVersions": "Andere Version wählen",
     "testing": "Testversion",
     "devBuild": "Entwicklungsbuild",
     "retry": "Erneut versuchen",
@@ -54,6 +55,7 @@
     "downloading": "Die App wird vorbereitet…",
     "verifying": "Die App wird vorbereitet…",
     "verified": "Fahre im neuen Fenster fort.",
+    "installed": "Panel Assistant ist installiert. Schließe die Einrichtung des Panels im Installationsfenster ab und schließe dann diesen Tab.",
     "cancelled": "Abgebrochen.",
     "popup_blocked": "Dein Browser hat das neue Fenster blockiert. Erlaube Pop-ups für diese Seite und drücke dann „Weiter“.",
     "invalid_request": "Wähle zuerst eine Version.",
@@ -65,9 +67,11 @@
     "preparingSlow": "Die App wird noch vorbereitet. Lass den Home Assistant-Tab geöffnet.",
     "connectHeading": "Dein Panel verbinden",
     "connectBody": "Verbinde das Panel über ein USB-Kabel mit diesem Computer und drücke dann „Mein Panel finden“.",
+    "usbDebugging": "USB-Debugging muss in den Entwicklereinstellungen des Panels aktiviert sein.",
+    "usbDebuggingHelp": "So schaltest du es ein",
     "connect": "Mein Panel finden",
     "allowHeading": "Diesen Computer zulassen",
-    "allowBody": "Schau auf den Bildschirm des Panels und tippe auf „Zulassen“.",
+    "allowBody": "Setze auf dem Panel das Häkchen bei „Von diesem Computer immer zulassen“ und tippe auf „Zulassen“, damit Panel Assistant es später ohne Kabel aktualisieren kann.",
     "checkingPanel": "Dein Panel wird geprüft…",
     "confirmHeading": "Bereit zur Installation",
     "confirmBody": "Die App wird installiert und als Startbildschirm deines Panels eingerichtet. Deine anderen Apps bleiben unberührt.",
@@ -101,7 +105,8 @@
     "pageClosed": "Die Seite wurde geschlossen.",
     "progress": "Fortschritt",
     "installProgress": "Installationsfortschritt",
-    "licenses": "Lizenzen von Drittanbietern"
+    "licenses": "Lizenzen von Drittanbietern",
+    "doneAnotherHomeAssistant": "Dieses Panel ist bei einem anderen Home Assistant angemeldet. Ändere Home Assistant und melde dich auf dem Panel an, um es hier zu verbinden."
   },
   "errors": {
     "installErrorGeneric": "Etwas ist schiefgegangen. Lass das Panel angeschlossen und drücke „Erneut versuchen“.",
@@ -112,7 +117,8 @@
     "installErrorNotClean": "Die App ist bereits auf diesem Panel. Aktualisiere sie über Home Assistant.",
     "installErrorIncompatible": "Dieses Panel kann diese Version der App nicht ausführen.",
     "installErrorConnection": "Die Verbindung zum Panel wurde unterbrochen. Lass es angeschlossen und drücke „Erneut versuchen“.",
-    "installErrorHealth": "Die App ist installiert, aber noch nicht gestartet. Warte einen Moment und versuche es dann erneut."
+    "installErrorHealth": "Die App ist installiert, aber noch nicht gestartet. Warte einen Moment und versuche es dann erneut.",
+    "installErrorPermissions": "Die App ist installiert, aber ihre Berechtigungen konnten nicht bestätigt werden. Ein erneuter Versuch ist sicher: Lass das Panel angeschlossen und drücke „Erneut versuchen“."
   },
   "journey": {
     "version": "Version",
@@ -129,6 +135,7 @@
   "support": {
     "stopped": "Gestoppt",
     "cause": "Ursache",
+    "failedCheck": "Fehlgeschlagene Prüfung",
     "error": "Fehler",
     "release": "Version",
     "panel": "Panel",
@@ -142,6 +149,7 @@
     "setupAddress": "Einrichtungsadresse",
     "setupHandover": "Übergabe an die Einrichtung",
     "displaySizing": "Anzeige- und Textgröße",
+    "networkAdb": "ADB über das Netzwerk",
     "copiedDetail": "{bytes} Bytes gesendet; Bestätigung des Panels ausstehend",
     "none": "keine",
     "setupMissing": "nicht gefunden; Einrichtung wird auf dem Panel fortgesetzt"

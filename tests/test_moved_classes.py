@@ -17,12 +17,9 @@ from homeassistant.core import HomeAssistant
 from yarl import URL
 
 from custom_components.panel_assistant import release, update_policy
+from custom_components.panel_assistant.adb_protocol import AdbRootMode, LaunchOutcome
 from custom_components.panel_assistant.const import DOMAIN
-from custom_components.panel_assistant.install_adb import (
-    AdbRootMode,
-    LaunchOutcome,
-    async_launch_installed_app,
-)
+from custom_components.panel_assistant.install_adb import async_launch_installed_app
 from custom_components.panel_assistant.install_executor import InstallExecutor
 from custom_components.panel_assistant.install_jobs import (
     InstallJobManager,
@@ -160,7 +157,7 @@ async def test_a_0_9_10_release_installs_and_starts_by_its_moved_classes(
     """Release, plan, durable job, resumed worker and ADB, end to end."""
     _install_test_key(monkeypatch, signing_key)
 
-    bundle, bridge = await release.async_resolve_stable_bundle_and_bridge(
+    bundle = await release.async_resolve_install_bundle(
         _release_0_9_10(signing_key)  # type: ignore[arg-type]
     )
 
@@ -170,8 +167,6 @@ async def test_a_0_9_10_release_installs_and_starts_by_its_moved_classes(
     assert resolved.descriptor is not None
     assert resolved.descriptor.launch_component == MOVED
     assert (resolved.protocol_min, resolved.protocol_max) == (5, 5)
-    # A bridge whose classes moved is never offered to a panel on the old app.
-    assert bridge is None
     assert update_policy.build_allowed(resolved.version, 5, 5, allow_prerelease=False)
 
     plan = build_install_plan(pinned_target(), probe(), resolved, CREDENTIAL_ID)

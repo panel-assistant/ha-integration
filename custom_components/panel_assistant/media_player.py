@@ -23,11 +23,13 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import HaPaneldConfigEntry
 from .native import NativeEntity, async_setup_native_platform
-from .transport import STATE_KNOWN, async_send_command
+from .transport_protocol import STATE_KNOWN
+from .transport_sessions import async_send_command
 from .voice import panel_url
 from .voice_stream import Listener, async_get_voice_stream
 
-# The volume has one path, the volume channel, whose number stays beside this.
+# The volume has one path, the volume channel; with this player beside it the
+# panel has no separate volume number (see ``native.SHOWN_BY``).
 VOLUME_CHANNEL: Final = "volume"
 
 _STATES: Final = {

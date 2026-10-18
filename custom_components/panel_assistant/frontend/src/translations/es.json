@@ -40,7 +40,8 @@
     "loading": "Cargando versiones…",
     "catalogError": "No se pudo cargar la lista de versiones.",
     "empty": "Aún no hay versiones disponibles. Vuelve a intentarlo más tarde.",
-    "choose": "Seguir el canal de Panel Assistant (recomendado)",
+    "choose": "Versión recomendada",
+    "otherVersions": "Elegir otra versión",
     "testing": "versión de prueba",
     "devBuild": "compilación de desarrollo",
     "retry": "Volver a intentar",
@@ -54,6 +55,7 @@
     "downloading": "Preparando la aplicación…",
     "verifying": "Preparando la aplicación…",
     "verified": "Continúa en la nueva ventana.",
+    "installed": "Panel Assistant está instalado. Termina la configuración del panel en la ventana del instalador y después cierra esta pestaña.",
     "cancelled": "Cancelado.",
     "popup_blocked": "Tu navegador bloqueó la nueva ventana. Permite las ventanas emergentes para esta página y pulsa Continuar.",
     "invalid_request": "Elige primero una versión.",
@@ -65,9 +67,11 @@
     "preparingSlow": "La aplicación aún se está preparando. Mantén abierta la pestaña de Home Assistant.",
     "connectHeading": "Conecta tu panel",
     "connectBody": "Conecta el panel a este ordenador con un cable USB y pulsa Buscar mi panel.",
+    "usbDebugging": "La depuración por USB debe estar activada en los ajustes de desarrollador del panel.",
+    "usbDebuggingHelp": "Cómo activarla",
     "connect": "Buscar mi panel",
     "allowHeading": "Autoriza este ordenador",
-    "allowBody": "Mira la pantalla del panel y toca Permitir.",
+    "allowBody": "En el panel, marca «Permitir siempre desde este ordenador» y toca Permitir, para que Panel Assistant pueda actualizarlo más adelante sin el cable.",
     "checkingPanel": "Comprobando tu panel…",
     "confirmHeading": "Listo para instalar",
     "confirmBody": "Esto instala la aplicación y la convierte en la pantalla de inicio de tu panel. Las demás aplicaciones no se modifican.",
@@ -101,7 +105,8 @@
     "pageClosed": "La página se cerró.",
     "progress": "Progreso",
     "installProgress": "Progreso de la instalación",
-    "licenses": "Licencias de terceros"
+    "licenses": "Licencias de terceros",
+    "doneAnotherHomeAssistant": "Este panel tiene la sesión iniciada en otro Home Assistant. Cambia de Home Assistant e inicia sesión en el panel para conectarlo aquí."
   },
   "errors": {
     "installErrorGeneric": "Algo salió mal. Mantén el panel conectado y pulsa Volver a intentar.",
@@ -112,7 +117,8 @@
     "installErrorNotClean": "Este panel ya tiene la aplicación. Actualízala desde Home Assistant.",
     "installErrorIncompatible": "Este panel no puede ejecutar esta versión de la aplicación.",
     "installErrorConnection": "Se perdió la conexión con el panel. Mantenlo conectado y pulsa Volver a intentar.",
-    "installErrorHealth": "La aplicación está instalada, pero aún no ha iniciado. Espera un momento y vuelve a intentarlo."
+    "installErrorHealth": "La aplicación está instalada, pero aún no ha iniciado. Espera un momento y vuelve a intentarlo.",
+    "installErrorPermissions": "La aplicación está instalada, pero no se pudieron confirmar sus permisos. Volver a intentarlo es seguro: mantén el panel conectado y pulsa Volver a intentar."
   },
   "journey": {
     "version": "Versión",
@@ -129,6 +135,7 @@
   "support": {
     "stopped": "Detenido",
     "cause": "Causa",
+    "failedCheck": "Comprobación fallida",
     "error": "Error",
     "release": "Versión",
     "panel": "Panel",
@@ -142,6 +149,7 @@
     "setupAddress": "Dirección de configuración",
     "setupHandover": "Transferencia a la configuración",
     "displaySizing": "Tamaño de pantalla y texto",
+    "networkAdb": "ADB por red",
     "copiedDetail": "{bytes} bytes enviados; esperando la confirmación del panel",
     "none": "ninguno",
     "setupMissing": "no encontrada; la configuración continúa en el panel"

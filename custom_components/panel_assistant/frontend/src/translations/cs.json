@@ -40,7 +40,8 @@
     "loading": "Načítání verzí…",
     "catalogError": "Seznam verzí se nepodařilo načíst.",
     "empty": "Zatím nejsou dostupné žádné verze. Zkuste to znovu později.",
-    "choose": "Podle kanálu Panel Assistant (doporučeno)",
+    "choose": "Doporučená verze",
+    "otherVersions": "Vybrat jinou verzi",
     "testing": "testovací verze",
     "devBuild": "vývojové sestavení",
     "retry": "Zkusit znovu",
@@ -54,6 +55,7 @@
     "downloading": "Příprava aplikace…",
     "verifying": "Příprava aplikace…",
     "verified": "Pokračujte v novém okně.",
+    "installed": "Panel Assistant je nainstalován. Dokončete nastavení panelu v okně instalátoru a pak tuto kartu zavřete.",
     "cancelled": "Zrušeno.",
     "popup_blocked": "Prohlížeč zablokoval nové okno. Povolte pro tuto stránku vyskakovací okna a pak stiskněte Pokračovat.",
     "invalid_request": "Nejprve vyberte verzi.",
@@ -65,9 +67,11 @@
     "preparingSlow": "Aplikace se stále připravuje. Nechte kartu Home Assistant otevřenou.",
     "connectHeading": "Připojte svůj panel",
     "connectBody": "Připojte panel k tomuto počítači kabelem USB a pak stiskněte Najít můj panel.",
+    "usbDebugging": "Ladění přes USB musí být zapnuté v nastavení pro vývojáře na panelu.",
+    "usbDebuggingHelp": "Jak to zapnout",
     "connect": "Najít můj panel",
     "allowHeading": "Povolit tento počítač",
-    "allowBody": "Podívejte se na obrazovku panelu a klepněte na Povolit.",
+    "allowBody": "Na panelu zaškrtněte „Vždy povolit z tohoto počítače“ a klepněte na Povolit, aby ho Panel Assistant mohl později aktualizovat bez kabelu.",
     "checkingPanel": "Kontrola panelu…",
     "confirmHeading": "Připraveno k instalaci",
     "confirmBody": "Tímto nainstalujete aplikaci a nastavíte ji jako domovskou obrazovku panelu. Vašich ostatních aplikací se to nedotkne.",
@@ -101,7 +105,8 @@
     "pageClosed": "Stránka byla zavřena.",
     "progress": "Průběh",
     "installProgress": "Průběh instalace",
-    "licenses": "Licence třetích stran"
+    "licenses": "Licence třetích stran",
+    "doneAnotherHomeAssistant": "Tento panel je přihlášen k jiné instanci Home Assistant. Chcete-li jej připojit sem, změňte na panelu instanci Home Assistant a přihlaste se."
   },
   "errors": {
     "installErrorGeneric": "Něco se pokazilo. Nechte panel připojený a stiskněte Zkusit znovu.",
@@ -112,7 +117,8 @@
     "installErrorNotClean": "Tento panel už aplikaci má. Aktualizujte ji z Home Assistant.",
     "installErrorIncompatible": "Tento panel nedokáže spustit tuto verzi aplikace.",
     "installErrorConnection": "Spojení s panelem se přerušilo. Nechte ho připojený a stiskněte Zkusit znovu.",
-    "installErrorHealth": "Aplikace je nainstalovaná, ale ještě se nespustila. Chvíli počkejte a pak to zkuste znovu."
+    "installErrorHealth": "Aplikace je nainstalovaná, ale ještě se nespustila. Chvíli počkejte a pak to zkuste znovu.",
+    "installErrorPermissions": "Aplikace je nainstalovaná, ale její oprávnění se nepodařilo ověřit. Zkusit to znovu je bezpečné: nechte panel připojený a stiskněte Zkusit znovu."
   },
   "journey": {
     "version": "Verze",
@@ -129,6 +135,7 @@
   "support": {
     "stopped": "Zastaveno",
     "cause": "Příčina",
+    "failedCheck": "Neúspěšná kontrola",
     "error": "Chyba",
     "release": "Vydání",
     "panel": "Panel",
@@ -142,6 +149,7 @@
     "setupAddress": "Adresa nastavení",
     "setupHandover": "Předání nastavení",
     "displaySizing": "Velikost zobrazení a textu",
+    "networkAdb": "ADB přes síť",
     "copiedDetail": "Odesláno {bytes} bajtů; čeká se na potvrzení panelu",
     "none": "žádné",
     "setupMissing": "nenalezeno; nastavení pokračuje na panelu"

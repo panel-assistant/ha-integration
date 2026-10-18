@@ -10,12 +10,14 @@ explicit statement that it cannot serve it: that channel's native entity is
 removed (see ``async_remove_unsupported_channels``), and a later session that
 describes the channel again adds it anew. Existing reboot and reload entries
 are preserved, since a temporary helper or root loss must not erase their
-registry identity or customisation.
+registry identity or customisation. A channel another entity already shows
+renders none of its own (see ``shown_elsewhere``), and the hello removes the
+entity an earlier version rendered for it.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Collection, Mapping
 from enum import StrEnum
 from typing import Any, Final
 
@@ -29,8 +31,8 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
 from .contract import catalogue_entry
-from .transport import (
-    STATE_KNOWN,
+from .transport_protocol import STATE_KNOWN, STATE_UNKNOWN
+from .transport_sessions import (
     Observation,
     PanelSession,
     async_get_sessions,
@@ -52,7 +54,6 @@ NATIVE_ONLY_PLATFORMS: Final = (
     Platform.BUTTON,
     Platform.CAMERA,
     Platform.EVENT,
-    Platform.IMAGE,
     Platform.LIGHT,
     Platform.MEDIA_PLAYER,
     Platform.NUMBER,
@@ -65,13 +66,30 @@ NATIVE_ONLY_PLATFORMS: Final = (
 # entity, keyed by config entry, so its channel adds no second one.
 NOT_RENDERED: Final = frozenset({"update_paneld"})
 
+# A channel whose own entity is redundant while the channel named for it is
+# described: the media player shows and sets the volume through the volume
+# channel, so a panel with a speaker has no separate volume number.
+SHOWN_BY: Final = {"volume": "media"}
+
 # Platforms whose channels are never reported, only described.
 _UNREPORTED: Final = frozenset({Platform.BUTTON, Platform.EVENT})
+# Platforms shown as unknown, with the panel's reason, while there is no reading.
+_NO_READING: Final = frozenset({Platform.SENSOR, Platform.BINARY_SENSOR})
+# The attribute naming that reason; every sensor and binary sensor translates it.
+UNKNOWN_REASON: Final = "unknown_reason"
 
 
 def native_unique_id(did: str, unique_suffix: str) -> str:
     """Return a native entity's unique ID."""
     return f"{did}_{unique_suffix}"
+
+
+def shown_elsewhere(
+    channel: str, descriptors: Mapping[str, Any], unknown: Collection[str]
+) -> bool:
+    """Return whether another described channel's entity already shows this one."""
+    owner = SHOWN_BY.get(channel)
+    return owner is not None and owner in descriptors and owner not in unknown
 
 
 def enum_or_none[E: StrEnum](enum: type[E], value: str | None) -> E | None:
@@ -153,6 +171,17 @@ class NativeEntity(Entity):
         return observation
 
     @property
+    def no_reading_reason(self) -> str | None:
+        """Return why the panel has no reading for this sensor, or None."""
+        session = self.session
+        if session is None or self.platform_name not in _NO_READING:
+            return None
+        observation = session.observations.get(self._channel)
+        if observation is None or observation.state != STATE_UNKNOWN:
+            return None
+        return observation.reason
+
+    @property
     def reported_value(self) -> Any:
         """Return the latest known value, or None."""
         observation = self.observation
@@ -163,7 +192,11 @@ class NativeEntity(Entity):
         """Available while a synced session describes and reports the channel."""
         if self.session is None or not session_available(self.hass, self._entry_id):
             return False
-        return self.platform_name in _UNREPORTED or self.observation is not None
+        return (
+            self.platform_name in _UNREPORTED
+            or self.observation is not None
+            or self.no_reading_reason is not None
+        )
 
     @property
     def platform_name(self) -> str:
@@ -174,6 +207,8 @@ class NativeEntity(Entity):
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return the reported attributes, whose keys are translation codes."""
+        if (reason := self.no_reading_reason) is not None:
+            return {UNKNOWN_REASON: reason}
         observation = self.observation
         if observation is None:
             return None
@@ -245,6 +280,9 @@ def async_setup_native_platform(
                 descriptor["platform"] != platform
                 or channel in session.unknown_channels
                 or channel in NOT_RENDERED
+                or shown_elsewhere(
+                    channel, session.descriptors, session.unknown_channels
+                )
             ):
                 continue
             unique_id = native_unique_id(session.did, descriptor["unique_suffix"])

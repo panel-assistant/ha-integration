@@ -29,6 +29,7 @@ from custom_components.panel_assistant.client import (
     parse_staged_apk,
 )
 from custom_components.panel_assistant.const import (
+    MAX_HEALTH_RESPONSE_BYTES,
     MAX_STATUS_CAPABILITIES,
     MAX_STATUS_RESPONSE_BYTES,
     MAX_STATUS_WARNING_LENGTH,
@@ -83,8 +84,6 @@ def test_parse_health_fixture() -> None:
     assert health.build == "1000"
     assert health.config_hash == "1a2b3c4d"
     assert health.ha_state == "normal"
-    assert health.ha_source == "mqtt"
-    assert health.ha_subscription_refused is False
 
 
 def test_restart_health_token_is_bounded_optional_status() -> None:
@@ -109,8 +108,6 @@ def test_parser_ignores_future_tokens_and_values() -> None:
     )
     assert health.panel_id == "test"
     assert health.ha_state is None
-    assert health.ha_source is None
-    assert health.ha_subscription_refused is True
 
 
 def test_parser_accepts_current_android_network_suffix() -> None:
@@ -128,6 +125,43 @@ def test_parser_accepts_current_android_network_suffix() -> None:
         config_hash="0123abcd",
         ha_state="normal",
     )
+
+
+# The longest line the app can produce: every optional token present at its
+# widest (LocalAdminEndpointTest renders the same line from the app's own token
+# builders). Over 512 bytes, the bound this replaces (PMARCH-18).
+LONGEST_HEALTH = (
+    "ha-paneld 1.0.0-preview1 panel=" + "p" * 63 + " build=1725312345678 cfg=0123abcd"
+    f" did={'a' * 64} identity=install legacy_did={'b' * 64}"
+    " pkg=io.panelassistant.android vc=2147483647 proto=999-999"
+    " ha=connection_lost ha_src=native ha_refused=1 ha_reason=host_reboot"
+    " ha_elapsed_ms=9999999999 ha_expected_ms=9999999999 ha_grace_ms=9999999999"
+    " ha_net=critical ha_net_cause=latency ha_resp=critical ha_net_p95=9999999"
+    " ha_net_n=9999999 ha_net_miss=9999999 ha_net_age=9999999999"
+    " pa_restarting=panel,recovery,999999 pa_notice=1\n"
+)
+
+
+def test_parser_accepts_the_longest_line_the_app_produces() -> None:
+    """A restart notice on a panel with a long ID is read, not refused."""
+    assert len(LONGEST_HEALTH) > 512
+
+    health = parse_health_response(LONGEST_HEALTH)
+
+    assert health.panel_id == "p" * 63
+    assert health.discovery_id == "a" * 64
+    assert health.legacy_discovery_id == "b" * 64
+
+
+def test_parser_still_bounds_the_line() -> None:
+    """The bound still holds one byte past it."""
+    padding = " x=" + "y" * (MAX_HEALTH_RESPONSE_BYTES - len(LONGEST_HEALTH) - 3)
+    at_bound = LONGEST_HEALTH[:-1] + padding + "\n"
+    assert len(at_bound) == MAX_HEALTH_RESPONSE_BYTES
+    parse_health_response(at_bound)
+
+    with pytest.raises(InvalidResponseError):
+        parse_health_response(LONGEST_HEALTH[:-1] + padding + "y\n")
 
 
 def test_parser_accepts_the_bounded_panel_assistant_discovery_id() -> None:
@@ -183,8 +217,6 @@ def test_parser_accepts_metadata_boundaries_and_build_fallback() -> None:
         "cfg=89abcdef",
         f"did={'a' * 64} did={'a' * 64}",
         "ha=normal ha=starting",
-        "ha_src=mqtt ha_src=socket",
-        "ha_refused=1 ha_refused=1",
         "ha_net=healthy ha_net=warning",
     ],
 )
@@ -209,7 +241,7 @@ def test_parser_rejects_malformed_suffix_tokens(suffix: str) -> None:
     "body",
     [
         "ha-paneld 1.2.3 panel=Test-Panel build=1234 cfg=0123abcd",
-        f"ha-paneld 1.2.3 panel={'a' * 470} build=1234 cfg=0123abcd",
+        f"ha-paneld 1.2.3 panel={'a' * 1000} build=1234 cfg=0123abcd",
         "ha-paneld 1.2.3 panel=test build=arbitrary cfg=0123abcd",
         f"ha-paneld 1.2.3 panel=test build=1.2.3-{'a' * 58} cfg=0123abcd",
         "ha-paneld 1.2.3 panel=test build=9223372036854775808 cfg=0123abcd",
@@ -993,71 +1025,6 @@ async def test_stage_uploads_raw_bytes_and_returns_the_preview() -> None:
     assert kwargs["allow_redirects"] is False
 
 
-async def test_migration_upload_binds_signed_digest_to_existing_staging_route() -> None:
-    session = _session(body=json.dumps(_PREVIEW).encode())
-    staged = await _client(session).async_stage_apk(b"apk", migration_sha256="a" * 64)
-    assert staged.token == "tok-1"
-    assert session.requests
-    url, kwargs = session.requests[-1]
-    assert str(url.with_query(None)) == "http://panel.local:8888/api/v1/install/apk"
-    assert dict(url.query) == {"migration": "successor", "sha256": "a" * 64}
-    assert kwargs["data"] == b"apk"
-    assert kwargs["allow_redirects"] is False
-
-
-async def test_bridge_capability_is_read_from_the_panel() -> None:
-    session = _session(
-        body=b'{"package":"io.panelassistant.android","version":"0.9.10"}'
-    )
-    assert await _client(session).async_get_successor_capability() == (
-        "io.panelassistant.android",
-        "0.9.10",
-        None,
-        False,
-    )
-    assert session.requests
-    url, kwargs = session.requests[-1]
-    assert str(url) == "http://panel.local:8888/api/v1/successor"
-    assert kwargs["allow_redirects"] is False
-
-
-async def test_bridge_reports_trusted_installed_successor_for_retry() -> None:
-    session = _session(
-        body=b'{"package":"io.panelassistant.android","version":"0.9.10","installed_version_code":2000}'
-    )
-    assert await _client(session).async_get_successor_capability() == (
-        "io.panelassistant.android",
-        "0.9.10",
-        2000,
-        False,
-    )
-
-
-async def test_bridge_reports_untrusted_installed_successor_for_refusal() -> None:
-    session = _session(
-        body=b'{"package":"io.panelassistant.android","version":"0.9.10","installed_untrusted":true}'
-    )
-    assert (await _client(session).async_get_successor_capability())[-1] is True
-
-
-async def test_installed_only_retry_never_requests_a_download() -> None:
-    session = _session(body=b'{"ok":true,"outcome":"Launched"}')
-    await _client(session).async_offer_installed_successor()
-    assert session.requests
-    url, kwargs = session.requests[-1]
-    assert str(url.with_query(None)) == "http://panel.local:8888/api/v1/successor/offer"
-    assert dict(url.query) == {"installed_only": "1"}
-    assert kwargs["data"] == {}
-
-
-@pytest.mark.parametrize(
-    "body", [b"[]", b"null", b"{}", b"bad", b'{"package":7,"version":"v"}']
-)
-async def test_malformed_bridge_capability_is_refused(body: bytes) -> None:
-    with pytest.raises(InvalidResponseError):
-        await _client(_session(body=body)).async_get_successor_capability()
-
-
 @pytest.mark.parametrize(
     ("status", "error"),
     [
@@ -1161,6 +1128,70 @@ async def test_backup_maps_panel_refusals(
     assert type(raised.value) is error
 
 
+async def test_restore_starts_on_200() -> None:
+    """Only a 200 means the panel started the restore."""
+    session = _session(status=200)
+
+    assert await _client(session).async_restore_panel(b"PK\x03\x04zip") is None
+    assert str(session.requests[-1][0]) == "http://panel.local:8888/api/v1/restore"
+
+
+@pytest.mark.parametrize(
+    ("status", "body", "error"),
+    [
+        (
+            202,
+            b'{"error":"approval-required","approval_id":"opaque"}',
+            UpdateApprovalRequiredError,
+        ),
+        (409, b"{}", UpdateBusyError),
+        (400, b"{}", UpdateRejectedError),
+        (500, b"{}", CannotConnectError),
+    ],
+)
+async def test_restore_maps_panel_refusals(
+    status: int, body: bytes, error: type[Exception]
+) -> None:
+    """Approval, a busy panel and a refusal each reach the move as themselves."""
+    with pytest.raises(Exception) as raised:
+        await _client(_session(status=status, body=body)).async_restore_panel(b"zip")
+
+    assert type(raised.value) is error
+
+
+def _restore_status(**status: Any) -> bytes:
+    return json.dumps(
+        {
+            "running": False,
+            "component": "Restore",
+            "result": {"status": "succeeded"},
+            "presentation": {
+                "code": "restore-completed-with-state",
+                "params": {"count": "3"},
+            },
+            **status,
+        }
+    ).encode()
+
+
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    [
+        pytest.param(_restore_status(), (True, 3), id="finished"),
+        pytest.param(
+            _restore_status(result={"status": "failed"}), (False, 3), id="failed"
+        ),
+        pytest.param(_restore_status(running=True), None, id="running"),
+        pytest.param(_restore_status(component="Install"), None, id="install"),
+    ],
+)
+async def test_restore_outcome_is_read_only_from_a_finished_restore(
+    body: bytes, expected: tuple[bool, int] | None
+) -> None:
+    """A running operation or another component's result is not the outcome."""
+    assert await _client(_session(body=body)).async_get_restore_outcome() == expected
+
+
 def test_the_health_line_carries_the_application_id_the_panel_runs() -> None:
     """Both apps are one build, so the reported package is what tells them apart."""
     base = "ha-paneld 0.9.8 panel=landing build=812 cfg=01234567"
@@ -1210,30 +1241,3 @@ async def test_health_read_remembers_the_actual_http_peer(socket_enabled: None) 
         client = HaPaneldClient(session, normalize_address(f"127.0.0.1:{server.port}"))
         await client.async_get_health()
         assert client.health_peer == (str(client.health_url), "127.0.0.1")
-
-
-@pytest.mark.parametrize(
-    "status,body,error",
-    [
-        (200, b"\xff\xd8fresh\xff\xd9", None),
-        (403, b"refused", CannotConnectError),
-        (200, b"x" * (2 * 1024 * 1024 + 1), InvalidResponseError),
-    ],
-    ids=["fresh-jpeg", "panel-refusal", "oversized-response"],
-)
-async def test_camera_snapshot_is_fresh_bounded_and_refuses_redirects(
-    status: int,
-    body: bytes,
-    error: type[Exception] | None,
-) -> None:
-    """Camera media uses the same bounded current-panel HTTP authority as health."""
-    session = _session(status=status, body=body)
-    client = _client(session)
-    if error is not None:
-        with pytest.raises(error):
-            await client.async_get_camera_snapshot()
-    else:
-        assert await client.async_get_camera_snapshot() == body
-    assert session.requests
-    assert session.requests[-1][1]["allow_redirects"] is False
-    assert session.requests[-1][0].path == "/api/v1/camera/snapshot.jpg"

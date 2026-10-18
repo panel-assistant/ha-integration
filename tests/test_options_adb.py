@@ -14,17 +14,21 @@ from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.client import PanelAddress, PanelHealth
-from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
-from custom_components.panel_assistant.failure_repair import (
-    adb_authorization_issue_id,
-    panel_failure_issue_id,
+from custom_components.panel_assistant.const import (
+    DOMAIN,
+    INSTALL_RECOVERY_PLACEHOLDERS,
 )
 from custom_components.panel_assistant.install_network import PinnedPanelTarget
 from custom_components.panel_assistant.provisioning import (
     InstallTargetProbe,
     InstallTargetState,
 )
-from custom_components.panel_assistant.transport import async_record_binding_request
+from custom_components.panel_assistant.repairs_failure import (
+    adb_authorization_issue_id,
+    panel_failure_issue_id,
+)
+
+from .install_recovery_text import assert_names_recovery_page
 
 
 async def test_existing_panel_options_authorize_adb_after_physical_approval(
@@ -42,7 +46,6 @@ async def test_existing_panel_options_authorize_adb_after_physical_approval(
         domain=DOMAIN,
         title="Test display",
         data={CONF_ADDRESS: "panel.local"},
-        options={"authority": "native"},
     )
     entry.add_to_hass(hass)
     entry.runtime_data = SimpleNamespace(
@@ -105,7 +108,7 @@ async def test_existing_panel_options_authorize_adb_after_physical_approval(
         done = await hass.config_entries.options.async_configure(opened["flow_id"], {})
 
     assert done["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {"authority": "native"}
+    assert entry.options == {}
     reload.assert_awaited_once_with(entry.entry_id)
 
 
@@ -128,7 +131,6 @@ async def test_existing_panel_adb_consent_refuses_changed_http_identity(
         title="Test display",
         unique_id="a" * 64,
         data={CONF_ADDRESS: "192.168.1.23"},
-        options={"authority": "native"},
     )
     entry.add_to_hass(hass)
     entry.runtime_data = SimpleNamespace(
@@ -265,7 +267,10 @@ async def test_adb_authorization_repair_retries_after_physical_approval(
         opened = await response.json()
         assert opened["type"] == "form"
         assert opened["step_id"] == "authorize_adb"
-        assert opened["description_placeholders"] == {"panel": "Office display"}
+        assert opened["description_placeholders"] == {
+            "panel": "Office display",
+            **INSTALL_RECOVERY_PLACEHOLDERS,
+        }
         get_signer.assert_not_awaited()
         probe.assert_not_awaited()
         assert offered_keys == []
@@ -432,47 +437,69 @@ async def test_failed_update_repair_can_authorize_without_clearing_failure(
     assert authorize.await_count == 2
 
 
-async def test_onboarding_never_binds_an_account_deactivated_while_shown(
-    hass: HomeAssistant, hass_admin_user: Any
+async def test_ambiguous_panel_state_in_options_and_repair_names_the_recovery_page(
+    hass: HomeAssistant, hass_client: Any
 ) -> None:
-    """The onboarding confirmation applies the one usable-account rule."""
-    did = "a" * 64
+    """The shared authorize_adb step names the recovery page wherever it is shown."""
+    assert await async_setup_component(hass, "repairs", {})
+    assert await async_setup_component(hass, DOMAIN, {})
     entry = MockConfigEntry(
-        domain=DOMAIN,
-        title="alpha",
-        data={CONF_ADDRESS: "192.168.1.23"},
-        unique_id=did,
-        options={"authority": "native"},
+        domain=DOMAIN, title="Jenna", data={CONF_ADDRESS: "panel.local"}
     )
     entry.add_to_hass(hass)
-    user = await hass.auth.async_create_user("Panel account")
-    async_record_binding_request(hass, did, user.id)
-    health = PanelHealth(
-        version="0.9.8",
-        panel_id="alpha",
-        build="1",
-        config_hash="0123abcd",
-        discovery_id=did,
-        protocol=(5, 5),
+    entry.runtime_data = SimpleNamespace(
+        coordinator=SimpleNamespace(
+            data=SimpleNamespace(
+                health=PanelHealth(
+                    version="0.9.9",
+                    panel_id="jenna",
+                    build="998",
+                    config_hash="abcd1234",
+                    protocol=(5, 5),
+                )
+            )
+        )
     )
-    client = "custom_components.panel_assistant.config_flow.HaPaneldClient"
-    with (
-        patch(
-            "custom_components.panel_assistant.config_flow.async_offer_ha_url",
-            new_callable=AsyncMock,
-        ),
-        patch(f"{client}.async_get_setup_complete", AsyncMock(return_value=True)),
-        patch(f"{client}.async_get_health", AsyncMock(return_value=health)),
+    issue_id = adb_authorization_issue_id(entry.entry_id)
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        issue_id,
+        is_fixable=True,
+        is_persistent=True,
+        severity=ir.IssueSeverity.ERROR,
+        translation_key="adb_update_authorization",
+        translation_placeholders={"panel": "Jenna"},
+        data={"entry_id": entry.entry_id},
+    )
+    with patch(
+        "custom_components.panel_assistant.config_flow.async_authorize_existing_panel_adb",
+        AsyncMock(return_value="retained_or_ambiguous"),
     ):
-        opened = await hass.config_entries.options.async_init(
-            entry.entry_id, context={"source": "onboarding"}
+        opened = await hass.config_entries.options.async_init(entry.entry_id)
+        consent = await hass.config_entries.options.async_configure(
+            opened["flow_id"], {"next_step_id": "authorize_adb"}
         )
-        await hass.config_entries.options.async_configure(opened["flow_id"], {})
-        menu = await hass.config_entries.options.async_configure(opened["flow_id"])
-        assert menu["description_placeholders"]["user"] == "Panel account"
-        await hass.auth.async_deactivate_user(user)
-        result = await hass.config_entries.options.async_configure(
-            opened["flow_id"], {"next_step_id": "onboarding_bind"}
+        refused = await hass.config_entries.options.async_configure(
+            consent["flow_id"], {}
         )
-    assert result["type"] is not FlowResultType.CREATE_ENTRY
-    assert CONF_TRANSPORT_USER_ID not in entry.data
+        admin = await hass_client()
+        response = await admin.post(
+            "/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue_id}
+        )
+        repair = await response.json()
+        response = await admin.post(
+            f"/api/repairs/issues/fix/{repair['flow_id']}", json={}
+        )
+        repaired = await response.json()
+
+    assert refused["errors"] == {"base": "retained_or_ambiguous"}
+    await assert_names_recovery_page(
+        hass, "options.error.retained_or_ambiguous", refused
+    )
+    assert repaired["errors"] == {"base": "retained_or_ambiguous"}
+    await assert_names_recovery_page(
+        hass,
+        "issues.adb_update_authorization.fix_flow.error.retained_or_ambiguous",
+        repaired,
+    )

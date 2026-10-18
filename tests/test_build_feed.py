@@ -23,8 +23,9 @@ from custom_components.panel_assistant.app_identity import (
     BUILD_FEED_SCHEMAS,
     INSTALL_DESCRIPTOR_SCHEMAS,
     LAUNCH_COMPONENTS,
+    LEGACY_LAUNCH_COMPONENT,
     LEGACY_PACKAGE_ID,
-    SUCCESSOR_PACKAGE_ID,
+    PACKAGE_ID,
 )
 from custom_components.panel_assistant.build_feed import (
     BuildFeedError,
@@ -62,9 +63,9 @@ def _build_entry(code: int, **replacements: Any) -> dict[str, Any]:
         "apkSize": 12_345,
         "commit": "0123456789abcdef0123456789abcdef01234567",
         "databaseCompatibility": "hapaneld-db:v1:ha-paneld.db:11:14",
-        "launchComponent": "io.github.maxlyth.hapaneld/.MainActivity",
+        "launchComponent": LAUNCH_COMPONENTS[PACKAGE_ID][0],
         "minSdk": 26,
-        "packageId": "io.github.maxlyth.hapaneld",
+        "packageId": PACKAGE_ID,
         "published": "2026-09-11T10:00:00Z",
         "signerCertificateSha256": SIGNER,
         "supportedAbis": ["arm64-v8a", "armeabi-v7a"],
@@ -178,20 +179,44 @@ def test_feed_schema_is_accepted_under_either_name_and_nothing_else(
     assert artifact.descriptor.schema == INSTALL_DESCRIPTOR_SCHEMAS[0]
 
 
-def test_signed_feed_accepts_one_build_per_package_at_the_same_code(
+@pytest.mark.parametrize("launch", LAUNCH_COMPONENTS[PACKAGE_ID])
+def test_a_feed_build_installs_under_the_launcher_it_signs(
+    sign: Callable[[bytes], bytes], launch: str
+) -> None:
+    """The artifact a feed build installs as names the classes that build ships.
+
+    A build whose classes moved package starts and takes HOME by its own
+    launcher; one that kept the old classes by its old-class launcher.
+    """
+    body = _canonical(_feed([_build_entry(772, launchComponent=launch)]))
+    feed = parse_build_feed(body, sign(body), FEED_URL)
+
+    artifact = feed_release_artifact(feed.builds[0])
+
+    assert artifact.tag == "build-772-successor"
+    assert artifact.descriptor is not None
+    assert artifact.descriptor.package_id == PACKAGE_ID
+    assert artifact.descriptor.launch_component == launch
+
+
+def test_signed_feed_skips_the_old_app_build_at_the_same_code(
     sign: Callable[[bytes], bytes],
 ) -> None:
-    successor = _build_entry(
+    """An old-app entry is a build this reader cannot drive; the app's is kept."""
+    old_app = _build_entry(
         772,
-        packageId=SUCCESSOR_PACKAGE_ID,
-        launchComponent=LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID][0],
+        packageId=LEGACY_PACKAGE_ID,
+        launchComponent=LEGACY_LAUNCH_COMPONENT,
         apkSha256=_sha(773),
         apkPath=f"apks/{_sha(773)}.apk",
     )
-    body = _canonical(_feed([_build_entry(772), successor]))
+    body = _canonical(_feed([old_app, _build_entry(772)]))
     feed = parse_build_feed(body, sign(body), FEED_URL)
-    assert feed.find(772, LEGACY_PACKAGE_ID).apk_sha256 == _sha(772)
-    assert feed.find(772, SUCCESSOR_PACKAGE_ID).apk_sha256 == _sha(773)
+    assert [(build.package_id, build.apk_sha256) for build in feed.builds] == [
+        (PACKAGE_ID, _sha(772))
+    ]
+    assert feed.find(772, LEGACY_PACKAGE_ID) is None
+    assert feed.find(772, PACKAGE_ID).apk_sha256 == _sha(772)
 
 
 @pytest.mark.parametrize(
@@ -203,6 +228,7 @@ def test_signed_feed_accepts_one_build_per_package_at_the_same_code(
                 "io.github.maxlyth.hapaneld/io.panelassistant.android.MainActivity"
             )
         },
+        {"packageId": LEGACY_PACKAGE_ID, "launchComponent": LEGACY_LAUNCH_COMPONENT},
     ],
 )
 def test_undrivable_entry_leaves_every_other_build_available(
@@ -607,8 +633,8 @@ def _download_build(**replacements: Any) -> FeedBuild:
         "database_compatibility": "hapaneld-db:v1:ha-paneld.db:11:14",
         "min_sdk": 26,
         "published": "2026-09-11T10:00:00Z",
-        "package_id": LEGACY_PACKAGE_ID,
-        "launch_component": LAUNCH_COMPONENTS[LEGACY_PACKAGE_ID][0],
+        "package_id": PACKAGE_ID,
+        "launch_component": LAUNCH_COMPONENTS[PACKAGE_ID][0],
     }
     values.update(replacements)
     return FeedBuild(**values)
@@ -720,67 +746,6 @@ async def test_download_maps_network_failure() -> None:
         await async_download_build(session, feed_release_artifact(_download_build()))  # type: ignore[arg-type]
 
 
-def _bridge_artifact() -> release.ReleaseArtifact:
-    tag = "v0.9.8"
-    name = release.release_apk_name(tag, LEGACY_PACKAGE_ID)
-    return release.ReleaseArtifact(
-        tag=tag,
-        version="0.9.8",
-        apk_name=name,
-        apk_url=f"https://github.com/panel-assistant/android/releases/download/{tag}/{name}",
-        sha256=APK_SHA,
-    )
-
-
-async def test_descriptorless_bridge_download_checks_hash_and_bound() -> None:
-    """The bridge has a signed checksum, but no signed size or descriptor."""
-    bridge = _bridge_artifact()
-    url = URL(bridge.apk_url)
-    session = _FakeSession(
-        {bridge.apk_url: FakeResponse(200, APK, url, declared_length=len(APK))}
-    )
-    assert await async_download_build(session, bridge) == APK  # type: ignore[arg-type]
-
-    session = _FakeSession(
-        {
-            bridge.apk_url: FakeResponse(
-                200, APK[:-1] + b"X", url, declared_length=len(APK)
-            )
-        }
-    )
-    with pytest.raises(BuildFeedError):
-        await async_download_build(session, bridge)  # type: ignore[arg-type]
-
-    session = _FakeSession(
-        {
-            bridge.apk_url: FakeResponse(
-                200, APK, url, declared_length=release._MAX_APK_BYTES + 1
-            )
-        }
-    )
-    with pytest.raises(BuildFeedError):
-        await async_download_build(session, bridge)  # type: ignore[arg-type]
-
-
-@pytest.mark.parametrize("change", ["wrong-name", "wrong-url", "bad-sha"])
-async def test_descriptorless_download_only_accepts_canonical_legacy_asset(
-    change: str,
-) -> None:
-    """No feed or arbitrary GitHub URL gains the descriptorless route."""
-    bridge = _bridge_artifact()
-    if change == "wrong-name":
-        bridge = replace(bridge, apk_name="other.apk")
-    elif change == "wrong-url":
-        bridge = replace(bridge, apk_url="https://github.com/elsewhere/other.apk")
-    else:
-        bridge = replace(bridge, sha256="bad")
-    session = _FakeSession({})
-
-    with pytest.raises(BuildFeedError):
-        await async_download_build(session, bridge)  # type: ignore[arg-type]
-    assert session.requests == []
-
-
 # --- one fixture, two verifiers ------------------------------------------------
 
 _GOLDEN = (
@@ -796,7 +761,11 @@ _GOLDEN = (
 def test_golden_feed_is_accepted_here_exactly_as_the_browser_accepts_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The browser tests verify these same bytes; both verifiers must agree."""
+    """The browser tests verify these same bytes; both verifiers must agree.
+
+    Every build in the golden feed is an old-app build: the signature still
+    covers them, and each is skipped as a build this reader cannot drive.
+    """
     monkeypatch.setattr(
         release,
         "_RELEASE_PUBLIC_KEY_PEM",
@@ -806,11 +775,16 @@ def test_golden_feed_is_accepted_here_exactly_as_the_browser_accepts_it(
     signature = base64.b64decode(
         (_GOLDEN / "build-feed-golden.json.sig.b64").read_text(encoding="ascii")
     )
+    entries = json.loads(body)["builds"]
+    assert [entry["versionCode"] for entry in entries] == [772, 771, 770]
+    assert {entry["packageId"] for entry in entries} == {LEGACY_PACKAGE_ID}
+    apk = (_GOLDEN / "build-feed-golden-772.apk.txt").read_bytes()
+    assert hashlib.sha256(apk).hexdigest() == entries[0]["apkSha256"]
     url = URL("https://builds.example/maintainer.json")
     feed = parse_build_feed(body, signature, url)
-    assert [build.version_code for build in feed.builds] == [772, 771, 770]
-    apk = (_GOLDEN / "build-feed-golden-772.apk.txt").read_bytes()
-    assert hashlib.sha256(apk).hexdigest() == feed.builds[0].apk_sha256
+    assert feed.channel == "maintainer"
+    assert feed.builds == ()
+    assert feed.raw == body
     mutated = bytearray(body)
     mutated[len(mutated) // 2] ^= 0x01
     with pytest.raises(BuildFeedError):

@@ -7,15 +7,15 @@ import asyncio
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 
-from custom_components.panel_assistant import failure_repair
+from custom_components.panel_assistant import repairs_failure
 from custom_components.panel_assistant.const import DOMAIN
-from custom_components.panel_assistant.failure_repair import async_failure_events
 from custom_components.panel_assistant.install_jobs import (
     InstallJobManager,
     InstallJobReceipt,
     InstallPhase,
     InstallResultCode,
 )
+from custom_components.panel_assistant.repairs_failure import async_failure_events
 from tests import test_install_jobs as job_fixtures
 from tests.test_install_jobs import (
     CURRENT_ENTRY_ID,
@@ -122,7 +122,7 @@ async def test_repair_keeps_a_report_while_its_private_copy_is_pending(
 ) -> None:
     saved = asyncio.Event()
     allow_save = asyncio.Event()
-    store = failure_repair._failure_store(hass).store
+    store = repairs_failure._failure_store(hass).store
     original = store.async_save
 
     async def delayed_save(data):
@@ -155,7 +155,7 @@ async def test_report_recovers_from_committed_receipt_when_private_copy_is_missi
     await hass.async_block_till_done()
     (issue,) = _install_issues(hass)
     hass.data.pop(f"{DOMAIN}.failure_repair_store")
-    store = failure_repair._failure_store(hass).store
+    store = repairs_failure._failure_store(hass).store
 
     async def missing_copy():
         return None

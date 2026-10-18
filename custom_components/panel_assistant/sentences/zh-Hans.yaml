@@ -1,0 +1,30 @@
+# Voice commands a panel answers itself (Simplified Chinese).
+language: zh-Hans
+commands:
+  show_page:
+    sentences:
+      - "[请][给我]显示{page}(页面|页|视图|仪表盘|标签页)"
+      - "[请](转到|跳转到|去|回到|返回){page}(页面|页|视图|仪表盘|标签页)"
+      - "[请]给我看[看]{page}(页面|页|视图|仪表盘|标签页)"
+  android_settings:
+    sentences:
+      - "[请][给我]显示(安卓|Android)[系统]设置"
+  launcher:
+    sentences:
+      - "[请][给我]显示[安卓|Android]启动器"
+      - "[请][给我]显示(安卓|Android)主屏幕"
+      - "[请](回到|返回)[安卓|Android]桌面"
+      - "[请]显示(安卓|Android)桌面"
+      - "[请](回到|返回)(安卓|Android)主屏幕"
+home_pages: [主, 主页, 首页, 首, 开始, 起始]
+screen_names: [屏幕, 显示屏]
+responses:
+  show_page: "正在显示{page}"
+  android_settings: "正在打开安卓设置"
+  launcher: "正在打开启动器"
+  page_unknown: "这个面板没有叫{page}的页面"
+  not_a_panel: "请让面板来做这件事"
+  panel_unavailable: "面板未连接"
+  panel_refused: "面板无法执行该操作"
+  panel_locked: "面板已锁定，只能显示仪表盘，无法打开设置或启动器"
+  needs_update: "请更新面板应用以使用此命令"

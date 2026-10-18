@@ -10,7 +10,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import HaPaneldConfigEntry
 from .native import NativeEntity, async_setup_native_platform
-from .transport import signal_event
+from .transport_sessions import signal_event
 
 
 async def async_setup_entry(

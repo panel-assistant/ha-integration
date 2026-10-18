@@ -105,7 +105,8 @@ async def async_offer_ha_url(hass: HomeAssistant, client: HaPaneldClient) -> str
     With no address to offer, the setup marker still goes on its own: the panel
     then skips the steps Home Assistant answers and asks only for the address.
 
-    The returned outcome is for support logs only; no caller branches on it.
+    The returned outcome also tells the installers whether setup is complete,
+    so they apply the profile's display sizing at setup only.
 
     Whether the address actually works is the panel's decision, not this one: it
     verifies what it is handed from its own network and shows a correction when

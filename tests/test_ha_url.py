@@ -227,10 +227,10 @@ async def test_a_panel_that_has_finished_setup_is_left_alone(
 async def test_the_setup_marker_goes_alone_when_there_is_no_url_to_send(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Home Assistant still set this panel up, so its wizard must not ask for MQTT.
+    """Home Assistant still set this panel up, so its wizard must skip its setup step.
 
     Without the marker a panel whose Home Assistant has no panel-facing URL
-    (TLS on Core, no internal URL) would meet the broker step it cannot pass.
+    (TLS on Core, no internal URL) would meet a setup step it cannot pass.
     """
 
     def _raise(_hass: HomeAssistant, **_kwargs: Any) -> str:
@@ -246,7 +246,7 @@ async def test_the_setup_marker_goes_alone_when_there_is_no_url_to_send(
 async def test_tls_core_without_an_internal_url_posts_only_the_setup_marker(
     hass: HomeAssistant,
 ) -> None:
-    """Core cannot offer a LAN URL, but adoption still skips the MQTT step."""
+    """Core cannot offer a LAN URL, but adoption still skips the setup step."""
     from custom_components.panel_assistant.client import HaPaneldClient
 
     await _set_urls(hass, internal=None, external="https://ha.example.com")
@@ -443,3 +443,9 @@ async def test_setup_complete_still_reads_through_the_richer_state() -> None:
     """The narrow caller keeps working, so one read answers both questions."""
     client = _client_returning(b'{"complete":true,"handover":{"supported":true}}')
     assert await client.async_get_setup_complete() is True
+
+
+async def test_automatic_render_proof_is_not_reported_as_setup_complete() -> None:
+    """The completion poll waits for readiness even when no wizard step is needed."""
+    client = _client_returning(b'{"complete":false,"needs_user":false}')
+    assert await client.async_get_setup_complete() is False

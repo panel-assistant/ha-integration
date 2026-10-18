@@ -17,7 +17,7 @@ const canonical = value => JSON.stringify(value, Object.keys(value).sort());
 export function createInstallController({ store, ports, locks = globalThis.navigator?.locks,
   ensureCurrent = () => {}, onReceipt = () => {}, onSetAside = () => {},
   onStagedCopy = () => {} }) {
-  let preview, expectedJobId, busy = false;
+  let preview, expectedJobId, busy = false, installed = false;
   const guard = () => { ensureCurrent(); };
   // Grant the app its permissions under the device lock, from a healthy job
   // for exactly this release, with the release bytes checked again first.
@@ -47,6 +47,7 @@ export function createInstallController({ store, ports, locks = globalThis.navig
       if (busy) fail('transaction_busy');
       busy = true;
       preview = undefined;
+      installed = false;
       try {
         guard();
         const snapshot = Object.freeze({ ...target });
@@ -191,7 +192,34 @@ export function createInstallController({ store, ports, locks = globalThis.navig
         if (receipt.phase !== 'healthy') fail('install_incomplete');
         const granted = await grantPermissions();
         if (granted?.permissionsVerified !== true) fail('permissions_unverified');
+        installed = true;
         return Object.freeze({ receipt, permissions: granted });
+      } finally { busy = false; }
+    },
+    // Sizing health is provisional on vendors whose next native resume stops
+    // the app. Keep the owned job and device lock until that resume has settled
+    // and the exact installed app has been launched and observed afresh.
+    async completeSetup(display = null) {
+      if (busy) fail('transaction_busy');
+      if (!preview || !installed) fail('transaction_invalid');
+      busy = true;
+      try {
+        return await locks.request(`ha-paneld-usb:${preview.deviceKey}`,
+          {mode: 'exclusive', ifAvailable: true}, async lock => {
+            if (!lock) fail('transaction_busy');
+            guard();
+            const receipt = await store.load(preview.deviceKey);
+            if (!receipt || receipt.phase !== 'healthy' ||
+                canonical(receipt.artifact) !== canonical(preview.descriptor)) fail('transaction_invalid');
+            if (receipt.id !== expectedJobId) fail('job_conflict');
+            const release = await ports.authenticate();
+            guard();
+            if (release?.kind !== 'authenticated-apk-bytes' ||
+                canonical(release.descriptor) !== canonical(receipt.artifact)) fail('artifact_changed');
+            const result = await ports.completeSetup(receipt, release, display);
+            guard();
+            return result;
+          });
       } finally { busy = false; }
     },
     // Cancellation of active I/O belongs to the owning session's guard/close.

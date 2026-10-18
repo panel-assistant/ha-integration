@@ -9,10 +9,11 @@ from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 
 from . import HaPaneldConfigEntry
-from .const import CONF_CUTOVER, CONF_TRANSPORT_USER_ID, INTEGRATION_BUILD
+from .build import INTEGRATION_BUILD
+from .const import CONF_CUTOVER, CONF_TRANSPORT_USER_ID
 from .coordinator import PanelSnapshot
-from .restart_repair import restart_pending
-from .transport import session_diagnostics
+from .repairs_restart import restart_pending
+from .transport_sessions import session_diagnostics
 
 # The record of an earlier move off MQTT names identities and MQTT IDs, and is
 # not shown. The supported channels are shown, but not the identity that
@@ -26,7 +27,7 @@ _ENTRY_KEYS_TO_REDACT = {
     "previous_installation_identity",
 }
 _HEALTH_KEYS_TO_REDACT = {"panel_id", "discovery_id", "legacy_discovery_id"}
-_STATUS_KEYS_TO_REDACT = {"serial_number"}
+_STATUS_KEYS_TO_REDACT = {"serial_number", "network_macs"}
 
 
 async def async_get_config_entry_diagnostics(

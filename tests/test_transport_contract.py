@@ -11,7 +11,13 @@ from typing import Any
 import pytest
 import voluptuous as vol
 
-from custom_components.panel_assistant import old_app, release, transport, voice
+from custom_components.panel_assistant import (
+    release,
+    transport,
+    transport_binding,
+    transport_protocol,
+    voice,
+)
 from custom_components.panel_assistant.contract import CONTRACT, catalogue_entry
 from custom_components.panel_assistant.native import NOT_RENDERED
 
@@ -30,11 +36,11 @@ ENGLISH: dict[str, Any] = json.loads(
     (INTEGRATION / "translations" / "en.json").read_text(encoding="utf-8")
 )
 SCHEMAS = {
-    transport.COMMAND_HELLO: transport.HELLO_SCHEMA,
-    transport.COMMAND_REPORT_STATE: transport.REPORT_STATE_SCHEMA,
-    transport.COMMAND_REPORT_EVENT: transport.REPORT_EVENT_SCHEMA,
-    transport.COMMAND_COMMAND_RESULT: transport.COMMAND_RESULT_SCHEMA,
-    transport.COMMAND_RESTART_NOTICE: transport.RESTART_NOTICE_SCHEMA,
+    transport_protocol.COMMAND_HELLO: transport_protocol.HELLO_SCHEMA,
+    transport_protocol.COMMAND_REPORT_STATE: transport_protocol.REPORT_STATE_SCHEMA,
+    transport_protocol.COMMAND_REPORT_EVENT: transport_protocol.REPORT_EVENT_SCHEMA,
+    transport_protocol.COMMAND_COMMAND_RESULT: transport_protocol.COMMAND_RESULT_SCHEMA,
+    transport_protocol.COMMAND_RESTART_NOTICE: transport_protocol.RESTART_NOTICE_SCHEMA,
 }
 # Requests outside the panel-owned v1 catalogue that the vectors also cover.
 VOICE_SCHEMAS = {
@@ -42,8 +48,8 @@ VOICE_SCHEMAS = {
     voice.COMMAND_VOICE_STREAM_STOP: voice.VOICE_STREAM_STOP_SCHEMA,
 }
 
-_HA_VECTOR_REVISION = "8c70df5c299c840308c664f9ac2325eddcd8e88a"
-_ANDROID_PRODUCER_REVISION = "f25202ffa87f36c0d28f7e70e1d82d81c4ac57f9"
+_HA_VECTOR_REVISION = "502dc6575cdd214a3cc0890ea3594e60758c8b97"
+_ANDROID_PRODUCER_REVISION = "0a3afceff878174712254d28e5761df9e3566916"
 
 
 def test_shared_vectors_name_the_ha_source_revision_vendored_by_android() -> None:
@@ -97,7 +103,7 @@ def test_real_android_transport_messages_pass_ha_schemas(
     message = vector["message"]
     validated = SCHEMAS[message["type"]](message)
     assert "id" not in validated
-    if message["type"] == transport.COMMAND_HELLO:
+    if message["type"] == transport_protocol.COMMAND_HELLO:
         local_digest = hashlib.sha256(
             (INTEGRATION / "panel_assistant_transport_v1.json").read_bytes()
         ).hexdigest()
@@ -135,7 +141,7 @@ OLD_PANEL_DESCRIPTORS = [
 ]
 # Every channel descriptor a panel sends, validated as the hello handler does.
 CHANNEL_DESCRIPTORS: list[dict[str, Any]] = [
-    transport.DESCRIPTOR_SCHEMA(descriptor)
+    transport_protocol.DESCRIPTOR_SCHEMA(descriptor)
     for descriptor in (
         *ANDROID_PRODUCER["channelDescriptors"],
         *OLD_PANEL_DESCRIPTORS,
@@ -159,14 +165,14 @@ def _descriptor(entry: dict[str, Any], index: int = 1) -> dict[str, Any]:
         }
     if entry["platform"] in ("event", "select"):
         fields["options"] = ["keycode_home"]
-    descriptor: dict[str, Any] = transport.DESCRIPTOR_SCHEMA(fields)
+    descriptor: dict[str, Any] = transport_protocol.DESCRIPTOR_SCHEMA(fields)
     return descriptor
 
 
 def test_the_protocol_is_5_alone_and_outcomes_with_a_code_are_outcomes() -> None:
     """Protocol 5 is the first without MQTT, and the only one served."""
     assert (transport.PROTOCOL_MIN, transport.PROTOCOL_MAX) == (5, 5)
-    assert set(transport.OUTCOMES) > transport.OUTCOMES_WITH_CODE
+    assert set(transport_protocol.OUTCOMES) > transport_protocol.OUTCOMES_WITH_CODE
 
 
 @pytest.mark.parametrize(
@@ -283,7 +289,7 @@ def test_sensor_values_are_typed_as_the_descriptor_declares(
     descriptor: dict[str, Any],
 ) -> None:
     """The validator types each producer sensor's values from its descriptor."""
-    validate = transport._VALUE_VALIDATORS["sensor"]
+    validate = transport_protocol._VALUE_VALIDATORS["sensor"]
     kind = _SENSOR_KINDS[descriptor["channel"]]
     samples = {**_SAMPLES, "option": list(descriptor["options"] or ())}
     for accepted in samples[kind]:
@@ -295,7 +301,7 @@ def test_sensor_values_are_typed_as_the_descriptor_declares(
             # A text sensor carries any bounded string, including a timestamp.
             if kind == "text" and isinstance(value, str):
                 continue
-            with pytest.raises(transport.ValueRejected):
+            with pytest.raises(transport_protocol.ValueRejected):
                 validate(value, descriptor)
 
 
@@ -313,16 +319,16 @@ def test_message_conformance_vectors(vector: dict[str, Any]) -> None:
             schema(message)
 
 
-def _embed_key(value: Any) -> str:
-    """Return one wire-format embed key, or reject it like the panel does."""
+def _stream_key(value: Any) -> str:
+    """Return one wire-format stream key, or reject it like the panel does."""
     if type(value) is not str or re.fullmatch(r"[A-Za-z0-9_-]{43}", value) is None:
-        raise vol.Invalid("invalid embed key")
+        raise vol.Invalid("invalid stream key")
     try:
         decoded = base64.b64decode(value + "=", altchars=b"-_", validate=True)
     except ValueError as err:
-        raise vol.Invalid("invalid embed key") from err
+        raise vol.Invalid("invalid stream key") from err
     if len(decoded) != 32:
-        raise vol.Invalid("invalid embed key")
+        raise vol.Invalid("invalid stream key")
     return value
 
 
@@ -338,17 +344,10 @@ def _hello_result_conforms(
         },
         extra=vol.ALLOW_EXTRA,
     )
-    embed = vol.Schema(
-        {
-            vol.Required("key_id"): vol.Match(r"[0-9a-f]{16}"),
-            vol.Required("key"): _embed_key,
-        },
-        extra=vol.ALLOW_EXTRA,
-    )
     voice_stream = vol.Schema(
         {
             vol.Required("server_id"): vol.Match(r"^[A-Za-z0-9_-]{43}$"),
-            vol.Required("psk"): _embed_key,
+            vol.Required("psk"): _stream_key,
         },
         extra=vol.ALLOW_EXTRA,
     )
@@ -357,9 +356,10 @@ def _hello_result_conforms(
             vol.Required("protocol"): vol.All(
                 int, vol.Range(transport.PROTOCOL_MIN, transport.PROTOCOL_MAX)
             ),
-            vol.Required("session"): transport._session_token,
-            vol.Required("capabilities"): [vol.In(transport.KNOWN_CAPABILITIES)],
-            vol.Optional("embed"): object,
+            vol.Required("session"): transport_protocol._session_token,
+            vol.Required("capabilities"): [
+                vol.In(transport_protocol.KNOWN_CAPABILITIES)
+            ],
             vol.Optional("voice_stream_session"): object,
             vol.Required("integration"): integration,
             vol.Required("channels"): channels,
@@ -370,11 +370,7 @@ def _hello_result_conforms(
         raise vol.Invalid(
             "the integration granted a capability the panel did not offer"
         )
-    if transport.CAPABILITY_EMBED_PROOF in result["capabilities"]:
-        if "embed" not in result:
-            raise vol.Invalid("an embed grant needs its key")
-        embed(result["embed"])
-    if transport.CAPABILITY_VOICE_STREAM_SESSION in result["capabilities"]:
+    if transport_protocol.CAPABILITY_VOICE_STREAM_SESSION in result["capabilities"]:
         if "voice_stream_session" not in result:
             raise vol.Invalid("a voice stream grant needs its server and key")
         voice_stream(result["voice_stream_session"])
@@ -457,7 +453,7 @@ def test_voice_stream_conformance_vectors(vector: dict[str, Any]) -> None:
 def test_hello_result_conformance_vectors(vector: dict[str, Any]) -> None:
     """Each hello result vector is read, or refused, exactly as it says."""
     if "request" in vector:
-        transport.HELLO_SCHEMA(vector["request"])
+        transport_protocol.HELLO_SCHEMA(vector["request"])
     if vector["valid"]:
         _hello_result_conforms(vector["result"], vector["offeredCapabilities"])
     else:
@@ -471,11 +467,11 @@ def test_hello_result_conformance_vectors(vector: dict[str, Any]) -> None:
 def test_observation_conformance_vectors(vector: dict[str, Any]) -> None:
     """Each vector value is accepted, or rejected, for its catalogue channel."""
     descriptor = _BY_CHANNEL[vector["channel"]]
-    validate = transport._VALUE_VALIDATORS[descriptor["platform"]]
+    validate = transport_protocol._VALUE_VALIDATORS[descriptor["platform"]]
     if vector["accepted"]:
         validate(vector["value"], descriptor)
     else:
-        with pytest.raises(transport.ValueRejected):
+        with pytest.raises(transport_protocol.ValueRejected):
             validate(vector["value"], descriptor)
 
 
@@ -555,9 +551,21 @@ def _resolve(node: ast.expr, constants: dict[str, str]) -> str | None:
 def _raised_translation_keys() -> dict[str, set[str]]:
     """Return every translation key the integration raises or reports, by category."""
     keys: dict[str, set[str]] = {"exceptions": set(), "issues": set()}
-    for path in sorted(INTEGRATION.glob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        constants = _module_constants(tree)
+    trees = {
+        path.stem: ast.parse(path.read_text(encoding="utf-8"))
+        for path in sorted(INTEGRATION.glob("*.py"))
+    }
+    own = {module: _module_constants(tree) for module, tree in trees.items()}
+    for module, tree in trees.items():
+        path = INTEGRATION / f"{module}.py"
+        constants = dict(own[module])
+        # A key may be raised with a constant defined in a sibling module.
+        for statement in tree.body:
+            if isinstance(statement, ast.ImportFrom) and statement.level == 1:
+                sibling = own.get(statement.module or "", {})
+                for alias in statement.names:
+                    if alias.name in sibling:
+                        constants[alias.asname or alias.name] = sibling[alias.name]
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call):
                 continue
@@ -584,13 +592,22 @@ def _raised_translation_keys() -> dict[str, set[str]]:
                 if name == "send_error":
                     # Codes the panel renders from its own catalogue.
                     continue
-                key = _resolve(keyword.value, constants)
-                if key is None and isinstance(keyword.value, ast.Name):
+                value = keyword.value
+                if isinstance(value, ast.Name) and _resolve(value, constants) is None:
                     # A helper's own parameter; its call sites are collected above.
                     continue
-                assert key is not None, f"{path.name}:{node.lineno}"
-                category = "issues" if name == "async_create_issue" else "exceptions"
-                keys[category].add(key)
+                # A choice between two keys needs words for both.
+                for branch in (
+                    (value.body, value.orelse)
+                    if isinstance(value, ast.IfExp)
+                    else (value,)
+                ):
+                    key = _resolve(branch, constants)
+                    assert key is not None, f"{path.name}:{node.lineno}"
+                    category = (
+                        "issues" if name == "async_create_issue" else "exceptions"
+                    )
+                    keys[category].add(key)
     return keys
 
 
@@ -602,27 +619,24 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
     assert "health_update_failed" in keys["exceptions"]
     assert "update_busy" in keys["exceptions"]
     assert keys["issues"] == {
+        "another_home_assistant",
         "adb_update_authorization",
         "no_update_route",
         "merged_panel_identity",
-        "move_to_new_app",
         "panel_app_too_old",
         "mqtt_panel_needs_090",
+        "old_app_needs_090",
         "panel_permissions",
         "panel_proximity_setup",
-        "panel_migration_incomplete",
         "panel_identity_confirmation",
         "panel_identity_mismatch",
+        "panel_link_shared",
         "restart_required",
+        "volume_number_removed",
     }
-    # Which binding issue is raised depends on whether the panel already has an
-    # account, so that call passes a variable and the scan above sees no literal.
-    # The tuple it chooses from is the whole set, and each one still needs words.
-    issues = keys["issues"] | set(transport.BINDING_ISSUES)
-    # Which old-app Repair is raised depends on why its removal stopped.
-    issues |= set(old_app.OLD_APP_ISSUES)
+    # The binding issue is raised under a constant, which the scan above misses.
+    issues = keys["issues"] | {transport_binding.ISSUE_PANEL_USER_MISMATCH}
     assert "panel_user_mismatch" in issues
-    assert "panel_awaiting_confirmation" in issues
     for key in keys["exceptions"]:
         assert str(ENGLISH["exceptions"].get(key, {}).get("message", "")).strip(), key
     for key in issues:
@@ -637,12 +651,12 @@ COMMAND_ERROR_KEYS = sorted(
 
 def test_command_error_keys_are_the_integrations_own() -> None:
     """The translated command errors are the outcome codes and two of its own."""
-    assert set(COMMAND_ERROR_KEYS) == transport.COMMAND_ERRORS
+    assert set(COMMAND_ERROR_KEYS) == transport_protocol.COMMAND_ERRORS
     assert {
-        transport.ERR_PANEL_UNAVAILABLE,
-        transport.ERR_APPROVAL_PENDING,
-        transport.ERR_NOT_COMMANDABLE,
-    } <= transport.COMMAND_ERRORS
+        transport_protocol.ERR_PANEL_UNAVAILABLE,
+        transport_protocol.ERR_APPROVAL_PENDING,
+        transport_protocol.ERR_NOT_COMMANDABLE,
+    } <= transport_protocol.COMMAND_ERRORS
 
 
 @pytest.mark.parametrize("key", COMMAND_ERROR_KEYS)

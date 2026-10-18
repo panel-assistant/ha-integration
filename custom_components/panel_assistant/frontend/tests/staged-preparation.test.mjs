@@ -2,11 +2,13 @@ import test from 'node:test';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { createUsbTransactionPorts } from '../src/usb-transaction-ports.mjs';
-import { ACCEPTED_PACKAGE_IDS, SUCCESSOR_PACKAGE_ID } from '../src/app-identity.mjs';
+import { LEGACY_PACKAGE_ID, PACKAGE_ID } from '../src/app-identity.mjs';
 import { RESIDUE_PROBES } from '../src/preflight.mjs';
 import { buildStagedPreparation, parseStagedPreparation, stagingPath } from '../src/staging-contract.mjs';
 import { ENGLISH_MESSAGES } from '../src/frontend-localization.mjs';
 
+// Preflight frames the old app's sections first, then this app's.
+const PROBED = [LEGACY_PACKAGE_ID, PACKAGE_ID];
 const nonce = 'c'.repeat(32);
 const job = 'd'.repeat(32);
 
@@ -35,7 +37,7 @@ test('both staged-file checks prepare the file before reading its mode', async (
   const target = {model: 'Test panel', serial: 'serial', primaryAbi: 'arm64-v8a', androidSdk: 34,
     rootMode: 'rootless', usbVendorId: 1, usbProductId: 2, usbSerial: 'usb'};
   const release = {kind: 'authenticated-apk-bytes',
-    descriptor: {apkSize: 1234, apkSha256: 'a'.repeat(64), packageId: SUCCESSOR_PACKAGE_ID, minSdk: 21,
+    descriptor: {apkSize: 1234, apkSha256: 'a'.repeat(64), packageId: PACKAGE_ID, minSdk: 21,
       supportedAbis: ['arm64-v8a', 'armeabi-v7a']}};
   const identity = {MODEL: target.model, SERIAL: target.serial, ABI: target.primaryAbi, SDK: '34',
     UID: '2000', SECURE: '1', DEBUGGABLE: '0', SU: 'absent'};
@@ -54,7 +56,7 @@ test('both staged-file checks prepare the file before reading its mode', async (
       } else if (step === 'PREFLIGHT') {
         lines = [...Object.entries(identity).flatMap(([name, value]) => section(name, [value])),
           ...section('LIVE', ['package:/system/framework/framework-res.apk']),
-          ...ACCEPTED_PACKAGE_IDS.flatMap((_, i) => [...section(`PACKAGE${i}`, []),
+          ...PROBED.flatMap((_, i) => [...section(`PACKAGE${i}`, []),
             `HAPANELD_PREFLIGHT_RETAINED${i}_BEGIN:${n}`, `HAPANELD_PREFLIGHT_RETAINED${i}_END:${n}:0`]),
           ...[0, 1, 2].flatMap(i => section(`BASE${i}`, ['readable'])),
           ...RESIDUE_PROBES.flatMap((_, i) => section(`RESIDUE${i}`, ['absent']))];
@@ -79,7 +81,7 @@ test('a lost upload\'s staged copy is matched to its release prefix and cleaned 
   const target = {model: 'Test panel', serial: 'serial', primaryAbi: 'arm64-v8a', androidSdk: 34,
     rootMode: 'rootless', usbVendorId: 1, usbProductId: 2, usbSerial: 'usb'};
   const release = {kind: 'authenticated-apk-bytes', apk,
-    descriptor: {apkSize: 4, apkSha256: 'a'.repeat(64), packageId: SUCCESSOR_PACKAGE_ID, minSdk: 21,
+    descriptor: {apkSize: 4, apkSha256: 'a'.repeat(64), packageId: PACKAGE_ID, minSdk: 21,
       supportedAbis: ['arm64-v8a', 'armeabi-v7a']}};
   const identity = {MODEL: target.model, SERIAL: target.serial, ABI: target.primaryAbi, SDK: '34',
     UID: '2000', SECURE: '1', DEBUGGABLE: '0', SU: 'absent'};
@@ -98,7 +100,7 @@ test('a lost upload\'s staged copy is matched to its release prefix and cleaned 
       } else if (step === 'PREFLIGHT') {
         lines = [...Object.entries(identity).flatMap(([name, value]) => section(name, [value])),
           ...section('LIVE', ['package:/system/framework/framework-res.apk']),
-          ...ACCEPTED_PACKAGE_IDS.flatMap((_, i) => [...section(`PACKAGE${i}`, []),
+          ...PROBED.flatMap((_, i) => [...section(`PACKAGE${i}`, []),
             `HAPANELD_PREFLIGHT_RETAINED${i}_BEGIN:${n}`, `HAPANELD_PREFLIGHT_RETAINED${i}_END:${n}:0`]),
           ...[0, 1, 2].flatMap(i => section(`BASE${i}`, ['readable'])),
           ...RESIDUE_PROBES.flatMap((_, i) => section(`RESIDUE${i}`, ['absent']))];

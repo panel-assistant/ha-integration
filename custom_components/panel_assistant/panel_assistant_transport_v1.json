@@ -30,6 +30,14 @@
       ]
     },
     {
+      "channel": "diag_usb_debugging",
+      "family": null,
+      "platform": "binary_sensor",
+      "translation_key": "usb_debugging",
+      "unique_suffix": "usb_debugging",
+      "attributes": []
+    },
+    {
       "channel": "proximity",
       "family": null,
       "platform": "binary_sensor",
@@ -54,19 +62,27 @@
       "attributes": []
     },
     {
+      "channel": "android_settings",
+      "family": null,
+      "platform": "button",
+      "translation_key": "android_settings",
+      "unique_suffix": "android_settings",
+      "attributes": []
+    },
+    {
+      "channel": "launcher",
+      "family": null,
+      "platform": "button",
+      "translation_key": "launcher",
+      "unique_suffix": "launcher",
+      "attributes": []
+    },
+    {
       "channel": "button",
       "family": null,
       "platform": "event",
       "translation_key": "button",
       "unique_suffix": "button",
-      "attributes": []
-    },
-    {
-      "channel": "camera_snapshot",
-      "family": null,
-      "platform": "image",
-      "translation_key": "camera_snapshot",
-      "unique_suffix": "camera_snapshot",
       "attributes": []
     },
     {

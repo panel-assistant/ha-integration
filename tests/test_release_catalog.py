@@ -12,7 +12,7 @@ from .http_fakes import FakeResponse, FakeSession
 
 
 def document(tag="v1.2.3", *, prerelease=False):
-    apk = f"ha-paneld-{tag}-manual-setup-required.apk"
+    apk = f"panel-assistant-{tag}-manual-setup-required.apk"
     descriptor = f"ha-paneld-{tag}-install.json"
     return {
         "tag_name": tag,
@@ -324,7 +324,7 @@ async def test_feed_only_recommendation_resolves_the_same_eligible_build(
         AsyncMock(side_effect=ReleaseResolutionError),
     )
     choices = await catalog.async_list_install_choices(hass)
-    assert choices[0]["tag"] == "build-772"
+    assert choices[0]["tag"] == "build-772-successor"
     assert choices[0]["prerelease"] == ("-" in version)
     assert (await catalog.async_resolve_install_choice(hass, None)).tag == choices[0][
         "tag"
@@ -345,7 +345,7 @@ async def test_equal_version_default_uses_newest_authenticated_build(
     monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "1.0.0")
     monkeypatch.setattr(catalog, "async_get_clientsession", lambda _: client)
     choices = await catalog.async_list_install_choices(hass)
-    assert choices[0]["tag"] == "build-772"
+    assert choices[0]["tag"] == "build-772-successor"
     artifact = await catalog.async_resolve_install_choice(hass, None)
     assert artifact.tag == choices[0]["tag"]
     assert artifact.descriptor.version_code == 772
@@ -353,7 +353,7 @@ async def test_equal_version_default_uses_newest_authenticated_build(
 
 @pytest.mark.parametrize(
     "pa_version,expected",
-    [("1.0.0", ["v1.2.0"]), ("1.0.0-rc1", ["build-774", "v1.2.0"])],
+    [("1.0.0", ["v1.2.0"]), ("1.0.0-rc1", ["build-774-successor", "v1.2.0"])],
 )
 async def test_install_list_offers_newest_compatible_choice_per_pa_channel(
     hass, monkeypatch, release_key, pa_version, expected
@@ -386,3 +386,78 @@ async def test_install_list_offers_newest_compatible_choice_per_pa_channel(
     assert [choice["tag"] for choice in choices] == expected
     assert (await catalog.async_resolve_install_choice(hass, None)).tag == expected[0]
     assert not any(url.endswith(".apk") for url, _ in client.requests)
+
+
+@pytest.mark.parametrize("github_available", [False, True])
+async def test_install_recommendation_follows_feed_code_when_names_regress(
+    hass, monkeypatch, release_key, github_available
+):
+    from dataclasses import replace
+
+    from custom_components.panel_assistant import update_policy
+
+    from .test_feed_install_paths import _build, _install_feed
+
+    _install_feed(
+        hass,
+        replace(_build(1246), version_name="1.0.0-rc1"),
+        replace(_build(1670), version_name="1.0.0-preview1"),
+        replace(
+            _build(1671),
+            version_name="1.0.0-preview1",
+            protocol_min=6,
+            protocol_max=6,
+        ),
+    )
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "1.0.0-preview1")
+    if github_available:
+        client = authenticated_session(release_key, [("v0.9.11", (5, 5))])
+        monkeypatch.setattr(catalog, "async_get_clientsession", lambda _: client)
+    else:
+        monkeypatch.setattr(
+            catalog,
+            "async_resolve_update_candidates",
+            AsyncMock(side_effect=ReleaseResolutionError),
+        )
+
+    choices = await catalog.async_list_install_choices(hass)
+    assert [choice["tag"] for choice in choices] == (
+        ["build-1670-successor", "v0.9.11"]
+        if github_available
+        else ["build-1670-successor"]
+    )
+    recommended = await catalog.async_resolve_install_choice(hass, None)
+    assert recommended.tag == choices[0]["tag"]
+    assert recommended.descriptor.version_code == 1670
+    # Removing an older build from the menu never changes an exact saved choice.
+    assert (
+        await catalog.async_resolve_install_choice(hass, "build-1246-successor")
+    ).tag == ("build-1246-successor")
+
+
+async def test_install_recommendation_keeps_github_name_order_over_feed_code(
+    hass, monkeypatch, release_key
+):
+    from dataclasses import replace
+
+    from custom_components.panel_assistant import update_policy
+
+    from .test_feed_install_paths import _build, _install_feed
+
+    _install_feed(
+        hass,
+        replace(_build(1246), version_name="1.0.0-rc1"),
+        replace(_build(1670), version_name="1.0.0-preview1"),
+    )
+    # The newer GitHub name has the lower code, including compared with the feed.
+    client = authenticated_session(
+        release_key, [("v1.1.0", (5, 5)), ("v1.0.1", (5, 5))]
+    )
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "1.0.0-preview1")
+    monkeypatch.setattr(catalog, "async_get_clientsession", lambda _: client)
+
+    choices = await catalog.async_list_install_choices(hass)
+    assert [choice["tag"] for choice in choices] == ["v1.1.0", "build-1670-successor"]
+    recommended = await catalog.async_resolve_install_choice(hass, None)
+    assert recommended.tag == choices[0]["tag"]
+    assert recommended.descriptor.version_code == 701

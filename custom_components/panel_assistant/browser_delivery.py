@@ -21,6 +21,7 @@ from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.http import HomeAssistantView
 
+from .adb_credentials import AdbCredentialError, async_get_adb_credential
 from .browser_artifacts import async_read_browser_artifact
 from .browser_release_cache import (
     BrowserReleaseCache,
@@ -43,7 +44,17 @@ _DOWNLOAD_TIMEOUT = 60.0
 _CHUNK_SIZE = 64 * 1024
 _HEADERS = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
 _ID = re.compile(r"[0-9a-f]{32}")
+# The whole handover answers within this, because the admin's window gives up
+# on the request at 35 s and would lose the display size the installer needs.
 _HANDOVER_TIMEOUT = 30.0
+# The installer relays the handover as soon as it has started the app, which
+# may not be answering on its port yet. Keep asking for this long: the last
+# read, the address post and the sizing read after it take up to 5 s each.
+_ANSWER_WAIT = 10.0
+_ANSWER_RETRY = 1.0
+# Adding the panel may go on after the handover has answered; this bounds only
+# a registration that never ends.
+_REGISTRATION_TIMEOUT = 30.0
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -293,7 +304,7 @@ async def _async_register_usb_panel(hass: HomeAssistant, address: PanelAddress) 
     and the person can still add the panel; the answer is for support logs.
     """
     try:
-        async with asyncio.timeout(_HANDOVER_TIMEOUT):
+        async with asyncio.timeout(_REGISTRATION_TIMEOUT):
             result = await hass.config_entries.flow.async_init(
                 DOMAIN,
                 context={"source": SOURCE_USB_INSTALL},
@@ -303,6 +314,8 @@ async def _async_register_usb_panel(hass: HomeAssistant, address: PanelAddress) 
         _LOGGER.exception("Could not add the USB-installed panel")
         return "failed"
     if result["type"] is FlowResultType.CREATE_ENTRY:
+        if result.get("description") == "another_home_assistant":
+            return "added_to_another_home_assistant"
         return "added"
     if result["type"] is FlowResultType.ABORT:
         return str(result.get("reason"))
@@ -339,14 +352,62 @@ class BrowserSetupHandoverView(HomeAssistantView):
                 client = HaPaneldClient(
                     async_get_clientsession(self.service.hass), address
                 )
-                async with asyncio.timeout(_HANDOVER_TIMEOUT):
-                    outcome = await async_offer_ha_url(self.service.hass, client)
+                loop = asyncio.get_running_loop()
+                started = loop.time()
+                deadline = started + _HANDOVER_TIMEOUT
+                attempts = 0
+                async with asyncio.timeout_at(deadline):
+                    while True:
+                        attempts += 1
+                        outcome = await async_offer_ha_url(self.service.hass, client)
+                        if (
+                            outcome != "setup_state_unreadable"
+                            or loop.time() - started >= _ANSWER_WAIT
+                        ):
+                            break
+                        await asyncio.sleep(_ANSWER_RETRY)
                     # The installer still holds USB: it applies the display and
                     # text size the panel's profile recommends before it opens
                     # the panel's setup, as the network installer does over ADB.
-                    sizing = await async_read_recommended_sizing(client)
-                registration = await _async_register_usb_panel(
-                    self.service.hass, address
+                    # A panel already set up keeps the size its owner chose.
+                    sizing = (
+                        None
+                        if outcome == "setup_complete"
+                        else await async_read_recommended_sizing(client)
+                    )
+                # Adding the panel sets its entry up before the flow returns,
+                # which can outlast the handover's answer. It is not stopped
+                # then, since that would leave a half-added panel: the answer
+                # says it is still going, and the log says how it ended.
+                registering = self.service.hass.async_create_task(
+                    _async_register_usb_panel(self.service.hass, address),
+                    "panel_assistant USB install registration",
+                )
+                await asyncio.wait(
+                    {registering}, timeout=max(0.0, deadline - loop.time())
+                )
+                if registering.done():
+                    registration = registering.result()
+                else:
+                    registration = "in_progress"
+
+                    def _log_late(task: asyncio.Task[str]) -> None:
+                        if not task.cancelled():
+                            _LOGGER.info(
+                                "USB install registration of %s finished: %s",
+                                address.host,
+                                task.result(),
+                            )
+
+                    registering.add_done_callback(_log_late)
+                _LOGGER.info(
+                    "USB install handover to %s: %s after %d read(s) in %.1f s; "
+                    "registration: %s",
+                    address.host,
+                    outcome,
+                    attempts,
+                    loop.time() - started,
+                    registration,
                 )
                 return web.json_response(
                     {
@@ -367,6 +428,33 @@ class BrowserSetupHandoverView(HomeAssistantView):
             return _error("browser_handover_failed", 503)
 
 
+class BrowserAdbKeyView(HomeAssistantView):
+    """Panel Assistant's public ADB key, for the USB installer to offer.
+
+    The installer presents this key at the panel's "Allow USB debugging"
+    prompt, so the one approval the owner gives over USB authorizes Panel
+    Assistant itself, as approving a network install does. Only the public
+    half leaves Home Assistant; the key is created here if it does not exist.
+    """
+
+    url = "/api/panel_assistant/usb/adb_key"
+    name = "api:panel_assistant:usb:adb_key"
+    requires_auth = True
+
+    def __init__(self, service: BrowserDelivery) -> None:
+        self.service = service
+
+    @require_admin
+    async def get(self, request: web.Request) -> web.Response:
+        try:
+            credential = await async_get_adb_credential(self.service.hass)
+        except AdbCredentialError:
+            return _error("browser_adb_key_unavailable", 503)
+        return web.json_response(
+            {"public_key": credential.signer.GetPublicKey()}, headers=_HEADERS
+        )
+
+
 @callback
 def async_register_browser_delivery(hass: HomeAssistant) -> None:
     """Register once per domain, without requiring a panel config entry."""
@@ -378,5 +466,6 @@ def async_register_browser_delivery(hass: HomeAssistant) -> None:
     hass.http.register_view(BrowserReleaseView(service))
     hass.http.register_view(BrowserApkView(service))
     hass.http.register_view(BrowserSetupHandoverView(service))
+    hass.http.register_view(BrowserAdbKeyView(service))
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, service.async_stop)
     data[DATA_BROWSER_DELIVERY] = service

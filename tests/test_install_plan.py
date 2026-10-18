@@ -11,13 +11,13 @@ import pytest
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 
 from custom_components.panel_assistant import install_plan, update_policy
-from custom_components.panel_assistant.client import PanelAddress
-from custom_components.panel_assistant.install_adb import (
+from custom_components.panel_assistant.adb_protocol import (
     AdbInstallTarget,
     InstallAdbError,
     InstallAdbErrorCode,
-    async_preflight_install,
 )
+from custom_components.panel_assistant.client import PanelAddress
+from custom_components.panel_assistant.install_adb import async_preflight_install
 from custom_components.panel_assistant.install_jobs import InstallJobStoreError
 from custom_components.panel_assistant.install_network import PinnedPanelTarget
 from custom_components.panel_assistant.install_plan import (
@@ -61,15 +61,17 @@ def descriptor(**changes: object) -> InstallDescriptor:
         release_tag="v0.1.0",
         version_name="0.1.0",
         version_code=100,
-        apk_name="ha-paneld-v0.1.0-manual-setup-required.apk",
+        apk_name="panel-assistant-v0.1.0-manual-setup-required.apk",
         apk_size=12_345,
         apk_sha256=APK_SHA256,
-        package_id="io.github.maxlyth.hapaneld",
+        package_id="io.panelassistant.android",
         signer_certificate_sha256=SIGNER_SHA256,
         min_sdk=26,
         supported_abis=("arm64-v8a", "armeabi-v7a"),
         database_compatibility="hapaneld-db:v1:ha-paneld.db:1:14",
-        launch_component="io.github.maxlyth.hapaneld/.MainActivity",
+        launch_component=(
+            "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity"
+        ),
     )
     return replace(value, **changes)
 
@@ -78,7 +80,7 @@ def release(**changes: object) -> ReleaseArtifact:
     value = ReleaseArtifact(
         tag="v0.1.0",
         version="0.1.0",
-        apk_name="ha-paneld-v0.1.0-manual-setup-required.apk",
+        apk_name="panel-assistant-v0.1.0-manual-setup-required.apk",
         apk_url="https://github.invalid/secret-location.apk?token=do-not-persist",
         sha256=APK_SHA256,
         descriptor=descriptor(),
@@ -89,7 +91,7 @@ def release(**changes: object) -> ReleaseArtifact:
 
 
 def rc_release(tag: str = "v0.9.7-rc3") -> ReleaseArtifact:
-    apk_name = f"ha-paneld-{tag}-manual-setup-required.apk"
+    apk_name = f"panel-assistant-{tag}-manual-setup-required.apk"
     return release(
         tag=tag,
         version=tag[1:],
@@ -108,7 +110,9 @@ def test_rc_plan_binds_only_explicit_exact_opt_in() -> None:
     )
     assert plan.artifact.release_tag == "v0.9.7-rc3"
     assert plan.artifact.version_name == "0.9.7-rc3"
-    assert plan.artifact.apk_name == "ha-paneld-v0.9.7-rc3-manual-setup-required.apk"
+    assert plan.artifact.apk_name == (
+        "panel-assistant-v0.9.7-rc3-manual-setup-required.apk"
+    )
     stable = build_install_plan(pinned_target(), probe(), release(), CREDENTIAL_ID)
     assert plan.plan_sha256 != stable.plan_sha256
     assert plan.artifact.prerelease_opt_in
@@ -162,7 +166,7 @@ def test_new_install_refuses_historical_release_without_native_range() -> None:
     unknown = ReleaseArtifact(
         tag="v0.1.0",
         version="0.1.0",
-        apk_name="ha-paneld-v0.1.0-manual-setup-required.apk",
+        apk_name="panel-assistant-v0.1.0-manual-setup-required.apk",
         apk_url="https://github.invalid/app.apk",
         sha256=APK_SHA256,
         descriptor=descriptor(),
@@ -193,14 +197,9 @@ def test_default_install_follows_running_pa_without_persisting_implicit_opt_in(
     assert explicitly_selected.artifact.prerelease_opt_in
 
 
-@pytest.mark.parametrize("successor", [False, True])
-def test_default_feed_install_follows_running_pa_without_implicit_opt_in(
-    monkeypatch: pytest.MonkeyPatch, successor: bool
-) -> None:
-    tag = "build-100-successor" if successor else "build-100"
-    package = "io.panelassistant.android" if successor else "io.github.maxlyth.hapaneld"
+def feed_release(tag: str, package: str, launch_component: str) -> ReleaseArtifact:
     apk_name = f"{APK_SHA256}.apk"
-    artifact = release(
+    return release(
         tag=tag,
         version="1.0.0-rc1",
         apk_name=apk_name,
@@ -209,12 +208,18 @@ def test_default_feed_install_follows_running_pa_without_implicit_opt_in(
             version_name="1.0.0-rc1",
             apk_name=apk_name,
             package_id=package,
-            launch_component=(
-                f"{package}/{package}.MainActivity"
-                if successor
-                else f"{package}/.MainActivity"
-            ),
+            launch_component=launch_component,
         ),
+    )
+
+
+def test_default_feed_install_follows_running_pa_without_implicit_opt_in(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    tag = "build-100-successor"
+    package = "io.panelassistant.android"
+    artifact = feed_release(
+        tag, package, "io.panelassistant.android/io.panelassistant.android.MainActivity"
     )
     monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "0.7.0-rc2")
     plan = build_install_plan(pinned_target(), probe(), artifact, CREDENTIAL_ID)
@@ -240,6 +245,31 @@ def test_default_feed_install_follows_running_pa_without_implicit_opt_in(
             expected_rc_tag=tag.replace("100", "101"),
         )
     assert caught.value.code is InstallPlanErrorCode.INVALID_RELEASE
+
+
+def test_a_release_of_the_old_app_is_never_planned(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Nothing installs the old application id, from GitHub or the feed."""
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "0.7.0-rc2")
+    old_name = "ha-paneld-v0.1.0-manual-setup-required.apk"
+    old_release = release(
+        apk_name=old_name,
+        descriptor=descriptor(
+            apk_name=old_name,
+            package_id="io.github.maxlyth.hapaneld",
+            launch_component="io.github.maxlyth.hapaneld/.MainActivity",
+        ),
+    )
+    old_feed_build = feed_release(
+        "build-100",
+        "io.github.maxlyth.hapaneld",
+        "io.github.maxlyth.hapaneld/.MainActivity",
+    )
+    for candidate in (old_release, old_feed_build):
+        with pytest.raises(InstallPlanError) as caught:
+            build_install_plan(pinned_target(), probe(), candidate, CREDENTIAL_ID)
+        assert caught.value.code is InstallPlanErrorCode.INVALID_RELEASE
 
 
 def test_exact_stable_selection_never_grants_prerelease_consent() -> None:
@@ -289,15 +319,17 @@ def test_build_maps_every_field_and_hashes_exact_canonical_plan() -> None:
         "release_tag": "v0.1.0",
         "version_name": "0.1.0",
         "version_code": 100,
-        "apk_name": "ha-paneld-v0.1.0-manual-setup-required.apk",
+        "apk_name": "panel-assistant-v0.1.0-manual-setup-required.apk",
         "apk_sha256": APK_SHA256,
         "apk_size": 12_345,
-        "package_id": "io.github.maxlyth.hapaneld",
+        "package_id": "io.panelassistant.android",
         "signer_certificate_sha256": SIGNER_SHA256,
         "min_sdk": 26,
         "supported_abis": ("arm64-v8a", "armeabi-v7a"),
         "database_compatibility": "hapaneld-db:v1:ha-paneld.db:1:14",
-        "launch_component": "io.github.maxlyth.hapaneld/.MainActivity",
+        "launch_component": (
+            "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity"
+        ),
         "protocol_min": 5,
         "protocol_max": 5,
         "prerelease_opt_in": False,
@@ -592,70 +624,67 @@ def test_safe_original_ip_identity_is_preserved() -> None:
     assert plan.target.pinned_address == "192.168.1.23"
 
 
-def successor_release() -> ReleaseArtifact:
-    """The same release under the new application id."""
-    apk_name = "panel-assistant-v0.1.0-manual-setup-required.apk"
+def new_classes_release() -> ReleaseArtifact:
+    """The same release built with the classes moved to the new package."""
     return release(
-        apk_name=apk_name,
         descriptor=descriptor(
-            apk_name=apk_name,
-            package_id="io.panelassistant.android",
             launch_component=(
-                "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity"
+                "io.panelassistant.android/io.panelassistant.android.MainActivity"
             ),
         ),
     )
 
 
 def test_only_clean_or_byte_identical_installed_targets_are_planned() -> None:
-    """Installed state needs exact-byte proof for the selected descriptor."""
+    """Installed state needs exact-byte proof for the selected descriptor.
+
+    A panel holding only the old app (``MIGRATION_CANDIDATE``) is never planned:
+    the new app is not installed beside it.
+    """
     for state in InstallTargetState:
         if state in {
             InstallTargetState.INSTALL_CANDIDATE,
             InstallTargetState.INSTALLED,
-            InstallTargetState.MIGRATION_CANDIDATE,
         }:
             continue
-        for candidate in (release(), successor_release()):
-            with pytest.raises(InstallPlanError) as caught:
-                build_install_plan(
-                    pinned_target(), probe(state=state), candidate, CREDENTIAL_ID
+        for candidate in (release(), new_classes_release()):
+            for size in (None, candidate.descriptor.apk_size):
+                with pytest.raises(InstallPlanError) as caught:
+                    build_install_plan(
+                        pinned_target(),
+                        probe(state=state, installed_artifact_size=size),
+                        candidate,
+                        CREDENTIAL_ID,
+                    )
+                assert caught.value.args[0] == (
+                    InstallPlanErrorCode.PROBE_NOT_INSTALL_CANDIDATE
                 )
-            assert caught.value.args[0] == (
-                InstallPlanErrorCode.PROBE_NOT_INSTALL_CANDIDATE
-            )
 
-    # A clean panel admits either identity, and each plans as its own package.
-    for candidate in (release(), successor_release()):
+    # A clean panel plans either class set of the app, keeping its launcher.
+    for candidate in (release(), new_classes_release()):
         built = build_install_plan(pinned_target(), probe(), candidate, CREDENTIAL_ID)
-        assert built.artifact.package_id == candidate.descriptor.package_id
-    successor_plan = build_install_plan(
-        pinned_target(), probe(), successor_release(), CREDENTIAL_ID
-    )
-    assert successor_plan.artifact.launch_component == (
-        "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity"
-    )
+        assert built.artifact.package_id == "io.panelassistant.android"
+        assert built.artifact.launch_component == candidate.descriptor.launch_component
 
-    for state in {
-        InstallTargetState.INSTALLED,
-        InstallTargetState.MIGRATION_CANDIDATE,
-    }:
-        for candidate in (release(), successor_release()):
-            with pytest.raises(InstallPlanError) as caught:
-                build_install_plan(
-                    pinned_target(), probe(state=state), candidate, CREDENTIAL_ID
-                )
-            assert caught.value.args[0] == (
-                InstallPlanErrorCode.PROBE_NOT_INSTALL_CANDIDATE
-            )
-
-            built = build_install_plan(
+    for candidate in (release(), new_classes_release()):
+        with pytest.raises(InstallPlanError) as caught:
+            build_install_plan(
                 pinned_target(),
-                probe(
-                    state=state,
-                    installed_artifact_size=candidate.descriptor.apk_size,
-                ),
+                probe(state=InstallTargetState.INSTALLED),
                 candidate,
                 CREDENTIAL_ID,
             )
-            assert built.artifact.package_id == candidate.descriptor.package_id
+        assert caught.value.args[0] == (
+            InstallPlanErrorCode.PROBE_NOT_INSTALL_CANDIDATE
+        )
+
+        built = build_install_plan(
+            pinned_target(),
+            probe(
+                state=InstallTargetState.INSTALLED,
+                installed_artifact_size=candidate.descriptor.apk_size,
+            ),
+            candidate,
+            CREDENTIAL_ID,
+        )
+        assert built.artifact.package_id == candidate.descriptor.package_id

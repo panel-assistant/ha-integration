@@ -21,8 +21,7 @@ from typing import Final
 from .app_identity import (
     EQUIVALENT_HOME_COMPONENTS,
     HOME_COMPONENTS,
-    LEGACY_PACKAGE_ID,
-    SUCCESSOR_PACKAGE_ID,
+    PACKAGE_ID,
 )
 
 #: What HOME resolves to now: the last line names one component, or Android's
@@ -32,12 +31,9 @@ HOME_QUERY: Final = (
     "-a android.intent.action.MAIN -c android.intent.category.HOME 2>/dev/null"
     " | tail -n 1"
 )
-#: The app's ``app_name`` (not translated) by application id. Builds of the new
-#: id up to 0.9.11 still carry the old name.
-APP_LABELS: Final = {
-    LEGACY_PACKAGE_ID: ("ha-paneld",),
-    SUCCESSOR_PACKAGE_ID: ("Panel Assistant", "ha-paneld"),
-}
+#: The app's ``app_name`` (not translated) by application id. Builds up to
+#: 0.9.11 still carry the old name.
+APP_LABELS: Final = {PACKAGE_ID: ("Panel Assistant", "ha-paneld")}
 #: Where the chooser's window is dumped; removed straight after it is read.
 CHOOSER_DUMP: Final = "/data/local/tmp/panel-assistant-home-chooser.xml"
 #: Every word the program leaves in ``hp_chooser``.

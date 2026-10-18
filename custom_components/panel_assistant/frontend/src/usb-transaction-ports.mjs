@@ -7,11 +7,13 @@ import { uploadApk } from './usb-upload.mjs';
 import { buildInstall, parseInstall, buildLaunch, parseLaunch, buildAppReady,
   parseAppReady } from './install-contract.mjs';
 import { inspectInstalledApk } from './installed-observation.mjs';
-import { readUsbHealth } from './usb-health.mjs';
+import { readUsbHealth, readUsbHomeProof } from './usb-health.mjs';
 import { buildPermissionRead, parsePermissionRead, buildPermissionGrant, parsePermissionGrant,
   buildPermissionVerification, parsePermissionVerification } from './permission-contract.mjs';
 import { verifyStagedPrefix } from './staged-prefix.mjs';
-import { buildVendorSetup, parseVendorSetup } from './vendor-provisioning.mjs';
+import { buildVendorSetup, parseVendorSetup, buildVendorDisplaySettlement,
+  parseVendorDisplaySettlement } from './vendor-provisioning.mjs';
+import { displaySizing, buildDisplaySizing, parseDisplaySizing } from './display-provisioning.mjs';
 import { buildPrefixCleanup, parsePrefixCleanup, buildSetAsideRemoval,
   parseSetAsideRemoval } from './cleanup-contract.mjs';
 import { TransactionError } from './transaction.mjs';
@@ -90,7 +92,7 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
     try { return await action(...args); }
     catch (error) { stop(); throw error; }
   };
-  return Object.freeze({
+  const ports = Object.freeze({
     authenticate: protect(async () => {
       guard();
       authenticated = await authenticate();
@@ -186,6 +188,43 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
         { timeoutMs: 30000 }), n) !== 'started') fail('launch_refused');
       binding(receipt, release);
     }),
+    completeSetup: protect(async (receipt, release, display) => {
+      if (receipt.phase !== 'healthy') fail('transaction_invalid');
+      await posture(receipt, release);
+      if (!await inspectInstalledApk(adb, release.descriptor, guard)) fail('installed_artifact_mismatch');
+      await admission(receipt, release);
+      let displayOutcome = 'not_recommended';
+      const sizing = displaySizing(display);
+      if (sizing) {
+        const n = newNonce();
+        // An unreadable sizing result remains best effort. A failed USB read
+        // must quarantine instead: its late write cannot outlive settlement.
+        const body = await readShell(adb, buildDisplaySizing(n, sizing),
+          {maximum: 4096, timeoutMs: 15000});
+        binding(receipt, release);
+        try { displayOutcome = parseDisplaySizing(body, n, sizing); }
+        catch { displayOutcome = 'unreadable'; }
+      }
+      const n = newNonce();
+      const settlement = parseVendorDisplaySettlement(await readShell(adb,
+        buildVendorDisplaySettlement(n, release.descriptor.packageId), {maximum: 1024, timeoutMs: 30000}), n);
+      binding(receipt, release);
+      if (settlement === 'skipped') return Object.freeze({displaySizing: displayOutcome, settlement});
+      // A native shutdown can unbind accessibility. Repair and read back the
+      // installed build's grants/HOME before the final exact-component launch.
+      const permissions = await ports.commissionPermissions(receipt, release);
+      binding(receipt, release);
+      await admission(receipt, release);
+      const launching = {...receipt, phase: 'launching'};
+      await ports.launch(launching, release);
+      const state = await ports.inspect(launching, release);
+      binding(receipt, release);
+      if (state.healthy !== true) fail('health_unavailable');
+      const foreground = await readUsbHomeProof(adb, {ensureCurrent: guard, quarantine: stop});
+      binding(receipt, release);
+      if (!foreground) fail('health_unavailable');
+      return Object.freeze({displaySizing: displayOutcome, settlement, permissions});
+    }),
     commissionPermissions: protect(async (receipt, release) => {
       if (receipt.phase !== 'healthy') fail('transaction_invalid');
       await posture(receipt, release);
@@ -221,4 +260,5 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
       return vendor === null ? result : Object.freeze({...result, vendor});
     }),
   });
+  return ports;
 }

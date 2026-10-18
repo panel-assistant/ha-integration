@@ -1,8 +1,9 @@
-"""Bounded ADB primitives for a clean install or in-place app update.
+"""Install steps for a clean install or in-place app update over ADB.
 
 This module deliberately does not own orchestration.  Every public operation
-opens a fresh authenticated ADB connection and either returns a small,
-privacy-safe result or raises :class:`InstallAdbError` with a stable code.
+opens a fresh authenticated ADB connection (:mod:`adb_protocol`) and either
+returns a small, privacy-safe result or raises :class:`InstallAdbError` with a
+stable code.
 """
 
 from __future__ import annotations
@@ -11,10 +12,8 @@ import asyncio
 import hashlib
 import ipaddress
 import logging
-import math
 import os
 import re
-import shlex
 import stat
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
@@ -23,14 +22,12 @@ from enum import StrEnum
 from pathlib import Path
 from secrets import token_hex
 from time import time
-from typing import Any
 
 from adb_shell.adb_device_async import AdbDeviceAsync
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 from adb_shell.exceptions import (
     AdbConnectionError,
     AdbTimeoutError,
-    DeviceAuthError,
     DevicePathInvalidError,
     InvalidChecksumError,
     InvalidCommandError,
@@ -39,21 +36,66 @@ from adb_shell.exceptions import (
     PushFailedError,
     TcpTimeoutException,
 )
-from adb_shell.transport.tcp_transport_async import TcpTransportAsync
 
+from .adb_protocol import (
+    _ABI_PATTERN,
+    _ADB_EXCEPTIONS,
+    _READ_TIMEOUT_SECONDS,
+    _RESIDUE_PATHS,
+    _RESIDUE_PROBES,
+    _ROOT_DATA_BASES,
+    _SERIAL_PATTERN,
+    _SU_PREFIXES,
+    _SU_TIMEOUT_SECONDS,
+    _TRANSPORT_TIMEOUT_SECONDS,
+    AdbInstallTarget,
+    AdbPreflight,
+    AdbRootMode,
+    InstallAdbError,
+    InstallAdbErrorCode,
+    InstallOutcome,
+    LaunchOutcome,
+    _artifact_observation_command,
+    _async_close,
+    _async_connect,
+    _async_shell,
+    _async_wait_for_completion,
+    _cleanup_command,
+    _decode_lines,
+    _identity_root_command,
+    _install_command,
+    _launch_command,
+    _MalformedAdbResponse,
+    _notification_grant_command,
+    _package_command,
+    _parse_artifact_observation,
+    _parse_cleanup,
+    _parse_identity_root,
+    _parse_install_outcome,
+    _parse_installed_apk_path,
+    _parse_launch_outcome,
+    _parse_notification_grant,
+    _parse_package_present,
+    _parse_path_state,
+    _parse_permission_grant,
+    _parse_preflight,
+    _parse_remote_artifact,
+    _parse_sections,
+    _parse_single_section,
+    _parse_status,
+    _path_state_command,
+    _permission_grant_command,
+    _preflight_command,
+    _remote_artifact_command,
+    _su_attempt_command,
+    _UnsafeAdbPacket,
+    _update_install_command,
+    _validate_filesync_maxdata,
+)
 from .app_identity import (
-    ACCEPTED_PACKAGE_IDS,
-    ACCESSIBILITY_COMPONENTS,
-    EQUIVALENT_ACCESSIBILITY_COMPONENTS,
-    EQUIVALENT_HOME_COMPONENTS,
-    HOME_COMPONENTS,
-    LAUNCH_COMPONENTS,
-    LEGACY_LAUNCH_COMPONENT,
     LEGACY_PACKAGE_ID,
-    SUCCESSOR_PACKAGE_ID,
-    counterpart_of,
-    is_accepted_package_id,
-    is_launch_component,
+    PACKAGE_ID,
+    RELEASE_DEVICE_ADMIN_RECEIVER,
 )
 from .client import PanelAddress
 from .display_provisioning import (
@@ -65,7 +107,6 @@ from .display_provisioning import (
     parse_display_restore,
     parse_display_sizing,
 )
-from .home_chooser import CHOOSER_OUTCOMES, home_claim_command
 from .home_chooser import HOME_QUERY as _HOME_QUERY
 from .install_network import is_allowed_install_address
 from .release import (
@@ -75,132 +116,63 @@ from .release import (
     install_descriptor_valid,
 )
 from .vendor_provisioning import (
-    META_PORTAL_DEVICES,
-    SHELLY_LAUNCHER,
+    UNREAD_SETUP_WARNING,
+    VENDOR_HOME_COMMAND,
     ShellySetup,
     VendorResponseError,
     VendorSetup,
+    parse_vendor_display_settlement,
     parse_vendor_restore,
     parse_vendor_setup,
+    vendor_display_settlement_command,
     vendor_restore_command,
     vendor_setup_command,
 )
 
-ADB_PORT = 5555
 _LOGGER = logging.getLogger(__name__)
 
-_ADB_BANNER = "ha-paneld-home-assistant"
-_PACKAGE_MANAGER_LIVENESS_PACKAGE = "android"
+
 _REMOTE_PREFIX = "/data/local/tmp/ha-paneld-install-"
-_MIN_ADB_MAXDATA = 4 * 1024
-_MAX_ADB_MAXDATA = 1024 * 1024
-_MAX_ADB_PACKET_BYTES = _MAX_ADB_MAXDATA
-_MAX_CONNECTION_READ_BYTES = 2 * 1024 * 1024
-_MAX_CONNECTION_WRITE_BYTES = _MAX_APK_BYTES + 4 * 1024 * 1024
-_MAX_SHELL_RESPONSE_BYTES = 32 * 1024
-_CONNECT_TIMEOUT_SECONDS = 5.0
-_TRANSPORT_TIMEOUT_SECONDS = 10.0
-_MAX_TRANSPORT_TIMEOUT_SECONDS = 180.0
-_READ_TIMEOUT_SECONDS = 10.0
+
+
 _INSTALL_READ_TIMEOUT_SECONDS = 30.0
-_CLOSE_TIMEOUT_SECONDS = 2.0
+
+
 _PREFLIGHT_TIMEOUT_SECONDS = 30.0
+
+
 _STAGE_TIMEOUT_SECONDS = 180.0
+
+
 _INSTALL_TIMEOUT_SECONDS = 180.0
+
+
 _LAUNCH_TIMEOUT_SECONDS = 30.0
+
+
 _CLEANUP_TIMEOUT_SECONDS = 30.0
+
+
 _UPDATE_TIMEOUT_SECONDS = (
     _PREFLIGHT_TIMEOUT_SECONDS
     + _STAGE_TIMEOUT_SECONDS
     + _INSTALL_TIMEOUT_SECONDS
     + _CLEANUP_TIMEOUT_SECONDS
 )
+
+
 _REMOTE_MODE = stat.S_IFREG | 0o644
+
+
 _JOB_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$", flags=re.ASCII)
+
+
 # A vendor build number travels to a public help page, so only a short,
 # printable token is kept: Sonoff reports "4.0.12", others a longer build string.
 _FIRMWARE_PATTERN = re.compile(r"[0-9A-Za-z][0-9A-Za-z ._+-]{0,79}", flags=re.ASCII)
-_SERIAL_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$", flags=re.ASCII)
-_ABI_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{1,64}$", flags=re.ASCII)
+
+
 _APK_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.apk(?:\.bin)?$", re.ASCII)
-_ROOT_DATA_BASES = ("/data/user/0", "/data/data", "/data/user_de/0")
-# Residue is probed per accepted application id: during the identity migration
-# a panel may hold the data directory of either package, and only the data of
-# the package being installed makes the target unclean.
-_RESIDUE_PROBES: tuple[tuple[str, str], ...] = tuple(
-    (package_id, f"{base}/{package_id}")
-    for package_id in ACCEPTED_PACKAGE_IDS
-    for base in _ROOT_DATA_BASES
-)
-_RESIDUE_PATHS = tuple(path for _package_id, path in _RESIDUE_PROBES)
-_SU_PREFIXES = ("su 0", "su 0 sh -c", "su root", "su root sh -c", "su -c")
-_SU_TIMEOUT_SECONDS = 3.0
-
-_ADB_EXCEPTIONS = (
-    AdbConnectionError,
-    AdbTimeoutError,
-    DevicePathInvalidError,
-    InvalidChecksumError,
-    InvalidCommandError,
-    InvalidResponseError,
-    InvalidTransportError,
-    OSError,
-    PushFailedError,
-    TcpTimeoutException,
-)
-
-
-class InstallAdbErrorCode(StrEnum):
-    """Stable, privacy-safe failure codes for the installer executor."""
-
-    INVALID_REQUEST = "invalid_request"
-    TARGET_UNREACHABLE = "target_unreachable"
-    AUTHORIZATION_REQUIRED = "authorization_required"
-    TARGET_CHANGED = "target_changed"
-    ROOT_MODE_CHANGED = "root_mode_changed"
-    TARGET_RESPONSE_INVALID = "target_response_invalid"
-    TARGET_INCOMPATIBLE = "target_incompatible"
-    TARGET_NOT_CLEAN = "target_not_clean"
-    INSTALLED_PACKAGE_MISSING = "installed_package_missing"
-    ROOT_STATE_AMBIGUOUS = "root_state_ambiguous"
-    LOCAL_ARTIFACT_INVALID = "local_artifact_invalid"
-    FILESYNC_UNSAFE = "filesync_unsafe"
-    STAGING_PATH_OCCUPIED = "staging_path_occupied"
-    STAGE_AMBIGUOUS = "stage_ambiguous"
-    STAGE_VERIFICATION_FAILED = "stage_verification_failed"
-    INSTALL_AMBIGUOUS = "install_ambiguous"
-    LAUNCH_AMBIGUOUS = "launch_ambiguous"
-    CLEANUP_AMBIGUOUS = "cleanup_ambiguous"
-
-
-class InstallAdbError(Exception):
-    """An ADB install failure which never includes peer or filesystem text."""
-
-    def __init__(self, code: InstallAdbErrorCode) -> None:
-        self.code = code
-        super().__init__(code.value)
-
-
-class AdbRootMode(StrEnum):
-    """ADB privilege postures; delegated root requires a fresh runtime proof."""
-
-    ROOT_ADBD = "root_adbd"
-    ROOTLESS = "rootless"
-    ROOT_SU = "root_su"
-
-
-class InstallOutcome(StrEnum):
-    """Definite package-manager outcomes."""
-
-    INSTALLED = "installed"
-    REFUSED = "refused"
-
-
-class LaunchOutcome(StrEnum):
-    """Definite activity-manager outcomes."""
-
-    STARTED = "started"
-    REFUSED = "refused"
 
 
 class DefiniteCleanupReason(StrEnum):
@@ -212,47 +184,6 @@ class DefiniteCleanupReason(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
-class AdbInstallTarget:
-    """One pre-pinned private address and its previously observed identity."""
-
-    address: PanelAddress
-    serial: str
-    model: str
-    primary_abi: str
-    android_sdk: int
-
-
-def same_physical_target(observed: Any, expected: Any) -> bool:
-    """Whether two observations name one Android device: serial, model, ABI, SDK."""
-    return (
-        observed.serial,
-        observed.model,
-        observed.primary_abi,
-        observed.android_sdk,
-    ) == (expected.serial, expected.model, expected.primary_abi, expected.android_sdk)
-
-
-@dataclass(frozen=True, slots=True)
-class AdbPreflight:
-    """Fresh clean-install admission facts from one ADB connection."""
-
-    serial: str
-    model: str
-    primary_abi: str
-    android_sdk: int
-    root_mode: AdbRootMode
-    # True when the panel already runs the legacy package and the successor is
-    # being installed beside it. The panel migrates itself afterwards; this
-    # integration only records that the handover window is expected.
-    migration_candidate: bool = False
-    # True when the panel already holds exactly the package being installed and
-    # nothing else. Only a caller that asked to admit that case ever sees it,
-    # and it is not permission to install: whether the panel runs these exact
-    # bytes is a separate observation.
-    target_installed: bool = False
-
-
-@dataclass(frozen=True, slots=True)
 class StagedApk:
     """Exact remote artifact verified after a completed FileSync push."""
 
@@ -260,78 +191,6 @@ class StagedApk:
     remote_path: str
     apk_size: int
     apk_sha256: str
-
-
-class _MalformedAdbResponse(Exception):
-    """The peer did not return a complete bounded protocol frame."""
-
-
-class _UnsafeAdbPacket(Exception):
-    """The peer or library requested an unsafe ADB transport operation."""
-
-
-@dataclass(frozen=True, slots=True)
-class _ObservedTarget:
-    model: str
-    serial: str
-    primary_abi: str
-    android_sdk: int
-
-
-class _BoundedTcpTransportAsync(TcpTransportAsync):
-    """Enforce finite per-call and per-connection ADB byte bounds."""
-
-    def __init__(self, host: str, port: int) -> None:
-        super().__init__(host, port)
-        self._received_bytes = 0
-        self._written_bytes = 0
-
-    async def bulk_read(
-        self, numbytes: int, transport_timeout_s: float | None
-    ) -> bytes:
-        if (
-            isinstance(numbytes, bool)
-            or not isinstance(numbytes, int)
-            or not 1 <= numbytes <= _MAX_ADB_PACKET_BYTES
-        ):
-            raise _UnsafeAdbPacket
-        remaining = _MAX_CONNECTION_READ_BYTES - self._received_bytes
-        if remaining < 1:
-            raise _UnsafeAdbPacket
-        timeout = _bounded_transport_timeout(transport_timeout_s)
-        data = await super().bulk_read(min(numbytes, remaining), timeout)
-        if not data:
-            raise AdbConnectionError("bounded ADB connection closed")
-        self._received_bytes += len(data)
-        return data
-
-    async def bulk_write(
-        self, data: bytes | bytearray, transport_timeout_s: float | None
-    ) -> int:
-        if (
-            not isinstance(data, (bytes, bytearray))
-            or not data
-            or len(data) > _MAX_ADB_PACKET_BYTES + 24
-            or self._written_bytes + len(data) > _MAX_CONNECTION_WRITE_BYTES
-        ):
-            raise _UnsafeAdbPacket
-        timeout = _bounded_transport_timeout(transport_timeout_s)
-        written = await super().bulk_write(data, timeout)
-        if written != len(data):
-            raise _UnsafeAdbPacket
-        self._written_bytes += written
-        return written
-
-
-def _bounded_transport_timeout(value: float | None) -> float:
-    if (
-        isinstance(value, bool)
-        or not isinstance(value, (int, float))
-        or not math.isfinite(value)
-        or not 0 < value <= _MAX_TRANSPORT_TIMEOUT_SECONDS
-    ):
-        raise _UnsafeAdbPacket
-    return float(value)
 
 
 def _remote_path(job_id: str) -> str:
@@ -387,706 +246,16 @@ def _validate_request(target: AdbInstallTarget, descriptor: InstallDescriptor) -
     _validate_descriptor(descriptor)
 
 
-def _property_sections() -> tuple[tuple[str, str], ...]:
-    return (
-        ("MODEL", "ro.product.model"),
-        ("SERIAL", "ro.serialno"),
-        ("ABI", "ro.product.cpu.abi"),
-        ("SDK", "ro.build.version.sdk"),
-    )
-
-
-def _framed_value_commands(prefix: str, nonce: str) -> list[str]:
-    commands = [f"echo HAPANELD_{prefix}_BEGIN:{nonce}"]
-    for name, android_property in _property_sections():
-        commands.extend(
-            (
-                f"echo HAPANELD_{prefix}_{name}_BEGIN:{nonce}",
-                f"getprop {android_property}",
-                f"echo HAPANELD_{prefix}_{name}_END:{nonce}:$?",
-            )
-        )
-    commands.append(f"echo HAPANELD_{prefix}_END:{nonce}")
-    return commands
-
-
-def _preflight_command(nonce: str) -> str:
-    commands = _framed_value_commands("PREFLIGHT", nonce)
-    sections = (
-        ("UID", "id -u"),
-        ("SECURE", "getprop ro.secure"),
-        ("DEBUGGABLE", "getprop ro.debuggable"),
-        (
-            "SU",
-            _su_observation_command(),
-        ),
-        ("LIVE", f"pm path {_PACKAGE_MANAGER_LIVENESS_PACKAGE}"),
-        *(
-            section
-            for index, package_id in enumerate(ACCEPTED_PACKAGE_IDS)
-            for section in (
-                (f"PACKAGE{index}", f"pm path {package_id}"),
-                (f"RETAINED{index}", f"pm list packages -u {package_id}"),
-            )
-        ),
-    )
-    commands.pop()
-    for name, command in sections:
-        commands.extend(
-            (
-                f"echo HAPANELD_PREFLIGHT_{name}_BEGIN:{nonce}",
-                command,
-                f"echo HAPANELD_PREFLIGHT_{name}_END:{nonce}:$?",
-            )
-        )
-    for index, path in enumerate(_ROOT_DATA_BASES):
-        commands.extend(
-            (
-                f"echo HAPANELD_PREFLIGHT_BASE{index}_BEGIN:{nonce}",
-                f"if [ -L {path} ] || [ -d {path} ]; then "
-                f"if ls -1A {path} >/dev/null 2>&1; then echo readable; "
-                "else echo unreadable; fi; else echo unreadable; fi",
-                f"echo HAPANELD_PREFLIGHT_BASE{index}_END:{nonce}:$?",
-            )
-        )
-    for index, path in enumerate(_RESIDUE_PATHS):
-        commands.extend(
-            (
-                f"echo HAPANELD_PREFLIGHT_RESIDUE{index}_BEGIN:{nonce}",
-                f"if [ -e {path} ] || [ -L {path} ]; then "
-                "echo present; else echo absent; fi",
-                f"echo HAPANELD_PREFLIGHT_RESIDUE{index}_END:{nonce}:$?",
-            )
-        )
-    commands.append(f"echo HAPANELD_PREFLIGHT_END:{nonce}")
-    return "; ".join(commands)
-
-
-def _su_observation_command() -> str:
-    return (
-        "if command -v su >/dev/null 2>&1; then echo present; "
-        "else hapaneld_su_status=$?; "
-        'if [ "$hapaneld_su_status" -eq 1 ]; then echo absent; '
-        "else echo abnormal; fi; fi"
-    )
-
-
-def _su_inspection_command(nonce: str, *, clean: bool) -> str:
-    """Build only fixed read-only operations for the delegated root shell."""
-    commands = [f"echo HAPANELD_SU_BEGIN:{nonce}"]
-    sections = [("UID", "id -u")]
-    if clean:
-        for index, path in enumerate(_ROOT_DATA_BASES):
-            sections.append(
-                (
-                    f"BASE{index}",
-                    f"if [ -d {path} ] && ls -1A {path} >/dev/null 2>&1; "
-                    "then echo readable; else echo unreadable; fi",
-                )
-            )
-        for index, path in enumerate(_RESIDUE_PATHS):
-            sections.append(
-                (
-                    f"RESIDUE{index}",
-                    f"if [ -e {path} ] || [ -L {path} ]; then "
-                    "echo present; else echo absent; fi",
-                )
-            )
-    for name, command in sections:
-        commands.extend(
-            (
-                f"echo HAPANELD_SU_{name}_BEGIN:{nonce}",
-                command,
-                f"echo HAPANELD_SU_{name}_END:{nonce}:$?",
-            )
-        )
-    commands.append(f"echo HAPANELD_SU_END:{nonce}")
-    return "; ".join(commands)
-
-
-def _su_attempt_command(prefix: str, nonce: str, *, clean: bool) -> str:
-    payload = shlex.quote(_su_inspection_command(nonce, clean=clean))
-    return (
-        f"echo HAPANELD_DELEGATE_BEGIN:{nonce}; {prefix} {payload}; "
-        f"echo HAPANELD_DELEGATE_END:{nonce}:$?"
-    )
-
-
-def _identity_root_command(nonce: str) -> str:
-    commands = _framed_value_commands("POSTURE", nonce)
-    commands.pop()
-    for name, command in (
-        ("UID", "id -u"),
-        ("SECURE", "getprop ro.secure"),
-        ("DEBUGGABLE", "getprop ro.debuggable"),
-        ("SU", _su_observation_command()),
-    ):
-        commands.extend(
-            (
-                f"echo HAPANELD_POSTURE_{name}_BEGIN:{nonce}",
-                command,
-                f"echo HAPANELD_POSTURE_{name}_END:{nonce}:$?",
-            )
-        )
-    commands.append(f"echo HAPANELD_POSTURE_END:{nonce}")
-    return "; ".join(commands)
-
-
-def _path_state_command(nonce: str, remote_path: str) -> str:
-    return "; ".join(
-        (
-            f"echo HAPANELD_PATH_BEGIN:{nonce}",
-            f"if [ -e {remote_path} ] || [ -L {remote_path} ]; then "
-            "echo present; else echo absent; fi",
-            f"echo HAPANELD_PATH_END:{nonce}:$?",
-        )
-    )
-
-
-# The installed application's own APK is read, never prepared: `prepare` is
-# for this integration's own staged file, whose mode it owns.
-def _artifact_observation_command(
-    nonce: str, remote_path: str, *, prepare: bool
-) -> str:
-    prepared = (
-        (
-            f"echo HAPANELD_ARTIFACT_CHMOD_BEGIN:{nonce}",
-            f"chmod 0644 {remote_path}",
-            f"echo HAPANELD_ARTIFACT_CHMOD_END:{nonce}:$?",
-        )
-        if prepare
-        else ()
-    )
-    return "; ".join(
-        (
-            f"echo HAPANELD_ARTIFACT_BEGIN:{nonce}",
-            *prepared,
-            f"echo HAPANELD_ARTIFACT_MODE_BEGIN:{nonce}",
-            f"stat -c %f {remote_path}",
-            f"echo HAPANELD_ARTIFACT_MODE_END:{nonce}:$?",
-            f"echo HAPANELD_ARTIFACT_SIZE_BEGIN:{nonce}",
-            f"wc -c < {remote_path}",
-            f"echo HAPANELD_ARTIFACT_SIZE_END:{nonce}:$?",
-            f"echo HAPANELD_ARTIFACT_SHA_BEGIN:{nonce}",
-            f"sha256sum {remote_path}",
-            f"echo HAPANELD_ARTIFACT_SHA_END:{nonce}:$?",
-            f"echo HAPANELD_ARTIFACT_END:{nonce}",
-        )
-    )
-
-
-def _remote_artifact_command(nonce: str, remote_path: str) -> str:
-    return _artifact_observation_command(nonce, remote_path, prepare=True)
-
-
-def _package_command(nonce: str, package_id: str) -> str:
-    return "; ".join(
-        (
-            f"echo HAPANELD_PACKAGE_BEGIN:{nonce}",
-            f"pm path {package_id}",
-            f"echo HAPANELD_PACKAGE_END:{nonce}:$?",
-        )
-    )
-
-
-def _install_command(nonce: str, remote_path: str, android_sdk: int) -> str:
-    no_replace = "-R " if android_sdk >= 28 else ""
-    return "; ".join(
-        (
-            f"echo HAPANELD_INSTALL_BEGIN:{nonce}",
-            f"pm install {no_replace}{remote_path}",
-            f"echo HAPANELD_INSTALL_END:{nonce}:$?",
-        )
-    )
-
-
-def _update_install_command(nonce: str, remote_path: str) -> str:
-    """Replace only the installed package; Android checks signer and version."""
-    return "; ".join(
-        (
-            f"echo HAPANELD_INSTALL_BEGIN:{nonce}",
-            # Deliberately omit -d and -g: package manager refuses a downgrade
-            # or a signer mismatch, and existing permissions are left alone.
-            f"pm install -r {remote_path}",
-            f"echo HAPANELD_INSTALL_END:{nonce}:$?",
-        )
-    )
-
-
 # POST_NOTIFICATIONS became a runtime permission in Android 13 (API 33).
 _NOTIFICATIONS_RUNTIME_SDK = 33
-_NOTIFICATIONS_PERMISSION = "android.permission.POST_NOTIFICATIONS"
-_NOTIFICATIONS_GRANTED = re.compile(
-    r"\s*android\.permission\.POST_NOTIFICATIONS: granted=true"
-    r"(?:, flags=\[[ A-Z0-9_|]*\])?\s*",
-    flags=re.ASCII,
-)
 
-
-def _runtime_permission_repair_command(package_id: str, permission: str) -> str:
-    """Read a runtime grant, repair a proved denial, and read what Android kept."""
-    permission_pattern = re.escape(permission)
-    denied = (
-        rf"[[:space:]]*{permission_pattern}: granted=false"
-        r"(, flags=\[[ A-Z0-9_|]*\])?[[:space:]]*"
-    )
-    read = (
-        f"runtime_dump=$(dumpsys package {package_id}); "
-        'runtime_status=$?; runtime=; if [ "$runtime_status" -eq 0 ]; then '
-        "runtime=$(printf '%s\\n' \"$runtime_dump\" | "
-        f"grep -F '{permission}: granted='); fi"
-    )
-    # A missing or malformed dump is unknown, never evidence of a missing grant.
-    return (
-        f"{read}; "
-        'if [ -n "$runtime" ] && ! printf \'%s\\n\' "$runtime" | '
-        f"grep -Evq '^{denied}$'; then "
-        f"pm grant {package_id} {permission} >/dev/null 2>&1; {read}; fi"
-    )
-
-
-def _notification_grant_command(nonce: str, package_id: str) -> str:
-    """Repair missing notifications before the first start, then read them back.
-
-    The service notification is part of keeping a wall panel working, so the
-    installer grants it whatever a person once answered: a "Don't allow" may have
-    been a mis-tap or a prompt nobody saw, and a shell grant overrides it. The
-    grant's output is discarded; only the package manager's readback decides.
-    """
-    return "; ".join(
-        (
-            f"echo HAPANELD_NOTIFICATIONS_BEGIN:{nonce}",
-            _runtime_permission_repair_command(package_id, _NOTIFICATIONS_PERMISSION),
-            "printf '%s\\n' \"$runtime\"",
-            f"echo HAPANELD_NOTIFICATIONS_END:{nonce}:$?",
-        )
-    )
-
-
-def _parse_notification_grant(body: bytes, nonce: str) -> bool:
-    """Granted only when every runtime-permission line Android printed says so.
-
-    Only the complete permission lines matter; failed or empty reads prove nothing.
-    """
-    try:
-        lines, _status = _parse_single_section(
-            body, prefix="NOTIFICATIONS", nonce=nonce
-        )
-    except _MalformedAdbResponse:
-        return False
-    return bool(lines) and all(_NOTIFICATIONS_GRANTED.fullmatch(line) for line in lines)
-
-
-_SERVICES_SETTING = "settings get secure enabled_accessibility_services"
-# The class removed by the successor's 0.9.10 in-place update; the old app's
-# separate package may still be installed during handover and is left alone.
-_OBSOLETE_ACCESSIBILITY_COMPONENTS = {
-    LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID][-1]: (
-        ACCESSIBILITY_COMPONENTS[LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID][0]],
-    ),
+# What a person loses without a grant, by the permission parser's own names.
+_GRANT_CONSEQUENCES = {
+    "modify system settings": "touch sounds stay unavailable",
+    "install packages": "the panel cannot install its own update with a tap",
+    "secure settings": "the screen dims instead of switching off",
+    "grant readback": "Panel Assistant cannot tell which permissions it lacks",
 }
-_SERVICE_COMPONENT = re.compile(
-    r"[A-Za-z][A-Za-z0-9_.]*/[A-Za-z.][A-Za-z0-9_.$]*", flags=re.ASCII
-)
-_APPOP_ALLOWED = r"{}: allow(?:; [\x20-\x7e]{{1,1024}})?"
-_GRANTED_APP_OPS = "WRITE_SETTINGS SYSTEM_ALERT_WINDOW REQUEST_INSTALL_PACKAGES"
-
-
-_SECURE_SETTINGS_PERMISSION = "android.permission.WRITE_SECURE_SETTINGS"
-
-
-def _secure_settings_grant_command(package_id: str) -> str:
-    """Grant the secure-settings permission the build asks for, once.
-
-    Full screen-off on a panel whose firmware keeps the screen on while
-    plugged in (the Shelly X2i) lifts and restores that Global setting, which
-    only this permission allows; without it the app dims instead. It is an
-    install-time permission Android lists only once granted, so a dump that
-    names the request but no grant is the proof it is missing. A build that
-    does not ask for it is ``unsupported``; an unreadable dump is ``unknown``.
-    """
-    permission = re.escape(_SECURE_SETTINGS_PERMISSION)
-    read = f"secure=$(dumpsys package {package_id} 2>/dev/null); secure_status=$?"
-    granted = f"grep -Eq '^[[:space:]]*{permission}: granted=true'"
-    return (
-        f"{read}; "
-        'if [ "$secure_status" -ne 0 ] || [ -z "$secure" ]; then '
-        "echo secure_settings:unknown; "
-        f"elif ! printf '%s\\n' \"$secure\" | grep -Eqx '[[:space:]]*{permission}'; "
-        "then echo secure_settings:unsupported; else "
-        f"printf '%s\\n' \"$secure\" | {granted} || "
-        f"{{ pm grant {package_id} {_SECURE_SETTINGS_PERMISSION} >/dev/null 2>&1; "
-        f"{read}; }}; "
-        f"if printf '%s\\n' \"$secure\" | {granted}; "
-        "then echo secure_settings:granted; else echo secure_settings:unknown; fi; fi"
-    )
-
-
-def _permission_grant_command(
-    nonce: str, package_id: str, launch_component: str
-) -> str:
-    """Repair only grants Android proves missing before an install or update start.
-
-    Settings writes, the overlay and the accessibility service are what the
-    panel's controls need. The install-packages app-op lets a panel without
-    network ADB offer its own signed update for the owner to confirm. The
-    browser installer's permission contract grants them the same way.
-    Keep unrelated services and remove only the obsolete
-    class of the same app, appending the current service when no valid spelling exists.
-    A rerun writes nothing and other apps' services stay enabled. The list read before
-    the write is printed so the readback can prove nothing was dropped. Grant
-    output is discarded; only the readback decides.
-
-    The build's dashboard is made the panel's HOME whenever HOME resolves to
-    anything else: Android forgets a preferred HOME when the set of packages
-    changes, so every install, update and repair asserts it again. Where the
-    firmware only preselects it in Android's chooser, the chooser's Always is
-    pressed (``home_chooser``). The device codename is read last, for the
-    vendor setup that follows.
-    """
-    component = ACCESSIBILITY_COMPONENTS[launch_component]
-    known = "|".join(
-        f"*:{name}:*" for name in EQUIVALENT_ACCESSIBILITY_COMPONENTS[launch_component]
-    )
-    obsolete = "|".join(_OBSOLETE_ACCESSIBILITY_COMPONENTS.get(launch_component, ()))
-    quiet = ">/dev/null 2>&1"
-    # Android 14 reports an unset operation as two lines, including its default.
-    default_modes = "|".join(
-        f"'No operations.\nDefault mode: {mode}'"
-        for mode in ("allow", "default", "deny", "ignore", "foreground", "errored")
-    )
-    read_operation = (
-        f'mode=$(appops get {package_id} "$operation"); mode_status=$?; '
-        f'case "$mode" in {default_modes}) mode="$operation: ${{mode##*: }}" ;; esac; '
-    )
-    runtime_grants = []
-    for feature, permission in (
-        ("camera.any", "CAMERA"),
-        ("microphone", "RECORD_AUDIO"),
-    ):
-        granted = (
-            rf"[[:space:]]*android\.permission\.{permission}: granted=true"
-            r"(, flags=\[[ A-Z0-9_|]*\])?[[:space:]]*"
-        )
-        listed = rf"feature:android\.hardware\.{re.escape(feature)}(=[0-9]+)?"
-        runtime_grants.append(
-            'if [ "$features_status" -ne 0 ] || [ -z "$features" ]; then echo unknown; '
-            f"elif printf '%s\\n' \"$features\" | grep -Eqx '{listed}'; then "
-            + _runtime_permission_repair_command(
-                package_id, f"android.permission.{permission}"
-            )
-            + '; if [ -n "$runtime" ] && ! printf \'%s\\n\' "$runtime" | '
-            f"grep -Evq '^{granted}$'; then echo granted; else echo unknown; fi; "
-            "else echo unsupported; fi"
-        )
-    return "; ".join(
-        (
-            f"echo HAPANELD_PERMISSIONS_BEGIN:{nonce}",
-            f"before=$({_SERVICES_SETTING})",
-            "before_status=$?",
-            'echo "$before"',
-            'after=""',
-            'valid=1; [ "${#before}" -le 4096 ] || valid=0; '
-            "case \"$before\" in *'\n'*) valid=0 ;; esac; "
-            'case "$before" in ""|null) ;; *) rest="$before"; seen=:; count=0; '
-            "while :; do service=${rest%%:*}; count=$((count+1)); "
-            'if [ "$count" -gt 64 ] || ! printf \'%s\\n\' "$service" | '
-            "grep -Eq '^[A-Za-z][A-Za-z0-9_.]*/[A-Za-z.][A-Za-z0-9_.$]*$'; "
-            "then valid=0; break; fi; "
-            'case "$seen" in *:"$service":*) valid=0; break ;; esac; '
-            f'case "$service" in {obsolete or "never-a-component"}) ;; '
-            '*) after="${after:+$after:}$service" ;; esac; '
-            'seen="$seen$service:"; case "$rest" in *:*) rest=${rest#*:} ;; '
-            "*) break ;; esac; done ;; esac; "
-            'if [ "$before_status" -eq 0 ] && [ "$valid" -eq 1 ]; then '
-            'case ":$after:" in '
-            f"{known}) ;; "
-            f'*) after="${{after:+$after:}}{component}" ;; esac; '
-            'if [ "$after" != "$before" ]; then '
-            f"current=$({_SERVICES_SETTING}); current_status=$?; "
-            '[ "$current_status" -eq 0 ] && [ "$current" = "$before" ] && '
-            f'settings put secure enabled_accessibility_services "$after" {quiet}; '
-            "fi; fi",
-            f"for operation in {_GRANTED_APP_OPS}; do "
-            + read_operation
-            + 'if [ "$mode_status" -eq 0 ] && [ -n "$mode" ] && '
-            '! printf \'%s\\n\' "$mode" | grep -Evq "^($operation: '
-            "(default|deny|ignore|foreground|errored)(; [ -~]+)?|"
-            'No operations\\.)$"; then '
-            f'appops set {package_id} "$operation" allow {quiet}; fi; done',
-            f"observed=$({_SERVICES_SETTING}); observed_status=$?; "
-            'if [ "$before_status" -eq 0 ] && [ "$valid" -eq 1 ] && '
-            '[ "$observed_status" -eq 0 ] && [ "$observed" = "$after" ]; then '
-            f'case ":$observed:" in {known}) '
-            "enabled=$(settings get secure accessibility_enabled); enabled_status=$?; "
-            'if [ "$enabled_status" -eq 0 ]; then case "$enabled" in 0|null) '
-            f"settings put secure accessibility_enabled 1 {quiet} ;; esac; fi ;; "
-            "esac; fi",
-            home_claim_command(launch_component),
-            _SERVICES_SETTING,
-            "settings get secure accessibility_enabled",
-            f"for operation in {_GRANTED_APP_OPS}; do "
-            + read_operation
-            + 'if [ "$mode_status" -eq 0 ]; then printf \'%s\\n\' "$mode"; '
-            "else echo unknown; fi; done",
-            # `pm list features`, not `pm has-feature`: Android 8.1 has no
-            # has-feature and answers it with its usage text.
-            "features=$(pm list features 2>/dev/null); features_status=$?",
-            *runtime_grants,
-            'echo "home_chooser:$hp_chooser"',
-            _secure_settings_grant_command(package_id),
-            f'echo "home:$({_HOME_QUERY})"',
-            'echo "device:$(getprop ro.product.device)"',
-            f'if [ -n "$(pm path {SHELLY_LAUNCHER} 2>/dev/null)" ]; '
-            "then echo vendor:shelly; else echo vendor:none; fi",
-            f"echo HAPANELD_PERMISSIONS_END:{nonce}:$?",
-        )
-    )
-
-
-def _expected_services(before: str, launch_component: str) -> str | None:
-    """The list after a grant, as the browser contract's ``expectedServices``."""
-    services = [] if before in ("", "null") else before.split(":")
-    if (
-        len(before) > 4096
-        or len(services) > 64
-        or len(set(services)) != len(services)
-        or not all(_SERVICE_COMPONENT.fullmatch(name) for name in services)
-    ):
-        return None
-    known = EQUIVALENT_ACCESSIBILITY_COMPONENTS[launch_component]
-    obsolete = _OBSOLETE_ACCESSIBILITY_COMPONENTS.get(launch_component, ())
-    services = [name for name in services if name not in obsolete]
-    if any(name in known for name in services):
-        return ":".join(services)
-    return ":".join((*services, ACCESSIBILITY_COMPONENTS[launch_component]))
-
-
-@dataclass(frozen=True, slots=True)
-class _PermissionGrant:
-    """The readback of one grant program."""
-
-    #: Every permission the panel's controls need reads back as granted.
-    granted: bool
-    #: HOME resolves to this build's dashboard.
-    home: bool
-    #: What the HOME claim did (``home_chooser.CHOOSER_OUTCOMES``), or None.
-    chooser: str | None
-    #: ``ro.product.device``, or None when the answer could not be read.
-    device: str | None
-    #: Shelly's launcher is installed: a Shelly Wall Display, whatever model.
-    shelly: bool = False
-
-
-_DEVICE_CODENAME = re.compile(r"[A-Za-z0-9_.-]{1,64}", flags=re.ASCII)
-
-
-def _parse_permission_grant(
-    body: bytes, nonce: str, launch_component: str
-) -> _PermissionGrant:
-    """Granted only when every readback line shows the grant and no service lost."""
-    refused = _PermissionGrant(granted=False, home=False, chooser=None, device=None)
-    try:
-        lines, status = _parse_single_section(body, prefix="PERMISSIONS", nonce=nonce)
-    except _MalformedAdbResponse:
-        return refused
-    if status != 0 or len(lines) != 13:
-        return refused
-    before, after, enabled, write_settings, overlay, installs = lines[:6]
-    camera, microphone = lines[6:8]
-    chooser, secure_settings, home, device, vendor = (
-        line.partition(":")[2] for line in lines[8:]
-    )
-    if (
-        not lines[8].startswith("home_chooser:")
-        or not lines[9].startswith("secure_settings:")
-        or not lines[10].startswith("home:")
-        or not lines[11].startswith("device:")
-        or lines[12] not in ("vendor:shelly", "vendor:none")
-    ):
-        return refused
-    expected = _expected_services(before, launch_component)
-    granted = (
-        expected is not None
-        and after == expected
-        and enabled == "1"
-        and re.fullmatch(_APPOP_ALLOWED.format("WRITE_SETTINGS"), write_settings)
-        is not None
-        and re.fullmatch(_APPOP_ALLOWED.format("SYSTEM_ALERT_WINDOW"), overlay)
-        is not None
-        and re.fullmatch(_APPOP_ALLOWED.format("REQUEST_INSTALL_PACKAGES"), installs)
-        is not None
-        and camera in ("granted", "unsupported")
-        and microphone in ("granted", "unsupported")
-        and secure_settings in ("granted", "unsupported")
-    )
-    return _PermissionGrant(
-        granted=granted,
-        home=home in EQUIVALENT_HOME_COMPONENTS[launch_component],
-        chooser=chooser if chooser in CHOOSER_OUTCOMES else None,
-        device=device if _DEVICE_CODENAME.fullmatch(device) else None,
-        shelly=vendor == "shelly",
-    )
-
-
-def _launch_command(nonce: str, package_id: str, launch_component: str) -> str:
-    """Start the installed build by the exact component its descriptor names.
-
-    One application id can carry its classes in either Kotlin package, so the
-    component is the descriptor's, never built from the package id.
-    """
-    return "; ".join(
-        (
-            f"echo HAPANELD_LAUNCH_BEGIN:{nonce}",
-            f"am start -W -n {launch_component} -p {package_id}",
-            f"echo HAPANELD_LAUNCH_END:{nonce}:$?",
-        )
-    )
-
-
-def _cleanup_command(nonce: str, remote_path: str) -> str:
-    return "; ".join(
-        (
-            f"echo HAPANELD_CLEANUP_BEGIN:{nonce}",
-            f"echo HAPANELD_CLEANUP_RM_BEGIN:{nonce}",
-            f"rm -f {remote_path}",
-            f"echo HAPANELD_CLEANUP_RM_END:{nonce}:$?",
-            f"echo HAPANELD_CLEANUP_STATE_BEGIN:{nonce}",
-            f"if [ -e {remote_path} ] || [ -L {remote_path} ]; then "
-            "echo present; else echo absent; fi",
-            f"echo HAPANELD_CLEANUP_STATE_END:{nonce}:$?",
-            f"echo HAPANELD_CLEANUP_END:{nonce}",
-        )
-    )
-
-
-def _decode_lines(body: bytes) -> list[str]:
-    if not body or len(body) > _MAX_SHELL_RESPONSE_BYTES:
-        raise _MalformedAdbResponse
-    try:
-        text = body.decode("utf-8")
-    except UnicodeDecodeError as err:
-        raise _MalformedAdbResponse from err
-    text = text.replace("\r\n", "\n")
-    if "\r" in text or not text.endswith("\n"):
-        raise _MalformedAdbResponse
-    return text.splitlines()
-
-
-def _parse_status(line: str, prefix: str, nonce: str) -> int | None:
-    match = re.fullmatch(rf"HAPANELD_{prefix}_END:{nonce}:([0-9]{{1,3}})", line)
-    return None if match is None else int(match.group(1))
-
-
-def _parse_sections(
-    body: bytes,
-    *,
-    prefix: str,
-    nonce: str,
-    names: tuple[str, ...],
-) -> dict[str, tuple[list[str], int]]:
-    lines = _decode_lines(body)
-    if (
-        lines[0] != f"HAPANELD_{prefix}_BEGIN:{nonce}"
-        or lines[-1] != f"HAPANELD_{prefix}_END:{nonce}"
-    ):
-        raise _MalformedAdbResponse
-    offset = 1
-    parsed: dict[str, tuple[list[str], int]] = {}
-    for name in names:
-        begin = f"HAPANELD_{prefix}_{name}_BEGIN:{nonce}"
-        if offset >= len(lines) - 1 or lines[offset] != begin:
-            raise _MalformedAdbResponse
-        offset += 1
-        values: list[str] = []
-        status: int | None = None
-        while offset < len(lines) - 1:
-            status = _parse_status(lines[offset], f"{prefix}_{name}", nonce)
-            if status is not None:
-                offset += 1
-                break
-            if lines[offset].startswith("HAPANELD_"):
-                raise _MalformedAdbResponse
-            values.append(lines[offset])
-            offset += 1
-        if status is None:
-            raise _MalformedAdbResponse
-        parsed[name] = (values, status)
-    if offset != len(lines) - 1:
-        raise _MalformedAdbResponse
-    return parsed
-
-
-def _parse_identity(body: bytes, nonce: str, prefix: str) -> _ObservedTarget:
-    names = tuple(name for name, _property in _property_sections())
-    sections = _parse_sections(body, prefix=prefix, nonce=nonce, names=names)
-    values: dict[str, str] = {}
-    for name in names:
-        lines, status_code = sections[name]
-        if status_code != 0 or len(lines) != 1:
-            raise _MalformedAdbResponse
-        values[name] = lines[0]
-    model = values["MODEL"]
-    serial = values["SERIAL"]
-    primary_abi = values["ABI"]
-    sdk = values["SDK"]
-    if (
-        model != model.strip()
-        or not 1 <= len(model) <= 128
-        or not model.isprintable()
-        or _SERIAL_PATTERN.fullmatch(serial) is None
-        or _ABI_PATTERN.fullmatch(primary_abi) is None
-        or re.fullmatch(r"[0-9]{1,3}", sdk, flags=re.ASCII) is None
-    ):
-        raise _MalformedAdbResponse
-    android_sdk = int(sdk)
-    if not 1 <= android_sdk <= 100:
-        raise _MalformedAdbResponse
-    return _ObservedTarget(model, serial, primary_abi, android_sdk)
-
-
-def _is_package_path(line: str) -> bool:
-    return re.fullmatch(r"package:/[^ \t]+", line) is not None
-
-
-def _require_same_target(observed: _ObservedTarget, expected: AdbInstallTarget) -> None:
-    if not same_physical_target(observed, expected):
-        raise InstallAdbError(InstallAdbErrorCode.TARGET_CHANGED)
-
-
-def _parse_root_mode(
-    sections: dict[str, tuple[list[str], int]],
-) -> AdbRootMode:
-    uid_lines, uid_status = sections["UID"]
-    secure_lines, secure_status = sections["SECURE"]
-    debuggable_lines, debuggable_status = sections["DEBUGGABLE"]
-    su_lines, su_status = sections["SU"]
-    if (
-        uid_status != 0
-        or len(uid_lines) != 1
-        or secure_status != 0
-        or secure_lines not in (["0"], ["1"])
-        or debuggable_status != 0
-        or debuggable_lines not in (["0"], ["1"])
-        or su_status != 0
-        or su_lines not in (["absent"], ["present"], ["abnormal"])
-    ):
-        raise _MalformedAdbResponse
-    if su_lines == ["abnormal"]:
-        raise _MalformedAdbResponse
-    if uid_lines == ["0"]:
-        return AdbRootMode.ROOT_ADBD
-    # This is only a candidate. Async admission must prove delegated UID0.
-    if uid_lines == ["2000"] and su_lines == ["present"]:
-        return AdbRootMode.ROOT_SU
-    if (
-        uid_lines == ["2000"]
-        and secure_lines == ["1"]
-        and debuggable_lines == ["0"]
-        and su_lines == ["absent"]
-    ):
-        return AdbRootMode.ROOTLESS
-    raise InstallAdbError(InstallAdbErrorCode.ROOT_STATE_AMBIGUOUS)
 
 
 def _require_expected_root_mode(observed: AdbRootMode, expected: AdbRootMode) -> None:
@@ -1097,317 +266,6 @@ def _require_expected_root_mode(observed: AdbRootMode, expected: AdbRootMode) ->
 def _validate_expected_root_mode(expected: AdbRootMode) -> None:
     if not isinstance(expected, AdbRootMode):
         raise InstallAdbError(InstallAdbErrorCode.INVALID_REQUEST)
-
-
-def _classify_target_packages(
-    target_package_id: str,
-    installed: tuple[str, ...],
-    residue: frozenset[str],
-    *,
-    admit_installed_target: bool = False,
-) -> tuple[bool, bool]:
-    """Decide whether this panel may receive this package, and how.
-
-    A clean target holds neither accepted package.
-
-    A panel that already holds the package being installed is refused, because
-    this integration never replaces an installed panel app from the
-    clean-install path. `admit_installed_target` reports that panel instead of
-    refusing it, for the one caller that asks: a job whose target is already
-    satisfied has to converge rather than tell its owner the panel is dirty
-    when it is in fact exactly where they asked it to be. Reporting is not
-    admission. Whether the panel runs the very bytes of this artifact is a
-    separate observation the caller must still make, and nothing else may be
-    present: another package, or another package's data, is unclean either way.
-    Data belonging to the installed target is its own, not residue.
-
-    The other admitted exception is the identity migration. A panel running the
-    legacy package and not the successor may receive the successor beside it,
-    because the successor is a different package to Android and the panel
-    performs the handover itself. Residue belonging to that legacy package is
-    expected there; legacy residue with no legacy package to migrate from is
-    still an unclean target.
-    """
-    if target_package_id in installed:
-        if not admit_installed_target or any(
-            package_id != target_package_id for package_id in (*installed, *residue)
-        ):
-            raise InstallAdbError(InstallAdbErrorCode.TARGET_NOT_CLEAN)
-        return False, True
-    if target_package_id in residue:
-        # Data with no application to own it. Never an installed target.
-        raise InstallAdbError(InstallAdbErrorCode.TARGET_NOT_CLEAN)
-    counterpart = counterpart_of(target_package_id)
-    migration_candidate = (
-        target_package_id == SUCCESSOR_PACKAGE_ID and counterpart in installed
-    )
-    # Anything else present is refused. Once a migration is admitted, the only
-    # package left that can be installed or have left data behind is that
-    # counterpart, so this one check covers both.
-    if not migration_candidate and (installed or residue):
-        raise InstallAdbError(InstallAdbErrorCode.TARGET_NOT_CLEAN)
-    return migration_candidate, False
-
-
-def _parse_preflight(
-    body: bytes,
-    nonce: str,
-    target: AdbInstallTarget,
-    descriptor: InstallDescriptor,
-    *,
-    admit_installed_target: bool = False,
-) -> AdbPreflight:
-    property_names = tuple(name for name, _property in _property_sections())
-    other_names = (
-        "UID",
-        "SECURE",
-        "DEBUGGABLE",
-        "SU",
-        "LIVE",
-        *(
-            name
-            for index in range(len(ACCEPTED_PACKAGE_IDS))
-            for name in (f"PACKAGE{index}", f"RETAINED{index}")
-        ),
-    )
-    residue_names = tuple(f"RESIDUE{index}" for index in range(len(_RESIDUE_PATHS)))
-    base_names = tuple(f"BASE{index}" for index in range(len(_ROOT_DATA_BASES)))
-    sections = _parse_sections(
-        body,
-        prefix="PREFLIGHT",
-        nonce=nonce,
-        names=property_names + other_names + base_names + residue_names,
-    )
-
-    identity_body = _sections_as_frame(
-        sections, prefix="PREFLIGHT", nonce=nonce, names=property_names
-    )
-    observed = _parse_identity(identity_body, nonce, "PREFLIGHT")
-    _require_same_target(observed, target)
-
-    live_lines, live_status = sections["LIVE"]
-    if (
-        live_status != 0
-        or not live_lines
-        or any(not _is_package_path(line) for line in live_lines)
-    ):
-        raise _MalformedAdbResponse
-
-    # Each accepted application id is observed on its own. Reading them apart is
-    # what lets an old package on a panel that has no new package be a migration
-    # candidate instead of an unclean target.
-    installed: list[str] = []
-    for index, package_id in enumerate(ACCEPTED_PACKAGE_IDS):
-        package_lines, package_status = sections[f"PACKAGE{index}"]
-        retained_lines, retained_status = sections[f"RETAINED{index}"]
-        present = any(
-            line == f"package:{package_id}" for line in retained_lines
-        ) or any(_is_package_path(line) for line in package_lines)
-        if present:
-            installed.append(package_id)
-            continue
-        if (
-            package_status not in (0, 1)
-            or package_lines
-            or retained_status != 0
-            or retained_lines
-        ):
-            raise _MalformedAdbResponse
-
-    bases_readable = True
-    for name in base_names:
-        lines, status_code = sections[name]
-        if status_code != 0 or lines not in (["readable"], ["unreadable"]):
-            raise _MalformedAdbResponse
-        bases_readable = bases_readable and lines == ["readable"]
-
-    residue: set[str] = set()
-    for index, name in enumerate(residue_names):
-        lines, status_code = sections[name]
-        if status_code != 0 or lines not in (["absent"], ["present"]):
-            raise _MalformedAdbResponse
-        if lines == ["present"]:
-            residue.add(_RESIDUE_PROBES[index][0])
-
-    migration_candidate, target_installed = _classify_target_packages(
-        descriptor.package_id,
-        tuple(installed),
-        frozenset(residue),
-        admit_installed_target=admit_installed_target,
-    )
-
-    root_mode = _parse_root_mode(sections)
-    if root_mode is AdbRootMode.ROOT_ADBD and not bases_readable:
-        raise InstallAdbError(InstallAdbErrorCode.ROOT_STATE_AMBIGUOUS)
-
-    if (
-        observed.android_sdk < descriptor.min_sdk
-        or observed.primary_abi not in descriptor.supported_abis
-    ):
-        raise InstallAdbError(InstallAdbErrorCode.TARGET_INCOMPATIBLE)
-    return AdbPreflight(
-        serial=observed.serial,
-        model=observed.model,
-        primary_abi=observed.primary_abi,
-        android_sdk=observed.android_sdk,
-        root_mode=root_mode,
-        migration_candidate=migration_candidate,
-        target_installed=target_installed,
-    )
-
-
-def _sections_as_frame(
-    sections: dict[str, tuple[list[str], int]],
-    *,
-    prefix: str,
-    nonce: str,
-    names: tuple[str, ...],
-) -> bytes:
-    lines = [f"HAPANELD_{prefix}_BEGIN:{nonce}"]
-    for name in names:
-        values, status_code = sections[name]
-        lines.append(f"HAPANELD_{prefix}_{name}_BEGIN:{nonce}")
-        lines.extend(values)
-        lines.append(f"HAPANELD_{prefix}_{name}_END:{nonce}:{status_code}")
-    lines.append(f"HAPANELD_{prefix}_END:{nonce}")
-    return ("\n".join(lines) + "\n").encode()
-
-
-def _parse_identity_root(
-    body: bytes,
-    nonce: str,
-    target: AdbInstallTarget,
-) -> AdbRootMode:
-    property_names = tuple(name for name, _property in _property_sections())
-    root_names = ("UID", "SECURE", "DEBUGGABLE", "SU")
-    sections = _parse_sections(
-        body,
-        prefix="POSTURE",
-        nonce=nonce,
-        names=property_names + root_names,
-    )
-    identity_body = _sections_as_frame(
-        sections, prefix="POSTURE", nonce=nonce, names=property_names
-    )
-    observed = _parse_identity(identity_body, nonce, "POSTURE")
-    _require_same_target(observed, target)
-    return _parse_root_mode(sections)
-
-
-def _parse_single_section(
-    body: bytes, *, prefix: str, nonce: str
-) -> tuple[list[str], int]:
-    lines = _decode_lines(body)
-    begin = f"HAPANELD_{prefix}_BEGIN:{nonce}"
-    if not lines or lines[0] != begin:
-        raise _MalformedAdbResponse
-    status = _parse_status(lines[-1], prefix, nonce)
-    if status is None or any(line.startswith("HAPANELD_") for line in lines[1:-1]):
-        raise _MalformedAdbResponse
-    return lines[1:-1], status
-
-
-def _parse_path_state(body: bytes, nonce: str) -> bool:
-    lines, status_code = _parse_single_section(body, prefix="PATH", nonce=nonce)
-    if status_code != 0 or lines not in (["absent"], ["present"]):
-        raise _MalformedAdbResponse
-    return lines == ["present"]
-
-
-def _parse_artifact_observation(
-    body: bytes, nonce: str, remote_path: str, *, prepare: bool
-) -> tuple[int, int, str]:
-    sections = _parse_sections(
-        body,
-        prefix="ARTIFACT",
-        nonce=nonce,
-        names=("CHMOD", "MODE", "SIZE", "SHA") if prepare else ("MODE", "SIZE", "SHA"),
-    )
-    chmod_lines, chmod_status = sections["CHMOD"] if prepare else ([], 0)
-    mode_lines, mode_status = sections["MODE"]
-    size_lines, size_status = sections["SIZE"]
-    sha_lines, sha_status = sections["SHA"]
-    if (
-        chmod_lines
-        or chmod_status != 0
-        or mode_status != 0
-        or size_status != 0
-        or sha_status != 0
-        or len(mode_lines) != 1
-        or re.fullmatch(r"[0-9a-fA-F]{1,8}", mode_lines[0]) is None
-        or len(size_lines) != 1
-        or re.fullmatch(r"[ \t]*[0-9]{1,10}[ \t]*", size_lines[0], flags=re.ASCII)
-        is None
-        or len(sha_lines) != 1
-    ):
-        raise _MalformedAdbResponse
-    mode = int(mode_lines[0], 16)
-    size = int(size_lines[0].strip())
-    sha_match = re.fullmatch(
-        rf"([0-9a-f]{{64}})[ \t]+{re.escape(remote_path)}", sha_lines[0]
-    )
-    if sha_match is None or not 0 <= size <= _MAX_APK_BYTES:
-        raise _MalformedAdbResponse
-    return mode, size, sha_match.group(1)
-
-
-def _parse_remote_artifact(
-    body: bytes, nonce: str, remote_path: str
-) -> tuple[int, int, str]:
-    return _parse_artifact_observation(body, nonce, remote_path, prepare=True)
-
-
-# One installed base APK, at a path the package manager chose. The allowlist
-# keeps that path out of shell syntax and rejects anything that is not an
-# ordinary installed application directory.
-_INSTALLED_APK_PATH_PATTERN = re.compile(
-    r"^/data/app/[A-Za-z0-9_./=+~-]+/base\.apk$", flags=re.ASCII
-)
-
-
-def _parse_installed_apk_path(body: bytes, nonce: str) -> str | None:
-    """Return the one base APK path of an installed package, or None."""
-    lines, status_code = _parse_single_section(body, prefix="PACKAGE", nonce=nonce)
-    if status_code == 1 and not lines:
-        return None
-    if status_code != 0 or len(lines) != 1 or not _is_package_path(lines[0]):
-        raise _MalformedAdbResponse
-    path = lines[0].removeprefix("package:")
-    if (
-        _INSTALLED_APK_PATH_PATTERN.fullmatch(path) is None
-        or "//" in path
-        or any(part in {".", ".."} for part in path.split("/"))
-    ):
-        raise _MalformedAdbResponse
-    return path
-
-
-def _parse_package_present(body: bytes, nonce: str) -> None:
-    lines, status_code = _parse_single_section(body, prefix="PACKAGE", nonce=nonce)
-    if status_code == 1 and not lines:
-        raise InstallAdbError(InstallAdbErrorCode.INSTALLED_PACKAGE_MISSING)
-    if (
-        status_code != 0
-        or not lines
-        or any(not _is_package_path(line) for line in lines)
-    ):
-        raise _MalformedAdbResponse
-
-
-def _parse_install_outcome(body: bytes, nonce: str) -> InstallOutcome:
-    lines, status_code = _parse_single_section(body, prefix="INSTALL", nonce=nonce)
-    if status_code == 0 and lines == ["Success"]:
-        return InstallOutcome.INSTALLED
-    if (
-        status_code == 1
-        and len(lines) == 1
-        and re.fullmatch(
-            r"Failure \[INSTALL_[A-Z0-9_]+(?:: [ -~]{1,1024})?\]", lines[0]
-        )
-        is not None
-    ):
-        return InstallOutcome.REFUSED
-    raise _MalformedAdbResponse
 
 
 def _validate_staged_apk(staged: StagedApk) -> str:
@@ -1428,150 +286,6 @@ def _validate_staged_apk(staged: StagedApk) -> str:
     ):
         raise InstallAdbError(InstallAdbErrorCode.INVALID_REQUEST)
     return remote_path
-
-
-def _parse_launch_outcome(body: bytes, nonce: str) -> LaunchOutcome:
-    _lines, status_code = _parse_single_section(body, prefix="LAUNCH", nonce=nonce)
-    if status_code == 0:
-        return LaunchOutcome.STARTED
-    if status_code == 1:
-        return LaunchOutcome.REFUSED
-    raise _MalformedAdbResponse
-
-
-def _parse_cleanup(body: bytes, nonce: str) -> None:
-    sections = _parse_sections(
-        body,
-        prefix="CLEANUP",
-        nonce=nonce,
-        names=("RM", "STATE"),
-    )
-    rm_lines, rm_status = sections["RM"]
-    state_lines, state_status = sections["STATE"]
-    if rm_lines or rm_status != 0 or state_status != 0 or state_lines != ["absent"]:
-        raise _MalformedAdbResponse
-
-
-async def _async_shell(
-    device: AdbDeviceAsync,
-    command: str,
-    *,
-    read_timeout: float,
-    transport_timeout: float = _TRANSPORT_TIMEOUT_SECONDS,
-) -> bytes:
-    body = bytearray()
-    async for chunk in device.streaming_shell(
-        command,
-        transport_timeout_s=transport_timeout,
-        read_timeout_s=read_timeout,
-        decode=False,
-    ):
-        if (
-            not isinstance(chunk, bytes)
-            or len(body) + len(chunk) > _MAX_SHELL_RESPONSE_BYTES
-        ):
-            raise _MalformedAdbResponse
-        body.extend(chunk)
-    return bytes(body)
-
-
-async def _async_connect(
-    target: AdbInstallTarget, signer: PythonRSASigner, *, authorize: bool = True
-) -> AdbDeviceAsync:
-    """Connect with existing trust; offer the public key only when ``authorize``."""
-    if not isinstance(signer, PythonRSASigner):
-        raise InstallAdbError(InstallAdbErrorCode.INVALID_REQUEST)
-    device = AdbDeviceAsync(
-        _BoundedTcpTransportAsync(target.address.host, ADB_PORT),
-        default_transport_timeout_s=_TRANSPORT_TIMEOUT_SECONDS,
-        banner=_ADB_BANNER,
-    )
-    authorization_prompted = False
-
-    def _authorization_prompted(_device: AdbDeviceAsync) -> None:
-        nonlocal authorization_prompted
-        authorization_prompted = True
-        if not authorize:
-            # Raised before the library sends the key, so nothing is prompted.
-            raise DeviceAuthError("ADB authorization requires explicit consent")
-
-    try:
-        async with asyncio.timeout(_CONNECT_TIMEOUT_SECONDS):
-            connected = await device.connect(
-                rsa_keys=[signer],
-                transport_timeout_s=_TRANSPORT_TIMEOUT_SECONDS,
-                auth_timeout_s=_CONNECT_TIMEOUT_SECONDS,
-                read_timeout_s=_READ_TIMEOUT_SECONDS,
-                auth_callback=_authorization_prompted,
-            )
-    except asyncio.CancelledError:
-        with suppress(asyncio.CancelledError):
-            await _async_close(device)
-        raise
-    except DeviceAuthError:
-        await _async_close(device)
-        raise InstallAdbError(InstallAdbErrorCode.AUTHORIZATION_REQUIRED) from None
-    except (
-        TimeoutError,
-        AdbConnectionError,
-        AdbTimeoutError,
-        OSError,
-        TcpTimeoutException,
-    ):
-        await _async_close(device)
-        code = (
-            InstallAdbErrorCode.AUTHORIZATION_REQUIRED
-            if authorization_prompted
-            else InstallAdbErrorCode.TARGET_UNREACHABLE
-        )
-        raise InstallAdbError(code) from None
-    except (
-        _UnsafeAdbPacket,
-        DevicePathInvalidError,
-        InvalidChecksumError,
-        InvalidCommandError,
-        InvalidResponseError,
-        InvalidTransportError,
-        PushFailedError,
-    ):
-        await _async_close(device)
-        raise InstallAdbError(InstallAdbErrorCode.TARGET_RESPONSE_INVALID) from None
-    if not connected:
-        await _async_close(device)
-        code = (
-            InstallAdbErrorCode.AUTHORIZATION_REQUIRED
-            if authorization_prompted
-            else InstallAdbErrorCode.TARGET_UNREACHABLE
-        )
-        raise InstallAdbError(code)
-    return device
-
-
-async def _async_wait_for_completion[T](task: asyncio.Task[T]) -> bool:
-    """Drain one owned task while recording every caller cancellation."""
-    cancelled = False
-    while not task.done():
-        try:
-            await asyncio.shield(task)
-        except asyncio.CancelledError:
-            cancelled = True
-    return cancelled
-
-
-async def _async_close_once(device: AdbDeviceAsync) -> None:
-    with suppress(Exception):
-        async with asyncio.timeout(_CLOSE_TIMEOUT_SECONDS):
-            await device.close()
-
-
-async def _async_close(device: AdbDeviceAsync | None) -> None:
-    if device is None:
-        return
-    close_task = asyncio.create_task(_async_close_once(device))
-    cancelled = await _async_wait_for_completion(close_task)
-    close_task.result()
-    if cancelled:
-        raise asyncio.CancelledError
 
 
 async def _async_preflight_on_device(
@@ -1644,15 +358,13 @@ async def _async_prove_su(
                     raise InstallAdbError(InstallAdbErrorCode.ROOT_STATE_AMBIGUOUS)
             # Root can see data directories the unprivileged shell cannot, so
             # this is the authoritative residue reading. It is judged against
-            # the same rule, including the legacy residue a migration expects.
+            # the same rule.
             for index in range(len(_RESIDUE_PATHS)):
                 values, status = sections[f"RESIDUE{index}"]
                 if status != 0 or values not in (["absent"], ["present"]):
                     raise _MalformedAdbResponse
                 owner = _RESIDUE_PROBES[index][0]
-                expected = (
-                    admitted.migration_candidate and owner == LEGACY_PACKAGE_ID
-                ) or (admitted.target_installed and owner == target_package_id)
+                expected = admitted.target_installed and owner == target_package_id
                 if values == ["present"] and not expected:
                     raise InstallAdbError(InstallAdbErrorCode.TARGET_NOT_CLEAN)
         return
@@ -1677,16 +389,6 @@ async def _async_require_identity_root(
     _require_expected_root_mode(observed_root_mode, expected_root_mode)
     if observed_root_mode is AdbRootMode.ROOT_SU:
         await _async_prove_su(device, admitted=None)
-
-
-def _validate_filesync_maxdata(device: AdbDeviceAsync) -> None:
-    maxdata = getattr(device, "_maxdata", None)
-    if (
-        isinstance(maxdata, bool)
-        or not isinstance(maxdata, int)
-        or not _MIN_ADB_MAXDATA <= maxdata <= _MAX_ADB_MAXDATA
-    ):
-        raise InstallAdbError(InstallAdbErrorCode.FILESYNC_UNSAFE)
 
 
 def _verified_apk_identity(
@@ -1844,9 +546,7 @@ async def async_verify_installed_target(
     package_id: str,
 ) -> None:
     """Re-prove the exact target and installed package without mutation."""
-    if not isinstance(target, AdbInstallTarget) or not is_accepted_package_id(
-        package_id
-    ):
+    if not isinstance(target, AdbInstallTarget) or package_id != PACKAGE_ID:
         raise InstallAdbError(InstallAdbErrorCode.INVALID_REQUEST)
     _validate_target(target)
     _validate_expected_root_mode(expected_root_mode)
@@ -1913,35 +613,7 @@ async def async_installed_artifact_size(
         async with asyncio.timeout(_PREFLIGHT_TIMEOUT_SECONDS):
             device = await _async_connect(target, signer, authorize=authorize)
             await _async_require_identity_root(device, target, expected_root_mode)
-            nonce = token_hex(16)
-            path = _parse_installed_apk_path(
-                await _async_shell(
-                    device,
-                    _package_command(nonce, descriptor.package_id),
-                    read_timeout=_READ_TIMEOUT_SECONDS,
-                ),
-                nonce,
-            )
-            if path is None:
-                return None
-            nonce = token_hex(16)
-            mode, size, digest = _parse_artifact_observation(
-                await _async_shell(
-                    device,
-                    _artifact_observation_command(nonce, path, prepare=False),
-                    read_timeout=_READ_TIMEOUT_SECONDS,
-                ),
-                nonce,
-                path,
-                prepare=False,
-            )
-            if (
-                not stat.S_ISREG(mode)
-                or size != descriptor.apk_size
-                or digest != descriptor.apk_sha256
-            ):
-                return None
-            return size
+            return await _async_installed_artifact_size_on_device(device, descriptor)
     except InstallAdbError:
         raise
     except (
@@ -1965,6 +637,83 @@ async def async_installed_artifact_size(
         raise InstallAdbError(InstallAdbErrorCode.TARGET_RESPONSE_INVALID) from None
     finally:
         await _async_close(device)
+
+
+async def _async_installed_artifact_size_on_device(
+    device: AdbDeviceAsync, descriptor: InstallDescriptor
+) -> int | None:
+    """Read exact installed bytes through the caller's verified connection."""
+    nonce = token_hex(16)
+    path = _parse_installed_apk_path(
+        await _async_shell(
+            device,
+            _package_command(nonce, descriptor.package_id),
+            read_timeout=_READ_TIMEOUT_SECONDS,
+        ),
+        nonce,
+    )
+    if path is None:
+        return None
+    nonce = token_hex(16)
+    mode, size, digest = _parse_artifact_observation(
+        await _async_shell(
+            device,
+            _artifact_observation_command(nonce, path, prepare=False),
+            read_timeout=_READ_TIMEOUT_SECONDS,
+        ),
+        nonce,
+        path,
+        prepare=False,
+    )
+    if (
+        not stat.S_ISREG(mode)
+        or size != descriptor.apk_size
+        or digest != descriptor.apk_sha256
+    ):
+        return None
+    return size
+
+
+async def _async_clear_interrupted_stage(
+    target: AdbInstallTarget,
+    signer: PythonRSASigner,
+    root_mode: AdbRootMode,
+    remote_path: str,
+    *,
+    device: AdbDeviceAsync | None = None,
+) -> None:
+    """Try once to remove this integration's own stage before any install ran.
+
+    Best effort: a link that stalled usually stays down, and the next stage
+    removes the file anyway. Without ``device`` a fresh connection is made and
+    closed here.
+    """
+    connection = device
+    try:
+        async with asyncio.timeout(_CLEANUP_TIMEOUT_SECONDS):
+            if connection is None:
+                connection = await _async_connect(target, signer)
+            await _async_require_identity_root(connection, target, root_mode)
+            nonce = token_hex(16)
+            _parse_cleanup(
+                await _async_shell(
+                    connection,
+                    _cleanup_command(nonce, remote_path),
+                    read_timeout=_READ_TIMEOUT_SECONDS,
+                ),
+                nonce,
+            )
+    except (
+        InstallAdbError,
+        TimeoutError,
+        _MalformedAdbResponse,
+        _UnsafeAdbPacket,
+        *_ADB_EXCEPTIONS,
+    ):
+        _LOGGER.warning("Could not clear an interrupted ADB stage")
+    finally:
+        if device is None:
+            await _async_close(connection)
 
 
 async def async_stage_apk(
@@ -2001,7 +750,28 @@ async def async_stage_apk(
                 nonce,
             )
             if occupied:
-                raise InstallAdbError(InstallAdbErrorCode.STAGING_PATH_OCCUPIED)
+                # Only this integration writes its staging slot, and nothing in
+                # it is installed before its size and hash are checked, so an
+                # earlier attempt's leftover is removed rather than refused:
+                # refusing it locked the panel out of every later install.
+                _LOGGER.warning(
+                    "Removing a staged APK an earlier install left on %s",
+                    target.address.host,
+                )
+                nonce = token_hex(16)
+                try:
+                    _parse_cleanup(
+                        await _async_shell(
+                            device,
+                            _cleanup_command(nonce, remote_path),
+                            read_timeout=_READ_TIMEOUT_SECONDS,
+                        ),
+                        nonce,
+                    )
+                except _MalformedAdbResponse:
+                    raise InstallAdbError(
+                        InstallAdbErrorCode.STAGING_PATH_OCCUPIED
+                    ) from None
             _validate_filesync_maxdata(device)
             mutation_started = True
             await device.push(
@@ -2025,6 +795,12 @@ async def async_stage_apk(
                 apk_sha256=descriptor.apk_sha256,
             )
     except InstallAdbError:
+        if mutation_started:
+            await _async_close(device)
+            device = None
+            await _async_clear_interrupted_stage(
+                target, signer, expected_root_mode, remote_path
+            )
         raise
     except (
         TimeoutError,
@@ -2032,12 +808,17 @@ async def async_stage_apk(
         _UnsafeAdbPacket,
         *_ADB_EXCEPTIONS,
     ):
-        code = (
-            InstallAdbErrorCode.STAGE_AMBIGUOUS
-            if mutation_started
-            else InstallAdbErrorCode.TARGET_UNREACHABLE
+        if not mutation_started:
+            raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE) from None
+        # The copy stopped. Nothing was installed, so this is a connection
+        # failure the owner can retry; the stalled link is dropped and the
+        # panel asked once more to remove the partial file.
+        await _async_close(device)
+        device = None
+        await _async_clear_interrupted_stage(
+            target, signer, expected_root_mode, remote_path
         )
-        raise InstallAdbError(code) from None
+        raise InstallAdbError(InstallAdbErrorCode.STAGE_INTERRUPTED) from None
     finally:
         try:
             await _async_close(device)
@@ -2129,8 +910,6 @@ async def async_update_installed_apk(
             admitted = await _async_preflight_on_device(
                 device, target, descriptor, admit_installed_target=True
             )
-            if not admitted.target_installed:
-                raise InstallAdbError(InstallAdbErrorCode.INSTALLED_PACKAGE_MISSING)
             admitted_root_mode = admitted.root_mode
             nonce = token_hex(16)
             _parse_package_present(
@@ -2169,8 +948,6 @@ async def async_update_installed_apk(
             )
             assert admitted_root_mode is not None
             _require_expected_root_mode(admitted.root_mode, admitted_root_mode)
-            if not admitted.target_installed:
-                raise InstallAdbError(InstallAdbErrorCode.INSTALLED_PACKAGE_MISSING)
             nonce = token_hex(16)
             _parse_package_present(
                 await _async_shell(
@@ -2227,29 +1004,10 @@ async def async_update_installed_apk(
             # Before package mutation, the random path is ours to remove. Once
             # pm install starts, an unknown outcome may still be reading it.
             if stage_started and not install_started and device is not None:
-                try:
-                    assert admitted_root_mode is not None
-                    async with asyncio.timeout(_CLEANUP_TIMEOUT_SECONDS):
-                        await _async_require_identity_root(
-                            device, target, admitted_root_mode
-                        )
-                        nonce = token_hex(16)
-                        _parse_cleanup(
-                            await _async_shell(
-                                device,
-                                _cleanup_command(nonce, remote_path),
-                                read_timeout=_READ_TIMEOUT_SECONDS,
-                            ),
-                            nonce,
-                        )
-                except (
-                    InstallAdbError,
-                    TimeoutError,
-                    _MalformedAdbResponse,
-                    _UnsafeAdbPacket,
-                    *_ADB_EXCEPTIONS,
-                ):
-                    _LOGGER.warning("Could not clear an interrupted ADB update stage")
+                assert admitted_root_mode is not None
+                await _async_clear_interrupted_stage(
+                    target, signer, admitted_root_mode, remote_path, device=device
+                )
             await _async_close(device)
         finally:
             os.close(file_descriptor)
@@ -2308,19 +1066,20 @@ async def _async_repair_app_permissions(
             package_id,
             grant.chooser or "unread",
         )
-    if grant.device in META_PORTAL_DEVICES or grant.shelly:
+    if grant.vendor_setup:
         await _async_vendor_setup(device)
     if not grant.granted:
         _LOGGER.warning(
-            "The panel did not grant %s every permission it needs: "
-            "modify system settings, display over other apps and its "
-            "accessibility service, camera and microphone where present, "
-            "and the secure-settings permission full screen-off needs. "
-            "Controls that depend on them, such as "
-            "touch sounds, stay unavailable, and the screen dims instead of "
-            "switching off; allow them on the panel in Android Settings, "
-            "under the app",
+            "The panel did not grant %s every permission it needs "
+            "(missing: %s; panel %s). Until it does, %s; allow them on the "
+            "panel in Android Settings, under the app",
             package_id,
+            ", ".join(grant.missing),
+            target.address.stored_value,
+            "; ".join(
+                _GRANT_CONSEQUENCES.get(name, f"what needs {name} stays unavailable")
+                for name in grant.missing
+            ),
         )
 
 
@@ -2342,24 +1101,8 @@ async def _async_vendor_setup(
         converged = False
     else:
         converged = observed is None or observed.converged
-    if converged:
-        return observed
-    if isinstance(observed, ShellySetup):
-        _LOGGER.warning(
-            "The panel did not take Panel Assistant's Shelly setup: Shelly's "
-            "corner overlay may still show over the panel app"
-        )
-    elif isinstance(observed, VendorSetup):
-        _LOGGER.warning(
-            "The panel did not take Panel Assistant's Meta Portal setup: Meta's "
-            "screensaver or its swipe-up bar may still show over the panel app"
-        )
-    else:
-        _LOGGER.warning(
-            "The panel did not take Panel Assistant's vendor setup: on a Meta "
-            "Portal, Meta's screensaver or its swipe-up bar may still show over "
-            "the panel app; on a Shelly Wall Display, Shelly's corner overlay"
-        )
+    if not converged:
+        _LOGGER.warning(UNREAD_SETUP_WARNING if observed is None else observed.warning)
     return observed
 
 
@@ -2441,6 +1184,60 @@ async def async_restore_display_sizing(
         raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE) from None
 
 
+async def async_settle_vendor_display(
+    target: AdbInstallTarget,
+    signer: PythonRSASigner,
+    descriptor: InstallDescriptor,
+    *,
+    expected_root_mode: AdbRootMode,
+) -> str:
+    """Finish a pending vendor display restart before the final app launch."""
+    _validate_request(target, descriptor)
+    _validate_expected_root_mode(expected_root_mode)
+    device: AdbDeviceAsync | None = None
+    mutation_started = False
+    try:
+        async with asyncio.timeout(_LAUNCH_TIMEOUT_SECONDS):
+            device = await _async_connect(target, signer, authorize=False)
+            await _async_require_identity_root(device, target, expected_root_mode)
+            if (
+                await _async_installed_artifact_size_on_device(device, descriptor)
+                != descriptor.apk_size
+            ):
+                raise InstallAdbError(InstallAdbErrorCode.TARGET_CHANGED)
+            nonce = token_hex(16)
+            mutation_started = True
+            lines, status = _parse_single_section(
+                await _async_shell(
+                    device,
+                    vendor_display_settlement_command(nonce, descriptor.package_id),
+                    read_timeout=_INSTALL_READ_TIMEOUT_SECONDS,
+                    transport_timeout=_INSTALL_READ_TIMEOUT_SECONDS,
+                ),
+                prefix="VENDOR_DISPLAY_SETTLEMENT",
+                nonce=nonce,
+            )
+            if status != 0:
+                raise VendorResponseError
+            return parse_vendor_display_settlement(lines)
+    except InstallAdbError:
+        raise
+    except (
+        TimeoutError,
+        _MalformedAdbResponse,
+        _UnsafeAdbPacket,
+        VendorResponseError,
+        *_ADB_EXCEPTIONS,
+    ):
+        raise InstallAdbError(
+            InstallAdbErrorCode.LAUNCH_AMBIGUOUS
+            if mutation_started
+            else InstallAdbErrorCode.TARGET_UNREACHABLE
+        ) from None
+    finally:
+        await _async_close(device)
+
+
 async def async_restore_vendor_setup(
     target: AdbInstallTarget, signer: PythonRSASigner
 ) -> str:
@@ -2448,46 +1245,13 @@ async def async_restore_vendor_setup(
 
     Returns ``restored``, ``unrestored`` or ``none`` (nothing was changed).
     """
-    _validate_target(target)
-    device: AdbDeviceAsync | None = None
+    lines = await _async_target_section(
+        target, signer, vendor_restore_command, "VENDOR_RESTORE"
+    )
     try:
-        async with asyncio.timeout(_LAUNCH_TIMEOUT_SECONDS):
-            device = await _async_connect(target, signer, authorize=False)
-            nonce = token_hex(16)
-            _parse_identity_root(
-                await _async_shell(
-                    device,
-                    _identity_root_command(nonce),
-                    read_timeout=_READ_TIMEOUT_SECONDS,
-                ),
-                nonce,
-                target,
-            )
-            nonce = token_hex(16)
-            lines, status = _parse_single_section(
-                await _async_shell(
-                    device,
-                    vendor_restore_command(nonce),
-                    read_timeout=_READ_TIMEOUT_SECONDS,
-                ),
-                prefix="VENDOR_RESTORE",
-                nonce=nonce,
-            )
-            if status != 0:
-                raise _MalformedAdbResponse
-            return parse_vendor_restore(lines)
-    except InstallAdbError:
-        raise
-    except (
-        TimeoutError,
-        VendorResponseError,
-        _MalformedAdbResponse,
-        _UnsafeAdbPacket,
-        *_ADB_EXCEPTIONS,
-    ):
+        return parse_vendor_restore(lines)
+    except VendorResponseError:
         raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE) from None
-    finally:
-        await _async_close(device)
 
 
 async def async_repair_installed_app_permissions(
@@ -2622,178 +1386,90 @@ async def async_cleanup_staged_apk(
 
 
 class MoveStep(StrEnum):
-    """One package-manager step of moving a panel from the legacy app id."""
+    """One package-manager step of removing the app from a panel (``removal``)."""
 
     OBSERVE = "OBSERVE"
-    REMOVE_SUCCESSOR = "REMOVE_SUCCESSOR"
-    CLAIM_HOME = "CLAIM_HOME"
-    KEEP_LEGACY = "KEEP_LEGACY"
-    SET_ASIDE_LEGACY = "SET_ASIDE_LEGACY"
-    RETIRE_LEGACY = "RETIRE_LEGACY"
-    RESET_SUCCESSOR = "RESET_SUCCESSOR"
-    RESTORE_LEGACY = "RESTORE_LEGACY"
-    RETURN_HOME = "RETURN_HOME"
-    START_LEGACY = "START_LEGACY"
     REMOVE_APP = "REMOVE_APP"
+    VENDOR_HOME = "VENDOR_HOME"
 
 
 @dataclass(frozen=True, slots=True)
 class MoveObservation:
-    """What the panel reports after a move step, read in the same shell."""
+    """What the panel reports after a step, read in the same shell."""
 
     legacy_installed: bool
     successor_installed: bool
     #: The package HOME resolves to now, or None when nothing single answers.
     home: str | None
-    #: The new app is installed and has never run: Android still marks it not
-    #: launched, which no start of any of its components leaves set.
-    successor_unlaunched: bool = False
-    #: Read through the panel's root: the new app's own migration records,
-    #: or None when they could not be read. A new app that has run only while
-    #: waiting for the old app's handover holds no state of its own; one that
-    #: finished, or started on its own, records ``complete``.
-    successor_records: frozenset[str] | None = None
-    #: The old app is set aside: not installed for the panel's user, so the
-    #: new app starts as an ordinary app, while Android keeps its data.
-    legacy_set_aside: bool = False
-    #: SHA-256 of the copy of the old app's APK kept on the panel, which
-    #: reinstalls it onto its kept data, or None when there is no copy.
-    legacy_copy: str | None = None
-    #: SHA-256 of the old app's installed APK, read beside a kept copy: only
-    #: a copy with this digest is a whole copy of the app it will reinstall.
-    legacy_apk: str | None = None
     #: The vendor's own firmware number (``ro.build.display.id``), or None
     #: when the panel reports none a help page could match.
     firmware: str | None = None
 
 
+#: The old app's APK that Panel Assistant 0.9.0's move kept on a panel while
+#: it moved; removal deletes any copy left behind.
 _LEGACY_COPY = "/data/local/tmp/panel-assistant-old-app.apk"
+
+
+def _uninstall(package: str) -> str:
+    """Uninstall the app, asking it first to give up a device admin that blocks it.
+
+    Android refuses to uninstall an active device admin, and the shell cannot
+    remove one, so only the app can, and only once asked. The admin goes once
+    Android has told the app it is disabled, so the uninstall is retried for up
+    to ten seconds. An app that cannot give it up stays installed, which the
+    observation reports.
+    """
+    uninstall = f"pm uninstall {package}"
+    blocked = "*DELETE_FAILED_DEVICE_POLICY_MANAGER*"
+    return (
+        f'case "$({uninstall})" in {blocked}) '
+        "am broadcast --include-stopped-packages "
+        f"-n {package}/{RELEASE_DEVICE_ADMIN_RECEIVER}; "
+        "for n in 1 2 3 4 5 6 7 8 9 10; do "
+        f'case "$({uninstall})" in {blocked}) sleep 1 ;; *) break ;; esac; '
+        "done ;; esac"
+    )
+
+
 _MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
     MoveStep.OBSERVE: (),
-    # A successor beside a running legacy app holds only a copy of that app's
-    # state, so removing it loses nothing the legacy app does not still hold.
-    MoveStep.REMOVE_SUCCESSOR: (
-        f"am force-stop {SUCCESSOR_PACKAGE_ID}",
-        f"pm uninstall {SUCCESSOR_PACKAGE_ID}",
-    ),
-    # The old app's APK is kept beside its data until the new app is proven,
-    # because setting the old app aside deletes the APK Android installed.
-    # An earlier copy is never reused, and a copy that did not finish never
-    # takes the copy's name; the observation then compares it with the APK.
-    MoveStep.KEEP_LEGACY: (
-        f"{{ rm -f {_LEGACY_COPY} {_LEGACY_COPY}.part; "
-        f"p=$(pm path {LEGACY_PACKAGE_ID}); p=${{p#package:}}; "
-        f'[ -n "$p" ] && cp "$p" {_LEGACY_COPY}.part '
-        f"&& chmod 644 {_LEGACY_COPY}.part "
-        f"&& mv {_LEGACY_COPY}.part {_LEGACY_COPY}; rm -f {_LEGACY_COPY}.part; }}",
-    ),
-    MoveStep.SET_ASIDE_LEGACY: (
-        f"am force-stop {LEGACY_PACKAGE_ID}",
-        f"pm uninstall -k --user 0 {LEGACY_PACKAGE_ID}",
-    ),
-    # Only while HOME resolves to one launcher that is not the old app: never
-    # the old app itself, which would leave the panel without one, nor a HOME
-    # that cannot be read, nor the system chooser. Read in the same shell as
-    # the uninstall, so a HOME that changed since the last observation counts.
-    MoveStep.RETIRE_LEGACY: (
-        f'case "$({_HOME_QUERY})" in {LEGACY_PACKAGE_ID}/*|android/*) ;; ?*/?*) '
-        f"am force-stop {LEGACY_PACKAGE_ID}; pm uninstall {LEGACY_PACKAGE_ID}; "
-        f"rm -f {_LEGACY_COPY} ;; esac",
-    ),
-    # Reinstalling the kept APK returns the old app onto the data Android kept.
-    MoveStep.RESTORE_LEGACY: (
-        f"{{ [ -f {_LEGACY_COPY} ] && pm install -r {_LEGACY_COPY}; "
-        f'case "$(pm path {LEGACY_PACKAGE_ID})" in '
-        f"package:*) rm -f {_LEGACY_COPY} ;; esac; }}",
-    ),
-    MoveStep.RETURN_HOME: (
-        f"cmd package set-home-activity {HOME_COMPONENTS[LEGACY_LAUNCH_COMPONENT]}",
-    ),
-    MoveStep.START_LEGACY: (f"am start -n {HOME_COMPONENTS[LEGACY_LAUNCH_COMPONENT]}",),
     # Removes the app under both ids, only while HOME resolves to one launcher
     # that is neither of them: never the system chooser, an empty answer, or
     # Settings' FallbackHome, each of which would leave the panel without a
-    # home screen. Read in the same shell as the uninstall, as for retiring.
-    # The old id goes first, and the new app only once nothing of the old one
-    # is listed: the new app is what a retry reaches the panel through.
+    # home screen. Read in the same shell as the uninstall, so a HOME that
+    # changed since the last observation counts. A stray old app goes first,
+    # and the new app only once nothing of the old one is listed: the new app
+    # is what a retry reaches the panel through.
     MoveStep.REMOVE_APP: (
-        f'case "$({_HOME_QUERY})" in {LEGACY_PACKAGE_ID}/*|{SUCCESSOR_PACKAGE_ID}/*'
+        f'case "$({_HOME_QUERY})" in {LEGACY_PACKAGE_ID}/*|{PACKAGE_ID}/*'
         "|android/*|com.android.settings/*) ;; ?*/?*) "
-        f"am force-stop {LEGACY_PACKAGE_ID}; pm uninstall {LEGACY_PACKAGE_ID}; "
+        f"am force-stop {LEGACY_PACKAGE_ID}; {_uninstall(LEGACY_PACKAGE_ID)}; "
         f"rm -f {_LEGACY_COPY}; "
         f'case "$(pm list packages -u {LEGACY_PACKAGE_ID} 2>/dev/null)" in '
         f"*package:{LEGACY_PACKAGE_ID}*) ;; *) "
-        f"am force-stop {SUCCESSOR_PACKAGE_ID}; pm uninstall {SUCCESSOR_PACKAGE_ID} ;; "
+        f"am force-stop {PACKAGE_ID}; {_uninstall(PACKAGE_ID)} ;; "
         "esac ;; esac",
     ),
-    # A successor that first starts with no legacy app and no migration record
-    # beside it runs as an ordinary app; clearing it makes that start certain.
-    MoveStep.RESET_SUCCESSOR: (
-        f"am force-stop {SUCCESSOR_PACKAGE_ID}",
-        f"pm clear {SUCCESSOR_PACKAGE_ID}",
-    ),
+    # The vendor's launcher takes HOME from the panel's shell when the app
+    # cannot hand it back (vendor_provisioning names the panels).
+    MoveStep.VENDOR_HOME: (VENDOR_HOME_COMMAND,),
 }
 
 
-_SUCCESSOR_RECORDS_DIRECTORY = (
-    f"/data/data/{SUCCESSOR_PACKAGE_ID}/no_backup/identity-migration"
-)
-# The app's data is private to it, so only root can read its records. The
-# script goes to su on standard input, which both su styles on the panels
-# accept, and each root route is tried without waiting on a prompt; none
-# answering leaves the records unknown rather than empty.
-_SUCCESSOR_RECORDS_COMMAND = (
-    "for p in 'su 0' 'su root'; do "
-    "r=$(printf '%s\\n' '"
-    # Only a directory that exists and can be listed counts as read: an
-    # absent or unlistable one is unknown, never an empty set of records.
-    f"[ -d {_SUCCESSOR_RECORDS_DIRECTORY} ] || exit 3; "
-    f"ls {_SUCCESSOR_RECORDS_DIRECTORY} >/dev/null 2>&1 || exit 3; "
-    f"for f in {_SUCCESSOR_RECORDS_DIRECTORY}/*; do "
-    '[ -e "$f" ] && echo "record:${f##*/}"; done; echo records:read'
-    "' | timeout 3 $p sh 2>/dev/null) && "
-    'case "$r" in *records:read*) echo "$r"; break ;; esac; done'
-)
-
-
-def _move_command(
-    nonce: str, step: MoveStep, successor_launch: str | None = None
-) -> str:
+def _move_command(nonce: str, step: MoveStep) -> str:
     quiet = ">/dev/null 2>&1"
-    actions: tuple[str, ...]
-    if step is MoveStep.CLAIM_HOME:
-        # HOME goes to the dashboard of the exact build the move installed,
-        # whichever package its classes live in.
-        assert successor_launch is not None
-        actions = (
-            f"cmd package set-home-activity {HOME_COMPONENTS[successor_launch]}",
-        )
-    else:
-        actions = _MOVE_ACTIONS[step]
     return "; ".join(
         (
             f"echo HAPANELD_MOVE_BEGIN:{nonce}",
-            *(f"{action} {quiet}" for action in actions),
+            *(f"{action} {quiet}" for action in _MOVE_ACTIONS[step]),
             # No pipe into grep: toybox grep on some panels reports an error
             # on an empty pipe, which would corrupt the frame.
             *(
                 f'case "$(pm path {package} 2>/dev/null)" in '
                 f"package:*) echo installed:{package} ;; esac"
-                for package in (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID)
+                for package in (LEGACY_PACKAGE_ID, PACKAGE_ID)
             ),
-            # Listed with uninstalled packages: installed, or set aside with
-            # its data kept.
-            f"for l in $(pm list packages -u {LEGACY_PACKAGE_ID} 2>/dev/null); do "
-            f'[ "$l" = package:{LEGACY_PACKAGE_ID} ] '
-            f"&& echo listed:{LEGACY_PACKAGE_ID}; done",
-            f"[ -f {_LEGACY_COPY} ] && set -- $(sha256sum {_LEGACY_COPY} 2>/dev/null)"
-            ' && [ -n "$1" ] && echo "copy:$1"',
-            f"[ -f {_LEGACY_COPY} ] && p=$(pm path {LEGACY_PACKAGE_ID} 2>/dev/null) "
-            '&& set -- $(sha256sum "${p#package:}" 2>/dev/null) && [ -n "$1" ] '
-            '&& echo "apk:$1"',
-            f'case "$(dumpsys package {SUCCESSOR_PACKAGE_ID} 2>/dev/null)" in '
-            f"*notLaunched=true*) echo unlaunched:{SUCCESSOR_PACKAGE_ID} ;; esac",
-            _SUCCESSOR_RECORDS_COMMAND,
             f'echo "home:$({_HOME_QUERY})"',
             'echo "firmware:$(getprop ro.build.display.id 2>/dev/null)"',
             f"echo HAPANELD_MOVE_END:{nonce}:0",
@@ -2809,57 +1485,24 @@ def _parse_move(body: bytes, nonce: str) -> MoveObservation:
         for line in lines
         if line.startswith("installed:")
     }
-    unlaunched = [
-        line for line in lines if line == f"unlaunched:{SUCCESSOR_PACKAGE_ID}"
-    ]
-    read = [line for line in lines if line == "records:read"]
-    records = [line for line in lines if line.startswith("record:")]
-    listed = [line for line in lines if line == f"listed:{LEGACY_PACKAGE_ID}"]
-    copies = [line.removeprefix("copy:") for line in lines if line.startswith("copy:")]
-    apks = [line.removeprefix("apk:") for line in lines if line.startswith("apk:")]
     firmwares = [
         line.removeprefix("firmware:") for line in lines if line.startswith("firmware:")
     ]
     if (
         status_code != 0
         or len(homes) != 1
-        or not installed <= {LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID}
-        or len(unlaunched) > 1
-        or len(read) > 1
-        or (records and not read)
-        or len(listed) > 1
-        or len(copies) > 1
-        or len(apks) > 1
+        or not installed <= {LEGACY_PACKAGE_ID, PACKAGE_ID}
         or len(firmwares) > 1
-        or any(not _SHA256_PATTERN.match(digest) for digest in (*copies, *apks))
-        or len(homes)
-        + len(installed)
-        + len(unlaunched)
-        + len(read)
-        + len(records)
-        + len(listed)
-        + len(copies)
-        + len(apks)
-        + len(firmwares)
-        != len(lines)
+        or len(homes) + len(installed) + len(firmwares) != len(lines)
     ):
         raise _MalformedAdbResponse
     home = homes[0].removeprefix("home:").strip()
     package, slash, _activity = home.partition("/")
     return MoveObservation(
         legacy_installed=LEGACY_PACKAGE_ID in installed,
-        successor_installed=SUCCESSOR_PACKAGE_ID in installed,
+        successor_installed=PACKAGE_ID in installed,
         # The system chooser and an empty answer are not a HOME.
         home=package if slash and package and package != "android" else None,
-        successor_unlaunched=bool(unlaunched) and SUCCESSOR_PACKAGE_ID in installed,
-        successor_records=(
-            frozenset(line.removeprefix("record:") for line in records)
-            if read and SUCCESSOR_PACKAGE_ID in installed
-            else None
-        ),
-        legacy_set_aside=bool(listed) and LEGACY_PACKAGE_ID not in installed,
-        legacy_copy=copies[0] if copies else None,
-        legacy_apk=apks[0] if apks and LEGACY_PACKAGE_ID in installed else None,
         firmware=_firmware(firmwares[0]) if firmwares else None,
     )
 
@@ -2871,30 +1514,17 @@ def _firmware(value: str) -> str | None:
 
 
 async def async_move_step(
-    target: AdbInstallTarget,
-    signer: PythonRSASigner,
-    step: MoveStep,
-    *,
-    authorize: bool = True,
-    successor_launch: str | None = None,
+    target: AdbInstallTarget, signer: PythonRSASigner, step: MoveStep
 ) -> MoveObservation:
-    """Run one move step on the pinned panel and observe its result.
-
-    Only a step the owner started may offer Panel Assistant's key to the panel.
-    Claiming HOME names the launcher of the new-app build the move installed.
-    """
+    """Run one removal step on the pinned panel and observe its result."""
     _validate_target(target)
-    if (step is MoveStep.CLAIM_HOME) != is_launch_component(
-        SUCCESSOR_PACKAGE_ID, successor_launch
-    ):
-        raise InstallAdbError(InstallAdbErrorCode.INVALID_REQUEST)
     device: AdbDeviceAsync | None = None
     mutation_started = False
     try:
         async with asyncio.timeout(_INSTALL_TIMEOUT_SECONDS):
-            device = await _async_connect(target, signer, authorize=authorize)
+            device = await _async_connect(target, signer)
             # Every connection proves the device at the address is the one the
-            # move started on before any command can change it.
+            # removal started on before any command can change it.
             nonce = token_hex(16)
             _parse_identity_root(
                 await _async_shell(
@@ -2906,18 +1536,11 @@ async def async_move_step(
                 target,
             )
             mutation_started = step is not MoveStep.OBSERVE
-            if step is MoveStep.START_LEGACY:
-                # Setting the old app aside drops its app-op and accessibility
-                # grants, so they are repaired, as for an install, before it
-                # starts again.
-                await _async_repair_app_permissions(
-                    device, target, LEGACY_PACKAGE_ID, LEGACY_LAUNCH_COMPONENT
-                )
             nonce = token_hex(16)
             return _parse_move(
                 await _async_shell(
                     device,
-                    _move_command(nonce, step, successor_launch),
+                    _move_command(nonce, step),
                     read_timeout=_INSTALL_READ_TIMEOUT_SECONDS,
                     transport_timeout=_INSTALL_TIMEOUT_SECONDS,
                 ),

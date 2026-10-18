@@ -9,13 +9,13 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from .client import InvalidAddressError, PanelAddress, normalize_address
-from .install_jobs import (
+from .install_network import PinnedPanelTarget, is_allowed_install_address
+from .install_receipt import (
     InstallArtifact,
     InstallJobStoreError,
     InstallTarget,
     install_plan_sha256,
 )
-from .install_network import PinnedPanelTarget, is_allowed_install_address
 from .provisioning import InstallTargetProbe, InstallTargetState
 from .release import (
     _SHA256_PATTERN,
@@ -150,7 +150,6 @@ def _build_target(
     if probe.state not in {
         InstallTargetState.INSTALL_CANDIDATE,
         InstallTargetState.INSTALLED,
-        InstallTargetState.MIGRATION_CANDIDATE,
     }:
         raise InstallPlanError(InstallPlanErrorCode.PROBE_NOT_INSTALL_CANDIDATE)
 

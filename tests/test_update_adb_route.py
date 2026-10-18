@@ -24,15 +24,17 @@ from custom_components.panel_assistant import (
     adb_credentials,
     install_network,
     provisioning,
+    update_route,
+    update_staging,
 )
-from custom_components.panel_assistant import update as panel_update
 from custom_components.panel_assistant.adb_credentials import (
     AdbCredentialError,
     AdbCredentialMissingError,
 )
+from custom_components.panel_assistant.adb_protocol import InstallOutcome, LaunchOutcome
 from custom_components.panel_assistant.app_identity import (
     LAUNCH_COMPONENTS,
-    LEGACY_PACKAGE_ID,
+    PACKAGE_ID,
 )
 from custom_components.panel_assistant.build_feed import BuildFeed, FeedBuild
 from custom_components.panel_assistant.client import PanelHealth, normalize_address
@@ -41,18 +43,17 @@ from custom_components.panel_assistant.coordinator import (
     HaPaneldDataUpdateCoordinator,
     PanelSnapshot,
 )
-from custom_components.panel_assistant.failure_repair import (
-    adb_authorization_issue_id,
-    async_clear_adb_authorization,
-    async_failure_events,
-    panel_failure_issue_id,
-)
 from custom_components.panel_assistant.feed_coordinator import BuildFeedCoordinator
-from custom_components.panel_assistant.install_adb import InstallOutcome, LaunchOutcome
 from custom_components.panel_assistant.install_network import PinnedPanelTarget
 from custom_components.panel_assistant.provisioning import (
     InstallTargetProbe,
     InstallTargetState,
+)
+from custom_components.panel_assistant.repairs_failure import (
+    adb_authorization_issue_id,
+    async_clear_adb_authorization,
+    async_failure_events,
+    panel_failure_issue_id,
 )
 from custom_components.panel_assistant.status import PanelStatus
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity
@@ -73,7 +74,7 @@ def _backup() -> bytes:
 def _health(
     *,
     panel_id: str = "panel-a",
-    package: str = LEGACY_PACKAGE_ID,
+    package: str = PACKAGE_ID,
     discovery_id: str | None = None,
 ) -> PanelHealth:
     return PanelHealth(
@@ -123,8 +124,8 @@ def route(
         commit="0" * 40,
         database_compatibility="hapaneld-db:v1:ha-paneld.db:11:14",
         min_sdk=26,
-        package_id=LEGACY_PACKAGE_ID,
-        launch_component=LAUNCH_COMPONENTS[LEGACY_PACKAGE_ID][0],
+        package_id=PACKAGE_ID,
+        launch_component=LAUNCH_COMPONENTS[PACKAGE_ID][0],
         published="2026-09-11T10:00:00Z",
         protocol_min=5,
         protocol_max=5,
@@ -158,21 +159,24 @@ def route(
     )
     adb_install = AsyncMock(return_value=InstallOutcome.INSTALLED)
     launch = AsyncMock(return_value=LaunchOutcome.STARTED)
-    monkeypatch.setattr(panel_update, "async_get_clientsession", lambda _hass: object())
+    monkeypatch.setattr(
+        update_staging, "async_get_clientsession", lambda _hass: object()
+    )
     monkeypatch.setattr(
         install_network,
         "HaPaneldClient",
         lambda *_args: SimpleNamespace(async_get_health=pinned_health),
     )
     monkeypatch.setattr(
-        panel_update, "async_get_durable_adb_credential", get_credential
+        update_route, "async_get_durable_adb_credential", get_credential
     )
     monkeypatch.setattr(install_network, "async_pin_install_target", pin)
-    monkeypatch.setattr(panel_update, "async_revalidate_install_target", revalidate)
-    monkeypatch.setattr(panel_update, "async_probe_install_target", probe_target)
-    monkeypatch.setattr(panel_update, "async_preflight_install", preflight)
-    monkeypatch.setattr(panel_update, "async_update_installed_apk", adb_install)
-    monkeypatch.setattr(panel_update, "async_launch_installed_app", launch)
+    monkeypatch.setattr(update_route, "async_revalidate_install_target", revalidate)
+    monkeypatch.setattr(update_route, "async_probe_install_target", probe_target)
+    monkeypatch.setattr(update_route, "async_preflight_install", preflight)
+    monkeypatch.setattr(update_staging, "async_preflight_install", preflight)
+    monkeypatch.setattr(update_staging, "async_update_installed_apk", adb_install)
+    monkeypatch.setattr(update_staging, "async_launch_installed_app", launch)
     return SimpleNamespace(
         entity=entity,
         client=client,
@@ -253,6 +257,40 @@ async def test_changed_health_identity_invalidates_cached_adb_offer(
     route.adb_install.assert_not_awaited()
 
 
+async def test_an_identity_mismatch_refuses_the_adb_update(
+    route: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A device answering at the address but not as this panel gets no app."""
+    deliver = AsyncMock()
+    monkeypatch.setattr(route.entity._delivery, "async_deliver_adb", deliver)
+    route.entity.coordinator.identity_mismatch = True
+
+    with pytest.raises(HomeAssistantError) as caught:
+        await route.entity.async_install(None, False)
+
+    assert caught.value.translation_key == "update_unavailable"
+    deliver.assert_not_awaited()
+
+
+async def test_a_route_answer_for_a_changed_panel_is_not_adopted(
+    route: SimpleNamespace,
+) -> None:
+    """A route resolved for the panel as it was says nothing about it now."""
+    entity = route.entity
+
+    async def stale_answer() -> tuple[str, object, object]:
+        entity.coordinator.data = replace(
+            entity.coordinator.data, health=replace(_health(), build="1001")
+        )
+        return update_route.ROUTE_ADB, None, None
+
+    entity._async_install_route = stale_answer
+
+    await entity._async_refresh_route()
+
+    assert "update_unavailable_reason" not in (entity.extra_state_attributes or {})
+
+
 async def test_existing_keyless_shelly_offers_and_installs_from_ha(
     route: SimpleNamespace, monkeypatch: pytest.MonkeyPatch, hass: HomeAssistant
 ) -> None:
@@ -263,17 +301,17 @@ async def test_existing_keyless_shelly_offers_and_installs_from_ha(
         await store.hass.async_add_executor_job(store._write_data, data)
 
     monkeypatch.setattr(
-        panel_update,
+        update_route,
         "async_get_adb_credential",
         adb_credentials.async_get_adb_credential,
     )
     monkeypatch.setattr(
-        panel_update,
+        update_route,
         "async_get_durable_adb_credential",
         adb_credentials.async_get_durable_adb_credential,
     )
     deliver = AsyncMock()
-    monkeypatch.setattr(route.entity, "_async_deliver_adb", deliver)
+    monkeypatch.setattr(route.entity._delivery, "async_deliver_adb", deliver)
     key_path = Path(hass.config.path(".storage/panel_assistant.adb_key"))
     await hass.async_add_executor_job(
         lambda: key_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -330,7 +368,7 @@ async def test_an_app_on_an_older_protocol_is_updated_over_adb(
     route.client.async_get_legacy_install_capability = legacy_probe
     route.client.async_discard_apk = AsyncMock()
     deliver = AsyncMock()
-    monkeypatch.setattr(route.entity, "_async_deliver_adb", deliver)
+    monkeypatch.setattr(route.entity._delivery, "async_deliver_adb", deliver)
 
     await route.entity._async_refresh_route()
     await route.entity.async_install(None, False)
@@ -373,13 +411,13 @@ async def test_existing_protected_panel_requires_explicit_authorization(
     device = SimpleNamespace(connect=reject_untrusted_key, close=AsyncMock())
     monkeypatch.setattr(provisioning, "AdbDeviceAsync", lambda *_a, **_kw: device)
     monkeypatch.setattr(
-        panel_update,
+        update_route,
         "async_probe_install_target",
         provisioning.async_probe_install_target,
     )
     create_credential = AsyncMock()
     monkeypatch.setattr(
-        panel_update, "async_get_adb_credential", create_credential, raising=False
+        update_route, "async_get_adb_credential", create_credential, raising=False
     )
 
     await route.entity._async_refresh_route()
@@ -390,9 +428,9 @@ async def test_existing_protected_panel_requires_explicit_authorization(
     assert issue is not None
     assert issue.translation_placeholders == {"panel": "Kitchen display"}
     assert issue.data == {"entry_id": entry.entry_id}
-    assert (
-        "ADB authorization"
-        in route.entity.extra_state_attributes["update_unavailable_reason"]
+    # A missing ADB authorization is a problem for the owner, never a bridge waiting.
+    assert "ADB authorization" in (
+        route.entity.extra_state_attributes.get("update_unavailable_reason") or ""
     )
     with pytest.raises(HomeAssistantError) as caught:
         await route.entity.async_install(None, False)
@@ -437,7 +475,7 @@ async def test_corrupt_adb_store_does_not_gain_an_update_route(
 ) -> None:
     route.get_credential.side_effect = AdbCredentialError()
     create_credential = AsyncMock(side_effect=AdbCredentialError())
-    monkeypatch.setattr(panel_update, "async_get_adb_credential", create_credential)
+    monkeypatch.setattr(update_route, "async_get_adb_credential", create_credential)
 
     await route.entity._async_refresh_route()
 
@@ -597,9 +635,9 @@ async def test_adb_transaction_uses_current_consent_until_command_submission(
         return result
 
     monkeypatch.setattr(hass, "async_add_executor_job", executor)
-    build = route.entity._feed.data.builds[0]
+    build = route.entity._offer.feed.data.builds[0]
     identity = {"model": "model-a", "serial": "serial-a", "sdk": 30}
-    installed = {"retained_lines": [f"package:{LEGACY_PACKAGE_ID}"]}
+    installed = {"successor_retained_lines": [f"package:{PACKAGE_ID}"]}
     remote = {"size": build.apk_size, "sha256": build.apk_sha256}
     outputs = [
         _preflight_output(NONCES[0], **identity, **installed),
@@ -634,12 +672,12 @@ async def test_adb_transaction_uses_current_consent_until_command_submission(
     _install_update_fake(monkeypatch, device)
     route.credential.signer = object.__new__(PythonRSASigner)
     monkeypatch.setattr(
-        panel_update,
+        update_staging,
         "async_update_installed_apk",
         install_adb.async_update_installed_apk,
     )
     verified = AsyncMock()
-    monkeypatch.setattr(route.entity, "_async_wait_for_build", verified)
+    monkeypatch.setattr(route.entity._delivery, "async_wait_for_build", verified)
     if revoke_at == "submitted":
         await route.entity.async_install(None, False)
         assert any(f"pm install -r {REMOTE_PATH}" in cmd for cmd in device.commands)

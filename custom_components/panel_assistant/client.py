@@ -74,8 +74,6 @@ _KNOWN_HEALTH_FIELDS = frozenset(
         "vc",
         "proto",
         "ha",
-        "ha_src",
-        "ha_refused",
         "ha_net",
         "ha_resp",
         "ha_net_p95",
@@ -88,7 +86,6 @@ _KNOWN_HEALTH_FIELDS = frozenset(
 _LIFECYCLE_STATES = frozenset(
     {"normal", "shutting_down", "starting", "back_online", "connection_lost"}
 )
-_LIFECYCLE_SOURCES = frozenset({"socket", "mqtt"})
 
 
 class HaPaneldError(Exception):
@@ -101,10 +98,6 @@ class InvalidAddressError(HaPaneldError):
 
 class CannotConnectError(HaPaneldError):
     """Raised when a panel cannot be reached."""
-
-
-class NotABridgeError(HaPaneldError):
-    """Raised when the panel explicitly refuses successor handover."""
 
 
 class InvalidResponseError(HaPaneldError):
@@ -173,13 +166,11 @@ class PanelHealth:
     build: str
     config_hash: str
     ha_state: str | None = None
-    ha_source: str | None = None
-    ha_subscription_refused: bool = False
     discovery_id: str | None = None
     legacy_discovery_id: str | None = None
     installation_identity: bool = False
-    # The application id the panel is actually running. Absent from builds made
-    # before the identity migration, so never assumed.
+    # The application id the panel is actually running. Absent from old-app
+    # builds made before the move to the new id, so never assumed.
     package: str | None = None
     # The build number beside the version name. Absent from older builds.
     version_code: int | None = None
@@ -204,6 +195,8 @@ class PanelInstallStatus:
     # The panel waits for its owner to tap Install in Android's own installer
     # prompt. Builds before the rootless self-update route never send it.
     awaiting_confirmation: bool = False
+    # The finished operation's result line, such as "refused (<reason>)".
+    message: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -307,9 +300,6 @@ def parse_health_response(body: str) -> PanelHealth:
     ha_state = fields.get("ha")
     if ha_state not in _LIFECYCLE_STATES:
         ha_state = None
-    ha_source = fields.get("ha_src")
-    if ha_source not in _LIFECYCLE_SOURCES:
-        ha_source = None
     discovery_id = fields.get("did")
     if discovery_id is not None and not is_valid_discovery_id(discovery_id):
         raise InvalidResponseError
@@ -361,8 +351,6 @@ def parse_health_response(body: str) -> PanelHealth:
         build=build,
         config_hash=config_hash,
         ha_state=ha_state,
-        ha_source=ha_source,
-        ha_subscription_refused=fields.get("ha_refused") == "1",
         discovery_id=discovery_id,
         legacy_discovery_id=legacy_discovery_id,
         installation_identity=fields.get("identity") == "install",
@@ -439,6 +427,9 @@ def is_version_at_least(version: str, minimum: str) -> bool | None:
     return current >= required
 
 
+_MAX_INSTALL_MESSAGE_LENGTH = 512
+
+
 def parse_panel_install_status(body: bytes) -> PanelInstallStatus:
     """Parse only the fixed progress fields needed to recover a self-update."""
     document = _load_json_object(body)
@@ -457,8 +448,18 @@ def parse_panel_install_status(body: bytes) -> PanelInstallStatus:
         and isinstance(presentation, dict)
         and presentation.get("code") == "install-awaiting-confirmation"
     )
+    message = document.get("message")
+    if (
+        not isinstance(message, str)
+        or len(message) > _MAX_INSTALL_MESSAGE_LENGTH
+        or any(not " " <= character <= "~" for character in message)
+    ):
+        message = ""
     return PanelInstallStatus(
-        running=running, component=component, awaiting_confirmation=awaiting
+        running=running,
+        component=component,
+        awaiting_confirmation=awaiting,
+        message=message,
     )
 
 
@@ -486,6 +487,7 @@ class PanelSetupState:
     """
 
     complete: bool
+    needs_user: bool | None = None
     accepts_handover: bool = False
     handover_url: str | None = None
     handover_reason: str | None = None
@@ -607,8 +609,6 @@ class HaPaneldClient:
                 headers={"Cache-Control": "no-cache"},
                 timeout=ClientTimeout(total=DEFAULT_TIMEOUT_SECONDS),
             ) as response:
-                if response.status == 404 and url.path == "/api/v1/successor":
-                    raise NotABridgeError
                 if response.status != 200:
                     raise CannotConnectError
                 if url == self.health_url:
@@ -698,13 +698,6 @@ class HaPaneldClient:
         except UnicodeDecodeError as err:
             raise InvalidResponseError from err
 
-    async def async_get_camera_snapshot(self) -> bytes:
-        """Request a fresh, bounded JPEG from this verified panel address."""
-        return await self._async_get_bounded(
-            self.address.base_url.with_path("/api/v1/camera/snapshot.jpg"),
-            2 * 1024 * 1024,
-        )
-
     async def async_get_legacy_install_capability(self) -> bool:
         """Read the old panel's privileged-route bit until it reports a typed one.
 
@@ -771,6 +764,21 @@ class HaPaneldClient:
         """Whether the panel's own setup wizard reports itself finished."""
         return (await self.async_get_setup_state()).complete
 
+    async def async_get_configured_ha_url(self) -> str | None:
+        """Read the saved server only when the panel reports a configured account."""
+        body = await self._async_get_bounded(
+            self.address.base_url.with_path(CONFIG_PATH), _MAX_SETUP_BYTES
+        )
+        document = _load_json_object(body)
+        auth = document.get("ha_auth")
+        settings = document.get("settings")
+        if not isinstance(auth, dict) or auth.get("configured") is not True:
+            return None
+        if not isinstance(settings, dict):
+            return None
+        value = settings.get("ha_url")
+        return value if isinstance(value, str) else None
+
     async def async_get_setup_state(self) -> PanelSetupState:
         """Read the panel's setup state, including whether it accepts a handover."""
         body = await self._async_get_bounded(
@@ -780,6 +788,9 @@ class HaPaneldClient:
         complete = document.get("complete")
         if not isinstance(complete, bool):
             raise InvalidResponseError
+        needs_user = document.get("needs_user", not complete)
+        if not isinstance(needs_user, bool):
+            raise InvalidResponseError
         # A panel older than the release that accepts a handover has no `handover`
         # object at all, and that absence IS the version gate: its config admission
         # refuses an unknown key, atomically, so posting the handover to it would
@@ -787,9 +798,12 @@ class HaPaneldClient:
         # therefore reads as "not supported" rather than as a malformed response.
         handover = document.get("handover")
         if not isinstance(handover, dict):
-            return PanelSetupState(complete=complete, accepts_handover=False)
+            return PanelSetupState(
+                complete=complete, needs_user=needs_user, accepts_handover=False
+            )
         return PanelSetupState(
             complete=complete,
+            needs_user=needs_user,
             accepts_handover=handover.get("supported") is True,
             handover_url=_optional_string(handover.get("url")),
             handover_reason=_optional_string(handover.get("reason")),
@@ -961,67 +975,9 @@ class HaPaneldClient:
             raise HandBackRefusedError("not-handed")
         return handed_to
 
-    async def async_get_successor_capability(self) -> tuple[str, str, int | None, bool]:
-        """Read the bridge's explicit LAN handover capability, never infer it."""
-        body = await self._async_get_bounded(
-            self.address.base_url.with_path("/api/v1/successor"),
-            MAX_INSTALL_RESPONSE_BYTES,
-        )
-        try:
-            document = json.loads(body)
-        except (ValueError, UnicodeError) as err:
-            raise InvalidResponseError from err
-        if (
-            not isinstance(document, dict)
-            or not isinstance(document.get("package"), str)
-            or not isinstance(document.get("version"), str)
-            or (
-                "installed_version_code" in document
-                and (
-                    type(document["installed_version_code"]) is not int
-                    or not 0 < document["installed_version_code"] <= MAX_ANDROID_INTEGER
-                )
-            )
-            or (
-                "installed_untrusted" in document
-                and type(document["installed_untrusted"]) is not bool
-            )
-        ):
-            raise InvalidResponseError
-        return (
-            document["package"],
-            document["version"],
-            document.get("installed_version_code"),
-            document.get("installed_untrusted", False),
-        )
-
-    async def async_offer_installed_successor(self) -> None:
-        """Resume a bridge handover using only the already installed successor."""
-        status, body = await self._async_post_bounded(
-            self.address.base_url.with_path("/api/v1/successor/offer").with_query(
-                installed_only="1"
-            ),
-            {},
-            MAX_INSTALL_RESPONSE_BYTES,
-        )
-        if status == 202:
-            parse_update_approval_response(body)
-        if status != 200:
-            raise UpdateRejectedError if 400 <= status < 500 else CannotConnectError
-        try:
-            result = json.loads(body)
-        except (ValueError, UnicodeError) as err:
-            raise InvalidResponseError from err
-        if not isinstance(result, dict) or result.get("outcome") != "Launched":
-            raise UpdateRejectedError
-
-    async def async_stage_apk(
-        self, apk: bytes, *, migration_sha256: str | None = None
-    ) -> StagedApk:
+    async def async_stage_apk(self, apk: bytes) -> StagedApk:
         """Upload app bytes for the panel to inspect before anything installs."""
         url = self.address.base_url.with_path(APK_STAGE_PATH)
-        if migration_sha256 is not None:
-            url = url.with_query(migration="successor", sha256=migration_sha256)
         status, body = await self._async_post_bounded(
             url,
             apk,

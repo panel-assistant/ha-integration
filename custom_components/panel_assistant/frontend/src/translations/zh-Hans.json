@@ -40,7 +40,8 @@
     "loading": "正在加载版本…",
     "catalogError": "无法加载版本列表。",
     "empty": "目前没有可用版本。请稍后重试。",
-    "choose": "跟随 Panel Assistant 的发布渠道（推荐）",
+    "choose": "推荐版本",
+    "otherVersions": "选择其他版本",
     "testing": "测试版本",
     "devBuild": "开发构建",
     "retry": "重试",
@@ -54,6 +55,7 @@
     "downloading": "正在准备应用…",
     "verifying": "正在准备应用…",
     "verified": "请在新窗口中继续。",
+    "installed": "Panel Assistant 已安装。请在安装程序窗口中完成面板的设置，然后关闭此标签页。",
     "cancelled": "已取消。",
     "popup_blocked": "浏览器阻止了新窗口。请允许此页面弹出窗口，然后点击“继续”。",
     "invalid_request": "请先选择版本。",
@@ -65,9 +67,11 @@
     "preparingSlow": "仍在准备应用。请保持 Home Assistant 标签页打开。",
     "connectHeading": "连接您的面板",
     "connectBody": "用 USB 数据线将面板连接到此电脑，然后点击“查找我的面板”。",
+    "usbDebugging": "必须在面板的开发者选项中开启 USB 调试。",
+    "usbDebuggingHelp": "如何开启",
     "connect": "查找我的面板",
     "allowHeading": "允许此电脑连接",
-    "allowBody": "请查看面板屏幕并点击“允许”。",
+    "allowBody": "请在面板上勾选“始终允许使用这台计算机进行调试”并点击“允许”，这样 Panel Assistant 以后无需数据线也能更新面板。",
     "checkingPanel": "正在检查您的面板…",
     "confirmHeading": "可以开始安装",
     "confirmBody": "这会安装应用，并将其设为面板的主屏幕。您的其他应用不会受到影响。",
@@ -101,7 +105,8 @@
     "pageClosed": "页面已关闭。",
     "progress": "进度",
     "installProgress": "安装进度",
-    "licenses": "第三方许可"
+    "licenses": "第三方许可",
+    "doneAnotherHomeAssistant": "此面板当前已登录另一个 Home Assistant。请在面板上更改 Home Assistant 并登录，以将其连接到此处。"
   },
   "errors": {
     "installErrorGeneric": "发生了错误。请保持面板连接，然后点击“重试”。",
@@ -112,7 +117,8 @@
     "installErrorNotClean": "此面板上已有该应用。请通过 Home Assistant 更新。",
     "installErrorIncompatible": "此面板无法运行此版本的应用。",
     "installErrorConnection": "与面板的连接已中断。请保持面板连接，然后点击“重试”。",
-    "installErrorHealth": "应用已安装，但尚未启动。请稍候再重试。"
+    "installErrorHealth": "应用已安装，但尚未启动。请稍候再重试。",
+    "installErrorPermissions": "应用已安装，但无法确认其权限。可以放心重试：请保持面板连接，然后点击“重试”。"
   },
   "journey": {
     "version": "版本",
@@ -129,6 +135,7 @@
   "support": {
     "stopped": "已停止",
     "cause": "原因",
+    "failedCheck": "检查未通过",
     "error": "错误",
     "release": "发行版本",
     "panel": "面板",
@@ -142,6 +149,7 @@
     "setupAddress": "设置地址",
     "setupHandover": "设置交接",
     "displaySizing": "显示和文字大小",
+    "networkAdb": "网络 ADB",
     "copiedDetail": "已发送 {bytes} 字节；正在等待面板确认",
     "none": "无",
     "setupMissing": "未找到；设置将在面板上继续"

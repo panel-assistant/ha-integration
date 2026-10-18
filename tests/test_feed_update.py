@@ -30,15 +30,21 @@ from yarl import URL
 
 from custom_components.panel_assistant import (
     CONFIG_SCHEMA,
+    adb_protocol,
     async_setup,
     install_network,
+    update_progress,
+    update_route,
+    update_staging,
 )
 from custom_components.panel_assistant import update as panel_update
 from custom_components.panel_assistant.adb_credentials import AdbCredentialError
+from custom_components.panel_assistant.adb_protocol import InstallOutcome
 from custom_components.panel_assistant.app_identity import (
     LAUNCH_COMPONENTS,
+    LEGACY_LAUNCH_COMPONENT,
     LEGACY_PACKAGE_ID,
-    SUCCESSOR_PACKAGE_ID,
+    PACKAGE_ID,
 )
 from custom_components.panel_assistant.build_feed import (
     BuildDownloadError,
@@ -51,6 +57,7 @@ from custom_components.panel_assistant.client import (
     CannotConnectError,
     HaPaneldClient,
     PanelHealth,
+    PanelInstallStatus,
     StagedApk,
     UpdateApprovalRequiredError,
     UploadDisabledError,
@@ -66,7 +73,6 @@ from custom_components.panel_assistant.feed_coordinator import (
     StableReleaseCoordinator,
     async_get_feed_coordinator,
 )
-from custom_components.panel_assistant.install_adb import InstallOutcome
 from custom_components.panel_assistant.install_network import PinnedPanelTarget
 from custom_components.panel_assistant.panel_backup import (
     PanelBackupInvalidError,
@@ -112,7 +118,7 @@ APK = b"apk-bytes"
 FETCH = "custom_components.panel_assistant.feed_coordinator.async_fetch_build_feed"
 
 
-def _build(code: int, package_id: str = LEGACY_PACKAGE_ID) -> FeedBuild:
+def _build(code: int, package_id: str = PACKAGE_ID) -> FeedBuild:
     sha = hashlib.sha256(str(code).encode()).hexdigest()
     return FeedBuild(
         version_code=code,
@@ -124,24 +130,33 @@ def _build(code: int, package_id: str = LEGACY_PACKAGE_ID) -> FeedBuild:
         database_compatibility="hapaneld-db:v1:ha-paneld.db:11:14",
         min_sdk=26,
         package_id=package_id,
-        launch_component=LAUNCH_COMPONENTS[package_id][0],
+        launch_component=(
+            LEGACY_LAUNCH_COMPONENT
+            if package_id == LEGACY_PACKAGE_ID
+            else LAUNCH_COMPONENTS[package_id][0]
+        ),
         published="2026-09-11T10:00:00Z",
         protocol_min=5,
         protocol_max=5,
     )
 
 
-def _feed_data(*codes: int) -> BuildFeed:
+def _old_app_build(code: int) -> FeedBuild:
+    """A build of the old app, which this release never installs."""
+    return _build(code, LEGACY_PACKAGE_ID)
+
+
+def _feed_data(*codes: int, package_id: str = PACKAGE_ID) -> BuildFeed:
     return BuildFeed(
         channel="maintainer",
-        builds=tuple(_build(code) for code in sorted(codes, reverse=True)),
+        builds=tuple(_build(code, package_id) for code in sorted(codes, reverse=True)),
     )
 
 
 def _preview(**replacements: str) -> StagedApk:
     values = {
         "token": "tok-1",
-        "package": LEGACY_PACKAGE_ID,
+        "package": PACKAGE_ID,
         "version": NAME,
         "signer": _RELEASE_SIGNER_CERTIFICATE_SHA256,
     }
@@ -149,12 +164,15 @@ def _preview(**replacements: str) -> StagedApk:
     return StagedApk(**values)
 
 
-def _health(version: str, build: str = "1000") -> PanelHealth:
+def _health(
+    version: str, build: str = "1000", package: str | None = PACKAGE_ID
+) -> PanelHealth:
     return PanelHealth(
         version=version,
         panel_id="alpha",
         build=build,
         config_hash="1a2b3c4d",
+        package=package,
         protocol=(5, 5),
     )
 
@@ -166,10 +184,15 @@ def _entity(
     feed: BuildFeed | None = None,
     with_feed: bool = True,
     installed_code: int | None = 771,
+    package: str | None = PACKAGE_ID,
 ) -> tuple[HaPaneldUpdateEntity, SimpleNamespace]:
+    """A panel on the app by default; pass `package` for another report."""
+    staged_package = LEGACY_PACKAGE_ID if package is None else package
     client = SimpleNamespace(
         async_start_panel_update=AsyncMock(),
-        async_get_panel_install_status=AsyncMock(),
+        async_get_panel_install_status=AsyncMock(
+            return_value=PanelInstallStatus(running=True, component="APK")
+        ),
         async_get_version_code=AsyncMock(return_value=(version, installed_code)),
         async_get_status=AsyncMock(
             return_value=PanelStatus(
@@ -183,13 +206,13 @@ def _entity(
             )
         ),
         async_backup_panel=AsyncMock(return_value=BACKUP),
-        async_stage_apk=AsyncMock(return_value=_preview()),
+        async_stage_apk=AsyncMock(return_value=_preview(package=staged_package)),
         async_commit_apk=AsyncMock(),
         async_discard_apk=AsyncMock(),
     )
     health = HaPaneldDataUpdateCoordinator(hass, client)  # type: ignore[arg-type]
     health.data = PanelSnapshot(
-        health=_health(version),
+        health=_health(version, package=package),
         status=PanelStatus(
             warning_count=0,
             capability_count=0,
@@ -204,9 +227,13 @@ def _entity(
     coordinator: BuildFeedCoordinator | None = None
     if with_feed:
         coordinator = BuildFeedCoordinator(hass, FEED_URL)
-        coordinator.data = feed if feed is not None else _feed_data(770, 771, 772)
+        coordinator.data = (
+            feed
+            if feed is not None
+            else _feed_data(770, 771, 772, package_id=staged_package)
+        )
         coordinator.reachable = True
-        for package_id in (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID):
+        for package_id in (LEGACY_PACKAGE_ID, PACKAGE_ID):
             newest = coordinator.data.newest(package_id)
             if newest is not None:
                 coordinator._verified_apks[newest.apk_sha256] = APK
@@ -232,13 +259,15 @@ def delivery(
     hass.config.config_dir = str(tmp_path)
     session = object()
     download = AsyncMock(return_value=APK)
-    monkeypatch.setattr(panel_update, "async_get_clientsession", lambda _hass: session)
-    monkeypatch.setattr(panel_update, "async_download_build", download)
+    monkeypatch.setattr(
+        update_staging, "async_get_clientsession", lambda _hass: session
+    )
+    monkeypatch.setattr(update_staging, "async_download_build", download)
     monkeypatch.setattr(panel_update.asyncio, "sleep", AsyncMock())
     # With sleep stubbed, an unexpected wait would spin to its real deadline;
     # keep that to about a second so a regression fails fast instead of hanging.
-    monkeypatch.setattr(panel_update, "_ANDROID_PACKAGE_INSTALL_MAX_SECONDS", 0)
-    monkeypatch.setattr(panel_update, "_RESTART_HEALTH_GRACE_SECONDS", 1)
+    monkeypatch.setattr(update_progress, "_ANDROID_PACKAGE_INSTALL_MAX_SECONDS", 0)
+    monkeypatch.setattr(update_progress, "_RESTART_HEALTH_GRACE_SECONDS", 1)
     return SimpleNamespace(
         session=session,
         download=download,
@@ -251,7 +280,7 @@ def _restart_into(
     client: SimpleNamespace,
     code: int,
     calls: list[Any] | None = None,
-    package: str | None = None,
+    package: str | None = PACKAGE_ID,
 ) -> None:
     """Make the next health refresh show a restarted app reporting `code`."""
 
@@ -299,8 +328,8 @@ async def test_unstarted_staged_commit_retry_rechecks_current_consent(
         options={CONF_PRERELEASE_PANEL_BUILDS: True},
     )
     entry.add_to_hass(hass)
-    entity, client = _entity(hass)
-    _restart_into(entity, client, 772)
+    entity, client = _entity(hass, package=PACKAGE_ID)
+    _restart_into(entity, client, 772, package=PACKAGE_ID)
     sent = []
 
     async def commit(token):
@@ -368,8 +397,8 @@ async def test_feed_with_unknown_installed_code_falls_back_to_stable(
 def test_failed_feed_read_falls_back_to_stable(hass: HomeAssistant) -> None:
     """A feed that could not be authenticated offers nothing."""
     entity, _ = _entity(hass, version="0.9.9")
-    assert entity._feed is not None
-    entity._feed.last_update_success = False
+    assert entity._offer.feed is not None
+    entity._offer.feed.last_update_success = False
 
     assert entity.installed_version == "0.9.9"
     assert entity.latest_version == entity.installed_version
@@ -408,7 +437,7 @@ async def test_feed_offer_is_withheld_when_no_install_route_works(
         status_error=None,
     )
     monkeypatch.setattr(
-        panel_update,
+        update_route,
         "async_get_durable_adb_credential",
         AsyncMock(side_effect=AdbCredentialError),
     )
@@ -428,54 +457,31 @@ async def test_feed_offer_is_withheld_when_no_install_route_works(
 # --- install -----------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    "package,expected_code",
-    [(None, 773), (SUCCESSOR_PACKAGE_ID, 772)],
-)
 async def test_update_install_selects_the_installed_app_before_backup(
-    hass: HomeAssistant,
-    delivery: SimpleNamespace,
-    package: str | None,
-    expected_code: int,
+    hass: HomeAssistant, delivery: SimpleNamespace
 ) -> None:
-    """Each panel takes its signed APK even when the other app shares a code."""
-    feed = BuildFeed(
-        "maintainer", (_build(773), _build(772), _build(772, SUCCESSOR_PACKAGE_ID))
-    )
+    """The panel takes the app's signed APK, never a newer old-app build."""
+    package, expected_code = PACKAGE_ID, 772
+    feed = BuildFeed("maintainer", (_old_app_build(773), _build(772)))
     entity, client = _entity(hass, feed=feed)
-    health = entity.coordinator.data.health
-    entity.coordinator.data = PanelSnapshot(
-        health=PanelHealth(
-            version=health.version,
-            panel_id=health.panel_id,
-            build=health.build,
-            config_hash=health.config_hash,
-            package=package,
-            protocol=(5, 5),
-        ),
-        status=PanelStatus(
-            warning_count=0, capability_count=0, install_capability="api"
-        ),
-        status_error=None,
-    )
-    client.async_stage_apk.return_value = _preview(package=package or LEGACY_PACKAGE_ID)
-    expected_apk = f"apk-for-{expected_code}-{package or LEGACY_PACKAGE_ID}".encode()
-    assert entity._feed is not None
-    selected_build = entity._feed.verified_newest(package)
+    expected_apk = f"apk-for-{expected_code}-{package}".encode()
+    assert entity._offer.feed is not None
+    assert entity._offer.feed.verified_apk(_old_app_build(773)) is not None
+    selected_build = entity._offer.feed.verified_newest(package)
     assert selected_build is not None
     verified_build = replace(
         selected_build,
         apk_sha256=hashlib.sha256(expected_apk).hexdigest(),
         apk_size=len(expected_apk),
     )
-    entity._feed.data = replace(
-        entity._feed.data,
+    entity._offer.feed.data = replace(
+        entity._offer.feed.data,
         builds=tuple(
             verified_build if build == selected_build else build
-            for build in entity._feed.data.builds
+            for build in entity._offer.feed.data.builds
         ),
     )
-    entity._feed._verified_apks[verified_build.apk_sha256] = expected_apk
+    entity._offer.feed._verified_apks[verified_build.apk_sha256] = expected_apk
     _restart_into(entity, client, expected_code, package=package)
 
     assert entity.latest_version == f"0.9.7-rc4 build {expected_code}"
@@ -512,14 +518,14 @@ async def test_rootless_panel_uses_its_existing_authorized_adb_route(
     pinned = PinnedPanelTarget(client.address, client.address)
     credential = SimpleNamespace(signer=object(), generation_id="held-key")
     probe = InstallTargetProbe(
-        state=InstallTargetState.MIGRATION_CANDIDATE,
+        state=InstallTargetState.INSTALLED,
         serial="serial-a",
         model="model-a",
         primary_abi="arm64-v8a",
         android_sdk=30,
     )
     monkeypatch.setattr(
-        panel_update,
+        update_route,
         "async_get_durable_adb_credential",
         AsyncMock(return_value=credential),
     )
@@ -527,19 +533,20 @@ async def test_rootless_panel_uses_its_existing_authorized_adb_route(
         install_network, "async_pin_install_target", AsyncMock(return_value=pinned)
     )
     monkeypatch.setattr(
-        panel_update, "async_revalidate_install_target", AsyncMock(return_value=pinned)
+        update_route, "async_revalidate_install_target", AsyncMock(return_value=pinned)
     )
     monkeypatch.setattr(
-        panel_update, "async_probe_install_target", AsyncMock(return_value=probe)
+        update_route, "async_probe_install_target", AsyncMock(return_value=probe)
     )
     preflight = AsyncMock(
         return_value=SimpleNamespace(
             target_installed=target_installed, root_mode="rootless"
         )
     )
-    monkeypatch.setattr(panel_update, "async_preflight_install", preflight)
-    launch = AsyncMock(return_value=panel_update.LaunchOutcome.STARTED)
-    monkeypatch.setattr(panel_update, "async_launch_installed_app", launch)
+    monkeypatch.setattr(update_route, "async_preflight_install", preflight)
+    monkeypatch.setattr(update_staging, "async_preflight_install", preflight)
+    launch = AsyncMock(return_value=adb_protocol.LaunchOutcome.STARTED)
+    monkeypatch.setattr(update_staging, "async_launch_installed_app", launch)
     pinned_client = SimpleNamespace(
         async_get_health=AsyncMock(return_value=entity.coordinator.data.health)
     )
@@ -557,7 +564,7 @@ async def test_rootless_panel_uses_its_existing_authorized_adb_route(
         return InstallOutcome.INSTALLED
 
     adb_install = AsyncMock(side_effect=install)
-    monkeypatch.setattr(panel_update, "async_update_installed_apk", adb_install)
+    monkeypatch.setattr(update_staging, "async_update_installed_apk", adb_install)
     _restart_into(entity, client, 772)
 
     await entity._async_refresh_route()
@@ -586,7 +593,7 @@ async def test_same_number_from_another_app_does_not_verify_the_install(
     hass: HomeAssistant, delivery: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A restarted legacy app cannot prove a successor installation."""
-    feed = BuildFeed("maintainer", (_build(772, SUCCESSOR_PACKAGE_ID),))
+    feed = BuildFeed("maintainer", (_build(772, PACKAGE_ID),))
     entity, client = _entity(hass, feed=feed)
     health = entity.coordinator.data.health
     entity.coordinator.data = PanelSnapshot(
@@ -595,7 +602,7 @@ async def test_same_number_from_another_app_does_not_verify_the_install(
             panel_id=health.panel_id,
             build=health.build,
             config_hash=health.config_hash,
-            package=SUCCESSOR_PACKAGE_ID,
+            package=PACKAGE_ID,
             protocol=(5, 5),
         ),
         status=PanelStatus(
@@ -603,9 +610,9 @@ async def test_same_number_from_another_app_does_not_verify_the_install(
         ),
         status_error=None,
     )
-    client.async_stage_apk.return_value = _preview(package=SUCCESSOR_PACKAGE_ID)
+    client.async_stage_apk.return_value = _preview(package=PACKAGE_ID)
     _restart_into(entity, client, 772, package=LEGACY_PACKAGE_ID)
-    monkeypatch.setattr(panel_update, "_RESTART_HEALTH_GRACE_SECONDS", 0.01)
+    monkeypatch.setattr(update_progress, "_RESTART_HEALTH_GRACE_SECONDS", 0.01)
 
     with pytest.raises(HomeAssistantError) as error:
         await entity.async_install(None, False)
@@ -653,7 +660,7 @@ async def test_install_delivers_the_newest_build_in_order(
     client.async_backup_panel = AsyncMock(side_effect=backup)
     client.async_stage_apk = AsyncMock(side_effect=stage)
     client.async_commit_apk = AsyncMock(side_effect=commit)
-    monkeypatch.setattr(panel_update, "async_store_panel_backup", store)
+    monkeypatch.setattr(update_staging, "async_store_panel_backup", store)
     _restart_into(entity, client, 772, calls)
 
     await entity.async_install(None, False)
@@ -698,7 +705,7 @@ async def test_install_refreshes_the_feed_to_find_a_newly_published_build(
 ) -> None:
     """A build missing from the cached feed is looked up once more after a refresh."""
     entity, client = _entity(hass)
-    feed = entity._feed
+    feed = entity._offer.feed
     assert feed is not None
 
     async def publish() -> None:
@@ -719,7 +726,7 @@ async def test_install_refuses_a_build_still_missing_after_one_refresh(
 ) -> None:
     """An unknown build refreshes the feed exactly once, then is unavailable."""
     entity, client = _entity(hass)
-    feed = entity._feed
+    feed = entity._offer.feed
     assert feed is not None
     feed.async_refresh = AsyncMock()  # type: ignore[method-assign]
 
@@ -739,7 +746,7 @@ async def test_install_refuses_a_missing_build_when_the_refresh_fails(
 ) -> None:
     """A failed refresh never turns stale or absent data into an install."""
     entity, client = _entity(hass)
-    feed = entity._feed
+    feed = entity._offer.feed
     assert feed is not None
 
     async def fail() -> None:
@@ -760,8 +767,6 @@ async def test_install_refuses_a_missing_build_when_the_refresh_fails(
     [
         pytest.param("771", False, id="already-installed"),
         pytest.param("0.9.7-rc4 build 771", False, id="already-installed-label"),
-        pytest.param(None, True, id="backup-requested"),
-        pytest.param("772", True, id="backup-requested-specific"),
     ],
 )
 async def test_install_refuses_without_contacting_anything(
@@ -770,9 +775,9 @@ async def test_install_refuses_without_contacting_anything(
     version: str | None,
     backup: bool,
 ) -> None:
-    """The installed build and HA-side backups are never offered."""
+    """The installed build is never offered."""
     entity, client = _entity(hass)
-    feed = entity._feed
+    feed = entity._offer.feed
     assert feed is not None
     feed.async_refresh = AsyncMock()  # type: ignore[method-assign]
 
@@ -829,7 +834,7 @@ async def test_identity_change_during_upload_refuses_commit(
                 panel_id=health.panel_id,
                 build=health.build,
                 config_hash=health.config_hash,
-                package=SUCCESSOR_PACKAGE_ID,
+                package=LEGACY_PACKAGE_ID,
                 protocol=(5, 5),
             ),
             status=snapshot.status,
@@ -847,16 +852,12 @@ async def test_identity_change_during_upload_refuses_commit(
     client.async_commit_apk.assert_not_awaited()
 
 
-@pytest.mark.parametrize("package", [None, SUCCESSOR_PACKAGE_ID])
+@pytest.mark.parametrize("package", [None, LEGACY_PACKAGE_ID])
 async def test_a_build_for_another_app_id_is_refused_before_backup(
     hass: HomeAssistant, delivery: SimpleNamespace, package: str | None
 ) -> None:
-    """A legacy build is never installed beside a panel running the successor."""
+    """A panel still on the old app is never given the app beside it."""
     feed = _feed_data(772)
-    if package is None:
-        feed = replace(
-            feed, builds=(replace(feed.builds[0], package_id=SUCCESSOR_PACKAGE_ID),)
-        )
     entity, client = _entity(hass, feed=feed)
     health = entity.coordinator.data.health
     entity.coordinator.data = PanelSnapshot(
@@ -874,6 +875,8 @@ async def test_a_build_for_another_app_id_is_refused_before_backup(
         status_error=None,
     )
 
+    # Nothing is offered to it either.
+    assert entity.latest_version == entity.installed_version
     with pytest.raises(HomeAssistantError) as error:
         await entity.async_install(None, False)
 
@@ -884,24 +887,19 @@ async def test_a_build_for_another_app_id_is_refused_before_backup(
     client.async_commit_apk.assert_not_awaited()
 
 
-@pytest.mark.parametrize("package", [None, SUCCESSOR_PACKAGE_ID])
+@pytest.mark.parametrize("package", [None, LEGACY_PACKAGE_ID])
 async def test_delivery_refuses_an_identity_change_before_backup(
     hass: HomeAssistant, delivery: SimpleNamespace, package: str | None
 ) -> None:
-    """The shared delivery seam refuses a selection from before a handover."""
+    """The shared delivery seam refuses a panel that no longer reports the app."""
     entity, client = _entity(hass)
-    selected = feed_release_artifact(
-        _build(
-            772,
-            package_id=SUCCESSOR_PACKAGE_ID if package is None else LEGACY_PACKAGE_ID,
-        )
-    )
+    selected = feed_release_artifact(_build(772))
     snapshot = entity.coordinator.data
     entity.coordinator.data = replace(
         snapshot, health=replace(snapshot.health, package=package)
     )
     with pytest.raises(HomeAssistantError) as error:
-        await entity._async_deliver_build(selected)
+        await entity._delivery.async_deliver_build(hass, selected)
     _assert_translated(error.value, "panel_changed_during_update")
     client.async_backup_panel.assert_not_awaited()
     delivery.download.assert_not_awaited()
@@ -947,7 +945,7 @@ async def test_backup_store_failure_never_downloads(
     """A backup Home Assistant could not keep counts as no backup."""
     entity, _ = _entity(hass)
     monkeypatch.setattr(
-        panel_update, "async_store_panel_backup", AsyncMock(side_effect=OSError)
+        update_staging, "async_store_panel_backup", AsyncMock(side_effect=OSError)
     )
 
     with pytest.raises(HomeAssistantError) as error:
@@ -1060,7 +1058,7 @@ async def test_wait_refuses_a_restart_into_a_different_build(
 async def test_manual_update_also_rereads_the_feed(hass: HomeAssistant) -> None:
     """Asking the entity to update refreshes panel health, then the feed."""
     entity, _ = _entity(hass)
-    feed = entity._feed
+    feed = entity._offer.feed
     assert feed is not None
     order: list[str] = []
     entity.coordinator.async_request_refresh = AsyncMock(
@@ -1353,8 +1351,8 @@ async def test_feed_offer_uses_the_verified_apk_after_its_origin_disappears(
 ) -> None:
     """The install uses the bytes checked for the offer, not a second fetch."""
     entity, client = _entity(hass)
-    assert entity._feed is not None
-    entity._feed._verified_apks.clear()
+    assert entity._offer.feed is not None
+    entity._offer.feed._verified_apks.clear()
     fetch = AsyncMock(return_value=_feed_data(770, 771, 772))
     verified_download = AsyncMock(return_value=APK)
     with (
@@ -1364,9 +1362,9 @@ async def test_feed_offer_uses_the_verified_apk_after_its_origin_disappears(
             verified_download,
         ),
     ):
-        await entity._feed.async_refresh()
+        await entity._offer.feed.async_refresh()
         verified_download.side_effect = BuildDownloadError
-        await entity._feed.async_refresh()
+        await entity._offer.feed.async_refresh()
 
     assert entity.latest_version == "0.9.7-rc4 build 772"
     delivery.download.side_effect = BuildDownloadError
@@ -1385,7 +1383,7 @@ async def test_new_unverifiable_feed_head_withdraws_the_old_offer(
     """A cached older APK cannot keep an obsolete offer alive."""
     entity, _ = _entity(hass)
     assert entity.latest_version == "0.9.7-rc4 build 772"
-    assert entity._feed is not None
+    assert entity._offer.feed is not None
     with (
         patch(FETCH, AsyncMock(return_value=_feed_data(770, 771, 773))),
         patch(
@@ -1393,7 +1391,7 @@ async def test_new_unverifiable_feed_head_withdraws_the_old_offer(
             AsyncMock(side_effect=BuildDownloadError),
         ),
     ):
-        await entity._feed.async_refresh()
+        await entity._offer.feed.async_refresh()
 
     assert entity.latest_version == entity.installed_version
 
@@ -1403,8 +1401,8 @@ async def test_unverified_feed_head_refuses_unversioned_install(
 ) -> None:
     """The service's default target is exactly the build eligible for offer."""
     entity, client = _entity(hass)
-    assert entity._feed is not None
-    entity._feed._verified_apks.clear()
+    assert entity._offer.feed is not None
+    entity._offer.feed._verified_apks.clear()
     delivery.download.side_effect = BuildDownloadError
 
     with pytest.raises(HomeAssistantError) as error:
@@ -1568,8 +1566,8 @@ async def test_feed_skips_unknown_and_incompatible_heads_before_download(
         ),
     )
     entity, _ = _entity(hass, feed=feed)
-    assert entity._feed is not None
-    entity._feed._verified_apks.clear()
+    assert entity._offer.feed is not None
+    entity._offer.feed._verified_apks.clear()
     download = AsyncMock(return_value=APK)
     with (
         patch(FETCH, AsyncMock(return_value=feed)),
@@ -1578,7 +1576,7 @@ async def test_feed_skips_unknown_and_incompatible_heads_before_download(
             download,
         ),
     ):
-        await entity._feed.async_refresh()
+        await entity._offer.feed.async_refresh()
 
     assert entity.latest_version == _build(772).label
     assert [
@@ -1615,8 +1613,8 @@ async def test_feed_channel_follows_loaded_pa_and_entry_opt_in(
     rc = replace(_build(773), version_name="0.9.11-rc1")
     feed = BuildFeed("maintainer", (rc, final))
     entity, _ = _entity(hass, version="0.9.9", feed=feed)
-    assert entity._feed is not None
-    entity._feed._verified_apks.clear()
+    assert entity._offer.feed is not None
+    entity._offer.feed._verified_apks.clear()
     with (
         patch(FETCH, AsyncMock(return_value=feed)),
         patch(
@@ -1624,8 +1622,8 @@ async def test_feed_channel_follows_loaded_pa_and_entry_opt_in(
             AsyncMock(return_value=APK),
         ),
     ):
-        await entity._feed.async_refresh()
-    assert entity.latest_version == feed.find(expected_code, LEGACY_PACKAGE_ID).label
+        await entity._offer.feed.async_refresh()
+    assert entity.latest_version == feed.find(expected_code, PACKAGE_ID).label
 
 
 async def test_prerelease_channel_includes_newer_final_promotion(
@@ -1638,12 +1636,11 @@ async def test_prerelease_channel_includes_newer_final_promotion(
     assert entity.version_is_newer("0.9.7", "0.9.7-rc4")
 
 
-async def test_shared_feed_keeps_both_channels_for_both_app_identities(
+async def test_shared_feed_keeps_both_channels_for_the_app(
     hass: HomeAssistant,
 ) -> None:
     builds = tuple(
-        replace(_build(code, package), version_name=name)
-        for package in (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID)
+        replace(_build(code), version_name=name)
         for code, name in ((773, "0.9.11-rc1"), (772, "0.9.10"))
     )
     coordinator = BuildFeedCoordinator(hass, FEED_URL)
@@ -1656,20 +1653,19 @@ async def test_shared_feed_keeps_both_channels_for_both_app_identities(
         ),
     ):
         await coordinator.async_refresh()
-    for package in (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID):
-        stable = coordinator.verified_newest(package, allow_prerelease=False)
-        testing = coordinator.verified_newest(package, allow_prerelease=True)
-        assert stable is not None and stable.version_code == 772
-        assert testing is not None and testing.version_code == 773
-    # Each exact byte hash is fetched once even when both policy choices share it.
+    stable = coordinator.verified_newest(PACKAGE_ID, allow_prerelease=False)
+    testing = coordinator.verified_newest(PACKAGE_ID, allow_prerelease=True)
+    assert stable is not None and stable.version_code == 772
+    assert testing is not None and testing.version_code == 773
+    # Each exact byte hash is fetched once.
     assert download.await_count == 2
 
 
 async def test_feed_coordinator_verifies_the_highest_code_of_a_renumbered_line(
     hass: HomeAssistant,
 ) -> None:
-    renumbered = replace(_build(1168, SUCCESSOR_PACKAGE_ID), version_name="1.0.0-rc1")
-    renamed = replace(_build(1199, SUCCESSOR_PACKAGE_ID), version_name="0.9.11-rc1")
+    renumbered = replace(_build(1168, PACKAGE_ID), version_name="1.0.0-rc1")
+    renamed = replace(_build(1199, PACKAGE_ID), version_name="0.9.11-rc1")
     coordinator = BuildFeedCoordinator(hass, FEED_URL)
     download = AsyncMock(return_value=APK)
     with (
@@ -1683,10 +1679,7 @@ async def test_feed_coordinator_verifies_the_highest_code_of_a_renumbered_line(
         ),
     ):
         await coordinator.async_refresh()
-    assert (
-        coordinator.verified_newest(SUCCESSOR_PACKAGE_ID, allow_prerelease=True)
-        == renamed
-    )
+    assert coordinator.verified_newest(PACKAGE_ID, allow_prerelease=True) == renamed
     assert [
         call.args[1].descriptor.version_code for call in download.await_args_list
     ] == [1199]
@@ -1728,12 +1721,16 @@ async def test_explicit_feed_install_refuses_unadmitted_candidate_before_backup(
         protocol_min=minimum,
         protocol_max=maximum,
     )
+    record = AsyncMock()
+    monkeypatch.setattr(panel_update, "async_record_update_failure", record)
     entity, client = _entity(
         hass, version="1.0.0", feed=BuildFeed("maintainer", (candidate,))
     )
     with pytest.raises(HomeAssistantError) as caught:
         await entity.async_install(str(candidate_code), False)
     assert caught.value.translation_key == "update_unavailable"
+    # A build the owner may not install is refused, not reported as a failure.
+    record.assert_not_awaited()
     client.async_backup_panel.assert_not_awaited()
     client.async_stage_apk.assert_not_awaited()
     client.async_commit_apk.assert_not_awaited()
@@ -1776,8 +1773,8 @@ async def test_post_one_release_uses_native_version_code_without_feed_diagnostic
         snapshot,
         health=replace(snapshot.health, version_code=800),
     )
-    entity._release = StableReleaseCoordinator(hass)
-    entity._release._candidates[candidate.tag, LEGACY_PACKAGE_ID] = candidate
+    entity._offer.release = StableReleaseCoordinator(hass)
+    entity._offer.release._candidates[candidate.tag, LEGACY_PACKAGE_ID] = candidate
     assert entity.latest_version == entity.installed_version
     with pytest.raises(HomeAssistantError) as caught:
         await entity.async_install(None, False)
@@ -1785,3 +1782,206 @@ async def test_post_one_release_uses_native_version_code_without_feed_diagnostic
     client.async_backup_panel.assert_not_awaited()
     client.async_stage_apk.assert_not_awaited()
     delivery.download.assert_not_awaited()
+
+
+def _refuse_committed_install(client: SimpleNamespace, reason: str) -> None:
+    """The panel takes the commit, then finishes the install by refusing it."""
+    client.async_get_panel_install_status = AsyncMock(
+        return_value=PanelInstallStatus(
+            running=False, component="APK", message=f"refused ({reason})"
+        )
+    )
+
+
+def _authorized_adb(
+    entity: HaPaneldUpdateEntity,
+    client: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
+) -> AsyncMock:
+    """An authorized ADB peer for this panel; returns the ADB install call."""
+    client.address = normalize_address("192.168.1.10")
+    pinned = PinnedPanelTarget(client.address, client.address)
+    credential = SimpleNamespace(signer=object(), generation_id="held-key")
+    probe = InstallTargetProbe(
+        state=InstallTargetState.INSTALLED,
+        serial="serial-a",
+        model="model-a",
+        primary_abi="arm64-v8a",
+        android_sdk=30,
+    )
+    monkeypatch.setattr(
+        update_route,
+        "async_get_durable_adb_credential",
+        AsyncMock(return_value=credential),
+    )
+    monkeypatch.setattr(
+        install_network, "async_pin_install_target", AsyncMock(return_value=pinned)
+    )
+    monkeypatch.setattr(
+        update_route, "async_revalidate_install_target", AsyncMock(return_value=pinned)
+    )
+    monkeypatch.setattr(
+        update_route, "async_probe_install_target", AsyncMock(return_value=probe)
+    )
+    preflight = AsyncMock(
+        return_value=SimpleNamespace(target_installed=True, root_mode="rootless")
+    )
+    monkeypatch.setattr(update_route, "async_preflight_install", preflight)
+    monkeypatch.setattr(update_staging, "async_preflight_install", preflight)
+    monkeypatch.setattr(
+        update_staging,
+        "async_launch_installed_app",
+        AsyncMock(return_value=adb_protocol.LaunchOutcome.STARTED),
+    )
+    pinned_client = SimpleNamespace(
+        async_get_health=AsyncMock(return_value=entity.coordinator.data.health)
+    )
+    monkeypatch.setattr(install_network, "HaPaneldClient", lambda *_args: pinned_client)
+
+    async def install(
+        _target: Any, _signer: Any, _descriptor: Any, path: Path, *, before_install
+    ) -> InstallOutcome:
+        await before_install()
+        assert await hass_read(path) == APK
+        _restart_into(entity, client, 772)
+        return InstallOutcome.INSTALLED
+
+    async def hass_read(path: Path) -> bytes:
+        return await entity.hass.async_add_executor_job(path.read_bytes)
+
+    adb_install = AsyncMock(side_effect=install)
+    monkeypatch.setattr(update_staging, "async_update_installed_apk", adb_install)
+    return adb_install
+
+
+async def test_a_refused_install_fails_at_once_with_the_panel_refusal(
+    hass: HomeAssistant, delivery: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A refusal is reported at once, not waited out as an unfinished install."""
+    entity, client = _entity(hass)
+    _refuse_committed_install(
+        client, "candidate cannot speak to the running Panel Assistant"
+    )
+    adb_install = _authorized_adb(entity, client, monkeypatch)
+    record = AsyncMock()
+    monkeypatch.setattr(panel_update, "async_record_update_failure", record)
+
+    with pytest.raises(HomeAssistantError) as error:
+        await entity.async_install(None, False)
+
+    _assert_translated(error.value, "update_refused_by_panel")
+    assert error.value.translation_placeholders == {
+        "panel": entity._panel_name(),
+        "reason": "candidate cannot speak to the running Panel Assistant",
+    }
+    # The failure Repair records the panel's own reason, not a generic refusal.
+    assert str(record.await_args.args[4]).endswith(
+        "refused the update: candidate cannot speak to the running Panel Assistant"
+    )
+    client.async_commit_apk.assert_awaited_once_with("tok-1")
+    entity.coordinator.async_request_refresh.assert_awaited_once()
+    adb_install.assert_not_awaited()
+
+
+async def test_a_refused_older_build_is_never_forced_over_adb(
+    hass: HomeAssistant, delivery: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only a higher build crosses; the panel's refusal of an older one stands."""
+    entity, client = _entity(hass)
+    _refuse_committed_install(client, "panel-app downgrades are not permitted")
+    adb_install = _authorized_adb(entity, client, monkeypatch)
+
+    with pytest.raises(HomeAssistantError) as error:
+        await entity.async_install("770", False)
+
+    _assert_translated(error.value, "update_refused_by_panel")
+    assert error.value.translation_placeholders["reason"] == (
+        "panel-app downgrades are not permitted"
+    )
+    adb_install.assert_not_awaited()
+
+
+async def test_a_panel_refusing_a_higher_build_as_a_downgrade_is_crossed_over_adb(
+    hass: HomeAssistant, delivery: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """vc1246 (1.0.0-rc1) refused 1391 (1.0.0-preview1); Android orders by build."""
+    entity, client = _entity(hass)
+    _refuse_committed_install(client, "panel-app downgrades are not permitted")
+    adb_install = _authorized_adb(entity, client, monkeypatch)
+
+    await entity.async_install(None, False)
+
+    client.async_commit_apk.assert_awaited_once_with("tok-1")
+    adb_install.assert_awaited_once()
+    assert adb_install.await_args.args[2].version_code == 772
+    assert entity._installed_code == 772
+    assert entity.in_progress is False
+
+
+async def test_a_downgrade_refusal_without_an_adb_route_is_still_reported(
+    hass: HomeAssistant, delivery: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    entity, client = _entity(hass)
+    _refuse_committed_install(client, "panel-app downgrades are not permitted")
+    adb_install = _authorized_adb(entity, client, monkeypatch)
+    monkeypatch.setattr(
+        update_route,
+        "async_probe_install_target",
+        AsyncMock(
+            return_value=InstallTargetProbe(state=InstallTargetState.ADB_UNREACHABLE)
+        ),
+    )
+
+    with pytest.raises(HomeAssistantError) as error:
+        await entity.async_install(None, False)
+
+    _assert_translated(error.value, "update_refused_by_panel")
+    assert error.value.translation_placeholders["reason"] == (
+        "panel-app downgrades are not permitted"
+    )
+    adb_install.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        (
+            "update not installed: cancelled on the panel or refused by its package "
+            "verifier (verifier detail)"
+        ),
+        "update not confirmed on the panel in time",
+        "install failed: insufficient storage (no space)",
+        "install blocked on the panel (verifier policy)",
+        "install failed (incompatible package)",
+        "update not installed: cancelled (panel-app downgrades are not permitted)",
+    ],
+)
+async def test_finished_staged_failure_preserves_the_panel_reason(
+    hass: HomeAssistant,
+    delivery: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
+    reason: str,
+) -> None:
+    """A finished failure ends once, without an ADB retry or a generic Repair."""
+    MockConfigEntry(domain=DOMAIN, entry_id="entry-id", title="Test panel").add_to_hass(
+        hass
+    )
+    entity, client = _entity(hass, package=PACKAGE_ID)
+    client.async_get_panel_install_status.return_value = PanelInstallStatus(
+        running=False, component="APK", message=reason
+    )
+    adb_install = _authorized_adb(entity, client, monkeypatch)
+    record = AsyncMock()
+    monkeypatch.setattr(panel_update, "async_record_update_failure", record)
+    with pytest.raises(HomeAssistantError) as caught:
+        await entity.async_install(None, False)
+    assert caught.value.translation_key == "update_refused_by_panel"
+    assert caught.value.translation_placeholders == {
+        "panel": entity._panel_name(),
+        "reason": reason,
+    }
+    assert reason in str(record.await_args.args[4])
+    client.async_get_panel_install_status.assert_awaited_once()
+    client.async_commit_apk.assert_awaited_once_with("tok-1")
+    adb_install.assert_not_awaited()
+    assert entity.in_progress is False

@@ -1,57 +1,72 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ACCEPTED_PACKAGE_IDS, LAUNCH_COMPONENTS, LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID,
-  accessibilityComponentFor, counterpartOf, isLaunchComponent } from '../src/app-identity.mjs';
+import { LAUNCH_COMPONENTS, LEGACY_PACKAGE_ID, PACKAGE_ID,
+  accessibilityComponentFor, isLaunchComponent } from '../src/app-identity.mjs';
 import { PreflightError, RESIDUE_PROBES, buildPreflight, classifyTarget,
   parsePreflight } from '../src/preflight.mjs';
 import { DelegatedProofError, parseDelegatedProof } from '../src/delegated-proof.mjs';
 import { InstallContractError, buildLaunch } from '../src/install-contract.mjs';
+import { InstalledObservationError, buildInstalledObservation } from '../src/installed-observation.mjs';
+import { buildVendorDisplaySettlement } from '../src/vendor-provisioning.mjs';
+import { buildHomeClaim } from '../src/home-chooser.mjs';
 
 const nonce = 'a'.repeat(32);
 const notClean = error => error instanceof PreflightError && error.code === 'target_not_clean';
 
 const MOVED = 'io.panelassistant.android/io.panelassistant.android.MainActivity';
+const OLD_APP_LAUNCH = 'io.github.maxlyth.hapaneld/.MainActivity';
+// Preflight still probes the old app, first, so a panel holding it is refused.
+const PROBED = [LEGACY_PACKAGE_ID, PACKAGE_ID];
 
-test('each identity names its own components, never the other spelling', () => {
-  // Up to app 0.9.9 the classes stay in the old package whichever id the build
-  // carries; from 0.9.10 the new app's classes live in its own package.
-  assert.deepEqual(LAUNCH_COMPONENTS[LEGACY_PACKAGE_ID], ['io.github.maxlyth.hapaneld/.MainActivity']);
-  assert.deepEqual(LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID],
+test('the one app id names its own components, old classes and moved ones', () => {
+  // Up to app 0.9.9 the classes stay in the old package; from 0.9.10 they live
+  // in the app's own package.
+  assert.deepEqual(Object.keys(LAUNCH_COMPONENTS), [PACKAGE_ID]);
+  assert.deepEqual(LAUNCH_COMPONENTS[PACKAGE_ID],
     ['io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity', MOVED]);
-  assert.equal(accessibilityComponentFor(LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID][0]),
+  assert.equal(accessibilityComponentFor(LAUNCH_COMPONENTS[PACKAGE_ID][0]),
     'io.panelassistant.android/io.github.maxlyth.hapaneld.input.PanelAccessibilityService');
   assert.equal(accessibilityComponentFor(MOVED),
     'io.panelassistant.android/io.panelassistant.android.input.PanelAccessibilityService');
-  for (const packageId of ACCEPTED_PACKAGE_IDS) {
-    for (const component of LAUNCH_COMPONENTS[packageId]) {
-      assert.equal(component.split('/')[0], packageId);
-      assert.ok(isLaunchComponent(packageId, component));
-      assert.ok(!isLaunchComponent(counterpartOf(packageId), component));
-    }
-    assert.equal(counterpartOf(counterpartOf(packageId)), packageId);
+  for (const component of LAUNCH_COMPONENTS[PACKAGE_ID]) {
+    assert.ok(isLaunchComponent(PACKAGE_ID, component));
+    assert.ok(!isLaunchComponent(LEGACY_PACKAGE_ID, component));
   }
+  // The old app's own launcher is not a build this installer drives.
+  assert.ok(!isLaunchComponent(LEGACY_PACKAGE_ID, OLD_APP_LAUNCH));
+  assert.ok(!isLaunchComponent(PACKAGE_ID, OLD_APP_LAUNCH));
+  assert.throws(() => accessibilityComponentFor(OLD_APP_LAUNCH), RangeError);
   for (const unknown of ['io.example.other', 'io.panelassistant', '']) {
     assert.ok(!isLaunchComponent(unknown, MOVED));
-    assert.throws(() => counterpartOf(unknown), RangeError);
   }
   assert.throws(() => accessibilityComponentFor('io.panelassistant.android/.MainActivity'), RangeError);
 });
 
 test("launch starts the descriptor's own package by its own component", () => {
-  for (const component of LAUNCH_COMPONENTS[SUCCESSOR_PACKAGE_ID]) {
-    assert.ok(buildLaunch(nonce, SUCCESSOR_PACKAGE_ID, component, 33).includes(
+  for (const component of LAUNCH_COMPONENTS[PACKAGE_ID]) {
+    assert.ok(buildLaunch(nonce, PACKAGE_ID, component, 33).includes(
       `am start -W -n ${component} -p io.panelassistant.android`));
   }
-  assert.ok(buildLaunch(nonce, LEGACY_PACKAGE_ID, LAUNCH_COMPONENTS[LEGACY_PACKAGE_ID][0], 33).includes(
-    'am start -W -n io.github.maxlyth.hapaneld/.MainActivity -p io.github.maxlyth.hapaneld'));
   assert.throws(() => buildLaunch(nonce, 'io.example.other', MOVED, 33), InstallContractError);
-  // A launcher is held to its own id: the old app never names a moved class.
+  // The old app is never started, by its own launcher or the new one.
+  assert.throws(() => buildLaunch(nonce, LEGACY_PACKAGE_ID, OLD_APP_LAUNCH, 33), InstallContractError);
   assert.throws(() => buildLaunch(nonce, LEGACY_PACKAGE_ID, MOVED, 33), InstallContractError);
 });
 
-test('the preflight reads each accepted package and its data on its own', () => {
+test('no panel program is built for the old app', () => {
+  assert.ok(buildInstalledObservation(nonce, PACKAGE_ID).includes(`pm path ${PACKAGE_ID})`));
+  assert.throws(() => buildInstalledObservation(nonce, LEGACY_PACKAGE_ID),
+    error => error instanceof InstalledObservationError && error.code === 'invalid_request');
+  assert.ok(buildVendorDisplaySettlement(nonce, PACKAGE_ID).includes(PACKAGE_ID));
+  assert.throws(() => buildVendorDisplaySettlement(nonce, LEGACY_PACKAGE_ID), /vendor_setup_unreadable/);
+  for (const component of LAUNCH_COMPONENTS[PACKAGE_ID]) assert.match(buildHomeClaim(component), /set-home-activity/);
+  assert.throws(() => buildHomeClaim(OLD_APP_LAUNCH), RangeError);
+});
+
+test('the preflight still reads the old app and its data, as well as this one', () => {
   const program = buildPreflight(nonce);
-  for (const packageId of ACCEPTED_PACKAGE_IDS) {
+  assert.deepEqual([...new Set(RESIDUE_PROBES.map(({ packageId }) => packageId))], PROBED);
+  for (const packageId of PROBED) {
     assert.ok(program.includes(`pm path ${packageId};`), packageId);
     assert.ok(program.includes(`pm list packages -u ${packageId};`), packageId);
     for (const base of ['/data/user/0', '/data/data', '/data/user_de/0']) {
@@ -60,20 +75,21 @@ test('the preflight reads each accepted package and its data on its own', () => 
   }
 });
 
-test('USB classification refuses existing panels including legacy to successor migration', () => {
+test('USB classification refuses every existing panel, the old app included', () => {
   const none = new Set();
-  for (const target of ACCEPTED_PACKAGE_IDS) {
-    assert.equal(classifyTarget(target, [], none), false);
-    for (const installed of [[LEGACY_PACKAGE_ID], [SUCCESSOR_PACKAGE_ID], ACCEPTED_PACKAGE_IDS]) {
-      assert.throws(() => classifyTarget(target, installed, none), notClean);
-      for (const packageId of ACCEPTED_PACKAGE_IDS) {
-        assert.throws(() => classifyTarget(target, installed, new Set([packageId])), notClean);
-      }
-    }
-    for (const packageId of ACCEPTED_PACKAGE_IDS) {
-      assert.throws(() => classifyTarget(target, [], new Set([packageId])), notClean);
+  assert.equal(classifyTarget(PACKAGE_ID, [], none), false);
+  for (const installed of [[LEGACY_PACKAGE_ID], [PACKAGE_ID], PROBED]) {
+    assert.throws(() => classifyTarget(PACKAGE_ID, installed, none), notClean);
+    for (const packageId of PROBED) {
+      assert.throws(() => classifyTarget(PACKAGE_ID, installed, new Set([packageId])), notClean);
     }
   }
+  for (const packageId of PROBED) {
+    assert.throws(() => classifyTarget(PACKAGE_ID, [], new Set([packageId])), notClean);
+  }
+  // The old app is never an install target.
+  assert.throws(() => classifyTarget(LEGACY_PACKAGE_ID, [], none),
+    error => error instanceof PreflightError && error.code === 'invalid_request');
 });
 
 // Whole-body cases: `classifyTarget` above is the rule, these prove the wiring
@@ -85,18 +101,20 @@ function section(name, values, status = 0) {
     `HAPANELD_PREFLIGHT_${name}_END:${nonce}:${status}`];
 }
 
-function preflightBody({ installed = [], residue = [] } = {}) {
+function preflightBody({ installed = [], retained = [], residue = [] } = {}) {
   const lines = [`HAPANELD_PREFLIGHT_BEGIN:${nonce}`,
     ...section('MODEL', ['Test Panel']), ...section('SERIAL', ['SERIAL-1']),
     ...section('ABI', ['arm64-v8a']), ...section('SDK', ['34']),
     ...section('UID', ['2000']), ...section('SECURE', ['1']),
     ...section('DEBUGGABLE', ['0']), ...section('SU', ['absent']),
     ...section('LIVE', ['package:/system/framework/framework-res.apk'])];
-  ACCEPTED_PACKAGE_IDS.forEach((packageId, index) => {
+  PROBED.forEach((packageId, index) => {
     const present = installed.includes(packageId);
+    // Retained alone: uninstalled with its data kept, so `pm path` finds nothing.
+    const kept = present || retained.includes(packageId);
     lines.push(...section(`PACKAGE${index}`,
       present ? [`package:/data/app/${packageId}-1/base.apk`] : [], present ? 0 : 1));
-    lines.push(...section(`RETAINED${index}`, present ? [`package:${packageId}`] : []));
+    lines.push(...section(`RETAINED${index}`, kept ? [`package:${packageId}`] : []));
   });
   for (let index = 0; index < 3; index += 1) lines.push(...section(`BASE${index}`, ['readable']));
   RESIDUE_PROBES.forEach(({ packageId }, index) => lines.push(
@@ -105,22 +123,26 @@ function preflightBody({ installed = [], residue = [] } = {}) {
   return lines.join('\n');
 }
 
-test('a whole preflight body reads each identity from its own sections', () => {
-  for (const packageId of ACCEPTED_PACKAGE_IDS) {
-    const clean = parsePreflight(preflightBody(), nonce, { ...DESCRIPTOR, packageId });
-    assert.equal(clean.rootMode, 'rootless');
-    assert.equal(clean.installationAdmission, 'clean_preflight');
-  }
+test('a whole preflight body reads each probed id from its own sections', () => {
+  const target = { ...DESCRIPTOR, packageId: PACKAGE_ID };
+  const clean = parsePreflight(preflightBody(), nonce, target);
+  assert.equal(clean.rootMode, 'rootless');
+  assert.equal(clean.installationAdmission, 'clean_preflight');
 
-  for (const target of ACCEPTED_PACKAGE_IDS) {
-    for (const installed of ACCEPTED_PACKAGE_IDS) {
-      assert.throws(() => parsePreflight(preflightBody({ installed: [installed] }),
-        nonce, { ...DESCRIPTOR, packageId: target }), notClean);
-    }
-    for (const residue of ACCEPTED_PACKAGE_IDS) {
-      assert.throws(() => parsePreflight(preflightBody({ residue: [residue] }),
-        nonce, { ...DESCRIPTOR, packageId: target }), notClean);
-    }
+  assert.throws(() => parsePreflight(preflightBody({ installed: [PACKAGE_ID] }), nonce, target), notClean);
+  assert.throws(() => parsePreflight(preflightBody({ retained: [PACKAGE_ID] }), nonce, target), notClean);
+  assert.throws(() => parsePreflight(preflightBody({ residue: [PACKAGE_ID] }), nonce, target), notClean);
+  // An old-app descriptor is never admitted, even on a clean panel.
+  assert.throws(() => parsePreflight(preflightBody(), nonce, { ...DESCRIPTOR, packageId: LEGACY_PACKAGE_ID }),
+    error => error instanceof PreflightError && error.code === 'invalid_request');
+});
+
+test('a panel holding only the old app is refused, never given the new app beside it', () => {
+  const target = { ...DESCRIPTOR, packageId: PACKAGE_ID };
+  for (const body of [preflightBody({ installed: [LEGACY_PACKAGE_ID] }),
+    preflightBody({ retained: [LEGACY_PACKAGE_ID] }),
+    preflightBody({ residue: [LEGACY_PACKAGE_ID] })]) {
+    assert.throws(() => parsePreflight(body, nonce, target), notClean);
   }
 });
 
@@ -141,7 +163,7 @@ function delegatedBody(residue = []) {
 
 test('root judges residue by the same rule the preflight already applied', () => {
   assert.equal(parseDelegatedProof(delegatedBody(), nonce), true);
-  for (const packageId of ACCEPTED_PACKAGE_IDS) {
+  for (const packageId of PROBED) {
     assert.throws(() => parseDelegatedProof(delegatedBody([packageId]), nonce),
       error => error instanceof DelegatedProofError && error.code === 'target_not_clean');
   }

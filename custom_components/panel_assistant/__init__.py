@@ -19,6 +19,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.typing import ConfigType
 
+from .blob import async_get_blobs
 from .browser_delivery import async_register_browser_delivery
 from .browser_panel import async_register_browser_panel
 from .build_feed import BuildFeedError, normalize_feed_url
@@ -26,18 +27,25 @@ from .client import HaPaneldClient, PanelHealth, normalize_address
 from .const import CONF_AUTHORITY, DOMAIN
 from .coordinator import HaPaneldDataUpdateCoordinator
 from .device import (
+    async_follow_panel_area,
+    async_follow_panel_name,
     async_refresh_panel_device,
     panel_device_info,
     panel_reported_name,
 )
+from .discovery import async_offer_migration_targets
 from .embed import (
     REASON_ENTRY_UNLOADED as EMBED_ENTRY_UNLOADED,
 )
 from .embed import (
+    STATE_UNREACHABLE,
     async_get_embed_sessions,
     async_setup_embed,
+    panel_state,
 )
+from .entry_issues import async_delete_entry_issues, async_delete_orphan_issues
 from .feed_coordinator import CONF_BUILD_FEED, DATA_BUILD_FEED, BuildFeedCoordinator
+from .foreign_ha import async_clear_foreign_ha_issue
 from .ha_url import async_setup_connection_info
 from .install_artifacts import register_feed_download_host
 from .install_executor import (
@@ -45,45 +53,33 @@ from .install_executor import (
     async_resume_loaded_install_jobs,
 )
 from .lifecycle import async_setup_lifecycle
-from .microphone_repair import async_delete_microphone_issue
-from .migration_targets import async_offer_migration_targets
 from .native import CONF_NATIVE_ENTITIES, NATIVE_ONLY_PLATFORMS
-from .panel_move import (
-    async_evaluate_successor_move,
-    async_recover_moved_identity,
-    async_restore_move_offer,
-)
-from .permission_repair import permission_issue_id
-from .proximity_repair import proximity_issue_id
 from .removed_panels import (
     async_forget_removed_panel,
     async_load_removed_panels,
     async_remember_removed_panel,
 )
-from .restart_repair import async_setup_restart_check
-from .transport import (
-    REASON_ENTRY_UNLOADED,
-    async_apply_update_policy,
-    async_delete_binding_issue,
-    async_delete_merged_identity_issue,
-    async_get_sessions,
-    async_setup_transport,
-)
-from .update_coordinator import PanelUpdateCoordinator
-from .update_route_repair import no_update_route_issue_id
-from .upgrade_repairs import (
-    async_delete_upgrade_issues,
+from .repairs_microphone import async_delete_microphone_issue
+from .repairs_restart import async_setup_restart_check
+from .repairs_upgrade import (
     async_evaluate_app_too_old,
+    async_evaluate_old_app,
     async_raise_needs_090,
     needs_090,
     needs_090_issue_id,
 )
+from .transport import async_delete_merged_identity_issue, async_setup_transport
+from .transport_protocol import REASON_ENTRY_UNLOADED
+from .transport_sessions import async_apply_update_policy, async_get_sessions
+from .ui_relay import async_setup_ui_relay
+from .update_coordinator import PanelUpdateCoordinator
 from .voice import (
     async_follow_voice,
     async_load_voice,
     async_setup_voice,
     satellite_known,
 )
+from .voice_commands import async_setup_voice_commands
 from .voice_stream import async_get_voice_stream, async_setup_voice_stream
 
 PLATFORMS = [Platform.SENSOR, Platform.UPDATE, *NATIVE_ONLY_PLATFORMS]
@@ -114,6 +110,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             DOMAIN,
             CONF_NATIVE_ENTITIES,
         )
+    await async_delete_orphan_issues(hass)
     # Before the commands exist, so no hello is answered without them.
     await async_load_removed_panels(hass)
     await async_setup_connection_info(hass)
@@ -121,8 +118,11 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     await async_setup_voice_stream(hass)
     async_setup_transport(hass)
     async_setup_voice(hass)
+    await async_setup_voice_commands(hass)
     async_setup_embed(hass)
+    async_setup_ui_relay(hass)
     async_register_browser_delivery(hass)
+    async_get_blobs(hass)
     await async_register_browser_panel(hass)
     await async_setup_restart_check(hass)
     # Installing or updating Panel Assistant means a restart, and someone at
@@ -187,7 +187,7 @@ async def _async_reconcile_install_receipt(
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Drop the authority option: every panel is native.
+    """Drop the authority option and the channel record: every panel is native.
 
     A minor version, so Panel Assistant 0.9.0, which a panel never moved off
     MQTT must go back to, still loads the entry. The move record stays.
@@ -196,7 +196,14 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         options = {
             key: value for key, value in entry.options.items() if key != CONF_AUTHORITY
         }
-        hass.config_entries.async_update_entry(entry, options=options, minor_version=2)
+        data = {
+            key: value
+            for key, value in entry.data.items()
+            if key != "supported_channels"
+        }
+        hass.config_entries.async_update_entry(
+            entry, data=data, options=options, minor_version=2
+        )
     return True
 
 
@@ -205,9 +212,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     from .identity import reconcile_identity
 
     await _async_resume_install_jobs(hass)
-    # A finished move may have left its new identity saved in the entity
-    # registry only; adopt it before anything compares identities.
-    await async_recover_moved_identity(hass, entry)
     address = normalize_address(entry.data[CONF_ADDRESS])
     client = HaPaneldClient(async_get_clientsession(hass), address)
     coordinator = HaPaneldDataUpdateCoordinator(hass, client, entry.entry_id)
@@ -265,8 +269,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
 
     def card() -> DeviceInfo:
+        # When the sidebar can only say the panel is unreachable, the link
+        # goes straight to the panel's page at the stored address, which
+        # address recovery and discovery move to wherever it last answered.
+        unreachable = panel_state(entry) == STATE_UNREACHABLE
         return panel_device_info(
-            entry.entry_id, coordinator.data, entry.title, coordinator.app_build
+            entry.entry_id,
+            coordinator.data,
+            entry.title,
+            coordinator.app_build,
+            f"{coordinator.client.address.base_url}/" if unreachable else None,
         )
 
     # The one writer of the panel's device card: created here, before any
@@ -282,19 +294,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
 
     refresh_card()
     entry.async_on_unload(coordinator.async_add_listener(refresh_card))
+    entry.async_on_unload(async_follow_panel_name(hass, entry, coordinator))
+    entry.async_on_unload(async_follow_panel_area(hass, entry))
+
+    def clear_foreign_ha_warning() -> None:
+        if coordinator.connected:
+            async_clear_foreign_ha_issue(hass, entry.entry_id)
+
+    clear_foreign_ha_warning()
+    entry.async_on_unload(coordinator.async_add_listener(clear_foreign_ha_warning))
+    entry.async_on_unload(lambda: async_clear_foreign_ha_issue(hass, entry.entry_id))
     await hass.config_entries.async_forward_entry_setups(entry, platforms)
     if satellite_known(hass, entry):
         await async_load_voice(hass, entry, platforms)
     runtime_data.voice_setup = async_follow_voice(hass, entry, platforms)
-    # A panel still on the old app id is offered the move to the new app.
-    await async_restore_move_offer(hass, entry)
-    async_evaluate_successor_move(hass, entry)
+    # A panel still on the old app id is told to install 0.9.0 first.
+    async_evaluate_old_app(hass, entry)
     entry.async_on_unload(
-        coordinator.async_add_listener(
-            lambda: async_evaluate_successor_move(hass, entry)
-        )
+        coordinator.async_add_listener(lambda: async_evaluate_old_app(hass, entry))
     )
-    # After the move offer, which stands in for this when both apply.
+    # After the old-app refusal, which stands in for this when both apply.
     async_evaluate_app_too_old(hass, entry)
     entry.async_on_unload(
         coordinator.async_add_listener(lambda: async_evaluate_app_too_old(hass, entry))
@@ -334,12 +353,8 @@ async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
 
     The panel is remembered so its next hello learns of the removal.
     """
-    async_delete_binding_issue(hass, entry.entry_id)
-    ir.async_delete_issue(hass, DOMAIN, permission_issue_id(entry.entry_id))
-    ir.async_delete_issue(hass, DOMAIN, proximity_issue_id(entry.entry_id))
-    ir.async_delete_issue(hass, DOMAIN, no_update_route_issue_id(entry.entry_id))
-    async_delete_microphone_issue(hass, entry.entry_id)
-    async_delete_upgrade_issues(hass, entry.entry_id)
+    await async_delete_entry_issues(hass, entry.entry_id)
+    async_clear_foreign_ha_issue(hass, entry.entry_id)
     async_delete_merged_identity_issue(hass, entry)
     async_get_sessions(hass).forget_entry(entry.entry_id)
     # The panel's Sendspin key goes with its entry; a re-added panel gets a new one.

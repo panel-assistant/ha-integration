@@ -1,4 +1,4 @@
-import { isAcceptedPackageId } from './app-identity.mjs';
+import { PACKAGE_ID } from './app-identity.mjs';
 import { decodeLines, readShell } from './shell-session.mjs';
 import { newNonce } from './shared.mjs';
 
@@ -16,7 +16,7 @@ const validNonce = value => {
 // path output from becoming shell syntax or a second command argument.
 export function buildInstalledObservation(nonce, packageId) {
   validNonce(nonce);
-  if (!isAcceptedPackageId(packageId)) throw new InstalledObservationError('invalid_request');
+  if (packageId !== PACKAGE_ID) throw new InstalledObservationError('invalid_request');
   return [`echo HAPANELD_INSTALLED_BEGIN:${nonce}`,
     `hapaneld_package=$(pm path ${packageId})`, 'hapaneld_pm_status=$?',
     'if [ "$hapaneld_pm_status" -ne 0 ] && [ "$hapaneld_pm_status" -ne 1 ]; then echo invalid',

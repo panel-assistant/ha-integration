@@ -16,7 +16,7 @@ from custom_components.panel_assistant.client import (
     CannotConnectError,
     InvalidAddressError,
     InvalidResponseError,
-    PanelAddress,
+    PanelSetupState,
 )
 from custom_components.panel_assistant.config_flow import (
     HaPaneldConfigFlow,
@@ -24,14 +24,12 @@ from custom_components.panel_assistant.config_flow import (
 )
 from custom_components.panel_assistant.const import (
     DOMAIN,
+    INSTALL_RECOVERY_PLACEHOLDERS,
     help_url,
 )
 from custom_components.panel_assistant.install_network import (
     InstallNetworkError,
     InstallNetworkErrorCode,
-)
-from custom_components.panel_assistant.provisioning import (
-    InstallTargetProbe,
 )
 from custom_components.panel_assistant.release import (
     ReleaseResolutionError,
@@ -47,6 +45,7 @@ from .config_flow_helpers import (
     _probe,
     _start_step,
 )
+from .install_recovery_text import assert_names_recovery_page
 
 # Bind the shared autouse fixtures here so pytest applies them to this module.
 install_release_catalog = config_flow_helpers.install_release_catalog
@@ -81,6 +80,7 @@ async def test_install_rejects_invalid_address_before_network_calls(
     assert result["step_id"] == "add_panel"
     assert result["errors"] == {"base": "invalid_address"}
     assert result["description_placeholders"] == {
+        **INSTALL_RECOVERY_PLACEHOLDERS,
         "panel_access_url": help_url("panel-access"),
         "panel_help_url": help_url("panel-unreachable"),
     }
@@ -363,8 +363,8 @@ async def test_install_rejects_an_http_port_as_an_adb_port(
         ),
     ):
         client_class.return_value.async_get_health = health_mock
-        client_class.return_value.async_get_setup_complete = AsyncMock(
-            return_value=True
+        client_class.return_value.async_get_setup_state = AsyncMock(
+            return_value=PanelSetupState(complete=True)
         )
         form = await _start_step(hass, "add_panel")
         result = await hass.config_entries.flow.async_configure(
@@ -392,7 +392,9 @@ async def test_install_existing_duplicate_address_is_rejected(
     hass: HomeAssistant,
 ) -> None:
     """The install path shares the exact existing endpoint identity."""
-    health_mock = AsyncMock(side_effect=[HEALTH, HEALTH, BETA_HEALTH])
+    health_mock = AsyncMock(
+        side_effect=[HEALTH, HEALTH, BETA_HEALTH, BETA_HEALTH, BETA_HEALTH]
+    )
     with patch(
         "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
         health_mock,
@@ -414,17 +416,22 @@ async def test_install_existing_duplicate_address_is_rejected(
     assert duplicate["reason"] == "already_configured"
 
 
-async def test_install_unavailable_duplicate_address_is_rejected_before_probe(
+@pytest.mark.parametrize(
+    "state",
+    ["adb_unreachable", "installed", "migration_candidate", "retained_or_ambiguous"],
+)
+async def test_install_unavailable_duplicate_without_clean_probe_is_rejected(
     hass: HomeAssistant,
+    state: str,
 ) -> None:
-    """An unavailable configured endpoint retains its config-entry identity."""
+    """An unavailable endpoint is not proof that its app was removed."""
     MockConfigEntry(
         domain=DOMAIN,
         title="Configured panel",
         data={CONF_ADDRESS: "panel.local"},
     ).add_to_hass(hass)
     health_mock = AsyncMock(side_effect=CannotConnectError)
-    probe_mock = AsyncMock()
+    probe_mock = AsyncMock(return_value=_probe(state))
     with (
         patch(
             "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
@@ -442,8 +449,8 @@ async def test_install_unavailable_duplicate_address_is_rejected_before_probe(
 
     assert duplicate["type"] is FlowResultType.ABORT
     assert duplicate["reason"] == "already_configured"
-    health_mock.assert_not_awaited()
-    probe_mock.assert_not_awaited()
+    health_mock.assert_awaited_once()
+    probe_mock.assert_awaited_once()
 
 
 @pytest.mark.parametrize("health_error", [CannotConnectError, InvalidResponseError])
@@ -500,6 +507,7 @@ async def test_install_candidate_readiness_is_non_mutating_until_confirmation(
         assert confirm["type"] is FlowResultType.FORM
         assert confirm["step_id"] == "confirm_install_candidate"
         assert confirm["description_placeholders"] == {
+            **INSTALL_RECOVERY_PLACEHOLDERS,
             "address": "panel.local",
             "model": "WF1589T",
             "serial": "serial-123",
@@ -606,6 +614,7 @@ async def test_install_candidate_without_identity_fails_closed(
         )
 
     assert result["errors"] == {"base": "retained_or_ambiguous"}
+    await assert_names_recovery_page(hass, "config.error.retained_or_ambiguous", result)
     release_mock.assert_not_awaited()
     assert not hass.config_entries.async_entries(DOMAIN)
 
@@ -646,7 +655,10 @@ async def test_install_classification_refusals_return_to_address_form(
 async def test_install_unauthorized_requires_physical_approval_without_creating_key(
     hass: HomeAssistant,
 ) -> None:
-    """The read-only first probe cannot create or offer Home Assistant's ADB key."""
+    """The read-only first probe cannot create or offer Home Assistant's ADB key.
+
+    Only choosing a version to install starts the authorization.
+    """
     signer_mock = AsyncMock()
     probe_mock = AsyncMock(return_value=_probe("adb_unauthorized"))
     with (
@@ -673,66 +685,11 @@ async def test_install_unauthorized_requires_physical_approval_without_creating_
         )
         assert choose["step_id"] == "choose_version"
         assert choose["description_placeholders"] == {"address": "panel.local"}
-        signer_mock.assert_not_awaited()
-        result = await _choose_version(hass, choose)
 
-    assert result["type"] is FlowResultType.FORM
-    assert result["step_id"] == "authorize_adb"
-    assert result["description_placeholders"] == {"address": "panel.local"}
-    assert result["errors"] is None
     signer_mock.assert_not_awaited()
     probe_mock.assert_awaited_once()
     assert len(probe_mock.await_args.args) == 1
     assert probe_mock.await_args.args[0].stored_value == "192.168.1.23"
-    assert not hass.config_entries.async_entries(DOMAIN)
-
-
-async def test_install_authorization_retry_uses_persistent_signer(
-    hass: HomeAssistant,
-) -> None:
-    """A retry offers the shared signer and remains actionable until approved."""
-    signer = object()
-    signer_mock = AsyncMock(return_value=signer)
-    probe_mock = AsyncMock(
-        side_effect=[_probe("adb_unauthorized"), _probe("adb_unauthorized")]
-    )
-    with (
-        patch(
-            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
-            AsyncMock(side_effect=CannotConnectError),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_get_adb_signer",
-            signer_mock,
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_probe_install_target",
-            probe_mock,
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_resolve_install_choice",
-            AsyncMock(return_value=RELEASE),
-        ),
-    ):
-        form = await _start_step(hass, "add_panel")
-        authorize = await _choose_version(
-            hass,
-            await hass.config_entries.flow.async_configure(
-                form["flow_id"], {CONF_ADDRESS: "panel.local"}
-            ),
-        )
-        result = await hass.config_entries.flow.async_configure(
-            authorize["flow_id"], {}
-        )
-
-    assert result["type"] is FlowResultType.FORM
-    assert result["step_id"] == "authorize_adb"
-    assert result["errors"] == {"base": "adb_still_unauthorized"}
-    signer_mock.assert_awaited_once_with(hass)
-    assert len(probe_mock.await_args_list[0].args) == 1
-    assert probe_mock.await_args_list[0].args[0].stored_value == "192.168.1.23"
-    assert probe_mock.await_args_list[1].args[0].stored_value == "192.168.1.23"
-    assert probe_mock.await_args_list[1].args[1] is signer
     assert not hass.config_entries.async_entries(DOMAIN)
 
 
@@ -761,11 +718,8 @@ async def test_install_authorization_revalidates_pin_before_loading_key(
         ),
     ):
         form = await _start_step(hass, "add_panel")
-        authorize = await _choose_version(
-            hass,
-            await hass.config_entries.flow.async_configure(
-                form["flow_id"], {CONF_ADDRESS: "panel.local"}
-            ),
+        choose = await hass.config_entries.flow.async_configure(
+            form["flow_id"], {CONF_ADDRESS: "panel.local"}
         )
         with patch(
             "custom_components.panel_assistant.config_flow.async_revalidate_install_target",
@@ -775,9 +729,7 @@ async def test_install_authorization_revalidates_pin_before_loading_key(
                 )
             ),
         ) as revalidate_mock:
-            result = await hass.config_entries.flow.async_configure(
-                authorize["flow_id"], {}
-            )
+            result = await _choose_version(hass, choose)
 
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "authorize_adb"
@@ -819,90 +771,6 @@ def test_install_confirmation_device_facts_are_literal(
     assert probe.model == model and probe.serial == "serial_123"
 
 
-async def test_install_authorization_approval_reaches_release_preview(
-    hass: HomeAssistant,
-) -> None:
-    """Physical approval reclassifies with the signer before resolving a release."""
-    signer = object()
-    signer_mock = AsyncMock(return_value=signer)
-    candidate = _probe(
-        "install_candidate",
-        model="WF1589T",
-        serial="serial-123",
-        primary_abi="arm64-v8a",
-        android_sdk=31,
-    )
-    offered_keys: list[object] = []
-    physically_approved = False
-
-    async def probe_protected_panel(
-        _address: PanelAddress,
-        candidate_signer: object | None = None,
-        *,
-        authorize: bool = False,
-    ) -> InstallTargetProbe:
-        if authorize and candidate_signer is signer:
-            offered_keys.append(candidate_signer)
-            if physically_approved:
-                return candidate
-        return _probe("adb_unauthorized")
-
-    probe_mock = AsyncMock(side_effect=probe_protected_panel)
-    release_mock = AsyncMock(return_value=RELEASE)
-    with (
-        patch(
-            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
-            AsyncMock(side_effect=CannotConnectError),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_get_adb_signer",
-            signer_mock,
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_probe_install_target",
-            probe_mock,
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_resolve_install_choice",
-            release_mock,
-        ),
-    ):
-        form = await _start_step(hass, "add_panel")
-        authorize = await _choose_version(
-            hass,
-            await hass.config_entries.flow.async_configure(
-                form["flow_id"], {CONF_ADDRESS: "panel.local"}
-            ),
-        )
-        assert offered_keys == []
-        pending = await hass.config_entries.flow.async_configure(
-            authorize["flow_id"], {}
-        )
-        assert pending["step_id"] == "authorize_adb"
-        assert pending["errors"] == {"base": "adb_still_unauthorized"}
-        assert offered_keys == [signer]
-        physically_approved = True
-        result = await hass.config_entries.flow.async_configure(
-            authorize["flow_id"], {}
-        )
-
-    assert result["type"] is FlowResultType.FORM
-    assert result["step_id"] == "confirm_install_candidate"
-    assert result["description_placeholders"] == {
-        "address": "panel.local",
-        "model": "WF1589T",
-        "serial": "serial-123",
-        "abi": "arm64-v8a",
-        "sdk": "31",
-        "version": "0.9.7",
-        "tag": "v0.9.7",
-        "sha256": "a" * 64,
-    }
-    assert offered_keys == [signer, signer]
-    release_mock.assert_awaited_once()
-    assert not hass.config_entries.async_entries(DOMAIN)
-
-
 async def test_install_authorization_credential_storage_error_is_actionable(
     hass: HomeAssistant,
 ) -> None:
@@ -927,14 +795,11 @@ async def test_install_authorization_credential_storage_error_is_actionable(
         ),
     ):
         form = await _start_step(hass, "add_panel")
-        authorize = await _choose_version(
+        result = await _choose_version(
             hass,
             await hass.config_entries.flow.async_configure(
                 form["flow_id"], {CONF_ADDRESS: "panel.local"}
             ),
-        )
-        result = await hass.config_entries.flow.async_configure(
-            authorize["flow_id"], {}
         )
 
     assert result["type"] is FlowResultType.FORM
@@ -992,14 +857,11 @@ async def test_install_authorization_failures_create_no_config_entry(
         ),
     ):
         form = await _start_step(hass, "add_panel")
-        authorize = await _choose_version(
+        result = await _choose_version(
             hass,
             await hass.config_entries.flow.async_configure(
                 form["flow_id"], {CONF_ADDRESS: "panel.local"}
             ),
-        )
-        result = await hass.config_entries.flow.async_configure(
-            authorize["flow_id"], {}
         )
 
     assert result["type"] is FlowResultType.FORM

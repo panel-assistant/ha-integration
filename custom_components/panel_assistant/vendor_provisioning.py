@@ -1,5 +1,21 @@
 """Vendor setup Panel Assistant applies during installation, and hands back.
 
+This is Panel Assistant's custom support: the panel- and vendor-specific steps
+on its install, update, repair and removal paths live here and in the browser
+twin ``vendor-provisioning.mjs``, so generic code holds no vendor names. The
+grant step that every install, update and repair runs appends
+``VENDOR_PROBE`` and asks ``needs_vendor_setup``; removal runs the restore
+program, which acts only on a record a setup left. A device profile cannot
+select these steps, because they run over ADB before the app answers and on
+panels whose installed build predates any such profile field.
+
+Panels that use it, and why:
+
+- Meta Portal (codenames ``omni`` and ``aloha``): Meta's dream, swipe-up bar
+  and package verifier, below.
+- Shelly Wall Display (any with Shelly's ``cloud.shelly.stargate`` launcher):
+  the launcher's corner overlay, below.
+
 Two vendor recipes. Meta's Portal: Meta's dream service starts on every sleep
 whatever ``screensaver_enabled`` says and sends HOME, and Meta's control centre
 draws a swipe-up bar over the panel app. Installation blanks both dream
@@ -35,7 +51,9 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Final
+from typing import ClassVar, Final
+
+from .app_identity import PACKAGE_ID
 
 #: Meta's device codenames for the Portals with a screen: ``omni`` is the
 #: Android 10 (2nd gen) image, ``aloha`` the Android 9 (1st gen) one. The app's
@@ -55,6 +73,15 @@ META_CONTROL_CENTER: Final = "com.facebook.alohaapps.controlcenter"
 META_RESTORE_RECORD: Final = "/data/local/tmp/panel-assistant-meta-portal-restore"
 #: Shelly's launcher, which draws the corner overlay on every Wall Display.
 SHELLY_LAUNCHER: Final = "cloud.shelly.stargate"
+#: Removal hands HOME to the vendor's launcher over ADB when the app could not
+#: hand it back. Shelly's Wall Displays only: Stargate is a protected
+#: device-owner package, so an ordinary app cannot make it HOME, but the
+#: panel's shell can. Elsewhere the command fails and changes nothing.
+VENDOR_HOME_COMMAND: Final = (
+    f"cmd package set-home-activity {SHELLY_LAUNCHER}/.activities.SplashActivity"
+)
+#: The launchers that command makes HOME.
+VENDOR_HOME_PACKAGES: Final = frozenset({SHELLY_LAUNCHER})
 SHELLY_RESTORE_RECORD: Final = "/data/local/tmp/panel-assistant-shelly-restore"
 META_VERIFIER_RECORD: Final = (
     "/data/local/tmp/panel-assistant-meta-portal-verifier-restore"
@@ -85,6 +112,31 @@ _QUIET: Final = ">/dev/null 2>&1"
 _SHELLY_OVERLAY_FUNCTION: Final = _OVERLAY_FUNCTION.replace(
     "hp_overlay()", "hp_shelly_overlay()"
 ).replace(META_CONTROL_CENTER, SHELLY_LAUNCHER)
+
+
+#: Read by the install grant step after its HOME readback: the device codename
+#: and whether Shelly's launcher is installed. ``needs_vendor_setup`` reads the
+#: two lines back.
+VENDOR_PROBE: Final = (
+    'echo "device:$(getprop ro.product.device)"',
+    f'if [ -n "$(pm path {SHELLY_LAUNCHER} 2>/dev/null)" ]; '
+    "then echo vendor:shelly; else echo vendor:none; fi",
+)
+
+
+def needs_vendor_setup(device: str, vendor: str) -> bool | None:
+    """Whether ``VENDOR_PROBE`` found a panel a recipe here serves.
+
+    None when either line is not one the probe prints.
+    """
+    if not device.startswith("device:") or vendor not in (
+        "vendor:shelly",
+        "vendor:none",
+    ):
+        return None
+    return device.removeprefix("device:") in META_PORTAL_DEVICES or (
+        vendor == "vendor:shelly"
+    )
 
 
 def _read_back() -> tuple[str, ...]:
@@ -307,6 +359,12 @@ def vendor_restore_command(nonce: str) -> str:
 class VendorSetup:
     """What a Portal reported after its vendor setup, read in the same shell."""
 
+    #: Logged when the setup did not converge.
+    warning: ClassVar[str] = (
+        "The panel did not take Panel Assistant's Meta Portal setup: Meta's "
+        "screensaver or its swipe-up bar may still show over the panel app"
+    )
+
     #: Meta's values as recorded before the change, or None with no record.
     record: tuple[str, str, str] | None
     screensaver_components: str | None
@@ -334,6 +392,12 @@ class VendorSetup:
 class ShellySetup:
     """What a panel with Shelly's launcher reported after its vendor setup."""
 
+    #: Logged when the setup did not converge.
+    warning: ClassVar[str] = (
+        "The panel did not take Panel Assistant's Shelly setup: Shelly's "
+        "corner overlay may still show over the panel app"
+    )
+
     #: The launcher's overlay mode as recorded before the change, or None.
     record: str | None
     #: allow, deny, ..., ``absent`` without the launcher, or ``unknown``.
@@ -343,6 +407,20 @@ class ShellySetup:
     def converged(self) -> bool:
         """Overlay denied, and the mode to undo it on record."""
         return self.record is not None and self.launcher_overlay in ("deny", "absent")
+
+
+#: Logged when the panel's answer to the setup could not be read.
+UNREAD_SETUP_WARNING: Final = (
+    "The panel did not take Panel Assistant's vendor setup: on a Meta "
+    "Portal, Meta's screensaver or its swipe-up bar may still show over "
+    "the panel app; on a Shelly Wall Display, Shelly's corner overlay"
+)
+#: Logged by removal, with the restore outcome, when a record was not put back.
+RESTORE_WARNING: Final = (
+    "Could not put back the vendor settings Panel Assistant changed on "
+    "this panel (%s): Meta's screensaver and swipe-up bar, or Shelly's "
+    "corner overlay, stay off after the app is removed"
+)
 
 
 class VendorResponseError(ValueError):
@@ -421,5 +499,127 @@ def parse_vendor_setup(lines: list[str]) -> VendorSetup | ShellySetup | None:
 def parse_vendor_restore(lines: list[str]) -> str:
     """``restored``, ``unrestored``, or ``none`` when nothing was recorded."""
     if len(lines) != 1 or lines[0] not in ("restored", "unrestored", "none"):
+        raise VendorResponseError
+    return lines[0]
+
+
+# A client activity dump runs on Stargate's main Looper, after its synchronous
+# onResume. Display changes leave a durable restart flag whose consumption
+# exits that process and force-stops third-party apps. First observe the final
+# configuration while foreground (Android delays stopped activity callbacks),
+# then pause/resume again to consume even a flag set after the warmup resume.
+# Final app launch follows that completed resume or tracked process death.
+_DISPLAY_SETTLEMENT_PROGRAM: Final = r"""
+hp_component=cloud.shelly.stargate/.activities.MainActivity
+hp_vendor_dump() {
+  hp_dump=$(timeout 2 dumpsys activity "$hp_component" 2>/dev/null) || return 1
+  hp_dump_pid=$(printf '%s\n' "$hp_dump" |
+    grep -F "ACTIVITY $hp_component " | sed 's/.* pid=//')
+  hp_dump_state=$(printf '%s\n' "$hp_dump" |
+    sed -n 's/^[[:space:]]*\(mResumed=.* mFinished=.*\)$/\1/p')
+  hp_dump_config=$(printf '%s\n' "$hp_dump" |
+    sed -n 's/^[[:space:]]*mCurrentConfig={\(.*\)$/\1/p')
+  case "$hp_dump_pid" in ''|*[!0-9]*) return 1 ;; esac
+  [ "$hp_dump_pid" = "$(pidof cloud.shelly.stargate)" ] &&
+    [ -n "$hp_dump_state" ]
+}
+hp_font() {
+  printf '%s\n' "$1" | grep -Eq '^[0-9]+([.][0-9]+)?$' || return 1
+  case "$1" in *.*) printf '%s\n' "$1" | sed 's/0*$//;s/\.$//' ;;
+    *) printf '%s\n' "$1" ;; esac
+}
+hp_config_matches() {
+  hp_wm=$(wm density) || return 1
+  hp_density=$(printf '%s\n' "$hp_wm" | sed -n 's/^Override density: //p')
+  if [ -z "$hp_density" ]; then
+    hp_density=$(printf '%s\n' "$hp_wm" | sed -n 's/^Physical density: //p')
+  fi
+  case "$hp_density" in ''|*[!0-9]*) return 1 ;; esac
+  hp_density_token="$hp_density"dpi
+  case "$hp_dump_config" in *" $hp_density_token "*) ;; *) return 1 ;; esac
+  hp_scale=$(settings get system font_scale) || return 1
+  [ "$hp_scale" != null ] || hp_scale=1
+  hp_scale=$(hp_font "$hp_scale") || return 1
+  hp_client_scale=$(printf '%s\n' "$hp_dump_config" | cut -d ' ' -f 1)
+  hp_client_scale=$(hp_font "$hp_client_scale") || return 1
+  [ "$hp_scale" = "$hp_client_scale" ]
+}
+hp_vendor_start() {
+  [ "$(date +%s)" -lt "$hp_deadline" ] || return 1
+  hp_start=$(timeout 5 am start -W -n "$hp_component" 2>&1) || return 1
+  case "$hp_start" in *'Status: ok'*) return 0 ;; *) return 1 ;; esac
+}
+hp_settle_vendor_display() {
+  hp_packages=$(pm list packages cloud.shelly.stargate) || return 1
+  hp_package=$(printf '%s\n' "$hp_packages" |
+    grep -Fx 'package:cloud.shelly.stargate')
+  if [ -z "$hp_package" ]; then echo skipped; return; fi
+  hp_home=$(cmd package resolve-activity --brief \
+    -a android.intent.action.MAIN -c android.intent.category.HOME) || return 1
+  hp_home=$(printf '%s\n' "$hp_home" | tail -n 1)
+  case "$hp_home" in __HOME_PACKAGE__/*) ;; *) return 1 ;; esac
+  hp_deadline=$(( $(date +%s) + 20 ))
+  hp_matched=
+  for hp_attempt in 1 2; do
+    hp_old=$(pidof cloud.shelly.stargate)
+    case "$hp_old" in *[!0-9]*) return 1 ;; esac
+    hp_vendor_start || return 1
+    while [ "$(date +%s)" -lt "$hp_deadline" ]; do
+      if hp_vendor_dump &&
+        [ "$hp_dump_state" = 'mResumed=true mStopped=false mFinished=false' ] &&
+        hp_config_matches; then hp_matched=$hp_dump_pid; break; fi
+      hp_pid=$(pidof cloud.shelly.stargate)
+      case "$hp_pid" in *[!0-9]*) return 1 ;; esac
+      if [ -z "$hp_old" ] && [ -n "$hp_pid" ]; then hp_old=$hp_pid; fi
+      if [ -n "$hp_old" ] && [ ! -d "/proc/$hp_old" ]; then break; fi
+      sleep 0.2
+    done
+    [ -z "$hp_matched" ] || break
+  done
+  [ -n "$hp_matched" ] || return 1
+  input keyevent 3 || return 1
+  hp_paused=0
+  while [ "$(date +%s)" -lt "$hp_deadline" ]; do
+    if hp_vendor_dump && [ "$hp_dump_pid" = "$hp_matched" ] &&
+      hp_config_matches; then
+      case "$hp_dump_state" in
+        'mResumed=false mStopped=true mFinished=false'|\
+        'mResumed=false mStopped=false mFinished=false') hp_paused=1; break ;;
+      esac
+    fi
+    [ -d "/proc/$hp_matched" ] || return 1
+    sleep 0.2
+  done
+  [ "$hp_paused" = 1 ] || return 1
+  hp_vendor_start || return 1
+  while [ "$(date +%s)" -lt "$hp_deadline" ]; do
+    if [ ! -d "/proc/$hp_matched" ]; then echo settled; return; fi
+    if hp_vendor_dump && [ "$hp_dump_pid" = "$hp_matched" ] &&
+      [ "$hp_dump_state" = 'mResumed=true mStopped=false mFinished=false' ] &&
+      hp_config_matches; then echo settled; return; fi
+    sleep 0.2
+  done
+  return 1
+}
+""".strip()
+
+
+def vendor_display_settlement_command(nonce: str, package_id: str) -> str:
+    """Finish Shelly's pending display restart while setup still owns ADB."""
+    if not re.fullmatch(r"[a-f0-9]{32}", nonce) or package_id != PACKAGE_ID:
+        raise VendorResponseError
+    return "\n".join(
+        (
+            f"echo HAPANELD_VENDOR_DISPLAY_SETTLEMENT_BEGIN:{nonce}",
+            _DISPLAY_SETTLEMENT_PROGRAM.replace("__HOME_PACKAGE__", package_id),
+            "hp_settle_vendor_display || echo error",
+            f"echo HAPANELD_VENDOR_DISPLAY_SETTLEMENT_END:{nonce}:0",
+        )
+    )
+
+
+def parse_vendor_display_settlement(lines: list[str]) -> str:
+    """Only positive completion or a different vendor may accept setup."""
+    if len(lines) != 1 or lines[0] not in ("settled", "skipped"):
         raise VendorResponseError
     return lines[0]

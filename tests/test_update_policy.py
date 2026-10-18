@@ -13,6 +13,7 @@ from custom_components.panel_assistant.update_policy import (
     build_allowed,
     policy_for,
     prereleases_allowed,
+    version_allowed,
 )
 
 
@@ -121,7 +122,6 @@ async def test_offline_panel_options_default_off_and_remain_per_panel(
         domain=DOMAIN,
         unique_id="a" * 64,
         data={CONF_ADDRESS: "panel.local"},
-        options={"authority": "native"},
     )
     other = MockConfigEntry(
         domain=DOMAIN,
@@ -142,7 +142,35 @@ async def test_offline_panel_options_default_off_and_remain_per_panel(
         menu["flow_id"], {"prerelease_panel_builds": True}
     )
     assert saved["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {"authority": "native", "prerelease_panel_builds": True}
+    assert entry.options == {"prerelease_panel_builds": True}
     assert entry.data == {CONF_ADDRESS: "panel.local"}
     assert entry.unique_id == "a" * 64
     assert dict(other.options) == {}
+
+
+@pytest.mark.parametrize(
+    ("candidate", "code", "expected"),
+    [
+        ("1.0.1", 120, True),
+        ("1.0.0", 110, True),
+        ("1.0.0", 111, True),
+        ("0.9.11", 120, False),
+        ("1.0.0-rc2", 120, False),
+        ("1.0.0", 109, False),
+    ],
+    ids=[
+        "newer-release",
+        "same-build",
+        "same-name-higher-code",
+        "semantic-downgrade-release",
+        "older-prerelease-of-the-installed-stable",
+        "code-downgrade-release",
+    ],
+)
+def test_a_release_never_takes_a_1_0_panel_backwards(
+    candidate: str, code: int, expected: bool
+) -> None:
+    """Once a panel runs 1.0 a GitHub release older by name or build is refused."""
+    assert version_allowed(candidate, code, "1.0.0", 110) is expected
+    # Before 1.0 any admitted build may replace the running one.
+    assert version_allowed(candidate, code, "0.9.9", 990) is True

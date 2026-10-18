@@ -21,7 +21,8 @@ from .test_transport import DID, OTHER_DID, STATUS, _send
 def _health(did: str, legacy: str = DID):
     return parse_health_response(
         f"ha-paneld 0.9.8-rc2 panel=alpha build=1000 cfg=1a2b3c4d "
-        f"did={did} identity=install legacy_did={legacy} proto=5-5"
+        f"did={did} identity=install legacy_did={legacy} "
+        "pkg=io.panelassistant.android proto=5-5"
     )
 
 
@@ -226,7 +227,6 @@ async def test_automatic_upgrade_requires_surviving_exclusive_installation_proof
             "state": "complete",
             "entities": {entity.id: {"mqtt_device_id": device.id}},
         },
-        "supported_channels": {"did": DID, "channels": ["relay1"]},
     }
     hass.config_entries.async_update_entry(entry, data=data)
     if proof in ("deleted", "deleted_merged", "pruned"):
@@ -270,7 +270,6 @@ async def test_automatic_upgrade_requires_surviving_exclusive_installation_proof
         assert registry.async_get(entity.entity_id).id == entity.id
         assert registry.async_get(entity.entity_id).unique_id == f"{new_did}_relay1"
         assert entry.data["cutover"]["did"] == new_did
-        assert entry.data["supported_channels"]["did"] == new_did
         from homeassistant.helpers import issue_registry as ir
 
         from .test_transport import _hello
@@ -417,6 +416,59 @@ async def test_restart_finishes_registry_save_that_lagged_identity_commit(
     assert registry.async_get(old.entity_id).unique_id == f"{OTHER_DID}_relay1"
 
 
+async def test_setup_refuses_a_registry_split_across_two_identities(
+    hass, hass_read_only_user
+):
+    """Entities under two identities are never loaded as one panel's.
+
+    Neither stored rekey explains the split, so setup stops before any entity
+    or session is created, and nothing in the registry is rewritten.
+    """
+    third = "c" * 64
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="alpha",
+        unique_id=DID,
+        data={
+            CONF_ADDRESS: STORED,
+            "installation_identity": True,
+            "transport_user_id": hass_read_only_user.id,
+        },
+    )
+    entry.add_to_hass(hass)
+    registry = er.async_get(hass)
+    own = registry.async_get_or_create(
+        "switch", DOMAIN, f"{DID}_relay1", config_entry=entry
+    )
+    stray = registry.async_get_or_create(
+        "switch", DOMAIN, f"{third}_relay2", config_entry=entry
+    )
+    with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=_health(DID)),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=STATUS),
+        ),
+        patch(
+            "custom_components.panel_assistant.async_resume_loaded_install_jobs",
+            AsyncMock(return_value=()),
+        ),
+        patch(
+            "custom_components.panel_assistant._async_reconcile_install_receipt",
+            AsyncMock(),
+        ),
+    ):
+        assert not await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+    assert entry.state is config_entries.ConfigEntryState.SETUP_RETRY
+    assert registry.async_get(own.entity_id).unique_id == f"{DID}_relay1"
+    assert registry.async_get(stray.entity_id).unique_id == f"{third}_relay2"
+    assert len(er.async_entries_for_config_entry(registry, entry.entry_id)) == 2
+
+
 @pytest.mark.parametrize(
     "extra",
     [
@@ -441,7 +493,7 @@ async def test_discovery_mismatch_immediately_withdraws_existing_authority(
 ):
     from dataclasses import replace
 
-    from custom_components.panel_assistant.transport import async_get_sessions
+    from custom_components.panel_assistant.transport_sessions import async_get_sessions
 
     from .test_transport import _hello, _receive
 
@@ -498,7 +550,7 @@ async def test_identity_repair_admits_the_panels_next_connection(
     from homeassistant.helpers import issue_registry as ir
 
     from custom_components.panel_assistant.repairs import async_create_fix_flow
-    from custom_components.panel_assistant.transport import async_get_sessions
+    from custom_components.panel_assistant.transport_sessions import async_get_sessions
 
     from .test_transport import _hello
 

@@ -16,10 +16,6 @@ from custom_components.panel_assistant.build_feed import (
     feed_release_artifact,
 )
 from custom_components.panel_assistant.client import normalize_address
-from custom_components.panel_assistant.failure_repair import (
-    RetrySafetyHold,
-    async_retry_install_job,
-)
 from custom_components.panel_assistant.install_jobs import (
     InstallArtifact,
     InstallJobManager,
@@ -31,6 +27,11 @@ from custom_components.panel_assistant.install_plan import (
     _build_artifact,
     install_plan_sha256,
 )
+from custom_components.panel_assistant.provisioning import InstallTargetState
+from custom_components.panel_assistant.repairs_failure import (
+    RetrySafetyHold,
+    async_retry_install_job,
+)
 from tests import test_install_jobs as job_fixtures
 from tests.test_config_flow import ARTIFACT as FLOW_ARTIFACT
 from tests.test_config_flow import CANDIDATE, CREDENTIAL, TARGET
@@ -38,7 +39,15 @@ from tests.test_config_flow import RELEASE as FLOW_RELEASE
 from tests.test_install_jobs import Clock
 
 emulate_home_assistant_store_file = job_fixtures.emulate_home_assistant_store_file
-ARTIFACT = replace(FLOW_ARTIFACT, protocol_min=5, protocol_max=5)
+# The artifact of the release these retries resolve, whichever app it carries.
+ARTIFACT = replace(
+    FLOW_ARTIFACT,
+    package_id=FLOW_RELEASE.descriptor.package_id,
+    apk_name=FLOW_RELEASE.descriptor.apk_name,
+    launch_component=FLOW_RELEASE.descriptor.launch_component,
+    protocol_min=5,
+    protocol_max=5,
+)
 RELEASE = replace(FLOW_RELEASE, protocol_min=5, protocol_max=5)
 
 
@@ -78,7 +87,7 @@ async def test_retry_keeps_selected_stable_when_newer_default_exists(
         release_tag="v0.9.8",
         version_name="0.9.8",
         version_code=ARTIFACT.version_code + 1,
-        apk_name="ha-paneld-v0.9.8-manual-setup-required.apk",
+        apk_name="panel-assistant-v0.9.8-manual-setup-required.apk",
         apk_sha256="c" * 64,
     )
     newer_default = replace(
@@ -204,8 +213,8 @@ async def test_retry_keeps_the_exact_signed_feed_build(hass: HomeAssistant) -> N
         database_compatibility="hapaneld-db:v1:ha-paneld.db:1:1",
         min_sdk=26,
         published="2026-09-28T00:00:00Z",
-        package_id="io.github.maxlyth.hapaneld",
-        launch_component=LAUNCH_COMPONENTS["io.github.maxlyth.hapaneld"][0],
+        package_id="io.panelassistant.android",
+        launch_component=LAUNCH_COMPONENTS["io.panelassistant.android"][0],
         protocol_min=5,
         protocol_max=5,
     )
@@ -264,7 +273,7 @@ async def test_retry_preserves_explicit_consent_and_rechecks_running_pa_channel(
         RELEASE.descriptor,
         release_tag="v0.9.7-rc3",
         version_name="0.9.7-rc3",
-        apk_name="ha-paneld-v0.9.7-rc3-manual-setup-required.apk",
+        apk_name="panel-assistant-v0.9.7-rc3-manual-setup-required.apk",
     )
     release = replace(
         RELEASE,
@@ -318,3 +327,47 @@ async def test_retry_preserves_explicit_consent_and_rechecks_running_pa_channel(
             assert fresh.artifact == old.artifact
             assert fresh.artifact.prerelease_opt_in is explicit_opt_in
     resolver.assert_awaited_once_with(hass, release.tag)
+
+
+async def test_retry_holds_when_the_panel_now_holds_only_the_old_app(
+    hass: HomeAssistant,
+) -> None:
+    """A retry never installs the new app beside the old one."""
+    manager = InstallJobManager(hass, now=Clock())
+    old = await _failed_receipt(manager)
+    pin = PinnedPanelTarget(
+        original=normalize_address(TARGET.address),
+        pinned=normalize_address(TARGET.pinned_address),
+    )
+    resolver = AsyncMock(return_value=RELEASE)
+    with (
+        patch(
+            "custom_components.panel_assistant.install_network.async_pin_install_target",
+            AsyncMock(return_value=pin),
+        ),
+        patch(
+            "custom_components.panel_assistant.install_network.async_revalidate_install_target",
+            AsyncMock(return_value=pin),
+        ),
+        patch(
+            "custom_components.panel_assistant.adb_credentials.async_get_durable_adb_credential",
+            AsyncMock(return_value=CREDENTIAL),
+        ),
+        patch(
+            "custom_components.panel_assistant.provisioning.async_probe_install_target",
+            AsyncMock(
+                return_value=replace(
+                    CANDIDATE, state=InstallTargetState.MIGRATION_CANDIDATE
+                )
+            ),
+        ),
+        patch(
+            "custom_components.panel_assistant.release_catalog.async_resolve_install_choice",
+            resolver,
+        ),
+        pytest.raises(RetrySafetyHold, match="retry_target_changed"),
+    ):
+        await async_retry_install_job(hass, old)
+
+    resolver.assert_not_awaited()
+    assert [receipt.job_id for receipt in await manager.async_list()] == [old.job_id]

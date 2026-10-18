@@ -13,8 +13,8 @@ import pytest
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 
 from custom_components.panel_assistant import display_provisioning as dp
+from custom_components.panel_assistant.adb_protocol import AdbInstallTarget
 from custom_components.panel_assistant.install_adb import (
-    AdbInstallTarget,
     async_apply_display_sizing,
     async_restore_display_sizing,
 )

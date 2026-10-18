@@ -14,8 +14,9 @@ const DENSITY_FUNCTION = 'hp_density() { hp_w=$(wm density 2>/dev/null) || { ech
   'echo "${hp_w:-unknown}" ;; *"Physical density: "*) echo none ;; ' +
   '*) echo unknown ;; esac; }';
 
-// `1` and `0.9`, never `1.0`: the spelling the Python program writes.
-export const fontScaleText = value => String(Number(value));
+// `1` and `0.9`, never `1.0`, to six significant digits: Python's `f"{value:g}"`,
+// the spelling the Python program writes, within the 0.5 to 1.5 range.
+export const fontScaleText = value => String(Number(Number(value).toPrecision(6)));
 
 // What Home Assistant's setup handover says to apply, or null.
 export function displaySizing(value) {
@@ -83,19 +84,4 @@ export function parseDisplaySizing(body, nonce, sizing) {
     (sizing.density === null || density === String(sizing.density)) &&
     (scale === null || fontScale === scale || (scale === '1' && ['1.0', 'null'].includes(fontScale)));
   return converged ? 'applied' : 'not_applied';
-}
-
-// Applies it over the installer's own USB session, read through the
-// installer's `readShell`. Never throws: the outcome goes to the support log,
-// and setup goes on whatever it was.
-export async function applyDisplaySizing({ adb, newNonce, value, readShell }) {
-  const sizing = displaySizing(value);
-  if (!sizing) return 'not_recommended';
-  const nonce = newNonce();
-  try {
-    return parseDisplaySizing(await readShell(adb, buildDisplaySizing(nonce, sizing),
-      { maximum: 4096, timeoutMs: 15000 }), nonce, sizing);
-  } catch {
-    return 'unreadable';
-  }
 }

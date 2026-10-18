@@ -40,7 +40,8 @@
     "loading": "Chargement des versions…",
     "catalogError": "Impossible de charger la liste des versions.",
     "empty": "Aucune version n’est encore disponible. Réessayez plus tard.",
-    "choose": "Suivre le canal de Panel Assistant (recommandé)",
+    "choose": "Version recommandée",
+    "otherVersions": "Choisir une autre version",
     "testing": "version de test",
     "devBuild": "build de développement",
     "retry": "Réessayer",
@@ -54,6 +55,7 @@
     "downloading": "Préparation de l’application…",
     "verifying": "Préparation de l’application…",
     "verified": "Continuez dans la nouvelle fenêtre.",
+    "installed": "Panel Assistant est installé. Terminez la configuration du panneau dans la fenêtre de l'installateur, puis fermez cet onglet.",
     "cancelled": "Annulé.",
     "popup_blocked": "Votre navigateur a bloqué la nouvelle fenêtre. Autorisez les fenêtres contextuelles pour cette page, puis appuyez sur « Continuer ».",
     "invalid_request": "Choisissez d’abord une version.",
@@ -65,9 +67,11 @@
     "preparingSlow": "La préparation de l’application se poursuit. Gardez l’onglet Home Assistant ouvert.",
     "connectHeading": "Connecter votre panneau",
     "connectBody": "Branchez le panneau à cet ordinateur avec un câble USB, puis appuyez sur « Trouver mon panneau ».",
+    "usbDebugging": "Le débogage USB doit être activé dans les paramètres pour les développeurs du panneau.",
+    "usbDebuggingHelp": "Comment l’activer",
     "connect": "Trouver mon panneau",
     "allowHeading": "Autoriser cet ordinateur",
-    "allowBody": "Regardez l’écran du panneau et appuyez sur « Autoriser ».",
+    "allowBody": "Sur le panneau, cochez « Toujours autoriser cet ordinateur » et appuyez sur « Autoriser », pour que Panel Assistant puisse le mettre à jour plus tard sans le câble.",
     "checkingPanel": "Vérification de votre panneau…",
     "confirmHeading": "Prêt à installer",
     "confirmBody": "L’application sera installée et deviendra l’écran d’accueil de votre panneau. Vos autres applications ne seront pas modifiées.",
@@ -101,7 +105,8 @@
     "pageClosed": "La page a été fermée.",
     "progress": "Progression",
     "installProgress": "Progression de l’installation",
-    "licenses": "Licences tierces"
+    "licenses": "Licences tierces",
+    "doneAnotherHomeAssistant": "Ce panneau a une session ouverte sur un autre Home Assistant. Changez de Home Assistant et connectez-vous sur le panneau pour le connecter ici."
   },
   "errors": {
     "installErrorGeneric": "Une erreur s’est produite. Gardez le panneau branché et appuyez sur « Réessayer ».",
@@ -112,7 +117,8 @@
     "installErrorNotClean": "L’application est déjà sur ce panneau. Mettez-la plutôt à jour depuis Home Assistant.",
     "installErrorIncompatible": "Ce panneau ne peut pas exécuter cette version de l’application.",
     "installErrorConnection": "La connexion au panneau a été interrompue. Gardez-le branché et appuyez sur « Réessayer ».",
-    "installErrorHealth": "L’application est installée mais n’a pas encore démarré. Patientez un moment, puis réessayez."
+    "installErrorHealth": "L’application est installée mais n’a pas encore démarré. Patientez un moment, puis réessayez.",
+    "installErrorPermissions": "L’application est installée, mais ses autorisations n’ont pas pu être confirmées. Vous pouvez réessayer sans risque : gardez le panneau branché et appuyez sur « Réessayer »."
   },
   "journey": {
     "version": "Version",
@@ -129,6 +135,7 @@
   "support": {
     "stopped": "Arrêté",
     "cause": "Cause",
+    "failedCheck": "Vérification échouée",
     "error": "Erreur",
     "release": "Version",
     "panel": "Panneau",
@@ -142,6 +149,7 @@
     "setupAddress": "Adresse de configuration",
     "setupHandover": "Passage à la configuration",
     "displaySizing": "Taille d’affichage et du texte",
+    "networkAdb": "ADB réseau",
     "copiedDetail": "{bytes} octets envoyés ; en attente de confirmation du panneau",
     "none": "aucun",
     "setupMissing": "introuvable ; la configuration continue sur le panneau"

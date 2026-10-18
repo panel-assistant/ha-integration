@@ -167,7 +167,13 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
 
     assert manifest == {
         "codeowners": ["@maxlyth"],
-        "after_dependencies": ["assist_pipeline", "intent"],
+        "after_dependencies": [
+            "assist_pipeline",
+            "conversation",
+            "frontend",
+            "intent",
+            "lovelace",
+        ],
         "config_flow": True,
         "dependencies": [
             "http",
@@ -178,7 +184,7 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
         ],
         # Core buckets dhcp hostname matchers by first character.
         "dhcp": [{"hostname": f"{c}*"} for c in string.ascii_lowercase + string.digits],
-        "documentation": "https://github.com/panel-assistant/ha-integration",
+        "documentation": "https://panel-assistant.io/go/install-integration",
         "domain": "panel_assistant",
         "integration_type": "device",
         "iot_class": "local_polling",
@@ -612,6 +618,55 @@ def test_install_flow_copy_covers_first_time_handoffs() -> None:
     assert "Do not retry automatic installation" in abort["install_ambiguous_mutation"]
 
 
+def _catalogues() -> dict[str, dict[str, Any]]:
+    return {
+        "strings.json": json.loads(
+            (INTEGRATION / "strings.json").read_text(encoding="utf-8")
+        ),
+        **{
+            path.name: json.loads(path.read_text(encoding="utf-8"))
+            for path in sorted((INTEGRATION / "translations").glob("*.json"))
+        },
+    }
+
+
+def _menus(catalogue: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    flows = [(name, catalogue[name]["step"]) for name in ("config", "options")] + [
+        (f"issues.{issue}", body["fix_flow"]["step"])
+        for issue, body in catalogue.get("issues", {}).items()
+        if "fix_flow" in body
+    ]
+    return [
+        (f"{flow}.{step_id}", step)
+        for flow, steps in flows
+        for step_id, step in steps.items()
+        if "menu_options" in step
+    ]
+
+
+def test_menus_say_only_what_they_show() -> None:
+    """Home Assistant fills no placeholder into a menu's title, and a menu's
+    intro or an item's description that repeats or promises an item is noise."""
+    for name, catalogue in _catalogues().items():
+        for where, menu in _menus(catalogue):
+            assert "{" not in menu.get("title", ""), (name, where)
+            for key, text in menu.get("menu_option_descriptions", {}).items():
+                assert text != menu["menu_options"][key], (name, where, key)
+        # Configure shows some items only to some panels, so its intro names none.
+        init = catalogue["options"]["step"]["init"]
+        intro = init.get("description", "").casefold()
+        for label in init["menu_options"].values():
+            assert label.casefold() not in intro, (name, label)
+
+
+def test_the_removal_form_speaks_plainly_in_every_language() -> None:
+    for name, catalogue in _catalogues().items():
+        step = catalogue["options"]["step"]["remove_app"]
+        text = step["title"] + step["description"]
+        assert "Android Debug Bridge" not in text, name
+        assert "{risks_url}" in step["description"], name
+
+
 def test_the_address_screen_links_to_panel_specific_help() -> None:
     """A panel that will not answer needs somewhere to go, per model."""
     strings = json.loads((INTEGRATION / "strings.json").read_text(encoding="utf-8"))
@@ -621,8 +676,8 @@ def test_the_address_screen_links_to_panel_specific_help() -> None:
 
 def test_outward_links_are_redirects_stamped_with_this_version() -> None:
     """Pages move; the site's redirect does not, and it is told who is asking."""
+    from custom_components.panel_assistant.build import INTEGRATION_BUILD
     from custom_components.panel_assistant.const import (
-        INTEGRATION_BUILD,
         INTEGRATION_VERSION,
         help_url,
     )
@@ -657,17 +712,16 @@ def test_the_two_identity_modules_state_exactly_the_same_values() -> None:
     script = (
         f"import * as m from {json.dumps(module.as_uri())};"
         "console.log(JSON.stringify({"
-        "accepted: m.ACCEPTED_PACKAGE_IDS,"
         "legacy: m.LEGACY_PACKAGE_ID,"
-        "successor: m.SUCCESSOR_PACKAGE_ID,"
+        "packageId: m.PACKAGE_ID,"
         "launch: m.LAUNCH_COMPONENTS,"
-        "legacyLaunch: m.LEGACY_LAUNCH_COMPONENT,"
         "accessibility: Object.fromEntries(Object.values(m.LAUNCH_COMPONENTS).flat()"
         ".map(c => [c, m.accessibilityComponentFor(c)])),"
         "equivalent: Object.fromEntries(Object.values(m.LAUNCH_COMPONENTS).flat()"
         ".map(c => [c, m.accessibilityComponentsFor(c)])),"
         "home: m.HOME_COMPONENTS,"
         "homeSpellings: m.EQUIVALENT_HOME_COMPONENTS,"
+        "obsolete: m.OBSOLETE_ACCESSIBILITY_COMPONENTS,"
         "descriptorSchemas: m.INSTALL_DESCRIPTOR_SCHEMAS,"
         "feedSchemas: m.BUILD_FEED_SCHEMAS"
         "}));"
@@ -681,16 +735,12 @@ def test_the_two_identity_modules_state_exactly_the_same_values() -> None:
         ).stdout
     )
 
-    # The order is load-bearing: it fixes the PACKAGE{i}/RETAINED{i}/RESIDUE{i}
-    # frame indices that both sides build and parse.
-    assert javascript["accepted"] == list(app_identity.ACCEPTED_PACKAGE_IDS)
     assert javascript["legacy"] == app_identity.LEGACY_PACKAGE_ID
-    assert javascript["successor"] == app_identity.SUCCESSOR_PACKAGE_ID
+    assert javascript["packageId"] == app_identity.PACKAGE_ID
     assert javascript["launch"] == {
         package_id: list(components)
         for package_id, components in app_identity.LAUNCH_COMPONENTS.items()
     }
-    assert javascript["legacyLaunch"] == app_identity.LEGACY_LAUNCH_COMPONENT
     # Both installers verify the same signed documents and write the same schema.
     assert javascript["descriptorSchemas"] == list(
         app_identity.INSTALL_DESCRIPTOR_SCHEMAS
@@ -713,14 +763,46 @@ def test_the_two_identity_modules_state_exactly_the_same_values() -> None:
         )
     }
 
-    # Every launcher names its own id, and the shorthand appears only where the
-    # class lives in that id's package: the old app's, never a successor's.
+    # Both installers drop the same retired service class from that list.
+    assert javascript["obsolete"] == {
+        launch: list(services)
+        for launch, services in app_identity.OBSOLETE_ACCESSIBILITY_COMPONENTS.items()
+    }
+
+    # Every launcher names its own id, and spells its class out in full.
     for package_id, components in javascript["launch"].items():
         for component in components:
             assert component.startswith(f"{package_id}/")
-            assert component.startswith(f"{package_id}/.") == (
-                package_id == app_identity.LEGACY_PACKAGE_ID
-            )
+            assert not component.startswith(f"{package_id}/.")
+
+
+def test_both_preflights_probe_the_same_app_ids_in_the_same_order() -> None:
+    """Both still probe the old app, so a panel holding it is refused by either.
+
+    The order fixes the PACKAGE{i}/RETAINED{i}/RESIDUE{i} frame indices each
+    side builds and parses.
+    """
+    from custom_components.panel_assistant import adb_protocol
+
+    module = (INTEGRATION / "frontend" / "src" / "preflight.mjs").resolve()
+    script = (
+        f"import * as m from {json.dumps(module.as_uri())};"
+        "console.log(JSON.stringify(m.RESIDUE_PROBES"
+        ".map(({ packageId, path }) => [packageId, path])));"
+    )
+    javascript = json.loads(
+        subprocess.run(
+            ["node", "--input-type=module", "-e", script],
+            capture_output=True,
+            check=True,
+            text=True,
+        ).stdout
+    )
+    assert javascript == [list(probe) for probe in adb_protocol._RESIDUE_PROBES]
+    assert adb_protocol.PROBED_PACKAGE_IDS == (
+        app_identity.LEGACY_PACKAGE_ID,
+        app_identity.PACKAGE_ID,
+    )
 
 
 def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way() -> (
@@ -733,6 +815,7 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
     compared as sent, not by a few substrings.
     """
     from custom_components.panel_assistant import (
+        adb_protocol,
         app_identity,
         home_chooser,
         install_adb,
@@ -754,12 +837,14 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
         "devices: v.META_PORTAL_DEVICES, record: v.META_RESTORE_RECORD,"
         "shelly: [v.SHELLY_LAUNCHER, v.SHELLY_RESTORE_RECORD],"
         "homeQuery: p.HOME_QUERY, labels: h.APP_LABELS,"
+        "runtime: p.RUNTIME_GRANTS,"
         "outcomes: h.CHOOSER_OUTCOMES,"
         "claims: Object.fromEntries(Object.keys(a.HOME_COMPONENTS)"
         ".map(c => [c, h.buildHomeClaim(c)])),"
         "grants: Object.fromEntries(Object.keys(a.HOME_COMPONENTS).map(c => [c,"
         " p.buildPermissionGrant('0123456789abcdef0123456789abcdef', 34, '',"
-        " c.split('/')[0], c)]))}));"
+        " c.split('/')[0], c)])),"
+        "admin: p.buildDeviceAdminClaim(a.PACKAGE_ID)}));"
     )
     javascript = json.loads(
         subprocess.run(
@@ -779,6 +864,8 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
         vendor_provisioning.SHELLY_RESTORE_RECORD,
     ]
     assert javascript["homeQuery"] == install_adb._HOME_QUERY
+    # Both installers grant the same runtime permissions for the same features.
+    assert javascript["runtime"] == [list(pair) for pair in adb_protocol.RUNTIME_GRANTS]
     # HOME, including the chooser's Always, is claimed by one program.
     assert javascript["labels"] == {
         package: list(labels) for package, labels in home_chooser.APP_LABELS.items()
@@ -788,8 +875,17 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
     for launch, claim in javascript["claims"].items():
         assert claim == home_chooser.home_claim_command(launch)
         assert claim in javascript["grants"][launch]
-        assert claim in install_adb._permission_grant_command(
+        assert claim in adb_protocol._permission_grant_command(
             "0" * 32, launch.partition("/")[0], launch
+        )
+    # Both make the app a device admin with the same text.
+    admin = javascript["admin"]
+    assert admin == adb_protocol.device_admin_claim_command(app_identity.PACKAGE_ID)
+    for launch, grant in javascript["grants"].items():
+        package_id = launch.partition("/")[0]
+        assert admin in grant
+        assert admin in adb_protocol._permission_grant_command(
+            "0" * 32, package_id, launch
         )
 
 
@@ -799,7 +895,7 @@ def test_both_installers_send_the_same_display_sizing_program() -> None:
 
     source = INTEGRATION / "frontend" / "src"
     nonce = "0123456789abcdef0123456789abcdef"
-    cases = [(216, 1), (None, 0.9), (200, None)]
+    cases = [(216, 1), (None, 0.9), (200, None), (None, 1.1234567)]
     script = (
         "import * as d from "
         f"{json.dumps((source / 'display-provisioning.mjs').resolve().as_uri())};"

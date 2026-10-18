@@ -8,6 +8,7 @@ const API = '/api/panel_assistant/usb/release';
 // Assistant credential, so it asks this window to tell the panel Home Assistant
 // set it up. The server validates the address; this only refuses obvious junk.
 const HANDOVER_API = '/api/panel_assistant/usb/handover';
+const ADB_KEY_API = '/api/panel_assistant/usb/adb_key';
 const HANDOVER_MS = 35000;
 const IPV4 = /(?:[0-9]{1,3}\.){3}[0-9]{1,3}/;
 const OUTCOME = /[a-z_]{1,48}/;
@@ -202,6 +203,7 @@ export function startReleaseHandoff(hass, installerUrl, {
     reply('ha-paneld/usb-handover-accepted');
     let outcome;
     let display = null;
+    let registration;
     try {
       const response = await hass.fetchWithAuth(HANDOVER_API, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -214,16 +216,43 @@ export function startReleaseHandoff(hass, installerUrl, {
       // The display and text size the panel's profile recommends, which the
       // installer applies over its USB session before it opens setup.
       if (response.status === 200) display = displaySizing(body?.display);
+      if (response.status === 200 && body?.registration === 'added_to_another_home_assistant') {
+        registration = body.registration;
+      }
     } catch {
       outcome = 'request_failed';
     } finally {
       handingOver = false;
     }
     reply('ha-paneld/usb-handover-result',
-      display ? { outcome, display: { density: display.density, font_scale: display.fontScale } } : { outcome });
+      { outcome, ...(display ? { display: { density: display.density, font_scale: display.fontScale } } : {}),
+        ...(registration ? { registration } : {}) });
+    // The installer asks only after the app is installed; it opens the panel's
+    // setup next, so this window has nothing left to do.
+    state('installed');
+  }
+  // Panel Assistant's public ADB key, which the installer offers at the
+  // panel's USB prompt so that approval lets Panel Assistant in afterwards.
+  async function sendAdbKey() {
+    let key = null;
+    try {
+      const response = await hass.fetchWithAuth(ADB_KEY_API, {
+        method: 'GET', redirect: 'error', signal: AbortSignal.timeout(Math.min(timeoutMs, 10000)),
+      });
+      const body = response.status === 200 ? await response.json() : null;
+      if (typeof body?.public_key === 'string' && body.public_key.length <= 1024) key = body.public_key;
+    } catch { /* The installer connects with its own key instead. */ }
+    if (!delivered || child.closed) return;
+    try { child.postMessage({ type: 'ha-paneld/usb-adb-key-result', nonce, key }, targetOrigin); }
+    catch { /* The installer has gone. */ }
   }
   function receive(event) {
     if (event.source !== child || event.origin !== targetOrigin) return;
+    if (event.data?.type === 'ha-paneld/usb-adb-key' && event.data.nonce === nonce &&
+        exactKeys(event.data, ['type', 'nonce'])) {
+      if (finished) void sendAdbKey();
+      return;
+    }
     if (event.data?.type === 'ha-paneld/usb-admission' && event.data.nonce === nonce) {
       void admit(event.data);
       return;

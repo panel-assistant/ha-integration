@@ -15,17 +15,17 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.panel_assistant import update as panel_update
+from custom_components.panel_assistant import update_route
 from custom_components.panel_assistant.adb_credentials import AdbCredentialMissingError
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.provisioning import (
     InstallTargetProbe,
     InstallTargetState,
 )
-from custom_components.panel_assistant.status import PanelStatus
-from custom_components.panel_assistant.update_route_repair import (
+from custom_components.panel_assistant.repairs_update_route import (
     no_update_route_issue_id,
 )
+from custom_components.panel_assistant.status import PanelStatus
 
 pytest_plugins = ["tests.test_update_adb_route"]
 
@@ -233,7 +233,7 @@ async def test_adb_loss_is_reported_without_a_pending_update(route, hass):
 
 async def test_build_verification_failure_is_not_route_loss(route, hass):
     entry = _entry(hass)
-    route.entity._feed.async_verify_build = AsyncMock(
+    route.entity._offer.feed.async_verify_build = AsyncMock(
         side_effect=RuntimeError("feed unavailable")
     )
     route.entity._schedule_route_refresh()
@@ -271,7 +271,7 @@ async def test_open_adb_without_offer_does_not_create_credentials(
     create_key = AsyncMock(
         side_effect=AssertionError("passive observation must not create credentials")
     )
-    monkeypatch.setattr(panel_update, "async_get_adb_credential", create_key)
+    monkeypatch.setattr(update_route, "async_get_adb_credential", create_key)
     route.entity._schedule_route_refresh()
     await hass.async_block_till_done()
     route.probe_target.assert_awaited_once_with(route.pinned.pinned)

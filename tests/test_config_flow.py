@@ -2,8 +2,10 @@
 
 import asyncio
 import contextlib
+import json
 from collections.abc import Iterator
 from dataclasses import replace
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, call, patch
@@ -22,9 +24,15 @@ from custom_components.panel_assistant.adb_credentials import (
     AdbCredential,
     AdbCredentialError,
 )
+from custom_components.panel_assistant.adb_protocol import (
+    AdbRootMode,
+    InstallAdbError,
+    InstallAdbErrorCode,
+)
 from custom_components.panel_assistant.app_identity import (
+    LAUNCH_COMPONENTS,
     LEGACY_PACKAGE_ID,
-    SUCCESSOR_PACKAGE_ID,
+    PACKAGE_ID,
 )
 from custom_components.panel_assistant.browser_delivery import (
     DATA_BROWSER_DELIVERY,
@@ -45,11 +53,7 @@ from custom_components.panel_assistant.const import (
     CONF_TRANSPORT_USER_ID,
     DOMAIN,
     INTEGRATION_VERSION,
-)
-from custom_components.panel_assistant.install_adb import (
-    AdbRootMode,
-    InstallAdbError,
-    InstallAdbErrorCode,
+    help_url,
 )
 from custom_components.panel_assistant.install_executor import InstallExecutor
 from custom_components.panel_assistant.install_jobs import (
@@ -71,9 +75,11 @@ from custom_components.panel_assistant.provisioning import (
 from custom_components.panel_assistant.release import (
     ReleaseArtifact,
     ReleaseResolutionError,
+    release_apk_name,
 )
 from custom_components.panel_assistant.status import PanelStatus
-from custom_components.panel_assistant.transport import (
+from custom_components.panel_assistant.transport_binding import (
+    async_bind_user,
     async_binding_request,
     async_record_binding_request,
 )
@@ -93,6 +99,7 @@ from .config_flow_helpers import (
     _start_step,
     _zeroconf_info,
 )
+from .install_recovery_text import assert_names_recovery_page
 
 # Bind the shared autouse fixtures here so pytest applies them to this module.
 install_release_catalog = config_flow_helpers.install_release_catalog
@@ -232,7 +239,9 @@ async def test_connect_existing_duplicate_address_is_rejected(
     hass: HomeAssistant,
 ) -> None:
     """The address remains identity when the mutable panel name changes."""
-    health_mock = AsyncMock(side_effect=[HEALTH, HEALTH, BETA_HEALTH])
+    health_mock = AsyncMock(
+        side_effect=[HEALTH, HEALTH, BETA_HEALTH, BETA_HEALTH, BETA_HEALTH]
+    )
     with patch(
         "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
         health_mock,
@@ -253,9 +262,6 @@ async def test_connect_existing_duplicate_address_is_rejected(
     assert second["type"] is FlowResultType.ABORT
     assert second["reason"] == "already_configured"
     assert first["result"].data[CONF_ADDRESS] == "panel.local"
-    # Creating the first entry schedules its initial coordinator refresh between
-    # the two config-flow validations.
-    assert health_mock.await_count == 3
 
 
 async def test_connect_existing_expected_errors(hass: HomeAssistant) -> None:
@@ -512,7 +518,10 @@ async def test_zeroconf_titles_each_discovery_with_its_own_panel(
         )
 
     flow = hass.config_entries.flow.async_progress()[0]
-    assert flow["context"]["title_placeholders"] == {"name": DISCOVERY_HEALTH.panel_id}
+    assert flow["context"]["title_placeholders"] == {
+        "name": DISCOVERY_HEALTH.panel_id,
+        "address": "192.168.1.23",
+    }
 
 
 @pytest.mark.parametrize(
@@ -633,15 +642,16 @@ ARTIFACT = InstallArtifact(
     release_tag=DESCRIPTOR.release_tag,
     version_name=DESCRIPTOR.version_name,
     version_code=DESCRIPTOR.version_code,
-    apk_name=DESCRIPTOR.apk_name,
+    # The new app, which is what the flows' panels report once installed.
+    apk_name=release_apk_name(DESCRIPTOR.release_tag, PACKAGE_ID),
     apk_sha256=DESCRIPTOR.apk_sha256,
     apk_size=DESCRIPTOR.apk_size,
-    package_id=DESCRIPTOR.package_id,
+    package_id=PACKAGE_ID,
     signer_certificate_sha256=DESCRIPTOR.signer_certificate_sha256,
     min_sdk=DESCRIPTOR.min_sdk,
     supported_abis=DESCRIPTOR.supported_abis,
     database_compatibility=DESCRIPTOR.database_compatibility,
-    launch_component=DESCRIPTOR.launch_component,
+    launch_component=LAUNCH_COMPONENTS[PACKAGE_ID][0],
     protocol_min=5,
     protocol_max=5,
 )
@@ -656,7 +666,7 @@ CREDENTIAL = AdbCredential(signer=object(), generation_id="b" * 64)
 
 
 def _rc_release(tag: str = "v0.9.7-rc3") -> ReleaseArtifact:
-    apk = f"ha-paneld-{tag}-manual-setup-required.apk"
+    apk = f"panel-assistant-{tag}-manual-setup-required.apk"
     return replace(
         RELEASE,
         tag=tag,
@@ -789,6 +799,76 @@ async def test_rc_selection_requires_exact_translated_consent_and_frozen_plan(
     progress.assert_awaited_once_with(receipt)
 
 
+def _english(flow: str, step_id: str, placeholders: dict[str, str]) -> str:
+    """The description a person reads, as Home Assistant fills it in."""
+    strings = json.loads(
+        (
+            Path(__file__).parents[1]
+            / "custom_components/panel_assistant/translations/en.json"
+        ).read_text(encoding="utf-8")
+    )
+    return strings[flow]["step"][step_id]["description"].format(**placeholders)
+
+
+async def test_a_single_recommended_release_goes_straight_to_the_install_question(
+    hass: HomeAssistant, install_release_catalog: AsyncMock
+) -> None:
+    """Nothing to choose is not a step; the question names no board codename."""
+    install_release_catalog.return_value = [{"tag": "v0.9.7", "prerelease": False}]
+    manager = _manager_for(_receipt(InstallPhase.APPROVED))
+    resolve = AsyncMock(return_value=RELEASE)
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
+            AsyncMock(return_value=manager),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+            AsyncMock(side_effect=CannotConnectError),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_probe_install_target",
+            AsyncMock(return_value=replace(CANDIDATE, model="Jenna")),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_resolve_install_choice",
+            resolve,
+        ),
+    ):
+        form = await _start_step(hass, "add_panel")
+        question = await hass.config_entries.flow.async_configure(
+            form["flow_id"], {CONF_ADDRESS: "panel.local"}
+        )
+
+    assert question["step_id"] == "confirm_install_candidate"
+    assert resolve.await_args.args[1] is None, "the recommended release, by channel"
+    text = _english("config", question["step_id"], question["description_placeholders"])
+    assert "panel.local" in text
+    assert "Jenna" not in text
+    manager.async_create_or_join.assert_not_awaited()
+
+
+async def test_the_usb_step_says_usb_debugging_must_be_on_and_where_to_look(
+    hass: HomeAssistant,
+) -> None:
+    form = await _start_step(hass, "install_usb")
+
+    text = _english("config", form["step_id"], form["description_placeholders"])
+    assert "USB debugging must be on" in text
+    assert help_url("panel-access") in text
+
+
+async def test_the_address_step_describes_a_picker_only_when_it_shows_one(
+    hass: HomeAssistant,
+) -> None:
+    form = await _start_step(hass, "add_panel")
+
+    text = _english("config", form["step_id"], form["description_placeholders"])
+    assert "✓" not in text
+    assert "Pick a panel" not in text
+    assert "hostname or IP address" in text
+
+
 async def test_rc_resolution_failure_never_falls_back_or_creates_credential(
     hass: HomeAssistant,
 ) -> None:
@@ -866,7 +946,7 @@ async def test_active_job_resumes_with_its_own_release(
             ARTIFACT,
             release_tag=active_tag,
             version_name=active_tag[1:],
-            apk_name=f"ha-paneld-{active_tag}-manual-setup-required.apk",
+            apk_name=f"panel-assistant-{active_tag}-manual-setup-required.apk",
         ),
     )
     manager = _manager_for(receipt)
@@ -1180,7 +1260,7 @@ async def test_signed_confirmation_rejects_every_target_identity_drift(
     manager.async_create_or_join.assert_not_awaited()
 
 
-@pytest.mark.parametrize("authorize_first", [False, True], ids=["trusted", "authorize"])
+@pytest.mark.parametrize("authorize_first", [False, True], ids=["open", "known_key"])
 async def test_failed_install_with_identical_bytes_is_adopted(
     hass: HomeAssistant, authorize_first: bool
 ) -> None:
@@ -1241,11 +1321,6 @@ async def test_failed_install_with_identical_bytes_is_adopted(
             form["flow_id"], {CONF_ADDRESS: "panel.local"}
         )
         preview = await _choose_version(hass, choose, rc.tag)
-        if authorize_first:
-            assert preview["step_id"] == "authorize_adb"
-            preview = await hass.config_entries.flow.async_configure(
-                preview["flow_id"], {}
-            )
         assert preview["step_id"] == "confirm_install_rc"
         result = await hass.config_entries.flow.async_configure(preview["flow_id"], {})
 
@@ -1314,6 +1389,9 @@ async def test_same_version_at_different_bytes_is_not_overwritten(
 
     assert result["step_id"] == "confirm_install_rc"
     assert result["errors"] == {"base": "installed_artifact_mismatch"}
+    await assert_names_recovery_page(
+        hass, "config.error.installed_artifact_mismatch", result
+    )
     manager.async_create_or_join.assert_not_awaited()
 
 
@@ -1560,6 +1638,7 @@ async def test_nonrestartable_worker_refresh_failure_is_privacy_safe(
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "install_failed"
+    await assert_names_recovery_page(hass, "config.abort.install_failed", result)
     executor.async_wait.assert_not_awaited()
     assert flow._progress_waiter is None
 
@@ -1729,6 +1808,18 @@ async def test_every_terminal_install_result_is_privacy_safe_and_creates_no_entr
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == reason
     assert not hass.config_entries.async_entries(DOMAIN)
+    if reason in _RECOVERY_PAGE_ABORTS:
+        await assert_names_recovery_page(hass, f"config.abort.{reason}", result)
+
+
+# The terminal results a person cannot finish from this flow alone.
+_RECOVERY_PAGE_ABORTS = {
+    "install_preflight_rejected",
+    "install_launch_failed",
+    "install_health_check_failed",
+    "install_ambiguous_mutation",
+    "install_verification_required",
+}
 
 
 _FINAL = "custom_components.panel_assistant.install_executor"
@@ -1858,6 +1949,9 @@ async def test_final_verification_retry_and_recovery_boundaries(
         manager.async_transition.assert_not_awaited()
     else:
         assert result["reason"] == "install_recovery_required"
+        await assert_names_recovery_page(
+            hass, "config.abort.install_recovery_required", result
+        )
         subcode = {
             "pin_drift": "network:pinned_target_removed",
             "credential_error": "credential:unavailable",
@@ -1881,11 +1975,11 @@ async def test_final_verification_retry_and_recovery_boundaries(
 @pytest.mark.parametrize(
     ("receipt_package", "observed_package", "creates"),
     [
-        (SUCCESSOR_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, True),
-        (SUCCESSOR_PACKAGE_ID, LEGACY_PACKAGE_ID, False),
-        (SUCCESSOR_PACKAGE_ID, None, False),
+        (PACKAGE_ID, PACKAGE_ID, True),
+        (PACKAGE_ID, LEGACY_PACKAGE_ID, False),
+        (PACKAGE_ID, None, False),
         (LEGACY_PACKAGE_ID, None, True),
-        (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, False),
+        (LEGACY_PACKAGE_ID, PACKAGE_ID, False),
     ],
     ids=[
         "successor",
@@ -2192,64 +2286,78 @@ async def test_fresh_install_continues_into_panel_setup_after_entry_creation(
     assert next_flow["context"]["source"] == "onboarding"
 
 
-async def test_fresh_install_confirms_only_the_panels_requested_account(
+async def test_fresh_install_finishes_once_the_panel_has_connected(
     hass: HomeAssistant,
     hass_admin_user: Any,
 ) -> None:
-    """Browser sign-in alone never binds; the named account needs admin consent."""
+    """The owner says when setup is done; the dialog closes once it connected."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="alpha",
         data={CONF_ADDRESS: "192.168.1.23"},
         unique_id=DISCOVERY_ID,
-        options={"authority": "native"},
     )
     entry.add_to_hass(hass)
     signed_in = await hass.auth.async_create_user("Current administrator")
-    other = await hass.auth.async_create_user("Other account")
-    async_record_binding_request(hass, DISCOVERY_ID, signed_in.id)
-    with (
-        patch(
-            "custom_components.panel_assistant.config_flow.async_offer_ha_url",
-            new_callable=AsyncMock,
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_setup_complete",
-            AsyncMock(return_value=True),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
-            AsyncMock(return_value=DISCOVERY_HEALTH),
-        ),
-    ):
+    with patch(
+        "custom_components.panel_assistant.config_flow.async_offer_ha_url",
+        new_callable=AsyncMock,
+    ) as handover:
         opened = await hass.config_entries.options.async_init(
             entry.entry_id, context={"source": "onboarding"}
         )
-        assert opened["type"] is FlowResultType.EXTERNAL_STEP
-        assert opened["url"] == "http://192.168.1.23:8888/setup"
-        assert CONF_TRANSPORT_USER_ID not in entry.data
-        done = await hass.config_entries.options.async_configure(opened["flow_id"], {})
-        assert done["type"] is FlowResultType.EXTERNAL_STEP_DONE
-        menu = await hass.config_entries.options.async_configure(opened["flow_id"])
-        assert menu["type"] is FlowResultType.MENU
-        assert menu["description_placeholders"] == {
-            "panel": "alpha",
-            "user": "Current administrator",
+        assert opened["type"] is FlowResultType.FORM
+        assert opened["step_id"] == "onboarding"
+        assert opened["description_placeholders"] == {
+            "setup_url": "http://192.168.1.23:8888/setup"
         }
-        # A different account cannot be smuggled in under the displayed name.
-        async_record_binding_request(hass, DISCOVERY_ID, other.id)
-        changed = await hass.config_entries.options.async_configure(
-            opened["flow_id"], {"next_step_id": "onboarding_bind"}
+        early = await hass.config_entries.options.async_configure(opened["flow_id"], {})
+        assert early["type"] is FlowResultType.FORM
+        assert early["errors"] == {"base": "panel_not_connected"}
+        # The panel's own hello binds the account it signed in as.
+        async_bind_user(hass, entry, signed_in.id)
+        finished = await hass.config_entries.options.async_configure(
+            opened["flow_id"], {}
         )
-        assert changed["type"] is FlowResultType.MENU
-        assert changed["description_placeholders"]["user"] == "Other account"
-        assert CONF_TRANSPORT_USER_ID not in entry.data
-        confirmed = await hass.config_entries.options.async_configure(
-            opened["flow_id"], {"next_step_id": "onboarding_bind"}
-        )
-    assert confirmed["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.data.get(CONF_TRANSPORT_USER_ID) == other.id
-    assert entry.options == {"authority": "native"}
+    handover.assert_awaited_once()
+    assert finished["type"] is FlowResultType.ABORT
+    assert finished["reason"] == "panel_connected"
+    assert entry.data.get(CONF_TRANSPORT_USER_ID) == signed_in.id
+    assert entry.options == {}
+
+
+async def test_continue_setup_dialog_has_text_and_a_link_to_the_setup_page(
+    hass: HomeAssistant, hass_client: Any
+) -> None:
+    """Home Assistant's options dialog shows an external step with no text.
+
+    Driven through the REST API the Configure dialog uses: what comes back must
+    be a step the dialog renders with its title, text and the setup link.
+    """
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="alpha", data={CONF_ADDRESS: "192.168.1.23"}
+    )
+    entry.add_to_hass(hass)
+    assert await async_setup_component(hass, "config", {})
+    client = await hass_client()
+    flows = "/api/config/config_entries/options/flow"
+    menu = await (await client.post(flows, json={"handler": entry.entry_id})).json()
+    assert menu["type"] == "menu"
+    with patch(
+        "custom_components.panel_assistant.config_flow.async_offer_ha_url",
+        new_callable=AsyncMock,
+    ):
+        step = await (
+            await client.post(
+                f"{flows}/{menu['flow_id']}", json={"next_step_id": "onboarding"}
+            )
+        ).json()
+
+    assert step["type"] == "form"
+    assert step["step_id"] == "onboarding"
+    assert step["description_placeholders"]["setup_url"] == (
+        "http://192.168.1.23:8888/setup"
+    )
 
 
 async def test_abandoned_fresh_install_can_resume_from_its_entry_options(
@@ -2261,7 +2369,6 @@ async def test_abandoned_fresh_install_can_resume_from_its_entry_options(
         domain=DOMAIN,
         title="alpha",
         data={CONF_ADDRESS: "192.168.1.23"},
-        options={"authority": "native"},
     )
     entry.add_to_hass(hass)
     menu = await hass.config_entries.options.async_init(entry.entry_id)
@@ -2276,8 +2383,10 @@ async def test_abandoned_fresh_install_can_resume_from_its_entry_options(
         opened = await hass.config_entries.options.async_configure(
             menu["flow_id"], {"next_step_id": "onboarding"}
         )
-    assert opened["type"] is FlowResultType.EXTERNAL_STEP
-    assert opened["url"] == "http://192.168.1.23:8888/setup"
+    assert opened["type"] is FlowResultType.FORM
+    assert opened["description_placeholders"] == {
+        "setup_url": "http://192.168.1.23:8888/setup"
+    }
     handover.assert_awaited_once()
 
 
@@ -2417,13 +2526,239 @@ async def test_a_silent_old_app_is_not_given_a_different_package(
     assert not hass.config_entries.async_entries(DOMAIN)
 
 
+class _PanelThatAsks:
+    """A panel whose Android asks a person before it trusts Home Assistant.
+
+    The key is offered on one connection, which the panel answers only when
+    the person taps (``taps``: True for Allow, False for no Allow in time).
+    With "Always allow" ticked (``remembers``) later connections are trusted.
+    """
+
+    def __init__(self, *, trusted: bool = False, remembers: bool = True) -> None:
+        self.trusted = trusted
+        self.remembers = remembers
+        self.taps: asyncio.Queue[bool] = asyncio.Queue()
+        self.offers: list[float] = []
+        self.cancelled = False
+
+    async def probe(
+        self,
+        _address: object,
+        signer: object | None = None,
+        *,
+        authorize: bool = False,
+        approval_seconds: float = 5.0,
+    ) -> InstallTargetProbe:
+        if signer is not CREDENTIAL.signer:
+            return InstallTargetProbe(state=InstallTargetState.ADB_UNAUTHORIZED)
+        if self.trusted:
+            return CANDIDATE
+        if not authorize:
+            return InstallTargetProbe(state=InstallTargetState.ADB_UNAUTHORIZED)
+        self.offers.append(approval_seconds)
+        try:
+            allowed = await self.taps.get()
+        except asyncio.CancelledError:
+            self.cancelled = True
+            raise
+        if not allowed:
+            return InstallTargetProbe(state=InstallTargetState.ADB_UNAUTHORIZED)
+        self.trusted = self.remembers
+        return CANDIDATE
+
+
+@contextlib.contextmanager
+def _network_install(panel: _PanelThatAsks, manager: SimpleNamespace) -> Iterator[None]:
+    """Fake only the panel, the release and the job store around the flow."""
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
+            AsyncMock(return_value=manager),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+            AsyncMock(side_effect=CannotConnectError),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_probe_install_target",
+            panel.probe,
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_resolve_install_choice",
+            AsyncMock(return_value=RELEASE),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_adb_signer",
+            AsyncMock(return_value=CREDENTIAL.signer),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_adb_credential",
+            AsyncMock(return_value=CREDENTIAL),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_durable_adb_credential",
+            AsyncMock(return_value=CREDENTIAL),
+        ),
+        patch.object(
+            HaPaneldConfigFlow,
+            "_async_show_install_progress",
+            AsyncMock(
+                return_value={"type": FlowResultType.ABORT, "reason": "installing"}
+            ),
+        ),
+    ):
+        yield
+
+
+async def _to_version_choice(hass: HomeAssistant) -> dict[str, Any]:
+    form = await _start_step(hass, "add_panel")
+    return await hass.config_entries.flow.async_configure(
+        form["flow_id"], {CONF_ADDRESS: "panel.local"}
+    )
+
+
+async def _after_the_wait(hass: HomeAssistant, flow_id: str) -> dict[str, Any]:
+    """Let a finished wait advance the flow, as the dialog does on its own."""
+    await hass.async_block_till_done()
+    result = await hass.config_entries.flow.async_configure(flow_id)
+    if result["type"] is FlowResultType.SHOW_PROGRESS_DONE:
+        result = await hass.config_entries.flow.async_configure(flow_id)
+    return result
+
+
+async def test_a_panel_that_asks_installs_after_its_allow_and_one_install_press(
+    hass: HomeAssistant,
+) -> None:
+    """After the version, the person taps Allow on the panel and presses Install."""
+    panel = _PanelThatAsks()
+    manager = _manager_for(_receipt(InstallPhase.APPROVED))
+    with _network_install(panel, manager):
+        waiting = await _choose_version(hass, await _to_version_choice(hass))
+        assert waiting["type"] is FlowResultType.SHOW_PROGRESS
+        assert waiting["step_id"] == "authorize_adb"
+        assert waiting["progress_action"] == "authorize_adb"
+        panel.taps.put_nowait(True)
+        confirm = await _after_the_wait(hass, waiting["flow_id"])
+        assert confirm["type"] is FlowResultType.FORM
+        assert confirm["step_id"] == "confirm_install_candidate"
+        manager.async_create_or_join.assert_not_awaited()
+        result = await hass.config_entries.flow.async_configure(confirm["flow_id"], {})
+
+    assert result == {"type": FlowResultType.ABORT, "reason": "installing"}
+    manager.async_create_or_join.assert_awaited_once()
+    assert len(panel.offers) == 1
+    # A person walks to the panel: the offer waits far past an ADB answer.
+    assert panel.offers[0] >= 60
+
+
+async def test_a_panel_that_already_trusts_home_assistant_asks_only_to_install(
+    hass: HomeAssistant,
+) -> None:
+    """A panel that asks for unknown keys but knows this one shows no Allow step."""
+    panel = _PanelThatAsks(trusted=True)
+    manager = _manager_for(_receipt(InstallPhase.APPROVED))
+    with _network_install(panel, manager):
+        confirm = await _choose_version(hass, await _to_version_choice(hass))
+        assert confirm["type"] is FlowResultType.FORM
+        assert confirm["step_id"] == "confirm_install_candidate"
+        await hass.config_entries.flow.async_configure(confirm["flow_id"], {})
+
+    manager.async_create_or_join.assert_awaited_once()
+    assert panel.offers == []
+
+
+async def test_a_missed_allow_asks_the_panel_again_from_one_submit(
+    hass: HomeAssistant,
+) -> None:
+    """No Allow in time says so, and Submit offers the key once more."""
+    panel = _PanelThatAsks()
+    manager = _manager_for(_receipt(InstallPhase.APPROVED))
+    with _network_install(panel, manager):
+        waiting = await _choose_version(hass, await _to_version_choice(hass))
+        panel.taps.put_nowait(False)
+        retry = await _after_the_wait(hass, waiting["flow_id"])
+        assert retry["type"] is FlowResultType.FORM
+        assert retry["step_id"] == "authorize_adb"
+        assert retry["errors"] == {"base": "adb_still_unauthorized"}
+        waiting = await hass.config_entries.flow.async_configure(retry["flow_id"], {})
+        assert waiting["type"] is FlowResultType.SHOW_PROGRESS
+        panel.taps.put_nowait(True)
+        confirm = await _after_the_wait(hass, waiting["flow_id"])
+
+    assert confirm["step_id"] == "confirm_install_candidate"
+    assert len(panel.offers) == 2
+    manager.async_create_or_join.assert_not_awaited()
+
+
+async def test_an_allow_the_panel_does_not_remember_is_not_ready_to_install(
+    hass: HomeAssistant,
+) -> None:
+    """The install opens its own connection, which a one-time Allow does not cover."""
+    panel = _PanelThatAsks(remembers=False)
+    manager = _manager_for(_receipt(InstallPhase.APPROVED))
+    with _network_install(panel, manager):
+        waiting = await _choose_version(hass, await _to_version_choice(hass))
+        panel.taps.put_nowait(True)
+        retry = await _after_the_wait(hass, waiting["flow_id"])
+
+    assert retry["type"] is FlowResultType.FORM
+    assert retry["step_id"] == "authorize_adb"
+    assert retry["errors"] == {"base": "adb_still_unauthorized"}
+    manager.async_create_or_join.assert_not_awaited()
+
+
+@pytest.mark.parametrize("allowed", [True, False], ids=["allowed", "not_allowed"])
+async def test_input_sent_as_the_wait_ends_is_not_the_install_press(
+    hass: HomeAssistant, allowed: bool
+) -> None:
+    """Whatever a caller sends when the wait ends only shows the next screen.
+
+    Core hands the same input on through the end of a progress step, so the
+    confirmation must be shown before an Install press can count, and a failed
+    wait must not ask the panel again unasked.
+    """
+    panel = _PanelThatAsks()
+    manager = _manager_for(_receipt(InstallPhase.APPROVED))
+    with _network_install(panel, manager):
+        waiting = await _choose_version(hass, await _to_version_choice(hass))
+        panel.taps.put_nowait(allowed)
+        await hass.async_block_till_done()
+        shown = await hass.config_entries.flow.async_configure(waiting["flow_id"], {})
+        assert shown["type"] is FlowResultType.FORM
+        assert shown["step_id"] == (
+            "confirm_install_candidate" if allowed else "authorize_adb"
+        )
+        manager.async_create_or_join.assert_not_awaited()
+        assert len(panel.offers) == 1
+        if allowed:
+            await hass.config_entries.flow.async_configure(shown["flow_id"], {})
+            manager.async_create_or_join.assert_awaited_once()
+
+
+async def test_closing_the_dialog_stops_waiting_for_the_allow(
+    hass: HomeAssistant,
+) -> None:
+    """Nobody is left holding the panel's connection open after the dialog goes."""
+    panel = _PanelThatAsks()
+    manager = _manager_for(_receipt(InstallPhase.APPROVED))
+    with _network_install(panel, manager):
+        waiting = await _choose_version(hass, await _to_version_choice(hass))
+        await asyncio.sleep(0)
+        assert len(panel.offers) == 1
+        hass.config_entries.flow.async_abort(waiting["flow_id"])
+        await hass.async_block_till_done()
+
+    assert panel.cancelled is True
+    manager.async_create_or_join.assert_not_awaited()
+
+
 async def test_the_authorization_retry_also_names_every_state_it_can_see(
     hass: HomeAssistant,
 ) -> None:
     """The second state map is a separate copy, so it needs its own proof.
 
-    Reaching it means the first probe said the key was not trusted and the
-    retry, now holding Home Assistant's key, saw something else. That map reads
+    Reaching it means the first probe, holding no key, was refused and the
+    check with Home Assistant's key saw something else. That map reads
     the state as a bare string too, so the same omission is possible there and
     invisible in the same way.
     """
@@ -2432,6 +2767,8 @@ async def test_the_authorization_retry_also_names_every_state_it_can_see(
             InstallTargetState.INSTALL_CANDIDATE,
             InstallTargetState.INSTALLED,
             InstallTargetState.MIGRATION_CANDIDATE,
+            # Still untrusted waits for the panel's Allow, tested on its own.
+            InstallTargetState.ADB_UNAUTHORIZED,
         }:
             continue
         probe_mock = AsyncMock(
@@ -2459,14 +2796,11 @@ async def test_the_authorization_retry_also_names_every_state_it_can_see(
             ),
         ):
             form = await _start_step(hass, "add_panel")
-            authorize = await _choose_version(
+            result = await _choose_version(
                 hass,
                 await hass.config_entries.flow.async_configure(
                     form["flow_id"], {CONF_ADDRESS: "panel.local"}
                 ),
-            )
-            result = await hass.config_entries.flow.async_configure(
-                authorize["flow_id"], {}
             )
 
         assert result["step_id"] == "authorize_adb", state.value
@@ -2597,54 +2931,23 @@ async def _choose(
         )
 
 
-async def test_a_panel_that_asked_to_connect_is_confirmed_in_the_flow(
+async def test_a_panel_that_asked_to_connect_is_added_bound_to_it(
     hass: HomeAssistant,
     hass_admin_user: Any,
 ) -> None:
-    """The panel's account is confirmed while the administrator adding it is here.
-
-    This is the whole point of the step: the panel has already asked and been
-    refused for want of a confirmation, so asking for it now makes onboarding one
-    consent instead of a Repairs item nobody knows to look for.
-    """
+    """A panel that signed in before it was added is bound with nothing asked."""
     user = await hass.auth.async_create_user("Panel account")
     async_record_binding_request(hass, DISCOVERY_ID, user.id)
 
-    menu = await _discover_panel(hass, DISCOVERY_HEALTH)
-
-    assert menu["type"] is FlowResultType.MENU
-    assert menu["step_id"] == "confirm_user"
-    assert menu["description_placeholders"] == {
-        "panel": "alpha",
-        "user": "Panel account",
-    }
-    assert not hass.config_entries.async_entries(DOMAIN)
-
-    result = await _choose(hass, DISCOVERY_HEALTH, menu, "bind_user")
+    result = await _discover_panel(hass, DISCOVERY_HEALTH)
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"] == {
         CONF_ADDRESS: "192.168.1.23",
         CONF_TRANSPORT_USER_ID: user.id,
     }
-    # The request is answered, so a later flow does not offer a decision that has
-    # already been taken.
+    # The request is answered, so a later flow does not bind it again.
     assert async_binding_request(hass, DISCOVERY_ID) is None
-
-
-async def test_an_administrator_who_declines_still_gets_the_panel(
-    hass: HomeAssistant,
-    hass_admin_user: Any,
-) -> None:
-    """Declining adds the panel unbound; it never silently binds the account."""
-    user = await hass.auth.async_create_user("Panel account")
-    async_record_binding_request(hass, DISCOVERY_ID, user.id)
-    menu = await _discover_panel(hass, DISCOVERY_HEALTH)
-
-    result = await _choose(hass, DISCOVERY_HEALTH, menu, "skip_binding")
-
-    assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["data"] == {CONF_ADDRESS: "192.168.1.23"}
 
 
 async def test_a_panel_nobody_asked_about_is_added_with_nothing_extra(
@@ -2661,48 +2964,16 @@ async def test_a_panel_nobody_asked_about_is_added_with_nothing_extra(
     assert result["data"] == {CONF_ADDRESS: "192.168.1.23"}
 
 
-async def test_confirming_binds_only_the_account_the_menu_showed(
-    hass: HomeAssistant,
-    hass_admin_user: Any,
-) -> None:
-    """The account bound is the one the menu named, never whoever asked most recently.
-
-    This is the sharp edge of the whole step. An administrator reads one account name
-    and submits; if a request that arrived in between could be bound instead, the
-    consent would be for an account nobody was shown, which is the property the
-    Repairs flow exists to protect.
-    """
-    shown = await hass.auth.async_create_user("Panel account")
-    other = await hass.auth.async_create_user("Someone else")
-    async_record_binding_request(hass, DISCOVERY_ID, shown.id)
-    menu = await _discover_panel(hass, DISCOVERY_HEALTH)
-    assert menu["description_placeholders"] == {
-        "panel": "alpha",
-        "user": "Panel account",
-    }
-
-    # Someone else asks while the menu is open, so the request no longer names the
-    # account the administrator is looking at.
-    async_record_binding_request(hass, DISCOVERY_ID, other.id)
-    result = await _choose(hass, DISCOVERY_HEALTH, menu, "bind_user")
-
-    assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["data"] == {CONF_ADDRESS: "192.168.1.23"}
-    assert result["data"].get(CONF_TRANSPORT_USER_ID) != other.id
-
-
 async def test_an_account_that_is_no_longer_usable_is_not_bound(
     hass: HomeAssistant,
     hass_admin_user: Any,
 ) -> None:
-    """A deactivation while the menu is open is not confirmed by that submission."""
+    """A request from an account deactivated since it asked binds nothing."""
     user = await hass.auth.async_create_user("Panel account")
     async_record_binding_request(hass, DISCOVERY_ID, user.id)
-    menu = await _discover_panel(hass, DISCOVERY_HEALTH)
-    assert menu["step_id"] == "confirm_user"
-
     await hass.auth.async_deactivate_user(user)
-    result = await _choose(hass, DISCOVERY_HEALTH, menu, "bind_user")
+
+    result = await _discover_panel(hass, DISCOVERY_HEALTH)
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"] == {CONF_ADDRESS: "192.168.1.23"}

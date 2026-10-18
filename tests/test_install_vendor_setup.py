@@ -6,6 +6,7 @@ the same launch and repair calls an install, an update and Repairs make.
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -15,11 +16,15 @@ import pytest
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 
 from custom_components.panel_assistant import vendor_provisioning
-from custom_components.panel_assistant.home_chooser import CHOOSER_DUMP
-from custom_components.panel_assistant.install_adb import (
+from custom_components.panel_assistant.adb_protocol import (
     AdbInstallTarget,
     AdbRootMode,
+    InstallAdbError,
+    InstallAdbErrorCode,
     LaunchOutcome,
+)
+from custom_components.panel_assistant.home_chooser import CHOOSER_DUMP
+from custom_components.panel_assistant.install_adb import (
     async_launch_installed_app,
     async_repair_installed_app_permissions,
     async_restore_vendor_setup,
@@ -27,9 +32,12 @@ from custom_components.panel_assistant.install_adb import (
 from custom_components.panel_assistant.release import InstallDescriptor
 
 from .install_adb_fakes import (
+    NONCES,
     FakeDevice,
     _identity_root_output,
     _install_fakes,
+    _notifications_output,
+    _permissions_output,
     _single_output,
 )
 from .test_install_adb import (  # noqa: F401 - fixtures resolve by parameter name
@@ -110,6 +118,11 @@ class _PanelDevice(FakeDevice):
             )
 
 
+#: The HOME activity of the build under test, whose classes are in the old
+#: namespace.
+_DASHBOARD = "io.panelassistant.android/io.github.maxlyth.hapaneld.DashboardActivity"
+
+
 def _portal(state: Path, *, components: str = _META_COMPONENTS) -> None:
     """A Portal as Meta ships it: both dreams set, the swipe-up bar allowed."""
     (state / "prop.ro.product.device").write_text("omni\n")
@@ -159,14 +172,9 @@ async def test_any_panel_is_given_the_app_as_home_and_no_meta_setup(
     fake = await _launch(monkeypatch, signer, target, descriptor, tmp_path)
 
     calls = _calls(tmp_path)
-    assert (
-        "cmd package set-home-activity io.github.maxlyth.hapaneld/.DashboardActivity"
-        in calls
-    )
-    assert _value(tmp_path, "home") == "io.github.maxlyth.hapaneld/.DashboardActivity"
-    assert (
-        "pm grant io.github.maxlyth.hapaneld android.permission.RECORD_AUDIO" in calls
-    )
+    assert f"cmd package set-home-activity {_DASHBOARD}" in calls
+    assert _value(tmp_path, "home") == _DASHBOARD
+    assert "pm grant io.panelassistant.android android.permission.RECORD_AUDIO" in calls
     assert not any("HAPANELD_VENDOR" in command for command in fake.commands)
     assert not any("screensaver" in call or _CONTROL_CENTER in call for call in calls)
     assert _HOME_WARNING not in caplog.text
@@ -187,11 +195,11 @@ async def test_a_portal_gets_the_four_steps_read_back_and_recorded(
 
     fake = await _launch(monkeypatch, signer, target, descriptor, tmp_path)
 
-    assert _value(tmp_path, "home") == "io.github.maxlyth.hapaneld/.DashboardActivity"
+    assert _value(tmp_path, "home") == _DASHBOARD
     assert (
         _value(
             tmp_path,
-            "permission.io.github.maxlyth.hapaneld.android.permission.RECORD_AUDIO",
+            "permission.io.panelassistant.android.android.permission.RECORD_AUDIO",
         )
         == "true"
     )
@@ -259,10 +267,8 @@ async def test_an_update_that_dropped_home_has_it_claimed_again(
         target, signer, descriptor, expected_root_mode=AdbRootMode.ROOTLESS
     )
 
-    assert _calls(tmp_path)[0] == (
-        "cmd package set-home-activity io.github.maxlyth.hapaneld/.DashboardActivity"
-    )
-    assert _value(tmp_path, "home") == "io.github.maxlyth.hapaneld/.DashboardActivity"
+    assert _calls(tmp_path)[0] == f"cmd package set-home-activity {_DASHBOARD}"
+    assert _value(tmp_path, "home") == _DASHBOARD
 
 
 async def test_a_home_android_does_not_keep_is_reported_and_the_app_still_starts(
@@ -352,6 +358,29 @@ async def test_hand_back_restores_metas_values_once(
     assert not (tmp_path / "verifier-record").exists()
     # A retry finds nothing left to put back.
     assert await async_restore_vendor_setup(target, signer) == "none"
+
+
+async def test_a_hand_back_answer_in_no_known_shape_is_an_unreachable_panel(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+) -> None:
+    _install_fakes(
+        monkeypatch,
+        [
+            FakeDevice(
+                [
+                    _identity_root_output(NONCES[0]),
+                    _single_output("VENDOR_RESTORE", NONCES[1], ["maybe"], 0),
+                ]
+            )
+        ],
+    )
+
+    with pytest.raises(InstallAdbError) as raised:
+        await async_restore_vendor_setup(target, signer)
+
+    assert raised.value.code is InstallAdbErrorCode.TARGET_UNREACHABLE
 
 
 async def test_hand_back_on_a_panel_never_changed_touches_nothing(
@@ -509,7 +538,6 @@ async def test_hand_back_that_cannot_restore_the_bar_reports_it_and_keeps_the_re
     assert (tmp_path / "restore-record").exists()
 
 
-_DASHBOARD = "io.github.maxlyth.hapaneld/.DashboardActivity"
 #: The chooser a Portal showed on 2026-10-11 after set-home-activity, Always
 #: at [772,601][862,646]; the build under test is labelled ha-paneld.
 _CHOOSER = (
@@ -860,3 +888,46 @@ async def test_a_recorded_deny_is_put_back_after_the_mode_changed(
 
     assert _value(tmp_path, f"appop.{_SHELLY}.SYSTEM_ALERT_WINDOW") == "deny"
     assert not (tmp_path / "shelly-record").exists()
+
+
+@pytest.mark.parametrize(
+    ("old", "new"),
+    [("\ndevice:generic", "\nplatform:generic"), ("\nvendor:none", "\nvendor:maybe")],
+)
+async def test_an_unreadable_vendor_probe_is_reported_and_runs_no_vendor_setup(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+    old: str,
+    new: str,
+) -> None:
+    permissions = _permissions_output(NONCES[3])
+    assert permissions.count(old.encode()) == 1
+    fake = FakeDevice(
+        [
+            _identity_root_output(NONCES[0]),
+            _single_output(
+                "PACKAGE", NONCES[1], ["package:/data/app/ha-paneld/base.apk"], 0
+            ),
+            _notifications_output(NONCES[2], granted=True),
+            permissions.replace(old.encode(), new.encode()),
+            _single_output("LAUNCH", NONCES[4], ["Status: ok"], 0),
+        ]
+    )
+    _install_fakes(monkeypatch, [fake])
+
+    outcome = await async_launch_installed_app(
+        target, signer, descriptor, expected_root_mode=AdbRootMode.ROOTLESS
+    )
+
+    assert outcome is LaunchOutcome.STARTED
+    assert "am start" in fake.commands[4]
+    assert not any("VENDOR" in command for command in fake.commands)
+    assert [
+        record.levelno
+        for record in caplog.records
+        if "did not grant io.panelassistant.android every permission it needs"
+        in record.getMessage()
+    ] == [logging.WARNING]

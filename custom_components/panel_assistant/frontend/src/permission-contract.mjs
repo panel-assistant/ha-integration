@@ -1,45 +1,66 @@
 // Fixed, explicitly confirmed post-install grants for the authenticated APK.
 // Nothing here configures MQTT, networking, device ownership or app data.
-import { LEGACY_LAUNCH_COMPONENT, accessibilityComponentFor, accessibilityComponentsFor,
-  homeComponentsFor, isLaunchComponent } from './app-identity.mjs';
+import { DEVICE_ADMIN_RECEIVER, OBSOLETE_ACCESSIBILITY_COMPONENTS,
+  accessibilityComponentFor, accessibilityComponentsFor, homeComponentsFor, isLaunchComponent } from './app-identity.mjs';
 import { CHOOSER_OUTCOMES, HOME_QUERY, buildHomeClaim } from './home-chooser.mjs';
 
 // What HOME resolves to now, as the network installer reads it.
 export { HOME_QUERY };
-// The microphone is granted only where Android lists one, as the network
-// installer grants it; a refusal is reported, never fatal.
-const microphoneListed = 'for hp_f in $hp_features; do case "$hp_f" in ' +
-  'feature:android.hardware.microphone|feature:android.hardware.microphone=*) hp_mic=1 ;; esac; done';
+// Each runtime permission is granted only where Android lists its hardware
+// feature, the same pairs the network installer grants (adb_protocol.py
+// RUNTIME_GRANTS); a refusal is reported, never fatal.
+export const RUNTIME_GRANTS = Object.freeze([['camera.any', 'CAMERA'], ['microphone', 'RECORD_AUDIO']]);
+const listed = feature => `hp_has=; for hp_f in $hp_features; do case "$hp_f" in ` +
+  `feature:android.hardware.${feature}|feature:android.hardware.${feature}=*) hp_has=1 ;; esac; done`;
 
-// The one component written into the device-wide accessibility list for the
-// installed build, and every spelling that already names it. The class lives in
-// whichever package the build's launcher names, so it follows the launcher.
-export const ACCESSIBILITY_SERVICE = accessibilityComponentFor(LEGACY_LAUNCH_COMPONENT);
 // Lets full screen-off lift a firmware's keep-screen-on-while-plugged-in
 // setting (the Shelly X2i); granted after every install like the network path.
 const SECURE_SETTINGS = 'android.permission.WRITE_SECURE_SETTINGS';
-const fail = () => { throw new Error('permissions_unverified'); };
+// Makes the app a device admin, which only locks the screen, unless Android
+// already lists it: the network installer's device_admin_claim_command, as text.
+export function buildDeviceAdminClaim(packageId) {
+  const listed = `${packageId}/${DEVICE_ADMIN_RECEIVER.slice(packageId.length)}:`;
+  return `case "$(dumpsys device_policy 2>/dev/null)" in *"${listed}"*) ;; ` +
+    `*) dpm set-active-admin ${packageId}/${DEVICE_ADMIN_RECEIVER} >/dev/null 2>&1 ;; esac`;
+}
+// Every refusal carries the same code; `detail` names the check that refused,
+// for "Details for support" only, so the next failure names its cause.
+const fail = detail => { throw Object.assign(new Error('permissions_unverified'), { detail }); };
+// A panel line as support sees it: bounded, already printable ASCII.
+const shown = line => line === undefined ? 'missing' : JSON.stringify(line.length > 80 ? `${line.slice(0, 80)}…` : line);
 const checkBuild = (packageId, launchComponent) => {
-  if (!isLaunchComponent(packageId, launchComponent)) fail();
+  if (!isLaunchComponent(packageId, launchComponent)) fail('unknown app build');
 };
-const checkNonce = nonce => { if (!/^[a-f0-9]{32}$/.test(nonce)) fail(); };
-const checkSdk = sdk => { if (!Number.isInteger(sdk) || sdk < 1 || sdk > 100) fail(); };
+const checkNonce = nonce => { if (!/^[a-f0-9]{32}$/.test(nonce)) fail('invalid nonce'); };
+const checkSdk = sdk => { if (!Number.isInteger(sdk) || sdk < 1 || sdk > 100) fail('invalid Android version'); };
 
 function validateServices(value) {
-  if (typeof value !== 'string' || value.length > 4096) fail();
+  // Other apps' services are named only by count.
+  const unreadable = () => fail(`accessibility services unreadable (${String(value).split(':').length} entries)`);
+  if (typeof value !== 'string' || value.length > 4096) unreadable();
   if (value === '' || value === 'null') return [];
   const services = value.split(':');
   if (services.length > 64 || new Set(services).size !== services.length ||
-      services.some(service => !/^[A-Za-z][A-Za-z0-9_.]*\/[A-Za-z.][A-Za-z0-9_.$]*$/.test(service))) fail();
+      services.some(service => !/^[A-Za-z][A-Za-z0-9_.]*\/[A-Za-z.][A-Za-z0-9_.$]*$/.test(service))) unreadable();
   return services;
 }
 
 function frame(body, nonce, kind) {
   checkNonce(nonce);
-  if (typeof body !== 'string' || body.length > 16384 || /[^\x20-\x7e\r\n\t]/.test(body)) fail();
+  const step = kind.slice('PERMISSIONS_'.length).toLowerCase();
+  if (typeof body !== 'string' || body.length > 16384 || /[^\x20-\x7e\r\n\t]/.test(body)) {
+    fail(`${step}: reply too long or not plain text`);
+  }
   const lines = body.replaceAll('\r\n', '\n').split('\n');
-  if (lines.shift() !== `HAPANELD_${kind}_BEGIN:${nonce}` || lines.pop() !== '' ||
-      lines.pop() !== `HAPANELD_${kind}_END:${nonce}:0` || lines.some(line => line.includes('HAPANELD_'))) fail();
+  if (lines.shift() !== `HAPANELD_${kind}_BEGIN:${nonce}`) fail(`${step}: no start marker`);
+  if (lines.pop() !== '') fail(`${step}: reply cut short`);
+  const end = lines.pop(), ending = `HAPANELD_${kind}_END:${nonce}:`;
+  if (end !== `${ending}0`) {
+    fail(end?.startsWith(ending) ? `${step}: a command failed (status ${shown(end.slice(ending.length))})`
+      : `${step}: no end marker`);
+  }
+  const marker = lines.findIndex(line => line.includes('HAPANELD_'));
+  if (marker >= 0) fail(`${step} line ${marker + 1}: unexpected marker`);
   return lines;
 }
 
@@ -50,7 +71,7 @@ export function buildPermissionRead(nonce) {
 
 export function parsePermissionRead(body, nonce) {
   const lines = frame(body, nonce, 'PERMISSIONS_READ');
-  if (lines.length !== 1) fail();
+  if (lines.length !== 1) fail(`read: ${lines.length} lines, expected 1`);
   validateServices(lines[0]);
   return lines[0];
 }
@@ -59,8 +80,10 @@ export function expectedServices(existing, packageId, launchComponent) {
   checkBuild(packageId, launchComponent);
   const services = validateServices(existing);
   const known = accessibilityComponentsFor(launchComponent);
-  return services.some(service => known.includes(service))
-    ? existing : [...services, accessibilityComponentFor(launchComponent)].join(':');
+  const obsolete = OBSOLETE_ACCESSIBILITY_COMPONENTS[launchComponent] ?? [];
+  const kept = services.filter(service => !obsolete.includes(service));
+  return (kept.some(service => known.includes(service))
+    ? kept : [...kept, accessibilityComponentFor(launchComponent)]).join(':');
 }
 
 export function buildPermissionGrant(nonce, sdk, existing, packageId, launchComponent) {
@@ -68,7 +91,7 @@ export function buildPermissionGrant(nonce, sdk, existing, packageId, launchComp
   const PACKAGE = packageId;
   const expected = expectedServices(existing, packageId, launchComponent);
   // Validated component characters cannot escape single-quoted shell literals.
-  // The microphone and HOME come last and never decide the status: `:` ends
+  // Runtime permissions and HOME come last and never decide the status: `:` ends
   // the program successfully whatever they answered; the readback reports them.
   // The HOME claim prints the one line this program answers: what it did.
   // Check again immediately before the list write: unrelated services must not
@@ -84,9 +107,11 @@ current=$(settings get secure enabled_accessibility_services) || exit 1
 [ "$current" = '${existing}' ] || exit 1
 ${expected === existing ? ':' : `settings put secure enabled_accessibility_services '${expected}' || exit 1`}
 settings put secure accessibility_enabled 1 || exit 1
-hp_mic=; hp_features=$(pm list features 2>/dev/null) && ${microphoneListed}
-[ -z "$hp_mic" ] || pm grant ${PACKAGE} android.permission.RECORD_AUDIO >/dev/null 2>&1
+hp_features=$(pm list features 2>/dev/null) || hp_features=
+${RUNTIME_GRANTS.map(([feature, permission]) => `${listed(feature)}
+[ -z "$hp_has" ] || pm grant ${PACKAGE} android.permission.${permission} >/dev/null 2>&1`).join('\n')}
 pm grant ${PACKAGE} ${SECURE_SETTINGS} >/dev/null 2>&1
+${buildDeviceAdminClaim(PACKAGE)}
 ${buildHomeClaim(launchComponent)}
 echo "home_chooser:$hp_chooser"
 :
@@ -96,7 +121,9 @@ echo "home_chooser:$hp_chooser"
 // What the HOME claim did, or null when its line could not be read; never fatal.
 export function parsePermissionGrant(body, nonce) {
   const lines = frame(body, nonce, 'PERMISSIONS_GRANT');
-  if (lines.length > 1 || (lines.length === 1 && !lines[0].startsWith('home_chooser:'))) fail();
+  if (lines.length > 1 || (lines.length === 1 && !lines[0].startsWith('home_chooser:'))) {
+    fail(`grant line 1: ${shown(lines[0])}${lines.length > 1 ? ` and ${lines.length - 1} more` : ''}`);
+  }
   const chooser = lines.length ? lines[0].slice(13) : null;
   return CHOOSER_OUTCOMES.includes(chooser) ? chooser : null;
 }
@@ -111,7 +138,8 @@ appops get ${PACKAGE} WRITE_SETTINGS || exit 1
 appops get ${PACKAGE} SYSTEM_ALERT_WINDOW || exit 1
 appops get ${PACKAGE} REQUEST_INSTALL_PACKAGES || exit 1
 ${sdk >= 33 ? `dumpsys package ${PACKAGE} | grep 'android.permission.POST_NOTIFICATIONS: granted=' || exit 1` : "echo not_required"}
-hp_mic=; if hp_features=$(pm list features 2>/dev/null); then ${microphoneListed}; if [ -z "$hp_mic" ]; then echo unsupported; else hp_r=$(dumpsys package ${PACKAGE} 2>/dev/null | grep -F 'android.permission.RECORD_AUDIO: granted='); case "$hp_r" in '') echo unknown ;; *granted=false*) echo denied ;; *) echo granted ;; esac; fi; else echo unknown; fi
+hp_features=$(pm list features 2>/dev/null); hp_features_status=$?
+${RUNTIME_GRANTS.map(([feature, permission]) => `if [ "$hp_features_status" -eq 0 ]; then ${listed(feature)}; if [ -z "$hp_has" ]; then echo unsupported; else hp_r=$(dumpsys package ${PACKAGE} 2>/dev/null | grep -F 'android.permission.${permission}: granted='); case "$hp_r" in '') echo unknown ;; *granted=false*) echo denied ;; *) echo granted ;; esac; fi; else echo unknown; fi`).join('\n')}
 hp_s=$(dumpsys package ${PACKAGE} 2>/dev/null) && case "$hp_s" in *"${SECURE_SETTINGS}: granted=true"*) echo granted ;; *) echo missing ;; esac || echo unknown
 echo "home:$(${HOME_QUERY})"
 echo "device:$(getprop ro.product.device)"
@@ -121,22 +149,41 @@ echo "device:$(getprop ro.product.device)"
 export function parsePermissionVerification(body, nonce, sdk, existing, packageId, launchComponent) {
   checkSdk(sdk); checkBuild(packageId, launchComponent);
   const lines = frame(body, nonce, 'PERMISSIONS_VERIFY');
-  if (lines.length !== 10 || lines[0] !== expectedServices(existing, packageId, launchComponent) || lines[1] !== '1' ||
-      !/^WRITE_SETTINGS: allow(?:; [\x20-\x7e]{1,1024})?$/.test(lines[2]) ||
-      !/^SYSTEM_ALERT_WINDOW: allow(?:; [\x20-\x7e]{1,1024})?$/.test(lines[3]) ||
-      !/^REQUEST_INSTALL_PACKAGES: allow(?:; [\x20-\x7e]{1,1024})?$/.test(lines[4]) ||
-      (sdk >= 33 ? !/^\s*android\.permission\.POST_NOTIFICATIONS: granted=true, flags=\[[ A-Z0-9_|]*\]\s*$/.test(lines[5])
-        : lines[5] !== 'not_required') ||
-      !['granted', 'denied', 'unknown', 'unsupported'].includes(lines[6]) ||
-      !['granted', 'missing', 'unknown'].includes(lines[7]) ||
-      !lines[8].startsWith('home:') || !lines[9].startsWith('device:')) fail();
-  const device = lines[9].slice(7);
-  // HOME, the microphone and secure settings are reported, never a reason to
+  const services = expectedServices(existing, packageId, launchComponent);
+  const allowed = op => line => new RegExp(`^${op}: allow(?:; [\\x20-\\x7e]{1,1024})?$`).test(line);
+  const reading = values => line => values.includes(line);
+  // One check per line the verification program prints, in its order.
+  const checks = [
+    ['accessibility services', line => line === services],
+    ['accessibility enabled', line => line === '1'],
+    ['WRITE_SETTINGS', allowed('WRITE_SETTINGS')],
+    ['SYSTEM_ALERT_WINDOW', allowed('SYSTEM_ALERT_WINDOW')],
+    ['REQUEST_INSTALL_PACKAGES', allowed('REQUEST_INSTALL_PACKAGES')],
+    ['notifications', sdk >= 33
+      ? line => /^\s*android\.permission\.POST_NOTIFICATIONS: granted=true, flags=\[[ A-Z0-9_|]*\]\s*$/.test(line)
+      : line => line === 'not_required'],
+    ['camera', reading(['granted', 'denied', 'unknown', 'unsupported'])],
+    ['microphone', reading(['granted', 'denied', 'unknown', 'unsupported'])],
+    ['secure settings', reading(['granted', 'missing', 'unknown'])],
+    ['home', line => line?.startsWith('home:')],
+    ['device', line => line?.startsWith('device:')],
+  ];
+  checks.forEach(([name, ok], index) => {
+    if (ok(lines[index])) return;
+    // Other apps' services are named only by count.
+    const seen = index === 0 && lines[0] !== undefined
+      ? `${lines[0] === '' || lines[0] === 'null' ? 0 : lines[0].split(':').length} entries${lines[0] === existing ? ', unchanged' : ''}`
+      : shown(lines[index]);
+    fail(`verify line ${index + 1} (${name}): ${seen}`);
+  });
+  if (lines.length !== checks.length) fail(`verify: ${lines.length} lines, expected ${checks.length}`);
+  const device = lines[10].slice(7);
+  // HOME, the camera, the microphone and secure settings are reported, never a reason to
   // fail the install: the app runs without them (without secure settings the
   // screen dims instead of switching off) and the person can choose HOME on
   // the panel.
   return Object.freeze({permissionsVerified: true, notificationsRequired: sdk >= 33,
-    microphone: lines[6], secureSettings: lines[7],
-    home: homeComponentsFor(launchComponent).includes(lines[8].slice(5)),
+    camera: lines[6], microphone: lines[7], secureSettings: lines[8],
+    home: homeComponentsFor(launchComponent).includes(lines[9].slice(5)),
     device: /^[A-Za-z0-9_.-]{1,64}$/.test(device) ? device : null});
 }

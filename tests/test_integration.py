@@ -24,18 +24,20 @@ from custom_components.panel_assistant import (
     async_reload_entry,
 )
 from custom_components.panel_assistant.app_identity import (
+    LEGACY_LAUNCH_COMPONENT,
     LEGACY_PACKAGE_ID,
-    SUCCESSOR_PACKAGE_ID,
+    PACKAGE_ID,
 )
+from custom_components.panel_assistant.build import INTEGRATION_BUILD
 from custom_components.panel_assistant.client import (
     CannotConnectError,
     InvalidResponseError,
     PanelHealth,
     PanelInstallStatus,
+    parse_health_response,
 )
 from custom_components.panel_assistant.const import (
     DOMAIN,
-    INTEGRATION_BUILD,
     INTEGRATION_VERSION,
 )
 from custom_components.panel_assistant.diagnostics import (
@@ -51,6 +53,7 @@ from custom_components.panel_assistant.install_executor import (
     _FinalizerLease,
 )
 from custom_components.panel_assistant.install_jobs import (
+    InstallJobManager,
     InstallJobRevisionError,
     InstallJobStoreError,
     InstallPhase,
@@ -58,14 +61,17 @@ from custom_components.panel_assistant.install_jobs import (
 )
 from custom_components.panel_assistant.status import PanelStatus, parse_status_response
 
-HEALTH = PanelHealth(
-    version="0.9.0",
-    panel_id="alpha",
-    build="1000",
-    config_hash="1a2b3c4d",
-    ha_state="normal",
-    ha_source="mqtt",
-    protocol=(5, 5),
+from .install_executor_harness import (  # noqa: F401 - autouse Store stand-in
+    emulate_home_assistant_store_file,
+)
+from .test_install_jobs import artifact as install_artifact
+from .test_install_jobs import create as create_install_job
+
+# The line the app sends while it observes Home Assistant over its native socket.
+HEALTH = parse_health_response(
+    "ha-paneld 0.9.0 panel=alpha build=1000 cfg=1a2b3c4d proto=5-5"
+    " ha=normal ha_src=native ha_reason=unknown ha_grace_ms=0"
+    " pkg=io.panelassistant.android\n"
 )
 BETA_HEALTH = PanelHealth(
     version="0.9.1",
@@ -80,7 +86,6 @@ DISCOVERY_HEALTH = PanelHealth(
     build="1000",
     config_hash="1a2b3c4d",
     ha_state="normal",
-    ha_source="mqtt",
     discovery_id="a" * 64,
     protocol=(5, 5),
 )
@@ -107,7 +112,7 @@ def _receipt(
     address: str = "panel.local",
     version: str = HEALTH.version,
     phase: InstallPhase = InstallPhase.HEALTHY_UNCLAIMED,
-    package_id: str = LEGACY_PACKAGE_ID,
+    package_id: str = PACKAGE_ID,
 ) -> SimpleNamespace:
     """Return the receipt fields used by setup reconciliation."""
     return SimpleNamespace(
@@ -220,6 +225,9 @@ async def test_setup_entry_diagnostics_unload_reload(hass: HomeAssistant) -> Non
         assert state is not None
         assert state.state == "online"
         assert state.attributes["build"] == HEALTH.build
+        assert state.attributes["home_assistant_state"] == "normal"
+        assert "home_assistant_source" not in state.attributes
+        assert "home_assistant_subscription_refused" not in state.attributes
         # The panel's device names the Panel Assistant build it is connected
         # through, as a diagnostic entity beside its own Update entity.
         version = next(
@@ -300,7 +308,6 @@ async def test_diagnostics_download_uses_privacy_safe_entry_filename(
         build=HEALTH.build,
         config_hash=HEALTH.config_hash,
         ha_state=HEALTH.ha_state,
-        ha_source=HEALTH.ha_source,
         protocol=(5, 5),
     )
     executor, _manager = _installer_doubles(hass)
@@ -695,11 +702,11 @@ async def test_setup_quarantines_matching_receipt_on_version_mismatch(
 @pytest.mark.parametrize(
     ("receipt_package", "observed_package", "expected_phase"),
     [
-        (SUCCESSOR_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, InstallPhase.CONSUMED),
-        (SUCCESSOR_PACKAGE_ID, LEGACY_PACKAGE_ID, InstallPhase.RECOVERY_REQUIRED),
-        (SUCCESSOR_PACKAGE_ID, None, InstallPhase.RECOVERY_REQUIRED),
+        (PACKAGE_ID, PACKAGE_ID, InstallPhase.CONSUMED),
+        (PACKAGE_ID, LEGACY_PACKAGE_ID, InstallPhase.RECOVERY_REQUIRED),
+        (PACKAGE_ID, None, InstallPhase.RECOVERY_REQUIRED),
         (LEGACY_PACKAGE_ID, None, InstallPhase.CONSUMED),
-        (LEGACY_PACKAGE_ID, SUCCESSOR_PACKAGE_ID, InstallPhase.RECOVERY_REQUIRED),
+        (LEGACY_PACKAGE_ID, PACKAGE_ID, InstallPhase.RECOVERY_REQUIRED),
     ],
     ids=[
         "successor",
@@ -731,6 +738,37 @@ async def test_setup_consumes_a_receipt_only_for_the_package_it_installed(
     assert entry.state is ConfigEntryState.LOADED
     manager.async_transition.assert_awaited_once()
     assert manager.async_transition.await_args.args[2] is expected_phase
+
+
+async def test_a_stored_receipt_naming_the_old_app_still_reads(
+    hass: HomeAssistant,
+) -> None:
+    """A receipt an earlier release stored about the old app never closes the store.
+
+    One unreadable record would fail every install job, so the old app and its
+    one launcher still read back, and setup still loads beside it.
+    """
+    old_app = replace(
+        install_artifact(),
+        apk_name="ha-paneld-v0.1.0-manual-setup-required.apk",
+        package_id=LEGACY_PACKAGE_ID,
+        launch_component=LEGACY_LAUNCH_COMPONENT,
+    )
+    stored, _ = await create_install_job(
+        InstallJobManager(hass), install_artifact=old_app
+    )
+    restarted = InstallJobManager(hass)
+
+    [loaded] = await restarted.async_list()
+
+    assert loaded == stored
+    assert loaded.artifact.package_id == LEGACY_PACKAGE_ID
+    assert loaded.artifact.launch_component == LEGACY_LAUNCH_COMPONENT
+    entry = _entry(hass)
+    assert await _async_setup_with_installer(
+        hass, entry, InstallExecutor(hass, restarted)
+    )
+    assert entry.state is ConfigEntryState.LOADED
 
 
 @pytest.mark.parametrize(

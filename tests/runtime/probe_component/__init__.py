@@ -11,6 +11,7 @@ from hashlib import sha256
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
+from unittest.mock import AsyncMock, patch
 
 from homeassistant.config_entries import SOURCE_USER, ConfigEntry, ConfigEntryState
 from homeassistant.const import CONF_ADDRESS, EVENT_HOMEASSISTANT_STARTED
@@ -18,6 +19,7 @@ from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
+from custom_components.panel_assistant.adb_credentials import async_get_adb_credential
 from custom_components.panel_assistant.diagnostics import (
     async_get_config_entry_diagnostics,
 )
@@ -33,12 +35,24 @@ from custom_components.panel_assistant.install_jobs import (
     install_plan_sha256,
 )
 
+# This disposable process tests restart and receipt recovery. Catalogue tests live
+# elsewhere. Patch before entry setup to avoid background GitHub dependencies.
+patch(
+    "custom_components.panel_assistant.release_catalog.async_resolve_update_candidates",
+    new=AsyncMock(return_value=[]),
+).start()
+# This fixture has no pending vendor-display restart. Keep the safe-replay health
+# path real while excluding settlement transport, which is covered separately.
+patch(
+    "custom_components.panel_assistant.install_executor.async_settle_vendor_display",
+    new=AsyncMock(return_value="skipped"),
+).start()
+
 DOMAIN = "panel_assistant_runtime_probe"
 ENTRY_ID = "01M1K000000000000000000001"
 VERSION = "0.1.0"
 APK_BYTES = b"crash-held-apk"
 APK_SHA256 = sha256(APK_BYTES).hexdigest()
-ADB_CREDENTIAL_ID = "b" * 64
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -124,13 +138,14 @@ def _target(address: str, serial: str) -> InstallTarget:
 async def _create_job(
     manager: InstallJobManager,
     target: InstallTarget,
+    credential_generation_id: str,
 ) -> InstallJobReceipt:
     artifact = _artifact()
     receipt, created = await manager.async_create_or_join(
         target,
         artifact,
-        install_plan_sha256(target, artifact, ADB_CREDENTIAL_ID),
-        ADB_CREDENTIAL_ID,
+        install_plan_sha256(target, artifact, credential_generation_id),
+        credential_generation_id,
     )
     _require(created, "runtime job unexpectedly joined existing state")
     return receipt
@@ -229,14 +244,17 @@ async def _seed(hass: HomeAssistant) -> dict[str, Any]:
     registry = _registry_snapshot(hass, entry.entry_id)
 
     manager = await async_get_install_job_manager(hass)
+    credential = await async_get_adb_credential(hass)
     safe = await _create_job(
         manager,
         _target(_panel_address(), "RUNTIME-SAFE"),
+        credential.generation_id,
     )
     safe = await _advance_to(manager, safe, InstallPhase.HEALTH_CHECK)
     ambiguous = await _create_job(
         manager,
         _target(_ambiguous_address(), "RUNTIME-AMBIGUOUS"),
+        credential.generation_id,
     )
     ambiguous = await _advance_to(manager, ambiguous, InstallPhase.INSTALLING)
     custody_path = Path(

@@ -40,7 +40,8 @@
     "loading": "Wczytywanie wersji…",
     "catalogError": "Nie udało się wczytać listy wersji.",
     "empty": "Nie ma jeszcze dostępnych wersji. Spróbuj ponownie później.",
-    "choose": "Używaj kanału Panel Assistant (zalecane)",
+    "choose": "Zalecana wersja",
+    "otherVersions": "Wybierz inną wersję",
     "testing": "wersja testowa",
     "devBuild": "kompilacja deweloperska",
     "retry": "Spróbuj ponownie",
@@ -54,6 +55,7 @@
     "downloading": "Przygotowywanie aplikacji…",
     "verifying": "Przygotowywanie aplikacji…",
     "verified": "Kontynuuj w nowym oknie.",
+    "installed": "Panel Assistant jest zainstalowany. Dokończ konfigurację panelu w oknie instalatora, a następnie zamknij tę kartę.",
     "cancelled": "Anulowano.",
     "popup_blocked": "Przeglądarka zablokowała nowe okno. Zezwól na wyskakujące okna dla tej strony, a potem naciśnij Kontynuuj.",
     "invalid_request": "Najpierw wybierz wersję.",
@@ -65,9 +67,11 @@
     "preparingSlow": "Aplikacja nadal jest przygotowywana. Zostaw otwartą kartę Home Assistant.",
     "connectHeading": "Podłącz swój panel",
     "connectBody": "Podłącz panel do tego komputera kablem USB, a potem naciśnij Znajdź mój panel.",
+    "usbDebugging": "Debugowanie USB musi być włączone w opcjach programisty panelu.",
+    "usbDebuggingHelp": "Jak je włączyć",
     "connect": "Znajdź mój panel",
     "allowHeading": "Zezwól temu komputerowi",
-    "allowBody": "Spójrz na ekran panelu i dotknij Zezwól.",
+    "allowBody": "Na panelu zaznacz „Zawsze zezwalaj z tego komputera” i dotknij Zezwól, aby Panel Assistant mógł go później aktualizować bez kabla.",
     "checkingPanel": "Sprawdzanie panelu…",
     "confirmHeading": "Gotowe do instalacji",
     "confirmBody": "To zainstaluje aplikację i ustawi ją jako ekran główny panelu. Pozostałe aplikacje pozostaną nietknięte.",
@@ -101,7 +105,8 @@
     "pageClosed": "Strona została zamknięta.",
     "progress": "Postęp",
     "installProgress": "Postęp instalacji",
-    "licenses": "Licencje innych podmiotów"
+    "licenses": "Licencje innych podmiotów",
+    "doneAnotherHomeAssistant": "Ten panel jest zalogowany do innej instancji Home Assistant. Zmień na panelu instancję Home Assistant i zaloguj się, aby połączyć go tutaj."
   },
   "errors": {
     "installErrorGeneric": "Coś poszło nie tak. Zostaw panel podłączony i naciśnij Spróbuj ponownie.",
@@ -112,7 +117,8 @@
     "installErrorNotClean": "Ten panel ma już aplikację. Zamiast instalować, zaktualizuj ją z Home Assistant.",
     "installErrorIncompatible": "Ten panel nie może uruchomić tej wersji aplikacji.",
     "installErrorConnection": "Połączenie z panelem zostało przerwane. Zostaw go podłączonego i naciśnij Spróbuj ponownie.",
-    "installErrorHealth": "Aplikacja jest zainstalowana, ale jeszcze się nie uruchomiła. Poczekaj chwilę, a potem spróbuj ponownie."
+    "installErrorHealth": "Aplikacja jest zainstalowana, ale jeszcze się nie uruchomiła. Poczekaj chwilę, a potem spróbuj ponownie.",
+    "installErrorPermissions": "Aplikacja jest zainstalowana, ale nie udało się potwierdzić jej uprawnień. Ponowna próba jest bezpieczna: zostaw panel podłączony i naciśnij Spróbuj ponownie."
   },
   "journey": {
     "version": "Wersja",
@@ -129,6 +135,7 @@
   "support": {
     "stopped": "Zatrzymano",
     "cause": "Przyczyna",
+    "failedCheck": "Nieudane sprawdzenie",
     "error": "Błąd",
     "release": "Wydanie",
     "panel": "Panel",
@@ -142,6 +149,7 @@
     "setupAddress": "Adres konfiguracji",
     "setupHandover": "Przekazanie konfiguracji",
     "displaySizing": "Rozmiar wyświetlania i tekstu",
+    "networkAdb": "ADB przez sieć",
     "copiedDetail": "Wysłano {bytes} bajtów; oczekiwanie na potwierdzenie panelu",
     "none": "brak",
     "setupMissing": "nie znaleziono; konfiguracja trwa dalej na panelu"

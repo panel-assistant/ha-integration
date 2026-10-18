@@ -1,6 +1,7 @@
 """Configured-panel update projection tests."""
 
 import asyncio
+from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, call
 
@@ -10,8 +11,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.panel_assistant import update as panel_update
+from custom_components.panel_assistant import update_progress, update_route
 from custom_components.panel_assistant.adb_credentials import AdbCredentialError
-from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
+from custom_components.panel_assistant.app_identity import PACKAGE_ID
 from custom_components.panel_assistant.client import (
     CannotConnectError,
     PanelHealth,
@@ -39,6 +41,7 @@ HEALTH = PanelHealth(
     panel_id="alpha",
     build="1000",
     config_hash="1a2b3c4d",
+    package=PACKAGE_ID,
     protocol=(5, 5),
 )
 
@@ -69,7 +72,9 @@ def _entity(
     client = SimpleNamespace(
         async_get_legacy_install_capability=AsyncMock(return_value=True),
         async_start_panel_update=AsyncMock(),
-        async_get_panel_install_status=AsyncMock(),
+        async_get_panel_install_status=AsyncMock(
+            return_value=PanelInstallStatus(running=True, component="APK")
+        ),
         async_get_status=AsyncMock(
             return_value=PanelStatus(
                 warning_count=0,
@@ -89,6 +94,7 @@ def _entity(
             panel_id=HEALTH.panel_id,
             build=HEALTH.build,
             config_hash=HEALTH.config_hash,
+            package=HEALTH.package,
             protocol=(5, 5),
         ),
         status=PanelStatus(
@@ -106,16 +112,16 @@ def _entity(
         "app.apk",
         "https://github.com/app.apk",
         "a" * 64,
-        descriptor=SimpleNamespace(package_id=LEGACY_PACKAGE_ID, version_code=1100),
+        descriptor=SimpleNamespace(package_id=PACKAGE_ID, version_code=1100),
         protocol_min=5,
         protocol_max=5,
     )
     host = StableReleaseCoordinator(hass)
-    host._candidates[artifact.tag, LEGACY_PACKAGE_ID] = artifact
+    host._candidates[artifact.tag, PACKAGE_ID] = artifact
     entity = HaPaneldUpdateEntity("entry-id", health, updates, release=host)
     # These tests exercise the admitted panel-download route and its observer;
     # signed LAN staging and backup execution are exercised in the LAN suite.
-    entity._async_deliver_build = AsyncMock(return_value=False)
+    entity._delivery.async_deliver_build = AsyncMock(return_value=False)
     entity.hass = hass
     entity.async_write_ha_state = MagicMock()
     return entity, client
@@ -144,10 +150,15 @@ def test_update_entity_hides_a_release_older_than_running_health(
 async def test_panel_without_an_install_route_offers_nothing(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A newer signed build is not actionable when the app cannot install it."""
+    """A newer signed build is not actionable when the app cannot install it.
+
+    The stand-in panel refuses any start, so a request that reaches it fails
+    as a refusal at once instead of waiting for a restart that never comes.
+    """
     entity, client = _entity(hass, install_capability="none")
+    client.async_start_panel_update.side_effect = UpdateRejectedError
     monkeypatch.setattr(
-        panel_update,
+        update_route,
         "async_get_durable_adb_credential",
         AsyncMock(side_effect=AdbCredentialError),
     )
@@ -175,6 +186,38 @@ async def test_older_api_panel_keeps_its_existing_update_route(
     await entity._async_refresh_route()
     assert entity.latest_version == "0.9.10"
     client.async_get_legacy_install_capability.assert_awaited()
+
+
+async def test_changed_health_invalidates_a_cached_legacy_api_route(
+    hass: HomeAssistant,
+) -> None:
+    """An older panel's proven route counts only for the panel it was proven on."""
+    entity, _ = _entity(hass, install_capability=None)
+    entity.coordinator.async_request_refresh = AsyncMock()
+    await entity._async_refresh_route()
+    assert entity.latest_version == "0.9.10"
+
+    data = entity.coordinator.data
+    entity.coordinator.data = replace(data, health=replace(data.health, build="1001"))
+
+    assert entity.latest_version == entity.installed_version
+
+
+def test_unparseable_versions_are_never_newer(hass: HomeAssistant) -> None:
+    entity, _ = _entity(hass)
+
+    assert not entity.version_is_newer("garbage", "0.9.9")
+    assert not entity.version_is_newer("0.9.10", "garbage")
+
+
+def test_a_lower_build_of_the_same_release_is_never_newer(
+    hass: HomeAssistant,
+) -> None:
+    entity, _ = _entity(hass)
+
+    assert not entity.version_is_newer("1.0.0 build 100", "1.0.0 build 200")
+    assert not entity.version_is_newer("1.0.0 build 200", "1.0.0 build 200")
+    assert entity.version_is_newer("1.0.0 build 200", "1.0.0 build 100")
 
 
 @pytest.mark.parametrize("first_connect_refused", [False, True])
@@ -212,6 +255,33 @@ async def test_update_entity_starts_only_the_current_panel_offer(
     assert entity.in_progress is False
 
 
+async def test_panel_update_that_starts_while_the_route_is_chosen_is_not_repeated(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Core admits the press before the route is read; work found then still wins."""
+    entity, client = _entity(hass)
+    client.async_start_panel_update.side_effect = UpdateBusyError
+    failure = AsyncMock()
+    monkeypatch.setattr(panel_update, "async_record_update_failure", failure)
+    choose_route = entity._async_install_route
+
+    async def route_while_the_panel_starts_updating() -> str:
+        route = await choose_route()
+        entity._update_coordinator.data = PanelUpdateSnapshot(
+            operation=PanelInstallStatus(running=True, component="ha-paneld"),
+            error=None,
+        )
+        return route
+
+    entity._async_install_route = route_while_the_panel_starts_updating
+    with pytest.raises(HomeAssistantError):
+        await entity.async_install(None, backup=False)
+
+    client.async_start_panel_update.assert_not_awaited()
+    failure.assert_not_awaited()
+    assert entity.in_progress is True
+
+
 async def test_panel_refusal_after_unstarted_call_is_not_retried(
     hass: HomeAssistant,
 ) -> None:
@@ -247,7 +317,7 @@ async def test_matching_update_health_requires_ready_home_proof(
             panel_id="alpha",
             build="1001",
             config_hash="1a2b3c4d",
-            package="io.panelassistant.android",
+            package=PACKAGE_ID,
             protocol=(5, 5),
         ),
         status=PanelStatus(warning_count=0, capability_count=0),
@@ -278,14 +348,14 @@ async def test_matching_update_health_requires_ready_home_proof(
     )
     entity.coordinator.reachable = True
 
-    monkeypatch.setattr(panel_update, "_ANDROID_PACKAGE_INSTALL_MAX_SECONDS", 0)
-    monkeypatch.setattr(panel_update, "_RESTART_HEALTH_GRACE_SECONDS", 0.05)
-    monkeypatch.setattr(panel_update, "_UPDATE_RECHECK_SECONDS", 0.001)
+    monkeypatch.setattr(update_progress, "_ANDROID_PACKAGE_INSTALL_MAX_SECONDS", 0)
+    monkeypatch.setattr(update_progress, "_RESTART_HEALTH_GRACE_SECONDS", 0.05)
+    monkeypatch.setattr(update_progress, "_UPDATE_RECHECK_SECONDS", 0.001)
     artifact = ReleaseArtifact("v0.9.10", "0.9.10", "app.apk", "", "")
 
     with pytest.raises(HomeAssistantError, match="did not complete"):
-        await entity._async_wait_for_build(
-            artifact, ("1000", "io.panelassistant.android")
+        await entity._delivery.async_wait_for_build(
+            hass, artifact, ("1000", "io.panelassistant.android")
         )
     client.async_get_status.assert_awaited()
 
@@ -294,8 +364,13 @@ async def test_matching_update_health_requires_ready_home_proof(
 async def test_update_entity_rejects_versions_outside_the_current_offer(
     hass: HomeAssistant, version: str
 ) -> None:
-    """HA cannot turn the update service into a version or downgrade control surface."""
+    """HA cannot turn the update service into a version or downgrade control surface.
+
+    The stand-in panel refuses any start, so installing the offered build in
+    place of the requested one fails as a refusal at once instead of waiting.
+    """
     entity, client = _entity(hass)
+    client.async_start_panel_update.side_effect = UpdateRejectedError
 
     with pytest.raises(HomeAssistantError, match="unavailable") as error:
         await entity.async_install(version, backup=False)
@@ -354,7 +429,7 @@ async def test_unstarted_panel_download_retry_rechecks_current_consent(
     entry.add_to_hass(hass)
     entity, client = _entity(hass)
     artifact = replace(
-        entity._release.artifact_for(LEGACY_PACKAGE_ID),
+        entity._offer.release.artifact_for(PACKAGE_ID),
         tag="v0.9.10-rc1",
         version="0.9.10-rc1",
     )
@@ -431,8 +506,8 @@ async def test_update_entity_reports_a_completed_panel_operation_without_new_hea
         ),
         error=None,
     )
-    monkeypatch.setattr(panel_update, "_UPDATE_TIMEOUT_SECONDS", 0.01)
-    monkeypatch.setattr(panel_update, "_UPDATE_RECHECK_SECONDS", 0.01)
+    monkeypatch.setattr(update_progress, "_UPDATE_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(update_progress, "_UPDATE_RECHECK_SECONDS", 0.01)
 
     with pytest.raises(HomeAssistantError, match="did not complete") as error:
         await entity.async_install(None, backup=False)
@@ -484,7 +559,7 @@ async def test_update_entity_observes_health_through_terminal_restart_race(
 
 def test_update_timeout_covers_android_download_install_and_restart_bounds() -> None:
     """HA must not time out during the panel's declared transaction bounds."""
-    assert panel_update._UPDATE_TIMEOUT_SECONDS == 14 * 60
+    assert update_progress._UPDATE_TIMEOUT_SECONDS == 14 * 60
 
 
 def test_update_entity_restores_a_panel_owned_operation_after_reload(
@@ -497,6 +572,23 @@ def test_update_entity_restores_a_panel_owned_operation_after_reload(
     )
 
     assert entity.in_progress is True
+
+
+async def test_another_components_running_install_is_not_resumed_as_this_update(
+    hass: HomeAssistant,
+) -> None:
+    """A Companion install found after reload is not this update."""
+    entity, _ = _entity(
+        hass, operation=PanelInstallStatus(running=True, component="companion")
+    )
+    entity.coordinator.async_request_refresh = AsyncMock()
+    entity._update_coordinator.async_request_refresh = AsyncMock()
+
+    entity._handle_update_coordinator_update()
+    try:
+        assert entity.in_progress is False
+    finally:
+        entity._cancel_observer()
 
 
 async def test_reload_observer_latches_through_transient_and_terminal_status(
@@ -575,10 +667,12 @@ async def test_unload_cancels_recovered_observer_without_install_retry(
     entity.async_write_ha_state = MagicMock()
     waiting = asyncio.Event()
 
-    async def wait_forever(_expected_version: str) -> None:
+    async def wait_forever(_hass: HomeAssistant, _expected_version: str) -> None:
         await waiting.wait()
 
-    monkeypatch.setattr(entity, "_async_wait_for_installed_version", wait_forever)
+    monkeypatch.setattr(
+        entity._progress, "async_wait_for_installed_version", wait_forever
+    )
 
     entity._resume_running_operation()
     observer = entity._observer_task
@@ -683,4 +777,4 @@ async def test_waiting_for_the_tap_is_not_a_failure(
     assert refreshes == 4
     assert summaries[:3] == ["Tap Install on the panel to finish the update."] * 3
     assert entity.installed_version == "0.9.10"
-    assert panel_update._UPDATE_TIMEOUT_SECONDS == 14 * 60
+    assert update_progress._UPDATE_TIMEOUT_SECONDS == 14 * 60

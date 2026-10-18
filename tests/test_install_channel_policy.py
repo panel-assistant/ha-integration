@@ -15,6 +15,7 @@ from custom_components.panel_assistant import (
     update_policy,
 )
 from custom_components.panel_assistant.adb_credentials import AdbCredential
+from custom_components.panel_assistant.app_identity import PACKAGE_ID
 from custom_components.panel_assistant.install_executor import InstallExecutor
 from custom_components.panel_assistant.install_jobs import (
     InstallJobConflictError,
@@ -23,6 +24,7 @@ from custom_components.panel_assistant.install_jobs import (
     InstallResultCode,
     install_plan_sha256,
 )
+from custom_components.panel_assistant.release import release_apk_name
 from tests.test_install_executor import Harness, create_job
 from tests.test_install_executor import artifact as executor_artifact
 from tests.test_install_executor import (
@@ -32,13 +34,20 @@ from tests.test_install_jobs import CREDENTIAL_ID, Clock, create, target
 from tests.test_install_jobs import artifact as stored_artifact
 
 
+def _harness(monkeypatch: pytest.MonkeyPatch, **options: str) -> Harness:
+    """Drive the executor against a panel whose health reports the app's id."""
+    harness = Harness(monkeypatch, **options)
+    harness.health_packages = [PACKAGE_ID]
+    return harness
+
+
 async def test_only_the_first_preflight_may_report_a_satisfied_target(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Revalidation before a mutation still demands a clean panel."""
     manager = InstallJobManager(hass)
     receipt = await create_job(manager)
-    harness = Harness(monkeypatch)
+    harness = _harness(monkeypatch)
 
     completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
 
@@ -80,7 +89,7 @@ async def test_historical_missing_range_receipt_finishes_verified_installed_reco
     receipt = await create_job(
         manager, replace(executor_artifact(), protocol_min=None, protocol_max=None)
     )
-    harness = Harness(monkeypatch)
+    harness = _harness(monkeypatch)
     harness.target_installed = True
     harness.installed_bytes = receipt.artifact.apk_size
     completed = await InstallExecutor(hass, InstallJobManager(hass)).async_wait(
@@ -109,11 +118,11 @@ async def test_running_pa_channel_is_rechecked_at_each_apk_mutation_barrier(
         executor_artifact(),
         release_tag="v0.9.7-rc3",
         version_name="0.9.7-rc3",
-        apk_name="ha-paneld-v0.9.7-rc3-manual-setup-required.apk",
+        apk_name=release_apk_name("v0.9.7-rc3", PACKAGE_ID),
         prerelease_opt_in=explicit_opt_in,
     )
     receipt = await create_job(manager, selected)
-    harness = Harness(monkeypatch, expected_version=selected.version_name)
+    harness = _harness(monkeypatch, expected_version=selected.version_name)
     channel_changed = False
 
     async def credential_after_channel_change(
@@ -161,7 +170,7 @@ async def test_stable_and_rc_receipts_restart_without_changing_frozen_plan(
         stored_artifact(),
         release_tag=tag,
         version_name=tag[1:],
-        apk_name=f"ha-paneld-{tag}-manual-setup-required.apk",
+        apk_name=release_apk_name(tag, stored_artifact().package_id),
     )
     manager = InstallJobManager(hass, now=Clock())
     receipt, created = await create(manager, install_artifact=selected)
@@ -185,7 +194,7 @@ async def test_stable_and_rc_receipts_restart_without_changing_frozen_plan(
         selected,
         release_tag="v0.9.7-rc4",
         version_name="0.9.7-rc4",
-        apk_name="ha-paneld-v0.9.7-rc4-manual-setup-required.apk",
+        apk_name=release_apk_name("v0.9.7-rc4", selected.package_id),
     )
     with pytest.raises(InstallJobConflictError):
         await create(restarted, install_artifact=different)

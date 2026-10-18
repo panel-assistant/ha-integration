@@ -58,11 +58,6 @@ PANEL_REPORT: dict[str, Any] = json.loads(
 # Values for the catalogue channels the panel does not report yet.
 EXTRA_OBSERVATIONS = [
     {"channel": "auto_sleep_activity", "state": "known", "value": False},
-    {
-        "channel": "camera_snapshot",
-        "state": "known",
-        "value": {"url": "http://panel.local:8888/api/v1/camera/snapshot?t=1"},
-    },
     {"channel": "diag_boot", "state": "known", "value": "2026-09-14T08:00:00+00:00"},
     {"channel": "media", "state": "known", "value": {"state": "idle", "muted": False}},
     {"channel": "relay1", "state": "known", "value": True},
@@ -200,10 +195,11 @@ def touch_sound(hass: HomeAssistant, entry: MockConfigEntry) -> str:
 
 
 def _expected_unique_ids() -> set[str]:
+    # The media player shows the volume, so a panel with one has no number.
     return {
         f"{DID}_{descriptor['unique_suffix']}"
         for descriptor in DESCRIPTORS
-        if descriptor["channel"] != "update_paneld"
+        if descriptor["channel"] not in ("update_paneld", "volume")
     }
 
 
@@ -230,10 +226,8 @@ async def test_every_type_renders_under_the_native_unique_id(
         "button",
         "camera",
         "event",
-        "image",
         "light",
         "media_player",
-        "number",
         "select",
         "sensor",
         "switch",
@@ -286,7 +280,6 @@ async def test_every_type_renders_under_the_native_unique_id(
         "efficiency",
         "auto",
     ]
-    assert state("volume").state == "0"
     assert state("navigate").state == "/"
     assert state("proximity").state == "on"
     assert state("temperature").state == "21.5"
@@ -304,10 +297,6 @@ async def test_every_type_renders_under_the_native_unique_id(
     assert state("reboot").attributes.get("device_class") == "restart"
     assert state("reboot").state == "unknown"
     assert state("button").state == "unknown"
-    image = hass.data["image"].get_entity(by_suffix["camera_snapshot"].entity_id)
-    assert image.image_url == "http://panel.local:8888/api/v1/camera/snapshot?t=1"
-    assert state("camera_snapshot").state == image.image_last_updated.isoformat()
-
     # Every name resolves from the English catalogue, placeholders filled.
     english = json.loads(
         (
@@ -386,12 +375,12 @@ async def test_availability_follows_the_session_and_the_description(
     assert hass.states.get(relay).state == STATE_UNAVAILABLE
 
     reload = _native_entries(hass, native.entry_id)[f"{DID}_reload"].entity_id
-    volume = _native_entries(hass, native.entry_id)[f"{DID}_volume"].entity_id
+    navigate = _native_entries(hass, native.entry_id)[f"{DID}_navigate"].entity_id
     again = await hass_ws_client(hass, hass_read_only_access_token)
-    # Omit a relay and a button, and describe volume in a shape the catalogue
+    # Omit a relay and a button, and describe navigate in a shape the catalogue
     # does not know: its reports are still accepted, but it renders nothing.
     later = [
-        item | {"translation_key": "loudness"} if item["channel"] == "volume" else item
+        item | {"translation_key": "route"} if item["channel"] == "navigate" else item
         for item in DESCRIPTORS
         if item["channel"] not in ("relay1", "reload")
     ]
@@ -399,7 +388,7 @@ async def test_availability_follows_the_session_and_the_description(
     await _sync(hass, again, token, later)
     assert hass.states.get(relay).state == STATE_UNAVAILABLE
     assert hass.states.get(reload).state == STATE_UNAVAILABLE
-    assert hass.states.get(volume).state == STATE_UNAVAILABLE
+    assert hass.states.get(navigate).state == STATE_UNAVAILABLE
     assert hass.states.get(touch_sound(hass, native)).state == "on"
     assert {f"{DID}_relay1", f"{DID}_reload"} <= set(
         _native_entries(hass, native.entry_id)
@@ -459,6 +448,89 @@ async def test_a_withheld_companion_update_is_never_a_pending_update(
         ).state
         == "on"
     )
+
+
+USB_DEBUGGING_DESCRIPTOR = {
+    "channel": "diag_usb_debugging",
+    "platform": "binary_sensor",
+    "translation_key": "usb_debugging",
+    "unique_suffix": "usb_debugging",
+    "entity_category": "diagnostic",
+    "enabled_default": True,
+}
+
+
+async def test_usb_debugging_reports_observed_state_and_read_loss(
+    hass: HomeAssistant,
+    native: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """USB debugging follows actual reports, with unreadable state unavailable."""
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    token = await _session(client, [USB_DEBUGGING_DESCRIPTOR])
+    await hass.async_block_till_done()
+    entry = _native_entries(hass, native.entry_id)[f"{DID}_usb_debugging"]
+    assert entry.domain == "binary_sensor"
+    assert entry.entity_category == "diagnostic"
+    assert entry.disabled_by is None
+    assert entry.translation_key == "usb_debugging"
+    assert hass.states.get(entry.entity_id).state == STATE_UNAVAILABLE
+
+    # Completing a sync without a read must not invent an OFF observation.
+    await _sync(hass, client, token, [USB_DEBUGGING_DESCRIPTOR])
+    assert hass.states.get(entry.entity_id).state == STATE_UNAVAILABLE
+    for observation, expected in (
+        ({"state": "known", "value": True}, "on"),
+        ({"state": "unavailable"}, STATE_UNAVAILABLE),
+        ({"state": "known", "value": False}, "off"),
+        ({"state": "known", "value": True}, "on"),
+    ):
+        response = await _send(
+            client,
+            _report(token, "delta", [{"channel": "diag_usb_debugging", **observation}]),
+        )
+        assert response["success"], response
+        assert response["result"]["rejected"] == []
+        await hass.async_block_till_done()
+        assert hass.states.get(entry.entity_id).state == expected
+
+    await client.close()
+    await hass.async_block_till_done()
+    assert hass.states.get(entry.entity_id).state == STATE_UNAVAILABLE
+    assert f"{DID}_usb_debugging" in _native_entries(hass, native.entry_id)
+
+
+async def test_older_catalogue_ignores_usb_debugging_without_refusing_session(
+    hass: HomeAssistant,
+    native: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """An integration without this channel still serves the panel's known ones."""
+    from custom_components.panel_assistant import contract
+
+    earlier = {
+        key: value
+        for key, value in contract._BY_CHANNEL.items()
+        if key != "diag_usb_debugging"
+    }
+    known = next(d for d in DESCRIPTORS if d["channel"] == "auto_brightness")
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    with patch.dict(contract._BY_CHANNEL, earlier, clear=True):
+        response = await _send(client, _hello([USB_DEBUGGING_DESCRIPTOR, known]))
+        assert response["success"], response
+        assert response["result"]["channels"] == {
+            "accepted": 2,
+            "unknown": ["diag_usb_debugging"],
+        }
+        token = response["result"]["session"]
+        await _sync(hass, client, token, [USB_DEBUGGING_DESCRIPTOR, known])
+        assert set(_native_entries(hass, native.entry_id)) == {
+            f"{DID}_{known['unique_suffix']}"
+        }
+        known_entry = next(iter(_native_entries(hass, native.entry_id).values()))
+        assert hass.states.get(known_entry.entity_id).state == "off"
 
 
 async def test_unknown_descriptors_are_accepted_and_render_nothing(
@@ -579,54 +651,6 @@ async def test_the_panels_own_hello_is_fully_known_to_the_catalogue(
     )
 
 
-async def test_a_new_snapshot_report_fetches_the_image_again(
-    hass: HomeAssistant,
-    native: MockConfigEntry,
-    hass_ws_client: WsClientFactory,
-    hass_read_only_access_token: str,
-) -> None:
-    """Each camera report is a new snapshot, never the previous cached bytes."""
-    client = await hass_ws_client(hass, hass_read_only_access_token)
-    token = await _session(client)
-    await _sync(hass, client, token)
-    entity_id = _native_entries(hass, native.entry_id)[
-        f"{DID}_camera_snapshot"
-    ].entity_id
-    image = hass.data["image"].get_entity(entity_id)
-    image._cached_image = object()
-    before = image.image_last_updated
-
-    url = "http://panel.local:8888/api/v1/camera/snapshot?t=2"
-    delta = await _send(
-        client,
-        _report(
-            token,
-            "delta",
-            [{"channel": "camera_snapshot", "state": "known", "value": {"url": url}}],
-        ),
-    )
-    assert delta["success"]
-    await hass.async_block_till_done()
-
-    assert image._cached_image is None
-    assert image.image_url == url
-    assert image.image_last_updated > before
-    assert hass.states.get(entity_id).state == image.image_last_updated.isoformat()
-
-    # An unavailable report is no new snapshot.
-    image._cached_image = object()
-    gone = await _send(
-        client,
-        _report(
-            token, "delta", [{"channel": "camera_snapshot", "state": "unavailable"}]
-        ),
-    )
-    assert gone["success"]
-    await hass.async_block_till_done()
-    assert image._cached_image is not None
-    assert hass.states.get(entity_id).state == STATE_UNAVAILABLE
-
-
 async def test_reload_unloads_every_native_platform_and_adds_each_entity_once(
     hass: HomeAssistant,
     native: MockConfigEntry,
@@ -634,12 +658,12 @@ async def test_reload_unloads_every_native_platform_and_adds_each_entity_once(
     hass_read_only_access_token: str,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A reload tears down all thirteen platforms and the next session re-adds."""
+    """A reload tears down all twelve platforms and the next session re-adds."""
     client = await hass_ws_client(hass, hass_read_only_access_token)
     token = await _session(client)
     await _sync(hass, client, token)
     before = _registry_digest(hass, native.entry_id)
-    assert len(native.runtime_data.platforms) == 13
+    assert len(native.runtime_data.platforms) == 12
 
     with (
         patch(

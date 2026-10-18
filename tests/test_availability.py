@@ -50,7 +50,7 @@ from custom_components.panel_assistant.client import (
     normalize_address,
 )
 from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
-from custom_components.panel_assistant.transport import async_get_sessions
+from custom_components.panel_assistant.transport_sessions import async_get_sessions
 
 from .test_transport import (
     DID,
@@ -816,6 +816,89 @@ async def test_refused_hello_from_another_account_moves_nothing(
     assert _state(hass, STATUS_ENTITY) == STATE_UNAVAILABLE
 
 
+@pytest.mark.parametrize("hold_read", [False, True], ids=["before_poll", "held_read"])
+async def test_unrelated_refused_hello_does_not_divert_reinstalled_panel_recovery(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    hass_read_only_user: Any,
+    hold_read: bool,
+) -> None:
+    """An unrelated panel's hello cannot erase the moved reinstall's address."""
+    legacy_did = "f" * 64
+    old_health = replace(HEALTH, legacy_discovery_id=legacy_did)
+    with patch(f"{__name__}.HEALTH", old_health):
+        entry = await _load(hass, hass_read_only_user.id)
+    original_entry_id = entry.entry_id
+    entity_ids = {
+        item.entity_id
+        for item in er.async_entries_for_config_entry(
+            er.async_get(hass), entry.entry_id
+        )
+    }
+    moved_health = replace(old_health, discovery_id=OTHER_DID)
+    unrelated_did = "a" * 64
+    unrelated_address = "192.0.2.77"
+    unrelated_health = replace(
+        HEALTH, discovery_id=unrelated_did, legacy_discovery_id="0" * 64
+    )
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    async def _get_health(client: HaPaneldClient) -> Any:
+        if client.address.host == STORED:
+            entered.set()
+            if hold_read:
+                await release.wait()
+            raise CannotConnectError()
+        if client.address.host == MOVED:
+            return moved_health
+        if client.address.host == unrelated_address:
+            return unrelated_health
+        raise CannotConnectError()
+
+    coordinator = entry.runtime_data.coordinator
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    other_client = await hass_ws_client(hass, hass_read_only_access_token)
+    with (
+        patch.object(HaPaneldClient, "async_get_health", _get_health),
+        patch.object(
+            HaPaneldClient, "async_get_status", AsyncMock(return_value=STATUS)
+        ),
+        # Inspect this poll's result; queued retries must not conceal its failure.
+        patch.object(coordinator, "async_request_refresh", AsyncMock()),
+    ):
+        poll = asyncio.create_task(coordinator.async_refresh()) if hold_read else None
+        if hold_read:
+            async with asyncio.timeout(5):
+                await entered.wait()
+        for socket, did, address in (
+            (client, OTHER_DID, MOVED),
+            (other_client, unrelated_did, unrelated_address),
+        ):
+            response = await _send(socket, _hello(did=did, addresses=[address]))
+            assert response["error"]["code"] == "unknown_panel"
+        release.set()
+        async with asyncio.timeout(5):
+            if poll is not None:
+                await poll
+            else:
+                await coordinator.async_refresh()
+        await hass.async_block_till_done()
+
+    assert entry.data[CONF_ADDRESS] == MOVED
+    assert entry.unique_id == OTHER_DID
+    assert entry.entry_id == original_entry_id
+    assert entry.data["legacy_did"] == legacy_did
+    assert {
+        item.entity_id
+        for item in er.async_entries_for_config_entry(
+            er.async_get(hass), entry.entry_id
+        )
+    } == entity_ids
+    assert async_get_sessions(hass).get(entry.entry_id) is None
+    assert _state(hass, STATUS_ENTITY) == "online"
+
+
 async def test_panel_connecting_to_an_unread_entry_is_available_before_any_poll(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
@@ -1173,12 +1256,8 @@ async def test_adding_a_known_panel_at_a_new_address_repairs_its_entry(
         flow = await hass.config_entries.flow.async_configure(
             flow["flow_id"], {"next_step_id": "add_panel"}
         )
-        flow = await hass.config_entries.flow.async_configure(
-            flow["flow_id"], {CONF_ADDRESS: LAN}
-        )
-        assert flow["type"] is FlowResultType.MENU, flow
         result = await hass.config_entries.flow.async_configure(
-            flow["flow_id"], {"next_step_id": "connect_found"}
+            flow["flow_id"], {CONF_ADDRESS: LAN}
         )
         await hass.async_block_till_done()
 
@@ -1189,6 +1268,7 @@ async def test_adding_a_known_panel_at_a_new_address_repairs_its_entry(
     ]
     assert entry.data[CONF_ADDRESS] == LAN
     assert entry.runtime_data.client.address.host == LAN
+    assert entry.unique_id == DID
     assert entry.state is ConfigEntryState.LOADED
 
 

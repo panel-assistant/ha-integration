@@ -40,7 +40,8 @@
     "loading": "Versies laden…",
     "catalogError": "De lijst met versies kon niet worden geladen.",
     "empty": "Er zijn nog geen versies beschikbaar. Probeer het later opnieuw.",
-    "choose": "Kanaal van Panel Assistant volgen (aanbevolen)",
+    "choose": "Aanbevolen versie",
+    "otherVersions": "Een andere versie kiezen",
     "testing": "testversie",
     "devBuild": "ontwikkelbuild",
     "retry": "Opnieuw proberen",
@@ -54,6 +55,7 @@
     "downloading": "App voorbereiden…",
     "verifying": "App voorbereiden…",
     "verified": "Ga verder in het nieuwe venster.",
+    "installed": "Panel Assistant is geïnstalleerd. Rond de installatie van het paneel af in het installatievenster en sluit dan dit tabblad.",
     "cancelled": "Geannuleerd.",
     "popup_blocked": "De browser heeft het nieuwe venster geblokkeerd. Sta pop-ups toe voor deze pagina en druk op Doorgaan.",
     "invalid_request": "Kies eerst een versie.",
@@ -65,9 +67,11 @@
     "preparingSlow": "De app wordt nog voorbereid. Houd het Home Assistant-tabblad open.",
     "connectHeading": "Je paneel verbinden",
     "connectBody": "Sluit het paneel met een USB-kabel aan op deze computer en druk op Mijn paneel zoeken.",
+    "usbDebugging": "USB-foutopsporing moet aan staan in de ontwikkelaarsopties van het paneel.",
+    "usbDebuggingHelp": "Zo zet je het aan",
     "connect": "Mijn paneel zoeken",
     "allowHeading": "Deze computer toestaan",
-    "allowBody": "Kijk op het scherm van het paneel en tik op Toestaan.",
+    "allowBody": "Vink op het paneel ‘Altijd toestaan vanaf deze computer’ aan en tik op Toestaan, zodat Panel Assistant het later zonder kabel kan bijwerken.",
     "checkingPanel": "Je paneel controleren…",
     "confirmHeading": "Klaar om te installeren",
     "confirmBody": "Hiermee installeer je de app en maak je die het startscherm van je paneel. Je andere apps worden niet aangeraakt.",
@@ -101,7 +105,8 @@
     "pageClosed": "De pagina is gesloten.",
     "progress": "Voortgang",
     "installProgress": "Installatievoortgang",
-    "licenses": "Licenties van derden"
+    "licenses": "Licenties van derden",
+    "doneAnotherHomeAssistant": "Dit paneel is aangemeld bij een andere Home Assistant. Wijzig op het paneel Home Assistant en meld je aan om het hier te verbinden."
   },
   "errors": {
     "installErrorGeneric": "Er ging iets mis. Laat het paneel aangesloten en druk op Opnieuw proberen.",
@@ -112,7 +117,8 @@
     "installErrorNotClean": "De app staat al op dit paneel. Werk de app in plaats daarvan bij vanuit Home Assistant.",
     "installErrorIncompatible": "Dit paneel kan deze versie van de app niet uitvoeren.",
     "installErrorConnection": "De verbinding met het paneel is verbroken. Laat het aangesloten en druk op Opnieuw proberen.",
-    "installErrorHealth": "De app is geïnstalleerd, maar nog niet gestart. Wacht even en probeer het opnieuw."
+    "installErrorHealth": "De app is geïnstalleerd, maar nog niet gestart. Wacht even en probeer het opnieuw.",
+    "installErrorPermissions": "De app is geïnstalleerd, maar de machtigingen konden niet worden bevestigd. Opnieuw proberen is veilig: laat het paneel aangesloten en druk op Opnieuw proberen."
   },
   "journey": {
     "version": "Versie",
@@ -129,6 +135,7 @@
   "support": {
     "stopped": "Gestopt",
     "cause": "Oorzaak",
+    "failedCheck": "Mislukte controle",
     "error": "Fout",
     "release": "Uitgave",
     "panel": "Paneel",
@@ -142,6 +149,7 @@
     "setupAddress": "Configuratieadres",
     "setupHandover": "Configuratieoverdracht",
     "displaySizing": "Weergave- en tekstgrootte",
+    "networkAdb": "ADB via netwerk",
     "copiedDetail": "{bytes} bytes verstuurd; wachten op bevestiging van het paneel",
     "none": "geen",
     "setupMissing": "niet gevonden; instellen gaat verder op het paneel"

@@ -17,10 +17,17 @@
       },
       "install_usb": {
         "title": "Install using USB",
-        "description": "Plug the panel into this computer, not into the Home Assistant server.",
+        "description": "Plug the panel into this computer, not into the Home Assistant server. USB debugging must be on in the panel's developer options; the [model-specific panel access guide]({panel_access_url}) shows how.",
         "submit": "Open the USB installer"
       },
       "add_panel": {
+        "title": "Add a panel",
+        "description": "Enter the panel's hostname or IP address. If Panel Assistant isn't installed yet, first turn on network ADB on port 5555 using the [model-specific panel access guide]({panel_access_url}). Root access is not required. If the panel does not answer, [help for reaching a panel]({panel_help_url}) has steps for each model and other ways to install.",
+        "data": {
+          "address": "Panel hostname or IP address"
+        }
+      },
+      "add_known_panel": {
         "title": "Add a panel",
         "description": "Pick a panel Home Assistant already knows through another app, or enter the panel's hostname or IP address. Panels marked ✓ already answer on network ADB. If Panel Assistant isn't installed yet, first turn on network ADB on port 5555 using the [model-specific panel access guide]({panel_access_url}). Root access is not required. If the panel does not answer, [help for reaching a panel]({panel_help_url}) has steps for each model and other ways to install.",
         "data": {
@@ -42,6 +49,9 @@
           "panel_setup": "Open the setup wizard",
           "connect_found": "Skip setup and connect now",
           "add_panel": "Use a different address"
+        },
+        "menu_option_descriptions": {
+          "connect_found": "Connect the panel to Home Assistant without finishing its own setup first."
         }
       },
       "panel_setup": {
@@ -50,7 +60,7 @@
       },
       "choose_version": {
         "title": "Choose a version",
-        "description": "Panel Assistant is not responding on {address}. Choose the version the panel should run. Test versions may contain bugs.",
+        "description": "Choose the version to install on the panel at {address}. Test versions may contain bugs.",
         "data": {
           "release_candidate": "Version"
         }
@@ -63,25 +73,17 @@
         "title": "Confirm discovered panel",
         "description": "Home Assistant found a Panel Assistant installation at {address}. Submit to verify it is still the same panel and add it as {panel_name}. No panel settings will change."
       },
-      "confirm_user": {
-        "title": "Confirm this panel's account",
-        "description": "The panel {panel} is signed in to Home Assistant as {user} and is asking to connect. Confirming that account is all this panel still needs from you: it then finishes setting itself up on its own. Anyone signed in to Home Assistant can ask to connect as a panel, so confirm only if {user} is the account you set up for this panel. If you skip this, the panel is still added, but it stays unconnected until you confirm the account under Settings, then Repairs.",
-        "menu_options": {
-          "bind_user": "Yes, connect this panel",
-          "skip_binding": "Not now"
-        }
-      },
       "authorize_adb": {
-        "title": "Authorize Home Assistant on the panel",
-        "description": "The selected release includes a verified installation descriptor. Select Submit once to create or load a persistent ADB identity for this Home Assistant installation and offer its public key to the Android panel at {address}. On the panel, approve Android's Allow debugging prompt, then return here and select Submit again. Android may describe Home Assistant as a computer. Approval grants general ADB shell access while network debugging remains enabled; revoke it from the panel's developer settings. No APK is downloaded or installed at this step."
+        "title": "Allow Home Assistant on the panel",
+        "description": "Look at the screen of the panel at {address}: tick **Always allow from this computer**, then tap **Allow**. Android may call Home Assistant a computer.\n\nSelect Submit to ask the panel again."
       },
       "confirm_install_candidate": {
         "title": "Install Panel Assistant {version}?",
-        "description": "Ready to install on {model} at {address}.\n\nYour other apps are not touched."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched."
       },
       "confirm_install_rc": {
         "title": "Install Panel Assistant {version}?",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on {model} at {address}.\n\nYour other apps are not touched."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched."
       },
       "release_preview_only": {
         "title": "Release cannot be installed automatically",
@@ -93,10 +95,11 @@
       }
     },
     "progress": {
+      "authorize_adb": "Look at the screen of the panel at {address}: tick **Always allow from this computer**, then tap **Allow**. Android may call Home Assistant a computer.\n\nThis carries on by itself once the panel allows it.",
       "installing": "Installing Panel Assistant on {address}. Keep this dialog open; it finishes on its own.\n\nIf you close it, the install keeps running. Add the same address again to finish."
     },
     "error": {
-      "old_app_installed": "This panel still has the old ha-paneld app installed, but it is not answering. Open it on the panel, or restart the panel, then add it again. Panel Assistant then offers a Repair that moves it to the new app.",
+      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Install Panel Assistant 0.9.0 first (in HACS open Panel Assistant, choose Redownload, and pick version 0.9.0), add the panel and move it with its Repair, then install 1.0.0.",
       "cannot_connect": "Unable to connect to a valid Panel Assistant health endpoint.",
       "invalid_address": "Enter a hostname or IP address without a URL scheme or path.",
       "invalid_install_address": "Enter only the panel hostname or IP address.",
@@ -107,16 +110,15 @@
       "install_target_changed": "The hostname no longer resolves to the same pinned panel address. No ADB key or installation was sent. Check the address and start again.",
       "adb_unreachable": "The panel answered, but nothing answered on its Android Debug Bridge port (5555). On the panel, turn on Android Debug Bridge and allow it over the network, then try again. If you can plug the panel into the computer you are browsing on, install over USB instead.",
       "panel_unreachable": "Nothing answered at that address. Check that the address is right and the panel is switched on and on your network, then try again. If you can plug the panel into the computer you are browsing on, install over USB instead.",
-      "adb_unauthorized": "The panel still requires ADB authorization. Approve the prompt on the panel, then try again.",
-      "adb_still_unauthorized": "The panel has not accepted this Home Assistant instance yet. Approve the ADB prompt on the panel, then try again.",
+      "adb_still_unauthorized": "The panel has not accepted this Home Assistant instance yet, or did not remember it.",
       "adb_credential_error": "Home Assistant could not safely load or persist its ADB credential. No panel change was attempted. Check the Home Assistant storage and logs before retrying.",
-      "installed_without_health": "The Panel Assistant package is installed but its health endpoint did not respond. This flow will not overwrite or repair it. Do not retry automatic installation; open Panel Assistant on the panel or follow the provisioning safety and recovery guide linked from the integration documentation. After restoring a healthy installation, start again to connect it.",
-      "retained_or_ambiguous": "The panel may contain a retained Panel Assistant package record or its package state could not be proven absent. No panel change was made. Retry once if the connection was unstable; otherwise follow the provisioning safety and recovery guide linked from the integration documentation. Do not uninstall or reset the app without a verified backup.",
+      "installed_without_health": "The Panel Assistant package is installed but its health endpoint did not respond. This flow will not overwrite or repair it. Do not retry automatic installation; open Panel Assistant on the panel, or follow the steps at {recovery_address}. After restoring a healthy installation, start again to connect it.",
+      "retained_or_ambiguous": "The panel may contain a retained Panel Assistant package record or its package state could not be proven absent. No panel change was made. Retry once if the connection was unstable; otherwise follow the steps at {recovery_address}. Do not uninstall or reset the app without a verified backup.",
       "incompatible": "The Panel Assistant package was not found, but the panel's Android SDK or processor architecture is not supported. No APK was downloaded or installed.",
       "cannot_resolve_release": "An install candidate was found, but Home Assistant could not resolve and verify the selected Panel Assistant release. No APK was downloaded or installed. Check internet access and, if testing a release candidate, that the exact tag is published with its signed assets. No other release will be substituted.",
       "invalid_release_candidate": "Choose a version from the list.",
       "install_candidate_changed": "The panel identity or clean package state changed after the preview. No installation job was created. Start again after checking the panel.",
-      "installed_artifact_mismatch": "The installed app is not byte-identical to the release you chose, so Home Assistant did not overwrite it; choose its exact release or follow the provisioning safety and recovery guide.",
+      "installed_artifact_mismatch": "The installed app is not byte-identical to the release you chose, so Home Assistant did not overwrite it; choose its exact release, or follow the steps at {recovery_address}.",
       "install_plan_rejected": "The panel and signed release could not be bound into a safe installation plan. No installation job was created.",
       "install_job_conflict": "A different installation job already owns this panel identity. No second job was created.",
       "install_receipt_error": "Home Assistant could not safely load or persist the installation receipt. No new panel action was authorized.",
@@ -128,25 +130,32 @@
       "release_selection_required": "Choose a version from the list."
     },
     "abort": {
+      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Install Panel Assistant 0.9.0 first (in HACS open Panel Assistant, choose Redownload, and pick version 0.9.0), add the panel and move it with its Repair, then install 1.0.0.",
       "already_configured": "This panel is already configured.",
+      "reinstall_successful": "The app was installed again. This panel keeps its Home Assistant history and settings.",
+      "usb_installed": "Panel Assistant is installed and the panel has been added to Home Assistant. Finish the panel's setup in the installer window.",
+      "reinstall_identity_mismatch": "The app is installed, but it could not be linked to the kept panel. Its Home Assistant history and settings have been kept. Check the panel in Home Assistant before trying again.",
       "not_panel": "Not a panel Panel Assistant can install on.",
       "invalid_discovery": "The discovered panel did not prove to be the same healthy Panel Assistant installation. No Home Assistant entry or panel setting was changed.",
       "install_cancelled": "The installation was cancelled before an APK was installed. No Home Assistant entry was created. To try again, add the Panel Assistant integration and enter the same panel address.",
       "install_cancelled_after_staging_cleanup": "The installation was cancelled and the staged APK was removed before installation. No Home Assistant entry was created. To try again, add the Panel Assistant integration and enter the same panel address.",
       "install_authorization_failed": "Home Assistant could not safely load or validate its stored ADB credential. No APK was installed. Check Home Assistant's storage and logs, then add the Panel Assistant integration and enter the same address to try again.",
-      "install_preflight_rejected": "The panel no longer proved to be a clean, compatible installation target. No APK was installed. Correct the panel state described in the integration documentation before starting again with the same address.",
+      "install_preflight_rejected": "The panel no longer proved to be a clean, compatible installation target. No APK was installed. Check the panel as described at [{recovery_address}]({recovery_url}), then start again with the same address.",
       "install_artifact_rejected": "Home Assistant rejected the release download or staging operation before package installation. No APK was installed. Check Home Assistant's internet access, storage and logs, then start again with the same address.",
       "install_transport_failed": "Home Assistant could not complete the pre-install connection, download or staging step. No APK was installed. Check the panel, network, Home Assistant internet access and logs, then start again with the same address.",
       "install_package_failed": "Android definitively refused the APK and Home Assistant removed its staged file. No app or Home Assistant entry was created. Check the panel's compatibility and available storage before starting again.",
-      "install_launch_failed": "The APK is installed, but Home Assistant could not complete or verify the launch step. Do not retry automatic installation. Open Panel Assistant on the panel or follow the provisioning safety and recovery guide linked from the integration documentation.",
-      "install_health_check_failed": "The APK is installed, but Panel Assistant did not pass its health check. Do not retry automatic installation. Open Panel Assistant on the panel or follow the provisioning safety and recovery guide linked from the integration documentation.",
-      "install_ambiguous_mutation": "An ADB staging, installation or launch operation may have changed the panel. Do not retry automatic installation, uninstall or reset the app. Follow the provisioning safety and recovery guide linked from the integration documentation.",
-      "install_verification_required": "The panel changed, but Home Assistant could not verify the installed package or clean up its exact staged file. Do not retry automatic installation, uninstall or reset the app. Follow the provisioning safety and recovery guide linked from the integration documentation.",
-      "install_failed": "The installer stopped with an unrecognized result. No Home Assistant entry was created. Do not retry automatic installation until you have checked the panel and the provisioning safety and recovery guide linked from the integration documentation.",
+      "install_launch_failed": "The APK is installed, but Home Assistant could not complete or verify the launch step. Do not retry automatic installation. Open Panel Assistant on the panel; if it does not start, follow the steps at [{recovery_address}]({recovery_url}).",
+      "install_health_check_failed": "The APK is installed, but Panel Assistant did not pass its health check. Do not retry automatic installation. Open Panel Assistant on the panel; if it does not start, follow the steps at [{recovery_address}]({recovery_url}).",
+      "install_ambiguous_mutation": "An ADB staging, installation or launch operation may have changed the panel. Do not retry automatic installation, uninstall or reset the app. Follow the steps at [{recovery_address}]({recovery_url}) to check the panel.",
+      "install_verification_required": "The panel changed, but Home Assistant could not verify the installed package or clean up its exact staged file. Do not retry automatic installation, uninstall or reset the app. Follow the steps at [{recovery_address}]({recovery_url}) to check the panel.",
+      "install_failed": "The installer stopped with an unrecognized result. No Home Assistant entry was created. Do not retry automatic installation until you have checked the panel as described at [{recovery_address}]({recovery_url}).",
       "install_worker_stopped": "The installer stopped and will not replay this job in the current Home Assistant process. Restart Home Assistant, reopen setup, and enter the same panel address to resume or receive a recovery result. No entry was created.",
-      "install_recovery_required": "Home Assistant cannot prove that it is safe to continue automatically. No entry was created. Do not retry automatic installation, uninstall or reset the app until you have followed the provisioning safety and recovery guide linked from the integration documentation.",
+      "install_recovery_required": "Home Assistant cannot prove that it is safe to continue automatically. No entry was created. Do not retry automatic installation, uninstall or reset the app until you have followed the steps at [{recovery_address}]({recovery_url}).",
       "install_receipt_error": "Home Assistant could not safely read the durable installation receipt. No entry was created.",
       "unknown": "The setup flow lost its pending panel state. Start setup again."
+    },
+    "create_entry": {
+      "another_home_assistant": "This panel is signed in to another Home Assistant. It has been added here, but its settings and sign-in have not changed. To connect it here, change Home Assistant and sign in on the panel."
     }
   },
   "entity": {
@@ -173,11 +182,51 @@
           },
           "source_count": {
             "name": "Sources"
+          },
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
+      },
+      "usb_debugging": {
+        "name": "USB debugging",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
           }
         }
       },
       "proximity": {
-        "name": "Proximity"
+        "name": "Proximity",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       }
     },
     "button": {
@@ -186,16 +235,17 @@
       },
       "reload": {
         "name": "Reload dashboard"
+      },
+      "android_settings": {
+        "name": "Android settings"
+      },
+      "launcher": {
+        "name": "Launcher"
       }
     },
     "event": {
       "button": {
         "name": "Button"
-      }
-    },
-    "image": {
-      "camera_snapshot": {
-        "name": "Camera snapshot"
       }
     },
     "light": {
@@ -267,51 +317,218 @@
     },
     "sensor": {
       "diag_boot": {
-        "name": "Last boot time"
+        "name": "Last boot time",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "diag_cpu": {
-        "name": "CPU usage"
+        "name": "CPU usage",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "diag_ip": {
-        "name": "IP address"
+        "name": "IP address",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "diag_memory": {
-        "name": "Memory usage"
+        "name": "Memory usage",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "diag_soc_temp": {
-        "name": "SoC temperature"
+        "name": "SoC temperature",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "diag_wifi_outages_24h": {
         "name": "Wi-Fi outages (24 h)",
         "state_attributes": {
           "is_lower_bound": {
             "name": "Lower bound"
+          },
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
           }
         }
       },
       "diag_wifi_rssi": {
-        "name": "Wi-Fi signal strength"
+        "name": "Wi-Fi signal strength",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "diag_wifi_ssid": {
-        "name": "Wi-Fi network"
+        "name": "Wi-Fi network",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "humidity": {
-        "name": "Humidity"
+        "name": "Humidity",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "illuminance": {
-        "name": "Illuminance"
+        "name": "Illuminance",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "panel_assistant_version": {
         "name": "Panel Assistant version"
       },
       "proximity_level": {
-        "name": "Proximity level"
+        "name": "Proximity level",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "room_humidity": {
-        "name": "Room humidity"
+        "name": "Room humidity",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "room_temp": {
-        "name": "Room temperature"
+        "name": "Room temperature",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "status": {
         "name": "Status",
@@ -321,7 +538,8 @@
           "restarting_update": "Restarting (update)",
           "restarting_settings": "Restarting (settings)",
           "restarting_recovery": "Restarting (recovery)",
-          "restarting_reboot": "Restarting (reboot)"
+          "restarting_reboot": "Restarting (reboot)",
+          "another_home_assistant": "Signed in to another Home Assistant"
         }
       },
       "storage_health": {
@@ -384,11 +602,35 @@
           },
           "wal_bytes": {
             "name": "Write-ahead log size"
+          },
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
           }
         }
       },
       "temperature": {
-        "name": "Temperature"
+        "name": "Temperature",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
+          }
+        }
       },
       "zigbee_gateway_health": {
         "name": "Zigbee gateway health",
@@ -436,6 +678,17 @@
           },
           "role": {
             "name": "Role"
+          },
+          "unknown_reason": {
+            "name": "Reason",
+            "state": {
+              "waiting": "Waiting for the first reading",
+              "not_shared": "Not shared by the panel",
+              "not_readable": "The panel can't read it",
+              "not_on_wifi": "Not connected over Wi-Fi",
+              "turned_off": "Turned off",
+              "not_ready": "Not ready"
+            }
           }
         }
       }
@@ -505,10 +758,10 @@
     }
   },
   "exceptions": {
+    "old_app_needs_090": {"message": "This panel still runs the old app: install Panel Assistant 0.9.0 first, as its Repair explains"},
     "mqtt_panel_needs_090": {
       "message": "{panel} was never moved off MQTT: install Panel Assistant 0.9.0 first, as its Repair explains"
     },
-    "move_with_repair": {"message": "Move this panel to the new app with its Repair in Settings."},
     "health_update_failed": {
       "message": "Unable to read panel health"
     },
@@ -524,26 +777,11 @@
     "update_rejected": {
       "message": "{panel} refused the update request. Check its Install tab, then try again."
     },
-    "bridge_not_ready": {
-      "message": "The panel cannot move to the new app yet. Panel Assistant offers the move again once it can."
-    },
-    "release_pair_unavailable": {
-      "message": "The matching new-app release is unavailable. Try again later."
+    "update_refused_by_panel": {
+      "message": "{panel} refused the update: {reason}"
     },
     "panel_changed_during_update": {
       "message": "The panel changed during the update. Refresh and try again."
-    },
-    "bridge_details_changed": {
-      "message": "The panel handover details changed. Refresh and try again."
-    },
-    "bridge_capability_unavailable": {
-      "message": "Cannot check the panel handover readiness. Check the panel connection, then try again."
-    },
-    "successor_untrusted": {
-      "message": "The installed new app is not trusted for handover. Check the panel Install tab."
-    },
-    "bridge_handover_refused": {
-      "message": "The panel refused the app handover. Check the panel Install tab."
     },
     "release_download_failed": {
       "message": "The app release could not be downloaded. Check the connection, then try again."
@@ -632,48 +870,13 @@
       "title": "{panel} needs app {required_version}",
       "description": "{panel} runs app {version}, which speaks an older protocol than Panel Assistant 1.0, so Home Assistant cannot see or control it and its entities show as unavailable. Nothing is lost: it keeps working on its own and keeps its settings and history. Install the update that Panel Assistant offers for this panel and it reconnects."
     },
+    "old_app_needs_090": {
+      "title": "{panel} still runs the old app",
+      "description": "{panel} still runs the old ha-paneld app. Panel Assistant 1.0 can no longer move a panel to the new app, so it installs and updates nothing on {panel} until it has moved. Install Panel Assistant 0.9.0 first (in HACS open Panel Assistant, choose Redownload, and pick version 0.9.0), move the panel with its Repair, then install 1.0.0. The panel keeps working on the old app meanwhile."
+    },
     "mqtt_panel_needs_090": {
       "title": "{panel} was never moved off MQTT",
       "description": "Panel Assistant 1.0 can no longer move {panel} from MQTT to its own connection, and connecting it now would create a second set of entities and split its history. Install Panel Assistant 0.9.0 first (in HACS open Panel Assistant, choose Redownload, and pick version 0.9.0), let it move the panel, then install 1.0.0. If you would rather start fresh, delete this panel's device under Settings, Devices & services, MQTT, then reload this entry or remove it and add the panel again; that creates new entities and keeps no history."
-    },
-    "move_to_new_app": {
-      "title": "Move {panel} to the new app",
-      "fix_flow": {
-        "step": {
-          "confirm_move": {
-            "title": "Move {panel} to the new app",
-            "description": "{panel} still runs the old ha-paneld app. Panel Assistant moves it to the new app over your network and keeps its settings: it backs the panel up here first, installs the new app, then removes the old one. The panel restarts its app once during the move. If the panel shows \"Allow USB debugging?\", tap Allow, ticking \"Always allow from this computer\" if it is offered. You do not need to root the panel or type any commands. Select Submit to move it."
-          }
-        },
-        "progress": {
-          "moving": "Moving {panel} to the new app. Keep the panel switched on."
-        },
-        "abort": {
-          "entry_removed": "This panel has been removed from Home Assistant.",
-          "already_moved": "{panel} already runs the new app. Nothing needed moving.",
-          "release_unavailable": "Panel Assistant could not get the new app's release right now. Check that Home Assistant can reach the internet, then try again.",
-          "adb_authorization": "{panel} has not allowed Panel Assistant to connect yet. Look at the panel: if it shows \"Allow USB debugging?\", tap Allow, ticking \"Always allow from this computer\", then open this Repair again.",
-          "adb_unreachable": "Panel Assistant could not connect to {panel} to move it. Make sure the panel is switched on and on the same network as Home Assistant, and that network debugging is turned on in the panel app's settings, then open this Repair again.",
-          "backup_failed": "Panel Assistant could not take a complete backup of {panel}, so nothing was changed. Try again later.",
-          "new_app_is_home": "{panel} is part-way through an earlier move that this release cannot finish yet. Nothing was changed. A later release of Panel Assistant repairs it.",
-          "move_failed": "The move of {panel} did not finish. Its settings are backed up in Home Assistant, and the panel keeps a working screen. Open this Repair again to carry on from where it stopped.",
-          "panel_changed": "The device answering at {panel}'s address is not the panel Panel Assistant knows, so nothing was changed. If the panel was replaced or reset, remove it from Home Assistant and add it again.",
-          "busy": "{panel} is busy with an update or another move. Try again when that has finished.",
-          "restore_approval": "{panel} asks for approval on its screen before its settings can be restored. Approve it on the panel, then open this Repair again."
-        }
-      }
-    },
-    "remove_old_app_adb": {
-      "title": "The old app is still on {panel}",
-      "description": "{panel} runs the new Panel Assistant app, but the old ha-paneld app is still installed beside it. Panel Assistant removes it automatically over ADB, but cannot connect to the panel's Android Debug Bridge right now. Make sure network debugging is turned on and that the panel has allowed Home Assistant to connect. Panel Assistant tries again on its own."
-    },
-    "remove_old_app_unproven": {
-      "title": "The old app is still on {panel}",
-      "description": "{panel} has the old ha-paneld app installed beside the new Panel Assistant app. Panel Assistant removes the old app only once the new app is proven to run the panel: it must answer as this panel and be its home screen. That could not be proven, so both apps were left as they are. Panel Assistant checks again on its own."
-    },
-    "remove_old_app_failed": {
-      "title": "The old app is still on {panel}",
-      "description": "{panel} runs the new Panel Assistant app, but the old ha-paneld app is still installed beside it. Panel Assistant tried to back the panel up and remove the old app, and that did not finish. Nothing else on the panel was changed. Panel Assistant tries again on its own."
     },
     "panel_permissions": {
       "title": "Permissions need attention on {panel}.",
@@ -724,6 +927,10 @@
       "title": "The voice assistant on {panel} is not listening.",
       "description": "The voice assistant on {panel} is not listening because its microphone delivered no audio when the panel checked it. To check again, turn the voice assistant off and on in the panel's Configure page, or choose another audio source there. The panel reported: {detail}"
     },
+    "volume_number_removed": {
+      "title": "{panel} no longer has a separate volume number",
+      "description": "{panel} has a media player that shows and sets its volume, so Panel Assistant removed its separate volume number {entity}. These automations or scripts still use it: {users}. Change them to set the volume with the `media_player.volume_set` action on the panel's media player. Once they are changed, you can ignore this message."
+    },
       "restart_required": {
         "title": "Restart Home Assistant to finish updating Panel Assistant",
         "fix_flow": {
@@ -754,25 +961,6 @@
         }
       }
     },
-    "panel_awaiting_confirmation": {
-      "title": "Finish connecting {panel}",
-      "fix_flow": {
-        "step": {
-          "confirm_bind": {
-            "title": "Confirm the panel's user",
-            "description": "The panel {panel} asked to connect to Home Assistant as the user {user}. Confirm only if {user} is the account you set up for this panel. If you confirm, the panel should connect shortly afterwards. Anyone signed in to Home Assistant can ask to connect as a panel, so if you do not recognise this request, close this dialog and ignore the issue."
-          },
-          "confirm_rebind": {
-            "title": "Change the panel's user",
-            "description": "The panel {panel} is confirmed for the user {bound_user}, but the user {user} asked to connect as it. Confirm only if you changed this panel's account to {user}: the panel then stops accepting {bound_user} and should connect shortly afterwards. If you did not, someone else may be trying to take over the panel, so close this dialog and ignore the issue."
-          }
-        },
-        "abort": {
-          "entry_removed": "This panel is no longer set up in Home Assistant.",
-          "user_unavailable": "The user who asked to connect no longer exists or is deactivated. Nothing was changed."
-        }
-      }
-    },
     "no_update_route": {
       "title": "{panel} cannot receive app updates",
       "description": "Panel Assistant cannot install app updates on {panel}, so the app stays on its current version. Everything else about the panel keeps working, which is why this is easy to miss. It usually follows a change made on the panel itself, such as a firmware update or a reset. Reconnecting the panel to Panel Assistant by USB restores updates. Select Learn more for the steps for this panel."
@@ -780,20 +968,6 @@
     "merged_panel_identity": {
       "title": "Separate the merged panels: {panels}",
       "description": "The panels {panels} report the same device identity, so Home Assistant cannot safely decide which entry owns a native connection or entity. Their native connection is refused and no entities are moved. Update the Panel Assistant app on every affected panel so each has a distinct identity, then delete the merged device and let the panels register again."
-    },
-    "panel_migration_incomplete": {
-      "title": "The panel at {address} has not finished moving to its new app",
-      "fix_flow": {
-        "step": {
-          "confirm_migration": {
-            "title": "Check the panel again",
-            "description": "Panel Assistant installed version {version} on the panel at {address}, and the panel moves its settings to the new app by itself. That move had not finished when Home Assistant stopped waiting. The panel keeps working throughout and carries on where it left off, so nothing here changes it. Select Submit to look again."
-          }
-        },
-        "abort": {
-          "migration_unfinished": "The new app has not answered yet. The panel carries on by itself, so open this issue again later."
-        }
-      }
     },
     "installer_failure": {
       "title": "Install or update failed on {panel}",
@@ -1269,7 +1443,7 @@
           "adb_unreachable": "The panel answered, but nothing answered on its Android Debug Bridge port (5555). On the panel, turn on Android Debug Bridge and allow it over the network, then try again. If you can plug the panel into the computer you are browsing on, install over USB instead.",
           "adb_still_unauthorized": "The panel has not accepted this Home Assistant instance yet. Approve the ADB prompt on the panel, then try again.",
           "adb_credential_error": "Home Assistant could not safely load or persist its ADB credential. No panel change was attempted. Check the Home Assistant storage and logs before retrying.",
-          "retained_or_ambiguous": "The panel may contain a retained Panel Assistant package record or its package state could not be proven absent. No panel change was made. Retry once if the connection was unstable; otherwise follow the provisioning safety and recovery guide linked from the integration documentation. Do not uninstall or reset the app without a verified backup.",
+          "retained_or_ambiguous": "The panel may contain a retained Panel Assistant package record or its package state could not be proven absent. No panel change was made. Retry once if the connection was unstable; otherwise follow the steps at {recovery_address}. Do not uninstall or reset the app without a verified backup.",
           "unknown": "Unexpected error",
           "panel_identity_changed": "The address no longer answers as this configured panel. Check the panel and its address before retrying."
         },
@@ -1317,6 +1491,9 @@
           "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
           "retry_failed": "The retry failed. The support report has details.",
           "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
+        },
+        "abort": {
+          "entry_removed": "This panel has been removed."
         }
       }
     },
@@ -1331,6 +1508,10 @@
     "panel_identity_mismatch": {
       "title": "Check the address for {panel}",
       "description": "{address} did not answer as {panel}, so its controls have been paused. Check that this address belongs to the panel. If the panel moved, add it again using its current address."
+    },
+    "panel_link_shared": {
+      "title": "{panel} was reinstalled but shares its device link",
+      "description": "{panel} answered at {address} after its app was reinstalled, but {others} holds the same device link, so Home Assistant cannot tell which setup this panel belongs to and has paused its controls. The address is fine. If {others} is no longer in use, delete it and {panel} rejoins by itself; otherwise add {panel} again."
     },
     "panel_identity_confirmation": {
       "title": "Keep the existing setup for {panel}",
@@ -1404,7 +1585,7 @@
           "adb_unreachable": "The panel answered, but nothing answered on its Android Debug Bridge port (5555). On the panel, turn on Android Debug Bridge and allow it over the network, then try again. If you can plug the panel into the computer you are browsing on, install over USB instead.",
           "adb_still_unauthorized": "The panel has not accepted this Home Assistant instance yet. Approve the ADB prompt on the panel, then try again.",
           "adb_credential_error": "Home Assistant could not safely load or persist its ADB credential. No panel change was attempted. Check the Home Assistant storage and logs before retrying.",
-          "retained_or_ambiguous": "The panel may contain a retained Panel Assistant package record or its package state could not be proven absent. No panel change was made. Retry once if the connection was unstable; otherwise follow the provisioning safety and recovery guide linked from the integration documentation. Do not uninstall or reset the app without a verified backup.",
+          "retained_or_ambiguous": "The panel may contain a retained Panel Assistant package record or its package state could not be proven absent. No panel change was made. Retry once if the connection was unstable; otherwise follow the steps at {recovery_address}. Do not uninstall or reset the app without a verified backup.",
           "unknown": "Unexpected error",
           "panel_identity_changed": "The address no longer answers as this configured panel. Check the panel and its address before retrying."
         },
@@ -1433,7 +1614,7 @@
           "adb_unreachable": "The panel answered, but nothing answered on its Android Debug Bridge port (5555). On the panel, turn on Android Debug Bridge and allow it over the network, then try again. If you can plug the panel into the computer you are browsing on, install over USB instead.",
           "adb_still_unauthorized": "The panel has not accepted this Home Assistant instance yet. Approve the ADB prompt on the panel, then try again.",
           "adb_credential_error": "Home Assistant could not safely load or persist its ADB credential. No panel change was attempted. Check the Home Assistant storage and logs before retrying.",
-          "retained_or_ambiguous": "The panel may contain a retained Panel Assistant package record or its package state could not be proven absent. No panel change was made. Retry once if the connection was unstable; otherwise follow the provisioning safety and recovery guide linked from the integration documentation. Do not uninstall or reset the app without a verified backup.",
+          "retained_or_ambiguous": "The panel may contain a retained Panel Assistant package record or its package state could not be proven absent. No panel change was made. Retry once if the connection was unstable; otherwise follow the steps at {recovery_address}. Do not uninstall or reset the app without a verified backup.",
           "unknown": "Unexpected error",
           "panel_identity_changed": "The address no longer answers as this configured panel. Check the panel and its address before retrying."
         },
@@ -1441,35 +1622,31 @@
           "entry_removed": "This panel has been removed."
         }
       }
+    },
+    "another_home_assistant": {
+      "title": "{panel} is signed in to another Home Assistant",
+      "description": "{panel} has been added here, but it is signed in to another Home Assistant. Its settings and sign-in have not changed. To connect it here, change Home Assistant and sign in on the panel."
     }
   },
   "options": {
     "step": {
       "init": {
         "title": "Panel setup",
-        "description": "Continue this panel’s setup or authorize ADB for panel updates. If the panel is still unbound, confirm its signed-in account to finish setup.",
+        "description": "Choose what to do with this panel.",
         "menu_options": {
           "onboarding": "Continue setup",
           "authorize_adb": "Allow updates",
           "updates": "Panel updates",
           "remove_app": "Remove Panel Assistant from this panel"
+        },
+        "menu_option_descriptions": {
+          "remove_app": "Gives the home screen back to the panel's own launcher, then uninstalls the app."
         }
       },
       "onboarding": {
         "title": "Finish setting up this panel",
-        "description": "Open the panel's setup page from a browser that can reach the panel on your local network. Sign in with the Home Assistant account currently in that browser, choose the home dashboard, and finish setup there. Keep this dialog open; it will return here to confirm the account. If this browser cannot reach the panel, finish later from the panel's local network. Android debugging approval, if requested, still needs a person at the panel."
-      },
-      "onboarding_wait": {
-        "title": "Waiting for the panel to connect",
-        "description": "The panel has not yet finished setup or asked to connect as an account. Complete its setup page, then submit here to check again. The panel remains unbound until you confirm its account."
-      },
-      "onboarding_confirm": {
-        "title": "Confirm this panel's account",
-        "description": "{panel} has signed in as {user} and asked to connect. Confirm only if this is the account you chose for this panel. Skipping leaves it unbound; you can confirm later in Repairs.",
-        "menu_options": {
-          "onboarding_bind": "Yes, connect this panel",
-          "onboarding_skip": "Not now"
-        }
+        "description": "Open the [panel's setup page]({setup_url}) from a device on the same network as the panel; it opens in a new tab. Finish the steps there, then come back and select Done.",
+        "submit": "Done"
       },
       "authorize_adb": {
         "title": "Allow updates on {panel}",
@@ -1487,17 +1664,12 @@
       },
       "remove_app": {
         "title": "Remove Panel Assistant from {panel}",
-        "description": "This removes Panel Assistant from {panel}. First Panel Assistant gives the panel's home screen back to the panel's own launcher and turns the vendor apps it switched off back on; only then is it uninstalled, over the Android Debug Bridge connection Home Assistant already holds. Its settings on the panel are deleted.\n\nOn some panels and firmware versions, removing it leaves no way back to Android Settings or network debugging, so the app could not be installed again without opening the panel. Before you continue, read [what removal can do to this panel]({risks_url}).",
+        "description": "Panel Assistant first gives the panel's home screen back to its own launcher and turns the vendor apps it switched off back on, then uninstalls itself. Its settings on the panel are deleted.\n\nOn some panels and firmware versions, removing it leaves no way back to Android Settings or network debugging, so the app could not be installed again without opening the panel. Read [what removal can do to this panel]({risks_url}) before you select Submit.",
         "data": {
-          "confirmed": "I have read the removal risks for this panel and want to remove Panel Assistant"
-        }
-      },
-      "remove_app_done": {
-        "title": "Panel Assistant is removed from {panel}",
-        "description": "The panel keeps its own home screen. Should Home Assistant also forget {panel}?",
-        "menu_options": {
-          "remove_app_delete_entry": "Delete this panel from Home Assistant",
-          "remove_app_keep_entry": "Keep it in Home Assistant for now"
+          "delete_entry": "Also delete this panel from Home Assistant"
+        },
+        "data_description": {
+          "delete_entry": "Leave this off to keep its entities and history for when you install Panel Assistant again."
         }
       }
     },
@@ -1512,11 +1684,10 @@
       "adb_unreachable": "The panel answered, but nothing answered on its Android Debug Bridge port (5555). On the panel, turn on Android Debug Bridge and allow it over the network, then try again. If you can plug the panel into the computer you are browsing on, install over USB instead.",
       "adb_still_unauthorized": "The panel has not accepted this Home Assistant instance yet. Approve the ADB prompt on the panel, then try again.",
       "adb_credential_error": "Home Assistant could not safely load or persist its ADB credential. No panel change was attempted. Check the Home Assistant storage and logs before retrying.",
-      "retained_or_ambiguous": "The panel may contain a retained Panel Assistant package record or its package state could not be proven absent. No panel change was made. Retry once if the connection was unstable; otherwise follow the provisioning safety and recovery guide linked from the integration documentation. Do not uninstall or reset the app without a verified backup.",
+      "retained_or_ambiguous": "The panel may contain a retained Panel Assistant package record or its package state could not be proven absent. No panel change was made. Retry once if the connection was unstable; otherwise follow the steps at {recovery_address}. Do not uninstall or reset the app without a verified backup.",
       "unknown": "Unexpected error",
       "panel_identity_changed": "The address no longer answers as this configured panel. Check the panel and its address before retrying.",
-      "removal_unconfirmed": "Tick the box to confirm you have read the removal risks. Nothing was removed.",
-      "removal_busy": "An update or move is already changing this panel. Nothing was removed; try again when it has finished.",
+      "removal_busy": "Another operation is already changing this panel. Nothing was removed; try again when it has finished.",
       "removal_adb_unreachable": "Home Assistant could not reach the panel over the Android Debug Bridge (port 5555). Nothing was removed. Check that the panel is on and network debugging is still enabled, then try again.",
       "removal_adb_authorization": "The panel has not accepted this Home Assistant instance for the Android Debug Bridge. Nothing was removed. Choose Allow updates first, then try again.",
       "removal_panel_changed": "A different device now answers at this panel's address. Nothing was removed.",
@@ -1527,11 +1698,13 @@
       "removal_home_not_handed": "The panel did not confirm that another launcher took its home screen, so Panel Assistant was not removed. Install a launcher, or turn the vendor one back on, then try again.",
       "removal_hand_back_unsupported": "The Panel Assistant app on this panel is too old to hand its home screen back. Nothing was removed. Update it first, then try again.",
       "removal_app_unreachable": "Panel Assistant did not answer, and it is still the panel's home screen, so removing it now would leave the panel with no home screen. Nothing was removed. Start Panel Assistant on the panel, then try again.",
-      "removal_remove_failed": "The panel already has its home screen back, but Panel Assistant could not be removed completely. Try again: a retry finishes what is left."
+      "removal_remove_failed": "The panel already has its home screen back, but Panel Assistant could not be removed completely. Try again: a retry finishes what is left.",
+      "panel_not_connected": "The panel hasn't connected yet. Finish the steps on its setup page, then select Done again."
     },
     "abort": {
       "removed_entry_deleted": "Panel Assistant was removed and the panel was deleted from Home Assistant.",
-      "removed_entry_kept": "Panel Assistant was removed. The panel stays in Home Assistant until you delete it."
+      "removed_entry_kept": "Panel Assistant was removed. The panel stays in Home Assistant until you delete it.",
+      "panel_connected": "The panel is set up and connected to Home Assistant."
     }
   }
 }

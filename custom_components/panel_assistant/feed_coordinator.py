@@ -11,7 +11,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from yarl import URL
 
-from .app_identity import ACCEPTED_PACKAGE_IDS, LEGACY_PACKAGE_ID
+from .app_identity import PACKAGE_ID
 from .build_feed import (
     BuildFeed,
     BuildFeedError,
@@ -75,7 +75,7 @@ class BuildFeedCoordinator(DataUpdateCoordinator[BuildFeed]):
         build = newest_feed_build(
             candidate
             for candidate in feed.builds
-            if candidate.package_id == (package_id or LEGACY_PACKAGE_ID)
+            if candidate.package_id == package_id
             and build_allowed(
                 candidate.version_name,
                 candidate.protocol_min,
@@ -132,36 +132,32 @@ class BuildFeedCoordinator(DataUpdateCoordinator[BuildFeed]):
             for sha256, apk in self._verified_apks.items()
             if sha256 in current_hashes
         }
-        for package_id in ACCEPTED_PACKAGE_IDS:
-            for allow_prerelease in (False, True):
-                build = newest_feed_build(
-                    candidate
-                    for candidate in feed.builds
-                    if candidate.package_id == package_id
-                    and build_allowed(
-                        candidate.version_name,
-                        candidate.protocol_min,
-                        candidate.protocol_max,
-                        allow_prerelease=allow_prerelease,
-                    )
+        for allow_prerelease in (False, True):
+            build = newest_feed_build(
+                candidate
+                for candidate in feed.builds
+                if build_allowed(
+                    candidate.version_name,
+                    candidate.protocol_min,
+                    candidate.protocol_max,
+                    allow_prerelease=allow_prerelease,
                 )
-                if build is None:
+            )
+            if build is None:
+                continue
+            apk = cached.get(build.apk_sha256)
+            if apk is None or len(apk) != build.apk_size:
+                try:
+                    apk = await async_download_build(
+                        session, feed_release_artifact(build)
+                    )
+                except BuildFeedError:
+                    _LOGGER.warning(
+                        "Signed build %s has no verifiable APK; not offering it",
+                        build.version_code,
+                    )
                     continue
-                apk = cached.get(build.apk_sha256)
-                if apk is None or len(apk) != build.apk_size:
-                    try:
-                        apk = await async_download_build(
-                            session, feed_release_artifact(build)
-                        )
-                    except BuildFeedError:
-                        _LOGGER.warning(
-                            "Signed build %s for %s has no verifiable APK; "
-                            "not offering it",
-                            build.version_code,
-                            package_id,
-                        )
-                        continue
-                    cached[build.apk_sha256] = apk
+                cached[build.apk_sha256] = apk
         self._verified_apks = cached
         return feed
 
@@ -201,28 +197,11 @@ class StableReleaseCoordinator(DataUpdateCoordinator[ReleaseArtifact | None]):
         )
 
     def artifact_for(
-        self,
-        package_id: str,
-        *,
-        allow_prerelease: bool | None = None,
-        tag: str | None = None,
+        self, package_id: str, *, allow_prerelease: bool | None = None
     ) -> ReleaseArtifact | None:
         """Return the newest authenticated compatible APK for this policy."""
         if allow_prerelease is None:
             allow_prerelease = prereleases_allowed()
-        if tag is not None:
-            candidate = self._candidates.get((tag, package_id))
-            return (
-                candidate
-                if candidate is not None
-                and build_allowed(
-                    candidate.version,
-                    candidate.protocol_min,
-                    candidate.protocol_max,
-                    allow_prerelease=allow_prerelease,
-                )
-                else None
-            )
         return max(
             (
                 candidate
@@ -259,20 +238,12 @@ class StableReleaseCoordinator(DataUpdateCoordinator[ReleaseArtifact | None]):
                 "The recent releases could not be authenticated"
             ) from err
         authenticated: dict[tuple[str, str], ReleaseArtifact] = {}
-        for bundle, bridge in candidates:
-            for artifact in (bundle.artifact, bridge):
-                if artifact is None:
-                    continue
-                package_id = (
-                    artifact.descriptor.package_id
-                    if artifact.descriptor is not None
-                    else LEGACY_PACKAGE_ID
-                )
-                authenticated[artifact.tag, package_id] = artifact
+        for bundle in candidates:
+            artifact = bundle.artifact
+            if artifact.descriptor is not None:
+                authenticated[artifact.tag, artifact.descriptor.package_id] = artifact
         self._candidates = authenticated
-        return self.artifact_for(ACCEPTED_PACKAGE_IDS[-1]) or self.artifact_for(
-            LEGACY_PACKAGE_ID
-        )
+        return self.artifact_for(PACKAGE_ID)
 
 
 def async_get_stable_release_coordinator(

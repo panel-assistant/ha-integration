@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildAppReady, parseAppReady } from '../src/install-contract.mjs';
 import { createUsbTransactionPorts } from '../src/usb-transaction-ports.mjs';
-import { SUCCESSOR_PACKAGE_ID } from '../src/app-identity.mjs';
+import { PACKAGE_ID } from '../src/app-identity.mjs';
 
 const nonce = 'f'.repeat(32);
 const frame = status => `HAPANELD_READY_BEGIN:${nonce}\nHAPANELD_READY_END:${nonce}:${status}\n`;
@@ -26,7 +26,7 @@ test('listening and not-yet-listening are both answers, anything else is malform
 test('the strict health read runs only after waiting for the app', async () => {
   const target = {model: 'Test panel', serial: 'serial', primaryAbi: 'arm64-v8a', androidSdk: 33,
     rootMode: 'rootless', usbVendorId: 1, usbProductId: 2, usbSerial: 'usb'};
-  const descriptor = {apkSize: 1234, apkSha256: 'a'.repeat(64), packageId: SUCCESSOR_PACKAGE_ID,
+  const descriptor = {apkSize: 1234, apkSha256: 'a'.repeat(64), packageId: PACKAGE_ID,
     versionName: '1.2.3'};
   const release = {kind: 'authenticated-apk-bytes', descriptor};
   const seen = [];

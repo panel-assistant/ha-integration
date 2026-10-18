@@ -1,7 +1,6 @@
 """Native commands: what a session is granted, and the command path."""
 
 import asyncio
-import base64
 import logging
 import re
 from collections.abc import Awaitable
@@ -11,11 +10,10 @@ from unittest.mock import patch
 import pytest
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import InvalidData
 from homeassistant.exceptions import HomeAssistantError
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.panel_assistant import transport
+from custom_components.panel_assistant import transport_sessions
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.diagnostics import (
     async_get_config_entry_diagnostics,
@@ -36,7 +34,10 @@ ALL_CAPABILITIES = ["state", "events", "commands", "approval"]
 _COMMAND_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
-def _hello(capabilities: list[str] | None = None) -> dict[str, Any]:
+def _hello(
+    capabilities: list[str] | None = None,
+    channels: list[dict[str, Any]] = DESCRIPTORS,
+) -> dict[str, Any]:
     return {
         "type": "panel_assistant/hello",
         "protocol": {"min": 5, "max": 5},
@@ -45,7 +46,7 @@ def _hello(capabilities: list[str] | None = None) -> dict[str, Any]:
         "app": {"version": test_native.HEALTH.version, "version_code": 790},
         "contract_digest": "c" * 64,
         "capabilities": ALL_CAPABILITIES if capabilities is None else capabilities,
-        "channels": DESCRIPTORS,
+        "channels": channels,
     }
 
 
@@ -114,9 +115,10 @@ async def _connect(
     token: str,
     capabilities: list[str] | None = None,
     sync: bool = True,
+    channels: list[dict[str, Any]] = DESCRIPTORS,
 ) -> Panel:
     client = await hass_ws_client(hass, token)
-    await client.send_json_auto_id(_hello(capabilities))
+    await client.send_json_auto_id(_hello(capabilities, channels))
     hello = await _receive(client)
     assert hello["success"], hello
     panel = Panel(client, hello)
@@ -169,7 +171,7 @@ async def native(hass: HomeAssistant, hass_read_only_user: Any) -> MockConfigEnt
     [
         (None, ["approval", "commands", "events", "state"]),
         (["state", "events"], ["events", "state"]),
-        (["state", "commands", "mqtt_withdraw"], ["commands", "state"]),
+        (["state", "commands", "unknown_capability"], ["commands", "state"]),
     ],
 )
 async def test_hello_grants_what_the_panel_offered(
@@ -193,30 +195,25 @@ async def test_hello_grants_what_the_panel_offered(
     assert transport_diagnostics["capabilities"] == granted
 
 
-async def test_embed_grant_carries_the_key_shape_consumed_by_the_panel(
+async def test_hello_grants_the_sidebar_relay_but_never_rest_retirement(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
     hass_read_only_user: Any,
     hass_read_only_access_token: str,
 ) -> None:
-    """An offered embed grant includes one decodable 32-byte proof key."""
+    """The relay's capabilities are granted; REST closure and the old proof are not."""
     await _setup(hass, hass_read_only_user.id)
 
     panel = await _connect(
         hass,
         hass_ws_client,
         hass_read_only_access_token,
-        ["state", "embed_proof", "future_capability"],
+        ["state", "ui_subscribe", "ui_bundle", "rest_retired", "embed_proof"],
         sync=False,
     )
 
-    assert panel.result["capabilities"] == ["embed_proof", "state"]
-    embed = panel.result["embed"]
-    assert re.fullmatch(r"[0-9a-f]{16}", embed["key_id"])
-    assert re.fullmatch(r"[A-Za-z0-9_-]{43}", embed["key"])
-    assert (
-        len(base64.b64decode(embed["key"] + "=", altchars=b"-_", validate=True)) == 32
-    )
+    assert panel.result["capabilities"] == ["state", "ui_bundle", "ui_subscribe"]
+    assert "embed" not in panel.result
 
 
 # ---------------------------------------------------------------------------
@@ -244,7 +241,7 @@ async def test_entry_writes_keep_the_session(
         await hass.async_block_till_done()
     await panel.nothing_sent()
     assert entry.runtime_data.client.address.host == "panel-2.local"
-    assert transport.async_get_sessions(hass).get(entry.entry_id) is not None
+    assert transport_sessions.async_get_sessions(hass).get(entry.entry_id) is not None
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
 
 
@@ -295,7 +292,14 @@ async def test_each_platform_sends_its_typed_value(
     value: Any,
 ) -> None:
     """The command carries the session, channel and value, and applied returns."""
-    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
+    # Only a panel without a speaker has a volume number.
+    channels = [item for item in DESCRIPTORS if item["channel"] != "media"]
+    panel = await _connect(
+        hass,
+        hass_ws_client,
+        hass_read_only_access_token,
+        channels=channels if domain == "number" else DESCRIPTORS,
+    )
     entity_id = _entity_id(hass, native, suffix)
 
     call = _call(hass, domain, service, {"entity_id": entity_id, **data})
@@ -433,7 +437,7 @@ async def test_approval_that_outlasts_the_wait_raises_and_records_the_late_outco
 ) -> None:
     """Past the wait the call raises approval_pending; the final is kept as late."""
     panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
-    with patch.object(transport, "COMMAND_TIMEOUT", 0.3):
+    with patch.object(transport_sessions, "COMMAND_TIMEOUT", 0.3):
         call = _call(
             hass, "button", "press", {"entity_id": _entity_id(hass, native, "reboot")}
         )
@@ -473,7 +477,7 @@ async def test_no_outcome_raises_panel_unavailable(
 ) -> None:
     """A panel that never answers leaves the call failing, not hanging."""
     panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
-    with patch.object(transport, "COMMAND_TIMEOUT", 0.2):
+    with patch.object(transport_sessions, "COMMAND_TIMEOUT", 0.2):
         call = _call(
             hass,
             "switch",
@@ -570,14 +574,14 @@ async def test_a_session_that_has_ended_carries_no_command(
 ) -> None:
     """A session held from before its end is refused, never written to."""
     panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
-    ended = transport.async_get_sessions(hass).get(native.entry_id)
+    ended = transport_sessions.async_get_sessions(hass).get(native.entry_id)
     assert ended is not None
     replacement = await _connect(hass, hass_ws_client, hass_read_only_access_token)
     closed = await _receive(panel.client)
     assert closed["event"] == {"kind": "session_closed", "reason": "superseded"}
 
     sent = asyncio.ensure_future(
-        transport.async_send_command(hass, ended, "relay1", True)
+        transport_sessions.async_send_command(hass, ended, "relay1", True)
     )
     await asyncio.wait({sent}, timeout=1)
 
@@ -714,22 +718,3 @@ async def test_malformed_results_are_invalid_format_and_resolve_nothing(
     assert (await panel.answer(command["command_id"], "applied"))["success"]
     async with asyncio.timeout(5):
         await call
-
-
-async def test_options_flow_offers_no_transport_choice(hass: HomeAssistant) -> None:
-    """The MQTT transport choice is gone from the menu and cannot be reached."""
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        title="alpha",
-        data={CONF_ADDRESS: "192.168.1.23"},
-        options={"authority": "native"},
-    )
-    entry.add_to_hass(hass)
-    menu = await hass.config_entries.options.async_init(entry.entry_id)
-
-    assert "transport" not in menu["menu_options"]
-    with pytest.raises(InvalidData, match="next_step_id"):
-        await hass.config_entries.options.async_configure(
-            menu["flow_id"], {"next_step_id": "transport"}
-        )
-    assert entry.options == {"authority": "native"}

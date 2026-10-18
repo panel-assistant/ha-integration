@@ -28,12 +28,19 @@
     <section id="step-connect" class="step" hidden>
       <h2 data-screen-message="connectHeading"></h2>
       <p class="wiz-lead" data-screen-message="connectBody"></p>
+      <p class="wiz-lead"><span data-screen-message="usbDebugging"></span>
+        <a href="https://panel-assistant.io/go/panel-access" target="_blank" rel="noopener" data-screen-message="usbDebuggingHelp"></a></p>
       <button id="connect" class="pbtn primary wiz-primary" data-screen-message="connect"></button>
+    </section>
+
+    <section id="step-checking" class="step" hidden>
+      <h2 data-screen-message="connectHeading"></h2>
+      <p class="wiz-status" role="status" aria-live="polite" data-screen-message="checkingPanel"></p>
     </section>
 
     <section id="step-allow" class="step" hidden>
       <h2 data-screen-message="allowHeading"></h2>
-      <p id="allow-text" class="wiz-status" role="status" aria-live="polite" data-screen-message="allowBody"></p>
+      <p class="wiz-status" role="status" aria-live="polite" data-screen-message="allowBody"></p>
     </section>
 
     <section id="step-confirm" class="step" hidden>

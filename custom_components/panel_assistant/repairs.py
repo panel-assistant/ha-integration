@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import asdict
 from typing import Any
 
@@ -16,7 +17,6 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .app_identity import SUCCESSOR_PACKAGE_ID
 from .client import (
     CannotConnectError,
     HaPaneldClient,
@@ -29,17 +29,6 @@ from .config_flow import async_authorize_adb_form
 from .const import CONF_TRANSPORT_USER_ID, DOMAIN, update_unique_id
 from .coordinator import HaPaneldDataUpdateCoordinator, PanelSnapshot
 from .device import panel_display_name
-from .failure_repair import (
-    ISSUE_ADB_AUTHORIZATION,
-    ISSUE_INSTALLER_FAILURE,
-    RetrySafetyHold,
-    adb_authorization_issue_id,
-    async_clear_failure,
-    async_failure_events,
-    async_record_retry_hold,
-    async_retry_install_job,
-    async_support_report,
-)
 from .identity import (
     ISSUE_IDENTITY,
     can_confirm_identity,
@@ -47,36 +36,39 @@ from .identity import (
     is_installation,
 )
 from .install_executor import async_get_install_executor
-from .install_jobs import InstallPhase, async_get_install_job_manager
-from .migration_repair import (
-    ISSUE_DATA_ADDRESS,
-    ISSUE_DATA_VERSION,
-    ISSUE_PANEL_MIGRATION_INCOMPLETE,
+from .install_jobs import async_get_install_job_manager
+from .install_receipt import InstallPhase
+from .release import ReleaseResolutionError
+from .release_catalog import async_resolve_install_choice
+from .repairs_failure import (
+    ISSUE_ADB_AUTHORIZATION,
+    ISSUE_INSTALLER_FAILURE,
+    RetrySafetyHold,
+    adb_authorization_issue_id,
+    async_clear_failure,
+    async_delete_issue_and_report,
+    async_failure_events,
+    async_record_retry_hold,
+    async_retry_install_job,
+    async_support_report,
+    update_failure_entry_id,
 )
-from .panel_move import ISSUE_DATA_ENTRY_ID as SUCCESSOR_MOVE_ENTRY_ID
-from .panel_move import (
-    ISSUE_MOVE_TO_NEW_APP,
-    SuccessorMoveFlow,
-    move_issue_id,
-)
-from .permission_repair import (
+from .repairs_permission import (
     ISSUE_PANEL_PERMISSIONS,
     permission_issue_id,
     permission_observations,
     permissions_held,
 )
-from .proximity_repair import (
+from .repairs_proximity import (
     ISSUE_PROXIMITY_SETUP,
     proximity_issue_id,
     proximity_state,
 )
-from .release import ReleaseResolutionError
-from .release_catalog import async_resolve_install_choice
-from .restart_repair import ISSUE_RESTART_REQUIRED, RestartRequiredFlow
-from .transport import (
-    BINDING_ISSUES,
+from .repairs_restart import ISSUE_RESTART_REQUIRED, RestartRequiredFlow
+from .transport_binding import (
     ISSUE_DATA_ENTRY_ID,
     ISSUE_DATA_USER_ID,
+    ISSUE_PANEL_USER_MISMATCH,
     async_bind_user,
     async_confirmable_user,
     async_delete_binding_issue,
@@ -84,8 +76,13 @@ from .transport import (
 
 ABORT_ENTRY_REMOVED = "entry_removed"
 ABORT_USER_UNAVAILABLE = "user_unavailable"
-ABORT_MIGRATION_UNFINISHED = "migration_unfinished"
 _NOT_SHOWN = object()
+
+
+async def _async_entry_removed(flow: RepairsFlow) -> RepairsFlowResult:
+    """Clear a Repair whose panel was removed, and say so."""
+    await async_delete_issue_and_report(flow.hass, flow.issue_id)
+    return flow.async_abort(reason=ABORT_ENTRY_REMOVED)
 
 
 SUPPORT_REPORT_GUIDE_URL = "https://panel-assistant.io/go/support-report"
@@ -294,62 +291,6 @@ class PanelUserBindingFlow(RepairsFlow):
         )
 
 
-class PanelMigrationFlow(RepairsFlow):
-    """Ask the panel, once, whether its new app has taken over yet.
-
-    This flow reads and never writes. The handover is the panel's own and is
-    re-entrant, so the useful thing a person can do here is check again: either
-    the new app answers for itself, and the issue goes, or it does not yet, and
-    they are told that rather than being offered a button that changes nothing.
-    """
-
-    def __init__(self, address: str, version: str) -> None:
-        """Remember the panel address and the version this job installed."""
-        self._address = address
-        self._version = version
-
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> RepairsFlowResult:
-        """Show one confirmation that re-reads the panel when submitted.
-
-        The manager starts this step with the issue's own data, never with an
-        administrator's submission, so the form is always shown first.
-        """
-        return await self.async_step_confirm_migration()
-
-    async def async_step_confirm_migration(
-        self, user_input: dict[str, Any] | None = None
-    ) -> RepairsFlowResult:
-        """Re-read the panel and finish only when the new app answers."""
-        if user_input is not None:
-            if await self._async_successor_answered():
-                return self.async_create_entry(data={})
-            return self.async_abort(reason=ABORT_MIGRATION_UNFINISHED)
-        return self.async_show_form(
-            step_id="confirm_migration",
-            data_schema=vol.Schema({}),
-            description_placeholders={
-                "address": self._address,
-                "version": self._version,
-            },
-        )
-
-    async def _async_successor_answered(self) -> bool:
-        try:
-            address = normalize_address(self._address)
-        except InvalidAddressError:
-            return False
-        client = HaPaneldClient(async_get_clientsession(self.hass), address)
-        try:
-            health = await client.async_get_health()
-        except CannotConnectError, InvalidResponseError:
-            return False
-        return (
-            health.package == SUCCESSOR_PACKAGE_ID and health.version == self._version
-        )
-
-
 class InstallerFailureFlow(RepairsFlow):
     """Keep a failed panel's retry, report and clear action together."""
 
@@ -359,6 +300,13 @@ class InstallerFailureFlow(RepairsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> RepairsFlowResult:
+        entry_id = update_failure_entry_id(
+            self.issue_id, await async_failure_events(self.hass, self.issue_id)
+        )
+        if entry_id is not None and not self.hass.config_entries.async_get_entry(
+            entry_id
+        ):
+            return await _async_entry_removed(self)
         options = ["retry", "support_report", "clear_error"]
         entry = self._adb_entry()
         if entry is not None:
@@ -388,7 +336,9 @@ class InstallerFailureFlow(RepairsFlow):
         """Restore ADB trust, then leave the failed update report available."""
         entry = self._adb_entry()
         if entry is None:
-            return self.async_abort(reason=ABORT_ENTRY_REMOVED)
+            # Approval arrived while the menu was open, or the panel went: the
+            # menu shows what is left, and clears the Repair of a removed panel.
+            return await self.async_step_init()
         panel = panel_display_name(self.hass, entry)
         form = await async_authorize_adb_form(self, entry, panel, user_input)
         if form is not None:
@@ -543,7 +493,9 @@ class InstallerFailureFlow(RepairsFlow):
                     current = await async_resolve_install_choice(self.hass, tag)
                 except ReleaseResolutionError as err:
                     raise RetrySafetyHold("retry_release_changed") from err
-                if asdict(current) != saved_artifact:
+                if json.dumps(asdict(current), sort_keys=True) != json.dumps(
+                    saved_artifact, sort_keys=True
+                ):
                     raise RetrySafetyHold("retry_release_changed")
             service_data = {"entity_id": entity_id}
             if not current_retry and isinstance(previous.get("target_version"), str):
@@ -579,7 +531,7 @@ class PanelPermissionFlow(RepairsFlow):
     ) -> RepairsFlowResult:
         entry = self.hass.config_entries.async_get_entry(self._entry_id)
         if entry is None or entry.domain != DOMAIN:
-            return self.async_abort(reason=ABORT_ENTRY_REMOVED)
+            return await _async_entry_removed(self)
         errors = {}
         if user_input is not None:
             coordinator = getattr(
@@ -594,7 +546,7 @@ class PanelPermissionFlow(RepairsFlow):
                     self.hass.config_entries.async_get_entry(self._entry_id)
                     is not entry
                 ):
-                    return self.async_abort(reason=ABORT_ENTRY_REMOVED)
+                    return await _async_entry_removed(self)
                 snapshot: PanelSnapshot | None = coordinator.data
                 if (
                     not coordinator.last_update_success
@@ -641,7 +593,7 @@ class ProximitySetupFlow(RepairsFlow):
     ) -> RepairsFlowResult:
         entry = self.hass.config_entries.async_get_entry(self._entry_id)
         if entry is None or entry.domain != DOMAIN:
-            return self.async_abort(reason=ABORT_ENTRY_REMOVED)
+            return await _async_entry_removed(self)
         errors = {}
         if user_input is not None:
             coordinator = getattr(
@@ -657,7 +609,7 @@ class ProximitySetupFlow(RepairsFlow):
                     self.hass.config_entries.async_get_entry(self._entry_id)
                     is not entry
                 ):
-                    return self.async_abort(reason=ABORT_ENTRY_REMOVED)
+                    return await _async_entry_removed(self)
                 snapshot: PanelSnapshot | None = coordinator.data
                 if (
                     coordinator.last_update_success
@@ -700,7 +652,7 @@ class AdbAuthorizationFlow(RepairsFlow):
     ) -> RepairsFlowResult:
         entry = self.hass.config_entries.async_get_entry(self._entry_id)
         if entry is None or entry.domain != DOMAIN:
-            return self.async_abort(reason=ABORT_ENTRY_REMOVED)
+            return await _async_entry_removed(self)
         panel = panel_display_name(self.hass, entry)
         form = await async_authorize_adb_form(self, entry, panel, user_input)
         if form is not None:
@@ -738,23 +690,11 @@ async def async_create_fix_flow(
         return PanelIdentityFlow(values)
     if issue_id.startswith(f"{ISSUE_INSTALLER_FAILURE}_"):
         return InstallerFailureFlow()
-    if issue_id.startswith(f"{ISSUE_MOVE_TO_NEW_APP}_"):
-        entry_id = values.get(SUCCESSOR_MOVE_ENTRY_ID)
-        if not isinstance(entry_id, str) or issue_id != move_issue_id(entry_id):
-            raise UnknownStep
-        return SuccessorMoveFlow(entry_id)
-    if issue_id.startswith(f"{ISSUE_PANEL_MIGRATION_INCOMPLETE}_"):
-        address = values.get(ISSUE_DATA_ADDRESS)
-        version = values.get(ISSUE_DATA_VERSION)
-        if not isinstance(address, str) or not isinstance(version, str):
-            raise UnknownStep
-        return PanelMigrationFlow(address, version)
     entry_id = values.get(ISSUE_DATA_ENTRY_ID)
     user_id = values.get(ISSUE_DATA_USER_ID)
-    # Both binding issues ask one question and are answered by one flow, which
-    # reads the entry itself to decide which confirmation to show.
+    # The flow reads the entry itself to decide which confirmation to show.
     if (
-        not any(issue_id.startswith(f"{asked}_") for asked in BINDING_ISSUES)
+        not issue_id.startswith(f"{ISSUE_PANEL_USER_MISMATCH}_")
         or not isinstance(entry_id, str)
         or not isinstance(user_id, str)
     ):

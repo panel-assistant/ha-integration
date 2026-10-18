@@ -1,22 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { receiveReleaseHandoff } from '../src/release-handoff.mjs';
 import { createUsbTransactionPorts } from '../src/usb-transaction-ports.mjs';
-import { ACCEPTED_PACKAGE_IDS } from '../src/app-identity.mjs';
+import { LEGACY_PACKAGE_ID, PACKAGE_ID } from '../src/app-identity.mjs';
 import { githubApkName } from '../src/release-identity.mjs';
 import { RESIDUE_PROBES } from '../src/preflight.mjs';
 import { startReleaseHandoff } from '../src/ha-release-handoff.mjs';
 
-const fixture = name => readFileSync(new URL(`./fixtures/${name}`, import.meta.url));
-const feed = new Uint8Array(fixture('build-feed-golden.json'));
-const signature = new Uint8Array(Buffer.from(fixture('build-feed-golden.json.sig.b64').toString().trim(), 'base64'));
-const apk = new Blob([fixture('build-feed-golden-772.apk.txt')]);
+import { apkOf, buildTag, bundle, document, release } from './signed-feed.mjs';
+
+const TAG = buildTag(772);
+const { feed, feedSignature: signature } = await bundle(await document());
+const apk = new Blob([apkOf(772)]);
 const build = JSON.parse(new TextDecoder().decode(feed)).builds[0];
-const key = await crypto.subtle.importKey('spki',
-  Buffer.from(fixture('build-feed-golden.pub.pem').toString().replace(/-----[A-Z ]+-----|\s/g, ''), 'base64'),
-  { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
-const metadata = () => ({ id: 'a'.repeat(32), tag: 'build-772', feed: btoa(String.fromCharCode(...feed)),
+const key = release.publicKey;
+// Preflight frames the old app's sections first, then this app's.
+const PROBED = [LEGACY_PACKAGE_ID, PACKAGE_ID];
+const metadata = () => ({ id: 'a'.repeat(32), tag: TAG, feed: btoa(String.fromCharCode(...feed)),
   feed_signature: btoa(String.fromCharCode(...signature)), apk_size: apk.size, apk_sha256: build.apkSha256 });
 const json = value => new Response(JSON.stringify(value), { headers: { 'Content-Type': 'application/json' } });
 const tick = () => new Promise(resolve => setImmediate(resolve));
@@ -61,31 +61,31 @@ async function session({ rcTag = null, admission = () => json(metadata()), initi
 test('PA default feed admission preserves the original default and binds exact bytes each time', async () => {
   const f = await session();
   try {
-    assert.equal(f.release.descriptor.releaseTag, 'build-772');
+    assert.equal(f.release.descriptor.releaseTag, TAG);
     await f.authenticate(); await f.authenticate();
     assert.equal(f.calls.length, 4);
     assert.ok(f.calls.filter(([, init]) => init.method === 'POST').every(([, init]) => init.body === '{}'));
     const requests = f.requests.filter(message => message.type === 'ha-paneld/usb-admission');
     assert.equal(requests.length, 2);
     assert.notEqual(requests[0].requestId, requests[1].requestId);
-    assert.equal(requests[0].tag, 'build-772');
+    assert.equal(requests[0].tag, TAG);
     assert.equal(requests[0].apkSha256, build.apkSha256);
     assert.equal(f.calls.filter(([, init]) => init.method === 'GET').length, 1);
   } finally { f.close(); }
 });
 
 test('an explicit feed choice remains explicit on fresh live PA admission', async () => {
-  const f = await session({ rcTag: 'build-772' });
+  const f = await session({ rcTag: TAG });
   try {
     await f.authenticate();
-    assert.equal(f.calls.at(-1)[1].body, '{"release_candidate":"build-772"}');
+    assert.equal(f.calls.at(-1)[1].body, `{"release_candidate":"${TAG}"}`);
   } finally { f.close(); }
 });
 
 for (const [name, admission] of [
   ['offline PA', () => { throw new Error('offline'); }],
   ['denied PA', () => new Response('{}', { status: 403 })],
-  ['changed recommended tag', () => json({ ...metadata(), tag: 'build-773' })],
+  ['changed recommended tag', () => json({ ...metadata(), tag: buildTag(773) })],
   ['changed exact APK', () => json({ ...metadata(), apk_sha256: 'b'.repeat(64) })],
   ['malformed response', () => json({ ...metadata(), extra: true })],
 ]) test(`cached signed bytes cannot authorize mutation after ${name}`, async () => {
@@ -110,7 +110,7 @@ test('saved signed bundle without a live HA opener cannot enter the production h
     location: { hash: '' } } }), /handoff_invalid/);
 });
 
-for (const changed of [{ tag: 'build-773' }, { apkSha256: 'b'.repeat(64) }, { admitted: false }, { extra: true }])
+for (const changed of [{ tag: buildTag(773) }, { apkSha256: 'b'.repeat(64) }, { admitted: false }, { extra: true }])
   test(`stale, wrong-origin, wrong-source and malformed replies cannot admit the next request: ${Object.keys(changed)[0]}`, async () => {
   let releaseAdmission;
   const f = await session({ admission: () => new Promise(resolve => { releaseAdmission = resolve; }) });
@@ -158,7 +158,7 @@ for (const phase of ['staging', 'installing']) for (const changedArtifact of [fa
       const lines = [`HAPANELD_PREFLIGHT_BEGIN:${n}`, ...Object.entries(identity).flatMap(([name, value]) =>
         section('HAPANELD_PREFLIGHT', name, [value])),
         ...section('HAPANELD_PREFLIGHT', 'LIVE', ['package:/system/framework/framework-res.apk'])];
-      ACCEPTED_PACKAGE_IDS.forEach((_, index) => lines.push(
+      PROBED.forEach((_, index) => lines.push(
         ...section('HAPANELD_PREFLIGHT', `PACKAGE${index}`, [], 1),
         ...section('HAPANELD_PREFLIGHT', `RETAINED${index}`, [])));
       for (let index = 0; index < 3; index++) lines.push(...section('HAPANELD_PREFLIGHT', `BASE${index}`, ['readable']));
@@ -196,7 +196,7 @@ for (const phase of ['staging', 'installing']) for (const changedArtifact of [fa
 });
 
 test('cached explicit signed bytes cannot authorize mutation after offline PA', async () => {
-  const f = await session({ rcTag: 'build-772', admission: () => { throw new Error('offline'); } });
+  const f = await session({ rcTag: TAG, admission: () => { throw new Error('offline'); } });
   try { await assert.rejects(f.authenticate(), /handoff_invalid/); }
   finally { f.close(); }
 });

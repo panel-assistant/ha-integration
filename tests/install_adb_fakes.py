@@ -9,22 +9,68 @@ sent.
 from __future__ import annotations
 
 import hashlib
+import re
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 from typing import Any
 
 import pytest
+from adb_shell.auth.sign_pythonrsa import PythonRSASigner
+from adb_shell.exceptions import AdbConnectionError, AdbTimeoutError
 
-from custom_components.panel_assistant import install_adb
+from custom_components.panel_assistant import adb_protocol, app_identity, install_adb
+from custom_components.panel_assistant.adb_protocol import AdbInstallTarget
+from custom_components.panel_assistant.client import PanelAddress
 from custom_components.panel_assistant.install_adb import (
     StagedApk,
 )
+from custom_components.panel_assistant.release import InstallDescriptor
 
 NONCES = tuple(f"{number:032x}" for number in range(1, 20))
 JOB_ID = "a" * 32
 REMOTE_PATH = f"/data/local/tmp/ha-paneld-install-{JOB_ID}.apk"
 APK_BYTES = b"signed apk fixture"
 APK_SHA256 = hashlib.sha256(APK_BYTES).hexdigest()
+
+
+@pytest.fixture
+def signer() -> PythonRSASigner:
+    """Return an identity-only signer; fake ADB never asks it to sign."""
+    return object.__new__(PythonRSASigner)
+
+
+@pytest.fixture
+def target() -> AdbInstallTarget:
+    return AdbInstallTarget(
+        address=PanelAddress(host="192.168.1.23", port=8888),
+        serial="SERIAL-1",
+        model="Test Panel",
+        primary_abi="arm64-v8a",
+        android_sdk=34,
+    )
+
+
+@pytest.fixture
+def descriptor() -> InstallDescriptor:
+    return InstallDescriptor(
+        schema="io.github.maxlyth.hapaneld.install.v1",
+        release_tag="v0.9.7",
+        version_name="0.9.7",
+        version_code=678,
+        apk_name="panel-assistant-v0.9.7-manual-setup-required.apk",
+        apk_size=len(APK_BYTES),
+        apk_sha256=APK_SHA256,
+        package_id="io.panelassistant.android",
+        signer_certificate_sha256=(
+            "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
+        ),
+        min_sdk=26,
+        supported_abis=("arm64-v8a", "armeabi-v7a"),
+        database_compatibility="hapaneld-db:v1:ha-paneld.db:1:14",
+        launch_component=(
+            "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity"
+        ),
+    )
 
 
 async def _allow_install() -> None:
@@ -126,10 +172,10 @@ def _preflight_output(
     ):
         lines.extend(_section(prefix, f"PACKAGE{index}", nonce, paths or [], 1))
         lines.extend(_section(prefix, f"RETAINED{index}", nonce, retained or [], 0))
-    for index in range(len(install_adb._ROOT_DATA_BASES)):
+    for index in range(len(adb_protocol._ROOT_DATA_BASES)):
         state = "unreadable" if index == unreadable_base else "readable"
         lines.extend(_section(prefix, f"BASE{index}", nonce, [state], 0))
-    for index in range(len(install_adb._RESIDUE_PATHS)):
+    for index in range(len(adb_protocol._RESIDUE_PATHS)):
         state = "present" if index == residue_index else "absent"
         lines.extend(_section(prefix, f"RESIDUE{index}", nonce, [state], 0))
     lines.append(f"HAPANELD_{prefix}_END:{nonce}")
@@ -208,7 +254,7 @@ _ACCESSIBILITY_SERVICES = {
 
 
 def _permissions_output(
-    nonce: str, package_id: str = "io.github.maxlyth.hapaneld"
+    nonce: str, package_id: str = "io.panelassistant.android"
 ) -> bytes:
     """A fresh panel's readback after every grant took."""
     return _single_output(
@@ -222,7 +268,7 @@ def _permissions_output(
             "SYSTEM_ALERT_WINDOW: allow\nREQUEST_INSTALL_PACKAGES: allow\n"
             "unsupported\nunsupported\n"
             "home_chooser:kept\nsecure_settings:granted\nhome:"
-            f"{install_adb.HOME_COMPONENTS[install_adb.LAUNCH_COMPONENTS[package_id][0]]}"
+            f"{app_identity.HOME_COMPONENTS[app_identity.LAUNCH_COMPONENTS[package_id][0]]}"
             "\ndevice:generic\nvendor:none",
         ],
         0,
@@ -235,13 +281,14 @@ def _remote_output(
     size: int = len(APK_BYTES),
     sha256: str = APK_SHA256,
     mode: str = "81a4",
+    path: str = REMOTE_PATH,
 ) -> bytes:
     prefix = "ARTIFACT"
     lines = [f"HAPANELD_{prefix}_BEGIN:{nonce}"]
     lines.extend(_section(prefix, "CHMOD", nonce, [], 0))
     lines.extend(_section(prefix, "MODE", nonce, [mode], 0))
     lines.extend(_section(prefix, "SIZE", nonce, [str(size)], 0))
-    lines.extend(_section(prefix, "SHA", nonce, [f"{sha256}  {REMOTE_PATH}"], 0))
+    lines.extend(_section(prefix, "SHA", nonce, [f"{sha256}  {path}"], 0))
     lines.append(f"HAPANELD_{prefix}_END:{nonce}")
     return ("\n".join(lines) + "\n").encode()
 
@@ -270,10 +317,10 @@ def _su_output(
     lines = [f"HAPANELD_DELEGATE_BEGIN:{nonce}", f"HAPANELD_SU_BEGIN:{nonce}"]
     lines.extend(_section("SU", "UID", nonce, [uid], 0))
     if clean:
-        for index in range(len(install_adb._ROOT_DATA_BASES)):
+        for index in range(len(adb_protocol._ROOT_DATA_BASES)):
             value = "unreadable" if index == unreadable_base else "readable"
             lines.extend(_section("SU", f"BASE{index}", nonce, [value], 0))
-        for index in range(len(install_adb._RESIDUE_PATHS)):
+        for index in range(len(adb_protocol._RESIDUE_PATHS)):
             value = "present" if index == residue_index else "absent"
             lines.extend(_section("SU", f"RESIDUE{index}", nonce, [value], 0))
     lines.extend([f"HAPANELD_SU_END:{nonce}", f"HAPANELD_DELEGATE_END:{nonce}:0"])
@@ -341,7 +388,7 @@ def _install_fakes(
         device.constructor = (args, kwargs)
         return device
 
-    monkeypatch.setattr(install_adb, "AdbDeviceAsync", factory)
+    monkeypatch.setattr(adb_protocol, "AdbDeviceAsync", factory)
     return device_iterator
 
 
@@ -349,3 +396,101 @@ def _install_update_fake(monkeypatch: pytest.MonkeyPatch, fake: FakeDevice) -> N
     _install_fakes(monkeypatch, [fake])
     nonces = iter((JOB_ID, *NONCES))
     monkeypatch.setattr(install_adb, "token_hex", lambda _length: next(nonces))
+
+
+_COMMAND_FRAME = re.compile(r"HAPANELD_([A-Z]+)_BEGIN:([0-9a-f]{32})")
+_STAGE_PATH = re.compile(r"/data/local/tmp/ha-paneld-install-[0-9a-f]{32}\.apk")
+
+
+class FakePanel:
+    """One panel whose files outlive every ADB connection made to it.
+
+    Each connection answers the framed commands from the panel's state, so
+    what a later job finds in the staging slot is what an earlier job left
+    there. ``stall_next_push`` stops the next copy part-way, as a slow link
+    does, and, unless ``drop_link_on_stall`` is cleared, leaves the panel unreachable
+    until ``reachable`` is set again.
+    """
+
+    def __init__(self) -> None:
+        self.files: dict[str, bytes] = {}
+        self.installed: bytes | None = None
+        self.reachable = True
+        self.stall_next_push = False
+        self.drop_link_on_stall = True
+        self.commands: list[str] = []
+
+    def install(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            adb_protocol, "AdbDeviceAsync", lambda *_args, **_kwargs: _Link(self)
+        )
+
+    def answer(self, command: str) -> bytes:
+        self.commands.append(command)
+        frame = _COMMAND_FRAME.search(command)
+        assert frame is not None, command
+        prefix, nonce = frame.groups()
+        path_match = _STAGE_PATH.search(command)
+        path = path_match.group(0) if path_match else ""
+        if prefix == "PREFLIGHT":
+            return _preflight_output(nonce)
+        if prefix == "POSTURE":
+            return _identity_root_output(nonce)
+        if prefix == "PATH":
+            state = "present" if path in self.files else "absent"
+            return _single_output("PATH", nonce, [state], 0)
+        if prefix == "CLEANUP":
+            self.files.pop(path, None)
+            return _cleanup_output(nonce)
+        if prefix == "ARTIFACT":
+            body = self.files[path]
+            return _remote_output(
+                nonce,
+                size=len(body),
+                sha256=hashlib.sha256(body).hexdigest(),
+                path=path,
+            )
+        if prefix == "INSTALL":
+            self.installed = self.files[path]
+            return _single_output("INSTALL", nonce, ["Success"], 0)
+        raise AssertionError(f"unexpected command {command}")
+
+
+def _read_source(local_path: str) -> bytes:
+    """Read the caller's open APK through its ``/proc/self/fd`` path."""
+    return Path(local_path).read_bytes()
+
+
+class _Link:
+    """One ADB connection to a ``FakePanel``."""
+
+    _maxdata = 64 * 1024
+
+    def __init__(self, panel: FakePanel) -> None:
+        self._panel = panel
+
+    async def connect(self, **_kwargs: Any) -> bool:
+        if not self._panel.reachable:
+            raise AdbConnectionError("no route to the panel")
+        return True
+
+    async def streaming_shell(
+        self, command: str, **_kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        if not self._panel.reachable:
+            raise AdbConnectionError("connection lost")
+        yield self._panel.answer(command)
+
+    async def push(self, local_path: str, device_path: str, **_kwargs: Any) -> None:
+        if not self._panel.reachable:
+            raise AdbConnectionError("connection lost")
+        body = _read_source(local_path)
+        if self._panel.stall_next_push:
+            self._panel.stall_next_push = False
+            self._panel.files[device_path] = body[: len(body) // 2]
+            self._panel.reachable = not self._panel.drop_link_on_stall
+            raise AdbTimeoutError("no reply while copying")
+        self._panel.files[device_path] = body
+
+    async def close(self) -> None:
+        return None
