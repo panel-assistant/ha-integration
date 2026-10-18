@@ -406,9 +406,9 @@ async def test_update_retry_preserves_saved_feed_artifact_across_storage_reload(
         assert result["type"] == "create_entry"
         assert ir.async_get(hass).async_get_issue(DOMAIN, issue.issue_id) is None
     else:
-        assert result["step_id"] == "retry_error"
-        assert result["errors"] == {"base": "retry_release_changed"}
         assert calls == []
+        assert result.get("step_id") == "retry_error"
+        assert result["errors"] == {"base": "retry_release_changed"}
         assert ir.async_get(hass).async_get_issue(DOMAIN, issue.issue_id) is not None
     resolver.assert_awaited_once_with(hass, original.tag)
 
