@@ -164,7 +164,9 @@ class PanelIdentityFlow(RepairsFlow):
                 entry = self.hass.config_entries.async_get_entry(candidate["entry_id"])
                 assert entry is not None
                 self._candidates.append(candidate)
-                names.append(f"- {entry.title} ({candidate['address']})")
+                names.append(
+                    f"- {panel_display_name(self.hass, entry)} ({candidate['address']})"
+                )
             self._panels = "\n".join(names)
         if not self._candidates or not all(
             self._unchanged(values) for values in self._candidates
@@ -279,7 +281,10 @@ class PanelUserBindingFlow(RepairsFlow):
             return self.async_create_entry(data={})
 
         self._shown_binding = bound_id
-        placeholders = {"panel": entry.title, "user": user.name or ""}
+        placeholders = {
+            "panel": panel_display_name(self.hass, entry),
+            "user": user.name or "",
+        }
         if step_id == "confirm_rebind":
             bound = await self.hass.auth.async_get_user(bound_id) if bound_id else None
             bound_name = bound.name if bound is not None else None

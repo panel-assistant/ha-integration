@@ -504,11 +504,13 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
 
     @callback
     def _report(self, entry: ConfigEntry, issue: str, session_address: str) -> None:
+        from .device import panel_display_name
+
         async_raise_address_issue(
             self.hass,
             entry.entry_id,
             issue,
-            panel=entry.title,
+            panel=panel_display_name(self.hass, entry),
             address=self.client.address.stored_value,
             session_address=session_address,
         )

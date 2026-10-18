@@ -31,6 +31,7 @@ from .device import (
     async_follow_panel_name,
     async_refresh_panel_device,
     panel_device_info,
+    panel_display_name,
     panel_reported_name,
 )
 from .discovery import async_offer_migration_targets
@@ -234,7 +235,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
         raise ConfigEntryError(
             translation_domain=DOMAIN,
             translation_key="mqtt_panel_needs_090",
-            translation_placeholders={"panel": entry.title},
+            translation_placeholders={"panel": panel_display_name(hass, entry)},
         )
     ir.async_delete_issue(hass, DOMAIN, needs_090_issue_id(entry.entry_id))
     update_coordinator = PanelUpdateCoordinator(hass, client)

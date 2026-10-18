@@ -19,6 +19,7 @@ import pytest
 from homeassistant.config_entries import ConfigEntryDisabler, ConfigEntryState
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -331,7 +332,12 @@ async def test_a_link_two_entries_hold_is_not_followed(
     assert issue is not None
     assert issue.translation_key == "panel_link_shared"
     assert issue.translation_placeholders is not None
-    assert issue.translation_placeholders["others"] == "beta"
+    # The other panel is named as Home Assistant names its device.
+    beta_device = dr.async_get(hass).async_get_device_by_identifier(
+        (DOMAIN, beta.entry_id), beta.entry_id
+    )
+    assert beta_device is not None
+    assert issue.translation_placeholders["others"] == beta_device.name
 
     await _poll(hass, entry)
 
