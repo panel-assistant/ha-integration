@@ -17,10 +17,17 @@
       },
       "install_usb": {
         "title": "Instalar via USB",
-        "description": "Conecte o painel a este computador, não ao servidor do Home Assistant.",
+        "description": "Conecte o painel a este computador, não ao servidor do Home Assistant. A depuração USB deve estar ativada nas configurações de desenvolvedor do painel; o [guia de acesso específico para o modelo do painel]({panel_access_url}) mostra como.",
         "submit": "Abra o instalador USB"
       },
       "add_panel": {
+        "title": "Adicionar um painel",
+        "description": "Informe o nome de host ou endereço IP do painel. Se Panel Assistant ainda não estiver instalado, primeiro habilite o ADB pela rede na porta 5555 usando o [guia de acesso específico para o modelo do painel]({panel_access_url}). Não é necessário acesso root. Se o painel não responder, a [ajuda para acessar um painel]({panel_help_url}) traz instruções para cada modelo e outras formas de instalação.",
+        "data": {
+          "address": "Nome de host ou endereço IP do painel"
+        }
+      },
+      "add_known_panel": {
         "title": "Adicionar um painel",
         "description": "Escolha um painel que o Home Assistant já conhece por outro aplicativo ou informe o nome de host ou endereço IP do painel. Os painéis marcados com ✓ já respondem via ADB pela rede. Se Panel Assistant ainda não estiver instalado, primeiro habilite o ADB pela rede na porta 5555 usando o [guia de acesso específico para o modelo do painel]({panel_access_url}). Não é necessário acesso root. Se o painel não responder, a [ajuda para acessar um painel]({panel_help_url}) traz instruções para cada modelo e outras formas de instalação.",
         "data": {
@@ -44,7 +51,7 @@
           "add_panel": "Usar outro endereço"
         },
         "menu_option_descriptions": {
-          "connect_found": "Pular a configuração e conectar agora"
+          "connect_found": "Conecta o painel ao Home Assistant sem concluir antes a configuração dele."
         }
       },
       "panel_setup": {
@@ -53,7 +60,7 @@
       },
       "choose_version": {
         "title": "Escolher uma versão",
-        "description": "Panel Assistant não está respondendo em {address}. Escolha a versão que o painel deve executar. Versões de teste podem conter erros.",
+        "description": "Escolha a versão a instalar no painel em {address}. Versões de teste podem conter erros.",
         "data": {
           "release_candidate": "Versão"
         }
@@ -72,11 +79,11 @@
       },
       "confirm_install_candidate": {
         "title": "Instalar Panel Assistant {version}?",
-        "description": "Tudo pronto para instalar em {model}, no endereço {address}.\n\nSeus outros aplicativos não serão alterados."
+        "description": "Tudo pronto para instalar no painel, no endereço {address}.\n\nSeus outros aplicativos não serão alterados."
       },
       "confirm_install_rc": {
         "title": "Instalar Panel Assistant {version}?",
-        "description": "Apenas para testes: Panel Assistant {version} é uma versão candidata, não uma versão estável, e pode conter erros.\n\nTudo pronto para instalar em {model}, no endereço {address}.\n\nSeus outros aplicativos não serão alterados."
+        "description": "Apenas para testes: Panel Assistant {version} é uma versão candidata, não uma versão estável, e pode conter erros.\n\nTudo pronto para instalar no painel, no endereço {address}.\n\nSeus outros aplicativos não serão alterados."
       },
       "release_preview_only": {
         "title": "A versão não pode ser instalada automaticamente",
@@ -1624,7 +1631,7 @@
     "step": {
       "init": {
         "title": "Configuração do painel",
-        "description": "Continue a configuração deste painel ou autorize o ADB para atualizações do painel. Se o painel ainda não estiver vinculado, confirme a conta conectada nele para concluir a configuração.",
+        "description": "Escolha o que fazer com este painel.",
         "menu_options": {
           "onboarding": "Continuar configuração",
           "authorize_adb": "Permitir atualizações",
@@ -1632,7 +1639,7 @@
           "remove_app": "Remover Panel Assistant deste painel"
         },
         "menu_option_descriptions": {
-          "remove_app": "Remover Panel Assistant deste painel"
+          "remove_app": "Devolve a tela inicial ao inicializador do próprio painel e depois desinstala o aplicativo."
         }
       },
       "onboarding": {
@@ -1659,20 +1666,12 @@
       },
       "remove_app": {
         "title": "Remover Panel Assistant de {panel}",
-        "description": "Isso remove o Panel Assistant de {panel}. Primeiro, o Panel Assistant devolve a tela inicial do painel ao inicializador do próprio painel e reativa os aplicativos do fabricante que havia desativado; só então ele é desinstalado pela conexão do Android Debug Bridge que o Home Assistant já mantém. Suas configurações no painel são excluídas.\n\nEm alguns painéis e versões de firmware, a remoção deixa você sem acesso às Configurações do Android ou à depuração pela rede, impedindo a reinstalação do aplicativo sem abrir o painel. Antes de continuar, leia [o que a remoção pode causar neste painel]({risks_url}).",
+        "description": "Primeiro, o Panel Assistant devolve a tela inicial do painel ao inicializador do próprio painel e reativa os aplicativos do fabricante que havia desativado; só então ele é desinstalado. Suas configurações no painel são excluídas.\n\nEm alguns painéis e versões de firmware, a remoção deixa você sem acesso às Configurações do Android ou à depuração pela rede, impedindo a reinstalação do aplicativo sem abrir o painel. Leia [o que a remoção pode causar neste painel]({risks_url}) antes de selecionar Enviar.",
         "data": {
-          "confirmed": "Li os riscos de remoção para este painel e quero remover o Panel Assistant"
-        }
-      },
-      "remove_app_done": {
-        "title": "Panel Assistant foi removido de {panel}",
-        "description": "O painel mantém sua própria tela inicial. O Home Assistant também deve esquecer {panel}?",
-        "menu_options": {
-          "remove_app_delete_entry": "Excluir este painel do Home Assistant",
-          "remove_app_keep_entry": "Manter no Home Assistant por enquanto"
+          "delete_entry": "Excluir também este painel do Home Assistant"
         },
-        "menu_option_descriptions": {
-          "remove_app_keep_entry": "Manter no Home Assistant por enquanto"
+        "data_description": {
+          "delete_entry": "Deixe desativado para manter as entidades e o histórico dele para quando você instalar o Panel Assistant novamente."
         }
       }
     },
@@ -1690,7 +1689,6 @@
       "retained_or_ambiguous": "O painel pode conter um registro remanescente do pacote Panel Assistant, ou não foi possível comprovar a ausência do pacote. Nenhuma alteração foi feita no painel. Tente mais uma vez se a conexão estava instável; caso contrário, siga o guia de segurança e recuperação do provisionamento indicado na documentação da integração. Não desinstale nem redefina o aplicativo sem um backup verificado.",
       "unknown": "Erro inesperado",
       "panel_identity_changed": "O endereço deixou de responder como este painel configurado. Verifique o painel e seu endereço antes de tentar novamente.",
-      "removal_unconfirmed": "Marque a caixa para confirmar que leu os riscos da remoção. Nada foi removido.",
       "removal_busy": "Uma atualização ou transferência já está alterando este painel. Nada foi removido; tente novamente quando ela terminar.",
       "removal_adb_unreachable": "O Home Assistant não conseguiu acessar o painel pelo Android Debug Bridge (porta 5555). Nada foi removido. Verifique se o painel está ligado e se a depuração pela rede continua ativada. Depois, tente novamente.",
       "removal_adb_authorization": "O painel não aceitou esta instância do Home Assistant para o Android Debug Bridge. Nada foi removido. Primeiro escolha “Permitir atualizações” e depois tente novamente.",

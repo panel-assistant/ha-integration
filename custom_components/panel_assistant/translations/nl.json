@@ -17,10 +17,17 @@
       },
       "install_usb": {
         "title": "Installeer via USB",
-        "description": "Sluit het paneel aan op deze computer, niet op de Home Assistant-server.",
+        "description": "Sluit het paneel aan op deze computer, niet op de Home Assistant-server. USB-foutopsporing moet aan staan in de ontwikkelaarsopties van het paneel; de [modelspecifieke handleiding voor toegang tot het paneel]({panel_access_url}) laat zien hoe.",
         "submit": "Open het USB-installatieprogramma"
       },
       "add_panel": {
+        "title": "Een paneel toevoegen",
+        "description": "Voer de hostnaam of het IP-adres van het paneel in. Als Panel Assistant nog niet is geïnstalleerd, schakel dan eerst ADB via het netwerk in op poort 5555 met de [modelspecifieke handleiding voor toegang tot het paneel]({panel_access_url}). Root-toegang is niet nodig. Als het paneel niet reageert, vind je in [hulp bij het bereiken van een paneel]({panel_help_url}) stappen voor elk model en andere manieren om te installeren.",
+        "data": {
+          "address": "Hostnaam of IP-adres van het paneel"
+        }
+      },
+      "add_known_panel": {
         "title": "Een paneel toevoegen",
         "description": "Kies een paneel dat Home Assistant al kent via een andere app, of voer de hostnaam of het IP-adres van het paneel in. Panelen met ✓ reageren al via ADB via het netwerk. Als Panel Assistant nog niet is geïnstalleerd, schakel dan eerst ADB via het netwerk in op poort 5555 met de [modelspecifieke handleiding voor toegang tot het paneel]({panel_access_url}). Root-toegang is niet nodig. Als het paneel niet reageert, vind je in [hulp bij het bereiken van een paneel]({panel_help_url}) stappen voor elk model en andere manieren om te installeren.",
         "data": {
@@ -44,7 +51,7 @@
           "add_panel": "Gebruik een ander adres"
         },
         "menu_option_descriptions": {
-          "connect_found": "Sla de installatie over en maak nu verbinding"
+          "connect_found": "Verbindt het paneel met Home Assistant zonder eerst de eigen instelling af te ronden."
         }
       },
       "panel_setup": {
@@ -53,7 +60,7 @@
       },
       "choose_version": {
         "title": "Kies een versie",
-        "description": "Panel Assistant reageert niet op {address}. Kies de versie die het paneel moet draaien. Testversies kunnen fouten bevatten.",
+        "description": "Kies de versie die op het paneel op {address} moet worden geïnstalleerd. Testversies kunnen fouten bevatten.",
         "data": {
           "release_candidate": "Versie"
         }
@@ -72,11 +79,11 @@
       },
       "confirm_install_candidate": {
         "title": "Panel Assistant {version} installeren?",
-        "description": "Klaar om te installeren op {model} op {address}.\n\nJe andere apps worden niet gewijzigd."
+        "description": "Klaar om te installeren op het paneel op {address}.\n\nJe andere apps worden niet gewijzigd."
       },
       "confirm_install_rc": {
         "title": "Panel Assistant {version} installeren?",
-        "description": "Alleen om te testen: Panel Assistant {version} is een release candidate, geen stabiele versie, en kan fouten bevatten.\n\nKlaar om te installeren op {model} op {address}.\n\nJe andere apps worden niet gewijzigd."
+        "description": "Alleen om te testen: Panel Assistant {version} is een release candidate, geen stabiele versie, en kan fouten bevatten.\n\nKlaar om te installeren op het paneel op {address}.\n\nJe andere apps worden niet gewijzigd."
       },
       "release_preview_only": {
         "title": "De release kan niet automatisch worden geïnstalleerd",
@@ -1624,7 +1631,7 @@
     "step": {
       "init": {
         "title": "Paneel instellen",
-        "description": "Ga verder met de configuratie van dit paneel of autoriseer ADB voor updates. Als het paneel nog niet gekoppeld is, bevestig dan het aangemelde account om de configuratie te voltooien.",
+        "description": "Kies wat je met dit paneel wilt doen.",
         "menu_options": {
           "onboarding": "Installatie voortzetten",
           "authorize_adb": "Updates toestaan",
@@ -1632,7 +1639,7 @@
           "remove_app": "Panel Assistant van dit paneel halen"
         },
         "menu_option_descriptions": {
-          "remove_app": "Panel Assistant van dit paneel halen"
+          "remove_app": "Geeft het startscherm terug aan de eigen launcher van het paneel en verwijdert daarna de app."
         }
       },
       "onboarding": {
@@ -1659,20 +1666,12 @@
       },
       "remove_app": {
         "title": "Panel Assistant van {panel} halen",
-        "description": "Hiermee wordt Panel Assistant van {panel} gehaald. Eerst geeft Panel Assistant het startscherm terug aan de eigen launcher van het paneel en zet het de fabrikantapps die het had uitgeschakeld weer aan; pas daarna wordt het gedeïnstalleerd via de Android Debug Bridge-verbinding die Home Assistant al heeft. De instellingen op het paneel worden gewist.\n\nOp sommige panelen en firmwareversies is er daarna geen weg meer terug naar de Android-instellingen of naar debuggen via het netwerk, zodat de app niet opnieuw kan worden geïnstalleerd zonder het paneel open te maken. Lees voordat je verdergaat [wat het weghalen met dit paneel kan doen]({risks_url}).",
+        "description": "Eerst geeft Panel Assistant het startscherm terug aan de eigen launcher van het paneel en zet het de fabrikantapps die het had uitgeschakeld weer aan; pas daarna verwijdert het zichzelf. De instellingen van Panel Assistant op het paneel worden gewist.\n\nOp sommige panelen en firmwareversies is er daarna geen weg meer terug naar de Android-instellingen of naar debuggen via het netwerk, zodat de app niet opnieuw kan worden geïnstalleerd zonder het paneel open te maken. Lees [wat het weghalen met dit paneel kan doen]({risks_url}) voordat je op ‘Verzenden’ klikt.",
         "data": {
-          "confirmed": "Ik heb de risico's voor dit paneel gelezen en wil Panel Assistant weghalen"
-        }
-      },
-      "remove_app_done": {
-        "title": "Panel Assistant is van {panel} gehaald",
-        "description": "Het paneel houdt zijn eigen startscherm. Moet Home Assistant {panel} ook vergeten?",
-        "menu_options": {
-          "remove_app_delete_entry": "Dit paneel uit Home Assistant wissen",
-          "remove_app_keep_entry": "Voorlopig in Home Assistant houden"
+          "delete_entry": "Dit paneel ook uit Home Assistant verwijderen"
         },
-        "menu_option_descriptions": {
-          "remove_app_keep_entry": "Voorlopig in Home Assistant houden"
+        "data_description": {
+          "delete_entry": "Laat dit uit om de entiteiten en de geschiedenis te bewaren voor als je Panel Assistant opnieuw installeert."
         }
       }
     },
@@ -1690,7 +1689,6 @@
       "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket Panel Assistant, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de handleiding voor veilig inrichten en herstel, waarnaar in de integratiedocumentatie wordt verwezen. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
       "unknown": "Onverwachte fout",
       "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert.",
-      "removal_unconfirmed": "Vink het vakje aan om te bevestigen dat je de risico's hebt gelezen. Er is niets weggehaald.",
       "removal_busy": "Een update of verhuizing wijzigt dit paneel al. Er is niets weggehaald; probeer het opnieuw als die klaar is.",
       "removal_adb_unreachable": "Home Assistant kon het paneel niet bereiken via de Android Debug Bridge (poort 5555). Er is niets weggehaald. Controleer of het paneel aan staat en debuggen via het netwerk nog is ingeschakeld, en probeer het opnieuw.",
       "removal_adb_authorization": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd voor de Android Debug Bridge. Er is niets verwijderd. Kies eerst ‘Updates toestaan’ en probeer het daarna opnieuw.",

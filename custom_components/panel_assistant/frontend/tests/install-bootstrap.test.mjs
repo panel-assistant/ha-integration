@@ -236,6 +236,8 @@ test('losing USB while display settlement is pending cannot mark finished or ope
 
 // The cable timer bounds a silent cable, not the person: it starts once the
 // panel has allowed this computer, never while the chooser or Allow prompt waits.
+// The Allow instruction is shown only to a panel still asking after a moment:
+// one that trusts this computer, or never asks, answers at once.
 function cableTimer(leg) {
   const main = new URL('../src/install-main.mjs', import.meta.url).href;
   const script = `
@@ -253,18 +255,22 @@ function cableTimer(leg) {
     globalThis.location = { search: '?lang=en' };
     const cable = [];
     const originalSetTimeout = globalThis.setTimeout, originalClearTimeout = globalThis.clearTimeout;
+    const prompt = [];
     globalThis.setTimeout = (fn, ms, ...args) => {
-      if (ms !== 45000) return originalSetTimeout(fn, ms, ...args);
-      const timer = { fn, cleared: false }; cable.push(timer); return timer;
+      const held = ms === 45000 ? cable : ms === 1500 ? prompt : null;
+      if (!held) return originalSetTimeout(fn, ms, ...args);
+      const timer = { fn, cleared: false }; held.push(timer); return timer;
     };
-    globalThis.clearTimeout = timer => { if (cable.includes(timer)) timer.cleared = true; else originalClearTimeout(timer); };
+    globalThis.clearTimeout = timer => { if (cable.includes(timer) || prompt.includes(timer)) timer.cleared = true; else originalClearTimeout(timer); };
+    let allowHidden = true, allowShown = false;
+    Object.defineProperty(node('step-allow'), 'hidden', { get: () => allowHidden, set: value => { allowHidden = value; if (!value) allowShown = true; } });
     globalThis.window = { isSecureContext: true, opener: { closed: false }, location: { hash: '#handoff', reload() {}, assign() {} },
       addEventListener(name, fn) { handlers.set(name, fn); } };
     Object.defineProperty(globalThis, 'navigator', { value: { locks: {}, usb: {} }, configurable: true });
     globalThis.indexedDB = {};
     globalThis.calls = { authenticate: 0, preview: 0 };
     let allow = () => {};
-    globalThis.authenticated = leg === 'allow' ? new Promise(resolve => { allow = resolve; }) : Promise.resolve({});
+    globalThis.authenticated = leg !== 'silent' ? new Promise(resolve => { allow = resolve; }) : Promise.resolve({});
     const stubs = {
       '@yume-chan/adb': 'export class Adb { disconnected = new Promise(() => {}); close() {} }; export const AdbDaemonTransport = { authenticate: () => { globalThis.calls.authenticate++; return globalThis.authenticated; } };',
       '@yume-chan/adb-credential-web': 'export default class Store {}',
@@ -289,12 +295,31 @@ function cableTimer(leg) {
     });
     const tick = () => new Promise(resolve => setImmediate(resolve));
     const expire = () => { for (const timer of cable) if (!timer.cleared) timer.fn(); };
+    const promptDue = () => { for (const timer of prompt) if (!timer.cleared) timer.fn(); };
     const timeout = 'The panel didn’t answer. Check the cable is firmly in, or swap it: a cable can power the panel and still carry no data.';
     await import(${JSON.stringify(main)});
     await tick();
     const clicked = node('connect').listeners.get('click')();
     for (let i = 0; i < 5; i++) await tick();
     assert.equal(calls.authenticate, 1);
+    if (leg === 'stopped') {
+      // The window closes while the panel is still asking; the error stays on screen.
+      handlers.get('pagehide')();
+      promptDue();
+      assert.equal(node('step-error').hidden, false);
+      assert.equal(allowShown, false, 'a stopped session is never told to tap Allow');
+      process.exit(0);
+    }
+    if (leg === 'allow') {
+      assert.equal(allowShown, false, 'nothing tells the person to tap Allow before the panel has had a moment');
+      assert.equal(node('step-checking').hidden, false);
+      promptDue();
+      assert.equal(node('step-allow').hidden, false, 'a panel still asking gets the Allow instruction');
+    } else {
+      promptDue();
+      assert.equal(allowShown, false, 'a panel that answered at once is never told to tap Allow');
+      assert.equal(node('step-checking').hidden, false);
+    }
     expire();
     if (leg === 'allow') {
       assert.equal(node('step-error').hidden, true, 'waiting for Allow is not a cable timeout');
@@ -313,5 +338,6 @@ function cableTimer(leg) {
   execFileSync(process.execPath, ['--input-type=module', '-e', script], { stdio: 'pipe' });
 }
 
-test('the cable timer does not run while the person is asked to tap Allow', () => cableTimer('allow'));
-test('the cable timer still stops a panel that goes silent after Allow', () => cableTimer('silent'));
+test('a panel that waits for Allow is asked for it, and the cable timer waits too', () => cableTimer('allow'));
+test('a panel that answers at once is never asked for Allow, and still times out if it goes silent', () => cableTimer('silent'));
+test('a session stopped while the panel is still asking never shows the Allow instruction', () => cableTimer('stopped'));

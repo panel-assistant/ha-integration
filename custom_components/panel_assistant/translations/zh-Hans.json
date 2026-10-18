@@ -17,10 +17,17 @@
       },
       "install_usb": {
         "title": "使用 USB 安装",
-        "description": "将面板连接到这台计算机，而不是 Home Assistant 服务器。",
+        "description": "将面板连接到这台计算机，而不是 Home Assistant 服务器。必须在面板的开发者选项中开启 USB 调试；[适用于具体型号的面板访问指南]({panel_access_url})介绍了方法。",
         "submit": "打开 USB 安装程序"
       },
       "add_panel": {
+        "title": "添加面板",
+        "description": "输入面板的主机名或 IP 地址。如果尚未安装 Panel Assistant，请先按照[适用于具体型号的面板访问指南]({panel_access_url})在端口 5555 上开启网络 ADB。不需要 root 权限。如果面板没有响应，[连接面板的帮助]({panel_help_url})提供各型号的步骤和其他安装方式。",
+        "data": {
+          "address": "面板主机名或 IP 地址"
+        }
+      },
+      "add_known_panel": {
         "title": "添加面板",
         "description": "选择 Home Assistant 已通过其他应用识别的面板，或输入面板的主机名或 IP 地址。标有 ✓ 的面板已可通过网络 ADB 响应。如果尚未安装 Panel Assistant，请先按照[适用于具体型号的面板访问指南]({panel_access_url})在端口 5555 上开启网络 ADB。不需要 root 权限。如果面板没有响应，[连接面板的帮助]({panel_help_url})提供各型号的步骤和其他安装方式。",
         "data": {
@@ -44,7 +51,7 @@
           "add_panel": "使用其他地址"
         },
         "menu_option_descriptions": {
-          "connect_found": "跳过设置并立即连接"
+          "connect_found": "无需先完成面板自身的设置，即可将其连接到 Home Assistant。"
         }
       },
       "panel_setup": {
@@ -53,7 +60,7 @@
       },
       "choose_version": {
         "title": "选择版本",
-        "description": "{address} 上的 Panel Assistant 未响应。请选择面板应运行的版本。测试版本可能包含错误。",
+        "description": "请选择要安装到 {address} 上面板的版本。测试版本可能包含错误。",
         "data": {
           "release_candidate": "版本"
         }
@@ -72,11 +79,11 @@
       },
       "confirm_install_candidate": {
         "title": "安装 Panel Assistant {version}？",
-        "description": "已准备好在地址为 {address} 的 {model} 上安装。\n\n不会改动你的其他应用。"
+        "description": "已准备好在地址为 {address} 的面板上安装。\n\n不会改动你的其他应用。"
       },
       "confirm_install_rc": {
         "title": "安装 Panel Assistant {version}？",
-        "description": "仅供测试：Panel Assistant {version} 是候选发布版，并非稳定版，可能存在错误。\n\n已准备好在地址为 {address} 的 {model} 上安装。\n\n不会改动你的其他应用。"
+        "description": "仅供测试：Panel Assistant {version} 是候选发布版，并非稳定版，可能存在错误。\n\n已准备好在地址为 {address} 的面板上安装。\n\n不会改动你的其他应用。"
       },
       "release_preview_only": {
         "title": "无法自动安装此版本",
@@ -1596,7 +1603,7 @@
     "step": {
       "init": {
         "title": "面板设置",
-        "description": "继续配置此面板或授权 ADB 用于面板更新。如果面板尚未绑定，请确认已登录的账户以完成配置。",
+        "description": "选择要对此面板执行的操作。",
         "menu_options": {
           "onboarding": "继续设置",
           "authorize_adb": "允许更新",
@@ -1604,7 +1611,7 @@
           "remove_app": "从此面板移除 Panel Assistant"
         },
         "menu_option_descriptions": {
-          "remove_app": "从此面板移除 Panel Assistant"
+          "remove_app": "把主屏幕交还给面板自带的启动器，然后卸载该应用。"
         }
       },
       "onboarding": {
@@ -1631,20 +1638,12 @@
       },
       "remove_app": {
         "title": "从 {panel} 移除 Panel Assistant",
-        "description": "这会从 {panel} 移除 Panel Assistant。Panel Assistant 会先把主屏幕交还给面板自带的启动器，并重新启用它停用的厂商应用；之后才会通过 Home Assistant 已有的 Android Debug Bridge 连接将其卸载。它在面板上的设置会被删除。\n\n在某些面板和固件版本上，移除后将无法再回到 Android 设置或网络调试，因此不打开面板就无法再次安装该应用。继续之前，请阅读[移除可能对此面板造成的影响]({risks_url})。",
+        "description": "Panel Assistant 会先把主屏幕交还给面板自带的启动器，并重新启用它停用的厂商应用；之后才会将其卸载。它在面板上的设置会被删除。\n\n在某些面板和固件版本上，移除后将无法再回到 Android 设置或网络调试，因此不打开面板就无法再次安装该应用。选择“提交”之前，请阅读[移除可能对此面板造成的影响]({risks_url})。",
         "data": {
-          "confirmed": "我已阅读此面板的移除风险，并要移除 Panel Assistant"
-        }
-      },
-      "remove_app_done": {
-        "title": "已从 {panel} 移除 Panel Assistant",
-        "description": "面板保留其自带的主屏幕。是否也让 Home Assistant 忘记 {panel}？",
-        "menu_options": {
-          "remove_app_delete_entry": "从 Home Assistant 删除此面板",
-          "remove_app_keep_entry": "暂时保留在 Home Assistant 中"
+          "delete_entry": "同时从 Home Assistant 中删除此面板"
         },
-        "menu_option_descriptions": {
-          "remove_app_keep_entry": "暂时保留在 Home Assistant 中"
+        "data_description": {
+          "delete_entry": "保持关闭可保留其实体和历史记录，以便你再次安装 Panel Assistant 时使用。"
         }
       }
     },
@@ -1662,7 +1661,6 @@
       "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照集成文档中链接的配置安全与恢复指南操作。在备份经过验证之前，请勿卸载或重置应用。",
       "unknown": "出现意外错误",
       "panel_identity_changed": "该地址不再回应为已配置的面板。请检查面板及其地址后重试。",
-      "removal_unconfirmed": "请勾选复选框，确认你已阅读移除风险。未移除任何内容。",
       "removal_busy": "更新或迁移正在更改此面板。未移除任何内容；请在完成后重试。",
       "removal_adb_unreachable": "Home Assistant 无法通过 Android Debug Bridge（端口 5555）连接到面板。未移除任何内容。请确认面板已开启且网络调试仍处于启用状态，然后重试。",
       "removal_adb_authorization": "面板尚未接受此 Home Assistant 实例的 Android Debug Bridge 连接。未移除任何内容。请先选择“允许更新”，然后重试。",

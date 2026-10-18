@@ -175,7 +175,8 @@ async def test_form_offers_known_panels_adb_open_first(
     with patch(HEALTH_CHECK, AsyncMock(return_value=HEALTH)):
         form = await _add_panel_form(hass)
 
-    assert form["step_id"] == "add_panel"
+    # The picker has its own step, so its text describes it only when shown.
+    assert form["step_id"] == "add_known_panel"
     assert _offered(form) == [
         ("192.168.1.10", "✓ Entry tablet · Fully Kiosk · 192.168.1.10"),
         ("192.168.1.20", "✓ Kiosk · ESPHome · 192.168.1.20"),
