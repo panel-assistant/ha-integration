@@ -1638,7 +1638,7 @@
       },
       "onboarding": {
         "title": "Conclua a configuração deste painel",
-        "description": "Abra a [página de configuração do painel]({setup_url}). Ela abre em uma nova guia, a partir de um dispositivo na mesma rede que o painel. Conclua as etapas lá, volte aqui e selecione Concluído.",
+        "description": "Abra a [página de configuração do painel]({setup_url}). Ela abre em uma nova guia; abra-a em um dispositivo na mesma rede que o painel. Conclua as etapas lá, volte aqui e selecione Concluído.",
         "submit": "Concluído"
       },
       "authorize_adb": {

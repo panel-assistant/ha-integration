@@ -1638,7 +1638,7 @@
       },
       "onboarding": {
         "title": "Dokončit nastavení tohoto panelu",
-        "description": "Otevřete [stránku nastavení panelu]({setup_url}). Otevře se na nové kartě, ze zařízení ve stejné síti jako panel. Dokončete tam jednotlivé kroky, vraťte se a zvolte Hotovo.",
+        "description": "Otevřete [stránku nastavení panelu]({setup_url}). Otevře se na nové kartě; otevřete ji ze zařízení ve stejné síti jako panel. Dokončete tam jednotlivé kroky, vraťte se a zvolte Hotovo.",
         "submit": "Hotovo"
       },
       "authorize_adb": {

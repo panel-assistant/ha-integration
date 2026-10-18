@@ -1610,7 +1610,7 @@
       },
       "onboarding": {
         "title": "Completa la configurazione di questo pannello",
-        "description": "Apri la [pagina di configurazione del pannello]({setup_url}). Si apre in una nuova scheda, da un dispositivo sulla stessa rete del pannello. Completa lì i passaggi, poi torna qui e premi Fatto.",
+        "description": "Apri la [pagina di configurazione del pannello]({setup_url}). Si apre in una nuova scheda; aprila da un dispositivo sulla stessa rete del pannello. Completa lì i passaggi, poi torna qui e premi Fatto.",
         "submit": "Fatto"
       },
       "authorize_adb": {

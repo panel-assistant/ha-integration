@@ -1638,7 +1638,7 @@
       },
       "onboarding": {
         "title": "Finish setting up this panel",
-        "description": "Open the [panel's setup page]({setup_url}). It opens in a new tab, from a device on the same network as the panel. Finish the steps there, then come back and select Done.",
+        "description": "Open the [panel's setup page]({setup_url}) from a device on the same network as the panel; it opens in a new tab. Finish the steps there, then come back and select Done.",
         "submit": "Done"
       },
       "authorize_adb": {

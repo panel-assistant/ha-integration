@@ -1638,7 +1638,7 @@
       },
       "onboarding": {
         "title": "Rond de installatie van dit paneel af",
-        "description": "Open de [installatiepagina van het paneel]({setup_url}). Die opent in een nieuw tabblad, vanaf een apparaat op hetzelfde netwerk als het paneel. Rond daar de stappen af, kom dan terug en klik op Klaar.",
+        "description": "Open de [installatiepagina van het paneel]({setup_url}). Die opent in een nieuw tabblad; open die vanaf een apparaat op hetzelfde netwerk als het paneel. Rond daar de stappen af, kom dan terug en klik op Klaar.",
         "submit": "Klaar"
       },
       "authorize_adb": {

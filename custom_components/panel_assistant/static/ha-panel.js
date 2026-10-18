@@ -2689,14 +2689,14 @@ var De = class extends HTMLElement {
 		let e = this.shadowRoot.querySelector("#release input:checked")?.value;
 		if (!(e === "" ? this.#c[0] : this.#c.find((t) => t.tag === e)) || !this.isConnected) return;
 		this.#i?.cancel(), this.#i = void 0;
-		let t = ye(this.#e, this.#n?.config?.installer_url, {
+		let t;
+		t = ye(this.#e, this.#n?.config?.installer_url, {
 			rcTag: e || null,
 			language: a(this.#e?.language),
 			onState: (e) => {
-				this.#a = e, this.#u();
+				t && t !== this.#r && t !== this.#i || (this.#a = e, this.#u());
 			}
-		});
-		this.#r = t, this.#u(), t.completion.then(() => {
+		}), this.#r = t, this.#u(), t.completion.then(() => {
 			this.#r === t && (this.#i = t);
 		}, () => {}).finally(() => {
 			this.#r === t && (this.#r = void 0), this.#u();

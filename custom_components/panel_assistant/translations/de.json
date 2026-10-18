@@ -1610,7 +1610,7 @@
       },
       "onboarding": {
         "title": "Einrichtung dieses Panels abschließen",
-        "description": "Öffne die [Einrichtungsseite des Panels]({setup_url}). Sie öffnet sich in einem neuen Tab, auf einem Gerät im selben Netzwerk wie das Panel. Schließe dort die Schritte ab, komm dann zurück und wähle „Fertig“.",
+        "description": "Öffne die [Einrichtungsseite des Panels]({setup_url}). Sie öffnet sich in einem neuen Tab; öffne sie auf einem Gerät im selben Netzwerk wie das Panel. Schließe dort die Schritte ab, komm dann zurück und wähle „Fertig“.",
         "submit": "Fertig"
       },
       "authorize_adb": {

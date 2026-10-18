@@ -126,7 +126,7 @@
       "old_app_installed": "Ce panneau exécute encore l'ancienne app ha-paneld. Panel Assistant 1.0 ne peut pas le faire passer à la nouvelle app et n'installe rien à côté. Installez d'abord Panel Assistant 0.9.0 (dans HACS, ouvrez Panel Assistant, choisissez Redownload, puis la version 0.9.0), ajoutez le panneau et faites-le passer avec sa réparation, puis installez 1.0.0.",
       "already_configured": "Ce panneau est déjà configuré.",
       "reinstall_successful": "L’application a été réinstallée. Ce panneau conserve son historique et ses paramètres dans Home Assistant.",
-      "usb_installed": "Panel Assistant est installé et le panneau a été ajouté à Home Assistant. Terminez la configuration du panneau dans la fenêtre de l’installateur.",
+      "usb_installed": "Panel Assistant est installé et le panneau a été ajouté à Home Assistant. Terminez la configuration du panneau dans la fenêtre de l'installateur.",
       "reinstall_identity_mismatch": "L’application est installée, mais elle n’a pas pu être associée au panneau conservé. Son historique et ses paramètres dans Home Assistant ont été conservés. Vérifiez le panneau dans Home Assistant avant de réessayer.",
       "not_panel": "Ce n'est pas un panneau sur lequel Panel Assistant peut effectuer une installation.",
       "invalid_discovery": "Le panneau détecté n’a pas confirmé qu’il s’agissait de la même installation Panel Assistant saine. Aucune entrée Home Assistant ni aucun réglage du panneau n’a été modifié.",
@@ -1610,7 +1610,7 @@
       },
       "onboarding": {
         "title": "Terminer la configuration de ce panneau",
-        "description": "Ouvrez la [page de configuration du panneau]({setup_url}). Elle s'ouvre dans un nouvel onglet, depuis un appareil situé sur le même réseau que le panneau. Terminez-y les étapes, puis revenez ici et cliquez sur Terminé.",
+        "description": "Ouvrez la [page de configuration du panneau]({setup_url}). Elle s'ouvre dans un nouvel onglet ; ouvrez-la depuis un appareil situé sur le même réseau que le panneau. Terminez-y les étapes, puis revenez ici et cliquez sur Terminé.",
         "submit": "Terminé"
       },
       "authorize_adb": {

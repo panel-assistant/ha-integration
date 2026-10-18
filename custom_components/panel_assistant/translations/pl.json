@@ -1638,7 +1638,7 @@
       },
       "onboarding": {
         "title": "Dokończ konfigurację tego panelu",
-        "description": "Otwórz [stronę konfiguracji panelu]({setup_url}). Otworzy się w nowej karcie, na urządzeniu w tej samej sieci co panel. Dokończ tam kroki, wróć tutaj i kliknij Gotowe.",
+        "description": "Otwórz [stronę konfiguracji panelu]({setup_url}). Otworzy się w nowej karcie; otwórz ją na urządzeniu w tej samej sieci co panel. Dokończ tam kroki, wróć tutaj i kliknij Gotowe.",
         "submit": "Gotowe"
       },
       "authorize_adb": {

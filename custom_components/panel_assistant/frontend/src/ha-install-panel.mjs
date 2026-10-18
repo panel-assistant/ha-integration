@@ -151,10 +151,15 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
     if (!release || !this.isConnected) return;
     this.#served?.cancel();
     this.#served = undefined;
-    const transfer = startReleaseHandoff(this.#hass, this.#panel?.config?.installer_url, {
+    // A replaced transfer's late handover answer must not overwrite the new one.
+    let transfer;
+    transfer = startReleaseHandoff(this.#hass, this.#panel?.config?.installer_url, {
       rcTag: selection || null,
       language: frontendLocale(this.#hass?.language),
-      onState: state => { this.#status = state; this.#render(); },
+      onState: state => {
+        if (transfer && transfer !== this.#transfer && transfer !== this.#served) return;
+        this.#status = state; this.#render();
+      },
     });
     this.#transfer = transfer;
     this.#render();

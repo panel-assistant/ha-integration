@@ -1610,7 +1610,7 @@
       },
       "onboarding": {
         "title": "Terminar de configurar este panel",
-        "description": "Abre la [página de configuración del panel]({setup_url}). Se abre en una pestaña nueva, desde un dispositivo de la misma red que el panel. Completa allí los pasos, vuelve aquí y pulsa Listo.",
+        "description": "Abre la [página de configuración del panel]({setup_url}). Se abre en una pestaña nueva; hazlo desde un dispositivo de la misma red que el panel. Completa allí los pasos, vuelve aquí y pulsa Listo.",
         "submit": "Listo"
       },
       "authorize_adb": {
