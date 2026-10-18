@@ -1046,7 +1046,7 @@ var n = Object.freeze({
 			installErrorIncompatible: "Dit paneel kan deze versie van de app niet uitvoeren.",
 			installErrorConnection: "De verbinding met het paneel is verbroken. Laat het aangesloten en druk op Opnieuw proberen.",
 			installErrorHealth: "De app is geïnstalleerd, maar nog niet gestart. Wacht even en probeer het opnieuw.",
-			installErrorPermissions: "De app is geïnstalleerd, maar de rechten konden niet worden bevestigd. Opnieuw proberen is veilig: laat het paneel aangesloten en druk op Opnieuw proberen."
+			installErrorPermissions: "De app is geïnstalleerd, maar de machtigingen konden niet worden bevestigd. Opnieuw proberen is veilig: laat het paneel aangesloten en druk op Opnieuw proberen."
 		},
 		journey: {
 			version: "Versie",
@@ -1675,7 +1675,7 @@ var n = Object.freeze({
 		support: {
 			stopped: "已停止",
 			cause: "原因",
-			failedCheck: "未通过的检查",
+			failedCheck: "检查未通过",
 			error: "错误",
 			release: "发行版本",
 			panel: "面板",

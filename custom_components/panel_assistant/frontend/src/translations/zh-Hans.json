@@ -131,7 +131,7 @@
   "support": {
     "stopped": "已停止",
     "cause": "原因",
-    "failedCheck": "未通过的检查",
+    "failedCheck": "检查未通过",
     "error": "错误",
     "release": "发行版本",
     "panel": "面板",
