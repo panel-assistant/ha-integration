@@ -113,7 +113,8 @@
     "installErrorNotClean": "L’app è già presente su questo pannello. Aggiornala da Home Assistant.",
     "installErrorIncompatible": "Questo pannello non può eseguire questa versione dell’app.",
     "installErrorConnection": "La connessione al pannello si è interrotta. Lascialo collegato e premi Riprova.",
-    "installErrorHealth": "L’app è installata ma non si è ancora avviata. Attendi un momento, poi riprova."
+    "installErrorHealth": "L’app è installata ma non si è ancora avviata. Attendi un momento, poi riprova.",
+    "installErrorPermissions": "L’app è installata, ma non è stato possibile confermarne le autorizzazioni. Riprovare è sicuro: lascia il pannello collegato e premi Riprova."
   },
   "journey": {
     "version": "Versione",
@@ -130,6 +131,7 @@
   "support": {
     "stopped": "Interrotto",
     "cause": "Causa",
+    "failedCheck": "Controllo non riuscito",
     "error": "Errore",
     "release": "Versione pubblicata",
     "panel": "Pannello",

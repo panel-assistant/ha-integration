@@ -156,6 +156,8 @@ function noteFailure(error) {
   if (!firstFailure && code && code !== 'session_closed') {
     firstFailure = code;
     support('cause', String(code));
+    // Which check refused, when the step names it (the permission parsers do).
+    if (typeof error.detail === 'string') support('failedCheck', error.detail);
     message('error-text', errorView(code), 'errors');
   }
   throw error;

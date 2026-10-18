@@ -113,7 +113,8 @@
     "installErrorNotClean": "此面板上已有该应用。请通过 Home Assistant 更新。",
     "installErrorIncompatible": "此面板无法运行此版本的应用。",
     "installErrorConnection": "与面板的连接已中断。请保持面板连接，然后点击“重试”。",
-    "installErrorHealth": "应用已安装，但尚未启动。请稍候再重试。"
+    "installErrorHealth": "应用已安装，但尚未启动。请稍候再重试。",
+    "installErrorPermissions": "应用已安装，但无法确认其权限。可以放心重试：请保持面板连接，然后点击“重试”。"
   },
   "journey": {
     "version": "版本",
@@ -130,6 +131,7 @@
   "support": {
     "stopped": "已停止",
     "cause": "原因",
+    "failedCheck": "未通过的检查",
     "error": "错误",
     "release": "发行版本",
     "panel": "面板",
