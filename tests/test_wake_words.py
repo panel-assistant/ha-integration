@@ -4,6 +4,7 @@ import asyncio
 import base64
 import dataclasses
 import hashlib
+import threading
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -14,6 +15,7 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.panel_assistant import wake_words
 from custom_components.panel_assistant.const import DOMAIN
 
 from .test_embed import (  # noqa: F401  (fixtures)
@@ -452,3 +454,125 @@ async def test_the_panel_imported_on_reporting_the_new_copy_early_gets_no_repair
         )
         is None
     )
+
+
+async def _import_together(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    kitchen: SessionPanel,
+    entry_id: str,
+    models: dict[str, bytes],
+) -> None:
+    """Two administrators import at once on one panel's Configure page."""
+    by_name = {name: name.removesuffix(".json") for name in models}
+
+    async def installed(event: dict[str, Any]) -> dict[str, Any]:
+        name = by_name[event["args"]["name"]]
+        return {"outcome": "applied", "result": {"id": name, "wake_word": name}}
+
+    kitchen.answers["voice.wake_words.set"] = installed
+    admins = [await hass_ws_client(hass) for _ in models]
+    replies = await asyncio.gather(
+        *(
+            _ui(
+                admin,
+                entry_id,
+                {
+                    "kind": "manage",
+                    "command_id": f"w{index}",
+                    "op": "voice.wake_words.set",
+                    "args": {
+                        "name": name,
+                        "manifest": MANIFEST,
+                        "model": base64.b64encode(model).decode(),
+                    },
+                },
+            )
+            for index, (admin, (name, model)) in enumerate(
+                zip(admins, models.items(), strict=True)
+            )
+        )
+    )
+    assert all(reply["result"]["outcome"] == "applied" for reply in replies)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+
+async def test_two_wake_words_imported_at_once_both_reach_the_other_panel(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    entry: MockConfigEntry,  # noqa: F811
+    panels: tuple[SessionPanel, SessionPanel, MockConfigEntry],
+) -> None:
+    kitchen, hall, _ = panels
+    first, second = b"\x01first model", b"\x01second model"
+    fetched: list[bytes] = []
+    hall.answers["voice.wake_words.import"] = _fetching(hall, fetched)
+    written = wake_words._write_atomically
+    removed = wake_words._remove_unnamed
+    cleaned = threading.Event()
+
+    def write(path: Any, data: bytes) -> None:
+        written(path, data)
+        if data == second:
+            # Hold the second record between its file and its index entry until
+            # the other record has removed the files its index does not name.
+            cleaned.wait(2)
+
+    def remove(directory: Any, named: set[str]) -> None:
+        removed(directory, named)
+        cleaned.set()
+
+    with (
+        patch.object(wake_words, "_write_atomically", write),
+        patch.object(wake_words, "_remove_unnamed", remove),
+    ):
+        await _import_together(
+            hass,
+            hass_ws_client,
+            kitchen,
+            entry.entry_id,
+            {"hey_first.json": first, "hey_second.json": second},
+        )
+    await _until_imports(hall, 2)
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert sorted(fetched) == sorted([first, second])
+
+
+async def test_two_imports_of_one_name_at_once_keep_the_earlier_copy_replaceable(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    entry: MockConfigEntry,  # noqa: F811
+    panels: tuple[SessionPanel, SessionPanel, MockConfigEntry],
+) -> None:
+    kitchen, hall, _ = panels
+    one, other = b"\x01one model", b"\x01other model"
+    hall.answers["voice.wake_words.import"] = _installed
+    written = wake_words._write_atomically
+    second_started = threading.Event()
+    writes: list[bytes] = []
+
+    def write(path: Any, data: bytes) -> None:
+        writes.append(data)
+        if len(writes) == 1:
+            # Hold the first record mid-way until the second has begun its own.
+            second_started.wait(2)
+        else:
+            second_started.set()
+        written(path, data)
+
+    with patch.object(wake_words, "_write_atomically", write):
+        await _import_together(
+            hass,
+            hass_ws_client,
+            kitchen,
+            entry.entry_id,
+            {"hey_pickle.json": one, "hey_pickle": other},
+        )
+    imports = await _until_imports(hall, 1)
+    await hass.async_block_till_done(wait_background_tasks=True)
+    last = _imports(hall)[-1]["args"]
+    kept, earlier = (writes[-1], writes[0]) if len(writes) == 2 else (writes[0], None)
+    assert last["blob"]["sha256"] == hashlib.sha256(kept).hexdigest()
+    # The copy kept first stays one the newer model may replace on a panel.
+    assert earlier is not None
+    assert last["replaces"] == [hashlib.sha256(earlier).hexdigest()], imports

@@ -98,6 +98,9 @@ class SharedWakeWords:
         self._models = Path(hass.config.path(".storage", f"{DOMAIN}.wake_word_models"))
         self._words: dict[str, SharedWakeWord] | None = None
         self._load_lock = asyncio.Lock()
+        # One record at a time, from reading the earlier copies to removing
+        # unnamed files: two at once could each delete the other's new model.
+        self._record_lock = asyncio.Lock()
         # Entries converging now, and those asked again meanwhile.
         self._running: set[str] = set()
         self._again: set[str] = set()
@@ -158,10 +161,33 @@ class SharedWakeWords:
         if not 0 < len(model) <= MAX_MODEL_BYTES:
             return
         sha256 = hashlib.sha256(model).hexdigest()
+        async with self._record_lock:
+            if not await self._async_keep(
+                wake_word_id, phrase, manifest, model, sha256
+            ):
+                return
+        _LOGGER.info("Wake word %s is now installed on every panel", wake_word_id)
+        # The source's report of the new copy can arrive before the index named it.
+        ir.async_delete_issue(
+            self._hass, DOMAIN, issue_id(source_entry_id, wake_word_id)
+        )
+        for entry in self._hass.config_entries.async_entries(DOMAIN):
+            if entry.entry_id != source_entry_id:
+                self.converge(entry.entry_id)
+
+    async def _async_keep(
+        self,
+        wake_word_id: str,
+        phrase: str,
+        manifest: str,
+        model: bytes,
+        sha256: str,
+    ) -> bool:
+        """Write the model and the index naming it; False when already kept."""
         words = await self._async_words()
         held = words.get(wake_word_id)
         if held is not None and (held.sha256, held.manifest) == (sha256, manifest):
-            return
+            return False
         earlier: tuple[str, ...] = ()
         if held is not None:
             earlier = tuple(
@@ -192,14 +218,7 @@ class SharedWakeWords:
         await self._hass.async_add_executor_job(
             _remove_unnamed, self._models, {word.sha256 for word in words.values()}
         )
-        _LOGGER.info("Wake word %s is now installed on every panel", wake_word_id)
-        # The source's report of the new copy can arrive before the index named it.
-        ir.async_delete_issue(
-            self._hass, DOMAIN, issue_id(source_entry_id, wake_word_id)
-        )
-        for entry in self._hass.config_entries.async_entries(DOMAIN):
-            if entry.entry_id != source_entry_id:
-                self.converge(entry.entry_id)
+        return True
 
     @callback
     def converge(self, entry_id: str) -> None:
