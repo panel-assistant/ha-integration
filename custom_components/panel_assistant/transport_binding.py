@@ -20,6 +20,7 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.util import dt as dt_util
 
 from .const import CONF_TRANSPORT_USER_ID, DOMAIN
+from .device import panel_display_name
 from .transport_protocol import (
     ERR_PANEL_USER_MISMATCH,
     REASON_BINDING_CHANGED,
@@ -140,7 +141,7 @@ def async_raise_binding_issue(
         is_persistent=False,
         severity=ir.IssueSeverity.WARNING,
         translation_key=ISSUE_PANEL_USER_MISMATCH,
-        translation_placeholders={"panel": entry.title},
+        translation_placeholders={"panel": panel_display_name(hass, entry)},
     )
 
 

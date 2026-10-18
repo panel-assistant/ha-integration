@@ -58,6 +58,7 @@ from .const import (
     PROTOCOL_MIN as PROTOCOL_MIN,
 )
 from .contract import catalogue_entry, catalogue_entry_for_channel
+from .device import panel_display_name
 from .ha_url import DATA_INSTANCE_ID, async_connection_urls
 from .lifecycle import DATA_LIFECYCLE
 from .native import shown_elsewhere
@@ -230,7 +231,7 @@ def async_raise_merged_identity_issue(
     hass: HomeAssistant, did: str, entries: list[ConfigEntry]
 ) -> None:
     """Tell the user which panel entries report one device identity."""
-    panels = ", ".join(sorted(entry.title for entry in entries))
+    panels = ", ".join(sorted(panel_display_name(hass, entry) for entry in entries))
     ir.async_create_issue(
         hass,
         DOMAIN,

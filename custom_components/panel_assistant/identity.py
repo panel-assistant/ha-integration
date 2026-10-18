@@ -353,9 +353,16 @@ def _reject_health(
         ir.async_get(hass).async_get_issue(DOMAIN, f"{ISSUE_IDENTITY}_{entry.entry_id}")
         is None
     ):
-        placeholders = {"panel": entry.title, "address": entry.data[CONF_ADDRESS]}
+        from .device import panel_display_name
+
+        placeholders = {
+            "panel": panel_display_name(hass, entry),
+            "address": entry.data[CONF_ADDRESS],
+        }
         if shared_with:
-            placeholders["others"] = ", ".join(other.title for other in shared_with)
+            placeholders["others"] = ", ".join(
+                panel_display_name(hass, other) for other in shared_with
+            )
         ir.async_create_issue(
             hass,
             DOMAIN,
@@ -436,6 +443,8 @@ def accept_health(hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth) 
             hass, entry, health
         ):
             return True
+        from .device import panel_display_name
+
         ir.async_create_issue(
             hass,
             DOMAIN,
@@ -445,7 +454,7 @@ def accept_health(hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth) 
             severity=ir.IssueSeverity.WARNING,
             translation_key=ISSUE_IDENTITY,
             translation_placeholders={
-                "panel": entry.title,
+                "panel": panel_display_name(hass, entry),
                 "address": entry.data[CONF_ADDRESS],
             },
             data={

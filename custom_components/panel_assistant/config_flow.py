@@ -1772,7 +1772,9 @@ class HaPaneldOptionsFlow(OptionsFlow):
     ) -> ConfigFlowResult:
         """Offer HA's durable ADB key only after explicit existing-panel consent."""
         entry = self.config_entry
-        form = await async_authorize_adb_form(self, entry, entry.title, user_input)
+        form = await async_authorize_adb_form(
+            self, entry, panel_display_name(self.hass, entry), user_input
+        )
         if form is not None:
             return form
         return self.async_create_entry(data=dict(entry.options))
