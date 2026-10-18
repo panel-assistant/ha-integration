@@ -96,6 +96,7 @@ from .config_flow_helpers import (
     _start_step,
     _zeroconf_info,
 )
+from .install_recovery_text import assert_names_recovery_page
 
 # Bind the shared autouse fixtures here so pytest applies them to this module.
 install_release_catalog = config_flow_helpers.install_release_catalog
@@ -1320,6 +1321,9 @@ async def test_same_version_at_different_bytes_is_not_overwritten(
 
     assert result["step_id"] == "confirm_install_rc"
     assert result["errors"] == {"base": "installed_artifact_mismatch"}
+    await assert_names_recovery_page(
+        hass, "config.error.installed_artifact_mismatch", result
+    )
     manager.async_create_or_join.assert_not_awaited()
 
 
@@ -1566,6 +1570,7 @@ async def test_nonrestartable_worker_refresh_failure_is_privacy_safe(
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "install_failed"
+    await assert_names_recovery_page(hass, "config.abort.install_failed", result)
     executor.async_wait.assert_not_awaited()
     assert flow._progress_waiter is None
 
@@ -1735,6 +1740,18 @@ async def test_every_terminal_install_result_is_privacy_safe_and_creates_no_entr
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == reason
     assert not hass.config_entries.async_entries(DOMAIN)
+    if reason in _RECOVERY_PAGE_ABORTS:
+        await assert_names_recovery_page(hass, f"config.abort.{reason}", result)
+
+
+# The terminal results a person cannot finish from this flow alone.
+_RECOVERY_PAGE_ABORTS = {
+    "install_preflight_rejected",
+    "install_launch_failed",
+    "install_health_check_failed",
+    "install_ambiguous_mutation",
+    "install_verification_required",
+}
 
 
 _FINAL = "custom_components.panel_assistant.install_executor"
@@ -1864,6 +1881,9 @@ async def test_final_verification_retry_and_recovery_boundaries(
         manager.async_transition.assert_not_awaited()
     else:
         assert result["reason"] == "install_recovery_required"
+        await assert_names_recovery_page(
+            hass, "config.abort.install_recovery_required", result
+        )
         subcode = {
             "pin_drift": "network:pinned_target_removed",
             "credential_error": "credential:unavailable",

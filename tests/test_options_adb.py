@@ -14,7 +14,10 @@ from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.client import PanelAddress, PanelHealth
-from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.const import (
+    DOMAIN,
+    INSTALL_RECOVERY_PLACEHOLDERS,
+)
 from custom_components.panel_assistant.install_network import PinnedPanelTarget
 from custom_components.panel_assistant.provisioning import (
     InstallTargetProbe,
@@ -24,6 +27,8 @@ from custom_components.panel_assistant.repairs_failure import (
     adb_authorization_issue_id,
     panel_failure_issue_id,
 )
+
+from .install_recovery_text import assert_names_recovery_page
 
 
 async def test_existing_panel_options_authorize_adb_after_physical_approval(
@@ -262,7 +267,10 @@ async def test_adb_authorization_repair_retries_after_physical_approval(
         opened = await response.json()
         assert opened["type"] == "form"
         assert opened["step_id"] == "authorize_adb"
-        assert opened["description_placeholders"] == {"panel": "Office display"}
+        assert opened["description_placeholders"] == {
+            "panel": "Office display",
+            **INSTALL_RECOVERY_PLACEHOLDERS,
+        }
         get_signer.assert_not_awaited()
         probe.assert_not_awaited()
         assert offered_keys == []
@@ -427,3 +435,71 @@ async def test_failed_update_repair_can_authorize_without_clearing_failure(
     assert "authorize_adb" not in back["menu_options"]
     authorize.assert_awaited_with(hass, entry)
     assert authorize.await_count == 2
+
+
+async def test_ambiguous_panel_state_in_options_and_repair_names_the_recovery_page(
+    hass: HomeAssistant, hass_client: Any
+) -> None:
+    """The shared authorize_adb step names the recovery page wherever it is shown."""
+    assert await async_setup_component(hass, "repairs", {})
+    assert await async_setup_component(hass, DOMAIN, {})
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="Jenna", data={CONF_ADDRESS: "panel.local"}
+    )
+    entry.add_to_hass(hass)
+    entry.runtime_data = SimpleNamespace(
+        coordinator=SimpleNamespace(
+            data=SimpleNamespace(
+                health=PanelHealth(
+                    version="0.9.9",
+                    panel_id="jenna",
+                    build="998",
+                    config_hash="abcd1234",
+                    protocol=(5, 5),
+                )
+            )
+        )
+    )
+    issue_id = adb_authorization_issue_id(entry.entry_id)
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        issue_id,
+        is_fixable=True,
+        is_persistent=True,
+        severity=ir.IssueSeverity.ERROR,
+        translation_key="adb_update_authorization",
+        translation_placeholders={"panel": "Jenna"},
+        data={"entry_id": entry.entry_id},
+    )
+    with patch(
+        "custom_components.panel_assistant.config_flow.async_authorize_existing_panel_adb",
+        AsyncMock(return_value="retained_or_ambiguous"),
+    ):
+        opened = await hass.config_entries.options.async_init(entry.entry_id)
+        consent = await hass.config_entries.options.async_configure(
+            opened["flow_id"], {"next_step_id": "authorize_adb"}
+        )
+        refused = await hass.config_entries.options.async_configure(
+            consent["flow_id"], {}
+        )
+        admin = await hass_client()
+        response = await admin.post(
+            "/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue_id}
+        )
+        repair = await response.json()
+        response = await admin.post(
+            f"/api/repairs/issues/fix/{repair['flow_id']}", json={}
+        )
+        repaired = await response.json()
+
+    assert refused["errors"] == {"base": "retained_or_ambiguous"}
+    await assert_names_recovery_page(
+        hass, "options.error.retained_or_ambiguous", refused
+    )
+    assert repaired["errors"] == {"base": "retained_or_ambiguous"}
+    await assert_names_recovery_page(
+        hass,
+        "issues.adb_update_authorization.fix_flow.error.retained_or_ambiguous",
+        repaired,
+    )

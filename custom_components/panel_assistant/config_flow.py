@@ -60,6 +60,7 @@ from .const import (
     CONF_TRANSPORT_USER_ID,
     DEFAULT_PORT,
     DOMAIN,
+    INSTALL_RECOVERY_PLACEHOLDERS,
     SOURCE_USB_INSTALL,
     help_url,
 )
@@ -318,6 +319,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             description_placeholders={
                 "panel_access_url": help_url("panel-access"),
                 "panel_help_url": help_url("panel-unreachable"),
+                **INSTALL_RECOVERY_PLACEHOLDERS,
             },
         )
 
@@ -794,7 +796,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             description_placeholders={
                 "address": self._pending_address.stored_value
                 if self._pending_address is not None
-                else ""
+                else "",
+                **INSTALL_RECOVERY_PLACEHOLDERS,
             },
             errors=errors,
         )
@@ -930,6 +933,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 "version": self._pending_release.version,
                 "tag": self._pending_release.tag,
                 "sha256": self._pending_release.sha256,
+                **INSTALL_RECOVERY_PLACEHOLDERS,
             }
         )
         return self.async_show_form(
@@ -991,7 +995,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="install_receipt_error")
         except Exception:
             _LOGGER.exception("Unexpected exception while starting installation")
-            return self.async_abort(reason="install_failed")
+            return self.async_abort(
+                reason="install_failed",
+                description_placeholders=INSTALL_RECOVERY_PLACEHOLDERS,
+            )
 
         if worker is None:
             try:
@@ -1001,7 +1008,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 return self.async_abort(reason="install_receipt_error")
             except Exception:
                 _LOGGER.exception("Unexpected exception while refreshing install job")
-                return self.async_abort(reason="install_failed")
+                return self.async_abort(
+                    reason="install_failed",
+                    description_placeholders=INSTALL_RECOVERY_PLACEHOLDERS,
+                )
             if (
                 refreshed.phase is InstallPhase.HEALTHY_UNCLAIMED
                 or refreshed.is_terminal
@@ -1066,14 +1076,20 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="install_receipt_error")
         except Exception:
             _LOGGER.exception("Unexpected exception while loading install result")
-            return self.async_abort(reason="install_failed")
+            return self.async_abort(
+                reason="install_failed",
+                description_placeholders=INSTALL_RECOVERY_PLACEHOLDERS,
+            )
 
         if receipt.phase in {
             InstallPhase.CANCELLED,
             InstallPhase.FAILED,
             InstallPhase.RECOVERY_REQUIRED,
         }:
-            return self.async_abort(reason=_install_terminal_abort_reason(receipt))
+            return self.async_abort(
+                reason=_install_terminal_abort_reason(receipt),
+                description_placeholders=INSTALL_RECOVERY_PLACEHOLDERS,
+            )
         if receipt.phase is InstallPhase.CONSUMED:
             return self.async_abort(reason="already_configured")
         if receipt.phase is not InstallPhase.HEALTHY_UNCLAIMED:
@@ -1126,7 +1142,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 receipt, "install_finalization_retry"
             )
         if outcome is FinalizationOutcome.RECOVERY_REQUIRED:
-            return self.async_abort(reason="install_recovery_required")
+            return self.async_abort(
+                reason="install_recovery_required",
+                description_placeholders=INSTALL_RECOVERY_PLACEHOLDERS,
+            )
         if outcome is not FinalizationOutcome.VERIFIED or result.health is None:
             return self.async_abort(reason="install_receipt_error")
         if self._address_is_configured(receipt.target.address):
@@ -1491,7 +1510,7 @@ async def async_authorize_adb_form[ResultT: FlowResult[Any, Any]](
     return flow.async_show_form(
         step_id="authorize_adb",
         data_schema=vol.Schema({}),
-        description_placeholders={"panel": panel},
+        description_placeholders={"panel": panel, **INSTALL_RECOVERY_PLACEHOLDERS},
         errors={"base": error} if error else None,
     )
 
