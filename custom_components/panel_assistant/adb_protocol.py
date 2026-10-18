@@ -160,6 +160,9 @@ class InstallAdbErrorCode(StrEnum):
     FILESYNC_UNSAFE = "filesync_unsafe"
     STAGING_PATH_OCCUPIED = "staging_path_occupied"
     STAGE_AMBIGUOUS = "stage_ambiguous"
+    # A clean install's copy stopped before any package install began. Only the
+    # integration's own staging file can be left, and the next stage removes it.
+    STAGE_INTERRUPTED = "stage_interrupted"
     STAGE_VERIFICATION_FAILED = "stage_verification_failed"
     INSTALL_AMBIGUOUS = "install_ambiguous"
     LAUNCH_AMBIGUOUS = "launch_ambiguous"

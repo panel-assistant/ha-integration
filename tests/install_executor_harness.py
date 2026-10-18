@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 from collections.abc import Generator
 from dataclasses import dataclass
@@ -183,6 +184,9 @@ class Harness:
             tuple[AdbInstallTarget, InstallDescriptor, AdbRootMode]
         ] = []
         self.download_error: ArtifactCustodyError | None = None
+        # When set, the download writes these bytes as the job's private file,
+        # so the real ADB staging code can open, hash and copy it.
+        self.local_apk: tuple[Path, bytes] | None = None
         self.download_mutation: str | None = None
         self.local_cleanup_error: ArtifactCustodyError | None = None
         self.local_cleanup_error_at: int | None = None
@@ -352,7 +356,9 @@ class Harness:
             else CREDENTIAL_ID
         )
         credential = AdbCredential(
-            signer=cast(PythonRSASigner, object()),
+            # A real signer type, so the real ADB connect accepts it; the fake
+            # panels never ask it to sign.
+            signer=object.__new__(PythonRSASigner),
             generation_id=generation,
         )
         self.credentials.append(credential)
@@ -439,6 +445,17 @@ class Harness:
         self.download_arguments.append((release, job_id))
         if self.download_error is not None:
             raise self.download_error
+        if self.local_apk is not None:
+            directory, body = self.local_apk
+            path = directory / f"{job_id}.apk"
+            path.write_bytes(body)
+            path.chmod(0o600)
+            return CustodiedArtifact(
+                job_id=job_id,
+                path=str(path),
+                size=len(body),
+                sha256=hashlib.sha256(body).hexdigest(),
+            )
         return CustodiedArtifact(
             job_id="d" * 32 if self.download_mutation == "job_id" else job_id,
             path=(

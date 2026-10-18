@@ -104,9 +104,10 @@ _LOGGER = logging.getLogger(__name__)
 _EXECUTOR_DATA_KEY = f"{DOMAIN}.install_executor"
 _EXECUTOR_LOCK_DATA_KEY = f"{DOMAIN}.install_executor_lock"
 _EXECUTION_ID_DOMAIN = b"ha-paneld-install-execution-v1\0"
-# The path is device-local, so one fixed slot bounds ambiguous remote residue
-# without creating a cross-panel collision. Stage proves the slot absent in the
-# same ADB connection before writing; a later job refuses rather than overwrites.
+# The path is device-local, so one fixed slot bounds remote residue to one file
+# without creating a cross-panel collision. Stage removes a file an earlier
+# attempt left there in the same ADB connection before writing, so a copy that
+# stopped part-way never blocks the next install.
 _REMOTE_STAGING_SLOT_ID = sha256(
     b"ha-paneld-device-local-staging-slot-v1\0"
 ).hexdigest()[:32]
