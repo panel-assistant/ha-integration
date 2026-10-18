@@ -2628,6 +2628,34 @@ async def test_an_allow_the_panel_does_not_remember_is_not_ready_to_install(
     manager.async_create_or_join.assert_not_awaited()
 
 
+@pytest.mark.parametrize("allowed", [True, False], ids=["allowed", "not_allowed"])
+async def test_input_sent_as_the_wait_ends_is_not_the_install_press(
+    hass: HomeAssistant, allowed: bool
+) -> None:
+    """Whatever a caller sends when the wait ends only shows the next screen.
+
+    Core hands the same input on through the end of a progress step, so the
+    confirmation must be shown before an Install press can count, and a failed
+    wait must not ask the panel again unasked.
+    """
+    panel = _PanelThatAsks()
+    manager = _manager_for(_receipt(InstallPhase.APPROVED))
+    with _network_install(panel, manager):
+        waiting = await _choose_version(hass, await _to_version_choice(hass))
+        panel.taps.put_nowait(allowed)
+        await hass.async_block_till_done()
+        shown = await hass.config_entries.flow.async_configure(waiting["flow_id"], {})
+        assert shown["type"] is FlowResultType.FORM
+        assert shown["step_id"] == (
+            "confirm_install_candidate" if allowed else "authorize_adb"
+        )
+        manager.async_create_or_join.assert_not_awaited()
+        assert len(panel.offers) == 1
+        if allowed:
+            await hass.config_entries.flow.async_configure(shown["flow_id"], {})
+            manager.async_create_or_join.assert_awaited_once()
+
+
 async def test_closing_the_dialog_stops_waiting_for_the_allow(
     hass: HomeAssistant,
 ) -> None:

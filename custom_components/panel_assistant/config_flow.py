@@ -763,14 +763,28 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             except Exception:
                 _LOGGER.exception("Unexpected exception while waiting for ADB Allow")
                 self._authorization_errors = {"base": "unknown"}
-            return self.async_show_progress_done(
-                next_step_id="authorize_adb"
-                if self._authorization_errors
-                else "confirm_install_candidate"
-            )
+            return self.async_show_progress_done(next_step_id="authorize_adb_done")
         if user_input is None:
             return self._show_authorize_adb(self._authorization_errors)
         return await self._async_authorize_adb()
+
+    async def async_step_authorize_adb_done(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show where the wait ended; input carried here is never a press.
+
+        Core passes the input that ended a progress step on to its next step,
+        so neither the Install press nor another Allow may be taken from it.
+        """
+        if (
+            self._pending_address is None
+            or self._pending_release is None
+            or self._pending_release.descriptor is None
+        ):
+            return self.async_abort(reason="unknown")
+        if self._pending_probe is None:
+            return self._show_authorize_adb(self._authorization_errors)
+        return self._show_install_candidate_preview()
 
     async def _async_authorize_adb(self) -> ConfigFlowResult:
         """Use a key the panel already trusts, or offer it and wait for Allow."""
