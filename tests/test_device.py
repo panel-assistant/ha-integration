@@ -566,3 +566,20 @@ def test_an_address_outside_the_apps_grammar_costs_only_that_link(
         "firmware": "1.11.0",
         "network_macs": kept,
     }
+
+
+async def test_diagnostics_name_the_model_while_the_status_read_fails(
+    hass: HomeAssistant,
+) -> None:
+    """A report from a panel whose status read is failing still says what it is."""
+    entry = _loaded_entry(hass)
+    await _card_after_setup(hass, entry, _status_body('{"firmware":"1.11.0"}'))
+    entry.runtime_data.coordinator.async_set_updated_data(
+        _snapshot(None, with_status=False)
+    )
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+
+    assert diagnostics["status"] is None
+    assert diagnostics["device"]["manufacturer"] == "Sonoff"
+    assert diagnostics["device"]["model"] == "NSPanel Pro"
