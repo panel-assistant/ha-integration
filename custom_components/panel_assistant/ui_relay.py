@@ -65,6 +65,7 @@ from .transport_sessions import (
     async_deliver,
     async_get_sessions,
 )
+from .wake_words import OP_RELAYED_IMPORT, async_get_shared_wake_words
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -478,6 +479,18 @@ async def _async_relay(
         deadline_ms,
         lent=() if sent is None else (sent,),
     )
+    if (
+        request["op"] == OP_RELAYED_IMPORT
+        and outcome.outcome == OUTCOME_APPLIED
+        and "model" in args
+    ):
+        # A wake word imported here goes to every panel (wake_words.py).
+        hass.async_create_background_task(
+            async_get_shared_wake_words(hass).async_record(
+                entry_id, args, outcome.result
+            ),
+            f"{DOMAIN} share a wake word",
+        )
     frame = _frame(command_id, outcome)
     if data is not None:
         assert isinstance(outcome.result, dict)

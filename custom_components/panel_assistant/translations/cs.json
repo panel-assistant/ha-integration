@@ -927,6 +927,14 @@
       "title": "Hlasový asistent na panelu {panel} neposlouchá.",
       "description": "Hlasový asistent na panelu {panel} neposlouchá, protože jeho mikrofon při kontrole panelem neposkytl žádný zvuk. Pro novou kontrolu hlasového asistenta vypněte a zapněte na stránce Konfigurace panelu, nebo tam vyberte jiný zdroj zvuku. Panel nahlásil: {detail}"
     },
+    "wake_word_kept": {
+      "title": "{panel} si ponechal vlastní aktivační slovo {wake_word}.",
+      "description": "Panel Assistant nenainstaloval sdílené aktivační slovo {wake_word} na {panel}, protože panel už má jiné aktivační slovo se stejným názvem, importované přímo na panelu. Chcete-li tam používat sdílené, otevřete {panel} v postranním panelu Panel Assistant a aktivační slovo importujte znovu."
+    },
+    "wake_word_refused": {
+      "title": "{panel} nemohl nainstalovat aktivační slovo {wake_word}.",
+      "description": "Panel Assistant nemohl nainstalovat sdílené aktivační slovo {wake_word} na {panel}. Ostatní aktivační slova panelu se nezměnila. Panel nahlásil: {reason}"
+    },
     "volume_number_removed": {
       "title": "Panel {panel} už nemá samostatné číslo hlasitosti",
       "description": "Panel {panel} má přehrávač médií, který zobrazuje a nastavuje jeho hlasitost, proto Panel Assistant odstranil jeho samostatné číslo hlasitosti {entity}. Tyto automatizace nebo skripty ho stále používají: {users}. Upravte je tak, aby nastavovaly hlasitost akcí `media_player.volume_set` na přehrávači médií panelu. Až budou upravené, můžete tuto zprávu ignorovat."

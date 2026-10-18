@@ -927,6 +927,14 @@
       "title": "De spraakassistent op {panel} luistert niet.",
       "description": "De spraakassistent op {panel} luistert niet, omdat de microfoon geen geluid leverde toen het paneel hem controleerde. Zet de spraakassistent uit en weer aan op de pagina 'Configureren' van het paneel, of kies daar een andere audiobron, om opnieuw te controleren. Het paneel meldde: {detail}"
     },
+    "wake_word_kept": {
+      "title": "{panel} heeft zijn eigen activeringswoord {wake_word} behouden.",
+      "description": "Panel Assistant heeft het gedeelde activeringswoord {wake_word} niet op {panel} geïnstalleerd, omdat het paneel al een ander activeringswoord met dezelfde naam heeft dat op het paneel zelf is geïmporteerd. Om daar het gedeelde te gebruiken, open je {panel} in de zijbalk van Panel Assistant en importeer je het activeringswoord opnieuw."
+    },
+    "wake_word_refused": {
+      "title": "{panel} kon het activeringswoord {wake_word} niet installeren.",
+      "description": "Panel Assistant kon het gedeelde activeringswoord {wake_word} niet op {panel} installeren. De andere activeringswoorden van het paneel zijn ongewijzigd. Het paneel meldde: {reason}"
+    },
     "volume_number_removed": {
       "title": "{panel} heeft geen apart volumegetal meer",
       "description": "{panel} heeft een mediaspeler die het volume toont en instelt, dus Panel Assistant heeft het aparte volumegetal {entity} verwijderd. Deze automatiseringen of scripts gebruiken het nog: {users}. Pas ze aan zodat ze het volume instellen met de actie `media_player.volume_set` op de mediaspeler van het paneel. Zodra ze zijn aangepast, kun je deze melding negeren."

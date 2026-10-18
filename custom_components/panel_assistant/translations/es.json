@@ -899,6 +899,14 @@
       "title": "El asistente de voz de {panel} no está escuchando.",
       "description": "El asistente de voz de {panel} no está escuchando porque su micrófono no entregó audio cuando el panel lo comprobó. Para comprobarlo de nuevo, desactiva y vuelve a activar el asistente de voz en la página Configurar del panel, o elige allí otra fuente de audio. El panel informó: {detail}"
     },
+    "wake_word_kept": {
+      "title": "{panel} ha conservado su propia palabra de activación {wake_word}.",
+      "description": "Panel Assistant no ha instalado la palabra de activación compartida {wake_word} en {panel}, porque el panel ya tiene otra palabra de activación con el mismo nombre que se importó en el propio panel. Para usar la compartida allí, abre {panel} en la barra lateral de Panel Assistant e importa la palabra de activación de nuevo."
+    },
+    "wake_word_refused": {
+      "title": "{panel} no ha podido instalar la palabra de activación {wake_word}.",
+      "description": "Panel Assistant no ha podido instalar la palabra de activación compartida {wake_word} en {panel}. Las demás palabras de activación del panel no han cambiado. El panel informó: {reason}"
+    },
     "volume_number_removed": {
       "title": "{panel} ya no tiene un número de volumen separado",
       "description": "{panel} tiene un reproductor multimedia que muestra y ajusta su volumen, así que Panel Assistant eliminó su número de volumen separado {entity}. Estas automatizaciones o scripts todavía lo usan: {users}. Cámbialos para que ajusten el volumen con la acción `media_player.volume_set` en el reproductor multimedia del panel. Cuando estén cambiados, puedes ignorar este mensaje."

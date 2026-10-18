@@ -80,6 +80,7 @@ from .transport_sessions import (
     signal_session_changed,
 )
 from .voice_stream import VoiceStream, async_get_voice_stream
+from .wake_words import async_get_shared_wake_words
 
 if TYPE_CHECKING:
     from .assist_satellite import PanelAssistSatellite
@@ -154,6 +155,9 @@ class WakeWord:
     id: str
     phrase: str
     languages: tuple[str, ...]
+    # The SHA-256 of an imported model, from panels that report it (see
+    # ``wake_words.py``); None for a bundled wake word.
+    sha256: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -179,6 +183,9 @@ _WAKE_WORD_SCHEMA: Final = vol.Schema(
         vol.Required("wake_word"): _plain_string(64),
         vol.Optional("trained_languages", default=list): _bounded_list(
             16, _plain_string(16)
+        ),
+        vol.Optional("sha256", default=None): vol.Any(
+            None, vol.Match(r"^[0-9a-f]{64}$")
         ),
     },
     extra=vol.REMOVE_EXTRA,
@@ -425,7 +432,12 @@ def ws_voice_configuration(
     session.voice = VoiceConfiguration(
         enabled=msg["enabled"],
         wake_words=tuple(
-            WakeWord(item["id"], item["wake_word"], tuple(item["trained_languages"]))
+            WakeWord(
+                item["id"],
+                item["wake_word"],
+                tuple(item["trained_languages"]),
+                item["sha256"],
+            )
             for item in msg["wake_words"]
         ),
         active=tuple(msg["active"]),
@@ -435,6 +447,7 @@ def ws_voice_configuration(
     async_get_sessions(hass).mark_changed(session)
     if (entry := hass.config_entries.async_get_entry(session.entry_id)) is not None:
         async_reconcile_microphone_issue(hass, entry, session.voice)
+        async_get_shared_wake_words(hass).converge(entry.entry_id)
     connection.send_result(msg["id"], {})
 
 

@@ -927,6 +927,14 @@
       "title": "O assistente de voz em {panel} não está ouvindo.",
       "description": "O assistente de voz em {panel} não está ouvindo porque o microfone não forneceu áudio quando o painel o verificou. Para verificar novamente, desabilite e habilite o assistente de voz na página Configurar do painel ou escolha outra fonte de áudio nessa página. O painel informou: {detail}"
     },
+    "wake_word_kept": {
+      "title": "{panel} manteve a própria palavra de ativação {wake_word}.",
+      "description": "O Panel Assistant não instalou a palavra de ativação compartilhada {wake_word} em {panel}, porque o painel já tem outra palavra de ativação com o mesmo nome, importada no próprio painel. Para usar a compartilhada nele, abra {panel} na barra lateral do Panel Assistant e importe a palavra de ativação novamente."
+    },
+    "wake_word_refused": {
+      "title": "{panel} não conseguiu instalar a palavra de ativação {wake_word}.",
+      "description": "O Panel Assistant não conseguiu instalar a palavra de ativação compartilhada {wake_word} em {panel}. As outras palavras de ativação do painel não foram alteradas. O painel informou: {reason}"
+    },
     "volume_number_removed": {
       "title": "{panel} não tem mais um número de volume separado",
       "description": "{panel} tem um reprodutor de mídia que mostra e ajusta o volume, então o Panel Assistant removeu o número de volume separado {entity}. Estas automações ou scripts ainda o usam: {users}. Altere-os para ajustar o volume com a ação `media_player.volume_set` no reprodutor de mídia do painel. Depois de alterá-los, você pode ignorar esta mensagem."

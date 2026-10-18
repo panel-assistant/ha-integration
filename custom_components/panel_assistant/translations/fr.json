@@ -899,6 +899,14 @@
       "title": "L'assistant vocal de {panel} n'écoute pas.",
       "description": "L'assistant vocal de {panel} n'écoute pas, car son microphone n'a fourni aucun son lorsque le panneau l'a vérifié. Pour vérifier à nouveau, désactivez puis réactivez l'assistant vocal sur la page Configurer du panneau, ou choisissez-y une autre source audio. Le panneau a signalé : {detail}"
     },
+    "wake_word_kept": {
+      "title": "{panel} a conservé son propre mot d'activation {wake_word}.",
+      "description": "Panel Assistant n'a pas installé le mot d'activation partagé {wake_word} sur {panel}, car le panneau possède déjà un autre mot d'activation du même nom, importé sur le panneau lui-même. Pour y utiliser le mot partagé, ouvrez {panel} dans la barre latérale de Panel Assistant et importez à nouveau le mot d'activation."
+    },
+    "wake_word_refused": {
+      "title": "{panel} n'a pas pu installer le mot d'activation {wake_word}.",
+      "description": "Panel Assistant n'a pas pu installer le mot d'activation partagé {wake_word} sur {panel}. Les autres mots d'activation du panneau sont inchangés. Le panneau a signalé : {reason}"
+    },
     "volume_number_removed": {
       "title": "{panel} n'a plus de nombre de volume séparé",
       "description": "{panel} a un lecteur multimédia qui affiche et règle son volume, Panel Assistant a donc supprimé son nombre de volume séparé {entity}. Ces automatisations ou scripts l'utilisent encore : {users}. Modifiez-les pour régler le volume avec l'action `media_player.volume_set` sur le lecteur multimédia du panneau. Une fois qu'ils sont modifiés, vous pouvez ignorer ce message."

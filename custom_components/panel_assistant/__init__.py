@@ -81,6 +81,7 @@ from .voice import (
 )
 from .voice_commands import async_setup_voice_commands
 from .voice_stream import async_get_voice_stream, async_setup_voice_stream
+from .wake_words import async_delete_wake_word_issues
 
 PLATFORMS = [Platform.SENSOR, Platform.UPDATE, *NATIVE_ONLY_PLATFORMS]
 # Panels are config entries. YAML holds only development options: an optional
@@ -343,6 +344,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
     if entry.runtime_data.voice_setup is not None:
         await entry.runtime_data.voice_setup()
     async_delete_microphone_issue(hass, entry.entry_id)
+    async_delete_wake_word_issues(hass, entry)
     return await hass.config_entries.async_unload_platforms(
         entry, entry.runtime_data.platforms
     )

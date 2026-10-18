@@ -899,6 +899,14 @@
       "title": "Der Sprachassistent auf {panel} hört nicht zu.",
       "description": "Der Sprachassistent auf {panel} hört nicht zu, weil sein Mikrofon bei der Prüfung durch das Panel keinen Ton geliefert hat. Um erneut zu prüfen, schalte den Sprachassistenten auf der Seite „Konfiguration“ des Panels aus und wieder ein oder wähle dort eine andere Audioquelle. Das Panel meldete: {detail}"
     },
+    "wake_word_kept": {
+      "title": "{panel} hat sein eigenes Aktivierungswort {wake_word} behalten.",
+      "description": "Panel Assistant hat das gemeinsame Aktivierungswort {wake_word} nicht auf {panel} installiert, weil das Panel bereits ein anderes Aktivierungswort mit demselben Namen hat, das direkt auf dem Panel importiert wurde. Um dort das gemeinsame zu verwenden, öffne {panel} in der Panel Assistant-Seitenleiste und importiere das Aktivierungswort erneut."
+    },
+    "wake_word_refused": {
+      "title": "{panel} konnte das Aktivierungswort {wake_word} nicht installieren.",
+      "description": "Panel Assistant konnte das gemeinsame Aktivierungswort {wake_word} nicht auf {panel} installieren. Die anderen Aktivierungswörter des Panels sind unverändert. Das Panel meldete: {reason}"
+    },
     "volume_number_removed": {
       "title": "{panel} hat keine separate Lautstärke-Zahl mehr",
       "description": "{panel} hat einen Mediaplayer, der seine Lautstärke anzeigt und einstellt, daher hat Panel Assistant die separate Lautstärke-Zahl {entity} entfernt. Diese Automationen oder Skripte verwenden sie noch: {users}. Ändere sie so, dass sie die Lautstärke mit der Aktion `media_player.volume_set` am Mediaplayer des Panels einstellen. Sobald sie geändert sind, kannst du diese Meldung ignorieren."

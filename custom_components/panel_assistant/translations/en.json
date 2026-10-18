@@ -927,6 +927,14 @@
       "title": "The voice assistant on {panel} is not listening.",
       "description": "The voice assistant on {panel} is not listening because its microphone delivered no audio when the panel checked it. To check again, turn the voice assistant off and on in the panel's Configure page, or choose another audio source there. The panel reported: {detail}"
     },
+    "wake_word_kept": {
+      "title": "{panel} kept its own wake word {wake_word}.",
+      "description": "Panel Assistant did not install the shared wake word {wake_word} on {panel}, because the panel already has a different wake word of the same name that was imported on the panel itself. To use the shared one there, open {panel} in the Panel Assistant sidebar and import the wake word again."
+    },
+    "wake_word_refused": {
+      "title": "{panel} could not install the wake word {wake_word}.",
+      "description": "Panel Assistant could not install the shared wake word {wake_word} on {panel}. The panel's other wake words are unchanged. The panel reported: {reason}"
+    },
     "volume_number_removed": {
       "title": "{panel} no longer has a separate volume number",
       "description": "{panel} has a media player that shows and sets its volume, so Panel Assistant removed its separate volume number {entity}. These automations or scripts still use it: {users}. Change them to set the volume with the `media_player.volume_set` action on the panel's media player. Once they are changed, you can ignore this message."

@@ -899,6 +899,14 @@
       "title": "{panel} 上的语音助手未在聆听。",
       "description": "{panel} 上的语音助手未在聆听，因为面板检查时其麦克风没有提供任何音频。要重新检查，请在面板的设置页面中关闭再打开语音助手，或在那里选择其他音频源。面板报告：{detail}"
     },
+    "wake_word_kept": {
+      "title": "{panel} 保留了自己的唤醒词 {wake_word}。",
+      "description": "Panel Assistant 没有在 {panel} 上安装共享唤醒词 {wake_word}，因为该面板已有一个同名的不同唤醒词，是在面板本身上导入的。要在该面板上使用共享的唤醒词，请在 Panel Assistant 侧边栏中打开 {panel}，然后再次导入该唤醒词。"
+    },
+    "wake_word_refused": {
+      "title": "{panel} 无法安装唤醒词 {wake_word}。",
+      "description": "Panel Assistant 无法在 {panel} 上安装共享唤醒词 {wake_word}。面板的其他唤醒词未更改。面板报告：{reason}"
+    },
     "volume_number_removed": {
       "title": "{panel} 不再有单独的音量数值实体",
       "description": "{panel} 有一个媒体播放器，可显示和设置其音量，因此 Panel Assistant 已删除其单独的音量数值实体 {entity}。以下自动化或脚本仍在使用它：{users}。请将它们改为在面板的媒体播放器上使用 `media_player.volume_set` 动作设置音量。修改完成后，可以忽略此消息。"
