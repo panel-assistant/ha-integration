@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-This is an early preview of Panel Assistant 1.0 for people who want to try it before the release candidates and tell me what breaks. It is not a release contender: read the caveats below before you install it, expect rough edges, and please open an issue with the panel model and what you saw. The story of 1.0 is that MQTT and the move from the old panel app are gone for good, so this release only manages panels that 0.9.0 has already moved. In exchange Panel Assistant and the panel now talk over one connection for everything: the sidebar, updates, voice and settings, which is what makes most of the changes below possible. A lot changed; I have listed what you will notice rather than every commit.
+This is an early preview of Panel Assistant 1.0, the Home Assistant integration, for people who want to try it before the release candidates and tell me what breaks. It is not a release contender: read the caveats below before you install it, expect rough edges, and please open an issue with the panel model and what you saw. The story of 1.0 is that MQTT and the move from the old panel app are gone for good, so this release only manages panels that 0.9.0 has already moved. In exchange Panel Assistant and the panel now talk over one connection for everything: the sidebar, updates, voice and settings, which is what makes most of the changes below possible. A lot changed; I have listed what you will notice rather than every commit.
 
 Pairs with the 1.0.0-preview1 panel app, which Panel Assistant offers to every panel once it is installed.
 
