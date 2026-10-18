@@ -18,7 +18,7 @@
       "install_usb": {
         "title": "Installer par USB",
         "description": "Branchez le panneau à cet ordinateur, pas au serveur Home Assistant. Le débogage USB doit être activé dans les paramètres pour les développeurs du panneau ; le [guide d'accès au panneau propre au modèle]({panel_access_url}) explique comment faire.",
-        "submit": "Ouvrez l'installateur USB"
+        "submit": "Ouvrir l'installateur USB"
       },
       "add_panel": {
         "title": "Ajouter un panneau",
@@ -67,7 +67,7 @@
       },
       "confirm_migration": {
         "title": "Panneau trouvé via {source}",
-        "description": "Home Assistant connaît **{name}** via {source} à l'adresse {address}. Valide pour vérifier le panneau et y installer l'application de Panel Assistant. {source} et son appareil restent tels quels."
+        "description": "Home Assistant connaît **{name}** via {source} à l'adresse {address}. Validez pour vérifier le panneau et y installer l'application de Panel Assistant. {source} et son appareil restent tels quels."
       },
       "confirm_discovery": {
         "title": "Confirmer le panneau détecté",
@@ -117,7 +117,7 @@
       "incompatible": "Le paquet Panel Assistant n'a pas été trouvé, mais le panneau n'est pas pris en charge en raison de sa version du SDK Android ou de l'architecture de son processeur. Aucun APK n'a été téléchargé ni installé.",
       "cannot_resolve_release": "Une version à installer a été trouvée, mais Home Assistant n'a pas pu identifier et vérifier la version Panel Assistant sélectionnée. Aucun APK n'a été téléchargé ni installé. Vérifiez l'accès à Internet et, si vous testez une version candidate, que le tag exact est publié avec ses ressources signées. Aucune autre version ne lui sera substituée.",
       "invalid_release_candidate": "Choisissez une version dans la liste.",
-      "install_candidate_changed": "Après l'aperçu, l'identité du panneau a changé ou l'absence de tout paquet ha-paneld installé ou conservé ne peut plus être confirmée. Aucune tâche d'installation n'a été créée. Vérifiez le panneau, puis recommencez.",
+      "install_candidate_changed": "Après l'aperçu, l'identité du panneau a changé ou l'absence de toute version installée ou conservée de l'application ne peut plus être confirmée. Aucune tâche d'installation n'a été créée. Vérifiez le panneau, puis recommencez.",
       "installed_artifact_mismatch": "L'application installée n'est pas identique octet par octet à la version choisie, donc Home Assistant ne l'a pas remplacée ; choisissez sa version exacte ou suivez les étapes décrites à l'adresse {recovery_address}.",
       "install_plan_rejected": "Le panneau et la version signée n'ont pas pu être intégrés à un plan d'installation sûr. Aucune tâche d'installation n'a été créée.",
       "install_job_conflict": "Une autre tâche d'installation est déjà associée à l'identité de ce panneau. Aucune seconde tâche n'a été créée.",
@@ -140,7 +140,7 @@
       "install_cancelled": "L'installation a été annulée avant l'installation d'un APK. Aucune entrée Home Assistant n'a été créée. Pour réessayer, ajoutez l'intégration Panel Assistant et saisissez la même adresse de panneau.",
       "install_cancelled_after_staging_cleanup": "L'installation a été annulée et l'APK préparé a été supprimé avant son installation. Aucune entrée Home Assistant n'a été créée. Pour réessayer, ajoutez l'intégration Panel Assistant et saisissez la même adresse de panneau.",
       "install_authorization_failed": "Home Assistant n'a pas pu charger ou valider de façon sûre son identifiant ADB enregistré. Aucun APK n'a été installé. Vérifiez le stockage et les journaux de Home Assistant, puis ajoutez l'intégration Panel Assistant et saisissez la même adresse pour réessayer.",
-      "install_preflight_rejected": "Il n'est plus possible de confirmer que le panneau est une cible compatible sur laquelle aucun paquet ha-paneld n'est installé ou conservé. Aucun APK n'a été installé. Vérifiez le panneau comme décrit à l'adresse [{recovery_address}]({recovery_url}), puis recommencez avec la même adresse.",
+      "install_preflight_rejected": "Il n'est plus possible de confirmer que le panneau est une cible compatible sur laquelle aucune version de l'application n'est installée ou conservée. Aucun APK n'a été installé. Vérifiez le panneau comme décrit à l'adresse [{recovery_address}]({recovery_url}), puis recommencez avec la même adresse.",
       "install_artifact_rejected": "Home Assistant a rejeté le téléchargement de la version ou l'opération de préparation avant l'installation du paquet. Aucun APK n'a été installé. Vérifiez l'accès à Internet, le stockage et les journaux de Home Assistant, puis recommencez avec la même adresse.",
       "install_transport_failed": "Home Assistant n'a pas pu terminer la connexion préalable, le téléchargement ou l'étape de préparation. Aucun APK n'a été installé. Vérifiez le panneau, le réseau, l'accès à Internet et les journaux de Home Assistant, puis recommencez avec la même adresse.",
       "install_package_failed": "Android a catégoriquement refusé l'APK et Home Assistant a supprimé le fichier préparé. Aucune application n'a été installée et aucune entrée Home Assistant n'a été créée. Vérifiez la compatibilité du panneau et son espace de stockage disponible avant de recommencer.",
@@ -487,7 +487,7 @@
           "runaway": "Emballement",
           "contained": "Contenue",
           "containment_failed": "Échec du confinement",
-          "unknown": "Inconnu"
+          "unknown": "Inconnue"
         },
         "state_attributes": {
           "containment_result": {
@@ -840,7 +840,7 @@
   "issues": {
     "panel_app_too_old": {
       "title": "{panel} a besoin de l'app {required_version}",
-      "description": "{panel} exécute l'app {version}, qui utilise un protocole plus ancien que Panel Assistant 1.0 : Home Assistant ne peut donc ni le voir ni le contrôler, et ses entités apparaissent comme indisponibles. Rien n'est perdu : il continue de fonctionner seul et conserve ses réglages et son historique. Installez la mise à jour que Panel Assistant propose pour ce panneau et il se reconnectera."
+      "description": "{panel} exécute l'app {version}, qui utilise un protocole plus ancien que Panel Assistant 1.0 : Home Assistant ne peut donc ni le voir ni le contrôler, et ses entités apparaissent comme indisponibles. Rien n'est perdu : il continue de fonctionner seul et conserve ses paramètres et son historique. Installez la mise à jour que Panel Assistant propose pour ce panneau et il se reconnectera."
     },
     "old_app_needs_090": {
       "title": "{panel} exécute encore l'ancienne app",
@@ -860,8 +860,8 @@
           }
         },
         "error": {
-          "permissions_missing": "Le panneau signale toujours une autorisation manquante. Effectuez les étapes sur le panneau, puis envoyez à nouveau.",
-          "permissions_unreadable": "Home Assistant n’a pas pu vérifier toutes les autorisations requises sur ce panneau. Vérifiez sa connexion, puis envoyez à nouveau."
+          "permissions_missing": "Le panneau signale toujours une autorisation manquante. Effectuez les étapes sur le panneau, puis validez à nouveau.",
+          "permissions_unreadable": "Home Assistant n’a pas pu vérifier toutes les autorisations requises sur ce panneau. Vérifiez sa connexion, puis validez à nouveau."
         },
         "abort": {
           "entry_removed": "Ce panneau a été supprimé."
@@ -874,13 +874,13 @@
         "step": {
           "set_up_proximity": {
             "title": "Configurer la proximité sur {panel}",
-            "description": "Tant que son capteur de proximité n’est pas configuré, {panel} ne peut pas se réveiller d’un geste de la main. La configuration prend environ une minute et vous devez vous tenir devant le panneau. Ouvrez Panel Assistant dans la barre latérale et choisissez {panel}. Sur sa page Configurer, sous Présence et réveil, sélectionnez Configurer la proximité sur le panneau, puis suivez les instructions à l’écran du panneau. Vous pouvez aussi la lancer sur le panneau lui-même avec Ouvrir la configuration de proximité sur son tableau de bord. Quand le panneau indique que l’étalonnage est enregistré, revenez ici et sélectionnez Envoyer."
+            "description": "Tant que son capteur de proximité n’est pas configuré, {panel} ne peut pas se réveiller d’un geste de la main. La configuration prend environ une minute et vous devez vous tenir devant le panneau. Ouvrez Panel Assistant dans la barre latérale et choisissez {panel}. Sur sa page Configurer, sous Présence et réveil, sélectionnez Configurer la proximité sur le panneau, puis suivez les instructions à l’écran du panneau. Vous pouvez aussi la lancer sur le panneau lui-même avec Ouvrir la configuration de proximité sur son tableau de bord. Quand le panneau indique que l’étalonnage est enregistré, revenez ici et sélectionnez Valider."
           }
         },
         "error": {
-          "proximity_not_calibrated": "Le panneau indique toujours que la proximité n’est pas configurée. Terminez la configuration sur le panneau, puis envoyez à nouveau.",
-          "proximity_calibrating": "La configuration est toujours en cours sur le panneau. Terminez-la, puis envoyez à nouveau.",
-          "proximity_unreadable": "Home Assistant n’a pas pu lire l’état de proximité du panneau. Vérifiez sa connexion, puis envoyez à nouveau."
+          "proximity_not_calibrated": "Le panneau indique toujours que la proximité n’est pas configurée. Terminez la configuration sur le panneau, puis validez à nouveau.",
+          "proximity_calibrating": "La configuration est toujours en cours sur le panneau. Terminez-la, puis validez à nouveau.",
+          "proximity_unreadable": "Home Assistant n’a pas pu lire l’état de proximité du panneau. Vérifiez sa connexion, puis validez à nouveau."
         },
         "abort": {
           "entry_removed": "Ce panneau a été supprimé."
@@ -889,15 +889,15 @@
     },
     "voice_microphone_silent": {
       "title": "L'assistant vocal de {panel} n'écoute pas.",
-      "description": "L'assistant vocal de {panel} n'écoute pas, car son microphone n'a enregistré que du silence lorsque le panneau l'a vérifié. Pour vérifier à nouveau, désactivez puis réactivez l'assistant vocal sur la page Configure du panneau, ou choisissez-y une autre source audio."
+      "description": "L'assistant vocal de {panel} n'écoute pas, car son microphone n'a enregistré que du silence lorsque le panneau l'a vérifié. Pour vérifier à nouveau, désactivez puis réactivez l'assistant vocal sur la page Configurer du panneau, ou choisissez-y une autre source audio."
     },
     "voice_microphone_no_audio": {
       "title": "L'assistant vocal de {panel} n'écoute pas.",
-      "description": "L'assistant vocal de {panel} n'écoute pas, car son microphone n'a fourni aucun son lorsque le panneau l'a vérifié. Pour vérifier à nouveau, désactivez puis réactivez l'assistant vocal sur la page Configure du panneau, ou choisissez-y une autre source audio."
+      "description": "L'assistant vocal de {panel} n'écoute pas, car son microphone n'a fourni aucun son lorsque le panneau l'a vérifié. Pour vérifier à nouveau, désactivez puis réactivez l'assistant vocal sur la page Configurer du panneau, ou choisissez-y une autre source audio."
     },
     "voice_microphone_no_audio_detail": {
       "title": "L'assistant vocal de {panel} n'écoute pas.",
-      "description": "L'assistant vocal de {panel} n'écoute pas, car son microphone n'a fourni aucun son lorsque le panneau l'a vérifié. Pour vérifier à nouveau, désactivez puis réactivez l'assistant vocal sur la page Configure du panneau, ou choisissez-y une autre source audio. Le panneau a signalé : {detail}"
+      "description": "L'assistant vocal de {panel} n'écoute pas, car son microphone n'a fourni aucun son lorsque le panneau l'a vérifié. Pour vérifier à nouveau, désactivez puis réactivez l'assistant vocal sur la page Configurer du panneau, ou choisissez-y une autre source audio. Le panneau a signalé : {detail}"
     },
     "volume_number_removed": {
       "title": "{panel} n'a plus de nombre de volume séparé",
@@ -960,11 +960,11 @@
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
           }
         },
         "progress": {
@@ -1002,11 +1002,11 @@
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
           }
         },
         "progress": {
@@ -1044,11 +1044,11 @@
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
           }
         },
         "progress": {
@@ -1086,11 +1086,11 @@
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
           }
         },
         "progress": {
@@ -1128,11 +1128,11 @@
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
           }
         },
         "progress": {
@@ -1170,11 +1170,11 @@
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
           }
         },
         "progress": {
@@ -1212,11 +1212,11 @@
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
           }
         },
         "progress": {
@@ -1254,11 +1254,11 @@
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
           }
         },
         "progress": {
@@ -1296,11 +1296,11 @@
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
           }
         },
         "progress": {
@@ -1338,11 +1338,11 @@
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
           }
         },
         "progress": {
@@ -1381,11 +1381,11 @@
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
           },
           "authorize_adb": {
             "title": "Autoriser les mises à jour sur {panel}",
@@ -1443,11 +1443,11 @@
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
           }
         },
         "progress": {
@@ -1490,7 +1490,7 @@
       "fix_flow": {
         "step": {
           "confirm_identity": {
-            "title": "Conserver les configurations indiquées",
+            "title": "Conserver les configurations des panneaux indiqués",
             "description": "Conserver les entités et les paramètres existants de tous ces panneaux ?\n\n{panels}\n\nValidez une seule fois pour confirmer tous les panneaux indiqués."
           }
         },
@@ -1523,11 +1523,11 @@
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des réparations. Le panneau ne sera pas modifié. Sélectionnez Envoyer pour effacer l'erreur."
+            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
           },
           "authorize_adb": {
             "title": "Autoriser les mises à jour sur {panel}",
@@ -1659,16 +1659,16 @@
       "retained_or_ambiguous": "Le panneau peut contenir un enregistrement conservé du paquet Panel Assistant, ou il n'a pas été possible de confirmer qu'aucune trace de ce paquet n'y subsiste. Le panneau n'a pas été modifié. Réessayez une fois si la connexion était instable ; sinon, suivez les étapes décrites à l'adresse {recovery_address}. Ne désinstallez pas et ne réinitialisez pas l'application sans disposer d'une sauvegarde vérifiée.",
       "unknown": "Erreur inattendue",
       "panel_identity_changed": "Cette adresse ne répond plus comme le panneau configuré. Vérifiez le panneau et son adresse avant de réessayer.",
-      "removal_busy": "Une mise à jour ou un déplacement modifie déjà ce panneau. Rien n'a été retiré ; réessayez une fois l'opération terminée.",
+      "removal_busy": "Une autre opération modifie déjà ce panneau. Rien n'a été retiré ; réessayez une fois l'opération terminée.",
       "removal_adb_unreachable": "Home Assistant n'a pas pu joindre le panneau via Android Debug Bridge (port 5555). Rien n'a été retiré. Vérifiez que le panneau est allumé et que le débogage réseau est toujours activé, puis réessayez.",
-      "removal_adb_authorization": "Le panneau n’a pas accepté cette instance de Home Assistant pour Android Debug Bridge. Rien n’a été supprimé. Choisissez d’abord « Autoriser les mises à jour », puis réessayez.",
+      "removal_adb_authorization": "Le panneau n’a pas accepté cette instance de Home Assistant pour Android Debug Bridge. Rien n’a été retiré. Choisissez d’abord « Autoriser les mises à jour », puis réessayez.",
       "removal_panel_changed": "Un autre appareil répond maintenant à l'adresse de ce panneau. Rien n'a été retiré.",
       "removal_approval_required": "La sécurité renforcée est activée. La restitution de l’écran d’accueil doit donc être approuvée sur le panneau lui-même. Rien n’a été modifié et Panel Assistant est toujours installé. Approuvez la demande sur le panneau, puis envoyez à nouveau le formulaire.",
       "removal_no_replacement_home": "Le panneau n'a pas pu confier son écran d'accueil à un autre lanceur : aucune autre application d'écran d'accueil n'y est installée, Panel Assistant est donc la seule chose qu'il peut afficher. Rien n'a été retiré et le panneau fonctionne toujours. Installez un lanceur ou réactivez celui du fabricant, puis réessayez.",
       "removal_ownership_unreadable": "Le panneau n'a pas pu lire son propre relevé des applications du fabricant qu'il a désactivées. Rien n'a été retiré. Relancez Panel Assistant sur le panneau, puis réessayez.",
       "removal_package_state_unknown": "Le panneau n'a pas pu lire quelles applications sont installées ni laquelle est son écran d'accueil. Rien n'a été retiré. Réessayez dans un instant.",
       "removal_home_not_handed": "Le panneau n'a pas confirmé qu'un autre lanceur a pris son écran d'accueil ; Panel Assistant n'a donc pas été retiré. Installez un lanceur ou réactivez celui du fabricant, puis réessayez.",
-      "removal_hand_back_unsupported": "L’application Panel Assistant sur ce panneau est trop ancienne pour restituer son écran d’accueil. Rien n’a été supprimé. Mettez-la d’abord à jour, puis réessayez.",
+      "removal_hand_back_unsupported": "L’application Panel Assistant sur ce panneau est trop ancienne pour restituer son écran d’accueil. Rien n’a été retiré. Mettez-la d’abord à jour, puis réessayez.",
       "removal_app_unreachable": "Panel Assistant n'a pas répondu et c'est toujours l'écran d'accueil du panneau ; le retirer maintenant laisserait le panneau sans écran d'accueil. Rien n'a été retiré. Lancez Panel Assistant sur le panneau, puis réessayez.",
       "removal_remove_failed": "Le panneau a déjà récupéré son écran d'accueil, mais Panel Assistant n'a pas pu être retiré entièrement. Réessayez : une nouvelle tentative termine ce qui reste.",
       "panel_not_connected": "Le panneau ne s'est pas encore connecté. Terminez les étapes sur sa page de configuration, puis cliquez de nouveau sur Terminé."

@@ -7,8 +7,8 @@
         "title": "Een paneel instellen",
         "description": "Voeg een paneel op je netwerk toe, of installeer Panel Assistant op een paneel dat op deze computer is aangesloten.",
         "menu_options": {
-          "add_panel": "Voeg een paneel op je netwerk toe",
-          "install_usb": "Installeer via USB op deze computer"
+          "add_panel": "Een paneel op je netwerk toevoegen",
+          "install_usb": "Via USB op deze computer installeren"
         },
         "menu_option_descriptions": {
           "add_panel": "Voer het adres van het paneel in. Home Assistant maakt verbinding als Panel Assistant actief is, of biedt aan om Panel Assistant te installeren als dat niet het geval is.",
@@ -18,7 +18,7 @@
       "install_usb": {
         "title": "Installeer via USB",
         "description": "Sluit het paneel aan op deze computer, niet op de Home Assistant-server. USB-foutopsporing moet aan staan in de ontwikkelaarsopties van het paneel; de [modelspecifieke handleiding voor toegang tot het paneel]({panel_access_url}) laat zien hoe.",
-        "submit": "Open het USB-installatieprogramma"
+        "submit": "Het USB-installatieprogramma openen"
       },
       "add_panel": {
         "title": "Een paneel toevoegen",
@@ -39,16 +39,16 @@
         "description": "De app Panel Assistant {version} is geïnstalleerd en ingesteld op {address}, maar is nog niet verbonden met Home Assistant. Verbind de app om af te ronden.",
         "menu_options": {
           "connect_found": "Verbind met Home Assistant",
-          "add_panel": "Gebruik een ander adres"
+          "add_panel": "Een ander adres gebruiken"
         }
       },
       "found_unconfigured": {
         "title": "Rond de installatie van dit paneel af",
         "description": "De app Panel Assistant {version} is geïnstalleerd op {address}, maar de installatie is nog niet voltooid en het paneel is nog niet verbonden met Home Assistant. Home Assistant kan de installatiewizard van het paneel openen en het paneel verbinden zodra de installatie klaar is.",
         "menu_options": {
-          "panel_setup": "Open de installatiewizard",
-          "connect_found": "Sla de installatie over en maak nu verbinding",
-          "add_panel": "Gebruik een ander adres"
+          "panel_setup": "De installatiewizard openen",
+          "connect_found": "Installatie overslaan en nu verbinden",
+          "add_panel": "Een ander adres gebruiken"
         },
         "menu_option_descriptions": {
           "connect_found": "Verbindt het paneel met Home Assistant zonder eerst de eigen instelling af te ronden."
@@ -67,7 +67,7 @@
       },
       "confirm_migration": {
         "title": "Paneel gevonden via {source}",
-        "description": "Home Assistant kent **{name}** via {source} op {address}. Verstuur om het paneel te controleren en de app van Panel Assistant erop te installeren. {source} en het bijbehorende apparaat blijven zoals ze zijn."
+        "description": "Home Assistant kent **{name}** via {source} op {address}. Klik op ‘Verzenden’ om het paneel te controleren en de app van Panel Assistant erop te installeren. {source} en het bijbehorende apparaat blijven zoals ze zijn."
       },
       "confirm_discovery": {
         "title": "Bevestig het gevonden paneel",
@@ -139,7 +139,7 @@
       "invalid_discovery": "Er kon niet worden aangetoond dat het gevonden paneel dezelfde werkende Panel Assistant-installatie was. Er is geen Home Assistant-item of paneelinstelling gewijzigd.",
       "install_cancelled": "De installatie is geannuleerd voordat er een APK was geïnstalleerd. Er is geen Home Assistant-item aangemaakt. Voeg de Panel Assistant-integratie toe en voer hetzelfde paneeladres in om het nog eens te proberen.",
       "install_cancelled_after_staging_cleanup": "De installatie is geannuleerd en de klaargezette APK is vóór de installatie verwijderd. Er is geen Home Assistant-item aangemaakt. Voeg de Panel Assistant-integratie toe en voer hetzelfde paneeladres in om het nog eens te proberen.",
-      "install_authorization_failed": "Home Assistant kon de opgeslagen inloggegevens van ADB niet veilig laden of valideren. Er was geen APK geïnstalleerd. Controleer de opslag en logbestanden van Home Assistant, voeg vervolgens de Panel Assistant-integratie toe en voer hetzelfde adres in om het nog eens te proberen.",
+      "install_authorization_failed": "Home Assistant kon de opgeslagen inloggegevens van ADB niet veilig laden of valideren. Er is geen APK geïnstalleerd. Controleer de opslag en logbestanden van Home Assistant, voeg vervolgens de Panel Assistant-integratie toe en voer hetzelfde adres in om het nog eens te proberen.",
       "install_preflight_rejected": "Er kon niet langer worden aangetoond dat het paneel een schoon, compatibel installatiedoel was. Er is geen APK geïnstalleerd. Controleer het paneel zoals beschreven op [{recovery_address}]({recovery_url}) en begin daarna opnieuw met hetzelfde adres.",
       "install_artifact_rejected": "Home Assistant heeft de download of het klaarzetten van de release vóór de installatie van het pakket afgewezen. Er is geen APK geïnstalleerd. Controleer de internetverbinding, opslagruimte en logbestanden van Home Assistant en begin dan opnieuw met hetzelfde adres.",
       "install_transport_failed": "Home Assistant kon de verbinding, het downloaden of het klaarzetten vóór de installatie niet voltooien. Er is geen APK geïnstalleerd. Controleer het paneel, het netwerk, de internettoegang van Home Assistant en de logbestanden, en begin dan opnieuw met hetzelfde adres.",
@@ -736,7 +736,7 @@
         "name": "Aanraakgeluid"
       },
       "wake_on_wave": {
-        "name": "Activeren met een zwaaibeweging"
+        "name": "Wekken door zwaaien"
       },
       "watchdog": {
         "name": "Bewakingsfunctie"
@@ -772,7 +772,7 @@
       "message": "Het paneel is bezig met een andere bewerking"
     },
     "update_approval_required": {
-      "message": "Bevestig deze update op het paneel en probeer het dan nog eens"
+      "message": "Keur deze update goed op het paneel en probeer het dan nog eens"
     },
     "update_rejected": {
       "message": "{panel} heeft het updateverzoek geweigerd. Controleer het tabblad Installeren op het paneel en probeer het opnieuw."
@@ -884,7 +884,7 @@
         "step": {
           "commission_permissions": {
             "title": "Machtigingen op {panel} controleren",
-            "description": "Het dashboard op {panel} blijft beschikbaar. Open op het fysieke paneel Android-instellingen → Apps → Panel Assistant. Sta toegang tot camera en microfoon toe waar vermeld, en meldingen. Sta onder Speciale app-toegang Systeeminstellingen aanpassen en Weergeven over andere apps toe voor Panel Assistant. Schakel onder Toegankelijkheid de Panel Assistant-service in. Als de navigatiebalk is ingesteld op Veeg om te tonen of Altijd aan en Weergeven over andere apps ontbreekt, opent omhoog vegen vanaf de onderkant van het dashboard in plaats daarvan de instelling Weergeven over andere apps: sta dit toe, ga terug en veeg opnieuw omhoog. Kom hier terug en selecteer Verzenden om de rechten opnieuw te controleren."
+            "description": "Het dashboard op {panel} blijft beschikbaar. Open op het fysieke paneel Android-instellingen → Apps → Panel Assistant. Sta toegang tot camera en microfoon toe waar vermeld, en meldingen. Sta onder Speciale app-toegang Systeeminstellingen aanpassen en Weergeven over andere apps toe voor Panel Assistant. Schakel onder Toegankelijkheid de Panel Assistant-service in. Als de navigatiebalk is ingesteld op Veeg om te tonen of Altijd aan en Weergeven over andere apps ontbreekt, opent omhoog vegen vanaf de onderkant van het dashboard in plaats daarvan de instelling Weergeven over andere apps: sta dit toe, ga terug en veeg opnieuw omhoog. Kom hier terug en selecteer Verzenden om de machtigingen opnieuw te controleren."
           }
         },
         "error": {
@@ -917,15 +917,15 @@
     },
     "voice_microphone_silent": {
       "title": "De spraakassistent op {panel} luistert niet.",
-      "description": "De spraakassistent op {panel} luistert niet, omdat de microfoon alleen stilte opnam toen het paneel hem controleerde. Zet de spraakassistent uit en weer aan op de Configure-pagina van het paneel, of kies daar een andere audiobron, om opnieuw te controleren."
+      "description": "De spraakassistent op {panel} luistert niet, omdat de microfoon alleen stilte opnam toen het paneel hem controleerde. Zet de spraakassistent uit en weer aan op de pagina 'Configureren' van het paneel, of kies daar een andere audiobron, om opnieuw te controleren."
     },
     "voice_microphone_no_audio": {
       "title": "De spraakassistent op {panel} luistert niet.",
-      "description": "De spraakassistent op {panel} luistert niet, omdat de microfoon geen geluid leverde toen het paneel hem controleerde. Zet de spraakassistent uit en weer aan op de Configure-pagina van het paneel, of kies daar een andere audiobron, om opnieuw te controleren."
+      "description": "De spraakassistent op {panel} luistert niet, omdat de microfoon geen geluid leverde toen het paneel hem controleerde. Zet de spraakassistent uit en weer aan op de pagina 'Configureren' van het paneel, of kies daar een andere audiobron, om opnieuw te controleren."
     },
     "voice_microphone_no_audio_detail": {
       "title": "De spraakassistent op {panel} luistert niet.",
-      "description": "De spraakassistent op {panel} luistert niet, omdat de microfoon geen geluid leverde toen het paneel hem controleerde. Zet de spraakassistent uit en weer aan op de Configure-pagina van het paneel, of kies daar een andere audiobron, om opnieuw te controleren. Het paneel meldde: {detail}"
+      "description": "De spraakassistent op {panel} luistert niet, omdat de microfoon geen geluid leverde toen het paneel hem controleerde. Zet de spraakassistent uit en weer aan op de pagina 'Configureren' van het paneel, of kies daar een andere audiobron, om opnieuw te controleren. Het paneel meldde: {detail}"
     },
     "volume_number_removed": {
       "title": "{panel} heeft geen apart volumegetal meer",
@@ -1687,16 +1687,16 @@
       "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket Panel Assistant, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de stappen op {recovery_address}. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
       "unknown": "Onverwachte fout",
       "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert.",
-      "removal_busy": "Een update of verhuizing wijzigt dit paneel al. Er is niets weggehaald; probeer het opnieuw als die klaar is.",
-      "removal_adb_unreachable": "Home Assistant kon het paneel niet bereiken via de Android Debug Bridge (poort 5555). Er is niets weggehaald. Controleer of het paneel aan staat en debuggen via het netwerk nog is ingeschakeld, en probeer het opnieuw.",
-      "removal_adb_authorization": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd voor de Android Debug Bridge. Er is niets verwijderd. Kies eerst ‘Updates toestaan’ en probeer het daarna opnieuw.",
+      "removal_busy": "Een andere bewerking wijzigt dit paneel al. Er is niets weggehaald; probeer het opnieuw als die klaar is.",
+      "removal_adb_unreachable": "Home Assistant kon het paneel niet bereiken via de Android Debug Bridge (poort 5555). Er is niets weggehaald. Controleer of het paneel aan staat en foutopsporing via het netwerk nog is ingeschakeld, en probeer het opnieuw.",
+      "removal_adb_authorization": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd voor de Android Debug Bridge. Er is niets weggehaald. Kies eerst ‘Updates toestaan’ en probeer het daarna opnieuw.",
       "removal_panel_changed": "Op het adres van dit paneel antwoordt nu een ander apparaat. Er is niets weggehaald.",
       "removal_approval_required": "Verhoogde beveiliging is ingeschakeld. Daarom moet het teruggeven van het startscherm op het paneel zelf worden goedgekeurd. Er is niets gewijzigd en Panel Assistant is nog steeds geïnstalleerd. Keur het verzoek op het paneel goed en verzend het formulier daarna opnieuw.",
       "removal_no_replacement_home": "Het paneel kon zijn startscherm niet aan een andere launcher geven: er staat geen andere startscherm-app op, dus Panel Assistant is het enige wat het kan tonen. Er is niets weggehaald en het paneel werkt nog. Installeer een launcher of zet die van de fabrikant weer aan, en probeer het opnieuw.",
       "removal_ownership_unreadable": "Het paneel kon zijn eigen overzicht van de uitgeschakelde fabrikantapps niet lezen. Er is niets weggehaald. Start Panel Assistant opnieuw op het paneel en probeer het daarna nog eens.",
       "removal_package_state_unknown": "Het paneel kon niet lezen welke apps zijn geïnstalleerd of welke zijn startscherm is. Er is niets weggehaald. Probeer het zo meteen opnieuw.",
       "removal_home_not_handed": "Het paneel bevestigde niet dat een andere launcher het startscherm heeft overgenomen, dus Panel Assistant is niet weggehaald. Installeer een launcher of zet die van de fabrikant weer aan, en probeer het opnieuw.",
-      "removal_hand_back_unsupported": "De Panel Assistant-app op dit paneel is te oud om het startscherm terug te geven. Er is niets verwijderd. Werk de app eerst bij en probeer het daarna opnieuw.",
+      "removal_hand_back_unsupported": "De Panel Assistant-app op dit paneel is te oud om het startscherm terug te geven. Er is niets weggehaald. Werk de app eerst bij en probeer het daarna opnieuw.",
       "removal_app_unreachable": "Panel Assistant antwoordde niet en is nog het startscherm van het paneel; nu weghalen zou het paneel zonder startscherm laten. Er is niets weggehaald. Start Panel Assistant op het paneel en probeer het opnieuw.",
       "removal_remove_failed": "Het paneel heeft zijn startscherm al terug, maar Panel Assistant kon niet volledig worden weggehaald. Probeer het opnieuw: een nieuwe poging maakt de rest af.",
       "panel_not_connected": "Het paneel heeft nog geen verbinding gemaakt. Rond de stappen op de installatiepagina af en klik dan opnieuw op Klaar."

@@ -18,7 +18,7 @@
       "install_usb": {
         "title": "Über USB installieren",
         "description": "Schließe das Panel an diesen Computer an, nicht an den Server von Home Assistant. USB-Debugging muss in den Entwicklereinstellungen des Panels aktiviert sein; die [modellspezifische Anleitung für den Panelzugriff]({panel_access_url}) zeigt, wie das geht.",
-        "submit": "Öffne das USB-Installationsprogramm"
+        "submit": "USB-Installationsprogramm öffnen"
       },
       "add_panel": {
         "title": "Panel hinzufügen",
@@ -99,7 +99,7 @@
       "installing": "Panel Assistant wird unter {address} installiert. Lass diesen Dialog geöffnet; der Vorgang wird von selbst abgeschlossen.\n\nWenn du ihn schließt, läuft die Installation weiter. Füge dieselbe Adresse erneut hinzu, um den Vorgang abzuschließen."
     },
     "error": {
-      "old_app_installed": "Auf diesem Panel läuft noch die alte ha-paneld-App. Panel Assistant 1.0 kann es nicht in die neue App umziehen und installiert nichts daneben. Installiere zuerst Panel Assistant 0.9.0 (öffne in HACS Panel Assistant, wähle Redownload und dann Version 0.9.0), füge das Panel hinzu, zieh es mit seiner Reparatur um und installiere danach 1.0.0.",
+      "old_app_installed": "Auf diesem Panel läuft noch die alte ha-paneld-App. Panel Assistant 1.0 kann es nicht in die neue App umziehen und installiert nichts daneben. Installiere zuerst Panel Assistant 0.9.0 (öffne in HACS Panel Assistant, wähle „Erneut herunterladen“ und dann Version 0.9.0), füge das Panel hinzu, zieh es mit seiner Reparatur um und installiere danach 1.0.0.",
       "cannot_connect": "Es konnte keine Verbindung zu einem gültigen Funktionsstatus-Endpunkt von Panel Assistant hergestellt werden.",
       "invalid_address": "Gib einen Hostnamen oder eine IP-Adresse ohne URL-Schema oder Pfad ein.",
       "invalid_install_address": "Gib nur den Hostnamen oder die IP-Adresse des Panels ein.",
@@ -130,7 +130,7 @@
       "release_selection_required": "Wähle eine Version aus der Liste."
     },
     "abort": {
-      "old_app_installed": "Auf diesem Panel läuft noch die alte ha-paneld-App. Panel Assistant 1.0 kann es nicht in die neue App umziehen und installiert nichts daneben. Installiere zuerst Panel Assistant 0.9.0 (öffne in HACS Panel Assistant, wähle Redownload und dann Version 0.9.0), füge das Panel hinzu, zieh es mit seiner Reparatur um und installiere danach 1.0.0.",
+      "old_app_installed": "Auf diesem Panel läuft noch die alte ha-paneld-App. Panel Assistant 1.0 kann es nicht in die neue App umziehen und installiert nichts daneben. Installiere zuerst Panel Assistant 0.9.0 (öffne in HACS Panel Assistant, wähle „Erneut herunterladen“ und dann Version 0.9.0), füge das Panel hinzu, zieh es mit seiner Reparatur um und installiere danach 1.0.0.",
       "already_configured": "Dieses Panel ist bereits konfiguriert.",
       "reinstall_successful": "Die App wurde erneut installiert. Der Verlauf und die Einstellungen dieses Panels in Home Assistant bleiben erhalten.",
       "usb_installed": "Panel Assistant ist installiert und das Panel wurde zu Home Assistant hinzugefügt. Schließe die Einrichtung des Panels im Installationsfenster ab.",
@@ -767,11 +767,11 @@
     },
     "update_unavailable": { "message": "Das angeforderte Panel Assistant-Update ist nicht verfügbar" },
     "update_busy": { "message": "Das Panel ist mit einem anderen Vorgang beschäftigt" },
-    "update_approval_required": { "message": "Genehmigen Sie dieses Update auf dem Panel und versuchen Sie es erneut" },
+    "update_approval_required": { "message": "Genehmige dieses Update auf dem Panel und versuche es erneut" },
     "update_rejected": { "message": "{panel} hat die Update-Anfrage abgelehnt. Prüfe den Tab „Installieren“ auf dem Panel und versuche es erneut." },
     "update_refused_by_panel": { "message": "{panel} hat das Update abgelehnt: {reason}" },
-    "panel_changed_during_update": { "message": "Das Panel hat sich während des Updates geändert. Aktualisieren Sie die Ansicht und versuchen Sie es erneut." },
-    "release_download_failed": { "message": "Die App-Version konnte nicht heruntergeladen werden. Prüfen Sie die Verbindung und versuchen Sie es erneut." },
+    "panel_changed_during_update": { "message": "Das Panel hat sich während des Updates geändert. Aktualisiere die Ansicht und versuche es erneut." },
+    "release_download_failed": { "message": "Die App-Version konnte nicht heruntergeladen werden. Prüfe die Verbindung und versuche es erneut." },
     "staged_app_mismatch": { "message": "Die bereitgestellte App stimmte nicht mit den signierten Versionsangaben überein. Es wurde nichts installiert." },
     "update_not_accepted": { "message": "Das Panel hat die Update-Anfrage nicht angenommen" },
     "update_not_complete": { "message": "Das Panel-Update wurde nicht abgeschlossen" },
@@ -844,11 +844,11 @@
     },
     "old_app_needs_090": {
       "title": "Auf {panel} läuft noch die alte App",
-      "description": "Auf {panel} läuft noch die alte ha-paneld-App. Panel Assistant 1.0 kann kein Panel mehr in die neue App umziehen und installiert oder aktualisiert daher nichts auf {panel}, bis es umgezogen ist. Installiere zuerst Panel Assistant 0.9.0 (öffne in HACS Panel Assistant, wähle Redownload und dann Version 0.9.0), zieh das Panel mit seiner Reparatur um und installiere danach 1.0.0. Bis dahin funktioniert das Panel mit der alten App weiter."
+      "description": "Auf {panel} läuft noch die alte ha-paneld-App. Panel Assistant 1.0 kann kein Panel mehr in die neue App umziehen und installiert oder aktualisiert daher nichts auf {panel}, bis es umgezogen ist. Installiere zuerst Panel Assistant 0.9.0 (öffne in HACS Panel Assistant, wähle „Erneut herunterladen“ und dann Version 0.9.0), zieh das Panel mit seiner Reparatur um und installiere danach 1.0.0. Bis dahin funktioniert das Panel mit der alten App weiter."
     },
     "mqtt_panel_needs_090": {
       "title": "{panel} wurde nie von MQTT umgezogen",
-      "description": "Panel Assistant 1.0 kann {panel} nicht mehr von MQTT auf die eigene Verbindung umziehen, und eine Verbindung jetzt würde einen zweiten Satz Entitäten anlegen und den Verlauf teilen. Installiere zuerst Panel Assistant 0.9.0 (öffne in HACS Panel Assistant, wähle Redownload und dann Version 0.9.0), lass das Panel umziehen und installiere danach 1.0.0. Wenn du lieber neu anfangen möchtest, lösche das Gerät dieses Panels unter Einstellungen, Geräte & Dienste, MQTT, lade dann diesen Eintrag neu oder entferne ihn und füge das Panel erneut hinzu; dabei entstehen neue Entitäten und es bleibt kein Verlauf erhalten."
+      "description": "Panel Assistant 1.0 kann {panel} nicht mehr von MQTT auf die eigene Verbindung umziehen, und eine Verbindung jetzt würde einen zweiten Satz Entitäten anlegen und den Verlauf aufspalten. Installiere zuerst Panel Assistant 0.9.0 (öffne in HACS Panel Assistant, wähle „Erneut herunterladen“ und dann Version 0.9.0), lass das Panel umziehen und installiere danach 1.0.0. Wenn du lieber neu anfangen möchtest, lösche das Gerät dieses Panels unter Einstellungen, Geräte & Dienste, MQTT, lade dann diesen Eintrag neu oder entferne ihn und füge das Panel erneut hinzu; dabei entstehen neue Entitäten und es bleibt kein Verlauf erhalten."
     },
     "panel_permissions": {
       "title": "Berechtigungen auf {panel} erfordern Aufmerksamkeit.",
@@ -856,7 +856,7 @@
         "step": {
           "commission_permissions": {
             "title": "Berechtigungen auf {panel} prüfen",
-            "description": "Das Dashboard auf {panel} bleibt verfügbar. Öffne auf dem physischen Panel Android-Einstellungen → Apps → Panel Assistant. Erlaube den Zugriff auf Kamera und Mikrofon, sofern aufgeführt, sowie Benachrichtigungen. Erlaube unter „Spezieller App-Zugriff“ für Panel Assistant „Systemeinstellungen ändern“ und „Über anderen Apps einblenden“. Aktiviere unter „Bedienungshilfen“ den Dienst Panel Assistant. Wenn die Navigationsleiste auf „Durch Wischen einblenden“ oder „Immer sichtbar“ eingestellt ist und „Über anderen Apps einblenden“ fehlt, öffnet das Wischen vom unteren Rand des Dashboards nach oben stattdessen die Einstellung „Über anderen Apps einblenden“: Erlaube sie, geh zurück und wische erneut nach oben. Kehre hierher zurück und wähle „Senden“, um die Berechtigungen erneut zu prüfen."
+            "description": "Das Dashboard auf {panel} bleibt verfügbar. Öffne auf dem physischen Panel Android-Einstellungen → Apps → Panel Assistant. Erlaube den Zugriff auf Kamera und Mikrofon, sofern aufgeführt, sowie Benachrichtigungen. Erlaube unter „Spezieller App-Zugriff“ für Panel Assistant „Systemeinstellungen ändern“ und „Über anderen Apps einblenden“. Aktiviere unter „Bedienungshilfen“ den Dienst Panel Assistant. Wenn die Navigationsleiste auf „Durch Wischen einblenden“ oder „Immer sichtbar“ eingestellt ist und „Über anderen Apps einblenden“ fehlt, öffnet das Wischen vom unteren Rand des Dashboards nach oben stattdessen die Einstellung „Über anderen Apps einblenden“: Erlaube sie, geh zurück und wische erneut nach oben. Kehre hierher zurück und wähle „OK“, um die Berechtigungen erneut zu prüfen."
           }
         },
         "error": {
@@ -874,7 +874,7 @@
         "step": {
           "set_up_proximity": {
             "title": "Näherung auf {panel} einrichten",
-            "description": "Bis sein Näherungssensor eingerichtet ist, kann {panel} nicht durch Winken aufgeweckt werden. Die Einrichtung dauert etwa eine Minute und erfordert, dass du dich vor dem Panel befindest. Öffne Panel Assistant in der Seitenleiste und wähle {panel}. Wähle auf seiner Seite „Konfigurieren“ unter „Anwesenheit & Aufwecken“ die Option „Näherung auf dem Panel einrichten“ und folge dann den Anweisungen auf dem Bildschirm des Panels. Du kannst die Einrichtung auch direkt am Panel über „Näherungssensor einrichten“ auf dessen Dashboard starten. Wenn das Panel meldet, dass die Kalibrierung gespeichert ist, kehre hierher zurück und wähle „Absenden“."
+            "description": "Bis sein Näherungssensor eingerichtet ist, kann {panel} nicht durch Winken aufgeweckt werden. Die Einrichtung dauert etwa eine Minute und erfordert, dass du dich vor dem Panel befindest. Öffne Panel Assistant in der Seitenleiste und wähle {panel}. Wähle auf seiner Seite „Konfiguration“ unter „Anwesenheit & Aufwecken“ die Option „Näherung auf dem Panel einrichten“ und folge dann den Anweisungen auf dem Bildschirm des Panels. Du kannst die Einrichtung auch direkt am Panel über „Näherungssensor einrichten“ auf dessen Dashboard starten. Wenn das Panel meldet, dass die Kalibrierung gespeichert ist, kehre hierher zurück und wähle „OK“."
           }
         },
         "error": {
@@ -889,15 +889,15 @@
     },
     "voice_microphone_silent": {
       "title": "Der Sprachassistent auf {panel} hört nicht zu.",
-      "description": "Der Sprachassistent auf {panel} hört nicht zu, weil sein Mikrofon bei der Prüfung durch das Panel nur Stille aufgenommen hat. Um erneut zu prüfen, schalte den Sprachassistenten auf der Configure-Seite des Panels aus und wieder ein oder wähle dort eine andere Audioquelle."
+      "description": "Der Sprachassistent auf {panel} hört nicht zu, weil sein Mikrofon bei der Prüfung durch das Panel nur Stille aufgenommen hat. Um erneut zu prüfen, schalte den Sprachassistenten auf der Seite „Konfiguration“ des Panels aus und wieder ein oder wähle dort eine andere Audioquelle."
     },
     "voice_microphone_no_audio": {
       "title": "Der Sprachassistent auf {panel} hört nicht zu.",
-      "description": "Der Sprachassistent auf {panel} hört nicht zu, weil sein Mikrofon bei der Prüfung durch das Panel keinen Ton geliefert hat. Um erneut zu prüfen, schalte den Sprachassistenten auf der Configure-Seite des Panels aus und wieder ein oder wähle dort eine andere Audioquelle."
+      "description": "Der Sprachassistent auf {panel} hört nicht zu, weil sein Mikrofon bei der Prüfung durch das Panel keinen Ton geliefert hat. Um erneut zu prüfen, schalte den Sprachassistenten auf der Seite „Konfiguration“ des Panels aus und wieder ein oder wähle dort eine andere Audioquelle."
     },
     "voice_microphone_no_audio_detail": {
       "title": "Der Sprachassistent auf {panel} hört nicht zu.",
-      "description": "Der Sprachassistent auf {panel} hört nicht zu, weil sein Mikrofon bei der Prüfung durch das Panel keinen Ton geliefert hat. Um erneut zu prüfen, schalte den Sprachassistenten auf der Configure-Seite des Panels aus und wieder ein oder wähle dort eine andere Audioquelle. Das Panel meldete: {detail}"
+      "description": "Der Sprachassistent auf {panel} hört nicht zu, weil sein Mikrofon bei der Prüfung durch das Panel keinen Ton geliefert hat. Um erneut zu prüfen, schalte den Sprachassistenten auf der Seite „Konfiguration“ des Panels aus und wieder ein oder wähle dort eine andere Audioquelle. Das Panel meldete: {detail}"
     },
     "volume_number_removed": {
       "title": "{panel} hat keine separate Lautstärke-Zahl mehr",
@@ -909,7 +909,7 @@
           "step": {
             "confirm_restart": {
               "title": "Home Assistant neu starten",
-              "description": "Panel Assistant {installed} ist installiert, aber Home Assistant führt noch {loaded} aus. Die neue Version ist erst nach einem Neustart von Home Assistant aktiv. Wähle Absenden, um Home Assistant jetzt neu zu starten."
+              "description": "Panel Assistant {installed} ist installiert, aber Home Assistant führt noch {loaded} aus. Die neue Version ist erst nach einem Neustart von Home Assistant aktiv. Wähle OK, um Home Assistant jetzt neu zu starten."
             }
           }
         }
@@ -935,7 +935,7 @@
     },
     "no_update_route": {
       "title": "{panel} kann keine App-Updates empfangen",
-      "description": "Panel Assistant kann auf {panel} keine App-Updates installieren, daher bleibt die App auf der aktuellen Version. Alles andere am Panel funktioniert weiter, weshalb dies leicht zu übersehen ist. Meist folgt es auf eine Änderung am Panel selbst, etwa ein Firmware-Update oder ein Zurücksetzen. Verbinde das Panel erneut per USB mit Panel Assistant, um Updates wiederherzustellen. Wähle Mehr erfahren für die Schritte zu diesem Panel."
+      "description": "Panel Assistant kann auf {panel} keine App-Updates installieren, daher bleibt die App auf der aktuellen Version. Alles andere am Panel funktioniert weiter, weshalb dies leicht zu übersehen ist. Meist folgt es auf eine Änderung am Panel selbst, etwa ein Firmware-Update oder ein Zurücksetzen. Verbinde das Panel erneut per USB mit Panel Assistant, um Updates wiederherzustellen. Wähle Weitere Informationen für die Schritte zu diesem Panel."
     },
     "merged_panel_identity": {
       "title": "Zusammengeführte Panels trennen: {panels}",
@@ -956,11 +956,11 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "### [So verwenden Sie diesen Supportbericht]({guide_url})\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
+            "description": "### [So verwendest du diesen Supportbericht]({guide_url})\n\nKopiere den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn du einen KI-Assistenten um Hilfe bittest, gib ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle OK, um den Fehler zu löschen."
           },
           "retry_error": {
             "title": "Erneuter Versuch fehlgeschlagen",
@@ -968,7 +968,7 @@
           }
         },
         "progress": {
-          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+          "retrying": "Das Panel wird geprüft und der Vorgang sicher wiederholt."
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -998,11 +998,11 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "### [So verwenden Sie diesen Supportbericht]({guide_url})\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
+            "description": "### [So verwendest du diesen Supportbericht]({guide_url})\n\nKopiere den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn du einen KI-Assistenten um Hilfe bittest, gib ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle OK, um den Fehler zu löschen."
           },
           "retry_error": {
             "title": "Erneuter Versuch fehlgeschlagen",
@@ -1010,7 +1010,7 @@
           }
         },
         "progress": {
-          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+          "retrying": "Das Panel wird geprüft und der Vorgang sicher wiederholt."
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1040,11 +1040,11 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "### [So verwenden Sie diesen Supportbericht]({guide_url})\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
+            "description": "### [So verwendest du diesen Supportbericht]({guide_url})\n\nKopiere den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn du einen KI-Assistenten um Hilfe bittest, gib ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle OK, um den Fehler zu löschen."
           },
           "retry_error": {
             "title": "Erneuter Versuch fehlgeschlagen",
@@ -1052,7 +1052,7 @@
           }
         },
         "progress": {
-          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+          "retrying": "Das Panel wird geprüft und der Vorgang sicher wiederholt."
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1082,11 +1082,11 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "### [So verwenden Sie diesen Supportbericht]({guide_url})\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
+            "description": "### [So verwendest du diesen Supportbericht]({guide_url})\n\nKopiere den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn du einen KI-Assistenten um Hilfe bittest, gib ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle OK, um den Fehler zu löschen."
           },
           "retry_error": {
             "title": "Erneuter Versuch fehlgeschlagen",
@@ -1094,7 +1094,7 @@
           }
         },
         "progress": {
-          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+          "retrying": "Das Panel wird geprüft und der Vorgang sicher wiederholt."
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1124,11 +1124,11 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "### [So verwenden Sie diesen Supportbericht]({guide_url})\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
+            "description": "### [So verwendest du diesen Supportbericht]({guide_url})\n\nKopiere den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn du einen KI-Assistenten um Hilfe bittest, gib ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle OK, um den Fehler zu löschen."
           },
           "retry_error": {
             "title": "Erneuter Versuch fehlgeschlagen",
@@ -1136,7 +1136,7 @@
           }
         },
         "progress": {
-          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+          "retrying": "Das Panel wird geprüft und der Vorgang sicher wiederholt."
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1166,11 +1166,11 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "### [So verwenden Sie diesen Supportbericht]({guide_url})\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
+            "description": "### [So verwendest du diesen Supportbericht]({guide_url})\n\nKopiere den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn du einen KI-Assistenten um Hilfe bittest, gib ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle OK, um den Fehler zu löschen."
           },
           "retry_error": {
             "title": "Erneuter Versuch fehlgeschlagen",
@@ -1178,7 +1178,7 @@
           }
         },
         "progress": {
-          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+          "retrying": "Das Panel wird geprüft und der Vorgang sicher wiederholt."
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1208,11 +1208,11 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "### [So verwenden Sie diesen Supportbericht]({guide_url})\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
+            "description": "### [So verwendest du diesen Supportbericht]({guide_url})\n\nKopiere den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn du einen KI-Assistenten um Hilfe bittest, gib ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle OK, um den Fehler zu löschen."
           },
           "retry_error": {
             "title": "Erneuter Versuch fehlgeschlagen",
@@ -1220,7 +1220,7 @@
           }
         },
         "progress": {
-          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+          "retrying": "Das Panel wird geprüft und der Vorgang sicher wiederholt."
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1250,11 +1250,11 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "### [So verwenden Sie diesen Supportbericht]({guide_url})\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
+            "description": "### [So verwendest du diesen Supportbericht]({guide_url})\n\nKopiere den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn du einen KI-Assistenten um Hilfe bittest, gib ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle OK, um den Fehler zu löschen."
           },
           "retry_error": {
             "title": "Erneuter Versuch fehlgeschlagen",
@@ -1262,7 +1262,7 @@
           }
         },
         "progress": {
-          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+          "retrying": "Das Panel wird geprüft und der Vorgang sicher wiederholt."
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1292,11 +1292,11 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "### [So verwenden Sie diesen Supportbericht]({guide_url})\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
+            "description": "### [So verwendest du diesen Supportbericht]({guide_url})\n\nKopiere den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn du einen KI-Assistenten um Hilfe bittest, gib ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle OK, um den Fehler zu löschen."
           },
           "retry_error": {
             "title": "Erneuter Versuch fehlgeschlagen",
@@ -1304,7 +1304,7 @@
           }
         },
         "progress": {
-          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+          "retrying": "Das Panel wird geprüft und der Vorgang sicher wiederholt."
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1334,11 +1334,11 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "### [So verwenden Sie diesen Supportbericht]({guide_url})\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
+            "description": "### [So verwendest du diesen Supportbericht]({guide_url})\n\nKopiere den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn du einen KI-Assistenten um Hilfe bittest, gib ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle OK, um den Fehler zu löschen."
           },
           "retry_error": {
             "title": "Erneuter Versuch fehlgeschlagen",
@@ -1346,7 +1346,7 @@
           }
         },
         "progress": {
-          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+          "retrying": "Das Panel wird geprüft und der Vorgang sicher wiederholt."
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1377,11 +1377,11 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "### [So verwenden Sie diesen Supportbericht]({guide_url})\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
+            "description": "### [So verwendest du diesen Supportbericht]({guide_url})\n\nKopiere den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn du einen KI-Assistenten um Hilfe bittest, gib ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle OK, um den Fehler zu löschen."
           },
           "retry_error": {
             "title": "Erneuter Versuch fehlgeschlagen",
@@ -1393,7 +1393,7 @@
           }
         },
         "progress": {
-          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+          "retrying": "Das Panel wird geprüft und der Vorgang sicher wiederholt."
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1417,7 +1417,7 @@
           "adb_credential_error": "Home Assistant konnte seine ADB-Anmeldedaten nicht sicher laden oder dauerhaft speichern. Es wurde keine Änderung am Panel versucht. Prüfe vor einem erneuten Versuch den Speicher und die Protokolle von Home Assistant.",
           "retained_or_ambiguous": "Das Panel enthält möglicherweise einen zurückbehaltenen Paketeintrag von Panel Assistant, oder es konnte nicht nachgewiesen werden, dass das Paket nicht vorhanden ist. Am Panel wurde nichts geändert. Versuche es einmal erneut, falls die Verbindung instabil war; folge andernfalls den Schritten unter {recovery_address}. Deinstalliere die App nicht und setze sie nicht zurück, wenn keine verifizierte Sicherung vorhanden ist.",
           "unknown": "Unerwarteter Fehler",
-          "panel_identity_changed": "Die Adresse antwortet nicht mehr als dieses konfigurierte Panel. Prüfen Sie Panel und Adresse und versuchen Sie es erneut."
+          "panel_identity_changed": "Die Adresse antwortet nicht mehr als dieses konfigurierte Panel. Prüfe das Panel und seine Adresse vor einem erneuten Versuch."
         },
         "abort": {
           "entry_removed": "Dieses Panel wurde entfernt."
@@ -1439,11 +1439,11 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "### [So verwenden Sie diesen Supportbericht]({guide_url})\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
+            "description": "### [So verwendest du diesen Supportbericht]({guide_url})\n\nKopiere den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn du einen KI-Assistenten um Hilfe bittest, gib ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle OK, um den Fehler zu löschen."
           },
           "retry_error": {
             "title": "Erneuter Versuch fehlgeschlagen",
@@ -1451,7 +1451,7 @@
           }
         },
         "progress": {
-          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+          "retrying": "Das Panel wird geprüft und der Vorgang sicher wiederholt."
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1475,7 +1475,7 @@
     },
     "panel_address_unverified": {
       "title": "{panel} ist umgezogen, die neue Adresse konnte aber nicht bestätigt werden",
-      "description": "{panel} ist von {session_address} aus mit Home Assistant verbunden, seine Entitäten bleiben daher verfügbar. Home Assistant kann das Panel unter der gespeicherten Adresse {address} jedoch nicht lesen, und eine Prüfung unter {session_address} hat nicht als dieses Panel geantwortet, daher wurde die gespeicherte Adresse nicht geändert. Wenn das Panel umgezogen ist, fügen Sie es unter der neuen Adresse erneut hinzu; dadurch wird die gespeicherte Adresse aktualisiert. Der Hinweis verschwindet von selbst, sobald die gespeicherte Adresse antwortet."
+      "description": "{panel} ist von {session_address} aus mit Home Assistant verbunden, seine Entitäten bleiben daher verfügbar. Home Assistant kann das Panel unter der gespeicherten Adresse {address} jedoch nicht lesen, und eine Prüfung unter {session_address} hat nicht als dieses Panel geantwortet, daher wurde die gespeicherte Adresse nicht geändert. Wenn das Panel umgezogen ist, füge es unter der neuen Adresse erneut hinzu; dadurch wird die gespeicherte Adresse aktualisiert. Der Hinweis verschwindet von selbst, sobald die gespeicherte Adresse antwortet."
     },
     "panel_identity_mismatch": {
       "title": "Adresse für {panel} prüfen",
@@ -1519,11 +1519,11 @@
           },
           "support_report": {
             "title": "Supportbericht",
-            "description": "### [So verwenden Sie diesen Supportbericht]({guide_url})\n\nKopieren Sie den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn Sie einen KI-Assistenten um Hilfe bitten, geben Sie ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
+            "description": "### [So verwendest du diesen Supportbericht]({guide_url})\n\nKopiere den Bericht unten in ein [neues Issue für die Panel Assistant-Integration]({issue_url}). Wenn du einen KI-Assistenten um Hilfe bittest, gib ihm den Bericht zusammen mit dem Prompt auf der verlinkten Hilfeseite.\n\n{report}"
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle Senden, um den Fehler zu löschen."
+            "description": "Entferne diesen Fehler und den gespeicherten Bericht aus Reparaturen. Das Panel bleibt unverändert. Wähle OK, um den Fehler zu löschen."
           },
           "retry_error": {
             "title": "Erneuter Versuch fehlgeschlagen",
@@ -1535,7 +1535,7 @@
           }
         },
         "progress": {
-          "retrying": "Panel wird geprüft und bei sicherem Zustand erneut versucht."
+          "retrying": "Das Panel wird geprüft und der Vorgang sicher wiederholt."
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1559,7 +1559,7 @@
           "adb_credential_error": "Home Assistant konnte seine ADB-Anmeldedaten nicht sicher laden oder dauerhaft speichern. Es wurde keine Änderung am Panel versucht. Prüfe vor einem erneuten Versuch den Speicher und die Protokolle von Home Assistant.",
           "retained_or_ambiguous": "Das Panel enthält möglicherweise einen zurückbehaltenen Paketeintrag von Panel Assistant, oder es konnte nicht nachgewiesen werden, dass das Paket nicht vorhanden ist. Am Panel wurde nichts geändert. Versuche es einmal erneut, falls die Verbindung instabil war; folge andernfalls den Schritten unter {recovery_address}. Deinstalliere die App nicht und setze sie nicht zurück, wenn keine verifizierte Sicherung vorhanden ist.",
           "unknown": "Unerwarteter Fehler",
-          "panel_identity_changed": "Die Adresse antwortet nicht mehr als dieses konfigurierte Panel. Prüfen Sie Panel und Adresse und versuchen Sie es erneut."
+          "panel_identity_changed": "Die Adresse antwortet nicht mehr als dieses konfigurierte Panel. Prüfe das Panel und seine Adresse vor einem erneuten Versuch."
         },
         "abort": {
           "entry_removed": "Dieses Panel wurde entfernt."
@@ -1588,7 +1588,7 @@
           "adb_credential_error": "Home Assistant konnte seine ADB-Anmeldedaten nicht sicher laden oder dauerhaft speichern. Es wurde keine Änderung am Panel versucht. Prüfe vor einem erneuten Versuch den Speicher und die Protokolle von Home Assistant.",
           "retained_or_ambiguous": "Das Panel enthält möglicherweise einen zurückbehaltenen Paketeintrag von Panel Assistant, oder es konnte nicht nachgewiesen werden, dass das Paket nicht vorhanden ist. Am Panel wurde nichts geändert. Versuche es einmal erneut, falls die Verbindung instabil war; folge andernfalls den Schritten unter {recovery_address}. Deinstalliere die App nicht und setze sie nicht zurück, wenn keine verifizierte Sicherung vorhanden ist.",
           "unknown": "Unerwarteter Fehler",
-          "panel_identity_changed": "Die Adresse antwortet nicht mehr als dieses konfigurierte Panel. Prüfen Sie Panel und Adresse und versuchen Sie es erneut."
+          "panel_identity_changed": "Die Adresse antwortet nicht mehr als dieses konfigurierte Panel. Prüfe das Panel und seine Adresse vor einem erneuten Versuch."
         },
         "abort": {
           "entry_removed": "Dieses Panel wurde entfernt."
@@ -1658,8 +1658,8 @@
       "adb_credential_error": "Home Assistant konnte seine ADB-Anmeldedaten nicht sicher laden oder dauerhaft speichern. Es wurde keine Änderung am Panel versucht. Prüfe vor einem erneuten Versuch den Speicher und die Protokolle von Home Assistant.",
       "retained_or_ambiguous": "Das Panel enthält möglicherweise einen zurückbehaltenen Paketeintrag von Panel Assistant, oder es konnte nicht nachgewiesen werden, dass das Paket nicht vorhanden ist. Am Panel wurde nichts geändert. Versuche es einmal erneut, falls die Verbindung instabil war; folge andernfalls den Schritten unter {recovery_address}. Deinstalliere die App nicht und setze sie nicht zurück, wenn keine verifizierte Sicherung vorhanden ist.",
       "unknown": "Unerwarteter Fehler",
-      "panel_identity_changed": "Die Adresse antwortet nicht mehr als dieses konfigurierte Panel. Prüfen Sie Panel und Adresse und versuchen Sie es erneut.",
-      "removal_busy": "Ein Update oder Umzug verändert dieses Panel bereits. Es wurde nichts entfernt; versuche es erneut, wenn er abgeschlossen ist.",
+      "panel_identity_changed": "Die Adresse antwortet nicht mehr als dieses konfigurierte Panel. Prüfe das Panel und seine Adresse vor einem erneuten Versuch.",
+      "removal_busy": "Ein anderer Vorgang verändert dieses Panel bereits. Es wurde nichts entfernt; versuche es erneut, wenn er abgeschlossen ist.",
       "removal_adb_unreachable": "Home Assistant konnte das Panel nicht über die Android Debug Bridge (Port 5555) erreichen. Es wurde nichts entfernt. Prüfe, ob das Panel eingeschaltet und das Debugging über das Netzwerk noch aktiviert ist, und versuche es erneut.",
       "removal_adb_authorization": "Das Panel hat diese Home Assistant-Instanz für die Android Debug Bridge noch nicht akzeptiert. Es wurde nichts entfernt. Wähle zuerst „Updates erlauben“ und versuche es dann erneut.",
       "removal_panel_changed": "Unter der Adresse dieses Panels antwortet jetzt ein anderes Gerät. Es wurde nichts entfernt.",

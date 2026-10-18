@@ -135,12 +135,12 @@
       "reinstall_successful": "L’app è stata reinstallata. Questo pannello conserva la cronologia e le impostazioni in Home Assistant.",
       "usb_installed": "Panel Assistant è installato e il pannello è stato aggiunto a Home Assistant. Completa la configurazione del pannello nella finestra dell'installer.",
       "reinstall_identity_mismatch": "L’app è installata, ma non è stato possibile collegarla al pannello conservato. La cronologia e le impostazioni in Home Assistant sono state conservate. Controlla il pannello in Home Assistant prima di riprovare.",
-      "not_panel": "Non è un pannello su cui Panel Assistant può installare.",
+      "not_panel": "Non è un pannello su cui Panel Assistant possa eseguire l’installazione.",
       "invalid_discovery": "Il pannello rilevato non ha dimostrato di essere la stessa installazione sana di Panel Assistant. Non sono stati modificati né una voce di Home Assistant né impostazioni del pannello.",
       "install_cancelled": "L'installazione è stata annullata prima che venisse installato un APK. Non è stata creata alcuna voce in Home Assistant. Per riprovare, aggiungi l'integrazione Panel Assistant e inserisci lo stesso indirizzo del pannello.",
       "install_cancelled_after_staging_cleanup": "L'installazione è stata annullata e l'APK preparato è stato rimosso prima dell'installazione. Non è stata creata alcuna voce in Home Assistant. Per riprovare, aggiungi l'integrazione Panel Assistant e inserisci lo stesso indirizzo del pannello.",
       "install_authorization_failed": "Home Assistant non è riuscito a caricare o convalidare in modo sicuro le credenziali ADB memorizzate. Non è stato installato alcun APK. Controlla lo spazio di archiviazione e i registri di Home Assistant, quindi aggiungi l'integrazione Panel Assistant e inserisci lo stesso indirizzo per riprovare.",
-      "install_preflight_rejected": "Non è più stato possibile confermare che il pannello sia una destinazione compatibile priva di pacchetti ha-paneld installati o conservati. Non è stato installato alcun APK. Controlla il pannello come descritto all'indirizzo [{recovery_address}]({recovery_url}), poi ricomincia con lo stesso indirizzo.",
+      "install_preflight_rejected": "Non è più stato possibile confermare che il pannello sia una destinazione di installazione pulita e compatibile. Non è stato installato alcun APK. Controlla il pannello come descritto all'indirizzo [{recovery_address}]({recovery_url}), poi ricomincia con lo stesso indirizzo.",
       "install_artifact_rejected": "Home Assistant ha rifiutato il download della versione o l'operazione di preparazione prima dell'installazione del pacchetto. Non è stato installato alcun APK. Controlla l'accesso a Internet, lo spazio di archiviazione e i registri di Home Assistant, quindi ricomincia con lo stesso indirizzo.",
       "install_transport_failed": "Home Assistant non è riuscito a completare la connessione preliminare all'installazione, il download o il passaggio di preparazione. Non è stato installato alcun APK. Controlla il pannello, la rete, l'accesso a Internet e i registri di Home Assistant, quindi ricomincia con lo stesso indirizzo.",
       "install_package_failed": "Android ha rifiutato definitivamente l'APK e Home Assistant ha rimosso il file preparato. Non è stata installata alcuna app né è stata creata alcuna voce in Home Assistant. Controlla la compatibilità del pannello e lo spazio di archiviazione disponibile prima di ricominciare.",
@@ -777,7 +777,7 @@
     "update_not_complete": { "message": "L'aggiornamento del pannello non è stato completato" },
     "panel_backup_failed": { "message": "Non è stato possibile eseguire il backup del pannello, quindi non è stato installato nulla" },
     "build_verification_failed": { "message": "La build non corrispondeva al feed delle build firmato, quindi non è stato installato nulla" },
-    "release_verification_failed": { "message": "La release non corrispondeva alla sua firma, quindi non è stato installato nulla" },
+    "release_verification_failed": { "message": "La versione non corrispondeva alla sua firma, quindi non è stato installato nulla" },
     "upload_disabled": { "message": "Il pannello non accetta caricamenti di app; attiva il caricamento APK nelle sue impostazioni" },
     "adb_authorization_required": {
       "message": "Gli aggiornamenti su {panel} non sono ancora consentiti. Apri Riparazioni in Home Assistant e seleziona «Consenti aggiornamenti su {panel}». Quindi tocca «Consenti» nella richiesta «Consentire il debug?» sul pannello."
@@ -874,7 +874,7 @@
         "step": {
           "set_up_proximity": {
             "title": "Configura la prossimità su {panel}",
-            "description": "Finché il sensore di prossimità non è configurato, {panel} non può riattivarsi con un gesto della mano. La configurazione richiede circa un minuto e devi stare davanti al pannello. Apri Panel Assistant nella barra laterale e scegli {panel}. Nella sua pagina Configura, in Presenza e riattivazione, seleziona Configura prossimità sul pannello, quindi segui le istruzioni sullo schermo del pannello. Puoi avviarla anche dal pannello stesso con Apri configurazione di prossimità sulla sua dashboard. Quando il pannello indica che la calibrazione è salvata, torna qui e seleziona Invia."
+            "description": "Finché il sensore di prossimità non è configurato, {panel} non può riattivarsi con un gesto della mano. La configurazione richiede circa un minuto e devi stare davanti al pannello. Apri Panel Assistant nella barra laterale e scegli {panel}. Nella sua pagina Configura, in Presenza e riattivazione, seleziona Configura prossimità sul pannello, quindi segui le istruzioni sullo schermo del pannello. Puoi avviarla anche dal pannello stesso con Apri configurazione di prossimità sulla sua plancia. Quando il pannello indica che la calibrazione è salvata, torna qui e seleziona Invia."
           }
         },
         "error": {
@@ -889,15 +889,15 @@
     },
     "voice_microphone_silent": {
       "title": "L'assistente vocale su {panel} non è in ascolto.",
-      "description": "L'assistente vocale su {panel} non è in ascolto perché il suo microfono ha registrato solo silenzio durante il controllo del pannello. Per controllare di nuovo, disattiva e riattiva l'assistente vocale nella pagina Configure del pannello, oppure scegli lì un'altra sorgente audio."
+      "description": "L'assistente vocale su {panel} non è in ascolto perché il suo microfono ha registrato solo silenzio durante il controllo del pannello. Per controllare di nuovo, disattiva e riattiva l'assistente vocale nella pagina Configura del pannello, oppure scegli lì un'altra sorgente audio."
     },
     "voice_microphone_no_audio": {
       "title": "L'assistente vocale su {panel} non è in ascolto.",
-      "description": "L'assistente vocale su {panel} non è in ascolto perché il suo microfono non ha fornito audio durante il controllo del pannello. Per controllare di nuovo, disattiva e riattiva l'assistente vocale nella pagina Configure del pannello, oppure scegli lì un'altra sorgente audio."
+      "description": "L'assistente vocale su {panel} non è in ascolto perché il suo microfono non ha fornito audio durante il controllo del pannello. Per controllare di nuovo, disattiva e riattiva l'assistente vocale nella pagina Configura del pannello, oppure scegli lì un'altra sorgente audio."
     },
     "voice_microphone_no_audio_detail": {
       "title": "L'assistente vocale su {panel} non è in ascolto.",
-      "description": "L'assistente vocale su {panel} non è in ascolto perché il suo microfono non ha fornito audio durante il controllo del pannello. Per controllare di nuovo, disattiva e riattiva l'assistente vocale nella pagina Configure del pannello, oppure scegli lì un'altra sorgente audio. Il pannello ha segnalato: {detail}"
+      "description": "L'assistente vocale su {panel} non è in ascolto perché il suo microfono non ha fornito audio durante il controllo del pannello. Per controllare di nuovo, disattiva e riattiva l'assistente vocale nella pagina Configura del pannello, oppure scegli lì un'altra sorgente audio. Il pannello ha segnalato: {detail}"
     },
     "volume_number_removed": {
       "title": "{panel} non ha più un numero del volume separato",
@@ -946,7 +946,7 @@
       "fix_flow": {
         "step": {
           "init": {
-            "title": "Risolvere l'errore del pannello",
+            "title": "Risolvi l'errore del pannello",
             "description": "L’installazione o l’aggiornamento su {panel} non è terminato.",
             "menu_options": {
               "retry": "Riprova",
@@ -988,7 +988,7 @@
       "fix_flow": {
         "step": {
           "init": {
-            "title": "Risolvere l'errore del pannello",
+            "title": "Risolvi l'errore del pannello",
             "description": "Il pannello non ha accettato la connessione da Home Assistant.",
             "menu_options": {
               "retry": "Riprova",
@@ -1030,7 +1030,7 @@
       "fix_flow": {
         "step": {
           "init": {
-            "title": "Risolvere l'errore del pannello",
+            "title": "Risolvi l'errore del pannello",
             "description": "Non è stato installato nulla sul pannello.",
             "menu_options": {
               "retry": "Riprova",
@@ -1072,7 +1072,7 @@
       "fix_flow": {
         "step": {
           "init": {
-            "title": "Risolvere l'errore del pannello",
+            "title": "Risolvi l'errore del pannello",
             "description": "Non è stato possibile verificare la versione, quindi non è stato installato nulla.",
             "menu_options": {
               "retry": "Riprova",
@@ -1114,7 +1114,7 @@
       "fix_flow": {
         "step": {
           "init": {
-            "title": "Risolvere l'errore del pannello",
+            "title": "Risolvi l'errore del pannello",
             "description": "La connessione si è interrotta prima del termine dell’installazione.",
             "menu_options": {
               "retry": "Riprova",
@@ -1156,7 +1156,7 @@
       "fix_flow": {
         "step": {
           "init": {
-            "title": "Risolvere l'errore del pannello",
+            "title": "Risolvi l'errore del pannello",
             "description": "Android sul pannello ha rifiutato l’installazione.",
             "menu_options": {
               "retry": "Riprova",
@@ -1198,7 +1198,7 @@
       "fix_flow": {
         "step": {
           "init": {
-            "title": "Risolvere l'errore del pannello",
+            "title": "Risolvi l'errore del pannello",
             "description": "Panel Assistant è installato, ma non si è avviato.",
             "menu_options": {
               "retry": "Riprova",
@@ -1240,7 +1240,7 @@
       "fix_flow": {
         "step": {
           "init": {
-            "title": "Risolvere l'errore del pannello",
+            "title": "Risolvi l'errore del pannello",
             "description": "Panel Assistant si è avviato, ma non ha segnalato uno stato di funzionamento corretto.",
             "menu_options": {
               "retry": "Riprova",
@@ -1282,7 +1282,7 @@
       "fix_flow": {
         "step": {
           "init": {
-            "title": "Risolvere l'errore del pannello",
+            "title": "Risolvi l'errore del pannello",
             "description": "Home Assistant non può stabilire se l’installazione ha modificato il pannello.",
             "menu_options": {
               "retry": "Riprova",
@@ -1324,7 +1324,7 @@
       "fix_flow": {
         "step": {
           "init": {
-            "title": "Risolvere l'errore del pannello",
+            "title": "Risolvi l'errore del pannello",
             "description": "Un’altra installazione è bloccata fino alla verifica del pannello.",
             "menu_options": {
               "retry": "Riprova",
@@ -1366,7 +1366,7 @@
       "fix_flow": {
         "step": {
           "init": {
-            "title": "Risolvere l'errore del pannello",
+            "title": "Risolvi l'errore del pannello",
             "description": "Panel Assistant non è stato aggiornato sul pannello.",
             "menu_options": {
               "retry": "Riprova",
@@ -1429,7 +1429,7 @@
       "fix_flow": {
         "step": {
           "init": {
-            "title": "Risolvere l'errore del pannello",
+            "title": "Risolvi l'errore del pannello",
             "description": "I nuovi tentativi sono bloccati finché non sarà possibile verificare il pannello.",
             "menu_options": {
               "retry": "Riprova",
@@ -1508,7 +1508,7 @@
       "fix_flow": {
         "step": {
           "init": {
-            "title": "Risolvere l'errore del pannello",
+            "title": "Risolvi l'errore del pannello",
             "description": "Home Assistant non è ancora autorizzato ad aggiornare {panel}.",
             "menu_options": {
               "retry": "Riprova",
@@ -1659,7 +1659,7 @@
       "retained_or_ambiguous": "Il pannello potrebbe contenere un record conservato del pacchetto Panel Assistant oppure non è stato possibile dimostrare che il pacchetto sia assente. Il pannello non è stato modificato. Riprova una volta se la connessione era instabile; in caso contrario, segui i passaggi all'indirizzo {recovery_address}. Non disinstallare o reimpostare l'app senza un backup verificato.",
       "unknown": "Errore imprevisto",
       "panel_identity_changed": "L’indirizzo non risponde più come questo pannello configurato. Controlla il pannello e il suo indirizzo prima di riprovare.",
-      "removal_busy": "Un aggiornamento o uno spostamento sta già modificando questo pannello. Non è stato rimosso nulla; riprova quando sarà terminato.",
+      "removal_busy": "Un'altra operazione sta già modificando questo pannello. Non è stato rimosso nulla; riprova quando sarà terminata.",
       "removal_adb_unreachable": "Home Assistant non è riuscito a raggiungere il pannello tramite Android Debug Bridge (porta 5555). Non è stato rimosso nulla. Verifica che il pannello sia acceso e che il debug di rete sia ancora attivo, quindi riprova.",
       "removal_adb_authorization": "Il pannello non ha accettato questa istanza di Home Assistant per Android Debug Bridge. Non è stato rimosso nulla. Scegli prima «Consenti aggiornamenti», quindi riprova.",
       "removal_panel_changed": "All'indirizzo di questo pannello ora risponde un altro dispositivo. Non è stato rimosso nulla.",

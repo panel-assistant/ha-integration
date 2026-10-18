@@ -108,8 +108,8 @@
       "install_too_many_addresses": "此主机名解析出的地址过多，无法安全固定。请使用专用的本地主机名或私有 IP 地址。",
       "unsafe_install_target": "只允许安装到私有本地 IPv4 地址或 IPv6 唯一本地地址。未尝试 ADB 连接。",
       "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥，也未执行安装。请检查地址并重新开始。",
-      "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到你正在使用的这台计算机上，也可以改用 USB 安装。",
-      "panel_unreachable": "该地址没有任何响应。请确认地址正确、面板已开机并连接到你的网络，然后再试一次。如果可以把面板插到你正在使用的这台计算机上，也可以改用 USB 安装。",
+      "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到您正在使用的这台计算机上，也可以改用 USB 安装。",
+      "panel_unreachable": "该地址没有任何响应。请确认地址正确、面板已开机并连接到您的网络，然后再试一次。如果可以把面板插到您正在使用的这台计算机上，也可以改用 USB 安装。",
       "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例，或没有记住它。",
       "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
       "installed_without_health": "Panel Assistant 软件包已安装，但其健康检查端点未响应。此流程不会覆盖或修复该安装。请勿重试自动安装；请在面板上打开 Panel Assistant，或按照 {recovery_address} 中的步骤操作。恢复为正常运行的安装后，请重新开始以连接面板。",
@@ -848,7 +848,7 @@
     },
     "mqtt_panel_needs_090": {
       "title": "{panel} 尚未从 MQTT 迁移",
-      "description": "Panel Assistant 1.0 无法再将 {panel} 从 MQTT 迁移到它自己的连接，现在连接它会创建第二组实体并拆分其历史记录。请先安装 Panel Assistant 0.9.0（在 HACS 中打开 Panel Assistant，选择 Redownload，然后选择 0.9.0 版本），让它迁移面板，再安装 1.0.0。如果你想重新开始，请在“设置”、“设备与服务”、MQTT 中删除此面板的设备，然后重新加载此条目，或将其移除并重新添加面板；这会创建新实体，且不保留历史记录。"
+      "description": "Panel Assistant 1.0 无法再将 {panel} 从 MQTT 迁移到它自己的连接，现在连接它会创建第二组实体并拆分其历史记录。请先安装 Panel Assistant 0.9.0（在 HACS 中打开 Panel Assistant，选择 Redownload，然后选择 0.9.0 版本），让它迁移面板，再安装 1.0.0。如果您想重新开始，请在“设置”、“设备与服务”、MQTT 中删除此面板的设备，然后重新加载此条目，或将其移除并重新添加面板；这会创建新实体，且不保留历史记录。"
     },
     "panel_permissions": {
       "title": "{panel} 的权限需要处理。",
@@ -874,7 +874,7 @@
         "step": {
           "set_up_proximity": {
             "title": "在 {panel} 上设置接近传感器",
-            "description": "在接近传感器设置完成之前，{panel} 无法通过挥手唤醒。设置大约需要一分钟，需要您站在面板前。在侧边栏中打开 Panel Assistant 并选择 {panel}。在其设置页面的“存在与唤醒”下，选择“在面板上设置接近传感器”，然后按照面板屏幕上的说明操作。您也可以在面板本身的仪表板上选择“打开接近传感器设置”来开始。当面板显示校准已保存后，返回此处并选择提交。"
+            "description": "在接近传感器设置完成之前，{panel} 无法通过挥手唤醒。设置大约需要一分钟，需要您站在面板前。在侧边栏中打开 Panel Assistant 并选择 {panel}。在其设置页面的“存在与唤醒”下，选择“在面板上设置接近传感器”，然后按照面板屏幕上的说明操作。您也可以在面板本身的仪表盘上选择“打开接近传感器设置”来开始。当面板显示校准已保存后，返回此处并选择提交。"
           }
         },
         "error": {
@@ -889,15 +889,15 @@
     },
     "voice_microphone_silent": {
       "title": "{panel} 上的语音助手未在聆听。",
-      "description": "{panel} 上的语音助手未在聆听，因为面板检查时其麦克风只录到了静音。要重新检查，请在面板的 Configure 页面中关闭再打开语音助手，或在那里选择其他音频源。"
+      "description": "{panel} 上的语音助手未在聆听，因为面板检查时其麦克风只录到了静音。要重新检查，请在面板的设置页面中关闭再打开语音助手，或在那里选择其他音频源。"
     },
     "voice_microphone_no_audio": {
       "title": "{panel} 上的语音助手未在聆听。",
-      "description": "{panel} 上的语音助手未在聆听，因为面板检查时其麦克风没有提供任何音频。要重新检查，请在面板的 Configure 页面中关闭再打开语音助手，或在那里选择其他音频源。"
+      "description": "{panel} 上的语音助手未在聆听，因为面板检查时其麦克风没有提供任何音频。要重新检查，请在面板的设置页面中关闭再打开语音助手，或在那里选择其他音频源。"
     },
     "voice_microphone_no_audio_detail": {
       "title": "{panel} 上的语音助手未在聆听。",
-      "description": "{panel} 上的语音助手未在聆听，因为面板检查时其麦克风没有提供任何音频。要重新检查，请在面板的 Configure 页面中关闭再打开语音助手，或在那里选择其他音频源。面板报告：{detail}"
+      "description": "{panel} 上的语音助手未在聆听，因为面板检查时其麦克风没有提供任何音频。要重新检查，请在面板的设置页面中关闭再打开语音助手，或在那里选择其他音频源。面板报告：{detail}"
     },
     "volume_number_removed": {
       "title": "{panel} 不再有单独的音量数值实体",
@@ -920,11 +920,11 @@
         "step": {
           "confirm_bind": {
             "title": "确认面板用户",
-            "description": "面板 {panel} 请求以用户 {user} 的身份连接到 Home Assistant。仅当 {user} 是你为此面板设置的账户时才确认。确认后，面板应该很快就会连接。任何已登录 Home Assistant 的人都可以请求以面板身份连接，因此如果你不认识此请求，请关闭此对话框并忽略该问题。"
+            "description": "面板 {panel} 请求以用户 {user} 的身份连接到 Home Assistant。仅当 {user} 是您为此面板设置的账户时才确认。确认后，面板应该很快就会连接。任何已登录 Home Assistant 的人都可以请求以面板身份连接，因此如果您不认识此请求，请关闭此对话框并忽略该问题。"
           },
           "confirm_rebind": {
             "title": "更改面板用户",
-            "description": "面板 {panel} 已确认用于用户 {bound_user}，但用户 {user} 请求以此面板的身份连接。仅当你已将此面板的账户更改为 {user} 时才确认：之后面板将不再接受 {bound_user}，并且应该很快就会连接。如果你没有更改，可能有其他人试图接管此面板，请关闭此对话框并忽略该问题。"
+            "description": "面板 {panel} 已确认用于用户 {bound_user}，但用户 {user} 请求以此面板的身份连接。仅当您已将此面板的账户更改为 {user} 时才确认：之后面板将不再接受 {bound_user}，并且应该很快就会连接。如果您没有更改，可能有其他人试图接管此面板，请关闭此对话框并忽略该问题。"
           }
         },
         "abort": {
@@ -1389,7 +1389,7 @@
           },
           "authorize_adb": {
             "title": "允许更新 {panel}",
-            "description": "选择“提交”，然后在面板的“允许调试？”提示中点按“允许”。允许后，只要网络调试保持开启，此 Home Assistant 就拥有对面板的一般 ADB shell 访问权限。\n\n然后再次选择“提交”。你可以稍后在面板的开发者设置中撤销此权限。"
+            "description": "选择“提交”，然后在面板的“允许调试？”提示中点按“允许”。允许后，只要网络调试保持开启，此 Home Assistant 就拥有对面板的一般 ADB shell 访问权限。\n\n然后再次选择“提交”。稍后可在面板的开发者设置中撤销此权限。"
           }
         },
         "progress": {
@@ -1412,12 +1412,12 @@
           "install_too_many_addresses": "此主机名解析出的地址过多，无法安全固定。请使用专用的本地主机名或私有 IP 地址。",
           "unsafe_install_target": "只允许安装到私有本地 IPv4 地址或 IPv6 唯一本地地址。未尝试 ADB 连接。",
           "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥，也未执行安装。请检查地址并重新开始。",
-          "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到你正在使用的这台计算机上，也可以改用 USB 安装。",
+          "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到您正在使用的这台计算机上，也可以改用 USB 安装。",
           "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
           "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
           "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照 {recovery_address} 中的步骤操作。在备份经过验证之前，请勿卸载或重置应用。",
           "unknown": "出现意外错误",
-          "panel_identity_changed": "该地址不再回应为已配置的面板。请检查面板及其地址后重试。"
+          "panel_identity_changed": "该地址上响应的已不再是此已配置的面板。请检查面板及其地址后重试。"
         },
         "abort": {
           "entry_removed": "此面板已被移除。"
@@ -1531,7 +1531,7 @@
           },
           "authorize_adb": {
             "title": "允许更新 {panel}",
-            "description": "选择“提交”，然后在面板的“允许调试？”提示中点按“允许”。允许后，只要网络调试保持开启，此 Home Assistant 就拥有对面板的一般 ADB shell 访问权限。\n\n然后再次选择“提交”。你可以稍后在面板的开发者设置中撤销此权限。"
+            "description": "选择“提交”，然后在面板的“允许调试？”提示中点按“允许”。允许后，只要网络调试保持开启，此 Home Assistant 就拥有对面板的一般 ADB shell 访问权限。\n\n然后再次选择“提交”。稍后可在面板的开发者设置中撤销此权限。"
           }
         },
         "progress": {
@@ -1554,12 +1554,12 @@
           "install_too_many_addresses": "此主机名解析出的地址过多，无法安全固定。请使用专用的本地主机名或私有 IP 地址。",
           "unsafe_install_target": "只允许安装到私有本地 IPv4 地址或 IPv6 唯一本地地址。未尝试 ADB 连接。",
           "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥，也未执行安装。请检查地址并重新开始。",
-          "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到你正在使用的这台计算机上，也可以改用 USB 安装。",
+          "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到您正在使用的这台计算机上，也可以改用 USB 安装。",
           "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
           "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
           "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照 {recovery_address} 中的步骤操作。在备份经过验证之前，请勿卸载或重置应用。",
           "unknown": "出现意外错误",
-          "panel_identity_changed": "该地址不再回应为已配置的面板。请检查面板及其地址后重试。"
+          "panel_identity_changed": "该地址上响应的已不再是此已配置的面板。请检查面板及其地址后重试。"
         },
         "abort": {
           "entry_removed": "此面板已被移除。"
@@ -1572,7 +1572,7 @@
         "step": {
           "authorize_adb": {
             "title": "允许更新 {panel}",
-            "description": "选择“提交”，然后在面板的“允许调试？”提示中点按“允许”。允许后，只要网络调试保持开启，此 Home Assistant 就拥有对面板的一般 ADB shell 访问权限。\n\n然后再次选择“提交”。你可以稍后在面板的开发者设置中撤销此权限。"
+            "description": "选择“提交”，然后在面板的“允许调试？”提示中点按“允许”。允许后，只要网络调试保持开启，此 Home Assistant 就拥有对面板的一般 ADB shell 访问权限。\n\n然后再次选择“提交”。稍后可在面板的开发者设置中撤销此权限。"
           }
         },
         "error": {
@@ -1583,12 +1583,12 @@
           "install_too_many_addresses": "此主机名解析出的地址过多，无法安全固定。请使用专用的本地主机名或私有 IP 地址。",
           "unsafe_install_target": "只允许安装到私有本地 IPv4 地址或 IPv6 唯一本地地址。未尝试 ADB 连接。",
           "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥，也未执行安装。请检查地址并重新开始。",
-          "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到你正在使用的这台计算机上，也可以改用 USB 安装。",
+          "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到您正在使用的这台计算机上，也可以改用 USB 安装。",
           "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
           "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
           "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照 {recovery_address} 中的步骤操作。在备份经过验证之前，请勿卸载或重置应用。",
           "unknown": "出现意外错误",
-          "panel_identity_changed": "该地址不再回应为已配置的面板。请检查面板及其地址后重试。"
+          "panel_identity_changed": "该地址上响应的已不再是此已配置的面板。请检查面板及其地址后重试。"
         },
         "abort": {
           "entry_removed": "此面板已被移除。"
@@ -1622,7 +1622,7 @@
       },
       "authorize_adb": {
         "title": "允许更新 {panel}",
-        "description": "选择“提交”，然后在面板的“允许调试？”提示中点按“允许”。允许后，只要网络调试保持开启，此 Home Assistant 就拥有对面板的一般 ADB shell 访问权限。\n\n然后再次选择“提交”。你可以稍后在面板的开发者设置中撤销此权限。"
+        "description": "选择“提交”，然后在面板的“允许调试？”提示中点按“允许”。允许后，只要网络调试保持开启，此 Home Assistant 就拥有对面板的一般 ADB shell 访问权限。\n\n然后再次选择“提交”。稍后可在面板的开发者设置中撤销此权限。"
       },
       "updates": {
         "title": "面板更新",
@@ -1653,13 +1653,13 @@
       "install_too_many_addresses": "此主机名解析出的地址过多，无法安全固定。请使用专用的本地主机名或私有 IP 地址。",
       "unsafe_install_target": "只允许安装到私有本地 IPv4 地址或 IPv6 唯一本地地址。未尝试 ADB 连接。",
       "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥，也未执行安装。请检查地址并重新开始。",
-      "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到你正在使用的这台计算机上，也可以改用 USB 安装。",
+      "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到您正在使用的这台计算机上，也可以改用 USB 安装。",
       "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
       "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
       "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照 {recovery_address} 中的步骤操作。在备份经过验证之前，请勿卸载或重置应用。",
       "unknown": "出现意外错误",
-      "panel_identity_changed": "该地址不再回应为已配置的面板。请检查面板及其地址后重试。",
-      "removal_busy": "更新或迁移正在更改此面板。未移除任何内容；请在完成后重试。",
+      "panel_identity_changed": "该地址上响应的已不再是此已配置的面板。请检查面板及其地址后重试。",
+      "removal_busy": "另一项操作正在更改此面板。未移除任何内容；请在该操作完成后重试。",
       "removal_adb_unreachable": "Home Assistant 无法通过 Android Debug Bridge（端口 5555）连接到面板。未移除任何内容。请确认面板已开启且网络调试仍处于启用状态，然后重试。",
       "removal_adb_authorization": "面板尚未接受此 Home Assistant 实例的 Android Debug Bridge 连接。未移除任何内容。请先选择“允许更新”，然后重试。",
       "removal_panel_changed": "此面板的地址现在由另一台设备响应。未移除任何内容。",
@@ -1675,7 +1675,7 @@
     },
     "abort": {
       "removed_entry_deleted": "已移除 Panel Assistant，并已从 Home Assistant 删除该面板。",
-      "removed_entry_kept": "已移除 Panel Assistant。在你删除之前，面板会保留在 Home Assistant 中。",
+      "removed_entry_kept": "已移除 Panel Assistant。在您删除之前，面板会保留在 Home Assistant 中。",
       "panel_connected": "面板已设置完成，并已连接到 Home Assistant。"
     }
   }

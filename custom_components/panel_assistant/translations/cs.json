@@ -760,7 +760,7 @@
   "exceptions": {
     "old_app_needs_090": {"message": "Na tomto panelu stále běží stará aplikace: nejprve nainstalujte Panel Assistant 0.9.0, jak vysvětluje jeho oprava"},
     "mqtt_panel_needs_090": {
-      "message": "{panel} nebyl přesunut z MQTT: nejprve nainstalujte Panel Assistant 0.9.0, jak vysvětluje jeho Oprava"
+      "message": "{panel} nebyl přesunut z MQTT: nejprve nainstalujte Panel Assistant 0.9.0, jak vysvětluje jeho oprava"
     },
     "health_update_failed": {
       "message": "Nelze přečíst stav panelu"
@@ -884,7 +884,7 @@
         "step": {
           "commission_permissions": {
             "title": "Zkontrolovat oprávnění na panelu {panel}",
-            "description": "Dashboard na panelu {panel} zůstává dostupný. Na fyzickém panelu otevřete Nastavení systému Android → Aplikace → Panel Assistant. Povolte přístup ke kameře a mikrofonu, pokud jsou uvedeny, a také oznámení. V části Speciální přístup aplikací povolte pro Panel Assistant Úpravu nastavení systému a Zobrazení přes jiné aplikace. V části Přístupnost zapněte službu Panel Assistant. Pokud je navigační lišta nastavena na Odhalit přejetím nebo Vždy zapnuto a chybí oprávnění Zobrazení přes jiné aplikace, přejetí prstem nahoru od spodního okraje dashboardu místo toho otevře nastavení Zobrazení přes jiné aplikace: povolte ho, vraťte se zpět a znovu přejeďte prstem nahoru. Vraťte se sem a výběrem možnosti Odeslat oprávnění znovu zkontrolujte."
+            "description": "Ovládací panel na panelu {panel} zůstává dostupný. Na fyzickém panelu otevřete Nastavení systému Android → Aplikace → Panel Assistant. Povolte přístup ke kameře a mikrofonu, pokud jsou uvedeny, a také oznámení. V části Speciální přístup aplikací povolte pro Panel Assistant Úpravu nastavení systému a Zobrazení přes jiné aplikace. V části Přístupnost zapněte službu Panel Assistant. Pokud je navigační lišta nastavena na Zobrazení po přejetí prstem nebo Vždy zapnuto a chybí oprávnění Zobrazení přes jiné aplikace, přejetí prstem nahoru od spodního okraje ovládacího panelu místo toho otevře nastavení Zobrazení přes jiné aplikace: povolte ho, vraťte se zpět a znovu přejeďte prstem nahoru. Vraťte se sem a výběrem možnosti Odeslat oprávnění znovu zkontrolujte."
           }
         },
         "error": {
@@ -902,7 +902,7 @@
         "step": {
           "set_up_proximity": {
             "title": "Nastavení detekce přiblížení na panelu {panel}",
-            "description": "Dokud není nastaven jeho senzor přiblížení, {panel} se nemůže probudit mávnutím. Nastavení trvá asi minutu a vyžaduje vaši přítomnost před panelem. Otevřete Panel Assistant v postranním panelu a vyberte {panel}. Na jeho stránce Konfigurovat v části Přítomnost a probuzení vyberte Nastavit přiblížení na panelu a pak postupujte podle pokynů na obrazovce panelu. Nastavení můžete spustit také přímo na panelu pomocí Otevřít nastavení přiblížení na jeho nástěnce. Až panel oznámí, že je kalibrace uložena, vraťte se sem a vyberte Odeslat."
+            "description": "Dokud není nastaven jeho senzor přiblížení, {panel} se nemůže probudit mávnutím. Nastavení trvá asi minutu a vyžaduje vaši přítomnost před panelem. Otevřete Panel Assistant v postranním panelu a vyberte {panel}. Na jeho stránce Konfigurovat v části Přítomnost a probuzení vyberte Nastavit detekci přiblížení na panelu a pak postupujte podle pokynů na obrazovce panelu. Nastavení můžete spustit také přímo na panelu pomocí Otevřít nastavení detekce přiblížení na jeho ovládacím panelu. Až panel oznámí, že je kalibrace uložena, vraťte se sem a vyberte Odeslat."
           }
         },
         "error": {
@@ -1558,7 +1558,7 @@
             "description": "Opakovaný pokus je pozastaven. Chyba zůstává v části Opravy; podrobnosti najdete ve zprávě pro podporu."
           },
           "authorize_adb": {
-            "title": "Povolit aktualizace na {panel}",
+            "title": "Povolit aktualizace na panelu {panel}",
             "description": "Vyberte „Odeslat“ a potom na panelu v dotazu „Povolit ladění?“ klepněte na „Povolit“. Tím této instanci Home Assistant udělíte obecný přístup k shellu ADB na panelu, dokud zůstane zapnuté síťové ladění.\n\nPotom znovu vyberte „Odeslat“. Toto oprávnění můžete později odvolat v nastavení pro vývojáře na panelu."
           }
         },
@@ -1568,7 +1568,7 @@
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
           "retry_release_changed": "Vybrané vydání už neodpovídá uloženému vydání. Zvolte nový pokus o instalaci.",
-          "retry_credential_changed": "Přihlašovací údaj ADB systému Home Assistant se změnil. Před opakovaným pokusem zkontrolujte panel.",
+          "retry_credential_changed": "Přístupový údaj ADB systému Home Assistant se změnil. Před opakovaným pokusem zkontrolujte panel.",
           "retry_panel_ambiguous": "Nainstalovanou aplikaci na panelu se nepodařilo ověřit. Žádná nová instalace nebyla zahájena.",
           "retry_cannot_prove_safe": "Panel se nepodařilo zkontrolovat dostatečně důkladně pro bezpečné opakování pokusu. Zkuste to znovu později.",
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
@@ -1595,11 +1595,11 @@
       }
     },
     "adb_update_authorization": {
-      "title": "Povolit aktualizace na {panel}",
+      "title": "Povolit aktualizace na panelu {panel}",
       "fix_flow": {
         "step": {
           "authorize_adb": {
-            "title": "Povolit aktualizace na {panel}",
+            "title": "Povolit aktualizace na panelu {panel}",
             "description": "Vyberte „Odeslat“ a potom na panelu v dotazu „Povolit ladění?“ klepněte na „Povolit“. Tím této instanci Home Assistant udělíte obecný přístup k shellu ADB na panelu, dokud zůstane zapnuté síťové ladění.\n\nPotom znovu vyberte „Odeslat“. Toto oprávnění můžete později odvolat v nastavení pro vývojáře na panelu."
           }
         },
@@ -1649,7 +1649,7 @@
         "submit": "Hotovo"
       },
       "authorize_adb": {
-        "title": "Povolit aktualizace na {panel}",
+        "title": "Povolit aktualizace na panelu {panel}",
         "description": "Vyberte „Odeslat“ a potom na panelu v dotazu „Povolit ladění?“ klepněte na „Povolit“. Tím této instanci Home Assistant udělíte obecný přístup k shellu ADB na panelu, dokud zůstane zapnuté síťové ladění.\n\nPotom znovu vyberte „Odeslat“. Toto oprávnění můžete později odvolat v nastavení pro vývojáře na panelu."
       },
       "updates": {
@@ -1687,16 +1687,16 @@
       "retained_or_ambiguous": "Panel může obsahovat zachovaný záznam o balíčku Panel Assistant nebo se nepodařilo prokázat, že nezůstal žádný stav tohoto balíčku. Na panelu nebyla provedena žádná změna. Pokud bylo připojení nestabilní, zkuste to jednou znovu; jinak postupujte podle kroků na adrese {recovery_address}. Bez ověřené zálohy aplikaci neodinstalovávejte ani ji neresetujte.",
       "unknown": "Neočekávaná chyba",
       "panel_identity_changed": "Na této adrese už neodpovídá nastavený panel. Před dalším pokusem zkontrolujte panel a jeho adresu.",
-      "removal_busy": "Tento panel už mění aktualizace nebo přesun. Nic nebylo odebráno; zkuste to znovu, až tato operace skončí.",
+      "removal_busy": "Tento panel už mění jiná operace. Nic nebylo odebráno; zkuste to znovu, až tato operace skončí.",
       "removal_adb_unreachable": "Home Assistant se nedokázal spojit s panelem přes Android Debug Bridge (port 5555). Nic nebylo odebráno. Zkontrolujte, že je panel zapnutý a ladění po síti je stále povolené, a pak to zkuste znovu.",
-      "removal_adb_authorization": "Panel nepřijal tuto instanci Home Assistant pro Android Debug Bridge. Nic nebylo odstraněno. Nejdřív vyberte „Povolit aktualizace“ a potom to zkuste znovu.",
+      "removal_adb_authorization": "Panel nepřijal tuto instanci Home Assistant pro Android Debug Bridge. Nic nebylo odebráno. Nejdřív vyberte „Povolit aktualizace“ a potom to zkuste znovu.",
       "removal_panel_changed": "Na adrese tohoto panelu nyní odpovídá jiné zařízení. Nic nebylo odebráno.",
       "removal_approval_required": "Je zapnuté posílené zabezpečení, takže předání domovské obrazovky zpět musí být schváleno na samotném panelu. Nic se nezměnilo a Panel Assistant je stále nainstalovaný. Schvalte požadavek na panelu a potom znovu odešlete formulář.",
       "removal_no_replacement_home": "Panel nemohl předat svou domovskou obrazovku jinému spouštěči: nemá jinou aplikaci domovské obrazovky, takže může zobrazit pouze Panel Assistant. Nic nebylo odebráno a panel stále funguje. Nainstalujte spouštěč nebo znovu zapněte ten od výrobce a pak to zkuste znovu.",
       "removal_ownership_unreadable": "Panel nedokázal přečíst vlastní záznam o aplikacích výrobce, které vypnul. Nic nebylo odebráno. Znovu na panelu spusťte Panel Assistant a pak to zkuste znovu.",
       "removal_package_state_unknown": "Panel nedokázal zjistit, které aplikace jsou nainstalované nebo která z nich slouží jako domovská obrazovka. Nic nebylo odebráno. Zkuste to znovu za chvíli.",
       "removal_home_not_handed": "Panel nepotvrdil, že jeho domovskou obrazovku převzal jiný spouštěč, takže Panel Assistant nebyl odebrán. Nainstalujte spouštěč nebo znovu zapněte ten od výrobce a pak to zkuste znovu.",
-      "removal_hand_back_unsupported": "Aplikace Panel Assistant na tomto panelu je příliš stará, aby předala domovskou obrazovku zpět. Nic nebylo odstraněno. Nejdřív ji aktualizujte a potom to zkuste znovu.",
+      "removal_hand_back_unsupported": "Aplikace Panel Assistant na tomto panelu je příliš stará, aby předala domovskou obrazovku zpět. Nic nebylo odebráno. Nejdřív ji aktualizujte a potom to zkuste znovu.",
       "removal_app_unreachable": "Panel Assistant neodpověděl a stále slouží jako domovská obrazovka panelu, takže jeho odebrání by nyní nechalo panel bez domovské obrazovky. Nic nebylo odebráno. Spusťte na panelu Panel Assistant a pak to zkuste znovu.",
       "removal_remove_failed": "Panel už má svou domovskou obrazovku zpět, ale Panel Assistant se nepodařilo úplně odebrat. Zkuste to znovu: další pokus dokončí zbývající kroky.",
       "panel_not_connected": "Panel se ještě nepřipojil. Dokončete kroky na jeho stránce nastavení a pak znovu zvolte Hotovo."
