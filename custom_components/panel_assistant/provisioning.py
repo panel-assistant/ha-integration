@@ -355,12 +355,16 @@ async def async_probe_install_target(
     signer: PythonRSASigner | None = None,
     *,
     authorize: bool = False,
+    approval_seconds: float = _CONNECT_TIMEOUT_SECONDS,
 ) -> InstallTargetProbe:
     """Probe package absence without claiming installation admission.
 
     A signer authenticates existing trust without prompting. Only an explicit
     authorization step may set ``authorize`` to offer its public key for the
-    owner to approve on the panel. An
+    owner to approve on the panel; the offering connection then waits up to
+    ``approval_seconds`` for the Allow, because Android's approval is for the
+    connection that offered the key, and an offer that is not answered is
+    ``ADB_UNAUTHORIZED``. An
     ``INSTALL_CANDIDATE`` result still requires a later privileged residual-state
     check before any installation may be admitted.
     """
@@ -372,15 +376,22 @@ async def async_probe_install_target(
     )
     state = InstallTargetState.ADB_UNREACHABLE
     facts: _ObservedTarget | None = None
+    offered = connected = False
+
+    def offer_key(_device: object) -> None:
+        nonlocal offered
+        offered = True
 
     try:
-        async with asyncio.timeout(_CONNECT_TIMEOUT_SECONDS):
+        async with asyncio.timeout(
+            _CONNECT_TIMEOUT_SECONDS + (approval_seconds if authorize else 0)
+        ):
             connected = await device.connect(
                 rsa_keys=[] if signer is None else [signer],
-                auth_callback=None if authorize else _refuse_authorization,
+                auth_callback=offer_key if authorize else _refuse_authorization,
                 transport_timeout_s=_CONNECT_TIMEOUT_SECONDS,
-                auth_timeout_s=_CONNECT_TIMEOUT_SECONDS,
-                read_timeout_s=_CONNECT_TIMEOUT_SECONDS,
+                auth_timeout_s=approval_seconds,
+                read_timeout_s=max(_CONNECT_TIMEOUT_SECONDS, approval_seconds),
             )
         if not connected:
             return InstallTargetProbe(state=state)
@@ -442,7 +453,12 @@ async def async_probe_install_target(
         TimeoutError,
         TcpTimeoutException,
     ):
-        state = InstallTargetState.ADB_UNREACHABLE
+        # A key offered and not accepted is a missing Allow, not a dead port.
+        state = (
+            InstallTargetState.ADB_UNAUTHORIZED
+            if offered and not connected
+            else InstallTargetState.ADB_UNREACHABLE
+        )
     finally:
         await _async_close(device)
 

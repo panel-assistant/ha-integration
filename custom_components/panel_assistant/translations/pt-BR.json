@@ -67,8 +67,8 @@
         "description": "O Home Assistant encontrou uma instalação de Panel Assistant em {address}. Selecione Enviar para verificar se ainda é o mesmo painel e adicioná-lo como {panel_name}. Nenhuma configuração do painel será alterada."
       },
       "authorize_adb": {
-        "title": "Autorizar o Home Assistant no painel",
-        "description": "A versão selecionada inclui um descritor de instalação verificado. Selecione Enviar uma vez para criar ou carregar uma identidade ADB persistente para esta instalação do Home Assistant e oferecer sua chave pública ao painel Android em {address}. No painel, aprove a solicitação Permitir depuração do Android, volte aqui e selecione Enviar novamente. O Android pode descrever o Home Assistant como um computador. A aprovação concede acesso geral ao shell ADB enquanto a depuração pela rede permanecer habilitada; revogue esse acesso nas configurações de desenvolvedor do painel. Nenhum APK é baixado ou instalado nesta etapa."
+        "title": "Permitir o Home Assistant no painel",
+        "description": "Olhe a tela do painel em {address}: marque **Sempre permitir neste computador** e toque em **Permitir**. O Android pode descrever o Home Assistant como um computador.\n\nSelecione Enviar para perguntar ao painel novamente."
       },
       "confirm_install_candidate": {
         "title": "Instalar Panel Assistant {version}?",
@@ -88,6 +88,7 @@
       }
     },
     "progress": {
+      "authorize_adb": "Olhe a tela do painel em {address}: marque **Sempre permitir neste computador** e toque em **Permitir**. O Android pode descrever o Home Assistant como um computador.\n\nO processo continua sozinho quando o painel permitir.",
       "installing": "Instalando Panel Assistant em {address}. Mantenha esta caixa de diálogo aberta; a operação termina sozinha.\n\nSe você fechar a caixa, a instalação continuará. Adicione o mesmo endereço novamente para concluir."
     },
     "error": {
@@ -102,8 +103,7 @@
       "install_target_changed": "O nome de host não é mais resolvido para o mesmo endereço fixado do painel. Nenhuma chave ADB nem instalação foi enviada. Verifique o endereço e comece novamente.",
       "adb_unreachable": "O painel respondeu, mas nada respondeu na porta do Android Debug Bridge (5555). No painel, habilite o Android Debug Bridge e permita seu uso pela rede. Depois, tente novamente. Se você puder conectar o painel ao computador em que está navegando, instale via USB.",
       "panel_unreachable": "Nada respondeu nesse endereço. Verifique se o endereço está correto e se o painel está ligado e conectado à sua rede. Depois, tente novamente. Se você puder conectar o painel ao computador em que está navegando, instale via USB.",
-      "adb_unauthorized": "O painel ainda exige autorização ADB. Aprove a solicitação no painel e tente novamente.",
-      "adb_still_unauthorized": "O painel ainda não aceitou esta instância do Home Assistant. Aprove a solicitação ADB no painel e tente novamente.",
+      "adb_still_unauthorized": "O painel ainda não aceitou esta instância do Home Assistant ou não a memorizou.",
       "adb_credential_error": "O Home Assistant não conseguiu carregar ou salvar sua credencial ADB com segurança. Nenhuma alteração no painel foi tentada. Verifique o armazenamento e os logs do Home Assistant antes de tentar novamente.",
       "installed_without_health": "O pacote Panel Assistant está instalado, mas seu endpoint de verificação de funcionamento não respondeu. Este processo não irá sobrescrevê-lo nem repará-lo. Não tente novamente a instalação automática; abra Panel Assistant no painel ou siga as etapas em {recovery_address}. Depois de restaurar uma instalação que funcione corretamente, comece novamente para conectá-la.",
       "retained_or_ambiguous": "O painel pode conter um registro retido do pacote Panel Assistant, ou não foi possível comprovar a ausência do pacote. Nenhuma alteração foi feita no painel. Tente novamente uma vez se a conexão estava instável; caso contrário, siga as etapas em {recovery_address}. Não desinstale nem redefina o aplicativo sem um backup verificado.",

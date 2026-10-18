@@ -67,8 +67,8 @@
         "description": "Home Assistant znalazł instalację Panel Assistant pod adresem {address}. Zatwierdź, aby sprawdzić, czy to nadal ten sam panel, i dodać go jako {panel_name}. Żadne ustawienia panelu nie zostaną zmienione."
       },
       "authorize_adb": {
-        "title": "Autoryzuj Home Assistant na panelu",
-        "description": "Wybrane wydanie zawiera zweryfikowany deskryptor instalacji. Wybierz „Zatwierdź” jeden raz, aby utworzyć lub wczytać trwałą tożsamość ADB dla tej instalacji Home Assistant i przekazać jej klucz publiczny panelowi Android pod adresem {address}. Na panelu zatwierdź monit systemu Android „Zezwolić na debugowanie”, a następnie wróć tutaj i ponownie wybierz „Zatwierdź”. Android może opisywać Home Assistant jako komputer. Zatwierdzenie daje ogólny dostęp do powłoki ADB, dopóki debugowanie sieciowe pozostaje włączone; możesz go cofnąć w opcjach programisty panelu. Na tym etapie żaden plik APK nie jest pobierany ani instalowany."
+        "title": "Zezwól Home Assistant na panelu",
+        "description": "Spójrz na ekran panelu pod adresem {address}: zaznacz **Zawsze zezwalaj na tym komputerze**, a potem dotknij **Zezwól**. Android może nazywać Home Assistant komputerem.\n\nWybierz „Zatwierdź”, aby ponownie zapytać panel."
       },
       "confirm_install_candidate": {
         "title": "Zainstalować Panel Assistant {version}?",
@@ -88,6 +88,7 @@
       }
     },
     "progress": {
+      "authorize_adb": "Spójrz na ekran panelu pod adresem {address}: zaznacz **Zawsze zezwalaj na tym komputerze**, a potem dotknij **Zezwól**. Android może nazywać Home Assistant komputerem.\n\nGdy panel na to zezwoli, proces będzie kontynuowany sam.",
       "installing": "Instalowanie Panel Assistant pod adresem {address}. Pozostaw to okno dialogowe otwarte; operacja zakończy się sama.\n\nJeśli je zamkniesz, instalacja będzie kontynuowana. Dodaj ponownie ten sam adres, aby dokończyć."
     },
     "error": {
@@ -102,8 +103,7 @@
       "install_target_changed": "Nazwa hosta nie wskazuje już tego samego przypiętego adresu panelu. Nie wysłano klucza ADB ani instalacji. Sprawdź adres i zacznij od nowa.",
       "adb_unreachable": "Panel odpowiedział, ale nic nie odpowiedziało na jego porcie Android Debug Bridge (5555). Na panelu włącz Android Debug Bridge i zezwól na jego działanie przez sieć, a następnie spróbuj ponownie. Jeśli możesz podłączyć panel do komputera, na którym przeglądasz tę stronę, zainstaluj zamiast tego przez USB.",
       "panel_unreachable": "Pod tym adresem nic nie odpowiedziało. Sprawdź, czy adres jest poprawny, a panel jest włączony i podłączony do twojej sieci, a następnie spróbuj ponownie. Jeśli możesz podłączyć panel do komputera, na którym przeglądasz tę stronę, zainstaluj zamiast tego przez USB.",
-      "adb_unauthorized": "Panel nadal wymaga autoryzacji ADB. Zatwierdź monit na panelu, a następnie spróbuj ponownie.",
-      "adb_still_unauthorized": "Panel nie zaakceptował jeszcze tej instancji Home Assistant. Zatwierdź monit ADB na panelu, a następnie spróbuj ponownie.",
+      "adb_still_unauthorized": "Panel nie zaakceptował jeszcze tej instancji Home Assistant albo jej nie zapamiętał.",
       "adb_credential_error": "Home Assistant nie mógł bezpiecznie wczytać ani zapisać swoich danych uwierzytelniających ADB. Nie podjęto próby zmiany panelu. Przed ponowną próbą sprawdź pamięć i logi Home Assistant.",
       "installed_without_health": "Pakiet Panel Assistant jest zainstalowany, ale jego punkt końcowy stanu nie odpowiedział. Ten proces go nie nadpisze ani nie naprawi. Nie ponawiaj automatycznej instalacji; otwórz Panel Assistant na panelu lub postępuj zgodnie z krokami opisanymi pod adresem {recovery_address}. Po przywróceniu prawidłowej instalacji zacznij od nowa, aby ją połączyć.",
       "retained_or_ambiguous": "Panel może zawierać zachowany rekord pakietu Panel Assistant albo nie udało się dowieść, że pakietu nie ma. Nie wprowadzono żadnych zmian w panelu. Spróbuj ponownie tylko raz, jeśli połączenie było niestabilne; w przeciwnym razie postępuj zgodnie z krokami opisanymi pod adresem {recovery_address}. Nie odinstalowuj ani nie resetuj aplikacji bez zweryfikowanej kopii zapasowej.",

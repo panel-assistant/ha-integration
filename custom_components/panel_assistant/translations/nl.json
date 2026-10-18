@@ -68,7 +68,7 @@
       },
       "authorize_adb": {
         "title": "Geef Home Assistant toestemming op het paneel",
-        "description": "De geselecteerde release bevat een geverifieerde installatiebeschrijving. Klik één keer op ‘Verzenden’ om een permanente ADB-identiteit voor deze Home Assistant-installatie aan te maken of te laden en de openbare sleutel ervan aan te bieden aan het Android-paneel op {address}. Keur op het paneel de Android-vraag ‘Foutopsporing toestaan’ goed, kom dan hier terug en klik nogmaals op ‘Verzenden’. Android kan Home Assistant als een computer beschrijven. Goedkeuring geeft algemene ADB-shelltoegang zolang foutopsporing via het netwerk ingeschakeld blijft; je kunt dit intrekken via de ontwikkelaarsopties van het paneel. Er wordt in deze stap geen APK gedownload of geïnstalleerd."
+        "description": "Kijk naar het scherm van het paneel op {address}: vink **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**. Android kan Home Assistant een computer noemen.\n\nKlik op ‘Verzenden’ om het paneel opnieuw te vragen."
       },
       "confirm_install_candidate": {
         "title": "Panel Assistant {version} installeren?",
@@ -88,6 +88,7 @@
       }
     },
     "progress": {
+      "authorize_adb": "Kijk naar het scherm van het paneel op {address}: vink **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**. Android kan Home Assistant een computer noemen.\n\nDit gaat vanzelf verder zodra het paneel het toestaat.",
       "installing": "Panel Assistant wordt geïnstalleerd op {address}. Houd dit dialoogvenster open; de bewerking wordt vanzelf afgerond.\n\nAls je het sluit, gaat de installatie door. Voeg hetzelfde adres opnieuw toe om af te ronden."
     },
     "error": {
@@ -102,8 +103,7 @@
       "install_target_changed": "De hostnaam verwijst niet meer naar hetzelfde vastgezette paneeladres. Er is geen ADB-sleutel of installatie verzonden. Controleer het adres en begin opnieuw.",
       "adb_unreachable": "Het paneel reageerde wel, maar er kwam geen reactie op de Android Debug Bridge-poort (5555). Schakel op het paneel Android Debug Bridge in en sta dit toe via het netwerk, en probeer het dan nog eens. Als je het paneel kunt aansluiten op de computer waarop je nu surft, installeer dan via USB.",
       "panel_unreachable": "Er werd op dat adres niet gereageerd. Controleer of het adres klopt en of het paneel is ingeschakeld en op je netwerk is aangesloten, en probeer het dan nog eens. Als je het paneel kunt aansluiten op de computer waarop je nu aan het browsen bent, installeer het dan via USB.",
-      "adb_unauthorized": "Het paneel vraagt nog steeds om een autorisatie via ADB. Bevestig de melding op het paneel en probeer het daarna nog eens.",
-      "adb_still_unauthorized": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd. Bevestig de ADB-melding op het paneel en probeer het dan nog eens.",
+      "adb_still_unauthorized": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd of heeft die niet onthouden.",
       "adb_credential_error": "Home Assistant kon de inloggegevens van ADB niet veilig laden of opslaan. Er is geen poging gedaan om het paneel te wijzigen. Controleer de opslag en logbestanden van Home Assistant voordat je het opnieuw probeert.",
       "installed_without_health": "Het pakket Panel Assistant is geïnstalleerd, maar het status-eindpunt reageerde niet. Dit installatieproces zal het pakket niet overschrijven of herstellen. Probeer de automatische installatie niet opnieuw; open Panel Assistant op het paneel of volg de stappen op {recovery_address}. Nadat je een werkende installatie hebt hersteld, begin je opnieuw om verbinding te maken.",
       "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket Panel Assistant, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de stappen op {recovery_address}. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",

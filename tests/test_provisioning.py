@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import struct
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 from typing import Any
 
@@ -183,6 +183,24 @@ class _FakeConnectionWriter:
 
     async def wait_closed(self) -> None:
         return None
+
+
+class _AllowGatedReader(asyncio.StreamReader):
+    """Hold the panel's answer to an offered key until the person allows it."""
+
+    def __init__(self, allow: asyncio.Event | None) -> None:
+        super().__init__()
+        self._allow = allow
+        self.approve: Callable[[], None] | None = None
+
+    async def read(self, n: int = -1) -> bytes:
+        if self.approve is not None and not self._buffer:
+            assert self._allow is not None
+            await self._allow.wait()
+            approve, self.approve = self.approve, None
+            approve()
+            self.feed_eof()
+        return await super().read(n)
 
 
 class _ChunkedShellDevice:
@@ -532,9 +550,14 @@ def _install_adb_handshake(
     *,
     reject_signature: bool = False,
     approve_public_key: bool = False,
+    allow: asyncio.Event | None = None,
 ) -> _FakeConnectionWriter:
-    """Replay a protected peer through the real bounded socket transport."""
-    reader = asyncio.StreamReader()
+    """Replay a protected peer through the real bounded socket transport.
+
+    With ``allow`` the peer answers an offered key only once the event is set,
+    as a person tapping Allow does; it never closes the connection meanwhile.
+    """
+    reader = _AllowGatedReader(allow)
     writer = _FakeConnectionWriter()
 
     def receive(command: bytes, arg0: int, arg1: int, data: bytes = b"") -> None:
@@ -544,7 +567,8 @@ def _install_adb_handshake(
     receive(adb_constants.AUTH, adb_constants.AUTH_TOKEN, 0, b"a" * 20)
     if reject_signature:
         receive(adb_constants.AUTH, adb_constants.AUTH_TOKEN, 0, b"b" * 20)
-    if not reject_signature or approve_public_key:
+
+    def approve() -> None:
         receive(
             adb_constants.CNXN,
             adb_constants.VERSION,
@@ -561,7 +585,13 @@ def _install_adb_handshake(
             receive(adb_constants.OKAY, local_id, local_id)
             receive(adb_constants.WRTE, local_id, local_id, output)
             receive(adb_constants.CLSE, local_id, local_id)
-    reader.feed_eof()
+
+    if allow is not None:
+        reader.approve = approve
+    else:
+        if not reject_signature or approve_public_key:
+            approve()
+        reader.feed_eof()
 
     async def open_connection(
         host: str, port: int
@@ -639,6 +669,60 @@ async def test_explicit_authorization_offers_public_key_after_signature_rejectio
         public_key.encode("ascii") + b"\0",
     )
     assert probe.serial == "WF1589T-0123"
+    assert writer.closed is True
+
+
+async def test_an_offered_key_waits_for_the_allow_on_its_own_connection(
+    monkeypatch: pytest.MonkeyPatch, adb_signer: PythonRSASigner
+) -> None:
+    """Android allows the connection that offered the key, so that one waits.
+
+    The Allow comes later than any other ADB answer is waited for, and the key
+    is offered once.
+    """
+    monkeypatch.setattr(provisioning, "_CONNECT_TIMEOUT_SECONDS", 0.05)
+    allow = asyncio.Event()
+    writer = _install_adb_handshake(monkeypatch, reject_signature=True, allow=allow)
+    tap = asyncio.get_running_loop().call_later(0.3, allow.set)
+
+    try:
+        async with asyncio.timeout(2):
+            probe = await async_probe_install_target(
+                normalize_address("panel.local"),
+                adb_signer,
+                authorize=True,
+                approval_seconds=1.0,
+            )
+    finally:
+        tap.cancel()
+
+    assert probe.state is InstallTargetState.INSTALLED
+    offers = [
+        packet
+        for packet in _sent_adb_packets(writer)
+        if packet[:2] == (adb_constants.AUTH, adb_constants.AUTH_RSAPUBLICKEY)
+    ]
+    assert len(offers) == 1
+    assert writer.closed is True
+
+
+async def test_an_offered_key_nobody_allows_is_unauthorized_not_unreachable(
+    monkeypatch: pytest.MonkeyPatch, adb_signer: PythonRSASigner
+) -> None:
+    """The panel answered and was asked; only the Allow is missing."""
+    writer = _install_adb_handshake(
+        monkeypatch, reject_signature=True, allow=asyncio.Event()
+    )
+
+    async with asyncio.timeout(2):
+        probe = await async_probe_install_target(
+            normalize_address("panel.local"),
+            adb_signer,
+            authorize=True,
+            approval_seconds=0.2,
+        )
+
+    assert probe.state is InstallTargetState.ADB_UNAUTHORIZED
     assert writer.closed is True
 
 

@@ -67,8 +67,8 @@
         "description": "Home Assistant ha trovato un’installazione di Panel Assistant in {address}. Invia il modulo per verificare che sia ancora lo stesso pannello e aggiungerlo come {panel_name}. Nessuna impostazione del pannello verrà modificata."
       },
       "authorize_adb": {
-        "title": "Autorizza Home Assistant sul pannello",
-        "description": "La versione selezionata include un descrittore di installazione verificato. Seleziona Invia una volta per creare o caricare un'identità ADB persistente per questa installazione di Home Assistant e proporne la chiave pubblica al pannello Android all'indirizzo {address}. Sul pannello, approva la richiesta di Android per consentire il debug, quindi torna qui e seleziona di nuovo Invia. Android potrebbe descrivere Home Assistant come un computer. L'approvazione concede un accesso generale alla shell ADB finché il debug di rete rimane abilitato; puoi revocarlo dalle impostazioni sviluppatore del pannello. In questo passaggio non viene scaricato né installato alcun APK."
+        "title": "Consenti Home Assistant sul pannello",
+        "description": "Guarda lo schermo del pannello all'indirizzo {address}: seleziona **Consenti sempre da questo computer**, poi tocca **Consenti**. Android potrebbe descrivere Home Assistant come un computer.\n\nSeleziona Invia per chiedere di nuovo al pannello."
       },
       "confirm_install_candidate": {
         "title": "Installare Panel Assistant {version}?",
@@ -88,6 +88,7 @@
       }
     },
     "progress": {
+      "authorize_adb": "Guarda lo schermo del pannello all'indirizzo {address}: seleziona **Consenti sempre da questo computer**, poi tocca **Consenti**. Android potrebbe descrivere Home Assistant come un computer.\n\nL'operazione prosegue da sola quando il pannello lo consente.",
       "installing": "Installazione di Panel Assistant all’indirizzo {address}. Tieni aperta questa finestra di dialogo; l’operazione termina da sola.\n\nSe la chiudi, l’installazione continua. Aggiungi di nuovo lo stesso indirizzo per completare l’operazione."
     },
     "error": {
@@ -102,8 +103,7 @@
       "install_target_changed": "Il nome host non si risolve più nello stesso indirizzo del pannello fissato in precedenza. Non è stata inviata alcuna chiave ADB e non è stata avviata alcuna installazione. Controlla l'indirizzo e ricomincia.",
       "adb_unreachable": "Il pannello ha risposto, ma nulla ha risposto sulla sua porta Android Debug Bridge (5555). Sul pannello attiva Android Debug Bridge e consentilo via rete, poi riprova. Se puoi collegare il pannello al computer da cui stai navigando, installa invece tramite USB.",
       "panel_unreachable": "Nulla ha risposto a quell'indirizzo. Controlla che l'indirizzo sia corretto e che il pannello sia acceso e sulla tua rete, poi riprova. Se puoi collegare il pannello al computer da cui stai navigando, installa invece tramite USB.",
-      "adb_unauthorized": "Il pannello richiede ancora l'autorizzazione ADB. Approva la richiesta sul pannello, quindi riprova.",
-      "adb_still_unauthorized": "Il pannello non ha ancora accettato questa istanza di Home Assistant. Approva la richiesta ADB sul pannello, quindi riprova.",
+      "adb_still_unauthorized": "Il pannello non ha ancora accettato questa istanza di Home Assistant, oppure non l'ha memorizzata.",
       "adb_credential_error": "Home Assistant non è riuscito a caricare o conservare in modo sicuro le proprie credenziali ADB. Non è stata tentata alcuna modifica del pannello. Controlla lo spazio di archiviazione e i registri di Home Assistant prima di riprovare.",
       "installed_without_health": "Il pacchetto Panel Assistant è installato, ma il relativo endpoint sullo stato di funzionamento non ha risposto. Questa procedura non lo sovrascriverà né lo riparerà. Non riprovare l'installazione automatica; apri Panel Assistant sul pannello oppure segui i passaggi all'indirizzo {recovery_address}. Dopo aver ripristinato un'installazione funzionante, ricomincia per collegarla.",
       "retained_or_ambiguous": "Il pannello potrebbe contenere un record conservato del pacchetto Panel Assistant oppure non è stato possibile dimostrare che il pacchetto sia assente. Il pannello non è stato modificato. Riprova una volta se la connessione era instabile; in caso contrario, segui i passaggi all'indirizzo {recovery_address}. Non disinstallare o reimpostare l'app senza un backup verificato.",

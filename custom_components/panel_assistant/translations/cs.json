@@ -67,8 +67,8 @@
         "description": "Home Assistant našel instalaci Panel Assistant na adrese {address}. Volbou Odeslat ověříte, že jde stále o tentýž panel, a přidáte jej jako {panel_name}. Žádné nastavení panelu se nezmění."
       },
       "authorize_adb": {
-        "title": "Autorizovat Home Assistant na panelu",
-        "description": "Vybrané vydání obsahuje ověřený popis instalace. Jednou zvolte Odeslat: tím vytvoříte nebo načtete trvalou identitu ADB pro tuto instalaci Home Assistant a nabídnete její veřejný klíč panelu Android na adrese {address}. Na panelu schvalte výzvu Android k povolení ladění, pak se sem vraťte a znovu zvolte Odeslat. Android může Home Assistant označovat jako počítač. Schválení uděluje obecný přístup k shellu ADB, dokud zůstává zapnuté síťové ladění; odeberte jej v nastavení pro vývojáře na panelu. V tomto kroku se žádný APK nestahuje ani neinstaluje."
+        "title": "Povolit Home Assistant na panelu",
+        "description": "Podívejte se na obrazovku panelu na adrese {address}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač.\n\nVolbou Odeslat se panelu zeptáte znovu."
       },
       "confirm_install_candidate": {
         "title": "Nainstalovat Panel Assistant {version}?",
@@ -88,6 +88,7 @@
       }
     },
     "progress": {
+      "authorize_adb": "Podívejte se na obrazovku panelu na adrese {address}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač.\n\nJakmile to panel povolí, bude se pokračovat samo.",
       "installing": "Instalace Panel Assistant na adrese {address}. Nechte tento dialog otevřený; operace se dokončí sama.\n\nPokud ho zavřete, instalace bude pokračovat. Pro dokončení přidejte stejnou adresu znovu."
     },
     "error": {
@@ -102,8 +103,7 @@
       "install_target_changed": "Název hostitele se již nepřekládá na tutéž zafixovanou adresu panelu. Nebyl odeslán žádný klíč ADB ani instalace. Zkontrolujte adresu a začněte znovu.",
       "adb_unreachable": "Panel odpověděl, ale na jeho portu Android Debug Bridge (5555) nic neodpovědělo. Na panelu zapněte Android Debug Bridge a povolte jej přes síť, pak to zkuste znovu. Pokud můžete panel připojit k počítači, na kterém prohlížíte tuto stránku, nainstalujte jej raději přes USB.",
       "panel_unreachable": "Na této adrese nic neodpovědělo. Zkontrolujte správnost adresy a zda je panel zapnutý a ve vaší síti, pak to zkuste znovu. Pokud můžete panel připojit k počítači, na kterém prohlížíte tuto stránku, nainstalujte jej raději přes USB.",
-      "adb_unauthorized": "Panel stále vyžaduje autorizaci ADB. Schvalte výzvu na panelu a zkuste to znovu.",
-      "adb_still_unauthorized": "Panel zatím nepřijal tuto instanci Home Assistant. Schvalte výzvu ADB na panelu a zkuste to znovu.",
+      "adb_still_unauthorized": "Panel zatím nepřijal tuto instanci Home Assistant, nebo si ji nezapamatoval.",
       "adb_credential_error": "Home Assistant nedokázal bezpečně načíst nebo trvale uložit svůj přihlašovací údaj ADB. Nebyl proveden žádný pokus o změnu panelu. Před dalším pokusem zkontrolujte úložiště a protokoly Home Assistant.",
       "installed_without_health": "Balíček Panel Assistant je nainstalován, ale jeho koncový bod kontroly stavu neodpověděl. Tento postup jej nepřepíše ani neopraví. Neopakujte automatickou instalaci; otevřete Panel Assistant na panelu nebo postupujte podle kroků na adrese {recovery_address}. Po obnovení funkční instalace začněte znovu, abyste ji připojili.",
       "retained_or_ambiguous": "Panel může obsahovat zachovaný záznam balíčku Panel Assistant nebo se nepodařilo prokázat nepřítomnost jeho balíčku. Na panelu nebyla provedena žádná změna. Pokud bylo připojení nestabilní, zkuste to jednou znovu; jinak postupujte podle kroků na adrese {recovery_address}. Bez ověřené zálohy aplikaci neodinstalovávejte ani neresetujte.",
