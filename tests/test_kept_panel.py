@@ -95,12 +95,7 @@ async def test_kept_panel_installs_into_its_original_entry(
         removal = await hass.config_entries.options.async_configure(
             options["flow_id"], {"next_step_id": "remove_app"}
         )
-        done = await hass.config_entries.options.async_configure(
-            removal["flow_id"], {"confirmed": True}
-        )
-        kept = await hass.config_entries.options.async_configure(
-            done["flow_id"], {"next_step_id": "remove_app_keep_entry"}
-        )
+        kept = await hass.config_entries.options.async_configure(removal["flow_id"], {})
     assert kept["reason"] == "removed_entry_kept"
     assert entry.state is config_entries.ConfigEntryState.LOADED
     # Outside a reinstall, another account asking for the kept panel is still

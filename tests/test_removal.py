@@ -26,6 +26,7 @@ from aiohttp.test_utils import TestServer
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import device_registry as dr
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from yarl import URL
 
@@ -349,9 +350,63 @@ async def _open_form(hass: HomeAssistant, entry: Any) -> dict[str, Any]:
 
 async def _remove(hass: HomeAssistant, entry: Any) -> dict[str, Any]:
     form = await _open_form(hass, entry)
-    return await hass.config_entries.options.async_configure(
-        form["flow_id"], {"confirmed": True}
+    return await hass.config_entries.options.async_configure(form["flow_id"], {})
+
+
+async def test_one_submit_removes_the_app_and_keeps_the_panel(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
+) -> None:
+    """Submit under the risks link is the one consent; nothing else is asked."""
+    fake, server = panel
+    entry = _entry(hass, server)
+    form = await _open_form(hass, entry)
+    assert fake.installed == [PACKAGE_ID], "opening the form removes nothing"
+    assert fake.hand_back_requests == 0
+
+    result = await hass.config_entries.options.async_configure(form["flow_id"], {})
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "removed_entry_kept"
+    assert fake.installed == []
+    assert hass.config_entries.async_get_entry(entry.entry_id) is not None
+
+
+async def test_the_same_submit_can_also_forget_the_panel(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
+) -> None:
+    fake, server = panel
+    entry = _entry(hass, server)
+    form = await _open_form(hass, entry)
+
+    result = await hass.config_entries.options.async_configure(
+        form["flow_id"], {"delete_entry": True}
     )
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "removed_entry_deleted"
+    assert fake.installed == []
+    assert hass.config_entries.async_get_entry(entry.entry_id) is None
+
+
+async def test_the_removal_form_names_the_panel_as_home_assistant_shows_it(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
+) -> None:
+    """The entry title is the panel's id; the owner knows it by its device name."""
+    _fake, server = panel
+    entry = _entry(hass, server)
+    hass.config_entries.async_update_entry(entry, title="jenna_6c08")
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, entry.entry_id)},
+        name="Jenna",
+    )
+    dr.async_get(hass).async_update_device(device.id, name_by_user="Lounge display")
+
+    form = await _open_form(hass, entry)
+
+    assert form["description_placeholders"]["panel"] == "Lounge display"
 
 
 async def test_removal_hands_home_back_then_removes_both_ids(
@@ -364,8 +419,8 @@ async def test_removal_hands_home_back_then_removes_both_ids(
     result = await _remove(hass, entry)
 
     assert result.get("errors") is None, (result.get("errors"), fake.read())
-    assert result["type"] is FlowResultType.MENU
-    assert result["step_id"] == "remove_app_done"
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "removed_entry_kept"
     assert fake.installed == []
     assert fake.read()["home"] == VENDOR_HOME
     assert fake.hand_back_requests == 1
@@ -407,55 +462,6 @@ async def test_an_app_that_cannot_give_up_device_admin_is_kept_and_reported(
     assert fake.installed == [PACKAGE_ID]
     # The first refusal and ten retries, then the observation reports it.
     assert fake.read()["events"].count(f"uninstall refused {PACKAGE_ID}") == 11
-
-
-async def test_the_owner_can_forget_the_panel_once_its_app_is_gone(
-    hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
-) -> None:
-    _fake, server = panel
-    entry = _entry(hass, server)
-    done = await _remove(hass, entry)
-
-    result = await hass.config_entries.options.async_configure(
-        done["flow_id"], {"next_step_id": "remove_app_delete_entry"}
-    )
-    await hass.async_block_till_done()
-
-    assert result["type"] is FlowResultType.ABORT
-    assert result["reason"] == "removed_entry_deleted"
-    assert hass.config_entries.async_get_entry(entry.entry_id) is None
-
-
-async def test_keeping_the_entry_leaves_it_in_place(
-    hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
-) -> None:
-    _fake, server = panel
-    entry = _entry(hass, server)
-    done = await _remove(hass, entry)
-
-    result = await hass.config_entries.options.async_configure(
-        done["flow_id"], {"next_step_id": "remove_app_keep_entry"}
-    )
-    await hass.async_block_till_done()
-
-    assert result["reason"] == "removed_entry_kept"
-    assert hass.config_entries.async_get_entry(entry.entry_id) is not None
-
-
-async def test_nothing_is_removed_until_the_owner_confirms(
-    hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
-) -> None:
-    fake, server = panel
-    entry = _entry(hass, server)
-    form = await _open_form(hass, entry)
-
-    result = await hass.config_entries.options.async_configure(
-        form["flow_id"], {"confirmed": False}
-    )
-
-    assert result.get("errors") == {"base": "removal_unconfirmed"}
-    assert fake.installed == [PACKAGE_ID]
-    assert fake.hand_back_requests == 0
 
 
 async def test_the_risks_link_names_the_panel_make_model_and_firmware(
@@ -527,20 +533,34 @@ async def test_hardened_approval_stops_with_nothing_removed_and_a_retry_finishes
     entry = _entry(hass, server)
     form = await _open_form(hass, entry)
 
-    result = await hass.config_entries.options.async_configure(
-        form["flow_id"], {"confirmed": True}
-    )
+    result = await hass.config_entries.options.async_configure(form["flow_id"], {})
 
     assert result.get("errors") == {"base": "removal_approval_required"}
     assert fake.installed == [PACKAGE_ID]
     assert fake.read()["home"] == APP_HOME
 
     fake.hand_back = "hand"  # approved on the panel; the same request again
-    result = await hass.config_entries.options.async_configure(
-        form["flow_id"], {"confirmed": True}
-    )
-    assert result["step_id"] == "remove_app_done"
+    result = await hass.config_entries.options.async_configure(form["flow_id"], {})
+    assert result["reason"] == "removed_entry_kept"
     assert fake.installed == []
+
+
+async def test_a_refused_removal_keeps_the_choice_to_delete_for_the_retry(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
+) -> None:
+    fake, server = panel
+    fake.hand_back = "approval"
+    entry = _entry(hass, server)
+    form = await _open_form(hass, entry)
+
+    result = await hass.config_entries.options.async_configure(
+        form["flow_id"], {"delete_entry": True}
+    )
+
+    assert result.get("errors") == {"base": "removal_approval_required"}
+    (field,) = result["data_schema"].schema
+    assert field.description == {"suggested_value": True}
+    assert hass.config_entries.async_get_entry(entry.entry_id) is not None
 
 
 @pytest.mark.parametrize(
@@ -600,19 +620,15 @@ async def test_a_run_cut_short_after_one_uninstall_is_finished_by_a_retry(
     entry = _entry(hass, server)
     form = await _open_form(hass, entry)
 
-    first = await hass.config_entries.options.async_configure(
-        form["flow_id"], {"confirmed": True}
-    )
+    first = await hass.config_entries.options.async_configure(form["flow_id"], {})
 
     assert first.get("errors") == {"base": "removal_remove_failed"}
     # The new app stays while the old one is left, so the retry can reach it.
     assert fake.installed == [LEGACY_PACKAGE_ID, PACKAGE_ID]
     assert fake.read()["home"] == VENDOR_HOME
 
-    retry = await hass.config_entries.options.async_configure(
-        form["flow_id"], {"confirmed": True}
-    )
-    assert retry["step_id"] == "remove_app_done"
+    retry = await hass.config_entries.options.async_configure(form["flow_id"], {})
+    assert retry["reason"] == "removed_entry_kept"
     assert fake.installed == []
     assert fake.read()["home"] == VENDOR_HOME
 
@@ -628,7 +644,7 @@ async def test_a_connection_lost_after_the_uninstall_still_ends_removed(
     result = await _remove(hass, entry)
 
     assert result.get("errors") is None, (result.get("errors"), fake.read())
-    assert result["step_id"] == "remove_app_done"
+    assert result["reason"] == "removed_entry_kept"
     assert fake.installed == []
 
 
@@ -642,15 +658,11 @@ async def test_a_dropped_connection_during_the_uninstall_is_finished_by_a_retry(
     entry = _entry(hass, server)
     form = await _open_form(hass, entry)
 
-    first = await hass.config_entries.options.async_configure(
-        form["flow_id"], {"confirmed": True}
-    )
+    first = await hass.config_entries.options.async_configure(form["flow_id"], {})
     assert first.get("errors") == {"base": "removal_remove_failed"}
 
-    retry = await hass.config_entries.options.async_configure(
-        form["flow_id"], {"confirmed": True}
-    )
-    assert retry["step_id"] == "remove_app_done"
+    retry = await hass.config_entries.options.async_configure(form["flow_id"], {})
+    assert retry["reason"] == "removed_entry_kept"
     assert fake.installed == []
     # The app was still there, so the retry asks it to hand HOME back again.
     assert fake.hand_back_requests == 2
@@ -667,7 +679,7 @@ async def test_a_panel_with_neither_app_left_is_reported_removed(
     result = await _remove(hass, entry)
 
     assert result.get("errors") is None, (result.get("errors"), fake.read())
-    assert result["step_id"] == "remove_app_done"
+    assert result["reason"] == "removed_entry_kept"
     assert fake.hand_back_requests == 0
     assert fake.read()["events"] == []
 
@@ -741,9 +753,7 @@ async def test_adb_lost_after_the_form_opened_is_reported_as_its_cause(
     form = await _open_form(hass, entry)
 
     with patch.object(install_adb, seam, side_effect=InstallAdbError(code)):
-        result = await hass.config_entries.options.async_configure(
-            form["flow_id"], {"confirmed": True}
-        )
+        result = await hass.config_entries.options.async_configure(form["flow_id"], {})
 
     assert result.get("errors") == {"base": error}
     assert fake.installed == [PACKAGE_ID]
@@ -807,16 +817,12 @@ async def test_an_old_app_left_without_the_new_app_is_reported_until_removed(
     entry = _entry(hass, server)
     form = await _open_form(hass, entry)
 
-    first = await hass.config_entries.options.async_configure(
-        form["flow_id"], {"confirmed": True}
-    )
+    first = await hass.config_entries.options.async_configure(form["flow_id"], {})
     assert first.get("errors") == {"base": "removal_remove_failed"}
     assert fake.installed == [LEGACY_PACKAGE_ID]
 
-    retry = await hass.config_entries.options.async_configure(
-        form["flow_id"], {"confirmed": True}
-    )
-    assert retry["step_id"] == "remove_app_done"
+    retry = await hass.config_entries.options.async_configure(form["flow_id"], {})
+    assert retry["reason"] == "removed_entry_kept"
     assert fake.installed == []
 
 
@@ -833,7 +839,7 @@ async def test_a_restore_that_fails_still_removes_the_app(
 
     assert fake.drop_after is None  # the restore command ran and dropped
     assert result.get("errors") is None, (result.get("errors"), fake.read())
-    assert result["step_id"] == "remove_app_done"
+    assert result["reason"] == "removed_entry_kept"
     assert fake.installed == []
 
 
@@ -867,7 +873,7 @@ async def test_removal_gives_a_portal_its_meta_values_back_before_the_uninstall(
 
     result = await _remove(hass, entry)
 
-    assert result["step_id"] == "remove_app_done"
+    assert result["reason"] == "removed_entry_kept"
     assert fake.installed == [control_center]
     events = fake.read()["events"]
     assert events == [
@@ -914,7 +920,7 @@ async def test_removal_gives_shelly_home_its_overlay_and_the_panel_its_size_back
     result = await _remove(hass, entry)
 
     assert result.get("errors") is None, (result.get("errors"), fake.read())
-    assert result["step_id"] == "remove_app_done"
+    assert result["reason"] == "removed_entry_kept"
     assert fake.installed == [launcher]
     assert fake.read()["home"] == f"{launcher}/.activities.SplashActivity"
     assert fake.read()["events"] == [

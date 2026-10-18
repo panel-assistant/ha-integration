@@ -2,8 +2,10 @@
 
 import asyncio
 import contextlib
+import json
 from collections.abc import Iterator
 from dataclasses import replace
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, call, patch
@@ -51,6 +53,7 @@ from custom_components.panel_assistant.const import (
     CONF_TRANSPORT_USER_ID,
     DOMAIN,
     INTEGRATION_VERSION,
+    help_url,
 )
 from custom_components.panel_assistant.install_executor import InstallExecutor
 from custom_components.panel_assistant.install_jobs import (
@@ -794,6 +797,76 @@ async def test_rc_selection_requires_exact_translated_consent_and_frozen_plan(
     assert planned.apk_sha256 == selected.sha256
     assert planned.prerelease_opt_in is True
     progress.assert_awaited_once_with(receipt)
+
+
+def _english(flow: str, step_id: str, placeholders: dict[str, str]) -> str:
+    """The description a person reads, as Home Assistant fills it in."""
+    strings = json.loads(
+        (
+            Path(__file__).parents[1]
+            / "custom_components/panel_assistant/translations/en.json"
+        ).read_text(encoding="utf-8")
+    )
+    return strings[flow]["step"][step_id]["description"].format(**placeholders)
+
+
+async def test_a_single_recommended_release_goes_straight_to_the_install_question(
+    hass: HomeAssistant, install_release_catalog: AsyncMock
+) -> None:
+    """Nothing to choose is not a step; the question names no board codename."""
+    install_release_catalog.return_value = [{"tag": "v0.9.7", "prerelease": False}]
+    manager = _manager_for(_receipt(InstallPhase.APPROVED))
+    resolve = AsyncMock(return_value=RELEASE)
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
+            AsyncMock(return_value=manager),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+            AsyncMock(side_effect=CannotConnectError),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_probe_install_target",
+            AsyncMock(return_value=replace(CANDIDATE, model="Jenna")),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_resolve_install_choice",
+            resolve,
+        ),
+    ):
+        form = await _start_step(hass, "add_panel")
+        question = await hass.config_entries.flow.async_configure(
+            form["flow_id"], {CONF_ADDRESS: "panel.local"}
+        )
+
+    assert question["step_id"] == "confirm_install_candidate"
+    assert resolve.await_args.args[1] is None, "the recommended release, by channel"
+    text = _english("config", question["step_id"], question["description_placeholders"])
+    assert "panel.local" in text
+    assert "Jenna" not in text
+    manager.async_create_or_join.assert_not_awaited()
+
+
+async def test_the_usb_step_says_usb_debugging_must_be_on_and_where_to_look(
+    hass: HomeAssistant,
+) -> None:
+    form = await _start_step(hass, "install_usb")
+
+    text = _english("config", form["step_id"], form["description_placeholders"])
+    assert "USB debugging must be on" in text
+    assert help_url("panel-access") in text
+
+
+async def test_the_address_step_describes_a_picker_only_when_it_shows_one(
+    hass: HomeAssistant,
+) -> None:
+    form = await _start_step(hass, "add_panel")
+
+    text = _english("config", form["step_id"], form["description_placeholders"])
+    assert "✓" not in text
+    assert "Pick a panel" not in text
+    assert "hostname or IP address" in text
 
 
 async def test_rc_resolution_failure_never_falls_back_or_creates_credential(

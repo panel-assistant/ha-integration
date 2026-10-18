@@ -70,6 +70,7 @@ from .const import (
     SOURCE_USB_INSTALL,
     help_url,
 )
+from .device import panel_display_name
 from .discovery import (
     CONFIRMED,
     MigrationTarget,
@@ -259,7 +260,9 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         """Open browser-owned USB installation without creating an entry."""
         if user_input is None:
             return self.async_show_form(
-                step_id="install_usb", data_schema=vol.Schema({})
+                step_id="install_usb",
+                data_schema=vol.Schema({}),
+                description_placeholders={"panel_access_url": help_url("panel-access")},
             )
         # The dialog opens the installer window itself, and only for an absolute
         # URL, so the address is the one this browser used to reach Home Assistant.
@@ -354,11 +357,17 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         user_input: dict[str, Any] | None,
         errors: dict[str, str],
     ) -> ConfigFlowResult:
-        """Ask only for the panel's address; what happens next depends on the panel."""
-        schema = address_schema(self._migration_targets) or _DATA_SCHEMA
+        """Ask only for the panel's address; what happens next depends on the panel.
+
+        Panels Home Assistant knows through other apps are offered in a picker,
+        which has its own step so that its text describes it only when shown.
+        """
+        picker = address_schema(self._migration_targets)
         return self.async_show_form(
-            step_id="add_panel",
-            data_schema=self.add_suggested_values_to_schema(schema, user_input),
+            step_id="add_panel" if picker is None else "add_known_panel",
+            data_schema=self.add_suggested_values_to_schema(
+                picker or _DATA_SCHEMA, user_input
+            ),
             errors=errors,
             description_placeholders={
                 "panel_access_url": help_url("panel-access"),
@@ -367,12 +376,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             },
         )
 
-    def _show_choose_version(
-        self, errors: dict[str, str] | None = None
-    ) -> ConfigFlowResult:
-        """Offer the newest stable release first, then published test releases."""
+    def _version_options(self) -> list[SelectOptionDict]:
+        """The newest stable release first, then published test releases."""
         releases = self._install_releases or []
-        options: list[SelectOptionDict] = [
+        return [
             SelectOptionDict(
                 value=(
                     _STABLE_CHOICE
@@ -389,6 +396,12 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             )
             for index, release in enumerate(releases)
         ]
+
+    def _show_choose_version(
+        self, errors: dict[str, str] | None = None
+    ) -> ConfigFlowResult:
+        """Offer the releases to choose from."""
+        options = self._version_options()
         # With nothing to choose, an empty form still submits, which reloads.
         schema = (
             vol.Schema(
@@ -676,6 +689,12 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             }.get(state, "unknown")
         return self._show_add_panel_form(user_input, errors)
 
+    async def async_step_add_known_panel(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """The address step, shown with a picker of panels known to other apps."""
+        return await self.async_step_add_panel(user_input)
+
     async def _async_check_running_panel(
         self, address: PanelAddress, user_input: dict[str, Any]
     ) -> ConfigFlowResult:
@@ -741,15 +760,16 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             or self._pending_probe_state is None
         ):
             return self.async_abort(reason="unknown")
-        if user_input is None:
+        if user_input is None or self._release_catalog_error:
+            # A submit after an error is "try again": load the list afresh.
             if self._install_releases is None or self._release_catalog_error:
                 await self._async_load_install_releases()
-            return self._show_choose_version()
-        if self._release_catalog_error:
-            # The person saw no versions, so this submit is "try again": load the
-            # list afresh and let them choose from what is now offered.
-            await self._async_load_install_releases()
-            return self._show_choose_version()
+            options = self._version_options()
+            # One release on offer is nothing to choose; a test version still
+            # gets its own warning on the install question.
+            if len(options) != 1:
+                return self._show_choose_version()
+            user_input = {_CONF_RELEASE_CANDIDATE: options[0]["value"]}
 
         tag = user_input.get(_CONF_RELEASE_CANDIDATE, "")
         if tag == _STABLE_CHOICE:
@@ -1681,8 +1701,8 @@ async def async_authorize_existing_panel_adb(
     }.get(probe.state, "panel_identity_changed")
 
 
-#: The removal form's one field: the owner has read the risks and confirms.
-CONF_REMOVAL_CONFIRMED = "confirmed"
+#: The removal form's one field: also forget the panel once its app is gone.
+CONF_REMOVAL_DELETE_ENTRY = "delete_entry"
 
 
 class HaPaneldOptionsFlow(OptionsFlow):
@@ -1788,18 +1808,21 @@ class HaPaneldOptionsFlow(OptionsFlow):
     async def async_step_remove_app(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Remove the app once the owner has seen the risks and confirmed."""
+        """Remove the app on the one Submit under the risks link."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            if not user_input.get(CONF_REMOVAL_CONFIRMED):
-                errors["base"] = "removal_unconfirmed"
+            try:
+                await async_remove_app(self.hass, self.config_entry)
+            except RemovalError as err:
+                errors["base"] = f"removal_{err.reason}"
             else:
-                try:
-                    await async_remove_app(self.hass, self.config_entry)
-                except RemovalError as err:
-                    errors["base"] = f"removal_{err.reason}"
-                else:
-                    return await self.async_step_remove_app_done()
+                if not user_input.get(CONF_REMOVAL_DELETE_ENTRY):
+                    return self.async_abort(reason="removed_entry_kept")
+                # Forget the panel once this flow, which belongs to it, has closed.
+                self.hass.async_create_task(
+                    self.hass.config_entries.async_remove(self.config_entry.entry_id)
+                )
+                return self.async_abort(reason="removed_entry_deleted")
         if self._removal_risks_url is None:
             coordinator = getattr(
                 getattr(self.config_entry, "runtime_data", None), "coordinator", None
@@ -1814,36 +1837,20 @@ class HaPaneldOptionsFlow(OptionsFlow):
             self._removal_risks_url = help_url("removal-risks", **parameters)
         return self.async_show_form(
             step_id="remove_app",
-            data_schema=vol.Schema(
-                {vol.Required(CONF_REMOVAL_CONFIRMED, default=False): BooleanSelector()}
+            # A retry after a refusal keeps the owner's choice to delete.
+            data_schema=self.add_suggested_values_to_schema(
+                vol.Schema(
+                    {
+                        vol.Required(
+                            CONF_REMOVAL_DELETE_ENTRY, default=False
+                        ): BooleanSelector()
+                    }
+                ),
+                user_input,
             ),
             description_placeholders={
-                "panel": self.config_entry.title,
+                "panel": panel_display_name(self.hass, self.config_entry),
                 "risks_url": self._removal_risks_url,
             },
             errors=errors,
         )
-
-    async def async_step_remove_app_done(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Offer to forget the panel now that its app is gone."""
-        return self.async_show_menu(
-            step_id="remove_app_done",
-            menu_options=["remove_app_delete_entry", "remove_app_keep_entry"],
-            description_placeholders={"panel": self.config_entry.title},
-        )
-
-    async def async_step_remove_app_delete_entry(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Forget the panel, whose app is gone, once this flow has closed."""
-        self.hass.async_create_task(
-            self.hass.config_entries.async_remove(self.config_entry.entry_id)
-        )
-        return self.async_abort(reason="removed_entry_deleted")
-
-    async def async_step_remove_app_keep_entry(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        return self.async_abort(reason="removed_entry_kept")

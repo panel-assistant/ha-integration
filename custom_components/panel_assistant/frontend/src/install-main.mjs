@@ -45,7 +45,10 @@ function translatePage() {
 window.addEventListener('languagechange', translatePage);
 window.addEventListener('popstate', translatePage);
 
-const STEPS = ['preparing', 'connect', 'allow', 'confirm', 'progress', 'done', 'error'];
+const STEPS = ['preparing', 'connect', 'checking', 'allow', 'confirm', 'progress', 'done', 'error'];
+// A panel that trusts this computer, or never asks, answers within a moment.
+// Only one still waiting after that is asking its owner to tap Allow.
+const ALLOW_PROMPT_MS = 1500;
 const manager = window.isSecureContext && navigator.usb
   ? new AdbDaemonWebUsbDeviceManager(boundedUsb(navigator.usb)) : undefined;
 const supported = Boolean(manager && navigator.locks && globalThis.indexedDB);
@@ -61,7 +64,7 @@ void stopPromise.catch(() => {});
 
 // Where each screen sits in the whole journey. Version was chosen in Home
 // Assistant; Set up continues on the panel's own wizard. An error stays put.
-const JOURNEY_STOP = Object.freeze({ preparing: 1, connect: 1, allow: 1, confirm: 2, progress: 2, done: 3 });
+const JOURNEY_STOP = Object.freeze({ preparing: 1, connect: 1, checking: 1, allow: 1, confirm: 2, progress: 2, done: 3 });
 function show(step) {
   for (const name of STEPS) element(`step-${name}`).hidden = name !== step;
   if (Object.hasOwn(JOURNEY_STOP, step)) { journeyStop = JOURNEY_STOP[step]; renderJourney(element('journey'), journeyStop, document, language); }
@@ -193,7 +196,7 @@ connect.addEventListener('click', async () => {
       if (quarantined) { closeResources(); return; }
       if (!device) { quarantine('noSelection', 'installer'); return; }
       ensureCurrent();
-      show('allow');
+      show('checking');
       const connection = await device.connect();
       if (quarantined) { closeResources(); return; }
       ensureCurrent();
@@ -202,12 +205,13 @@ connect.addEventListener('click', async () => {
       // Without it (an older Home Assistant), this browser's own key is offered.
       const key = await panelAssistantKey;
       support('networkAdb', key ? 'panelAssistantKey' : 'browserKey');
+      const asking = setTimeout(() => { if (!quarantined) show('allow'); }, ALLOW_PROMPT_MS);
       const transport = await AdbDaemonTransport.authenticate({
         serial: device.serial, connection,
         credentialStore: new AdbWebCredentialStore('ha-paneld-usb-installer'),
         ...(key ? { authenticators: [panelAssistantKeyAuthenticator(key)] } : {}),
         readTimeLimit: 10000,
-      });
+      }).finally(() => clearTimeout(asking));
       adb = new Adb(transport);
       // Bound a silent cable only once the panel has allowed this computer.
       deadline = setTimeout(() => quarantine('connectionTimeout', 'installer'), 45000);
@@ -215,7 +219,7 @@ connect.addEventListener('click', async () => {
       ensureCurrent();
       void adb.disconnected.then(() => quarantine('disconnected', 'installer'), fail);
       sessionAdb = guardedAdb(adb);
-      message('allow-text', 'checkingPanel');
+      show('checking');
       store = await openJobStore();
       if (quarantined) { closeResources(); return; }
       ensureCurrent();

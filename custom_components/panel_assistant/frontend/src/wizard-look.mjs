@@ -49,6 +49,9 @@ export const WIZARD_CSS = `${TOKENS_CSS}${COMPONENTS_CSS}
 .wiz-brand{display:flex;margin:0 0 14px}
 .wiz-brand .brand{flex:0 1 auto;min-width:0}
 .wiz-brand .brand-name{max-width:100%;height:auto}
+/* The shared caption box (.636rem) is shorter than its 11px text, so the version touched the name's
+   foot. Drop the text clear of it without growing the lock-up: the name stays on the house's edge. */
+.wiz-brand .brand-version{margin:3px 0 -3px}
 .wiz a.wiz-primary{display:flex;align-items:center;justify-content:center;width:100%;min-height:46px;margin-top:16px;font-size:1rem}
 .bar{height:.5rem;border-radius:1rem;background:var(--divider);overflow:hidden;margin:1rem 0 .9rem}
 .bar>div{height:100%;width:0;background:var(--primary);transition:width .4s ease}

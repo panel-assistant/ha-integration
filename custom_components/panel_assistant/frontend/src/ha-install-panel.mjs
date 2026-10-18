@@ -6,6 +6,8 @@ import { BRAND_HTML, WIZARD_CSS, journeyHtml, renderJourney, versionText } from 
 // Stable keys keep presentation separate from the release-transfer protocol.
 // This is the first stop of the same wizard the installer window and the
 // panel's own setup continue, so it speaks the same plain one-line language.
+// Continue installs the recommended version; the other versions wait behind
+// one quiet disclosure for the person who wants a particular build.
 
 export class HaPaneldUsbInstallPanel extends HTMLElement {
   #hass;
@@ -34,7 +36,8 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
       <section class="wiz-step"><div class="card">
         <h2 data-message="title"></h2>
         <p class="wiz-lead" data-message="introduction"></p>
-        <fieldset id="release" aria-describedby="catalog-status"><legend data-message="release"></legend><div id="release-choices" class="choice-list"></div></fieldset>
+        <details id="versions"><summary data-message="otherVersions"></summary>
+        <fieldset id="release" aria-describedby="catalog-status"><legend data-message="release"></legend><div id="release-choices" class="choice-list"></div></fieldset></details>
         <p id="catalog-status" role="status" aria-live="polite"></p>
         <button id="retry" class="pbtn wiz-secondary" data-message="retry"></button>
         <button id="start" class="pbtn primary wiz-primary" data-message="start"></button>

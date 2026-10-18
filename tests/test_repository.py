@@ -618,6 +618,55 @@ def test_install_flow_copy_covers_first_time_handoffs() -> None:
     assert "Do not retry automatic installation" in abort["install_ambiguous_mutation"]
 
 
+def _catalogues() -> dict[str, dict[str, Any]]:
+    return {
+        "strings.json": json.loads(
+            (INTEGRATION / "strings.json").read_text(encoding="utf-8")
+        ),
+        **{
+            path.name: json.loads(path.read_text(encoding="utf-8"))
+            for path in sorted((INTEGRATION / "translations").glob("*.json"))
+        },
+    }
+
+
+def _menus(catalogue: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    flows = [(name, catalogue[name]["step"]) for name in ("config", "options")] + [
+        (f"issues.{issue}", body["fix_flow"]["step"])
+        for issue, body in catalogue.get("issues", {}).items()
+        if "fix_flow" in body
+    ]
+    return [
+        (f"{flow}.{step_id}", step)
+        for flow, steps in flows
+        for step_id, step in steps.items()
+        if "menu_options" in step
+    ]
+
+
+def test_menus_say_only_what_they_show() -> None:
+    """Home Assistant fills no placeholder into a menu's title, and a menu's
+    intro or an item's description that repeats or promises an item is noise."""
+    for name, catalogue in _catalogues().items():
+        for where, menu in _menus(catalogue):
+            assert "{" not in menu.get("title", ""), (name, where)
+            for key, text in menu.get("menu_option_descriptions", {}).items():
+                assert text != menu["menu_options"][key], (name, where, key)
+        # Configure shows some items only to some panels, so its intro names none.
+        init = catalogue["options"]["step"]["init"]
+        intro = init.get("description", "").casefold()
+        for label in init["menu_options"].values():
+            assert label.casefold() not in intro, (name, label)
+
+
+def test_the_removal_form_speaks_plainly_in_every_language() -> None:
+    for name, catalogue in _catalogues().items():
+        step = catalogue["options"]["step"]["remove_app"]
+        text = step["title"] + step["description"]
+        assert "Android Debug Bridge" not in text, name
+        assert "{risks_url}" in step["description"], name
+
+
 def test_the_address_screen_links_to_panel_specific_help() -> None:
     """A panel that will not answer needs somewhere to go, per model."""
     strings = json.loads((INTEGRATION / "strings.json").read_text(encoding="utf-8"))

@@ -17,10 +17,17 @@
       },
       "install_usb": {
         "title": "Zainstaluj za pomocą USB",
-        "description": "Podłącz panel do tego komputera, a nie do serwera Home Assistant.",
+        "description": "Podłącz panel do tego komputera, a nie do serwera Home Assistant. Debugowanie USB musi być włączone w opcjach programisty panelu; [instrukcja dostępu do panelu dla danego modelu]({panel_access_url}) pokazuje, jak to zrobić.",
         "submit": "Otwórz instalator USB"
       },
       "add_panel": {
+        "title": "Dodaj panel",
+        "description": "Wprowadź nazwę hosta lub adres IP panelu. Jeśli Panel Assistant nie jest jeszcze zainstalowane, najpierw włącz sieciowe ADB na porcie 5555 zgodnie z [instrukcją dostępu do panelu dla danego modelu]({panel_access_url}). Uprawnienia roota nie są wymagane. Jeśli panel nie odpowiada, [pomoc w łączeniu się z panelem]({panel_help_url}) zawiera kroki dla każdego modelu i inne sposoby instalacji.",
+        "data": {
+          "address": "Nazwa hosta panelu lub adres IP"
+        }
+      },
+      "add_known_panel": {
         "title": "Dodaj panel",
         "description": "Wybierz panel, który Home Assistant już zna z innej aplikacji, albo wprowadź nazwę hosta lub adres IP panelu. Panele oznaczone ✓ już odpowiadają przez sieciowe ADB. Jeśli Panel Assistant nie jest jeszcze zainstalowane, najpierw włącz sieciowe ADB na porcie 5555 zgodnie z [instrukcją dostępu do panelu dla danego modelu]({panel_access_url}). Uprawnienia roota nie są wymagane. Jeśli panel nie odpowiada, [pomoc w łączeniu się z panelem]({panel_help_url}) zawiera kroki dla każdego modelu i inne sposoby instalacji.",
         "data": {
@@ -44,7 +51,7 @@
           "add_panel": "Użyj innego adresu"
         },
         "menu_option_descriptions": {
-          "connect_found": "Pomiń konfigurację i połącz panel teraz."
+          "connect_found": "Łączy panel z Home Assistant bez wcześniejszego kończenia jego własnej konfiguracji."
         }
       },
       "panel_setup": {
@@ -53,7 +60,7 @@
       },
       "choose_version": {
         "title": "Wybierz wersję",
-        "description": "Panel Assistant nie odpowiada pod adresem {address}. Wybierz wersję, którą ma uruchamiać panel. Wersje testowe mogą zawierać błędy.",
+        "description": "Wybierz wersję do zainstalowania na panelu pod adresem {address}. Wersje testowe mogą zawierać błędy.",
         "data": {
           "release_candidate": "Wersja"
         }
@@ -72,11 +79,11 @@
       },
       "confirm_install_candidate": {
         "title": "Zainstalować Panel Assistant {version}?",
-        "description": "Gotowe do instalacji na {model} pod adresem {address}.\n\nPozostałe aplikacje nie zostaną zmienione."
+        "description": "Gotowe do instalacji na panelu pod adresem {address}.\n\nPozostałe aplikacje nie zostaną zmienione."
       },
       "confirm_install_rc": {
         "title": "Zainstalować Panel Assistant {version}?",
-        "description": "Tylko do testów: Panel Assistant {version} to kandydat do wydania, a nie wersja stabilna, i może zawierać błędy.\n\nGotowe do instalacji na {model} pod adresem {address}.\n\nPozostałe aplikacje nie zostaną zmienione."
+        "description": "Tylko do testów: Panel Assistant {version} to kandydat do wydania, a nie wersja stabilna, i może zawierać błędy.\n\nGotowe do instalacji na panelu pod adresem {address}.\n\nPozostałe aplikacje nie zostaną zmienione."
       },
       "release_preview_only": {
         "title": "Nie można zainstalować tej wersji automatycznie",
@@ -1625,7 +1632,7 @@
     "step": {
       "init": {
         "title": "Konfiguracja panelu",
-        "description": "Kontynuuj konfigurację panelu lub autoryzuj ADB do aktualizacji. Jeśli panel nie jest jeszcze powiązany, potwierdź zalogowane konto, aby ukończyć konfigurację.",
+        "description": "Wybierz, co zrobić z tym panelem.",
         "menu_options": {
           "onboarding": "Kontynuuj konfigurację",
           "authorize_adb": "Zezwól na aktualizacje",
@@ -1633,7 +1640,7 @@
           "remove_app": "Usuń Panel Assistant z tego panelu"
         },
         "menu_option_descriptions": {
-          "remove_app": "Usuń Panel Assistant z tego panelu"
+          "remove_app": "Oddaje ekran główny własnemu launcherowi panelu, a potem odinstalowuje aplikację."
         }
       },
       "onboarding": {
@@ -1657,20 +1664,12 @@
       },
       "remove_app": {
         "title": "Usuń Panel Assistant z {panel}",
-        "description": "Ta operacja usuwa Panel Assistant z {panel}. Najpierw Panel Assistant oddaje ekran główny własnemu launcherowi panelu i ponownie włącza wyłączone przez siebie aplikacje producenta; dopiero potem jest odinstalowywany przez połączenie Android Debug Bridge, które Home Assistant już ma. Jego ustawienia na panelu zostaną skasowane.\n\nNa niektórych panelach i wersjach firmware po usunięciu nie ma już drogi powrotu do Ustawień systemu Android ani do debugowania przez sieć, więc aplikacji nie da się zainstalować ponownie bez otwierania panelu. Zanim przejdziesz dalej, przeczytaj, [co usunięcie może zrobić z tym panelem]({risks_url}).",
+        "description": "Najpierw Panel Assistant oddaje ekran główny własnemu launcherowi panelu i ponownie włącza wyłączone przez siebie aplikacje producenta; dopiero potem jest odinstalowywany. Jego ustawienia na panelu zostaną skasowane.\n\nNa niektórych panelach i wersjach firmware po usunięciu nie ma już drogi powrotu do Ustawień systemu Android ani do debugowania przez sieć, więc aplikacji nie da się zainstalować ponownie bez otwierania panelu. Zanim wybierzesz „Zatwierdź”, przeczytaj, [co usunięcie może zrobić z tym panelem]({risks_url}).",
         "data": {
-          "confirmed": "Przeczytałem(-am) ryzyko usunięcia dla tego panelu i chcę usunąć Panel Assistant"
-        }
-      },
-      "remove_app_done": {
-        "title": "Panel Assistant usunięto z {panel}",
-        "description": "Panel zachowuje własny ekran główny. Czy Home Assistant ma też zapomnieć {panel}?",
-        "menu_options": {
-          "remove_app_delete_entry": "Usuń ten panel z Home Assistant",
-          "remove_app_keep_entry": "Na razie zachowaj go w Home Assistant"
+          "delete_entry": "Usuń też ten panel z Home Assistant"
         },
-        "menu_option_descriptions": {
-          "remove_app_keep_entry": "Na razie zachowaj go w Home Assistant"
+        "data_description": {
+          "delete_entry": "Pozostaw wyłączone, aby zachować jego encje i historię na wypadek ponownej instalacji Panel Assistant."
         }
       }
     },
@@ -1688,7 +1687,6 @@
       "retained_or_ambiguous": "Panel może zawierać zachowany rekord pakietu Panel Assistant albo nie udało się dowieść, że pakietu nie ma. Nie wprowadzono żadnych zmian w panelu. Spróbuj ponownie tylko raz, jeśli połączenie było niestabilne; w przeciwnym razie postępuj zgodnie z krokami opisanymi pod adresem {recovery_address}. Nie odinstalowuj ani nie resetuj aplikacji bez zweryfikowanej kopii zapasowej.",
       "unknown": "Nieoczekiwany błąd",
       "panel_identity_changed": "Ten adres nie odpowiada już jako skonfigurowany panel. Sprawdź panel i adres przed ponowną próbą.",
-      "removal_unconfirmed": "Zaznacz pole, aby potwierdzić, że znasz ryzyko usunięcia. Nic nie zostało usunięte.",
       "removal_busy": "Aktualizacja lub przeniesienie już zmienia ten panel. Nic nie zostało usunięte; spróbuj ponownie, gdy się zakończy.",
       "removal_adb_unreachable": "Home Assistant nie mógł połączyć się z panelem przez Android Debug Bridge (port 5555). Nic nie zostało usunięte. Sprawdź, czy panel jest włączony, a debugowanie przez sieć nadal aktywne, i spróbuj ponownie.",
       "removal_adb_authorization": "Panel nie zaakceptował tej instancji Home Assistant dla Android Debug Bridge. Niczego nie usunięto. Najpierw wybierz „Zezwól na aktualizacje”, a następnie spróbuj ponownie.",

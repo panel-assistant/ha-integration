@@ -17,10 +17,17 @@
       },
       "install_usb": {
         "title": "Install using USB",
-        "description": "Plug the panel into this computer, not into the Home Assistant server.",
+        "description": "Plug the panel into this computer, not into the Home Assistant server. USB debugging must be on in the panel's developer options; the [model-specific panel access guide]({panel_access_url}) shows how.",
         "submit": "Open the USB installer"
       },
       "add_panel": {
+        "title": "Add a panel",
+        "description": "Enter the panel's hostname or IP address. If Panel Assistant isn't installed yet, first turn on network ADB on port 5555 using the [model-specific panel access guide]({panel_access_url}). Root access is not required. If the panel does not answer, [help for reaching a panel]({panel_help_url}) has steps for each model and other ways to install.",
+        "data": {
+          "address": "Panel hostname or IP address"
+        }
+      },
+      "add_known_panel": {
         "title": "Add a panel",
         "description": "Pick a panel Home Assistant already knows through another app, or enter the panel's hostname or IP address. Panels marked ✓ already answer on network ADB. If Panel Assistant isn't installed yet, first turn on network ADB on port 5555 using the [model-specific panel access guide]({panel_access_url}). Root access is not required. If the panel does not answer, [help for reaching a panel]({panel_help_url}) has steps for each model and other ways to install.",
         "data": {
@@ -44,7 +51,7 @@
           "add_panel": "Use a different address"
         },
         "menu_option_descriptions": {
-          "connect_found": "Skip setup and connect now"
+          "connect_found": "Connect the panel to Home Assistant without finishing its own setup first."
         }
       },
       "panel_setup": {
@@ -53,7 +60,7 @@
       },
       "choose_version": {
         "title": "Choose a version",
-        "description": "Panel Assistant is not responding on {address}. Choose the version the panel should run. Test versions may contain bugs.",
+        "description": "Choose the version to install on the panel at {address}. Test versions may contain bugs.",
         "data": {
           "release_candidate": "Version"
         }
@@ -72,11 +79,11 @@
       },
       "confirm_install_candidate": {
         "title": "Install Panel Assistant {version}?",
-        "description": "Ready to install on {model} at {address}.\n\nYour other apps are not touched."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched."
       },
       "confirm_install_rc": {
         "title": "Install Panel Assistant {version}?",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on {model} at {address}.\n\nYour other apps are not touched."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched."
       },
       "release_preview_only": {
         "title": "Release cannot be installed automatically",
@@ -1625,7 +1632,7 @@
     "step": {
       "init": {
         "title": "Panel setup",
-        "description": "Continue this panel’s setup or authorize ADB for panel updates. If the panel is still unbound, confirm its signed-in account to finish setup.",
+        "description": "Choose what to do with this panel.",
         "menu_options": {
           "onboarding": "Continue setup",
           "authorize_adb": "Allow updates",
@@ -1633,7 +1640,7 @@
           "remove_app": "Remove Panel Assistant from this panel"
         },
         "menu_option_descriptions": {
-          "remove_app": "Remove Panel Assistant from this panel"
+          "remove_app": "Gives the home screen back to the panel's own launcher, then uninstalls the app."
         }
       },
       "onboarding": {
@@ -1657,20 +1664,12 @@
       },
       "remove_app": {
         "title": "Remove Panel Assistant from {panel}",
-        "description": "This removes Panel Assistant from {panel}. First Panel Assistant gives the panel's home screen back to the panel's own launcher and turns the vendor apps it switched off back on; only then is it uninstalled, over the Android Debug Bridge connection Home Assistant already holds. Its settings on the panel are deleted.\n\nOn some panels and firmware versions, removing it leaves no way back to Android Settings or network debugging, so the app could not be installed again without opening the panel. Before you continue, read [what removal can do to this panel]({risks_url}).",
+        "description": "Panel Assistant first gives the panel's home screen back to its own launcher and turns the vendor apps it switched off back on, then uninstalls itself. Its settings on the panel are deleted.\n\nOn some panels and firmware versions, removing it leaves no way back to Android Settings or network debugging, so the app could not be installed again without opening the panel. Read [what removal can do to this panel]({risks_url}) before you select Submit.",
         "data": {
-          "confirmed": "I have read the removal risks for this panel and want to remove Panel Assistant"
-        }
-      },
-      "remove_app_done": {
-        "title": "Panel Assistant is removed from {panel}",
-        "description": "The panel keeps its own home screen. Should Home Assistant also forget {panel}?",
-        "menu_options": {
-          "remove_app_delete_entry": "Delete this panel from Home Assistant",
-          "remove_app_keep_entry": "Keep it in Home Assistant for now"
+          "delete_entry": "Also delete this panel from Home Assistant"
         },
-        "menu_option_descriptions": {
-          "remove_app_keep_entry": "Keep it in Home Assistant for now"
+        "data_description": {
+          "delete_entry": "Leave this off to keep its entities and history for when you install Panel Assistant again."
         }
       }
     },
@@ -1688,7 +1687,6 @@
       "retained_or_ambiguous": "The panel may contain a retained Panel Assistant package record or its package state could not be proven absent. No panel change was made. Retry once if the connection was unstable; otherwise follow the steps at {recovery_address}. Do not uninstall or reset the app without a verified backup.",
       "unknown": "Unexpected error",
       "panel_identity_changed": "The address no longer answers as this configured panel. Check the panel and its address before retrying.",
-      "removal_unconfirmed": "Tick the box to confirm you have read the removal risks. Nothing was removed.",
       "removal_busy": "Another operation is already changing this panel. Nothing was removed; try again when it has finished.",
       "removal_adb_unreachable": "Home Assistant could not reach the panel over the Android Debug Bridge (port 5555). Nothing was removed. Check that the panel is on and network debugging is still enabled, then try again.",
       "removal_adb_authorization": "The panel has not accepted this Home Assistant instance for the Android Debug Bridge. Nothing was removed. Choose Allow updates first, then try again.",

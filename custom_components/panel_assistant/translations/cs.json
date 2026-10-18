@@ -17,10 +17,17 @@
       },
       "install_usb": {
         "title": "Nainstalovat přes USB",
-        "description": "Připojte panel k tomuto počítači, nikoli k serveru Home Assistant.",
+        "description": "Připojte panel k tomuto počítači, nikoli k serveru Home Assistant. Ladění přes USB musí být zapnuté v nastavení pro vývojáře na panelu; [průvodce přístupem k panelu pro konkrétní model]({panel_access_url}) ukazuje, jak na to.",
         "submit": "Otevřít instalátor USB"
       },
       "add_panel": {
+        "title": "Přidat panel",
+        "description": "Zadejte název hostitele nebo IP adresu panelu. Pokud Panel Assistant ještě není nainstalován, nejprve zapněte síťové ADB na portu 5555 podle [průvodce přístupem k panelu pro konkrétní model]({panel_access_url}). Přístup root není nutný. Pokud panel neodpovídá, [nápověda k připojení k panelu]({panel_help_url}) obsahuje postupy pro jednotlivé modely a další způsoby instalace.",
+        "data": {
+          "address": "Název hostitele nebo IP adresa panelu"
+        }
+      },
+      "add_known_panel": {
         "title": "Přidat panel",
         "description": "Vyberte panel, který Home Assistant již zná prostřednictvím jiné aplikace, nebo zadejte název hostitele či IP adresu panelu. Panely označené ✓ již odpovídají přes síťové ADB. Pokud Panel Assistant ještě není nainstalován, nejprve zapněte síťové ADB na portu 5555 podle [průvodce přístupem k panelu pro konkrétní model]({panel_access_url}). Přístup root není nutný. Pokud panel neodpovídá, [nápověda k připojení k panelu]({panel_help_url}) obsahuje postupy pro jednotlivé modely a další způsoby instalace.",
         "data": {
@@ -44,7 +51,7 @@
           "add_panel": "Použít jinou adresu"
         },
         "menu_option_descriptions": {
-          "connect_found": "Přeskočit nastavení a připojit nyní"
+          "connect_found": "Připojí panel k Home Assistant, aniž byste museli nejdřív dokončit jeho vlastní nastavení."
         }
       },
       "panel_setup": {
@@ -53,7 +60,7 @@
       },
       "choose_version": {
         "title": "Vybrat verzi",
-        "description": "Panel Assistant na adrese {address} neodpovídá. Vyberte verzi, kterou má panel používat. Testovací verze mohou obsahovat chyby.",
+        "description": "Vyberte verzi, kterou nainstalovat na panel na adrese {address}. Testovací verze mohou obsahovat chyby.",
         "data": {
           "release_candidate": "Verze"
         }
@@ -72,11 +79,11 @@
       },
       "confirm_install_candidate": {
         "title": "Nainstalovat Panel Assistant {version}?",
-        "description": "Připraveno k instalaci na {model} na adrese {address}.\n\nOstatní aplikace se nezmění."
+        "description": "Připraveno k instalaci na panelu na adrese {address}.\n\nOstatní aplikace se nezmění."
       },
       "confirm_install_rc": {
         "title": "Nainstalovat Panel Assistant {version}?",
-        "description": "Pouze pro testování: Panel Assistant {version} je kandidát na vydání, nikoli stabilní verze, a může obsahovat chyby.\n\nPřipraveno k instalaci na {model} na adrese {address}.\n\nOstatní aplikace se nezmění."
+        "description": "Pouze pro testování: Panel Assistant {version} je kandidát na vydání, nikoli stabilní verze, a může obsahovat chyby.\n\nPřipraveno k instalaci na panelu na adrese {address}.\n\nOstatní aplikace se nezmění."
       },
       "release_preview_only": {
         "title": "Vydání nelze nainstalovat automaticky",
@@ -1625,7 +1632,7 @@
     "step": {
       "init": {
         "title": "Nastavení panelu",
-        "description": "Pokračujte v nastavení tohoto panelu nebo povolte přístup přes ADB pro aktualizace panelu. Pokud panel ještě není propojený, potvrďte jeho přihlášený účet a dokončete nastavení.",
+        "description": "Vyberte, co chcete s tímto panelem udělat.",
         "menu_options": {
           "onboarding": "Pokračovat v nastavení",
           "authorize_adb": "Povolit aktualizace",
@@ -1633,7 +1640,7 @@
           "remove_app": "Odebrat Panel Assistant z tohoto panelu"
         },
         "menu_option_descriptions": {
-          "remove_app": "Odebrat Panel Assistant z tohoto panelu"
+          "remove_app": "Vrátí domovskou obrazovku vlastnímu spouštěči panelu a poté aplikaci odinstaluje."
         }
       },
       "onboarding": {
@@ -1657,20 +1664,12 @@
       },
       "remove_app": {
         "title": "Odebrat Panel Assistant z panelu {panel}",
-        "description": "Tímto odeberete Panel Assistant z panelu {panel}. Nejprve Panel Assistant vrátí domovskou obrazovku panelu jeho vlastnímu spouštěči a znovu zapne aplikace výrobce, které vypnul; teprve potom se odinstaluje přes spojení Android Debug Bridge, které už Home Assistant má. Jeho nastavení na panelu budou smazána.\n\nNa některých panelech a verzích firmwaru po odebrání nezůstane žádná cesta zpět do nastavení systému Android nebo k ladění po síti, takže aplikaci nebude možné znovu nainstalovat bez otevření panelu. Než budete pokračovat, přečtěte si, [jak může odebrání ovlivnit tento panel]({risks_url}).",
+        "description": "Panel Assistant nejprve vrátí domovskou obrazovku panelu jeho vlastnímu spouštěči a znovu zapne aplikace výrobce, které vypnul; teprve potom se odinstaluje. Jeho nastavení na panelu budou smazána.\n\nNa některých panelech a verzích firmwaru po odebrání nezůstane žádná cesta zpět do nastavení systému Android nebo k ladění po síti, takže aplikaci nebude možné znovu nainstalovat bez otevření panelu. Před výběrem možnosti Odeslat si přečtěte [jak může odebrání ovlivnit tento panel]({risks_url}).",
         "data": {
-          "confirmed": "Přečetl(a) jsem si rizika odebrání pro tento panel a chci odebrat Panel Assistant"
-        }
-      },
-      "remove_app_done": {
-        "title": "Panel Assistant byl odebrán z panelu {panel}",
-        "description": "Panel si ponechá vlastní domovskou obrazovku. Má Home Assistant také zapomenout panel {panel}?",
-        "menu_options": {
-          "remove_app_delete_entry": "Smazat tento panel z Home Assistant",
-          "remove_app_keep_entry": "Zatím ho ponechat v Home Assistant"
+          "delete_entry": "Smazat tento panel také z Home Assistant"
         },
-        "menu_option_descriptions": {
-          "remove_app_keep_entry": "Zatím ho ponechat v Home Assistant"
+        "data_description": {
+          "delete_entry": "Nechte vypnuté, pokud chcete zachovat jeho entity a historii pro případ, že Panel Assistant nainstalujete znovu."
         }
       }
     },
@@ -1688,7 +1687,6 @@
       "retained_or_ambiguous": "Panel může obsahovat zachovaný záznam o balíčku Panel Assistant nebo se nepodařilo prokázat, že nezůstal žádný stav tohoto balíčku. Na panelu nebyla provedena žádná změna. Pokud bylo připojení nestabilní, zkuste to jednou znovu; jinak postupujte podle kroků na adrese {recovery_address}. Bez ověřené zálohy aplikaci neodinstalovávejte ani ji neresetujte.",
       "unknown": "Neočekávaná chyba",
       "panel_identity_changed": "Na této adrese už neodpovídá nastavený panel. Před dalším pokusem zkontrolujte panel a jeho adresu.",
-      "removal_unconfirmed": "Zaškrtnutím políčka potvrďte, že jste si přečetli rizika odebrání. Nic nebylo odebráno.",
       "removal_busy": "Tento panel už mění aktualizace nebo přesun. Nic nebylo odebráno; zkuste to znovu, až tato operace skončí.",
       "removal_adb_unreachable": "Home Assistant se nedokázal spojit s panelem přes Android Debug Bridge (port 5555). Nic nebylo odebráno. Zkontrolujte, že je panel zapnutý a ladění po síti je stále povolené, a pak to zkuste znovu.",
       "removal_adb_authorization": "Panel nepřijal tuto instanci Home Assistant pro Android Debug Bridge. Nic nebylo odstraněno. Nejdřív vyberte „Povolit aktualizace“ a potom to zkuste znovu.",
