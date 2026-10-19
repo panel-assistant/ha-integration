@@ -541,6 +541,7 @@ async def test_hardened_approval_stops_with_nothing_removed_and_a_retry_finishes
 
     fake.hand_back = "hand"  # approved on the panel; the same request again
     result = await hass.config_entries.options.async_configure(form["flow_id"], {})
+    assert result.get("errors") is None, result.get("errors")
     assert result["reason"] == "removed_entry_kept"
     assert fake.installed == []
 
