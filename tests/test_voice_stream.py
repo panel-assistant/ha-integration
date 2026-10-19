@@ -17,10 +17,12 @@ from io import BytesIO
 from typing import Any
 from unittest.mock import patch
 
+import aiosendspin.server.connection as server_connection
 import av
 import pytest
 from aiohttp import WSMessage, WSMsgType, web
 from aiosendspin.client import SendspinClient
+from aiosendspin.client.connection import SendspinConnection as ClientConnection
 from aiosendspin.models.player import ClientHelloPlayerSupport, SupportedAudioFormat
 from aiosendspin.models.types import AudioCodec, Roles
 from aiosendspin.noise import (
@@ -721,6 +723,53 @@ async def test_a_granted_panel_connects_pairs_and_plays_inside_its_session(
     assert len(speaker.streams) == 1
     _heard_in_order(wire, speaker, 0, stream_id)
     # Speech at its own rate, whole.
+    assert speaker.seconds(0) == _whole(_pcm("speech"))
+
+
+@LINGERING
+async def test_a_player_whose_first_state_is_late_still_streams(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    base: str,
+    wires: list[tuple[Wire, Speaker]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A first client/state after the server's deadline still gets the stream.
+
+    sendspin-cpp sends a player's first client/state only once its first time
+    burst completes, which a busy session can push past aiosendspin's deadline.
+    The deadline (5 s in aiosendspin 10.0.0) is shortened here, and the player
+    holds its first state past it.
+    """
+    monkeypatch.setattr(server_connection, "_CLIENT_STATE_TIMEOUT_S", 0.2)
+    send_state = ClientConnection._send_full_client_state
+    held: list[ClientConnection] = []
+
+    async def late(self: ClientConnection) -> None:
+        if not held:
+            held.append(self)
+            await asyncio.sleep(0.6)
+        await send_state(self)
+
+    monkeypatch.setattr(ClientConnection, "_send_full_client_state", late)
+    panel, _wire, speaker = await _voice_panel(
+        hass, hass_ws_client, hass_read_only_access_token, wires
+    )
+    call = _announce(
+        hass,
+        _satellite(hass, entry),
+        base,
+        media_id=f"{base}/test_voice_stream/speech",
+        preannounce=False,
+    )
+    event = await _event(panel)
+    assert held
+    assert event["stream"] is True
+    async with asyncio.timeout(10):
+        await call
+    await speaker.ended(1)
     assert speaker.seconds(0) == _whole(_pcm("speech"))
 
 

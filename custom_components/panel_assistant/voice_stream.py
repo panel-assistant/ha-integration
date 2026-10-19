@@ -669,7 +669,11 @@ async def async_setup_voice_stream(hass: HomeAssistant) -> None:
         async_get_clientsession(hass),
         pairing_store=pairing,
         allow_unencrypted=False,
-        allow_noncompliant_clients=False,
+        # The panel's sendspin-cpp holds its first client/state until its first
+        # time burst completes, which a busy session can push past aiosendspin's
+        # 5 s deadline; strict mode then drops the panel's player for the rest of
+        # its session. Tolerant mode logs each deviation once per client instead.
+        allow_noncompliant_clients=True,
     )
     voice = VoiceStream(hass, server, pairing)
     hass.data.setdefault(DOMAIN, {})[DATA_VOICE_STREAM] = voice
