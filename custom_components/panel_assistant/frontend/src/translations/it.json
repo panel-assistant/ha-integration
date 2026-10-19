@@ -106,7 +106,9 @@
     "progress": "Avanzamento",
     "installProgress": "Avanzamento dell’installazione",
     "licenses": "Licenze di terze parti",
-    "doneAnotherHomeAssistant": "Su questo pannello è attivo l'accesso a un altro Home Assistant. Cambia Home Assistant ed esegui l'accesso sul pannello per collegarlo qui."
+    "doneAnotherHomeAssistant": "Su questo pannello è attivo l'accesso a un altro Home Assistant. Cambia Home Assistant ed esegui l'accesso sul pannello per collegarlo qui.",
+    "reconnectedHeading": "Panel Assistant raggiunge di nuovo questo pannello",
+    "reconnectedBody": "Questo pannello ha già l'app, quindi non è stato installato nulla. Home Assistant ora può aggiornarlo tramite la tua rete."
   },
   "errors": {
     "installErrorGeneric": "Si è verificato un problema. Lascia il pannello collegato e premi Riprova.",

@@ -40,6 +40,7 @@ const ERRORS = Object.freeze({
   artifact_changed: 'installErrorArtifact',
   installed_artifact_mismatch: 'installErrorArtifact',
   target_not_clean: 'installErrorNotClean',
+  target_installed: 'installErrorNotClean',
   target_incompatible: 'installErrorIncompatible',
   shell_timeout: 'installErrorConnection',
   shell_cleanup_failed: 'installErrorConnection',

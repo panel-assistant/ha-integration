@@ -106,7 +106,9 @@
     "progress": "Postęp",
     "installProgress": "Postęp instalacji",
     "licenses": "Licencje innych podmiotów",
-    "doneAnotherHomeAssistant": "Ten panel jest zalogowany do innej instancji Home Assistant. Zmień na panelu instancję Home Assistant i zaloguj się, aby połączyć go tutaj."
+    "doneAnotherHomeAssistant": "Ten panel jest zalogowany do innej instancji Home Assistant. Zmień na panelu instancję Home Assistant i zaloguj się, aby połączyć go tutaj.",
+    "reconnectedHeading": "Panel Assistant znów ma dostęp do tego panelu",
+    "reconnectedBody": "Ten panel ma już aplikację, więc nic nie zostało zainstalowane. Home Assistant może go teraz aktualizować przez twoją sieć."
   },
   "errors": {
     "installErrorGeneric": "Coś poszło nie tak. Zostaw panel podłączony i naciśnij Spróbuj ponownie.",

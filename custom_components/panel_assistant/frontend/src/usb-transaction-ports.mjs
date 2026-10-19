@@ -88,9 +88,11 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
     binding(receipt, release);
     return {target, clean: true, absent: !present, removable: present};
   };
+  // A panel that already runs the app is an answer, not a fault: the session
+  // stays open so the installer can give Panel Assistant its route back.
   const protect = action => async (...args) => {
     try { return await action(...args); }
-    catch (error) { stop(); throw error; }
+    catch (error) { if (error?.code !== 'target_installed') stop(); throw error; }
   };
   const ports = Object.freeze({
     authenticate: protect(async () => {

@@ -256,8 +256,10 @@ connect.addEventListener('click', async () => {
         onSetAside(value) { support('earlierCopy', value); },
         onStagedCopy(value) { support('stagedCopy', value); },
       });
-      const preview = await controller.preview(target).catch(noteFailure);
+      const preview = await controller.preview(target)
+        .catch(error => (error?.code === 'target_installed' ? null : noteFailure(error)));
       ensureCurrent();
+      if (!preview) { await reconnect(); return; }
       receipt = preview.receipt;
       support('savedProgress', receipt, receipt ? null : { messageKey: 'none', group: 'support' });
       // A job already under way resumes without asking again: the person
@@ -328,6 +330,28 @@ async function installAll() {
     },
     open: finish,
   });
+}
+
+// A panel that already runs the app gets nothing installed. Panel Assistant
+// updates it over network ADB, and a panel it cannot reach (network ADB off
+// after a restart or reset, or its key never allowed) has no other way back:
+// the Allow just given trusted Panel Assistant's key, and this turns network
+// ADB on. Panel Assistant then offers the update, with its own backup.
+async function reconnect() {
+  clearTimeout(deadline);
+  support('alreadyInstalled', 'reconnect');
+  const outcome = await ensureNetworkAdb(sessionAdb, { beforeRestart: () => { finished = true; } });
+  support('networkAdb', outcome);
+  finished = true;
+  if (outcome === 'failed') {
+    // The session may already be gone with adbd, so say it directly.
+    message('error-text', 'installErrorNotClean', 'errors');
+    show('error');
+    return;
+  }
+  bind(element('step-done').querySelector('h2'), ['reconnectedHeading']);
+  message('done-text', 'reconnectedBody');
+  show('done');
 }
 
 function finish(url) {

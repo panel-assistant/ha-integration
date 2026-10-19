@@ -106,7 +106,9 @@
     "progress": "进度",
     "installProgress": "安装进度",
     "licenses": "第三方许可",
-    "doneAnotherHomeAssistant": "此面板当前已登录另一个 Home Assistant。请在面板上更改 Home Assistant 并登录，以将其连接到此处。"
+    "doneAnotherHomeAssistant": "此面板当前已登录另一个 Home Assistant。请在面板上更改 Home Assistant 并登录，以将其连接到此处。",
+    "reconnectedHeading": "Panel Assistant 已能再次连接此面板",
+    "reconnectedBody": "此面板已安装应用，因此没有安装任何内容。Home Assistant 现在可以通过您的网络更新它。"
   },
   "errors": {
     "installErrorGeneric": "发生了错误。请保持面板连接，然后点击“重试”。",

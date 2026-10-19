@@ -106,7 +106,9 @@
     "progress": "Progreso",
     "installProgress": "Progreso de la instalación",
     "licenses": "Licencias de terceros",
-    "doneAnotherHomeAssistant": "Este panel tiene la sesión iniciada en otro Home Assistant. Cambia de Home Assistant e inicia sesión en el panel para conectarlo aquí."
+    "doneAnotherHomeAssistant": "Este panel tiene la sesión iniciada en otro Home Assistant. Cambia de Home Assistant e inicia sesión en el panel para conectarlo aquí.",
+    "reconnectedHeading": "Panel Assistant vuelve a llegar a este panel",
+    "reconnectedBody": "Este panel ya tiene la app, así que no se ha instalado nada. Home Assistant ya puede actualizarlo a través de tu red."
   },
   "errors": {
     "installErrorGeneric": "Algo salió mal. Mantén el panel conectado y pulsa Volver a intentar.",

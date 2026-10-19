@@ -106,7 +106,9 @@
     "progress": "Перебіг",
     "installProgress": "Перебіг встановлення",
     "licenses": "Ліцензії сторонніх компонентів",
-    "doneAnotherHomeAssistant": "На цій панелі виконано вхід в інший екземпляр Home Assistant. Змініть на панелі екземпляр Home Assistant і увійдіть, щоб підключити її тут."
+    "doneAnotherHomeAssistant": "На цій панелі виконано вхід в інший екземпляр Home Assistant. Змініть на панелі екземпляр Home Assistant і увійдіть, щоб підключити її тут.",
+    "reconnectedHeading": "Panel Assistant знову має доступ до цієї панелі",
+    "reconnectedBody": "Застосунок уже є на цій панелі, тож нічого не встановлено. Тепер Home Assistant може оновлювати її через вашу мережу."
   },
   "errors": {
     "installErrorGeneric": "Щось пішло не так. Залиште панель під’єднаною та натисніть «Спробувати ще раз».",

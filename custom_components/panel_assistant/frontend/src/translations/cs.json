@@ -106,7 +106,9 @@
     "progress": "Průběh",
     "installProgress": "Průběh instalace",
     "licenses": "Licence třetích stran",
-    "doneAnotherHomeAssistant": "Tento panel je přihlášen k jiné instanci Home Assistant. Chcete-li jej připojit sem, změňte na panelu instanci Home Assistant a přihlaste se."
+    "doneAnotherHomeAssistant": "Tento panel je přihlášen k jiné instanci Home Assistant. Chcete-li jej připojit sem, změňte na panelu instanci Home Assistant a přihlaste se.",
+    "reconnectedHeading": "Panel Assistant se k panelu znovu dostane",
+    "reconnectedBody": "Aplikace už na panelu je, takže se nic neinstalovalo. Home Assistant ho teď může aktualizovat přes vaši síť."
   },
   "errors": {
     "installErrorGeneric": "Něco se pokazilo. Nechte panel připojený a stiskněte Zkusit znovu.",

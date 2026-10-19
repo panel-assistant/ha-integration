@@ -106,7 +106,9 @@
     "progress": "Voortgang",
     "installProgress": "Installatievoortgang",
     "licenses": "Licenties van derden",
-    "doneAnotherHomeAssistant": "Dit paneel is aangemeld bij een andere Home Assistant. Wijzig op het paneel Home Assistant en meld je aan om het hier te verbinden."
+    "doneAnotherHomeAssistant": "Dit paneel is aangemeld bij een andere Home Assistant. Wijzig op het paneel Home Assistant en meld je aan om het hier te verbinden.",
+    "reconnectedHeading": "Panel Assistant kan dit paneel weer bereiken",
+    "reconnectedBody": "Dit paneel heeft de app al, dus er is niets geïnstalleerd. Home Assistant kan het nu via je netwerk bijwerken."
   },
   "errors": {
     "installErrorGeneric": "Er ging iets mis. Laat het paneel aangesloten en druk op Opnieuw proberen.",
