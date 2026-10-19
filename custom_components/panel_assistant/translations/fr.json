@@ -627,6 +627,12 @@
       },
       "launcher": {
         "name": "Lanceur"
+      },
+      "dashboard": {
+        "name": "Afficher le tableau de bord"
+      },
+      "back": {
+        "name": "Retour"
       }
     },
     "event": {

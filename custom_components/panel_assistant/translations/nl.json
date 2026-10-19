@@ -622,6 +622,12 @@
       },
       "launcher": {
         "name": "Launcher"
+      },
+      "dashboard": {
+        "name": "Dashboard tonen"
+      },
+      "back": {
+        "name": "Terug"
       }
     },
     "camera": {

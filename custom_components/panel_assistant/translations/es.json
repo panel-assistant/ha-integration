@@ -627,6 +627,12 @@
       },
       "launcher": {
         "name": "Lanzador"
+      },
+      "dashboard": {
+        "name": "Mostrar panel de control"
+      },
+      "back": {
+        "name": "Atrás"
       }
     },
     "event": {

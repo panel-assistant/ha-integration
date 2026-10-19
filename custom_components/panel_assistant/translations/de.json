@@ -627,6 +627,12 @@
       },
       "launcher": {
         "name": "Launcher"
+      },
+      "dashboard": {
+        "name": "Dashboard anzeigen"
+      },
+      "back": {
+        "name": "Zurück"
       }
     },
     "event": {

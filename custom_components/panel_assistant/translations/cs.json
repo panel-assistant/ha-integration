@@ -241,6 +241,12 @@
       },
       "launcher": {
         "name": "Spouštěč"
+      },
+      "dashboard": {
+        "name": "Zobrazit ovládací panel"
+      },
+      "back": {
+        "name": "Zpět"
       }
     },
     "event": {
