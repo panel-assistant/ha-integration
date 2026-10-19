@@ -33,7 +33,8 @@ export function parseReleaseCatalog(value) {
   }));
 }
 
-export async function fetchReleaseCatalog(hass, { signal, timeoutMs = 15000 } = {}) {
+// The catalogue view bounds feed refresh plus verification at twelve minutes; allow five seconds for delivery.
+export async function fetchReleaseCatalog(hass, { signal, timeoutMs = 725000 } = {}) {
   const controller = new AbortController();
   const abort = () => controller.abort();
   signal?.addEventListener('abort', abort, { once: true });

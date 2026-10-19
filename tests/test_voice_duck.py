@@ -617,3 +617,43 @@ async def test_two_panels_in_one_room_give_the_player_back_after_both(
     await _played(hass, second)
     assert speaker.level == LEVEL
     assert len(speaker.changes) == 2
+
+
+@pytest.mark.parametrize("follow_up", [False, True])
+@pytest.mark.parametrize("loss", ["disconnect", "supersede"])
+async def test_session_loss_settles_url_reply_and_restores_room(
+    hass,
+    hass_ws_client,
+    hass_read_only_access_token,
+    entry,  # noqa: F811
+    pipeline,  # noqa: F811
+    follow_up,
+    loss,
+):
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=follow_up)
+    await _turn(panel)
+    assert hass.states.get(satellite).state == "responding"
+    assert speaker.level < LEVEL
+    if loss == "disconnect":
+        await panel.client.close()
+        await hass.async_block_till_done()
+        assert speaker.level == LEVEL
+    replacement, _ = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    assert hass.states.get(satellite).state == "idle"
+    _reply(pipeline, follow_up=False)
+    await _turn(replacement)
+    stale = await replacement.send(
+        {"type": "panel_assistant/voice_played", "session": panel.token}
+    )
+    assert not stale["success"]
+    assert hass.states.get(satellite).state == "responding"
+    assert speaker.level < LEVEL
+    await _played(hass, replacement)
+    assert speaker.level == LEVEL

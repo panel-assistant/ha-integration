@@ -379,3 +379,56 @@ async def test_a_feed_build_is_handed_over_as_the_exact_signed_feed(endpoint):
     for refused in ("build-0772", "build-", "772"):
         response = await endpoint.client.post(URL, json={"release_candidate": refused})
         assert response.status == 400, refused
+
+
+async def test_catalogue_deadline_releases_admission_and_retry_succeeds(
+    endpoint, monkeypatch
+):
+    monkeypatch.setattr(delivery, "_CATALOG_TIMEOUT", 0.01)
+
+    async def stalled(_hass):
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(delivery, "async_list_install_choices", stalled)
+    response = await endpoint.client.get("/api/panel_assistant/usb/releases")
+    assert response.status == 503
+    assert not endpoint.service._requests
+    monkeypatch.setattr(
+        delivery,
+        "async_list_install_choices",
+        AsyncMock(return_value=[{"tag": "v1.2.3", "prerelease": False}]),
+    )
+    response = await endpoint.client.get("/api/panel_assistant/usb/releases")
+    assert response.status == 200
+    assert (await response.json())["releases"][0]["tag"] == "v1.2.3"
+
+
+async def test_signed_catalogue_beyond_fifteen_seconds_is_delivered(
+    endpoint, hass, monkeypatch
+):
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    from custom_components.panel_assistant import release_catalog as catalog
+
+    from .http_fakes import FakeResponse
+    from .test_release import _install_test_key
+    from .test_release_catalog import authenticated_session
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    _install_test_key(monkeypatch, key)
+    client = authenticated_session(key, [("v1.0.0", (5, 5))])
+    monkeypatch.setattr(catalog, "async_get_clientsession", lambda _: client)
+
+    async def delayed_enter(self):
+        await asyncio.sleep(2)
+        return self
+
+    monkeypatch.setattr(FakeResponse, "__aenter__", delayed_enter)
+    started = hass.loop.time()
+    response = await endpoint.client.get("/api/panel_assistant/usb/releases")
+    assert response.status == 200
+    assert (await response.json())["releases"] == [
+        {"tag": "v1.0.0", "prerelease": False}
+    ]
+    assert hass.loop.time() - started > 15
+    assert len(client.requests) == 9

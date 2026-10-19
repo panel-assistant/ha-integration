@@ -455,7 +455,27 @@ class VoiceStream:
                 self._async_run_batch(key, batch), f"{DOMAIN} voice announcement"
             )
         batch.members.append(listener)
-        return listener.client_id in await asyncio.shield(batch.done)
+        try:
+            return listener.client_id in await asyncio.shield(batch.done)
+        except asyncio.CancelledError:
+            batch.members[:] = [
+                member for member in batch.members if member is not listener
+            ]
+            raise
+
+    async def async_withdraw(self, listener: Listener) -> None:
+        """Withdraw this listener while preserving other members and newer speech."""
+        async with self._start_lock:
+            cid = listener.client_id
+            stream = self._playing.get(cid) if cid is not None else None
+            member = (
+                stream.members.get(cid)
+                if stream is not None and cid is not None
+                else None
+            )
+            if member is not None and member.listener is listener:
+                assert stream is not None and cid is not None
+                await self._async_leave(stream, cid, OUTCOME_PREEMPTED)
 
     async def _async_run_batch(self, key: Hashable, batch: _Batch) -> None:
         streamed: set[str] = set()

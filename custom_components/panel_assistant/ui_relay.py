@@ -395,8 +395,8 @@ class _Subscription:
         self.session.ui_relays.pop(self.panel_id, None)
         return True
 
-    def _unsubscribe(self) -> None:
-        if not self._leave() or not self.applied:
+    def _unsubscribe(self, *, pending: bool = False) -> None:
+        if not self._leave() or not (self.applied or pending):
             return
         session = self.session
         if async_get_sessions(self.hass).get(session.entry_id) is not session:
@@ -555,7 +555,14 @@ async def _async_subscribe(
             request["deadline_ms"],
             command_id,
         )
-    except HomeAssistantError:
+    except (HomeAssistantError, asyncio.CancelledError) as err:
+        # Subscribe and unsubscribe share one FIFO session. The command ID is
+        # the native handle, even when its answer misses our bounded wait.
+        # Abandon it now rather than retaining cleanup in the bounded late map.
+        subscription._unsubscribe(pending=True)
+        if isinstance(err, asyncio.CancelledError):
+            subscription.browser_ended()
+            raise
         outcome = CommandOutcome(OUTCOME_FAILED, OUTCOME_FAILED)
     subscription.answered(_frame(request["command_id"], outcome))
 
