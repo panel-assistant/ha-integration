@@ -1,28 +1,118 @@
+# The named-panel forms of show_page come first: its {page} ends the sentence,
+# so the form without {panel} would take "en la cocina" into the page name.
 language: es
 commands:
   show_page:
     sentences:
-      - "(muestra|muéstrame|enseña|enséñame|muestre|muéstreme) (la página|la vista|el panel|la pestaña) [(de|del|de la|de los|de las)] {page}"
-      - "(ve|vaya|ir|llévame|lléveme) a (la página|la vista|la pestaña) [(de|del|de la|de los|de las)] {page}"
-      - "(ve|vaya|ir|llévame|lléveme) al panel [(de|del|de la|de los|de las)] {page}"
+      - "(muestra|muéstrame|enseña|enséñame|muestre|muéstreme) (la página|la vista|el panel|la pestaña) [(de las|de los|de la|del|de)] {page} en [(la pantalla|el panel|la tableta) (de|del)] [el|la] {panel}"
+      - "(ve|vaya|ir|llévame|lléveme) a (la página|la vista|la pestaña) [(de las|de los|de la|del|de)] {page} en [(la pantalla|el panel|la tableta) (de|del)] [el|la] {panel}"
+      - "(ve|vaya|ir|llévame|lléveme) al panel [(de las|de los|de la|del|de)] {page} en [(la pantalla|el panel|la tableta) (de|del)] [el|la] {panel}"
+      - "(muestra|muéstrame|enseña|enséñame|muestre|muéstreme) (la página|la vista|el panel|la pestaña) [(de las|de los|de la|del|de)] {page}"
+      - "(ve|vaya|ir|llévame|lléveme) a (la página|la vista|la pestaña) [(de las|de los|de la|del|de)] {page}"
+      - "(ve|vaya|ir|llévame|lléveme) al panel [(de las|de los|de la|del|de)] {page}"
   android_settings:
     sentences:
       - "(muestra|muéstrame|enseña|enséñame|muestre|muéstreme) (los ajustes|la configuración) (de android|de la tableta|del sistema)"
       - "(ve|vaya) a (los ajustes|la configuración) (de android|de la tableta|del sistema)"
       - "(entra|entre) [directamente] en (los ajustes|la configuración) (de android|de la tableta|del sistema)"
+      - "(muestra|muéstrame|enseña|enséñame|muestre|muéstreme) (los ajustes|la configuración) de android en [(la pantalla|el panel|la tableta) (de|del)] [el|la] {panel}"
+      - "(entra|entre) [directamente] en (los ajustes|la configuración) de android en [(la pantalla|el panel|la tableta) (de|del)] [el|la] {panel}"
   launcher:
     sentences:
       - "(muestra|muéstrame|enseña|enséñame|muestre|muéstreme) (el lanzador|el launcher) [(de android|de aplicaciones)]"
       - "(muestra|muéstrame|enseña|enséñame|muestre|muéstreme) la pantalla de inicio de android"
       - "(ve|vaya|vuelve|vuelva|llévame|lléveme) a la pantalla de inicio de android"
+      - "(muestra|muéstrame|enseña|enséñame|muestre|muéstreme) (el lanzador|el launcher) [(de android|de aplicaciones)] en [(la pantalla|el panel|la tableta) (de|del)] [el|la] {panel}"
+      - "(muestra|muéstrame|enseña|enséñame|muestre|muéstreme) la pantalla de inicio de android en [(la pantalla|el panel|la tableta) (de|del)] [el|la] {panel}"
+  recents:
+    sentences:
+      - "(muestra|muéstrame|enseña|enséñame|muestre|muéstreme) (las aplicaciones|las apps) (recientes|abiertas)"
+      - "(muestra|muéstrame|enseña|enséñame|muestre|muéstreme) (la multitarea|las ventanas recientes)"
+      - "(aplicaciones|apps) recientes"
+      - "(muestra|muéstrame|enseña|enséñame|muestre|muéstreme) (las aplicaciones|las apps) (recientes|abiertas) en [(la pantalla|el panel|la tableta) (de|del)] [el|la] {panel}"
+  back:
+    sentences:
+      - "atrás"
+      - "(retrocede|retroceda) [una (página|vista|pestaña)]"
+      - "(página|vista|pestaña) de antes"
+      - "atrás en [(la pantalla|el panel|la tableta) (de|del)] [el|la] {panel}"
+      - "(retrocede|retroceda) [una (página|vista|pestaña)] en [(la pantalla|el panel|la tableta) (de|del)] [el|la] {panel}"
+  screen_wake:
+    sentences:
+      - "(enciéndete|actívate)"
+      - "(sal|salga) del (reposo|modo reposo)"
+      - "(saca|saque) (la pantalla|el panel|la tableta) del (reposo|modo reposo)"
+      - "(saca|saque) (la pantalla|el panel|la tableta) (de [la]|del) {panel} del (reposo|modo reposo)"
+  screen_sleep:
+    sentences:
+      - "a dormir"
+      - "(duerme|duérmete|duerma|duérmase)"
+      - "(vete|váyase) a dormir"
+      - "(entra|entre) en (reposo|modo reposo)"
+      - "modo reposo"
+      - "(suspende|suspenda) (la pantalla|el panel|la tableta)"
+      - "(suspende|suspenda) (la pantalla|el panel|la tableta) (de [la]|del) {panel}"
+  screen_brighter:
+    sentences:
+      - "más brillo [en la pantalla]"
+      - "(súbele|súbale) (al|el) brillo [(a la pantalla|al panel|a la tableta)]"
+      - "(ilumina|ilumine) más (la pantalla|el panel|la tableta)"
+      - "(haz|haga) (la pantalla|el panel|la tableta) más (brillante|luminosa|luminoso|clara|claro)"
+      - "(aclara|aclare) (la pantalla|el panel|la tableta)"
+      - "pantalla más (brillante|luminosa|clara)"
+      - "más brillo en [(la pantalla|el panel|la tableta) (de|del)] [el|la] {panel}"
+      - "(aclara|aclare) (la pantalla|el panel|la tableta) (de [la]|del) {panel}"
+  screen_dimmer:
+    sentences:
+      - "menos brillo [en la pantalla]"
+      - "(bájale|bájele) (al|el) brillo [(a la pantalla|al panel|a la tableta)]"
+      - "(atenúa|atenúe|oscurece|oscurezca) (la pantalla|el panel|la tableta)"
+      - "(haz|haga) (la pantalla|el panel|la tableta) más (oscura|oscuro|tenue)"
+      - "pantalla más (oscura|tenue)"
+      - "menos brillo en [(la pantalla|el panel|la tableta) (de|del)] [el|la] {panel}"
+      - "(atenúa|atenúe|oscurece|oscurezca) (la pantalla|el panel|la tableta) (de [la]|del) {panel}"
+  volume_up:
+    sentences:
+      - "más (alto|fuerte) [por favor]"
+      - "(habla|hable) más (alto|fuerte) [por favor]"
+      - "(súbele|súbale) [(al volumen|al sonido|a la música)] [por favor]"
+      - "(se oye|suena) (muy|demasiado) bajo"
+      - "más (alto|fuerte) en [(la pantalla|el panel|la tableta) (de|del)] [el|la] {panel}"
+      - "(súbele|súbale) [al volumen] en [(la pantalla|el panel|la tableta) (de|del)] [el|la] {panel}"
+  volume_down:
+    sentences:
+      - "más (bajo|bajito|suave|flojo) [por favor]"
+      - "(habla|hable) más (bajo|bajito|suave) [por favor]"
+      - "(bájale|bájele) [(al volumen|al sonido|a la música)] [por favor]"
+      - "(se oye|suena) (muy|demasiado) (alto|fuerte)"
+      - "más (bajo|bajito|suave|flojo) en [(la pantalla|el panel|la tableta) (de|del)] [el|la] {panel}"
+      - "(bájale|bájele) [al volumen] en [(la pantalla|el panel|la tableta) (de|del)] [el|la] {panel}"
 home_pages: [inicio, principal]
+back_pages: [anterior]
+panel_words: [pantalla, panel, tableta]
 screen_names: [pantalla]
 responses:
   show_page: "Mostrando {page}"
   android_settings: "Abriendo los ajustes de Android"
   launcher: "Abriendo el lanzador"
+  recents: "Mostrando las aplicaciones recientes"
+  back: "Volviendo atrás"
+  back_none: "La pantalla no puede volver atrás desde aquí"
+  screen_wake: "Despertando la pantalla"
+  screen_sleep: "Entrando en reposo"
+  screen_brighter: "Brillo de la pantalla al {brightness} por ciento"
+  screen_dimmer: "Brillo de la pantalla al {brightness} por ciento"
+  screen_brightest: "La pantalla ya tiene el brillo al máximo"
+  screen_dimmest: "La pantalla ya tiene el brillo al mínimo"
+  screen_dark: "La pantalla está apagada"
+  volume_up: "Volumen al {volume} por ciento"
+  volume_down: "Volumen al {volume} por ciento"
+  volume_max: "El volumen ya está al máximo"
+  volume_min: "El volumen ya está al mínimo"
   page_unknown: "Esta pantalla no tiene ninguna página llamada {page}"
-  not_a_panel: "Pídeselo a una pantalla"
+  panel_unknown: "No hay ninguna pantalla llamada {panel}"
+  panel_ambiguous: "Hay más de una pantalla llamada {panel}"
+  not_a_panel: "Pídeselo a una pantalla o di a cuál"
   panel_unavailable: "La pantalla no está conectada"
   panel_refused: "La pantalla no ha podido hacerlo"
   panel_locked: "La pantalla está bloqueada en su panel de control y no puede abrir eso"

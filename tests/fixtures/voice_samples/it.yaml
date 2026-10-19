@@ -9,11 +9,16 @@ match:
   - {text: "vai alla pagina di sicurezza", command: show_page, page: sicurezza}
   - {text: "visualizza la pagina delle telecamere", command: show_page, page: telecamere}
   - {text: "fammi vedere la dashboard delle luci", command: show_page, page: luci}
+  - {text: "torna alla pagina di prima", command: show_page, page: prima}
+  - {text: "torna alla dashboard precedente", command: show_page, page: precedente}
+  - {text: "mostra la pagina delle telecamere sul pannello cucina", command: show_page, page: telecamere, panel: pannello cucina}
+  - {text: "vai alla dashboard energia sul pannello ufficio", command: show_page, page: energia, panel: pannello ufficio}
   - {text: "mostra le impostazioni di android", command: android_settings}
   - {text: "mostrami impostazioni android", command: android_settings}
   - {text: "vai alle impostazioni di android", command: android_settings}
   - {text: "voglio vedere le impostazioni di android", command: android_settings}
   - {text: "visualizza le impostazioni di android", command: android_settings}
+  - {text: "mostra le impostazioni di android sul pannello cucina", command: android_settings, panel: pannello cucina}
   - {text: "mostra il launcher", command: launcher}
   - {text: "mostrami la schermata home di android", command: launcher}
   - {text: "vai alla schermata home di android", command: launcher}
@@ -23,12 +28,50 @@ match:
   - {text: "voglio vedere il launcher", command: launcher}
   - {text: "vai al launcher", command: launcher}
   - {text: "torna al launcher", command: launcher}
+  - {text: "mostra il launcher sul pannello cucina", command: launcher, panel: pannello cucina}
+  - {text: "mostra le app recenti", command: recents}
+  - {text: "applicazioni recenti", command: recents}
+  - {text: "mostrami le app recenti sul pannello cucina", command: recents, panel: pannello cucina}
+  - {text: "torna indietro di una pagina", command: back}
+  - {text: "pagina di prima", command: back}
+  - {text: "torna alla pagina precedente sul pannello cucina", command: back, panel: pannello cucina}
+  - {text: "svegliati", command: screen_wake}
+  - {text: "sveglia lo schermo", command: screen_wake}
+  - {text: "riattiva il display", command: screen_wake}
+  - {text: "sveglia il pannello", command: screen_wake}
+  - {text: "sveglia il pannello cucina", command: screen_wake, panel: pannello cucina}
+  - {text: "vai a dormire", command: screen_sleep}
+  - {text: "addormenta lo schermo", command: screen_sleep}
+  - {text: "vai in standby", command: screen_sleep}
+  - {text: "addormenta il pannello", command: screen_sleep}
+  - {text: "addormenta il pannello cucina", command: screen_sleep, panel: pannello cucina}
+  - {text: "aumenta la luminosità", command: screen_brighter}
+  - {text: "rendi lo schermo più luminoso", command: screen_brighter}
+  - {text: "schermo più luminoso sul pannello cucina", command: screen_brighter, panel: pannello cucina}
+  - {text: "riduci la luminosità dello schermo", command: screen_dimmer}
+  - {text: "attenua lo schermo", command: screen_dimmer}
+  - {text: "meno luminosità sul pannello cucina", command: screen_dimmer, panel: pannello cucina}
+  - {text: "più forte", command: volume_up}
+  - {text: "un po' più forte per favore", command: volume_up}
+  - {text: "più forte sul pannello cucina", command: volume_up, panel: pannello cucina}
+  - {text: "più piano", command: volume_down}
+  - {text: "meno forte sul pannello cucina", command: volume_down, panel: pannello cucina}
 miss:
   - "spegni lo schermo"
   - "torna indietro"
+  - "vai indietro"
+  - "torna alla canzone precedente"
+  - "brano precedente"
+  - "traccia precedente"
   - "che ore sono"
   - "che tempo fa"
   - "imposta la luminosità al 50 percento"
+  - "imposta la luminosità dello schermo al 50 percento"
+  - "abbassa le luci"
+  - "alza il volume"
+  - "abbassa il volume"
+  - "volume su"
+  - "volume giù"
   - "mostra telecamere"
   - "ricarica"
   - "mostra le impostazioni"

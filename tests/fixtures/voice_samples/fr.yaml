@@ -12,6 +12,10 @@ match:
   - {text: "va sur la page d'accueil", command: show_page, page: accueil}
   - {text: "rends-toi sur la page cuisine", command: show_page, page: cuisine}
   - {text: "rendez-vous sur le tableau de bord salon", command: show_page, page: salon}
+  - {text: "va à la page précédente", command: show_page, page: précédente}
+  - {text: "affiche la page caméras sur le panneau de la cuisine", command: show_page, page: caméras, panel: cuisine}
+  - {text: "va à la page énergie sur le panneau du salon", command: show_page, page: énergie, panel: salon}
+  - {text: "montre le tableau de bord énergie sur la tablette du bureau", command: show_page, page: énergie, panel: tablette du bureau}
   - {text: "affiche les paramètres android", command: android_settings}
   - {text: "accède aux paramètres du système", command: android_settings}
   - {text: "accédez aux réglages android", command: android_settings}
@@ -19,6 +23,7 @@ match:
   - {text: "affiche les paramètres de la tablette", command: android_settings}
   - {text: "montre les réglages du système", command: android_settings}
   - {text: "va dans les paramètres android", command: android_settings}
+  - {text: "affiche les paramètres android sur le panneau de la cuisine", command: android_settings, panel: cuisine}
   - {text: "affiche le lanceur", command: launcher}
   - {text: "montre le launcher", command: launcher}
   - {text: "affiche le lanceur d'applications", command: launcher}
@@ -29,14 +34,63 @@ match:
   - {text: "revenez sur l'écran d'accueil d'android", command: launcher}
   - {text: "retourne au lanceur android", command: launcher}
   - {text: "retournez au lanceur", command: launcher}
+  - {text: "affiche le lanceur sur le panneau cuisine", command: launcher, panel: panneau cuisine}
+  - {text: "affiche les applications récentes", command: recents}
+  - {text: "montre moi les applis récentes", command: recents}
+  - {text: "applications récentes", command: recents}
+  - {text: "affiche les applications récentes sur le panneau de l'entrée", command: recents, panel: entrée}
+  - {text: "retour", command: back}
+  - {text: "page précédente", command: back}
+  - {text: "reviens à la page précédente", command: back}
+  - {text: "retourne à l'onglet précédent", command: back}
+  - {text: "page précédente sur le panneau de la cuisine", command: back, panel: cuisine}
+  - {text: "réveille-toi", command: screen_wake}
+  - {text: "réveillez vous", command: screen_wake}
+  - {text: "réveille l'écran", command: screen_wake}
+  - {text: "sors de veille", command: screen_wake}
+  - {text: "réveille le panneau de la cuisine", command: screen_wake, panel: cuisine}
+  - {text: "réveille l'écran du panneau du salon", command: screen_wake, panel: salon}
+  - {text: "réveille le panneau cuisine", command: screen_wake, panel: panneau cuisine}
+  - {text: "endors-toi", command: screen_sleep}
+  - {text: "va dormir", command: screen_sleep}
+  - {text: "va en veille", command: screen_sleep}
+  - {text: "endors l'écran", command: screen_sleep}
+  - {text: "endors le panneau de la cuisine", command: screen_sleep, panel: cuisine}
+  - {text: "rends l'écran plus lumineux", command: screen_brighter}
+  - {text: "plus lumineux", command: screen_brighter}
+  - {text: "plus de luminosité", command: screen_brighter}
+  - {text: "éclaircis l'écran", command: screen_brighter}
+  - {text: "plus lumineux sur le panneau de la cuisine", command: screen_brighter, panel: cuisine}
+  - {text: "rends l'écran moins lumineux", command: screen_dimmer}
+  - {text: "moins lumineux", command: screen_dimmer}
+  - {text: "assombris l'écran", command: screen_dimmer}
+  - {text: "tamise l'écran du panneau du salon", command: screen_dimmer, panel: salon}
+  - {text: "parle plus fort", command: volume_up}
+  - {text: "parlez plus fort s'il vous plaît", command: volume_up}
+  - {text: "plus fort sur le panneau de la cuisine", command: volume_up, panel: cuisine}
+  - {text: "parle moins fort", command: volume_down}
+  - {text: "parlez plus doucement", command: volume_down}
+  - {text: "moins fort sur le panneau du salon", command: volume_down, panel: salon}
 miss:
   - "éteins l'écran"
   - "reviens en arrière"
+  - "retourne en arrière"
+  - "précédent"
+  - "piste précédente"
+  - "chanson précédente"
+  - "règle la luminosité à 50 pour cent"
+  - "règle la luminosité de l'écran à 50 pour cent"
+  - "plus fort"
+  - "moins fort"
+  - "monte le son"
+  - "baisse le son"
+  - "augmente le volume"
+  - "baisse le volume"
   - "quelle heure est il"
   - "quel temps fait il"
-  - "règle la luminosité à 50 pour cent"
   - "affiche la météo"
   - "recharge le tableau de bord"
+  - "allume l'écran"
 builtin:
   screen_off: "éteins l'écran"
   screen_on: "allume l'écran"

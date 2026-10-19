@@ -11,10 +11,15 @@ match:
   - {text: "перейди до початкової сторінки", command: show_page, page: початкової}
   - {text: "перемкнися на вкладку енергія", command: show_page, page: енергія}
   - {text: "перемкніться на головну сторінку", command: show_page, page: головну}
+  - {text: "перейди на попередню сторінку", command: show_page, page: попередню}
+  - {text: "покажи сторінку камери на панелі кухня", command: show_page, page: камери, panel: кухня}
+  - {text: "перейди до вкладки енергія на панелі офісний дашборд", command: show_page, page: енергія, panel: офісний дашборд}
+  - {text: "перейди на сторінку вітальня на панелі attic", command: show_page, page: вітальня, panel: attic}
   - {text: "покажи налаштування андроїда", command: android_settings}
   - {text: "покажіть мені налаштування андроїда", command: android_settings}
   - {text: "покажи налаштування android", command: android_settings}
   - {text: "перейди до налаштувань андроїда", command: android_settings}
+  - {text: "покажи на панелі кухня налаштування андроїда", command: android_settings, panel: кухня}
   - {text: "покажи лаунчер", command: launcher}
   - {text: "покажи лаунчер андроїда", command: launcher}
   - {text: "покажи android лаунчер", command: launcher}
@@ -23,15 +28,61 @@ match:
   - {text: "покажи мені домашній екран андроїда", command: launcher}
   - {text: "перейди на головний екран андроїда", command: launcher}
   - {text: "перейдіть на робочий стіл android", command: launcher}
+  - {text: "покажи на панелі кухня лаунчер", command: launcher, panel: кухня}
+  - {text: "покажи останні застосунки", command: recents}
+  - {text: "покажіть мені недавні програми", command: recents}
+  - {text: "покажи список останніх застосунків", command: recents}
+  - {text: "покажи огляд застосунків", command: recents}
+  - {text: "покажи на панелі кухня останні застосунки", command: recents, panel: кухня}
+  - {text: "попередня сторінка", command: back}
+  - {text: "на попередню сторінку", command: back}
+  - {text: "назад на попередню сторінку", command: back}
+  - {text: "сторінку назад", command: back}
+  - {text: "попередня сторінка на панелі кухня", command: back, panel: кухня}
+  - {text: "прокинься", command: screen_wake}
+  - {text: "розбуди екран", command: screen_wake}
+  - {text: "розбудіть будь ласка панель", command: screen_wake}
+  - {text: "розбуди панель кухня", command: screen_wake, panel: кухня}
+  - {text: "розбуди екран на панелі кухня", command: screen_wake, panel: кухня}
+  - {text: "засни", command: screen_sleep}
+  - {text: "іди спати", command: screen_sleep}
+  - {text: "приспи екран", command: screen_sleep}
+  - {text: "переведи екран у режим сну", command: screen_sleep}
+  - {text: "приспи панель кухня", command: screen_sleep, panel: кухня}
+  - {text: "зроби екран яскравішим", command: screen_brighter}
+  - {text: "зробіть будь ласка яскравіше", command: screen_brighter}
+  - {text: "збільш яскравість екрана", command: screen_brighter}
+  - {text: "яскравіше", command: screen_brighter}
+  - {text: "збільш яскравість на панелі кухня", command: screen_brighter, panel: кухня}
+  - {text: "зроби екран темнішим", command: screen_dimmer}
+  - {text: "зменш яскравість екрана", command: screen_dimmer}
+  - {text: "притуши екран", command: screen_dimmer}
+  - {text: "темніше", command: screen_dimmer}
+  - {text: "притуши екран на панелі кухня", command: screen_dimmer, panel: кухня}
+  - {text: "голосніше", command: volume_up}
+  - {text: "зроби будь ласка гучніше", command: volume_up}
+  - {text: "збільш гучність", command: volume_up}
+  - {text: "підбав звуку", command: volume_up}
+  - {text: "голосніше на панелі кухня", command: volume_up, panel: кухня}
+  - {text: "тихіше", command: volume_down}
+  - {text: "зробіть тихіше", command: volume_down}
+  - {text: "зменш звук", command: volume_down}
+  - {text: "зменш гучність на панелі кухня", command: volume_down, panel: кухня}
 miss:
   - "вимкни екран"
   - "назад"
+  - "повернися назад"
+  - "повернися на попередню сторінку"
+  - "попередній трек"
   - "котра година"
   - "яка погода"
   - "встанови яскравість на 50 відсотків"
+  - "встанови яскравість екрана на 50 відсотків"
+  - "встанови гучність на 50 відсотків"
   - "покажи камери"
   - "онови"
   - "онови сторінку"
+  - "онови дашборд"
 builtin:
   screen_off: "вимкни екран"
   screen_on: "увімкни екран"

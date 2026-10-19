@@ -1,14 +1,19 @@
 # Voice commands a panel answers itself (Simplified Chinese).
+# A command's form without {panel} comes before its named-panel form, because
+# Home Assistant acts on the first form that matches. Page nouns are listed
+# longest first, so "标签页" is not read as a page name ending in "标签".
 language: zh-Hans
 commands:
   show_page:
     sentences:
-      - "[请][给我]显示{page}(页面|页|视图|仪表盘|标签页)"
-      - "[请](转到|跳转到|去|回到|返回){page}(页面|页|视图|仪表盘|标签页)"
-      - "[请]给我看[看]{page}(页面|页|视图|仪表盘|标签页)"
+      - "[请][给我]显示{page}(标签页|页面|页|视图|仪表盘)"
+      - "[请](转到|跳转到|去|回到|返回){page}(标签页|页面|页|视图|仪表盘)"
+      - "[请]给我看[看]{page}(标签页|页面|页|视图|仪表盘)"
+      - "[请]让{panel}显示{page}(标签页|页面|页|视图|仪表盘)"
   android_settings:
     sentences:
       - "[请][给我]显示(安卓|Android)[系统]设置"
+      - "[请]让{panel}显示(安卓|Android)[系统]设置"
   launcher:
     sentences:
       - "[请][给我]显示[安卓|Android]启动器"
@@ -16,15 +21,87 @@ commands:
       - "[请](回到|返回)[安卓|Android]桌面"
       - "[请]显示(安卓|Android)桌面"
       - "[请](回到|返回)(安卓|Android)主屏幕"
+      - "[请]让{panel}显示[安卓|Android]启动器"
+  recents:
+    sentences:
+      - "[请][给我]显示最近[使用][的](应用|任务|程序|应用程序)"
+      - "[请][给我]显示多任务[界面]"
+      - "[请]查看最近[使用][的](应用|任务|程序)"
+      - "[请]让{panel}显示最近[使用][的](应用|任务|程序|应用程序)"
+  back:
+    sentences:
+      - "[请]上一页"
+      - "[请](后退|回退)[一页]"
+      - "[请]退回上一页"
+      - "[请]让{panel}(后退|回退)"
+  screen_wake:
+    sentences:
+      - "[请](唤醒|点亮)(屏幕|面板)"
+      - "[请]亮屏"
+      - "醒醒"
+      - "[请]把(屏幕|面板)唤醒"
+      - "[请](唤醒|点亮){panel}的屏幕"
+      - "[请]把{panel}[的屏幕]唤醒"
+  screen_sleep:
+    sentences:
+      - "[请](熄屏|息屏)"
+      - "[请][让](屏幕|面板)(休眠|睡眠)"
+      - "[请]让{panel}[的屏幕](休眠|睡眠|熄屏|息屏)"
+  screen_brighter:
+    sentences:
+      - "[请][把](屏幕|面板)调亮[一点|一些]"
+      - "[请](屏幕|面板)[再]亮一点"
+      - "[请]调亮(屏幕|面板)"
+      - "[请][再](调亮|亮)[一]点"
+      - "[请](提高|调高|增加)屏幕亮度"
+      - "[请]屏幕亮度调高[一点]"
+      - "[请]把{panel}的屏幕调亮[一点|一些]"
+  screen_dimmer:
+    sentences:
+      - "[请][把](屏幕|面板)调暗[一点|一些]"
+      - "[请](屏幕|面板)[再]暗一点"
+      - "[请]调暗(屏幕|面板)"
+      - "[请][再](调暗|暗)[一]点"
+      - "[请](降低|调低|减少)屏幕亮度"
+      - "[请]屏幕亮度调低[一点]"
+      - "[请]把{panel}的屏幕调暗[一点|一些]"
+  volume_up:
+    sentences:
+      - "[请][再](大声点|大声一点|大声些|大点声|声音大一点|声音大点)"
+      - "[请](调大|调高|提高|增大)音量"
+      - "[请]让{panel}大声[一]点"
+  volume_down:
+    sentences:
+      - "[请][再](小声点|小声一点|小声些|小点声|声音小一点|声音小点)"
+      - "[请](调小|调低|降低|减小)音量"
+      - "[请]让{panel}小声[一]点"
 home_pages: [主, 主页, 首页, 首, 开始, 起始]
+back_pages: [上一, 上一个, 前一, 前一个]
+panel_words: [面板]
 screen_names: [屏幕, 显示屏]
 responses:
   show_page: "正在显示{page}"
   android_settings: "正在打开安卓设置"
   launcher: "正在打开启动器"
+  recents: "正在显示最近使用的应用"
+  back: "正在返回"
+  back_none: "面板无法从这里返回"
+  screen_wake: "正在唤醒屏幕"
+  screen_sleep: "正在进入休眠"
+  screen_brighter: "屏幕亮度百分之{brightness}"
+  screen_dimmer: "屏幕亮度百分之{brightness}"
+  screen_brightest: "屏幕已经是最亮了"
+  screen_dimmest: "屏幕已经是最暗了"
+  screen_dark: "屏幕已关闭"
+  volume_up: "音量百分之{volume}"
+  volume_down: "音量百分之{volume}"
+  volume_max: "音量已经是最大了"
+  volume_min: "音量已经是最小了"
   page_unknown: "这个面板没有叫{page}的页面"
-  not_a_panel: "请让面板来做这件事"
+  panel_unknown: "没有叫{panel}的面板"
+  panel_ambiguous: "有不止一个面板叫{panel}"
+  not_a_panel: "请让面板来做这件事，或者说明是哪个面板"
   panel_unavailable: "面板未连接"
   panel_refused: "面板无法执行该操作"
-  panel_locked: "面板已锁定，只能显示仪表盘，无法打开设置或启动器"
+  panel_locked: "面板已锁定在仪表盘"
   needs_update: "请更新面板应用以使用此命令"

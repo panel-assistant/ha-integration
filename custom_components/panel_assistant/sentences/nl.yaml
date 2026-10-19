@@ -10,6 +10,7 @@ commands:
       - "ga naar (de pagina|de weergave|het dashboard|het tabblad|de tab) {page}"
       - "toon [mij|me|ons] (de pagina|de weergave|het dashboard|het tabblad) {page}"
       - "laat [mij|me|ons] (de pagina|de weergave|het dashboard|het tabblad) {page} zien"
+      - "laat (het|de) {panel} [de|het] {page} (pagina|weergave|dashboard|tab|tabblad|overzicht) tonen"
   android_settings:
     sentences:
       - "toon [mij|me|ons] [de] android instellingen"
@@ -18,6 +19,7 @@ commands:
       - "toon [mij|me|ons] de instellingen van android"
       - "laat [mij|me|ons] de instellingen van android zien"
       - "ga naar de instellingen van android"
+      - "laat (het|de) {panel} de (android instellingen|instellingen van android) tonen"
   launcher:
     sentences:
       - "toon [mij|me|ons] [de] [android] launcher"
@@ -27,15 +29,94 @@ commands:
       - "toon [mij|me|ons] het startscherm van android"
       - "laat [mij|me|ons] het startscherm van android zien"
       - "ga naar het startscherm van android"
+      - "laat (het|de) {panel} (de [android] launcher|het android startscherm|het startscherm van android) tonen"
+  recents:
+    sentences:
+      - "toon [mij|me|ons] [de] recente apps [alsjeblieft]"
+      - "laat [mij|me|ons] [de] recente apps zien [alsjeblieft]"
+      - "toon [mij|me|ons] de (recent|laatst) gebruikte apps [alsjeblieft]"
+      - "toon [mij|me|ons] de geopende apps [alsjeblieft]"
+      - "recente apps"
+      - "wissel van app"
+      - "laat (het|de) {panel} de (recente apps|recent gebruikte apps|laatst gebruikte apps|geopende apps) tonen"
+  back:
+    sentences:
+      - "terug [alsjeblieft]"
+      - "vorige (pagina|weergave)"
+      - "vorig scherm"
+      - "terug naar (de vorige (pagina|weergave)|het vorige scherm)"
+  screen_wake:
+    sentences:
+      - "wakker worden"
+      - "maak het scherm [alsjeblieft] wakker"
+      - "wek het scherm [alsjeblieft]"
+      - "haal het scherm uit [de] slaapstand"
+      - "maak (het|de) {panel} [alsjeblieft] wakker"
+  screen_sleep:
+    sentences:
+      - "ga [alsjeblieft] slapen"
+      - "ga [alsjeblieft] in [de] slaapstand"
+      - "ga naar [de] slaapstand"
+      - "zet het scherm in [de] slaapstand"
+      - "zet (het|de) {panel} in [de] slaapstand"
+      - "laat (het|de) {panel} slapen"
+  screen_brighter:
+    sentences:
+      - "maak het scherm [wat|iets] (helderder|feller|lichter) [alsjeblieft]"
+      - "[het] scherm (helderder|feller|lichter)"
+      - "verhoog de helderheid van het scherm"
+      - "zet het scherm [wat|iets] feller"
+      - "maak het scherm van (het|de) {panel} [wat|iets] (helderder|feller|lichter)"
+  screen_dimmer:
+    sentences:
+      - "maak het scherm [wat|iets] (donkerder|minder fel|minder helder) [alsjeblieft]"
+      - "[het] scherm (donkerder|minder fel)"
+      - "dim het scherm [wat|iets]"
+      - "verlaag de helderheid van het scherm"
+      - "maak het scherm van (het|de) {panel} [wat|iets] (donkerder|minder fel|minder helder)"
+  volume_up:
+    sentences:
+      - "[wat|iets] harder [alsjeblieft]"
+      - "zet [het] [wat|iets] harder [alsjeblieft]"
+      - "draai [het] [wat|iets] harder"
+      - "zet het geluid [wat|iets] harder"
+      - "het is te zacht"
+      - "zet het geluid van (het|de) {panel} [wat|iets] harder"
+  volume_down:
+    sentences:
+      - "[wat|iets] zachter [alsjeblieft]"
+      - "zet [het] [wat|iets] zachter [alsjeblieft]"
+      - "draai [het] [wat|iets] zachter"
+      - "zet het geluid [wat|iets] zachter"
+      - "het is te hard"
+      - "zet het geluid van (het|de) {panel} [wat|iets] zachter"
 home_pages: [home, start, hoofd, thuis]
+back_pages: [vorige]
+panel_words: [paneel]
 screen_names: [scherm]
 responses:
   show_page: "{page} wordt getoond"
   android_settings: "De Android-instellingen worden geopend"
   launcher: "De launcher wordt geopend"
+  recents: "De recente apps worden getoond"
+  back: "Ik ga terug"
+  back_none: "Het paneel kan hier niet verder terug"
+  screen_wake: "Het scherm wordt gewekt"
+  screen_sleep: "Het scherm gaat in de slaapstand"
+  screen_brighter: "Helderheid van het scherm {brightness} procent"
+  screen_dimmer: "Helderheid van het scherm {brightness} procent"
+  screen_brightest: "Het scherm staat al op de hoogste helderheid"
+  screen_dimmest: "Het scherm staat al zo donker als het kan"
+  screen_dark: "Het scherm staat uit"
+  volume_up: "Volume {volume} procent"
+  volume_down: "Volume {volume} procent"
+  volume_max: "Het volume staat al op het maximum"
+  volume_min: "Het volume staat al op het minimum"
   page_unknown: "Dit paneel heeft geen pagina met de naam {page}"
-  not_a_panel: "Vraag dit aan een paneel"
+  panel_unknown: "Er is geen paneel met de naam {panel}"
+  panel_ambiguous: "Er is meer dan één paneel met de naam {panel}"
+  not_a_panel: "Vraag dit aan een paneel, of zeg welk paneel"
   panel_unavailable: "Het paneel is niet verbonden"
   panel_refused: "Het paneel kon dat niet doen"
-  panel_locked: "Het paneel is vastgezet op het dashboard en kan dat niet openen"
+  panel_locked: "Het paneel is vastgezet op zijn dashboard"
   needs_update: "Werk de paneel-app bij om deze opdracht te gebruiken"

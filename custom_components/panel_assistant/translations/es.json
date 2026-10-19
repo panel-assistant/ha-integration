@@ -628,6 +628,9 @@
       "launcher": {
         "name": "Lanzador"
       },
+      "recents": {
+        "name": "Aplicaciones recientes"
+      },
       "dashboard": {
         "name": "Mostrar panel de control"
       },

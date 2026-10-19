@@ -628,6 +628,9 @@
       "launcher": {
         "name": "启动器"
       },
+      "recents": {
+        "name": "最近使用的应用"
+      },
       "dashboard": {
         "name": "显示仪表盘"
       },

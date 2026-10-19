@@ -1,22 +1,85 @@
 # Voice commands a panel answers itself. Every locale's sentences are
 # registered as one trigger set, so they must not take over a request
 # Home Assistant's built-in intents understand (tests/test_voice_commands.py).
+# A {panel} names another panel than the one that heard the request; where a
+# command has both forms, the one without {panel} comes first, because Home
+# Assistant acts on the first form that matches.
 language: en
 commands:
   show_page:
     sentences:
       - "show [me] [the] {page} (page|view|dashboard|tab)"
       - "go to [the] {page} (page|view|dashboard|tab)"
+      - "show [me] [the] {page} (page|view|dashboard|tab) on [the] {panel} panel"
+      - "go to [the] {page} (page|view|dashboard|tab) on [the] {panel}"
   android_settings:
     sentences:
       - "show [me] [the] android settings"
+      - "show [me] [the] {panel} android settings"
   launcher:
     sentences:
       - "show [me] [the] [android] launcher"
       - "show [me] [the] android home screen"
-# {page} values that mean the panel's own home dashboard when no view or
-# dashboard has that name.
+      - "show [me] [the] {panel} [android] launcher"
+      - "show [me] [the] {panel} android home screen"
+  recents:
+    sentences:
+      - "show [me] [the] (recent apps|recent applications|app switcher)"
+      - "show [me] [the] {panel} (recent apps|recent applications|app switcher)"
+  back:
+    sentences:
+      - "back"
+      - "previous (page|view|screen)"
+      - "back to [the] previous (page|view|screen)"
+      - "previous (page|view|screen) on [the] {panel}"
+  screen_wake:
+    sentences:
+      - "wake up"
+      - "wake [up] [the] screen"
+      - "wake [the] screen up"
+      - "wake up [the] {panel}"
+      - "wake [the] {panel} up"
+  screen_sleep:
+    sentences:
+      - "go to sleep"
+      - "put [the] screen to sleep"
+      - "(sleep|blank) [the] screen"
+      - "put [the] {panel} to sleep"
+  screen_brighter:
+    sentences:
+      - "(brighten|lighten) [the] (screen|display)"
+      - "make [the] (screen|display) (brighter|lighter)"
+      - "increase [the] (screen|display) brightness"
+      - "increase [the] brightness of [the] (screen|display)"
+      - "(brighten|lighten) [the] (screen|display) on [the] {panel}"
+      - "make [the] {panel} (screen|display) (brighter|lighter)"
+  screen_dimmer:
+    sentences:
+      - "(dim|darken) [the] (screen|display)"
+      - "make [the] (screen|display) (dimmer|darker)"
+      - "(decrease|reduce) [the] (screen|display) brightness"
+      - "(decrease|reduce) [the] brightness of [the] (screen|display)"
+      - "(dim|darken) [the] (screen|display) on [the] {panel}"
+      - "make [the] {panel} (screen|display) (dimmer|darker)"
+  volume_up:
+    sentences:
+      - "[make it] [a (bit|little)] louder [please]"
+      - "(it's|it is) too quiet"
+      - "louder on [the] {panel}"
+      - "make [the] {panel} louder"
+  volume_down:
+    sentences:
+      - "[make it] [a (bit|little)] (quieter|softer) [please]"
+      - "(it's|it is) too loud"
+      - "(quieter|softer) on [the] {panel}"
+      - "make [the] {panel} (quieter|softer)"
+# {page} values that mean the panel's own home dashboard, and its previous
+# page, when no view or dashboard has that name.
 home_pages: [home, main, start]
+back_pages: [previous]
+# The word a panel's name may end in, so "the attic panel" and "the attic"
+# both name the panel called "Attic panel".
+panel_words: [panel]
 # What people call the screen in this language, in the forms a sentence puts
 # it in; each becomes an alias of the screen light beside its translated name,
 # so the built-in on/off and brightness intents find it.
@@ -25,8 +88,24 @@ responses:
   show_page: "Showing {page}"
   android_settings: "Opening Android settings"
   launcher: "Opening the launcher"
+  recents: "Showing recent apps"
+  back: "Going back"
+  back_none: "The panel can't go back from here"
+  screen_wake: "Waking the screen"
+  screen_sleep: "Going to sleep"
+  screen_brighter: "Screen brightness {brightness} percent"
+  screen_dimmer: "Screen brightness {brightness} percent"
+  screen_brightest: "The screen is already at full brightness"
+  screen_dimmest: "The screen is already as dim as it goes"
+  screen_dark: "The screen is off"
+  volume_up: "Volume {volume} percent"
+  volume_down: "Volume {volume} percent"
+  volume_max: "The volume is already at maximum"
+  volume_min: "The volume is already at minimum"
   page_unknown: "This panel has no page called {page}"
-  not_a_panel: "Ask a panel to do that"
+  panel_unknown: "No panel is called {panel}"
+  panel_ambiguous: "More than one panel is called {panel}"
+  not_a_panel: "Ask a panel to do that, or say which panel"
   panel_unavailable: "The panel is not connected"
   panel_refused: "The panel could not do that"
   panel_locked: "The panel is locked to its dashboard"

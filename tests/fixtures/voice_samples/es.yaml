@@ -11,6 +11,9 @@ match:
   - {text: "ve al panel principal", command: show_page, page: principal}
   - {text: "enséñame la página de inicio", command: show_page, page: inicio}
   - {text: "ve a la vista de los dormitorios", command: show_page, page: dormitorios}
+  - {text: "ve a la página anterior", command: show_page, page: anterior}
+  - {text: "muestra la página de cámaras en la pantalla de la cocina", command: show_page, page: cámaras, panel: cocina}
+  - {text: "ve a la vista de energía en la cocina", command: show_page, page: energía, panel: cocina}
   - {text: "muestra los ajustes de android", command: android_settings}
   - {text: "entra en los ajustes de android", command: android_settings}
   - {text: "entra directamente en la configuración de android", command: android_settings}
@@ -18,19 +21,69 @@ match:
   - {text: "muestra la configuración del sistema", command: android_settings}
   - {text: "enséñame los ajustes de la tableta", command: android_settings}
   - {text: "ve a los ajustes de android", command: android_settings}
+  - {text: "muestra los ajustes de android en la pantalla de la cocina", command: android_settings, panel: cocina}
   - {text: "muestra el lanzador", command: launcher}
   - {text: "muéstrame el launcher", command: launcher}
   - {text: "muestra el lanzador de aplicaciones", command: launcher}
   - {text: "muéstrame la pantalla de inicio de android", command: launcher}
   - {text: "vuelve a la pantalla de inicio de android", command: launcher}
   - {text: "llévame a la pantalla de inicio de android", command: launcher}
+  - {text: "muestra el lanzador en la pantalla de la cocina", command: launcher, panel: cocina}
+  - {text: "muestra las aplicaciones recientes", command: recents}
+  - {text: "enséñame la multitarea", command: recents}
+  - {text: "aplicaciones recientes", command: recents}
+  - {text: "muestra las apps abiertas en la pantalla de la cocina", command: recents, panel: cocina}
+  - {text: "atrás", command: back}
+  - {text: "retrocede una página", command: back}
+  - {text: "página de antes", command: back}
+  - {text: "atrás en la pantalla de la cocina", command: back, panel: cocina}
+  - {text: "enciéndete", command: screen_wake}
+  - {text: "sal del modo reposo", command: screen_wake}
+  - {text: "saca la pantalla del reposo", command: screen_wake}
+  - {text: "saca la pantalla de la cocina del reposo", command: screen_wake, panel: cocina}
+  - {text: "a dormir", command: screen_sleep}
+  - {text: "duérmete", command: screen_sleep}
+  - {text: "suspende la pantalla", command: screen_sleep}
+  - {text: "suspende la pantalla de la cocina", command: screen_sleep, panel: cocina}
+  - {text: "más brillo", command: screen_brighter}
+  - {text: "más brillo en la pantalla", command: screen_brighter}
+  - {text: "haz la pantalla más brillante", command: screen_brighter}
+  - {text: "súbele el brillo", command: screen_brighter}
+  - {text: "más brillo en la pantalla de la cocina", command: screen_brighter, panel: cocina}
+  - {text: "aclara la pantalla de la cocina", command: screen_brighter, panel: cocina}
+  - {text: "menos brillo", command: screen_dimmer}
+  - {text: "atenúa la pantalla", command: screen_dimmer}
+  - {text: "haz la pantalla más oscura", command: screen_dimmer}
+  - {text: "menos brillo en la pantalla de la cocina", command: screen_dimmer, panel: cocina}
+  - {text: "más alto", command: volume_up}
+  - {text: "habla más fuerte por favor", command: volume_up}
+  - {text: "súbele al volumen", command: volume_up}
+  - {text: "se oye muy bajo", command: volume_up}
+  - {text: "más alto en la pantalla de la cocina", command: volume_up, panel: cocina}
+  - {text: "más bajo", command: volume_down}
+  - {text: "bájale al volumen", command: volume_down}
+  - {text: "suena demasiado fuerte", command: volume_down}
+  - {text: "más bajo en la pantalla de la cocina", command: volume_down, panel: cocina}
 miss:
   - "apaga la pantalla"
+  - "enciende la pantalla"
   - "vuelve atrás"
+  - "vuelve a la página anterior"
+  - "vuelve a la anterior"
+  - "canción anterior"
+  - "pista anterior"
+  - "pon el brillo de la pantalla al 50 por ciento"
+  - "pon el brillo de la pantalla al 50 %"
+  - "sube el brillo al máximo"
+  - "sube el volumen"
+  - "baja el volumen"
+  - "más volumen"
+  - "menos volumen"
   - "qué hora es"
   - "qué tiempo hace"
   - "muestra el tiempo"
   - "recarga el panel"
+  - "recarga la pantalla"
 builtin:
   screen_off: "apaga la pantalla"
   screen_on: "enciende la pantalla"

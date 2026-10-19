@@ -623,6 +623,9 @@
       "launcher": {
         "name": "Launcher"
       },
+      "recents": {
+        "name": "Recente apps"
+      },
       "dashboard": {
         "name": "Dashboard tonen"
       },

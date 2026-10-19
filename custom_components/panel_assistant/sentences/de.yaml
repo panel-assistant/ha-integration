@@ -8,6 +8,10 @@ commands:
       - "(geh|gehe|wechsle|wechsel) [bitte] (zur seite|zur ansicht|zum dashboard|zum tab) {page}"
       - "(geh|gehe|wechsle|wechsel) [bitte] zur {page}(seite|ansicht)"
       - "(geh|gehe|wechsle|wechsel) [bitte] (zu|zur|zum) [der|dem] {page} (seite|ansicht|dashboard)"
+      - "(zeig|zeige|zeigen sie) [mir|uns] [bitte] [die|das|den] {page} (seite|ansicht|übersicht|dashboard) am {panel}"
+      - "(zeig|zeige|zeigen sie) [mir|uns] [bitte] die {page}(seite|ansicht) am {panel}"
+      - "(geh|gehe|wechsle|wechsel) [bitte] zur {page}(seite|ansicht) am {panel}"
+      - "(geh|gehe|wechsle|wechsel) [bitte] (zu|zur|zum) [der|dem] {page} (seite|ansicht|dashboard) am {panel}"
   android_settings:
     sentences:
       - "(zeig|zeige|zeigen sie) [mir|uns] [bitte] [das] android (menü|systemmenü)"
@@ -19,15 +23,91 @@ commands:
       - "(geh|gehe|wechsle|wechsel) [bitte] zum [android] launcher"
       - "(geh|gehe|wechsle|wechsel) [bitte] zum android (startbildschirm|homescreen)"
       - "zurück zum android (startbildschirm|homescreen)"
+      - "zurück zum android (startbildschirm|homescreen) am {panel}"
+  recents:
+    sentences:
+      - "(zeig|zeige|zeigen sie) [mir|uns] [bitte] die (letzten|zuletzt (verwendeten|benutzten|geöffneten)) apps"
+      - "(zeig|zeige|zeigen sie) [mir|uns] [bitte] die (offenen|geöffneten) apps"
+      - "zuletzt (verwendete|benutzte|geöffnete) apps"
+      - "(wechsle|wechsel) [bitte] die app"
+      - "zuletzt (verwendete|benutzte|geöffnete) apps am {panel}"
+      - "(wechsle|wechsel) [bitte] die app am {panel}"
+  back:
+    sentences:
+      - "zurück [bitte]"
+      - "zurückgehen"
+      - "zurück zur vorherigen (seite|ansicht)"
+      - "zurück zur vorherigen (seite|ansicht) am {panel}"
+      - "zurück am {panel}"
+  screen_wake:
+    sentences:
+      - "aufwachen"
+      - "aufwecken"
+      - "(weck|wecke|wecken sie) [bitte] den bildschirm"
+      - "(beende|verlasse|beenden sie|verlassen sie) [bitte] den (ruhemodus|schlafmodus|standby)"
+      - "(weck|wecke|wecken sie) [bitte] den bildschirm am {panel}"
+      - "(beende|verlasse|beenden sie|verlassen sie) [bitte] den (ruhemodus|schlafmodus|standby) am {panel}"
+      - "(weck|wecke|wecken sie) [bitte] das {panel}"
+  screen_sleep:
+    sentences:
+      - "(geh|gehe) [bitte] schlafen"
+      - "schlafen gehen"
+      - "schlaf [bitte]"
+      - "(ruhemodus|schlafmodus) [bitte]"
+      - "(leg|lege|legen sie) [bitte] (den bildschirm|das display) schlafen"
+      - "(ruhemodus|schlafmodus) [bitte] am {panel}"
+      - "(leg|lege|legen sie) [bitte] (den bildschirm|das display) (am|vom) {panel} schlafen"
+      - "(leg|lege|legen sie) [bitte] das {panel} schlafen"
+  screen_brighter:
+    sentences:
+      - "(mach|mache|machen sie) [bitte] (den bildschirm|das display) [etwas] heller"
+      - "mehr helligkeit [bitte]"
+      - "(mach|mache|machen sie) [bitte] (den bildschirm|das display) (am|vom) {panel} [etwas] heller"
+      - "(mach|mache|machen sie) [bitte] (den bildschirm|das display) [etwas] heller am {panel}"
+      - "mehr helligkeit am {panel}"
+  screen_dimmer:
+    sentences:
+      - "(mach|mache|machen sie) [bitte] (den bildschirm|das display) [etwas] dunkler"
+      - "(dimm|dimme|dimmen sie) [bitte] (den bildschirm|das display) [etwas]"
+      - "weniger helligkeit [bitte]"
+      - "(mach|mache|machen sie) [bitte] (den bildschirm|das display) (am|vom) {panel} [etwas] dunkler"
+      - "(mach|mache|machen sie) [bitte] (den bildschirm|das display) [etwas] dunkler am {panel}"
+      - "weniger helligkeit am {panel}"
+  volume_up:
+    sentences:
+      - "mehr lautstärke [bitte]"
+      - "mehr lautstärke am {panel}"
+  volume_down:
+    sentences:
+      - "weniger lautstärke [bitte]"
+      - "weniger lautstärke am {panel}"
 home_pages: [start, home, haupt]
+back_pages: [vorherige, vorherigen]
+panel_words: [panel]
 screen_names: [bildschirm, bildschirms]
 responses:
   show_page: "{page} wird angezeigt"
   android_settings: "Die Android-Einstellungen werden geöffnet"
   launcher: "Der Launcher wird geöffnet"
+  recents: "Die zuletzt verwendeten Apps werden angezeigt"
+  back: "Ich gehe zurück"
+  back_none: "Von hier aus kann das Panel nicht zurück"
+  screen_wake: "Der Bildschirm wird aufgeweckt"
+  screen_sleep: "Der Bildschirm geht in den Ruhemodus"
+  screen_brighter: "Bildschirmhelligkeit {brightness} Prozent"
+  screen_dimmer: "Bildschirmhelligkeit {brightness} Prozent"
+  screen_brightest: "Der Bildschirm ist bereits auf voller Helligkeit"
+  screen_dimmest: "Der Bildschirm ist bereits so dunkel wie möglich"
+  screen_dark: "Der Bildschirm ist aus"
+  volume_up: "Lautstärke {volume} Prozent"
+  volume_down: "Lautstärke {volume} Prozent"
+  volume_max: "Die Lautstärke ist bereits auf Maximum"
+  volume_min: "Die Lautstärke ist bereits auf Minimum"
   page_unknown: "Dieses Panel hat keine Seite namens {page}"
-  not_a_panel: "Frag dafür ein Panel"
+  panel_unknown: "Es gibt kein Panel namens {panel}"
+  panel_ambiguous: "Mehrere Panels heißen {panel}"
+  not_a_panel: "Frag dafür ein Panel oder sag, welches Panel"
   panel_unavailable: "Das Panel ist nicht verbunden"
   panel_refused: "Das Panel konnte das nicht ausführen"
-  panel_locked: "Das Panel ist auf sein Dashboard beschränkt und kann das nicht öffnen"
+  panel_locked: "Das Panel ist auf sein Dashboard beschränkt"
   needs_update: "Aktualisiere die Panel-App, um diesen Befehl zu nutzen"

@@ -628,6 +628,9 @@
       "launcher": {
         "name": "Lanceur"
       },
+      "recents": {
+        "name": "Applications récentes"
+      },
       "dashboard": {
         "name": "Afficher le tableau de bord"
       },

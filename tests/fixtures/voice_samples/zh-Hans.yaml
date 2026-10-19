@@ -1,3 +1,6 @@
+# Must-match samples name the command (and the {page} and {panel} values Home
+# Assistant hands it) they must reach and nothing else; must-not-match samples
+# must reach no panel command at all.
 match:
   - {text: "显示摄像头页面", command: show_page, page: 摄像头}
   - {text: "请给我显示能源仪表盘", command: show_page, page: 能源}
@@ -9,10 +12,15 @@ match:
   - {text: "返回首页", command: show_page, page: 首}
   - {text: "显示主页", command: show_page, page: 主}
   - {text: "显示首页", command: show_page, page: 首}
+  - {text: "返回上一页", command: show_page, page: 上一}
+  - {text: "回到上一个页面", command: show_page, page: 上一个}
+  - {text: "让厨房面板显示摄像头页面", command: show_page, page: 摄像头, panel: 厨房面板}
+  - {text: "让办公室屏幕显示能源仪表盘", command: show_page, page: 能源, panel: 办公室屏幕}
   - {text: "显示安卓设置", command: android_settings}
   - {text: "请给我显示安卓设置", command: android_settings}
   - {text: "显示安卓系统设置", command: android_settings}
   - {text: "显示Android设置", command: android_settings}
+  - {text: "让厨房面板显示安卓设置", command: android_settings, panel: 厨房面板}
   - {text: "显示启动器", command: launcher}
   - {text: "显示Android启动器", command: launcher}
   - {text: "显示安卓主屏幕", command: launcher}
@@ -20,14 +28,68 @@ match:
   - {text: "返回安卓桌面", command: launcher}
   - {text: "显示Android桌面", command: launcher}
   - {text: "回到安卓主屏幕", command: launcher}
+  - {text: "让厨房面板显示启动器", command: launcher, panel: 厨房面板}
+  - {text: "显示最近使用的应用", command: recents}
+  - {text: "显示多任务界面", command: recents}
+  - {text: "查看最近的任务", command: recents}
+  - {text: "让厨房面板显示最近的应用", command: recents, panel: 厨房面板}
+  - {text: "上一页", command: back}
+  - {text: "后退", command: back}
+  - {text: "退回上一页", command: back}
+  - {text: "让厨房面板后退", command: back, panel: 厨房面板}
+  - {text: "让厨房面板回退", command: back, panel: 厨房面板}
+  - {text: "醒醒", command: screen_wake}
+  - {text: "唤醒屏幕", command: screen_wake}
+  - {text: "请点亮屏幕", command: screen_wake}
+  - {text: "亮屏", command: screen_wake}
+  - {text: "把屏幕唤醒", command: screen_wake}
+  - {text: "唤醒厨房面板的屏幕", command: screen_wake, panel: 厨房面板}
+  - {text: "把厨房面板唤醒", command: screen_wake, panel: 厨房面板}
+  - {text: "熄屏", command: screen_sleep}
+  - {text: "让屏幕休眠", command: screen_sleep}
+  - {text: "屏幕睡眠", command: screen_sleep}
+  - {text: "让厨房面板休眠", command: screen_sleep, panel: 厨房面板}
+  - {text: "把屏幕调亮一点", command: screen_brighter}
+  - {text: "屏幕再亮一点", command: screen_brighter}
+  - {text: "调亮屏幕", command: screen_brighter}
+  - {text: "提高屏幕亮度", command: screen_brighter}
+  - {text: "把厨房面板的屏幕调亮", command: screen_brighter, panel: 厨房面板}
+  - {text: "把厨房面板的屏幕调亮", command: screen_brighter, panel: 厨房面板}
+  - {text: "把屏幕调暗一点", command: screen_dimmer}
+  - {text: "屏幕暗一点", command: screen_dimmer}
+  - {text: "调暗屏幕", command: screen_dimmer}
+  - {text: "降低屏幕亮度", command: screen_dimmer}
+  - {text: "把厨房面板的屏幕调暗一些", command: screen_dimmer, panel: 厨房面板}
+  - {text: "大声点", command: volume_up}
+  - {text: "请再大声一点", command: volume_up}
+  - {text: "调大音量", command: volume_up}
+  - {text: "让厨房面板大声点", command: volume_up, panel: 厨房面板}
+  - {text: "让厨房面板大声点", command: volume_up, panel: 厨房面板}
+  - {text: "小声点", command: volume_down}
+  - {text: "声音小一点", command: volume_down}
+  - {text: "调低音量", command: volume_down}
+  - {text: "让厨房面板小声一点", command: volume_down, panel: 厨房面板}
 miss:
   - "关闭屏幕"
+  - "关掉屏幕"
   - "返回"
+  - "上一首"
+  - "回到上一首"
   - "现在几点"
   - "今天天气怎么样"
   - "把亮度设置为50%"
+  - "把屏幕亮度设置为50%"
+  - "把屏幕亮度调到最亮"
   - "显示摄像头"
+  - "打开最近应用"
+  - "音量调高"
+  - "把声音调大"
+  - "音量大一点"
+  - "音量小一点"
+  - "音量调低"
   - "刷新"
   - "刷新页面"
+  - "重新加载仪表盘"
 builtin:
   screen_off: "关闭屏幕"
+  screen_on: "打开屏幕"

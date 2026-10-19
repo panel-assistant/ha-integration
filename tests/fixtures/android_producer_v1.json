@@ -225,7 +225,7 @@
       }
     }
   ],
-  "sourceRevision": "60689d2033357aa288b8d1a7891d79ffc662778c",
+  "sourceRevision": "562ad120a51ff40964ec781bb98340dae6567f46",
   "channelDescriptors": [
     {
       "entity_category": null,
@@ -921,6 +921,24 @@
       "translation_key": "reboot",
       "step": null,
       "enabled_default": true,
+      "state_class": null,
+      "family": null,
+      "force_update": false
+    },
+    {
+      "entity_category": null,
+      "unique_suffix": "recents",
+      "max": null,
+      "channel": "recents",
+      "index": null,
+      "platform": "button",
+      "unit": null,
+      "min": null,
+      "options": null,
+      "device_class": null,
+      "translation_key": "recents",
+      "step": null,
+      "enabled_default": false,
       "state_class": null,
       "family": null,
       "force_update": false

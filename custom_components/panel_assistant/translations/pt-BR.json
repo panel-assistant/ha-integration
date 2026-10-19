@@ -242,6 +242,9 @@
       "launcher": {
         "name": "Inicializador"
       },
+      "recents": {
+        "name": "Apps recentes"
+      },
       "dashboard": {
         "name": "Mostrar dashboard"
       },

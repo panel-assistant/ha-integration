@@ -623,6 +623,9 @@
       "launcher": {
         "name": "Launcher"
       },
+      "recents": {
+        "name": "Ostatnie aplikacje"
+      },
       "dashboard": {
         "name": "Pokaż pulpit"
       },

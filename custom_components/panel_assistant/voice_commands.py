@@ -1,14 +1,16 @@
 """Voice commands a panel answers itself, in every shipped locale.
 
-Saying "show the cameras page" or "show Android settings" to a panel acts on
-that panel. The sentences live in ``sentences/<language>.yaml``. Home Assistant
+Saying "show the cameras page", "go to sleep" or "louder" to a panel acts on
+that panel, or on the panel the request names ("... on the attic panel").
+The sentences live in ``sentences/<language>.yaml``. Home Assistant
 compiles every sentence trigger into one set, whatever the request's language,
 and tries it before its built-in intents, so each command is registered once
 with every locale's sentences and answers in the request's language. A phrase
 a built-in intent already understands is never registered (the tests check
 every locale against Home Assistant's own sentences): "turn off the screen"
 reaches the built-in on/off intents through the screen light's alias instead,
-which ``async_alias_screen`` adds.
+which ``async_alias_screen`` adds. AI conversation agents reach the same
+commands through ``llm.py``, which calls ``async_run_command``.
 
 ``register_trigger`` is Home Assistant's own, undocumented for integrations. If
 it goes, voice commands are left off with one warning, and the tests that run
@@ -42,8 +44,26 @@ _LOGGER = logging.getLogger(__name__)
 SENTENCES = Path(__file__).parent / "sentences"
 FALLBACK_LANGUAGE = "en"
 # Commands sent as a channel with no value; an older panel app does not describe them.
-APP_ACTIONS = ("android_settings", "launcher")
-COMMANDS = ("show_page", *APP_ACTIONS)
+APP_ACTIONS = ("android_settings", "launcher", "recents", "back")
+# The app actions that take the panel off its dashboard, which kiosk lock refuses.
+LEAVES_DASHBOARD = ("android_settings", "launcher", "recents")
+# Commands on the screen and volume channels every panel app describes.
+SCREEN_STEPS = {"screen_brighter": 1, "screen_dimmer": -1}
+VOLUME_STEPS = {"volume_up": 1, "volume_down": -1}
+COMMANDS = (
+    "show_page",
+    *APP_ACTIONS,
+    "screen_wake",
+    "screen_sleep",
+    *SCREEN_STEPS,
+    *VOLUME_STEPS,
+)
+# One brighter, dimmer, louder or quieter step, in percentage points: Home
+# Assistant's own light brighten and dim step.
+STEP_PERCENT = 10
+# The dimmest screen the panel shows, on the 0-255 scale; the app's
+# ScreenCommandPolicy raises anything lower to it, and 0 would mean off.
+MIN_SCREEN_BRIGHTNESS = 10
 # Registry option recording that the screen aliases were added once, so an
 # alias the owner removes is never added back.
 OPTION_SCREEN_ALIAS = "voice_alias"
@@ -89,11 +109,12 @@ def _grammar(
 
 
 @callback
-def _panel_entry_id(hass: HomeAssistant, user_input: Any) -> str | None:
+def _panel_entry_id(
+    hass: HomeAssistant, device_id: str | None, satellite_id: str | None
+) -> str | None:
     """The panel that heard the request: its satellite's device, else the device."""
-    device_id = user_input.device_id
-    if user_input.satellite_id is not None:
-        satellite = er.async_get(hass).async_get(user_input.satellite_id)
+    if satellite_id is not None:
+        satellite = er.async_get(hass).async_get(satellite_id)
         if satellite is not None:
             device_id = satellite.device_id
     device = dr.async_get(hass).async_get(device_id) if device_id else None
@@ -179,12 +200,12 @@ async def _async_page_path(
         names = {_normalized(str(title or "")), _normalized(str(url_path or ""))}
         if wanted in names - {""}:
             return f"/{url_path}"
-    home_words = {
-        _normalized(word)
-        for grammar in grammars.values()
-        for word in grammar.get("home_pages") or ()
-    }
-    return home if wanted in home_words else None
+    return home if wanted in _words(grammars, "home_pages") else None
+
+
+def _words(grammars: dict[str, dict[str, Any]], key: str) -> set[str]:
+    """A grammar word list, such as the words for home, in every locale."""
+    return {_normalized(word) for grammar in grammars.values() for word in grammar[key]}
 
 
 async def _async_answer(
@@ -194,32 +215,168 @@ async def _async_answer(
     user_input: Any,
     result: Any,
 ) -> str:
-    """Act on the panel that heard ``command`` and say what happened."""
-    replies: dict[str, str] = _grammar(grammars, user_input.language)["responses"]
-    entry_id = _panel_entry_id(hass, user_input)
+    """A sentence trigger: act on the panel that heard ``command``, or the named one."""
+    spoken = {name: entity.text.strip() for name, entity in result.entities.items()}
+    _, reply = await async_run_command(
+        hass,
+        command,
+        language=user_input.language,
+        device_id=user_input.device_id,
+        satellite_id=user_input.satellite_id,
+        page=spoken.get("page"),
+        panel=spoken.get("panel"),
+    )
+    return reply
+
+
+def _panels_called(
+    hass: HomeAssistant, grammars: dict[str, dict[str, Any]], name: str
+) -> list[str]:
+    """The panels Home Assistant names ``name``, with or without a word for panel.
+
+    "Attic panel", "Dachbodenpanel" and "painel do sótão" all name the panel
+    called "Attic", "Dachboden" or "Sótão" as well as the one called in full.
+    """
+    from .device import panel_display_name
+
+    words = _words(grammars, "panel_words")
+
+    def forms(text: str) -> set[str]:
+        text = _normalized(text)
+        found = {text}
+        for word in words:
+            if text != word and text.endswith(word):
+                found.add(text.removesuffix(word).rstrip())
+            head, _, rest = text.partition(" ")
+            if head == word and rest:
+                # A short linking word may follow: "painel da cozinha".
+                link, _, tail = rest.partition(" ")
+                found.add(tail if tail and len(link) <= 3 else rest)
+        return found
+
+    wanted = forms(name)
+    return [
+        entry.entry_id
+        for entry in hass.config_entries.async_entries(
+            DOMAIN, include_ignore=False, include_disabled=False
+        )
+        if wanted & forms(panel_display_name(hass, entry))
+    ]
+
+
+def _stepped(percent: int, direction: int) -> int:
+    return max(0, min(100, percent + direction * STEP_PERCENT))
+
+
+async def async_run_command(
+    hass: HomeAssistant,
+    command: str,
+    *,
+    language: str | None,
+    device_id: str | None,
+    satellite_id: str | None = None,
+    page: str | None = None,
+    panel: str | None = None,
+) -> tuple[bool, str]:
+    """Act on the named panel, else the one that heard the request.
+
+    Returns whether it was done and what to say, in the request's language.
+    Sentence triggers and the AI agent tools both come here.
+    """
+    grammars = hass.data[DATA_GRAMMARS]
+    replies: dict[str, str] = _grammar(grammars, language)["responses"]
+    if panel and _normalized(panel) in _words(grammars, "panel_words"):
+        panel = None  # "on the screen": the panel itself, not a name
+    if panel:
+        named = _panels_called(hass, grammars, panel)
+        if len(named) != 1:
+            key = "panel_ambiguous" if named else "panel_unknown"
+            return False, replies[key].format(panel=panel)
+        entry_id: str | None = named[0]
+    else:
+        entry_id = _panel_entry_id(hass, device_id, satellite_id)
     if entry_id is None:
-        return replies["not_a_panel"]
+        return False, replies["not_a_panel"]
     session = async_get_sessions(hass).get(entry_id)
     if session is None:
-        return replies["panel_unavailable"]
+        return False, replies["panel_unavailable"]
     try:
         if command == "show_page":
-            page = result.entities["page"].text.strip()
-            path = await _async_page_path(hass, entry_id, session, page, grammars)
-            if path is None:
-                return replies["page_unknown"].format(page=page)
-            await async_send_command(hass, session, "navigate", path)
-            return replies["show_page"].format(page=page)
+            page = (page or "").strip()
+            # A blank name (an agent's empty argument) would match an untitled view.
+            path = page and await _async_page_path(
+                hass, entry_id, session, page, grammars
+            )
+            if path:
+                await async_send_command(hass, session, "navigate", path)
+                return True, replies["show_page"].format(page=page)
+            if _normalized(page) not in _words(grammars, "back_pages"):
+                return False, replies["page_unknown"].format(page=page)
+            # "Go to the previous page", where no view or dashboard has that name.
+            command = "back"
+        if command in ("screen_wake", "screen_sleep"):
+            await async_send_command(
+                hass, session, "screen", {"on": command == "screen_wake"}
+            )
+            return True, replies[command]
+        if command in SCREEN_STEPS:
+            return await _async_step_screen(hass, session, command, replies)
+        if command in VOLUME_STEPS:
+            return await _async_step_volume(hass, session, command, replies)
         if command not in session.descriptors:
-            return replies["needs_update"]
-        if _known(session, "kiosk_lock") in (True, "ON", "on"):
-            return replies["panel_locked"]
+            # A panel with no way to press Back states it unsupported.
+            return False, replies["back_none" if command == "back" else "needs_update"]
+        locked = _known(session, "kiosk_lock") in (True, "ON", "on")
+        if locked and command in LEAVES_DASHBOARD:
+            return False, replies["panel_locked"]
         await async_send_command(hass, session, command, None)
-        return replies[command]
+        return True, replies[command]
     except HomeAssistantError as err:
         if err.translation_key == ERR_PANEL_UNAVAILABLE:
-            return replies["panel_unavailable"]
-        return replies["panel_refused"]
+            return False, replies["panel_unavailable"]
+        if command == "back" and err.translation_key == "hardware_unavailable":
+            # The dashboard has no previous page, or nothing can press Back.
+            return False, replies["back_none"]
+        return False, replies["panel_refused"]
+
+
+async def _async_step_screen(
+    hass: HomeAssistant, session: PanelSession, command: str, replies: dict[str, str]
+) -> tuple[bool, str]:
+    """One step brighter or dimmer, never down to off; a dark screen wakes."""
+    screen = _known(session, "screen")
+    if not isinstance(screen, dict):
+        return False, replies["panel_refused"]
+    up = SCREEN_STEPS[command] > 0
+    if not screen.get("on"):
+        if not up:
+            return False, replies["screen_dark"]
+        await async_send_command(hass, session, "screen", {"on": True})
+        return True, replies["screen_wake"]
+    level = int(screen.get("brightness") or 0)
+    percent = _stepped(round(level * 100 / 255), SCREEN_STEPS[command])
+    target = max(MIN_SCREEN_BRIGHTNESS, round(percent * 255 / 100))
+    if (target <= level) if up else (target >= level):
+        return False, replies["screen_brightest" if up else "screen_dimmest"]
+    await async_send_command(
+        hass, session, "screen", {"on": True, "brightness": target}
+    )
+    percent = round(target * 100 / 255)
+    return True, replies[command].format(brightness=percent)
+
+
+async def _async_step_volume(
+    hass: HomeAssistant, session: PanelSession, command: str, replies: dict[str, str]
+) -> tuple[bool, str]:
+    """One step louder or quieter on the panel's own volume channel."""
+    volume = _known(session, "volume")
+    if not isinstance(volume, (int, float)):
+        return False, replies["panel_refused"]
+    target = _stepped(round(volume), VOLUME_STEPS[command])
+    if target == round(volume):
+        return False, replies["volume_max" if target else "volume_min"]
+    await async_send_command(hass, session, "volume", target)
+    return True, replies[command].format(volume=target)
 
 
 @callback

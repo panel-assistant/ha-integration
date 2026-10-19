@@ -628,6 +628,9 @@
       "launcher": {
         "name": "Launcher"
       },
+      "recents": {
+        "name": "App recenti"
+      },
       "dashboard": {
         "name": "Mostra la plancia"
       },

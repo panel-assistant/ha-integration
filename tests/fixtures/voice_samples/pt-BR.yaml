@@ -8,29 +8,107 @@ match:
   - {text: "exiba a página de câmeras", command: show_page, page: câmeras}
   - {text: "me leva pra página da cozinha", command: show_page, page: cozinha}
   - {text: "vai para o dashboard de energia", command: show_page, page: energia}
+  - {text: "vá para a página anterior", command: show_page, page: anterior}
+  - {text: "mostre a página de câmeras no painel da cozinha", command: show_page, page: câmeras, panel: painel da cozinha}
+  - {text: "vá para o dashboard de energia no painel do escritório", command: show_page, page: energia, panel: painel do escritório}
   - {text: "mostre as configurações do android", command: android_settings}
   - {text: "me mostra configurações do android", command: android_settings}
   - {text: "vá para as configurações do android", command: android_settings}
   - {text: "exiba as configurações do android", command: android_settings}
+  - {text: "acesse as configurações do Android", command: android_settings}
+  - {text: "mostre as configurações do android no painel da cozinha", command: android_settings, panel: painel da cozinha}
   - {text: "mostre o launcher", command: launcher}
   - {text: "mostra a tela inicial do android", command: launcher}
   - {text: "vá para a tela inicial do android", command: launcher}
   - {text: "exiba o launcher", command: launcher}
-  - {text: "acessa o dashboard energia", command: show_page, page: energia}
-  - {text: "troca pro dashboard energia", command: show_page, page: energia}
-  - {text: "acesse as configurações do Android", command: android_settings}
   - {text: "mostre o inicializador", command: launcher}
   - {text: "vá para o launcher", command: launcher}
   - {text: "vai pro inicializador do Android", command: launcher}
+  - {text: "mostre o launcher no painel da cozinha", command: launcher, panel: painel da cozinha}
+  - {text: "acessa o dashboard energia", command: show_page, page: energia}
+  - {text: "troca pro dashboard energia", command: show_page, page: energia}
+  - {text: "mostre os apps recentes", command: recents}
+  - {text: "mostra os aplicativos abertos", command: recents}
+  - {text: "me mostra a multitarefa", command: recents}
+  - {text: "apps recentes", command: recents}
+  - {text: "mostre os aplicativos recentes no painel da cozinha", command: recents, panel: painel da cozinha}
+  - {text: "página anterior", command: back}
+  - {text: "aba anterior", command: back}
+  - {text: "recue uma página", command: back}
+  - {text: "vai pra trás", command: back}
+  - {text: "vá para trás no painel da cozinha", command: back, panel: painel da cozinha}
+  - {text: "página anterior no painel da cozinha", command: back, panel: painel da cozinha}
+  - {text: "acorde", command: screen_wake}
+  - {text: "acorda a tela", command: screen_wake}
+  - {text: "desperte o painel", command: screen_wake}
+  - {text: "tire a tela do repouso", command: screen_wake}
+  - {text: "sai do modo repouso", command: screen_wake}
+  - {text: "acorde o painel da cozinha", command: screen_wake, panel: painel da cozinha}
+  - {text: "durma", command: screen_sleep}
+  - {text: "vai dormir", command: screen_sleep}
+  - {text: "coloque a tela para dormir", command: screen_sleep}
+  - {text: "põe a tela pra dormir", command: screen_sleep}
+  - {text: "entre em modo repouso", command: screen_sleep}
+  - {text: "modo repouso", command: screen_sleep}
+  - {text: "suspenda a tela", command: screen_sleep}
+  - {text: "coloca o painel da cozinha pra dormir", command: screen_sleep, panel: painel da cozinha}
+  - {text: "aumente o brilho", command: screen_brighter}
+  - {text: "aumenta o brilho da tela", command: screen_brighter}
+  - {text: "mais brilho", command: screen_brighter}
+  - {text: "mais brilho na tela", command: screen_brighter}
+  - {text: "deixe a tela mais clara", command: screen_brighter}
+  - {text: "clareie a tela", command: screen_brighter}
+  - {text: "aumente o brilho do painel da cozinha", command: screen_brighter, panel: painel da cozinha}
+  - {text: "mais brilho no painel da cozinha", command: screen_brighter, panel: painel da cozinha}
+  - {text: "diminua o brilho", command: screen_dimmer}
+  - {text: "abaixa o brilho da tela", command: screen_dimmer}
+  - {text: "menos brilho", command: screen_dimmer}
+  - {text: "deixa a tela mais escura", command: screen_dimmer}
+  - {text: "escureça a tela", command: screen_dimmer}
+  - {text: "tela mais escura", command: screen_dimmer}
+  - {text: "reduza o brilho do painel da cozinha", command: screen_dimmer, panel: painel da cozinha}
+  - {text: "mais alto", command: volume_up}
+  - {text: "um pouco mais alto por favor", command: volume_up}
+  - {text: "fala mais alto", command: volume_up}
+  - {text: "aumenta o som", command: volume_up}
+  - {text: "som mais alto", command: volume_up}
+  - {text: "mais alto no painel da cozinha", command: volume_up, panel: painel da cozinha}
+  - {text: "aumente o som do painel da cozinha", command: volume_up, panel: painel da cozinha}
+  - {text: "mais baixo", command: volume_down}
+  - {text: "fale mais baixo", command: volume_down}
+  - {text: "abaixa o som", command: volume_down}
+  - {text: "diminua o som", command: volume_down}
+  - {text: "mais baixo no painel da cozinha", command: volume_down, panel: painel da cozinha}
 miss:
   - "desligue a tela"
   - "volte"
+  - "volta"
+  - "voltar"
+  - "volte para a página anterior"
+  - "volte para trás"
+  - "faixa anterior"
+  - "música anterior"
   - "que horas são"
   - "como está o tempo"
   - "defina o brilho para 50 por cento"
+  - "defina o brilho da tela para 50 por cento"
+  - "defina o brilho da tela para o máximo"
+  - "sobe o brilho"
   - "mostre câmeras"
   - "recarregue"
   - "atualize a tela"
+  - "recarregue o dashboard"
+  - "ligue a tela"
+  - "aumenta o volume"
+  - "aumentar o volume"
+  - "diminua o volume"
+  - "diminuir volume"
+  - "abaixar o volume"
+  - "mais alto o volume"
+  - "sobe o volume"
+  - "baixa o volume"
+  - "sobe o som"
+  - "baixa o som"
 builtin:
   screen_off: "desligue a tela"
   screen_on: "ligue a tela"

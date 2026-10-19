@@ -78,6 +78,14 @@
       "attributes": []
     },
     {
+      "channel": "recents",
+      "family": null,
+      "platform": "button",
+      "translation_key": "recents",
+      "unique_suffix": "recents",
+      "attributes": []
+    },
+    {
       "channel": "dashboard",
       "family": null,
       "platform": "button",

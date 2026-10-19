@@ -23,6 +23,7 @@ a locale's templates expand to.
 
 from __future__ import annotations
 
+import re
 from collections import deque
 from dataclasses import dataclass
 from functools import cache
@@ -49,7 +50,8 @@ SENTENCES = (
 # with the same script); the others are identical.
 BUILTIN_LANGUAGE = {"zh-Hans": "zh-CN"}
 
-SLOT = "\x00"  # one opaque slot value
+SLOT = "\x00"  # one opaque number the user said
+OPAQUE = "\x01"  # one opaque name, area, floor, page or panel the user said
 _WILD = object()
 _NUMBER: list[str] = []  # marker: a number range slot
 
@@ -79,8 +81,23 @@ def load_grammar(language: str) -> dict[str, Any]:
 
 @cache
 def builtin_intents(language: str) -> Intents:
+    """A locale's built-in sentences, each list reference named by its list.
+
+    hassil's FST names a reference by its slot, and two lists may fill one
+    slot: ``{volume_step}`` words and ``{volume_step_up:volume_step}``
+    numbers. Named by slot, one list's vocabulary stood for both, so
+    "volume up" and German "lauter" were invisible to the checks.
+    """
     data = home_assistant_intents.get_intents(BUILTIN_LANGUAGE.get(language, language))
     assert data is not None, f"no built-in sentences for {language}"
+    by_list = re.compile(r"\{(\w+):\w+\}")
+    for intent in data["intents"].values():
+        for block in intent["data"]:
+            block["sentences"] = [by_list.sub(r"{\1}", s) for s in block["sentences"]]
+    data["expansion_rules"] = {
+        name: by_list.sub(r"{\1}", rule)
+        for name, rule in data.get("expansion_rules", {}).items()
+    }
     return Intents.from_dict(data)
 
 
@@ -132,7 +149,8 @@ class _Automaton:
             elif slot in self.numbers:
                 out.append((SLOT, to))
             else:
-                out.append((_WILD if self.slot_is_wild else SLOT, to))
+                # Opaque, a name meets a built-in's free name but never its number.
+                out.append((_WILD if self.slot_is_wild else OPAQUE, to))
             return
         if word == "<skip>":
             return
@@ -169,7 +187,7 @@ def _intersect(
             elif label is _WILD:
                 yield (_WILD, to, True, False)
             else:
-                yield (label, to, False, label != SLOT)
+                yield (label, to, False, label not in (SLOT, OPAQUE))
 
     while queue:
         (ls, lin, rs, rin, lit), text = queue.popleft()
@@ -208,7 +226,7 @@ def _intersect(
                 nexts.append(
                     (
                         (lto, lto_in, rto, rto_in, lit or llit),
-                        text + ("…" if char == SLOT else char),
+                        text + ("…" if char in (SLOT, OPAQUE) else char),
                     )
                 )
         for state, new_text in nexts:
@@ -389,31 +407,41 @@ def builtin_errors(language: str) -> list[str]:
     return errors
 
 
-def sample_errors(language: str, languages: tuple[str, ...]) -> list[str]:
-    """Each must-match sample reaches exactly its command (with its page);
-    each must-not-match sample reaches none of the merged triggers."""
+def triggered(text: str, intents: Intents) -> dict[str, dict[str, str]]:
+    """What Home Assistant's trigger matching hands each command for ``text``:
+    the first recognition of each, the search ending at the first repeat."""
     from hassil.intents import WildcardSlotList
     from hassil.recognize import recognize_all
 
-    intents = trigger_intents(languages)
     wild = {name: WildcardSlotList(name) for name in _list_names(intents)}
+    found: dict[str, dict[str, str]] = {}
+    for result in recognize_all(text, intents, slot_lists=wild):
+        if result.intent.name in found:
+            break
+        found[result.intent.name] = {
+            name: entity.text.strip() for name, entity in result.entities.items()
+        }
+    return found
+
+
+def sample_errors(language: str, languages: tuple[str, ...]) -> list[str]:
+    """Each must-match sample reaches exactly its command, with its page and
+    panel (or none); each must-not-match sample reaches no merged trigger."""
+    intents = trigger_intents(languages)
     samples = load_samples(language)
     errors = []
     for sample in samples["match"]:
-        results = list(recognize_all(sample["text"], intents, slot_lists=wild))
-        commands = {result.intent.name for result in results}
-        if commands != {sample["command"]}:
-            errors.append(f"{sample['text']!r}: matched {sorted(commands)}")
+        found = triggered(sample["text"], intents)
+        if set(found) != {sample["command"]}:
+            errors.append(f"{sample['text']!r}: matched {sorted(found)}")
             continue
-        if "page" in sample:
-            pages = {result.entities["page"].text.strip() for result in results}
-            if sample["page"] not in pages:
-                errors.append(f"{sample['text']!r}: page {sorted(pages)}")
+        slots = found[sample["command"]]
+        want = {key: sample[key] for key in ("page", "panel") if key in sample}
+        if slots != want:
+            errors.append(f"{sample['text']!r}: slots {slots}, want {want}")
     for text in samples["miss"]:
-        if commands := {
-            r.intent.name for r in recognize_all(text, intents, slot_lists=wild)
-        }:
-            errors.append(f"{text!r}: should match nothing, matched {sorted(commands)}")
+        if found := triggered(text, intents):
+            errors.append(f"{text!r}: should match nothing, matched {sorted(found)}")
     return errors
 
 

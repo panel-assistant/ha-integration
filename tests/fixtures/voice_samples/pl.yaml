@@ -14,11 +14,15 @@ match:
   - {text: "przełącz na widok o nazwie salon", command: show_page, page: salon}
   - {text: "przełącz się na kartę o nazwie energia", command: show_page, page: energia}
   - {text: "przejdź do strony o nazwie salon", command: show_page, page: salon}
+  - {text: "przejdź do strony poprzedniej", command: show_page, page: poprzedniej}
+  - {text: "pokaż stronę kamery na panelu kuchnia", command: show_page, page: kamery, panel: kuchnia}
+  - {text: "przejdź do pulpitu energia na panelu garden display", command: show_page, page: energia, panel: garden display}
   - {text: "pokaż ustawienia androida", command: android_settings}
   - {text: "przejdź do ustawień systemu android", command: android_settings}
   - {text: "wyświetl mi ustawienia systemu android", command: android_settings}
   - {text: "pokaż ustawienia systemu", command: android_settings}
   - {text: "pokaż ustawienia systemowe", command: android_settings}
+  - {text: "pokaż ustawienia androida na panelu kuchnia", command: android_settings, panel: kuchnia}
   - {text: "pokaż launcher", command: launcher}
   - {text: "pokaż launchera", command: launcher}
   - {text: "przejdź do launchera", command: launcher}
@@ -26,13 +30,57 @@ match:
   - {text: "przejdź na ekran główny androida", command: launcher}
   - {text: "pokaż ekran główny androida", command: launcher}
   - {text: "pokaż ekran startowy androida", command: launcher}
+  - {text: "pokaż launcher na panelu kuchnia", command: launcher, panel: kuchnia}
+  - {text: "pokaż ostatnie aplikacje", command: recents}
+  - {text: "pokaż listę otwartych aplikacji", command: recents}
+  - {text: "wyświetl ostatnio używane aplikacje", command: recents}
+  - {text: "pokaż ostatnie aplikacje na panelu kuchnia", command: recents, panel: kuchnia}
+  - {text: "wstecz", command: back}
+  - {text: "cofnij", command: back}
+  - {text: "poprzednia strona", command: back}
+  - {text: "przejdź do poprzedniej strony", command: back}
+  - {text: "pokaż poprzedni widok", command: back}
+  - {text: "cofnij do poprzedniej strony", command: back}
+  - {text: "poprzednia strona na panelu kuchnia", command: back, panel: kuchnia}
+  - {text: "obudź się", command: screen_wake}
+  - {text: "obudź ekran", command: screen_wake}
+  - {text: "wybudź panel", command: screen_wake}
+  - {text: "obudź panel kuchnia", command: screen_wake, panel: kuchnia}
+  - {text: "obudź ekran na panelu kuchnia", command: screen_wake, panel: kuchnia}
+  - {text: "idź spać", command: screen_sleep}
+  - {text: "śpij", command: screen_sleep}
+  - {text: "uśpij ekran", command: screen_sleep}
+  - {text: "przejdź w tryb uśpienia", command: screen_sleep}
+  - {text: "uśpij panel kuchnia", command: screen_sleep, panel: kuchnia}
+  - {text: "rozjaśnij ekran", command: screen_brighter}
+  - {text: "zwiększ jasność ekranu", command: screen_brighter}
+  - {text: "zrób ekran jaśniejszy", command: screen_brighter}
+  - {text: "zwiększ jasność ekranu na panelu kuchnia", command: screen_brighter, panel: kuchnia}
+  - {text: "przyciemnij ekran", command: screen_dimmer}
+  - {text: "zmniejsz jasność ekranu", command: screen_dimmer}
+  - {text: "zrób ekran ciemniejszy", command: screen_dimmer}
+  - {text: "przyciemnij ekran na panelu kuchnia", command: screen_dimmer, panel: kuchnia}
+  - {text: "głośniej", command: volume_up}
+  - {text: "zrób trochę głośniej proszę", command: volume_up}
+  - {text: "jest za cicho", command: volume_up}
+  - {text: "głośniej na panelu kuchnia", command: volume_up, panel: kuchnia}
+  - {text: "ciszej", command: volume_down}
+  - {text: "jest za głośno", command: volume_down}
+  - {text: "zrób ciszej na panelu kuchnia", command: volume_down, panel: kuchnia}
 miss:
   - "wyłącz ekran"
   - "wróć"
+  - "wróć do poprzedniej strony"
+  - "poprzedni utwór"
   - "pokaż pogodę"
   - "która jest godzina"
   - "otwórz bramę garażową"
   - "ustaw jasność na 50 procent"
+  - "ustaw jasność ekranu na 50 procent"
+  - "przyciemnij światła"
+  - "ustaw głośność na 30 procent"
+  - "zwiększ głośność"
+  - "podgłośnij"
   - "pokaż kamery"
   - "odśwież pulpit"
 builtin:

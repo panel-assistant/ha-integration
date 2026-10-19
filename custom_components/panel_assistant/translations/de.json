@@ -628,6 +628,9 @@
       "launcher": {
         "name": "Launcher"
       },
+      "recents": {
+        "name": "Letzte Apps"
+      },
       "dashboard": {
         "name": "Dashboard anzeigen"
       },

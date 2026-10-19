@@ -242,6 +242,9 @@
       "launcher": {
         "name": "Spouštěč"
       },
+      "recents": {
+        "name": "Nedávné aplikace"
+      },
       "dashboard": {
         "name": "Zobrazit ovládací panel"
       },

@@ -1,28 +1,118 @@
+# A {panel} names another panel than the one that heard the request; where a
+# command has both forms, the one without {panel} comes first, because Home
+# Assistant acts on the first form that matches. The exception is show_page,
+# whose bare form ends in {page}: there the named-panel form comes first, or
+# the page would swallow "sul pannello ...".
 language: it
 commands:
   show_page:
     sentences:
+      - "(mostra|mostrami|fammi vedere|voglio vedere|visualizza) ((la pagina|la vista|la scheda) (di|del|dello|dei|degli|delle)|[la] dashboard [di|del|dello|dei|degli|delle]) {page} sul {panel}"
+      - "(vai|torna) ((alla pagina|alla vista|alla scheda) (di|del|dello|dei|degli|delle)|alla dashboard [di|del|dello|dei|degli|delle]) {page} sul {panel}"
       - "(mostra|mostrami|fammi vedere|voglio vedere|visualizza) ((la pagina|la vista|la scheda) (di|del|dello|dei|degli|delle)|[la] dashboard [di|del|dello|dei|degli|delle]) {page}"
       - "(vai|torna) ((alla pagina|alla vista|alla scheda) (di|del|dello|dei|degli|delle)|alla dashboard [di|del|dello|dei|degli|delle]) {page}"
   android_settings:
     sentences:
       - "(mostra|mostrami|fammi vedere|voglio vedere|visualizza) [le] impostazioni [di] android"
       - "(vai|torna) alle impostazioni [di] android"
+      - "(mostra|mostrami|fammi vedere|voglio vedere|visualizza) [le] impostazioni [di] android sul {panel}"
+      - "(vai|torna) alle impostazioni [di] android sul {panel}"
   launcher:
     sentences:
       - "(mostra|mostrami|fammi vedere|voglio vedere) il launcher [di android]"
       - "(vai|torna) al launcher [di android]"
       - "(mostra|mostrami|fammi vedere|voglio vedere) la (schermata (home|iniziale|principale)|home) di android"
       - "(vai|torna) alla (schermata (home|iniziale|principale)|home) di android"
+      - "(mostra|mostrami|fammi vedere|voglio vedere) il launcher [di android] sul {panel}"
+      - "(vai|torna) al launcher [di android] sul {panel}"
+  recents:
+    sentences:
+      - "(mostra|mostrami|fammi vedere|voglio vedere|visualizza) le (app|applicazioni) recenti"
+      - "(vai|torna) alle (app|applicazioni) recenti"
+      - "(app|applicazioni) recenti"
+      - "(mostra|mostrami|fammi vedere|voglio vedere|visualizza) le (app|applicazioni) recenti sul {panel}"
+      - "(app|applicazioni) recenti sul {panel}"
+  back:
+    sentences:
+      - "torna indietro di una (pagina|vista|scheda)"
+      - "(pagina|vista|scheda) di prima"
+      - "torna indietro di una (pagina|vista|scheda) sul {panel}"
+      - "(torna|vai) alla (pagina|vista|scheda) precedente sul {panel}"
+  screen_wake:
+    sentences:
+      - "svegliati"
+      - "(sveglia|riattiva) (lo schermo|il display|il pannello|il tablet)"
+      - "esci dallo (standby|stand-by|stand by)"
+      - "(sveglia|riattiva) il {panel}"
+      - "(sveglia|riattiva) lo schermo del {panel}"
+  screen_sleep:
+    sentences:
+      - "vai (a dormire|in standby|in stand-by|in stand by)"
+      - "addormentati"
+      - "addormenta (lo schermo|il display|il pannello|il tablet)"
+      - "addormenta il {panel}"
+      - "addormenta lo schermo del {panel}"
+  screen_brighter:
+    sentences:
+      - "aumenta la luminosità [(dello schermo|del display)]"
+      - "rendi (lo schermo|il display) più luminoso"
+      - "(schermo|display) più luminoso"
+      - "più luminosità"
+      - "(schermo|display) più luminoso sul {panel}"
+      - "più luminosità sul {panel}"
+  screen_dimmer:
+    sentences:
+      - "(diminuisci|riduci) la luminosità [(dello schermo|del display)]"
+      - "rendi (lo schermo|il display) meno luminoso"
+      - "(schermo|display) meno luminoso"
+      - "meno luminosità"
+      - "(attenua|scurisci) (lo schermo|il display)"
+      - "(schermo|display) meno luminoso sul {panel}"
+      - "meno luminosità sul {panel}"
+      - "(attenua|scurisci) lo schermo del {panel}"
+  volume_up:
+    sentences:
+      - "[un po'] più (forte|alto) [per favore]"
+      - "parla [un po'] più forte [per favore]"
+      - "più (forte|alto) sul {panel}"
+  volume_down:
+    sentences:
+      - "[un po'] più (piano|basso) [per favore]"
+      - "[un po'] meno forte [per favore]"
+      - "parla [un po'] più piano [per favore]"
+      - "più (piano|basso) sul {panel}"
+      - "meno forte sul {panel}"
+# {page} values that mean the panel's own home dashboard, and its previous
+# page, when no view or dashboard has that name.
 home_pages: [home, principale, iniziale]
+back_pages: [precedente, di prima]
+# The word a panel's name may end in.
+panel_words: [pannello]
+# What people call the screen; each becomes an alias of the screen light.
 screen_names: [schermo, display]
 responses:
   show_page: "Ecco {page}"
   android_settings: "Apro le impostazioni di Android"
   launcher: "Apro il launcher"
+  recents: "Ecco le app recenti"
+  back: "Torno indietro"
+  back_none: "Il pannello non può tornare indietro da qui"
+  screen_wake: "Riattivo lo schermo"
+  screen_sleep: "Metto lo schermo in standby"
+  screen_brighter: "Luminosità dello schermo al {brightness} percento"
+  screen_dimmer: "Luminosità dello schermo al {brightness} percento"
+  screen_brightest: "Lo schermo è già alla massima luminosità"
+  screen_dimmest: "Lo schermo è già alla luminosità minima"
+  screen_dark: "Lo schermo è spento"
+  volume_up: "Volume al {volume} percento"
+  volume_down: "Volume al {volume} percento"
+  volume_max: "Il volume è già al massimo"
+  volume_min: "Il volume è già al minimo"
   page_unknown: "Questo pannello non ha una pagina chiamata {page}"
-  not_a_panel: "Chiedilo a un pannello"
+  panel_unknown: "Nessun pannello si chiama {panel}"
+  panel_ambiguous: "Più di un pannello si chiama {panel}"
+  not_a_panel: "Chiedilo a un pannello, oppure di' quale pannello"
   panel_unavailable: "Il pannello non è connesso"
   panel_refused: "Il pannello non è riuscito a farlo"
-  panel_locked: "Il pannello è bloccato sulla sua dashboard e non può aprire Android"
+  panel_locked: "Il pannello è bloccato sulla sua dashboard"
   needs_update: "Aggiorna l'app del pannello per usare questo comando"
