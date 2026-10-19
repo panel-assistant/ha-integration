@@ -34,7 +34,10 @@ from homeassistant.core import CALLBACK_TYPE, Context, HomeAssistant, State, cal
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.event import async_call_later
+from homeassistant.helpers.event import (
+    async_call_later,
+    async_track_state_change_event,
+)
 from homeassistant.helpers.target import (
     TargetSelection,
     async_extract_referenced_entity_ids,
@@ -232,11 +235,18 @@ class RoomDuck:
             # Its own failure was logged when it ran.
             await asyncio.wait([previous])
         try:
-            if restoring and (
-                held.holders
-                or (held.level is not None and not self._untouched(entity_id, held))
-            ):
+            if restoring and held.holders:
                 return
+            if restoring and held.level is not None:
+                state = self._hass.states.get(entity_id)
+                if (
+                    state is not None
+                    and ATTR_MEDIA_VOLUME_LEVEL not in state.attributes
+                ):
+                    self._await_level(entity_id, held)
+                    return
+                if not self._untouched(entity_id, held):
+                    return
             data: dict[str, Any] = {ATTR_ENTITY_ID: entity_id}
             if level is None:
                 service, data[ATTR_MEDIA_VOLUME_MUTED] = SERVICE_VOLUME_MUTE, mute
@@ -261,6 +271,21 @@ class RoomDuck:
                 and ducked.get(entity_id) is held
             ):
                 del ducked[entity_id]
+
+    @callback
+    def _await_level(self, entity_id: str, held: _Ducked) -> None:
+        """Try the restore again when a player that is off or gone changes.
+
+        It is judged then like any other, so a level someone set before turning
+        it off is kept.
+        """
+
+        @callback
+        def _changed(_event: Any) -> None:
+            unsubscribe()
+            self._call(entity_id, held, held.level, mute=False, restoring=True)
+
+        unsubscribe = async_track_state_change_event(self._hass, [entity_id], _changed)
 
 
 def _lower(state: State) -> _Ducked | None:

@@ -238,6 +238,87 @@ async def test_a_level_someone_sets_during_the_conversation_is_kept(
     assert speaker.level == 0.8
 
 
+def _gone(speaker: Player, how: str) -> None:
+    """Turn the player off, or let it drop out; either way it reports no level."""
+    if how == "off":
+        speaker._attr_state = MediaPlayerState.OFF
+    else:
+        speaker._attr_available = False
+    speaker.async_write_ha_state()
+
+
+def _back(speaker: Player) -> None:
+    speaker._attr_state = MediaPlayerState.PLAYING
+    speaker._attr_available = True
+    speaker.async_write_ha_state()
+
+
+@pytest.mark.parametrize("how", ["off", "unavailable"])
+async def test_a_player_gone_during_the_turn_comes_back_at_its_level(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+    how: str,
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=False)
+
+    await _turn(panel)
+    await hass.async_block_till_done()
+    assert speaker.level < LEVEL
+    # "Turn off the TV", or a speaker regrouping, before the reply ends.
+    _gone(speaker, how)
+    await _played(hass, panel)
+    # Nothing is sent to a player that is not there.
+    assert len(speaker.changes) == 1
+
+    _back(speaker)
+    await hass.async_block_till_done()
+    assert speaker.level == LEVEL
+    # Once back, it is left alone.
+    speaker._attr_state = MediaPlayerState.PAUSED
+    speaker.async_write_ha_state()
+    await hass.async_block_till_done()
+    assert len(speaker.changes) == 2
+
+
+async def test_a_level_set_before_a_player_goes_off_is_kept(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=False)
+
+    await _turn(panel)
+    await hass.services.async_call(
+        "media_player",
+        "volume_set",
+        {"entity_id": speaker.entity_id, "volume_level": 0.4},
+        blocking=True,
+        context=Context(),
+    )
+    _gone(speaker, "off")
+    await _played(hass, panel)
+
+    _back(speaker)
+    await hass.async_block_till_done()
+    assert speaker.level == 0.4
+    assert len(speaker.changes) == 2
+
+
 async def test_the_next_conversation_returns_to_the_level_set_in_between(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
