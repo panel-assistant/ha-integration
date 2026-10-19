@@ -1661,7 +1661,7 @@
         "submit": "完成"
       },
       "authorize_adb": {
-        "title": "允许更新 {panel}",
+        "title": "在面板上允许 Home Assistant",
         "description": "选择“提交”，然后查看 {panel} 的屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。"
       },
       "updates": {

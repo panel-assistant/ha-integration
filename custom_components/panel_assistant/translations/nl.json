@@ -1689,7 +1689,7 @@
         "submit": "Klaar"
       },
       "authorize_adb": {
-        "title": "Updates op {panel} toestaan",
+        "title": "Geef Home Assistant toestemming op het paneel",
         "description": "Klik op ‘Verzenden’ en kijk dan naar het scherm van {panel}: vink **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**. Android kan Home Assistant een computer noemen."
       },
       "updates": {

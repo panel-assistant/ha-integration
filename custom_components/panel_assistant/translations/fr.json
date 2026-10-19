@@ -1661,7 +1661,7 @@
         "submit": "Terminé"
       },
       "authorize_adb": {
-        "title": "Autoriser les mises à jour sur {panel}",
+        "title": "Autoriser Home Assistant sur le panneau",
         "description": "Sélectionnez Valider, puis regardez l’écran de {panel} : cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**. Android peut décrire Home Assistant comme un ordinateur."
       },
       "updates": {

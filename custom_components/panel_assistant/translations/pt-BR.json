@@ -1689,7 +1689,7 @@
         "submit": "Concluído"
       },
       "authorize_adb": {
-        "title": "Permitir atualizações em {panel}",
+        "title": "Permitir o Home Assistant no painel",
         "description": "Selecione Enviar e olhe a tela de {panel}: marque **Sempre permitir neste computador** e toque em **Permitir**. O Android pode descrever o Home Assistant como um computador."
       },
       "updates": {

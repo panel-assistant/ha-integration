@@ -1689,7 +1689,7 @@
         "submit": "Hotovo"
       },
       "authorize_adb": {
-        "title": "Povolit aktualizace na panelu {panel}",
+        "title": "Povolit Home Assistant na panelu",
         "description": "Zvolte Odeslat a podívejte se na obrazovku panelu {panel}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač."
       },
       "updates": {

@@ -1689,7 +1689,7 @@
         "submit": "Gotowe"
       },
       "authorize_adb": {
-        "title": "Zezwól na aktualizacje panelu {panel}",
+        "title": "Zezwól Home Assistant na panelu",
         "description": "Wybierz „Zatwierdź”, a potem spójrz na ekran panelu {panel}: zaznacz **Zawsze zezwalaj z tego komputera**, a potem dotknij **Zezwól**. Android może nazywać Home Assistant komputerem."
       },
       "updates": {

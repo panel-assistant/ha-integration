@@ -1661,7 +1661,7 @@
         "submit": "Fatto"
       },
       "authorize_adb": {
-        "title": "Consenti aggiornamenti su {panel}",
+        "title": "Consenti Home Assistant sul pannello",
         "description": "Seleziona Invia, poi guarda lo schermo di {panel}: seleziona **Consenti sempre da questo computer**, poi tocca **Consenti**. Android potrebbe descrivere Home Assistant come un computer."
       },
       "updates": {

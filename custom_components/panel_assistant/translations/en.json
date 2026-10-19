@@ -1689,7 +1689,7 @@
         "submit": "Done"
       },
       "authorize_adb": {
-        "title": "Allow updates on {panel}",
+        "title": "Allow Home Assistant on the panel",
         "description": "Select Submit, then look at the screen of {panel}: tick **Always allow from this computer**, then tap **Allow**. Android may call Home Assistant a computer."
       },
       "updates": {

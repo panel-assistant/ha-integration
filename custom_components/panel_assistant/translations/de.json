@@ -1661,7 +1661,7 @@
         "submit": "Fertig"
       },
       "authorize_adb": {
-        "title": "Updates auf {panel} erlauben",
+        "title": "Home Assistant auf dem Panel zulassen",
         "description": "Wähle „Absenden“ und sieh dann auf den Bildschirm von {panel}: Setze das Häkchen bei **Immer von diesem Computer aus zulassen** und tippe auf **Zulassen**. Android bezeichnet Home Assistant möglicherweise als Computer."
       },
       "updates": {
