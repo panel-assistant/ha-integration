@@ -664,6 +664,9 @@
       }
     },
     "number": {
+      "dashboard_idle_return": {
+        "name": "Powrót do strony gł. po bezczynności"
+      },
       "volume": {
         "name": "Głośność"
       }
@@ -682,6 +685,15 @@
           "auto": "Automatyczny",
           "efficiency": "Oszczędność energii",
           "performance": "Wydajność"
+        }
+      },
+      "dashboard_theme": {
+        "name": "Motyw pulpitu",
+        "state": {
+          "follow": "Zgodnie z Home Assistant",
+          "dark": "Ciemny",
+          "light": "Jasny",
+          "ambient": "Według otoczenia"
         }
       },
       "navbar": {

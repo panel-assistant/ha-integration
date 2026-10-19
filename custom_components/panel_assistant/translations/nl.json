@@ -664,6 +664,9 @@
       }
     },
     "number": {
+      "dashboard_idle_return": {
+        "name": "Terug naar startpunt bij inactiviteit"
+      },
       "volume": {
         "name": "Volume"
       }
@@ -682,6 +685,15 @@
           "auto": "Automatisch",
           "efficiency": "Efficiëntie",
           "performance": "Prestaties"
+        }
+      },
+      "dashboard_theme": {
+        "name": "Dashboard-thema",
+        "state": {
+          "follow": "Home Assistant volgen",
+          "dark": "Donker",
+          "light": "Licht",
+          "ambient": "Omgevingslicht"
         }
       },
       "navbar": {

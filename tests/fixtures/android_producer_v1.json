@@ -223,7 +223,7 @@
       }
     }
   ],
-  "sourceRevision": "0a3afceff878174712254d28e5761df9e3566916",
+  "sourceRevision": "451cfd096bedf0aec2c48c55804a02d9d7189a9c",
   "channelDescriptors": [
     {
       "entity_category": null,
@@ -416,6 +416,47 @@
       ],
       "device_class": null,
       "translation_key": "cpu_governor",
+      "step": null,
+      "enabled_default": false,
+      "state_class": null,
+      "family": null,
+      "force_update": false
+    },
+    {
+      "entity_category": "config",
+      "unique_suffix": "dashboard_idle_return",
+      "max": 1440,
+      "channel": "dashboard_idle_return",
+      "index": null,
+      "platform": "number",
+      "unit": "min",
+      "min": 0,
+      "options": null,
+      "device_class": null,
+      "translation_key": "dashboard_idle_return",
+      "step": 1,
+      "enabled_default": false,
+      "state_class": null,
+      "family": null,
+      "force_update": false
+    },
+    {
+      "entity_category": "config",
+      "unique_suffix": "dashboard_theme",
+      "max": null,
+      "channel": "dashboard_theme",
+      "index": null,
+      "platform": "select",
+      "unit": null,
+      "min": null,
+      "options": [
+        "follow",
+        "dark",
+        "light",
+        "ambient"
+      ],
+      "device_class": null,
+      "translation_key": "dashboard_theme",
       "step": null,
       "enabled_default": false,
       "state_class": null,

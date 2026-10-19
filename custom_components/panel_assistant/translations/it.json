@@ -664,6 +664,9 @@
       }
     },
     "number": {
+      "dashboard_idle_return": {
+        "name": "Ritorno a Home per inattività"
+      },
       "volume": {
         "name": "Volume"
       }
@@ -682,6 +685,15 @@
           "performance": "Prestazioni",
           "efficiency": "Efficienza",
           "auto": "Automatico"
+        }
+      },
+      "dashboard_theme": {
+        "name": "Tema della plancia",
+        "state": {
+          "follow": "Segui Home Assistant",
+          "dark": "Scuro",
+          "light": "Chiaro",
+          "ambient": "Ambiente"
         }
       },
       "navbar": {

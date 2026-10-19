@@ -278,6 +278,9 @@
       }
     },
     "number": {
+      "dashboard_idle_return": {
+        "name": "Idle return to home"
+      },
       "volume": {
         "name": "Volume"
       }
@@ -296,6 +299,15 @@
           "performance": "Performance",
           "efficiency": "Efficiency",
           "auto": "Auto"
+        }
+      },
+      "dashboard_theme": {
+        "name": "Dashboard theme",
+        "state": {
+          "follow": "Follow Home Assistant",
+          "dark": "Dark",
+          "light": "Light",
+          "ambient": "Ambient"
         }
       },
       "navbar": {

@@ -664,6 +664,9 @@
       }
     },
     "number": {
+      "dashboard_idle_return": {
+        "name": "Повернення на головну після простою"
+      },
       "volume": {
         "name": "Гучність"
       }
@@ -682,6 +685,15 @@
           "auto": "Автоматично",
           "efficiency": "Ефективність",
           "performance": "Продуктивність"
+        }
+      },
+      "dashboard_theme": {
+        "name": "Тема інформаційної панелі",
+        "state": {
+          "follow": "Як у Home Assistant",
+          "dark": "Темна",
+          "light": "Світла",
+          "ambient": "За освітленням"
         }
       },
       "navbar": {

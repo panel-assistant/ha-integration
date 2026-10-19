@@ -664,6 +664,9 @@
       }
     },
     "number": {
+      "dashboard_idle_return": {
+        "name": "Volver a Inicio por inactividad"
+      },
       "volume": {
         "name": "Volumen"
       }
@@ -682,6 +685,15 @@
           "performance": "Rendimiento",
           "efficiency": "Eficiencia",
           "auto": "Automático"
+        }
+      },
+      "dashboard_theme": {
+        "name": "Tema del panel de control",
+        "state": {
+          "follow": "Seguir Home Assistant",
+          "dark": "Oscuro",
+          "light": "Claro",
+          "ambient": "Ambiente"
         }
       },
       "navbar": {

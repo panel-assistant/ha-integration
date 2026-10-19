@@ -278,6 +278,9 @@
       }
     },
     "number": {
+      "dashboard_idle_return": {
+        "name": "Voltar ao início por inatividade"
+      },
       "volume": {
         "name": "Volume"
       }
@@ -296,6 +299,15 @@
           "performance": "Desempenho",
           "efficiency": "Eficiência",
           "auto": "Automático"
+        }
+      },
+      "dashboard_theme": {
+        "name": "Tema do dashboard",
+        "state": {
+          "follow": "Seguir o Home Assistant",
+          "dark": "Escuro",
+          "light": "Claro",
+          "ambient": "Ambiente"
         }
       },
       "navbar": {

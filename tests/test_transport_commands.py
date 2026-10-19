@@ -275,6 +275,8 @@ async def test_entry_writes_keep_the_session(
         ("number", "volume", "set_value", {"value": 10}, 10),
         ("number", "volume", "set_value", {"value": 2.5}, 2.5),
         ("select", "cpu_governor", "select_option", {"option": "auto"}, "auto"),
+        ("select", "dashboard_theme", "select_option", {"option": "dark"}, "dark"),
+        ("number", "dashboard_idle_return", "set_value", {"value": 15}, 15),
         ("text", "navigate", "set_value", {"value": "/x"}, "/x"),
         ("button", "reboot", "press", {}, None),
     ],
