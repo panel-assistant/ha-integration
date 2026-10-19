@@ -13,7 +13,7 @@ Pairs with the 1.0.0-preview1 panel app, which Panel Assistant offers to every p
 - **This is a preview, not a release candidate.** HACS shows it only with Show beta versions turned on for Panel Assistant. Once 1.0.0-rc1 is published the preview releases are removed from GitHub; an installed preview keeps working and HACS offers the release candidate as a normal update.
 - **Every panel must already be on 0.9.0's panel app.** Install Panel Assistant 0.9.0 first and let it move every panel off MQTT and the old app; 1.0 does neither. A panel still on the old app is refused, with a Repair asking you to go through 0.9.0 first.
 - **Panel Assistant 1.0 and the 1.0 panel app go together.** This release speaks only the 1.0 panel app's connection. Every panel is offered the preview app as soon as Panel Assistant is installed; a panel on an older app is told it needs the update, which Panel Assistant delivers over the panel's approved ADB connection, so a panel without one needs reconnecting by USB first.
-- **There is no way back to 0.9 for a panel.** Android does not install an older build over a newer one, and the 1.0 panel app no longer reads the settings storage of 0.9 and earlier.
+- **There is no way back to 0.9 for a panel.** Android does not install an older build over a newer one.
 - **Two entities are gone.** The separate camera snapshot image entity is removed; use the panel's camera entity. On a panel with a speaker the separate volume number is removed; use the media player's volume. A Repair names any automation or script that still uses either.
 
 ### New
