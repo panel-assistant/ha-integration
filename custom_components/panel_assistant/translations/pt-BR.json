@@ -1452,11 +1452,12 @@
           },
           "authorize_adb": {
             "title": "Permitir atualizações em {panel}",
-            "description": "Selecione “Enviar” e depois toque em “Permitir” na pergunta “Permitir depuração?” do painel. Essa permissão dá a esta instância do Home Assistant acesso geral ao shell ADB do painel enquanto a depuração pela rede permanecer ativada.\n\nDepois, selecione “Enviar” novamente. Você pode revogar essa permissão mais tarde nas configurações de desenvolvedor do painel."
+            "description": "Selecione Enviar e olhe a tela de {panel}: marque **Sempre permitir neste computador** e toque em **Permitir**. O Android pode descrever o Home Assistant como um computador."
           }
         },
         "progress": {
-          "retrying": "Verificando o painel e tentando novamente com segurança."
+          "retrying": "Verificando o painel e tentando novamente com segurança.",
+          "authorize_adb": "Olhe a tela de {panel}: marque **Sempre permitir neste computador** e toque em **Permitir**. O Android pode descrever o Home Assistant como um computador.\n\nO processo continua sozinho quando o painel permitir."
         },
         "error": {
           "retry_target_changed": "O painel não corresponde mais ao destino salvo. Verifique-o antes de tentar novamente.",
@@ -1594,11 +1595,12 @@
           },
           "authorize_adb": {
             "title": "Permitir atualizações em {panel}",
-            "description": "Selecione “Enviar” e depois toque em “Permitir” na pergunta “Permitir depuração?” do painel. Essa permissão dá a esta instância do Home Assistant acesso geral ao shell ADB do painel enquanto a depuração pela rede permanecer ativada.\n\nDepois, selecione “Enviar” novamente. Você pode revogar essa permissão mais tarde nas configurações de desenvolvedor do painel."
+            "description": "Selecione Enviar e olhe a tela de {panel}: marque **Sempre permitir neste computador** e toque em **Permitir**. O Android pode descrever o Home Assistant como um computador."
           }
         },
         "progress": {
-          "retrying": "Verificando o painel e tentando novamente com segurança."
+          "retrying": "Verificando o painel e tentando novamente com segurança.",
+          "authorize_adb": "Olhe a tela de {panel}: marque **Sempre permitir neste computador** e toque em **Permitir**. O Android pode descrever o Home Assistant como um computador.\n\nO processo continua sozinho quando o painel permitir."
         },
         "error": {
           "retry_target_changed": "O painel não corresponde mais ao destino salvo. Verifique-o antes de tentar novamente.",
@@ -1635,7 +1637,7 @@
         "step": {
           "authorize_adb": {
             "title": "Permitir atualizações em {panel}",
-            "description": "Selecione “Enviar” e depois toque em “Permitir” na pergunta “Permitir depuração?” do painel. Essa permissão dá a esta instância do Home Assistant acesso geral ao shell ADB do painel enquanto a depuração pela rede permanecer ativada.\n\nDepois, selecione “Enviar” novamente. Você pode revogar essa permissão mais tarde nas configurações de desenvolvedor do painel."
+            "description": "Selecione Enviar e olhe a tela de {panel}: marque **Sempre permitir neste computador** e toque em **Permitir**. O Android pode descrever o Home Assistant como um computador."
           }
         },
         "error": {
@@ -1655,6 +1657,9 @@
         },
         "abort": {
           "entry_removed": "Este painel foi removido."
+        },
+        "progress": {
+          "authorize_adb": "Olhe a tela de {panel}: marque **Sempre permitir neste computador** e toque em **Permitir**. O Android pode descrever o Home Assistant como um computador.\n\nO processo continua sozinho quando o painel permitir."
         }
       }
     },
@@ -1685,7 +1690,7 @@
       },
       "authorize_adb": {
         "title": "Permitir atualizações em {panel}",
-        "description": "Selecione “Enviar” e depois toque em “Permitir” na pergunta “Permitir depuração?” do painel. Essa permissão dá a esta instância do Home Assistant acesso geral ao shell ADB do painel enquanto a depuração pela rede permanecer ativada.\n\nDepois, selecione “Enviar” novamente. Você pode revogar essa permissão mais tarde nas configurações de desenvolvedor do painel."
+        "description": "Selecione Enviar e olhe a tela de {panel}: marque **Sempre permitir neste computador** e toque em **Permitir**. O Android pode descrever o Home Assistant como um computador."
       },
       "updates": {
         "title": "Atualizações do painel",
@@ -1740,6 +1745,9 @@
       "removed_entry_deleted": "O Panel Assistant foi removido e o painel foi excluído do Home Assistant.",
       "removed_entry_kept": "O Panel Assistant foi removido. O painel permanece no Home Assistant até que você o exclua.",
       "panel_connected": "O painel está configurado e conectado ao Home Assistant."
+    },
+    "progress": {
+      "authorize_adb": "Olhe a tela de {panel}: marque **Sempre permitir neste computador** e toque em **Permitir**. O Android pode descrever o Home Assistant como um computador.\n\nO processo continua sozinho quando o painel permitir."
     }
   }
 }

@@ -1452,11 +1452,12 @@
           },
           "authorize_adb": {
             "title": "Povolit aktualizace na {panel}",
-            "description": "Vyberte „Odeslat“ a potom na panelu v dotazu „Povolit ladění?“ klepněte na „Povolit“. Tím této instanci Home Assistant udělíte obecný přístup k shellu ADB na panelu, dokud zůstane zapnuté síťové ladění.\n\nPotom znovu vyberte „Odeslat“. Toto oprávnění můžete později odvolat v nastavení pro vývojáře na panelu."
+            "description": "Zvolte Odeslat a podívejte se na obrazovku panelu {panel}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač."
           }
         },
         "progress": {
-          "retrying": "Panel se kontroluje a pokus se bezpečně opakuje."
+          "retrying": "Panel se kontroluje a pokus se bezpečně opakuje.",
+          "authorize_adb": "Podívejte se na obrazovku panelu {panel}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač.\n\nJakmile to panel povolí, bude se pokračovat samo."
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1594,11 +1595,12 @@
           },
           "authorize_adb": {
             "title": "Povolit aktualizace na panelu {panel}",
-            "description": "Vyberte „Odeslat“ a potom na panelu v dotazu „Povolit ladění?“ klepněte na „Povolit“. Tím této instanci Home Assistant udělíte obecný přístup k shellu ADB na panelu, dokud zůstane zapnuté síťové ladění.\n\nPotom znovu vyberte „Odeslat“. Toto oprávnění můžete později odvolat v nastavení pro vývojáře na panelu."
+            "description": "Zvolte Odeslat a podívejte se na obrazovku panelu {panel}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač."
           }
         },
         "progress": {
-          "retrying": "Panel se kontroluje a pokus se bezpečně opakuje."
+          "retrying": "Panel se kontroluje a pokus se bezpečně opakuje.",
+          "authorize_adb": "Podívejte se na obrazovku panelu {panel}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač.\n\nJakmile to panel povolí, bude se pokračovat samo."
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1635,7 +1637,7 @@
         "step": {
           "authorize_adb": {
             "title": "Povolit aktualizace na panelu {panel}",
-            "description": "Vyberte „Odeslat“ a potom na panelu v dotazu „Povolit ladění?“ klepněte na „Povolit“. Tím této instanci Home Assistant udělíte obecný přístup k shellu ADB na panelu, dokud zůstane zapnuté síťové ladění.\n\nPotom znovu vyberte „Odeslat“. Toto oprávnění můžete později odvolat v nastavení pro vývojáře na panelu."
+            "description": "Zvolte Odeslat a podívejte se na obrazovku panelu {panel}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač."
           }
         },
         "error": {
@@ -1655,6 +1657,9 @@
         },
         "abort": {
           "entry_removed": "Tento panel byl odebrán."
+        },
+        "progress": {
+          "authorize_adb": "Podívejte se na obrazovku panelu {panel}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač.\n\nJakmile to panel povolí, bude se pokračovat samo."
         }
       }
     },
@@ -1685,7 +1690,7 @@
       },
       "authorize_adb": {
         "title": "Povolit aktualizace na panelu {panel}",
-        "description": "Vyberte „Odeslat“ a potom na panelu v dotazu „Povolit ladění?“ klepněte na „Povolit“. Tím této instanci Home Assistant udělíte obecný přístup k shellu ADB na panelu, dokud zůstane zapnuté síťové ladění.\n\nPotom znovu vyberte „Odeslat“. Toto oprávnění můžete později odvolat v nastavení pro vývojáře na panelu."
+        "description": "Zvolte Odeslat a podívejte se na obrazovku panelu {panel}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač."
       },
       "updates": {
         "title": "Aktualizace panelu",
@@ -1740,6 +1745,9 @@
       "removed_entry_deleted": "Panel Assistant byl odebrán a panel byl smazán z Home Assistant.",
       "removed_entry_kept": "Panel Assistant byl odebrán. Panel zůstane v Home Assistant, dokud ho nesmažete.",
       "panel_connected": "Panel je nastaven a připojen k Home Assistant."
+    },
+    "progress": {
+      "authorize_adb": "Podívejte se na obrazovku panelu {panel}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač.\n\nJakmile to panel povolí, bude se pokračovat samo."
     }
   }
 }
