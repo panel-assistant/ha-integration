@@ -724,10 +724,11 @@ async def test_refreshing_the_update_reads_the_latest_release_again(
     await entity._offer.release.async_shutdown()
 
 
-async def test_refreshing_every_panel_reads_the_shared_release_once(
+async def test_polling_every_panel_reads_the_shared_release_once(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, trust: None, key: Any
 ) -> None:
-    """A fleet-wide refresh costs one release read, not one per panel."""
+    """Refreshing eight panels every 5 s for a minute, as a rollout waiting for
+    a build does, costs one release read, not one per panel or per poll."""
     github = _GitHub(key)
     entity, _ = await _entity(hass, monkeypatch, github)
     release_check = entity._offer.release
@@ -748,7 +749,11 @@ async def test_refreshing_every_panel_reads_the_shared_release_once(
         panel.async_write_ha_state = MagicMock()
     github.requests.clear()
 
-    await asyncio.gather(*(panel.async_update() for panel in panels))
+    now = dt_util.utcnow()
+    for poll in range(12):
+        async_fire_time_changed(hass, now + timedelta(seconds=5 * poll))
+        await asyncio.gather(*(panel.async_update() for panel in panels))
+        await hass.async_block_till_done(wait_background_tasks=True)
 
     assert github.requests.count(str(release._LATEST_RELEASE_URL)) == 1
     await release_check.async_shutdown()
