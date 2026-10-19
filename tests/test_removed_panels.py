@@ -1,8 +1,10 @@
 """A removed entry's panel is told so at its next hello, across restarts."""
 
+from io import BytesIO
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
+from zipfile import ZipFile
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_ADDRESS
@@ -122,3 +124,67 @@ async def test_the_removed_panels_keep_only_the_newest(hass: HomeAssistant) -> N
     await reloaded.async_add("f" * 64)
     assert dids[2] not in await _reloaded_store(hass)
     assert dids[1] in await _reloaded_store(hass)
+
+
+async def test_removing_an_entry_deletes_only_its_archives_and_receipts(
+    hass: HomeAssistant, hass_read_only_user: Any
+) -> None:
+    from custom_components.panel_assistant.panel_backup import async_store_panel_backup
+
+    entry = _entry(hass, hass_read_only_user.id)
+    await _set_up(hass, entry, CURRENT)
+    data = BytesIO()
+    with ZipFile(data, "w") as archive:
+        archive.writestr("manifest.json", '{"settings":{}}')
+    own = await async_store_panel_backup(hass, entry.entry_id, 10, data.getvalue())
+    neighbor = await async_store_panel_backup(hass, "neighbor", 10, data.getvalue())
+    own_receipt = own.path.with_name(own.path.name + ".json")
+    orphan = own.path.parent / f"{entry.entry_id}-orphan.zip.json"
+    orphan.write_text("{}")
+    unrelated = own.path.parent / f"{entry.entry_id}-notes.zip.keep"
+    unrelated.write_text("keep")
+    neighbor_receipt = neighbor.path.with_name(neighbor.path.name + ".json")
+    before = (neighbor.path.read_bytes(), neighbor_receipt.read_bytes())
+    assert own.path.exists() and own_receipt.exists()
+
+    await hass.config_entries.async_remove(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert not own.path.exists()
+    assert not own_receipt.exists()
+    assert not orphan.exists()
+    assert unrelated.read_text() == "keep"
+    assert (neighbor.path.read_bytes(), neighbor_receipt.read_bytes()) == before
+    assert DID in await _reloaded_store(hass)
+
+
+async def test_backup_cleanup_failure_keeps_removal_bookkeeping_and_neighbor_files(
+    hass: HomeAssistant, hass_read_only_user: Any, caplog: Any
+) -> None:
+    from pathlib import Path
+
+    from custom_components.panel_assistant.panel_backup import async_store_panel_backup
+
+    entry = _entry(hass, hass_read_only_user.id)
+    await _set_up(hass, entry, CURRENT)
+    data = BytesIO()
+    with ZipFile(data, "w") as archive:
+        archive.writestr("manifest.json", '{"settings":{}}')
+    own = await async_store_panel_backup(hass, entry.entry_id, 10, data.getvalue())
+    neighbor = await async_store_panel_backup(hass, "neighbor", 10, data.getvalue())
+    before = neighbor.path.read_bytes()
+    unlink = Path.unlink
+
+    def refuse_owned(path: Path, missing_ok: bool = False) -> None:
+        if path.name.startswith(entry.entry_id + "-"):
+            raise PermissionError("backup cleanup denied")
+        unlink(path, missing_ok=missing_ok)
+
+    with patch.object(Path, "unlink", refuse_owned):
+        assert await hass.config_entries.async_remove(entry.entry_id)
+        await hass.async_block_till_done()
+    assert hass.config_entries.async_get_entry(entry.entry_id) is None
+    assert DID in await _reloaded_store(hass)
+    assert neighbor.path.read_bytes() == before
+    assert own.path.exists()
+    assert "backup cleanup denied" in caplog.text

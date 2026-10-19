@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 
 // The real installer bootstrap, with USB and the transaction stubbed: what a USB
 // install leaves for Panel Assistant's own ADB access, through the page that runs it.
-function journey({ key, runsTheApp = false, networkAdb = 'turned_on' }) {
+function journey({ key, runsTheApp = false, networkAdb = 'turned_on', adopted = false, savedPhase = null }) {
   const main = new URL('../src/install-main.mjs', import.meta.url).href;
   const actualHandover = new URL('../src/release-handoff.mjs?actual', import.meta.url).href;
   const script = `
@@ -27,8 +27,23 @@ function journey({ key, runsTheApp = false, networkAdb = 'turned_on' }) {
       addEventListener(name, fn) { handlers.set(name, fn); } };
     Object.defineProperty(globalThis, 'navigator', { value: { locks: {}, usb: {} }, configurable: true });
     globalThis.indexedDB = {};
+    const adopted = ${adopted}, savedPhase = ${JSON.stringify(savedPhase)};
+    const target = {model: 'Test', serial: 'serial', primaryAbi: 'arm64-v8a', androidSdk: 33,
+      rootMode: 'rootless', usbVendorId: 1, usbProductId: 2, usbSerial: 'usb'};
+    const artifact = {versionName: '1.2.3', versionCode: 42};
+    let stored = savedPhase ? {id: 'b'.repeat(32), revision: 0, phase: savedPhase, target, artifact} : null;
+    globalThis.testStore = {close() {}, load: async () => stored,
+      adopt: async () => (stored = {id: 'b'.repeat(32), revision: 0, phase: 'installed', target, artifact}),
+      create: async () => { throw Error('must adopt without a new install'); },
+      advance: async (key, revision, phase) => (stored = {...stored, revision: revision + 1, phase})};
+    globalThis.testPorts = {authenticate: async () => ({kind: 'authenticated-apk-bytes', descriptor: artifact}),
+      inspect: async receipt => { assert.ok(['installed', 'launching', 'healthy'].includes(receipt.phase)); return {target, installed: true, healthy: true}; },
+      launch: async () => { order.push('launch'); }, removeSetAside: async () => 'absent',
+      commissionPermissions: async () => { order.push('commission'); return {permissionsVerified: true}; },
+      completeSetup: async () => { order.push('completeSetup'); return {}; }};
+    navigator.locks.request = async (name, options, callback) => callback({});
     const stubs = {
-      '@yume-chan/adb': 'export class Adb { constructor() { this.disconnected = new Promise(resolve => { globalThis.unplug = resolve; }); } close() {} }; export const AdbDaemonTransport = { authenticate: async options => { globalThis.authOptions = options; globalThis.order.push("authenticate"); return {}; } };',
+      '@yume-chan/adb': 'export class Adb { constructor() { this.disconnected = new Promise(resolve => { globalThis.unplug = resolve; }); } close() {} getProp(name) { return Promise.resolve(name === "service.adb.tcp.port" ? "0" : ""); } createSocketAndWait(service) { globalThis.order.push(service); return Promise.resolve("restarting in TCP mode port: 5555"); } }; export class AdbTcpIpService { constructor(adb) { this.adb = adb; } async setPort(port) { return this.adb.createSocketAndWait("tcpip:" + port); } }; export const AdbCommand = {Auth: 1}; export const AdbDaemonTransport = { authenticate: async options => { globalThis.authOptions = options; globalThis.order.push("authenticate"); return {}; } };',
       '@yume-chan/adb-credential-web': 'export default class Store {}',
       '@yume-chan/adb-daemon-webusb': 'export class AdbDaemonWebUsbDeviceManager { requestDevice() { return Promise.resolve({ raw: { close() {} }, serial: "panel", connect: async () => ({}) }); } }',
       'usb-bounds.mjs': 'export const boundedUsb = value => value;',
@@ -38,8 +53,14 @@ function journey({ key, runsTheApp = false, networkAdb = 'turned_on' }) {
       'install-controller.mjs': 'export function createInstallController() { return { preview: async () => { if (${runsTheApp}) throw Object.assign(new Error("target_installed"), { code: "target_installed" }); return { receipt: null }; }, install: async () => { globalThis.order.push("install"); return { permissions: {} }; }, completeSetup: async () => { globalThis.order.push("completeSetup"); return {}; } }; }',
       'panel-address.mjs': 'export const readSetupUrl = async () => "http://192.168.1.20:8080/setup";',
       'panel-assistant-adb.mjs': 'export const panelAssistantKeyAuthenticator = key => "authenticator for " + key; export const ensureNetworkAdb = async (adb, { beforeRestart }) => { globalThis.order.push("networkAdb"); beforeRestart(); globalThis.unplug(); await new Promise(resolve => setImmediate(resolve)); return ${JSON.stringify(networkAdb)}; };',
-      'release-handoff.mjs': 'import { handOverThenOpen as actualOpen } from ' + JSON.stringify(${JSON.stringify(actualHandover)}) + '; export const handoffOptions = () => ({}); export const receiveReleaseHandoff = () => ({ cancel() {}, completion: Promise.resolve({ release: { descriptor: { versionName: "1.2.3", versionCode: 42 } }, authenticate: async () => ({}) }) }); export const requestPanelAssistantKey = async () => ${JSON.stringify(key)}; export const requestSetupHandover = async () => { globalThis.order.push("handover"); return "handed_over"; }; export const handOverThenOpen = actualOpen;',
+      'release-handoff.mjs': 'import { handOverThenOpen as actualOpen } from ' + JSON.stringify(${JSON.stringify(actualHandover)}) + '; export const handoffOptions = () => ({}); export const receiveReleaseHandoff = () => ({ cancel() {}, completion: Promise.resolve({ release: { descriptor: { versionName: "1.2.3", versionCode: 42 } }, authenticate: async () => ({kind: "authenticated-apk-bytes", descriptor: {versionName: "1.2.3", versionCode: 42}}) }) }); export const requestPanelAssistantKey = async () => ${JSON.stringify(key)}; export const requestSetupHandover = async () => { globalThis.order.push("handover"); return "handed_over"; }; export const handOverThenOpen = actualOpen;',
     };
+    if (adopted || savedPhase) {
+      delete stubs['install-controller.mjs'];
+      delete stubs['panel-assistant-adb.mjs'];
+      stubs['job-store.mjs'] = 'export const openJobStore = async () => globalThis.testStore; export const deviceKeyForIdentity = async () => "a".repeat(64);';
+      stubs['usb-transaction-ports.mjs'] = 'export const createUsbTransactionPorts = () => globalThis.testPorts;';
+    }
     registerHooks({
       resolve(specifier, context, next) { if (Object.hasOwn(stubs, specifier)) return { url: 'stub:' + specifier, shortCircuit: true }; return next(specifier, context); },
       load(url, context, next) {
@@ -53,7 +74,7 @@ function journey({ key, runsTheApp = false, networkAdb = 'turned_on' }) {
     await import(${JSON.stringify(main)});
     await tick();
     await node('connect').listeners.get('click')();
-    if (!${runsTheApp}) await node('install').listeners.get('click')();
+    if (!${runsTheApp} && !savedPhase) await node('install').listeners.get('click')();
     await tick();
     process.stdout.write(JSON.stringify({ order, authenticators: globalThis.authOptions.authenticators ?? null,
       done: node('step-done').hidden === false, error: node('step-error').hidden === false,
@@ -104,3 +125,15 @@ test('when network ADB cannot be turned on, the owner is told to keep it plugged
   assert.equal(result.error, true);
   assert.match(result.text, /press Try again/);
 });
+
+
+for (const savedPhase of [null, 'installed', 'launching', 'healthy']) {
+  test(`same-build continuation leaves network ADB off (${savedPhase ?? 'new adoption'})`, () => {
+    const result = journey({key: 'PA_KEY', adopted: true, savedPhase});
+    assert.equal(result.done, true, result.support);
+    assert.equal(result.error, false, result.support);
+    assert.equal(result.order.filter(value => value === 'commission').length, 1);
+    assert.equal(result.order.filter(value => value === 'completeSetup').length, 1);
+    assert.ok(!result.order.includes('tcpip:5555'), JSON.stringify(result.order));
+  });
+}

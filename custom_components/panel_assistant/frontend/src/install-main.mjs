@@ -326,7 +326,9 @@ async function installAll() {
       support('displaySizing', result);
       // Last, because adbd restarts to listen on the network and this USB
       // session ends with it: the install is finished by then.
-      support('networkAdb', await ensureNetworkAdb(sessionAdb, { beforeRestart: () => { finished = true; } }));
+      if (!installed.adopted) {
+        support('networkAdb', await ensureNetworkAdb(sessionAdb, { beforeRestart: () => { finished = true; } }));
+      }
     },
     open: finish,
   });
